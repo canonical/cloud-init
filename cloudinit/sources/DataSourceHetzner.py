@@ -57,11 +57,11 @@ class DataSourceHetzner(sources.DataSource):
 
         try:
             with EphemeralDHCPv4(
+                self.distro,
                 iface=net.find_fallback_nic(),
                 connectivity_url_data={
                     "url": BASE_URL_V1 + "/metadata/instance-id",
                 },
-                tmp_dir=self.distro.get_tmp_exec_path(),
             ):
                 md = hc_helper.read_metadata(
                     self.metadata_address,
@@ -130,7 +130,7 @@ class DataSourceHetzner(sources.DataSource):
 
         _net_config = self.metadata["network-config"]
         if not _net_config:
-            raise Exception("Unable to get meta-data from server....")
+            raise RuntimeError("Unable to get meta-data from server....")
 
         self._network_config = _net_config
 
@@ -160,6 +160,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab

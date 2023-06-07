@@ -6,9 +6,7 @@
 
 import os
 import re
-from functools import lru_cache
 from io import StringIO
-from typing import Optional
 
 import cloudinit.distros.bsd
 from cloudinit import log as logging
@@ -39,26 +37,30 @@ class Distro(cloudinit.distros.bsd.BSD):
     prefer_fqdn = True  # See rc.conf(5) in FreeBSD
     home_dir = "/usr/home"
 
-    def manage_service(self, action: str, service: str):
+    @classmethod
+    def manage_service(
+        cls, action: str, service: str, *extra_args: str, rcs=None
+    ):
         """
         Perform the requested action on a service. This handles FreeBSD's
         'service' case. The FreeBSD 'service' is closer in features to
         'systemctl' than SysV init's 'service', so we override it.
         May raise ProcessExecutionError
         """
-        init_cmd = self.init_cmd
+        init_cmd = cls.init_cmd
         cmds = {
             "stop": [service, "stop"],
             "start": [service, "start"],
             "enable": [service, "enable"],
             "disable": [service, "disable"],
+            "onestart": [service, "onestart"],
             "restart": [service, "restart"],
             "reload": [service, "restart"],
             "try-reload": [service, "restart"],
             "status": [service, "status"],
         }
-        cmd = list(init_cmd) + list(cmds[action])
-        return subp.subp(cmd, capture=True)
+        cmd = init_cmd + cmds[action] + list(extra_args)
+        return subp.subp(cmd, capture=True, rcs=rcs)
 
     def _get_add_member_to_group_cmd(self, member_name, group_name):
         return ["pw", "usermod", "-n", member_name, "-G", group_name]
@@ -146,9 +148,9 @@ class Distro(cloudinit.distros.bsd.BSD):
 
     def lock_passwd(self, name):
         try:
-            subp.subp(["pw", "usermod", name, "-h", "-"])
+            subp.subp(["pw", "usermod", name, "-w", "no"])
         except Exception:
-            util.logexc(LOG, "Failed to lock user %s", name)
+            util.logexc(LOG, "Failed to lock password login for user %s", name)
             raise
 
     def apply_locale(self, locale, out_fn=None):
@@ -193,41 +195,3 @@ class Distro(cloudinit.distros.bsd.BSD):
             ["update"],
             freq=PER_INSTANCE,
         )
-
-    @lru_cache()
-    def is_container(self) -> bool:
-        """return whether we're running in a container.
-        Cached, because it's unlikely to change."""
-        jailed, _ = subp.subp(["sysctl", "-n", "security.jail.jailed"])
-        if jailed.strip() == "0":
-            return False
-        return True
-
-    @lru_cache()
-    def virtual(self) -> str:
-        """return the kind of virtualisation system we're running under.
-        Cached, because it's unlikely to change."""
-        if self.is_container():
-            return "jail"
-        # map FreeBSD's kern.vm_guest to systemd-detect-virt, just like we do
-        # in ds-identify
-        VM_GUEST_TO_SYSTEMD = {
-            "hv": "microsoft",
-            "vbox": "oracle",
-            "generic": "vm-other",
-        }
-        vm, _ = subp.subp(["sysctl", "-n", "kern.vm_guest"])
-        vm = vm.strip()
-        if vm in VM_GUEST_TO_SYSTEMD:
-            return VM_GUEST_TO_SYSTEMD[vm]
-        return vm
-
-    @property
-    def is_virtual(self) -> Optional[bool]:
-        """Detect if running on a virtual machine or bare metal.
-
-        This can fail on some platforms, so the signature is Optional[bool]
-        """
-        if self.virtual() == "none":
-            return False
-        return True

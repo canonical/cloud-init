@@ -44,8 +44,6 @@
         "power-state-change",
         "power_state_change",
         "puppet",
-        "refresh-rmc-and-interface",
-        "refresh_rmc_and_interface",
         "reset-rmc",
         "reset_rmc",
         "resizefs",
@@ -1343,7 +1341,7 @@
               "description": "Device to use as target for grub installation. If unspecified, ``grub-probe`` of ``/boot`` will be used to find the device"
             },
             "grub-pc/install_devices_empty": {
-              "description": "Sets values for ``grub-pc/install_devices_empty``. If unspecified, will be set to ``true`` if ``grub-pc/install_devices`` is empty, otherwise ``false``.",
+              "description": "Sets values for ``grub-pc/install_devices_empty``. If unspecified, will be set to ``true`` if ``grub-pc/install_devices`` is empty, otherwise ``false``",
               "oneOf": [
                 {
                   "type": "boolean"
@@ -1355,11 +1353,16 @@
                   "changed_description": "Use a boolean value instead."
                 }
               ]
+            },
+            "grub-efi/install_devices": {
+              "type": "string",
+              "description": "Partition to use as target for grub installation. If unspecified, ``grub-probe`` of ``/boot/efi`` will be used to find the partition"
             }
           }
         },
         "grub-dpkg": {
           "type": "object",
+          "description": "An alias for ``grub_dpkg``",
           "deprecated": true,
           "deprecated_version": "22.2",
           "deprecated_description": "Use ``grub_dpkg`` instead."
@@ -1840,6 +1843,23 @@
               },
               "uniqueItems": true,
               "description": "List of ntp servers. If both pools and servers are\nempty, 4 default pool servers will be provided with\nthe format ``{0-3}.{distro}.pool.ntp.org``."
+            },
+            "peers": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "hostname"
+              },
+              "uniqueItems": true,
+              "description": "List of ntp peers."
+            },
+            "allow": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true,
+              "description": "List of CIDRs to allow"
             },
             "ntp_client": {
               "type": "string",
@@ -3074,8 +3094,7 @@
                 "$ref": "#/$defs/users_groups.user"
               }
             ]
-          },
-          "minItems": 1
+          }
         }
       }
     },

@@ -203,7 +203,9 @@ class Init:
         util.ensure_dirs(self._initial_subdirs())
         log_file = util.get_cfg_option_str(self.cfg, "def_log_file")
         if log_file:
-            util.ensure_file(log_file, mode=0o640, preserve_mode=True)
+            # At this point the log file should have already been created
+            # in the setupLogging function of log.py
+            util.ensure_file(log_file, mode=0o640, preserve_mode=False)
             perms = self.cfg.get("syslog_fix_perms")
             if not perms:
                 perms = {}
@@ -535,9 +537,6 @@ class Init:
         ]
         return def_handlers
 
-    def _default_userdata_handlers(self):
-        return self._default_handlers()
-
     def _default_vendordata_handlers(self):
         return self._default_handlers(
             opts={
@@ -758,10 +757,11 @@ class Init:
             return
 
         if isinstance(enabled, str):
-            LOG.debug(
-                "Use of string '%s' for 'vendor_data:enabled' field "
-                "is deprecated. Use boolean value instead",
-                enabled,
+            util.deprecate(
+                deprecated=f"Use of string '{enabled}' for "
+                "'vendor_data:enabled' field",
+                deprecated_version="23.1",
+                extra_message="Use boolean value instead.",
             )
 
         LOG.debug(

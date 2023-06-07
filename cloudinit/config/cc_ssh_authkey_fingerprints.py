@@ -7,7 +7,7 @@
 
 import base64
 import hashlib
-from logging import Logger
+import logging
 
 from cloudinit import ssh_util, util
 from cloudinit.cloud import Cloud
@@ -38,6 +38,7 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
 def _split_hash(bin_hash):
@@ -115,11 +116,9 @@ def _pprint_key_entries(
         )
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if util.is_true(cfg.get("no_ssh_fingerprints", False)):
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, logging of SSH fingerprints disabled",
             name,
         )
@@ -129,7 +128,7 @@ def handle(
     (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
     for (user_name, _cfg) in users.items():
         if _cfg.get("no_create_home") or _cfg.get("system"):
-            log.debug(
+            LOG.debug(
                 "Skipping printing of ssh fingerprints for user '%s' because "
                 "no home directory is created",
                 user_name,

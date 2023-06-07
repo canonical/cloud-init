@@ -1,7 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import json
-import logging
 import os
 import re
 
@@ -24,8 +23,6 @@ from tests.unittests.helpers import (
     skipUnlessJsonSchema,
 )
 from tests.unittests.util import MockDistro, get_cloud
-
-LOG = logging.getLogger(__name__)
 
 CLIENT_TEMPL = cloud_init_project_dir("templates/chef_client.rb.tmpl")
 
@@ -128,7 +125,7 @@ class TestChef(FilesystemMockingTestCase):
         self.patchOS(self.tmp)
 
         cfg = {}
-        cc_chef.handle("chef", cfg, get_cloud(), LOG, [])
+        cc_chef.handle("chef", cfg, get_cloud(), [])
         for d in cc_chef.CHEF_DIRS:
             self.assertFalse(os.path.isdir(d))
 
@@ -175,7 +172,7 @@ class TestChef(FilesystemMockingTestCase):
                 ),
             },
         }
-        cc_chef.handle("chef", cfg, get_cloud(), LOG, [])
+        cc_chef.handle("chef", cfg, get_cloud(), [])
         for d in cc_chef.CHEF_DIRS:
             self.assertTrue(os.path.isdir(d))
         c = util.load_file(cc_chef.CHEF_RB_PATH)
@@ -210,7 +207,7 @@ class TestChef(FilesystemMockingTestCase):
                 },
             },
         }
-        cc_chef.handle("chef", cfg, get_cloud(), LOG, [])
+        cc_chef.handle("chef", cfg, get_cloud(), [])
         c = util.load_file(cc_chef.CHEF_FB_PATH)
         self.assertEqual(
             {
@@ -237,7 +234,7 @@ class TestChef(FilesystemMockingTestCase):
                 "show_time": None,
             },
         }
-        cc_chef.handle("chef", cfg, get_cloud(), LOG, [])
+        cc_chef.handle("chef", cfg, get_cloud(), [])
         c = util.load_file(cc_chef.CHEF_RB_PATH)
         self.assertNotIn("json_attribs", c)
         self.assertNotIn("Formatter.show_time", c)
@@ -262,7 +259,7 @@ class TestChef(FilesystemMockingTestCase):
                 "validation_cert": v_cert,
             },
         }
-        cc_chef.handle("chef", cfg, get_cloud(), LOG, [])
+        cc_chef.handle("chef", cfg, get_cloud(), [])
         content = util.load_file(cc_chef.CHEF_RB_PATH)
         self.assertIn(v_path, content)
         util.load_file(v_path)
@@ -287,7 +284,7 @@ class TestChef(FilesystemMockingTestCase):
         }
         util.write_file("/etc/cloud/templates/chef_client.rb.tmpl", tpl_file)
         util.write_file(v_path, expected_cert)
-        cc_chef.handle("chef", cfg, get_cloud(), LOG, [])
+        cc_chef.handle("chef", cfg, get_cloud(), [])
         content = util.load_file(cc_chef.CHEF_RB_PATH)
         self.assertIn(v_path, content)
         util.load_file(v_path)

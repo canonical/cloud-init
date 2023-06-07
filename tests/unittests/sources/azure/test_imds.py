@@ -3,26 +3,52 @@
 import json
 import logging
 import math
+import re
 from unittest import mock
 
 import pytest
 import requests
 
 from cloudinit.sources.azure import imds
-from cloudinit.url_helper import UrlError
+from cloudinit.url_helper import UrlError, readurl
 
-MOCKPATH = "cloudinit.sources.azure.imds."
+LOG_PATH = "cloudinit.sources.azure.imds"
+MOCK_PATH = "cloudinit.sources.azure.imds."
+
+
+class StringMatch:
+    def __init__(self, regex) -> None:
+        self.regex = regex
+
+    def __eq__(self, other) -> bool:
+        return bool(re.match("^" + self.regex + "$", other))
 
 
 @pytest.fixture
-def mock_readurl():
-    with mock.patch(MOCKPATH + "readurl", autospec=True) as m:
+def wrapped_readurl():
+    with mock.patch.object(imds, "readurl", wraps=readurl) as m:
         yield m
 
 
 @pytest.fixture
 def mock_requests_session_request():
     with mock.patch("requests.Session.request", autospec=True) as m:
+        yield m
+
+
+@pytest.fixture(autouse=True)
+def mock_time():
+    with mock.patch.object(imds, "time", autospec=True) as m:
+        m.time_current = 0.0
+        m.time_increment = 1.0
+
+        def fake_time():
+            nonlocal m
+            current = m.time_current
+            m.time_current += m.time_increment
+            return current
+
+        m.side_effect = fake_time
         yield m
 
 
@@ -50,80 +76,113 @@ class TestFetchMetadataWithApiFallback:
         "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
     )
     headers = {"Metadata": "true"}
-    retries = 10
     timeout = 2
 
+    @pytest.mark.parametrize("retry_deadline", [0.0, 1.0, 60.0])
     def test_basic(
         self,
         caplog,
-        mock_readurl,
+        mock_requests_session_request,
+        retry_deadline,
+        wrapped_readurl,
     ):
         fake_md = {"foo": {"bar": []}}
-        mock_readurl.side_effect = [
-            mock.Mock(contents=json.dumps(fake_md).encode()),
+        mock_requests_session_request.side_effect = [
+            mock.Mock(content=json.dumps(fake_md)),
         ]
 
-        md = imds.fetch_metadata_with_api_fallback()
+        md = imds.fetch_metadata_with_api_fallback(
+            retry_deadline=retry_deadline
+        )
 
         assert md == fake_md
-        assert mock_readurl.mock_calls == [
+        assert wrapped_readurl.mock_calls == [
             mock.call(
                 self.default_url,
                 timeout=self.timeout,
                 headers=self.headers,
-                retries=self.retries,
-                exception_cb=imds._readurl_exception_callback,
-                infinite=False,
+                exception_cb=mock.ANY,
+                infinite=True,
                 log_req_resp=True,
+            )
+        ]
+        assert caplog.record_tuples == [
+            (
+                "cloudinit.url_helper",
+                logging.DEBUG,
+                StringMatch(r"\[0/infinite\] open.*"),
+            ),
+            (
+                "cloudinit.url_helper",
+                logging.DEBUG,
+                StringMatch("Read from.*"),
             ),
         ]
 
-        warnings = [
-            x.message for x in caplog.records if x.levelno == logging.WARNING
-        ]
-        assert warnings == []
-
+    @pytest.mark.parametrize("retry_deadline", [0.0, 1.0, 60.0])
     def test_basic_fallback(
         self,
         caplog,
-        mock_readurl,
+        mock_requests_session_request,
+        retry_deadline,
+        wrapped_readurl,
     ):
         fake_md = {"foo": {"bar": []}}
-        mock_readurl.side_effect = [
+        mock_requests_session_request.side_effect = [
             UrlError("No IMDS version", code=400),
-            mock.Mock(contents=json.dumps(fake_md).encode()),
+            mock.Mock(content=json.dumps(fake_md)),
         ]
 
-        md = imds.fetch_metadata_with_api_fallback()
+        md = imds.fetch_metadata_with_api_fallback(
+            retry_deadline=retry_deadline
+        )
 
         assert md == fake_md
-        assert mock_readurl.mock_calls == [
+        assert wrapped_readurl.mock_calls == [
             mock.call(
                 self.default_url,
                 timeout=self.timeout,
                 headers=self.headers,
-                retries=self.retries,
-                exception_cb=imds._readurl_exception_callback,
-                infinite=False,
+                exception_cb=mock.ANY,
+                infinite=True,
                 log_req_resp=True,
             ),
             mock.call(
                 self.fallback_url,
                 timeout=self.timeout,
                 headers=self.headers,
-                retries=self.retries,
-                exception_cb=imds._readurl_exception_callback,
-                infinite=False,
+                exception_cb=mock.ANY,
+                infinite=True,
                 log_req_resp=True,
             ),
         ]
 
-        warnings = [
-            x.message for x in caplog.records if x.levelno == logging.WARNING
-        ]
-        assert warnings == [
-            "Failed to fetch metadata from IMDS: No IMDS version",
-            "Falling back to IMDS api-version: 2019-06-01",
+        assert caplog.record_tuples == [
+            (
+                "cloudinit.url_helper",
+                logging.DEBUG,
+                StringMatch(r"\[0/infinite\] open.*"),
+            ),
+            (
+                LOG_PATH,
+                logging.WARNING,
+                "Failed to fetch metadata from IMDS: No IMDS version",
+            ),
+            (
+                LOG_PATH,
+                logging.WARNING,
+                "Falling back to IMDS api-version: 2019-06-01",
+            ),
+            (
+                "cloudinit.url_helper",
+                logging.DEBUG,
+                StringMatch(r"\[0/infinite\] open.*"),
+            ),
+            (
+                "cloudinit.url_helper",
+                logging.DEBUG,
+                StringMatch("Read from.*"),
+            ),
         ]
 
     @pytest.mark.parametrize(
@@ -137,9 +196,12 @@ class TestFetchMetadataWithApiFallback:
             requests.Timeout("Fake connection timeout"),
         ],
     )
+    @pytest.mark.parametrize("max_attempts,retry_deadline", [(2, 1.0)])
     def test_will_retry_errors(
         self,
         caplog,
+        max_attempts,
+        retry_deadline,
         mock_requests_session_request,
         mock_url_helper_time_sleep,
         error,
@@ -150,20 +212,49 @@ class TestFetchMetadataWithApiFallback:
             mock.Mock(content=json.dumps(fake_md)),
         ]
 
-        md = imds.fetch_metadata_with_api_fallback()
+        md = imds.fetch_metadata_with_api_fallback(
+            retry_deadline=retry_deadline
+        )
 
         assert md == fake_md
-        assert len(mock_requests_session_request.mock_calls) == 2
+        assert len(mock_requests_session_request.mock_calls) == max_attempts
         assert mock_url_helper_time_sleep.mock_calls == [mock.call(1)]
-
-        warnings = [
-            x.message for x in caplog.records if x.levelno == logging.WARNING
+        assert caplog.record_tuples == [
+            (
+                "cloudinit.url_helper",
+                logging.DEBUG,
+                StringMatch(r"\[0/infinite\] open.*"),
+            ),
+            (
+                LOG_PATH,
+                logging.INFO,
+                StringMatch(
+                    "Polling IMDS failed attempt 1 with exception:"
+                    f".*{error!s}.*"
+                ),
+            ),
+            (
+                "cloudinit.url_helper",
+                logging.DEBUG,
+                StringMatch("Please wait 1 second.*"),
+            ),
+            (
+                "cloudinit.url_helper",
+                logging.DEBUG,
+                StringMatch(r"\[1/infinite\] open.*"),
+            ),
+            (
+                "cloudinit.url_helper",
+                logging.DEBUG,
+                StringMatch("Read from.*"),
+            ),
         ]
-        assert warnings == []
 
+    @pytest.mark.parametrize("retry_deadline", [3.0, 30.0])
     def test_will_retry_errors_on_fallback(
         self,
         caplog,
+        retry_deadline,
         mock_requests_session_request,
         mock_url_helper_time_sleep,
     ):
@@ -174,19 +265,67 @@ class TestFetchMetadataWithApiFallback:
             fake_http_error_for_code(429),
             mock.Mock(content=json.dumps(fake_md)),
         ]
+        max_attempts = len(mock_requests_session_request.side_effect)
 
-        md = imds.fetch_metadata_with_api_fallback()
+        md = imds.fetch_metadata_with_api_fallback(
+            retry_deadline=retry_deadline
+        )
 
         assert md == fake_md
-        assert len(mock_requests_session_request.mock_calls) == 3
+        assert len(mock_requests_session_request.mock_calls) == max_attempts
         assert mock_url_helper_time_sleep.mock_calls == [mock.call(1)]
-
-        warnings = [
-            x.message for x in caplog.records if x.levelno == logging.WARNING
-        ]
-        assert warnings == [
-            "Failed to fetch metadata from IMDS: fake error",
-            "Falling back to IMDS api-version: 2019-06-01",
+        assert caplog.record_tuples == [
+            (
+                "cloudinit.url_helper",
+                logging.DEBUG,
+                StringMatch(r"\[0/infinite\] open.*"),
+            ),
+            (
+                LOG_PATH,
+                logging.INFO,
+                StringMatch(
+                    "Polling IMDS failed attempt 1 with exception:"
+                    f".*{error!s}.*"
+                ),
+            ),
+            (
+                LOG_PATH,
+                logging.WARNING,
+                "Failed to fetch metadata from IMDS: fake error",
+            ),
+            (
+                LOG_PATH,
+                logging.WARNING,
+                "Falling back to IMDS api-version: 2019-06-01",
+            ),
+            (
+                "cloudinit.url_helper",
+                logging.DEBUG,
+                StringMatch(r"\[0/infinite\] open.*"),
+            ),
+            (
+                LOG_PATH,
+                logging.INFO,
+                StringMatch(
+                    "Polling IMDS failed attempt 1 with exception:"
+                    f".*{error!s}.*"
+                ),
+            ),
+            (
+                "cloudinit.url_helper",
+                logging.DEBUG,
+                StringMatch("Please wait 1 second.*"),
+            ),
+            (
+                "cloudinit.url_helper",
+                logging.DEBUG,
+                StringMatch(r"\[1/infinite\] open.*"),
+            ),
+            (
+                "cloudinit.url_helper",
+                logging.DEBUG,
+                StringMatch("Read from.*"),
+            ),
         ]
 
     @pytest.mark.parametrize(
@@ -200,31 +339,57 @@ class TestFetchMetadataWithApiFallback:
             requests.Timeout("Fake connection timeout"),
         ],
     )
+    @pytest.mark.parametrize(
+        "max_attempts,retry_deadline", [(1, 0.0), (2, 1.0), (301, 300.0)]
+    )
     def test_retry_until_failure(
         self,
+        error,
+        max_attempts,
+        retry_deadline,
         caplog,
         mock_requests_session_request,
         mock_url_helper_time_sleep,
-        error,
     ):
-        mock_requests_session_request.side_effect = [error] * (11)
+        mock_requests_session_request.side_effect = error
 
         with pytest.raises(UrlError) as exc_info:
-            imds.fetch_metadata_with_api_fallback()
+            imds.fetch_metadata_with_api_fallback(
+                retry_deadline=retry_deadline
+            )
 
         assert exc_info.value.cause == error
-        assert len(mock_requests_session_request.mock_calls) == (
-            self.retries + 1
+
+        # Connection errors max out at 11 attempts.
+        max_attempts = (
+            11
+            if isinstance(error, requests.ConnectionError)
+            and max_attempts > 11
+            else max_attempts
         )
-        assert (
-            mock_url_helper_time_sleep.mock_calls
-            == [mock.call(1)] * self.retries
+        assert len(mock_requests_session_request.mock_calls) == (max_attempts)
+        assert mock_url_helper_time_sleep.mock_calls == [mock.call(1)] * (
+            max_attempts - 1
         )
 
-        warnings = [
-            x.message for x in caplog.records if x.levelno == logging.WARNING
+        logs = [x for x in caplog.record_tuples if x[0] == LOG_PATH]
+        assert logs == [
+            (
+                LOG_PATH,
+                logging.INFO,
+                StringMatch(
+                    f"Polling IMDS failed attempt {i} with exception:"
+                    f".*{error!s}.*"
+                ),
+            )
+            for i in range(1, max_attempts + 1)
+        ] + [
+            (
+                LOG_PATH,
+                logging.WARNING,
+                f"Failed to fetch metadata from IMDS: {error!s}",
+            )
         ]
-        assert warnings == [f"Failed to fetch metadata from IMDS: {error!s}"]
 
     @pytest.mark.parametrize(
         "error",
@@ -233,12 +398,14 @@ class TestFetchMetadataWithApiFallback:
             fake_http_error_for_code(501),
         ],
     )
+    @pytest.mark.parametrize("retry_deadline", [0.0, 1.0, 60.0])
     def test_will_not_retry_errors(
         self,
+        error,
+        retry_deadline,
         caplog,
         mock_requests_session_request,
         mock_url_helper_time_sleep,
-        error,
     ):
         fake_md = {"foo": {"bar": []}}
         mock_requests_session_request.side_effect = [
@@ -247,37 +414,59 @@ class TestFetchMetadataWithApiFallback:
         ]
 
         with pytest.raises(UrlError) as exc_info:
-            imds.fetch_metadata_with_api_fallback()
+            imds.fetch_metadata_with_api_fallback(
+                retry_deadline=retry_deadline
+            )
 
         assert exc_info.value.cause == error
         assert len(mock_requests_session_request.mock_calls) == 1
         assert mock_url_helper_time_sleep.mock_calls == []
 
-        warnings = [
-            x.message for x in caplog.records if x.levelno == logging.WARNING
+        assert caplog.record_tuples == [
+            (
+                "cloudinit.url_helper",
+                logging.DEBUG,
+                StringMatch(r"\[0/infinite\] open.*"),
+            ),
+            (
+                LOG_PATH,
+                logging.INFO,
+                StringMatch(
+                    "Polling IMDS failed attempt 1 with exception:"
+                    f".*{error!s}.*"
+                ),
+            ),
+            (
+                LOG_PATH,
+                logging.WARNING,
+                f"Failed to fetch metadata from IMDS: {error!s}",
+            ),
         ]
-        assert warnings == [f"Failed to fetch metadata from IMDS: {error!s}"]
 
+    @pytest.mark.parametrize("retry_deadline", [0.0, 1.0, 60.0])
     def test_non_json_repsonse(
         self,
+        retry_deadline,
         caplog,
-        mock_readurl,
+        mock_requests_session_request,
+        wrapped_readurl,
     ):
-        mock_readurl.side_effect = [
-            mock.Mock(contents=b"bad data"),
+        mock_requests_session_request.side_effect = [
+            mock.Mock(content=b"bad data")
         ]
 
         with pytest.raises(ValueError):
-            imds.fetch_metadata_with_api_fallback()
+            imds.fetch_metadata_with_api_fallback(
+                retry_deadline=retry_deadline
+            )
 
-        assert mock_readurl.mock_calls == [
+        assert wrapped_readurl.mock_calls == [
             mock.call(
                 self.default_url,
                 timeout=self.timeout,
                 headers=self.headers,
-                retries=self.retries,
-                exception_cb=imds._readurl_exception_callback,
-                infinite=False,
+                exception_cb=mock.ANY,
+                infinite=True,
                 log_req_resp=True,
             ),
         ]
@@ -304,17 +493,18 @@ class TestFetchReprovisionData:
     def test_basic(
         self,
         caplog,
-        mock_readurl,
+        mock_requests_session_request,
+        wrapped_readurl,
     ):
         content = b"ovf content"
-        mock_readurl.side_effect = [
-            mock.Mock(contents=content),
+        mock_requests_session_request.side_effect = [
+            mock.Mock(content=content),
         ]
 
         ovf = imds.fetch_reprovision_data()
 
         assert ovf == content
-        assert mock_readurl.mock_calls == [
+        assert wrapped_readurl.mock_calls == [
             mock.call(
                 self.url,
                 timeout=self.timeout,
@@ -327,10 +517,15 @@ class TestFetchReprovisionData:
 
         assert caplog.record_tuples == [
             (
-                "cloudinit.sources.azure.imds",
+                "cloudinit.url_helper",
+                logging.DEBUG,
+                StringMatch(r"Read from.*"),
+            ),
+            (
+                LOG_PATH,
                 logging.DEBUG,
                 "Polled IMDS 1 time(s)",
-            )
+            ),
         ]
 
     @pytest.mark.parametrize(
@@ -370,10 +565,10 @@ class TestFetchReprovisionData:
         )
         backoff_logs = [
             (
-                "cloudinit.sources.azure.imds",
+                LOG_PATH,
                 logging.INFO,
-                "Polling IMDS failed with exception: "
-                f"{wrapped_error!r} count: {i}",
+                f"Polling IMDS failed attempt {i} with exception: "
+                f"{wrapped_error!r}",
             )
             for i in range(1, failures + 1)
             if i == 1 or math.log2(i).is_integer()
@@ -382,10 +577,10 @@ class TestFetchReprovisionData:
             (
                 "cloudinit.url_helper",
                 logging.DEBUG,
-                mock.ANY,
+                StringMatch(r"Read from.*"),
             ),
             (
-                "cloudinit.sources.azure.imds",
+                LOG_PATH,
                 logging.DEBUG,
                 f"Polled IMDS {failures+1} time(s)",
             ),
@@ -403,7 +598,6 @@ class TestFetchReprovisionData:
         "terminal_error",
         [
             requests.ConnectionError("Fake connection error"),
-            requests.Timeout("Fake connection timeout"),
         ],
     )
     def test_retry_until_failure(
@@ -437,20 +631,20 @@ class TestFetchReprovisionData:
 
         backoff_logs = [
             (
-                "cloudinit.sources.azure.imds",
+                LOG_PATH,
                 logging.INFO,
-                "Polling IMDS failed with exception: "
-                f"{wrapped_error!r} count: {i}",
+                f"Polling IMDS failed attempt {i} with exception: "
+                f"{wrapped_error!r}",
             )
             for i in range(1, failures + 1)
             if i == 1 or math.log2(i).is_integer()
         ]
         assert caplog.record_tuples == backoff_logs + [
             (
-                "cloudinit.sources.azure.imds",
+                LOG_PATH,
                 logging.INFO,
-                "Polling IMDS failed with exception: "
-                f"{exc_info.value!r} count: {failures+1}",
+                f"Polling IMDS failed attempt {failures+1} with exception: "
+                f"{exc_info.value!r}",
             ),
         ]
 
@@ -483,9 +677,9 @@ class TestFetchReprovisionData:
 
         assert caplog.record_tuples == [
             (
-                "cloudinit.sources.azure.imds",
+                LOG_PATH,
                 logging.INFO,
-                "Polling IMDS failed with exception: "
-                f"{exc_info.value!r} count: 1",
+                "Polling IMDS failed attempt 1 with exception: "
+                f"{exc_info.value!r}",
             ),
         ]

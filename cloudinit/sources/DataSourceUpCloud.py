@@ -71,9 +71,7 @@ class DataSourceUpCloud(sources.DataSource):
                 LOG.debug("Finding a fallback NIC")
                 nic = cloudnet.find_fallback_nic()
                 LOG.debug("Discovering metadata via DHCP interface %s", nic)
-                with EphemeralDHCPv4(
-                    nic, tmp_dir=self.distro.get_tmp_exec_path()
-                ):
+                with EphemeralDHCPv4(self.distro, nic):
                     md = util.log_time(
                         logfunc=LOG.debug,
                         msg="Reading from metadata service",
@@ -128,7 +126,9 @@ class DataSourceUpCloud(sources.DataSource):
 
         raw_network_config = self.metadata.get("network")
         if not raw_network_config:
-            raise Exception("Unable to get network meta-data from server....")
+            raise RuntimeError(
+                "Unable to get network meta-data from server...."
+            )
 
         self._network_config = uc_helper.convert_network_config(
             raw_network_config,
@@ -160,6 +160,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab

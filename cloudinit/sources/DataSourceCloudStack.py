@@ -207,53 +207,6 @@ def get_default_gateway():
     return None
 
 
-def get_dhclient_d():
-    # find lease files directory
-    supported_dirs = [
-        "/var/lib/dhclient",
-        "/var/lib/dhcp",
-        "/var/lib/NetworkManager",
-    ]
-    for d in supported_dirs:
-        if os.path.exists(d) and len(os.listdir(d)) > 0:
-            LOG.debug("Using %s lease directory", d)
-            return d
-    return None
-
-
-def get_latest_lease(lease_d=None):
-    # find latest lease file
-    if lease_d is None:
-        lease_d = get_dhclient_d()
-    if not lease_d:
-        return None
-    lease_files = os.listdir(lease_d)
-    latest_mtime = -1
-    latest_file = None
-
-    # lease files are named inconsistently across distros.
-    # We assume that 'dhclient6' indicates ipv6 and ignore it.
-    # ubuntu:
-    #   dhclient.<iface>.leases, dhclient.leases, dhclient6.leases
-    # centos6:
-    #   dhclient-<iface>.leases, dhclient6.leases
-    # centos7: ('--' is not a typo)
-    #   dhclient--<iface>.lease, dhclient6.leases
-    for fname in lease_files:
-        if fname.startswith("dhclient6"):
-            # avoid files that start with dhclient6 assuming dhcpv6.
-            continue
-        if not (fname.endswith(".lease") or fname.endswith(".leases")):
-            continue
-
-        abs_path = os.path.join(lease_d, fname)
-        mtime = os.path.getmtime(abs_path)
-        if mtime > latest_mtime:
-            latest_mtime = mtime
-            latest_file = abs_path
-    return latest_file
-
-
 def get_vr_address():
     # Get the address of the virtual router via dhcp leases
     # If no virtual router is detected, fallback on default gateway.
@@ -277,19 +230,12 @@ def get_vr_address():
         return latest_address
 
     # Try dhcp lease files next...
-    lease_file = get_latest_lease()
+    lease_file = dhcp.IscDhclient.get_latest_lease()
     if not lease_file:
         LOG.debug("No lease file found, using default gateway")
         return get_default_gateway()
 
-    with open(lease_file, "r") as fd:
-        for line in fd:
-            if "dhcp-server-identifier" in line:
-                words = line.strip(" ;\r\n").split(" ")
-                if len(words) > 2:
-                    dhcptok = words[2]
-                    LOG.debug("Found DHCP identifier %s", dhcptok)
-                    latest_address = dhcptok
+    lease_file = dhcp.IscDhclient.parse_dhcp_server_from_lease_file(lease_file)
     if not latest_address:
         # No virtual router found, fallback on default gateway
         LOG.debug("No DHCP found, using default gateway")
@@ -306,6 +252,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab

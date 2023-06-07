@@ -6,6 +6,7 @@ import yaml
 
 from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.util import verify_clean_log
 
 DS_CFG = """\
@@ -43,7 +44,7 @@ def extract_interface_names(network_config: dict) -> Set[str]:
     return set(interfaces)
 
 
-@pytest.mark.oci
+@pytest.mark.skipif(PLATFORM != "oci", reason="Test is OCI specific")
 def test_oci_networking_iscsi_instance(client: IntegrationInstance, tmpdir):
     customize_environment(client, tmpdir, configure_secondary_nics=False)
     result_net_files = client.execute("ls /run/net-*.conf")
@@ -92,7 +93,7 @@ def client_with_secondary_vnic(
         client.instance.remove_network_interface(ip_address)
 
 
-@pytest.mark.oci
+@pytest.mark.skipif(PLATFORM != "oci", reason="Test is OCI specific")
 def test_oci_networking_iscsi_instance_secondary_vnics(
     client_with_secondary_vnic: IntegrationInstance, tmpdir
 ):
@@ -116,3 +117,42 @@ def test_oci_networking_iscsi_instance_secondary_vnics(
     )
     assert len(expected_interfaces) + 1 == len(configured_interfaces)
     assert client.execute("ping -c 2 canonical.com").ok
+
+
+SYSTEM_CFG = """\
+network:
+  ethernets:
+    id0:
+      dhcp4: true
+      dhcp6: true
+      match:
+        name: "ens*"
+  version: 2
+"""
+
+
+def customize_netcfg(
+    client: IntegrationInstance,
+    tmpdir,
+):
+    cfg = tmpdir.join("net.cfg")
+    with open(cfg, "w") as f:
+        f.write(SYSTEM_CFG)
+    client.push_file(cfg, "/etc/cloud/cloud.cfg.d/50-network-test.cfg")
+    client.execute("cloud-init clean --logs")
+    client.restart()
+
+
+@pytest.mark.skipif(PLATFORM != "oci", reason="Test is OCI specific")
+def test_oci_networking_system_cfg(client: IntegrationInstance, tmpdir):
+    customize_netcfg(client, tmpdir)
+    log = client.read_from_file("/var/log/cloud-init.log")
+    verify_clean_log(log)
+
+    assert (
+        "Applying network configuration from system_cfg" in log
+    ), "network source used wasn't system_cfg"
+    netplan_yaml = client.read_from_file("/etc/netplan/50-cloud-init.yaml")
+    netplan_cfg = yaml.safe_load(netplan_yaml)
+    expected_netplan_cfg = yaml.safe_load(SYSTEM_CFG)
+    assert expected_netplan_cfg == netplan_cfg

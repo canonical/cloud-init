@@ -101,7 +101,11 @@ class TestDataSourceVMware(CiTestCase):
     def test_no_data_access_method(self):
         ds = get_ds(self.tmp)
         ds.vmware_rpctool = None
-        ret = ds.get_data()
+        with mock.patch(
+            "cloudinit.sources.DataSourceVMware.is_vmware_platform",
+            return_value=False,
+        ):
+            ret = ds.get_data()
         self.assertFalse(ret)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.get_default_ip_addrs")

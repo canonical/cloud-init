@@ -86,18 +86,12 @@ NET_CONFIG_TO_V2: Dict[str, Dict[str, Any]] = {
 def warn_deprecated_all_devices(dikt: dict) -> None:
     """Warn about deprecations of v2 properties for all devices"""
     if "gateway4" in dikt or "gateway6" in dikt:
-        LOG.warning(
-            "DEPRECATED: The use of `gateway4` and `gateway6` is"
-            " deprecated. For more info check out: "
-            "https://cloudinit.readthedocs.io/en/latest/topics/network-config-format-v2.html"  # noqa: E501
+        util.deprecate(
+            deprecated="The use of `gateway4` and `gateway6`",
+            deprecated_version="22.4",
+            extra_message="For more info check out: "
+            "https://cloudinit.readthedocs.io/en/latest/topics/network-config-format-v2.html",  # noqa: E501
         )
-
-
-def from_state_file(state_file):
-    state = util.read_conf(state_file)
-    nsi = NetworkStateInterpreter()
-    nsi.load(state)
-    return nsi
 
 
 def diff_keys(expected, actual):
@@ -681,7 +675,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
           eno1:
             match:
               macaddress: 00:11:22:33:44:55
-              driver: hv_netsvc
+              driver: hv_netvsc
             wakeonlan: true
             dhcp4: true
             dhcp6: false

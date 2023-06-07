@@ -6,7 +6,6 @@
 
 "Users and Groups: Configure users and groups"
 
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import log as logging
@@ -147,6 +146,12 @@ meta: MetaSchema = {
           sudo: null
         """
         ),
+        dedent(
+            """\
+        # Avoid creating any ``default_user``.
+        users: []
+        """
+        ),
     ],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": [],
@@ -161,9 +166,7 @@ NO_HOME = ("no_create_home", "system")
 NEED_HOME = ("ssh_authorized_keys", "ssh_import_id", "ssh_redirect_user")
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     (users, groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
     (default_user, _user_config) = ug_util.extract_default(users)
     cloud_keys = cloud.get_public_ssh_keys() or []

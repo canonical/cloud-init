@@ -9,9 +9,9 @@
 """Resizefs: cloud-config module which resizes the filesystem"""
 
 import errno
+import logging
 import os
 import stat
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import subp, util
@@ -49,6 +49,8 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
+
+LOG = logging.getLogger(__name__)
 
 
 def _resize_btrfs(mount_point, devpth):
@@ -146,7 +148,7 @@ def can_skip_resize(fs_type, resize_what, devpth):
     return False
 
 
-def maybe_get_writable_device_path(devpath, info, log):
+def maybe_get_writable_device_path(devpath, info):
     """Return updated devpath if the devpath is a writable block device.
 
     @param devpath: Requested path to the root device we want to resize.
@@ -166,25 +168,25 @@ def maybe_get_writable_device_path(devpath, info, log):
     ):
         devpath = util.rootdev_from_cmdline(util.get_cmdline())
         if devpath is None:
-            log.warning("Unable to find device '/dev/root'")
+            LOG.warning("Unable to find device '/dev/root'")
             return None
-        log.debug("Converted /dev/root to '%s' per kernel cmdline", devpath)
+        LOG.debug("Converted /dev/root to '%s' per kernel cmdline", devpath)
 
     if devpath == "overlayroot":
-        log.debug("Not attempting to resize devpath '%s': %s", devpath, info)
+        LOG.debug("Not attempting to resize devpath '%s': %s", devpath, info)
         return None
 
     # FreeBSD zpool can also just use gpt/<label>
     # with that in mind we can not do an os.stat on "gpt/whatever"
     # therefore return the devpath already here.
     if devpath.startswith("gpt/"):
-        log.debug("We have a gpt label - just go ahead")
+        LOG.debug("We have a gpt label - just go ahead")
         return devpath
     # Alternatively, our device could simply be a name as returned by gpart,
     # such as da0p3
     if not devpath.startswith("/dev/") and not os.path.exists(devpath):
         fulldevpath = "/dev/" + devpath.lstrip("/")
-        log.debug(
+        LOG.debug(
             "'%s' doesn't appear to be a valid device path. Trying '%s'",
             devpath,
             fulldevpath,
@@ -195,13 +197,13 @@ def maybe_get_writable_device_path(devpath, info, log):
         statret = os.stat(devpath)
     except OSError as exc:
         if container and exc.errno == errno.ENOENT:
-            log.debug(
+            LOG.debug(
                 "Device '%s' did not exist in container. cannot resize: %s",
                 devpath,
                 info,
             )
         elif exc.errno == errno.ENOENT:
-            log.warning(
+            LOG.warning(
                 "Device '%s' did not exist. cannot resize: %s", devpath, info
             )
         else:
@@ -210,35 +212,36 @@ def maybe_get_writable_device_path(devpath, info, log):
 
     if not stat.S_ISBLK(statret.st_mode) and not stat.S_ISCHR(statret.st_mode):
         if container:
-            log.debug(
+            LOG.debug(
                 "device '%s' not a block device in container."
-                " cannot resize: %s" % (devpath, info)
+                " cannot resize: %s",
+                devpath,
+                info,
             )
         else:
-            log.warning(
-                "device '%s' not a block device. cannot resize: %s"
-                % (devpath, info)
+            LOG.warning(
+                "device '%s' not a block device. cannot resize: %s",
+                devpath,
+                info,
             )
         return None
     return devpath  # The writable block devpath
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if len(args) != 0:
         resize_root = args[0]
     else:
         resize_root = util.get_cfg_option_str(cfg, "resize_rootfs", True)
     if not util.translate_bool(resize_root, addons=[NOBLOCK]):
-        log.debug("Skipping module named %s, resizing disabled", name)
+        LOG.debug("Skipping module named %s, resizing disabled", name)
         return
 
     # TODO(harlowja): allow what is to be resized to be configurable??
     resize_what = "/"
-    result = util.get_mount_info(resize_what, log)
+    result = util.get_mount_info(resize_what, LOG)
     if not result:
-        log.warning("Could not determine filesystem type of %s", resize_what)
+        LOG.warning("Could not determine filesystem type of %s", resize_what)
         return
 
     (devpth, fs_type, mount_point) = result
@@ -256,15 +259,15 @@ def handle(
         resize_what = zpool
 
     info = "dev=%s mnt_point=%s path=%s" % (devpth, mount_point, resize_what)
-    log.debug("resize_info: %s" % info)
+    LOG.debug("resize_info: %s", info)
 
-    devpth = maybe_get_writable_device_path(devpth, info, log)
+    devpth = maybe_get_writable_device_path(devpth, info)
     if not devpth:
         return  # devpath was not a writable block device
 
     resizer = None
     if can_skip_resize(fs_type, resize_what, devpth):
-        log.debug(
+        LOG.debug(
             "Skip resize filesystem type %s for %s", fs_type, resize_what
         )
         return
@@ -276,7 +279,7 @@ def handle(
             break
 
     if not resizer:
-        log.warning(
+        LOG.warning(
             "Not resizing unknown filesystem type %s for %s",
             fs_type,
             resize_what,
@@ -284,7 +287,7 @@ def handle(
         return
 
     resize_cmd = resizer(resize_what, devpth)
-    log.debug(
+    LOG.debug(
         "Resizing %s (%s) using %s", resize_what, fs_type, " ".join(resize_cmd)
     )
 
@@ -293,32 +296,32 @@ def handle(
         # the resize command
         util.fork_cb(
             util.log_time,
-            logfunc=log.debug,
+            logfunc=LOG.debug,
             msg="backgrounded Resizing",
             func=do_resize,
-            args=(resize_cmd, log),
+            args=(resize_cmd,),
         )
     else:
         util.log_time(
-            logfunc=log.debug,
+            logfunc=LOG.debug,
             msg="Resizing",
             func=do_resize,
-            args=(resize_cmd, log),
+            args=(resize_cmd,),
         )
 
     action = "Resized"
     if resize_root == NOBLOCK:
         action = "Resizing (via forking)"
-    log.debug(
+    LOG.debug(
         "%s root filesystem (type=%s, val=%s)", action, fs_type, resize_root
     )
 
 
-def do_resize(resize_cmd, log):
+def do_resize(resize_cmd):
     try:
         subp.subp(resize_cmd)
     except subp.ProcessExecutionError:
-        util.logexc(log, "Failed to resize filesystem (cmd=%s)", resize_cmd)
+        util.logexc(LOG, "Failed to resize filesystem (cmd=%s)", resize_cmd)
         raise
     # TODO(harlowja): Should we add a fsck check after this to make
     # sure we didn't corrupt anything?

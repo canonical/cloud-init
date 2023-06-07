@@ -80,15 +80,6 @@ class CfgParser:
 
         return contents
 
-    def dump_data(self, target_fn):
-        if not target_fn:
-            LOG.warning("Target file not given")
-            return
-
-        contents = self.get_final_conf()
-        LOG.debug("Final content: %s", contents)
-        util.write_file(target_fn, contents)
-
 
 class Renderer(renderer.Renderer):
     """
@@ -355,7 +346,7 @@ class Renderer(renderer.Renderer):
                                 f" and dhcp{version}-overrides.use-domains"
                                 f" configured. Use one"
                             )
-                            raise Exception(exception)
+                            raise RuntimeError(exception)
 
                         self.parse_dhcp_overrides(cfg, device, dhcp, version)
 
@@ -371,8 +362,3 @@ def available(target=None):
         if not subp.which(p, search=search, target=target):
             return False
     return True
-
-
-def network_state_to_networkd(ns: NetworkState):
-    renderer = Renderer({})
-    return renderer._render_content(ns)

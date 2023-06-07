@@ -1,5 +1,4 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-from typing import Optional
 from unittest import mock
 
 from cloudinit import cloud, distros, helpers
@@ -74,7 +73,8 @@ class MockDistro(distros.Distro):
     def set_hostname(self, hostname, fqdn=None):
         pass
 
-    def uses_systemd(self):
+    @staticmethod
+    def uses_systemd():
         return True
 
     def get_primary_arch(self):
@@ -145,10 +145,6 @@ class MockDistro(distros.Distro):
 
     def package_command(self, command, args=None, pkgs=None):
         pass
-
-    @property
-    def is_virtual(self) -> Optional[bool]:
-        return True
 
     def update_package_sources(self):
         return (True, "yay")

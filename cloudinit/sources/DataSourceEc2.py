@@ -131,10 +131,10 @@ class DataSourceEc2(sources.DataSource):
                 return False
             try:
                 with EphemeralIPNetwork(
+                    self.distro,
                     self.fallback_interface,
                     ipv4=True,
                     ipv6=True,
-                    tmp_dir=self.distro.get_tmp_exec_path(),
                 ) as netw:
                     state_msg = f" {netw.state_msg}" if netw.state_msg else ""
                     self._crawled_metadata = util.log_time(
@@ -1020,6 +1020,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab

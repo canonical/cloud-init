@@ -17,21 +17,9 @@ stages to boot:
 
 Generator
 =========
-
-When booting under ``systemd``, a `generator`_ will run that determines if
-``cloud-init.target`` should be included in the boot goals. By default, this
-generator will enable ``cloud-init``. It will not enable ``cloud-init``
-if either:
-
-- The file :file:`/etc/cloud/cloud-init.disabled` exists, or
-- The kernel command line as found in :file:`/proc/cmdline` contains
-  ``cloud-init=disabled``. When running in a container, the kernel command
-  line is not honored, but ``cloud-init`` will read an environment
-  variable named ``KERNEL_CMDLINE`` in its place.
-
-.. note::
-   These mechanisms for disabling ``cloud-init`` at runtime currently only
-   exist in ``systemd``.
+When booting under ``systemd``, a generator will run that determines if
+cloud-init.target should be included in the boot goals. ``ds-identify``
+runs at this stage.
 
 .. _boot-Local:
 

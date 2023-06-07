@@ -3,20 +3,45 @@
 Kernel command line
 *******************
 
+Providing configuration data via the kernel command line is somewhat of a last
+resort, since this method only supports
+:ref:`cloud config<user_data_formats-cloud_config>` starting with
+`#cloud-config`, and many datasources do not support injecting kernel
+command line arguments without modifying the bootloader.
+
+Despite the limitations of using the kernel command line, cloud-init supports
+some use-cases.
+
+Note that this page describes kernel command line behavior that applies
+to all clouds. To provide a local configuration with an image using kernel
+command line, see :ref:`datasource NoCloud<datasource_nocloud>` which provides
+more configuration options.
+
+.. _kernel_datasource_override:
+
+Datasource discovery override
+=============================
+
+During boot, cloud-init must identify which datasource it is running on
+(OpenStack, AWS, Azure, GCP, etc). This discovery step can be optionally
+overriden by specifying the datasource name, such as:
+
+.. code-block:: text
+
+   root=/dev/sda ro ds=openstack
+
+Kernel cloud-config-url configuration
+=====================================
+
 In order to allow an ephemeral, or otherwise pristine image to receive some
-configuration, ``cloud-init`` will read a URL directed by the kernel command
+configuration, ``cloud-init`` can read a URL directed by the kernel command
 line and proceed as if its data had previously existed.
 
 This allows for configuring a metadata service, or some other data.
 
-.. note::
-   Usage of the kernel command line is somewhat of a last resort,
-   as it requires knowing in advance the correct command line or modifying
-   the boot loader to append data.
-
-For example, when :command:`cloud-init init --local` runs, it will check to
-see if ``cloud-config-url`` appears in key/value fashion in the kernel command
-line, as in:
+When :ref:`the local stage<boot-Local>` runs, it will check to see if
+``cloud-config-url`` appears in key/value fashion in the kernel command line,
+such as:
 
 .. code-block:: text
 
@@ -27,13 +52,14 @@ starts with ``#cloud-config``, it will store that data to the local filesystem
 in a static filename :file:`/etc/cloud/cloud.cfg.d/91_kernel_cmdline_url.cfg`,
 and consider it as part of the config from that point forward.
 
-If that file exists already, it will not be overwritten, and the
-``cloud-config-url`` parameter is completely ignored.
+.. note::
+   If :file:`/etc/cloud/cloud.cfg.d/91_kernel_cmdline_url.cfg` already exists,
+   cloud-init will not overwrite the file, and the ``cloud-config-url``
+   parameter is completely ignored.
 
-Then, when the datasource runs, it will find that config already available.
 
-So, to be able to configure the MAAS datasource by controlling the
-kernel command line from outside the image, you can append:
+This is useful, for example, to be able to configure the MAAS datasource by
+controlling the kernel command line from outside the image, you can append:
 
 .. code-block:: text
 
@@ -59,11 +85,12 @@ Then, have the following content at that url:
 .. note::
 
    Since ``cloud-config-url=`` is so generic, in order to avoid false
-   positives, ``cloud-init`` requires the content to start with
-   ``#cloud-config`` for it to be considered.
+   positives, only :ref:`cloud config<user_data_formats-cloud_config>` user
+   data starting with ``#cloud-config`` is supported.
+
 
 .. note::
 
-   The ``cloud-config-url=`` is un-authed http GET, and contains credentials.
-   It could be set up to be randomly generated and also to check the source
-   address in order to be more secure.
+   The ``cloud-config-url=`` is unencrypted http GET, and may contain
+   credentials. Care must be taken to ensure this data is only
+   transferred via trusted channels (i.e., within a closed system).

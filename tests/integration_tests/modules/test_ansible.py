@@ -1,5 +1,7 @@
 import pytest
 
+from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL
 from tests.integration_tests.util import verify_clean_log
 
 # This works by setting up a local repository and web server
@@ -291,7 +293,9 @@ def test_ansible_pull_pip(client):
 # Ansible packaged in bionic is 2.5.1. This test relies on ansible collections,
 # which requires Ansible 2.9+, so no bionic. The functionality is covered
 # in `test_ansible_pull_pip` using pip rather than the bionic package.
-@pytest.mark.not_bionic
+@pytest.mark.skipif(
+    CURRENT_RELEASE < FOCAL, reason="Test requires Ansible 2.9+"
+)
 @pytest.mark.user_data(
     USER_DATA + INSTALL_METHOD.format(package="ansible", method="distro")
 )
@@ -300,10 +304,14 @@ def test_ansible_pull_distro(client):
 
 
 @pytest.mark.user_data(ANSIBLE_CONTROL)
-@pytest.mark.lxd_vm
-# Not bionic because test uses pip install and version in pip is removing
-# support for python version in bionic
-@pytest.mark.not_bionic
+@pytest.mark.skipif(
+    PLATFORM != "lxd_vm",
+    reason="Test requires starting LXD containers",
+)
+@pytest.mark.skipif(
+    CURRENT_RELEASE < FOCAL,
+    reason="Pip install is not supported for Ansible on release",
+)
 def test_ansible_controller(client):
     log = client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log)

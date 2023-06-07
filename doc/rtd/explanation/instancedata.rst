@@ -112,7 +112,7 @@ Example: User data script with ``instance-data``
    ## template: jinja
    #!/bin/bash
    {% if v1.region == 'us-east-2' -%}
-   echo 'Installing custom proxies for {{ v1.region }}
+   echo 'Installing custom proxies for {{ v1.region }}'
    sudo apt-get install my-xtra-fast-stack
    {%- endif %}
    ...
@@ -268,7 +268,7 @@ This shall be the distro name, version and release as determined by
 
 Example output:
 
-  - alpine, 3.12.0, ''
+  - alpine, 3.12.0, 'Alpine Linux v3.12'
   - centos, 7.5, core
   - debian, 9, stretch
   - freebsd, 12.0-release-p10,
@@ -343,7 +343,7 @@ used. The format of subplatform will be:
 
 Example output:
 
-  - metadata (http://168.254.169.254)
+  - metadata (http://169.254.169.254)
   - seed-dir (/path/to/seed-dir/)
   - config-disk (/dev/cd0)
   - configdrive (/dev/sr0)

@@ -32,7 +32,7 @@ from cloudinit import (
 from cloudinit.distros.networking import LinuxNetworking, Networking
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
-from cloudinit.net import activators, eni, network_state, renderers
+from cloudinit.net import activators, dhcp, eni, network_state, renderers
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.net.renderer import Renderer
 
@@ -110,12 +110,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     resolve_conf_fn = "/etc/resolv.conf"
 
     osfamily: str
+    dhcp_client_priority = [dhcp.IscDhclient, dhcp.Dhcpcd]
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
         self._cfg = cfg
         self.name = name
         self.networking: Networking = self.networking_cls()
+        self.dhcp_client_priority = [dhcp.IscDhclient, dhcp.Dhcpcd]
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         """Perform deserialization fixes for Distro."""
@@ -185,7 +187,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self._write_hostname(writeable_hostname, self.hostname_conf_fn)
         self._apply_hostname(writeable_hostname)
 
-    def uses_systemd(self):
+    @staticmethod
+    def uses_systemd():
         """Wrapper to report whether this distro uses systemd or sysvinit."""
         return uses_systemd()
 
@@ -549,12 +552,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 groups = groups.split(",")
 
             if isinstance(groups, dict):
-                LOG.warning(
-                    "DEPRECATED: The user %s has a 'groups' config value of"
-                    " type dict which is deprecated and will be removed in a"
-                    " future version of cloud-init. Use a comma-delimited"
-                    " string or array instead: group1,group2.",
-                    name,
+                util.deprecate(
+                    deprecated=f"The user {name} has a 'groups' config value "
+                    "of type dict",
+                    deprecated_version="22.3",
+                    extra_message="Use a comma-delimited string or "
+                    "array instead: group1,group2.",
                 )
 
             # remove any white spaces in group names, most likely
@@ -682,11 +685,11 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if kwargs["sudo"]:
                 self.write_sudo_rules(name, kwargs["sudo"])
             elif kwargs["sudo"] is False:
-                LOG.warning(
-                    "DEPRECATED: The user %s has a 'sudo' config value of"
-                    " 'false' which will be dropped after April 2027."
-                    " Use 'null' instead.",
-                    name,
+                util.deprecate(
+                    deprecated=f"The value of 'false' in user {name}'s "
+                    "'sudo' config",
+                    deprecated_version="22.3",
+                    extra_message="Use 'null' instead.",
                 )
 
         # Import SSH keys
@@ -916,15 +919,18 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             args.append(message)
         return args
 
-    def manage_service(self, action: str, service: str):
+    @classmethod
+    def manage_service(
+        cls, action: str, service: str, *extra_args: str, rcs=None
+    ):
         """
         Perform the requested action on a service. This handles the common
         'systemctl' and 'service' cases and may be overridden in subclasses
         as necessary.
         May raise ProcessExecutionError
         """
-        init_cmd = self.init_cmd
-        if self.uses_systemd() or "systemctl" in init_cmd:
+        init_cmd = cls.init_cmd
+        if cls.uses_systemd() or "systemctl" in init_cmd:
             init_cmd = ["systemctl"]
             cmds = {
                 "stop": ["stop", service],
@@ -948,7 +954,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "status": [service, "status"],
             }
         cmd = list(init_cmd) + list(cmds[action])
-        return subp.subp(cmd, capture=True)
+        return subp.subp(cmd, capture=True, rcs=rcs)
 
     def set_keymap(self, layout, model, variant, options):
         if self.uses_systemd():
@@ -991,37 +997,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             ],
             **kwargs,
         )
-
-    @property
-    def is_virtual(self) -> Optional[bool]:
-        """Detect if running on a virtual machine or bare metal.
-
-        If the detection fails, it returns None.
-        """
-        if not uses_systemd():
-            # For non systemd systems the method should be
-            # implemented in the distro class.
-            LOG.warning("is_virtual should be implemented on distro class")
-            return None
-
-        try:
-            detect_virt_path = subp.which("systemd-detect-virt")
-            if detect_virt_path:
-                out, _ = subp.subp(
-                    [detect_virt_path], capture=True, rcs=[0, 1]
-                )
-
-                return not out.strip() == "none"
-            else:
-                err_msg = "detection binary not found"
-        except subp.ProcessExecutionError as e:
-            err_msg = str(e)
-
-        LOG.warning(
-            "Failed to detect virtualization with systemd-detect-virt: %s",
-            err_msg,
-        )
-        return None
 
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
@@ -1224,6 +1199,3 @@ def uses_systemd():
         return stat.S_ISDIR(res.st_mode)
     except Exception:
         return False
-
-
-# vi: ts=4 expandtab

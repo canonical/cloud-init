@@ -3,6 +3,7 @@
 [connection]
 id=cloud-init zz-all-en
 uuid=159daec9-cba3-5101-85e7-46d831857f43
+autoconnect-priority=120
 type=ethernet
 interface-name=zz-all-en
 

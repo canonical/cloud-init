@@ -6,7 +6,6 @@
 
 """Apk Configure: Configures apk repositories file."""
 
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import log as logging
@@ -109,9 +108,7 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """
     Call to handle apk_repos sections in cloud-config file.
 

@@ -854,64 +854,66 @@ class TestBlkid(CiTestCase):
         )
 
 
-@mock.patch("cloudinit.subp.which")
-@mock.patch("cloudinit.subp.subp")
+@mock.patch("cloudinit.util.subp.which")
+@mock.patch("cloudinit.util.subp.subp")
 class TestUdevadmSettle(CiTestCase):
-    def test_with_no_params(self, m_which, m_subp):
+    def test_with_no_params(self, m_subp, m_which):
         """called with no parameters."""
         m_which.side_effect = lambda m: m in ("udevadm",)
         util.udevadm_settle()
-        m_subp.called_once_with(mock.call(["udevadm", "settle"]))
+        m_subp.assert_called_once_with(["udevadm", "settle"])
 
-    def test_udevadm_not_present(self, m_which, m_subp):
+    def test_udevadm_not_present(self, m_subp, m_which):
         """where udevadm program does not exist should not invoke subp."""
         m_which.side_effect = lambda m: m in ("",)
         util.udevadm_settle()
-        m_subp.called_once_with(["which", "udevadm"])
+        m_which.assert_called_once_with("udevadm")
+        m_subp.assert_not_called()
 
-    def test_with_exists_and_not_exists(self, m_which, m_subp):
+    def test_with_exists_and_not_exists(self, m_subp, m_which):
         """with exists=file where file does not exist should invoke subp."""
         m_which.side_effect = lambda m: m in ("udevadm",)
         mydev = self.tmp_path("mydev")
         util.udevadm_settle(exists=mydev)
-        m_subp.called_once_with(
+        m_subp.assert_called_once_with(
             ["udevadm", "settle", "--exit-if-exists=%s" % mydev]
         )
 
-    def test_with_exists_and_file_exists(self, m_which, m_subp):
+    def test_with_exists_and_file_exists(self, m_subp, m_which):
         """with exists=file where file does exist should only invoke subp
         once for 'which' call."""
         m_which.side_effect = lambda m: m in ("udevadm",)
         mydev = self.tmp_path("mydev")
         util.write_file(mydev, "foo\n")
         util.udevadm_settle(exists=mydev)
-        m_subp.called_once_with(["which", "udevadm"])
+        m_which.assert_called_once_with("udevadm")
+        m_subp.assert_not_called()
 
-    def test_with_timeout_int(self, m_which, m_subp):
+    def test_with_timeout_int(self, m_subp, m_which):
         """timeout can be an integer."""
         m_which.side_effect = lambda m: m in ("udevadm",)
         timeout = 9
         util.udevadm_settle(timeout=timeout)
-        m_subp.called_once_with(
+        m_subp.assert_called_once_with(
             ["udevadm", "settle", "--timeout=%s" % timeout]
         )
 
-    def test_with_timeout_string(self, m_which, m_subp):
+    def test_with_timeout_string(self, m_subp, m_which):
         """timeout can be a string."""
         m_which.side_effect = lambda m: m in ("udevadm",)
         timeout = "555"
         util.udevadm_settle(timeout=timeout)
-        m_subp.called_once_with(
+        m_subp.assert_called_once_with(
             ["udevadm", "settle", "--timeout=%s" % timeout]
         )
 
-    def test_with_exists_and_timeout(self, m_which, m_subp):
+    def test_with_exists_and_timeout(self, m_subp, m_which):
         """test call with both exists and timeout."""
         m_which.side_effect = lambda m: m in ("udevadm",)
         mydev = self.tmp_path("mydev")
         timeout = "3"
-        util.udevadm_settle(exists=mydev)
-        m_subp.called_once_with(
+        util.udevadm_settle(exists=mydev, timeout=timeout)
+        m_subp.assert_called_once_with(
             [
                 "udevadm",
                 "settle",
@@ -920,7 +922,7 @@ class TestUdevadmSettle(CiTestCase):
             ]
         )
 
-    def test_subp_exception_raises_to_caller(self, m_which, m_subp):
+    def test_subp_exception_raises_to_caller(self, m_subp, m_which):
         m_which.side_effect = lambda m: m in ("udevadm",)
         m_subp.side_effect = subp.ProcessExecutionError("BOOM")
         self.assertRaises(subp.ProcessExecutionError, util.udevadm_settle)
@@ -1571,6 +1573,30 @@ class TestMountCb:
             mock.call(mock.ANY, mock.sentinel.data)
         ] == callback.call_args_list
 
+    @pytest.mark.parametrize("log_error", [True, False])
+    @mock.patch(M_PATH + "subp.subp")
+    def test_mount_cb_log(self, m_subp, log_error, caplog):
+        log_msg = (
+            "Failed to mount device: '/dev/fake0' with type: "
+            "'ntfs' using mount command:"
+        )
+        m_subp.side_effect = subp.ProcessExecutionError(
+            "", "unknown filesystem type 'ntfs'"
+        )
+        callback = mock.Mock(autospec=True)
+        with pytest.raises(Exception):
+            util.mount_cb(
+                "/dev/fake0",
+                callback,
+                mtype="ntfs",
+                update_env_for_mount={"LANG": "C"},
+                log_error=log_error,
+            )
+        if log_error:
+            assert log_msg in caplog.text
+        else:
+            assert log_msg not in caplog.text
+
 
 @mock.patch(M_PATH + "write_file")
 class TestEnsureFile:
@@ -1945,6 +1971,31 @@ class TestGetCmdline(helpers.TestCase):
         self.assertEqual("abcd 123", ret)
 
 
+class TestFipsEnabled:
+    @pytest.mark.parametrize(
+        "fips_enabled_content,expected",
+        (
+            pytest.param(None, False, id="false_when_no_fips_enabled_file"),
+            pytest.param("0\n", False, id="false_when_fips_disabled"),
+            pytest.param("1\n", True, id="true_when_fips_enabled"),
+            pytest.param("1", True, id="true_when_fips_enabled_no_newline"),
+        ),
+    )
+    @mock.patch(M_PATH + "load_file")
+    def test_fips_enabled_based_on_proc_crypto(
+        self, load_file, fips_enabled_content, expected, tmpdir
+    ):
+        def fake_load_file(path):
+            assert path == "/proc/sys/crypto/fips_enabled"
+            if fips_enabled_content is None:
+                raise IOError("No file exists Bob")
+            return fips_enabled_content
+
+        load_file.side_effect = fake_load_file
+
+        assert expected is util.fips_enabled()
+
+
 class TestLoadYaml(helpers.CiTestCase):
     mydefault = "7b03a8ebace993d806255121073fed52"
     with_logs = True
@@ -2046,7 +2097,6 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
             self.assertEqual(expected, util.parse_mount_info("/", lines))
 
     def test_precise_ext4_root(self):
-
         lines = helpers.readResource("mountinfo_precise_ext4.txt").splitlines()
 
         expected = ("/dev/mapper/vg0-root", "ext4", "/")
@@ -2489,7 +2539,6 @@ class TestEncode(helpers.TestCase):
 
 
 class TestProcessExecutionError(helpers.TestCase):
-
     template = (
         "{description}\n"
         "Command: {cmd}\n"
@@ -2800,7 +2849,6 @@ class TestHuman2Bytes:
                 util.human2bytes(test_i)
 
     def test_ibibytes2bytes(self):
-
         assert util.human2bytes("0.5GiB") == 536870912
         assert util.human2bytes("100MiB") == 104857600
 
@@ -2877,7 +2925,7 @@ class TestFindDevs:
                 return msdos
             elif pattern == "/dev/iso9660/*":
                 return iso9660
-            raise Exception
+            raise RuntimeError
 
         m_glob.side_effect = fake_glob
 
@@ -3026,3 +3074,39 @@ class TestVersion:
     )
     def test_from_str(self, str_ver, cls_ver):
         assert util.Version.from_str(str_ver) == cls_ver
+
+
+@pytest.mark.allow_dns_lookup
+class TestResolvable:
+    @mock.patch.object(util, "_DNS_REDIRECT_IP", return_value=True)
+    @mock.patch.object(util.socket, "getaddrinfo")
+    def test_ips_need_not_be_resolved(self, m_getaddr, m_dns):
+        """Optimization test: dns resolution may timeout during early boot, and
+        often the urls being checked use IP addresses rather than dns names.
+        Therefore, the fast path checks if the address contains an IP and exits
+        early if the path is a valid IP.
+        """
+        assert util.is_resolvable("http://169.254.169.254/") is True
+        assert util.is_resolvable("http://[fd00:ec2::254]/") is True
+        assert not m_getaddr.called
+
+
+class TestHashBuffer:
+    def test_in_memory(self):
+        buf = io.BytesIO(b"hola")
+        assert (
+            util.hash_buffer(buf)
+            == b"\x99\x80\x0b\x85\xd38>:/\xb4^\xb7\xd0\x06jHy\xa9\xda\xd0"
+        )
+
+    def test_file(self, tmp_path):
+        content = b"hola"
+        file = tmp_path / "file.txt"
+        with file.open("wb") as f:
+            f.write(content)
+
+        with file.open("rb") as f:
+            assert (
+                util.hash_buffer(f)
+                == b"\x99\x80\x0b\x85\xd38>:/\xb4^\xb7\xd0\x06jHy\xa9\xda\xd0"
+            )

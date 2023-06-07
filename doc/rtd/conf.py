@@ -1,3 +1,4 @@
+import datetime
 import os
 import sys
 
@@ -18,7 +19,7 @@ sys.path.insert(0, os.path.abspath("."))
 
 # General information about the project.
 project = "cloud-init"
-copyright = "Canonical Ltd."
+copyright = f"Canonical Group Ltd, {datetime.date.today().year}"
 
 # -- General configuration ----------------------------------------------------
 
@@ -71,14 +72,46 @@ copybutton_only_copy_prompt_lines = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 html_theme = "furo"
+html_theme_options = {
+    "light_logo": "logo.png",
+    "dark_logo": "logo-dark-mode.png",
+    "light_css_variables": {
+        "font-stack": "Ubuntu, -apple-system, Segoe UI, Roboto, Oxygen, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif",
+        "font-stack--monospace": "Ubuntu Mono variable, Ubuntu Mono, Consolas, Monaco, Courier, monospace",
+        "color-foreground-primary": "#111",
+        "color-foreground-secondary": "var(--color-foreground-primary)",
+        "color-foreground-muted": "#333",
+        "color-background-secondary": "#FFF",
+        "color-background-hover": "#f2f2f2",
+        "color-brand-primary": "#111",
+        "color-brand-content": "#06C",
+        "color-inline-code-background": "rgba(0,0,0,.03)",
+        "color-sidebar-link-text": "#111",
+        "color-sidebar-item-background--current": "#ebebeb",
+        "color-sidebar-item-background--hover": "#f2f2f2",
+        "sidebar-item-line-height": "1.3rem",
+        "color-link-underline": "var(--color-background-primary)",
+        "color-link-underline--hover": "var(--color-background-primary)",
+    },
+    "dark_css_variables": {
+        "color-foreground-secondary": "var(--color-foreground-primary)",
+        "color-foreground-muted": "#CDCDCD",
+        "color-background-secondary": "var(--color-background-primary)",
+        "color-background-hover": "#666",
+        "color-brand-primary": "#fff",
+        "color-brand-content": "#06C",
+        "color-sidebar-link-text": "#f7f7f7",
+        "color-sidebar-item-background--current": "#666",
+        "color-sidebar-item-background--hover": "#333",
+    },
+}
+
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 html_static_path = ["static"]
-html_theme_options = {
-    "light_logo": "logo.png",
-    "dark_logo": "logo-dark-mode.png",
-}
+html_css_files = ["css/custom.css", "css/github_issue_links.css"]
+html_js_files = ["js/github_issue_links.js"]
 
 html_extra_path = ["googleaf254801a5285c31.html"]
 

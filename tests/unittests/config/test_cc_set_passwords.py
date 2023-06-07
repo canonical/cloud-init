@@ -20,8 +20,12 @@ LOG = logging.getLogger(__name__)
 SYSTEMD_CHECK_CALL = mock.call(
     ["systemctl", "show", "--property", "ActiveState", "--value", "ssh"]
 )
-SYSTEMD_RESTART_CALL = mock.call(["systemctl", "restart", "ssh"], capture=True)
-SERVICE_RESTART_CALL = mock.call(["service", "ssh", "restart"], capture=True)
+SYSTEMD_RESTART_CALL = mock.call(
+    ["systemctl", "restart", "ssh"], capture=True, rcs=None
+)
+SERVICE_RESTART_CALL = mock.call(
+    ["service", "ssh", "restart"], capture=True, rcs=None
+)
 
 
 @pytest.fixture(autouse=True)
@@ -46,7 +50,6 @@ class TestHandleSSHPwauth:
             (True, True, "activating"),
             (True, True, "inactive"),
             (True, False, None),
-            (False, True, None),
             (False, False, None),
         ),
     )
@@ -79,10 +82,6 @@ class TestHandleSSHPwauth:
                 assert SYSTEMD_RESTART_CALL in m_subp.call_args_list
             else:
                 assert SYSTEMD_RESTART_CALL not in m_subp.call_args_list
-        else:
-            assert SERVICE_RESTART_CALL in m_subp.call_args_list
-            assert SYSTEMD_CHECK_CALL not in m_subp.call_args_list
-            assert SYSTEMD_RESTART_CALL not in m_subp.call_args_list
 
     @mock.patch(f"{MODPATH}update_ssh_config", return_value=True)
     @mock.patch("cloudinit.distros.subp.subp")
@@ -118,7 +117,6 @@ def get_chpasswd_calls(cfg, cloud, log):
                 "IGNORED",
                 cfg=cfg,
                 cloud=cloud,
-                log=log,
                 args=[],
             )
     assert chpasswd.call_count > 0
@@ -132,7 +130,7 @@ class TestSetPasswordsHandle:
     def test_handle_on_empty_config(self, m_subp, caplog):
         """handle logs that no password has changed when config is empty."""
         cloud = get_cloud()
-        setpass.handle("IGNORED", cfg={}, cloud=cloud, log=LOG, args=[])
+        setpass.handle("IGNORED", cfg={}, cloud=cloud, args=[])
         assert (
             "Leaving SSH config 'PasswordAuthentication' unchanged. "
             "ssh_pwauth=None"
@@ -155,7 +153,7 @@ class TestSetPasswordsHandle:
         ]
         cfg = {"chpasswd": {"list": valid_hashed_pwds}}
         with mock.patch.object(setpass.Distro, "chpasswd") as chpasswd:
-            setpass.handle("IGNORED", cfg=cfg, cloud=cloud, log=LOG, args=[])
+            setpass.handle("IGNORED", cfg=cfg, cloud=cloud, args=[])
         assert "Handling input for chpasswd as list." in caplog.text
         assert "Setting hashed password for ['root', 'ubuntu']" in caplog.text
 
@@ -181,7 +179,7 @@ class TestSetPasswordsHandle:
         ]
         cfg = {"chpasswd": {"users": valid_hashed_pwds}}
         with mock.patch.object(setpass.Distro, "chpasswd") as chpasswd:
-            setpass.handle("IGNORED", cfg=cfg, cloud=cloud, log=LOG, args=[])
+            setpass.handle("IGNORED", cfg=cfg, cloud=cloud, args=[])
         assert "Handling input for chpasswd as list." not in caplog.text
         assert "Setting hashed password for ['root', 'ubuntu']" in caplog.text
         first_arg = chpasswd.call_args[0]
@@ -228,7 +226,7 @@ class TestSetPasswordsHandle:
         with mock.patch.object(
             cloud.distro, "uses_systemd", return_value=False
         ):
-            setpass.handle("IGNORED", cfg=cfg, cloud=cloud, log=LOG, args=[])
+            setpass.handle("IGNORED", cfg=cfg, cloud=cloud, args=[])
         assert [
             mock.call(
                 ["pw", "usermod", "ubuntu", "-h", "0"],
@@ -272,7 +270,7 @@ class TestSetPasswordsHandle:
         cfg = {"chpasswd": user_cfg}
 
         with mock.patch.object(setpass.Distro, "chpasswd") as chpasswd:
-            setpass.handle("IGNORED", cfg=cfg, cloud=cloud, log=LOG, args=[])
+            setpass.handle("IGNORED", cfg=cfg, cloud=cloud, args=[])
         dbg_text = "Handling input for chpasswd as list."
         if "list" in cfg["chpasswd"]:
             assert dbg_text in caplog.text
@@ -511,7 +509,7 @@ class TestExpire:
         mocker.patch.object(cloud.distro, "chpasswd")
         m_expire = mocker.patch.object(cloud.distro, "expire_passwd")
 
-        setpass.handle("IGNORED", cfg=cfg, cloud=cloud, log=LOG, args=[])
+        setpass.handle("IGNORED", cfg=cfg, cloud=cloud, args=[])
 
         if bool(cfg["chpasswd"]["expire"]):
             assert m_expire.call_args_list == [
@@ -537,7 +535,7 @@ class TestExpire:
         mocker.patch.object(cloud.distro, "chpasswd")
         m_expire = mocker.patch.object(cloud.distro, "expire_passwd")
 
-        setpass.handle("IGNORED", cfg=cfg, cloud=cloud, log=LOG, args=[])
+        setpass.handle("IGNORED", cfg=cfg, cloud=cloud, args=[])
 
         if bool(cfg["chpasswd"]["expire"]):
             assert m_expire.call_args_list == [
@@ -729,6 +727,3 @@ class TestSetPasswordsSchema:
     def test_schema_validation(self, config, expectation):
         with expectation:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
-
-
-# vi: ts=4 expandtab

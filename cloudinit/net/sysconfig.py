@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import glob
 import io
 import os
 import re
@@ -1013,7 +1014,12 @@ class Renderer(renderer.Renderer):
         if self.netrules_path:
             netrules_content = self._render_persistent_net(network_state)
             netrules_path = subp.target_path(target, self.netrules_path)
-            util.write_file(netrules_path, netrules_content, file_mode)
+            util.write_file(
+                netrules_path,
+                content=netrules_content,
+                mode=file_mode,
+                preserve_mode=True,
+            )
 
         sysconfig_path = subp.target_path(target, templates.get("control"))
         # Distros configuring /etc/sysconfig/network as a file e.g. Centos
@@ -1045,7 +1051,25 @@ def _supported_vlan_names(rdev, vid):
 def available(target=None):
     if not util.system_info()["variant"] in KNOWN_DISTROS:
         return False
+    if available_sysconfig(target):
+        return True
+    if available_nm_ifcfg_rh(target):
+        return True
+    return False
 
+
+def available_nm_ifcfg_rh(target=None):
+    # The ifcfg-rh plugin of NetworkManager is installed.
+    # NetworkManager can handle the ifcfg files.
+    return glob.glob(
+        subp.target_path(
+            target,
+            "usr/lib*/NetworkManager/*/libnm-settings-plugin-ifcfg-rh.so",
+        )
+    )
+
+
+def available_sysconfig(target=None):
     expected = ["ifup", "ifdown"]
     search = ["/sbin", "/usr/sbin"]
     for p in expected:

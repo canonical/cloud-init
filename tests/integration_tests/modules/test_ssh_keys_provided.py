@@ -9,7 +9,7 @@ system.
 
 import pytest
 
-from tests.integration_tests.clouds import ImageSpecification
+from tests.integration_tests.releases import CURRENT_RELEASE
 
 USER_DATA = """\
 #cloud-config
@@ -143,7 +143,7 @@ class TestSshKeysProvided:
             "HostCertificate /etc/ssh/ssh_host_rsa_key-cert.pub",
             "HostCertificate /etc/ssh/ssh_host_ed25519_key-cert.pub",
         )
-        if ImageSpecification.from_os_image().release in {"bionic"}:
+        if CURRENT_RELEASE.series == "bionic":
             sshd_config_path = "/etc/ssh/sshd_config"
         else:
             sshd_config_path = "/etc/ssh/sshd_config.d/50-cloud-init.conf"

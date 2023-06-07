@@ -12,7 +12,6 @@ import glob
 import os
 import pathlib
 import re
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import gpg
@@ -170,17 +169,12 @@ def get_default_mirrors(arch=None, target=None):
     raise ValueError("No default mirror known for arch %s" % arch)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """process the config for apt_config. This can be called from
     curthooks if a global apt config was provided or via the "apt"
     standalone command."""
     # keeping code close to curtin codebase via entry handler
     target = None
-    if log is not None:
-        global LOG
-        LOG = log
     # feed back converted config, but only work on the subset under 'apt'
     cfg = convert_to_v3_apt_format(cfg)
     apt_cfg = cfg.get("apt", {})
@@ -381,15 +375,6 @@ def rename_apt_lists(new_mirrors, target, arch):
             except OSError:
                 # since this is a best effort task, warn with but don't fail
                 LOG.warning("Failed to rename apt list:", exc_info=True)
-
-
-def mirror_to_placeholder(tmpl, mirror, placeholder):
-    """mirror_to_placeholder
-    replace the specified mirror in a template with a placeholder string
-    Checks for existance of the expected mirror and warns if not found"""
-    if mirror not in tmpl:
-        LOG.warning("Expected mirror '%s' not found in: %s", mirror, tmpl)
-    return tmpl.replace(mirror, placeholder)
 
 
 def map_known_suites(suite):
@@ -614,9 +599,10 @@ def add_apt_sources(
 def convert_v1_to_v2_apt_format(srclist):
     """convert v1 apt format to v2 (dict in apt_sources)"""
     srcdict = {}
-    LOG.warning(
-        "DEPRECATION: 'apt_sources' deprecated config key found."
-        " Use 'apt' instead"
+    util.deprecate(
+        deprecated="Config key 'apt_sources'",
+        deprecated_version="22.1",
+        extra_message="Use 'apt' instead",
     )
     if isinstance(srclist, list):
         LOG.debug("apt config: convert V1 to V2 format (source list to dict)")
@@ -692,18 +678,17 @@ def convert_v2_to_v3_apt_format(oldcfg):
     # no old config, so no new one to be created
     if not needtoconvert:
         return oldcfg
-    LOG.warning(
-        "DEPRECATION apt: converted deprecated config V2 to V3 format for"
-        " keys '%s'. Use updated config keys.",
-        ", ".join(needtoconvert),
+    util.deprecate(
+        deprecated=f"The following config key(s): {needtoconvert}",
+        deprecated_version="22.1",
     )
 
     # if old AND new config are provided, prefer the new one (LP #1616831)
     newaptcfg = oldcfg.get("apt", None)
     if newaptcfg is not None:
-        LOG.warning(
-            "DEPRECATION: apt config: deprecated V1/2 and V3 format specified,"
-            " preferring V3"
+        util.deprecate(
+            deprecated="Support for combined old and new apt module keys",
+            deprecated_version="22.1",
         )
         for oldkey in needtoconvert:
             newkey = mapoldkeys[oldkey]

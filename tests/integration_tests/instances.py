@@ -75,7 +75,7 @@ class IntegrationInstance:
 
     def execute(self, command, *, use_sudo=True) -> Result:
         if self.instance.username == "root" and use_sudo is False:
-            raise Exception("Root user cannot run unprivileged")
+            raise RuntimeError("Root user cannot run unprivileged")
         return self.instance.execute(command, use_sudo=use_sudo)
 
     def pull_file(self, remote_path, local_path):
@@ -139,7 +139,7 @@ class IntegrationInstance:
         elif source == CloudInitSource.UPGRADE:
             self.upgrade_cloud_init()
         else:
-            raise Exception(
+            raise RuntimeError(
                 "Specified to install {} which isn't supported here".format(
                     source
                 )

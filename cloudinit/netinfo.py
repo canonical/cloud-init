@@ -18,7 +18,7 @@ from cloudinit import subp, util
 from cloudinit.net.network_state import net_prefix_to_ipv4_mask
 from cloudinit.simpletable import SimpleTable
 
-LOG = logging.getLogger()
+LOG = logging.getLogger(__name__)
 
 # Example netdev format:
 # {'eth0': {'hwaddr': '00:16:3e:16:db:54',
@@ -94,11 +94,13 @@ def _netdev_info_iproute_json(ipaddr_json):
     return devs
 
 
+@util.deprecate_call(
+    deprecated_version="22.1",
+    extra_message="Required by old iproute2 versions that don't "
+    "support ip json output. Consider upgrading to a more recent version.",
+)
 def _netdev_info_iproute(ipaddr_out):
     """
-    DEPRECATED: Only used on distros that don't support ip json output
-    Use _netdev_info_iproute_json() when possible.
-
     @param ipaddr_out: Output string from 'ip addr show' command.
 
     @returns: A dict of device info keyed by network device name containing
@@ -596,16 +598,19 @@ def route_pformat():
             tbl_v4 = SimpleTable(fields_v4)
             for (n, r) in enumerate(routes.get("ipv4")):
                 route_id = str(n)
-                tbl_v4.add_row(
-                    [
-                        route_id,
-                        r["destination"],
-                        r["gateway"],
-                        r["genmask"],
-                        r["iface"],
-                        r["flags"],
-                    ]
-                )
+                try:
+                    tbl_v4.add_row(
+                        [
+                            route_id,
+                            r["destination"],
+                            r.get("gateway", "0.0.0.0"),
+                            r["genmask"],
+                            r["iface"],
+                            r["flags"],
+                        ]
+                    )
+                except KeyError as e:
+                    util.logexc(LOG, "Route info formatting error: %s" % e)
             route_s = tbl_v4.get_string()
             max_len = len(max(route_s.splitlines(), key=len))
             header = util.center("Route IPv4 info", "+", max_len)
@@ -623,15 +628,18 @@ def route_pformat():
                 route_id = str(n)
                 if r["iface"] == "lo":
                     continue
-                tbl_v6.add_row(
-                    [
-                        route_id,
-                        r["destination"],
-                        r["gateway"],
-                        r["iface"],
-                        r["flags"],
-                    ]
-                )
+                try:
+                    tbl_v6.add_row(
+                        [
+                            route_id,
+                            r["destination"],
+                            r.get("gateway", "::"),
+                            r["iface"],
+                            r["flags"],
+                        ]
+                    )
+                except KeyError as e:
+                    util.logexc(LOG, "Route info formatting error: %s" % e)
             route_s = tbl_v6.get_string()
             max_len = len(max(route_s.splitlines(), key=len))
             header = util.center("Route IPv6 info", "+", max_len)

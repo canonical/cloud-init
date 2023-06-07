@@ -6,7 +6,6 @@
 
 import os
 import sys
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import log as logging
@@ -186,9 +185,7 @@ def run_commands(commands):
         raise RuntimeError(msg)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     cfgin = cfg.get("snap", {})
     if not cfgin:
         LOG.debug(

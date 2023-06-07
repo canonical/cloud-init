@@ -14,7 +14,7 @@ import stat
 import time
 from enum import Flag, auto
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -168,11 +168,14 @@ class DataSourceLXD(sources.DataSource):
     _network_config: Union[Dict, str] = sources.UNSET
     _crawled_metadata: Union[Dict, str] = sources.UNSET
 
-    sensitive_metadata_keys = (
-        "merged_cfg",
+    sensitive_metadata_keys: Tuple[
+        str, ...
+    ] = sources.DataSource.sensitive_metadata_keys + (
         "user.meta-data",
         "user.vendor-data",
         "user.user-data",
+        "cloud-init.user-data",
+        "cloud-init.vendor-data",
     )
 
     skip_hotplug_detect = True
@@ -181,16 +184,13 @@ class DataSourceLXD(sources.DataSource):
         super()._unpickle(ci_pkl_version)
         self.skip_hotplug_detect = True
 
-    def _is_platform_viable(self) -> bool:
+    @staticmethod
+    def ds_detect() -> bool:
         """Check platform environment to report if this datasource may run."""
         return is_platform_viable()
 
     def _get_data(self) -> bool:
         """Crawl LXD socket API instance data and return True on success"""
-        if not self._is_platform_viable():
-            LOG.debug("Not an LXD datasource: No LXD socket found.")
-            return False
-
         self._crawled_metadata = util.log_time(
             logfunc=LOG.debug,
             msg="Crawl of metadata service",
