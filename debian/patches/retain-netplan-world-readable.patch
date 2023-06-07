@@ -20,7 +20,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  be written as a single root readon-only file /etc/netplan/50-cloud-init.yaml.
 --- a/tests/unittests/distros/test_netconfig.py
 +++ b/tests/unittests/distros/test_netconfig.py
-@@ -592,32 +592,41 @@ class TestNetCfgDistroUbuntuNetplan(Test
+@@ -608,32 +608,41 @@ class TestNetCfgDistroUbuntuNetplan(Test
              (self.netplan_path(), V1_TO_V2_NET_CFG_OUTPUT, 0o600),
          )
  
@@ -77,7 +77,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  
      def test_apply_network_config_v2_passthrough_retain_orig_perms(self):
          """Custom permissions on existing netplan is kept when more strict."""
-@@ -657,11 +666,14 @@ class TestNetCfgDistroUbuntuNetplan(Test
+@@ -673,11 +682,14 @@ class TestNetCfgDistroUbuntuNetplan(Test
          expected_cfgs = (
              (self.netplan_path(), V2_PASSTHROUGH_NET_CFG_OUTPUT, 0o600),
          )
@@ -97,7 +97,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
          self.assertIn("Passthrough netplan v2 config", self.logs.getvalue())
          self.assertIn(
              "Selected renderer 'netplan' from priority list: ['netplan']",
-@@ -1056,12 +1068,16 @@ class TestNetCfgDistroArch(TestNetCfgDis
+@@ -1072,12 +1084,16 @@ class TestNetCfgDistroArch(TestNetCfgDis
          with mock.patch(
              "cloudinit.net.netplan.get_devicelist", return_value=[]
          ):
