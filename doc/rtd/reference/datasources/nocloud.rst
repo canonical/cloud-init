@@ -60,7 +60,7 @@ Filesystem
 
 A filesystem path starting with ``/`` or ``file://`` that points to a directory
 containing files: ``user-data``, ``meta-data``, and (optionally)
-``vendor-data``
+``vendor-data`` (a trailing ``/`` is required)
 
 HTTP server
 -----------
