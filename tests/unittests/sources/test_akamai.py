@@ -32,12 +32,17 @@ class TestDataSourceAkamai:
             }
         }
 
-        if local:
-            ds: Union[
-                DataSourceAkamai, DataSourceAkamaiLocal
-            ] = DataSourceAkamaiLocal(sys_cfg, None, None)
-        else:
-            ds = DataSourceAkamai(sys_cfg, None, None)
+        # patch read_dmi_data, even when not in a container
+        with mock.patch(
+            "cloudinit.dmi.read_dmi_data",
+            return_value="",
+        ):
+            if local:
+                ds: Union[
+                    DataSourceAkamai, DataSourceAkamaiLocal
+                ] = DataSourceAkamaiLocal(sys_cfg, None, None)
+            else:
+                ds = DataSourceAkamai(sys_cfg, None, None)
 
         return ds
 
@@ -213,7 +218,7 @@ class TestDataSourceAkamai:
             ),
         ),
     )
-    @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    @mock.patch("cloudinit.sources.DataSourceAkamai.get_interfaces_by_mac")
     def test_get_network_context_managers(
         self,
         get_interfaces_by_mac,
