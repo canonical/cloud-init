@@ -62,6 +62,7 @@ class GoogleMetadataFetcher:
 
 
 class DataSourceGCE(sources.DataSource):
+
     dsname = "GCE"
     perform_dhcp_setup = False
     default_update_events = {
@@ -89,9 +90,11 @@ class DataSourceGCE(sources.DataSource):
     def _get_data(self):
         url_params = self.get_url_params()
         if self.perform_dhcp_setup:
-            candidate_nics = net.find_candidate_nics(
-                default_primary_interface=DEFAULT_PRIMARY_INTERFACE
-            )
+            candidate_nics = net.find_candidate_nics()
+            if DEFAULT_PRIMARY_INTERFACE in candidate_nics:
+                candidate_nics.remove(DEFAULT_PRIMARY_INTERFACE)
+                candidate_nics.insert(0, DEFAULT_PRIMARY_INTERFACE)
+            LOG.debug("Looking for the primary NIC in: %s", candidate_nics)
             assert (
                 len(candidate_nics) >= 1
             ), "The instance has to have at least one candidate NIC"
@@ -102,20 +105,29 @@ class DataSourceGCE(sources.DataSource):
                 )
                 try:
                     with network_context:
-                        ret = util.log_time(
-                            LOG.debug,
-                            "Crawl of GCE metadata service",
-                            read_md,
-                            kwargs={
-                                "address": self.metadata_address,
-                                "url_params": url_params,
-                            },
-                        )
-                    if ret["success"]:
-                        self._fallback_interface = candidate_nic
-                        break
+                        try:
+                            ret = util.log_time(
+                                LOG.debug,
+                                "Crawl of GCE metadata service",
+                                read_md,
+                                kwargs={
+                                    "address": self.metadata_address,
+                                    "url_params": url_params,
+                                },
+                            )
+                        except Exception:
+                            LOG.debug(
+                                "Error fetching IMD with candidate NIC %s",
+                                candidate_nic,
+                                exc_info=True,
+                            )
+                            continue
                 except NoDHCPLeaseError:
                     continue
+                if ret["success"]:
+                    self._fallback_interface = candidate_nic
+                    LOG.debug("Primary NIC found: %s.", candidate_nic)
+                    break
             if self._fallback_interface is None:
                 LOG.warning(
                     "Did not find a fallback interface on %s.", self.cloud_name
@@ -247,6 +259,7 @@ def _parse_public_keys(public_keys_data, default_user=None):
 
 
 def read_md(address=None, url_params=None, platform_check=True):
+
     if address is None:
         address = MD_V1_URL
 
@@ -281,7 +294,7 @@ def read_md(address=None, url_params=None, platform_check=True):
     )
     md = {}
     # Iterate over url_map keys to get metadata items.
-    for mkey, paths, required, is_text, is_recursive in url_map:
+    for (mkey, paths, required, is_text, is_recursive) in url_map:
         value = None
         for path in paths:
             new_value = metadata_fetcher.get_value(path, is_text, is_recursive)

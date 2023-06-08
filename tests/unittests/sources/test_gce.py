@@ -432,14 +432,21 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         ds = DataSourceGCE.DataSourceGCELocal(
             sys_cfg={}, distro=distro, paths=None
         )
-        m_find_candidate_nics.return_value = ["ens0p4", "ens0p5", "ens4"]
+        m_find_candidate_nics.return_value = [
+            "ens0p4",
+            "ens0p5",
+            "ens0p6",
+            "ens4",
+        ]
         m_dhcp.return_value.__enter__.side_effect = (
             None,
             NoDHCPLeaseError,
             None,
+            None,
         )
         m_read_md.side_effect = (
             {"success": False},
+            Exception("error fetching IMD"),
             {
                 "success": True,
                 "platform_reports_gce": True,
@@ -449,15 +456,13 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
             },
         )
         assert ds._get_data() is True
-        assert m_find_candidate_nics.call_args_list == [
-            mock.call(default_primary_interface="ens4")
-        ], "DEFAULT_PRIMARY_INTERFACE changed"
         assert m_dhcp.call_args_list == [
+            mock.call(distro, iface=DataSourceGCE.DEFAULT_PRIMARY_INTERFACE),
             mock.call(distro, iface="ens0p4"),
             mock.call(distro, iface="ens0p5"),
-            mock.call(distro, iface="ens4"),
+            mock.call(distro, iface="ens0p6"),
         ]
-        assert ds._fallback_interface == "ens4"
+        assert ds._fallback_interface == "ens0p6"
         assert ds.metadata == "md"
         assert ds.userdata_raw == "ud"
 
