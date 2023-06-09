@@ -115,11 +115,11 @@ class DataSourceGCE(sources.DataSource):
                                     "url_params": url_params,
                                 },
                             )
-                        except Exception:
+                        except Exception as e:
                             LOG.debug(
-                                "Error fetching IMD with candidate NIC %s",
+                                "Error fetching IMD with candidate NIC %s: %s",
                                 candidate_nic,
-                                exc_info=True,
+                                e,
                             )
                             continue
                 except NoDHCPLeaseError:

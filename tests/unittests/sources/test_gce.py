@@ -62,6 +62,8 @@ GUEST_ATTRIBUTES_URL = (
 
 
 class TestDataSourceGCE(test_helpers.ResponsesTestCase):
+    with_logs = True
+
     def _make_distro(self, dtype, def_user=None):
         cfg = dict(settings.CFG_BUILTIN)
         cfg["system_info"]["distro"] = dtype
@@ -446,7 +448,7 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         )
         m_read_md.side_effect = (
             {"success": False},
-            Exception("error fetching IMD"),
+            Exception("whoopsie, not this one"),
             {
                 "success": True,
                 "platform_reports_gce": True,
@@ -465,6 +467,18 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         assert ds._fallback_interface == "ens0p6"
         assert ds.metadata == "md"
         assert ds.userdata_raw == "ud"
+
+        expected_logs = (
+            "Looking for the primary NIC in:"
+            " ['ens4', 'ens0p4', 'ens0p5', 'ens0p6']",
+            "Error fetching IMD with candidate NIC ens0p5:"
+            " whoopsie, not this one",
+        )
+        for msg in expected_logs:
+            self.assertIn(
+                msg,
+                self.logs.getvalue(),
+            )
 
     @mock.patch(
         M_PATH + "EphemeralDHCPv4",
