@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # PROVIDE: cloudinitlocal
-# REQUIRE: ldconfig mountcritlocal 
+# REQUIRE: ldconfig dsidentify
 # BEFORE:  NETWORKING cloudinit cloudconfig cloudfinal
 
 . /etc/rc.subr
@@ -13,7 +13,6 @@ command="/usr/local/bin/cloud-init"
 start_cmd="cloudlocal_start"
 stop_cmd=":"
 rcvar="cloudinit_enable"
-start_cmd="cloudlocal_start"
 
 cloudlocal_start()
 {

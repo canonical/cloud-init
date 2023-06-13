@@ -1,28 +1,28 @@
 #!/bin/sh
 
-# PROVIDE: cloudinit
-# REQUIRE: FILESYSTEMS NETWORKING cloudinitlocal ldconfig devd
-# BEFORE:  LOGIN cloudconfig cloudfinal
+# PROVIDE: dsidentify
+# REQUIRE: mountcritlocal
+# BEFORE:  cloudinitlocal
 
 . /etc/rc.subr
 
 PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-name="cloudinit"
-command="/usr/local/bin/cloud-init"
-start_cmd="cloudinit_start"
+name="dsidentify"
+command="/usr/local/lib/cloud-init/ds-identify"
+start_cmd="dsidentify_start"
 stop_cmd=":"
 rcvar="cloudinit_enable"
 
-cloudinit_start()
+dsidentify_start()
 {
-    echo -n "${command} starting"
+    echo "${command} starting"
     if kenv -q kernel_options | grep -q 'cloud-init=disabled'; then
         warn "cloud-init is disabled via kernel_options."
     elif test -e /etc/cloud/cloud-init.disabled; then
         warn "cloud-init is disabled via cloud-init.disabled file."
     else
-        ${command} init
+        ${command}
     fi
 }
 

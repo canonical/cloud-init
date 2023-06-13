@@ -13,7 +13,6 @@ command="/usr/local/bin/cloud-init"
 start_cmd="cloudfinal_start"
 stop_cmd=":"
 rcvar="cloudinit_enable"
-start_cmd="cloudfinal_start"
 
 cloudfinal_start()
 {
