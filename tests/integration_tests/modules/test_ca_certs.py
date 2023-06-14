@@ -142,6 +142,8 @@ class TestCaCerts:
             if class_client.settings.OS_IMAGE == "bionic":
                 expected_inactive.discard("write_files")
                 expected_inactive.discard("write_files_deferred")
+        elif class_client.settings.PLATFORM == "oci":
+            expected_inactive.discard("update_etc_hosts")
 
         diff = expected_inactive.symmetric_difference(
             get_inactive_modules(log)
