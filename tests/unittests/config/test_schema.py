@@ -1534,10 +1534,10 @@ class TestAnnotatedCloudconfigFile:
         ('', "None is not of type 'object'"). Ignore those symptoms and
         report the general problem instead.
         """
-        content = b"\n\n\n"
+        content = "\n\n\n"
         expected = "\n".join(
             [
-                content.decode(),
+                content,
                 "# Errors: -------------",
                 "# E1: Cloud-config is not a YAML dict.\n\n",
             ]
@@ -1558,7 +1558,7 @@ class TestAnnotatedCloudconfigFile:
             ntp:
               pools: [-99, 75]
             """
-        ).encode()
+        )
         expected = dedent(
             """\
             #cloud-config
@@ -1597,7 +1597,7 @@ class TestAnnotatedCloudconfigFile:
                 - -99
                 - 75
             """
-        ).encode()
+        )
         expected = dedent(
             """\
             ntp:

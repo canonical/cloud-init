@@ -19,12 +19,7 @@ import yaml
 from cloudinit import importer, safeyaml
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers import INCLUSION_TYPES_MAP, type_from_starts_with
-from cloudinit.util import (
-    decode_binary,
-    error,
-    get_modules_from_dir,
-    load_file,
-)
+from cloudinit.util import error, get_modules_from_dir, load_file
 
 try:
     from jsonschema import ValidationError as _ValidationError
@@ -613,10 +608,10 @@ class _Annotator:
         self,
         schema_errors: SchemaProblems,
         schema_deprecations: SchemaProblems,
-    ) -> Union[str, bytes]:
+    ) -> str:
         if not schema_errors and not schema_deprecations:
             return self._original_content
-        lines = decode_binary(self._original_content).split("\n")
+        lines = self._original_content.split("\n")
         if not isinstance(self._cloudconfig, dict):
             # Return a meaningful message on empty cloud-config
             return "\n".join(
@@ -660,7 +655,7 @@ def annotated_cloudconfig_file(
 
 
 def process_merged_cloud_config_part_problems(
-    content: str, annotate: bool
+    content: str,
 ) -> List[SchemaProblem]:
     """Annotate and return schema validation errors in merged cloud-config.txt
 
@@ -775,7 +770,7 @@ def validate_cloudconfig_file(
     if decoded_userdata.userdata_type != "text/cloud-config":
         return  # Neither nested #cloud-config in jinja2 nor raw #cloud-config
     content = decoded_userdata.content
-    errors = process_merged_cloud_config_part_problems(content, annotate)
+    errors = process_merged_cloud_config_part_problems(content)
     try:
         if annotate:
             cloudconfig, marks = safeyaml.load_with_marks(content)
@@ -815,13 +810,15 @@ def validate_cloudconfig_file(
             cloudconfig, schema, strict=True, log_deprecations=False
         )
     except SchemaValidationError as e:
+        if e.has_errors():
+            errors += e.schema_errors
         if annotate:
             print(
                 annotated_cloudconfig_file(
                     cloudconfig,
                     content,
                     marks,
-                    schema_errors=errors + e.schema_errors,
+                    schema_errors=errors,
                     schema_deprecations=e.schema_deprecations,
                 )
             )
@@ -832,10 +829,8 @@ def validate_cloudconfig_file(
                 separator=", ",
             )
             print(message)
-        if e.has_errors():  # We do not consider deprecations as error
-            raise SchemaValidationError(
-                schema_errors=errors + e.schema_errors
-            ) from e
+        if errors:
+            raise SchemaValidationError(schema_errors=errors) from e
 
 
 def _sort_property_order(value):

@@ -107,8 +107,7 @@ hostname: \d+		# E2
 
 # Errors: -------------
 # E1: Ignored invalid user-data: cfg-invalid.yaml
-# E2: \d+ is not of type 'string'
-"""
+# E2: \d+ is not of type 'string'"""
 
 
 @pytest.mark.ci
