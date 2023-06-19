@@ -13,6 +13,7 @@ from cloudinit.net.dhcp import (
     NoDHCPLeaseError,
     NoDHCPLeaseInterfaceError,
     NoDHCPLeaseMissingDhclientError,
+    Udhcpc,
     maybe_perform_dhcp_discovery,
     networkd_load_leases,
 )
@@ -928,3 +929,169 @@ class TestEphemeralDhcpLeaseErrors:
                 pass
 
         assert len(m_dhcp.mock_calls) == 1
+
+
+class TestUDHCPCDiscoveryClean(CiTestCase):
+    with_logs = True
+    maxDiff = None
+
+    @mock.patch("cloudinit.net.dhcp.subp.which")
+    @mock.patch("cloudinit.net.dhcp.find_fallback_nic")
+    def test_absent_udhcpc_command(self, m_fallback, m_which):
+        """When dhclient doesn't exist in the OS, log the issue and no-op."""
+        m_fallback.return_value = "eth9"
+        m_which.return_value = None  # udhcpc isn't found
+
+        distro = MockDistro()
+        distro.dhcp_client_priority = [Udhcpc]
+
+        with pytest.raises(NoDHCPLeaseMissingDhclientError):
+            maybe_perform_dhcp_discovery(distro)
+
+        self.assertIn(
+            "Skip udhcpc configuration: No udhcpc command found.",
+            self.logs.getvalue(),
+        )
+
+    @mock.patch("cloudinit.net.dhcp.is_ib_interface", return_value=False)
+    @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/udhcpc")
+    @mock.patch("cloudinit.net.dhcp.os.remove")
+    @mock.patch("cloudinit.net.dhcp.subp.subp")
+    @mock.patch("cloudinit.util.load_json")
+    @mock.patch("cloudinit.util.load_file")
+    @mock.patch("cloudinit.util.write_file")
+    def test_udhcpc_discovery(
+        self,
+        m_write_file,
+        m_load_file,
+        m_loadjson,
+        m_subp,
+        m_remove,
+        m_which,
+        mocked_is_ib_interface,
+    ):
+        """dhcp_discovery runs udcpc and parse the dhcp leases."""
+        m_subp.return_value = ("", "")
+        m_loadjson.return_value = {
+            "interface": "eth9",
+            "fixed-address": "192.168.2.74",
+            "subnet-mask": "255.255.255.0",
+            "routers": "192.168.2.1",
+            "static_routes": "10.240.0.1/32 0.0.0.0 0.0.0.0/0 10.240.0.1",
+        }
+        self.assertEqual(
+            [
+                {
+                    "fixed-address": "192.168.2.74",
+                    "interface": "eth9",
+                    "routers": "192.168.2.1",
+                    "static_routes": [
+                        ("10.240.0.1/32", "0.0.0.0"),
+                        ("0.0.0.0/0", "10.240.0.1"),
+                    ],
+                    "subnet-mask": "255.255.255.0",
+                }
+            ],
+            Udhcpc().dhcp_discovery("eth9", distro=MockDistro()),
+        )
+        # Interface was brought up before dhclient called
+        m_subp.assert_has_calls(
+            [
+                mock.call(
+                    ["ip", "link", "set", "dev", "eth9", "up"],
+                ),
+                mock.call(
+                    [
+                        "/sbin/udhcpc",
+                        "-O",
+                        "staticroutes",
+                        "-i",
+                        "eth9",
+                        "-s",
+                        "/var/tmp/cloud-init/udhcpc_script",
+                        "-n",
+                        "-q",
+                        "-f",
+                        "-v",
+                    ],
+                    update_env={
+                        "LEASE_FILE": "/var/tmp/cloud-init/eth9.lease.json"
+                    },
+                    capture=True,
+                ),
+            ]
+        )
+
+    @mock.patch("cloudinit.net.dhcp.is_ib_interface", return_value=True)
+    @mock.patch("cloudinit.net.dhcp.get_ib_interface_hwaddr")
+    @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/udhcpc")
+    @mock.patch("cloudinit.net.dhcp.os.remove")
+    @mock.patch("cloudinit.net.dhcp.subp.subp")
+    @mock.patch("cloudinit.util.load_json")
+    @mock.patch("cloudinit.util.load_file")
+    @mock.patch("cloudinit.util.write_file")
+    def test_udhcpc_discovery_ib(
+        self,
+        m_write_file,
+        m_load_file,
+        m_loadjson,
+        m_subp,
+        m_remove,
+        m_which,
+        m_get_ib_interface_hwaddr,
+        m_is_ib_interface,
+    ):
+        """dhcp_discovery runs udcpc and parse the dhcp leases."""
+        m_subp.return_value = ("", "")
+        m_loadjson.return_value = {
+            "interface": "ib0",
+            "fixed-address": "192.168.2.74",
+            "subnet-mask": "255.255.255.0",
+            "routers": "192.168.2.1",
+            "static_routes": "10.240.0.1/32 0.0.0.0 0.0.0.0/0 10.240.0.1",
+        }
+        m_get_ib_interface_hwaddr.return_value = "00:21:28:00:01:cf:4b:01"
+        self.assertEqual(
+            [
+                {
+                    "fixed-address": "192.168.2.74",
+                    "interface": "ib0",
+                    "routers": "192.168.2.1",
+                    "static_routes": [
+                        ("10.240.0.1/32", "0.0.0.0"),
+                        ("0.0.0.0/0", "10.240.0.1"),
+                    ],
+                    "subnet-mask": "255.255.255.0",
+                }
+            ],
+            Udhcpc().dhcp_discovery("ib0", distro=MockDistro()),
+        )
+        # Interface was brought up before dhclient called
+        m_subp.assert_has_calls(
+            [
+                mock.call(
+                    ["ip", "link", "set", "dev", "ib0", "up"],
+                ),
+                mock.call(
+                    [
+                        "/sbin/udhcpc",
+                        "-O",
+                        "staticroutes",
+                        "-i",
+                        "ib0",
+                        "-s",
+                        "/var/tmp/cloud-init/udhcpc_script",
+                        "-n",
+                        "-q",
+                        "-f",
+                        "-v",
+                        "-x",
+                        "0x3d:0021280001cf4b01",
+                    ],
+                    update_env={
+                        "LEASE_FILE": "/var/tmp/cloud-init/ib0.lease.json"
+                    },
+                    capture=True,
+                ),
+            ]
+        )
