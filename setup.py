@@ -166,7 +166,9 @@ INITSYS_FILES = {
     "sysvinit_freebsd": [
         render_tmpl(f) for f in glob("sysvinit/freebsd/*") if is_f(f)
     ],
-    "sysvinit_netbsd": [f for f in glob("sysvinit/netbsd/*") if is_f(f)],
+    "sysvinit_netbsd": [
+        render_tmpl(f) for f in glob("sysvinit/netbsd/*") if is_f(f)
+    ],
     "sysvinit_deb": [f for f in glob("sysvinit/debian/*") if is_f(f)],
     "sysvinit_openrc": [f for f in glob("sysvinit/gentoo/*") if is_f(f)],
     "systemd": [

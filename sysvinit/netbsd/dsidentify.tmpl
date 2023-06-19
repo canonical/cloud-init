@@ -1,0 +1,21 @@
+## template:jinja
+#!/bin/sh
+
+# PROVIDE: dsidentify
+# REQUIRE: CRITLOCALMOUNTED
+# BEFORE:  cloudinitlocal
+
+$_rc_subr_loaded . /etc/rc.subr
+
+name="dsidentify"
+start_cmd="start_dsidentify"
+start_dsidentify()
+{
+    test -e {{prefix}}/etc/cloud/cloud-init.disabled \
+      && warn "cloud-init disabled by cloud-init.disabled file" \
+      && exit 0
+    {{prefix}}/lib/cloud-init/ds-identify
+}
+
+load_rc_config $name
+run_rc_command "$1"
