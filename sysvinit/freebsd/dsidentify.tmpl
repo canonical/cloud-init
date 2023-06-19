@@ -1,3 +1,4 @@
+## template:jinja
 #!/bin/sh
 
 # PROVIDE: dsidentify
@@ -6,10 +7,10 @@
 
 . /etc/rc.subr
 
-PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+PATH="{{ prefix }}/sbin:{{ prefix }}/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 name="dsidentify"
-command="/usr/local/lib/cloud-init/ds-identify"
+command="{{ prefix }}/lib/cloud-init/ds-identify"
 start_cmd="dsidentify_start"
 stop_cmd=":"
 rcvar="cloudinit_enable"
@@ -19,7 +20,7 @@ dsidentify_start()
     echo "${command} starting"
     if kenv -q kernel_options | grep -q 'cloud-init=disabled'; then
         warn "cloud-init is disabled via kernel_options."
-    elif test -e /etc/cloud/cloud-init.disabled; then
+    elif test -e {{ prefix }}/etc/cloud-init.disabled; then
         warn "cloud-init is disabled via cloud-init.disabled file."
     else
         ${command}
