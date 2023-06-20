@@ -27,3 +27,7 @@ class Snap(PackageManager):
                 failed.append(pkg)
                 LOG.debug("Snap failed to install package: %s", pkg)
         return failed
+
+    @staticmethod
+    def upgrade_packages():
+        subp.subp(["snap", "refresh"])

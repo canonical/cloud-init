@@ -56,10 +56,8 @@ class Distro(distros.Distro):
         self.osfamily = "debian"
         self.default_locale = "en_US.UTF-8"
         self.system_locale = None
-
-        self.package_managers: List[PackageManager] = [
-            Apt.from_config(self._runner, cfg)
-        ]
+        self.apt = Apt.from_config(self._runner, cfg)
+        self.package_managers: List[PackageManager] = [self.apt]
 
     def get_locale(self):
         """Return the default locale if set, else use default locale"""
@@ -158,6 +156,13 @@ class Distro(distros.Distro):
 
     def set_timezone(self, tz):
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
+
+    def package_command(self, command, args=None, pkgs=None):
+        # As of this writing, the only use of `package_command` outside of
+        # distros calling it within their own classes is calling "upgrade"
+        if command != "upgrade":
+            raise RuntimeError(f"Unable to handle {command} command")
+        self.apt.run_package_command("upgrade")
 
     def get_primary_arch(self):
         return util.get_dpkg_architecture()

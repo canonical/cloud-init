@@ -34,7 +34,12 @@ class Distro(debian.Distro):
                 "postcmds": True,
             },
         }
-        self.package_managers.append(Snap(self._runner))
+        self.snap = Snap(self._runner)
+        self.package_managers.append(self.snap)
+
+    def package_command(self, command, args=None, pkgs=None):
+        super().package_command(command, args, pkgs)
+        self.snap.upgrade_packages()
 
     @property
     def preferred_ntp_clients(self):

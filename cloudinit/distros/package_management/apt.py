@@ -127,7 +127,7 @@ class Apt(PackageManager):
         return [pkg for pkg in pkglist if pkg not in self.get_all_packages()]
 
     def install_packages(
-        self, pkglist: Iterable[str], runner: helpers.Runners
+        self, pkglist: Iterable[str]
     ) -> UninstalledPackages:
         self.update_package_sources()
         unavailable = self.get_unavailable_packages(pkglist)
