@@ -16,8 +16,19 @@ import re
 import stat
 import string
 import urllib.parse
+from collections import defaultdict
 from io import StringIO
-from typing import Any, Mapping, MutableMapping, Optional, Type
+from typing import (
+    Any,
+    Dict,
+    List,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+)
 
 import cloudinit.net.netops.iproute2 as iproute2
 from cloudinit import (
@@ -31,6 +42,10 @@ from cloudinit import (
     util,
 )
 from cloudinit.distros.networking import LinuxNetworking, Networking
+from cloudinit.distros.package_management.package_manager import (
+    PackageManager,
+    known_package_managers,
+)
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 from cloudinit.net import activators, dhcp, eni, network_state, renderers
@@ -126,6 +141,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             dhcp.Udhcpc,
         ]
         self.net_ops = iproute2.Iproute2
+        self._runner = helpers.Runners(paths)
+        self.package_managers: List[PackageManager] = []
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         """Perform deserialization fixes for Distro."""
@@ -139,9 +156,82 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             # missing expected instance state otherwise.
             self.networking = self.networking_cls()
 
-    @abc.abstractmethod
+    def _extract_package_by_manager(
+        self, pkglist
+    ) -> Tuple[Dict[Type[PackageManager], Set[str]], Set[str]]:
+        """Transform the generic package list to package by package manager.
+
+        Additionally, include list of generic packages
+        """
+        packages_by_manager = defaultdict(set)
+        generic_packages: Set[str] = set()
+        for entry in pkglist:
+            if isinstance(entry, dict):
+                for key, value in entry.items():
+                    try:
+                        packages_by_manager[known_package_managers[key]].add(
+                            value
+                        )
+                    except KeyError:
+                        LOG.error(
+                            "Cannot install packages under %s as it is "
+                            "not a supported package manager!",
+                            key,
+                        )
+            elif isinstance(entry, str):
+                generic_packages.add(entry)
+            else:
+                raise ValueError(
+                    "Invalid 'packages' yaml specification. "
+                    "Check schema definition."
+                )
+        return dict(packages_by_manager), generic_packages
+
     def install_packages(self, pkglist):
-        raise NotImplementedError()
+        error_message = (
+            "Failed to install the following packages: %s. "
+            "See associated package manager logs for more details."
+        )
+        # If an entry hasn't been included with an explicit package name,
+        # add it to a 'generic' list of packages
+        (
+            packages_by_manager,
+            generic_packages,
+        ) = self._extract_package_by_manager(pkglist)
+
+        # First install packages using package manager(s)
+        # supported by the distro
+        uninstalled = []
+        for manager in self.package_managers:
+            to_try = (
+                packages_by_manager.get(manager.__class__, set())
+                | generic_packages
+            )
+            uninstalled = manager.install_packages(to_try)
+            failed = {
+                pkg for pkg in uninstalled if pkg not in generic_packages
+            }
+            if failed:
+                LOG.error(error_message, failed)
+            generic_packages = set(uninstalled)
+
+        # Now attempt any specified package managers not explicitly supported
+        # by distro
+        for manager_name, packages in packages_by_manager.items():
+            if manager_name not in known_package_managers:
+                LOG.error(
+                    "Cannot install any packages listed under unknown package "
+                    "manager: %s.",
+                    manager_name,
+                )
+            uninstalled.extend(
+                manager_name.from_config(
+                    self._runner, self._cfg
+                ).install_packages(pkglist=packages)
+            )
+
+        if uninstalled:
+            LOG.error(error_message, uninstalled)
 
     def _write_network(self, settings):
         """Deprecated. Remove if/when arch and gentoo support renderers."""
@@ -200,13 +290,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """Wrapper to report whether this distro uses systemd or sysvinit."""
         return uses_systemd()
 
-    @abc.abstractmethod
-    def package_command(self, command, args=None, pkgs=None):
-        raise NotImplementedError()
-
-    @abc.abstractmethod
     def update_package_sources(self):
-        raise NotImplementedError()
+        for manager in self.package_managers:
+            try:
+                manager.update_package_sources()
+            except Exception as e:
+                LOG.error(
+                    "Failed to update package using %s: %s", manager.name, e
+                )
 
     def get_primary_arch(self):
         arch = os.uname()[4]

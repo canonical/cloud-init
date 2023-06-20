@@ -12,11 +12,12 @@
 import copy
 
 from cloudinit.distros import PREFERRED_NTP_CLIENTS, debian
+from cloudinit.distros.package_management.snap import Snap
 
 
 class Distro(debian.Distro):
     def __init__(self, name, cfg, paths):
-        super(Distro, self).__init__(name, cfg, paths)
+        super().__init__(name, cfg, paths)
         # Ubuntu specific network cfg locations
         self.network_conf_fn = {
             "eni": "/etc/network/interfaces.d/50-cloud-init.cfg",
@@ -33,6 +34,7 @@ class Distro(debian.Distro):
                 "postcmds": True,
             },
         }
+        self.package_managers.append(Snap(self._runner))
 
     @property
     def preferred_ntp_clients(self):
