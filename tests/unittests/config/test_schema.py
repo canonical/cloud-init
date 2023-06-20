@@ -723,7 +723,7 @@ class TestValidateCloudConfigFile:
         config_file = tmpdir.join("my.yaml")
         config_file.write("#junk")
         error_msg = (
-            f"No valid cloud-init user-data header in {config_file}.\n"
+            f'Unrecognized user-data header in {config_file}: "#junk".\n'
             "Expected first line to be one of: #!, ## template: jinja, "
             "#cloud-boothook, #cloud-config,"
         )
@@ -810,7 +810,7 @@ class TestValidateCloudConfigFile:
 
         error_msg = (
             "Cloud config schema errors: format-l1.c1: "
-            f"No valid cloud-init user-data header in {cloud_config_file}.\n"
+            f'Unrecognized user-data header in {cloud_config_file}: "".\n'
             "Expected first line to be one of: #!, ## template: jinja,"
             " #cloud-boothook, #cloud-config,"
         )
@@ -1534,10 +1534,10 @@ class TestAnnotatedCloudconfigFile:
         ('', "None is not of type 'object'"). Ignore those symptoms and
         report the general problem instead.
         """
-        content = b"\n\n\n"
+        content = "\n\n\n"
         expected = "\n".join(
             [
-                content.decode(),
+                content,
                 "# Errors: -------------",
                 "# E1: Cloud-config is not a YAML dict.\n\n",
             ]
@@ -1558,7 +1558,7 @@ class TestAnnotatedCloudconfigFile:
             ntp:
               pools: [-99, 75]
             """
-        ).encode()
+        )
         expected = dedent(
             """\
             #cloud-config
@@ -1597,7 +1597,7 @@ class TestAnnotatedCloudconfigFile:
                 - -99
                 - 75
             """
-        ).encode()
+        )
         expected = dedent(
             """\
             ntp:

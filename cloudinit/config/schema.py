@@ -19,12 +19,7 @@ import yaml
 from cloudinit import importer, safeyaml
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers import INCLUSION_TYPES_MAP, type_from_starts_with
-from cloudinit.util import (
-    decode_binary,
-    error,
-    get_modules_from_dir,
-    load_file,
-)
+from cloudinit.util import error, get_modules_from_dir, load_file
 
 try:
     from jsonschema import ValidationError as _ValidationError
@@ -108,6 +103,11 @@ class SchemaProblem(NamedTuple):
 
 
 SchemaProblems = List[SchemaProblem]
+
+
+class UserDataTypeAndDecodedContent(NamedTuple):
+    userdata_type: str
+    content: str
 
 
 def _format_schema_problems(
@@ -517,7 +517,7 @@ class _Annotator:
     def __init__(
         self,
         cloudconfig: dict,
-        original_content: bytes,
+        original_content: str,
         schemamarks: dict,
     ):
         self._cloudconfig = cloudconfig
@@ -608,10 +608,10 @@ class _Annotator:
         self,
         schema_errors: SchemaProblems,
         schema_deprecations: SchemaProblems,
-    ) -> Union[str, bytes]:
+    ) -> str:
         if not schema_errors and not schema_deprecations:
             return self._original_content
-        lines = self._original_content.decode().split("\n")
+        lines = self._original_content.split("\n")
         if not isinstance(self._cloudconfig, dict):
             # Return a meaningful message on empty cloud-config
             return "\n".join(
@@ -632,7 +632,7 @@ class _Annotator:
 
 def annotated_cloudconfig_file(
     cloudconfig: dict,
-    original_content: bytes,
+    original_content: str,
     schemamarks: dict,
     *,
     schema_errors: Optional[SchemaProblems] = None,
@@ -654,6 +654,97 @@ def annotated_cloudconfig_file(
     )
 
 
+def process_merged_cloud_config_part_problems(
+    content: str,
+) -> List[SchemaProblem]:
+    """Annotate and return schema validation errors in merged cloud-config.txt
+
+    When merging multiple cloud-config parts cloud-init logs an error and
+    ignores any user-data parts which are declared as #cloud-config but
+    cannot be processed. the hanlder.cloud_config module also leaves comments
+    in the final merged config for every invalid part file which begin with
+    MERGED_CONFIG_SCHEMA_ERROR_PREFIX to aid in triage.
+    """
+    from cloudinit.handlers.cloud_config import MERGED_PART_SCHEMA_ERROR_PREFIX
+
+    if MERGED_PART_SCHEMA_ERROR_PREFIX not in content:
+        return []
+    errors: List[SchemaProblem] = []
+    for line_num, line in enumerate(content.splitlines(), 1):
+        if line.startswith(MERGED_PART_SCHEMA_ERROR_PREFIX):
+            errors.append(
+                SchemaProblem(
+                    f"format-l{line_num}.c1",
+                    line.replace(
+                        MERGED_PART_SCHEMA_ERROR_PREFIX,
+                        "Ignored invalid user-data: ",
+                    ),
+                )
+            )
+    return errors
+
+
+def _get_config_type_and_rendered_userdata(
+    config_path: str,
+    content: str,
+    instance_data_path: str = None,
+) -> UserDataTypeAndDecodedContent:
+    """
+    Return tuple of user-data-type and rendered content.
+
+    When encountering jinja user-data, render said content.
+
+    :return: UserDataTypeAndDecodedContent
+    :raises: SchemaValidationError when non-jinja content found but
+        header declared ## template: jinja.
+    """
+    from cloudinit.handlers.jinja_template import (
+        JinjaLoadError,
+        NotJinjaError,
+        render_jinja_payload_from_file,
+    )
+
+    user_data_type = type_from_starts_with(content)
+    schema_position = "format-l1.c1"
+    if user_data_type == "text/jinja2":
+        try:
+            content = render_jinja_payload_from_file(
+                content, config_path, instance_data_path
+            )
+        except NotJinjaError as e:
+            raise SchemaValidationError(
+                [
+                    SchemaProblem(
+                        schema_position,
+                        "Detected type '{user_data_type}' from header. "
+                        "But, content is not a jinja template",
+                    )
+                ]
+            ) from e
+        except JinjaLoadError as e:
+            error(str(e), sys_exit=True)
+        schema_position = "format-l2.c1"
+        user_data_type = type_from_starts_with(content)
+    if not user_data_type:  # Neither jinja2 nor #cloud-config
+        header_line, _, _ = content.partition("\n")
+        raise SchemaValidationError(
+            [
+                SchemaProblem(
+                    schema_position,
+                    f"Unrecognized user-data header in {config_path}:"
+                    f' "{header_line}".\nExpected first line'
+                    f" to be one of: {', '.join(USERDATA_VALID_HEADERS)}",
+                )
+            ]
+        )
+    elif user_data_type != "text/cloud-config":
+        print(
+            f"User-data type '{user_data_type}' not currently evaluated"
+            " by cloud-init schema"
+        )
+    return UserDataTypeAndDecodedContent(user_data_type, content)
+
+
 def validate_cloudconfig_file(
     config_path: str,
     schema: dict,
@@ -673,63 +764,13 @@ def validate_cloudconfig_file(
     @raises SchemaValidationError containing any of schema_errors encountered.
     @raises RuntimeError when config_path does not exist.
     """
-    from cloudinit.handlers.jinja_template import (
-        JinjaLoadError,
-        NotJinjaError,
-        render_jinja_payload_from_file,
+    decoded_userdata = _get_config_type_and_rendered_userdata(
+        config_path, load_file(config_path, decode=True), instance_data_path
     )
-
-    content = load_file(config_path, decode=False)
-    user_data_type = type_from_starts_with(content)
-    schema_position = "format-l1.c1"
-    if not user_data_type:
-        raise SchemaValidationError(
-            [
-                SchemaProblem(
-                    schema_position,
-                    f"No valid cloud-init user-data header in {config_path}.\n"
-                    "Expected first line to be one of: "
-                    f"{', '.join(USERDATA_VALID_HEADERS)}",
-                )
-            ]
-        )
-    if user_data_type not in ("text/cloud-config", "text/jinja2"):
-        print(
-            f"User-data type '{user_data_type}' not currently evaluated"
-            " by cloud-init schema"
-        )
-        return
-    if user_data_type == "text/jinja2":
-        try:
-            content = render_jinja_payload_from_file(
-                decode_binary(content), config_path, instance_data_path
-            ).encode()
-        except NotJinjaError as e:
-            raise SchemaValidationError(
-                [
-                    SchemaProblem(
-                        schema_position,
-                        "Detected type '{user_data_type}' from header. "
-                        "But, content is not a jinja template",
-                    )
-                ]
-            ) from e
-        except JinjaLoadError as e:
-            error(str(e), sys_exit=True)
-        schema_position = "format-l2.c1"
-        user_data_type = type_from_starts_with(content)
-    if not user_data_type:
-        content_header = content[: decode_binary(content).find("\n")]
-        raise SchemaValidationError(
-            [
-                SchemaProblem(
-                    schema_position,
-                    f"Unrecognized user-data header in {config_path}:"
-                    f" {content_header}. Expected one of the following "
-                    f"headers: {', '.join(USERDATA_VALID_HEADERS)}",
-                )
-            ]
-        )
+    if decoded_userdata.userdata_type != "text/cloud-config":
+        return  # Neither nested #cloud-config in jinja2 nor raw #cloud-config
+    content = decoded_userdata.content
+    errors = process_merged_cloud_config_part_problems(content)
     try:
         if annotate:
             cloudconfig, marks = safeyaml.load_with_marks(content)
@@ -746,12 +787,12 @@ def validate_cloudconfig_file(
         if mark:
             line = mark.line + 1
             column = mark.column + 1
-        errors = [
+        errors.append(
             SchemaProblem(
                 "format-l{line}.c{col}".format(line=line, col=column),
                 "File {0} is not valid yaml. {1}".format(config_path, str(e)),
             ),
-        ]
+        )
         schema_error = SchemaValidationError(errors)
         if annotate:
             print(
@@ -769,13 +810,15 @@ def validate_cloudconfig_file(
             cloudconfig, schema, strict=True, log_deprecations=False
         )
     except SchemaValidationError as e:
+        if e.has_errors():
+            errors += e.schema_errors
         if annotate:
             print(
                 annotated_cloudconfig_file(
                     cloudconfig,
                     content,
                     marks,
-                    schema_errors=e.schema_errors,
+                    schema_errors=errors,
                     schema_deprecations=e.schema_deprecations,
                 )
             )
@@ -786,8 +829,8 @@ def validate_cloudconfig_file(
                 separator=", ",
             )
             print(message)
-        if e.has_errors():  # We do not consider deprecations as error
-            raise
+        if errors:
+            raise SchemaValidationError(schema_errors=errors) from e
 
 
 def _sort_property_order(value):
