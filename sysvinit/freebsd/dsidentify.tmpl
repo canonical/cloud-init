@@ -2,6 +2,12 @@
 #!/bin/sh
 
 # PROVIDE: dsidentify
+{#
+once we are correctly using ``paths.run_dir`` / ``paths.get_runpath()`` in the
+python code-base, we can start thinking about how to bring that into
+``ds-identify`` itself, and then!, then we can depend on (``REQUIRE``)
+``var_run`` instead of ``mountcritlocal`` here.
+#}
 # REQUIRE: mountcritlocal
 # BEFORE:  cloudinitlocal
 

@@ -2,6 +2,10 @@
 #!/bin/sh
 
 # PROVIDE: cloudinitlocal
+{#
+``cloudinitlocal`` purposefully does not depend on ``dsidentify``.
+That makes it easy for image builders to create images without ``dsidentify``.
+#}
 # REQUIRE: ldconfig mountcritlocal
 # BEFORE:  NETWORKING cloudinit cloudconfig cloudfinal
 
