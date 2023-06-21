@@ -4,6 +4,7 @@ import os
 import sys
 import argparse
 
+
 def main():
     _tdir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     sys.path.insert(0, _tdir)
@@ -47,6 +48,12 @@ def main():
         choices=VARIANTS,
     )
     parser.add_argument(
+        "--prefix",
+        action="store",
+        default=sys.prefix,
+        help="define the prefix. Default: " + sys.prefix,
+    )
+    parser.add_argument(
         "template",
         nargs="?",
         action="store",
@@ -62,7 +69,9 @@ def main():
     )
 
     args = parser.parse_args(sys.argv[1:])
-    templater.render_cloudcfg(args.variant, args.template, args.output)
+    templater.render_cloudcfg(
+        args.variant, args.template, args.output, prefix=args.prefix
+    )
 
 
 if __name__ == "__main__":

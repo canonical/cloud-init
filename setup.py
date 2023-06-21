@@ -30,6 +30,7 @@ except ImportError:
 
 RENDERED_TMPD_PREFIX = "RENDERED_TEMPD"
 VARIANT = None
+PREFIX = None
 
 
 def is_f(p):
@@ -101,7 +102,7 @@ def render_tmpl(template, mode=None):
     that files are different outside of the debian directory."""
 
     # newer versions just use install.
-    if not (sys.argv[1] == "install"):
+    if not ("install" in sys.argv):
         return template
 
     tmpl_ext = ".tmpl"
@@ -114,23 +115,25 @@ def render_tmpl(template, mode=None):
     atexit.register(shutil.rmtree, tmpd)
     bname = os.path.basename(template).rstrip(tmpl_ext)
     fpath = os.path.join(tmpd, bname)
+    cmd_variant = []
+    cmd_prefix = []
     if VARIANT:
-        subprocess.run(
-            [
-                sys.executable,
-                "./tools/render-cloudcfg",
-                "--variant",
-                VARIANT,
-                template,
-                fpath,
-            ],
-            check=True,
-        )
-    else:
-        subprocess.run(
-            [sys.executable, "./tools/render-cloudcfg", template, fpath],
-            check=True,
-        )
+        cmd_variant = ["--variant", VARIANT]
+    if PREFIX:
+        cmd_prefix = ["--prefix", PREFIX]
+    subprocess.run(
+        [
+            sys.executable,
+            "./tools/render-cloudcfg",
+        ]
+        + cmd_prefix
+        + cmd_variant
+        + [
+            template,
+            fpath,
+        ],
+        check=True,
+    )
     if mode:
         os.chmod(fpath, mode)
     # return path relative to setup.py
@@ -138,16 +141,34 @@ def render_tmpl(template, mode=None):
 
 
 # User can set the variant for template rendering
-if "--distro" in sys.argv:
-    idx = sys.argv.index("--distro")
-    VARIANT = sys.argv[idx + 1]
-    del sys.argv[idx + 1]
-    sys.argv.remove("--distro")
+for a in sys.argv:
+    if a.startswith("--distro"):
+        idx = sys.argv.index(a)
+        if "=" in a:
+            _, VARIANT = a.split("=")
+            del sys.argv[idx]
+        else:
+            VARIANT = sys.argv[idx + 1]
+            del sys.argv[idx + 1]
+            sys.argv.remove("--distro")
+
+# parse PREFIX and pass it on from render_tmpl()
+for a in sys.argv:
+    if a.startswith("--prefix"):
+        idx = sys.argv.index(a)
+        if "=" in a:
+            _, PREFIX = a.split("=")
+        else:
+            PREFIX = sys.argv[idx + 1]
 
 INITSYS_FILES = {
     "sysvinit": [f for f in glob("sysvinit/redhat/*") if is_f(f)],
-    "sysvinit_freebsd": [f for f in glob("sysvinit/freebsd/*") if is_f(f)],
-    "sysvinit_netbsd": [f for f in glob("sysvinit/netbsd/*") if is_f(f)],
+    "sysvinit_freebsd": [
+        render_tmpl(f) for f in glob("sysvinit/freebsd/*") if is_f(f)
+    ],
+    "sysvinit_netbsd": [
+        render_tmpl(f) for f in glob("sysvinit/netbsd/*") if is_f(f)
+    ],
     "sysvinit_deb": [f for f in glob("sysvinit/debian/*") if is_f(f)],
     "sysvinit_openrc": [f for f in glob("sysvinit/gentoo/*") if is_f(f)],
     "systemd": [
@@ -355,6 +376,3 @@ setuptools.setup(
         ],
     },
 )
-
-
-# vi: ts=4 expandtab
