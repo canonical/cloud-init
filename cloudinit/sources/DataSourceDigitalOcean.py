@@ -40,6 +40,9 @@ class DataSourceDigitalOcean(sources.DataSource):
                 BUILTIN_DS_CONFIG,
             ]
         )
+        LOG.warning(
+            "DataSourceDigitalOcean is deprecated in favour of DataSourceConfigDrive."
+        )
         self.metadata_address = self.ds_cfg["metadata_url"]
         self.retries = self.ds_cfg.get("retries", MD_RETRIES)
         self.timeout = self.ds_cfg.get("timeout", MD_TIMEOUT)

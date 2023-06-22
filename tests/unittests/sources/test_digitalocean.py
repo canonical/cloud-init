@@ -140,6 +140,8 @@ def _mock_dmi():
 
 
 class TestDataSourceDigitalOcean(CiTestCase):
+    with_logs = True
+
     """
     Test reading the meta-data
     """
@@ -163,6 +165,15 @@ class TestDataSourceDigitalOcean(CiTestCase):
         ds = self.get_ds(get_sysinfo=None)
         self.assertEqual(False, ds.get_data())
         self.assertTrue(m_read_sysinfo.called)
+
+    @mock.patch("cloudinit.sources.helpers.digitalocean.read_metadata")
+    def test_deprecation_log(self, mock_readmd):
+        ds = self.get_ds()
+        self.assertTrue(ds.get_data())
+        self.assertIn(
+            "WARNING: DataSourceDigitalOcean is deprecated in favour of DataSourceConfigDrive.",
+            self.logs.getvalue(),
+        )
 
     @mock.patch("cloudinit.sources.helpers.digitalocean.read_metadata")
     def test_metadata(self, mock_readmd):
