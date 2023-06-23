@@ -507,7 +507,7 @@ class Init:
             )
         # This data may be a list, convert it to a string if so
         if isinstance(data, list):
-            data = util.json_dumps(data)
+            data = atomic_helper.json_dumps(data)
         self._store_rawdata(data, datasource)
 
     def _store_processeddata(self, processed_data, datasource):

@@ -22,7 +22,7 @@ from urllib.parse import urlparse
 import pytest
 import yaml
 
-from cloudinit import features, importer, subp, url_helper, util
+from cloudinit import atomic_helper, features, importer, subp, url_helper, util
 from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import SubpResult
@@ -1327,19 +1327,22 @@ class TestGetVariant:
 class TestJsonDumps(CiTestCase):
     def test_is_str(self):
         """json_dumps should return a string."""
-        self.assertTrue(isinstance(util.json_dumps({"abc": "123"}), str))
+        self.assertTrue(
+            isinstance(atomic_helper.json_dumps({"abc": "123"}), str)
+        )
 
     def test_utf8(self):
         smiley = "\\ud83d\\ude03"
         self.assertEqual(
-            {"smiley": smiley}, json.loads(util.json_dumps({"smiley": smiley}))
+            {"smiley": smiley},
+            json.loads(atomic_helper.json_dumps({"smiley": smiley})),
         )
 
     def test_non_utf8(self):
         blob = b"\xba\x03Qx-#y\xea"
         self.assertEqual(
             {"blob": "ci-b64:" + base64.b64encode(blob).decode("utf-8")},
-            json.loads(util.json_dumps({"blob": blob})),
+            json.loads(atomic_helper.json_dumps({"blob": blob})),
         )
 
 

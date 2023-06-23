@@ -20,7 +20,7 @@ import os
 import sys
 from errno import EACCES
 
-from cloudinit import log, util
+from cloudinit import atomic_helper, log, util
 from cloudinit.cmd.devel import addLogHandlerCLI, read_cfg_paths
 from cloudinit.handlers.jinja_template import (
     convert_jinja_instance_data,
@@ -315,7 +315,7 @@ def handle_args(name, args):
             return 1
         response = "\n".join(sorted(response.keys()))
     if not isinstance(response, str):
-        response = util.json_dumps(response)
+        response = atomic_helper.json_dumps(response)
     print(response)
     return 0
 

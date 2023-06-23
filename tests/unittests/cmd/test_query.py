@@ -11,10 +11,11 @@ from textwrap import dedent
 
 import pytest
 
+from cloudinit.atomic_helper import b64e
 from cloudinit.cmd import query
 from cloudinit.helpers import Paths
 from cloudinit.sources import REDACT_SENSITIVE_VALUE
-from cloudinit.util import b64e, write_file
+from cloudinit.util import write_file
 from tests.unittests.helpers import mock
 
 M_PATH = "cloudinit.cmd.query."

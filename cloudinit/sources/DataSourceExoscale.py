@@ -3,7 +3,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import dmi, helpers
+from cloudinit import atomic_helper, dmi, helpers
 from cloudinit import log as logging
 from cloudinit import sources, url_helper, util
 from cloudinit.sources.helpers import ec2
@@ -286,6 +286,6 @@ if __name__ == "__main__":
         url_retries=args.retries,
     )
 
-    print(util.json_dumps(data))
+    print(atomic_helper.json_dumps(data))
 
 # vi: ts=4 expandtab

@@ -18,7 +18,7 @@ from collections import namedtuple
 from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Tuple
 
-from cloudinit import dmi, importer
+from cloudinit import atomic_helper, dmi, importer
 from cloudinit import log as logging
 from cloudinit import net, type_utils
 from cloudinit import user_data as ud
@@ -495,7 +495,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         instance_data.update(self._get_standardized_metadata(instance_data))
         try:
             # Process content base64encoding unserializable values
-            content = util.json_dumps(instance_data)
+            content = atomic_helper.json_dumps(instance_data)
             # Strip base64: prefix and set base64_encoded_keys list.
             processed_data = process_instance_metadata(
                 json.loads(content),

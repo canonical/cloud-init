@@ -32,7 +32,6 @@ import string
 import subprocess
 import sys
 import time
-from base64 import b64decode, b64encode
 from collections import deque, namedtuple
 from contextlib import suppress
 from errno import EACCES, ENOENT
@@ -136,24 +135,6 @@ def encode_text(text, encoding="utf-8"):
     if isinstance(text, bytes):
         return text
     return text.encode(encoding)
-
-
-def b64d(source):
-    # Base64 decode some data, accepting bytes or unicode/str, and returning
-    # str/unicode if the result is utf-8 compatible, otherwise returning bytes.
-    decoded = b64decode(source)
-    try:
-        return decoded.decode("utf-8")
-    except UnicodeDecodeError:
-        return decoded
-
-
-def b64e(source):
-    # Base64 encode some data, accepting bytes or unicode/str, and returning
-    # str/unicode if the result is utf-8 compatible, otherwise returning bytes.
-    if not isinstance(source, bytes):
-        source = source.encode("utf-8")
-    return b64encode(source).decode("utf-8")
 
 
 def fully_decoded_payload(part):
@@ -1845,25 +1826,6 @@ def load_json(text, root_types=(dict,)):
             % (expected_types, type(decoded))
         )
     return decoded
-
-
-def json_serialize_default(_obj):
-    """Handler for types which aren't json serializable."""
-    try:
-        return "ci-b64:{0}".format(b64e(_obj))
-    except AttributeError:
-        return "Warning: redacted unserializable type {0}".format(type(_obj))
-
-
-def json_dumps(data):
-    """Return data in nicely formatted json."""
-    return json.dumps(
-        data,
-        indent=1,
-        sort_keys=True,
-        separators=(",", ": "),
-        default=json_serialize_default,
-    )
 
 
 def get_non_exist_parent_dir(path):

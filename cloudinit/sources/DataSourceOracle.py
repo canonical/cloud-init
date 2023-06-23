@@ -18,7 +18,7 @@ import ipaddress
 from collections import namedtuple
 from typing import Optional, Tuple
 
-from cloudinit import dmi
+from cloudinit import atomic_helper, dmi
 from cloudinit import log as logging
 from cloudinit import net, sources, util
 from cloudinit.distros.networking import NetworkConfig
@@ -403,7 +403,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=description)
     parser.parse_args()
     print(
-        util.json_dumps(
+        atomic_helper.json_dumps(
             {
                 "read_opc_metadata": read_opc_metadata(),
                 "_is_platform_viable": _is_platform_viable(),

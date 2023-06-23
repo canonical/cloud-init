@@ -23,6 +23,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.connection import HTTPConnection
 from urllib3.connectionpool import HTTPConnectionPool
 
+from cloudinit import atomic_helper
 from cloudinit import log as logging
 from cloudinit import sources, subp, url_helper, util
 from cloudinit.net import find_fallback_nic
@@ -471,6 +472,8 @@ if __name__ == "__main__":
     description = """Query LXD metadata and emit a JSON object."""
     parser = argparse.ArgumentParser(description=description)
     parser.parse_args()
-    print(util.json_dumps(read_metadata(metadata_keys=MetaDataKeys.ALL)))
+    print(
+        atomic_helper.json_dumps(read_metadata(metadata_keys=MetaDataKeys.ALL))
+    )
 
 # vi: ts=4 expandtab
