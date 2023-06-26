@@ -38,7 +38,16 @@ from contextlib import suppress
 from errno import EACCES, ENOENT
 from functools import lru_cache, total_ordering
 from pathlib import Path
-from typing import Callable, Deque, Dict, List, Optional, TypeVar
+from typing import (
+    Callable,
+    Deque,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    TypeVar,
+)
 from urllib import parse
 
 from cloudinit import features, importer
@@ -846,11 +855,52 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
             os.dup2(new_fp.fileno(), o_err.fileno())
 
 
-def mergemanydict(srcs, reverse=False) -> dict:
+def mergemanydict(sources: Sequence[Mapping], reverse=False) -> dict:
+    """Merge multiple dicts according to the dict merger rules.
+
+    Dict merger rules can be found in cloud-init documentation. If no mergers
+    have been specified, entries will be recursively added, but no values
+    get replaced if they already exist. Functionally, this means that the
+    highest priority keys must be specified first.
+
+    Example:
+    a = {
+        "a": 1,
+        "b": 2,
+        "c": [1, 2, 3],
+        "d": {
+            "a": 1,
+            "b": 2,
+        },
+    }
+
+    b = {
+        "a": 10,
+        "c": [4],
+        "d": {
+            "a": 3,
+            "f": 10,
+        },
+        "e": 20,
+    }
+
+    mergemanydict([a, b]) results in:
+    {
+        'a': 1,
+        'b': 2,
+        'c': [1, 2, 3],
+        'd': {
+            'a': 1,
+            'b': 2,
+            'f': 10,
+        },
+        'e': 20,
+    }
+    """
     if reverse:
-        srcs = reversed(srcs)
+        sources = list(reversed(sources))
     merged_cfg: dict = {}
-    for cfg in srcs:
+    for cfg in sources:
         if cfg:
             # Figure out which mergers to apply...
             mergers_to_apply = mergers.dict_extract_mergers(cfg)
