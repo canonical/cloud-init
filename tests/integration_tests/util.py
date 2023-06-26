@@ -155,6 +155,27 @@ def get_test_rsa_keypair(key_name: str = "test1") -> key_pair:
     return key_pair(public_key, private_key)
 
 
+# We're implementing our own here in case cloud-init status --wait
+# isn't working correctly (LP: #1966085)
+def wait_for_cloud_init(client: IntegrationInstance):
+    last_exception = None
+    for _ in range(30):
+        try:
+            result = client.execute("cloud-init status")
+            if (
+                result
+                and result.ok
+                and ("running" not in result or "not run" not in result)
+            ):
+                return result
+        except Exception as e:
+            last_exception = e
+        time.sleep(1)
+    raise Exception(
+        "cloud-init status did not return successfully."
+    ) from last_exception
+
+
 def get_console_log(client: IntegrationInstance):
     try:
         console_log = client.instance.console_log()
