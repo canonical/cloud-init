@@ -85,6 +85,15 @@ def test_per_freq(client: IntegrationInstance):
     assert client.execute(cmd).ok
     cmd = "test -f /tmp/test_per_freq_once"
     assert client.execute(cmd).ok
+    client.restart()
+    # Assert Always is run per boot
+    cmd = "test -f /tmp/test_per_freq_always"
+    assert client.execute(cmd).ok
+    # Assert no per instance/once execution across reboot
+    cmd = "test -f /tmp/test_per_freq_instance"
+    assert client.execute(cmd).failed
+    cmd = "test -f /tmp/test_per_freq_once"
+    assert client.execute(cmd).failed
 
 
 RE_EXPECTED_SCHEMA_STDERR = (
