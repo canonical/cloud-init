@@ -50,7 +50,6 @@ def get_apt_wrapper(cfg: Optional[dict]) -> List[str]:
     if not cfg:
         enabled = "auto"
         command = ["eatmydata"]
-        # return bool(subp.which("eatmydata")), ["eatmydata"]
     else:
         enabled = cfg.get("enabled")
         command = cfg.get("command")
@@ -61,9 +60,7 @@ def get_apt_wrapper(cfg: Optional[dict]) -> List[str]:
             raise TypeError("apt_wrapper command must be a string or list")
 
     if util.is_true(enabled) or (
-        str(enabled).lower() == "auto"
-        and command
-        and subp.which(command[0])
+        str(enabled).lower() == "auto" and command and subp.which(command[0])
     ):
         return command
     else:
@@ -86,21 +83,17 @@ class Apt(PackageManager):
             apt_get_command = APT_GET_COMMAND
         if apt_get_upgrade_subcommand is None:
             apt_get_upgrade_subcommand = "dist-upgrade"
-        self.apt_command = tuple(apt_get_wrapper_command) + tuple(
-            apt_get_command
-        )
+        self.apt_command = tuple(apt_get_wrapper_command) + tuple(apt_get_command)
 
         self.apt_get_upgrade_subcommand = apt_get_upgrade_subcommand
         self.environment = os.environ.copy()
-        self.environment["DEBIAN_FRONTEND"] = "noninteracitve"
+        self.environment["DEBIAN_FRONTEND"] = "noninteractive"
 
     @classmethod
     def from_config(cls, runner: helpers.Runners, cfg: Mapping) -> "Apt":
         return Apt(
             runner,
-            apt_get_wrapper_command=get_apt_wrapper(
-                cfg.get("apt_get_wrapper")
-            ),
+            apt_get_wrapper_command=get_apt_wrapper(cfg.get("apt_get_wrapper")),
             apt_get_command=cfg.get("apt_get_command"),
             apt_get_upgrade_subcommand=cfg.get("apt_get_upgrade_subcommand"),
         )
@@ -126,9 +119,7 @@ class Apt(PackageManager):
     def get_unavailable_packages(self, pkglist: Iterable[str]):
         return [pkg for pkg in pkglist if pkg not in self.get_all_packages()]
 
-    def install_packages(
-        self, pkglist: Iterable[str]
-    ) -> UninstalledPackages:
+    def install_packages(self, pkglist: Iterable[str]) -> UninstalledPackages:
         self.update_package_sources()
         unavailable = self.get_unavailable_packages(pkglist)
         to_install = [p for p in pkglist if p not in unavailable]
