@@ -38,6 +38,7 @@ class CloudNames:
     ZSTACK = "zstack"
     E24CLOUD = "e24cloud"
     OUTSCALE = "outscale"
+    TENCENTCLOUD = "tencentcloud"
     # UNKNOWN indicates no positive id.  If strict_id is 'warn' or 'false',
     # then an attempt at the Ec2 Metadata service will be made.
     UNKNOWN = "unknown"
@@ -52,7 +53,11 @@ def skip_404_tag_errors(exception):
 
 
 # Cloud platforms that support IMDSv2 style metadata server
-IDMSV2_SUPPORTED_CLOUD_PLATFORMS = [CloudNames.AWS, CloudNames.ALIYUN]
+IDMSV2_SUPPORTED_CLOUD_PLATFORMS = [
+    CloudNames.AWS,
+    CloudNames.ALIYUN,
+    CloudNames.TENCENTCLOUD,
+]
 
 
 class DataSourceEc2(sources.DataSource):
@@ -781,6 +786,11 @@ def identify_aliyun(data):
         return CloudNames.ALIYUN
 
 
+def identify_tencentcloud(data):
+    if data["product_name"] == "Tencent Cloud CVM":
+        return CloudNames.TENCENTCLOUD
+
+
 def identify_aws(data):
     # data is a dictionary returned by _collect_platform_data.
     if data["uuid"].startswith("ec2") and (
@@ -824,6 +834,7 @@ def identify_platform():
         identify_e24cloud,
         identify_outscale,
         identify_aliyun,
+        identify_tencentcloud,
         lambda x: CloudNames.UNKNOWN,
     )
     for checker in checks:

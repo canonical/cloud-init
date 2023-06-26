@@ -29,6 +29,7 @@ from cloudinit.sources import DataSourceOVF as OVF
 from cloudinit.sources import DataSourceRbxCloud as RbxCloud
 from cloudinit.sources import DataSourceScaleway as Scaleway
 from cloudinit.sources import DataSourceSmartOS as SmartOS
+from cloudinit.sources import DataSourceTencentCloud as TencentCloud
 from cloudinit.sources import DataSourceUpCloud as UpCloud
 from cloudinit.sources import DataSourceVMware as VMware
 from cloudinit.sources import DataSourceVultr as Vultr
@@ -71,6 +72,7 @@ DEFAULT_NETWORK = [
     NoCloud.DataSourceNoCloudNet,
     OpenStack.DataSourceOpenStack,
     OVF.DataSourceOVFNet,
+    TencentCloud.DataSourceTencentCloud,
     UpCloud.DataSourceUpCloud,
     VMware.DataSourceVMware,
 ]

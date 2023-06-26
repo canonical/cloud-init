@@ -216,7 +216,7 @@ elif os.path.isfile("/etc/system-release-cpe"):
     with open("/etc/system-release-cpe") as f:
         cpe_data = f.read().rstrip().split(":")
 
-        if cpe_data[1] == "\o":  # noqa: W605
+        if cpe_data[1] == "/o":  # noqa: W605
             # URI formatted CPE
             inc = 0
         else:

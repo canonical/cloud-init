@@ -595,6 +595,10 @@ class TestDsIdentify(DsIdentifyBase):
         )
         self.assertIn("check for 'OpenStack' returned maybe", err)
 
+    def test_tencentcloud_identified(self):
+        """Test that TencentCloud is identified by product id."""
+        self._test_ds_found("TencentCloud")
+
     def test_default_ovf_is_found(self):
         """OVF is identified found when ovf/ovf-env.xml seed file exists."""
         self._test_ds_found("OVF-seed")
@@ -1585,6 +1589,10 @@ VALID_CFG = {
             {"name": "blkid", "ret": 2, "out": ""},
         ],
         "files": {ds_smartos.METADATA_SOCKFILE: "would be a socket\n"},
+    },
+    "TencentCloud": {
+        "ds": "TencentCloud",
+        "files": {P_PRODUCT_NAME: "Tencent Cloud CVM\n"},
     },
     "Ec2-ZStack": {
         "ds": "Ec2",

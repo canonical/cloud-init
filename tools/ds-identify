@@ -127,7 +127,7 @@ DI_DSNAME=""
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean Vultr AliYun Ec2 GCE OpenNebula OpenStack \
 OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud VMware \
-LXD NWCS"
+LXD NWCS TencentCloud"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -1354,6 +1354,14 @@ dscheck_Oracle() {
     local asset_tag="OracleCloud.com"
     dmi_chassis_asset_tag_matches "${asset_tag}" && return ${DS_FOUND}
     return ${DS_NOT_FOUND}
+}
+
+dscheck_TencentCloud() {
+    check_seed_dir "TencentCloud" meta-data user-data && return ${DS_FOUND}
+    if dmi_product_name_matches "Tencent Cloud CVM"; then
+        return $DS_FOUND
+    fi
+    return $DS_NOT_FOUND
 }
 
 is_ibm_provisioning() {

@@ -1198,6 +1198,16 @@ class TesIdentifyPlatform(test_helpers.CiTestCase):
         self.assertEqual(ec2.CloudNames.ALIYUN, ec2.identify_platform())
 
     @mock.patch("cloudinit.sources.DataSourceEc2._collect_platform_data")
+    def test_identify_tencentcloud(self, m_collect):
+        """tencentcloud should be identified if product name equals to
+        Tencent Cloud CVM
+        """
+        m_collect.return_value = self.collmock(
+            product_name="Tencent Cloud CVM"
+        )
+        self.assertEqual(ec2.CloudNames.TENCENTCLOUD, ec2.identify_platform())
+
+    @mock.patch("cloudinit.sources.DataSourceEc2._collect_platform_data")
     def test_identify_zstack(self, m_collect):
         """zstack should be identified if chassis-asset-tag
         ends in .zstack.io
