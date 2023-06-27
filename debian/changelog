@@ -1,3 +1,9 @@
+cloud-init (23.2-0ubuntu2) mantic; urgency=medium
+
+  * yep 
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 27 Jun 2023 06:23:45 -0600
+
 cloud-init (23.2-0ubuntu1) mantic; urgency=medium
 
   * d/control: Remove pep8 dependency. It is no longer used.
