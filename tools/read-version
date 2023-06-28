@@ -88,6 +88,7 @@ if is_gitdir(_tdir) and which("git") and not is_release_branch_ci:
             "git",
             "describe",
             branch_name,
+            "--abbrev=8",
         ] + flags
 
         try:

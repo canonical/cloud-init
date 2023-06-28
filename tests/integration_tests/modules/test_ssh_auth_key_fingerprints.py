@@ -36,7 +36,7 @@ class TestSshAuthkeyFingerprints:
     def test_ssh_authkey_fingerprints_disable(self, client):
         cloudinit_output = client.read_from_file("/var/log/cloud-init.log")
         assert (
-            "Skipping module named ssh-authkey-fingerprints, "
+            "Skipping module named ssh_authkey_fingerprints, "
             "logging of SSH fingerprints disabled" in cloudinit_output
         )
 

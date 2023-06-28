@@ -187,9 +187,8 @@ class TestDHCPRFC3442(CiTestCase):
             }
         ]
         m_maybe.return_value = lease
-        eph = EphemeralDHCPv4(
-            MockDistro(),
-        )
+        distro = MockDistro()
+        eph = EphemeralDHCPv4(distro)
         eph.obtain_lease()
         expected_kwargs = {
             "interface": "wlp3s0",
@@ -199,7 +198,7 @@ class TestDHCPRFC3442(CiTestCase):
             "static_routes": [("0.0.0.0/0", "130.56.240.1")],
             "router": "192.168.2.1",
         }
-        m_ipv4.assert_called_with(**expected_kwargs)
+        m_ipv4.assert_called_with(distro, **expected_kwargs)
 
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
     @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
@@ -220,9 +219,8 @@ class TestDHCPRFC3442(CiTestCase):
             }
         ]
         m_maybe.return_value = lease
-        eph = EphemeralDHCPv4(
-            MockDistro(),
-        )
+        distro = MockDistro()
+        eph = EphemeralDHCPv4(distro)
         eph.obtain_lease()
         expected_kwargs = {
             "interface": "wlp3s0",
@@ -232,7 +230,7 @@ class TestDHCPRFC3442(CiTestCase):
             "static_routes": [("0.0.0.0/0", "130.56.240.1")],
             "router": "192.168.2.1",
         }
-        m_ipv4.assert_called_with(**expected_kwargs)
+        m_ipv4.assert_called_with(distro, **expected_kwargs)
 
 
 class TestDHCPParseStaticRoutes(CiTestCase):
@@ -480,7 +478,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
             )
         with self.assertRaises(InvalidDHCPLeaseFileError):
             with mock.patch("cloudinit.util.load_file", return_value=""):
-                IscDhclient().dhcp_discovery("eth9")
+                IscDhclient().dhcp_discovery("eth9", distro=MockDistro())
         self.assertIn(
             "dhclient(pid=, parentpid=unknown) failed "
             "to daemonize after 10.0 seconds",
@@ -503,7 +501,9 @@ class TestDHCPDiscoveryClean(CiTestCase):
         # Don't create pid or leases file
         m_wait.return_value = [PID_F]  # Return the missing pidfile wait for
         m_getppid.return_value = 1  # Indicate that dhclient has daemonized
-        self.assertEqual([], IscDhclient().dhcp_discovery("eth9"))
+        self.assertEqual(
+            [], IscDhclient().dhcp_discovery("eth9", distro=MockDistro())
+        )
         self.assertEqual(
             mock.call([PID_F, LEASE_F], maxwait=5, naplen=0.01),
             m_wait.call_args_list[0],
@@ -561,13 +561,13 @@ class TestDHCPDiscoveryClean(CiTestCase):
                         "routers": "192.168.2.1",
                     }
                 ],
-                IscDhclient().dhcp_discovery("eth9"),
+                IscDhclient().dhcp_discovery("eth9", distro=MockDistro()),
             )
         # Interface was brought up before dhclient called
         m_subp.assert_has_calls(
             [
                 mock.call(
-                    ["ip", "link", "set", "dev", "eth9", "up"], capture=True
+                    ["ip", "link", "set", "dev", "eth9", "up"],
                 ),
                 mock.call(
                     [
@@ -578,11 +578,10 @@ class TestDHCPDiscoveryClean(CiTestCase):
                         LEASE_F,
                         "-pf",
                         PID_F,
-                        "eth9",
                         "-sf",
                         "/bin/true",
+                        "eth9",
                     ],
-                    capture=True,
                 ),
             ]
         )
@@ -642,13 +641,13 @@ class TestDHCPDiscoveryClean(CiTestCase):
                         "routers": "192.168.2.1",
                     }
                 ],
-                IscDhclient().dhcp_discovery("ib0"),
+                IscDhclient().dhcp_discovery("ib0", distro=MockDistro()),
             )
         # Interface was brought up before dhclient called
         m_subp.assert_has_calls(
             [
                 mock.call(
-                    ["ip", "link", "set", "dev", "ib0", "up"], capture=True
+                    ["ip", "link", "set", "dev", "ib0", "up"],
                 ),
                 mock.call(
                     [
@@ -659,13 +658,12 @@ class TestDHCPDiscoveryClean(CiTestCase):
                         LEASE_F,
                         "-pf",
                         PID_F,
-                        "ib0",
                         "-sf",
                         "/bin/true",
                         "-cf",
                         "/tmp/ib0-dhclient.conf",
+                        "ib0",
                     ],
-                    capture=True,
                 ),
             ]
         )
@@ -715,7 +713,9 @@ class TestDHCPDiscoveryClean(CiTestCase):
             self.assertEqual(out, dhclient_out)
             self.assertEqual(err, dhclient_err)
 
-        IscDhclient().dhcp_discovery("eth9", dhcp_log_func=dhcp_log_func)
+        IscDhclient().dhcp_discovery(
+            "eth9", dhcp_log_func=dhcp_log_func, distro=MockDistro()
+        )
 
 
 class TestSystemdParseLeases(CiTestCase):

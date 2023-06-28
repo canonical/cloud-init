@@ -1,3 +1,4 @@
+## template:jinja
 #!/bin/sh
 
 # PROVIDE: cloudconfig
@@ -10,10 +11,10 @@ name="cloudinit"
 start_cmd="start_cloud_init"
 start_cloud_init()
 {
-    test -e /etc/cloud/cloud-init.disabled \
+    test -e {{prefix}}/etc/cloud/cloud-init.disabled \
       && warn "cloud-init disabled by cloud-init.disabled file" \
       && exit 0
-    /usr/pkg/bin/cloud-init modules --mode config
+    {{prefix}}/bin/cloud-init modules --mode config
 }
 
 load_rc_config $name

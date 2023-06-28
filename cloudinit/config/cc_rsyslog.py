@@ -1,13 +1,17 @@
 # Copyright (C) 2009-2010 Canonical Ltd.
 # Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+# Copyright (C) 2023 FreeBSD Foundation
 #
 # Author: Scott Moser <scott.moser@canonical.com>
 # Author: Juerg Haefliger <juerg.haefliger@hp.com>
+# Author: Mina Galić <FreeBSD@igalic.co>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Rsyslog: Configure system logging via rsyslog"""
 
+import contextlib
+import copy
 import os
 import re
 from textwrap import dedent
@@ -17,7 +21,7 @@ from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
-from cloudinit.distros import ALL_DISTROS
+from cloudinit.distros import ALL_DISTROS, Distro
 from cloudinit.settings import PER_INSTANCE
 
 MODULE_DESCRIPTION = """\
@@ -25,6 +29,15 @@ This module configures remote system logging using rsyslog.
 
 Configuration for remote servers can be specified in ``configs``, but for
 convenience it can be specified as key value pairs in ``remotes``.
+
+This module can install rsyslog if not already present on the system using the
+``install_rsyslog``, ``packages``, and ``check_exe`` options. Installation
+may not work on systems where this module runs before networking is up.
+
+.. note::
+    On BSD cloud-init will attempt to disable and stop the base system syslogd.
+    This may fail on a first run.
+    We recommend creating images with ``service syslogd disable``.
 """
 
 meta: MetaSchema = {
@@ -61,24 +74,47 @@ meta: MetaSchema = {
                 service_reload_command: [your, syslog, restart, command]
             """
         ),
+        dedent(
+            """\
+            # default (no) configuration with package installation on FreeBSD
+            rsyslog:
+                config_dir: /usr/local/etc/rsyslog.d
+                check_exe: "rsyslogd"
+                packages: ["rsyslogd"]
+                install_rsyslog: True
+            """
+        ),
     ],
     "activate_by_schema_keys": ["rsyslog"],
 }
 
 __doc__ = get_meta_doc(meta)
 
-DEF_FILENAME = "20-cloud-config.conf"
-DEF_DIR = "/etc/rsyslog.d"
-DEF_RELOAD = "auto"
-DEF_REMOTES: dict = {}
+RSYSLOG_CONFIG = {
+    "config_dir": "/etc/rsyslog.d",
+    "config_filename": "20-cloud-config.conf",
+    "service_reload_command": "auto",
+    "remotes": {},
+    "configs": {},
+    "check_exe": "rsyslogd",
+    "packages": ["rsyslog"],
+    "install_rsyslog": False,
+}
 
-KEYNAME_CONFIGS = "configs"
-KEYNAME_FILENAME = "config_filename"
-KEYNAME_DIR = "config_dir"
-KEYNAME_RELOAD = "service_reload_command"
-KEYNAME_LEGACY_FILENAME = "rsyslog_filename"
-KEYNAME_LEGACY_DIR = "rsyslog_dir"
-KEYNAME_REMOTES = "remotes"
+DISTRO_OVERRIDES = {
+    "freebsd": {
+        "config_dir": "/usr/local/etc/rsyslog.d",
+        "packages": ["rsyslog"],
+    },
+    "openbsd": {
+        "config_dir": "/usr/local/etc/rsyslog.d",
+        "packages": ["sysutils/rsyslog"],
+    },
+    "netbsd": {
+        "config_dir": "/usr/pkg/etc/rsyslog.d",
+        "packages": ["sysutils/rsyslog"],
+    },
+}
 
 LOG = logging.getLogger(__name__)
 
@@ -90,38 +126,77 @@ HOST_PORT_RE = re.compile(
 )
 
 
-def reload_syslog(distro, command=DEF_RELOAD):
-    if command == DEF_RELOAD:
+def distro_default_rsyslog_config(distro: Distro):
+    """Construct a distro-specific rsyslog config dictionary by merging
+       distro specific changes into base config.
+
+    @param distro: String providing the distro class name.
+    @returns: Dict of distro configurations for ntp clients.
+    """
+    dcfg = DISTRO_OVERRIDES
+    cfg = copy.copy(RSYSLOG_CONFIG)
+    if distro.osfamily in dcfg:
+        cfg = util.mergemanydict([cfg, dcfg[distro.name]], reverse=True)
+    return cfg
+
+
+def install_rsyslog(install_func, packages=None, check_exe="rsyslog"):
+    """Install rsyslog package if not already installed.
+
+    @param install_func: function.  This parameter is invoked with the contents
+    of the packages parameter.
+    @param packages: list.  This parameter defaults to ['rsyslog'].
+    @param check_exe: string.  The name of a binary that indicates the package
+    the specified package is already installed.
+    """
+    if subp.which(check_exe):
+        return
+    if packages is None:
+        packages = ["rsyslog"]
+
+    install_func(packages)
+
+
+def reload_syslog(distro, command="auto"):
+    if command == "auto":
         service = distro.get_option("rsyslog_svcname", "rsyslog")
         return distro.manage_service("try-reload", service)
     return subp.subp(command, capture=True)
 
 
-def load_config(cfg: dict) -> dict:
+def load_config(cfg: dict, distro: Distro) -> dict:
     """Return an updated config.
 
     Support converting the old top level format into new format.
     Raise a `ValueError` if some top level entry has an incorrect type.
     """
     mycfg = cfg.get("rsyslog", {})
+    distro_config = distro_default_rsyslog_config(distro)
 
     if isinstance(cfg.get("rsyslog"), list):
         util.deprecate(
             deprecated="The rsyslog key with value of type 'list'",
             deprecated_version="22.2",
         )
-        mycfg = {KEYNAME_CONFIGS: cfg.get("rsyslog")}
-        if KEYNAME_LEGACY_FILENAME in cfg:
-            mycfg[KEYNAME_FILENAME] = cfg[KEYNAME_LEGACY_FILENAME]
-        if KEYNAME_LEGACY_DIR in cfg:
-            mycfg[KEYNAME_DIR] = cfg[KEYNAME_LEGACY_DIR]
+        mycfg = {"configs": cfg.get("rsyslog")}
+        if "rsyslog_filename" in cfg:
+            mycfg["config_filename"] = cfg["rsyslog_filename"]
+        if "rsyslog_dir" in cfg:
+            mycfg["config_dir"] = cfg["rsyslog_dir"]
 
     fillup: tuple = (
-        (KEYNAME_CONFIGS, [], list),
-        (KEYNAME_DIR, DEF_DIR, str),
-        (KEYNAME_FILENAME, DEF_FILENAME, str),
-        (KEYNAME_RELOAD, DEF_RELOAD, (str, list)),
-        (KEYNAME_REMOTES, DEF_REMOTES, dict),
+        ("configs", [], list),
+        ("config_dir", distro_config["config_dir"], str),
+        ("config_filename", distro_config["config_filename"], str),
+        ("remotes", distro_config["remotes"], dict),
+        (
+            "service_reload_command",
+            distro_config["service_reload_command"],
+            (str, list),
+        ),
+        ("check_exe", distro_config["check_exe"], str),
+        ("packages", distro_config["packages"], list),
+        ("install_rsyslog", distro_config["install_rsyslog"], bool),
     )
 
     for key, default, vtypes in fillup:
@@ -296,6 +371,30 @@ def remotes_to_rsyslog_cfg(remotes, header=None, footer=None):
     return "\n".join(lines) + "\n"
 
 
+def disable_and_stop_bsd_base_syslog(cloud: Cloud) -> None:
+    """
+    This helper function bundles the necessary steps to disable BSD base syslog
+    ``rc(8)`` reads its configuration on start, so after disabling syslogd, we
+    need to tell rc to reload its config
+    """
+    try:
+        cloud.distro.manage_service("enabled", "syslogd")
+    except subp.ProcessExecutionError:
+        return
+    cloud.distro.manage_service("disable", "syslogd")
+    cloud.distro.reload_init()
+
+    with contextlib.suppress(subp.ProcessExecutionError):
+        # for some inexplicable reason we're running after syslogd,
+        # try to stop it, ignoring failures, only log the fact that
+        # syslog is running, which it shouldn't be.
+        cloud.distro.manage_service("onestop", "syslogd")
+        LOG.error(
+            "syslogd is running before cloud-init! "
+            "Please report this as bug to the porters!"
+        )
+
+
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if "rsyslog" not in cfg:
         LOG.debug(
@@ -303,26 +402,39 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         )
         return
 
-    mycfg = load_config(cfg)
-    configs = mycfg[KEYNAME_CONFIGS]
+    mycfg = load_config(cfg, cloud.distro)
+    configs = mycfg["configs"]
 
-    if mycfg[KEYNAME_REMOTES]:
+    if mycfg["remotes"]:
         configs.append(
             remotes_to_rsyslog_cfg(
-                mycfg[KEYNAME_REMOTES],
+                mycfg["remotes"],
                 header="# begin remotes",
                 footer="# end remotes",
             )
         )
+
+    service = cloud.distro.get_option("rsyslog_svcname", "rsyslog")
+
+    if mycfg["install_rsyslog"] is True:
+        install_rsyslog(
+            cloud.distro.install_packages,
+            packages=mycfg["packages"],
+            check_exe=mycfg["check_exe"],
+        )
+
+    if util.is_BSD():
+        cloud.distro.manage_service("enable", service)
+        disable_and_stop_bsd_base_syslog(cloud)
 
     if not mycfg["configs"]:
         LOG.debug("Empty config rsyslog['configs'], nothing to do")
         return
 
     changes = apply_rsyslog_changes(
-        configs=mycfg[KEYNAME_CONFIGS],
-        def_fname=mycfg[KEYNAME_FILENAME],
-        cfg_dir=mycfg[KEYNAME_DIR],
+        configs=mycfg["configs"],
+        def_fname=mycfg["config_filename"],
+        cfg_dir=mycfg["config_dir"],
     )
 
     if not changes:
@@ -330,7 +442,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         return
 
     try:
-        restarted = reload_syslog(cloud.distro, command=mycfg[KEYNAME_RELOAD])
+        restarted = reload_syslog(
+            cloud.distro, command=mycfg["service_reload_command"]
+        )
     except subp.ProcessExecutionError as e:
         restarted = False
         LOG.warning("Failed to reload syslog %s", str(e))
@@ -342,6 +456,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         # This should now use rsyslog if
         # the logging was setup to use it...
         LOG.debug("%s configured %s files", name, changes)
-
-
-# vi: ts=4 expandtab syntax=python

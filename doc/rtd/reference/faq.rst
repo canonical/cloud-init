@@ -293,7 +293,7 @@ Whitepapers:
 .. _validate-yaml.py: https://github.com/canonical/cloud-init/blob/main/tools/validate-yaml.py
 .. _Juju: https://ubuntu.com/blog/topics/juju
 .. _discourse page: https://discourse.charmhub.io
-.. _already do: https://github.com/canonical/ubuntu-advantage-client/blob/9b46480b9e4b88e918bac5ced0d4b8edb3cbbeab/lib/auto_attach.py#L35
+.. _already do: https://github.com/canonical/ubuntu-pro-client/blob/9b46480b9e4b88e918bac5ced0d4b8edb3cbbeab/lib/auto_attach.py#L35
 
 .. _cloud-init - The Good Parts: https://www.youtube.com/watch?v=2_m6EUo6VOI
 .. _Utilising cloud-init on Microsoft Azure (Whitepaper): https://ubuntu.com/engage/azure-cloud-init-whitepaper

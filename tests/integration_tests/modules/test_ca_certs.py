@@ -103,11 +103,11 @@ class TestCaCerts:
         verify_clean_log(log, ignore_deprecations=False)
 
         expected_inactive = {
-            "apt-pipelining",
+            "apt_pipelining",
             "ansible",
             "bootcmd",
             "chef",
-            "disable-ec2-metadata",
+            "disable_ec2_metadata",
             "disk_setup",
             "fan",
             "keyboard",
@@ -115,22 +115,22 @@ class TestCaCerts:
             "lxd",
             "mcollective",
             "ntp",
-            "package-update-upgrade-install",
-            "phone-home",
-            "power-state-change",
+            "package_update_upgrade_install",
+            "phone_home",
+            "power_state_change",
             "puppet",
             "rsyslog",
             "runcmd",
-            "salt-minion",
+            "salt_minion",
             "snap",
             "timezone",
             "ubuntu_autoinstall",
-            "ubuntu-advantage",
-            "ubuntu-drivers",
+            "ubuntu_advantage",
+            "ubuntu_drivers",
             "update_etc_hosts",
             "wireguard",
-            "write-files",
-            "write-files-deferred",
+            "write_files",
+            "write_files_deferred",
         }
 
         # Remove modules that run independent from user-data
@@ -140,8 +140,10 @@ class TestCaCerts:
             expected_inactive.discard("ntp")
         elif class_client.settings.PLATFORM == "lxd_vm":
             if class_client.settings.OS_IMAGE == "bionic":
-                expected_inactive.discard("write-files")
-                expected_inactive.discard("write-files-deferred")
+                expected_inactive.discard("write_files")
+                expected_inactive.discard("write_files_deferred")
+        elif class_client.settings.PLATFORM == "oci":
+            expected_inactive.discard("update_etc_hosts")
 
         diff = expected_inactive.symmetric_difference(
             get_inactive_modules(log)

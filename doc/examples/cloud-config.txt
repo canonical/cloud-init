@@ -155,12 +155,12 @@ bootcmd:
 # example:
 cloud_config_modules:
  - mounts
- - ssh-import-id
+ - ssh_import_id
  - ssh
- - grub-dpkg
- - [ apt-update-upgrade, always ]
+ - grub_dpkg
+ - [ apt_update_upgrade, always ]
  - puppet
- - disable-ec2-metadata
+ - disable_ec2_metadata
  - runcmd
  - byobu
 
@@ -171,7 +171,7 @@ cloud_config_modules:
 # The default is an empty list (ie, trust modules).
 #
 # Example:
-#   unverified_modules: ['apt-update-upgrade']
+#   unverified_modules: ['apt_update_upgrade']
 #   default: []
 
 # ssh_import_id: [ user1, user2 ]

@@ -172,7 +172,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
             "cc_set_hostname", {"hostname": "hostname1.me.com"}, cc, []
         )
         self.assertIn(
-            "DEBUG: No hostname changes. Skipping set-hostname\n",
+            "DEBUG: No hostname changes. Skipping set_hostname\n",
             self.logs.getvalue(),
         )
         cc_set_hostname.handle(

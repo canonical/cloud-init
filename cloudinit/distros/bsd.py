@@ -1,6 +1,7 @@
 import platform
 from typing import List, Optional
 
+import cloudinit.net.netops.bsd_netops as bsd_netops
 from cloudinit import distros, helpers
 from cloudinit import log as logging
 from cloudinit import net, subp, util
@@ -27,6 +28,7 @@ class BSD(distros.Distro):
     # There is no update/upgrade on OpenBSD
     pkg_cmd_update_prefix: Optional[List[str]] = None
     pkg_cmd_upgrade_prefix: Optional[List[str]] = None
+    net_ops = bsd_netops.BsdNetOps  # type: ignore
 
     def __init__(self, name, cfg, paths):
         super().__init__(name, cfg, paths)
@@ -35,7 +37,9 @@ class BSD(distros.Distro):
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
         cfg["ssh_svcname"] = "sshd"
+        cfg["rsyslog_svcname"] = "rsyslogd"
         self.osfamily = platform.system().lower()
+        self.net_ops = bsd_netops.BsdNetOps
 
     def _read_system_hostname(self):
         sys_hostname = self._read_hostname(self.hostname_conf_fn)

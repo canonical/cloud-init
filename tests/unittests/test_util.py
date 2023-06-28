@@ -2200,7 +2200,7 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
         self.assertEqual(("/dev/mapper/vg00-lv_root", "ext4", "/"), ret)
         # this one exists in mount_parse_ext.txt
         ret = util.parse_mount("/sys/kernel/debug")
-        self.assertIsNone(ret)
+        self.assertEqual(("none", "debugfs", "/sys/kernel/debug"), ret)
         # this one does not even exist in mount_parse_ext.txt
         ret = util.parse_mount("/not/existing/mount")
         self.assertIsNone(ret)

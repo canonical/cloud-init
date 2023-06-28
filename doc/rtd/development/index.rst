@@ -46,3 +46,11 @@ Documentation
    :maxdepth: 1
 
    docs.rst
+
+Cloud-init summit
+=================
+
+.. toctree::
+   :maxdepth: 2
+
+   summit.rst
