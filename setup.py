@@ -113,7 +113,10 @@ def render_tmpl(template, mode=None):
     topdir = os.path.dirname(sys.argv[0])
     tmpd = tempfile.mkdtemp(dir=topdir, prefix=RENDERED_TMPD_PREFIX)
     atexit.register(shutil.rmtree, tmpd)
-    bname = os.path.basename(template).rstrip(tmpl_ext)
+    bname = os.path.basename(template)
+    ename, ext = os.path.splitext(bname)
+    if ext == tmpl_ext:
+        bname = ename
     fpath = os.path.join(tmpd, bname)
     cmd_variant = []
     cmd_prefix = []
