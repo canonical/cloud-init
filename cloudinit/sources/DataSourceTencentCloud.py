@@ -3,6 +3,7 @@
 import json
 import os
 import traceback
+from typing import List
 
 from cloudinit import dmi
 from cloudinit import log as logging
@@ -20,7 +21,7 @@ class DataSourceTencentCloud(EC2.DataSourceEc2):
 
     # The minimum supported metadata_version from the ec2 metadata apis
     min_metadata_version = "2017-09-19"
-    extended_metadata_versions: list[str] = []
+    extended_metadata_versions: List[str] = []
 
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceTencentCloud, self).__init__(sys_cfg, distro, paths)
