@@ -365,7 +365,10 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if self.override_ds_detect():
             return self._get_data()
         elif self.ds_detect():
-            LOG.debug("Machine is running on %s.", self)
+            LOG.debug(
+                "Detected platform: %s. Checking for active instance data",
+                self,
+            )
             return self._get_data()
         else:
             LOG.debug("Datasource type %s is not detected.", self)
@@ -1177,9 +1180,9 @@ def parse_cmdline() -> str:
     Passing by command line overrides runtime datasource detection
     """
     cmdline = util.get_cmdline()
-    ds_parse_0 = re.search(r"ds=([a-zA-Z]+)(\s|$|;)", cmdline)
-    ds_parse_1 = re.search(r"ci\.ds=([a-zA-Z]+)(\s|$|;)", cmdline)
-    ds_parse_2 = re.search(r"ci\.datasource=([a-zA-Z]+)(\s|$|;)", cmdline)
+    ds_parse_0 = re.search(r"ds=([^\s;]+)", cmdline)
+    ds_parse_1 = re.search(r"ci\.ds=([^\s;]+)", cmdline)
+    ds_parse_2 = re.search(r"ci\.datasource=([^\s;]+)", cmdline)
     ds = ds_parse_0 or ds_parse_1 or ds_parse_2
     deprecated = ds_parse_1 or ds_parse_2
     if deprecated:
