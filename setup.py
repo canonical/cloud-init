@@ -167,10 +167,14 @@ for a in sys.argv:
 INITSYS_FILES = {
     "sysvinit": [f for f in glob("sysvinit/redhat/*") if is_f(f)],
     "sysvinit_freebsd": [
-        render_tmpl(f) for f in glob("sysvinit/freebsd/*") if is_f(f)
+        render_tmpl(f, mode=0o755)
+        for f in glob("sysvinit/freebsd/*")
+        if is_f(f)
     ],
     "sysvinit_netbsd": [
-        render_tmpl(f) for f in glob("sysvinit/netbsd/*") if is_f(f)
+        render_tmpl(f, mode=0o755)
+        for f in glob("sysvinit/netbsd/*")
+        if is_f(f)
     ],
     "sysvinit_deb": [f for f in glob("sysvinit/debian/*") if is_f(f)],
     "sysvinit_openrc": [f for f in glob("sysvinit/gentoo/*") if is_f(f)],
