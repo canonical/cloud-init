@@ -1,7 +1,14 @@
+import logging
+
 import pytest
 
+from tests.integration_tests.clouds import IntegrationCloud
+from tests.integration_tests.conftest import get_validated_source
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.util import wait_for_cloud_init
+
+log = logging.getLogger("integration_testing")
 
 
 def override_kernel_cmdline(ds_str: str, c: IntegrationInstance) -> str:
@@ -37,7 +44,16 @@ def override_kernel_cmdline(ds_str: str, c: IntegrationInstance) -> str:
     # most likely be as simple as updating the output path for grub-mkconfig
     client.execute("grub-mkconfig -o /boot/efi/EFI/ubuntu/grub.cfg")
     client.execute("cloud-init clean --logs")
-    client.instance.shutdown()
+    client.instance.shutdown(wait=False)
+    try:
+        client.instance.wait_for_state("STOPPED", num_retries=20)
+    except RuntimeError as e:
+        log.warning(
+            "Retrying shutdown due to timeout on initial shutdown request %s",
+            str(e),
+        )
+        client.instance.shutdown()
+
     client.instance.execute_via_ssh = False
     client.instance.start()
     client.execute("cloud-init status --wait")
@@ -75,18 +91,51 @@ def test_lxd_datasource_kernel_override(
     ) in override_kernel_cmdline(ds_str, client)
 
 
+GH_REPO_PATH = "https://raw.githubusercontent.com/canonical/cloud-init/main/"
+
+
 @pytest.mark.skipif(PLATFORM != "lxd_vm", reason="Modifies grub config")
 @pytest.mark.lxd_use_exec
-@pytest.mark.parametrize("ds_str", ("ci.ds=nocloud-net",))
+@pytest.mark.parametrize(
+    "ds_str",
+    (f"ds=nocloud-net;s={GH_REPO_PATH}tests/data/kernel_cmdline_match/",),
+)
 def test_lxd_datasource_kernel_override_nocloud_net(
-    ds_str, client: IntegrationInstance
+    ds_str, session_cloud: IntegrationCloud
 ):
     """NoCloud requirements vary slightly from other datasources with parsing
     nocloud-net due to historical reasons. Do to this variation, this is
     implemented in NoCloud's ds_detect and therefore has a different log
     message.
     """
-
-    assert (
-        "Machine is running on DataSourceNoCloud [seed=None][dsmode=net]."
-    ) in override_kernel_cmdline(ds_str, client)
+    _ds_name, _, seed_url = ds_str.partition(";")
+    _key, _, url_val = seed_url.partition("=")
+    source = get_validated_source(session_cloud)
+    with session_cloud.launch(
+        launch_kwargs={
+            # On Jammy and above, we detect the LXD datasource using a
+            # socket available to the container. This prevents the socket
+            # from being exposed in the container, so LXD will not be detected.
+            # This allows us to wait for detection in 'init' stage with
+            # DataSourceNoCloudNet.
+            "config_dict": {"security.devlxd": False},
+            "wait": False,  # to prevent cloud-init status --wait
+        }
+    ) as client:
+        # We know this will be an LXD instance due to our pytest mark
+        client.instance.execute_via_ssh = False  # pyright: ignore
+        assert wait_for_cloud_init(client, num_retries=60).ok
+        if source.installs_new_version():
+            client.install_new_cloud_init(
+                source, take_snapshot=False, clean=False
+            )
+        logs = override_kernel_cmdline(ds_str, client)
+        assert (
+            "nocloud"
+            == client.execute("cloud-init query platform").stdout.strip()
+        )
+        assert url_val in client.execute("cloud-init query subplatform").stdout
+        assert (
+            "Detected platform: DataSourceNoCloudNet [seed=None]"
+            "[dsmode=net]. Checking for active instance data"
+        ) in logs
