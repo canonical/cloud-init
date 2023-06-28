@@ -145,8 +145,7 @@ class DataSourceTencentCloud(EC2.DataSourceEc2):
             self.add_config_mod_always("update_etc_hosts")
             self.set_config_mod_always("runcmd")
         # ssh key
-        ubuntu = self.distro.name == "ubuntu"
-        username = "ubuntu" if ubuntu else "root"
+        username = "root"
         # disassociated_keys
         # delet key from authorized_keys
         disassociated_ssh_keys = self.get_disassociated_public_ssh_keys()
@@ -199,15 +198,6 @@ class DataSourceTencentCloud(EC2.DataSourceEc2):
         )
 
     def _get_cloud_name(self):
-        return "TencentCloud"
-
-    @property
-    def cloud_platform(self):
-        """
-        todo:
-        1, 通过DMI数据判断是否腾讯云平台。DMI数据：/sys/class/dmi/id/product_name
-        2, 添加EC2.Platforms.TENCENTCLOUD
-        """
         return "TencentCloud"
 
 

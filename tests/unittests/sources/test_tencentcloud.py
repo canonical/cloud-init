@@ -49,7 +49,9 @@ hostname: localhost"""
 class TestTencentCloudDatasource(test_helpers.ResponsesTestCase):
     def setUp(self):
         super(TestTencentCloudDatasource, self).setUp()
-        cfg = {"datasource": {"TencentCloud": {"timeout": "1", "max_wait": "1"}}}
+        cfg = {
+            "datasource": {"TencentCloud": {"timeout": "1", "max_wait": "1"}}
+        }
         distro = {}
         paths = helpers.Paths({"run_dir": self.tmp_dir()})
         self.ds = TencentCloud.DataSourceTencentCloud(cfg, distro, paths)
@@ -58,11 +60,11 @@ class TestTencentCloudDatasource(test_helpers.ResponsesTestCase):
     @property
     def default_metadata(self):
         return DEFAULT_METADATA
-    
+
     @property
     def default_userdata(self):
         return DEFAULT_USERDATA
-    
+
     @property
     def metadata_url(self):
         return (
@@ -140,7 +142,7 @@ class TestTencentCloudDatasource(test_helpers.ResponsesTestCase):
         self.assertEqual(
             self.ds.userdata_raw, self.default_userdata.encode("utf8")
         )
-    
+
     def _test_get_sshkey(self):
         pub_keys = [
             v["openssh-key"]
@@ -158,40 +160,14 @@ class TestTencentCloudDatasource(test_helpers.ResponsesTestCase):
             self.default_metadata["hostname"], self.ds.get_hostname().hostname
         )
 
-    # @mock.patch("cloudinit.sources.DataSourceEc2.util.is_resolvable")
-    # @mock.patch("cloudinit.sources.DataSourceTencentCloud._is_tencentcloud")
-    # def test_with_mock_server(self, m_is_tencentcloud, m_resolv):
-    #     m_is_tencentcloud.return_value = True
-    #     self.register_default_server()
-    #     ret = self.ds.get_data()
-    #     self.assertEqual(True, ret)
-    #     self.assertEqual(1, m_is_tencentcloud.call_count)
-    #     self._test_get_data()
-    #     self._test_get_sshkey()
-    #     self._test_get_iid()
-    #     self._test_host_name()
-    #     self.assertEqual("tencentcloud", self.ds.cloud_name)
-    #     self.assertEqual("ec2", self.ds.platform)
-    #     self.assertEqual(
-    #         "metadata (http://100.100.100.200)", self.ds.subplatform
-    #     )
-
-    # @mock.patch("cloudinit.sources.DataSourceTencentCloud._is_tencentcloud")
-    # def test_returns_false_when_not_on_tencentcloud(self, m_is_tencentcloud):
-    #     """If is_tencentcloud returns false, then get_data should return False."""
-    #     m_is_tencentcloud.return_value = False
-    #     self.register_default_server()
-    #     ret = self.ds.get_data()
-    #     self.assertEqual(1, m_is_tencentcloud.call_count)
-    #     self.assertEqual(False, ret)
-
     def test_parse_public_keys(self):
         public_keys = {}
         self.assertEqual(TencentCloud.parse_public_keys(public_keys), [])
 
         public_keys = {"key-pair-0": "ssh-key-0"}
         self.assertEqual(
-            TencentCloud.parse_public_keys(public_keys), [public_keys["key-pair-0"]]
+            TencentCloud.parse_public_keys(public_keys),
+            [public_keys["key-pair-0"]],
         )
 
         public_keys = {"key-pair-0": "ssh-key-0", "key-pair-1": "ssh-key-1"}
@@ -202,7 +178,8 @@ class TestTencentCloudDatasource(test_helpers.ResponsesTestCase):
 
         public_keys = {"key-pair-0": ["ssh-key-0", "ssh-key-1"]}
         self.assertEqual(
-            TencentCloud.parse_public_keys(public_keys), public_keys["key-pair-0"]
+            TencentCloud.parse_public_keys(public_keys),
+            public_keys["key-pair-0"],
         )
 
         public_keys = {"key-pair-0": {"openssh-key": []}}
@@ -223,13 +200,6 @@ class TestTencentCloudDatasource(test_helpers.ResponsesTestCase):
         )
 
     def test_route_metric_calculated_without_device_number(self):
-        """Test that route-metric code works without `device-number`
-
-        `device-number` is part of EC2 metadata, but not supported on aliyun.
-        Attempting to access it will raise a KeyError.
-
-        LP: #1917875
-        """
         netcfg = convert_ec2_metadata_network_config(
             {
                 "interfaces": {
