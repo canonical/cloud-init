@@ -1,3 +1,11 @@
+cloud-init (23.2.1-0ubuntu0~20.04.1) UNRELEASED; urgency=medium
+
+  * Upstream snapshot based on 23.2.1. (LP: #2025180).
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/23.2.1/ChangeLog
+
+ -- Brett Holman <brett.holman@canonical.com>  Wed, 28 Jun 2023 16:14:06 -0600
+
 cloud-init (23.2-0ubuntu0~20.04.1) focal; urgency=medium
 
   * d/control: Remove pep8 dependency. It is no longer used
