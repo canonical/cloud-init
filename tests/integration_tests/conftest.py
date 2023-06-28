@@ -206,7 +206,6 @@ def _client(
     lxd_use_exec = fixture_utils.closest_marker_args_or(
         request, "lxd_use_exec", None
     )
-
     launch_kwargs = {}
     if name is not None:
         launch_kwargs["name"] = name
