@@ -1766,7 +1766,7 @@ def read_azure_ovf(contents):
 
 
 def encrypt_pass(password):
-    return passlib.hash.sha512_crypt.encrypt(password)
+    return passlib.hash.sha512_crypt.hash(password)
 
 
 @azure_ds_telemetry_reporter
