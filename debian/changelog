@@ -1,9 +1,9 @@
-cloud-init (23.2.1-0ubuntu0~20.04.2) UNRELEASED; urgency=medium
+cloud-init (23.2.1-0ubuntu0~20.04.2) focal; urgency=medium
 
   * d/apport-general-hook: correct type hints on Dict for py3.8
     (LP: #2025376)
 
- -- Chad Smith <chad.smith@canonical.com>  Thu, 29 Jun 2023 09:35:37 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 29 Jun 2023 09:41:13 -0600
 
 cloud-init (23.2.1-0ubuntu0~20.04.1) focal; urgency=medium
 
