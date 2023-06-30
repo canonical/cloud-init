@@ -15,13 +15,13 @@ To ensure the keys and values in your user data are correct, you can run:
 
 .. code-block:: shell-session
 
-    cloud-init schema --system --annotate
+   sudo cloud-init schema --system --annotate
 
 Or, to test YAML in a file:
 
 .. code-block:: shell-session
 
-    cloud-init schema -c test.yml --annotate
+   cloud-init schema -c test.yml --annotate
 
 Log analysis
 ------------
