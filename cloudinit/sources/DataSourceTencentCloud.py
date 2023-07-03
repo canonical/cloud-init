@@ -2,7 +2,6 @@
 
 import json
 import os
-import traceback
 from typing import List
 
 from cloudinit import dmi
