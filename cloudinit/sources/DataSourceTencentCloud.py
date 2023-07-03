@@ -65,7 +65,6 @@ class DataSourceTencentCloud(EC2.DataSourceEc2):
                     json.dump(d_item, f)
         except Exception as e:
             LOG.debug(str(e))
-            LOG.debug(traceback.format_exc())
             changed = True
         LOG.debug("%s changed %s", item, changed)
         return changed
