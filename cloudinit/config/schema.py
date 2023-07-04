@@ -266,6 +266,24 @@ def _anyOf(
 
     It treats occurrences of `error_type` as non-errors, but yield them for
     external processing. Useful to process schema annotations, as `deprecated`.
+
+    Cloud-init's network schema under the `config` key has a complexity of
+    allowing each list dict item to declare it's type with a `type` key which
+    can contain the values: bond, bridge, nameserver, physical, route, vlan.
+
+    This schema 'flexibility' makes it hard for the default
+    jsonschema.exceptions.best_match function to find the correct schema
+    failure because it typically returns the failing schema error based on
+    the schema of greatest match depth. Since each anyOf dict matches the
+    same depth into the network schema path, `best_match` just returns the
+    first set of schema errors, which is almost always incorrect.
+
+    To find a better schema match when encountering schema validation errors,
+    cloud-init network schema introduced schema $defs with the prefix
+    `anyOf_type_`. If the object we are validating contains a 'type' key, and
+    one of the failing schema objects in an anyOf clause has a name of the
+    format anyOf_type_XXX, raise those schema errors instead of calling
+    best_match.
     """
     from jsonschema import ValidationError
     from jsonschema.exceptions import best_match

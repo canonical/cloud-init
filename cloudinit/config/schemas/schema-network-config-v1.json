@@ -440,7 +440,10 @@
         },
         "network": {
           "type": "string",
-          "description": "IPv4 network address with CIDR netmask notation or IPv6 with prefix length. Alias for ``destination`` and only read when ``destination`` key is absent."
+          "description": "IPv4 network address with CIDR netmask notation or IPv6 with prefix length. Alias for ``destination`` and only read when ``destination`` key is absent.",
+          "deprecated": true,
+          "deprecated_version": "23.3",
+          "deprecated_description": "Use ``destination`` instead."
         },
         "destination": {
           "type": "string",
