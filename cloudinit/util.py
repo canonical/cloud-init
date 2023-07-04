@@ -2677,6 +2677,8 @@ def get_device_info_from_zpool(zpool):
 
 
 def parse_mount(path, get_mnt_opts=False):
+    """Return the mount information for PATH given the lines ``mount(1)``
+    This function is compatible with ``util.parse_mount_info()``"""
     (mountoutput, _err) = subp.subp(["mount"])
 
     # there are 2 types of mount outputs we have to parse therefore
@@ -2738,21 +2740,27 @@ def parse_mount(path, get_mnt_opts=False):
         # continue finding the real device like '/dev/da0'.
         # this is only valid for non zfs file systems as a zpool
         # can have gpt labels as disk.
+        # It also doesn't really make sense for NFS.
         devm = re.search("^(/dev/.+)[sp]([0-9])$", devpth)
         if not devm and is_FreeBSD() and fs_type not in ["zfs", "nfs"]:
-            devpth = get_freebsd_devpth(path)
+            # don't duplicate the effort of finding the mountpoint in
+            # ``get_freebsd_devpth()`` by passing it the ``path``
+            # instead only resolve the ``devpth``
+            devpth = get_freebsd_devpth(devpth)
+        match_devpth = devpth
 
         if match_mount_point == path:
             break
 
-    if mount_point and path in mount_point:
-        if get_mnt_opts:
-            if devpth and fs_type and match_mount_point and mount_options:
-                return (devpth, fs_type, match_mount_point, mount_options)
-        else:
-            if devpth and fs_type and match_mount_point:
-                return (devpth, fs_type, match_mount_point)
-    return None
+    if not match_mount_point or match_mount_point not in path:
+        # return early here, so we can actually read what's happening below
+        return None
+    if get_mnt_opts:
+        if match_devpth and fs_type and match_mount_point and mount_options:
+            return (match_devpth, fs_type, match_mount_point, mount_options)
+    else:
+        if match_devpth and fs_type and match_mount_point:
+            return (match_devpth, fs_type, match_mount_point)
 
 
 def get_mount_info(path, log=LOG, get_mnt_opts=False):
