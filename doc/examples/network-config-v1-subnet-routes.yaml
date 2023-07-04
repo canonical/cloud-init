@@ -12,7 +12,7 @@ network:
           routes:
             - gateway: 10.184.225.121
               netmask: 255.240.0.0
-              network: 10.176.0.0
+              destination: 10.176.0.0
             - gateway: 10.184.225.121
               netmask: 255.240.0.0
-              network: 10.208.0.0
+              destination: 10.208.0.0

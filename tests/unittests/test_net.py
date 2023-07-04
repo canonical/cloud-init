@@ -166,7 +166,7 @@ config:
     name: bondM
     params:
         bond-downdelay: 0
-        bond-lacp-rate: fast
+        bond-lacp_rate: fast
         bond-miimon: 100
         bond-mode: 802.3ad
         bond-updelay: 0
@@ -220,7 +220,7 @@ config:
     name: bond0
     params:
         bond-downdelay: 0
-        bond-lacp-rate: fast
+        bond-lacp_rate: fast
         bond-miimon: 100
         bond-mode: 802.3ad
         bond-updelay: 0
@@ -262,7 +262,7 @@ config:
     name: bond1
     params:
         bond-downdelay: 0
-        bond-lacp-rate: fast
+        bond-lacp_rate: fast
         bond-miimon: 100
         bond-mode: 802.3ad
         bond-updelay: 0

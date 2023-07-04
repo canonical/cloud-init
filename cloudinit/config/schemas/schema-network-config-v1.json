@@ -220,7 +220,7 @@
             "bond-use_carrier": {
               "type": "string"
             },
-            "bond-xmit_has_policy": {
+            "bond-xmit_hash_policy": {
               "type": "string"
             }
           }

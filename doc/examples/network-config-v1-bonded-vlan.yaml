@@ -16,7 +16,7 @@ network:
         - gbe1
       params:
         bond-mode: 802.3ad
-        bond-lacp-rate: fast
+        bond-lacp_rate: fast
     # A Bond VLAN.
     - type: vlan
       name: bond0.200
