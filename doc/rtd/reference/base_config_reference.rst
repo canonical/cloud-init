@@ -215,6 +215,8 @@ instance.
 Prioritised list of python packages to search when finding a datasource.
 Automatically includes ``cloudinit.sources``.
 
+.. _base_config_datasource_list:
+
 ``datasource_list``
 ^^^^^^^^^^^^^^^^^^^
 
@@ -229,8 +231,8 @@ are two primary use cases for modifying the ``datasource_list``:
    type than would typically be prioritised.
 
 If ``datasource_list`` has only a single entry (or a single entry + ``None``),
-:ref:`cloud-init's generator script<boot-Generator>` will automatically assume
-and use this datasource without attempting detection.
+`cloud-init` will automatically assume and use this datasource without
+attempting detection.
 
 ``vendor_data``/``vendor_data2``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -280,7 +282,7 @@ On an Ubuntu system, :file:`/etc/cloud/cloud.cfg` should look similar to:
     - migrator
     - seed_random
     - bootcmd
-    - write-files
+    - write_files
     - growpart
     - resizefs
     - disk_setup
@@ -288,54 +290,53 @@ On an Ubuntu system, :file:`/etc/cloud/cloud.cfg` should look similar to:
     - set_hostname
     - update_hostname
     - update_etc_hosts
-    - ca-certs
+    - ca_certs
     - rsyslog
-    - users-groups
+    - users_groups
     - ssh
 
     # The modules that run in the 'config' stage
     cloud_config_modules:
     - snap
-    - ssh-import-id
+    - ssh_import_id
     - keyboard
     - locale
-    - set-passwords
-    - grub-dpkg
-    - apt-pipelining
-    - apt-configure
-    - ubuntu-advantage
+    - set_passwords
+    - grub_dpkg
+    - apt_pipelining
+    - apt_configure
+    - ubuntu_advantage
     - ntp
     - timezone
-    - disable-ec2-metadata
+    - disable_ec2_metadata
     - runcmd
     - byobu
 
     # The modules that run in the 'final' stage
     cloud_final_modules:
-    - package-update-upgrade-install
+    - package_update_upgrade_install
     - fan
     - landscape
     - lxd
-    - ubuntu-drivers
-    - write-files-deferred
+    - ubuntu_drivers
+    - write_files_deferred
     - puppet
     - chef
     - mcollective
-    - salt-minion
+    - salt_minion
     - reset_rmc
-    - refresh_rmc_and_interface
     - rightscale_userdata
-    - scripts-vendor
-    - scripts-per-once
-    - scripts-per-boot
-    - scripts-per-instance
-    - scripts-user
-    - ssh-authkey-fingerprints
-    - keys-to-console
-    - install-hotplug
-    - phone-home
-    - final-message
-    - power-state-change
+    - scripts_vendor
+    - scripts_per_once
+    - scripts_per_boot
+    - scripts_per_instance
+    - scripts_user
+    - ssh_authkey_fingerprints
+    - keys_to_console
+    - install_hotplug
+    - phone_home
+    - final_message
+    - power_state_change
 
     # System and/or distro specific settings
     # (not accessible to handlers/transforms)

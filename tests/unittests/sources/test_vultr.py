@@ -274,14 +274,6 @@ INTERFACE_MAP = {
 FINAL_INTERFACE_USED = ""
 
 
-# Static override, pylint doesnt like this in
-# classes without self
-def check_route(url):
-    if FINAL_INTERFACE_USED == "eth0":
-        return True
-    return False
-
-
 class TestDataSourceVultr(CiTestCase):
     def setUp(self):
         global VULTR_V1_3
@@ -398,7 +390,7 @@ class TestDataSourceVultr(CiTestCase):
 
     # Override ephemeral for proper unit testing
     def ephemeral_init(
-        self, iface="", connectivity_url_data=None, tmp_dir=None
+        self, distro, iface="", connectivity_url_data=None, tmp_dir=None
     ):
         global FINAL_INTERFACE_USED
         FINAL_INTERFACE_USED = iface
@@ -431,7 +423,6 @@ class TestDataSourceVultr(CiTestCase):
     @mock.patch(
         "cloudinit.net.ephemeral.EphemeralDHCPv4.__exit__", override_exit
     )
-    @mock.patch("cloudinit.sources.helpers.vultr.check_route")
     @mock.patch("cloudinit.sources.helpers.vultr.is_vultr")
     @mock.patch("cloudinit.sources.helpers.vultr.read_metadata")
     @mock.patch("cloudinit.sources.helpers.vultr.get_interface_list")
@@ -440,12 +431,10 @@ class TestDataSourceVultr(CiTestCase):
         mock_interface_list,
         mock_read_metadata,
         mock_isvultr,
-        mock_check_route,
     ):
         mock_read_metadata.return_value = {}
         mock_isvultr.return_value = True
         mock_interface_list.return_value = FILTERED_INTERFACES
-        mock_check_route.return_value = True
 
         distro = mock.MagicMock()
         distro.get_tmp_exec_path = self.tmp_dir
@@ -461,7 +450,6 @@ class TestDataSourceVultr(CiTestCase):
         self.assertEqual(FINAL_INTERFACE_USED, INTERFACES[3])
 
     # Test route checking sucessful DHCPs
-    @mock.patch("cloudinit.sources.helpers.vultr.check_route", check_route)
     @mock.patch(
         "cloudinit.net.ephemeral.EphemeralDHCPv4.__init__",
         ephemeral_init_always,
@@ -492,6 +480,3 @@ class TestDataSourceVultr(CiTestCase):
             pass
 
         self.assertEqual(FINAL_INTERFACE_USED, INTERFACES[3])
-
-
-# vi: ts=4 expandtab

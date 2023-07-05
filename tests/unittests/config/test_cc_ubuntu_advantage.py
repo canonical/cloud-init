@@ -751,7 +751,7 @@ class TestHandle:
                     (
                         MPATH,
                         logging.DEBUG,
-                        "Ignoring `ubuntu-advantage.enable_beta` services in"
+                        "Ignoring `ubuntu_advantage.enable_beta` services in"
                         " UA attach: realtime-kernel",
                     )
                 ],
@@ -1075,7 +1075,7 @@ class TestHandle:
         with pytest.raises(
             RuntimeError,
             match=re.escape(
-                "`ubuntu-advantage.token` required in non-Pro Ubuntu"
+                "`ubuntu_advantage.token` required in non-Pro Ubuntu"
                 " instances."
             ),
         ):
@@ -1087,7 +1087,7 @@ class TestHandle:
             )
         assert [] == m_subp.call_args_list
         assert (
-            "`ubuntu-advantage.token` required in non-Pro Ubuntu"
+            "`ubuntu_advantage.token` required in non-Pro Ubuntu"
             " instances.\n"
         ) in caplog.text
 
@@ -1175,7 +1175,7 @@ class TestAttach:
         with pytest.raises(
             RuntimeError,
             match=(
-                "`ubuntu-advantage.token` required in non-Pro Ubuntu"
+                "`ubuntu_advantage.token` required in non-Pro Ubuntu"
                 " instances."
             ),
         ):

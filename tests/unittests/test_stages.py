@@ -606,19 +606,23 @@ class TestInit_InitializeFilesystem:
         # Assert we create it 0o640  by default if it doesn't already exist
         assert 0o640 == stat.S_IMODE(log_file.stat().mode)
 
-    def test_existing_file_permissions_are_not_modified(self, init, tmpdir):
-        """If the log file already exists, we should not modify its permissions
+    def test_existing_file_permissions(self, init, tmpdir):
+        """Test file permissions are set as expected.
+
+        CIS Hardening requires 640 permissions. These permissions are
+        currently hardcoded on every boot, but if there's ever a reason
+        to change this, we need to then ensure that they
+        are *not* set every boot.
 
         See https://bugs.launchpad.net/cloud-init/+bug/1900837.
         """
-        # Use a mode that will never be made the default so this test will
-        # always be valid
-        mode = 0o606
         log_file = tmpdir.join("cloud-init.log")
         log_file.ensure()
-        log_file.chmod(mode)
+        # Use a mode that will never be made the default so this test will
+        # always be valid
+        log_file.chmod(0o606)
         init._cfg = {"def_log_file": str(log_file)}
 
         init._initialize_filesystem()
 
-        assert mode == stat.S_IMODE(log_file.stat().mode)
+        assert 0o640 == stat.S_IMODE(log_file.stat().mode)

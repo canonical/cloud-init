@@ -9,7 +9,7 @@ from email import encoders
 from email.mime.application import MIMEApplication
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
-from io import BytesIO, StringIO
+from io import BytesIO
 from pathlib import Path
 from unittest import mock
 
@@ -19,7 +19,7 @@ import responses
 
 from cloudinit import handlers
 from cloudinit import helpers as c_helpers
-from cloudinit import log, safeyaml, stages
+from cloudinit import safeyaml, stages
 from cloudinit import user_data as ud
 from cloudinit import util
 from cloudinit.config.modules import Modules
@@ -48,52 +48,38 @@ def gzip_text(text):
     return contents.getvalue()
 
 
-# FIXME: these tests shouldn't be checking log output??
-# Weirddddd...
-class TestConsumeUserData(helpers.FilesystemMockingTestCase):
-    def setUp(self):
-        super(TestConsumeUserData, self).setUp()
-        self._log = None
-        self._log_file = None
-        self._log_handler = None
+@pytest.fixture(scope="function")
+def init_tmp(request, tmpdir):
+    ci = stages.Init()
+    ci._cfg = {
+        "system_info": {
+            "distro": "ubuntu",
+            "paths": {"cloud_dir": tmpdir.strpath, "run_dir": tmpdir.strpath},
+        }
+    }
+    return ci
 
-    def tearDown(self):
-        if self._log_handler and self._log:
-            self._log.removeHandler(self._log_handler)
-        helpers.FilesystemMockingTestCase.tearDown(self)
 
-    def _patchIn(self, root):
-        self.patchOS(root)
-        self.patchUtils(root)
-
-    def capture_log(self, lvl=logging.DEBUG):
-        log_file = StringIO()
-        self._log_handler = logging.StreamHandler(log_file)
-        self._log_handler.setLevel(lvl)
-        self._log = log.getLogger()
-        self._log.addHandler(self._log_handler)
-        return log_file
-
-    def test_simple_jsonp(self):
-        blob = """
+class TestConsumeUserData:
+    def test_simple_jsonp(self, init_tmp):
+        user_blob = """
 #cloud-config-jsonp
 [
      { "op": "add", "path": "/baz", "value": "qux" },
      { "op": "add", "path": "/bar", "value": "qux2" }
 ]
 """
-
-        ci = stages.Init()
-        ci.datasource = FakeDataSource(blob)
-        self.reRoot()
-        ci.fetch()
-        ci.consume_data()
-        cc_contents = util.load_file(ci.paths.get_ipath("cloud_config"))
+        init_tmp.datasource = FakeDataSource(user_blob)
+        init_tmp.fetch()
+        with mock.patch.object(init_tmp, "_reset"):
+            init_tmp.consume_data()
+        cc_contents = util.load_file(init_tmp.paths.get_ipath("cloud_config"))
         cc = util.load_yaml(cc_contents)
-        self.assertEqual(2, len(cc))
-        self.assertEqual("qux", cc["baz"])
-        self.assertEqual("qux2", cc["bar"])
+        assert len(cc) == 2
+        assert cc["baz"] == "qux"
+        assert cc["bar"] == "qux2"
 
+    @pytest.mark.usefixtures("fake_filesystem")
     def test_simple_jsonp_vendor_and_vendor2_and_user(self):
         # test that user-data wins over vendor
         user_blob = """
@@ -121,7 +107,6 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
      { "op": "add", "path": "/foobar", "value": "quxGG" }
 ]
 """
-        self.reRoot()
         initer = stages.Init()
         initer.datasource = FakeDataSource(
             user_blob, vendordata=vendor_blob, vendordata2=vendor2_blob
@@ -130,7 +115,10 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
         initer.initialize()
         initer.fetch()
         initer.instancify()
-        initer.update()
+        with mock.patch(
+            "cloudinit.util.read_conf_from_cmdline", return_value={}
+        ):
+            initer.update()
         initer.cloudify().run(
             "consume_data",
             initer.consume_data,
@@ -140,17 +128,18 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
         mods = Modules(initer)
         (_which_ran, _failures) = mods.run_section("cloud_init_modules")
         cfg = mods.cfg
-        self.assertIn("vendor_data", cfg)
-        self.assertIn("vendor_data2", cfg)
+        assert "vendor_data" in cfg
+        assert "vendor_data2" in cfg
         # Confirm that vendordata2 overrides vendordata, and that
         #  userdata overrides both
-        self.assertEqual("qux", cfg["baz"])
-        self.assertEqual("qux2", cfg["bar"])
-        self.assertEqual("qux3", cfg["foobar"])
-        self.assertEqual("quxC", cfg["foo"])
-        self.assertEqual("quxD", cfg["corge"])
-        self.assertEqual("quxFF", cfg["grault"])
+        assert cfg["baz"] == "qux"
+        assert cfg["bar"] == "qux2"
+        assert cfg["foobar"] == "qux3"
+        assert cfg["foo"] == "quxC"
+        assert cfg["corge"] == "quxD"
+        assert cfg["grault"] == "quxFF"
 
+    @pytest.mark.usefixtures("fake_filesystem")
     def test_simple_jsonp_no_vendor_consumed(self):
         # make sure that vendor data is not consumed
         user_blob = """
@@ -169,7 +158,6 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
      { "op": "add", "path": "/foo", "value": "quxC" }
 ]
 """
-        self.reRoot()
         initer = stages.Init()
         initer.datasource = FakeDataSource(user_blob, vendordata=vendor_blob)
         initer.read_cfg()
@@ -186,11 +174,11 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
         mods = Modules(initer)
         (_which_ran, _failures) = mods.run_section("cloud_init_modules")
         cfg = mods.cfg
-        self.assertEqual("qux", cfg["baz"])
-        self.assertEqual("qux2", cfg["bar"])
-        self.assertNotIn("foo", cfg)
+        assert cfg["baz"] == "qux"
+        assert cfg["bar"] == "qux2"
+        assert "foo" not in cfg
 
-    def test_mixed_cloud_config(self):
+    def test_mixed_cloud_config(self, init_tmp):
         blob_cc = """
 #cloud-config
 a: b
@@ -214,17 +202,16 @@ c: d
         message.attach(message_cc)
         message.attach(message_jp)
 
-        self.reRoot()
-        ci = stages.Init()
-        ci.datasource = FakeDataSource(str(message))
-        ci.fetch()
-        ci.consume_data()
-        cc_contents = util.load_file(ci.paths.get_ipath("cloud_config"))
+        init_tmp.datasource = FakeDataSource(str(message))
+        init_tmp.fetch()
+        with mock.patch.object(init_tmp, "_reset"):
+            init_tmp.consume_data()
+        cc_contents = util.load_file(init_tmp.paths.get_ipath("cloud_config"))
         cc = util.load_yaml(cc_contents)
-        self.assertEqual(1, len(cc))
-        self.assertEqual("c", cc["a"])
+        assert len(cc) == 1
+        assert cc["a"] == "c"
 
-    def test_cloud_config_as_x_shell_script(self):
+    def test_cloud_config_as_x_shell_script(self, init_tmp):
         blob_cc = """
 #cloud-config
 a: b
@@ -248,16 +235,16 @@ c: d
         message.attach(message_cc)
         message.attach(message_jp)
 
-        self.reRoot()
-        ci = stages.Init()
-        ci.datasource = FakeDataSource(str(message))
-        ci.fetch()
-        ci.consume_data()
-        cc_contents = util.load_file(ci.paths.get_ipath("cloud_config"))
+        init_tmp.datasource = FakeDataSource(str(message))
+        init_tmp.fetch()
+        with mock.patch.object(init_tmp, "_reset"):
+            init_tmp.consume_data()
+        cc_contents = util.load_file(init_tmp.paths.get_ipath("cloud_config"))
         cc = util.load_yaml(cc_contents)
-        self.assertEqual(1, len(cc))
-        self.assertEqual("c", cc["a"])
+        assert len(cc) == 1
+        assert cc["a"] == "c"
 
+    @pytest.mark.usefixtures("fake_filesystem")
     def test_vendor_user_yaml_cloud_config(self):
         vendor_blob = """
 #cloud-config
@@ -278,7 +265,6 @@ name: user
 run:
  - z
 """
-        self.reRoot()
         initer = stages.Init()
         initer.datasource = FakeDataSource(user_blob, vendordata=vendor_blob)
         initer.read_cfg()
@@ -295,13 +281,14 @@ run:
         mods = Modules(initer)
         (_which_ran, _failures) = mods.run_section("cloud_init_modules")
         cfg = mods.cfg
-        self.assertIn("vendor_data", cfg)
-        self.assertEqual("c", cfg["a"])
-        self.assertEqual("user", cfg["name"])
-        self.assertNotIn("x", cfg["run"])
-        self.assertNotIn("y", cfg["run"])
-        self.assertIn("z", cfg["run"])
+        assert "vendor_data" in cfg
+        assert cfg["a"] == "c"
+        assert cfg["name"] == "user"
+        assert "x" not in cfg["run"]
+        assert "y" not in cfg["run"]
+        assert "z" in cfg["run"]
 
+    @pytest.mark.usefixtures("fake_filesystem")
     def test_vendordata_script(self):
         vendor_blob = """
 #!/bin/bash
@@ -318,7 +305,6 @@ vendor_data:
   enabled: true
   prefix: /bin/true
 """
-        new_root = self.reRoot()
         initer = stages.Init()
         initer.datasource = FakeDataSource(
             user_blob, vendordata=vendor_blob, vendordata2=vendor2_blob
@@ -337,10 +323,10 @@ vendor_data:
         mods = Modules(initer)
         (_which_ran, _failures) = mods.run_section("cloud_init_modules")
         vendor_script = initer.paths.get_ipath_cur("vendor_scripts")
-        vendor_script_fns = "%s%s/part-001" % (new_root, vendor_script)
-        self.assertTrue(os.path.exists(vendor_script_fns))
+        vendor_script_fns = "%s/part-001" % vendor_script
+        assert os.path.exists(vendor_script_fns) is True
 
-    def test_merging_cloud_config(self):
+    def test_merging_cloud_config(self, tmpdir):
         blob = """
 #cloud-config
 a: b
@@ -379,10 +365,11 @@ p: 1
 
         messages = [message1, message2, message3]
 
-        paths = c_helpers.Paths({}, ds=FakeDataSource(""))
+        paths = c_helpers.Paths(
+            {"cloud_dir": tmpdir, "run_dir": tmpdir}, ds=FakeDataSource("")
+        )
         cloud_cfg = handlers.cloud_config.CloudConfigPartHandler(paths)
 
-        self.reRoot()
         cloud_cfg.handle_part(
             None, handlers.CONTENT_START, None, None, None, None
         )
@@ -398,32 +385,30 @@ p: 1
         )
         contents = util.load_file(paths.get_ipath("cloud_config"))
         contents = util.load_yaml(contents)
-        self.assertEqual(contents["run"], ["b", "c", "stuff", "morestuff"])
-        self.assertEqual(contents["a"], "be")
-        self.assertEqual(contents["e"], [1, 2, 3])
-        self.assertEqual(contents["p"], 1)
+        assert contents["run"], ["b", "c", "stuff", "morestuff"]
+        assert contents["a"] == "be"
+        assert contents["e"] == [1, 2, 3]
+        assert contents["p"] == 1
 
-    def test_unhandled_type_warning(self):
+    def test_unhandled_type_warning(self, init_tmp, caplog):
         """Raw text without magic is ignored but shows warning."""
-        self.reRoot()
-        ci = stages.Init()
         data = "arbitrary text\n"
-        ci.datasource = FakeDataSource(data)
+        init_tmp.datasource = FakeDataSource(data)
 
         with mock.patch("cloudinit.util.write_file") as mockobj:
-            log_file = self.capture_log(logging.WARNING)
-            ci.fetch()
-            ci.consume_data()
-            self.assertIn(
-                "Unhandled non-multipart (text/x-not-multipart) userdata:",
-                log_file.getvalue(),
+            with caplog.at_level(logging.WARNING):
+                init_tmp.fetch()
+                with mock.patch.object(init_tmp, "_reset"):
+                    init_tmp.consume_data()
+            assert (
+                "Unhandled non-multipart (text/x-not-multipart) userdata:"
+                in caplog.text
             )
-
         mockobj.assert_called_once_with(
-            ci.paths.get_ipath("cloud_config"), "", 0o600
+            init_tmp.paths.get_ipath("cloud_config"), "", 0o600
         )
 
-    def test_mime_gzip_compressed(self):
+    def test_mime_gzip_compressed(self, init_tmp):
         """Tests that individual message gzip encoding works."""
 
         def gzip_part(text):
@@ -443,131 +428,128 @@ c: 4
         message = MIMEMultipart("test")
         message.attach(gzip_part(base_content1))
         message.attach(gzip_part(base_content2))
-        ci = stages.Init()
-        ci.datasource = FakeDataSource(str(message))
-        self.reRoot()
-        ci.fetch()
-        ci.consume_data()
-        contents = util.load_file(ci.paths.get_ipath("cloud_config"))
+        init_tmp.datasource = FakeDataSource(str(message))
+        init_tmp.fetch()
+        with mock.patch.object(init_tmp, "_reset"):
+            init_tmp.consume_data()
+        contents = util.load_file(init_tmp.paths.get_ipath("cloud_config"))
         contents = util.load_yaml(contents)
-        self.assertTrue(isinstance(contents, dict))
-        self.assertEqual(3, len(contents))
-        self.assertEqual(2, contents["a"])
-        self.assertEqual(3, contents["b"])
-        self.assertEqual(4, contents["c"])
+        assert isinstance(contents, dict) is True
+        assert len(contents) == 3
+        assert contents["a"] == 2
+        assert contents["b"] == 3
+        assert contents["c"] == 4
 
-    def test_mime_text_plain(self):
+    def test_mime_text_plain(self, init_tmp, caplog):
         """Mime message of type text/plain is ignored but shows warning."""
-        self.reRoot()
-        ci = stages.Init()
         message = MIMEBase("text", "plain")
         message.set_payload("Just text")
-        ci.datasource = FakeDataSource(message.as_string().encode())
+        init_tmp.datasource = FakeDataSource(message.as_string().encode())
 
         with mock.patch("cloudinit.util.write_file") as mockobj:
-            log_file = self.capture_log(logging.WARNING)
-            ci.fetch()
-            ci.consume_data()
-            self.assertIn(
-                "Unhandled unknown content-type (text/plain)",
-                log_file.getvalue(),
-            )
+            with caplog.at_level(logging.WARNING):
+                init_tmp.fetch()
+                with mock.patch.object(init_tmp, "_reset"):
+                    init_tmp.consume_data()
+            assert "Unhandled unknown content-type (text/plain)" in caplog.text
         mockobj.assert_called_once_with(
-            ci.paths.get_ipath("cloud_config"), "", 0o600
+            init_tmp.paths.get_ipath("cloud_config"), "", 0o600
         )
 
-    def test_shellscript(self):
+    def test_shellscript(self, init_tmp, caplog):
         """Raw text starting #!/bin/sh is treated as script."""
-        self.reRoot()
-        ci = stages.Init()
         script = "#!/bin/sh\necho hello\n"
-        ci.datasource = FakeDataSource(script)
+        init_tmp.datasource = FakeDataSource(script)
 
-        outpath = os.path.join(ci.paths.get_ipath_cur("scripts"), "part-001")
+        outpath = os.path.join(
+            init_tmp.paths.get_ipath_cur("scripts"), "part-001"
+        )
 
         with mock.patch("cloudinit.util.write_file") as mockobj:
-            log_file = self.capture_log(logging.WARNING)
-            ci.fetch()
-            ci.consume_data()
-            self.assertEqual("", log_file.getvalue())
+            with caplog.at_level(logging.WARNING):
+                init_tmp.fetch()
+                with mock.patch.object(init_tmp, "_reset"):
+                    init_tmp.consume_data()
+                assert caplog.records == []  # No warnings
 
         mockobj.assert_has_calls(
             [
                 mock.call(outpath, script, 0o700),
-                mock.call(ci.paths.get_ipath("cloud_config"), "", 0o600),
+                mock.call(init_tmp.paths.get_ipath("cloud_config"), "", 0o600),
             ]
         )
 
-    def test_mime_text_x_shellscript(self):
+    def test_mime_text_x_shellscript(self, init_tmp, caplog):
         """Mime message of type text/x-shellscript is treated as script."""
-        self.reRoot()
-        ci = stages.Init()
         script = "#!/bin/sh\necho hello\n"
         message = MIMEBase("text", "x-shellscript")
         message.set_payload(script)
-        ci.datasource = FakeDataSource(message.as_string())
+        init_tmp.datasource = FakeDataSource(message.as_string())
 
-        outpath = os.path.join(ci.paths.get_ipath_cur("scripts"), "part-001")
+        outpath = os.path.join(
+            init_tmp.paths.get_ipath_cur("scripts"), "part-001"
+        )
 
         with mock.patch("cloudinit.util.write_file") as mockobj:
-            log_file = self.capture_log(logging.WARNING)
-            ci.fetch()
-            ci.consume_data()
-            self.assertEqual("", log_file.getvalue())
+            with caplog.at_level(logging.WARNING):
+                init_tmp.fetch()
+                with mock.patch.object(init_tmp, "_reset"):
+                    init_tmp.consume_data()
+                assert caplog.records == []  # No warnings
 
         mockobj.assert_has_calls(
             [
                 mock.call(outpath, script, 0o700),
-                mock.call(ci.paths.get_ipath("cloud_config"), "", 0o600),
+                mock.call(init_tmp.paths.get_ipath("cloud_config"), "", 0o600),
             ]
         )
 
-    def test_mime_text_plain_shell(self):
+    def test_mime_text_plain_shell(self, init_tmp, caplog):
         """Mime type text/plain starting #!/bin/sh is treated as script."""
-        self.reRoot()
-        ci = stages.Init()
         script = "#!/bin/sh\necho hello\n"
         message = MIMEBase("text", "plain")
         message.set_payload(script)
-        ci.datasource = FakeDataSource(message.as_string())
+        init_tmp.datasource = FakeDataSource(message.as_string())
 
-        outpath = os.path.join(ci.paths.get_ipath_cur("scripts"), "part-001")
+        outpath = os.path.join(
+            init_tmp.paths.get_ipath_cur("scripts"), "part-001"
+        )
 
         with mock.patch("cloudinit.util.write_file") as mockobj:
-            log_file = self.capture_log(logging.WARNING)
-            ci.fetch()
-            ci.consume_data()
-            self.assertEqual("", log_file.getvalue())
+            with caplog.at_level(logging.WARNING):
+                init_tmp.fetch()
+                with mock.patch.object(init_tmp, "_reset"):
+                    init_tmp.consume_data()
+                assert caplog.records == []  # No warnings
 
         mockobj.assert_has_calls(
             [
                 mock.call(outpath, script, 0o700),
-                mock.call(ci.paths.get_ipath("cloud_config"), "", 0o600),
+                mock.call(init_tmp.paths.get_ipath("cloud_config"), "", 0o600),
             ]
         )
 
-    def test_mime_application_octet_stream(self):
+    def test_mime_application_octet_stream(self, init_tmp, caplog):
         """Mime type application/octet-stream is ignored but shows warning."""
-        self.reRoot()
-        ci = stages.Init()
         message = MIMEBase("application", "octet-stream")
         message.set_payload(b"\xbf\xe6\xb2\xc3\xd3\xba\x13\xa4\xd8\xa1\xcc")
         encoders.encode_base64(message)
-        ci.datasource = FakeDataSource(message.as_string().encode())
+        init_tmp.datasource = FakeDataSource(message.as_string().encode())
 
         with mock.patch("cloudinit.util.write_file") as mockobj:
-            log_file = self.capture_log(logging.WARNING)
-            ci.fetch()
-            ci.consume_data()
-            self.assertIn(
-                "Unhandled unknown content-type (application/octet-stream)",
-                log_file.getvalue(),
-            )
+            with caplog.at_level(logging.WARNING):
+                init_tmp.fetch()
+                with mock.patch.object(init_tmp, "_reset"):
+                    init_tmp.consume_data()
+                    assert (
+                        "Unhandled unknown content-type"
+                        " (application/octet-stream)" in caplog.text
+                    )
         mockobj.assert_called_once_with(
-            ci.paths.get_ipath("cloud_config"), "", 0o600
+            init_tmp.paths.get_ipath("cloud_config"), "", 0o600
         )
 
-    def test_cloud_config_archive(self):
+    def test_cloud_config_archive(self, init_tmp):
         non_decodable = b"\x11\xc9\xb4gTH\xee\x12"
         data = [
             {"content": "#cloud-config\npassword: gocubs\n"},
@@ -576,9 +558,7 @@ c: 4
         ]
         message = b"#cloud-config-archive\n" + safeyaml.dumps(data).encode()
 
-        self.reRoot()
-        ci = stages.Init()
-        ci.datasource = FakeDataSource(message)
+        init_tmp.datasource = FakeDataSource(message)
 
         fs = {}
 
@@ -589,13 +569,15 @@ c: 4
         # which will have our yaml in it.
         with mock.patch("cloudinit.util.write_file") as mockobj:
             mockobj.side_effect = fsstore
-            ci.fetch()
-            ci.consume_data()
+            init_tmp.fetch()
+            with mock.patch.object(init_tmp, "_reset"):
+                init_tmp.consume_data()
 
-        cfg = util.load_yaml(fs[ci.paths.get_ipath("cloud_config")])
-        self.assertEqual(cfg.get("password"), "gocubs")
-        self.assertEqual(cfg.get("locale"), "chicago")
+        cfg = util.load_yaml(fs[init_tmp.paths.get_ipath("cloud_config")])
+        assert cfg.get("password") == "gocubs"
+        assert cfg.get("locale") == "chicago"
 
+    @pytest.mark.usefixtures("fake_filesystem")
     @mock.patch("cloudinit.util.read_conf_with_confd")
     def test_dont_allow_user_data(self, mock_cfg):
         mock_cfg.return_value = {"allow_userdata": False}
@@ -616,88 +598,83 @@ c: 4
      { "op": "add", "path": "/foo", "value": "quxC" }
 ]
 """
-        self.reRoot()
-        initer = stages.Init()
-        initer.datasource = FakeDataSource(user_blob, vendordata=vendor_blob)
-        initer.read_cfg()
-        initer.initialize()
-        initer.fetch()
-        initer.instancify()
-        initer.update()
-        initer.cloudify().run(
+        init = stages.Init()
+        init.datasource = FakeDataSource(user_blob, vendordata=vendor_blob)
+        init.read_cfg()
+        init.initialize()
+        init.fetch()
+        init.instancify()
+        init.update()
+        init.cloudify().run(
             "consume_data",
-            initer.consume_data,
+            init.consume_data,
             args=[PER_INSTANCE],
             freq=PER_INSTANCE,
         )
-        mods = Modules(initer)
+        mods = Modules(init)
         (_which_ran, _failures) = mods.run_section("cloud_init_modules")
         cfg = mods.cfg
-        self.assertIn("vendor_data", cfg)
-        self.assertEqual("quxA", cfg["baz"])
-        self.assertEqual("quxB", cfg["bar"])
-        self.assertEqual("quxC", cfg["foo"])
+        assert "vendor_data" in cfg
+        assert cfg["baz"] == "quxA"
+        assert cfg["bar"] == "quxB"
+        assert cfg["foo"] == "quxC"
 
 
-class TestConsumeUserDataHttp(TestConsumeUserData, helpers.ResponsesTestCase):
-    def setUp(self):
-        TestConsumeUserData.setUp(self)
-        helpers.ResponsesTestCase.setUp(self)
-
-    def tearDown(self):
-        TestConsumeUserData.tearDown(self)
-        helpers.ResponsesTestCase.tearDown(self)
-
+class TestConsumeUserDataHttp:
+    @responses.activate
     @mock.patch("cloudinit.url_helper.time.sleep")
-    def test_include(self, mock_sleep):
+    def test_include(self, mock_sleep, init_tmp):
         """Test #include."""
         included_url = "http://hostname/path"
         included_data = "#cloud-config\nincluded: true\n"
-        self.responses.add(responses.GET, included_url, included_data)
+        responses.add(responses.GET, included_url, included_data)
 
-        blob = "#include\n%s\n" % included_url
-
-        self.reRoot()
-        ci = stages.Init()
-        ci.datasource = FakeDataSource(blob)
-        ci.fetch()
-        ci.consume_data()
-        cc_contents = util.load_file(ci.paths.get_ipath("cloud_config"))
+        init_tmp.datasource = FakeDataSource("#include\nhttp://hostname/path")
+        init_tmp.fetch()
+        with mock.patch.object(init_tmp, "_reset") as _reset:
+            init_tmp.consume_data()
+            assert _reset.call_count == 1
+        cc_contents = util.load_file(init_tmp.paths.get_ipath("cloud_config"))
         cc = util.load_yaml(cc_contents)
-        self.assertTrue(cc.get("included"))
+        assert cc.get("included") is True
 
+    @responses.activate
     @mock.patch("cloudinit.url_helper.time.sleep")
-    def test_include_bad_url(self, mock_sleep):
+    def test_include_bad_url(self, mock_sleep, init_tmp):
         """Test #include with a bad URL."""
         bad_url = "http://bad/forbidden"
         bad_data = "#cloud-config\nbad: true\n"
-        self.responses.add(responses.GET, bad_url, bad_data, status=403)
+        responses.add(responses.GET, bad_url, bad_data, status=403)
 
         included_url = "http://hostname/path"
         included_data = "#cloud-config\nincluded: true\n"
-        self.responses.add(responses.GET, included_url, included_data)
+        responses.add(responses.GET, included_url, included_data)
 
-        blob = "#include\n%s\n%s" % (bad_url, included_url)
+        init_tmp.datasource = FakeDataSource(
+            "#include\nhttp://bad/forbidden\nhttp://hostname/path"
+        )
+        init_tmp.fetch()
+        with pytest.raises(Exception, match="403"):
+            with mock.patch.object(init_tmp, "_reset") as _reset:
+                init_tmp.consume_data()
+                assert _reset.call_count == 1
 
-        self.reRoot()
-        ci = stages.Init()
-        ci.datasource = FakeDataSource(blob)
-        ci.fetch()
-        with self.assertRaises(Exception) as context:
-            ci.consume_data()
-        self.assertIn("403", str(context.exception))
+        with pytest.raises(FileNotFoundError):
+            util.load_file(init_tmp.paths.get_ipath("cloud_config"))
 
-        with self.assertRaises(FileNotFoundError):
-            util.load_file(ci.paths.get_ipath("cloud_config"))
-
+    @responses.activate
     @mock.patch("cloudinit.url_helper.time.sleep")
+    @mock.patch("cloudinit.util.is_container")
     @mock.patch(
         "cloudinit.user_data.features.ERROR_ON_USER_DATA_FAILURE", False
     )
-    def test_include_bad_url_no_fail(self, mock_sleep):
+    def test_include_bad_url_no_fail(
+        self, is_container, mock_sleep, tmpdir, init_tmp, caplog
+    ):
         """Test #include with a bad URL and failure disabled"""
+        is_container.return_value = True
         bad_url = "http://bad/forbidden"
-        self.responses.add(
+        responses.add(
             responses.GET,
             bad_url,
             body=requests.HTTPError(
@@ -708,26 +685,24 @@ class TestConsumeUserDataHttp(TestConsumeUserData, helpers.ResponsesTestCase):
 
         included_url = "http://hostname/path"
         included_data = "#cloud-config\nincluded: true\n"
-        self.responses.add(responses.GET, included_url, included_data)
+        responses.add(responses.GET, included_url, included_data)
 
-        blob = "#include\n%s\n%s" % (bad_url, included_url)
+        init_tmp.datasource = FakeDataSource(
+            "#include\nhttp://bad/forbidden\nhttp://hostname/path"
+        )
+        init_tmp.fetch()
+        with mock.patch.object(init_tmp, "_reset") as _reset:
+            init_tmp.consume_data()
+            assert _reset.call_count == 1
 
-        self.reRoot()
-        ci = stages.Init()
-        ci.datasource = FakeDataSource(blob)
-        log_file = self.capture_log(logging.WARNING)
-        ci.fetch()
-        ci.consume_data()
-
-        self.assertIn(
-            "403 Client Error: Forbidden for url: %s" % bad_url,
-            log_file.getvalue(),
+        assert (
+            "403 Client Error: Forbidden for url: %s" % bad_url in caplog.text
         )
 
-        cc_contents = util.load_file(ci.paths.get_ipath("cloud_config"))
+        cc_contents = util.load_file(init_tmp.paths.get_ipath("cloud_config"))
         cc = util.load_yaml(cc_contents)
-        self.assertIsNone(cc.get("bad"))
-        self.assertTrue(cc.get("included"))
+        assert cc.get("bad") is None
+        assert cc.get("included") is True
 
 
 class TestUDProcess(helpers.ResourceUsingTestCase):

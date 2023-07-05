@@ -21,7 +21,7 @@ class TestMergeRun(helpers.FilesystemMockingTestCase):
         self.replicateTestRoot("simple_ubuntu", new_root)
         cfg = {
             "datasource_list": ["None"],
-            "cloud_init_modules": ["write-files"],
+            "cloud_init_modules": ["write_files"],
             "system_info": {"paths": {"run_dir": new_root}},
         }
         ud = helpers.readResource("user_data.1.txt")
@@ -54,7 +54,7 @@ class TestMergeRun(helpers.FilesystemMockingTestCase):
         (which_ran, failures) = mods.run_section("cloud_init_modules")
         self.assertTrue(len(failures) == 0)
         self.assertTrue(os.path.exists("/etc/blah.ini"))
-        self.assertIn("write-files", which_ran)
+        self.assertIn("write_files", which_ran)
         contents = util.load_file("/etc/blah.ini")
         self.assertEqual(contents, "blah")
 

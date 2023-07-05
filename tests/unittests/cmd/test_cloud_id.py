@@ -4,7 +4,7 @@
 
 import pytest
 
-from cloudinit import util
+from cloudinit import atomic_helper
 from cloudinit.cmd import cloud_id, status
 from cloudinit.helpers import Paths
 from tests.unittests.helpers import mock
@@ -189,7 +189,7 @@ class TestCloudId:
             '{"v1": {"cloud_name": "unknown", "region": "dfw",'
             ' "platform": "openstack", "public_ssh_keys": []}}',
         )
-        expected = util.json_dumps(
+        expected = atomic_helper.json_dumps(
             {
                 "cloud_id": "openstack",
                 "cloud_name": "unknown",

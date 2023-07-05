@@ -141,7 +141,6 @@ class TestConfig(TestCase):
         with mock.patch.object(
             subp, "subp", return_value=(HELP_GROWPART_NO_RESIZE, "")
         ) as mockobj:
-
             config = {"growpart": {"mode": "auto"}}
             self.handle(self.name, config, self.cloud, self.args)
 
@@ -178,7 +177,9 @@ class TestConfig(TestCase):
         with mock.patch.object(
             subp, "subp", return_value=(HELP_GROWPART_RESIZE, "")
         ) as mockobj:
-            ret = cc_growpart.resizer_factory(mode="auto", distro=mock.Mock())
+            ret = cc_growpart.resizer_factory(
+                mode="auto", distro=mock.Mock(), devices=["/"]
+            )
             self.assertIsInstance(ret, cc_growpart.ResizeGrowPart)
 
             mockobj.assert_called_once_with(
@@ -203,8 +204,9 @@ class TestConfig(TestCase):
         with mock.patch.object(
             subp, "subp", return_value=(HELP_GROWPART_RESIZE, "")
         ) as mockobj:
-
-            ret = cc_growpart.resizer_factory(mode="auto", distro=mock.Mock())
+            ret = cc_growpart.resizer_factory(
+                mode="auto", distro=mock.Mock(), devices=["/"]
+            )
             self.assertIsInstance(ret, cc_growpart.ResizeGrowPart)
             diskdev = "/dev/sdb"
             partnum = 1
@@ -223,12 +225,31 @@ class TestConfig(TestCase):
             ]
         )
 
+    @mock.patch.dict("os.environ", clear=True)
+    @mock.patch.object(os.path, "isfile", return_value=True)
+    def test_mode_use_growfs_on_root(self, m_isfile):
+        with mock.patch.object(
+            subp, "subp", return_value=("File not found", "")
+        ) as mockobj:
+            ret = cc_growpart.resizer_factory(
+                mode="auto", distro=mock.Mock(), devices=["/"]
+            )
+            self.assertIsInstance(ret, cc_growpart.ResizeGrowFS)
+
+            mockobj.assert_has_calls(
+                [
+                    mock.call(["growpart", "--help"], env={"LANG": "C"}),
+                ]
+            )
+
     @mock.patch.dict("os.environ", {"LANG": "cs_CZ.UTF-8"}, clear=True)
     def test_mode_auto_falls_back_to_gpart(self):
         with mock.patch.object(
             subp, "subp", return_value=("", HELP_GPART)
         ) as mockobj:
-            ret = cc_growpart.resizer_factory(mode="auto", distro=mock.Mock())
+            ret = cc_growpart.resizer_factory(
+                mode="auto", distro=mock.Mock(), devices=["/"]
+            )
             self.assertIsInstance(ret, cc_growpart.ResizeGpart)
 
             mockobj.assert_has_calls(
@@ -271,7 +292,9 @@ class TestConfig(TestCase):
 
             self.handle(self.name, {}, self.cloud, self.args)
 
-            factory.assert_called_once_with("auto", self.distro)
+            factory.assert_called_once_with(
+                "auto", distro=self.distro, devices=["/"]
+            )
             rsdevs.assert_called_once_with(myresizer, ["/"])
 
 
@@ -585,6 +608,35 @@ def simple_device_part_info(devpath):
 class Bunch:
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
+
+
+class TestDevicePartInfo:
+    @pytest.mark.parametrize(
+        "devpath, is_BSD, expected, raised_exception",
+        (
+            pytest.param(
+                "/dev/vtbd0p2",
+                True,
+                ("/dev/vtbd0", "2"),
+                does_not_raise(),
+                id="gpt_partition",
+            ),
+            pytest.param(
+                "/dev/vbd0s3a",
+                True,
+                ("/dev/vbd0", "3a"),
+                does_not_raise(),
+                id="bsd_mbr_slice_and_partition",
+            ),
+        ),
+    )
+    @mock.patch("cloudinit.util.is_BSD")
+    def test_device_part_into(
+        self, m_is_BSD, is_BSD, devpath, expected, raised_exception
+    ):
+        m_is_BSD.return_value = is_BSD
+        with raised_exception:
+            assert expected == cc_growpart.device_part_info(devpath)
 
 
 class TestGrowpartSchema:

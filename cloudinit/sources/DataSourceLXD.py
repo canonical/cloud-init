@@ -14,7 +14,7 @@ import stat
 import time
 from enum import Flag, auto
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -23,6 +23,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.connection import HTTPConnection
 from urllib3.connectionpool import HTTPConnectionPool
 
+from cloudinit import atomic_helper
 from cloudinit import log as logging
 from cloudinit import sources, subp, url_helper, util
 from cloudinit.net import find_fallback_nic
@@ -168,11 +169,14 @@ class DataSourceLXD(sources.DataSource):
     _network_config: Union[Dict, str] = sources.UNSET
     _crawled_metadata: Union[Dict, str] = sources.UNSET
 
-    sensitive_metadata_keys = (
-        "merged_cfg",
+    sensitive_metadata_keys: Tuple[
+        str, ...
+    ] = sources.DataSource.sensitive_metadata_keys + (
         "user.meta-data",
         "user.vendor-data",
         "user.user-data",
+        "cloud-init.user-data",
+        "cloud-init.vendor-data",
     )
 
     skip_hotplug_detect = True
@@ -468,6 +472,8 @@ if __name__ == "__main__":
     description = """Query LXD metadata and emit a JSON object."""
     parser = argparse.ArgumentParser(description=description)
     parser.parse_args()
-    print(util.json_dumps(read_metadata(metadata_keys=MetaDataKeys.ALL)))
+    print(
+        atomic_helper.json_dumps(read_metadata(metadata_keys=MetaDataKeys.ALL))
+    )
 
 # vi: ts=4 expandtab

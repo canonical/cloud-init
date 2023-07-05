@@ -242,9 +242,10 @@ class TestUpCloudNetworkSetup(CiTestCase):
         self.assertTrue(ret)
 
         self.assertTrue(m_dhcp.called)
-        m_dhcp.assert_called_with("eth1", None)
+        m_dhcp.assert_called_with(ds.distro, "eth1", None)
 
         m_net.assert_called_once_with(
+            ds.distro,
             broadcast="10.6.3.255",
             interface="eth1",
             ip="10.6.3.27",
@@ -333,6 +334,3 @@ class TestUpCloudDatasourceLoading(CiTestCase):
             ["cloudinit.sources"],
         )
         self.assertEqual([DataSourceUpCloud], found)
-
-
-# vi: ts=4 expandtab

@@ -229,7 +229,6 @@ class NetworkState:
 
 
 class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
-
     initial_network_state = {
         "interfaces": {},
         "routes": [],
@@ -644,7 +643,6 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
         self._handle_bond_bridge(command, cmd_type="bond")
 
     def handle_bridges(self, command):
-
         """
         v2_command = {
           br0: {
@@ -675,7 +673,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
           eno1:
             match:
               macaddress: 00:11:22:33:44:55
-              driver: hv_netsvc
+              driver: hv_netvsc
             wakeonlan: true
             dhcp4: true
             dhcp6: false
@@ -931,6 +929,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                     {
                         "destination": route.get("to"),
                         "gateway": route.get("via"),
+                        "metric": route.get("metric"),
                     }
                 )
             )

@@ -21,7 +21,10 @@ def get_cloud(
     paths = paths or helpers.Paths({})
     sys_cfg = sys_cfg or {}
     cls = distros.fetch(distro) if distro else MockDistro
-    mydist = cls(distro, sys_cfg, paths)
+    # *BSD calls platform.system to determine osfamilies
+    osfamily = distro.lower() if distro else "ubuntu"
+    with mock.patch("platform.system", return_value=osfamily):
+        mydist = cls(distro, sys_cfg, paths)
     if mocked_distro:
         mydist = mock.MagicMock(wraps=mydist)
     myds = DataSourceTesting(sys_cfg, mydist, paths)
@@ -73,7 +76,8 @@ class MockDistro(distros.Distro):
     def set_hostname(self, hostname, fqdn=None):
         pass
 
-    def uses_systemd(self):
+    @staticmethod
+    def uses_systemd():
         return True
 
     def get_primary_arch(self):

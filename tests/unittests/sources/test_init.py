@@ -399,7 +399,8 @@ class TestDataSource(CiTestCase):
         expected = {
             "base64_encoded_keys": [],
             "merged_cfg": REDACT_SENSITIVE_VALUE,
-            "sensitive_keys": ["merged_cfg"],
+            "merged_system_cfg": REDACT_SENSITIVE_VALUE,
+            "sensitive_keys": ["merged_cfg", "merged_system_cfg"],
             "sys_info": sys_info,
             "v1": {
                 "_beta_keys": ["subplatform"],
@@ -458,12 +459,26 @@ class TestDataSource(CiTestCase):
                         "cred2": "othersekret",
                     }
                 },
+                "someother": {
+                    "nested": {
+                        "userData": "HIDE ME",
+                    }
+                },
+                "VENDOR-DAta": "HIDE ME TOO",
             },
         )
         self.assertCountEqual(
             (
+                "combined_cloud_config",
                 "merged_cfg",
+                "merged_system_cfg",
                 "security-credentials",
+                "userdata",
+                "user-data",
+                "user_data",
+                "vendordata",
+                "vendor-data",
+                "ds/vendor_data",
             ),
             datasource.sensitive_metadata_keys,
         )
@@ -489,9 +504,13 @@ class TestDataSource(CiTestCase):
         expected = {
             "base64_encoded_keys": [],
             "merged_cfg": REDACT_SENSITIVE_VALUE,
+            "merged_system_cfg": REDACT_SENSITIVE_VALUE,
             "sensitive_keys": [
+                "ds/meta_data/VENDOR-DAta",
                 "ds/meta_data/some/security-credentials",
+                "ds/meta_data/someother/nested/userData",
                 "merged_cfg",
+                "merged_system_cfg",
             ],
             "sys_info": sys_info,
             "v1": {
@@ -500,6 +519,7 @@ class TestDataSource(CiTestCase):
                 "availability_zone": "myaz",
                 "cloud-name": "subclasscloudname",
                 "cloud_name": "subclasscloudname",
+                "cloud_id": "subclasscloudname",
                 "distro": "ubuntu",
                 "distro_release": "focal",
                 "distro_version": "20.04",
@@ -522,14 +542,18 @@ class TestDataSource(CiTestCase):
             "ds": {
                 "_doc": EXPERIMENTAL_TEXT,
                 "meta_data": {
+                    "VENDOR-DAta": REDACT_SENSITIVE_VALUE,
                     "availability_zone": "myaz",
                     "local-hostname": "test-subclass-hostname",
                     "region": "myregion",
                     "some": {"security-credentials": REDACT_SENSITIVE_VALUE},
+                    "someother": {
+                        "nested": {"userData": REDACT_SENSITIVE_VALUE}
+                    },
                 },
             },
         }
-        self.assertCountEqual(expected, redacted)
+        self.assertEqual(expected, redacted)
         file_stat = os.stat(json_file)
         self.assertEqual(0o644, stat.S_IMODE(file_stat.st_mode))
 
@@ -572,8 +596,16 @@ class TestDataSource(CiTestCase):
 
         self.assertCountEqual(
             (
+                "combined_cloud_config",
                 "merged_cfg",
+                "merged_system_cfg",
                 "security-credentials",
+                "userdata",
+                "user-data",
+                "user_data",
+                "vendordata",
+                "vendor-data",
+                "ds/vendor_data",
             ),
             datasource.sensitive_metadata_keys,
         )
@@ -591,6 +623,13 @@ class TestDataSource(CiTestCase):
             "base64_encoded_keys": [],
             "merged_cfg": {
                 "_doc": (
+                    "DEPRECATED: Use merged_system_config. Will be dropped "
+                    "from 24.1"
+                ),
+                "datasource": {"_undef": {"key1": False}},
+            },
+            "merged_system_cfg": {
+                "_doc": (
                     "Merged cloud-init system config from "
                     "/etc/cloud/cloud.cfg and /etc/cloud/cloud.cfg.d/"
                 ),
@@ -599,6 +638,7 @@ class TestDataSource(CiTestCase):
             "sensitive_keys": [
                 "ds/meta_data/some/security-credentials",
                 "merged_cfg",
+                "merged_system_cfg",
             ],
             "sys_info": sys_info,
             "v1": {

@@ -27,6 +27,9 @@ pool {{pool}} iburst
 {% for server in servers -%}
 server {{server}} iburst
 {% endfor %}
+{% for peer in peers -%}
+peer {{peer}}
+{% endfor %}
 
 # Use Ubuntu's ntp server as a fallback.
 # pool ntp.ubuntu.com

@@ -173,6 +173,8 @@ __doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
 GENERATE_KEY_NAMES = ["rsa", "dsa", "ecdsa", "ed25519"]
+FIPS_UNSUPPORTED_KEY_NAMES = ["dsa", "ed25519"]
+
 pattern_unsupported_config_keys = re.compile(
     "^(ecdsa-sk|ed25519-sk)_(private|public|certificate)$"
 )
@@ -258,9 +260,26 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         genkeys = util.get_cfg_option_list(
             cfg, "ssh_genkeytypes", GENERATE_KEY_NAMES
         )
+        # remove keys that are not supported in fips mode if its enabled
+        key_names = (
+            genkeys
+            if not util.fips_enabled()
+            else [
+                names
+                for names in genkeys
+                if names not in FIPS_UNSUPPORTED_KEY_NAMES
+            ]
+        )
+        skipped_keys = set(genkeys).difference(key_names)
+        if skipped_keys:
+            LOG.debug(
+                "skipping keys that are not supported in fips mode: %s",
+                ",".join(skipped_keys),
+            )
+
         lang_c = os.environ.copy()
         lang_c["LANG"] = "C"
-        for keytype in genkeys:
+        for keytype in key_names:
             keyfile = KEY_FILE_TPL % (keytype)
             if os.path.exists(keyfile):
                 continue

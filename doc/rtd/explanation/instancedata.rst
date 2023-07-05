@@ -268,7 +268,7 @@ This shall be the distro name, version and release as determined by
 
 Example output:
 
-  - alpine, 3.12.0, ''
+  - alpine, 3.12.0, 'Alpine Linux v3.12'
   - centos, 7.5, core
   - debian, 9, stretch
   - freebsd, 12.0-release-p10,
@@ -410,46 +410,46 @@ EC2 instance:
     ],
     "cloud_config_modules": [
      "snap",
-     "ssh-import-id",
+     "ssh_import_id",
      "locale",
-     "set-passwords",
-     "grub-dpkg",
-     "apt-pipelining",
-     "apt-configure",
-     "ubuntu-advantage",
+     "set_passwords",
+     "grub_dpkg",
+     "apt_pipelining",
+     "apt_configure",
+     "ubuntu_advantage",
      "ntp",
      "timezone",
-     "disable-ec2-metadata",
+     "disable_ec2_metadata",
      "runcmd",
      "byobu"
     ],
     "cloud_final_modules": [
-     "package-update-upgrade-install",
+     "package_update_upgrade_install",
      "fan",
      "landscape",
      "lxd",
-     "ubuntu-drivers",
+     "ubuntu_drivers",
      "puppet",
      "chef",
      "mcollective",
-     "salt-minion",
+     "salt_minion",
      "rightscale_userdata",
-     "scripts-vendor",
-     "scripts-per-once",
-     "scripts-per-boot",
-     "scripts-per-instance",
-     "scripts-user",
-     "ssh-authkey-fingerprints",
-     "keys-to-console",
-     "phone-home",
-     "final-message",
-     "power-state-change"
+     "scripts_vendor",
+     "scripts_per_once",
+     "scripts_per_boot",
+     "scripts_per_instance",
+     "scripts_user",
+     "ssh_authkey_fingerprints",
+     "keys_to_console",
+     "phone_home",
+     "final_message",
+     "power_state_change"
     ],
     "cloud_init_modules": [
      "migrator",
      "seed_random",
      "bootcmd",
-     "write-files",
+     "write_files",
      "growpart",
      "resizefs",
      "disk_setup",
@@ -457,9 +457,9 @@ EC2 instance:
      "set_hostname",
      "update_hostname",
      "update_etc_hosts",
-     "ca-certs",
+     "ca_certs",
      "rsyslog",
-     "users-groups",
+     "users_groups",
      "ssh"
     ],
     "datasource_list": [

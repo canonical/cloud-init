@@ -191,7 +191,7 @@ class TestPartProbeAvailability:
             UPDATED_PARTPROBE_USERDATA,
         )
         client.execute(
-            "sed -i 's/write-files/write-files\\n - mounts/' "
+            "sed -i 's/write_files/write_files\\n - mounts/' "
             "/etc/cloud/cloud.cfg"
         )
 

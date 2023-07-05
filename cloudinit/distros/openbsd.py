@@ -25,13 +25,14 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
     def _get_add_member_to_group_cmd(self, member_name, group_name):
         return ["usermod", "-G", group_name, member_name]
 
-    def manage_service(self, action: str, service: str):
+    @classmethod
+    def manage_service(cls, action: str, service: str, *extra_args, rcs=None):
         """
         Perform the requested action on a service. This handles OpenBSD's
         'rcctl'.
         May raise ProcessExecutionError
         """
-        init_cmd = self.init_cmd
+        init_cmd = cls.init_cmd
         cmds = {
             "stop": ["stop", service],
             "start": ["start", service],
@@ -43,7 +44,7 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
             "status": ["check", service],
         }
         cmd = list(init_cmd) + list(cmds[action])
-        return subp.subp(cmd, capture=True)
+        return subp.subp(cmd, capture=True, rcs=rcs)
 
     def lock_passwd(self, name):
         try:
@@ -59,6 +60,3 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
         """Return env vars used in OpenBSD package_command operations"""
         e = os.environ.copy()
         return e
-
-
-# vi: ts=4 expandtab

@@ -101,11 +101,16 @@ class TestHandleSsh:
             expected_calls = [mock.call(set(keys), user)] + expected_calls
         assert expected_calls == m_setup_keys.call_args_list
 
+    @pytest.mark.parametrize("fips_enabled", (True, False))
     @mock.patch(MODPATH + "glob.glob")
     @mock.patch(MODPATH + "ug_util.normalize_users_groups")
     @mock.patch(MODPATH + "os.path.exists")
-    def test_handle_no_cfg(self, m_path_exists, m_nug, m_glob, m_setup_keys):
+    @mock.patch(MODPATH + "util.fips_enabled")
+    def test_handle_no_cfg(
+        self, m_fips, m_path_exists, m_nug, m_glob, m_setup_keys, fips_enabled
+    ):
         """Test handle with no config ignores generating existing keyfiles."""
+        m_fips.return_value = fips_enabled
         cfg = {}
         keys = ["key1"]
         m_glob.return_value = []  # Return no matching keys to prevent removal
@@ -118,12 +123,22 @@ class TestHandleSsh:
         options = ssh_util.DISABLE_USER_OPTS.replace("$USER", "NONE")
         options = options.replace("$DISABLE_USER", "root")
         m_glob.assert_called_once_with("/etc/ssh/ssh_host_*key*")
-        assert [
-            mock.call("/etc/ssh/ssh_host_rsa_key"),
-            mock.call("/etc/ssh/ssh_host_dsa_key"),
-            mock.call("/etc/ssh/ssh_host_ecdsa_key"),
-            mock.call("/etc/ssh/ssh_host_ed25519_key"),
-        ] in m_path_exists.call_args_list
+        m_fips.assert_called_once()
+
+        if not m_fips():
+            expected_calls = [
+                mock.call("/etc/ssh/ssh_host_rsa_key"),
+                mock.call("/etc/ssh/ssh_host_dsa_key"),
+                mock.call("/etc/ssh/ssh_host_ecdsa_key"),
+                mock.call("/etc/ssh/ssh_host_ed25519_key"),
+            ]
+        else:
+            # Enabled fips doesn't generate dsa or ed25519
+            expected_calls = [
+                mock.call("/etc/ssh/ssh_host_rsa_key"),
+                mock.call("/etc/ssh/ssh_host_ecdsa_key"),
+            ]
+        assert expected_calls in m_path_exists.call_args_list
         assert [
             mock.call(set(keys), "root", options=options)
         ] == m_setup_keys.call_args_list
@@ -131,8 +146,9 @@ class TestHandleSsh:
     @mock.patch(MODPATH + "glob.glob")
     @mock.patch(MODPATH + "ug_util.normalize_users_groups")
     @mock.patch(MODPATH + "os.path.exists")
+    @mock.patch(MODPATH + "util.fips_enabled", return_value=False)
     def test_dont_allow_public_ssh_keys(
-        self, m_path_exists, m_nug, m_glob, m_setup_keys
+        self, m_fips, m_path_exists, m_nug, m_glob, m_setup_keys
     ):
         """Test allow_public_ssh_keys=False ignores ssh public keys from
         platform.
@@ -176,8 +192,10 @@ class TestHandleSsh:
     @mock.patch(MODPATH + "glob.glob")
     @mock.patch(MODPATH + "ug_util.normalize_users_groups")
     @mock.patch(MODPATH + "os.path.exists")
+    @mock.patch(MODPATH + "util.fips_enabled", return_value=False)
     def test_handle_default_root(
         self,
+        m_fips,
         m_path_exists,
         m_nug,
         m_glob,
@@ -241,8 +259,10 @@ class TestHandleSsh:
     @mock.patch(MODPATH + "glob.glob")
     @mock.patch(MODPATH + "ug_util.normalize_users_groups")
     @mock.patch(MODPATH + "os.path.exists")
+    @mock.patch(MODPATH + "util.fips_enabled", return_value=False)
     def test_handle_publish_hostkeys(
         self,
+        m_fips,
         m_path_exists,
         m_nug,
         m_glob,

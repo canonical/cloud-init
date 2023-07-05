@@ -146,6 +146,12 @@ meta: MetaSchema = {
           sudo: null
         """
         ),
+        dedent(
+            """\
+        # Avoid creating any ``default_user``.
+        users: []
+        """
+        ),
     ],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": [],

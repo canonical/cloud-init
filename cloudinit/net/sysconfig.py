@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import glob
 import io
 import os
 import re
@@ -1050,7 +1051,25 @@ def _supported_vlan_names(rdev, vid):
 def available(target=None):
     if not util.system_info()["variant"] in KNOWN_DISTROS:
         return False
+    if available_sysconfig(target):
+        return True
+    if available_nm_ifcfg_rh(target):
+        return True
+    return False
 
+
+def available_nm_ifcfg_rh(target=None):
+    # The ifcfg-rh plugin of NetworkManager is installed.
+    # NetworkManager can handle the ifcfg files.
+    return glob.glob(
+        subp.target_path(
+            target,
+            "usr/lib*/NetworkManager/*/libnm-settings-plugin-ifcfg-rh.so",
+        )
+    )
+
+
+def available_sysconfig(target=None):
     expected = ["ifup", "ifdown"]
     search = ["/sbin", "/usr/sbin"]
     for p in expected:

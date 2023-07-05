@@ -18,7 +18,7 @@ from collections import namedtuple
 from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Tuple
 
-from cloudinit import dmi, importer
+from cloudinit import atomic_helper, dmi, importer
 from cloudinit import log as logging
 from cloudinit import net, type_utils
 from cloudinit import user_data as ud
@@ -111,7 +111,10 @@ def process_instance_metadata(metadata, key_path="", sensitive_keys=()):
             sub_key_path = key_path + "/" + key
         else:
             sub_key_path = key
-        if key in sensitive_keys or sub_key_path in sensitive_keys:
+        if (
+            key.lower() in sensitive_keys
+            or sub_key_path.lower() in sensitive_keys
+        ):
             sens_keys.append(sub_key_path)
         if isinstance(val, str) and val.startswith("ci-b64:"):
             base64_encoded_keys.append(sub_key_path)
@@ -133,6 +136,12 @@ def redact_sensitive_keys(metadata, redact_value=REDACT_SENSITIVE_VALUE):
 
     Replace any keys values listed in 'sensitive_keys' with redact_value.
     """
+    # While 'sensitive_keys' should already sanitized to only include what
+    # is in metadata, it is possible keys will overlap. For example, if
+    # "merged_cfg" and "merged_cfg/ds/userdata" both match, it's possible that
+    # "merged_cfg" will get replaced first, meaning "merged_cfg/ds/userdata"
+    # no longer represents a valid key.
+    # Thus, we still need to do membership checks in this function.
     if not metadata.get("sensitive_keys", []):
         return metadata
     md_copy = copy.deepcopy(metadata)
@@ -140,9 +149,14 @@ def redact_sensitive_keys(metadata, redact_value=REDACT_SENSITIVE_VALUE):
         path_parts = key_path.split("/")
         obj = md_copy
         for path in path_parts:
-            if isinstance(obj[path], dict) and path != path_parts[-1]:
+            if (
+                path in obj
+                and isinstance(obj[path], dict)
+                and path != path_parts[-1]
+            ):
                 obj = obj[path]
-        obj[path] = redact_value
+        if path in obj:
+            obj[path] = redact_value
     return md_copy
 
 
@@ -248,8 +262,18 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     # N-tuple of keypaths or keynames redact from instance-data.json for
     # non-root users
     sensitive_metadata_keys: Tuple[str, ...] = (
+        "combined_cloud_config",
         "merged_cfg",
+        "merged_system_cfg",
         "security-credentials",
+        "userdata",
+        "user-data",
+        "user_data",
+        "vendordata",
+        "vendor-data",
+        # Provide ds/vendor_data to avoid redacting top-level
+        #  "vendor_data": {enabled: True}
+        "ds/vendor_data",
     )
 
     # True on datasources that may not see hotplugged devices reflected
@@ -343,7 +367,10 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if self.override_ds_detect():
             return self._get_data()
         elif self.ds_detect():
-            LOG.debug("Machine is running on %s.", self)
+            LOG.debug(
+                "Detected platform: %s. Checking for active instance data",
+                self,
+            )
             return self._get_data()
         else:
             LOG.debug("Datasource type %s is not detected.", self)
@@ -453,7 +480,14 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         instance_data["ds"]["_doc"] = EXPERIMENTAL_TEXT
         # Add merged cloud.cfg and sys info for jinja templates and cli query
         instance_data["merged_cfg"] = copy.deepcopy(self.sys_cfg)
-        instance_data["merged_cfg"]["_doc"] = (
+        instance_data["merged_cfg"][
+            "_doc"
+        ] = "DEPRECATED: Use merged_system_config. Will be dropped from 24.1"
+        # Deprecate merged_cfg to a more specific key name merged_system_cfg
+        instance_data["merged_system_cfg"] = copy.deepcopy(
+            instance_data["merged_cfg"]
+        )
+        instance_data["merged_system_cfg"]["_doc"] = (
             "Merged cloud-init system config from /etc/cloud/cloud.cfg and"
             " /etc/cloud/cloud.cfg.d/"
         )
@@ -461,7 +495,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         instance_data.update(self._get_standardized_metadata(instance_data))
         try:
             # Process content base64encoding unserializable values
-            content = util.json_dumps(instance_data)
+            content = atomic_helper.json_dumps(instance_data)
             # Strip base64: prefix and set base64_encoded_keys list.
             processed_data = process_instance_metadata(
                 json.loads(content),
@@ -1155,9 +1189,9 @@ def parse_cmdline() -> str:
     Passing by command line overrides runtime datasource detection
     """
     cmdline = util.get_cmdline()
-    ds_parse_0 = re.search(r"ds=([a-zA-Z]+)(\s|$|;)", cmdline)
-    ds_parse_1 = re.search(r"ci\.ds=([a-zA-Z]+)(\s|$|;)", cmdline)
-    ds_parse_2 = re.search(r"ci\.datasource=([a-zA-Z]+)(\s|$|;)", cmdline)
+    ds_parse_0 = re.search(r"ds=([^\s;]+)", cmdline)
+    ds_parse_1 = re.search(r"ci\.ds=([^\s;]+)", cmdline)
+    ds_parse_2 = re.search(r"ci\.datasource=([^\s;]+)", cmdline)
     ds = ds_parse_0 or ds_parse_1 or ds_parse_2
     deprecated = ds_parse_1 or ds_parse_2
     if deprecated:

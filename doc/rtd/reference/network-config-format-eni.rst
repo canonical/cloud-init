@@ -17,5 +17,4 @@ This can happen in either :ref:`datasource_nocloud` or
 Please reference existing `documentation`_ for the
 :file:`/etc/network/interfaces(5)` format.
 
-.. _Cloud-init: https://launchpad.net/cloud-init
 .. _documentation: http://manpages.ubuntu.com/manpages/trusty/en/man5/interfaces.5.html

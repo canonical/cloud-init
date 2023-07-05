@@ -1,6 +1,11 @@
+## template:jinja
 #!/bin/sh
 
 # PROVIDE: cloudinitlocal
+{#
+``cloudinitlocal`` purposefully does not depend on ``dsidentify``.
+That makes it easy for image builders to create images without ``dsidentify``.
+#}
 # REQUIRE: NETWORKING
 
 # After NETWORKING because we don't want staticroute to wipe
@@ -11,10 +16,10 @@ name="cloudinitlocal"
 start_cmd="start_cloud_init_local"
 start_cloud_init_local()
 {
-    test -e /etc/cloud/cloud-init.disabled \
+    test -e {{prefix}}/etc/cloud/cloud-init.disabled \
       && warn "cloud-init disabled by cloud-init.disabled file" \
       && exit 0
-    /usr/pkg/bin/cloud-init init -l
+    {{prefix}}/bin/cloud-init init -l
 }
 
 load_rc_config $name

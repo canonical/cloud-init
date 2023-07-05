@@ -284,13 +284,21 @@ meta: MetaSchema = {
                  {% for server in servers -%}
                  server {{server}} iburst
                  {% endfor %}
+                 {% if peers -%}# peers{% endif %}
+                 {% for peer in peers -%}
+                 peer {{peer}}
+                 {% endfor %}
+                 {% if allow -%}# allow{% endif %}
+                 {% for cidr in allow -%}
+                 allow {{cidr}}
+                 {% endfor %}
           pools: [0.int.pool.ntp.org, 1.int.pool.ntp.org, ntp.myorg.org]
           servers:
             - ntp.server.local
             - ntp.ubuntu.com
             - 192.168.23.2
           allow:
-            - 192.168.1.0/24
+            - 192.168.23.0/32
           peers:
             - km001
             - km002"""
@@ -526,8 +534,13 @@ def write_ntp_config_template(
     if not template_fn and not template:
         raise ValueError("Not template_fn or template provided")
 
-    params = {'local_hostname': local_hostname, 'servers': servers,
-              'pools': pools, 'allow': allow, 'peers': peers}
+    params = {
+        "servers": servers,
+        "pools": pools,
+        "allow": allow,
+        "peers": peers,
+    }
+
     if template:
         tfile = temp_utils.mkstemp(prefix="template_name-", suffix=".tmpl")
         template_fn = tfile[1]  # filepath is second item in tuple
@@ -675,20 +688,11 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             )
             raise RuntimeError(msg)
 
-    LOG.debug(
-        "cloud-init metadata will be used to render the template")
-    LOG.debug(
-        "local_hostname: %s", ntp_cfg.get('local_hostname', local_hostname))
-    LOG.debug(
-        "service_name: %s", ntp_client_config.get('service_name'))
-    LOG.debug(
-        "servers: %s", ntp_cfg.get('servers', []))
-    LOG.debug(
-        "pools: %s", ntp_cfg.get('pools', []))
-    LOG.debug(
-        "allow: %s", ntp_cfg.get('allow', []))
-    LOG.debug(
-        "peers: %s", ntp_cfg.get('peers', []))
+    LOG.debug("service_name: %s", ntp_client_config.get("service_name"))
+    LOG.debug("servers: %s", ntp_cfg.get("servers", []))
+    LOG.debug("pools: %s", ntp_cfg.get("pools", []))
+    LOG.debug("allow: %s", ntp_cfg.get("allow", []))
+    LOG.debug("peers: %s", ntp_cfg.get("peers", []))
     write_ntp_config_template(
         cloud.distro.name,
         service_name=ntp_client_config.get("service_name"),

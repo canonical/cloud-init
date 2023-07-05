@@ -44,8 +44,6 @@
         "power-state-change",
         "power_state_change",
         "puppet",
-        "refresh-rmc-and-interface",
-        "refresh_rmc_and_interface",
         "reset-rmc",
         "reset_rmc",
         "resizefs",
@@ -1846,6 +1844,23 @@
               "uniqueItems": true,
               "description": "List of ntp servers. If both pools and servers are\nempty, 4 default pool servers will be provided with\nthe format ``{0-3}.{distro}.pool.ntp.org``."
             },
+            "peers": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "hostname"
+              },
+              "uniqueItems": true,
+              "description": "List of ntp peers."
+            },
+            "allow": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true,
+              "description": "List of CIDRs to allow"
+            },
             "ntp_client": {
               "type": "string",
               "default": "auto",
@@ -2375,6 +2390,23 @@
                   }
                 }
               ]
+            },
+            "install_rsyslog": {
+              "default": false,
+              "description": "Install rsyslog. Default: ``false``",
+              "type": "boolean"
+            },
+            "check_exe": {
+              "type": "string",
+              "description": "The executable name for the rsyslog daemon.\nFor example, ``rsyslogd``, or ``/opt/sbin/rsyslogd`` if the rsyslog binary is in an unusual path. This is only used if ``install_rsyslog`` is ``true``. Default: ``rsyslogd``"
+            },
+            "packages": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true,
+              "description": "List of packages needed to be installed for rsyslog. This is only used if ``install_rsyslog`` is ``true``. Default: ``[rsyslog]``"
             }
           }
         }
@@ -3097,8 +3129,7 @@
                 "$ref": "#/$defs/users_groups.user"
               }
             ]
-          },
-          "minItems": 1
+          }
         }
       }
     },

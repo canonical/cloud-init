@@ -10,7 +10,14 @@ import sys
 from collections import namedtuple
 from typing import Dict, Iterable, List, Optional, Set
 
-from cloudinit import cloud, distros, handlers, helpers, importer
+from cloudinit import (
+    atomic_helper,
+    cloud,
+    distros,
+    handlers,
+    helpers,
+    importer,
+)
 from cloudinit import log as logging
 from cloudinit import net, sources, type_utils, util
 from cloudinit.event import EventScope, EventType, userdata_to_events
@@ -203,7 +210,9 @@ class Init:
         util.ensure_dirs(self._initial_subdirs())
         log_file = util.get_cfg_option_str(self.cfg, "def_log_file")
         if log_file:
-            util.ensure_file(log_file, mode=0o640, preserve_mode=True)
+            # At this point the log file should have already been created
+            # in the setupLogging function of log.py
+            util.ensure_file(log_file, mode=0o640, preserve_mode=False)
             perms = self.cfg.get("syslog_fix_perms")
             if not perms:
                 perms = {}
@@ -498,7 +507,7 @@ class Init:
             )
         # This data may be a list, convert it to a string if so
         if isinstance(data, list):
-            data = util.json_dumps(data)
+            data = atomic_helper.json_dumps(data)
         self._store_rawdata(data, datasource)
 
     def _store_processeddata(self, processed_data, datasource):
@@ -706,6 +715,18 @@ class Init:
         # references to the previous config, distro, paths
         # objects before the load of the userdata happened,
         # this is expected.
+        combined_cloud_cfg = copy.deepcopy(self.cfg)
+        combined_cloud_cfg["_doc"] = (
+            "Aggregated cloud-config created by merging merged_system_cfg"
+            " (/etc/cloud/cloud.cfg and /etc/cloud/cloud.cfg.d), metadata,"
+            " vendordata and userdata. The combined_cloud_config represents"
+            " the aggregated desired configuration acted upon by cloud-init."
+        )
+        atomic_helper.write_json(
+            self.paths.get_runpath("combined_cloud_config"),
+            combined_cloud_cfg,
+            mode=0o600,
+        )
 
     def _consume_vendordata(self, vendor_source, frequency=PER_INSTANCE):
         """
