@@ -9,7 +9,7 @@ from textwrap import dedent
 
 import pytest
 
-from cloudinit import handlers, helpers, util
+from cloudinit import atomic_helper, handlers, helpers, util
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers.cloud_config import CloudConfigPartHandler
 from cloudinit.handlers.jinja_template import (
@@ -109,7 +109,7 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         # Create required instance data json file
         instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
         instance_data = {"topkey": "echo himom"}
-        util.write_file(instance_json, util.json_dumps(instance_data))
+        util.write_file(instance_json, atomic_helper.json_dumps(instance_data))
         h = JinjaTemplatePartHandler(self.paths, sub_handlers=[script_handler])
         with mock.patch.object(script_handler, "handle_part") as m_part:
             # ctype with leading '!' not in handlers.CONTENT_SIGNALS
@@ -134,7 +134,7 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         # Create required instance-data.json file
         instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
         instance_data = {"topkey": {"sub": "runcmd: [echo hi]"}}
-        util.write_file(instance_json, util.json_dumps(instance_data))
+        util.write_file(instance_json, atomic_helper.json_dumps(instance_data))
         h = JinjaTemplatePartHandler(
             self.paths, sub_handlers=[cloudcfg_handler]
         )
@@ -185,7 +185,7 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         """If instance-data is unreadable, raise an error from handle_part."""
         script_handler = ShellScriptPartHandler(self.paths)
         instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
-        util.write_file(instance_json, util.json_dumps({}))
+        util.write_file(instance_json, atomic_helper.json_dumps({}))
         h = JinjaTemplatePartHandler(self.paths, sub_handlers=[script_handler])
         with mock.patch(self.mpath + "load_file") as m_load:
             with self.assertRaises(JinjaLoadError) as context_manager:
@@ -215,7 +215,7 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         script_handler = ShellScriptPartHandler(self.paths)
         instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
         instance_data = {"topkey": {"subkey": "echo himom"}}
-        util.write_file(instance_json, util.json_dumps(instance_data))
+        util.write_file(instance_json, atomic_helper.json_dumps(instance_data))
         h = JinjaTemplatePartHandler(self.paths, sub_handlers=[script_handler])
         h.handle_part(
             data="data",
@@ -246,7 +246,7 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         script_handler = ShellScriptPartHandler(self.paths)
         instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
         instance_data = {"topkey": {"subkey": "echo himom"}}
-        util.write_file(instance_json, util.json_dumps(instance_data))
+        util.write_file(instance_json, atomic_helper.json_dumps(instance_data))
         h = JinjaTemplatePartHandler(self.paths, sub_handlers=[script_handler])
         h.handle_part(
             data="data",

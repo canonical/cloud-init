@@ -12,6 +12,7 @@ import pytest
 import requests
 
 from cloudinit import distros, dmi, helpers, subp, url_helper
+from cloudinit.atomic_helper import b64e, json_dumps
 from cloudinit.net import dhcp
 from cloudinit.reporting.handlers import HyperVKvpReportingHandler
 from cloudinit.sources import UNSET
@@ -19,14 +20,7 @@ from cloudinit.sources import DataSourceAzure as dsaz
 from cloudinit.sources import InvalidMetaDataException
 from cloudinit.sources.azure import errors, identity, imds
 from cloudinit.sources.helpers import netlink
-from cloudinit.util import (
-    MountFailedError,
-    b64e,
-    json_dumps,
-    load_file,
-    load_json,
-    write_file,
-)
+from cloudinit.util import MountFailedError, load_file, load_json, write_file
 from tests.unittests.helpers import (
     CiTestCase,
     ExitStack,

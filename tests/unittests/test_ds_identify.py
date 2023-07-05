@@ -6,7 +6,7 @@ from collections import namedtuple
 from textwrap import dedent
 from uuid import uuid4
 
-from cloudinit import safeyaml, subp, util
+from cloudinit import atomic_helper, safeyaml, subp, util
 from cloudinit.sources import DataSourceIBMCloud as ds_ibm
 from cloudinit.sources import DataSourceOracle as ds_oracle
 from cloudinit.sources import DataSourceSmartOS as ds_smartos
@@ -1003,7 +1003,7 @@ def _print_run_output(rc, out, err, cfg, files):
                 "-- err --",
                 str(err),
                 "-- cfg --",
-                util.json_dumps(cfg),
+                atomic_helper.json_dumps(cfg),
             ]
         )
     )
