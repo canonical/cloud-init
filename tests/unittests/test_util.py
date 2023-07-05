@@ -2201,9 +2201,9 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
         # this one exists in mount_parse_ext.txt
         ret = util.parse_mount("/sys/kernel/debug")
         self.assertEqual(("none", "debugfs", "/sys/kernel/debug"), ret)
-        # this one does not even exist in mount_parse_ext.txt
-        ret = util.parse_mount("/not/existing/mount")
-        self.assertIsNone(ret)
+        # this one does not exist in mount_parse_ext.txt
+        ret = util.parse_mount("/var/tmp/cloud-init")
+        self.assertEqual(("/dev/mapper/vg00-lv_var", "ext4", "/var"), ret)
 
     @mock.patch("cloudinit.subp.subp")
     def test_parse_mount_with_zfs(self, mount_out):
@@ -2217,9 +2217,9 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
         # this one is the root, valid and also exists in mount_parse_zfs.txt
         ret = util.parse_mount("/")
         self.assertEqual(("vmzroot/ROOT/freebsd", "zfs", "/"), ret)
-        # this one does not even exist in mount_parse_ext.txt
-        ret = util.parse_mount("/not/existing/mount")
-        self.assertIsNone(ret)
+        # this one does not exist in mount_parse_ext.txt
+        ret = util.parse_mount("/var/tmp/cloud-init")
+        self.assertEqual(("vmzroot/var/tmp", "zfs", "/var/tmp"), ret)
 
 
 class TestIsX86(helpers.CiTestCase):
