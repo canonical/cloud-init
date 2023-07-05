@@ -79,7 +79,7 @@ meta: MetaSchema = {
             # storage_pools, profiles, projects, clusters and core config,
             # `lxd:preseed` config will be passed as stdin to the command:
             #  lxd init --preseed
-            # See https://linuxcontainers.org/lxd/docs/master/preseed/ or
+            # See https://documentation.ubuntu.com/lxd/en/latest/howto/initialize/#non-interactive-configuration or
             # run: lxd init --dump to see viable preseed YAML allowed.
             #
             # Preseed settings configuring the LXD daemon for HTTPS connections
