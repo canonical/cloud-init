@@ -169,7 +169,7 @@ def main():
 
         # Form the spec file to be used
         tmpl_fn = util.abs_join(find_root(), 'packages',
-                                args.distro, 'cloud-init.spec.j2')
+                                args.distro, 'cloud-init.spec.in')
         contents = generate_spec_contents(args, version_data, tmpl_fn, topdir,
                                           os.path.basename(archive_fn))
         spec_fn = util.abs_join(topdir, 'SPECS', 'cloud-init.spec')

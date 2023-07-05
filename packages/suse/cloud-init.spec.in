@@ -1,0 +1,134 @@
+## template: jinja
+
+# See: http://www.zarb.org/~jasonc/macros.php
+# Or: http://fedoraproject.org/wiki/Packaging:ScriptletSnippets
+# Or: http://www.rpm.org/max-rpm/ch-rpm-inside.html
+
+Name:           cloud-init
+Version:        {{rpm_upstream_version}}
+Release:        1{{subrelease}}%{?dist}
+Summary:        Cloud instance init scripts
+
+Group:          System/Management
+License:        Dual licensed GPLv3 or Apache 2.0
+URL:            http://launchpad.net/cloud-init
+
+Source0:        {{archive_name}}
+BuildRoot:      %{_tmppath}/%{name}-%{version}-build
+
+BuildArch:      noarch
+
+
+{% for r in buildrequires %}
+BuildRequires:        {{r}}
+{% endfor %}
+
+# Install pypi 'dynamic' requirements
+{% for r in requires %}
+Requires:       {{r}}
+{% endfor %}
+
+# Custom patches
+{% for p in patches %}
+Patch{{loop.index0}}: {{p}}
+{% endfor %}
+
+%description
+Cloud-init is a set of init scripts for cloud instances.  Cloud instances
+need special scripts to run during initialization to retrieve and install
+ssh keys and to let the user run various scripts.
+
+%prep
+%setup -q -n {{source_name}}
+
+# Custom patches activation
+{% for p in patches %}
+%patch{{loop.index0}} -p1
+end for
+{% endfor %}
+
+%build
+%{__python} setup.py build
+
+%install
+%{__python} setup.py install \
+            --skip-build --root=%{buildroot} --prefix=%{_prefix} \
+            --record-rpm=INSTALLED_FILES --install-lib=%{python_sitelib} \
+            --init-system=systemd
+
+# Move udev rules
+mkdir -p %{buildroot}/usr/lib/udev/rules.d/
+mv %{buildroot}/lib/udev/rules.d/* %{buildroot}/usr/lib/udev/rules.d/
+
+# Remove non-SUSE templates
+rm %{buildroot}/%{_sysconfdir}/cloud/templates/*.debian.*
+rm %{buildroot}/%{_sysconfdir}/cloud/templates/*.redhat.*
+rm %{buildroot}/%{_sysconfdir}/cloud/templates/*.ubuntu.*
+
+# Move documentation
+mkdir -p %{buildroot}/%{_defaultdocdir}
+mv %{buildroot}/usr/share/doc/cloud-init %{buildroot}/%{_defaultdocdir}
+for doc in LICENSE ChangeLog requirements.txt; do
+   cp ${doc} %{buildroot}/%{_defaultdocdir}/cloud-init
+done
+
+# Remove duplicate files
+%if 0%{?suse_version}
+   %fdupes %{buildroot}/%{python_sitelib}
+%endif
+
+mkdir -p %{buildroot}/var/lib/cloud
+
+# patch in the full version to version.py
+version_pys=$(cd "%{buildroot}" && find . -name version.py -type f)
+[ -n "$version_pys" ] ||
+   { echo "failed to find 'version.py' to patch with version." 1>&2; exit 1; }
+( cd "%{buildroot}" &&
+  sed -i "s,@@PACKAGED_VERSION@@,%{version}-%{release}," $version_pys )
+
+%postun
+%insserv_cleanup
+
+%files
+
+# Program binaries
+%{_bindir}/cloud-init*
+%{_bindir}/cloud-id*
+
+# systemd files
+/usr/lib/systemd/system-generators/*
+/usr/lib/systemd/system/*
+
+# There doesn't seem to be an agreed upon place for these
+# although it appears the standard says /usr/lib but rpmbuild
+# will try /usr/lib64 ??
+/usr/lib/%{name}/uncloud-init
+/usr/lib/%{name}/write-ssh-key-fingerprints
+/usr/lib/%{name}/ds-identify
+
+# udev rules
+/usr/lib/udev/rules.d/66-azure-ephemeral.rules
+
+
+# Docs
+%doc %{_defaultdocdir}/cloud-init/*
+
+# Configs
+%dir                    %{_sysconfdir}/cloud/clean.d
+%config(noreplace)      %{_sysconfdir}/cloud/clean.d/README
+%config(noreplace) %{_sysconfdir}/cloud/cloud.cfg
+%dir               %{_sysconfdir}/cloud/cloud.cfg.d
+%config(noreplace) %{_sysconfdir}/cloud/cloud.cfg.d/*.cfg
+%config(noreplace) %{_sysconfdir}/cloud/cloud.cfg.d/README
+%dir               %{_sysconfdir}/cloud/templates
+%config(noreplace) %{_sysconfdir}/cloud/templates/*
+
+# Bash completion script
+%{_datadir}/bash-completion/completions/cloud-init
+
+%{_sysconfdir}/systemd/system/sshd-keygen@.service.d/disable-sshd-keygen-if-cloud-init-active.conf
+
+# Python code is here...
+%{python_sitelib}/*
+
+/var/lib/cloud
