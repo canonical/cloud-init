@@ -14,6 +14,9 @@ the flag and intended lifetime.
 Tests are required for new feature flags, and tests must verify
 all valid states of a flag, not just the default state.
 """
+import re
+import sys
+from typing import Dict
 
 ERROR_ON_USER_DATA_FAILURE = True
 """
@@ -76,3 +79,12 @@ separators.
 
 (This flag can be removed when Jammy is no longer supported.)
 """
+
+
+def get_features() -> Dict[str, bool]:
+    """Return a dict of applicable features/overrides and their values."""
+    return {
+        k: getattr(sys.modules["cloudinit.features"], k)
+        for k in sys.modules["cloudinit.features"].__dict__.keys()
+        if re.match(r"^[_A-Z]+$", k)
+    }
