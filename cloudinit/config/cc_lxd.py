@@ -149,7 +149,7 @@ meta: MetaSchema = {
                     name: limited
 
 
-            """
+            """  # noqa: E501
         ),
     ],
     "frequency": PER_INSTANCE,
