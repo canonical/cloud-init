@@ -5,11 +5,8 @@ Feature flags are used as a way to easily toggle configuration
 downstream configuration changes.
 
 Currently used upstream values for feature flags are set in
-``cloudinit/features.py``. Overrides to these values (typically via quilt
-patch) can be placed
-in a file called ``feature_overrides.py`` in the same directory. Any value
-set in ``feature_overrides.py`` will override the original value set
-in ``features.py``.
+``cloudinit/features.py``. Overrides to these values should be
+patched directly (e.g., via quilt patch) by downstreams.
 
 Each flag should include a short comment regarding the reason for
 the flag and intended lifetime.
@@ -79,9 +76,3 @@ separators.
 
 (This flag can be removed when Jammy is no longer supported.)
 """
-
-try:
-    # pylint: disable=wildcard-import
-    from cloudinit.feature_overrides import *  # noqa
-except ImportError:
-    pass
