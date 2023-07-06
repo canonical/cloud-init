@@ -40,15 +40,24 @@ class DataSourceDigitalOcean(sources.DataSource):
                 BUILTIN_DS_CONFIG,
             ]
         )
-        LOG.warning(
-            "DataSourceDigitalOcean is deprecated in favour of DataSourceConfigDrive."
-        )
+        self._deprecate()
         self.metadata_address = self.ds_cfg["metadata_url"]
         self.retries = self.ds_cfg.get("retries", MD_RETRIES)
         self.timeout = self.ds_cfg.get("timeout", MD_TIMEOUT)
         self.use_ip4LL = self.ds_cfg.get("use_ip4LL", MD_USE_IPV4LL)
         self.wait_retry = self.ds_cfg.get("wait_retry", MD_WAIT_RETRY)
         self._network_config = None
+
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        super()._unpickle(ci_pkl_version)
+        self._deprecate()
+
+    def _deprecate(self):
+        util.deprecate(
+            deprecated="DataSourceDigitalOcean",
+            deprecated_version="23.2",
+            extra_message="Deprecated in favour of DataSourceConfigDrive.",
+        )
 
     def _get_sysinfo(self):
         return do_helper.read_sysinfo()
