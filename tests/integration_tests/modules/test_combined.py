@@ -110,7 +110,7 @@ class TestCombined:
         log = client.read_from_file("/var/log/cloud-init.log")
         expected = (
             "This is my final message!\n"
-            r"\d+\.\d+.*\n"
+            r"\d+\.(\d+|daily).*\n"
             r"\w{3}, \d{2} \w{3} \d{4} \d{2}:\d{2}:\d{2} \+\d{4}\n"  # Datetime
             "DataSource.*\n"
             r"\d+\.\d+"
