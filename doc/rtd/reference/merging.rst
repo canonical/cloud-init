@@ -3,114 +3,179 @@
 Merging user data sections
 **************************
 
-The ability to merge user data sections is a feature that was implemented by
-popular request. It was identified that there should be a way to specify how
-cloud-config YAML "dictionaries" provided as user data are handled when there
-are multiple YAML files to be merged together (e.g., when performing an
-#include).
+A common requirement when using multiple user data sections is merging them,
+so different cloud-config YAML files can specify the same keys. This allows
+to provide multiple ``runcmd`` directives in several files, and merge all the
+commands together.
 
-The previous merging algorithm was very simple and would only overwrite
-(and not append). So, it was decided to create a new and improved way to merge
-dictionaries (and their contained objects) together in a customisable way,
-thus allowing users who provide cloud-config user data to determine exactly
-how their objects will be merged.
+Merging is not enabled by default. There are two ways to do so:
 
-For example:
 
-.. code-block:: yaml
+1. In cloud-config YAML configuration, two keys will be checked: ``merge_how``,
+   and ``merge_type`` (in this order). Their value should be either a format
+   string, or a configuration object as described below.
+2. In multi-part documents, two headers will be checked: ``Merge-Type`` and
+   ``X-Merge-Type`` (in this order). The value should contain a merging format
+   string as described below.
 
-   #cloud-config (1)
-   runcmd:
-     - bash1
-     - bash2
+There are three types of configuration that can be merged: Lists, dictionaries,
+and strings. Cloud-config allows enabling and configuring merging for all of
+them separately. For the available options, look below.
 
-   #cloud-config (2)
-   runcmd:
-     - bash3
-     - bash4
+Dictionary format
+-----------------
 
-The previous way of merging the two objects above would result in a final
-cloud-config object that contains the following:
+A dictionary can be used when it specifies the same information as the
+string format (i.e., the second option above). For example:
 
 .. code-block:: yaml
 
-   #cloud-config (merged)
-   runcmd:
-     - bash3
-     - bash4
+   merge_how:
+     - name: list
+       settings: ['append']
+     - name: dict
+       settings: ['no_replace', 'recurse_list']
+     - name: str
+       settings: ['append']
 
-Typically this is not what users want - instead they would prefer:
+This example matches the default configuration.
 
-.. code-block:: yaml
+String format
+-------------
 
-   #cloud-config (merged)
-   runcmd:
-     - bash1
-     - bash2
-     - bash3
-     - bash4
+The following string format is expected: ::
 
-This change makes it easier to combine the various cloud-config objects you
-have into a more useful list. In this way, we reduce the duplication necessary
-to accomplish the same result with the previous method.
+   type1(option1,option2)+type2(option3,option4)....
 
-Built-in mergers
-================
+The type must be one of ``list`` (arrays), ``dict`` (objects), 
+or ``str`` (strings). In brackets, you can pass options for each type. To use
+the defaults, pass the type with braces (e.g. ``list()``). The default format
+string looks like this:
 
-``Cloud-init`` provides merging for the following built-in types:
+.. code-block:: python
 
-- :command:`Dict`
-- :command:`List`
-- :command:`String`
+   list()+dict()+str()
 
-``Dict``
---------
+To enable an option, pass its name (or omit to disable):
 
-The :command:`Dict` merger has the following options, which control what is
-done with values contained within the config.
+.. code-block:: python
+
+   list(replace,append)+dict(replace)
+
+Available options
+-----------------
+
+Objects
+~~~~~~~
+
+These options apply to objects:
 
 - :command:`allow_delete`: Existing values not present in the new value can be
-  deleted. Defaults to ``False``.
+  deleted. Disabled by default.
 - :command:`no_replace`: Do not replace an existing value if one is already
   present. Enabled by default.
-- :command:`replace`: Overwrite existing values with new ones.
+- :command:`replace`: Overwrite existing values with new ones. Disabled by 
+  default.
 
-``List``
---------
+Lists
+~~~~~
 
-The :command:`List` merger has the following options, which control what is
-done with the values contained within the config.
+These options apply to lists:
 
-- :command:`append`: Add new value to the end of the list. Defaults to
-  ``False``.
-- :command:`prepend`: Add new values to the start of the list. Defaults to
-  ``False``.
+- :command:`append`: Add new value to the end of the list. Disabled by 
+  default.
+- :command:`prepend`: Add new values to the start of the list. Disabled by
+  default.
 - :command:`no_replace`: Do not replace an existing value if one is already
   present. Enabled by default.
-- :command:`replace`: Overwrite existing values with new ones.
+- :command:`replace`: Overwrite existing values with new ones. Disabled by
+  default.
 
-String
-------
+Strings
+~~~~~~~
 
-The :command:`Str` merger has the following options, which control what is
-done with the values contained within the config.
+These options apply to strings:
 
-- :command:`append`: Add new value to the end of the string. Defaults to
-  False.
+- :command:`append`: Add new value to the end of the string. Disabled by 
+  default.
 
 Common options
---------------
+~~~~~~~~~~~~~~
 
 These are the common options for all merge types, which control how recursive
 merging is done on other types.
 
-- :command:`recurse_dict`: If ``True``, merge the new values of the
-  dictionary. Defaults to ``True``.
-- :command:`recurse_list`: If ``True``, merge the new values of the list.
-  Defaults to ``False``.
+- :command:`recurse_dict`: Merge the new values of the dictionary. Enabled by
+  default.
+- :command:`recurse_list`: Merge the new values of the list. Disabled by 
+  default.
 - :command:`recurse_array`: Alias for ``recurse_list``.
-- :command:`recurse_str`: If ``True``, merge the new values of the string.
-  Defaults to False.
+- :command:`recurse_str`: Merge the new values of the string. Disabled by 
+  default.
+
+Example cloud-config
+====================
+
+A common request is to include multiple ``runcmd`` directives in different
+files and merge all of the commands together. To achieve this, we must modify
+the default merging to allow for dictionaries to join list values.
+
+The first config:
+
+.. code-block:: yaml
+
+   #cloud-config
+   merge_how:
+    - name: list
+      settings: [append]
+    - name: dict
+      settings: [no_replace, recurse_list]
+
+   runcmd:
+     - bash1
+     - bash2
+
+The second config:
+
+.. code-block:: yaml
+
+   #cloud-config
+   merge_how:
+    - name: list
+      settings: [append]
+    - name: dict
+      settings: [no_replace, recurse_list]
+
+   runcmd:
+     - bash3
+     - bash4
+
+The effective config:
+
+.. code-block:: yaml
+
+   #cloud-config
+   runcmd:
+     - bash1
+     - bash2
+     - bash3
+     - bash4
+
+Specifying multiple types, and what this does
+=============================================
+
+Now you may be asking yourself: "What exactly happens if I specify a
+``merge-type`` header or dictionary for every cloud-config I provide?"
+
+The answer is that when merging, a stack of ``'merging classes'`` is kept. The
+first one in the stack is the default merging class. This set of mergers
+will be used when the first cloud-config is merged with the initial empty
+cloud-config dictionary. If the cloud-config that was just merged provided a
+set of merging classes (via the above formats) then those merging classes will
+be pushed onto the stack. Now if there is a second cloud-config to be merged
+then the merging classes from the cloud-config before the first will be used
+(not the default) and so on. In this way a cloud-config can decide how it will
+merge with a cloud-config dictionary coming after it.
 
 Customisation
 =============
@@ -174,72 +239,6 @@ performed. For example, a dictionary merger can be told to overwrite instead
 of attempting to merge, or a string merger can be told to append strings
 instead of discarding other strings to merge with.
 
-How to activate
-===============
-
-There are a few ways to activate the merging algorithms, and to customise them
-for your own usage.
-
-1. The first way involves the usage of MIME messages in ``cloud-init`` to
-   specify multi-part documents (this is one way in which multiple
-   cloud-config can be joined together into a single cloud-config). Two new
-   headers are looked for, both of which can define the way merging is done
-   (the first header to exist "wins"). These new headers (in lookup order) are
-   ``'Merge-Type'`` and ``'X-Merge-Type'``. The value should be a string which
-   will satisfy the new merging format definition (see below for this format).
-
-2. The second way is to specify the `merge type` in the body of the
-   cloud-config dictionary. There are two ways to specify this; either as a
-   string, or as a dictionary (see format below). The keys that are looked up
-   for this definition are the following (in order): ``'merge_how'``,
-   ``'merge_type'``.
-
-String format
--------------
-
-The following string format is expected: ::
-
-   classname1(option1,option2)+classname2(option3,option4)....
-
-The ``class name`` will be connected to class names used when looking for
-the class that can be used to merge, and options provided will be given to the
-class upon construction of that class.
-
-The following example shows the default string that gets used when none is
-otherwise provided: ::
-
-   list()+dict()+str()
-
-Dictionary format
------------------
-
-A dictionary can be used when it specifies the same information as the
-string format (i.e., the second option above). For example:
-
-.. code-block:: python
-
-   {'merge_how': [{'name': 'list', 'settings': ['append']},
-                  {'name': 'dict', 'settings': ['no_replace', 'recurse_list']},
-                  {'name': 'str', 'settings': ['append']}]}
-
-This would be the dictionary equivalent of the default string format.
-
-Specifying multiple types, and what this does
-=============================================
-
-Now you may be asking yourself: "What exactly happens if I specify a
-``merge-type`` header or dictionary for every cloud-config I provide?"
-
-The answer is that when merging, a stack of ``'merging classes'`` is kept. The
-first one in the stack is the default merging class. This set of mergers
-will be used when the first cloud-config is merged with the initial empty
-cloud-config dictionary. If the cloud-config that was just merged provided a
-set of merging classes (via the above formats) then those merging classes will
-be pushed onto the stack. Now if there is a second cloud-config to be merged
-then the merging classes from the cloud-config before the first will be used
-(not the default) and so on. In this way a cloud-config can decide how it will
-merge with a cloud-config dictionary coming after it.
-
 Other uses
 ==========
 
@@ -254,39 +253,50 @@ Note, however, that merge algorithms are not used *across* configuration types.
 As was the case before merging was implemented, user data will overwrite
 :file:`'conf.d'` configuration without merging.
 
-Example cloud-config
-====================
+Differences to the previous merging algorithm
+=============================================
 
-A common request is to include multiple ``runcmd`` directives in different
-files and merge all of the commands together. To achieve this, we must modify
-the default merging to allow for dictionaries to join list values.
+The previous merging algorithm was very simple and would only overwrite
+(and not append). So, it was decided to create a new and improved way to merge
+dictionaries (and their contained objects) together in a customisable way,
+thus allowing users who provide cloud-config user data to determine exactly
+how their objects will be merged.
 
-The first config:
+For example:
 
 .. code-block:: yaml
 
-   #cloud-config
-   merge_how:
-    - name: list
-      settings: [append]
-    - name: dict
-      settings: [no_replace, recurse_list]
-
+   #cloud-config (1)
    runcmd:
      - bash1
      - bash2
 
-The second config:
-
-.. code-block:: yaml
-
-   #cloud-config
-   merge_how:
-    - name: list
-      settings: [append]
-    - name: dict
-      settings: [no_replace, recurse_list]
-
+   #cloud-config (2)
    runcmd:
      - bash3
      - bash4
+
+The previous way of merging the two objects above would result in a final
+cloud-config object that contains the following:
+
+.. code-block:: yaml
+
+   #cloud-config (merged)
+   runcmd:
+     - bash3
+     - bash4
+
+Typically this is not what users want - instead they would prefer:
+
+.. code-block:: yaml
+
+   #cloud-config (merged)
+   runcmd:
+     - bash1
+     - bash2
+     - bash3
+     - bash4
+
+This change makes it easier to combine the various cloud-config objects you
+have into a more useful list. In this way, we reduce the duplication necessary
+to accomplish the same result with the previous method.
