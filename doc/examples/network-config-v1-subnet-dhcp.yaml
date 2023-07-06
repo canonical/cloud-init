@@ -1,0 +1,8 @@
+network:
+  version: 1
+  config:
+    - type: physical
+      name: interface0
+      mac_address: '00:11:22:33:44:55'
+      subnets:
+        - type: dhcp

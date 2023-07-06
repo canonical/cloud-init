@@ -1756,24 +1756,190 @@ class TestMain:
         assert expected == err
 
 
-def _get_meta_doc_examples():
+def _get_meta_doc_examples(
+    file_glob="cloud-config*.txt", exclusion_match=r"^cloud-config-archive.*"
+):
     examples_dir = Path(cloud_init_project_dir("doc/examples"))
     assert examples_dir.is_dir()
-
     return (
         str(f)
-        for f in examples_dir.glob("cloud-config*.txt")
-        if not f.name.startswith("cloud-config-archive")
+        for f in examples_dir.glob(file_glob)
+        if not re.match(exclusion_match, f.name)
     )
 
 
 class TestSchemaDocExamples:
     schema = get_schema()
+    net_schema = get_schema(schema_type="network-config")
 
     @pytest.mark.parametrize("example_path", _get_meta_doc_examples())
     @skipUnlessJsonSchema()
-    def test_schema_doc_examples(self, example_path):
+    def test_cloud_config_schema_doc_examples(self, example_path):
         validate_cloudconfig_file(example_path, self.schema)
+
+    @pytest.mark.parametrize(
+        "example_path",
+        _get_meta_doc_examples(file_glob="network-config-v1*yaml"),
+    )
+    @skipUnlessJsonSchema()
+    def test_network_config_schema_v1_doc_examples(self, example_path):
+        validate_cloudconfig_schema(
+            config=load(open(example_path)),
+            schema=self.net_schema,
+            strict=True,
+        )
+
+
+VALID_PHYSICAL_CONFIG = {
+    "type": "physical",
+    "name": "a",
+    "mac_address": "aa:bb",
+    "mtu": 1,
+    "subnets": [
+        {
+            "type": "dhcp6",
+            "control": "manual",
+            "netmask": "255.255.255.0",
+            "gateway": "10.0.0.1",
+            "dns_nameservers": ["8.8.8.8"],
+            "dns_search": ["find.me"],
+            "routes": [
+                {
+                    "type": "route",
+                    "destination": "10.20.0.0/8",
+                    "gateway": "a.b.c.d",
+                    "metric": 200,
+                }
+            ],
+        }
+    ],
+}
+
+VALID_BOND_CONFIG = {
+    "type": "bond",
+    "name": "a",
+    "mac_address": "aa:bb",
+    "mtu": 1,
+    "subnets": [
+        {
+            "type": "dhcp6",
+            "control": "manual",
+            "netmask": "255.255.255.0",
+            "gateway": "10.0.0.1",
+            "dns_nameservers": ["8.8.8.8"],
+            "dns_search": ["find.me"],
+            "routes": [
+                {
+                    "type": "route",
+                    "destination": "10.20.0.0/8",
+                    "gateway": "a.b.c.d",
+                    "metric": 200,
+                }
+            ],
+        }
+    ],
+}
+
+
+@skipUnlessJsonSchema()
+class TestNetworkSchema:
+    net_schema = get_schema(schema_type="network-config")
+
+    @pytest.mark.parametrize(
+        "src_config, expectation",
+        (
+            pytest.param(
+                {"network": {"version": 2}},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=re.escape("network.version: 2 is not one of [1]"),
+                ),
+                id="net_v2_invalid",
+            ),
+            pytest.param(
+                {"network": {"version": 1}},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=re.escape("'config' is a required property"),
+                ),
+                id="config_key_required",
+            ),
+            pytest.param(
+                {"network": {"version": 1, "config": []}},
+                does_not_raise(),
+                id="config_key_required",
+            ),
+            pytest.param(
+                {"network": {"version": 1, "config": [{"type": "typo"}]}},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        r"network.config.0: {'type': 'typo'} is not valid "
+                        "under any of the given schemas"
+                    ),
+                ),
+                id="unknown_config_type_item",
+            ),
+            pytest.param(
+                {"network": {"version": 1, "config": [{"type": "physical"}]}},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=r"network.config.0: 'name' is a required property.*",
+                ),
+                id="physical_requires_name_property",
+            ),
+            pytest.param(
+                {
+                    "network": {
+                        "version": 1,
+                        "config": [{"type": "physical", "name": "a"}],
+                    }
+                },
+                does_not_raise(),
+                id="physical_with_name_succeeds",
+            ),
+            pytest.param(
+                {
+                    "network": {
+                        "version": 1,
+                        "config": [
+                            {"type": "physical", "name": "a", "asdf": 1}
+                        ],
+                    }
+                },
+                pytest.raises(
+                    SchemaValidationError,
+                    match=r"Additional properties are not allowed.*",
+                ),
+                id="physical_no_additional_properties",
+            ),
+            pytest.param(
+                {
+                    "network": {
+                        "version": 1,
+                        "config": [VALID_PHYSICAL_CONFIG],
+                    }
+                },
+                does_not_raise(),
+                id="physical_with_all_known_properties",
+            ),
+            pytest.param(
+                {
+                    "network": {
+                        "version": 1,
+                        "config": [VALID_BOND_CONFIG],
+                    }
+                },
+                does_not_raise(),
+                id="bond_with_all_known_properties",
+            ),
+        ),
+    )
+    def test_network_schema(self, src_config, expectation):
+        with expectation:
+            validate_cloudconfig_schema(
+                config=src_config, schema=self.net_schema, strict=True
+            )
 
 
 class TestStrictMetaschema:

@@ -1,0 +1,26 @@
+network:
+  version: 1
+  config:
+    # 10G pair
+    - type: physical
+      name: gbe0
+      mac_address: 'cd:11:22:33:44:00'
+    - type: physical
+      name: gbe1
+      mac_address: 'cd:11:22:33:44:02'
+    # Bond.
+    - type: bond
+      name: bond0
+      bond_interfaces:
+        - gbe0
+        - gbe1
+      params:
+        bond-mode: 802.3ad
+        bond-lacp_rate: fast
+    # A Bond VLAN.
+    - type: vlan
+      name: bond0.200
+      vlan_link: bond0
+      vlan_id: 200
+      subnets:
+        - type: dhcp4
