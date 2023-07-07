@@ -683,12 +683,12 @@ class TestSystemdStatusDetails:
             ("deactivating", "enabled-runtime", "any", UXAppStatus.RUNNING),
             ("failed", "static", "failed", UXAppStatus.ERROR),
             # Try previous combinations again with "not enabled" states
-            ("activating", "linked", "start", None),
-            ("active", "linked-runtime", "exited", None),
-            ("inactive", "masked", "dead", None),
-            ("reloading", "masked-runtime", "start", None),
-            ("deactivating", "disabled", "any", None),
-            ("failed", "invalid", "failed", None),
+            ("activating", "linked", "start", UXAppStatus.ERROR),
+            ("active", "linked-runtime", "exited", UXAppStatus.ERROR),
+            ("inactive", "masked", "dead", UXAppStatus.ERROR),
+            ("reloading", "masked-runtime", "start", UXAppStatus.ERROR),
+            ("deactivating", "disabled", "any", UXAppStatus.ERROR),
+            ("failed", "invalid", "failed", UXAppStatus.ERROR),
         ],
     )
     def test_get_systemd_status(

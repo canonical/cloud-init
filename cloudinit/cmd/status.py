@@ -224,9 +224,8 @@ def _get_systemd_status() -> Optional[UXAppStatus]:
             states["UnitFileState"].startswith("enabled")
             or states["UnitFileState"] == "static"
         ):
-            # Service is not set to run, so don't determine state
-            # based on this service
-            continue
+            # Individual services should not get disabled
+            return UXAppStatus.ERROR
         if (
             states["ActiveState"] == "active"
             and states["SubState"] == "exited"
