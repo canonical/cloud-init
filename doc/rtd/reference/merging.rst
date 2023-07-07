@@ -4,9 +4,31 @@ Merging user data sections
 **************************
 
 A common requirement when using multiple user data sections is merging them,
-so different cloud-config YAML files can specify the same keys. This allows
-to provide multiple ``runcmd`` directives in several files, and merge all the
-commands together.
+so different cloud-config YAML files can specify the same keys. For example,
+if we have two different cloud-configs in our user data:
+
+.. code-block:: yaml
+
+   #cloud-config (1)
+   runcmd:
+     - bash1
+     - bash2
+
+   #cloud-config (2)
+   runcmd:
+     - bash3
+     - bash4
+
+Merging will allow us to have an end result such as:
+
+..code-block:: yaml
+
+   #cloud-config (merged)
+   runcmd:
+     - bash1
+     - bash2
+     - bash3
+     - bash4
 
 Merging is not enabled by default. There are two ways to do so:
 
