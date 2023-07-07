@@ -87,10 +87,10 @@ To enable an option, pass its name (or omit to disable). For example:
 Available options
 -----------------
 
-Objects
-~~~~~~~
+Dicts
+~~~~~
 
-These options apply to objects:
+These options apply to dicts:
 
 - :command:`allow_delete`: Existing values not present in the new value can be
   deleted. Disabled by default.
