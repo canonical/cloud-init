@@ -60,7 +60,7 @@ To enable an option, pass its name (or omit to disable). For example:
 
 .. code-block:: python
 
-   list(replace,append)+dict(replace)
+   merge_how: "list(replace,append)+dict(replace)"
 
 Available options
 -----------------
