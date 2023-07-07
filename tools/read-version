@@ -2,6 +2,7 @@
 
 import os
 import json
+import re
 import subprocess
 import sys
 
@@ -48,6 +49,37 @@ def is_gitdir(path):
             if b"gitdir:" in fp.read():
                 return True
     return False
+
+
+def get_version_details(version, version_long):
+    release = None
+    extra = None
+    commit = None
+    distance = None
+
+    # Should match upstream version number. E.g., 23.1 or 23.1.2
+    short_regex = r"(\d+\.\d+\.?\d*)"
+    # Should match version including upstream version, distance, and commit
+    # E.g., 23.1.2-10-g12ab34cd
+    long_regex = r"(\d+\.\d+\.?\d*){1}.*-(\d+)+-g([a-f0-9]{8}){1}.*"
+
+    short_match = re.search(short_regex, version)
+    long_match = re.search(long_regex, version_long)
+    if long_match:
+        release, distance, commit = long_match.groups()
+        extra = f"-{distance}-g{commit}"
+    elif short_match:
+        release = short_match.groups()[0]
+
+    return {
+        "release": release,
+        "version": version,
+        "version_long": version_long,
+        "extra": extra,
+        "commit": commit,
+        "distance": distance,
+        "is_release_branch_ci": is_release_branch_ci,
+    }
 
 
 use_long = "--long" in sys.argv or os.environ.get("CI_RV_LONG")
@@ -105,33 +137,19 @@ else:
     version = src_version
     version_long = ""
 
-# version is X.Y.Z[+xxx.gHASH]
-# version_long is None or X.Y.Z-xxx-gHASH
-release = version.partition("-")[0]
-extra = None
-commit = None
-distance = None
 
-if version_long:
-    info = version_long.partition("-")[2]
-    extra = f"-{info}"
-    distance, commit = info.split("-")
-    # remove the 'g' from gHASH
-    commit = commit[1:]
-
-data = {
-    "release": release,
-    "version": version,
-    "version_long": version_long,
-    "extra": extra,
-    "commit": commit,
-    "distance": distance,
-    "is_release_branch_ci": is_release_branch_ci,
-}
+details = get_version_details(version, version_long)
 
 if output_json:
-    sys.stdout.write(json.dumps(data, indent=1) + "\n")
+    sys.stdout.write(json.dumps(details, indent=1) + "\n")
 else:
-    sys.stdout.write(version + "\n")
+    output = ""
+    if details["release"]:
+        output += details["release"]
+    if details["extra"]:
+        output += details["extra"]
+    if not output:
+        output = src_version
+    sys.stdout.write(output + "\n")
 
 sys.exit(0)
