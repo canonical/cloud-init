@@ -56,7 +56,7 @@ string looks like this:
 
    list()+dict()+str()
 
-To enable an option, pass its name (or omit to disable):
+To enable an option, pass its name (or omit to disable). For example:
 
 .. code-block:: python
 
