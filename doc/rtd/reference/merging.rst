@@ -30,8 +30,8 @@ Merging will allow us to have an end result such as:
      - bash3
      - bash4
 
-Merging is not enabled by default. There are two ways to do so:
-
+By default, merging is limited to recursively adding keys that do not exist
+yet. There are two ways to enable more advanced merging strategies:
 
 1. In cloud-config YAML configuration, two keys will be checked: ``merge_how``,
    and ``merge_type`` (in this order). Their value should be either a format
