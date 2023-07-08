@@ -183,21 +183,27 @@ The effective config:
      - bash3
      - bash4
 
-Specifying multiple types, and what this does
-=============================================
+Specifying multiple merge types
+===============================
 
-Now you may be asking yourself: "What exactly happens if I specify a
-``merge-type`` header or dictionary for every cloud-config I provide?"
+When several cloud-config files define a merge type, the effective type will
+be the result of stacking all previous types, starting from the default:
 
-The answer is that when merging, a stack of ``'merging classes'`` is kept. The
-first one in the stack is the default merging class. This set of mergers
-will be used when the first cloud-config is merged with the initial empty
-cloud-config dictionary. If the cloud-config that was just merged provided a
-set of merging classes (via the above formats) then those merging classes will
-be pushed onto the stack. Now if there is a second cloud-config to be merged
-then the merging classes from the cloud-config before the first will be used
-(not the default) and so on. In this way a cloud-config can decide how it will
-merge with a cloud-config dictionary coming after it.
++---+---------------+--------------------------+---------------------------------------------------+
+| # | Origin        | Definition in file       | Effective type                                    |
++===+===============+==========================+===================================================+
+| 0 | _default_     | ``dict()+list()+str()``  | ``dict()+list()+str()``                           |
++---+---------------+--------------------------+---------------------------------------------------+
+| 1 | config-1.yaml | ``list(replace,append)`` | ``dict()+list(replace,append)+str()``             |
++---+---------------+--------------------------+---------------------------------------------------+
+| 2 | config-2.yaml | ``dict(recurse_list)``   | ``dict(recurse_list)+list(replace,append)+str()`` |
++---+---------------+--------------------------+---------------------------------------------------+
+| 3 | config-3.yaml | ``list(prepend)``        | ``dict(recurse_list)+list(prepend)+str()``        |
++---+---------------+--------------------------+---------------------------------------------------+
+
+In this way, a cloud-config can decide how it will merge with a cloud-config 
+that comes after it. If you rely on a specific merge result, you should set
+the required merge type explicitly.
 
 Customisation
 =============
