@@ -99,7 +99,7 @@ cloud_init_modules:
  - resolv_conf
 {% endif %}
 {% if not is_bsd or variant not in ["photon"] %}
- - ca-certs
+ - ca_certs
 {% endif %}
  - rsyslog
  - users_groups
