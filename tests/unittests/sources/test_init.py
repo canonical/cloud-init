@@ -623,7 +623,7 @@ class TestDataSource(CiTestCase):
             "base64_encoded_keys": [],
             "merged_cfg": {
                 "_doc": (
-                    "DEPRECATED: Use merged_system_config. Will be dropped "
+                    "DEPRECATED: Use merged_system_cfg. Will be dropped "
                     "from 24.1"
                 ),
                 "datasource": {"_undef": {"key1": False}},

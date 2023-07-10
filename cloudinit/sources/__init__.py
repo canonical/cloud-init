@@ -482,7 +482,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         instance_data["merged_cfg"] = copy.deepcopy(self.sys_cfg)
         instance_data["merged_cfg"][
             "_doc"
-        ] = "DEPRECATED: Use merged_system_config. Will be dropped from 24.1"
+        ] = "DEPRECATED: Use merged_system_cfg. Will be dropped from 24.1"
         # Deprecate merged_cfg to a more specific key name merged_system_cfg
         instance_data["merged_system_cfg"] = copy.deepcopy(
             instance_data["merged_cfg"]
