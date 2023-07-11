@@ -1,9 +1,9 @@
-cloud-init (23.3~2gcf474da7-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (23.3~2gcf474da7-0ubuntu1) mantic; urgency=medium
 
   * Upstream snapshot based on upstream/main at cf474da7.
     - Bugs fixed in this snapshot: (LP: #2013403)
 
- -- Alberto Contreras <alberto.contreras@canonical.com>  Tue, 11 Jul 2023 10:15:16 +0200
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Tue, 11 Jul 2023 10:22:04 +0200
 
 cloud-init (23.3~1ge5a617fe-0ubuntu1) mantic; urgency=medium
 
