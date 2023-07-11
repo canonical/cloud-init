@@ -1480,14 +1480,13 @@
           ],
           "additionalProperties": false,
           "properties": {
-            "install_source": {
-              "type": "string",
-              "pattern": "^(distro|ppa:.+)$",
-              "description": "Whether to install landscape-client deb package from the 'distro' default repositories or a custom 'ppa:YOUR_PPA'. Default: 'distro'"
-            },
             "client": {
               "type": "object",
               "additionalProperties": true,
+              "required": [
+                "account_name",
+                "computer_title"
+              ],
               "properties": {
                 "url": {
                   "type": "string",

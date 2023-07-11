@@ -1,6 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
-import re
 
 import pytest
 
@@ -64,10 +63,10 @@ class TestLandscape:
                 [
                     "landscape-config",
                     "--silent",
-                    '--data-path="/var/lib/landscape/client"',
-                    '--log-level="info"',
-                    '--ping-url="http://landscape.canonical.com/ping"',
-                    '--url="https://landscape.canonical.com/message-system"',
+                    "--data-path=/var/lib/landscape/client",
+                    "--log-level=info",
+                    "--ping-url=http://landscape.canonical.com/ping",
+                    "--url=https://landscape.canonical.com/message-system",
                 ]
             ),
             mock.call(["service", "landscape-client", "restart"]),
@@ -90,16 +89,13 @@ class TestLandscape:
         }
         expected_calls = [
             mock.call(
-                ["add-apt-repository", "ppa:landscape/self-hosted-beta"]
-            ),
-            mock.call(
                 [
                     "landscape-config",
                     "--silent",
-                    '--data-path="/var/lib/data"',
-                    '--log-level="info"',
-                    '--ping-url="http://landscape.canonical.com/ping"',
-                    '--url="https://landscape.canonical.com/message-system"',
+                    "--data-path=/var/lib/data",
+                    "--log-level=info",
+                    "--ping-url=http://landscape.canonical.com/ping",
+                    "--url=https://landscape.canonical.com/message-system",
                 ]
             ),
             mock.call(["service", "landscape-client", "restart"]),
@@ -139,10 +135,10 @@ class TestLandscape:
                     "landscape-config",
                     "--silent",
                     '--computer-title="My PC"',
-                    '--data-path="/var/lib/landscape/client"',
-                    '--log-level="info"',
-                    '--ping-url="http://landscape.canonical.com/ping"',
-                    '--url="https://landscape.canonical.com/message-system"',
+                    "--data-path=/var/lib/landscape/client",
+                    "--log-level=info",
+                    "--ping-url=http://landscape.canonical.com/ping",
+                    "--url=https://landscape.canonical.com/message-system",
                 ]
             ),
             mock.call(["service", "landscape-client", "restart"]),
@@ -171,17 +167,17 @@ class TestLandscape:
         default_fn = tmpdir.join("default")
         mycloud = get_cloud("ubuntu")
         mycloud.distro = mock.MagicMock()
-        cfg = {"landscape": {"client": {"computer_title": "My PC"}}}
+        cfg = {"landscape": {"client": {"computer_title": 'My" PC'}}}
         expected_calls = [
             mock.call(
                 [
                     "landscape-config",
                     "--silent",
-                    '--computer-title="My PC"',
-                    '--data-path="/var/lib/landscape/client"',
-                    '--log-level="info"',
-                    '--ping-url="http://landscape.canonical.com/ping"',
-                    '--url="https://landscape.canonical.com/message-system"',
+                    '--computer-title="My" PC"',
+                    "--data-path=/var/lib/landscape/client",
+                    "--log-level=info",
+                    "--ping-url=http://landscape.canonical.com/ping",
+                    "--url=https://landscape.canonical.com/message-system",
                 ]
             ),
             mock.call(["service", "landscape-client", "restart"]),
@@ -206,31 +202,61 @@ class TestLandscapeSchema:
         "config, error_msg",
         [
             # Allow undocumented keys client keys without error
-            ({"landscape": {"client": {"allow_additional_keys": 1}}}, None),
-            ({"landscape": {"install_source": "distro", "client": {}}}, None),
             (
                 {
                     "landscape": {
-                        "install_source": "ppa:something",
-                        "client": {},
+                        "client": {
+                            "computer_title": "joe",
+                            "account_name": "joe's acct",
+                            "allow_additional_keys": 1,
+                        }
                     }
                 },
                 None,
             ),
             (
-                {"landscape": {"install_source": "ppu:", "client": {}}},
-                re.escape(
-                    "schema errors: landscape.install_source: 'ppu:'"
-                    " does not match '^(distro|ppa:.+)$'"
-                ),
+                {
+                    "landscape": {
+                        "client": {
+                            "computer_title": "joe",
+                            "account_name": "joe's acct",
+                        }
+                    }
+                },
+                None,
             ),
             # tags are comma-delimited
-            ({"landscape": {"client": {"tags": "1,2,3"}}}, None),
-            ({"landscape": {"client": {"tags": "1"}}}, None),
             (
                 {
                     "landscape": {
-                        "client": {},
+                        "client": {
+                            "computer_title": "joe",
+                            "account_name": "joe's acct",
+                            "tags": "1,2,3",
+                        }
+                    }
+                },
+                None,
+            ),
+            (
+                {
+                    "landscape": {
+                        "client": {
+                            "computer_title": "joe",
+                            "account_name": "joe's acct",
+                            "client": {"tags": "1"},
+                        }
+                    }
+                },
+                None,
+            ),
+            (
+                {
+                    "landscape": {
+                        "client": {
+                            "computer_title": "joe",
+                            "account_name": "joe's acct",
+                        },
                         "random-config-value": {"tags": "1"},
                     }
                 },
@@ -238,6 +264,15 @@ class TestLandscapeSchema:
             ),
             # Require client key
             ({"landscape": {}}, "'client' is a required property"),
+            # Require client.account_name and client.computer_title
+            (
+                {"landscape": {"client": {"computer_title": "joe"}}},
+                "'account_name' is a required property",
+            ),
+            (
+                {"landscape": {"client": {"account_name": "joe's acct"}}},
+                "'computer_title' is a required property",
+            ),
             # tags are not whitespace-delimited
             (
                 {"landscape": {"client": {"tags": "1, 2,3"}}},

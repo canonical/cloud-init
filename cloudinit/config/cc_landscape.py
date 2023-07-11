@@ -9,6 +9,7 @@
 """install and configure landscape client"""
 
 import logging
+import re
 from textwrap import dedent
 
 from configobj import ConfigObj
@@ -70,7 +71,6 @@ meta: MetaSchema = {
             # To discover additional supported client keys, run
             # man landscape-config.
             landscape:
-                install_source: distro
                 client:
                     url: "https://landscape.canonical.com/message-system"
                     ping_url: "http://landscape.canonical.com/ping"
@@ -85,11 +85,25 @@ meta: MetaSchema = {
         ),
         dedent(
             """\
-            # Any keys below `client` are optional and the default values will
-            # be used.
+            # Minimum viable config requires account_name and computer_title
             landscape:
-                client: {}
+                client:
+                    computer_title: kiosk 1
+                    account_name: Joe's Biz
             """
+        ),
+        dedent(
+            """\
+           # To install landscape-client from a PPA, specify apt.sources
+           apt:
+               sources:
+                 trunk-testing-ppa:
+                   source: ppa:landscape/self-hosted-beta
+           landscape:
+               client:
+                 account_name: myaccount
+                 computer_title: himom
+           """
         ),
     ],
     "frequency": PER_INSTANCE,
@@ -118,20 +132,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         )
     if not ls_cloudcfg:
         return
-    install_src = ls_cloudcfg.pop("install_source", "distro")
-    if not any([install_src == "distro", install_src.startswith("ppa:")]):
-        raise RuntimeError(
-            "Invalid 'landscape.install_source' config value %s."
-            "Expected either 'distro' or 'ppa:*'."
-        )
-    if install_src.startswith("ppa:"):
-        try:
-            subp.subp(["add-apt-repository", install_src])
-        except Exception as e:
-            raise RuntimeError(
-                "Unable to add-apt-repository to install landscape-client: %s"
-                % e
-            ) from e
     cloud.distro.install_packages(("landscape-client",))
 
     # Later order config values override earlier values
@@ -140,10 +140,15 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         LSC_CLIENT_CFG_FILE,
         ls_cloudcfg,
     ]
-    cmd_params = [
-        f"--{k.replace('_', '-')}=\"{v}\""
-        for k, v in sorted(merge_together(merge_data)["client"].items())
-    ]
+    cmd_params = []
+    for k, v in sorted(merge_together(merge_data)["client"].items()):
+        if re.search(r"(\"|\s)", v):
+            cmd_params.append(
+                f"--{k.replace('_', '-')}=\"" + v.replace('"', '"') + '"'
+            )
+        else:
+            cmd_params.append(f"--{k.replace('_', '-')}={v}")
+
     subp.subp(["landscape-config", "--silent"] + cmd_params)
     util.write_file(LS_DEFAULT_FILE, "RUN=1\n")
     subp.subp(["service", "landscape-client", "restart"])
