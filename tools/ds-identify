@@ -814,7 +814,7 @@ dscheck_MAAS() {
 }
 
 # LXD datasource requires active /dev/lxd/sock
-# https://linuxcontainers.org/lxd/docs/master/dev-lxd
+# https://documentation.ubuntu.com/lxd/en/latest/dev-lxd/
 dscheck_LXD() {
     if is_socket_file /dev/lxd/sock; then
         return ${DS_FOUND}
