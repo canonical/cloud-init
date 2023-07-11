@@ -462,7 +462,7 @@ def maybe_cleanup_default(
     By removing any that lxd-init created, we simply leave the add/attach
     code intact.
 
-    https://github.com/lxc/lxd/issues/4649"""
+    https://github.com/canonical/lxd/issues/4649"""
     if net_name != _DEFAULT_NETWORK_NAME or not did_init:
         return
 
