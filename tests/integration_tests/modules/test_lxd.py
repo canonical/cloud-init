@@ -205,7 +205,7 @@ def validate_preseed_storage_pools(client, preseed_cfg):
 
 def validate_preseed_projects(client: IntegrationInstance, preseed_cfg):
     # Support for projects by lxd init --preseed was added in lxd 4.12
-    # https://discuss.linuxcontainers.org/t/lxd-4-12-has-been-released/10424#projects-now-supported-by-lxd-init-dump-and-preseed-9
+    # https://github.com/canonical/lxd/releases/tag/lxd-4.12
     if CURRENT_RELEASE.series in ("bionic", "focal"):
         return
     for src_project in preseed_cfg.get("projects", []):
@@ -219,12 +219,12 @@ def validate_preseed_projects(client: IntegrationInstance, preseed_cfg):
         )
         project.pop("used_by", None)
 
-        # `features.storage.buckets` was introduced in lxd 5.5 . More info:
-        # https://discuss.linuxcontainers.org/t/lxd-5-5-has-been-released/14899
+        # `features.storage.buckets` was introduced in lxd 5.5. More info:
+        # https://github.com/canonical/lxd/releases/tag/lxd-5.5
         if "features.storage.buckets" in project["config"]:
             assert "true" == project["config"].pop("features.storage.buckets")
         # `features.networks.zones` was introduced in lxd 5.9. More info:
-        # https://discuss.linuxcontainers.org/t/lxd-5-9-has-been-released/
+        # https://github.com/canonical/lxd/releases/tag/lxd-5.9
         if "features.networks.zones" in project["config"]:
             assert "true" == project["config"].pop("features.networks.zones")
         assert project == src_project
