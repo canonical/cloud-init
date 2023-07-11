@@ -32,7 +32,7 @@ import socket
 
 import serial
 
-from cloudinit import dmi
+from cloudinit import atomic_helper, dmi
 from cloudinit import log as logging
 from cloudinit import sources, subp, util
 from cloudinit.event import EventScope, EventType
@@ -419,7 +419,7 @@ class JoyentMetadataClient:
         if not frame_data.get("payload", None):
             LOG.debug("No value found.")
             return None
-        value = util.b64d(frame_data["payload"])
+        value = atomic_helper.b64d(frame_data["payload"])
         LOG.debug('Value "%s" found.', value)
         return value
 

@@ -165,7 +165,9 @@ class IntegrationInstance:
             "/etc/apt/sources.list.d/proposed.list"
         ).ok
         assert self.execute("apt-get update -q").ok
-        assert self.execute("apt-get install -qy cloud-init").ok
+        assert self.execute(
+            "apt-get install -qy cloud-init -t=$(lsb_release -sc)-proposed"
+        ).ok
 
     @retry(tries=30, delay=1)
     def install_ppa(self):

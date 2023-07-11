@@ -1,0 +1,578 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$defs": {
+    "anyOf_type_physical": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "name"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "physical"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "description": "Desired device name should be less than 15 characters. Any characters exceeding 15 will be truncated. This is a limitation of the Linux kernel network-device structure."
+        },
+        "mac_address": {
+          "type": "string",
+          "description": "The lowercase MAC address of the physical device."
+        },
+        "mtu": {
+          "type": "integer",
+          "description": "The MTU size in bytes. The ``mtu`` key represents a device's Maximum Transmission Unit, which is the largest size packet or frame, specified in octets (eight-bit bytes), that can be sent in a packet- or frame-based network. Specifying ``mtu`` is optional. Values too small or too large for a device may be ignored by that device."
+        },
+        "subnets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/config_type_subnet"
+          }
+        }
+      }
+    },
+    "anyOf_type_bond": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "name"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "bond"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "description": "Desired device name should be less than 15 characters. Any characters exceeding 15 will be truncated. This is a limitation of the Linux kernel network-device structure."
+        },
+        "mac_address": {
+          "type": "string",
+          "description": "When specifying MAC Address on a bond this value will be assigned to the bond device and may be different than the MAC address of any of the underlying bond interfaces. Specifying a MAC Address is optional. If ``mac_address`` is not present, then the bond will use one of the MAC Address values from one of the bond interfaces"
+        },
+        "bond_interfaces": {
+          "type": "array",
+          "description": "The list of network device ``name``s associated with this bond. This list may be empty.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "mtu": {
+          "type": "integer",
+          "description": "The MTU size in bytes. This ``mtu`` key represents a device's Maximum Transmission Unit, which is the largest size packet or frame, specified in octets (eight-bit bytes), that can be sent in a packet- or frame-based network. Specifying ``mtu`` is optional. Values too small or too large for a device may be ignored by that device."
+        },
+        "params": {
+          "desciption": "The ``params`` key in a bond holds a dictionary of bonding parameters. This dictionary may be empty. For more details on what the various bonding parameters mean please read the [Linux Kernel Bonding.txt](https://www.kernel.org/doc/Documentation/networking/bonding.txt).",
+          "additionalProperties": false,
+          "properties": {
+            "bond-active_slave": {
+              "type": "string",
+              "description": "Specifies active follower interface name for modes that support it (active-backup, balance-alb and balance-tlb)."
+            },
+            "bond-ad_actor_key": {
+              "type": "string"
+            },
+            "bond-ad_actor_sys_prio": {
+              "type": "integer",
+              "description": "In an AD system, set the system priority",
+              "default": 65535
+            },
+            "bond-ad_actor_system": {
+              "type": "string",
+              "description": "In an AD system, set the mac-address for the actor in protocol packet exchanges (LACPDUs)"
+            },
+            "bond-ad_aggregator": {
+              "type": "string"
+            },
+            "bond-ad_num_ports": {
+              "type": "integer"
+            },
+            "bond-ad_partner_key": {
+              "type": "string"
+            },
+            "bond-ad_partner_mac": {
+              "type": "string"
+            },
+            "bond-ad_select": {
+              "type": "string",
+              "description": "Specifies active follower interface name for modes that support it (active-backup, balance-alb and balance-tlb)."
+            },
+            "bond-ad_user_port_key": {
+              "type": "string"
+            },
+            "bond-all_slaves_active": {
+              "type": "string"
+            },
+            "bond-arp_all_targets": {
+              "type": "string"
+            },
+            "bond-arp_interval": {
+              "type": "integer"
+            },
+            "bond-arp_ip_target": {
+              "type": "string"
+            },
+            "bond-arp_validate": {
+              "type": "boolean"
+            },
+            "bond-downdelay": {
+              "type": "integer",
+              "description": "The time, in milliseconds, to wait before disabling a slave after a link failure has been detected. This option is only valid for the miimon link monitor and should be a multiple of ``bond-miimon` value."
+            },
+            "bond-fail_over_mac": {
+              "type": "string",
+              "description": "Whether active-backup mode should set all slaves to the same MAC address at enslavement. See: https://www.kernel.org/doc/Documentation/networking/bonding.txt"
+            },
+            "bond-lacp_rate": {
+              "type": "string",
+              "description": "The rate in which we'll ask our link partner to transmit LACPDU packets in 802.3ad mode."
+            },
+            "bond-lp_interval": {
+              "type": "integer",
+              "description": "The number of seconds between instances where the bonding driver sends learning packets to each slaves peer switch."
+            },
+            "bond-miimon": {
+              "type": "integer",
+              "description": "The MII link monitoring frequency in milliseconds. How often the link state is inspected for link failures.",
+              "default": 0
+            },
+            "bond-mii_status": {
+              "type": "string"
+            },
+            "bond-min_links": {
+              "type": "integer",
+              "description": "The minimum number of links that must be active before asserting carrier.",
+              "default": 0
+            },
+            "bond-mode": {
+              "type": "string",
+              "description": "Specifies one of the bonding policies.",
+              "default": "balance-rr",
+              "enum": [
+                "balance-rr",
+                "active-backup",
+                "balance-alb",
+                "balance-tcp",
+                "balance-tlb",
+                "balance-slb",
+                "balance-xor",
+                "broadcast",
+                "802.3ad"
+              ]
+            },
+            "bond-num_grat_arp": {
+              "type": "integer",
+              "description": "The number of gratuitous ARP peer notifications to issue after failover event. Delay between notifications is set by ``bond-peer_notif_delay``.",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "bond-num_unsol_na": {
+              "type": "integer",
+              "description": "The number of unsolicited IPv6 Neighbor Advertisements peer notifications to issue after failover event. Delay between notifications is set by ``bond-peer_notif_delay``.",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "bond-packets_per_slave": {
+              "type": "integer",
+              "description": "The number of packets to transmit through a slave before moving to the next one.",
+              "minimum": 0,
+              "maximum": 65535
+            },
+            "bond-peer_notif_delay": {
+              "type": "integer",
+              "description": "The delay, in milliseconds, between each peer notification (``bond-num_grat_arp`` and ``bond-num_unsol_na``) when they are issued after a failover event."
+            },
+            "bond-primary": {
+              "type": "string",
+              "description": "The interface name (eth0, eth2, etc) specifying which interface is the primary device."
+            },
+            "bond-primary_reselect": {
+              "type": "string",
+              "description": "The reselection policy for the primary slave. This affects how the primary slave is chosen to become the active slave when failure or recovery occurs.",
+              "enum": [
+                "always",
+                "better",
+                "failure"
+              ]
+            },
+            "bond-queue_id": {
+              "type": "string"
+            },
+            "bond-resend_igpm": {
+              "type": "string"
+            },
+            "bond-slaves": {
+              "type": "string"
+            },
+            "bond-tlb_dynamic_lb": {
+              "type": "string"
+            },
+            "bond-updelay": {
+              "type": "string"
+            },
+            "bond-use_carrier": {
+              "type": "string"
+            },
+            "bond-xmit_hash_policy": {
+              "type": "string"
+            }
+          }
+        },
+        "subnets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/config_type_subnet"
+          }
+        }
+      }
+    },
+    "anyOf_type_bridge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "name",
+        "bridge_interfaces",
+        "params"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "bridge"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the bridge device."
+        },
+        "bridge_interfaces": {
+          "type": "array",
+          "description": "Specify the ports of a bridge via their ``name``. This list may be empty.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Key value pairs of bridge params. For more details, please read the ``bridge-utils-interfaces`` manpage.",
+          "properties": {
+            "bridge_ageing": {
+              "type": "integer",
+              "description": "Set the bridge's ageing value."
+            },
+            "bridge_bridgeprio": {
+              "type": "integer",
+              "description": "Set the bridge's device network priority."
+            },
+            "bridge_fd": {
+              "type": "integer",
+              "description": "Set the bridge's forward delay."
+            },
+            "bridge_hello": {
+              "type": "integer",
+              "description": "Set the bridge's hello value."
+            },
+            "bridge_hw": {
+              "type": "string",
+              "description": "Set the bridge's MAC address."
+            },
+            "bridge_maxage": {
+              "type": "integer",
+              "description": "Set the bridge's max age value."
+            },
+            "bridge_maxwait": {
+              "type": "integer",
+              "description": "Set how long network scripts should wait for the bridge to be up."
+            },
+            "bridge_pathcost": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Set the cost of a specific port on the bridge. The format of each string will be a space-delmited device ``name`` followed by an integer cost for that port."
+            },
+            "bridge_portprio": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Set the priority of a specific port on the bridge. The format of each string will be a space-delmited device ``name`` followed by an integer priority for that port."
+            },
+            "bridge_ports": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "List of devices by ``name`` that are part of a bridge."
+            },
+            "bridge_stp": {
+              "type": "string",
+              "enum": [
+                "on",
+                "off"
+              ],
+              "description": "Set spanning tree protocol on or off"
+            },
+            "bridge_waitport": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Set the amount of time in seconds to wait on specific ports to become available. The format of each string will be a space-delmited device ``name`` followed by an integer wait in seconds for that port."
+            }
+          }
+        },
+        "subnets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/config_type_subnet"
+          }
+        }
+      }
+    },
+    "anyOf_type_vlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "name",
+        "vlan_link",
+        "vlan_id"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "vlan"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the VLAN."
+        },
+        "vlan_link": {
+          "type": "string",
+          "description": "Specify the underlying link via its ``name``."
+        },
+        "vlan_id": {
+          "type": "integer",
+          "description": "Specify VLAN numeric id."
+        },
+        "mtu": {
+          "type": "integer",
+          "description": "The MTU size in bytes. The ``mtu`` key represents a device's Maximum Transmission Unit, which is the largest size packet or frame, specified in octets (eight-bit bytes), that can be sent in a packet- or frame-based network. Specifying ``mtu`` is optional. Values too small or too large for a device may be ignored by that device."
+        },
+        "subnets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/config_type_subnet"
+          }
+        }
+      }
+    },
+    "anyOf_type_nameserver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "address",
+        "search"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "nameserver"
+          ]
+        },
+        "address": {
+          "description": "List of IPv4 or IPv6 address of nameservers.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "search": {
+          "description": "List of hostnames to include in the `resolv.conf` search path.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "interface": {
+          "type": "string",
+          "description": "Optional. Ties the nameserver definition to the specified interface. The value specified here must match the ``name`` of an interface defined in this config. If unspecified, this nameserver will be considered a global nameserver."
+        }
+      }
+    },
+    "anyOf_type_route": {
+      "type": "object",
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "network",
+            "gateway"
+          ]
+        },
+        {
+          "required": [
+            "destination",
+            "gateway"
+          ]
+        }
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "route"
+          ]
+        },
+        "network": {
+          "type": "string",
+          "description": "IPv4 network address with CIDR netmask notation or IPv6 with prefix length. Alias for ``destination`` and only read when ``destination`` key is absent.",
+          "deprecated": true,
+          "deprecated_version": "23.3",
+          "deprecated_description": "Use ``destination`` instead."
+        },
+        "destination": {
+          "type": "string",
+          "description": "IPv4 network address with CIDR netmask notation or IPv6 with prefix length. Alias for ``network`` and preferred above the ``network`` key."
+        },
+        "netmask": {
+          "type": "string",
+          "description": "IPv4 subnet mask in dotted format or CIDR notation"
+        },
+        "gateway": {
+          "type": "string",
+          "description": "IPv4 or IPv6 gateway address."
+        },
+        "metric": {
+          "type": "integer",
+          "description": "Integer which sets the network metric value for this route."
+        }
+      }
+    },
+    "config_type_subnet": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "dhcp4",
+            "dhcp",
+            "dhcp6",
+            "static",
+            "static6",
+            "ipv6_dhcpv6-stateful",
+            "ipv6_dhcpv6-stateless",
+            "ipv6_slaac"
+          ]
+        },
+        "control": {
+          "type": "string",
+          "description": "Indicate how the interface will be handled during boot",
+          "enum": [
+            "manual",
+            "auto",
+            "hotplug"
+          ]
+        },
+        "address": {
+          "type": "string",
+          "description": "IPv4 or IPv6 address. It may include CIDR netmask notation."
+        },
+        "netmask": {
+          "type": "string",
+          "description": "IPv4 subnet mask in dotted format or CIDR notation"
+        },
+        "gateway": {
+          "type": "string",
+          "description": "IPv4 address of the default gateway for this subnet."
+        },
+        "dns_nameservers": {
+          "type": "array",
+          "description": "List of IPv4 DNS server IPs to end up in :file:`resolve.conf`.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "dns_search": {
+          "type": "array",
+          "description": "Specify a list of search paths to be included in :file:`resolv.conf`.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "routes": {
+          "type": "array",
+          "description": "Specify a list of routes for a given interface.",
+          "items": {
+            "$ref": "#/$defs/anyOf_type_route"
+          }
+        }
+      }
+    },
+    "network_config_version1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "config",
+        "version"
+      ],
+      "properties": {
+        "version": {
+          "type": "integer",
+          "enum": [
+            1
+          ]
+        },
+        "config": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/anyOf_type_bond"
+              },
+              {
+                "$ref": "#/$defs/anyOf_type_bridge"
+              },
+              {
+                "$ref": "#/$defs/anyOf_type_physical"
+              },
+              {
+                "$ref": "#/$defs/anyOf_type_nameserver"
+              },
+              {
+                "$ref": "#/$defs/anyOf_type_route"
+              },
+              {
+                "$ref": "#/$defs/anyOf_type_vlan"
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "network"
+  ],
+  "properties": {
+    "network": {
+      "$ref": "#/$defs/network_config_version1"
+    }
+  },
+  "additionalProperties": false
+}

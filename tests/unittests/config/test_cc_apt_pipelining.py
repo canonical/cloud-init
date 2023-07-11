@@ -45,8 +45,9 @@ class TestAptPipelining:
             # Invalid schemas
             (
                 {"apt_pipelining": "bogus"},
-                "Cloud config schema errors: apt_pipelining: 'bogus' is not"
-                " valid under any of the given schema",
+                "Cloud config schema errors: apt_pipelining: 'bogus' is not of"
+                " type 'integer', apt_pipelining: 'bogus' is not valid under"
+                " any of the given schemas",
             ),
         ),
     )

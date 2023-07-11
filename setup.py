@@ -113,7 +113,10 @@ def render_tmpl(template, mode=None):
     topdir = os.path.dirname(sys.argv[0])
     tmpd = tempfile.mkdtemp(dir=topdir, prefix=RENDERED_TMPD_PREFIX)
     atexit.register(shutil.rmtree, tmpd)
-    bname = os.path.basename(template).rstrip(tmpl_ext)
+    bname = os.path.basename(template)
+    ename, ext = os.path.splitext(bname)
+    if ext == tmpl_ext:
+        bname = ename
     fpath = os.path.join(tmpd, bname)
     cmd_variant = []
     cmd_prefix = []
@@ -164,10 +167,14 @@ for a in sys.argv:
 INITSYS_FILES = {
     "sysvinit": [f for f in glob("sysvinit/redhat/*") if is_f(f)],
     "sysvinit_freebsd": [
-        render_tmpl(f) for f in glob("sysvinit/freebsd/*") if is_f(f)
+        render_tmpl(f, mode=0o755)
+        for f in glob("sysvinit/freebsd/*")
+        if is_f(f)
     ],
     "sysvinit_netbsd": [
-        render_tmpl(f) for f in glob("sysvinit/netbsd/*") if is_f(f)
+        render_tmpl(f, mode=0o755)
+        for f in glob("sysvinit/netbsd/*")
+        if is_f(f)
     ],
     "sysvinit_deb": [f for f in glob("sysvinit/debian/*") if is_f(f)],
     "sysvinit_openrc": [f for f in glob("sysvinit/gentoo/*") if is_f(f)],

@@ -5,12 +5,21 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import json
 import os
 import sys
 from collections import namedtuple
 from typing import Dict, Iterable, List, Optional, Set
 
-from cloudinit import cloud, distros, handlers, helpers, importer
+from cloudinit import (
+    atomic_helper,
+    cloud,
+    distros,
+    features,
+    handlers,
+    helpers,
+    importer,
+)
 from cloudinit import log as logging
 from cloudinit import net, sources, type_utils, util
 from cloudinit.event import EventScope, EventType, userdata_to_events
@@ -37,6 +46,14 @@ from cloudinit.sources import NetworkConfigSource
 LOG = logging.getLogger(__name__)
 
 NO_PREVIOUS_INSTANCE_ID = "NO_PREVIOUS_INSTANCE_ID"
+
+
+COMBINED_CLOUD_CONFIG_DOC = (
+    "Aggregated cloud-config created by merging merged_system_cfg"
+    " (/etc/cloud/cloud.cfg and /etc/cloud/cloud.cfg.d), metadata,"
+    " vendordata and userdata. The combined_cloud_config represents"
+    " the aggregated desired configuration acted upon by cloud-init."
+)
 
 
 def update_event_enabled(
@@ -500,7 +517,7 @@ class Init:
             )
         # This data may be a list, convert it to a string if so
         if isinstance(data, list):
-            data = util.json_dumps(data)
+            data = atomic_helper.json_dumps(data)
         self._store_rawdata(data, datasource)
 
     def _store_processeddata(self, processed_data, datasource):
@@ -708,6 +725,46 @@ class Init:
         # references to the previous config, distro, paths
         # objects before the load of the userdata happened,
         # this is expected.
+        combined_cloud_cfg = copy.deepcopy(self.cfg)
+        combined_cloud_cfg["_doc"] = COMBINED_CLOUD_CONFIG_DOC
+        # Persist system_info key from /etc/cloud/cloud.cfg in both
+        # combined_cloud_config file and instance-data-sensitive.json's
+        # merged_system_cfg key.
+        combined_cloud_cfg["system_info"] = self._extract_cfg("system")
+        # Add features information to allow for file-based discovery of
+        # feature settings.
+        combined_cloud_cfg["features"] = features.get_features()
+        atomic_helper.write_json(
+            self.paths.get_runpath("combined_cloud_config"),
+            combined_cloud_cfg,
+            mode=0o600,
+        )
+        json_sensitive_file = self.paths.get_runpath("instance_data_sensitive")
+        try:
+            instance_json = util.load_json(util.load_file(json_sensitive_file))
+        except (OSError, IOError) as e:
+            LOG.warning(
+                "Skipping write of system_info/features to %s."
+                " Unable to read file: %s",
+                json_sensitive_file,
+                e,
+            )
+            return
+        except (json.JSONDecodeError, TypeError) as e:
+            LOG.warning(
+                "Skipping write of system_info/features to %s."
+                " Invalid JSON found: %s",
+                json_sensitive_file,
+                e,
+            )
+            return
+        instance_json["system_info"] = combined_cloud_cfg["system_info"]
+        instance_json["features"] = combined_cloud_cfg["features"]
+        atomic_helper.write_json(
+            json_sensitive_file,
+            instance_json,
+            mode=0o600,
+        )
 
     def _consume_vendordata(self, vendor_source, frequency=PER_INSTANCE):
         """

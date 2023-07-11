@@ -38,7 +38,6 @@ Conflicts=shutdown.target
 Before=shutdown.target
 Conflicts=shutdown.target
 {% endif %}
-Before=systemd-user-sessions.service
 {% if variant == "rhel" %}
 ConditionPathExists=!/etc/cloud/cloud-init.disabled
 ConditionKernelCommandLine=!cloud-init=disabled

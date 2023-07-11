@@ -8,6 +8,7 @@ from typing import Optional, Type
 
 from cloudinit import handlers
 from cloudinit import log as logging
+from cloudinit.atomic_helper import b64d, json_dumps
 from cloudinit.helpers import Paths
 from cloudinit.settings import PER_ALWAYS
 from cloudinit.templater import (
@@ -15,7 +16,7 @@ from cloudinit.templater import (
     detect_template,
     render_string,
 )
-from cloudinit.util import b64d, json_dumps, load_file, load_json
+from cloudinit.util import load_file, load_json
 
 JUndefinedError: Type[Exception]
 try:

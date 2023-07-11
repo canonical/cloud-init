@@ -4,7 +4,7 @@ import calendar
 import sys
 from datetime import datetime
 
-from cloudinit import subp, util
+from cloudinit import atomic_helper, subp
 
 stage_to_description = {
     "finished": "finished running cloud-init",
@@ -174,7 +174,7 @@ def main():
     else:
         cisource = sys.stdin
 
-    return util.json_dumps(dump_events(cisource))
+    return atomic_helper.json_dumps(dump_events(cisource))
 
 
 if __name__ == "__main__":
