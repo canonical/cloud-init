@@ -9,7 +9,7 @@
 """install and configure landscape client"""
 
 import logging
-import re
+from itertools import chain
 from textwrap import dedent
 
 from configobj import ConfigObj
@@ -140,18 +140,20 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         LSC_CLIENT_CFG_FILE,
         ls_cloudcfg,
     ]
-    cmd_params = []
-    for k, v in sorted(merge_together(merge_data)["client"].items()):
-        if re.search(r"(\"|\s)", v):
-            cmd_params.append(
-                f"--{k.replace('_', '-')}=\"" + v.replace('"', '"') + '"'
-            )
-        else:
-            cmd_params.append(f"--{k.replace('_', '-')}={v}")
-
+    # Flatten dict k,v pairs to [--KEY1, VAL1, --KEY2, VAL2, ...]
+    cmd_params = list(
+        chain(
+            *[
+                [f"--{k.replace('_', '-')}", v]
+                for k, v in sorted(
+                    merge_together(merge_data)["client"].items()
+                )
+            ]
+        )
+    )
     subp.subp(["landscape-config", "--silent"] + cmd_params)
     util.write_file(LS_DEFAULT_FILE, "RUN=1\n")
-    subp.subp(["service", "landscape-client", "restart"])
+    cloud.distro.manage_service("restart", "landscape-client")
 
 
 def merge_together(objs):
