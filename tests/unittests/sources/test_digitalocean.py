@@ -187,12 +187,16 @@ class TestDataSourceDigitalOcean(CiTestCase):
                 mock.call(
                     deprecated="DataSourceDigitalOcean",
                     deprecated_version="23.2",
-                    extra_message="Deprecated in favour of DataSourceConfigDrive.",
+                    extra_message=(
+                        "Deprecated in favour of DataSourceConfigDrive."
+                    ),
                 ),
                 mock.call(
                     deprecated="DataSourceDigitalOcean",
                     deprecated_version="23.2",
-                    extra_message="Deprecated in favour of DataSourceConfigDrive.",
+                    extra_message=(
+                        "Deprecated in favour of DataSourceConfigDrive."
+                    ),
                 ),
             ]
         )
