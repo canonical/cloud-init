@@ -7,11 +7,23 @@ Any imports that are performed at the top-level here must be installed wherever
 any of these tests run: that is to say, they must be listed in
 ``integration-requirements.txt`` and in ``test-requirements.txt``.
 """
+# If we don't import this early, lru_cache may get applied before we have the
+# chance to patch. This is also too early for the pytest-antilru plugin
+# to work.
+from tests.unittests.early_patches import get_cached_functions  # noqa: E402
 from unittest import mock
 
 import pytest
 
 from cloudinit import helpers, subp, util
+
+
+@pytest.fixture(autouse=True, scope="function")
+def cleanup_lru_cache():
+    yield
+
+    for func in get_cached_functions():
+        func.cache_clear()
 
 
 class _FixtureUtils:
