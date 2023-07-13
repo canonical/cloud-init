@@ -182,11 +182,11 @@ class SchemaValidationError(ValueError):
 
         self.schema_errors = handle_problems(
             schema_errors,
-            prefix=f"Cloud config schema errors: ",
+            prefix="Cloud config schema errors: ",
         )
         self.schema_deprecations = handle_problems(
             schema_deprecations,
-            prefix=f"Cloud config schema deprecations: ",
+            prefix="Cloud config schema deprecations: ",
         )
         super().__init__(message)
 
@@ -485,7 +485,7 @@ def validate_cloudconfig_metaschema(validator, schema: dict, throw=True):
                 ]
             ) from err
         LOG.warning(
-            f"""Meta-schema validation failed, attempting to validate config 
+            """Meta-schema validation failed, attempting to validate config 
             anyway: {err}"""
         )
 
