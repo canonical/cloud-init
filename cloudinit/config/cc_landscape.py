@@ -153,7 +153,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     )
     subp.subp(["landscape-config", "--silent"] + cmd_params)
     util.write_file(LS_DEFAULT_FILE, "RUN=1\n")
-    cloud.distro.manage_service("restart", "landscape-client")
 
 
 def merge_together(objs):

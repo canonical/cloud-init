@@ -24,7 +24,6 @@ class TestLandscape:
         cfg = {"landscape": {}}
         cc_landscape.handle("notimportant", cfg, mycloud, None)
         assert mycloud.distro.install_packages.called is False
-        assert mycloud.distro.manage_service.called is False
 
     def test_handler_error_on_invalid_landscape_type(self, m_subp):
         """Raise an error when landscape configuraiton option is invalid."""
@@ -75,9 +74,6 @@ class TestLandscape:
                 ]
             ),
         ] == m_subp.call_args_list
-        mycloud.distro.manage_service.assert_called_once_with(
-            "restart", "landscape-client"
-        )
 
     def test_handler_installs_client_from_ppa_and_supports_overrides(
         self, m_subp, tmpdir
@@ -126,9 +122,6 @@ class TestLandscape:
             ("landscape-client",)
         )
         assert expected_calls == m_subp.call_args_list
-        mycloud.distro.manage_service.assert_called_once_with(
-            "restart", "landscape-client"
-        )
         assert "RUN=1\n" == default_fn.read()
 
     def test_handler_writes_merged_client_config_file_with_defaults(
@@ -173,9 +166,6 @@ class TestLandscape:
             None,
         )
         assert expected_calls == m_subp.call_args_list
-        mycloud.distro.manage_service.assert_called_once_with(
-            "restart", "landscape-client"
-        )
 
     def test_handler_writes_merged_provided_cloudconfig_with_defaults(
         self, m_subp, tmpdir
@@ -219,9 +209,6 @@ class TestLandscape:
             None,
         )
         assert expected_calls == m_subp.call_args_list
-        mycloud.distro.manage_service.assert_called_once_with(
-            "restart", "landscape-client"
-        )
 
 
 class TestLandscapeSchema:
