@@ -3137,3 +3137,25 @@ class TestComparePermissions:
     )
     def test_compare_permissions(self, perm1, perm2, expected):
         assert util.compare_permission(perm1, perm2) == expected
+
+
+class TestMaybeB64Decode:
+    """Test the maybe_b64decode helper function."""
+
+    @pytest.mark.parametrize("invalid_input", (str("not bytes"), int(4)))
+    def test_raises_error_on_non_bytes(self, invalid_input):
+        """maybe_b64decode should raise error if data is not bytes."""
+        with pytest.raises(TypeError):
+            util.maybe_b64decode(invalid_input)
+
+    @pytest.mark.parametrize(
+        "in_data,expected",
+        [
+            # If data is not b64 encoded, then return value should be the same.
+            (b"this is my data", b"this is my data"),
+            # If data is b64 encoded, then return value should be decoded.
+            (base64.b64encode(b"data"), b"data"),
+        ],
+    )
+    def test_happy_path(self, in_data, expected):
+        assert expected == util.maybe_b64decode(in_data)
