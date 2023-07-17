@@ -832,6 +832,21 @@ class TestDsIdentify(DsIdentifyBase):
             cust64, RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
         )
 
+    def test_vmware_on_vmware_open_vm_tools_i386_linux_gnu(self):
+        """VMware is identified when open-vm-tools installed in
+        /usr/lib/i386-linux-gnu."""
+        cust64 = copy.deepcopy(VALID_CFG["VMware-vmware-customization"])
+        p32 = "usr/lib/vmware-tools/plugins/vmsvc/libdeployPkgPlugin.so"
+        i386 = (
+            "usr/lib/i386-linux-gnu/open-vm-tools/plugins/vmsvc/"
+            "libdeployPkgPlugin.so"
+        )
+        cust64["files"][i386] = cust64["files"][p32]
+        del cust64["files"][p32]
+        return self._check_via_dict(
+            cust64, RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
+        )
+
     def test_vmware_envvar_no_data(self):
         """VMware: envvar transport no data"""
         self._test_ds_not_found("VMware-EnvVar-NoData")

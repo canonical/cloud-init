@@ -931,14 +931,16 @@ vmware_guest_customization() {
 
     # we have to have the plugin to do vmware customization
     local found="" pkg="" pre="${PATH_ROOT}/usr/lib"
-    local x86="x86_64-linux-gnu" aarch="aarch64-linux-gnu"
+    local x86="x86_64-linux-gnu" aarch="aarch64-linux-gnu" i386="i386-linux-gnu"
     local ppath="plugins/vmsvc/libdeployPkgPlugin.so"
     for pkg in vmware-tools open-vm-tools; do
         if [ -f "$pre/$pkg/$ppath" -o -f "${pre}64/$pkg/$ppath" ]; then
             found="$pkg"; break;
         fi
         # search in multiarch dir
-        if [ -f "$pre/$x86/$pkg/$ppath" -o -f "$pre/$aarch/$pkg/$ppath" ]; then
+        if [ -f "$pre/$x86/$pkg/$ppath" ] || \
+           [ -f "$pre/$aarch/$pkg/$ppath" ] || \
+           [ -f "$pre/$i386/$pkg/$ppath" ]; then
             found="$pkg"; break;
         fi
     done
