@@ -216,6 +216,13 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     bridge_cfg = lxd_cfg.get("bridge", {})
     supplemental_schema_validation(init_cfg, bridge_cfg, preseed_str)
 
+    if not subp.which("lxd"):
+        try:
+            subp.subp(["snap", "install", "lxd"])
+        except subp.ProcessExecutionError as e:
+            raise RuntimeError(
+                "Failed to install lxd from snap: %s" % e
+            ) from e
     packages = get_required_packages(init_cfg, preseed_str)
     if len(packages):
         try:
@@ -496,9 +503,6 @@ def maybe_cleanup_default(
 def get_required_packages(init_cfg: dict, preseed_str: str) -> List[str]:
     """identify required packages for install"""
     packages = []
-    if not subp.which("lxd"):
-        packages.append("lxd")
-
     # binary for pool creation must be available for the requested backend:
     # zfs, lvcreate, mkfs.btrfs
     storage_drivers: List[str] = []

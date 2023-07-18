@@ -689,6 +689,7 @@ class TestCloudConfigExamples:
         schema["additionalProperties"] = False
         # Some module examples reference keys defined in multiple schemas
         supplemental_schemas = {
+            "cc_landscape": ["cc_apt_configure"],
             "cc_ubuntu_advantage": ["cc_power_state_change"],
             "cc_update_hostname": ["cc_set_hostname"],
             "cc_users_groups": ["cc_ssh_import_id"],

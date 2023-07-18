@@ -1483,6 +1483,10 @@
             "client": {
               "type": "object",
               "additionalProperties": true,
+              "required": [
+                "account_name",
+                "computer_title"
+              ],
               "properties": {
                 "url": {
                   "type": "string",

@@ -9,8 +9,7 @@
 """install and configure landscape client"""
 
 import logging
-import os
-from io import BytesIO
+from itertools import chain
 from textwrap import dedent
 
 from configobj import ConfigObj
@@ -86,11 +85,25 @@ meta: MetaSchema = {
         ),
         dedent(
             """\
-            # Any keys below `client` are optional and the default values will
-            # be used.
+            # Minimum viable config requires account_name and computer_title
             landscape:
-                client: {}
+                client:
+                    computer_title: kiosk 1
+                    account_name: Joe's Biz
             """
+        ),
+        dedent(
+            """\
+           # To install landscape-client from a PPA, specify apt.sources
+           apt:
+               sources:
+                 trunk-testing-ppa:
+                   source: ppa:landscape/self-hosted-beta
+           landscape:
+               client:
+                 account_name: myaccount
+                 computer_title: himom
+           """
         ),
     ],
     "frequency": PER_INSTANCE,
@@ -119,7 +132,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         )
     if not ls_cloudcfg:
         return
-
     cloud.distro.install_packages(("landscape-client",))
 
     # Later order config values override earlier values
@@ -128,16 +140,19 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         LSC_CLIENT_CFG_FILE,
         ls_cloudcfg,
     ]
-    merged = merge_together(merge_data)
-    contents = BytesIO()
-    merged.write(contents)
-
-    util.ensure_dir(os.path.dirname(LSC_CLIENT_CFG_FILE))
-    util.write_file(LSC_CLIENT_CFG_FILE, contents.getvalue())
-    LOG.debug("Wrote landscape config file to %s", LSC_CLIENT_CFG_FILE)
-
+    # Flatten dict k,v pairs to [--KEY1, VAL1, --KEY2, VAL2, ...]
+    cmd_params = list(
+        chain(
+            *[
+                [f"--{k.replace('_', '-')}", v]
+                for k, v in sorted(
+                    merge_together(merge_data)["client"].items()
+                )
+            ]
+        )
+    )
+    subp.subp(["landscape-config", "--silent"] + cmd_params)
     util.write_file(LS_DEFAULT_FILE, "RUN=1\n")
-    subp.subp(["service", "landscape-client", "restart"])
 
 
 def merge_together(objs):
