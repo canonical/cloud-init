@@ -348,7 +348,7 @@ On an Ubuntu system, :file:`/etc/cloud/cloud.cfg` should look similar to:
         name: ubuntu
         lock_passwd: True
         gecos: Ubuntu
-        groups: [adm, audio, cdrom, dialout, dip, floppy, lxd, netdev, plugdev, sudo, video]
+        groups: [adm, cdrom, dip, lxd, sudo]
         sudo: ["ALL=(ALL) NOPASSWD:ALL"]
         shell: /bin/bash
       network:
