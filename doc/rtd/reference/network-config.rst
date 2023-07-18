@@ -316,7 +316,7 @@ Example output:
    USERCTL=no
 
 
-.. _LXD: https://linuxcontainers.org/lxd/docs/master/cloud-init/#custom-network-configuration
+.. _LXD: https://documentation.ubuntu.com/lxd/en/latest/cloud-init/#how-to-specify-network-configuration-data
 .. _NetworkManager: https://networkmanager.dev
 .. _Netplan: https://netplan.io/
 .. _DigitalOcean JSON metadata: https://developers.digitalocean.com/documentation/metadata/
