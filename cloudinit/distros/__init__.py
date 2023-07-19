@@ -112,14 +112,18 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     resolve_conf_fn = "/etc/resolv.conf"
 
     osfamily: str
-    dhcp_client_priority = [dhcp.IscDhclient, dhcp.Dhcpcd]
+    dhcp_client_priority = [dhcp.IscDhclient, dhcp.Dhcpcd, dhcp.Udhcpc]
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
         self._cfg = cfg
         self.name = name
         self.networking: Networking = self.networking_cls()
-        self.dhcp_client_priority = [dhcp.IscDhclient, dhcp.Dhcpcd]
+        self.dhcp_client_priority = [
+            dhcp.IscDhclient,
+            dhcp.Dhcpcd,
+            dhcp.Udhcpc,
+        ]
         self.net_ops = iproute2.Iproute2
 
     def _unpickle(self, ci_pkl_version: int) -> None:
