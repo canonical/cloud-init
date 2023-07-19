@@ -188,7 +188,9 @@ class IntegrationInstance:
             local_path=integration_settings.CLOUD_INIT_SOURCE,
             remote_path=remote_path,
         )
-        assert self.execute("dpkg -i {path}".format(path=remote_path)).ok
+        assert self.execute(
+            "apt install -y --allow-downgrades {path}".format(path=remote_path)
+        ).ok
 
     @retry(tries=30, delay=1)
     def upgrade_cloud_init(self):
