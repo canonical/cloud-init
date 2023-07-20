@@ -860,6 +860,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         content += "\n"  # trailing newline
 
         self.ensure_sudo_dir(os.path.dirname(sudo_file))
+
         if not os.path.exists(sudo_file):
             contents = [
                 util.make_header(),
@@ -871,11 +872,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 util.logexc(LOG, "Failed to write sudoers file %s", sudo_file)
                 raise e
         else:
-            try:
-                util.append_file(sudo_file, content)
-            except IOError as e:
-                util.logexc(LOG, "Failed to append sudoers file %s", sudo_file)
-                raise e
+            if content not in util.load_file(sudo_file):
+                try:
+                    util.append_file(sudo_file, content)
+                except IOError as e:
+                    util.logexc(
+                        LOG, "Failed to append to sudoers file %s", sudo_file
+                    )
+                    raise e
 
     def create_group(self, name, members=None):
         group_add_cmd = ["groupadd", name]

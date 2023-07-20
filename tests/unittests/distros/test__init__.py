@@ -111,6 +111,36 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         ]
         self.assertEqual(0, self._count_in(not_expected, contents))
 
+    def test_sudoers_ensure_handle_duplicates(self):
+        rules = [
+            "ALL=(ALL:ALL) ALL",
+            "B-ALL=(ALL:ALL) ALL",
+            "C-ALL=(ALL:ALL) ALL",
+        ]
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        os.makedirs(os.path.join(self.tmp, "etc"))
+        os.makedirs(os.path.join(self.tmp, "etc", "sudoers.d"))
+        self.patchOS(self.tmp)
+        self.patchUtils(self.tmp)
+        d.write_sudo_rules("harlowja", rules)
+        # do it again - should not create duplicate rules for same user
+        d.write_sudo_rules("harlowja", rules)
+        contents = util.load_file(d.ci_sudoers_fn)
+        expected = [
+            "harlowja ALL=(ALL:ALL) ALL",
+            "harlowja B-ALL=(ALL:ALL) ALL",
+            "harlowja C-ALL=(ALL:ALL) ALL",
+        ]
+        # if duplicates handled properly, there should be only 3 matching rules, not 6
+        self.assertEqual(len(expected), self._count_in(expected, contents))
+        not_expected = [
+            "harlowja A",
+            "harlowja L",
+            "harlowja L",
+        ]
+        self.assertEqual(0, self._count_in(not_expected, contents))
+
     def test_sudoers_ensure_new(self):
         cls = distros.fetch("ubuntu")
         d = cls("ubuntu", {}, None)
