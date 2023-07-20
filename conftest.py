@@ -10,7 +10,10 @@ any of these tests run: that is to say, they must be listed in
 # If we don't import this early, lru_cache may get applied before we have the
 # chance to patch. This is also too early for the pytest-antilru plugin
 # to work.
+# isort: off
 from tests.unittests.early_patches import get_cached_functions  # noqa: E402
+
+# isort: on
 from unittest import mock
 
 import pytest
