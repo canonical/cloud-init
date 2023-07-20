@@ -1,3 +1,11 @@
+cloud-init (23.2-0ubuntu0~22.04.1ubuntu2) UNRELEASED; urgency=medium
+
+  * d/patches/retain-old-groups.patch:
+    - Retain original groups in default group for ubuntu.
+      Mantic removed unneeded groups.
+
+ -- Brett Holman <brett.holman@canonical.com>  Thu, 20 Jul 2023 15:07:36 -0600
+
 cloud-init (23.2-0ubuntu0~22.04.1) jammy; urgency=medium
 
   * d/control: Remove pep8 dependency. It is no longer used.
