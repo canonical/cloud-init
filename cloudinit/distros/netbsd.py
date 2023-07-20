@@ -2,9 +2,10 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import crypt
 import os
 import platform
+
+from passlib.hash import bcrypt
 
 import cloudinit.distros.bsd
 from cloudinit import log as logging
@@ -90,8 +91,7 @@ class NetBSD(cloudinit.distros.bsd.BSD):
         if hashed:
             hashed_pw = passwd
         else:
-            method = crypt.METHOD_BLOWFISH  # pylint: disable=E1101
-            hashed_pw = crypt.crypt(passwd, crypt.mksalt(method))
+            hashed_pw = bcrypt.hash(passwd)
 
         try:
             subp.subp(["usermod", "-p", hashed_pw, user])

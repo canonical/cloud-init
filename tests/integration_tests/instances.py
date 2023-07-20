@@ -188,6 +188,7 @@ class IntegrationInstance:
             local_path=integration_settings.CLOUD_INIT_SOURCE,
             remote_path=remote_path,
         )
+        assert self.execute("apt-get install -qy python3-passlib").ok
         assert self.execute("dpkg -i {path}".format(path=remote_path)).ok
 
     @retry(tries=30, delay=1)
