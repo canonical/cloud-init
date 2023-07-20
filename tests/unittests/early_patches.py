@@ -7,7 +7,12 @@ cached_functions = []
 def wrapped_lru_cache(*args, **kwargs):
     def wrapper(func):
         new_func = old_lru_cache(*args, **kwargs)(func)
-        cached_functions.append(new_func)
+
+        # Without this check, we'll also store stdlib functions with @lru_cache
+        if "cloudinit" in func.__module__:
+            # Imports only happen once, so we don't need to worry about
+            # duplicates here
+            cached_functions.append(new_func)
         return new_func
 
     return wrapper
