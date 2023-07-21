@@ -13,3 +13,4 @@ pytest-mock
 setuptools
 jsonschema
 responses
+passlib
