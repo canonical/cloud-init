@@ -66,7 +66,7 @@ def override_kernel_cmdline(ds_str: str, c: IntegrationInstance) -> str:
     "ds_str, configured",
     (
         (
-            "ds=nocloud;s=http://my-url/",
+            "ds=nocloud;s=http://my-url/;h=hostname",
             "DataSourceNoCloud [seed=None][dsmode=net]",
         ),
         ("ci.ds=openstack", "DataSourceOpenStack"),
