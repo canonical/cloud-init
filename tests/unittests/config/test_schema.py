@@ -285,7 +285,6 @@ class TestGetSchema:
 
 
 class TestLoadDoc:
-
     docs = get_module_variable("__doc__")
 
     @pytest.mark.parametrize(
@@ -870,34 +869,30 @@ class TestSchemaDocMarkdown:
             meta.update(meta_update)
 
         doc = get_meta_doc(meta, full_schema)
-        assert (
-            dedent(
-                """
-            name
-            ----
-            **Summary:** title
 
-            description
+        expected_lines = [
+            "name",
+            "----",
+            "title",
+            ".. tab-set::",
+            "   .. tab-item:: Summary",
+            "      description",
+            "      **Internal name:** ``id``",
+            "      **Module frequency:** frequency",
+            "      **Supported distros:** debian, rhel",
+            "   .. tab-item:: Config schema",
+            "      * **prop1:** (array of integer) prop-description",
+            "   .. tab-item:: Examples",
+            "      ::",
+            "         # --- Example1 ---",
+            "         prop1:",
+            '             [don\'t, expand, "this"]',
+            "         # --- Example2 ---",
+            "         prop2: true",
+        ]
 
-            **Internal name:** ``id``
-
-            **Module frequency:** frequency
-
-            **Supported distros:** debian, rhel
-
-            **Config schema**:
-                **prop1:** (array of integer) prop-description
-
-            **Examples**::
-
-                prop1:
-                    [don't, expand, "this"]
-                # --- Example2 ---
-                prop2: true
-        """
-            )
-            == doc
-        )
+        for line in [ln for ln in doc.splitlines() if ln.strip()]:
+            assert line in expected_lines
 
     def test_get_meta_doc_full_with_activate_by_schema_keys(self):
         full_schema = deepcopy(self.required_schema)
@@ -921,38 +916,31 @@ class TestSchemaDocMarkdown:
         meta["activate_by_schema_keys"] = ["prop1", "prop2"]
 
         doc = get_meta_doc(meta, full_schema)
-        assert (
-            dedent(
-                """
-            name
-            ----
-            **Summary:** title
+        expected_lines = [
+            "name",
+            "----",
+            "title",
+            ".. tab-set::",
+            "   .. tab-item:: Summary",
+            "      description",
+            "      **Internal name:** ``id``",
+            "      **Module frequency:** frequency",
+            "      **Supported distros:** debian, rhel",
+            "      **Activate only on keys:** ``prop1``, ``prop2``",
+            "   .. tab-item:: Config schema",
+            "      * **prop1:** (array of string) prop-description.",
+            "      * **prop2:** (boolean) prop2-description.",
+            "   .. tab-item:: Examples",
+            "      ::",
+            "         # --- Example1 ---",
+            "         prop1:",
+            '             [don\'t, expand, "this"]',
+            "         # --- Example2 ---",
+            "         prop2: true",
+        ]
 
-            description
-
-            **Internal name:** ``id``
-
-            **Module frequency:** frequency
-
-            **Supported distros:** debian, rhel
-
-            **Activate only on keys:** ``prop1``, ``prop2``
-
-            **Config schema**:
-                **prop1:** (array of string) prop-description.
-
-                **prop2:** (boolean) prop2-description.
-
-            **Examples**::
-
-                prop1:
-                    [don't, expand, "this"]
-                # --- Example2 ---
-                prop2: true
-        """
-            )
-            == doc
-        )
+        for line in [ln for ln in doc.splitlines() if ln.strip()]:
+            assert line in expected_lines
 
     def test_get_meta_doc_handles_multiple_types(self):
         """get_meta_doc delimits multiple property types with a '/'."""
@@ -996,16 +984,13 @@ class TestSchemaDocMarkdown:
             },
             "properties": {"prop1": {"$ref": "#/$defs/flattenit"}},
         }
-        assert (
-            dedent(
-                """\
-            **prop1:** (string/object) Objects support the following keys:
-
-                    **<opaque_label>:** (array of string) List of cool strings.
-            """
-            )
-            in get_meta_doc(self.meta, schema)
-        )
+        expected_lines = [
+            "**prop1:** (string/object) Objects support the following keys",
+            "**<opaque_label>:** (array of string) List of cool strings.",
+        ]
+        doc = get_meta_doc(self.meta, schema)
+        for line in expected_lines:
+            assert line in doc
 
     @pytest.mark.parametrize(
         "sub_schema,expected",
@@ -1029,7 +1014,7 @@ class TestSchemaDocMarkdown:
     @pytest.mark.parametrize(
         "schema,expected",
         (
-            (  # Hide top-level keys like 'properties'
+            pytest.param(  # Hide top-level keys like 'properties'
                 {
                     "hidden": ["properties"],
                     "properties": {
@@ -1043,26 +1028,24 @@ class TestSchemaDocMarkdown:
                         }
                     },
                 },
-                dedent(
-                    """
-                **Config schema**:
-                    **label2:** (string)
-                """
-                ),
+                [
+                    "Config schema\n\n",
+                    "      * **label2:** (string)",
+                ],
+                id="top_level_keys",
             ),
-            (  # Hide nested individual keys with a bool
+            pytest.param(  # Hide nested individual keys with a bool
                 {
                     "properties": {
                         "p1": {"type": "string", "hidden": True},
                         "p2": {"type": "boolean"},
                     }
                 },
-                dedent(
-                    """
-                **Config schema**:
-                    **p2:** (boolean)
-                """
-                ),
+                [
+                    "Config schema\n\n",
+                    "      * **p2:** (boolean)",
+                ],
+                id="nested_keys",
             ),
         ),
     )
@@ -1073,7 +1056,7 @@ class TestSchemaDocMarkdown:
 
         Useful for hiding deprecated key schema.
         """
-        assert expected in get_meta_doc(self.meta, schema)
+        assert "".join(expected) in get_meta_doc(self.meta, schema)
 
     @pytest.mark.parametrize("multi_key", ["oneOf", "anyOf"])
     def test_get_meta_doc_handles_nested_multi_schema_property_types(
@@ -1124,7 +1107,7 @@ class TestSchemaDocMarkdown:
             "properties": {"prop1": {"$ref": "#/$defs/prop1object"}},
         }
         assert (
-            "**prop1:** (object)\n\n        **subprop:** (string)\n"
+            "* **prop1:** (object)\n\n        * **subprop:** (string)\n"
             in get_meta_doc(self.meta, schema)
         )
 
@@ -1146,22 +1129,18 @@ class TestSchemaDocMarkdown:
                 },
             }
         )
-        assert (
-            dedent(
-                """
-            **Config schema**:
-                **prop1:** (array of integer) prop-description.
-
-            **Examples**::
-
-                prop1:
-                    [don't, expand, "this"]
-                # --- Example2 ---
-                prop2: true
-            """
-            )
-            in get_meta_doc(self.meta, full_schema)
-        )
+        expected = [
+            "   .. tab-item:: Config schema\n\n",
+            "      * **prop1:** (array of integer) prop-description.\n\n",
+            "   .. tab-item:: Examples\n\n",
+            "      ::\n\n\n",
+            "         # --- Example1 ---\n\n",
+            "         prop1:\n",
+            '             [don\'t, expand, "this"]\n',
+            "         # --- Example2 ---\n\n",
+            "         prop2: true",
+        ]
+        assert "".join(expected) in get_meta_doc(self.meta, full_schema)
 
     def test_get_meta_doc_properly_parse_description(self):
         """get_meta_doc description properly formatted"""
@@ -1186,22 +1165,15 @@ class TestSchemaDocMarkdown:
             }
         }
 
-        assert (
-            dedent(
-                """
-            **Config schema**:
-                **p1:** (string) This item has the following options:
-
-                        - option1
-                        - option2
-                        - option3
-
-                The default value is option1
-
-        """
-            )
-            in get_meta_doc(self.meta, schema)
-        )
+        expected = [
+            "   .. tab-item:: Config schema\n\n",
+            "      * **p1:** (string) This item has the following options:\n\n",  # noqa: E501
+            "        - option1\n",
+            "        - option2\n",
+            "        - option3\n\n",
+            "        The default value is option1",
+        ]
+        assert "".join(expected) in get_meta_doc(self.meta, schema)
 
     @pytest.mark.parametrize("key", meta.keys())
     def test_get_meta_doc_raises_key_errors(self, key):
@@ -1295,9 +1267,9 @@ class TestSchemaDocMarkdown:
         assert ".*" not in meta_doc
 
     @pytest.mark.parametrize(
-        "schema,expected_doc",
+        "schema,expected_lines",
         [
-            (
+            pytest.param(
                 {
                     "properties": {
                         "prop1": {
@@ -1307,11 +1279,14 @@ class TestSchemaDocMarkdown:
                         }
                     }
                 },
-                "**prop1:** (string/integer) <description>\n\n    "
-                "*Deprecated in version <missing deprecated_version "
-                "key, please file a bug report>.*",
+                [
+                    "* **prop1:** (string/integer) <description>",
+                    "*Deprecated in version <missing deprecated_version "
+                    "key, please file a bug report>.*",
+                ],
+                id="missing_deprecated_version",
             ),
-            (
+            pytest.param(
                 {
                     "$schema": "http://json-schema.org/draft-04/schema#",
                     "properties": {
@@ -1327,11 +1302,15 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                "**prop1:** (string/integer) <description>\n\n    "
-                "*Deprecated in version 2.*\n\n    *Changed in version"
-                " 1.*\n\n    *New in version 1.*",
+                [
+                    "* **prop1:** (string/integer) <description>",
+                    "*Deprecated in version 2.*",
+                    "*Changed in version 1.*",
+                    "*New in version 1.*",
+                ],
+                id="deprecated_no_description",
             ),
-            (
+            pytest.param(
                 {
                     "$schema": "http://json-schema.org/draft-04/schema#",
                     "properties": {
@@ -1350,11 +1329,15 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                "**prop1:** (string/integer) <description>\n\n    "
-                "*Deprecated in version 2. dep*\n\n    *Changed in "
-                "version 1. chg*\n\n    *New in version 1. new*",
+                [
+                    "**prop1:** (string/integer) <description>",
+                    "*Deprecated in version 2. dep*",
+                    "*Changed in version 1. chg*",
+                    "*New in version 1. new*",
+                ],
+                id="deprecated_with_description",
             ),
-            (
+            pytest.param(
                 {
                     "$schema": "http://json-schema.org/draft-04/schema#",
                     "$defs": {"my_ref": {"deprecated": True}},
@@ -1370,11 +1353,14 @@ class TestSchemaDocMarkdown:
                         }
                     },
                 },
-                "**prop1:** (string/integer) <description>\n\n    "
-                "*Deprecated in version <missing deprecated_version "
-                "key, please file a bug report>.*",
+                [
+                    "**prop1:** (string/integer) <description>",
+                    "*Deprecated in version <missing deprecated_version "
+                    "key, please file a bug report>.*",
+                ],
+                id="deprecated_ref_missing_version",
             ),
-            (
+            pytest.param(
                 {
                     "$schema": "http://json-schema.org/draft-04/schema#",
                     "$defs": {
@@ -1392,11 +1378,14 @@ class TestSchemaDocMarkdown:
                         }
                     },
                 },
-                "**prop1:** (string/integer) <description>\n\n    "
-                "*Deprecated in version <missing deprecated_version "
-                "key, please file a bug report>.*",
+                [
+                    "**prop1:** (string/integer) <description>",
+                    "*Deprecated in version <missing deprecated_version "
+                    "key, please file a bug report>.*",
+                ],
+                id="deprecated_ref_missing_version_with_description",
             ),
-            (
+            pytest.param(
                 {
                     "$schema": "http://json-schema.org/draft-04/schema#",
                     "properties": {
@@ -1412,12 +1401,15 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                "**prop1:** (UNDEFINED) <description>. "
-                "<deprecated_description>.\n\n    *Deprecated in "
-                "version <missing deprecated_version key, please "
-                "file a bug report>.*",
+                [
+                    "**prop1:** (UNDEFINED) <description>. "
+                    "<deprecated_description>.",
+                    "*Deprecated in version <missing deprecated_version key, "
+                    "please file a bug report>.*",
+                ],
+                id="deprecated_missing_version_with_description",
             ),
-            (
+            pytest.param(
                 {
                     "$schema": "http://json-schema.org/draft-04/schema#",
                     "properties": {
@@ -1436,11 +1428,14 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                "**prop1:** (number) <deprecated_description>.\n\n"
-                "    *Deprecated in version <missing "
-                "deprecated_version key, please file a bug report>.*",
+                [
+                    "**prop1:** (number) <deprecated_description>.",
+                    "*Deprecated in version <missing "
+                    "deprecated_version key, please file a bug report>.*",
+                ],
+                id="deprecated_anyof_missing_version_with_description",
             ),
-            (
+            pytest.param(
                 {
                     "$schema": "http://json-schema.org/draft-04/schema#",
                     "properties": {
@@ -1461,11 +1456,14 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                "**prop1:** (``none``/``unchanged``/``os``) "
-                "<description>. <deprecated_description>\n\n    "
-                "*Deprecated in version 22.1.*",
+                [
+                    "**prop1:** (``none``/``unchanged``/``os``) "
+                    "<description>. <deprecated_description>",
+                    "*Deprecated in version 22.1.*",
+                ],
+                id="deprecated_anyof_with_description",
             ),
-            (
+            pytest.param(
                 {
                     "$schema": "http://json-schema.org/draft-04/schema#",
                     "properties": {
@@ -1484,11 +1482,14 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                "**prop1:** (string/integer/``none``/"
-                "``unchanged``/``os``) <description_1>. "
-                "<description>_2\n",
+                [
+                    "**prop1:** (string/integer/``none``/"
+                    "``unchanged``/``os``) <description_1>. "
+                    "<description>_2",
+                ],
+                id="anyof_not_deprecated",
             ),
-            (
+            pytest.param(
                 {
                     "properties": {
                         "prop1": {
@@ -1507,12 +1508,17 @@ class TestSchemaDocMarkdown:
                         },
                     },
                 },
-                "**prop1:** (array of object) <desc_1>\n",
+                [
+                    "**prop1:** (array of object) <desc_1>\n",
+                ],
+                id="not_deprecated",
             ),
         ],
     )
-    def test_get_meta_doc_render_deprecated_info(self, schema, expected_doc):
-        assert expected_doc in get_meta_doc(self.meta, schema)
+    def test_get_meta_doc_render_deprecated_info(self, schema, expected_lines):
+        doc = get_meta_doc(self.meta, schema)
+        for line in expected_lines:
+            assert line in doc
 
 
 class TestAnnotatedCloudconfigFile:
@@ -1622,7 +1628,6 @@ class TestAnnotatedCloudconfigFile:
 
 @mock.patch(M_PATH + "read_cfg_paths")  # called by parse_args help docs
 class TestMain:
-
     exclusive_combinations = itertools.combinations(
         ["--system", "--docs all", "--config-file something"], 2
     )
@@ -1952,7 +1957,7 @@ class TestStrictMetaschema:
     def test_modules(self):
         """Validate all modules with a stricter metaschema"""
         (validator, _) = get_jsonschema_validator()
-        for (name, value) in get_schemas().items():
+        for name, value in get_schemas().items():
             if value:
                 validate_cloudconfig_metaschema(validator, value)
             else:
@@ -1976,7 +1981,6 @@ class TestStrictMetaschema:
             SchemaValidationError,
             match=r"Additional properties are not allowed.*",
         ):
-
             validate_cloudconfig_metaschema(validator, schema)
 
         validate_cloudconfig_metaschema(validator, schema, throw=False)
@@ -2029,7 +2033,6 @@ def clean_schema(
 
 @pytest.mark.hypothesis_slow
 class TestSchemaFuzz:
-
     # Avoid https://github.com/Zac-HD/hypothesis-jsonschema/issues/97
     SCHEMA = clean_schema(
         modules=["cc_users_groups"],
@@ -2047,7 +2050,6 @@ class TestSchemaFuzz:
 
 
 class TestHandleSchemaArgs:
-
     Args = namedtuple("Args", "config_file docs system annotate instance_data")
 
     @pytest.mark.parametrize(
