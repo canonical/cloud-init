@@ -88,7 +88,8 @@ SCHEMA_DOC_TMPL = """
 SCHEMA_PROPERTY_HEADER = ""
 SCHEMA_PROPERTY_TMPL = "{prefix}* **{prop_name}:** ({prop_type}){description}"
 SCHEMA_LIST_ITEM_TMPL = (
-   "{prefix}* Each object in **{prop_name}** list supports the following keys:"
+    "{prefix}* Each object in **{prop_name}** list supports "
+    "the following keys:"
 )
 SCHEMA_EXAMPLES_HEADER = ""
 SCHEMA_EXAMPLES_SPACER_TEMPLATE = "\n   # --- Example{example_count} ---\n\n"
@@ -485,7 +486,7 @@ def validate_cloudconfig_metaschema(validator, schema: dict, throw=True):
                 ]
             ) from err
         LOG.warning(
-            """Meta-schema validation failed, attempting to validate config 
+            """Meta-schema validation failed, attempting to validate config
             anyway: {err}"""
         )
 
@@ -596,7 +597,7 @@ class _Annotator:
 
     def _build_errors_by_line(self, schema_problems: SchemaProblems):
         errors_by_line = defaultdict(list)
-        for (path, msg) in schema_problems:
+        for path, msg in schema_problems:
             match = re.match(r"format-l(?P<line>\d+)\.c(?P<col>\d+).*", path)
             if match:
                 line, col = match.groups()
@@ -842,7 +843,7 @@ def validate_cloudconfig_file(
         else:
             cloudconfig = safeyaml.load(content)
             marks = {}
-    except (yaml.YAMLError) as e:
+    except yaml.YAMLError as e:
         line = column = 1
         mark = None
         if hasattr(e, "context_mark") and getattr(e, "context_mark"):
@@ -1160,7 +1161,9 @@ def _get_examples(meta: MetaSchema) -> str:
         return ""
     rst_content = SCHEMA_EXAMPLES_HEADER
     for count, example in enumerate(examples, 1):
-        rst_content += SCHEMA_EXAMPLES_SPACER_TEMPLATE.format(example_count=count)
+        rst_content += SCHEMA_EXAMPLES_SPACER_TEMPLATE.format(
+            example_count=count
+        )
         indented_lines = textwrap.indent(example, "   ").split("\n")
         rst_content += "\n".join(indented_lines)
     return rst_content
@@ -1217,21 +1220,27 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     meta_copy["property_header"] = ""
     meta_copy["prefix6"] = "      "
     meta_copy["prefix3"] = "   "
-    meta_copy["description"] = textwrap.indent(meta_copy["description"], "      ")
+    meta_copy["description"] = textwrap.indent(
+        meta_copy["description"], "      "
+    )
     defs = schema.get("$defs", {})
     if defs.get(meta["id"]):
         schema = defs.get(meta["id"], {})
         schema = cast(dict, schema)
     try:
-        meta_copy["property_doc"] = _get_property_doc(schema, defs=defs, prefix="      ")
+        meta_copy["property_doc"] = _get_property_doc(
+            schema, defs=defs, prefix="      "
+        )
     except AttributeError:
         LOG.warning("Unable to render property_doc due to invalid schema")
         meta_copy["property_doc"] = ""
     if not meta_copy["property_doc"]:
-        meta_copy["property_doc"] = f"      No schema definitions for this module"
+        meta_copy[
+            "property_doc"
+        ] = "      No schema definitions for this module"
     meta_copy["examples"] = textwrap.indent(_get_examples(meta), "      ")
     if not meta_copy["examples"]:
-        meta_copy["examples"] = f"         No examples for this module"
+        meta_copy["examples"] = "         No examples for this module"
     meta_copy["distros"] = ", ".join(meta["distros"])
     # Need an underbar of the same length as the name
     meta_copy["title_underbar"] = re.sub(r".", "-", meta["name"])
@@ -1240,6 +1249,7 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     )
     template = SCHEMA_DOC_TMPL.format(**meta_copy)
     return template
+
 
 def get_modules() -> dict:
     configs_dir = os.path.dirname(os.path.abspath(__file__))
