@@ -13,9 +13,10 @@ from cloudinit import subp, util
 try:
     import crypt
 
+    salt = crypt.METHOD_BLOWFISH  # pylint: disable=E1101
     blowfish_hash = functools.partial(
         crypt.crypt,
-        salt=crypt.mksalt(crypt.METHOD_BLOWFISH),  # pylint: disable=E1101
+        salt=crypt.mksalt(salt),
     )
 except ImportError:
     try:
