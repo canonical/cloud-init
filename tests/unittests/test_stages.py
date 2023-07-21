@@ -483,13 +483,16 @@ class TestInit:
         self.init.is_new_instance = mock.Mock(return_value=False)
         return net_cfg
 
+    @mock.patch("cloudinit.util._get_cmdline", return_value="")
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
     @mock.patch("cloudinit.distros.ubuntu.Distro")
     @mock.patch.dict(
         sources.DataSource.default_update_events,
         {EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE, EventType.BOOT}},
     )
-    def test_apply_network_allowed_when_default_boot(self, m_ubuntu, m_macs):
+    def test_apply_network_allowed_when_default_boot(
+        self, m_ubuntu, m_macs, m_get_cmdline
+    ):
         """Apply network if datasource permits BOOT event."""
         net_cfg = self._apply_network_setup(m_macs)
 
@@ -522,6 +525,7 @@ class TestInit:
             "network update allowed" in caplog.text
         )
 
+    @mock.patch("cloudinit.util._get_cmdline", return_value="")
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
     @mock.patch("cloudinit.distros.ubuntu.Distro")
     @mock.patch.dict(
@@ -529,7 +533,7 @@ class TestInit:
         {EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}},
     )
     def test_apply_network_allowed_with_userdata_overrides(
-        self, m_ubuntu, m_macs
+        self, m_ubuntu, m_macs, m_get_cmdline
     ):
         """Apply network if userdata overrides default config"""
         net_cfg = self._apply_network_setup(m_macs)
