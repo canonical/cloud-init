@@ -29,7 +29,7 @@ spec.loader.exec_module(read_version)
 
 def assert_valid_version(version):
     response = validate_version(version)
-    if isinstance(response, setuptools.sic):
+    if isinstance(response, setuptools.sic):  # noqa: E1101
         pytest.fail(f"{version} is not PEP 440 compliant")
 
 
