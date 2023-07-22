@@ -8,7 +8,7 @@ Last-Update: 2023-01-09
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/cloudinit/features.py
-+++ b/cloudinit/features.py
++++ cloud-init/cloudinit/features.py
 @@ -59,7 +59,7 @@ only non-hashed passwords were expired.
  (This flag can be removed after Jammy is no longer supported.)
  """
@@ -120,3 +120,40 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  
  
  class TestNetCfgDistroPhoton(TestNetCfgDistroBase):
+--- a/tests/unittests/test_data.py
++++ b/tests/unittests/test_data.py
+@@ -490,8 +490,8 @@ c: 4
+         expected = {
+             "features": {
+                 "ERROR_ON_USER_DATA_FAILURE": True,
+-                "EXPIRE_APPLIES_TO_HASHED_USERS": True,
+-                "NETPLAN_CONFIG_ROOT_READ_ONLY": True,
++                "EXPIRE_APPLIES_TO_HASHED_USERS": False,
++                "NETPLAN_CONFIG_ROOT_READ_ONLY": False,
+                 "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH": True,
+             },
+             "system_info": {
+--- a/tests/unittests/test_features.py
++++ b/tests/unittests/test_features.py
+@@ -15,16 +15,16 @@ class TestGetFeatures:
+     def test_feature_without_override(self):
+         assert {
+             "ERROR_ON_USER_DATA_FAILURE": True,
+-            "EXPIRE_APPLIES_TO_HASHED_USERS": True,
+-            "NETPLAN_CONFIG_ROOT_READ_ONLY": True,
++            "EXPIRE_APPLIES_TO_HASHED_USERS": False,
++            "NETPLAN_CONFIG_ROOT_READ_ONLY": False,
+             "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH": True,
+         } == features.get_features()
+         with mock.patch.object(
+-            features, "NETPLAN_CONFIG_ROOT_READ_ONLY", False
++            features, "NETPLAN_CONFIG_ROOT_READ_ONLY", True
+         ):
+             assert {
+                 "ERROR_ON_USER_DATA_FAILURE": True,
+-                "EXPIRE_APPLIES_TO_HASHED_USERS": True,
+-                "NETPLAN_CONFIG_ROOT_READ_ONLY": False,
++                "EXPIRE_APPLIES_TO_HASHED_USERS": False,
++                "NETPLAN_CONFIG_ROOT_READ_ONLY": True,
+                 "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH": True,
+             } == features.get_features()
