@@ -1419,7 +1419,7 @@
             },
             "variant": {
               "type": "string",
-              "description": "Optional. Keyboard variant. Corresponds to XKBVARIANT."
+              "description": "Required for Alpine Linux, optional otherwise. Keyboard variant. Corresponds to XKBVARIANT."
             },
             "options": {
               "type": "string",
