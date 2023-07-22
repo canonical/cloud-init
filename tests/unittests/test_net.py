@@ -4291,11 +4291,16 @@ class TestGenerateFallbackConfig(CiTestCase):
         }
         self.assertEqual(expected, network_cfg)
 
+    @mock.patch("cloudinit.net.openvswitch_is_installed", return_value=False)
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
     @mock.patch("cloudinit.net.get_devicelist")
     def test_device_driver(
-        self, mock_get_devicelist, mock_read_sys_net, mock_sys_dev_path
+        self,
+        mock_get_devicelist,
+        mock_read_sys_net,
+        mock_sys_dev_path,
+        _ovs_is_installed,
     ):
         devices = {
             "eth0": {
@@ -4375,11 +4380,16 @@ iface eth0 inet dhcp
         ]
         self.assertEqual(", ".join(expected_rule) + "\n", contents.lstrip())
 
+    @mock.patch("cloudinit.net.openvswitch_is_installed", return_value=False)
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
     @mock.patch("cloudinit.net.get_devicelist")
     def test_hv_netvsc_vf_filter(
-        self, mock_get_devicelist, mock_read_sys_net, mock_sys_dev_path
+        self,
+        mock_get_devicelist,
+        mock_read_sys_net,
+        mock_sys_dev_path,
+        _ovs_installed,
     ):
         devices = {
             "eth1": {
@@ -6556,6 +6566,7 @@ class TestNetplanNetRendering:
     )
     @mock.patch("cloudinit.net.util.get_cmdline", return_value="root=myroot")
     @mock.patch("cloudinit.net.netplan._clean_default")
+    @mock.patch("cloudinit.net.openvswitch_is_installed", return_value=False)
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
     @mock.patch("cloudinit.net.get_devicelist")
@@ -6564,6 +6575,7 @@ class TestNetplanNetRendering:
         mock_get_devicelist,
         mock_read_sys_net,
         mock_sys_dev_path,
+        _openvswitch_is_installed,
         mock_clean_default,
         m_get_cmdline,
         m_renderer_features,
