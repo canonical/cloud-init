@@ -1221,7 +1221,7 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     meta_copy["prefix6"] = "      "
     meta_copy["prefix3"] = "   "
     meta_copy["description"] = textwrap.indent(
-        meta_copy["description"], "      "
+        cast(str, meta_copy["description"]), "      "
     )
     defs = schema.get("$defs", {})
     if defs.get(meta["id"]):
