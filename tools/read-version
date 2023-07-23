@@ -145,4 +145,4 @@ if __name__ == "__main__":
     arg_use_tags = "--tags" in sys.argv or bool(os.environ.get("CI_RV_TAGS"))
     arg_output_json = "--json" in sys.argv
     output = main(arg_use_tags, arg_output_json)
-    sys.stdout.write(output + "\n")
+    print(output)

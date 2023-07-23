@@ -21,6 +21,9 @@ import setuptools
 from setuptools.command.egg_info import egg_info
 from setuptools.command.install import install
 
+# Python-path here is a little unpredictable as setup.py could be run
+# from a directory other than the root of the repo, so ensure we can find
+# our utils
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 # isort: off
 from setup_utils import (  # noqa: E402

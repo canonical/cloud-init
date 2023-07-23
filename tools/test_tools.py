@@ -8,7 +8,14 @@ import setuptools
 
 from setup_utils import version_to_pep440
 
-validate_version = setuptools.dist.Distribution._validate_version  # type: ignore  # noqa: E501
+try:
+    validate_version = setuptools.dist.Distribution._validate_version
+    setuptools.sic  # pylint: disable=no-member,pointless-statement
+except AttributeError:
+    pytest.skip(
+        "Unable to import necessary setuptools utilities. "
+        "Version is likely too old."
+    )
 
 # Since read-version has a '-' and no .py extension, we have to do this
 # to import it
@@ -29,7 +36,7 @@ spec.loader.exec_module(read_version)
 
 def assert_valid_version(version):
     response = validate_version(version)
-    if isinstance(response, setuptools.sic):  # noqa: E1101
+    if isinstance(response, setuptools.sic):  # pylint: disable=no-member
         pytest.fail(f"{version} is not PEP 440 compliant")
 
 
