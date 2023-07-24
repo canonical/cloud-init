@@ -1,6 +1,6 @@
 # Cloud-Init DataSource for VMware
 #
-# Copyright (c) 2018-2022 VMware, Inc. All Rights Reserved.
+# Copyright (c) 2018-2023 VMware, Inc. All Rights Reserved.
 #
 # Authors: Anish Swaminathan <anishs@vmware.com>
 #          Andrew Kutz <akutz@vmware.com>
@@ -719,7 +719,7 @@ def get_default_ip_addrs():
             af_inet4 = addr4_fams.get(netifaces.AF_INET)
             if af_inet4:
                 if len(af_inet4) > 1:
-                    LOG.warning(
+                    LOG.debug(
                         "device %s has more than one ipv4 address: %s",
                         dev4,
                         af_inet4,
@@ -737,7 +737,7 @@ def get_default_ip_addrs():
             af_inet6 = addr6_fams.get(netifaces.AF_INET6)
             if af_inet6:
                 if len(af_inet6) > 1:
-                    LOG.warning(
+                    LOG.debug(
                         "device %s has more than one ipv6 address: %s",
                         dev6,
                         af_inet6,
@@ -752,7 +752,7 @@ def get_default_ip_addrs():
         af_inet6 = addr4_fams.get(netifaces.AF_INET6)
         if af_inet6:
             if len(af_inet6) > 1:
-                LOG.warning(
+                LOG.debug(
                     "device %s has more than one ipv6 address: %s",
                     dev4,
                     af_inet6,
@@ -767,7 +767,7 @@ def get_default_ip_addrs():
         af_inet4 = addr6_fams.get(netifaces.AF_INET)
         if af_inet4:
             if len(af_inet4) > 1:
-                LOG.warning(
+                LOG.debug(
                     "device %s has more than one ipv4 address: %s",
                     dev6,
                     af_inet4,
