@@ -2,14 +2,39 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import functools
 import os
 import platform
-
-from passlib.hash import bcrypt
+from typing import Any
 
 import cloudinit.distros.bsd
 from cloudinit import log as logging
 from cloudinit import subp, util
+
+try:
+    import crypt
+
+    salt = crypt.METHOD_BLOWFISH  # pylint: disable=E1101
+    blowfish_hash: Any = functools.partial(
+        crypt.crypt,
+        salt=crypt.mksalt(salt),
+    )
+except (ImportError, AttributeError):
+    try:
+        from passlib.hash import bcrypt
+
+        blowfish_hash = bcrypt.hash
+    except ImportError:
+
+        def blowfish_hash(_):
+            """Raise when called so that importing this module doesn't throw
+            ImportError when this module is not used. In this case, crypt
+            and passlib are not needed.
+            """
+            raise ImportError(
+                "crypt and passlib not found, missing dependency"
+            )
+
 
 LOG = logging.getLogger(__name__)
 
@@ -91,7 +116,7 @@ class NetBSD(cloudinit.distros.bsd.BSD):
         if hashed:
             hashed_pw = passwd
         else:
-            hashed_pw = bcrypt.hash(passwd)
+            hashed_pw = blowfish_hash(passwd)
 
         try:
             subp.subp(["usermod", "-p", hashed_pw, user])

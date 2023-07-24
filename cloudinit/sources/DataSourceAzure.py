@@ -5,6 +5,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import base64
+import functools
 import os
 import os.path
 import re
@@ -14,8 +15,6 @@ from enum import Enum
 from pathlib import Path
 from time import sleep, time
 from typing import Any, Dict, List, Optional
-
-import passlib
 
 from cloudinit import log as logging
 from cloudinit import net, sources, ssh_util, subp, util
@@ -47,6 +46,29 @@ from cloudinit.sources.helpers.azure import (
     report_failure_to_fabric,
 )
 from cloudinit.url_helper import UrlError
+
+try:
+    import crypt
+
+    blowfish_hash: Any = functools.partial(
+        crypt.crypt, salt=f"$6${util.rand_str(strlen=16)}"
+    )
+except (ImportError, AttributeError):
+    try:
+        import passlib
+
+        blowfish_hash = passlib.hash.sha512_crypt.hash
+    except ImportError:
+
+        def blowfish_hash(_):
+            """Raise when called so that importing this module doesn't throw
+            ImportError when ds_detect() returns false. In this case, crypt
+            and passlib are not needed.
+            """
+            raise ImportError(
+                "crypt and passlib not found, missing dependency"
+            )
+
 
 LOG = logging.getLogger(__name__)
 
@@ -1766,7 +1788,7 @@ def read_azure_ovf(contents):
 
 
 def encrypt_pass(password):
-    return passlib.hash.sha512_crypt.hash(password)
+    return blowfish_hash(password)
 
 
 @azure_ds_telemetry_reporter
