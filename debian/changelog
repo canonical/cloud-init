@@ -1,11 +1,11 @@
 cloud-init (23.2-0ubuntu0~22.04.2) UNRELEASED; urgency=medium
 
-  * Upstream snapshot based on upstream/main at 297d1719.
   * d/cloud-init.maintscript: Remove the unused hook-network-manager conffile
   * d/patches/retain-old-groups.patch:
     - Retain original groups in cloud.cfg.tmpl
+  * Upstream snapshot based on upstream/main at 5509b790.
 
- -- James Falcon <james.falcon@canonical.com>  Mon, 24 Jul 2023 11:15:41 -0500
+ -- James Falcon <james.falcon@canonical.com>  Mon, 24 Jul 2023 15:25:13 -0500
 
 cloud-init (23.2-0ubuntu0~22.04.1) jammy; urgency=medium
 
