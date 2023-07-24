@@ -50,7 +50,7 @@ from cloudinit.url_helper import UrlError
 try:
     import crypt
 
-    blowfish_hash = functools.partial(
+    blowfish_hash: Any = functools.partial(
         crypt.crypt, salt=f"$6${util.rand_str(strlen=16)}"
     )
 except ImportError:

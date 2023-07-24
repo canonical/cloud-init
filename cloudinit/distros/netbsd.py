@@ -5,6 +5,7 @@
 import functools
 import os
 import platform
+from typing import Any
 
 import cloudinit.distros.bsd
 from cloudinit import log as logging
@@ -14,7 +15,7 @@ try:
     import crypt
 
     salt = crypt.METHOD_BLOWFISH  # pylint: disable=E1101
-    blowfish_hash = functools.partial(
+    blowfish_hash: Any = functools.partial(
         crypt.crypt,
         salt=crypt.mksalt(salt),
     )
