@@ -8,8 +8,6 @@ pytest<=7.3.1
 
 pytest-cov
 pytest-mock
-
-# Only really needed on older versions of python
 setuptools
 jsonschema
 responses

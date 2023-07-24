@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 
-import os
+# This script has tests. Run pytest on the tools directory if you make changes
+
 import json
+import os
 import re
 import subprocess
 import sys
+from shutil import which
 
-_tdir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, _tdir)
+repo_base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, repo_base_dir)
 
 from cloudinit import version as ci_version  # noqa: E402
 
@@ -17,25 +20,6 @@ def tiny_p(cmd):
     return subprocess.check_output(
         cmd, stderr=stderr, stdin=None, universal_newlines=True
     )
-
-
-def which(program):
-    # Return path of program for execution if found in path
-    def is_exe(fpath):
-        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
-
-    _fpath, _ = os.path.split(program)
-    if _fpath:
-        if is_exe(program):
-            return program
-    else:
-        for path in os.environ.get("PATH", "").split(os.pathsep):
-            path = path.strip('"')
-            exe_file = os.path.join(path, program)
-            if is_exe(exe_file):
-                return exe_file
-
-    return None
 
 
 def is_gitdir(path):
@@ -51,7 +35,7 @@ def is_gitdir(path):
     return False
 
 
-def get_version_details(version, version_long):
+def get_version_details(version, version_long, is_release_branch_ci):
     release = None
     extra = None
     commit = None
@@ -82,67 +66,71 @@ def get_version_details(version, version_long):
     }
 
 
-use_long = "--long" in sys.argv or os.environ.get("CI_RV_LONG")
-use_tags = "--tags" in sys.argv or os.environ.get("CI_RV_TAGS")
-output_json = "--json" in sys.argv
+def get_version_from_git(
+    src_version, major_minor_version, use_tags, is_release_branch_ci
+):
+    if is_gitdir(repo_base_dir) and which("git") and not is_release_branch_ci:
+        branch_name = tiny_p(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"]
+        ).strip()
+        if branch_name.startswith(f"upstream/{major_minor_version}"):
+            version = src_version
+            version_long = ""
+        else:
+            flags = ["--tags"] if use_tags else []
+            cmd = [
+                "git",
+                "describe",
+                branch_name,
+                "--abbrev=8",
+            ] + flags
 
-src_version = ci_version.version_string()
-# upstream/MM.NN.x tracks our patch level releases so ignore trailing '.x'
-major_minor_version = ".".join(src_version.split(".")[:2])
-version_long = ""
-
-# If we're performing CI for a new release branch (which our tooling creates
-# with an "upstream/" prefix), then we don't want to enforce strict version
-# matching because we know it will fail.
-github_ci_release_br = bool(
-    os.environ.get("GITHUB_HEAD_REF", "").startswith(
-        f"upstream/{major_minor_version}"
-    )
-)
-travis_ci_release_br = bool(
-    os.environ.get("TRAVIS_PULL_REQUEST_BRANCH", "").startswith("upstream/")
-)
-is_release_branch_ci = bool(github_ci_release_br or travis_ci_release_br)
-
-if is_gitdir(_tdir) and which("git") and not is_release_branch_ci:
-    # This cmd can be simplified to ["git", "branch", "--show-current"]
-    # after bionic EOL.
-    branch_name = tiny_p(["git", "rev-parse", "--abbrev-ref", "HEAD"]).strip()
-    if branch_name.startswith(f"upstream/{major_minor_version}"):
-        version = src_version
-        version_long = ""
-    else:
-
-        flags = []
-        if use_tags:
-            flags = ["--tags"]
-        cmd = [
-            "git",
-            "describe",
-            branch_name,
-            "--abbrev=8",
-        ] + flags
-
-        try:
-            version = tiny_p(cmd).strip()
-            version_long = tiny_p(cmd + ["--long"]).strip()
-        except subprocess.CalledProcessError as e:
-            if "No tags can describe" in e.stderr:
-                print(f"{cmd} found no tags. Using cloudinit.verison.py ")
+            try:
+                version = tiny_p(cmd).strip()
+                version_long = tiny_p(cmd + ["--long"]).strip()
+            except subprocess.CalledProcessError as e:
+                if "No tags can describe" not in e.stderr:
+                    raise
                 version = src_version
                 version_long = ""
-            else:
-                raise
-else:
-    version = src_version
-    version_long = ""
+    else:
+        version = src_version
+        version_long = ""
+    return version, version_long
 
 
-details = get_version_details(version, version_long)
+def main(use_tags: bool = False, output_json: bool = False):
+    src_version = ci_version.version_string()
+    # upstream/MM.NN.x tracks our patch level releases so ignore trailing '.x'
+    major_minor_version = ".".join(src_version.split(".")[:2])
 
-if output_json:
-    sys.stdout.write(json.dumps(details, indent=1) + "\n")
-else:
+    # If we're performing CI for a new release branch (which our tooling
+    # creates with an "upstream/" prefix), then we don't want to enforce
+    # strict version matching because we know it will fail.
+    github_ci_release_br = bool(
+        os.environ.get("GITHUB_HEAD_REF", "").startswith(
+            f"upstream/{major_minor_version}"
+        )
+    )
+    travis_ci_release_br = bool(
+        os.environ.get("TRAVIS_PULL_REQUEST_BRANCH", "").startswith(
+            "upstream/"
+        )
+    )
+    is_release_branch_ci = github_ci_release_br or travis_ci_release_br
+
+    version, version_long = get_version_from_git(
+        src_version=src_version,
+        major_minor_version=major_minor_version,
+        use_tags=use_tags,
+        is_release_branch_ci=is_release_branch_ci,
+    )
+
+    details = get_version_details(version, version_long, is_release_branch_ci)
+
+    if output_json:
+        return json.dumps(details, indent=1)
+
     output = ""
     if details["release"]:
         output += details["release"]
@@ -150,6 +138,11 @@ else:
         output += details["extra"]
     if not output:
         output = src_version
-    sys.stdout.write(output + "\n")
+    return output
 
-sys.exit(0)
+
+if __name__ == "__main__":
+    arg_use_tags = "--tags" in sys.argv or bool(os.environ.get("CI_RV_TAGS"))
+    arg_output_json = "--json" in sys.argv
+    output = main(arg_use_tags, arg_output_json)
+    print(output)
