@@ -1483,6 +1483,10 @@
             "client": {
               "type": "object",
               "additionalProperties": true,
+              "required": [
+                "account_name",
+                "computer_title"
+              ],
               "properties": {
                 "url": {
                   "type": "string",
@@ -1678,7 +1682,7 @@
             },
             "preseed": {
               "type": "string",
-              "description": "Opaque LXD preseed YAML config passed via stdin to the command: lxd init --preseed. See: https://linuxcontainers.org/lxd/docs/master/preseed/ or lxd init --dump for viable config. Can not be combined with either ``lxd.init`` or ``lxd.bridge``."
+              "description": "Opaque LXD preseed YAML config passed via stdin to the command: lxd init --preseed. See: https://documentation.ubuntu.com/lxd/en/latest/howto/initialize/#non-interactive-configuration or lxd init --dump for viable config. Can not be combined with either ``lxd.init`` or ``lxd.bridge``."
             }
           }
         }
@@ -2372,6 +2376,23 @@
                   }
                 }
               ]
+            },
+            "install_rsyslog": {
+              "default": false,
+              "description": "Install rsyslog. Default: ``false``",
+              "type": "boolean"
+            },
+            "check_exe": {
+              "type": "string",
+              "description": "The executable name for the rsyslog daemon.\nFor example, ``rsyslogd``, or ``/opt/sbin/rsyslogd`` if the rsyslog binary is in an unusual path. This is only used if ``install_rsyslog`` is ``true``. Default: ``rsyslogd``"
+            },
+            "packages": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true,
+              "description": "List of packages needed to be installed for rsyslog. This is only used if ``install_rsyslog`` is ``true``. Default: ``[rsyslog]``"
             }
           }
         }

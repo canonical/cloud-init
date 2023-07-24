@@ -73,7 +73,7 @@ import time
 
 import netifaces
 
-from cloudinit import dmi
+from cloudinit import atomic_helper, dmi
 from cloudinit import log as logging
 from cloudinit import net, sources, util
 from cloudinit.sources.helpers.vmware.imc import guestcust_util
@@ -418,10 +418,10 @@ def decode(key, enc_type, data):
     raw_data = None
     if enc_type in ["gzip+base64", "gz+b64"]:
         LOG.debug("Decoding %s format %s", enc_type, key)
-        raw_data = util.decomp_gzip(util.b64d(data))
+        raw_data = util.decomp_gzip(atomic_helper.b64d(data))
     elif enc_type in ["base64", "b64"]:
         LOG.debug("Decoding %s format %s", enc_type, key)
-        raw_data = util.b64d(data)
+        raw_data = atomic_helper.b64d(data)
     else:
         LOG.debug("Plain-text data %s", key)
         raw_data = data
@@ -977,7 +977,7 @@ def main():
     }
     host_info = wait_on_network(metadata)
     metadata = util.mergemanydict([metadata, host_info])
-    print(util.json_dumps(metadata))
+    print(atomic_helper.json_dumps(metadata))
 
 
 if __name__ == "__main__":

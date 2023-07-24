@@ -53,17 +53,17 @@ Example output:
         00.80300s (init-network/config-growpart)
         00.64300s (init-network/config-resizefs)
         00.62100s (init-network/config-ssh)
-        00.57300s (modules-config/config-grub-dpkg)
+        00.57300s (modules-config/config-grub_dpkg)
         00.40300s (init-local/search-NoCloud)
-        00.38200s (init-network/config-users-groups)
-        00.19800s (modules-config/config-apt-configure)
-        00.03700s (modules-final/config-keys-to-console)
+        00.38200s (init-network/config-users_groups)
+        00.19800s (modules-config/config-apt_configure)
+        00.03700s (modules-final/config-keys_to_console)
         00.02100s (init-network/config-update_etc_hosts)
         00.02100s (init-network/check-cache)
-        00.00800s (modules-final/config-ssh-authkey-fingerprints)
+        00.00800s (modules-final/config-ssh_authkey_fingerprints)
         00.00800s (init-network/consume-vendor-data)
         00.00600s (modules-config/config-timezone)
-        00.00500s (modules-final/config-final-message)
+        00.00500s (modules-final/config-final_message)
         00.00400s (init-network/consume-user-data)
         00.00400s (init-network/config-mounts)
         00.00400s (init-network/config-disk_setup)
@@ -73,39 +73,39 @@ Example output:
         00.00300s (init-network/config-set_hostname)
         00.00200s (modules-final/config-snappy)
         00.00200s (init-network/config-rsyslog)
-        00.00200s (init-network/config-ca-certs)
+        00.00200s (init-network/config-ca_certs)
         00.00200s (init-local/check-cache)
-        00.00100s (modules-final/config-scripts-vendor)
-        00.00100s (modules-final/config-scripts-per-once)
-        00.00100s (modules-final/config-salt-minion)
+        00.00100s (modules-final/config-scripts_vendor)
+        00.00100s (modules-final/config-scripts_per_once)
+        00.00100s (modules-final/config-salt_minion)
         00.00100s (modules-final/config-rightscale_userdata)
-        00.00100s (modules-final/config-phone-home)
-        00.00100s (modules-final/config-package-update-upgrade-install)
+        00.00100s (modules-final/config-phone_home)
+        00.00100s (modules-final/config-package_update_upgrade_install)
         00.00100s (modules-final/config-fan)
-        00.00100s (modules-config/config-ubuntu-advantage)
-        00.00100s (modules-config/config-ssh-import-id)
+        00.00100s (modules-config/config-ubuntu_advantage)
+        00.00100s (modules-config/config-ssh_import_id)
         00.00100s (modules-config/config-snap)
-        00.00100s (modules-config/config-set-passwords)
+        00.00100s (modules-config/config-set_passwords)
         00.00100s (modules-config/config-runcmd)
         00.00100s (modules-config/config-locale)
         00.00100s (modules-config/config-byobu)
-        00.00100s (modules-config/config-apt-pipelining)
-        00.00100s (init-network/config-write-files)
+        00.00100s (modules-config/config-apt_pipelining)
+        00.00100s (init-network/config-write_files)
         00.00100s (init-network/config-seed_random)
         00.00100s (init-network/config-migrator)
-        00.00000s (modules-final/config-ubuntu-drivers)
-        00.00000s (modules-final/config-scripts-user)
-        00.00000s (modules-final/config-scripts-per-instance)
-        00.00000s (modules-final/config-scripts-per-boot)
+        00.00000s (modules-final/config-ubuntu_drivers)
+        00.00000s (modules-final/config-scripts_user)
+        00.00000s (modules-final/config-scripts_per_instance)
+        00.00000s (modules-final/config-scripts_per_boot)
         00.00000s (modules-final/config-puppet)
-        00.00000s (modules-final/config-power-state-change)
+        00.00000s (modules-final/config-power_state_change)
         00.00000s (modules-final/config-mcollective)
         00.00000s (modules-final/config-lxd)
         00.00000s (modules-final/config-landscape)
         00.00000s (modules-final/config-chef)
         00.00000s (modules-config/config-snap_config)
         00.00000s (modules-config/config-ntp)
-        00.00000s (modules-config/config-disable-ec2-metadata)
+        00.00000s (modules-config/config-disable_ec2_metadata)
         00.00000s (init-network/setup-datasource)
 
     1 boot records analyzed
@@ -156,10 +156,10 @@ Example output:
 
     Starting stage: modules-final
     |`->config-snappy ran successfully @16.87400s +00.00200s
-    |`->config-package-update-upgrade-install ran successfully @16.87600s +00.00100s
+    |`->config-package_update_upgrade_install ran successfully @16.87600s +00.00100s
     ...
-    |`->config-final-message ran successfully @16.93700s +00.00500s
-    |`->config-power-state-change ran successfully @16.94300s +00.00000s
+    |`->config-final_message ran successfully @16.93700s +00.00500s
+    |`->config-power_state_change ran successfully @16.94300s +00.00000s
     Finished stage: (modules-final) 00.10300 seconds
 
     Total Time: 4.60100 seconds
@@ -247,9 +247,9 @@ Example output:
     },
     ...
     {
-      "description": "config-power-state-change ran successfully",
+      "description": "config-power_state_change ran successfully",
       "event_type": "finish",
-      "name": "modules-final/config-power-state-change",
+      "name": "modules-final/config-power_state_change",
       "origin": "cloudinit",
       "result": "SUCCESS",
       "timestamp": 1567057594.98

@@ -40,6 +40,8 @@ DEF_MERGERS = mergers.string_extract_mergers("dict(replace)+list()+str()")
 CLOUD_PREFIX = "#cloud-config"
 JSONP_PREFIX = "#cloud-config-jsonp"
 
+MERGED_PART_SCHEMA_ERROR_PREFIX = "# Cloud-config part ignored SCHEMA_ERROR: "
+
 
 class CloudConfigPartHandler(handlers.Handler):
 
@@ -53,6 +55,7 @@ class CloudConfigPartHandler(handlers.Handler):
         if "cloud_config_path" in _kwargs:
             self.cloud_fn = paths.get_ipath(_kwargs["cloud_config_path"])
         self.file_names = []
+        self.error_file_names = []
 
     def _write_cloud_config(self):
         if not self.cloud_fn:
@@ -66,6 +69,8 @@ class CloudConfigPartHandler(handlers.Handler):
                     fn = "?"
                 file_lines.append("# %s" % (fn))
             file_lines.append("")
+        for error_file in self.error_file_names:
+            file_lines.append(f"{MERGED_PART_SCHEMA_ERROR_PREFIX}{error_file}")
         if self.cloud_buf is not None:
             # Something was actually gathered....
             lines = [
@@ -143,6 +148,7 @@ class CloudConfigPartHandler(handlers.Handler):
                 filename = filename.replace(i, " ")
             self.file_names.append(filename.strip())
         except ValueError as err:
+            self.error_file_names.append(filename.strip())
             LOG.warning(
                 "Failed at merging in cloud config part from %s: %s",
                 filename,

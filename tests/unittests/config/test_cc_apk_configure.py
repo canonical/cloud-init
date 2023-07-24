@@ -32,13 +32,13 @@ class TestNoConfig(FilesystemMockingTestCase):
     def setUp(self):
         super(TestNoConfig, self).setUp()
         self.add_patch(CC_APK + "._write_repositories_file", "m_write_repos")
-        self.name = "apk-configure"
+        self.name = "apk_configure"
         self.cloud_init = None
         self.args = []
 
     def test_no_config(self):
         """
-        Test that nothing is done if no apk-configure
+        Test that nothing is done if no apk_configure
         configuration is provided.
         """
         config = util.get_builtin_cfg()
@@ -56,7 +56,7 @@ class TestConfig(FilesystemMockingTestCase):
         for dirname in ["tmp", "etc/apk"]:
             util.ensure_dir(os.path.join(self.new_root, dirname))
         self.paths = helpers.Paths({"templates_dir": self.new_root})
-        self.name = "apk-configure"
+        self.name = "apk_configure"
         self.cloud = cloud.Cloud(None, self.paths, None, None, None)
         self.args = []
 

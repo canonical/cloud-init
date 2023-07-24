@@ -245,6 +245,7 @@ class TestUpCloudNetworkSetup(CiTestCase):
         m_dhcp.assert_called_with(ds.distro, "eth1", None)
 
         m_net.assert_called_once_with(
+            ds.distro,
             broadcast="10.6.3.255",
             interface="eth1",
             ip="10.6.3.27",

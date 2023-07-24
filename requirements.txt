@@ -38,3 +38,6 @@ jsonschema
 # runtime and merge that information into the metadata and repersist that to
 # disk.
 netifaces>=0.10.4
+
+# passlib to replace crypt.crypt
+passlib

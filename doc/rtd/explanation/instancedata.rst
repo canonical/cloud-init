@@ -163,6 +163,9 @@ Storage locations
   standardised keys, sensitive keys redacted.
 * :file:`/run/cloud-init/instance-data-sensitive.json`: root-readable
   unredacted JSON blob.
+* :file:`/run/cloud-init/combined-cloud-config.json`: root-readable
+  unredacted JSON blob. Any meta-data, vendor-data and user-data overrides
+  are applied to the :file:`/run/cloud-init/combined-cloud-config.json` config values.
 
 :file:`instance-data.json` top level keys
 -----------------------------------------
@@ -174,6 +177,13 @@ A list of forward-slash delimited key paths into the :file:`instance-data.json`
 object whose value is base64encoded for JSON compatibility. Values at these
 paths should be decoded to get the original value.
 
+``features``
+^^^^^^^^^^^^
+
+A dictionary of feature name and boolean value pairs. A value of ``True`` means
+the feature is enabled.
+
+
 ``sensitive_keys``
 ^^^^^^^^^^^^^^^^^^
 
@@ -184,11 +194,22 @@ non-root users.
 
 ``merged_cfg``
 ^^^^^^^^^^^^^^
+Deprecated use ``merged_system_cfg`` instead.
+
+``merged_system_cfg``
+^^^^^^^^^^^^^^^^^^^^^
 
 Merged ``cloud-init`` :ref:`base_config_reference` from
 :file:`/etc/cloud/cloud.cfg` and :file:`/etc/cloud/cloud-cfg.d`. Values under
 this key could contain sensitive information such as passwords, so it is
 included in the ``sensitive-keys`` list which is only readable by root.
+
+.. note::
+   ``merged_system_cfg`` represents only the merged config from the underlying
+   filesystem. These values can be overridden by meta-data, vendor-data or
+   user-data. The fully merged cloud-config provided to a machine
+   which accounts for any supplemental overrides is the file
+   :file:`/run/cloud-init/combined-cloud-config.json`.
 
 ``ds``
 ^^^^^^
@@ -205,6 +226,14 @@ is currently **experimental** and expected to change slightly in the upcoming
 
 Information about the underlying OS, Python, architecture and kernel. This
 represents the data collected by ``cloudinit.util.system_info``.
+
+``system_info``
+^^^^^^^^^^^^^^^
+
+This is a cloud-init configuration key present in :file:`/etc/cloud/cloud.cfg`
+which describes cloud-init's configured `default_user`, `distro`, `network`
+renderes, and `paths` that cloud-init will use. Not to be confused with the
+underlying host ``sys_info`` key above.
 
 ``v1``
 ^^^^^^
@@ -410,46 +439,46 @@ EC2 instance:
     ],
     "cloud_config_modules": [
      "snap",
-     "ssh-import-id",
+     "ssh_import_id",
      "locale",
-     "set-passwords",
-     "grub-dpkg",
-     "apt-pipelining",
-     "apt-configure",
-     "ubuntu-advantage",
+     "set_passwords",
+     "grub_dpkg",
+     "apt_pipelining",
+     "apt_configure",
+     "ubuntu_advantage",
      "ntp",
      "timezone",
-     "disable-ec2-metadata",
+     "disable_ec2_metadata",
      "runcmd",
      "byobu"
     ],
     "cloud_final_modules": [
-     "package-update-upgrade-install",
+     "package_update_upgrade_install",
      "fan",
      "landscape",
      "lxd",
-     "ubuntu-drivers",
+     "ubuntu_drivers",
      "puppet",
      "chef",
      "mcollective",
-     "salt-minion",
+     "salt_minion",
      "rightscale_userdata",
-     "scripts-vendor",
-     "scripts-per-once",
-     "scripts-per-boot",
-     "scripts-per-instance",
-     "scripts-user",
-     "ssh-authkey-fingerprints",
-     "keys-to-console",
-     "phone-home",
-     "final-message",
-     "power-state-change"
+     "scripts_vendor",
+     "scripts_per_once",
+     "scripts_per_boot",
+     "scripts_per_instance",
+     "scripts_user",
+     "ssh_authkey_fingerprints",
+     "keys_to_console",
+     "phone_home",
+     "final_message",
+     "power_state_change"
     ],
     "cloud_init_modules": [
      "migrator",
      "seed_random",
      "bootcmd",
-     "write-files",
+     "write_files",
      "growpart",
      "resizefs",
      "disk_setup",
@@ -457,9 +486,9 @@ EC2 instance:
      "set_hostname",
      "update_hostname",
      "update_etc_hosts",
-     "ca-certs",
+     "ca_certs",
      "rsyslog",
-     "users-groups",
+     "users_groups",
      "ssh"
     ],
     "datasource_list": [

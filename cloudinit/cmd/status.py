@@ -15,7 +15,7 @@ import sys
 from time import gmtime, sleep, strftime
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
 
-from cloudinit import safeyaml
+from cloudinit import safeyaml, subp
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.distros import uses_systemd
 from cloudinit.helpers import Paths
@@ -196,6 +196,53 @@ def get_bootstatus(disable_file, paths) -> Tuple[UXAppBootStatusCode, str]:
     return (bootstatus_code, reason)
 
 
+def _get_systemd_status() -> Optional[UXAppStatus]:
+    """Get status from systemd.
+
+    Using systemd, we can get more fine-grained status of the
+    individual unit. Determine if we're still
+    running or if there's an error we haven't otherwise detected
+    """
+    for service in [
+        "cloud-final.service",
+        "cloud-config.service",
+        "cloud-init.service",
+        "cloud-init-local.service",
+    ]:
+        stdout = subp.subp(
+            [
+                "systemctl",
+                "show",
+                "--property=ActiveState,UnitFileState,SubState",
+                service,
+            ],
+        ).stdout
+        states = dict(
+            [[x.strip() for x in r.split("=")] for r in stdout.splitlines()]
+        )
+        if not (
+            states["UnitFileState"].startswith("enabled")
+            or states["UnitFileState"] == "static"
+        ):
+            # Individual services should not get disabled
+            return UXAppStatus.ERROR
+        if (
+            states["ActiveState"] == "active"
+            and states["SubState"] == "exited"
+        ):
+            # Service exited normally, nothing interesting from systemd
+            continue
+        if states["ActiveState"] == "failed" or states["SubState"] == "failed":
+            # We have an error
+            return UXAppStatus.ERROR
+        # If we made it here, our unit is enabled and it hasn't exited
+        # normally or exited with failure, so it is still running.
+        return UXAppStatus.RUNNING
+    # All services exited normally or aren't enabled, so don't report
+    # any particular status based on systemd.
+    return None
+
+
 def get_status_details(paths: Optional[Paths] = None) -> StatusDetails:
     """Return a dict with status, details and errors.
 
@@ -251,6 +298,14 @@ def get_status_details(paths: Optional[Paths] = None) -> StatusDetails:
         description = "\n".join(errors)
     elif status == UXAppStatus.NOT_RUN and latest_event > 0:
         status = UXAppStatus.DONE
+    if uses_systemd() and status not in (
+        UXAppStatus.NOT_RUN,
+        UXAppStatus.DISABLED,
+    ):
+        systemd_status = _get_systemd_status()
+        if systemd_status:
+            status = systemd_status
+
     last_update = (
         strftime("%a, %d %b %Y %H:%M:%S %z", gmtime(latest_event))
         if latest_event

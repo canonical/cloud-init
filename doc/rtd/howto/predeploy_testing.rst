@@ -134,8 +134,8 @@ check out the :ref:`datasource_nocloud` page.
 
 
 .. _Multipass: https://multipass.run/
-.. _LXD: https://linuxcontainers.org/
+.. _LXD: https://ubuntu.com/lxd
 .. _QEMU: https://www.qemu.org/
-.. _Instance Configuration: https://linuxcontainers.org/lxd/docs/master/instances
-.. _Custom Network Configuration: https://linuxcontainers.org/lxd/docs/master/cloud-init
+.. _Instance Configuration: https://documentation.ubuntu.com/lxd/en/latest/instances/
+.. _Custom Network Configuration: https://documentation.ubuntu.com/lxd/en/latest/cloud-init/
 .. _cloud-utils: https://github.com/canonical/cloud-utils/

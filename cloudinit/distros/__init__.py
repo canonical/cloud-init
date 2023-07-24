@@ -18,6 +18,7 @@ import urllib.parse
 from io import StringIO
 from typing import Any, Mapping, MutableMapping, Optional, Type
 
+import cloudinit.net.netops.iproute2 as iproute2
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import (
@@ -104,20 +105,26 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     # This is used by self.shutdown_command(), and can be overridden in
     # subclasses
     shutdown_options_map = {"halt": "-H", "poweroff": "-P", "reboot": "-r"}
+    net_ops = iproute2.Iproute2
 
     _ci_pkl_version = 1
     prefer_fqdn = False
     resolve_conf_fn = "/etc/resolv.conf"
 
     osfamily: str
-    dhcp_client_priority = [dhcp.IscDhclient, dhcp.Dhcpcd]
+    dhcp_client_priority = [dhcp.IscDhclient, dhcp.Dhcpcd, dhcp.Udhcpc]
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
         self._cfg = cfg
         self.name = name
         self.networking: Networking = self.networking_cls()
-        self.dhcp_client_priority = [dhcp.IscDhclient, dhcp.Dhcpcd]
+        self.dhcp_client_priority = [
+            dhcp.IscDhclient,
+            dhcp.Dhcpcd,
+            dhcp.Udhcpc,
+        ]
+        self.net_ops = iproute2.Iproute2
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         """Perform deserialization fixes for Distro."""
@@ -582,7 +589,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         # Check the values and create the command
         for key, val in sorted(kwargs.items()):
-
             if key in useradd_opts and val and isinstance(val, str):
                 useradd_cmd.extend([useradd_opts[key], val])
 
@@ -920,6 +926,17 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return args
 
     @classmethod
+    def reload_init(cls, rcs=None):
+        """
+        Reload systemd startup daemon.
+        May raise ProcessExecutionError
+        """
+        init_cmd = cls.init_cmd
+        if cls.uses_systemd() or "systemctl" in init_cmd:
+            cmd = [init_cmd, "daemon-reload"]
+            return subp.subp(cmd, capture=True, rcs=rcs)
+
+    @classmethod
     def manage_service(
         cls, action: str, service: str, *extra_args: str, rcs=None
     ):
@@ -997,6 +1014,26 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             ],
             **kwargs,
         )
+
+    @staticmethod
+    def build_dhclient_cmd(
+        path: str,
+        lease_file: str,
+        pid_file: str,
+        interface: str,
+        config_file: str,
+    ) -> list:
+        return [
+            path,
+            "-1",
+            "-v",
+            "-lf",
+            lease_file,
+            "-pf",
+            pid_file,
+            "-sf",
+            "/bin/true",
+        ] + (["-cf", config_file, interface] if config_file else [interface])
 
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
@@ -1128,10 +1165,10 @@ def _get_package_mirror_info(
         subst["region"] = data_source.region
 
     results = {}
-    for (name, mirror) in mirror_info.get("failsafe", {}).items():
+    for name, mirror in mirror_info.get("failsafe", {}).items():
         results[name] = mirror
 
-    for (name, searchlist) in mirror_info.get("search", {}).items():
+    for name, searchlist in mirror_info.get("search", {}).items():
         mirrors = []
         for tmpl in searchlist:
             try:

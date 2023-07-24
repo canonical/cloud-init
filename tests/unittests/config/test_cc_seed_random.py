@@ -14,7 +14,7 @@ from io import BytesIO
 
 import pytest
 
-from cloudinit import subp, util
+from cloudinit import atomic_helper, subp, util
 from cloudinit.config import cc_seed_random
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -120,7 +120,7 @@ class TestRandomSeed(TestCase):
         self.assertEqual("big-toe", contents)
 
     def test_append_random_base64(self):
-        data = util.b64e("bubbles")
+        data = atomic_helper.b64e("bubbles")
         cfg = {
             "random_seed": {
                 "file": self._seed_file,
@@ -133,7 +133,7 @@ class TestRandomSeed(TestCase):
         self.assertEqual("bubbles", contents)
 
     def test_append_random_b64(self):
-        data = util.b64e("kit-kat")
+        data = atomic_helper.b64e("kit-kat")
         cfg = {
             "random_seed": {
                 "file": self._seed_file,

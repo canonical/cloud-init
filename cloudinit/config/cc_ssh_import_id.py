@@ -57,7 +57,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     if not is_key_in_nested_dict(cfg, "ssh_import_id"):
         LOG.debug(
-            "Skipping module named ssh-import-id, no 'ssh_import_id'"
+            "Skipping module named ssh_import_id, no 'ssh_import_id'"
             " directives found."
         )
         return

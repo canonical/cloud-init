@@ -78,7 +78,7 @@ jobs:
           sudo adduser $USER lxd
           # Jammy GH Action runners have docker installed, which edits iptables
           # in a way that is incompatible with lxd.
-          # https://linuxcontainers.org/lxd/docs/master/howto/network_bridge_firewalld/#prevent-issues-with-lxd-and-docker
+          # https://documentation.ubuntu.com/lxd/en/latest/howto/network_bridge_firewalld/#prevent-connectivity-issues-with-lxd-and-docker
           sudo iptables -I DOCKER-USER -j ACCEPT
           sudo lxd init --auto
       - name: Run integration Tests

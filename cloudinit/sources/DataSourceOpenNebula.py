@@ -19,6 +19,7 @@ import pwd
 import re
 import string
 
+from cloudinit import atomic_helper
 from cloudinit import log as logging
 from cloudinit import net, sources, subp, util
 
@@ -486,7 +487,7 @@ def read_context_disk_dir(source_dir, distro, asuser=None):
         )
         if encoding == "base64":
             try:
-                results["userdata"] = util.b64d(results["userdata"])
+                results["userdata"] = atomic_helper.b64d(results["userdata"])
             except TypeError:
                 LOG.warning("Failed base64 decoding of userdata")
 

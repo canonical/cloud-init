@@ -1,0 +1,13 @@
+network:
+  version: 1
+  config:
+    # Physical interfaces.
+    - type: physical
+      name: eth0
+      mac_address: 'c0:d6:9f:2c:e8:80'
+    # VLAN interface.
+    - type: vlan
+      name: eth0.101
+      vlan_link: eth0
+      vlan_id: 101
+      mtu: 1500
