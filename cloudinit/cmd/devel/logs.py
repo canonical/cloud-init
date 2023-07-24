@@ -150,11 +150,13 @@ def _write_command_output_to_file(cmd, filename, msg, verbosity, return_output=F
         with open(filename, "w") as f:
             if return_output:
                 output = subp(cmd)[0]
+                f.write(output)
             else:
-                subp(cmd)
+                f.write(subp(cmd)[0])
     except ProcessExecutionError as e:
-        write_file(filename, str(e))
+        write_file(filename, output:=str(e))
         _debug("collecting %s failed.\n" % msg, 1, verbosity)
+        return output
     else:
         _debug("collected %s\n" % msg, 1, verbosity)
         return output

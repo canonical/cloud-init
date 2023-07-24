@@ -195,6 +195,83 @@ class TestCollectLogs:
         fake_stderr.write.assert_any_call("Wrote %s\n" % output_tarfile)
 
 
+    def test_write_command_output_to_file(self, m_getuid, tmpdir):
+        # what does this do???
+        test_str_1 = "test #1"
+        test_str_2 = "test #2"
+        m_getuid.return_value = 100
+        output_file1 = tmpdir.join("test-output-file-1.txt")
+        output_file2 = tmpdir.join("test-output-file-2.txt")
+        output_file3 = tmpdir.join("test-output-file-3.txt")
+        return_output1 = logs._write_command_output_to_file(
+            filename=output_file1,
+            cmd=["echo", test_str_1],
+            msg="",
+            verbosity=1,
+            return_output=True,
+        )
+        return_output2 = logs._write_command_output_to_file(
+            filename=output_file2,
+            cmd=["echo", test_str_2],
+            msg="",
+            verbosity=1,
+            return_output=False,
+        )
+        return_output3 = logs._write_command_output_to_file(
+            filename=output_file3,
+            cmd=["ls", dir:="/this-directory-does-not-exist"],
+            msg="",
+            verbosity=1,
+            return_output=True,
+        )
+
+        assert test_str_1 + "\n" == return_output1
+        assert test_str_1 + "\n" == load_file(output_file1)
+
+        # no output should have been returned so this value should be None
+        assert None == return_output2
+        assert test_str_2 + "\n" == load_file(output_file2)
+
+        expected_err_msg = "Unexpected error while running command.\n" + \
+        f"Command: ['ls', '{dir}']\n" + \
+        "Exit code: 2\n" + \
+        "Reason: -\n" + \
+        "Stdout: \n" + \
+        f"Stderr: ls: cannot access '{dir}': No such file or directory" 
+        assert expected_err_msg == return_output3
+        assert expected_err_msg == load_file(output_file3)
+
+    # def test_write_command_output_to_file_with_return_output(self, m_getuid, tmpdir):
+    #     # what does this do???
+    #     m_getuid.return_value = 100
+    #     output_file = tmpdir.join("test-output-file.txt")
+    #     return_output = logs._write_command_output_to_file(
+    #         filename=output_file,
+    #         cmd=["echo", "test"],
+    #         msg="",
+    #         verbosity=0,
+    #         return_output=True,
+    #     )
+        
+    #     assert "test\n" == return_output
+    #     assert "test\n" == load_file(output_file)
+        
+
+    # def test_write_command_output_to_file_without_return_output(self, m_getuid, tmpdir):
+    #     # what does this do???
+    #     m_getuid.return_value = 100
+    #     output_file = tmpdir.join("test-output-file.txt")
+    #     return_output = logs._write_command_output_to_file(
+    #         filename=output_file,
+    #         cmd=["echo", "test"],
+    #         msg="",
+    #         verbosity=0,
+    #         return_output=False,
+    #     )
+    #     assert "test\n" == load_file(output_file)
+    #     assert None == return_output
+
+
 class TestCollectInstallerLogs:
     @pytest.mark.parametrize(
         "include_userdata, apport_files, apport_sensitive_files",
