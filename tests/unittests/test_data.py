@@ -465,6 +465,17 @@ c: 4
             init_tmp.paths.get_ipath("cloud_config"), "", 0o600
         )
 
+    # Since features are intended to be overridden downstream, mock them
+    # all here so new feature flags don't require a new change to this
+    # unit test.
+    @mock.patch.multiple(
+        "cloudinit.features",
+        ERROR_ON_USER_DATA_FAILURE=True,
+        ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES=True,
+        EXPIRE_APPLIES_TO_HASHED_USERS=False,
+        NETPLAN_CONFIG_ROOT_READ_ONLY=True,
+        NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH=False,
+    )
     def test_shellscript(self, init_tmp, tmpdir, caplog):
         """Raw text starting #!/bin/sh is treated as script."""
         script = "#!/bin/sh\necho hello\n"
@@ -490,9 +501,10 @@ c: 4
         expected = {
             "features": {
                 "ERROR_ON_USER_DATA_FAILURE": True,
-                "EXPIRE_APPLIES_TO_HASHED_USERS": True,
+                "ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES": True,
+                "EXPIRE_APPLIES_TO_HASHED_USERS": False,
                 "NETPLAN_CONFIG_ROOT_READ_ONLY": True,
-                "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH": True,
+                "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH": False,
             },
             "system_info": {
                 "default_user": {"name": "ubuntu"},
@@ -503,11 +515,14 @@ c: 4
                 },
             },
         }
-        assert expected == util.load_json(
+
+        loaded_json = util.load_json(
             util.load_file(
                 init_tmp.paths.get_runpath("instance_data_sensitive")
             )
         )
+        assert expected == loaded_json
+
         expected["_doc"] = stages.COMBINED_CLOUD_CONFIG_DOC
         assert expected == util.load_json(
             util.load_file(init_tmp.paths.get_runpath("combined_cloud_config"))
