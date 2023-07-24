@@ -9,7 +9,7 @@ import setuptools
 from setup_utils import version_to_pep440
 
 try:
-    validate_version = setuptools.dist.Distribution._validate_version
+    validate_version = setuptools.dist.Distribution._validate_version  # type: ignore  # noqa: E501
     setuptools.sic  # pylint: disable=no-member,pointless-statement
 except AttributeError:
     pytest.skip(
