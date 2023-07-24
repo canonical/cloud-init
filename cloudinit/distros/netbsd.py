@@ -19,7 +19,7 @@ try:
         crypt.crypt,
         salt=crypt.mksalt(salt),
     )
-except ImportError:
+except (ImportError, AttributeError):
     try:
         from passlib.hash import bcrypt
 

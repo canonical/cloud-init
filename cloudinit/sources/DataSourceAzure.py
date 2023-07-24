@@ -53,7 +53,7 @@ try:
     blowfish_hash: Any = functools.partial(
         crypt.crypt, salt=f"$6${util.rand_str(strlen=16)}"
     )
-except ImportError:
+except (ImportError, AttributeError):
     try:
         import passlib
 
