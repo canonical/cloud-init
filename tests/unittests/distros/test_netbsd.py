@@ -1,3 +1,4 @@
+import sys
 import unittest.mock as mock
 
 import pytest
@@ -6,6 +7,9 @@ import cloudinit.distros.netbsd
 
 
 @pytest.mark.parametrize("with_pkgin", (True, False))
+@pytest.mark.skipif(
+    sys.version_info < (3, 7, 0), reason="Blowfish not available in 3.6"
+)
 @mock.patch("cloudinit.distros.netbsd.os")
 def test_init(m_os, with_pkgin):
     print(with_pkgin)
