@@ -3,13 +3,16 @@ import unittest.mock as mock
 
 import pytest
 
-import cloudinit.distros.netbsd
+try:
+    # Blowfish not available in < 3.7, so this has never worked. Ignore failure
+    # to import with AttributeError. We need this module imported prior to
+    # patching the object, so we can't gate the version with pytest skipif.
+    import cloudinit.distros.netbsd
+except AttributeError:
+    pass
 
 
 @pytest.mark.parametrize("with_pkgin", (True, False))
-@pytest.mark.skipif(
-    sys.version_info < (3, 7, 0), reason="Blowfish not available in 3.6"
-)
 @mock.patch("cloudinit.distros.netbsd.os")
 def test_init(m_os, with_pkgin):
     print(with_pkgin)
