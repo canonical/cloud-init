@@ -486,8 +486,9 @@ def validate_cloudconfig_metaschema(validator, schema: dict, throw=True):
                 ]
             ) from err
         LOG.warning(
-            """Meta-schema validation failed, attempting to validate config
-            anyway: {err}"""
+            "Meta-schema validation failed, attempting to validate config "
+            "anyway: %s",
+            err,
         )
 
 
