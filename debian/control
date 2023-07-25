@@ -22,7 +22,8 @@ Build-Depends: debhelper-compat (= 13),
                python3-serial,
                python3-setuptools,
                python3-yaml,
-               python3-responses
+               python3-responses,
+               python3-passlib
 Vcs-Browser: https://github.com/canonical/cloud-init/tree/ubuntu/devel
 Vcs-Git: https://github.com/canonical/cloud-init -b ubuntu/devel
 Standards-Version: 4.5.0
