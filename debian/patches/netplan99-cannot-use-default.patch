@@ -31,7 +31,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                  via: 10.101.11.254
      vlans:
          bond0.3502:
-@@ -2275,7 +2275,7 @@ pre-down route del -net 10.0.0.0/8 gw 11
+@@ -2447,7 +2447,7 @@ pre-down route del -net 10.0.0.0/8 gw 11
                              - sacchromyces.maas
                              - brettanomyces.maas
                          routes:
@@ -40,7 +40,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                              via: 192.168.0.1
          """
          ).rstrip(" "),
-@@ -3015,7 +3015,7 @@ pre-down route del -net 10.0.0.0/8 gw 11
+@@ -3187,7 +3187,7 @@ pre-down route del -net 10.0.0.0/8 gw 11
                           transmit-hash-policy: layer3+4
                           up-delay: 20
                       routes:
@@ -49,7 +49,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                           via: 192.168.0.1
                       -   to: 10.1.3.0/24
                           via: 192.168.0.3
-@@ -6081,9 +6081,9 @@ class TestNetplanNetRendering:
+@@ -6277,9 +6277,9 @@ class TestNetplanNetRendering:
                          macaddress: 00:11:22:33:44:55
                        set-name: interface0
                        routes:
@@ -61,7 +61,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                            via: 11.0.0.1
                  """,
                  id="physical_gateway46",
-@@ -6120,9 +6120,9 @@ class TestNetplanNetRendering:
+@@ -6316,9 +6316,9 @@ class TestNetplanNetRendering:
                        - eth0
                        - eth1
                        routes:
@@ -73,7 +73,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                            via: 11.0.0.1
                      eth0: {}
                      eth1: {}
-@@ -6159,9 +6159,9 @@ class TestNetplanNetRendering:
+@@ -6355,9 +6355,9 @@ class TestNetplanNetRendering:
                        interfaces:
                        - eth0
                        routes:
@@ -85,7 +85,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                            via: 11.0.0.1
                  """,
                  id="bridge_gateway46",
-@@ -6195,9 +6195,9 @@ class TestNetplanNetRendering:
+@@ -6391,9 +6391,9 @@ class TestNetplanNetRendering:
                        id: 101
                        link: eth0
                        routes:
@@ -97,7 +97,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                            via: 11.0.0.1
                  """,
                  id="vlan_gateway46",
-@@ -6246,7 +6246,7 @@ class TestNetplanNetRendering:
+@@ -6442,7 +6442,7 @@ class TestNetplanNetRendering:
                          - exemplary
                        set-name: interface0
                        routes:
@@ -106,7 +106,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                            via: 192.168.23.1
                  """,
                  id="nameserver_gateway4",
-@@ -6281,7 +6281,7 @@ class TestNetplanNetRendering:
+@@ -6477,7 +6477,7 @@ class TestNetplanNetRendering:
                        match:
                          macaddress: 00:11:22:33:44:55
                        routes:
@@ -115,7 +115,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                            via: 192.168.23.1
                        -   to: 10.176.0.0/24
                            via: 10.184.225.121
-@@ -6316,7 +6316,7 @@ class TestNetplanNetRendering:
+@@ -6512,7 +6512,7 @@ class TestNetplanNetRendering:
                        match:
                          macaddress: 00:11:22:33:44:55
                        routes:
@@ -124,7 +124,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                            via: 192.168.23.1
                        -   to: 192.167.225.122/24
                            via: 192.168.23.1
-@@ -6352,10 +6352,10 @@ class TestNetplanNetRendering:
+@@ -6548,10 +6548,10 @@ class TestNetplanNetRendering:
                        match:
                          macaddress: 00:11:22:33:44:55
                        routes:
