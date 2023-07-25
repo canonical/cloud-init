@@ -4,6 +4,7 @@ cloud-init (23.2-0ubuntu0~22.04.2) UNRELEASED; urgency=medium
   * d/patches/retain-old-groups.patch:
     - Retain original groups in cloud.cfg.tmpl
   * Upstream snapshot based on upstream/main at 5509b790.
+  * d/control: Add python3-passlib as needed for testing
 
  -- James Falcon <james.falcon@canonical.com>  Mon, 24 Jul 2023 15:25:13 -0500
 
