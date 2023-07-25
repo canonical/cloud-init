@@ -42,7 +42,7 @@ def is_on_akamai() -> bool:
     Reads the BIOS vendor from dmi data to determine if we are running in the
     Akamai Connected Cloud.
     """
-    vendor = dmi.read_dmi_data("bios-vendor")
+    vendor = dmi.read_dmi_data("system-manufacturer")
     return vendor in ("Linode", "Akamai")
 
 

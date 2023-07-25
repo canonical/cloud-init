@@ -99,71 +99,71 @@ class TestDataSourceAkamai:
         "local_stage,ds_cfg,expected_result",
         (
             # normal config
-            (True, {}, MetadataAvailabilityResult.available),
-            (False, {}, MetadataAvailabilityResult.available),
+            (True, {}, MetadataAvailabilityResult.AVAILABLE),
+            (False, {}, MetadataAvailabilityResult.AVAILABLE),
             # disable dhcp
             (
                 True,
                 {"allow_dhcp": False},
-                MetadataAvailabilityResult.available,
+                MetadataAvailabilityResult.AVAILABLE,
             ),
             (
                 True,
                 {"allow_dhcp": False, "allow_ipv6": False},
-                MetadataAvailabilityResult.defer,
+                MetadataAvailabilityResult.DEFER,
             ),
             (
                 False,
                 {"allow_dhcp": False},
-                MetadataAvailabilityResult.available,
+                MetadataAvailabilityResult.AVAILABLE,
             ),
             (
                 False,
                 {"allow_dhcp": False, "allow_ipv6": False},
-                MetadataAvailabilityResult.available,
+                MetadataAvailabilityResult.AVAILABLE,
             ),
             # disable stages
             (
                 True,
                 {"allow_local_stage": False},
-                MetadataAvailabilityResult.defer,
+                MetadataAvailabilityResult.DEFER,
             ),
             (
                 False,
                 {"allow_local_stage": False},
-                MetadataAvailabilityResult.available,
+                MetadataAvailabilityResult.AVAILABLE,
             ),
             (
                 True,
                 {"allow_init_stage": False},
-                MetadataAvailabilityResult.available,
+                MetadataAvailabilityResult.AVAILABLE,
             ),
             (
                 False,
                 {"allow_init_stage": False},
-                MetadataAvailabilityResult.defer,
+                MetadataAvailabilityResult.DEFER,
             ),
             # disable all network types
             (
                 True,
                 {"allow_ipv4": False, "allow_ipv6": False},
-                MetadataAvailabilityResult.not_available,
+                MetadataAvailabilityResult.NOT_AVAILABLE,
             ),
             (
                 False,
                 {"allow_ipv4": False, "allow_ipv6": False},
-                MetadataAvailabilityResult.not_available,
+                MetadataAvailabilityResult.NOT_AVAILABLE,
             ),
             # disable all stages
             (
                 True,
                 {"allow_local_stage": False, "allow_init_stage": False},
-                MetadataAvailabilityResult.not_available,
+                MetadataAvailabilityResult.NOT_AVAILABLE,
             ),
             (
                 False,
                 {"allow_local_stage": False, "allow_init_stage": False},
-                MetadataAvailabilityResult.not_available,
+                MetadataAvailabilityResult.NOT_AVAILABLE,
             ),
         ),
     )
@@ -268,7 +268,7 @@ class TestDataSourceAkamai:
         ),
     )
     @mock.patch("cloudinit.url_helper.readurl")
-    def test_make_requests(self, readurl, use_v6: bool):
+    def test_fetch_metadata(self, readurl, use_v6: bool):
         """
         Tests that making requests sends the expected requests in the expected
         order
@@ -288,7 +288,7 @@ class TestDataSourceAkamai:
         host = "[fd00:a9fe:a9fe::1]" if use_v6 else "169.254.169.254"
 
         ds = self._get_datasource()
-        ds._make_requests(use_v6=use_v6)
+        ds._fetch_metadata(use_v6=use_v6)
 
         assert readurl.call_count == 3
         assert ds.metadata == {"id": 123}

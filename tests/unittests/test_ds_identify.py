@@ -257,6 +257,7 @@ class DsIdentifyBase(CiTestCase):
     def _check_via_dict(self, data, rc, dslist=None, **kwargs):
         ret = self._call_via_dict(data, **kwargs)
         good = False
+        print(f"I am looking for {rc}, got {ret}")
         try:
             self.assertEqual(rc, ret.rc)
             if dslist is not None:
@@ -873,6 +874,27 @@ class TestDsIdentify(DsIdentifyBase):
         self._test_ds_found("VMware-GuestInfo-Vendordata")
 
 
+class TestAkamai(DsIdentifyBase):
+    def test_found_by_sys_vendor(self):
+        """ds-identify finds Akamai by system-manufacturer dmi field"""
+        self._test_ds_found("Akamai")
+
+    def test_found_by_sys_vendor_akamai(self):
+        """
+        ds-identify finds Akamai by system-manufacturer dmi field when set with
+        name "Akamai" (expected in the future)
+        """
+        cfg = copy.deepcopy(VALID_CFG["Akamai"])
+        cfg["mocks"][0]["RET"] = "Akamai"
+        self._check_via_dict(cfg, rc=RC_FOUND)
+
+    def test_not_found(self):
+        """ds-identify does not find Akamai by system-manufacturer field"""
+        cfg = copy.deepcopy(VALID_CFG["Akamai"])
+        cfg["mocks"][0]["RET"] = "Other"
+        self._check_via_dict(cfg, rc=RC_NOT_FOUND)
+
+
 class TestBSDNoSys(DsIdentifyBase):
     """Test *BSD code paths
 
@@ -1017,6 +1039,10 @@ def _print_run_output(rc, out, err, cfg, files):
 
 
 VALID_CFG = {
+    "Akamai": {
+        "ds": "Akamai",
+        "mocks": [{"name": "dmi_decode", "ret": 0, "RET": "Linode"}],
+    },
     "AliYun": {
         "ds": "AliYun",
         "files": {P_PRODUCT_NAME: "Alibaba Cloud ECS\n"},

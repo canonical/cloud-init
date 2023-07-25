@@ -48,9 +48,9 @@ class MetadataAvailabilityResult(Enum):
     of metadata to it
     """
 
-    not_available = 0
-    available = 1
-    defer = 2
+    NOT_AVAILABLE = 0
+    AVAILABLE = 1
+    DEFER = 2
 
 
 class DataSourceAkamai(sources.DataSource):
@@ -96,7 +96,8 @@ class DataSourceAkamai(sources.DataSource):
 
     def _should_fetch_data(self) -> MetadataAvailabilityResult:
         """
-        Returns True if we should fetch metadata right now, otherwise false
+        Returns whether metadata should be retrieved at this stage, at the next
+        stage, or never, in the form of a MetadataAvailabilityResult.
         """
         if (
             not self.ds_cfg["allow_ipv4"] and not self.ds_cfg["allow_ipv6"]
@@ -106,7 +107,7 @@ class DataSourceAkamai(sources.DataSource):
         ):
             # if we're not allowed to fetch data, we shouldn't try
             LOG.info("Configuration prohibits fetching metadata.")
-            return MetadataAvailabilityResult.not_available
+            return MetadataAvailabilityResult.NOT_AVAILABLE
 
         if self.local_stage:
             return self._should_fetch_data_local()
@@ -115,13 +116,13 @@ class DataSourceAkamai(sources.DataSource):
 
     def _should_fetch_data_local(self) -> MetadataAvailabilityResult:
         """
-        Returns True if data should be fetched at the local stage (before
-        networking is available), or False otherwise
+        Returns whether metadata should be retrieved during the local stage, or
+        if it should wait for the init stage.
         """
         if not self.ds_cfg["allow_local_stage"]:
             # if this stage is explicitly disabled, don't attempt to fetch here
             LOG.info("Configuration prohibits local stage setup")
-            return MetadataAvailabilityResult.defer
+            return MetadataAvailabilityResult.DEFER
 
         if not self.ds_cfg["allow_dhcp"] and not self.ds_cfg["allow_ipv6"]:
             # without dhcp, we can't fetch during the local stage over IPv4.  If we're
@@ -129,21 +130,20 @@ class DataSourceAkamai(sources.DataSource):
             LOG.info(
                 "Configuration does not allow for ephemeral network setup."
             )
-            return MetadataAvailabilityResult.defer
+            return MetadataAvailabilityResult.DEFER
 
-        return MetadataAvailabilityResult.available
+        return MetadataAvailabilityResult.AVAILABLE
 
     def _should_fetch_data_network(self) -> MetadataAvailabilityResult:
         """
-        Returns True if data should be fetched during the init stage, or False
-        otherwise
+        Returns whether metadata should be fetched during the init stage.
         """
         if not self.ds_cfg["allow_init_stage"]:
             # if this stage is explicitly disabled, don't attempt to fetch here
             LOG.info("Configuration does not allow for init stage setup")
-            return MetadataAvailabilityResult.defer
+            return MetadataAvailabilityResult.DEFER
 
-        return MetadataAvailabilityResult.available
+        return MetadataAvailabilityResult.AVAILABLE
 
     def _get_network_context_managers(
         self,
@@ -224,10 +224,11 @@ class DataSourceAkamai(sources.DataSource):
 
         return network_context_managers
 
-    def _make_requests(self, use_v6: bool = False) -> bool:
+    def _fetch_metadata(self, use_v6: bool = False) -> bool:
         """
         Runs through the sequence of requests necessary to retrieve our
-        metadata and user data, creating a token for use in doing so
+        metadata and user data, creating a token for use in doing so, capturing
+        the results.
         """
         try:
             # retrieve a token for future requests
@@ -305,8 +306,8 @@ class DataSourceAkamai(sources.DataSource):
         }
         availability = self._should_fetch_data()
 
-        if availability != MetadataAvailabilityResult.available:
-            if availability == MetadataAvailabilityResult.not_available:
+        if availability != MetadataAvailabilityResult.AVAILABLE:
+            if availability == MetadataAvailabilityResult.NOT_AVAILABLE:
                 LOG.info(
                     "Metadata is not available, returning local data only."
                 )
@@ -321,7 +322,7 @@ class DataSourceAkamai(sources.DataSource):
         network_context_managers = self._get_network_context_managers()
         for manager, use_v6 in network_context_managers:
             with manager as m:
-                done = self._make_requests(use_v6=use_v6)
+                done = self._fetch_metadata(use_v6=use_v6)
                 if done:
                     # fix up some field names
                     self.metadata["instance-id"] = self.metadata.get(
@@ -329,6 +330,17 @@ class DataSourceAkamai(sources.DataSource):
                         local_instance_id,
                     )
                     break
+        else:
+            # TODO: This was suggested in code review, however I'm not sure that
+            # we want it; in the event that the above loop doesn't break, we most
+            # likely failed to retrieve metadata via IPv4 _or_ IPv6.  This could
+            # mean that the service is down, and the Linode will still boot, but
+            # cloud-init will probably re-run on the next boot since it didn't get
+            # a cached instance id.  This needs to be tested, but as-written before
+            # this else block was added if all requests failed then the linode would
+            # still see the local metadata (namely the instance-id set above) and
+            # would not reprovision itself on reboot
+            return False
 
         return True
 
