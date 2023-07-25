@@ -330,18 +330,12 @@ class DataSourceAkamai(sources.DataSource):
                         local_instance_id,
                     )
                     break
-        else:
-            # TODO: This was suggested in code review, however I'm not sure that
-            # we want it; in the event that the above loop doesn't break, we most
-            # likely failed to retrieve metadata via IPv4 _or_ IPv6.  This could
-            # mean that the service is down, and the Linode will still boot, but
-            # cloud-init will probably re-run on the next boot since it didn't get
-            # a cached instance id.  This needs to be tested, but as-written before
-            # this else block was added if all requests failed then the linode would
-            # still see the local metadata (namely the instance-id set above) and
-            # would not reprovision itself on reboot
-            return False
 
+        # even if we failed to reach the metadata service in the loop above, we
+        # still have the locally-available metadata (namely the instance id and
+        # cloud name), and by accepting just that we ensure that cloud-init won't
+        # run on our next boot; as such, regardless of the outcome of the loop
+        # above, we should return True here
         return True
 
     def check_instance_id(self, sys_cfg) -> bool:

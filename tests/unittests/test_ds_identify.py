@@ -257,7 +257,6 @@ class DsIdentifyBase(CiTestCase):
     def _check_via_dict(self, data, rc, dslist=None, **kwargs):
         ret = self._call_via_dict(data, **kwargs)
         good = False
-        print(f"I am looking for {rc}, got {ret}")
         try:
             self.assertEqual(rc, ret.rc)
             if dslist is not None:
