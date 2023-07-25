@@ -6,7 +6,7 @@ import unittest
 
 import pytest
 
-from cloudinit import helpers, util
+from cloudinit import atomic_helper, helpers, util
 from cloudinit.sources import DataSourceOpenNebula as ds
 from tests.unittests.helpers import CiTestCase, mock, populate_dir
 
@@ -198,7 +198,7 @@ class TestOpenNebulaDataSource(CiTestCase):
             self.assertEqual(USER_DATA, results["userdata"])
 
     def test_user_data_encoding_required_for_decode(self):
-        b64userdata = util.b64e(USER_DATA)
+        b64userdata = atomic_helper.b64e(USER_DATA)
         for k in ("USER_DATA", "USERDATA"):
             my_d = os.path.join(self.tmp, k)
             populate_context_dir(my_d, {k: b64userdata})
@@ -211,7 +211,11 @@ class TestOpenNebulaDataSource(CiTestCase):
         for k in ("USER_DATA", "USERDATA"):
             my_d = os.path.join(self.tmp, k)
             populate_context_dir(
-                my_d, {k: util.b64e(USER_DATA), "USERDATA_ENCODING": "base64"}
+                my_d,
+                {
+                    k: atomic_helper.b64e(USER_DATA),
+                    "USERDATA_ENCODING": "base64",
+                },
             )
             results = ds.read_context_disk_dir(my_d, mock.Mock())
 

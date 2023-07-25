@@ -160,11 +160,10 @@ def render_string(content, params):
     return renderer(content, params)
 
 
-def render_cloudcfg(variant, template, output):
-
+def render_cloudcfg(variant, template, output, prefix=None):
     with open(template, "r") as fh:
         contents = fh.read()
-    tpl_params = {"variant": variant}
+    tpl_params = {"variant": variant, "prefix": prefix}
     contents = (render_string(contents, tpl_params)).rstrip() + "\n"
     util.load_yaml(contents)
     if output == "-":

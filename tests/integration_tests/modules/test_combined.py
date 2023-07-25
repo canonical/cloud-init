@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 import cloudinit.config
+from cloudinit.features import get_features
 from cloudinit.util import is_true
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
@@ -110,7 +111,7 @@ class TestCombined:
         log = client.read_from_file("/var/log/cloud-init.log")
         expected = (
             "This is my final message!\n"
-            r"\d+\.\d+.*\n"
+            r"\d+\.(\d+|daily).*\n"
             r"\w{3}, \d{2} \w{3} \d{4} \d{2}:\d{2}:\d{2} \+\d{4}\n"  # Datetime
             "DataSource.*\n"
             r"\d+\.\d+"
@@ -225,7 +226,6 @@ class TestCombined:
         verify_clean_log(log, ignore_deprecations=False)
         requested_modules = {
             "apt_configure",
-            "apt_pipelining",
             "byobu",
             "final_message",
             "locale",
@@ -313,6 +313,18 @@ class TestCombined:
         assert v1_data["distro_release"] == CURRENT_RELEASE.series
         assert v1_data["machine"] == "x86_64"
         assert re.match(r"3.\d+\.\d+", v1_data["python_version"])
+
+    @pytest.mark.skipif(not IS_UBUNTU, reason="Testing default_user ubuntu")
+    def test_combined_cloud_config_json(
+        self, class_client: IntegrationInstance
+    ):
+        client = class_client
+        combined_json = client.read_from_file(
+            "/run/cloud-init/combined-cloud-config.json"
+        )
+        data = json.loads(combined_json)
+        assert data["features"] == get_features()
+        assert data["system_info"]["default_user"]["name"] == "ubuntu"
 
     @pytest.mark.skipif(
         PLATFORM != "lxd_container",

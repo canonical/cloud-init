@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import IO
 
 from cloudinit.analyze import dump, show
-from cloudinit.util import json_dumps
+from cloudinit.atomic_helper import json_dumps
 
 
 def get_parser(parser=None):

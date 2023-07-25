@@ -311,6 +311,7 @@ class DataSourceScaleway(sources.DataSource):
         if not self.has_ipv4:
             try:
                 with EphemeralIPv6Network(
+                    self.distro,
                     self._fallback_interface,
                 ):
                     util.log_time(

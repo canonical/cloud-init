@@ -1,5 +1,4 @@
 ## template:jinja
-
 # The top level settings are used as module
 # and base configuration.
 {% set is_bsd = variant in ["dragonfly", "freebsd", "netbsd", "openbsd"] %}
@@ -55,11 +54,6 @@ preserve_hostname: false
 
 # If you use datasource_list array, keep array items in a single line.
 # If you use multi line array, ds-identify script won't read array items.
-{% if variant.endswith("bsd") %}
-# This should not be required, but leave it in place until the real cause of
-# not finding -any- datasources is resolved.
-datasource_list: ['NoCloud', 'ConfigDrive', 'Azure', 'OpenStack', 'Ec2']
-{% endif %}
 # Example datasource config
 # datasource:
 #    Ec2:
@@ -89,7 +83,7 @@ cloud_init_modules:
  - seed_random
 {% endif %}
  - bootcmd
- - write-files
+ - write_files
 {% if variant not in ["netbsd", "openbsd"] %}
  - growpart
  - resizefs
@@ -104,13 +98,11 @@ cloud_init_modules:
 {% if variant in ["alpine", "photon"] %}
  - resolv_conf
 {% endif %}
-{% if not variant.endswith("bsd") %}
-{% if variant not in ["photon"] %}
- - ca-certs
+{% if not is_bsd or variant not in ["photon"] %}
+ - ca_certs
 {% endif %}
  - rsyslog
-{% endif %}
- - users-groups
+ - users_groups
  - ssh
 
 # The modules that run in the 'config' stage
@@ -125,13 +117,13 @@ cloud_config_modules:
  - ubuntu_autoinstall
 {% endif %}
 {% if variant not in ["photon"] %}
- - ssh-import-id
+ - ssh_import_id
 {% if not is_rhel %}
  - keyboard
 {% endif %}
  - locale
 {% endif %}
- - set-passwords
+ - set_passwords
 {% if is_rhel %}
  - rh_subscription
 {% endif %}
@@ -139,25 +131,25 @@ cloud_config_modules:
 {% if variant not in ["mariner", "photon"] %}
  - spacewalk
 {% endif %}
- - yum-add-repo
+ - yum_add_repo
 {% endif %}
 {% if variant in ["ubuntu", "unknown", "debian"] %}
- - grub-dpkg
- - apt-pipelining
- - apt-configure
+ - grub_dpkg
+ - apt_pipelining
+ - apt_configure
 {% endif %}
 {% if variant in ["ubuntu"] %}
- - ubuntu-advantage
+ - ubuntu_advantage
 {% endif %}
 {% if variant in ["suse"] %}
- - zypper-add-repo
+ - zypper_add_repo
 {% endif %}
 {% if variant in ["alpine"] %}
- - apk-configure
+ - apk_configure
 {% endif %}
  - ntp
  - timezone
- - disable-ec2-metadata
+ - disable_ec2_metadata
  - runcmd
 {% if variant in ["ubuntu", "unknown", "debian"] %}
  - byobu
@@ -165,34 +157,34 @@ cloud_config_modules:
 
 # The modules that run in the 'final' stage
 cloud_final_modules:
- - package-update-upgrade-install
+ - package_update_upgrade_install
 {% if variant in ["ubuntu", "unknown", "debian"] %}
  - fan
  - landscape
  - lxd
 {% endif %}
 {% if variant in ["ubuntu", "unknown"] %}
- - ubuntu-drivers
+ - ubuntu_drivers
 {% endif %}
- - write-files-deferred
+ - write_files_deferred
  - puppet
  - chef
  - ansible
  - mcollective
- - salt-minion
+ - salt_minion
  - reset_rmc
  - rightscale_userdata
- - scripts-vendor
- - scripts-per-once
- - scripts-per-boot
- - scripts-per-instance
- - scripts-user
- - ssh-authkey-fingerprints
- - keys-to-console
- - install-hotplug
- - phone-home
- - final-message
- - power-state-change
+ - scripts_vendor
+ - scripts_per_once
+ - scripts_per_boot
+ - scripts_per_instance
+ - scripts_user
+ - ssh_authkey_fingerprints
+ - keys_to_console
+ - install_hotplug
+ - phone_home
+ - final_message
+ - power_state_change
 
 # System and/or distro specific settings
 # (not accessible to handlers/transforms)
@@ -214,7 +206,7 @@ system_info:
      name: ubuntu
      lock_passwd: True
      gecos: Ubuntu
-     groups: [adm, audio, cdrom, dialout, dip, floppy, lxd, netdev, plugdev, sudo, video]
+     groups: [adm, cdrom, dip, lxd, sudo]
      sudo: ["ALL=(ALL) NOPASSWD:ALL"]
      shell: /bin/bash
 {# SRU_BLOCKER: do not ship network renderers on Xenial, Bionic or Eoan #}
@@ -380,9 +372,12 @@ system_info:
 {% elif variant in ["dragonfly"] %}
    network:
       renderers: ['freebsd']
-{% elif variant in ["fedora"] or is_rhel %}
+{% elif variant in ["fedora"] %}
    network:
       renderers: ['netplan', 'network-manager', 'networkd', 'sysconfig', 'eni']
+{% elif is_rhel %}
+   network:
+      renderers: ['sysconfig', 'eni', 'netplan', 'network-manager', 'networkd' ]
 {% elif variant == "openmandriva" %}
    network:
       renderers: ['network-manager', 'networkd']

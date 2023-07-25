@@ -1,3 +1,4 @@
+## template:jinja
 #!/bin/sh
 
 # PROVIDE: cloudinit
@@ -6,21 +7,20 @@
 
 . /etc/rc.subr
 
-PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+PATH="{{ prefix }}/sbin:{{ prefix }}/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 name="cloudinit"
-command="/usr/local/bin/cloud-init"
+command="{{prefix}}/bin/cloud-init"
 start_cmd="cloudinit_start"
 stop_cmd=":"
 rcvar="cloudinit_enable"
-start_cmd="cloudinit_start"
 
 cloudinit_start()
 {
     echo -n "${command} starting"
     if kenv -q kernel_options | grep -q 'cloud-init=disabled'; then
         warn "cloud-init is disabled via kernel_options."
-    elif test -e /etc/cloud/cloud-init.disabled; then
+    elif test -e {{prefix}}/etc/cloud/cloud-init.disabled; then
         warn "cloud-init is disabled via cloud-init.disabled file."
     else
         ${command} init

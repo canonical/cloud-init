@@ -614,6 +614,7 @@ def is_cust_plugin_available():
         "/usr/lib64/open-vm-tools",
         "/usr/lib/x86_64-linux-gnu/open-vm-tools",
         "/usr/lib/aarch64-linux-gnu/open-vm-tools",
+        "/usr/lib/i386-linux-gnu/open-vm-tools",
     )
     cust_plugin = "libdeployPkgPlugin.so"
     for path in search_paths:

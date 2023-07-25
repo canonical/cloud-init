@@ -87,7 +87,7 @@ def test_azure_kernel_upgrade_case_insensitive_uuid(
     with session_cloud.launch(
         launch_kwargs={
             "image_id": session_cloud.cloud_instance.daily_image(
-                CURRENT_RELEASE.image_id, image_type=ImageType.PRO_FIPS
+                CURRENT_RELEASE.series, image_type=ImageType.PRO_FIPS
             )
         }
     ) as instance:

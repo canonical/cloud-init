@@ -83,7 +83,10 @@ the commit gets into a package.
 Add documentation for your datasource
 =====================================
 
-You should add a new file in :file:`doc/datasources/<cloudplatform>.rst`.
+You should add a new file in
+:file:`doc/rtd/reference/datasources/<cloudplatform>.rst`
+and reference it in
+:file:`doc/rtd/reference/datasources.rst`
 
 .. _make-mime: https://cloudinit.readthedocs.io/en/latest/explanation/instancedata.html#storage-locations
 .. _DMI: https://www.dmtf.org/sites/default/files/standards/documents/DSP0005.pdf

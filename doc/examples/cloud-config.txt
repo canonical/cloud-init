@@ -131,14 +131,11 @@ runcmd:
 
 # boot commands
 # default: none
-# this is very similar to runcmd above, but commands run very early
+# This is very similar to runcmd above, but commands run very early
 # in the boot process, only slightly after a 'boothook' would run.
-# bootcmd should really only be used for things that could not be
-# done later in the boot process.  bootcmd is very much like
-# boothook, but possibly with more friendly.
-#  * bootcmd will run on every boot
-#  * the INSTANCE_ID variable will be set to the current instance id.
-#  * you can use 'cloud-init-per' command to help only run once
+#  - bootcmd will run on every boot
+#  - INSTANCE_ID variable will be set to the current instance ID
+#  - 'cloud-init-per' command can be used to make bootcmd run exactly once
 bootcmd:
  - echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts
  - [ cloud-init-per, once, mymkfs, mkfs, /dev/vdb ]
@@ -155,12 +152,12 @@ bootcmd:
 # example:
 cloud_config_modules:
  - mounts
- - ssh-import-id
+ - ssh_import_id
  - ssh
- - grub-dpkg
- - [ apt-update-upgrade, always ]
+ - grub_dpkg
+ - [ apt_update_upgrade, always ]
  - puppet
- - disable-ec2-metadata
+ - disable_ec2_metadata
  - runcmd
  - byobu
 
@@ -171,7 +168,7 @@ cloud_config_modules:
 # The default is an empty list (ie, trust modules).
 #
 # Example:
-#   unverified_modules: ['apt-update-upgrade']
+#   unverified_modules: ['apt_update_upgrade']
 #   default: []
 
 # ssh_import_id: [ user1, user2 ]
@@ -428,8 +425,8 @@ syslog_fix_perms: syslog:root
 #   expire: True
 # ssh_pwauth: [ True, False, "" or "unchanged" ]
 #
-# Hashed passwords can be generated in multiple ways, example with python3:
-# python3 -c 'import crypt,getpass; print(crypt.crypt(getpass.getpass(), crypt.mksalt(crypt.METHOD_SHA512)))'
+# Hashed passwords can be generated in multiple ways, example with python3 and the passlib module:
+# python3 -c 'import passlib.hash;print(passlib.hash.sha512_crypt.hash("password"))'
 # Newer versions of 'mkpasswd' will also work: mkpasswd -m sha-512 password
 #
 # So, a simple working example to allow login via ssh, and not expire

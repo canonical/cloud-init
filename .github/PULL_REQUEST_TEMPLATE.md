@@ -11,7 +11,7 @@ no particular length requirements.
 
 If you need to write multiple paragraphs, feel free.
 
-Fixes: #NNNNN (GitHub Issue number. Remove line if irrelevant)
+Fixes GH-NNNNN (GitHub Issue number. Remove line if irrelevant)
 LP: #NNNNNN (Launchpad bug number. Remove line if irrelevant)
 ```
 

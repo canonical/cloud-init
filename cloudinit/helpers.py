@@ -346,6 +346,7 @@ class Paths(persistence.CloudInitPickleMixin):
             # security-sensitive key values are present in this root-readable
             # file
             "instance_data_sensitive": "instance-data-sensitive.json",
+            "combined_cloud_config": "combined-cloud-config.json",
             "instance_id": ".instance-id",
             "manual_clean_marker": "manual-clean",
             "obj_pkl": "obj.pkl",
@@ -382,6 +383,10 @@ class Paths(persistence.CloudInitPickleMixin):
             self.lookups[
                 "instance_data_sensitive"
             ] = "instance-data-sensitive.json"
+        if "combined_cloud_config" not in self.lookups:
+            self.lookups[
+                "combined_cloud_config"
+            ] = "combined-cloud-config.json"
 
     # get_ipath_cur: get the current instance path for an item
     def get_ipath_cur(self, name=None):

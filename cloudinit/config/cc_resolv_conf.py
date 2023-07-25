@@ -125,7 +125,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """
     Handler for resolv.conf
 
-    @param name: The module name "resolv-conf" from cloud.cfg
+    @param name: The module name "resolv_conf" from cloud.cfg
     @param cfg: A nested dict containing the entire cloud config contents.
     @param cloud: The L{CloudInit} object in use.
     @param log: Pre-initialized Python logger object to use for logging.
