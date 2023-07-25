@@ -1,3 +1,9 @@
+cloud-init (23.3~3gebd7b2b6-0ubuntu2) UNRELEASED; urgency=medium
+
+  * d/cloud-init.maintscript: Remove the unused hook-network-manager conffile
+
+ -- Brett Holman <brett.holman@canonical.com>  Tue, 25 Jul 2023 16:03:57 -0600
+
 cloud-init (23.3~3gebd7b2b6-0ubuntu1) mantic; urgency=medium
 
   * Upstream snapshot based on upstream/main at ebd7b2b6.
