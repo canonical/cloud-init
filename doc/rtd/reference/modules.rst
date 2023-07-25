@@ -17,7 +17,6 @@ deprecated keys may cause warnings in the logs. In the case that a
 key's expected value changes, the key will be marked ``changed`` with a
 date. A 5 year timeline may also be expected for changed keys.
 
-
 .. automodule:: cloudinit.config.cc_ansible
 .. automodule:: cloudinit.config.cc_apk_configure
 .. automodule:: cloudinit.config.cc_apt_configure

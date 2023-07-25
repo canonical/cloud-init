@@ -2,7 +2,7 @@
 /** Should be 100 for all headers, 400 for normal text  **/
 
 h1, h2, h3, h4, h5, h6, .sidebar-tree .current-page>.reference, button, input, optgroup, select, textarea, th.head {
-    font-weight: 200;
+    font-weight: 300;
 }
 
 .toc-title {

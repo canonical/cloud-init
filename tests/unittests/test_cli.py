@@ -252,16 +252,16 @@ class TestCLI:
                     "opensuse, opensuse-microos, opensuse-tumbleweed, "
                     "opensuse-leap, photon, rhel, rocky, sle_hpc, "
                     "sle-micro, sles, TencentOS, ubuntu, virtuozzo",
-                    "**Config schema**:\n    **resize_rootfs:** "
+                    " **resize_rootfs:** ",
                     "(``true``/``false``/``noblock``)",
-                    "**Examples**::\n\n    runcmd:\n        - [ ls, -l, / ]\n",
+                    "runcmd:\n             - [ ls, -l, / ]\n",
                 ],
                 False,
                 id="all_spot_check",
             ),
             pytest.param(
                 ["cc_runcmd"],
-                ["Runcmd\n------\n**Summary:** Run arbitrary commands"],
+                ["\nRuncmd\n------\n\nRun arbitrary commands\n"],
                 False,
                 id="single_spot_check",
             ),
@@ -271,8 +271,8 @@ class TestCLI:
                     "cc_resizefs",
                 ],
                 [
-                    "Runcmd\n------\n**Summary:** Run arbitrary commands",
-                    "Resizefs\n--------\n**Summary:** Resize filesystem",
+                    "\nRuncmd\n------\n\nRun arbitrary commands",
+                    "\nResizefs\n--------\n\nResize filesystem",
                 ],
                 False,
                 id="multiple_spot_check",
@@ -331,6 +331,3 @@ class TestCLI:
         assert "features" == parseargs.action[0]
         assert False is parseargs.debug
         assert False is parseargs.force
-
-
-# : ts=4 expandtab
