@@ -166,12 +166,22 @@ class TestApt:
         Ported from
         tests/cloud_tests/testcases/modules/apt_configure_sources_ppa.py
         """
-        ppa_path_contents = class_client.read_from_file(
-            "/etc/apt/sources.list.d/"
-            "simplestreams-dev-ubuntu-trunk-{}.list".format(
-                CURRENT_RELEASE.series
+        if CURRENT_RELEASE.series < "mantic":
+            ppa_path_contents = class_client.read_from_file(
+                "/etc/apt/sources.list.d/"
+                "simplestreams-dev-ubuntu-trunk-{}.list".format(
+                    CURRENT_RELEASE.series
+                )
             )
-        )
+        else:
+            # deb822 support present on mantic and later
+            ppa_path_contents = class_client.read_from_file(
+                "/etc/apt/sources.list.d/"
+                "simplestreams-dev-ubuntu-trunk-{}.sources".format(
+                    CURRENT_RELEASE.series
+                )
+            )
+
         assert (
             "://ppa.launchpad.net/simplestreams-dev/trunk/ubuntu"
             in ppa_path_contents

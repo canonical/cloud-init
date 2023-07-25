@@ -1,0 +1,14 @@
+network:
+  version: 1
+  config:
+    - type: physical
+      name: interface0
+      mac_address: '00:11:22:33:44:55'
+      subnets:
+         - type: static
+           address: 192.168.23.14/24
+           gateway: 192.168.23.1
+    - type: route
+      destination: 192.168.24.0/24
+      gateway: 192.168.24.1
+      metric: 3

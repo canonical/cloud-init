@@ -26,6 +26,7 @@ from binascii import crc32
 import serial
 
 from cloudinit import helpers as c_helpers
+from cloudinit.atomic_helper import b64e
 from cloudinit.event import EventScope, EventType
 from cloudinit.sources import DataSourceSmartOS
 from cloudinit.sources.DataSourceSmartOS import SERIAL_DEVICE, SMARTOS_ENV_KVM
@@ -37,7 +38,7 @@ from cloudinit.sources.DataSourceSmartOS import (
     identify_file,
 )
 from cloudinit.subp import ProcessExecutionError, subp, which
-from cloudinit.util import b64e, write_file
+from cloudinit.util import write_file
 from tests.unittests.helpers import (
     CiTestCase,
     FilesystemMockingTestCase,

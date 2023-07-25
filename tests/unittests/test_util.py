@@ -22,7 +22,7 @@ from urllib.parse import urlparse
 import pytest
 import yaml
 
-from cloudinit import features, importer, subp, url_helper, util
+from cloudinit import atomic_helper, features, importer, subp, url_helper, util
 from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import SubpResult
@@ -1327,19 +1327,22 @@ class TestGetVariant:
 class TestJsonDumps(CiTestCase):
     def test_is_str(self):
         """json_dumps should return a string."""
-        self.assertTrue(isinstance(util.json_dumps({"abc": "123"}), str))
+        self.assertTrue(
+            isinstance(atomic_helper.json_dumps({"abc": "123"}), str)
+        )
 
     def test_utf8(self):
         smiley = "\\ud83d\\ude03"
         self.assertEqual(
-            {"smiley": smiley}, json.loads(util.json_dumps({"smiley": smiley}))
+            {"smiley": smiley},
+            json.loads(atomic_helper.json_dumps({"smiley": smiley})),
         )
 
     def test_non_utf8(self):
         blob = b"\xba\x03Qx-#y\xea"
         self.assertEqual(
             {"blob": "ci-b64:" + base64.b64encode(blob).decode("utf-8")},
-            json.loads(util.json_dumps({"blob": blob})),
+            json.loads(atomic_helper.json_dumps({"blob": blob})),
         )
 
 
@@ -2200,10 +2203,10 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
         self.assertEqual(("/dev/mapper/vg00-lv_root", "ext4", "/"), ret)
         # this one exists in mount_parse_ext.txt
         ret = util.parse_mount("/sys/kernel/debug")
-        self.assertIsNone(ret)
-        # this one does not even exist in mount_parse_ext.txt
-        ret = util.parse_mount("/not/existing/mount")
-        self.assertIsNone(ret)
+        self.assertEqual(("none", "debugfs", "/sys/kernel/debug"), ret)
+        # this one does not exist in mount_parse_ext.txt
+        ret = util.parse_mount("/var/tmp/cloud-init")
+        self.assertEqual(("/dev/mapper/vg00-lv_var", "ext4", "/var"), ret)
 
     @mock.patch("cloudinit.subp.subp")
     def test_parse_mount_with_zfs(self, mount_out):
@@ -2217,9 +2220,9 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
         # this one is the root, valid and also exists in mount_parse_zfs.txt
         ret = util.parse_mount("/")
         self.assertEqual(("vmzroot/ROOT/freebsd", "zfs", "/"), ret)
-        # this one does not even exist in mount_parse_ext.txt
-        ret = util.parse_mount("/not/existing/mount")
-        self.assertIsNone(ret)
+        # this one does not exist in mount_parse_ext.txt
+        ret = util.parse_mount("/var/tmp/cloud-init")
+        self.assertEqual(("vmzroot/var/tmp", "zfs", "/var/tmp"), ret)
 
 
 class TestIsX86(helpers.CiTestCase):
@@ -3110,3 +3113,27 @@ class TestHashBuffer:
                 util.hash_buffer(f)
                 == b"\x99\x80\x0b\x85\xd38>:/\xb4^\xb7\xd0\x06jHy\xa9\xda\xd0"
             )
+
+
+class TestComparePermissions:
+    @pytest.mark.parametrize(
+        "perm1,perm2,expected",
+        [
+            (0o777, 0o777, 0),
+            (0o000, 0o000, 0),
+            (0o421, 0o421, 0),
+            (0o1640, 0o1640, 0),
+            (0o1407, 0o1600, 1),
+            (0o1600, 0o1407, -1),
+            (0o407, 0o600, 1),
+            (0o600, 0o407, -1),
+            (0o007, 0o700, 1),
+            (0o700, 0o007, -1),
+            (0o077, 0o100, 1),
+            (0o644, 0o640, 1),
+            (0o640, 0o600, 1),
+            (0o600, 0o400, 1),
+        ],
+    )
+    def test_compare_permissions(self, perm1, perm2, expected):
+        assert util.compare_permission(perm1, perm2) == expected

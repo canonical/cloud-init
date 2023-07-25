@@ -97,7 +97,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         cloud.distro.set_option("prefer_fqdn_over_hostname", hostname_fqdn)
 
     (hostname, fqdn, is_default) = util.get_hostname_fqdn(cfg, cloud)
-    # Check for previous successful invocation of set-hostname
+    # Check for previous successful invocation of set_hostname
 
     # set-hostname artifact file accounts for both hostname and fqdn
     # deltas. As such, it's format is different than cc_update_hostname's
@@ -112,7 +112,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         "hostname"
     ) or fqdn != prev_hostname.get("fqdn")
     if not hostname_changed:
-        LOG.debug("No hostname changes. Skipping set-hostname")
+        LOG.debug("No hostname changes. Skipping set_hostname")
         return
     if is_default and hostname == "localhost":
         # https://github.com/systemd/systemd/commit/d39079fcaa05e23540d2b1f0270fa31c22a7e9f1

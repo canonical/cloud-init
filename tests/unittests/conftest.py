@@ -46,6 +46,7 @@ FS_FUNCS = {
     ],
     atomic_helper: [
         ("write_file", 1),
+        ("write_json", 1),
     ],
 }
 

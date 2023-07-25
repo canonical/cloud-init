@@ -55,7 +55,7 @@ cloud-init-security list. This depends on a number of factors:
 * It might take time to decide upon and develop an appropriate fix
 * A distros might want extra time to backport any possible fixes before
   the fix becomes public
-* A cloud may need additional time to prepare to help customers or impliment
+* A cloud may need additional time to prepare to help customers or implement
   a fix
 * The issue might be deemed low priority
-* May wish to to align with an upcoming planned release
+* May wish to align with an upcoming planned release

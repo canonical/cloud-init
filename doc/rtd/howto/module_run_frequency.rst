@@ -26,9 +26,9 @@ Update :file:`/etc/cloud/cloud.cfg`:
 
         cloud_final_modules:
         # list shortened for brevity
-         - [phone-home, always]
-         - final-message
-         - power-state-change
+         - [phone_home, always]
+         - final_message
+         - power_state_change
 
 Then your user data could then be:
 

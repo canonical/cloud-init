@@ -63,8 +63,8 @@ def _migrate_canon_sems(cloud):
 def _migrate_legacy_sems(cloud):
     legacy_adjust = {
         "apt-update-upgrade": [
-            "apt-configure",
-            "package-update-upgrade-install",
+            "apt_configure",
+            "package_update_upgrade_install",
         ],
     }
     paths = (cloud.paths.get_ipath("sem"), cloud.paths.get_cpath("sem"))

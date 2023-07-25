@@ -814,7 +814,7 @@ dscheck_MAAS() {
 }
 
 # LXD datasource requires active /dev/lxd/sock
-# https://linuxcontainers.org/lxd/docs/master/dev-lxd
+# https://documentation.ubuntu.com/lxd/en/latest/dev-lxd/
 dscheck_LXD() {
     if is_socket_file /dev/lxd/sock; then
         return ${DS_FOUND}
@@ -931,14 +931,16 @@ vmware_guest_customization() {
 
     # we have to have the plugin to do vmware customization
     local found="" pkg="" pre="${PATH_ROOT}/usr/lib"
-    local x86="x86_64-linux-gnu" aarch="aarch64-linux-gnu"
+    local x86="x86_64-linux-gnu" aarch="aarch64-linux-gnu" i386="i386-linux-gnu"
     local ppath="plugins/vmsvc/libdeployPkgPlugin.so"
     for pkg in vmware-tools open-vm-tools; do
         if [ -f "$pre/$pkg/$ppath" -o -f "${pre}64/$pkg/$ppath" ]; then
             found="$pkg"; break;
         fi
         # search in multiarch dir
-        if [ -f "$pre/$x86/$pkg/$ppath" -o -f "$pre/$aarch/$pkg/$ppath" ]; then
+        if [ -f "$pre/$x86/$pkg/$ppath" ] || \
+           [ -f "$pre/$aarch/$pkg/$ppath" ] || \
+           [ -f "$pre/$i386/$pkg/$ppath" ]; then
             found="$pkg"; break;
         fi
     done
@@ -1740,8 +1742,8 @@ read_config() {
         key=${tok%%=*}
         val=${tok#*=}
 
-        # discard anything after delimiter
-        val=${val%;*}
+        # discard anything after the first delimiter
+        val=${val%%;*}
         case "$key" in
             ds) _rc_dsname="$val";;
             ci.ds) _rc_dsname="$val";;

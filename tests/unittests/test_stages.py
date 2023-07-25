@@ -483,13 +483,16 @@ class TestInit:
         self.init.is_new_instance = mock.Mock(return_value=False)
         return net_cfg
 
+    @mock.patch("cloudinit.util._get_cmdline", return_value="")
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
     @mock.patch("cloudinit.distros.ubuntu.Distro")
     @mock.patch.dict(
         sources.DataSource.default_update_events,
         {EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE, EventType.BOOT}},
     )
-    def test_apply_network_allowed_when_default_boot(self, m_ubuntu, m_macs):
+    def test_apply_network_allowed_when_default_boot(
+        self, m_ubuntu, m_macs, m_get_cmdline
+    ):
         """Apply network if datasource permits BOOT event."""
         net_cfg = self._apply_network_setup(m_macs)
 
@@ -522,6 +525,7 @@ class TestInit:
             "network update allowed" in caplog.text
         )
 
+    @mock.patch("cloudinit.util._get_cmdline", return_value="")
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
     @mock.patch("cloudinit.distros.ubuntu.Distro")
     @mock.patch.dict(
@@ -529,7 +533,7 @@ class TestInit:
         {EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}},
     )
     def test_apply_network_allowed_with_userdata_overrides(
-        self, m_ubuntu, m_macs
+        self, m_ubuntu, m_macs, m_get_cmdline
     ):
         """Apply network if userdata overrides default config"""
         net_cfg = self._apply_network_setup(m_macs)
@@ -606,13 +610,22 @@ class TestInit_InitializeFilesystem:
         # Assert we create it 0o640  by default if it doesn't already exist
         assert 0o640 == stat.S_IMODE(log_file.stat().mode)
 
-    def test_existing_file_permissions(self, init, tmpdir):
+    @pytest.mark.parametrize(
+        "set_perms,expected_perms",
+        [
+            (0o640, 0o640),
+            (0o606, 0o640),
+            (0o600, 0o600),
+        ],
+    )
+    def test_existing_file_permissions(
+        self, init, tmpdir, set_perms, expected_perms
+    ):
         """Test file permissions are set as expected.
 
-        CIS Hardening requires 640 permissions. These permissions are
-        currently hardcoded on every boot, but if there's ever a reason
-        to change this, we need to then ensure that they
-        are *not* set every boot.
+        CIS Hardening requires 640 permissions. If the file has looser
+        permissions, then hard code 640. If the file has tighter
+        permissions, then leave them as they are
 
         See https://bugs.launchpad.net/cloud-init/+bug/1900837.
         """
@@ -620,9 +633,9 @@ class TestInit_InitializeFilesystem:
         log_file.ensure()
         # Use a mode that will never be made the default so this test will
         # always be valid
-        log_file.chmod(0o606)
+        log_file.chmod(set_perms)
         init._cfg = {"def_log_file": str(log_file)}
 
         init._initialize_filesystem()
 
-        assert 0o640 == stat.S_IMODE(log_file.stat().mode)
+        assert expected_perms == stat.S_IMODE(log_file.stat().mode)

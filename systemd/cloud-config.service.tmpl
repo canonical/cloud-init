@@ -3,6 +3,7 @@
 Description=Apply the settings specified in cloud-config
 After=network-online.target cloud-config.target
 After=snapd.seeded.service
+Before=systemd-user-sessions.service
 Wants=network-online.target cloud-config.target
 {% if variant == "rhel" %}
 ConditionPathExists=!/etc/cloud/cloud-init.disabled

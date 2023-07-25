@@ -144,9 +144,11 @@ class TestBootCMDSchema:
                         {"a": "n"},
                     ]
                 },
-                "Cloud config schema errors: bootcmd.1: 20 is not valid under"
-                " any of the given schemas, bootcmd.3: {'a': 'n'} is not"
-                " valid under any of the given schemas",
+                "Cloud config schema errors: bootcmd.1: 20 is not of type"
+                " 'array', bootcmd.1: 20 is not valid under any of the given"
+                " schemas, bootcmd.3: {'a': 'n'} is not of type 'array',"
+                " bootcmd.3: {'a': 'n'} is not valid under any of the given"
+                " schemas",
             ),
         ),
     )

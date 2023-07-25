@@ -810,7 +810,7 @@ def _maybe_persist_instance_data(init: stages.Init):
 
 
 def _maybe_set_hostname(init, stage, retry_stage):
-    """Call set-hostname if metadata, vendordata or userdata provides it.
+    """Call set_hostname if metadata, vendordata or userdata provides it.
 
     @param stage: String representing current stage in which we are running.
     @param retry_stage: String represented logs upon error setting hostname.
@@ -821,7 +821,7 @@ def _maybe_set_hostname(init, stage, retry_stage):
     )
     if hostname:  # meta-data or user-data hostname content
         try:
-            cc_set_hostname.handle("set-hostname", init.cfg, cloud, None)
+            cc_set_hostname.handle("set_hostname", init.cfg, cloud, None)
         except cc_set_hostname.SetHostnameError as e:
             LOG.debug(
                 "Failed setting hostname in %s stage. Will"

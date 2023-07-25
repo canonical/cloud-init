@@ -1,3 +1,4 @@
+## template:jinja
 #!/bin/sh
 
 # PROVIDE: cloudfinal
@@ -9,10 +10,10 @@ name="cloudinit"
 start_cmd="start_cloud_init"
 start_cloud_init()
 {
-    test -e /etc/cloud/cloud-init.disabled \
+    test -e {{prefix}}/etc/cloud/cloud-init.disabled \
       && warn "cloud-init disabled by cloud-init.disabled file" \
       && exit 0
-    /usr/pkg/bin/cloud-init modules --mode final
+    {{prefix}}/bin/cloud-init modules --mode final
 }
 
 load_rc_config $name

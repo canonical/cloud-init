@@ -79,7 +79,7 @@ meta: MetaSchema = {
             # storage_pools, profiles, projects, clusters and core config,
             # `lxd:preseed` config will be passed as stdin to the command:
             #  lxd init --preseed
-            # See https://linuxcontainers.org/lxd/docs/master/preseed/ or
+            # See https://documentation.ubuntu.com/lxd/en/latest/howto/initialize/#non-interactive-configuration or
             # run: lxd init --dump to see viable preseed YAML allowed.
             #
             # Preseed settings configuring the LXD daemon for HTTPS connections
@@ -149,7 +149,7 @@ meta: MetaSchema = {
                     name: limited
 
 
-            """
+            """  # noqa: E501
         ),
     ],
     "frequency": PER_INSTANCE,
@@ -216,6 +216,13 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     bridge_cfg = lxd_cfg.get("bridge", {})
     supplemental_schema_validation(init_cfg, bridge_cfg, preseed_str)
 
+    if not subp.which("lxd"):
+        try:
+            subp.subp(["snap", "install", "lxd"])
+        except subp.ProcessExecutionError as e:
+            raise RuntimeError(
+                "Failed to install lxd from snap: %s" % e
+            ) from e
     packages = get_required_packages(init_cfg, preseed_str)
     if len(packages):
         try:
@@ -462,7 +469,7 @@ def maybe_cleanup_default(
     By removing any that lxd-init created, we simply leave the add/attach
     code intact.
 
-    https://github.com/lxc/lxd/issues/4649"""
+    https://github.com/canonical/lxd/issues/4649"""
     if net_name != _DEFAULT_NETWORK_NAME or not did_init:
         return
 
@@ -496,9 +503,6 @@ def maybe_cleanup_default(
 def get_required_packages(init_cfg: dict, preseed_str: str) -> List[str]:
     """identify required packages for install"""
     packages = []
-    if not subp.which("lxd"):
-        packages.append("lxd")
-
     # binary for pool creation must be available for the requested backend:
     # zfs, lvcreate, mkfs.btrfs
     storage_drivers: List[str] = []

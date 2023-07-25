@@ -34,7 +34,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
                     "permissions": 0o755,
                 },
             ],
-            "cloud_init_modules": ["write-files", "spacewalk", "runcmd"],
+            "cloud_init_modules": ["write_files", "spacewalk", "runcmd"],
         }
         cloud_cfg = safeyaml.dumps(self.cfg)
         util.ensure_dir(os.path.join(self.new_root, "etc", "cloud"))
@@ -79,11 +79,11 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
         (which_ran, failures) = mods.run_section("cloud_init_modules")
         self.assertTrue(len(failures) == 0)
         self.assertTrue(os.path.exists("/etc/blah.ini"))
-        self.assertIn("write-files", which_ran)
+        self.assertIn("write_files", which_ran)
         contents = util.load_file("/etc/blah.ini")
         self.assertEqual(contents, "blah")
         self.assertNotIn(
-            "Skipping modules ['write-files'] because they are not verified on"
+            "Skipping modules ['write_files'] because they are not verified on"
             " distro 'ubuntu'",
             self.logs.getvalue(),
         )

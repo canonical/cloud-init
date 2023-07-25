@@ -15,10 +15,10 @@ from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
 MODULE_DESCRIPTION = """\
-This module is based on `'Write Files' <write-files>`__, and
+This module is based on `'Write Files' <write_files>`__, and
 will handle all files from the write_files list, that have been
 marked as deferred and thus are not being processed by the
-write-files module.
+write_files module.
 
 *Please note that his module is not exposed to the user through
 its own dedicated top-level directive.*
