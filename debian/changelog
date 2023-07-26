@@ -1,4 +1,4 @@
-cloud-init (23.3~4ga31370af-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (23.3~4ga31370af-0ubuntu1) mantic; urgency=medium
 
   * Upstream snapshot based on upstream/main at a31370af.
     - Bugs fixed in this snapshot: (LP: #1923363, #2028562, #2028784)
@@ -6,7 +6,7 @@ cloud-init (23.3~4ga31370af-0ubuntu1) UNRELEASED; urgency=medium
     conffile. (LP: #2027861)
   * d/control: Add python3-passlib as needed for testing
 
- -- James Falcon <james.falcon@canonical.com>  Wed, 26 Jul 2023 11:48:49 -0500
+ -- James Falcon <james.falcon@canonical.com>  Mon, 31 Jul 2023 11:38:42 -0500
 
 cloud-init (23.3~3gebd7b2b6-0ubuntu1) mantic; urgency=medium
 
