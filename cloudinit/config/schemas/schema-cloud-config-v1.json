@@ -1682,7 +1682,7 @@
             },
             "preseed": {
               "type": "string",
-              "description": "Opaque LXD preseed YAML config passed via stdin to the command: lxd init --preseed. See: https://linuxcontainers.org/lxd/docs/master/preseed/ or lxd init --dump for viable config. Can not be combined with either ``lxd.init`` or ``lxd.bridge``."
+              "description": "Opaque LXD preseed YAML config passed via stdin to the command: lxd init --preseed. See: https://documentation.ubuntu.com/lxd/en/latest/howto/initialize/#non-interactive-configuration or lxd init --dump for viable config. Can not be combined with either ``lxd.init`` or ``lxd.bridge``."
             }
           }
         }

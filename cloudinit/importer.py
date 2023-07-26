@@ -40,16 +40,16 @@ def match_case_insensitive_module_name(mod_name: str) -> Optional[str]:
     if "nocloud-net" == mod_name.lower():
         mod_name = mod_name[:-4]
     if not mod_name.startswith("DataSource"):
-        ds_name = f"DataSource{mod_name}"
+        mod_name = f"DataSource{mod_name}"
     modules = {}
     spec = importlib.util.find_spec("cloudinit.sources")
     if spec and spec.submodule_search_locations:
         for dir in spec.submodule_search_locations:
             modules.update(util.get_modules_from_dir(dir))
         for module in modules.values():
-            if module.lower() == ds_name.lower():
+            if module.lower() == mod_name.lower():
                 return module
-    return ds_name
+    return mod_name
 
 
 def find_module(

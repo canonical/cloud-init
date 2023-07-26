@@ -1,5 +1,4 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-# pylint: disable=no-member,no-name-in-module
 """
 This file is for testing the feature flag functionality itself,
 NOT for testing any individual feature flag
@@ -10,21 +9,22 @@ from cloudinit import features
 
 
 class TestGetFeatures:
-    """default pytest-xdist behavior may fail due to these tests"""
-
     def test_feature_without_override(self):
-        assert {
-            "ERROR_ON_USER_DATA_FAILURE": True,
-            "EXPIRE_APPLIES_TO_HASHED_USERS": True,
-            "NETPLAN_CONFIG_ROOT_READ_ONLY": True,
-            "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH": True,
-        } == features.get_features()
-        with mock.patch.object(
-            features, "NETPLAN_CONFIG_ROOT_READ_ONLY", False
+        # Since features are intended to be overridden downstream, mock them
+        # all here so new feature flags don't require a new change to this
+        # unit test.
+        with mock.patch.multiple(
+            "cloudinit.features",
+            ERROR_ON_USER_DATA_FAILURE=True,
+            ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES=True,
+            EXPIRE_APPLIES_TO_HASHED_USERS=False,
+            NETPLAN_CONFIG_ROOT_READ_ONLY=True,
+            NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH=False,
         ):
             assert {
                 "ERROR_ON_USER_DATA_FAILURE": True,
-                "EXPIRE_APPLIES_TO_HASHED_USERS": True,
-                "NETPLAN_CONFIG_ROOT_READ_ONLY": False,
-                "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH": True,
+                "ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES": True,
+                "EXPIRE_APPLIES_TO_HASHED_USERS": False,
+                "NETPLAN_CONFIG_ROOT_READ_ONLY": True,
+                "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH": False,
             } == features.get_features()

@@ -21,6 +21,23 @@ import setuptools
 from setuptools.command.egg_info import egg_info
 from setuptools.command.install import install
 
+# Python-path here is a little unpredictable as setup.py could be run
+# from a directory other than the root of the repo, so ensure we can find
+# our utils
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+# isort: off
+from setup_utils import (  # noqa: E402
+    get_version,
+    in_virtualenv,
+    is_f,
+    is_generator,
+    pkg_config_read,
+    read_requires,
+)
+
+# isort: on
+del sys.path[0]
+
 # pylint: disable=W0402
 try:
     from setuptools.errors import DistutilsError
@@ -31,65 +48,6 @@ except ImportError:
 RENDERED_TMPD_PREFIX = "RENDERED_TEMPD"
 VARIANT = None
 PREFIX = None
-
-
-def is_f(p):
-    return os.path.isfile(p)
-
-
-def is_generator(p):
-    return "-generator" in p
-
-
-def pkg_config_read(library, var):
-    fallbacks = {
-        "systemd": {
-            "systemdsystemconfdir": "/etc/systemd/system",
-            "systemdsystemunitdir": "/lib/systemd/system",
-            "systemdsystemgeneratordir": "/lib/systemd/system-generators",
-        },
-        "udev": {
-            "udevdir": "/lib/udev",
-        },
-    }
-    cmd = ["pkg-config", "--variable=%s" % var, library]
-    try:
-        path = subprocess.check_output(cmd).decode("utf-8")
-        path = path.strip()
-    except Exception:
-        path = fallbacks[library][var]
-    if path.startswith("/"):
-        path = path[1:]
-
-    return path
-
-
-def in_virtualenv():
-    try:
-        if sys.real_prefix == sys.prefix:
-            return False
-        else:
-            return True
-    except AttributeError:
-        return False
-
-
-def get_version():
-    cmd = [sys.executable, "tools/read-version"]
-    ver = subprocess.check_output(cmd)
-    version = ver.decode("utf-8").strip()
-    # read-version can spit out something like 22.4-15-g7f97aee24
-    # which is invalid under PEP440. If we replace the first - with a +
-    # that should give us a valid version.
-    if "-" in version:
-        version = version.replace("-", "+", 1)
-    return version
-
-
-def read_requires():
-    cmd = [sys.executable, "tools/read-dependencies"]
-    deps = subprocess.check_output(cmd)
-    return deps.decode("utf-8").splitlines()
 
 
 def render_tmpl(template, mode=None):
