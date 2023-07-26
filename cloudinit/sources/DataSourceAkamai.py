@@ -336,12 +336,16 @@ class DataSourceAkamai(sources.DataSource):
                         local_instance_id,
                     )
                     break
+        else:
+            # even if we failed to reach the metadata service this loop, we
+            # still have the locally-available metadata (namely the instance id
+            # and cloud name), and by accepting just that we ensure that
+            # cloud-init won't run on our next boot
+            LOG.warning(
+                "Failed to contact metadata service, falling back to local "
+                "metadata only."
+            )
 
-        # even if we failed to reach the metadata service in the loop above, we
-        # still have the locally-available metadata (namely the instance id and
-        # cloud name), and by accepting just that we ensure that cloud-init
-        # won't run on our next boot; as such, regardless of the outcome of the
-        # loop above, we should return True here
         return True
 
     def check_instance_id(self, sys_cfg) -> bool:
