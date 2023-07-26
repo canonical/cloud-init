@@ -3,7 +3,7 @@ import json
 from base64 import b64decode
 from contextlib import suppress as noop
 from enum import Enum
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, List, Tuple, Union
 
 from cloudinit import log as logging
 from cloudinit import sources, url_helper, util
@@ -125,8 +125,9 @@ class DataSourceAkamai(sources.DataSource):
             return MetadataAvailabilityResult.DEFER
 
         if not self.ds_cfg["allow_dhcp"] and not self.ds_cfg["allow_ipv6"]:
-            # without dhcp, we can't fetch during the local stage over IPv4.  If we're
-            # not allowed to use IPv6 either, then we can't init during this stage
+            # without dhcp, we can't fetch during the local stage over IPv4.
+            # If we're not allowed to use IPv6 either, then we can't init
+            # during this stage
             LOG.info(
                 "Configuration does not allow for ephemeral network setup."
             )
@@ -244,8 +245,8 @@ class DataSourceAkamai(sources.DataSource):
             )
             if token_response.code != 200:
                 LOG.info(
-                    f"Fetching token returned {token_response.code}; "
-                    "not fetching data"
+                    "Fetching token returned %s; not fetching data",
+                    token_response.code,
                 )
                 return True
 
@@ -276,15 +277,20 @@ class DataSourceAkamai(sources.DataSource):
             )
             self.userdata_raw = str(userdata)  # type: ignore
             try:
-                self.userdata_raw = b64decode(self.userdata_raw).decode()  # type: ignore
+                self.userdata_raw = b64decode(
+                    self.userdata_raw  # type: ignore
+                ).decode()
             except binascii.Error as e:
-                LOG.warning(f"Failed to base64 decode userdata due to {e}")
+                LOG.warning("Failed to base64 decode userdata due to %s", e)
         except url_helper.UrlError as e:
-            # we failed to retrieve data with an exception; log the error and return
-            # false, indicating that we should retry using a different network if
-            # possible
+            # we failed to retrieve data with an exception; log the error and
+            # return false, indicating that we should retry using a different
+            # network if possible
             LOG.warning(
-                f"Failed to retrieve metadata using IPv{'6' if use_v6 else '4'} due to {e}"
+                "Failed to retrieve metadata using IPv%s due to %s" "6"
+                if use_v6
+                else "4",
+                e,
             )
             return False
 
@@ -321,7 +327,7 @@ class DataSourceAkamai(sources.DataSource):
 
         network_context_managers = self._get_network_context_managers()
         for manager, use_v6 in network_context_managers:
-            with manager as m:
+            with manager:
                 done = self._fetch_metadata(use_v6=use_v6)
                 if done:
                     # fix up some field names
@@ -333,9 +339,9 @@ class DataSourceAkamai(sources.DataSource):
 
         # even if we failed to reach the metadata service in the loop above, we
         # still have the locally-available metadata (namely the instance id and
-        # cloud name), and by accepting just that we ensure that cloud-init won't
-        # run on our next boot; as such, regardless of the outcome of the loop
-        # above, we should return True here
+        # cloud name), and by accepting just that we ensure that cloud-init
+        # won't run on our next boot; as such, regardless of the outcome of the
+        # loop above, we should return True here
         return True
 
     def check_instance_id(self, sys_cfg) -> bool:

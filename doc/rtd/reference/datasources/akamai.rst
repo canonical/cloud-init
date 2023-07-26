@@ -4,7 +4,7 @@ Akamai
 ******
 
 The Akamai datasource provides an interface to consume metadata on the `Akamai
-Connected Cloud`_.  This service is available at ``169.254.169.254`` and 
+Connected Cloud`_.  This service is available at ``169.254.169.254`` and
 ``fd00:a9fe:a9fe::1`` from within the instance.
 
 .. _Akamai Connected Cloud: https://linode.com
