@@ -81,4 +81,6 @@ class TestAkamaiHelper:
         assert (
             result == expected_result
         ), f"Unexpected result checking if '{dmi_data}' is Akamai"
-        assert read_dmi_data.called_with("bios-vendor")
+        assert [
+            mock.call("system-manufacturer")
+        ] == read_dmi_data.call_args_list
