@@ -9,6 +9,7 @@
 import argparse
 import os
 import shutil
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -19,7 +20,6 @@ from cloudinit.helpers import Paths
 from cloudinit.subp import ProcessExecutionError, subp
 from cloudinit.temp_utils import tempdir
 from cloudinit.util import chdir, copy, ensure_dir, write_file
-import subprocess
 
 CLOUDINIT_LOGS = ["/var/log/cloud-init.log", "/var/log/cloud-init-output.log"]
 CLOUDINIT_RUN_DIR = "/run/cloud-init"
@@ -142,24 +142,35 @@ def _copytree_rundir_ignore_files(curdir, files):
     return ignored_files
 
 
-def _write_command_output_to_file(cmd, filename, msg, verbosity, return_output=False):
+def _write_command_output_to_file(cmd, filename, msg, verbosity):
     """Helper which runs a command and writes output or error to filename."""
-    output = None
+    output = ""
     try:
         ensure_dir(os.path.dirname(filename))
-        with open(filename, "w") as f:
-            if return_output:
-                output = subp(cmd)[0]
-                f.write(output)
-            else:
-                f.write(subp(cmd)[0])
+        output = subp(cmd)[0]
+        # with open(filename, "w") as f:
+        # f.write(output)
+        write_file(filename, output)
     except ProcessExecutionError as e:
-        write_file(filename, output:=str(e))
+        write_file(filename, output := str(e))
         _debug("collecting %s failed.\n" % msg, 1, verbosity)
         return output
     else:
         _debug("collected %s\n" % msg, 1, verbosity)
         return output
+
+
+def _stream_command_output_to_file(cmd, filename, msg, verbosity):
+    """Helper which runs a command and writes output or error to filename."""
+    try:
+        ensure_dir(os.path.dirname(filename))
+        with open(filename, "w") as f:
+            subprocess.call(cmd, stdout=f, stderr=f)
+    except ProcessExecutionError as e:
+        # write_file(filename, str(e))
+        _debug("collecting %s failed.\n" % msg, 1, verbosity)
+    else:
+        _debug("collected %s\n" % msg, 1, verbosity)
 
 
 def _debug(msg, level, verbosity):
@@ -212,26 +223,24 @@ def collect_logs(tarfile, include_userdata: bool, verbosity=0):
             filename=os.path.join(log_dir, "version"),
             msg="cloud-init --version",
             verbosity=verbosity,
-            return_output=True,
         )
         dpkg_ver = _write_command_output_to_file(
             cmd=["dpkg-query", "--show", "-f=${Version}\n", "cloud-init"],
             filename=os.path.join(log_dir, "dpkg-version"),
             msg="dpkg version",
             verbosity=verbosity,
-            return_output=True,
         )
         if not version:
             version = dpkg_ver if dpkg_ver else "not-available"
         print("version: ", version)
         _debug("collected cloud-init version: %s\n" % version, 1, verbosity)
-        _write_command_output_to_file(
+        _stream_command_output_to_file(
             cmd=["dmesg"],
             filename=os.path.join(log_dir, "dmesg.txt"),
             msg="dmesg output",
             verbosity=verbosity,
         )
-        _write_command_output_to_file(
+        _stream_command_output_to_file(
             cmd=["journalctl", "--boot=0", "-o", "short-precise"],
             filename=os.path.join(log_dir, "journal.txt"),
             msg="systemd journal of current boot",
