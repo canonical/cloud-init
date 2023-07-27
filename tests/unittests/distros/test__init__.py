@@ -68,7 +68,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         d.write_sudo_rules("harlowja", rules)
         contents = util.load_file(d.ci_sudoers_fn)
-        return contents
+        return contents, cls, d
 
     def _count_in(self, lines_look_for, text_content):
         found_amount = 0
@@ -81,7 +81,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
 
     def test_sudoers_ensure_rules(self):
         rules = "ALL=(ALL:ALL) ALL"
-        contents = self._write_load_sudoers("harlowja", rules)
+        contents = self._write_load_sudoers("harlowja", rules)[0]
         expected = ["harlowja ALL=(ALL:ALL) ALL"]
         self.assertEqual(len(expected), self._count_in(expected, contents))
         not_expected = [
@@ -97,7 +97,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
             "B-ALL=(ALL:ALL) ALL",
             "C-ALL=(ALL:ALL) ALL",
         ]
-        contents = self._write_load_sudoers("harlowja", rules)
+        contents = self._write_load_sudoers("harlowja", rules)[0]
         expected = [
             "harlowja ALL=(ALL:ALL) ALL",
             "harlowja B-ALL=(ALL:ALL) ALL",
@@ -117,14 +117,8 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
             "B-ALL=(ALL:ALL) ALL",
             "C-ALL=(ALL:ALL) ALL",
         ]
-        cls = distros.fetch("ubuntu")
-        d = cls("ubuntu", {}, None)
-        os.makedirs(os.path.join(self.tmp, "etc"))
-        os.makedirs(os.path.join(self.tmp, "etc", "sudoers.d"))
-        self.patchOS(self.tmp)
-        self.patchUtils(self.tmp)
-        d.write_sudo_rules("harlowja", rules)
-        # do it again - should not create duplicate rules for same user
+        d = self._write_load_sudoers("harlowja", rules)[2]
+        # write to sudoers again - should not create duplicate rules
         d.write_sudo_rules("harlowja", rules)
         contents = util.load_file(d.ci_sudoers_fn)
         expected = [
@@ -132,7 +126,6 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
             "harlowja B-ALL=(ALL:ALL) ALL",
             "harlowja C-ALL=(ALL:ALL) ALL",
         ]
-        # if duplicates handled properly, there should be only 3 matching rules, not 6
         self.assertEqual(len(expected), self._count_in(expected, contents))
         not_expected = [
             "harlowja A",
