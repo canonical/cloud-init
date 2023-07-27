@@ -54,7 +54,9 @@ class TestAkamaiHelper:
         assert (
             result == expected_result
         ), f"Unexpected result parsing dmi config '{dmi_config}'!"
-        assert read_dmi_data.called_with("baseboard-serial-number")
+        assert [
+            mock.call("baseboard-serial-number") 
+        ] == read_dmi_data.call_args_list
 
     @pytest.mark.parametrize(
         "dmi_data,expected_result",
