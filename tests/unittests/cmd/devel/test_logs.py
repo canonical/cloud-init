@@ -85,7 +85,7 @@ class TestCollectLogs:
             cmd_tuple = tuple(cmd)
             if cmd_tuple not in expected_subp:
                 raise AssertionError(
-                    "Unexpected command provided to fake subprocess.call(): {0}".format(
+                    "Unexpected command provided to subprocess: {0}".format(
                         cmd
                     )
                 )
@@ -216,7 +216,7 @@ class TestCollectLogs:
         m_getuid.return_value = 100
         output_file1 = tmpdir.join("test-output-file-1.txt")
         output_file2 = tmpdir.join("test-output-file-2.txt")
-        output_file3 = tmpdir.join("test-output-file-3.txt")
+        # output_file3 = tmpdir.join("test-output-file-3.txt")
         return_output1 = logs._write_command_output_to_file(
             filename=output_file1,
             cmd=["echo", test_str_1],
@@ -251,35 +251,6 @@ class TestCollectLogs:
         # f"Stderr: ls: cannot access '{dir}': No such file or directory"
         # assert expected_err_msg == return_output3
         # assert expected_err_msg == load_file(output_file3)
-
-    # def test_write_command_output_to_file_with_return_output(self, m_getuid, tmpdir):
-    #     # what does this do???
-    #     m_getuid.return_value = 100
-    #     output_file = tmpdir.join("test-output-file.txt")
-    #     return_output = logs._write_command_output_to_file(
-    #         filename=output_file,
-    #         cmd=["echo", "test"],
-    #         msg="",
-    #         verbosity=0,
-    #         return_output=True,
-    #     )
-
-    #     assert "test\n" == return_output
-    #     assert "test\n" == load_file(output_file)
-
-    # def test_write_command_output_to_file_without_return_output(self, m_getuid, tmpdir):
-    #     # what does this do???
-    #     m_getuid.return_value = 100
-    #     output_file = tmpdir.join("test-output-file.txt")
-    #     return_output = logs._write_command_output_to_file(
-    #         filename=output_file,
-    #         cmd=["echo", "test"],
-    #         msg="",
-    #         verbosity=0,
-    #         return_output=False,
-    #     )
-    #     assert "test\n" == load_file(output_file)
-    #     assert None == return_output
 
 
 class TestCollectInstallerLogs:

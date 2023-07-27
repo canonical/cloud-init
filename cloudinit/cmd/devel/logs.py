@@ -152,9 +152,9 @@ def _write_command_output_to_file(cmd, filename, msg, verbosity):
         # f.write(output)
         write_file(filename, output)
     except ProcessExecutionError as e:
-        write_file(filename, output := str(e))
+        write_file(filename, str(e))
         _debug("collecting %s failed.\n" % msg, 1, verbosity)
-        return output
+        return str(e)
     else:
         _debug("collected %s\n" % msg, 1, verbosity)
         return output
@@ -167,7 +167,7 @@ def _stream_command_output_to_file(cmd, filename, msg, verbosity):
         with open(filename, "w") as f:
             subprocess.call(cmd, stdout=f, stderr=f)
     except ProcessExecutionError as e:
-        # write_file(filename, str(e))
+        write_file(filename, str(e))
         _debug("collecting %s failed.\n" % msg, 1, verbosity)
     else:
         _debug("collected %s\n" % msg, 1, verbosity)
