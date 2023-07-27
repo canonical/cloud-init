@@ -74,7 +74,7 @@ class Release:
             try:
                 version = ubuntu_version_from_series(series)
             except ValueError:
-                os, series, version = "unknown", None, None
+                os, series, version = "unknown", " ", " "
         elif len(parts) == 4:
             image_id, os, series, version = parts
         else:
