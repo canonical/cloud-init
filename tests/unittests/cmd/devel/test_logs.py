@@ -211,37 +211,65 @@ class TestCollectLogs:
 
     def test_write_command_output_to_file(self, m_getuid, tmpdir):
         # what does this do???
-        test_str_1 = "test #1"
-        test_str_2 = "test #2"
+        m_getuid.return_value = 100
+        test_str = "cloud-init? more like cloud-innit!"
+        output_file1 = tmpdir.join("test-output-file-1.txt")
+        output_file2 = tmpdir.join("test-output-file-2.txt")
+        nonexistent_path = "/this-directory-does-not-exist"
+        expected_stderr = (
+            "Unexpected error while running command.\n"
+            + f"Command: ['ls', '{nonexistent_path}']\n"
+            + "Exit code: 2\n"
+            + "Reason: -\n"
+            + "Stdout: \n"
+            + f"Stderr: ls: cannot access '{nonexistent_path}': "
+            + "No such file or directory"
+        )
+        return_output1 = logs._write_command_output_to_file(
+            filename=output_file1,
+            cmd=["echo", test_str],
+            msg="",
+            verbosity=1,
+        )
+        return_output2 = logs._write_command_output_to_file(
+            filename=output_file2,
+            cmd=["ls", nonexistent_path],
+            msg="",
+            verbosity=1,
+        )
+
+        assert test_str + "\n" == return_output1
+        assert test_str + "\n" == load_file(output_file1)
+        assert expected_stderr == return_output2
+        assert expected_stderr == load_file(output_file2)
+
+    def test_stream_command_output_to_file(self, m_getuid, tmpdir):
+        test_str = "cloud-init, shmoud-init"
+        expected_stderr = (
+            "ls: cannot access '/this-directory-does-not-exist':"
+            + " No such file or directory"
+        )
         m_getuid.return_value = 100
         output_file1 = tmpdir.join("test-output-file-1.txt")
         output_file2 = tmpdir.join("test-output-file-2.txt")
-        # output_file3 = tmpdir.join("test-output-file-3.txt")
-        return_output1 = logs._write_command_output_to_file(
+        logs._stream_command_output_to_file(
             filename=output_file1,
-            cmd=["echo", test_str_1],
+            cmd=["echo", test_str],
             msg="",
             verbosity=1,
         )
         logs._stream_command_output_to_file(
             filename=output_file2,
-            cmd=["echo", test_str_2],
+            cmd=["ls", "/this-directory-does-not-exist"],
             msg="",
             verbosity=1,
         )
-        # return_output3 = logs._write_command_output_to_file(
-        #     filename=output_file3,
-        #     cmd=["ls", dir:="/this-directory-does-not-exist"],
-        #     msg="",
-        #     verbosity=1,
-        # )
 
-        assert test_str_1 + "\n" == return_output1
-        assert test_str_1 + "\n" == load_file(output_file1)
+        assert test_str + "\n" == load_file(output_file1)
 
         # no output should have been returned so this value should be None
         # assert None == return_output2
-        assert test_str_2 + "\n" == load_file(output_file2)
+        assert expected_stderr + "\n" == load_file(output_file2)
 
         # expected_err_msg = "Unexpected error while running command.\n" + \
         # f"Command: ['ls', '{dir}']\n" + \

@@ -148,8 +148,6 @@ def _write_command_output_to_file(cmd, filename, msg, verbosity):
     try:
         ensure_dir(os.path.dirname(filename))
         output = subp(cmd)[0]
-        # with open(filename, "w") as f:
-        # f.write(output)
         write_file(filename, output)
     except ProcessExecutionError as e:
         write_file(filename, str(e))
