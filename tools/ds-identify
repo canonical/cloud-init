@@ -127,7 +127,7 @@ DI_DSNAME=""
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean Vultr AliYun Ec2 GCE OpenNebula OpenStack \
 OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud VMware \
-LXD NWCS"
+LXD NWCS Akamai"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -751,6 +751,12 @@ dscheck_CloudSigma() {
     # http://paste.ubuntu.com/23624795/
     dmi_product_name_matches "CloudSigma" && return $DS_FOUND
     return $DS_NOT_FOUND
+}
+
+dscheck_Akamai() {
+    dmi_sys_vendor_is Linode && return ${DS_FOUND}
+    dmi_sys_vendor_is Akamai && return ${DS_FOUND}
+    return ${DS_NOT_FOUND}
 }
 
 check_config() {

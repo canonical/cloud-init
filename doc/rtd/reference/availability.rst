@@ -61,6 +61,7 @@ environments in the public cloud:
 - Vultr
 - Zadara Edge Cloud Platform
 - 3DS Outscale
+- Akamai
 
 Additionally, ``cloud-init`` is supported on these private clouds:
 
