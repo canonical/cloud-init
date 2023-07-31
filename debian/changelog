@@ -2,6 +2,7 @@ cloud-init (23.3~4ga31370af-0ubuntu1) UNRELEASED; urgency=medium
 
   * Upstream snapshot based on upstream/main at a31370af.
     - Bugs fixed in this snapshot: (LP: #1923363, #2028562, #2028784)
+  * d/cloud-init.maintscript: Remove the unused hook-network-manager conffile
 
  -- James Falcon <james.falcon@canonical.com>  Wed, 26 Jul 2023 11:48:49 -0500
 
