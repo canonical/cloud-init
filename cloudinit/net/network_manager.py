@@ -105,6 +105,14 @@ class NMConnection:
         if self.config[family]["method"] == "auto" and method == "manual":
             return
 
+        if (
+            subnet_type == "ipv6_dhcpv6-stateful"
+            or subnet_type == "ipv6_dhcpv6-stateless"
+            or subnet_type == "ipv6_slaac"
+        ):
+            # set ipv4 method to 'disabled' to align with sysconfig renderer.
+            self._set_default("ipv4", "method", "disabled")
+
         self.config[family]["method"] = method
         self._set_default(family, "may-fail", "false")
 
@@ -342,6 +350,7 @@ class Renderer(renderer.Renderer):
 
     def __init__(self, config=None):
         self.connections = {}
+        self.config = config
 
     def get_conn(self, con_id):
         return self.connections[con_id]

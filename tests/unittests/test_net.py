@@ -1932,6 +1932,9 @@ NETWORK_CONFIGS = {
                 method=auto
                 may-fail=false
 
+                [ipv4]
+                method=disabled
+
                 """
             ),
         },
@@ -2044,6 +2047,9 @@ NETWORK_CONFIGS = {
                 method=auto
                 may-fail=false
 
+                [ipv4]
+                method=disabled
+
                 """
             ),
         },
@@ -2091,11 +2097,12 @@ NETWORK_CONFIGS = {
         "expected_sysconfig_rhel": {
             "ifcfg-iface0": textwrap.dedent(
                 """\
-            BOOTPROTO=dhcp
+            BOOTPROTO=none
             DEVICE=iface0
             DHCPV6C=yes
             IPV6INIT=yes
             IPV6_AUTOCONF=no
+            IPV6_FAILURE_FATAL=yes
             IPV6_FORCE_ACCEPT_RA=yes
             DEVICE=iface0
             NM_CONTROLLED=no
