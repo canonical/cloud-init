@@ -210,7 +210,6 @@ class TestCollectLogs:
         fake_stderr.write.assert_any_call("Wrote %s\n" % output_tarfile)
 
     def test_write_command_output_to_file(self, m_getuid, tmpdir):
-        # what does this do???
         m_getuid.return_value = 100
         test_str = "cloud-init? more like cloud-innit!"
         output_file1 = tmpdir.join("test-output-file-1.txt")
@@ -244,12 +243,12 @@ class TestCollectLogs:
         assert expected_stderr == load_file(output_file2)
 
     def test_stream_command_output_to_file(self, m_getuid, tmpdir):
+        m_getuid.return_value = 100
         test_str = "cloud-init, shmoud-init"
         expected_stderr = (
             "ls: cannot access '/this-directory-does-not-exist':"
             + " No such file or directory"
         )
-        m_getuid.return_value = 100
         output_file1 = tmpdir.join("test-output-file-1.txt")
         output_file2 = tmpdir.join("test-output-file-2.txt")
         logs._stream_command_output_to_file(
@@ -266,20 +265,7 @@ class TestCollectLogs:
         )
 
         assert test_str + "\n" == load_file(output_file1)
-
-        # no output should have been returned so this value should be None
-        # assert None == return_output2
         assert expected_stderr + "\n" == load_file(output_file2)
-
-        # expected_err_msg = "Unexpected error while running command.\n" + \
-        # f"Command: ['ls', '{dir}']\n" + \
-        # "Exit code: 2\n" + \
-        # "Reason: -\n" + \
-        # "Stdout: \n" + \
-        # f"Stderr: ls: cannot access '{dir}': No such file or directory"
-        # assert expected_err_msg == return_output3
-        # assert expected_err_msg == load_file(output_file3)
-
 
 class TestCollectInstallerLogs:
     @pytest.mark.parametrize(
