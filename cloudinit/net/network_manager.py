@@ -36,7 +36,7 @@ LOG = logging.getLogger(__name__)
 class NMConnection:
     """Represents a NetworkManager connection profile."""
 
-    def __init__(self, con_id):
+    def __init__(self, con_id, cloud_config=None):
         """
         Initializes the connection with some very basic properties,
         notably the UUID so that the connection can be referred to.
@@ -48,6 +48,8 @@ class NMConnection:
         self.config = configparser.ConfigParser()
         # Identity option name mapping, to achieve case sensitivity
         self.config.optionxform = str
+
+        self.cloud_config = {} if not cloud_config else cloud_config
 
         self.config["connection"] = {
             "id": f"cloud-init {con_id}",
@@ -104,6 +106,12 @@ class NMConnection:
             return
         if self.config[family]["method"] == "auto" and method == "manual":
             return
+
+        flavor = self.cloud_config.get("flavor", "rhel")
+        if flavor == "rhel" and subnet_type == "ipv6_dhcpv6-stateful":
+            # set ipv4 method to 'disabled' so that dhcp4 is turned off and
+            # the setting aligns with sysconfig renderer
+            self._set_default("ipv4", "method", "disabled")
 
         self.config[family]["method"] = method
         self._set_default(family, "may-fail", "false")
@@ -342,6 +350,7 @@ class Renderer(renderer.Renderer):
 
     def __init__(self, config=None):
         self.connections = {}
+        self.config = config
 
     def get_conn(self, con_id):
         return self.connections[con_id]
@@ -363,7 +372,9 @@ class Renderer(renderer.Renderer):
         # interfaces that have UUIDs that can be linked to from related
         # interfaces
         for iface in network_state.iter_interfaces():
-            self.connections[iface["name"]] = NMConnection(iface["name"])
+            self.connections[iface["name"]] = NMConnection(
+                iface["name"], self.config
+            )
 
         # Now render the actual interface configuration
         for iface in network_state.iter_interfaces():

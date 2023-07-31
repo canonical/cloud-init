@@ -439,10 +439,11 @@ class Renderer(renderer.Renderer):
                 elif (
                     flavor == "rhel" and subnet_type == "ipv6_dhcpv6-stateful"
                 ):
-                    iface_cfg["BOOTPROTO"] = "dhcp"
+                    iface_cfg["BOOTPROTO"] = "none"
                     iface_cfg["DHCPV6C"] = True
                     iface_cfg["IPV6INIT"] = True
                     iface_cfg["IPV6_AUTOCONF"] = False
+                    iface_cfg["IPV6_FAILURE_FATAL"] = True
                 else:
                     iface_cfg["IPV6INIT"] = True
                     # Configure network settings using DHCPv6
