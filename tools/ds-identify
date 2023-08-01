@@ -1740,8 +1740,8 @@ read_config() {
         key=${tok%%=*}
         val=${tok#*=}
 
-        # discard anything after delimiter
-        val=${val%;*}
+        # discard anything after the first delimiter
+        val=${val%%;*}
         case "$key" in
             ds) _rc_dsname="$val";;
             ci.ds) _rc_dsname="$val";;
