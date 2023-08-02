@@ -83,7 +83,9 @@ class Apt(PackageManager):
             apt_get_command = APT_GET_COMMAND
         if apt_get_upgrade_subcommand is None:
             apt_get_upgrade_subcommand = "dist-upgrade"
-        self.apt_command = tuple(apt_get_wrapper_command) + tuple(apt_get_command)
+        self.apt_command = tuple(apt_get_wrapper_command) + tuple(
+            apt_get_command
+        )
 
         self.apt_get_upgrade_subcommand = apt_get_upgrade_subcommand
         self.environment = os.environ.copy()
@@ -93,7 +95,9 @@ class Apt(PackageManager):
     def from_config(cls, runner: helpers.Runners, cfg: Mapping) -> "Apt":
         return Apt(
             runner,
-            apt_get_wrapper_command=get_apt_wrapper(cfg.get("apt_get_wrapper")),
+            apt_get_wrapper_command=get_apt_wrapper(
+                cfg.get("apt_get_wrapper")
+            ),
             apt_get_command=cfg.get("apt_get_command"),
             apt_get_upgrade_subcommand=cfg.get("apt_get_upgrade_subcommand"),
         )
@@ -125,7 +129,7 @@ class Apt(PackageManager):
         to_install = [p for p in pkglist if p not in unavailable]
         if to_install:
             self.run_package_command("install", pkgs=to_install)
-        LOG.debug("Apt cannot install %s", unavailable)
+        LOG.debug("APT cannot install %s", unavailable)
         return unavailable
 
     def run_package_command(self, command, args=None, pkgs=None):
@@ -180,12 +184,12 @@ class Apt(PackageManager):
         subp_kwargs: kwargs to pass to subp
         """
         start_time = time.time()
-        LOG.debug("Waiting for apt lock")
+        LOG.debug("Waiting for APT lock")
         while time.time() - start_time < timeout:
             if not self._apt_lock_available():
                 time.sleep(1)
                 continue
-            LOG.debug("apt lock available")
+            LOG.debug("APT lock available")
             try:
                 # Allow the output of this to flow outwards (not be captured)
                 log_msg = f'apt-{short_cmd} [{" ".join(subp_kwargs["args"])}]'
@@ -208,6 +212,6 @@ class Apt(PackageManager):
                 # error received. If the lock is unavailable, just keep waiting
                 if self._apt_lock_available():
                     raise
-                LOG.debug("Another process holds apt lock. Waiting...")
+                LOG.debug("Another process holds APT lock. Waiting...")
                 time.sleep(1)
-        raise TimeoutError("Could not get apt lock")
+        raise TimeoutError("Could not get APT lock")
