@@ -1049,7 +1049,7 @@ def _supported_vlan_names(rdev, vid):
 
 
 def available(target=None):
-    if not util.system_info()["variant"] in KNOWN_DISTROS:
+    if util.system_info()["variant"] not in KNOWN_DISTROS:
         return False
     if available_sysconfig(target):
         return True

@@ -1421,9 +1421,9 @@ class TestReadCcFromCmdline:
             # 'ssh_import_id: [smoser, bob]\\nruncmd: [ [ ls, -l ], echo hi ]'
             (
                 (
-                    "cc: " + "ssh_import_id%3A%20%5Bsmoser%2C%20bob%5D%5Cn"
+                    "cc: ssh_import_id%3A%20%5Bsmoser%2C%20bob%5D%5Cn"
                     "runcmd%3A%20%5B%20%5B%20ls%2C%20-l%20%5D%2C"
-                    "%20echo%20hi%20%5D" + " end_cc"
+                    "%20echo%20hi%20%5D end_cc"
                 ),
                 {
                     "ssh_import_id": ["smoser", "bob"],
@@ -1436,9 +1436,9 @@ class TestReadCcFromCmdline:
             # 'ssh_import_id: [smoser, bob]\nruncmd: [ [ ls, -l ], echo hi ]'
             (
                 (
-                    "cc: " + "ssh_import_id%3A%20%5Bsmoser%2C%20bob%5D%0A"
+                    "cc: ssh_import_id%3A%20%5Bsmoser%2C%20bob%5D%0A"
                     "runcmd%3A%20%5B%20%5B%20ls%2C%20-l%20%5D%2C"
-                    "%20echo%20hi%20%5D" + " end_cc"
+                    "%20echo%20hi%20%5D end_cc"
                 ),
                 {
                     "ssh_import_id": ["smoser", "bob"],

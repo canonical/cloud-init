@@ -1406,7 +1406,7 @@ def find_devs_with_netbsd(
     for dev in out.stdout.split():
         if label or _type:
             mscdlabel_out, _ = subp.subp(["mscdlabel", dev], rcs=[0, 1])
-        if label and not ('label "%s"' % label) in mscdlabel_out:
+        if label and ('label "%s"' % label) not in mscdlabel_out:
             continue
         if _type == "iso9660" and "ISO filesystem" not in mscdlabel_out:
             continue
@@ -1444,15 +1444,9 @@ def find_devs_with_dragonflybsd(
     ]
 
     if criteria == "TYPE=iso9660":
-        devlist = [
-            i for i in devlist if i.startswith("cd") or i.startswith("acd")
-        ]
+        devlist = [i for i in devlist if i.startswith(("cd", "acd"))]
     elif criteria in ["LABEL=CONFIG-2", "TYPE=vfat"]:
-        devlist = [
-            i
-            for i in devlist
-            if not (i.startswith("cd") or i.startswith("acd"))
-        ]
+        devlist = [i for i in devlist if not (i.startswith(("cd", "acd")))]
     elif criteria:
         LOG.debug("Unexpected criteria: %s", criteria)
     return ["/dev/" + i for i in devlist]
@@ -2968,7 +2962,7 @@ def get_installed_packages(target=None):
             (state, pkg, _) = line.split(None, 2)
         except ValueError:
             continue
-        if state.startswith("hi") or state.startswith("ii"):
+        if state.startswith(("hi", "ii")):
             pkgs_inst.add(re.sub(":.*", "", pkg))
 
     return pkgs_inst

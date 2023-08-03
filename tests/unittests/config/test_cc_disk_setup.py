@@ -247,14 +247,14 @@ class TestMkfsCommandHandling(CiTestCase):
 
         self.assertIn(
             "extra_opts "
-            + "ignored because cmd was specified: mkfs -t ext4 -L with_cmd "
-            + "/dev/xdb1",
+            "ignored because cmd was specified: mkfs -t ext4 -L with_cmd "
+            "/dev/xdb1",
             self.logs.getvalue(),
         )
         self.assertIn(
             "overwrite "
-            + "ignored because cmd was specified: mkfs -t ext4 -L with_cmd "
-            + "/dev/xdb1",
+            "ignored because cmd was specified: mkfs -t ext4 -L with_cmd "
+            "/dev/xdb1",
             self.logs.getvalue(),
         )
 

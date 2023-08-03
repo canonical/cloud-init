@@ -15,24 +15,46 @@ skip = ["cloudinit/cmd/main.py", ".tox", "packages", "tools"]
 follow_imports = "silent"
 warn_unused_ignores = "true"
 warn_redundant_casts = "true"
-exclude=[]
+exclude = []
 
 [[tool.mypy.overrides]]
 module = [
-  "apport.*",
-  "BaseHTTPServer",
-  "cloudinit.feature_overrides",
-  "configobj",
-  "debconf",
-  "httplib",
-  "jsonpatch",
-  "netifaces",
-  "paramiko.*",
-  "pip.*",
-  "pycloudlib.*",
-  "responses",
-  "serial",
-  "tests.integration_tests.user_settings",
-  "uaclient.*"
+    "apport.*",
+    "BaseHTTPServer",
+    "cloudinit.feature_overrides",
+    "configobj",
+    "debconf",
+    "httplib",
+    "jsonpatch",
+    "netifaces",
+    "paramiko.*",
+    "pip.*",
+    "pycloudlib.*",
+    "responses",
+    "serial",
+    "tests.integration_tests.user_settings",
+    "uaclient.*",
 ]
 ignore_missing_imports = true
+
+[tool.ruff]
+target-version = "py37"
+line-length = 79
+# E, W, and F make up the entirety of default flake8
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "CPY", # flake8-copyright
+    "T10", # flake8-debugger
+    "ISC", # flake8-implicit-str-concat
+    "ICN", # flake8-import-conventions
+    "G",   # flake8-logging-format
+    "PIE", # flake8-pie
+    "Q",   # flake8-quotes
+]
+ignore = [
+    "E731", # Do not assign a `lambda` expression, use a `def`
+]
+[tool.ruff.per-file-ignores]
+"cloudinit/cmd/main.py" = ["E402"]

@@ -35,7 +35,6 @@ def setup_mocks(mocker):
 
 @mock.patch(M_PATH + "addLogHandlerCLI", lambda *args: "")
 class TestQuery:
-
     Args = namedtuple(
         "Args",
         "debug dump_all format instance_data list_keys user_data vendor_data"
@@ -531,7 +530,7 @@ class TestQuery:
         instance_data = tmpdir.join("instance-data")
         instance_data.write(
             '{"v1": {"v1_1": "val1.1", "v1_2": "val1.2"}, "v2":'
-            + ' {"v2_2": "val2.2"}, "top": "gun"}'
+            ' {"v2_2": "val2.2"}, "top": "gun"}'
         )
         expected = "v1_1\nv1_2\n"
         args = self.Args(
@@ -557,7 +556,7 @@ class TestQuery:
         instance_data = tmpdir.join("instance-data")
         instance_data.write(
             '{"v1": {"v1_1": "val1.1", "v1_2": "val1.2"}, "v2": '
-            + '{"v2_2": "val2.2"}, "top": "gun"}'
+            '{"v2_2": "val2.2"}, "top": "gun"}'
         )
         expected_error = "--list-keys provided but 'top' is not a dict"
         args = self.Args(

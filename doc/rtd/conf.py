@@ -76,8 +76,8 @@ html_theme_options = {
     "light_logo": "logo.png",
     "dark_logo": "logo-dark-mode.png",
     "light_css_variables": {
-        "font-stack": "Ubuntu, -apple-system, Segoe UI, Roboto, Oxygen, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif",
-        "font-stack--monospace": "Ubuntu Mono variable, Ubuntu Mono, Consolas, Monaco, Courier, monospace",
+        "font-stack": "Ubuntu, -apple-system, Segoe UI, Roboto, Oxygen, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif",  # noqa: E501
+        "font-stack--monospace": "Ubuntu Mono variable, Ubuntu Mono, Consolas, Monaco, Courier, monospace",  # noqa: E501
         "color-foreground-primary": "#111",
         "color-foreground-secondary": "var(--color-foreground-primary)",
         "color-foreground-muted": "#333",
