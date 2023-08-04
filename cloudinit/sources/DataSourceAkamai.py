@@ -54,7 +54,6 @@ class MetadataAvailabilityResult(Enum):
 
 
 class DataSourceAkamai(sources.DataSource):
-
     dsname = "Akamai"
     local_stage = False
 
@@ -275,11 +274,9 @@ class DataSourceAkamai(sources.DataSource):
                     "Metadata-Token": token,
                 },
             )
-            self.userdata_raw = str(userdata)  # type: ignore
+            self.userdata_raw = str(userdata)
             try:
-                self.userdata_raw = b64decode(
-                    self.userdata_raw  # type: ignore
-                ).decode()
+                self.userdata_raw = b64decode(self.userdata_raw).decode()
             except binascii.Error as e:
                 LOG.warning("Failed to base64 decode userdata due to %s", e)
         except url_helper.UrlError as e:
@@ -287,9 +284,8 @@ class DataSourceAkamai(sources.DataSource):
             # return false, indicating that we should retry using a different
             # network if possible
             LOG.warning(
-                "Failed to retrieve metadata using IPv%s due to %s" "6"
-                if use_v6
-                else "4",
+                "Failed to retrieve metadata using IPv%s due to %s",
+                "6" if use_v6 else "4",
                 e,
             )
             return False

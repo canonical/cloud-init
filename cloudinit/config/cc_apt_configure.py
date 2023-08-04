@@ -928,7 +928,7 @@ def apt_key(
         key_files = [APT_LOCAL_KEYS] if os.path.isfile(APT_LOCAL_KEYS) else []
 
         for file in os.listdir(APT_TRUSTED_GPG_DIR):
-            if file.endswith(".gpg") or file.endswith(".asc"):
+            if file.endswith((".gpg", ".asc")):
                 key_files.append(APT_TRUSTED_GPG_DIR + file)
         return key_files if key_files else ""
 

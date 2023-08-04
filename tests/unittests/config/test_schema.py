@@ -381,7 +381,7 @@ class TestValidateCloudConfigSchema:
     ):
         """Warning from validate_cloudconfig_schema when missing jsonschema."""
         schema = {"properties": {"p1": {"type": "string"}}}
-        with mock.patch.dict("sys.modules", **{"jsonschema": ImportError()}):
+        with mock.patch.dict("sys.modules", jsonschema=ImportError()):
             validate_cloudconfig_schema({"p1": -1}, schema, strict=True)
         assert "Ignoring schema validation. jsonschema is not present" in (
             caplog.text
