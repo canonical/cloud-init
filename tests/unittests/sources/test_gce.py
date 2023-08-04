@@ -21,33 +21,44 @@ from tests.unittests import helpers as test_helpers
 M_PATH = "cloudinit.sources.DataSourceGCE."
 
 GCE_META = {
-    "instance/id": "123",
-    "instance/zone": "foo/bar",
-    "instance/hostname": "server.project-foo.local",
+    "instance": {
+        "id": "123",
+        "zone": "foo/bar",
+        "hostname": "server.project-foo.local",
+    },
+#    "instance/id": "123",
+#    "instance/zone": "foo/bar",
+#    "instance/hostname": "server.project-foo.local",
 }
 
 GCE_META_PARTIAL = {
-    "instance/id": "1234",
-    "instance/hostname": "server.project-bar.local",
-    "instance/zone": "bar/baz",
+    "instance": {
+        "id": "1234",
+        "hostname": "server.project-bar.local",
+        "zone": "bar/baz",
+    },
 }
 
 GCE_META_ENCODING = {
-    "instance/id": "12345",
-    "instance/hostname": "server.project-baz.local",
-    "instance/zone": "baz/bang",
-    "instance/attributes": {
-        "user-data": b64encode(b"#!/bin/echo baz\n").decode("utf-8"),
-        "user-data-encoding": "base64",
+    "instance": {
+        "id": "12345",
+        "hostname": "server.project-baz.local",
+        "zone": "baz/bang",
+        "attributes": {
+            "user-data": b64encode(b"#!/bin/echo baz\n").decode("utf-8"),
+            "user-data-encoding": "base64",
+        },
     },
 }
 
 GCE_USER_DATA_TEXT = {
-    "instance/id": "12345",
-    "instance/hostname": "server.project-baz.local",
-    "instance/zone": "baz/bang",
-    "instance/attributes": {
-        "user-data": "#!/bin/sh\necho hi mom\ntouch /run/up-now\n",
+    "instance": {
+        "id": "12345",
+        "hostname": "server.project-baz.local",
+        "zone": "baz/bang",
+        "attributes": {
+            "user-data": "#!/bin/sh\necho hi mom\ntouch /run/up-now\n",
+        },
     },
 }
 
@@ -100,6 +111,15 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         if gce_meta is None:
             gce_meta = GCE_META
 
+        def _decode_obj(json_obj: dict):
+            ret = json_obj.copy()
+            for key in json_obj:
+                if type(key) is dict:
+                    ret[key] = _decode_obj(json_obj[key])
+                elif type(key) is bytes:
+                    ret[key] = json_obj[key].decode()
+            return ret
+
         def _request_callback(request):
             url_path = urlparse(request.url).path
             if url_path.startswith("/computeMetadata/v1/"):
@@ -108,16 +128,15 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
                 path = path.rstrip("/")
             else:
                 path = None
-            if path in gce_meta:
-                response = gce_meta.get(path)
-                if recursive:
-                    response = json.dumps(response)
-                if check_headers is not None:
-                    for k in check_headers.keys():
-                        self.assertEqual(check_headers[k], request.headers[k])
-                return (200, request.headers, response)
+            if check_headers is not None:
+                for k in check_headers.keys():
+                    self.assertEqual(check_headers[k], request.headers[k])
+            if recursive:
+                decode_gce_meta = _decode_obj(gce_meta)
+                response = json.dumps(decode_gce_meta)
             else:
                 return (404, request.headers, "")
+            return (200, request.headers, response)
 
         self.responses.add_callback(
             responses.GET,
@@ -133,12 +152,12 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
     def test_metadata(self):
         # UnicodeDecodeError if set to ds.userdata instead of userdata_raw
         meta = GCE_META.copy()
-        meta["instance/attributes/user-data"] = b"/bin/echo \xff\n"
+        meta["instance"]["attributes"] = { "user-data": b"/bin/echo \xff\n" }
 
         self._set_mock_metadata()
         self.ds.get_data()
 
-        shostname = GCE_META.get("instance/hostname").split(".")[0]
+        shostname = GCE_META.get("instance").get("hostname").split(".")[0]
         self.assertEqual(shostname, self.ds.get_hostname().hostname)
 
         self.assertEqual(
@@ -146,7 +165,7 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         )
 
         self.assertEqual(
-            GCE_META.get("instance/attributes/user-data"),
+            GCE_META.get("instance").get("attributes").get("user-data"),
             self.ds.get_userdata_raw(),
         )
 
@@ -156,10 +175,10 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         self.ds.get_data()
 
         self.assertEqual(
-            GCE_META_PARTIAL.get("instance/id"), self.ds.get_instance_id()
+            GCE_META_PARTIAL.get("instance").get("id"), self.ds.get_instance_id()
         )
 
-        shostname = GCE_META_PARTIAL.get("instance/hostname").split(".")[0]
+        shostname = GCE_META_PARTIAL.get("instance").get("hostname").split(".")[0]
         self.assertEqual(shostname, self.ds.get_hostname().hostname)
 
     def test_userdata_no_encoding(self):
@@ -167,7 +186,7 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         self._set_mock_metadata(GCE_USER_DATA_TEXT)
         self.ds.get_data()
         self.assertEqual(
-            GCE_USER_DATA_TEXT["instance/attributes"]["user-data"].encode(),
+            GCE_USER_DATA_TEXT["instance"]["attributes"]["user-data"].encode(),
             self.ds.get_userdata_raw(),
         )
 
@@ -176,18 +195,18 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         self._set_mock_metadata(GCE_META_ENCODING)
         self.ds.get_data()
 
-        instance_data = GCE_META_ENCODING.get("instance/attributes")
+        instance_data = GCE_META_ENCODING.get("instance").get("attributes")
         decoded = b64decode(instance_data.get("user-data"))
         self.assertEqual(decoded, self.ds.get_userdata_raw())
 
     def test_missing_required_keys_return_false(self):
         for required_key in [
-            "instance/id",
-            "instance/zone",
-            "instance/hostname",
+            "id",
+            "zone",
+            "hostname",
         ]:
             meta = GCE_META_PARTIAL.copy()
-            del meta[required_key]
+            del meta["instance"][required_key]
             self._set_mock_metadata(meta)
             self.assertEqual(False, self.ds.get_data())
             self.responses.reset()
@@ -225,8 +244,8 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         }
 
         meta = GCE_META.copy()
-        meta["project/attributes"] = project_attributes
-        meta["instance/attributes"] = instance_attributes
+        meta["project"] = {"attributes": project_attributes}
+        meta["instance"]["attributes"] = instance_attributes
 
         self._set_mock_metadata(meta)
         self.ds.get_data()
@@ -271,8 +290,8 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         }
 
         meta = GCE_META.copy()
-        meta["project/attributes"] = project_attributes
-        meta["instance/attributes"] = instance_attributes
+        meta["project"] = {"attributes": project_attributes}
+        meta["instance"]["attributes"] = instance_attributes
 
         self._set_mock_metadata(meta)
         ubuntu_ds.get_data()
@@ -294,8 +313,8 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         }
 
         meta = GCE_META.copy()
-        meta["project/attributes"] = project_attributes
-        meta["instance/attributes"] = instance_attributes
+        meta["project"] = {"attributes": project_attributes}
+        meta["instance"]["attributes"] = instance_attributes
 
         self._set_mock_metadata(meta)
         self.ds.get_data()
@@ -316,8 +335,8 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         }
 
         meta = GCE_META.copy()
-        meta["project/attributes"] = project_attributes
-        meta["instance/attributes"] = instance_attributes
+        meta["project"] = {"attributes": project_attributes}
+        meta["instance"]["attributes"] = instance_attributes
 
         self._set_mock_metadata(meta)
         self.ds.get_data()
