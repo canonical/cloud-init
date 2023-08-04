@@ -26,7 +26,7 @@ def main():
         "miraclelinux",
         "netbsd",
         "openbsd",
-        "openEuler",
+        "openeuler",
         "OpenCloudOS",
         "openmandriva",
         "photon",

@@ -73,7 +73,7 @@ OSFAMILIES = {
         "sle-micro",
         "sles",
     ],
-    "openEuler": ["openEuler"],
+    "openeuler": ["openeuler"],
     "OpenCloudOS": ["OpenCloudOS", "TencentOS"],
 }
 
