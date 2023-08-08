@@ -230,6 +230,10 @@ disable_network_config_on_upgrade() {
         # this is a fresh system not one that has been booted.
         return 0
     fi
+    if [ -z $oldver ];then
+        # if the previous cloudinit was installed by source instead of a deb pkg, oldver would be empty
+        return 0
+    fi
     if dpkg --compare-versions "$oldver" le "$last_without_net"; then
         echo "dpkg upgrade from $oldver" > /var/lib/cloud/data/upgraded-network
     fi
