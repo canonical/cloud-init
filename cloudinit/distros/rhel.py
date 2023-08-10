@@ -109,7 +109,20 @@ class Distro(distros.Distro):
             conf.set_hostname(hostname)
             util.write_file(filename, str(conf), 0o644)
         elif self.uses_systemd():
-            subp.subp(["hostnamectl", "set-hostname", str(hostname)])
+            preserve_state = util.get_cfg_option_bool(
+                self._cfg, "preserve_etchostname_state"
+            )
+            if not preserve_state:
+                subp.subp(["hostnamectl", "set-hostname", str(hostname)])
+            else:
+                subp.subp(
+                    [
+                        "hostnamectl",
+                        "set-hostname",
+                        "--transient",
+                        str(hostname),
+                    ]
+                )
         else:
             host_cfg = {
                 "HOSTNAME": hostname,

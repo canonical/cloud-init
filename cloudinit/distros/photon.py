@@ -93,9 +93,23 @@ class Distro(distros.Distro):
         if filename and filename.endswith("/previous-hostname"):
             util.write_file(filename, hostname)
         else:
-            ret, _out, err = self.exec_cmd(
-                ["hostnamectl", "set-hostname", str(hostname)]
+            ret = None
+            preserve_state = util.get_cfg_option_bool(
+                self._cfg, "preserve_etchostname_state"
             )
+            if not preserve_state:
+                ret, _out, err = self.exec_cmd(
+                    ["hostnamectl", "set-hostname", str(hostname)]
+                )
+            else:
+                ret, _out, err = self.exec_cmd(
+                    [
+                        "hostnamectl",
+                        "set-hostname",
+                        "--transient",
+                        str(hostname),
+                    ]
+                )
             if ret:
                 LOG.warning(
                     (

@@ -221,10 +221,23 @@ class Distro(distros.Distro):
                 self.update_method = "zypper"
 
     def _write_hostname(self, hostname, filename):
+        preserve_state = util.get_cfg_option_bool(
+            self._cfg, "preserve_etchostname_state"
+        )
         if self.uses_systemd() and filename.endswith("/previous-hostname"):
             util.write_file(filename, hostname)
         elif self.uses_systemd():
-            subp.subp(["hostnamectl", "set-hostname", str(hostname)])
+            if not preserve_state:
+                subp.subp(["hostnamectl", "set-hostname", str(hostname)])
+            else:
+                subp.subp(
+                    [
+                        "hostnamectl",
+                        "set-hostname",
+                        "--transient",
+                        str(hostname),
+                    ]
+                )
         else:
             conf = None
             try:
@@ -232,7 +245,10 @@ class Distro(distros.Distro):
                 # so lets see if we can read it first.
                 conf = self._read_hostname_conf(filename)
             except IOError:
-                pass
+                if not preserve_state:
+                    pass
+                else:
+                    return
             if not conf:
                 conf = HostnameConf("")
             conf.set_hostname(hostname)
