@@ -2786,7 +2786,7 @@ def has_mount_opt(path, opt: str) -> bool:
         *_, mnt_opts = get_mount_info(path, get_mnt_opts=True)
     except TypeError:
         LOG.warning(
-            "Get Nothing mount info from %s",
+            "Found no mount info for %s",
             path,
         )
         return False
