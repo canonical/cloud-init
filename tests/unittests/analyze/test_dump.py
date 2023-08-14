@@ -11,7 +11,7 @@ from cloudinit.analyze.dump import (
     parse_timestamp,
 )
 from cloudinit.subp import which
-from cloudinit.util import write_file
+from cloudinit.util import is_Linux, write_file
 from tests.unittests.helpers import mock, skipIf
 
 
@@ -44,7 +44,11 @@ class TestParseTimestamp:
         assert float(dt.strftime("%s.%f")) == parse_timestamp(journal_stamp)
 
     @skipIf(not which("date"), "'date' command not available.")
-    @pytest.mark.allow_subp_for("date")
+    @skipIf(
+        not is_Linux() and not which("gdate"),
+        "'GNU date' command not available.",
+    )
+    @pytest.mark.allow_subp_for("date", "gdate")
     def test_parse_unexpected_timestamp_format_with_date_command(self):
         """Dump sends unexpected timestamp formats to date for processing."""
         new_fmt = "%H:%M %m/%d %Y"
