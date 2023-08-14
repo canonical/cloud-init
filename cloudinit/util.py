@@ -8,6 +8,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import binascii
 import contextlib
 import copy as obj_copy
 import email
@@ -32,6 +33,7 @@ import string
 import subprocess
 import sys
 import time
+from base64 import b64decode
 from collections import deque, namedtuple
 from contextlib import suppress
 from errno import EACCES, ENOENT
@@ -135,6 +137,22 @@ def encode_text(text, encoding="utf-8"):
     if isinstance(text, bytes):
         return text
     return text.encode(encoding)
+
+
+def maybe_b64decode(data: bytes) -> bytes:
+    """base64 decode data
+
+    If data is base64 encoded bytes, return b64decode(data).
+    If not, return data unmodified.
+
+    @param data: data as bytes. TypeError is raised if not bytes.
+    """
+    if not isinstance(data, bytes):
+        raise TypeError("data is '%s', expected bytes" % type(data))
+    try:
+        return b64decode(data, validate=True)
+    except binascii.Error:
+        return data
 
 
 def fully_decoded_payload(part):
