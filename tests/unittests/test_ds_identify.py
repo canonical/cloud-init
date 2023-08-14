@@ -1488,6 +1488,7 @@ VALID_CFG = {
     },
     "IBMCloud-metadata": {
         "ds": "IBMCloud",
+        "policy_dmi": POLICY_FOUND_ONLY,
         "mocks": [
             MOCK_VIRT_IS_XEN,
             {"name": "is_ibm_provisioning", "ret": shell_false},
@@ -1554,6 +1555,7 @@ VALID_CFG = {
     },
     "IBMCloud-nodisks": {
         "ds": "IBMCloud",
+        "policy_dmi": POLICY_FOUND_ONLY,
         "mocks": [
             MOCK_VIRT_IS_XEN,
             {"name": "is_ibm_provisioning", "ret": shell_false},
@@ -1640,6 +1642,7 @@ VALID_CFG = {
     },
     "VMware-NoValidTransports": {
         "ds": "VMware",
+        "policy_dmi": POLICY_FOUND_ONLY,
         "mocks": [
             MOCK_VIRT_IS_VMWARE,
         ],
@@ -1662,6 +1665,7 @@ VALID_CFG = {
     },
     "VMware-EnvVar-NoData": {
         "ds": "VMware",
+        "policy_dmi": POLICY_FOUND_ONLY,
         "mocks": [
             {
                 "name": "vmware_has_envvar_vmx_guestinfo",
@@ -1771,6 +1775,7 @@ VALID_CFG = {
     },
     "VMware-GuestInfo-NoData": {
         "ds": "VMware",
+        "policy_dmi": POLICY_FOUND_ONLY,
         "mocks": [
             {
                 "name": "vmware_has_rpctool",
