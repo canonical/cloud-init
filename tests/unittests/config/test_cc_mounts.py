@@ -304,6 +304,8 @@ class TestSwapFileCreation(test_helpers.FilesystemMockingTestCase):
         cc_mounts.handle(None, self.cc, self.mock_cloud, [])
         self.m_subp_subp.assert_has_calls(
             [
+                mock.call(["truncate", "-s", "0", self.swap_path]),
+                mock.call(["chattr", "+C", self.swap_path]),
                 mock.call(
                     [
                         "dd",
