@@ -1,6 +1,7 @@
 cloud-init (23.2-0ubuntu0~22.04.2) UNRELEASED; urgency=medium
 
-  * d/cloud-init.maintscript: Remove the unused hook-network-manager conffile
+  * d/cloud-init.maintscript: Remove the unused hook-network-manager
+    conffile. (LP: #2027861)
   * d/patches/retain-old-groups.patch:
     - Retain original groups in cloud.cfg.tmpl
   * Upstream snapshot based on upstream/main at 5509b790.
