@@ -3117,9 +3117,9 @@ def udevadm_settle(exists=None, timeout=None):
     return subp.subp(settle_cmd)
 
 
-def get_proc_ppid(pid):
+def get_proc_ppid_linux(pid):
     """
-    Return the parent pid of a process.
+    Return the parent pid of a process by parsing /proc/$pid/stat.
     """
     ppid = 0
     try:
@@ -3138,6 +3138,24 @@ def get_proc_ppid(pid):
     except IOError as e:
         LOG.warning("Failed to load /proc/%s/stat. %s", pid, e)
     return ppid
+
+
+def get_proc_ppid_ps(pid):
+    """
+    Return the parent pid of a process by checking ps
+    """
+    ppid, _ = subp.subp(["ps", "-oppid=", "-p", str(pid)])
+    return int(ppid.strip())
+
+
+def get_proc_ppid(pid):
+    """
+    Return the parent pid of a process.
+    """
+    if is_Linux():
+        return get_proc_ppid_linux(pid)
+    else:
+        return get_proc_ppid_ps(pid)
 
 
 def error(msg, rc=1, fmt="Error:\n{}", sys_exit=False):
