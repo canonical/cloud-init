@@ -28,14 +28,14 @@ def test_wait_when_no_datasource(session_cloud: IntegrationCloud, setup_image):
     LP: #1966085
     """
     with session_cloud.launch(
+        wait=False,
         launch_kwargs={
             # On Jammy and above, we detect the LXD datasource using a
             # socket available to the container. This prevents the socket
             # from being exposed in the container, causing datasource detection
             # to fail. ds-identify will then have failed to detect a datasource
             "config_dict": {"security.devlxd": False},
-            "wait": False,  # to prevent cloud-init status --wait
-        }
+        },
     ) as client:
         # We know this will be an LXD instance due to our pytest mark
         client.instance.execute_via_ssh = False  # pyright: ignore
