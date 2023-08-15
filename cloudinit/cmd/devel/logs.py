@@ -152,7 +152,6 @@ def _write_command_output_to_file(cmd, filename, msg, verbosity):
     except ProcessExecutionError as e:
         write_file(filename, str(e))
         _debug("collecting %s failed.\n" % msg, 1, verbosity)
-        return str(e)
     else:
         _debug("collected %s\n" % msg, 1, verbosity)
         return output

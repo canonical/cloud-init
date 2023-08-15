@@ -209,63 +209,78 @@ class TestCollectLogs:
         )
         fake_stderr.write.assert_any_call("Wrote %s\n" % output_tarfile)
 
-    def test_write_command_output_to_file(self, m_getuid, tmpdir):
+    @pytest.mark.parametrize(
+        "cmd, expected_file_contents, expected_return_value",
+        [
+            (
+                ["echo", "cloud-init? more like cloud-innit!"],
+                "cloud-init? more like cloud-innit!\n",
+                "cloud-init? more like cloud-innit!\n",
+            ),
+            (
+                ["ls", "/nonexistent-directory"],
+                (
+                    "Unexpected error while running command.\n"
+                    "Command: ['ls', '/nonexistent-directory']\n"
+                    "Exit code: 2\n"
+                    "Reason: -\n"
+                    "Stdout: \n"
+                    "Stderr: ls: cannot access '/nonexistent-directory': "
+                    "No such file or directory"
+                ),
+                None,
+            ),
+        ],
+    )
+    def test_write_command_output_to_file(
+        self,
+        m_getuid,
+        tmpdir,
+        cmd,
+        expected_file_contents,
+        expected_return_value,
+    ):
         m_getuid.return_value = 100
-        test_str = "cloud-init? more like cloud-innit!"
-        output_file1 = tmpdir.join("test-output-file-1.txt")
-        output_file2 = tmpdir.join("test-output-file-2.txt")
-        nonexistent_path = "/this-directory-does-not-exist"
-        expected_stderr = (
-            "Unexpected error while running command.\n"
-            + f"Command: ['ls', '{nonexistent_path}']\n"
-            + "Exit code: 2\n"
-            + "Reason: -\n"
-            + "Stdout: \n"
-            + f"Stderr: ls: cannot access '{nonexistent_path}': "
-            + "No such file or directory"
-        )
-        return_output1 = logs._write_command_output_to_file(
-            filename=output_file1,
-            cmd=["echo", test_str],
-            msg="",
-            verbosity=1,
-        )
-        return_output2 = logs._write_command_output_to_file(
-            filename=output_file2,
-            cmd=["ls", nonexistent_path],
+        output_file = tmpdir.join("test-output-file.txt")
+
+        return_output = logs._write_command_output_to_file(
+            filename=output_file,
+            cmd=cmd,
             msg="",
             verbosity=1,
         )
 
-        assert test_str + "\n" == return_output1
-        assert test_str + "\n" == load_file(output_file1)
-        assert expected_stderr == return_output2
-        assert expected_stderr == load_file(output_file2)
+        assert expected_return_value == return_output
+        assert expected_file_contents == load_file(output_file)
 
-    def test_stream_command_output_to_file(self, m_getuid, tmpdir):
+    @pytest.mark.parametrize(
+        "cmd, expected_file_contents",
+        [
+            (["echo", "cloud-init, shmoud-init"], "cloud-init, shmoud-init\n"),
+            (
+                ["ls", "/nonexistent-directory"],
+                (
+                    "ls: cannot access '/nonexistent-directory': "
+                    "No such file or directory\n"
+                ),
+            ),
+        ],
+    )
+    def test_stream_command_output_to_file(
+        self, m_getuid, tmpdir, cmd, expected_file_contents
+    ):
         m_getuid.return_value = 100
-        test_str = "cloud-init, shmoud-init"
-        expected_stderr = (
-            "ls: cannot access '/this-directory-does-not-exist':"
-            + " No such file or directory"
-        )
-        output_file1 = tmpdir.join("test-output-file-1.txt")
-        output_file2 = tmpdir.join("test-output-file-2.txt")
+        output_file = tmpdir.join("test-output-file.txt")
+
         logs._stream_command_output_to_file(
-            filename=output_file1,
-            cmd=["echo", test_str],
-            msg="",
-            verbosity=1,
-        )
-        logs._stream_command_output_to_file(
-            filename=output_file2,
-            cmd=["ls", "/this-directory-does-not-exist"],
+            filename=output_file,
+            cmd=cmd,
             msg="",
             verbosity=1,
         )
 
-        assert test_str + "\n" == load_file(output_file1)
-        assert expected_stderr + "\n" == load_file(output_file2)
+        assert expected_file_contents == load_file(output_file)
+
 
 class TestCollectInstallerLogs:
     @pytest.mark.parametrize(
