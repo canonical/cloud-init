@@ -22,7 +22,6 @@ class FakeCloud:
 
 
 class TestWireGuard(CiTestCase):
-
     with_logs = True
     allowed_subp = [CiTestCase.SUBP_SHELL_TRUE]
 
@@ -137,10 +136,14 @@ class TestWireGuard(CiTestCase):
         cc_wireguard.maybe_install_wireguard_packages(cloud=FakeCloud(distro))
 
     @mock.patch("%s.subp.which" % MPATH)
-    def test_maybe_install_wf_tools_raises_update_errors(self, m_which):
+    @mock.patch("%s.util.kernel_version" % MPATH)
+    def test_maybe_install_wf_tools_raises_update_errors(
+        self, m_kernel_version, m_which
+    ):
         """maybe_install_wireguard_packages logs and raises
         apt update errors."""
         m_which.return_value = None
+        m_kernel_version.return_value = (4, 42)
         distro = mock.MagicMock()
         distro.update_package_sources.side_effect = RuntimeError(
             "Some apt error"
@@ -153,10 +156,14 @@ class TestWireGuard(CiTestCase):
         self.assertIn("Package update failed\nTraceback", self.logs.getvalue())
 
     @mock.patch("%s.subp.which" % MPATH)
-    def test_maybe_install_wg_raises_install_errors(self, m_which):
+    @mock.patch("%s.util.kernel_version" % MPATH)
+    def test_maybe_install_wg_raises_install_errors(
+        self, m_kernel_version, m_which
+    ):
         """maybe_install_wireguard_packages logs and raises package
         install errors."""
         m_which.return_value = None
+        m_kernel_version.return_value = (5, 12)
         distro = mock.MagicMock()
         distro.update_package_sources.return_value = None
         distro.install_packages.side_effect = RuntimeError(
@@ -192,10 +199,14 @@ class TestWireGuard(CiTestCase):
         )
 
     @mock.patch("%s.subp.which" % MPATH)
-    def test_maybe_install_wg_packages_happy_path(self, m_which):
+    @mock.patch("%s.util.kernel_version" % MPATH)
+    def test_maybe_install_wg_packages_happy_path(
+        self, m_kernel_version, m_which
+    ):
         """maybe_install_wireguard_packages installs wireguard-tools."""
         packages = ["wireguard-tools"]
 
+        m_kernel_version.return_value = (5, 2)
         if util.kernel_version() < MIN_KERNEL_VERSION:
             packages.append("wireguard")
 
@@ -259,6 +270,3 @@ class TestWireguardSchema:
                 validate_cloudconfig_schema(config, get_schema(), strict=True)
         else:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
-
-
-# vi: ts=4 expandtab
