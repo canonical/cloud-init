@@ -605,7 +605,8 @@ class _Annotator:
                 errors_by_line[int(line)].append(msg)
             else:
                 col = None
-                errors_by_line[self._schemamarks[path]].append(msg)
+                if path in self._schemamarks:
+                    errors_by_line[self._schemamarks[path]].append(msg)
             if col is not None:
                 msg = "Line {line} column {col}: {msg}".format(
                     line=line, col=col, msg=msg
