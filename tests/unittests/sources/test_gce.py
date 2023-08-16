@@ -9,7 +9,6 @@ import json
 import re
 from base64 import b64decode, b64encode
 from unittest import mock
-from urllib.parse import urlparse
 
 import responses
 
@@ -17,6 +16,9 @@ from cloudinit import distros, helpers, settings
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.sources import DataSourceGCE
 from tests.unittests import helpers as test_helpers
+
+# from urllib.parse import urlparse
+
 
 M_PATH = "cloudinit.sources.DataSourceGCE."
 
@@ -26,9 +28,9 @@ GCE_META = {
         "zone": "foo/bar",
         "hostname": "server.project-foo.local",
     },
-#    "instance/id": "123",
-#    "instance/zone": "foo/bar",
-#    "instance/hostname": "server.project-foo.local",
+    #    "instance/id": "123",
+    #    "instance/zone": "foo/bar",
+    #    "instance/hostname": "server.project-foo.local",
 }
 
 GCE_META_PARTIAL = {
@@ -109,34 +111,15 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
 
     def _set_mock_metadata(self, gce_meta=None, *, check_headers=None):
         if gce_meta is None:
-            gce_meta = GCE_META
-
-        def _decode_obj(json_obj: dict):
-            ret = json_obj.copy()
-            for key in json_obj:
-                if type(key) is dict:
-                    ret[key] = _decode_obj(json_obj[key])
-                elif type(key) is bytes:
-                    ret[key] = json_obj[key].decode()
-            return ret
+            gce_meta = GCE_META.copy()
 
         def _request_callback(request):
-            url_path = urlparse(request.url).path
-            if url_path.startswith("/computeMetadata/v1/"):
-                path = url_path.split("/computeMetadata/v1/")[1:][0]
-                recursive = path.endswith("/")
-                path = path.rstrip("/")
-            else:
-                path = None
-            if check_headers is not None:
-                for k in check_headers.keys():
-                    self.assertEqual(check_headers[k], request.headers[k])
-            if recursive:
-                decode_gce_meta = _decode_obj(gce_meta)
-                response = json.dumps(decode_gce_meta)
-            else:
-                return (404, request.headers, "")
-            return (200, request.headers, response)
+            assert (
+                request.url
+                == "http://metadata.google.internal/computeMetadata/v1/"
+                "?recursive=True"
+            )
+            return (200, request.headers, json.dumps(gce_meta).encode("utf-8"))
 
         self.responses.add_callback(
             responses.GET,
@@ -152,7 +135,8 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
     def test_metadata(self):
         # UnicodeDecodeError if set to ds.userdata instead of userdata_raw
         meta = GCE_META.copy()
-        meta["instance"]["attributes"] = { "user-data": b"/bin/echo \xff\n" }
+
+        meta["instance"]["attributes"] = {"user-data": "/bin/echo \xff\n"}
 
         self._set_mock_metadata()
         self.ds.get_data()
@@ -160,12 +144,10 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         shostname = GCE_META.get("instance").get("hostname").split(".")[0]
         self.assertEqual(shostname, self.ds.get_hostname().hostname)
 
-        self.assertEqual(
-            GCE_META.get("instance/id"), self.ds.get_instance_id()
-        )
+        self.assertEqual(GCE_META["instance"]["id"], self.ds.get_instance_id())
 
         self.assertEqual(
-            GCE_META.get("instance").get("attributes").get("user-data"),
+            GCE_META["instance"]["attributes"]["user-data"].encode("utf-8"),
             self.ds.get_userdata_raw(),
         )
 
@@ -175,10 +157,13 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         self.ds.get_data()
 
         self.assertEqual(
-            GCE_META_PARTIAL.get("instance").get("id"), self.ds.get_instance_id()
+            GCE_META_PARTIAL.get("instance").get("id"),
+            self.ds.get_instance_id(),
         )
 
-        shostname = GCE_META_PARTIAL.get("instance").get("hostname").split(".")[0]
+        shostname = (
+            GCE_META_PARTIAL.get("instance").get("hostname").split(".")[0]
+        )
         self.assertEqual(shostname, self.ds.get_hostname().hostname)
 
     def test_userdata_no_encoding(self):

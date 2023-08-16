@@ -17,7 +17,7 @@ from cloudinit.sources import DataSourceHostname
 
 LOG = logging.getLogger(__name__)
 
-MD_V1_URL = "http://metadata.google.internal/computeMetadata/v1/"
+MD_V1_URL = "http://metadata.google.internal/computeMetadata/v1"
 BUILTIN_DS_CONFIG = {"metadata_url": MD_V1_URL}
 REQUIRED_FIELDS = ("instance-id", "availability-zone", "local-hostname")
 GUEST_ATTRIBUTES_URL = (
@@ -282,23 +282,21 @@ def read_md(address=None, url_params=None, platform_check=True):
         return ret
 
     # url_map: (our-key, path, required, is_text, is_recursive)
-#    url_map = [
-#        ("instance-id", ("instance/id",), True, True, False),
-#        ("availability-zone", ("instance/zone",), True, True, False),
-#        ("local-hostname", ("instance/hostname",), True, True, False),
-#        ("instance-data", ("instance/attributes",), False, False, True),
-#        ("project-data", ("project/attributes",), False, False, True),
-#    ]
+    #    url_map = [
+    #        ("instance-id", ("instance/id",), True, True, False),
+    #        ("availability-zone", ("instance/zone",), True, True, False),
+    #        ("local-hostname", ("instance/hostname",), True, True, False),
+    #        ("instance-data", ("instance/attributes",), False, False, True),
+    #        ("project-data", ("project/attributes",), False, False, True),
+    #    ]
     url_map = {
         "instance": {
             "id": ("instance-id", True),
             "zone": ("availability-zone", True),
             "hostname": ("local-hostname", True),
-            "attributes": ("instance-data", False)
+            "attributes": ("instance-data", False),
         },
-        "project": {
-            "attributes": ("project-data", False)
-        }
+        "project": {"attributes": ("project-data", False)},
     }
     metadata_fetcher = GoogleMetadataFetcher(
         address, url_params.num_retries, url_params.sec_between_retries
@@ -311,28 +309,33 @@ def read_md(address=None, url_params=None, platform_check=True):
         value = json_data.get(top_level_key)
         for second_level_key in url_map[top_level_key]:
             (mkey, required) = url_map[top_level_key][second_level_key]
+            new_value = None
             if value is not None and second_level_key in value:
                 new_value = value[second_level_key]
                 md[mkey] = new_value
-            if required and value is None:
+            if required and new_value is None:
                 msg = "required key %s returned nothing. not GCE"
                 ret["reason"] = msg % mkey
                 return ret
 
-#    for (mkey, paths, required, is_text, is_recursive) in url_map:
-#        value = None
-#        for path in paths:
-#            new_value = metadata_fetcher.get_value(path, is_text, is_recursive)
-#            if new_value is not None:
-#                value = new_value
-#        if required and value is None:
-#            msg = "required key %s returned nothing. not GCE"
-#            ret["reason"] = msg % mkey
-#            return ret
-#        md[mkey] = value
+    #    for (mkey, paths, required, is_text, is_recursive) in url_map:
+    #        value = None
+    #        for path in paths:
+    #            new_value = metadata_fetcher.get_value(path, is_text, is_recursive)
+    #            if new_value is not None:
+    #                value = new_value
+    #        if required and value is None:
+    #            msg = "required key %s returned nothing. not GCE"
+    #            ret["reason"] = msg % mkey
+    #            return ret
+    #        md[mkey] = value
 
-    instance_data = md.get("instance-data", {}) #json.loads(md["instance-data"] or "{}")
-    project_data = md.get("project-data", {}) #json.loads(md["project-data"] or "{}")
+    instance_data = md.get(
+        "instance-data", {}
+    )  # json.loads(md["instance-data"] or "{}")
+    project_data = md.get(
+        "project-data", {}
+    )  # json.loads(md["project-data"] or "{}")
     valid_keys = [instance_data.get("sshKeys"), instance_data.get("ssh-keys")]
     block_project = instance_data.get("block-project-ssh-keys", "").lower()
     if block_project != "true" and not instance_data.get("sshKeys"):
