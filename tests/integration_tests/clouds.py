@@ -96,7 +96,7 @@ class IntegrationCloud(ABC):
                 raise
 
     def _perform_launch(
-        self, *, wait=True, launch_kwargs, **kwargs
+        self, *, launch_kwargs, wait=True, **kwargs
     ) -> BaseInstance:
         pycloudlib_instance = self.cloud_instance.launch(**launch_kwargs)
         self._maybe_wait(pycloudlib_instance, wait)
@@ -197,7 +197,7 @@ class Ec2Cloud(IntegrationCloud):
         )
 
     def _perform_launch(
-        self, *, wait=True, launch_kwargs, **kwargs
+        self, *, launch_kwargs, wait=True, **kwargs
     ) -> EC2Instance:
         """Use a dual-stack VPC for cloud-init integration testing."""
         if "vpc" not in launch_kwargs:
@@ -305,7 +305,7 @@ class _LxdIntegrationCloud(IntegrationCloud):
             subp(command.split())
 
     def _perform_launch(
-        self, *, wait=True, launch_kwargs, **kwargs
+        self, *, launch_kwargs, wait=True, **kwargs
     ) -> LXDInstance:
         instance_kwargs = deepcopy(launch_kwargs)
         instance_kwargs["inst_type"] = instance_kwargs.pop(
