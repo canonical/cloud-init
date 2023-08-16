@@ -34,6 +34,10 @@ from tests.integration_tests.util import emit_dots_on_travis
 
 log = logging.getLogger("integration_testing")
 
+DISTRO_TO_USERNAME = {
+    "ubuntu": "ubuntu",
+}
+
 
 def _get_ubuntu_series() -> list:
     """Use distro-info-data's ubuntu.csv to get a list of Ubuntu series"""
@@ -126,6 +130,7 @@ class IntegrationCloud(ABC):
         default_launch_kwargs = {
             "image_id": self.image_id,
             "user_data": user_data,
+            "username": DISTRO_TO_USERNAME[CURRENT_RELEASE.os],
         }
         launch_kwargs = {**default_launch_kwargs, **launch_kwargs}
         display_launch_kwargs = deepcopy(launch_kwargs)
