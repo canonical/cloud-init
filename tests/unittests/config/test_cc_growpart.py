@@ -136,8 +136,9 @@ class TestConfig(TestCase):
         self.tmpfile.close()
         os.remove(self.tmppath)
 
+    @mock.patch.object(os.path, "isfile", return_value=False)
     @mock.patch.dict("os.environ", clear=True)
-    def test_no_resizers_auto_is_fine(self):
+    def test_no_resizers_auto_is_fine(self, m_isfile):
         with mock.patch.object(
             subp, "subp", return_value=(HELP_GROWPART_NO_RESIZE, "")
         ) as mockobj:
@@ -248,7 +249,7 @@ class TestConfig(TestCase):
             subp, "subp", return_value=("", HELP_GPART)
         ) as mockobj:
             ret = cc_growpart.resizer_factory(
-                mode="auto", distro=mock.Mock(), devices=["/"]
+                mode="auto", distro=mock.Mock(), devices=["/", "/opt"]
             )
             self.assertIsInstance(ret, cc_growpart.ResizeGpart)
 
@@ -258,6 +259,23 @@ class TestConfig(TestCase):
                     mock.call(
                         ["gpart", "help"], env={"LANG": "C"}, rcs=[0, 1]
                     ),
+                ]
+            )
+
+    @mock.patch.object(os.path, "isfile", return_value=True)
+    @mock.patch.dict("os.environ", {"LANG": "cs_CZ.UTF-8"}, clear=True)
+    def test_mode_auto_falls_back_to_growfs(self, m_isfile):
+        with mock.patch.object(
+            subp, "subp", return_value=("", HELP_GPART)
+        ) as mockobj:
+            ret = cc_growpart.resizer_factory(
+                mode="auto", distro=mock.Mock(), devices=["/"]
+            )
+            self.assertIsInstance(ret, cc_growpart.ResizeGrowFS)
+
+            mockobj.assert_has_calls(
+                [
+                    mock.call(["growpart", "--help"], env={"LANG": "C"}),
                 ]
             )
 
