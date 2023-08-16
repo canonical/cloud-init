@@ -144,23 +144,22 @@ def _copytree_rundir_ignore_files(curdir, files):
 
 def _write_command_output_to_file(cmd, filename, msg, verbosity):
     """Helper which runs a command and writes output or error to filename."""
-    output = ""
+    ensure_dir(os.path.dirname(filename))
     try:
-        ensure_dir(os.path.dirname(filename))
         output = subp(cmd)[0]
-        write_file(filename, output)
     except ProcessExecutionError as e:
         write_file(filename, str(e))
         _debug("collecting %s failed.\n" % msg, 1, verbosity)
     else:
+        write_file(filename, output)
         _debug("collected %s\n" % msg, 1, verbosity)
         return output
 
 
 def _stream_command_output_to_file(cmd, filename, msg, verbosity):
     """Helper which runs a command and writes output or error to filename."""
+    ensure_dir(os.path.dirname(filename))
     try:
-        ensure_dir(os.path.dirname(filename))
         with open(filename, "w") as f:
             subprocess.call(cmd, stdout=f, stderr=f)
     except ProcessExecutionError as e:
