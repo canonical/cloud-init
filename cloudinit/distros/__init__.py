@@ -977,7 +977,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         cmd = list(init_cmd) + list(cmds[action])
         return subp.subp(cmd, capture=True, rcs=rcs)
 
-    def set_keymap(self, layout, model, variant, options):
+    def set_keymap(self, layout: str, model: str, variant: str, options: str):
         if self.uses_systemd():
             subp.subp(
                 [

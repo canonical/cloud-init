@@ -93,33 +93,43 @@ class TestKeyboard(FilesystemMockingTestCase):
     @mock.patch("cloudinit.distros.Distro.uses_systemd")
     @mock.patch("cloudinit.distros.subp.subp")
     def test_systemd_linux_cmd(self, m_subp, m_uses_systemd, *args):
-        """Ubuntu runs localectl"""
+        """Non-Debian systems run localectl"""
         cfg = {"keyboard": {"layout": "us", "variant": "us"}}
         layout = "us"
         model = "pc105"
         variant = "us"
         options = ""
         m_uses_systemd.return_value = True
-        cloud = get_cloud("ubuntu")
+        cloud = get_cloud("fedora")
         cc_keyboard.handle("cc_keyboard", cfg, cloud, [])
-        locale_calls = [
-            mock.call(
-                [
-                    "localectl",
-                    "set-x11-keymap",
-                    layout,
-                    model,
-                    variant,
-                    options,
-                ]
-            ),
-            mock.call(
-                ["systemctl", "restart", "console-setup"],
-                capture=True,
-                rcs=None,
-            ),
-        ]
-        m_subp.assert_has_calls(locale_calls)
+        locale_call = mock.call(
+            [
+                "localectl",
+                "set-x11-keymap",
+                layout,
+                model,
+                variant,
+                options,
+            ]
+        )
+        assert m_subp.call_args == locale_call
+
+    @mock.patch("cloudinit.util.write_file")
+    @mock.patch("cloudinit.distros.subp.subp")
+    def test_debian_linux_cmd(self, m_subp, m_write_file):
+        """localectl is broken on Debian-based systems so write conf file"""
+        cfg = {"keyboard": {"layout": "gb", "variant": "dvorak"}}
+        cloud = get_cloud("debian")
+        cc_keyboard.handle("cc_keyboard", cfg, cloud, [])
+
+        m_content = m_write_file.call_args[1]["content"]
+        assert 'XKBMODEL="pc105"' in m_content
+        assert 'XKBLAYOUT="gb"' in m_content
+        assert 'XKBVARIANT="dvorak"' in m_content
+        assert "/etc/default/keyboard" == m_write_file.call_args[1]["filename"]
+        m_subp.assert_called_with(
+            ["service", "console-setup", "restart"], capture=True, rcs=None
+        )
 
     @mock.patch("cloudinit.distros.subp.subp")
     def test_alpine_linux_cmd(self, m_subp, *args):
