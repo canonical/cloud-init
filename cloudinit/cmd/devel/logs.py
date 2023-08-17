@@ -146,7 +146,7 @@ def _write_command_output_to_file(cmd, filename, msg, verbosity):
     """Helper which runs a command and writes output or error to filename."""
     ensure_dir(os.path.dirname(filename))
     try:
-        output = subp(cmd)[0]
+        output = subp(cmd).stdout
     except ProcessExecutionError as e:
         write_file(filename, str(e))
         _debug("collecting %s failed.\n" % msg, 1, verbosity)
@@ -162,7 +162,7 @@ def _stream_command_output_to_file(cmd, filename, msg, verbosity):
     try:
         with open(filename, "w") as f:
             subprocess.call(cmd, stdout=f, stderr=f)
-    except ProcessExecutionError as e:
+    except OSError as e:
         write_file(filename, str(e))
         _debug("collecting %s failed.\n" % msg, 1, verbosity)
     else:
@@ -211,7 +211,6 @@ def collect_logs(tarfile, include_userdata: bool, verbosity=0):
         return 1
     tarfile = os.path.abspath(tarfile)
     log_dir = datetime.utcnow().date().strftime("cloud-init-logs-%Y-%m-%d")
-    # def _write_command_output_to_file(cmd, filename, msg, verbosity):
     with tempdir(dir="/tmp") as tmp_dir:
         log_dir = os.path.join(tmp_dir, log_dir)
         version = _write_command_output_to_file(

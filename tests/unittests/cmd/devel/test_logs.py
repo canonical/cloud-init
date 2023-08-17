@@ -10,7 +10,7 @@ import pytest
 
 from cloudinit.cmd.devel import logs
 from cloudinit.cmd.devel.logs import ApportFile
-from cloudinit.subp import subp
+from cloudinit.subp import SubpResult, subp
 from cloudinit.util import ensure_dir, load_file, write_file
 from tests.unittests.helpers import mock
 
@@ -77,7 +77,7 @@ class TestCollectLogs:
                 )
             if cmd == ["tar", "czvf", output_tarfile, date_logdir]:
                 subp(cmd)  # Pass through tar cmd so we can check output
-            return expected_subp[cmd_tuple], ""
+            return SubpResult(expected_subp[cmd_tuple], "")
 
         # the new _stream_command_output_to_file function uses subprocess.call
         # instead of subp, so we need to mock that as well
@@ -181,7 +181,7 @@ class TestCollectLogs:
                 )
             if cmd == ["tar", "czvf", output_tarfile, date_logdir]:
                 subp(cmd)  # Pass through tar cmd so we can check output
-            return expected_subp[cmd_tuple], ""
+            return SubpResult(expected_subp[cmd_tuple], "")
 
         fake_stderr = mock.MagicMock()
 
