@@ -32,13 +32,13 @@ puppet:
   install: true
   install_type: packages
   exec: true
-  exec_args: ['--noop']
+  exec_args: ['--noop', '--onetime']
 """
 
 
 @pytest.mark.user_data
 @pytest.mark.user_data(EXEC_DATA)
-def test_pupet_exec(client: IntegrationInstance):
+def test_puppet_exec(client: IntegrationInstance):
     """Basic test that puppet gets installed and runs."""
     log = client.read_from_file("/var/log/cloud-init.log")
-    assert "Running command ['puppet', 'agent', '--noop']" in log
+    assert "Running command ['puppet', 'agent', '--noop', '--onetime']" in log
