@@ -321,9 +321,7 @@ def create_swapfile(fname: str, size: str) -> None:
         subp.subp(["truncate", "-s", "0", fname])
         subp.subp(["chattr", "+C", fname])
 
-    if (
-        fstype == "xfs" and util.kernel_version() < (4, 18)
-    ) or fstype == "btrfs":
+    if fstype == "xfs" and util.kernel_version() < (4, 18):
         create_swap(fname, size, "dd")
     else:
         try:
