@@ -3,11 +3,8 @@ This directory is an example of a 'seed' directory.
 
 copying these files inside an instance's
   /var/lib/cloud/seed/nocloud
-or
-  /var/lib/cloud/seed/nocloud-net
 
-will cause the 'DataSourceNoCloud' and 'DataSourceNoCloudNet' modules
-to enable and read the given data.
+will cause the 'DataSourceNoCloud' module to enable and read the given data.
 
 The directory must have both files.
 
