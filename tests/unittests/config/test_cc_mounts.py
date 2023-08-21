@@ -307,13 +307,7 @@ class TestSwapFileCreation(test_helpers.FilesystemMockingTestCase):
                 mock.call(["truncate", "-s", "0", self.swap_path]),
                 mock.call(["chattr", "+C", self.swap_path]),
                 mock.call(
-                    [
-                        "dd",
-                        "if=/dev/zero",
-                        "of=" + self.swap_path,
-                        "bs=1M",
-                        "count=0",
-                    ],
+                    ["fallocate", "-l", "0M", self.swap_path],
                     capture=True,
                 ),
                 mock.call(["mkswap", self.swap_path]),
