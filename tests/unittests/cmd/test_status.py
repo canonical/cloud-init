@@ -666,7 +666,7 @@ class TestStatus:
 
 class TestSystemdStatusDetails:
     @pytest.mark.parametrize(
-        ["active_state", "unit_file_state", "sub_state", "status"],
+        ["active_state", "unit_file_state", "sub_state", "main_pid", "status"],
         [
             # To cut down on the combination of states, I'm grouping
             # enabled, enabled-runtime, and static into an "enabled" state
@@ -675,31 +675,42 @@ class TestSystemdStatusDetails:
             # different depending on the ActiveState they are mapped too.
             # Because of this I'm only testing SubState combinations seen
             # in real-world testing (or using "any" string if we dont care).
-            ("activating", "enabled", "start", UXAppStatus.RUNNING),
-            ("active", "enabled-runtime", "exited", None),
+            ("activating", "enabled", "start", "123", UXAppStatus.RUNNING),
+            ("activating", "enabled", "start", "123", UXAppStatus.RUNNING),
+            ("active", "enabled-runtime", "exited", "0", None),
+            ("active", "enabled", "exited", "0", None),
+            ("active", "enabled", "running", "345", UXAppStatus.RUNNING),
+            ("active", "enabled", "running", "0", None),
             # Dead doesn't mean exited here. It means not run yet.
-            ("inactive", "static", "dead", UXAppStatus.RUNNING),
-            ("reloading", "enabled", "start", UXAppStatus.RUNNING),
-            ("deactivating", "enabled-runtime", "any", UXAppStatus.RUNNING),
-            ("failed", "static", "failed", UXAppStatus.ERROR),
+            ("inactive", "static", "dead", "123", UXAppStatus.RUNNING),
+            ("reloading", "enabled", "start", "123", UXAppStatus.RUNNING),
+            (
+                "deactivating",
+                "enabled-runtime",
+                "any",
+                "123",
+                UXAppStatus.RUNNING,
+            ),
+            ("failed", "static", "failed", "0", UXAppStatus.ERROR),
             # Try previous combinations again with "not enabled" states
-            ("activating", "linked", "start", UXAppStatus.ERROR),
-            ("active", "linked-runtime", "exited", UXAppStatus.ERROR),
-            ("inactive", "masked", "dead", UXAppStatus.ERROR),
-            ("reloading", "masked-runtime", "start", UXAppStatus.ERROR),
-            ("deactivating", "disabled", "any", UXAppStatus.ERROR),
-            ("failed", "invalid", "failed", UXAppStatus.ERROR),
+            ("activating", "linked", "start", "0", UXAppStatus.ERROR),
+            ("active", "linked-runtime", "exited", "0", UXAppStatus.ERROR),
+            ("inactive", "masked", "dead", "0", UXAppStatus.ERROR),
+            ("reloading", "masked-runtime", "start", "0", UXAppStatus.ERROR),
+            ("deactivating", "disabled", "any", "0", UXAppStatus.ERROR),
+            ("failed", "invalid", "failed", "0", UXAppStatus.ERROR),
         ],
     )
     def test_get_systemd_status(
-        self, active_state, unit_file_state, sub_state, status
+        self, active_state, unit_file_state, sub_state, main_pid, status
     ):
         with mock.patch(
             f"{M_PATH}subp.subp",
             return_value=SubpResult(
                 f"ActiveState={active_state}\n"
                 f"UnitFileState={unit_file_state}\n"
-                f"SubState={sub_state}",
+                f"SubState={sub_state}\n"
+                f"MainPID={main_pid}\n",
                 stderr=None,
             ),
         ):
