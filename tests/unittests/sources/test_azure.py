@@ -3660,7 +3660,7 @@ class TestProvisioning:
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
-                timeout=2,
+                timeout=30,
                 headers={"Metadata": "true"},
                 exception_cb=mock.ANY,
                 infinite=True,
@@ -3737,7 +3737,7 @@ class TestProvisioning:
                 headers={"Metadata": "true"},
                 infinite=True,
                 log_req_resp=True,
-                timeout=2,
+                timeout=30,
             ),
             mock.call(
                 "http://169.254.169.254/metadata/reprovisiondata?"
@@ -3746,7 +3746,7 @@ class TestProvisioning:
                 headers={"Metadata": "true"},
                 log_req_resp=False,
                 infinite=True,
-                timeout=2,
+                timeout=30,
             ),
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
@@ -3755,7 +3755,7 @@ class TestProvisioning:
                 headers={"Metadata": "true"},
                 infinite=True,
                 log_req_resp=True,
-                timeout=2,
+                timeout=30,
             ),
         ]
 
@@ -3850,7 +3850,7 @@ class TestProvisioning:
                 headers={"Metadata": "true"},
                 infinite=True,
                 log_req_resp=True,
-                timeout=2,
+                timeout=30,
             ),
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
@@ -3859,7 +3859,7 @@ class TestProvisioning:
                 headers={"Metadata": "true"},
                 infinite=True,
                 log_req_resp=True,
-                timeout=2,
+                timeout=30,
             ),
             mock.call(
                 "http://169.254.169.254/metadata/reprovisiondata?"
@@ -3868,7 +3868,7 @@ class TestProvisioning:
                 headers={"Metadata": "true"},
                 log_req_resp=False,
                 infinite=True,
-                timeout=2,
+                timeout=30,
             ),
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
@@ -3877,7 +3877,7 @@ class TestProvisioning:
                 headers={"Metadata": "true"},
                 infinite=True,
                 log_req_resp=True,
-                timeout=2,
+                timeout=30,
             ),
         ]
 
@@ -4010,7 +4010,7 @@ class TestProvisioning:
                 headers={"Metadata": "true"},
                 infinite=True,
                 log_req_resp=True,
-                timeout=2,
+                timeout=30,
             ),
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
@@ -4019,7 +4019,7 @@ class TestProvisioning:
                 headers={"Metadata": "true"},
                 infinite=True,
                 log_req_resp=True,
-                timeout=2,
+                timeout=30,
             ),
             mock.call(
                 "http://169.254.169.254/metadata/reprovisiondata?"
@@ -4028,7 +4028,7 @@ class TestProvisioning:
                 headers={"Metadata": "true"},
                 infinite=True,
                 log_req_resp=False,
-                timeout=2,
+                timeout=30,
             ),
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
@@ -4037,7 +4037,7 @@ class TestProvisioning:
                 headers={"Metadata": "true"},
                 infinite=True,
                 log_req_resp=True,
-                timeout=2,
+                timeout=30,
             ),
         ]
 
@@ -4124,7 +4124,7 @@ class TestProvisioning:
                 headers={"Metadata": "true"},
                 infinite=True,
                 log_req_resp=True,
-                timeout=2,
+                timeout=30,
             ),
             mock.call(
                 "http://169.254.169.254/metadata/reprovisiondata?"
@@ -4133,7 +4133,7 @@ class TestProvisioning:
                 headers={"Metadata": "true"},
                 infinite=True,
                 log_req_resp=False,
-                timeout=2,
+                timeout=30,
             ),
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
@@ -4142,7 +4142,7 @@ class TestProvisioning:
                 headers={"Metadata": "true"},
                 infinite=True,
                 log_req_resp=True,
-                timeout=2,
+                timeout=30,
             ),
         ]
 
@@ -4249,7 +4249,7 @@ class TestProvisioning:
                 headers={"Metadata": "true"},
                 infinite=True,
                 log_req_resp=True,
-                timeout=2,
+                timeout=30,
             ),
         ]
 
