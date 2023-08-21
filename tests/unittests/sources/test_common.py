@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from cloudinit import importer, settings, sources, type_utils
 from cloudinit.sources import DataSource
+from cloudinit.sources import DataSourceAkamai as Akamai
 from cloudinit.sources import DataSourceAliYun as AliYun
 from cloudinit.sources import DataSourceAltCloud as AltCloud
 from cloudinit.sources import DataSourceAzure as Azure
@@ -56,6 +57,7 @@ DEFAULT_LOCAL = [
     UpCloud.DataSourceUpCloudLocal,
     VMware.DataSourceVMware,
     NWCS.DataSourceNWCS,
+    Akamai.DataSourceAkamaiLocal,
 ]
 
 DEFAULT_NETWORK = [
@@ -72,6 +74,7 @@ DEFAULT_NETWORK = [
     OpenStack.DataSourceOpenStack,
     OVF.DataSourceOVFNet,
     UpCloud.DataSourceUpCloud,
+    Akamai.DataSourceAkamai,
     VMware.DataSourceVMware,
 ]
 
