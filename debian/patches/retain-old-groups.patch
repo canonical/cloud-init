@@ -7,12 +7,12 @@ Last-Update: 2023-07-24
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/config/cloud.cfg.tmpl
 +++ b/config/cloud.cfg.tmpl
-@@ -206,7 +206,7 @@ system_info:
-      name: ubuntu
-      lock_passwd: True
-      gecos: Ubuntu
--     groups: [adm, cdrom, dip, lxd, sudo]
-+     groups: [adm, audio, cdrom, dialout, dip, floppy, lxd, netdev, plugdev, sudo, video]
-      sudo: ["ALL=(ALL) NOPASSWD:ALL"]
-      shell: /bin/bash
- {# SRU_BLOCKER: do not ship network renderers on Xenial, Bionic or Eoan #}
+@@ -17,7 +17,7 @@
+                   "photon": "wheel",
+                   "openmandriva": "wheel, users, systemd-journal",
+                   "suse": "cdrom, users",
+-                  "ubuntu": "adm, cdrom, dip, lxd, sudo",
++                  "ubuntu": "adm, audio, cdrom, dialout, dip, floppy, lxd, netdev, plugdev, sudo, video",
+                   "unknown": "adm, cdrom, dip, lxd, sudo"}) %}
+ {% set shells = ({"alpine": "/bin/ash", "dragonfly": "/bin/sh",
+                   "freebsd": "/bin/tcsh", "netbsd": "/bin/sh",
