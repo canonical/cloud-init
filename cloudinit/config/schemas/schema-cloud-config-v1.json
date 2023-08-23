@@ -1903,7 +1903,7 @@
                 },
                 "template": {
                   "type": "string",
-                  "description": "Inline template allowing users to customize their `ntp_client` configuration with the use of the Jinja templating engine. The template should start with '## template:jinja'. Within the template, you can utilize the following parameters:\n- servers: A list of strings, each specifying an NTP server. When defined, entries will be rendered as 'server [server_name] iburst'. Defaults to an empty list.\n- pools: A list of strings, each specifying an NTP pool. When defined, entries will be rendered as 'pool [pool_name] iburst'. Defaults to an empty list.\n- allow: A list of strings, each specifying a network or CIDR. When defined, entries will be rendered as 'allow [CIDR]'. Defaults to an empty list.\n- peers: A list of nodes that should peer with each other. When defined, entries will be rendered as 'peer [peer_name]'. Defaults to an empty list.\nFor more information on Jinja templates and syntax, refer to the official documentation: [Jinja Template Documentation](https://jinja.palletsprojects.com/en/2.9.x/templates/)"
+                  "description": "Inline template allowing users to customize their ``ntp_client`` configuration with the use of the Jinja templating engine.\nThe template content should start with ``## template:jinja``.\nWithin the template, you can utilize any of the following ntp module config keys: ``servers``, ``pools``, ``allow``, and ``peers``.\nEach cc_ntp schema config key and expected value type is defined above."
                 }
               }
             }
