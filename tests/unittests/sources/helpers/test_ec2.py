@@ -27,7 +27,7 @@ class TestEc2Util(helpers.ResponsesTestCase):
             status=404,
         )
         userdata = ec2.get_instance_userdata(self.VERSION, retries=0)
-        self.assertEqual("", userdata)
+        self.assertEqual(b"", userdata)
 
     def test_userdata_fetch_fail_server_dead(self):
         self.responses.add(
@@ -36,7 +36,7 @@ class TestEc2Util(helpers.ResponsesTestCase):
             status=500,
         )
         userdata = ec2.get_instance_userdata(self.VERSION, retries=0)
-        self.assertEqual("", userdata)
+        self.assertEqual(b"", userdata)
 
     def test_userdata_fetch_fail_server_not_found(self):
         self.responses.add(
@@ -45,7 +45,7 @@ class TestEc2Util(helpers.ResponsesTestCase):
             status=404,
         )
         userdata = ec2.get_instance_userdata(self.VERSION)
-        self.assertEqual("", userdata)
+        self.assertEqual(b"", userdata)
 
     def test_metadata_fetch_no_keys(self):
         base_url = "http://169.254.169.254/%s/meta-data/" % (self.VERSION)
