@@ -222,7 +222,7 @@ class Distro(distros.Distro):
 
     def _write_hostname(self, hostname, filename):
         preserve_state = util.get_cfg_option_bool(
-            self._cfg, "preserve_etchostname_state"
+            self._cfg, "create_hostname_file"
         )
         if self.uses_systemd() and filename.endswith("/previous-hostname"):
             util.write_file(filename, hostname)

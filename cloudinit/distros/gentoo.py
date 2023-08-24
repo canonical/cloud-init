@@ -183,10 +183,10 @@ class Distro(distros.Distro):
             # so lets see if we can read it first.
             conf = self._read_hostname_conf(filename)
         except IOError:
-            preserve_state = util.get_cfg_option_bool(
-                self._cfg, "preserve_etchostname_state"
+            create_hostname_file = util.get_cfg_option_bool(
+                self._cfg, "create_hostname_file", True
             )
-            if not preserve_state:
+            if create_hostname_file:
                 pass
             else:
                 return
