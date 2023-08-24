@@ -59,6 +59,17 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         self.tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.tmp)
 
+    def _write_load_doas(self, user, rules):
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        if not os.path.exists(os.path.join(self.tmp, "etc")):
+            os.makedirs(os.path.join(self.tmp, "etc"))
+        self.patchOS(self.tmp)
+        self.patchUtils(self.tmp)
+        d.write_doas_rules(user, rules)
+        contents = util.load_file(d.doas_fn)
+        return contents, cls, d
+
     def _write_load_sudoers(self, _user, rules):
         cls = distros.fetch("ubuntu")
         d = cls("ubuntu", {}, None)
@@ -78,6 +89,68 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
                 if line == e:
                     found_amount += 1
         return found_amount
+
+    def test_doas_ensure_rules(self):
+        rules = ["permit nopass harlowja"]
+        contents = self._write_load_doas("harlowja", rules)[0]
+        expected = ["permit nopass harlowja"]
+        self.assertEqual(len(expected), self._count_in(expected, contents))
+
+    def test_doas_ensure_rules_list(self):
+        rules = [
+            "permit nopass harlowja cmd ls",
+            "permit nopass harlowja cmd pwd",
+            "permit nopass harlowja cmd df",
+        ]
+        contents = self._write_load_doas("harlowja", rules)[0]
+        expected = [
+            "permit nopass harlowja cmd ls",
+            "permit nopass harlowja cmd pwd",
+            "permit nopass harlowja cmd df",
+        ]
+        self.assertEqual(len(expected), self._count_in(expected, contents))
+
+    def test_doas_ensure_handle_duplicates(self):
+        rules = [
+            "permit nopass harlowja cmd ls",
+            "permit nopass harlowja cmd pwd",
+            "permit nopass harlowja cmd df",
+        ]
+        d = self._write_load_doas("harlowja", rules)[2]
+        # write to doas.conf again - should not create duplicate rules
+        d.write_doas_rules("harlowja", rules)
+        contents = util.load_file(d.doas_fn)
+        expected = [
+            "permit nopass harlowja cmd ls",
+            "permit nopass harlowja cmd pwd",
+            "permit nopass harlowja cmd df",
+        ]
+        self.assertEqual(len(expected), self._count_in(expected, contents))
+
+    def test_doas_ensure_new(self):
+        rules = [
+            "permit nopass harlowja cmd ls",
+            "permit nopass harlowja cmd pwd",
+            "permit nopass harlowja cmd df",
+        ]
+        contents = self._write_load_doas("harlowja", rules)[0]
+        self.assertIn("# Created by cloud-init v.", contents)
+        self.assertIn("harlowja", contents)
+        self.assertEqual(4, contents.count("harlowja"))
+
+    def test_doas_ensure_append(self):
+        self.patchUtils(self.tmp)
+        util.write_file("/etc/doas.conf", "# root user\npermit nopass root\n")
+        rules = [
+            "permit nopass harlowja cmd ls",
+            "permit nopass harlowja cmd pwd",
+            "permit nopass harlowja cmd df",
+        ]
+        contents = self._write_load_doas("harlowja", rules)[0]
+        self.assertIn("root", contents)
+        self.assertEqual(2, contents.count("root"))
+        self.assertIn("harlowja", contents)
+        self.assertEqual(4, contents.count("harlowja"))
 
     def test_sudoers_ensure_rules(self):
         rules = "ALL=(ALL:ALL) ALL"

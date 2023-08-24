@@ -263,6 +263,15 @@ system_info:
     primary_group: users
     no_user_group: true
 {% endif %}
+{% if variant in ["alpine", "freebsd", "openbsd"] %}
+{% if variant in usernames %}
+    doas:
+      - permit nopass usernames[{{ variant }}]
+{% else %}
+    doas:
+      - permit nopass {{ variant }}
+{% endif %}
+{% endif %}
     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
 {% if variant in shells %}
     shell: {{ shells[variant] }}
