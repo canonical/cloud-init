@@ -324,7 +324,7 @@ class Distro(distros.Distro):
         util.write_file(
             filename="/etc/default/keyboard",
             content=contents,
-            mode=644,
+            mode=0o644,
             omode="w",
         )
 
