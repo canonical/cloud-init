@@ -110,7 +110,7 @@ class Distro(distros.Distro):
     def _get_localhost_ip(self):
         return "127.0.1.1"
 
-    def set_keymap(self, layout, model, variant, options):
+    def set_keymap(self, layout: str, model: str, variant: str, options: str):
         if not layout:
             msg = "Keyboard layout not specified."
             LOG.error(msg)
