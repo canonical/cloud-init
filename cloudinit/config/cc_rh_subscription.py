@@ -32,7 +32,7 @@ meta: MetaSchema = {
     "name": "Red Hat Subscription",
     "title": "Register Red Hat Enterprise Linux based system",
     "description": MODULE_DESCRIPTION,
-    "distros": ["fedora", "rhel"],
+    "distros": ["fedora", "rhel", "openeuler"],
     "frequency": PER_INSTANCE,
     "examples": [
         dedent(

@@ -38,6 +38,7 @@ The following is a list of documentation for each supported datasource:
 .. toctree::
    :titlesonly:
 
+   datasources/akamai.rst
    datasources/aliyun.rst
    datasources/altcloud.rst
    datasources/ec2.rst

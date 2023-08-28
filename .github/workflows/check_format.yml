@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        env: [flake8, mypy, pylint, black, isort]
+        env: [ruff, mypy, pylint, black, isort]
         lint-with:
           - {tip-versions: false, os: ubuntu-20.04}
           - {tip-versions: true, os: ubuntu-latest}

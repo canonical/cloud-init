@@ -73,7 +73,7 @@ OSFAMILIES = {
         "sle-micro",
         "sles",
     ],
-    "openEuler": ["openEuler"],
+    "openeuler": ["openeuler"],
     "OpenCloudOS": ["OpenCloudOS", "TencentOS"],
 }
 
@@ -94,6 +94,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     pip_package_name = "python3-pip"
     usr_lib_exec = "/usr/lib"
     hosts_fn = "/etc/hosts"
+    doas_fn = "/etc/doas.conf"
     ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"
     hostname_conf_fn = "/etc/hostname"
     tz_zone_dir = "/usr/share/zoneinfo"
@@ -661,6 +662,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         * ``plain_text_passwd``
         * ``hashed_passwd``
         * ``lock_passwd``
+        * ``doas``
         * ``sudo``
         * ``ssh_authorized_keys``
         * ``ssh_redirect_user``
@@ -685,6 +687,11 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # lock account unless lock_password is False.
         if kwargs.get("lock_passwd", True):
             self.lock_passwd(name)
+
+        # Configure doas access
+        if "doas" in kwargs:
+            if kwargs["doas"]:
+                self.write_doas_rules(name, kwargs["doas"])
 
         # Configure sudo access
         if "sudo" in kwargs:
@@ -791,6 +798,74 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         cmd = ["chpasswd"] + (["-e"] if hashed else [])
         subp.subp(cmd, payload)
 
+    def is_doas_rule_valid(self, user, rule):
+        rule_pattern = (
+            r"^(?:permit|deny)"
+            r"(?:\s+(?:nolog|nopass|persist|keepenv|setenv \{[^}]+\})+)*"
+            r"\s+([a-zA-Z0-9_]+)+"
+            r"(?:\s+as\s+[a-zA-Z0-9_]+)*"
+            r"(?:\s+cmd\s+[^\s]+(?:\s+args\s+[^\s]+(?:\s*[^\s]+)*)*)*"
+            r"\s*$"
+        )
+
+        LOG.debug(
+            "Checking if user '%s' is referenced in doas rule %r", user, rule
+        )
+
+        valid_match = re.search(rule_pattern, rule)
+        if valid_match:
+            LOG.debug(
+                "User '%s' referenced in doas rule", valid_match.group(1)
+            )
+            if valid_match.group(1) == user:
+                LOG.debug("Correct user is referenced in doas rule")
+                return True
+            else:
+                LOG.debug(
+                    "Incorrect user '%s' is referenced in doas rule",
+                    valid_match.group(1),
+                )
+                return False
+        else:
+            LOG.debug("doas rule does not appear to reference any user")
+            return False
+
+    def write_doas_rules(self, user, rules, doas_file=None):
+        if not doas_file:
+            doas_file = self.doas_fn
+
+        for rule in rules:
+            if not self.is_doas_rule_valid(user, rule):
+                msg = (
+                    "Invalid doas rule %r for user '%s',"
+                    " not writing any doas rules for user!" % (rule, user)
+                )
+                LOG.error(msg)
+                return
+
+        lines = ["", "# cloud-init User rules for %s" % user]
+        for rule in rules:
+            lines.append("%s" % rule)
+        content = "\n".join(lines)
+        content += "\n"  # trailing newline
+
+        if not os.path.exists(doas_file):
+            contents = [util.make_header(), content]
+            try:
+                util.write_file(doas_file, "\n".join(contents), mode=0o440)
+            except IOError as e:
+                util.logexc(LOG, "Failed to write doas file %s", doas_file)
+                raise e
+        else:
+            if content not in util.load_file(doas_file):
+                try:
+                    util.append_file(doas_file, content)
+                except IOError as e:
+                    util.logexc(
+                        LOG, "Failed to append to doas file %s", doas_file
+                    )
+                    raise e
+
     def ensure_sudo_dir(self, path, sudo_base="/etc/sudoers"):
         # Ensure the dir is included and that
         # it actually exists as a directory
@@ -860,6 +935,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         content += "\n"  # trailing newline
 
         self.ensure_sudo_dir(os.path.dirname(sudo_file))
+
         if not os.path.exists(sudo_file):
             contents = [
                 util.make_header(),
@@ -871,11 +947,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 util.logexc(LOG, "Failed to write sudoers file %s", sudo_file)
                 raise e
         else:
-            try:
-                util.append_file(sudo_file, content)
-            except IOError as e:
-                util.logexc(LOG, "Failed to append sudoers file %s", sudo_file)
-                raise e
+            if content not in util.load_file(sudo_file):
+                try:
+                    util.append_file(sudo_file, content)
+                except IOError as e:
+                    util.logexc(
+                        LOG, "Failed to append to sudoers file %s", sudo_file
+                    )
+                    raise e
 
     def create_group(self, name, members=None):
         group_add_cmd = ["groupadd", name]
@@ -973,7 +1052,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         cmd = list(init_cmd) + list(cmds[action])
         return subp.subp(cmd, capture=True, rcs=rcs)
 
-    def set_keymap(self, layout, model, variant, options):
+    def set_keymap(self, layout: str, model: str, variant: str, options: str):
         if self.uses_systemd():
             subp.subp(
                 [

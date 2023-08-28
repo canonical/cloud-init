@@ -346,6 +346,8 @@ On an Ubuntu system, :file:`/etc/cloud/cloud.cfg` should look similar to:
       # Default user name + that default users groups (if added/used)
       default_user:
         name: ubuntu
+        doas:
+          - permit nopass ubuntu
         lock_passwd: True
         gecos: Ubuntu
         groups: [adm, cdrom, dip, lxd, sudo]

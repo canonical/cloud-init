@@ -77,7 +77,6 @@ class TestManagePuppetServices(CiTestCase):
 
 @mock.patch("cloudinit.config.cc_puppet._manage_puppet_services")
 class TestPuppetHandle(CiTestCase):
-
     with_logs = True
 
     def setUp(self):
@@ -464,7 +463,7 @@ class TestInstallPuppetAio:
                 [mock.call([mock.ANY, "--cleanup"], capture=False)],
                 [
                     mock.call(
-                        url="https://raw.githubusercontent.com/puppetlabs/install-puppet/main/install.sh",  # noqa: 501
+                        url="https://raw.githubusercontent.com/puppetlabs/install-puppet/main/install.sh",  # noqa: E501
                         retries=5,
                     )
                 ],

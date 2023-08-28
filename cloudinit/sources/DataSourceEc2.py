@@ -567,13 +567,14 @@ class DataSourceEc2(sources.DataSource):
         else:
             exc_cb = exc_cb_ud = skip_cb = None
         try:
-            crawled_metadata["user-data"] = ec2.get_instance_userdata(
+            raw_userdata = ec2.get_instance_userdata(
                 api_version,
                 self.metadata_address,
                 headers_cb=self._get_headers,
                 headers_redact=redact,
                 exception_cb=exc_cb_ud,
             )
+            crawled_metadata["user-data"] = util.maybe_b64decode(raw_userdata)
             crawled_metadata["meta-data"] = ec2.get_instance_metadata(
                 api_version,
                 self.metadata_address,

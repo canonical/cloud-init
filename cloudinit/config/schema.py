@@ -58,28 +58,41 @@ _YAML_MAP = {True: "true", False: "false", None: "null"}
 SCHEMA_DOC_TMPL = """
 {name}
 {title_underbar}
-**Summary:** {title}
+
+{title}
+
+.. tab-set::
+
+{prefix3}.. tab-item:: Summary
 
 {description}
 
-**Internal name:** ``{id}``
+{prefix6}**Internal name:** ``{id}``
 
-**Module frequency:** {frequency}
+{prefix6}**Module frequency:** {frequency}
 
-**Supported distros:** {distros}
+{prefix6}**Supported distros:** {distros}
 
-{activate_by_schema_keys}{property_header}
+{prefix6}{activate_by_schema_keys}
+
+{prefix3}.. tab-item:: Config schema
+
 {property_doc}
+
+{prefix3}.. tab-item:: Examples
+
+{prefix6}::
 
 {examples}
 """
-SCHEMA_PROPERTY_HEADER = "**Config schema**:"
-SCHEMA_PROPERTY_TMPL = "{prefix}**{prop_name}:** ({prop_type}){description}"
+SCHEMA_PROPERTY_HEADER = ""
+SCHEMA_PROPERTY_TMPL = "{prefix}* **{prop_name}:** ({prop_type}){description}"
 SCHEMA_LIST_ITEM_TMPL = (
-    "{prefix}Each object in **{prop_name}** list supports the following keys:"
+    "{prefix}* Each object in **{prop_name}** list supports "
+    "the following keys:"
 )
-SCHEMA_EXAMPLES_HEADER = "**Examples**::\n\n"
-SCHEMA_EXAMPLES_SPACER_TEMPLATE = "\n    # --- Example{0} ---"
+SCHEMA_EXAMPLES_HEADER = ""
+SCHEMA_EXAMPLES_SPACER_TEMPLATE = "\n   # --- Example{example_count} ---\n\n"
 DEPRECATED_KEY = "deprecated"
 DEPRECATED_PREFIX = "DEPRECATED: "
 
@@ -585,7 +598,7 @@ class _Annotator:
 
     def _build_errors_by_line(self, schema_problems: SchemaProblems):
         errors_by_line = defaultdict(list)
-        for (path, msg) in schema_problems:
+        for path, msg in schema_problems:
             match = re.match(r"format-l(?P<line>\d+)\.c(?P<col>\d+).*", path)
             if match:
                 line, col = match.groups()
@@ -831,7 +844,7 @@ def validate_cloudconfig_file(
         else:
             cloudconfig = safeyaml.load(content)
             marks = {}
-    except (yaml.YAMLError) as e:
+    except yaml.YAMLError as e:
         line = column = 1
         mark = None
         if hasattr(e, "context_mark") and getattr(e, "context_mark"):
@@ -981,7 +994,7 @@ def _parse_description(description, prefix) -> str:
     @param description: The original description in the meta.
     @param prefix: The number of spaces used to align the current description
     """
-    list_paragraph = prefix * 3
+    list_paragraph = prefix
     description = re.sub(r"(\S)\n(\S)", r"\1 \2", description)
     description = re.sub(r"\n\n", r"\n\n{}".format(prefix), description)
     description = re.sub(
@@ -1072,9 +1085,9 @@ def _get_property_description(prop_config: dict) -> str:
     return description
 
 
-def _get_property_doc(schema: dict, defs: dict, prefix="    ") -> str:
+def _get_property_doc(schema: dict, defs: dict, prefix="   ") -> str:
     """Return restructured text describing the supported schema properties."""
-    new_prefix = prefix + "    "
+    new_prefix = prefix + "  "
     properties = []
     if schema.get("hidden") is True:
         return ""  # no docs for this schema
@@ -1100,7 +1113,7 @@ def _get_property_doc(schema: dict, defs: dict, prefix="    ") -> str:
                 SCHEMA_PROPERTY_TMPL.format(
                     prefix=prefix,
                     prop_name=label,
-                    description=_parse_description(description, prefix),
+                    description=_parse_description(description, prefix + "  "),
                     prop_type=_get_property_type(prop_config, defs),
                 )
             )
@@ -1113,7 +1126,6 @@ def _get_property_doc(schema: dict, defs: dict, prefix="    ") -> str:
                             prefix=new_prefix, prop_name=label
                         )
                     )
-                    new_prefix += "    "
                     properties.append(
                         _get_property_doc(items, defs=defs, prefix=new_prefix)
                     )
@@ -1126,7 +1138,6 @@ def _get_property_doc(schema: dict, defs: dict, prefix="    ") -> str:
                                 prefix=new_prefix, prop_name=label
                             )
                         )
-                        new_prefix += "    "
                         properties.append(
                             _get_property_doc(
                                 alt_schema, defs=defs, prefix=new_prefix
@@ -1150,12 +1161,11 @@ def _get_examples(meta: MetaSchema) -> str:
     if not examples:
         return ""
     rst_content = SCHEMA_EXAMPLES_HEADER
-    for count, example in enumerate(examples):
-        indented_lines = textwrap.indent(example, "    ").split("\n")
-        if rst_content != SCHEMA_EXAMPLES_HEADER:
-            indented_lines.insert(
-                0, SCHEMA_EXAMPLES_SPACER_TEMPLATE.format(count + 1)
-            )
+    for count, example in enumerate(examples, 1):
+        rst_content += SCHEMA_EXAMPLES_SPACER_TEMPLATE.format(
+            example_count=count
+        )
+        indented_lines = textwrap.indent(example, "   ").split("\n")
         rst_content += "\n".join(indented_lines)
     return rst_content
 
@@ -1209,18 +1219,29 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     # cast away type annotation
     meta_copy = dict(deepcopy(meta))
     meta_copy["property_header"] = ""
+    meta_copy["prefix6"] = "      "
+    meta_copy["prefix3"] = "   "
+    meta_copy["description"] = textwrap.indent(
+        cast(str, meta_copy["description"]), "      "
+    )
     defs = schema.get("$defs", {})
     if defs.get(meta["id"]):
         schema = defs.get(meta["id"], {})
         schema = cast(dict, schema)
     try:
-        meta_copy["property_doc"] = _get_property_doc(schema, defs=defs)
+        meta_copy["property_doc"] = _get_property_doc(
+            schema, defs=defs, prefix="      "
+        )
     except AttributeError:
         LOG.warning("Unable to render property_doc due to invalid schema")
         meta_copy["property_doc"] = ""
-    if meta_copy["property_doc"]:
-        meta_copy["property_header"] = SCHEMA_PROPERTY_HEADER
-    meta_copy["examples"] = _get_examples(meta)
+    if not meta_copy["property_doc"]:
+        meta_copy[
+            "property_doc"
+        ] = "      No schema definitions for this module"
+    meta_copy["examples"] = textwrap.indent(_get_examples(meta), "      ")
+    if not meta_copy["examples"]:
+        meta_copy["examples"] = "         No examples for this module"
     meta_copy["distros"] = ", ".join(meta["distros"])
     # Need an underbar of the same length as the name
     meta_copy["title_underbar"] = re.sub(r".", "-", meta["name"])
@@ -1438,5 +1459,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-
-# vi: ts=4 expandtab

@@ -77,7 +77,7 @@ class TestClean:
         ensure_dir(clean_paths.clean_dir)
         assert artifact_file.exists() is False, f"Unexpected {artifact_file}"
         clean_script = clean_paths.clean_dir.join("1.sh")
-        clean_script.write(f"#!/bin/bash\ntouch {artifact_file}\n")
+        clean_script.write(f"#!/bin/sh\ntouch {artifact_file}\n")
         clean_script.chmod(mode=0o755)
         with mock.patch.object(
             cloudinit.settings, "CLEAN_RUNPARTS_DIR", clean_paths.clean_dir
