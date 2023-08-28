@@ -65,7 +65,7 @@ USEMD5=no"""
         conf["IPV6TO4_ROUTING"] = "blah \tblah"
         contents2 = str(conf).strip()
         # Should be requoted due to whitespace
-        self.assertRegex(contents2, r"IPV6TO4_ROUTING=[\']blah\s+blah[\']")
+        self.assertRegex(contents2, r"IPV6TO4_ROUTING='blah\s+blah'")
 
     def test_parse_no_adjust_shell(self):
         conf = SysConf("".splitlines())
