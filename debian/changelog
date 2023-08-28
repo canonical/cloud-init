@@ -15,6 +15,22 @@ cloud-init (23.3-0ubuntu0~20.04.1) UNRELEASED; urgency=medium
 
  -- James Falcon <james.falcon@canonical.com>  Mon, 28 Aug 2023 17:01:09 -0500
 
+cloud-init (23.2.2-0ubuntu0~20.04.1) focal; urgency=medium
+
+  * Upstream snapshot based on 23.2.2.
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/23.2.2/ChangeLog
+    - Bugs fixed in this snapshot: (LP: #2028562, #2028784)
+
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Tue, 01 Aug 2023 14:18:47 +0200
+
+cloud-init (23.2.1-0ubuntu0~20.04.2) focal; urgency=medium
+
+  * d/apport-general-hook: correct type hints on Dict for py3.8
+    (LP: #2025376)
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 29 Jun 2023 09:41:13 -0600
+
 cloud-init (23.2-0ubuntu0~20.04.1) focal; urgency=medium
 
   * d/control: Remove pep8 dependency. It is no longer used
