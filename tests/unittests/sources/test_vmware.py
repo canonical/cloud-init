@@ -210,7 +210,7 @@ class TestDataSourceVMware(CiTestCase):
         logs = self.logs.getvalue()
         expected_logs = [
             "DEBUG: waiting on network: wait4=True, "
-            + "ready4=False, wait6=False, ready6=False\n",
+            "ready4=False, wait6=False, ready6=False\n",
             "DEBUG: waiting on network complete\n",
         ]
         for log in expected_logs:

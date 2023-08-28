@@ -123,6 +123,9 @@ def test_sudoers_includedir(client: IntegrationInstance):
     """
     client.execute("sed -i 's/#include/@include/g' /etc/sudoers")
 
+    sudoers_content_before = client.read_from_file(
+        "/etc/sudoers.d/90-cloud-init-users"
+    ).splitlines()[1:]
     sudoers = client.read_from_file("/etc/sudoers")
     if "@includedir /etc/sudoers.d" not in sudoers:
         client.execute("echo '@includedir /etc/sudoers.d' >> /etc/sudoers")
@@ -132,3 +135,8 @@ def test_sudoers_includedir(client: IntegrationInstance):
 
     assert "#includedir" not in sudoers
     assert sudoers.count("includedir /etc/sudoers.d") == 1
+
+    sudoers_content_after = client.read_from_file(
+        "/etc/sudoers.d/90-cloud-init-users"
+    ).splitlines()[1:]
+    assert sudoers_content_before == sudoers_content_after

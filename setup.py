@@ -60,7 +60,7 @@ def render_tmpl(template, mode=None):
     that files are different outside of the debian directory."""
 
     # newer versions just use install.
-    if not ("install" in sys.argv):
+    if "install" not in sys.argv:
         return template
 
     tmpl_ext = ".tmpl"

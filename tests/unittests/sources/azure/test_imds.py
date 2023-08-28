@@ -76,7 +76,7 @@ class TestFetchMetadataWithApiFallback:
         "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
     )
     headers = {"Metadata": "true"}
-    timeout = 2
+    timeout = 30
 
     @pytest.mark.parametrize("retry_deadline", [0.0, 1.0, 60.0])
     def test_basic(
@@ -488,7 +488,7 @@ class TestFetchReprovisionData:
         "reprovisiondata?api-version=2019-06-01"
     )
     headers = {"Metadata": "true"}
-    timeout = 2
+    timeout = 30
 
     def test_basic(
         self,

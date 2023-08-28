@@ -94,7 +94,7 @@ def _fetch_url(
     *,
     retry_deadline: float,
     log_response: bool = True,
-    timeout: int = 2,
+    timeout: int = 30,
 ) -> bytes:
     """Fetch URL from IMDS.
 
@@ -194,7 +194,7 @@ def fetch_reprovision_data() -> bytes:
         headers={"Metadata": "true"},
         infinite=True,
         log_req_resp=False,
-        timeout=2,
+        timeout=30,
     )
 
     report_diagnostic_event(

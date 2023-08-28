@@ -25,7 +25,7 @@ meta: MetaSchema = {
     "name": "Spacewalk",
     "title": "Install and configure spacewalk",
     "description": MODULE_DESCRIPTION,
-    "distros": ["rhel", "fedora"],
+    "distros": ["rhel", "fedora", "openeuler"],
     "frequency": PER_INSTANCE,
     "examples": [
         dedent(

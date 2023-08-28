@@ -242,6 +242,13 @@ def apply_apt(cfg, cloud, target):
             template_params=params,
             aa_repo_match=matcher,
         )
+    # GH: 4344 - stop gpg-agent/dirmgr daemons spawned by gpg key imports.
+    # Daemons spawned by cloud-config.service on systemd v253 report (running)
+    subp.subp(
+        ["gpgconf", "--kill", "all"],
+        target=target,
+        capture=True,
+    )
 
 
 def debconf_set_selections(selections, target=None):
@@ -928,7 +935,7 @@ def apt_key(
         key_files = [APT_LOCAL_KEYS] if os.path.isfile(APT_LOCAL_KEYS) else []
 
         for file in os.listdir(APT_TRUSTED_GPG_DIR):
-            if file.endswith(".gpg") or file.endswith(".asc"):
+            if file.endswith((".gpg", ".asc")):
                 key_files.append(APT_TRUSTED_GPG_DIR + file)
         return key_files if key_files else ""
 

@@ -86,7 +86,6 @@ class TestRenderCloudCfg:
 
         default_user_exceptions = {
             "amazon": "ec2-user",
-            "debian": "ubuntu",
             "rhel": "cloud-user",
             "centos": "cloud-user",
             "unknown": "ubuntu",

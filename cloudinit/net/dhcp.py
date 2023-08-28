@@ -503,7 +503,7 @@ class IscDhclient(DhcpClient):
             if fname.startswith("dhclient6"):
                 # avoid files that start with dhclient6 assuming dhcpv6.
                 continue
-            if not (fname.endswith(".lease") or fname.endswith(".leases")):
+            if not (fname.endswith((".lease", ".leases"))):
                 continue
 
             abs_path = os.path.join(lease_d, fname)
