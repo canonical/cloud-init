@@ -23,10 +23,11 @@ System configuration
 
 * ``disable_vmware_customization``: true (disable) or false (enable) the VMware
   traditional Linux guest customization. Traditional Linux guest customization
-  is customising a Linux virtual machine with a
+  is customizing a Linux virtual machine with a
   `traditional Linux customization specification`_. Setting this configuration
   to false is required to make sure this datasource is found in ``ds-identify``
-  when using Guest OS customization transport.
+  when using Guest OS customization transport. VMware Tools only checks this
+  configuration in :file:`/etc/cloud/cloud.cfg`.
 
   Default: true
 
@@ -51,27 +52,39 @@ Datasource configuration
 Configuration examples
 ----------------------
 
-1. Create the :file:`/etc/cloud/cloud.cfg.d/99-vmware-guest-customization.cfg`
-   file with the following content, which will enable VMware customization and
-   set the maximum waiting time for the VMware customization file to 10
-   seconds:
+1. Enable VMware customization and set the maximum waiting time for the
+   VMware customization file to 10 seconds:
+
+   Set ``disable_vmware_customization`` in the :file:`/etc/cloud/cloud.cfg`
 
    .. code-block:: yaml
 
       disable_vmware_customization: false
+
+   Create a :file:`/etc/cloud/cloud.cfg.d/99-vmware-guest-customization.cfg`
+   with the following content
+
+   .. code-block:: yaml
+
       datasource:
         VMware:
           vmware_cust_file_max_wait: 10
 
-2. Create the :file:`/etc/cloud/cloud.cfg.d/99-vmware-guest-customization.cfg`
-   file with the following content, which will enable VMware customization but
-   will only try to apply a traditional Linux Guest Customisation
-   configuration, and set the maximum waiting time for the VMware
-   customization file to 10 seconds:
+2. Enable VMware customization but only try to apply a traditional Linux
+   Guest Customization configuration, and set the maximum waiting time for
+   the VMware customization file to 10 seconds:
+
+   Set ``disable_vmware_customization`` in the :file:`/etc/cloud/cloud.cfg`
 
    .. code-block:: yaml
 
       disable_vmware_customization: false
+
+   Create a :file:`/etc/cloud/cloud.cfg.d/99-vmware-guest-customization.cfg`
+   with the following content
+
+   .. code-block:: yaml
+
       datasource:
         VMware:
           allow_raw_data: false
