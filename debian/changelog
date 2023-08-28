@@ -1,5 +1,6 @@
 cloud-init (23.3-0ubuntu1) UNRELEASED; urgency=medium
 
+  * d/po/templates.pot: refresh with debconf-updatepo
   * d/cloud-init.templates: enable Akamai by default.
     Add Akamai to the default templates to allow datasource discovery.
   * Upstream snapshot based on 23.3.
