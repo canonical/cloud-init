@@ -1,4 +1,4 @@
-cloud-init (23.3-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (23.3-0ubuntu1) mantic; urgency=medium
 
   * d/po/templates.pot: refresh with debconf-updatepo
   * d/cloud-init.templates: enable Akamai by default.
@@ -9,7 +9,7 @@ cloud-init (23.3-0ubuntu1) UNRELEASED; urgency=medium
     - Bugs fixed in this snapshot: (LP: #2030788, #1980150, #1884127)
       (LP: #1998539)
 
- -- Chad Smith <chad.smith@canonical.com>  Mon, 28 Aug 2023 12:33:13 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 28 Aug 2023 12:33:17 -0600
 
 cloud-init (23.3~4ga31370af-0ubuntu1) mantic; urgency=medium
 
