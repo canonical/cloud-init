@@ -1,9 +1,14 @@
-cloud-init (23.3~4ga31370af-0ubuntu2) UNRELEASED; urgency=medium
+cloud-init (23.3-0ubuntu1) UNRELEASED; urgency=medium
 
   * d/cloud-init.templates: enable Akamai by default.
     Add Akamai to the default templates to allow datasource discovery.
+  * Upstream snapshot based on 23.3.
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/23.3/ChangeLog
+    - Bugs fixed in this snapshot: (LP: #2030788, #1980150, #1884127)
+      (LP: #1998539)
 
- -- Alberto Contreras <alberto.contreras@canonical.com>  Tue, 22 Aug 2023 13:40:50 +0200
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 28 Aug 2023 12:33:13 -0600
 
 cloud-init (23.3~4ga31370af-0ubuntu1) mantic; urgency=medium
 
