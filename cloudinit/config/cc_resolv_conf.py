@@ -69,6 +69,7 @@ meta: MetaSchema = {
         "sle_hpc",
         "sle-micro",
         "sles",
+        "openeuler",
     ],
     "frequency": PER_INSTANCE,
     "examples": [

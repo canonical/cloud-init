@@ -888,6 +888,27 @@ class TestDsIdentify(DsIdentifyBase):
         self._test_ds_found("VMware-GuestInfo-Vendordata")
 
 
+class TestAkamai(DsIdentifyBase):
+    def test_found_by_sys_vendor(self):
+        """ds-identify finds Akamai by system-manufacturer dmi field"""
+        self._test_ds_found("Akamai")
+
+    def test_found_by_sys_vendor_akamai(self):
+        """
+        ds-identify finds Akamai by system-manufacturer dmi field when set with
+        name "Akamai" (expected in the future)
+        """
+        cfg = copy.deepcopy(VALID_CFG["Akamai"])
+        cfg["mocks"][0]["RET"] = "Akamai"
+        self._check_via_dict(cfg, rc=RC_FOUND)
+
+    def test_not_found(self):
+        """ds-identify does not find Akamai by system-manufacturer field"""
+        cfg = copy.deepcopy(VALID_CFG["Akamai"])
+        cfg["mocks"][0]["RET"] = "Other"
+        self._check_via_dict(cfg, rc=RC_NOT_FOUND)
+
+
 class TestBSDNoSys(DsIdentifyBase):
     """Test *BSD code paths
 
@@ -1032,6 +1053,10 @@ def _print_run_output(rc, out, err, cfg, files):
 
 
 VALID_CFG = {
+    "Akamai": {
+        "ds": "Akamai",
+        "mocks": [{"name": "dmi_decode", "ret": 0, "RET": "Linode"}],
+    },
     "AliYun": {
         "ds": "AliYun",
         "files": {P_PRODUCT_NAME: "Alibaba Cloud ECS\n"},
@@ -1463,6 +1488,7 @@ VALID_CFG = {
     },
     "IBMCloud-metadata": {
         "ds": "IBMCloud",
+        "policy_dmi": POLICY_FOUND_ONLY,
         "mocks": [
             MOCK_VIRT_IS_XEN,
             {"name": "is_ibm_provisioning", "ret": shell_false},
@@ -1529,6 +1555,7 @@ VALID_CFG = {
     },
     "IBMCloud-nodisks": {
         "ds": "IBMCloud",
+        "policy_dmi": POLICY_FOUND_ONLY,
         "mocks": [
             MOCK_VIRT_IS_XEN,
             {"name": "is_ibm_provisioning", "ret": shell_false},
@@ -1615,6 +1642,7 @@ VALID_CFG = {
     },
     "VMware-NoValidTransports": {
         "ds": "VMware",
+        "policy_dmi": POLICY_FOUND_ONLY,
         "mocks": [
             MOCK_VIRT_IS_VMWARE,
         ],
@@ -1637,6 +1665,7 @@ VALID_CFG = {
     },
     "VMware-EnvVar-NoData": {
         "ds": "VMware",
+        "policy_dmi": POLICY_FOUND_ONLY,
         "mocks": [
             {
                 "name": "vmware_has_envvar_vmx_guestinfo",
@@ -1746,6 +1775,7 @@ VALID_CFG = {
     },
     "VMware-GuestInfo-NoData": {
         "ds": "VMware",
+        "policy_dmi": POLICY_FOUND_ONLY,
         "mocks": [
             {
                 "name": "vmware_has_rpctool",

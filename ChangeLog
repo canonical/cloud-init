@@ -1,3 +1,153 @@
+23.3
+ - Bump pycloudlib to 1!5.1.0 for ec2 mantic daily image support (#4390)
+ - Fix cc_keyboard in mantic (LP: #2030788)
+ - ec2: initialize get_instance_userdata return value to bytes (#4387)
+   [Noah Meyerhans]
+ - cc_users_groups: Add doas/opendoas support (#4363) [dermotbradley]
+ - Fix pip-managed ansible
+ - status: treat SubState=running and MainPID=0 as service exited
+ - azure/imds: increase read-timeout to 30s (#4372) [Chris Patterson]
+ - collect-logs fix memory usage (SC-1590) (#4289)
+   [Alec Warren] (LP: #1980150)
+ - cc_mounts: Use fallocate to create swapfile on btrfs (#4369) [王煎饼]
+ - Undocument nocloud-net (#4318)
+ - feat(akamai): add akamai to settings.py and apport.py (#4370)
+ - read-version: fallback to get_version when git describe fails (#4366)
+ - apt: fix cloud-init status --wait blocking on systemd v 253 (#4364)
+ - integration tests: Pass username to pycloudlib (#4324)
+ - Bump pycloudlib to 1!5.1.0 (#4353)
+ - cloud.cfg.tmpl: reorganise, minimise/reduce duplication (#4272)
+   [dermotbradley]
+ - analyze: fix (unexpected) timestamp parsing (#4347) [Mina Galić]
+ - cc_growpart: fix tests to run on FreeBSD (#4351) [Mina Galić]
+ - subp: Fix spurious test failure on FreeBSD (#4355) [Mina Galić]
+ - cmd/clean: fix tests on non-Linux platforms (#4352) [Mina Galić]
+ - util: Fix get_proc_ppid() on non-Linux systems (#4348) [Mina Galić]
+ - cc_wireguard: make tests pass on FreeBSD (#4346) [Mina Galić]
+ - unittests: fix breakage in test_read_cfg_paths_fetches_cached_datasource
+   (#4328) [Ani Sinha]
+ - Fix test_tools.py collection (#4315)
+ - cc_keyboard: add Alpine support (#4278) [dermotbradley]
+ - Flake8 fixes (#4340) [Robert Schweikert]
+ - cc_mounts: Fix swapfile not working on btrfs (#4319) [王煎饼] (LP: #1884127)
+ - ds-identify/CloudStack: $DS_MAYBE if vm running on vmware/xen (#4281)
+   [Wei Zhou]
+ - ec2: Support double encoded userdata (#4276) [Noah Meyerhans]
+ - cc_mounts: xfs is a Linux only FS (#4334) [Mina Galić]
+ - tests/net: fix TestGetInterfaces' mock coverage for get_master (#4336)
+   [Chris Patterson]
+ - change openEuler to openeuler and fix some bugs in openEuler (#4317)
+   [sxt1001]
+ - Replace flake8 with ruff (#4314)
+ - NM renderer: set default IPv6 addr-gen-mode for all interfaces to eui64
+   (#4291) [Ani Sinha]
+ - cc_ssh_import_id: add Alpine support and add doas support (#4277)
+   [dermotbradley]
+ - Release 23.2.2 (#4300)
+ - sudoers not idempotent (SC-1589)  (#4296) [Alec Warren] (LP: #1998539)
+ - Added support for Akamai Connected Cloud (formerly Linode) (#4167)
+   [Will Smith]
+ - Fix reference before assignment (#4292)
+ - Overhaul module reference page (#4237) [Sally]
+ - replaced spaces with commas for setting passenv (#4269) [Alec Warren]
+ - DS VMware: modify a few log level (#4284) [PengpengSun]
+ - tools/read-version refactors and unit tests (#4268)
+ - Ensure get_features() grabs all features (#4285)
+ - Don't always require passlib dependency (#4274)
+ - tests: avoid leaks into host system checking of ovs-vsctl cmd (#4275)
+ - Fix NoCloud kernel commandline key parsing (#4273)
+ - testing: Clear all LRU caches after each test (#4249)
+ - Remove the crypt dependency (#2139) [Gonéri Le Bouder]
+ - logging: keep current file mode of log file if its stricter than the
+   new mode (#4250) [Ani Sinha]
+ - Remove default membership in redundant groups (#4258)
+   [Dave Jones] (LP: #1923363)
+ - doc: improve datasource_creation.rst (#4262)
+ - Remove duplicate Integration testing button (#4261) [Rishita Shaw]
+ - tools/read-version: fix the tool so that it can handle version parsing
+   errors (#4234) [Ani Sinha]
+ - net/dhcp: add udhcpc support (#4190) [Jean-François Roche]
+ - DS VMware: add i386 arch dir to deployPkg plugin search path
+   [PengpengSun]
+ - LXD moved from linuxcontainers.org to Canonical [Simon Deziel]
+ - cc_mounts.py: Add note about issue with creating mounts inside mounts
+   (#4232) [dermotbradley]
+ - lxd: install lxd from snap, not deb if absent in image
+ - landscape: use landscape-config to write configuration
+ - Add deprecation log during init of DataSourceDigitalOcean (#4194)
+   [tyb-truth]
+ - doc: fix typo on apt.primary.arches (#4238) [Dan Bungert]
+ - Inspect systemd state for cloud-init status (#4230)
+ - instance-data: add system-info and features to combined-cloud-config
+   (#4224)
+ - systemd: Block login until config stage completes (#2111) (LP: #2013403)
+ - tests: proposed should invoke apt-get install -t=<release>-proposed
+   (#4235)
+ - cloud.cfg.tmpl: reinstate ca_certs entry (#4236) [dermotbradley]
+ - Remove feature flag override ability (#4228)
+ - tests: drop stray unrelated file presence test (#4227)
+ - Update LXD URL (#4223) [Sally]
+ - schema: add network v1 schema definition and validation functions
+ - tests: daily PPA for devel series is version 99.daily update tests to
+   match (#4225)
+ - instance-data: write /run/cloud-init/combined-cloud-config.json
+ - mount parse: Fix matching non-existent directories (#4222) [Mina Galić]
+ - Specify build-system for pep517 (#4218)
+ - Fix network v2 metric rendering (#4220)
+ - Migrate content out of FAQ page (SD-1187) (#4205) [Sally]
+ - setup: fix generation of init templates (#4209) [Mina Galić]
+ - docs: Correct some bootcmd example wording
+ - fix changelog
+ - Release 23.2.1 (#4207) (LP: #2025180)
+ - tests: reboot client to assert x-shellscript-per-boot is triggered
+ - nocloud: parse_cmdline no longer detects nocloud-net datasource (#4204)
+   (LP: 4203, #2025180)
+ - Add docstring and typing to mergemanydict (#4200)
+ - BSD: add dsidentify to early startup scripts (#4182) [Mina Galić]
+ - handler: report errors on skipped merged cloud-config.txt parts
+   (LP: #1999952)
+ - Add cloud-init summit writeups (#4179) [Sally]
+ - tests: Update test_clean_log for oci (#4187)
+ - gce: improve ephemeral fallback NIC selection (CPC-2578) (#4163)
+ - tests: pin pytest 7.3.1 to avoid adverse testpaths behavior (#4184)
+ - Ephemeral Networking for FreeBSD (#2165) [Mina Galić]
+ - Clarify directory syntax for nocloud local filesystem. (#4178)
+ - Set default renderer as sysconfig for centos/rhel (#4165) [Ani Sinha]
+ - Test static routes and netplan 0.106
+ - FreeBSD fix parsing of mount and mount options (#2146) [Mina Galić]
+ - test: add tracking bug id (#4164)
+ - tests: can't match MAC for LXD container veth due to netplan 0.106
+   (#4162)
+ - Add kaiwalyakoparkar as a contributor (#4156) [Kaiwalya Koparkar]
+ - BSD: remove datasource_list from cloud.cfg template (#4159) [Mina Galić]
+ - launching salt-minion in masterless mode (#4110) [Denis Halturin]
+ - tools: fix run-container builds for rockylinux/8 git hash mismatch
+   (#4161)
+ - fix doc lint: spellchecker tripped up (#4160) [Mina Galić]
+ - Support Ephemeral Networking for BSD (#2127)
+ - Added / fixed support for static routes on OpenBSD and FreeBSD (#2157)
+   [Kadir Mueller]
+ - cc_rsyslog: Refactor for better multi-platform support (#4119)
+   [Mina Galić] (LP: #1798055)
+ - tests: fix test_lp1835584 (#4154)
+ - cloud.cfg mod names: docs and rename salt_minion and set_password (#4153)
+ - tests: apt support for deb822 format .sources files on mantic
+ - vultr: remove check_route check (#2151) [Jonas Chevalier]
+ - Update SECURITY.md (#4150) [Indrranil Pawar]
+ - Update CONTRIBUTING.rst (#4149) [Indrranil Pawar]
+ - Update .github-cla-signers (#4151) [Indrranil Pawar]
+ - Standardise module names in cloud.cfg.tmpl to only use underscore
+   (#4128) [dermotbradley]
+ - tests: update test_webhook_reporting
+ - Modify PR template so autoclose works
+ - doc: add missing semi-colon to nocloud cmdline docs (#4120)
+ - .gitignore: extend coverage pattern (#4143) [Mina Galić]
+
+23.2.2
+ - Fix NoCloud kernel commandline key parsing (#4273) (Fixes: #4271)
+   (LP: #2028562)
+ - Fix reference before assignment (#4292) (Fixes: #4288) (LP: #2028784)
+
 23.2.1
     - nocloud: Fix parse_cmdline detection of nocloud-net datasource (#4204)
       (Fixes: 4203) (LP: #2025180)

@@ -136,7 +136,13 @@ class AnsiblePullPip(AnsiblePull):
                 import pip  # noqa: F401
             except ImportError:
                 self.distro.install_packages(self.distro.pip_package_name)
-            cmd = [sys.executable, "-m", "pip", "install"]
+            cmd = [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "--break-system-packages",
+            ]
             if self.run_user:
                 cmd.append("--user")
             self.do_as([*cmd, "--upgrade", "pip"])

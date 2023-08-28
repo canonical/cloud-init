@@ -170,7 +170,7 @@ def attempt_cmdline_url(path, network=True, cmdline=None) -> Tuple[int, str]:
     except KeyError:
         return (logging.DEBUG, "No kernel command line url found.")
 
-    path_is_local = url.startswith("file://") or url.startswith("/")
+    path_is_local = url.startswith(("file://", "/"))
 
     if path_is_local and os.path.exists(path):
         if network:

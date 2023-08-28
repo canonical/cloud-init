@@ -140,6 +140,14 @@
           "description": "The user's login name. Required otherwise user creation will be skipped for this user.",
           "type": "string"
         },
+        "doas": {
+          "description": "List of doas rules to add for a user. doas or opendoas must be installed for rules to take effect.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
         "expiredate": {
           "default": null,
           "description": "Optional. Date on which the user's account will be disabled. Default: ``null``",
@@ -1419,7 +1427,7 @@
             },
             "variant": {
               "type": "string",
-              "description": "Optional. Keyboard variant. Corresponds to XKBVARIANT."
+              "description": "Required for Alpine Linux, optional otherwise. Keyboard variant. Corresponds to XKBVARIANT."
             },
             "options": {
               "type": "string",

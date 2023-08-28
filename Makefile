@@ -21,10 +21,10 @@ all: check
 
 check: check_version test yaml
 
-style-check: flake8
+style-check: lint
 
-flake8:
-	@$(CWD)/tools/run-flake8
+lint:
+	@$(CWD)/tools/run-lint
 
 unittest: clean_pyc
 	$(PYTHON) -m pytest -v tests/unittests cloudinit
@@ -162,7 +162,7 @@ fix_spelling:
 		awk -F ': | -> ' '{printf "sed -i \047s/%s/%s/g\047 %s\n", $$2, $$3, $$1}' | \
 		sh
 
-.PHONY: all check test flake8 clean rpm srpm deb deb-src yaml
+.PHONY: all check test lint clean rpm srpm deb deb-src yaml
 .PHONY: check_version clean_pyc
 .PHONY: unittest style-check fix_spelling render-template benchmark-generator
 .PHONY: clean_pytest clean_packaging check_spelling clean_release doc

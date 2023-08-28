@@ -10,7 +10,7 @@ import pytest
 
 from cloudinit.cmd.devel import logs
 from cloudinit.cmd.devel.logs import ApportFile
-from cloudinit.subp import subp
+from cloudinit.subp import SubpResult, subp
 from cloudinit.util import ensure_dir, load_file, write_file
 from tests.unittests.helpers import mock
 
@@ -77,11 +77,26 @@ class TestCollectLogs:
                 )
             if cmd == ["tar", "czvf", output_tarfile, date_logdir]:
                 subp(cmd)  # Pass through tar cmd so we can check output
-            return expected_subp[cmd_tuple], ""
+            return SubpResult(expected_subp[cmd_tuple], "")
+
+        # the new _stream_command_output_to_file function uses subprocess.call
+        # instead of subp, so we need to mock that as well
+        def fake_subprocess_call(cmd, stdout=None, stderr=None):
+            cmd_tuple = tuple(cmd)
+            if cmd_tuple not in expected_subp:
+                raise AssertionError(
+                    "Unexpected command provided to subprocess: {0}".format(
+                        cmd
+                    )
+                )
+            stdout.write(expected_subp[cmd_tuple])
 
         fake_stderr = mock.MagicMock()
 
         mocker.patch(M_PATH + "subp", side_effect=fake_subp)
+        mocker.patch(
+            M_PATH + "subprocess.call", side_effect=fake_subprocess_call
+        )
         mocker.patch(M_PATH + "sys.stderr", fake_stderr)
         mocker.patch(M_PATH + "CLOUDINIT_LOGS", [log1, log2])
         mocker.patch(M_PATH + "CLOUDINIT_RUN_DIR", run_dir)
@@ -166,7 +181,7 @@ class TestCollectLogs:
                 )
             if cmd == ["tar", "czvf", output_tarfile, date_logdir]:
                 subp(cmd)  # Pass through tar cmd so we can check output
-            return expected_subp[cmd_tuple], ""
+            return SubpResult(expected_subp[cmd_tuple], "")
 
         fake_stderr = mock.MagicMock()
 
@@ -193,6 +208,78 @@ class TestCollectLogs:
             )
         )
         fake_stderr.write.assert_any_call("Wrote %s\n" % output_tarfile)
+
+    @pytest.mark.parametrize(
+        "cmd, expected_file_contents, expected_return_value",
+        [
+            (
+                ["echo", "cloud-init? more like cloud-innit!"],
+                "cloud-init? more like cloud-innit!\n",
+                "cloud-init? more like cloud-innit!\n",
+            ),
+            (
+                ["ls", "/nonexistent-directory"],
+                (
+                    "Unexpected error while running command.\n"
+                    "Command: ['ls', '/nonexistent-directory']\n"
+                    "Exit code: 2\n"
+                    "Reason: -\n"
+                    "Stdout: \n"
+                    "Stderr: ls: cannot access '/nonexistent-directory': "
+                    "No such file or directory"
+                ),
+                None,
+            ),
+        ],
+    )
+    def test_write_command_output_to_file(
+        self,
+        m_getuid,
+        tmpdir,
+        cmd,
+        expected_file_contents,
+        expected_return_value,
+    ):
+        m_getuid.return_value = 100
+        output_file = tmpdir.join("test-output-file.txt")
+
+        return_output = logs._write_command_output_to_file(
+            filename=output_file,
+            cmd=cmd,
+            msg="",
+            verbosity=1,
+        )
+
+        assert expected_return_value == return_output
+        assert expected_file_contents == load_file(output_file)
+
+    @pytest.mark.parametrize(
+        "cmd, expected_file_contents",
+        [
+            (["echo", "cloud-init, shmoud-init"], "cloud-init, shmoud-init\n"),
+            (
+                ["ls", "/nonexistent-directory"],
+                (
+                    "ls: cannot access '/nonexistent-directory': "
+                    "No such file or directory\n"
+                ),
+            ),
+        ],
+    )
+    def test_stream_command_output_to_file(
+        self, m_getuid, tmpdir, cmd, expected_file_contents
+    ):
+        m_getuid.return_value = 100
+        output_file = tmpdir.join("test-output-file.txt")
+
+        logs._stream_command_output_to_file(
+            filename=output_file,
+            cmd=cmd,
+            msg="",
+            verbosity=1,
+        )
+
+        assert expected_file_contents == load_file(output_file)
 
 
 class TestCollectInstallerLogs:

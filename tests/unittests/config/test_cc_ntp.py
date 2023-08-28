@@ -39,7 +39,6 @@ NTP={% for host in servers|list + pools|list %}{{ host }} {% endfor -%}
 
 
 class TestNtp(FilesystemMockingTestCase):
-
     with_logs = True
 
     def setUp(self):
@@ -349,8 +348,8 @@ class TestNtp(FilesystemMockingTestCase):
                     )
                     expected_content = (
                         "# cloud-init generated file\n"
-                        + "# See timesyncd.conf(5) for details.\n\n"
-                        + "[Time]\nNTP=%s %s \n"
+                        "# See timesyncd.conf(5) for details.\n\n"
+                        "[Time]\nNTP=%s %s \n"
                         % (expected_servers, expected_pools)
                     )
                     self.assertEqual(expected_content, content)
