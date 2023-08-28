@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cloud-init\n"
 "Report-Msgid-Bugs-To: cloud-init@packages.debian.org\n"
-"POT-Creation-Date: 2021-05-12 11:11-0500\n"
+"POT-Creation-Date: 2023-08-28 17:00-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -27,12 +27,6 @@ msgstr ""
 #. Choices
 #: ../cloud-init.templates:1001
 msgid "ConfigDrive: Reads data from Openstack Config Drive"
-msgstr ""
-
-#. Type: multiselect
-#. Choices
-#: ../cloud-init.templates:1001
-msgid "LXD: Reads /dev/lxd/sock representation of instance data"
 msgstr ""
 
 #. Type: multiselect
@@ -176,7 +170,19 @@ msgstr ""
 #. Type: multiselect
 #. Choices
 #: ../cloud-init.templates:1001
+msgid "LXD: Reads /dev/lxd/sock representation of instance data"
+msgstr ""
+
+#. Type: multiselect
+#. Choices
+#: ../cloud-init.templates:1001
 msgid "NWCS: NWCS"
+msgstr ""
+
+#. Type: multiselect
+#. Choices
+#: ../cloud-init.templates:1001
+msgid "Akamai: Akamai and Linode platforms"
 msgstr ""
 
 #. Type: multiselect
