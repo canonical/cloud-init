@@ -213,7 +213,7 @@ def _get_systemd_status() -> Optional[UXAppStatus]:
             [
                 "systemctl",
                 "show",
-                "--property=ActiveState,UnitFileState,SubState",
+                "--property=ActiveState,UnitFileState,SubState,MainPID",
                 service,
             ],
         ).stdout
@@ -226,12 +226,17 @@ def _get_systemd_status() -> Optional[UXAppStatus]:
         ):
             # Individual services should not get disabled
             return UXAppStatus.ERROR
-        if (
-            states["ActiveState"] == "active"
-            and states["SubState"] == "exited"
-        ):
-            # Service exited normally, nothing interesting from systemd
-            continue
+        if states["ActiveState"] == "active":
+            if states["SubState"] == "exited":
+                # Service exited normally, nothing interesting from systemd
+                continue
+            elif states["SubState"] == "running" and states["MainPID"] == "0":
+                # Service is active, substate still reports running due to
+                # daemon or backgroud process spawned by CGroup/slice still
+                # running. MainPID being set back to 0 means control of the
+                # service/unit has exited in this case and
+                # "the process is no longer around".
+                continue
         if states["ActiveState"] == "failed" or states["SubState"] == "failed":
             # We have an error
             return UXAppStatus.ERROR

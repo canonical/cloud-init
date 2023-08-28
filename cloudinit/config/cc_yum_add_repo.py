@@ -32,7 +32,7 @@ distros = [
     "eurolinux",
     "fedora",
     "mariner",
-    "openEuler",
+    "openeuler",
     "OpenCloudOS",
     "openmandriva",
     "photon",

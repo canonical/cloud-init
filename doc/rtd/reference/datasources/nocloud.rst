@@ -39,7 +39,7 @@ In a similar fashion, configuration files can be provided to cloud-init using a
 custom webserver at a URL dictated by kernel commandline arguments or SMBIOS
 serial number. This argument might look like: ::
 
-  ds=nocloud-net;s=http://10.42.42.42/cloud-init/configs/
+  ds=nocloud;s=http://10.42.42.42/cloud-init/configs/
 
 .. note::
    When supplementing kernel parameters in GRUB's boot menu take care to single-quote this full value to avoid GRUB interpreting the semi-colon as a reserved word. See: `GRUB quoting`_
@@ -121,7 +121,7 @@ wanted.
 
 For example, you can pass this option to QEMU: ::
 
-  -smbios type=1,serial=ds=nocloud-net;s=http://10.10.0.1:8000/__dmi.chassis-serial-number__/
+  -smbios type=1,serial=ds=nocloud;s=http://10.10.0.1:8000/__dmi.chassis-serial-number__/
 
 This will cause NoCloud to fetch the full metadata from a URL based on
 YOUR_SERIAL_NUMBER as seen in :file:`/sys/class/dmi/id/chassis_serial_number`

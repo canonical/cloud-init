@@ -551,7 +551,7 @@ def guestinfo_get_value(key, vmware_rpctool=VMWARE_RPCTOOL):
         util.logexc(
             LOG,
             "Unexpected error while trying to get "
-            + "guestinfo value for key %s",
+            "guestinfo value for key %s",
             key,
         )
 
@@ -593,7 +593,7 @@ def guestinfo_set_value(key, value, vmware_rpctool=VMWARE_RPCTOOL):
         util.logexc(
             LOG,
             "Unexpected error while trying to set "
-            + "guestinfo key=%s to value=%s",
+            "guestinfo key=%s to value=%s",
             key,
             value,
         )
@@ -609,7 +609,7 @@ def guestinfo_redact_keys(keys, vmware_rpctool=VMWARE_RPCTOOL):
     """
     if not keys:
         return
-    if not type(keys) in (list, tuple):
+    if type(keys) not in (list, tuple):
         keys = [keys]
     for key in keys:
         key_name = get_guestinfo_key_name(key)

@@ -87,7 +87,6 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
 
     def setUp(self):
         super(TestAptSourceConfigSourceList, self).setUp()
-        self.subp = subp.subp
         self.new_root = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.new_root)
 
@@ -126,9 +125,16 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
             mock_shouldcfg = stack.enter_context(
                 mock.patch(cfg_func, return_value=(cfg_on_empty, "test"))
             )
+            mock_subp = stack.enter_context(mock.patch.object(subp, "subp"))
             cc_apt_configure.handle("test", cfg, mycloud, None)
 
-            return mock_writefile, mock_loadfile, mock_isfile, mock_shouldcfg
+            return (
+                mock_writefile,
+                mock_loadfile,
+                mock_isfile,
+                mock_shouldcfg,
+                mock_subp,
+            )
 
     def test_apt_v3_source_list_debian(self):
         """test_apt_v3_source_list_debian - without custom sources or parms"""
@@ -141,6 +147,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
             mock_load_file,
             mock_isfile,
             mock_shouldcfg,
+            _mock_subp,
         ) = self._apt_source_list(distro, cfg, cfg_on_empty=True)
 
         template = "/etc/cloud/templates/sources.list.%s.tmpl" % distro
@@ -162,6 +169,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
             mock_load_file,
             mock_isfile,
             mock_shouldcfg,
+            _mock_subp,
         ) = self._apt_source_list(distro, cfg, cfg_on_empty=True)
 
         template = "/etc/cloud/templates/sources.list.%s.tmpl" % distro
@@ -192,7 +200,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         cfg = {}
         distro = "rhel"
 
-        mock_writefile, _, _, _ = self._apt_source_list(distro, cfg)
+        mock_writefile, _, _, _, _ = self._apt_source_list(distro, cfg)
 
         self.assertEqual(0, mock_writefile.call_count)
 
@@ -208,9 +216,13 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         distro = "ubuntu"
         expected = EXPECTED_PRIMSEC_CONTENT
 
-        mock_writefile, mock_load_file, mock_isfile, _ = self._apt_source_list(
-            distro, cfg, cfg_on_empty=True
-        )
+        (
+            mock_writefile,
+            mock_load_file,
+            mock_isfile,
+            _,
+            _,
+        ) = self._apt_source_list(distro, cfg, cfg_on_empty=True)
 
         template = "/etc/cloud/templates/sources.list.%s.tmpl" % distro
         mock_writefile.assert_called_once_with(
@@ -224,9 +236,8 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         cfg = util.load_yaml(YAML_TEXT_CUSTOM_SL)
         mycloud = get_cloud()
 
-        # the second mock restores the original subp
         with mock.patch.object(util, "write_file") as mockwrite:
-            with mock.patch.object(subp, "subp", self.subp):
+            with mock.patch.object(subp, "subp") as mocksubp:
                 with mock.patch.object(
                     Distro, "get_primary_arch", return_value="amd64"
                 ):
@@ -238,6 +249,9 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
             )
         ]
         mockwrite.assert_has_calls(calls)
+        mocksubp.assert_called_once_with(
+            ["gpgconf", "--kill", "all"], capture=True, target=None
+        )
 
 
 # vi: ts=4 expandtab

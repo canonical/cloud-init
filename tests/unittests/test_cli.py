@@ -248,7 +248,7 @@ class TestCLI:
                     "**Supported distros:** almalinux, alpine, centos, "
                     "cloudlinux, cos, debian, eurolinux, fedora, freebsd, "
                     "mariner, miraclelinux, "
-                    "openbsd, openEuler, OpenCloudOS, openmandriva, "
+                    "openbsd, openeuler, OpenCloudOS, openmandriva, "
                     "opensuse, opensuse-microos, opensuse-tumbleweed, "
                     "opensuse-leap, photon, rhel, rocky, sle_hpc, "
                     "sle-micro, sles, TencentOS, ubuntu, virtuozzo",

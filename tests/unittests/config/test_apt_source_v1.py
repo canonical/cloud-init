@@ -74,6 +74,9 @@ class TestAptSourceConfig(TestCase):
         get_arch = apatcher.start()
         get_arch.return_value = "amd64"
         self.addCleanup(apatcher.stop)
+        subp_patcher = mock.patch.object(subp, "subp")
+        self.m_subp = subp_patcher.start()
+        self.addCleanup(subp_patcher.stop)
 
     def _get_default_params(self):
         """get_default_params
@@ -642,17 +645,23 @@ class TestAptSourceConfig(TestCase):
         }
         cfg = self.wrapv1conf([cfg])
 
-        with mock.patch.object(subp, "subp") as mockobj:
-            cc_apt_configure.handle("test", cfg, self.cloud, None)
-        mockobj.assert_called_once_with(
+        cc_apt_configure.handle("test", cfg, self.cloud, None)
+        self.assertEqual(
+            self.m_subp.call_args_list,
             [
-                "add-apt-repository",
-                "--no-update",
-                "ppa:smoser/cloud-init-test",
+                mock.call(
+                    [
+                        "add-apt-repository",
+                        "--no-update",
+                        "ppa:smoser/cloud-init-test",
+                    ],
+                    target=None,
+                ),
+                mock.call(
+                    ["gpgconf", "--kill", "all"], capture=True, target=None
+                ),
             ],
-            target=None,
         )
-
         # adding ppa should ignore filename (uses add-apt-repository)
         self.assertFalse(os.path.isfile(self.aptlistfile))
 

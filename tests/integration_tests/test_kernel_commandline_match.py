@@ -112,6 +112,7 @@ def test_lxd_datasource_kernel_override_nocloud_net(
     _key, _, url_val = seed_url.partition("=")
     source = get_validated_source(session_cloud)
     with session_cloud.launch(
+        wait=False,  # to prevent cloud-init status --wait
         launch_kwargs={
             # On Jammy and above, we detect the LXD datasource using a
             # socket available to the container. This prevents the socket
@@ -119,8 +120,7 @@ def test_lxd_datasource_kernel_override_nocloud_net(
             # This allows us to wait for detection in 'init' stage with
             # DataSourceNoCloudNet.
             "config_dict": {"security.devlxd": False},
-            "wait": False,  # to prevent cloud-init status --wait
-        }
+        },
     ) as client:
         # We know this will be an LXD instance due to our pytest mark
         client.instance.execute_via_ssh = False  # pyright: ignore
