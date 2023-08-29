@@ -766,39 +766,6 @@
     },
     "cc_apt_configure": {
       "properties": {
-        "apt_get_command": {
-          "type": "string",
-          "description": "Command used to interact with APT repositories. Default: ``apt-get``.",
-          "additionalProperties": false
-        },
-        "apt_get_upgrade_subcommand": {
-          "type": "string",
-          "description": "APT subcommand used to upgrade system. Default: ``dist-upgrade``."
-        },
-        "apt_get_wrapper": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "enabled": {
-              "description": "Whether to use the specified ``apt_wrapper`` command. If set to ``auto``, use the command if it exists on the ``PATH``.",
-              "default": true,
-              "oneOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "string",
-                  "enum": ["auto"]
-                }
-              ]
-            },
-            "command": {
-              "type": "string",
-              "default": "eatmydata",
-              "description": "Command used to wrap any ``apt-get`` calls. Default: ``eatmydata``."
-            }
-          }
-        },
         "apt": {
           "type": "object",
           "minProperties": 1,
