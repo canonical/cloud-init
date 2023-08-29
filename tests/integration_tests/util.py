@@ -69,6 +69,12 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
         "WARNING]: Could not match supplied host pattern, ignoring:",
     ]
     traceback_texts = []
+    if "install canonical-livepatch" in log:
+        # Ubuntu Pro Client emits a warning in between installing livepatch
+        # and enabling it
+        warning_texts.append(
+            "canonical-livepatch returned error when checking status"
+        )
     if "oracle" in log:
         # LP: #1842752
         lease_exists_text = "Stderr: RTNETLINK answers: File exists"
