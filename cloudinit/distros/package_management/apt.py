@@ -125,11 +125,18 @@ class Apt(PackageManager):
 
     def install_packages(self, pkglist: Iterable[str]) -> UninstalledPackages:
         self.update_package_sources()
-        unavailable = self.get_unavailable_packages(pkglist)
+        pkglist = util.expand_package_list("%s=%s", list(pkglist))
+        unavailable = self.get_unavailable_packages(
+            [x.split("=")[0] for x in pkglist]
+        )
+        LOG.debug(
+            "The following packages were not found by APT so APT will "
+            "not attempt to install them: %s",
+            unavailable,
+        )
         to_install = [p for p in pkglist if p not in unavailable]
         if to_install:
             self.run_package_command("install", pkgs=to_install)
-        LOG.debug("APT cannot install %s", unavailable)
         return unavailable
 
     def run_package_command(self, command, args=None, pkgs=None):

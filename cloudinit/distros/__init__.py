@@ -21,6 +21,7 @@ from io import StringIO
 from typing import (
     Any,
     Dict,
+    Iterable,
     List,
     Mapping,
     MutableMapping,
@@ -158,7 +159,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             self.networking = self.networking_cls()
 
     def _extract_package_by_manager(
-        self, pkglist
+        self, pkglist: Iterable
     ) -> Tuple[Dict[Type[PackageManager], Set[str]], Set[str]]:
         """Transform the generic package list to package by package manager.
 
@@ -168,20 +169,26 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         generic_packages: Set[str] = set()
         for entry in pkglist:
             if isinstance(entry, dict):
-                for key, value in entry.items():
-                    try:
-                        packages_by_manager[known_package_managers[key]].add(value)
-                    except KeyError:
-                        LOG.error(
-                            "Cannot install packages under %s as it is "
-                            "not a supported package manager!",
-                            key,
-                        )
+                for package_manager, package_list in entry.items():
+                    for definition in package_list:
+                        if isinstance(definition, list):
+                            definition = tuple(definition)
+                        try:
+                            packages_by_manager[
+                                known_package_managers[package_manager]
+                            ].add(definition)
+                        except KeyError:
+                            LOG.error(
+                                "Cannot install packages under %s as it is "
+                                "not a supported package manager!",
+                                package_manager,
+                            )
             elif isinstance(entry, str):
                 generic_packages.add(entry)
             else:
                 raise ValueError(
-                    "Invalid 'packages' yaml specification. " "Check schema definition."
+                    "Invalid 'packages' yaml specification. "
+                    "Check schema definition."
                 )
         return dict(packages_by_manager), generic_packages
 
@@ -202,25 +209,31 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         uninstalled = []
         for manager in self.package_managers:
             to_try = (
-                packages_by_manager.get(manager.__class__, set()) | generic_packages
+                packages_by_manager.get(manager.__class__, set())
+                | generic_packages
             )
             uninstalled = manager.install_packages(to_try)
-            failed = {pkg for pkg in uninstalled if pkg not in generic_packages}
+            failed = {
+                pkg for pkg in uninstalled if pkg not in generic_packages
+            }
             if failed:
                 LOG.error(error_message, failed)
             generic_packages = set(uninstalled)
 
         # Now attempt any specified package managers not explicitly supported
         # by distro
-        for manager_name, packages in packages_by_manager.items():
-            if manager_name not in known_package_managers:
+        for manager, packages in packages_by_manager.items():
+            if manager.name not in known_package_managers:
                 LOG.error(
                     "Cannot install any packages listed under unknown package "
                     "manager: %s.",
-                    manager_name,
+                    manager,
                 )
+            if manager.name in [p.name for p in self.package_managers]:
+                # We already installed/attempt these; don't try again
+                continue
             uninstalled.extend(
-                manager_name.from_config(self._runner, self._cfg).install_packages(
+                manager.from_config(self._runner, self._cfg).install_packages(
                     pkglist=packages
                 )
             )
@@ -238,17 +251,23 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     @property
     def network_activator(self) -> Optional[Type[activators.NetworkActivator]]:
         """Return the configured network activator for this environment."""
-        priority = util.get_cfg_by_path(self._cfg, ("network", "activators"), None)
+        priority = util.get_cfg_by_path(
+            self._cfg, ("network", "activators"), None
+        )
         try:
             return activators.select_activator(priority=priority)
         except activators.NoActivatorException:
             return None
 
     def _get_renderer(self) -> Renderer:
-        priority = util.get_cfg_by_path(self._cfg, ("network", "renderers"), None)
+        priority = util.get_cfg_by_path(
+            self._cfg, ("network", "renderers"), None
+        )
 
         name, render_cls = renderers.select(priority=priority)
-        LOG.debug("Selected renderer '%s' from priority list: %s", name, priority)
+        LOG.debug(
+            "Selected renderer '%s' from priority list: %s", name, priority
+        )
         renderer = render_cls(config=self.renderer_configs.get(name))
         return renderer
 
@@ -258,7 +277,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def _find_tz_file(self, tz):
         tz_file = os.path.join(self.tz_zone_dir, str(tz))
         if not os.path.isfile(tz_file):
-            raise IOError("Invalid timezone %s, no file found at %s" % (tz, tz_file))
+            raise IOError(
+                "Invalid timezone %s, no file found at %s" % (tz, tz_file)
+            )
         return tz_file
 
     def get_option(self, opt_name, default=None):
@@ -289,7 +310,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             try:
                 manager.update_package_sources()
             except Exception as e:
-                LOG.error("Failed to update package using %s: %s", manager.name, e)
+                LOG.error(
+                    "Failed to update package using %s: %s", manager.name, e
+                )
 
     def get_primary_arch(self):
         arch = os.uname()[4]
@@ -307,7 +330,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # This resolves the package_mirrors config option
         # down to a single dict of {mirror_name: mirror_url}
         arch_info = self._get_arch_package_mirror_info(arch)
-        return _get_package_mirror_info(data_source=data_source, mirror_info=arch_info)
+        return _get_package_mirror_info(
+            data_source=data_source, mirror_info=arch_info
+        )
 
     def apply_network(self, settings, bring_up=True):
         """Deprecated. Remove if/when arch and gentoo support renderers."""
@@ -339,7 +364,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             ]
         )
         ns = network_state.parse_net_config_data(netconfig)
-        contents = eni.network_state_to_eni(ns, header=header, render_hwaddress=True)
+        contents = eni.network_state_to_eni(
+            ns, header=header, render_hwaddress=True
+        )
         return self.apply_network(contents, bring_up=bring_up)
 
     def generate_fallback_config(self):
@@ -360,7 +387,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             renderer = self._get_renderer()
         except NotImplementedError:
             # backwards compat until all distros have apply_network_config
-            return self._apply_network_from_network_config(netconfig, bring_up=bring_up)
+            return self._apply_network_from_network_config(
+                netconfig, bring_up=bring_up
+            )
 
         network_state = parse_net_config_data(netconfig, renderer=renderer)
         self._write_network_state(network_state, renderer)
@@ -371,7 +400,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             network_activator = self.network_activator
             if not network_activator:
                 LOG.warning(
-                    "No network activator found, not bringing up " "network interfaces"
+                    "No network activator found, not bringing up "
+                    "network interfaces"
                 )
                 return True
             network_activator.bring_up_all_interfaces(network_state)
@@ -410,7 +440,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # temporarily (until reboot so it should
         # not be depended on). Use the write
         # hostname functions for 'permanent' adjustments.
-        LOG.debug("Non-persistently setting the system hostname to %s", hostname)
+        LOG.debug(
+            "Non-persistently setting the system hostname to %s", hostname
+        )
         try:
             subp.subp(["hostname", hostname])
         except subp.ProcessExecutionError:
@@ -501,7 +533,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             try:
                 self._write_hostname(hostname, fn)
             except IOError:
-                util.logexc(LOG, "Failed to write hostname %s to %s", hostname, fn)
+                util.logexc(
+                    LOG, "Failed to write hostname %s to %s", hostname, fn
+                )
 
         # If the system hostname file name was provided set the
         # non-fqdn as the transient hostname.
@@ -811,7 +845,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 disable_option = ssh_util.DISABLE_USER_OPTS
                 disable_option = disable_option.replace("$USER", redirect_user)
                 disable_option = disable_option.replace("$DISABLE_USER", name)
-                ssh_util.setup_user_keys(set(cloud_keys), name, options=disable_option)
+                ssh_util.setup_user_keys(
+                    set(cloud_keys), name, options=disable_option
+                )
         return True
 
     def lock_passwd(self, name):
@@ -862,7 +898,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     def chpasswd(self, plist_in: list, hashed: bool):
         payload = (
-            "\n".join((":".join([name, password]) for name, password in plist_in))
+            "\n".join(
+                (":".join([name, password]) for name, password in plist_in)
+            )
             + "\n"
         )
         cmd = ["chpasswd"] + (["-e"] if hashed else [])
@@ -1086,7 +1124,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             return subp.subp(cmd, capture=True, rcs=rcs)
 
     @classmethod
-    def manage_service(cls, action: str, service: str, *extra_args: str, rcs=None):
+    def manage_service(
+        cls, action: str, service: str, *extra_args: str, rcs=None
+    ):
         """
         Perform the requested action on a service. This handles the common
         'systemctl' and 'service' cases and may be overridden in subclasses
@@ -1273,9 +1313,13 @@ def _sanitize_mirror_url(url: str):
         # decode with ASCII so we return a `str`
         lambda hostname: hostname.encode("idna").decode("ascii"),
         # Replace any unacceptable characters with "-"
-        lambda hostname: "".join(c if c in acceptable_chars else "-" for c in hostname),
+        lambda hostname: "".join(
+            c if c in acceptable_chars else "-" for c in hostname
+        ),
         # Drop leading/trailing hyphens from each part of the hostname
-        lambda hostname: ".".join(part.strip("-") for part in hostname.split(".")),
+        lambda hostname: ".".join(
+            part.strip("-") for part in hostname.split(".")
+        ),
     ]
 
     return _apply_hostname_transformations_to_url(url, transformations)
@@ -1348,7 +1392,8 @@ def fetch(name: str) -> Type[Distro]:
     locs, looked_locs = importer.find_module(name, ["", __name__], ["Distro"])
     if not locs:
         raise ImportError(
-            "No distribution found for distro %s (searched %s)" % (name, looked_locs)
+            "No distribution found for distro %s (searched %s)"
+            % (name, looked_locs)
         )
     mod = importer.import_module(locs[0])
     cls = getattr(mod, "Distro")

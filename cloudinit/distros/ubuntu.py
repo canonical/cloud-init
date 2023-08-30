@@ -38,7 +38,7 @@ class Distro(debian.Distro):
         self.package_managers.append(self.snap)
 
     def package_command(self, command, args=None, pkgs=None):
-        if command == 'upgrade':
+        if command == "upgrade":
             super().package_command(command, args, pkgs)
             self.snap.upgrade_packages()
         else:
