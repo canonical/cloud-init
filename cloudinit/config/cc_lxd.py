@@ -237,7 +237,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         return
     # Set up lxd if init config is given
     if init_cfg:
-
         # type is known, number of elements is not
         # in the case of the ubuntu+lvm backend workaround
         init_keys: Tuple[str, ...] = (
@@ -305,7 +304,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                     )
                     + "\n"
                 )
-                subp.subp(["debconf-communicate"], data)
+                subp.subp(["debconf-communicate"], data=data)
             except Exception:
                 util.logexc(
                     LOG, "Failed to run '%s' for lxd with" % dconf_comm

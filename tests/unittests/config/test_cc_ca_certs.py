@@ -356,8 +356,10 @@ class TestRemoveDefaultCaCerts(TestCase):
                     if distro_name in ["debian", "ubuntu"]:
                         mock_subp.assert_called_once_with(
                             ("debconf-set-selections", "-"),
-                            "ca-certificates ca-certificates/trust_new_crts"
-                            " select no",
+                            data=(
+                                "ca-certificates ca-certificates/"
+                                "trust_new_crts select no"
+                            ),
                         )
                     else:
                         assert mock_subp.call_count == 0

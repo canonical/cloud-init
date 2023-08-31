@@ -781,7 +781,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             cmd.append("-e")
 
         try:
-            subp.subp(cmd, pass_string, logstring="chpasswd for %s" % user)
+            subp.subp(
+                cmd, data=pass_string, logstring="chpasswd for %s" % user
+            )
         except Exception as e:
             util.logexc(LOG, "Failed to set password for %s", user)
             raise e
@@ -796,7 +798,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             + "\n"
         )
         cmd = ["chpasswd"] + (["-e"] if hashed else [])
-        subp.subp(cmd, payload)
+        subp.subp(cmd, data=payload)
 
     def is_doas_rule_valid(self, user, rule):
         rule_pattern = (
