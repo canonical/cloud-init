@@ -23,6 +23,8 @@ CLOUD_SYSTEM_TARGET="/lib/systemd/system/cloud-init.target"
 {% if variant in ["almalinux", "centos", "cloudlinux", "eurolinux", "fedora",
                   "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva", "rhel", "rocky", "TencentOS", "virtuozzo"] %}
     dsidentify="/usr/libexec/cloud-init/ds-identify"
+{% elif variant == "benchmark" %}
+    dsidentify="/bin/true"
 {% else %}
     dsidentify="/usr/lib/cloud-init/ds-identify"
 {% endif %}
