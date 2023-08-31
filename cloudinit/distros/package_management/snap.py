@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import Iterable, List
 
 from cloudinit import subp, util
 from cloudinit.distros.package_management.package_manager import (
@@ -16,7 +16,7 @@ class Snap(PackageManager):
     def update_package_sources(self):
         pass
 
-    def install_packages(self, pkglist: List[str]) -> UninstalledPackages:
+    def install_packages(self, pkglist: Iterable[str]) -> UninstalledPackages:
         # Snap doesn't provide us with a mechanism to know which packages
         # are available or have failed, so install one at a time
         pkglist = util.expand_package_list("%s=%s", list(pkglist))

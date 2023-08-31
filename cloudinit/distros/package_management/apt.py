@@ -3,7 +3,7 @@ import functools
 import logging
 import os
 import time
-from typing import Iterable, List, Mapping, Optional, Sequence
+from typing import Any, Iterable, List, Mapping, Optional, Sequence, cast
 
 from cloudinit import helpers, subp, util
 from cloudinit.distros.package_management.package_manager import (
@@ -47,6 +47,8 @@ def get_apt_wrapper(cfg: Optional[dict]) -> List[str]:
     The function takes the value of "apt_get_wrapper" and returns the list
     of arguments to prefix to the apt-get command.
     """
+    enabled: Optional[str]
+    command: Optional[Any]
     if not cfg:
         enabled = "auto"
         command = ["eatmydata"]
@@ -62,7 +64,7 @@ def get_apt_wrapper(cfg: Optional[dict]) -> List[str]:
     if util.is_true(enabled) or (
         str(enabled).lower() == "auto" and command and subp.which(command[0])
     ):
-        return command
+        return cast(List[str], command)
     else:
         return []
 
