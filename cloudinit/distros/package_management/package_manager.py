@@ -1,3 +1,4 @@
+# This file is part of cloud-init. See LICENSE file for license information.
 from abc import ABC, abstractmethod
 from typing import Iterable, List, MutableMapping, Type
 

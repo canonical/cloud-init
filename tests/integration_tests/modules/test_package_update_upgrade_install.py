@@ -1,3 +1,4 @@
+# This file is part of cloud-init. See LICENSE file for license information.
 """Integration test for the package update upgrade install module.
 
 This test module asserts that packages are upgraded/updated during boot
