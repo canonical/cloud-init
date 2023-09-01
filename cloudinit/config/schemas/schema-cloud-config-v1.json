@@ -1911,7 +1911,7 @@
                 },
                 "template": {
                   "type": "string",
-                  "description": "Inline template allowing users to define their\nown ``ntp_client`` configuration template.\nThe value must start with '## template:jinja'\nto enable use of templating support.\n"
+                  "description": "Inline template allowing users to customize their ``ntp_client`` configuration with the use of the Jinja templating engine.\nThe template content should start with ``## template:jinja``.\nWithin the template, you can utilize any of the following ntp module config keys: ``servers``, ``pools``, ``allow``, and ``peers``.\nEach cc_ntp schema config key and expected value type is defined above."
                 }
               }
             }
