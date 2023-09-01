@@ -29,5 +29,9 @@ def test_gpg_no_tty(client: IntegrationInstance):
         "Imported key 'E4D304DF' from keyserver 'keyserver.ubuntu.com'",
     ]
     verify_ordered_items_in_text(to_verify, log)
-    result = client.execute("systemctl status cloud-config.service")
-    assert "CGroup" not in result.stdout
+    processes_in_cgroup = int(
+        client.execute(
+            "systemd-cgls -u cloud-config.service 2>/dev/null | wc -l"
+        ).stdout
+    )
+    assert processes_in_cgroup < 2
