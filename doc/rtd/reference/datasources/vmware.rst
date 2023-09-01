@@ -455,7 +455,7 @@ the metadata key ``network``. Valid encodings are ``base64`` and
 .. _Guest OS Customization: https://docs.vmware.com/en/VMware-vSphere/8.0/vsphere-vm-administration/GUID-58E346FF-83AE-42B8-BE58-253641D257BC.html
 .. _GuestInfo keys: https://github.com/vmware/govmomi/blob/master/govc/USAGE.md
 .. _traditional Linux customization specification: https://docs.vmware.com/en/VMware-vSphere/8.0/vsphere-vm-administration/GUID-EB5F090E-723C-4470-B640-50B35D1EC016.html#GUID-9A5093A5-C54F-4502-941B-3F9C0F573A39__GUID-40C60643-A2EB-4B05-8927-B51AF7A6CC5E
-.. _Guest customization using cloud-init: https://developer.vmware.com/docs/17020/vsphere-web-services-sdk-programming-guide--8-0-/GUID-75E27FA9-2E40-4CBF-BF3D-22DCFC8F11F7.html
+.. _Guest customization using cloud-init: https://developer.vmware.com/docs/17686/vsphere-web-services-sdk-programming-guide--8-0-/GUID-75E27FA9-2E40-4CBF-BF3D-22DCFC8F11F7.html
 .. _VMware Tools: https://docs.vmware.com/en/VMware-Tools/index.html
 .. _customization configuration: https://github.com/canonical/cloud-init/blob/main/cloudinit/sources/helpers/vmware/imc/config.py
 .. _VMware vSphere Product Documentation: https://docs.vmware.com/en/VMware-vSphere/8.0/vsphere-vm-administration/GUID-EB5F090E-723C-4470-B640-50B35D1EC016.html#GUID-9A5093A5-C54F-4502-941B-3F9C0F573A39__GUID-40C60643-A2EB-4B05-8927-B51AF7A6CC5E
