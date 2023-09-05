@@ -74,7 +74,9 @@ class TestAptSourceConfig(TestCase):
         get_arch = apatcher.start()
         get_arch.return_value = "amd64"
         self.addCleanup(apatcher.stop)
-        subp_patcher = mock.patch.object(subp, "subp")
+        subp_patcher = mock.patch.object(
+            subp, "subp", return_value=("PID", "")
+        )
         self.m_subp = subp_patcher.start()
         self.addCleanup(subp_patcher.stop)
 
@@ -568,7 +570,7 @@ class TestAptSourceConfig(TestCase):
         cfg = self.wrapv1conf([cfg])
 
         with mock.patch.object(
-            subp, "subp", return_value=("fakekey 1212", "")
+            subp, "subp", side_effect=[("fakekey 1212", ""), ("PID", "")]
         ):
             with mock.patch.object(cc_apt_configure, "apt_key") as mockobj:
                 cc_apt_configure.handle("test", cfg, self.cloud, None)
@@ -658,7 +660,18 @@ class TestAptSourceConfig(TestCase):
                     target=None,
                 ),
                 mock.call(
-                    ["gpgconf", "--kill", "all"], capture=True, target=None
+                    [
+                        "ps",
+                        "-o",
+                        "pid,args",
+                        "-C",
+                        "dirmngr",
+                        "-C",
+                        "gpg-agent",
+                    ],
+                    capture=True,
+                    target=None,
+                    rcs=[0, 1],
                 ),
             ],
         )
@@ -681,7 +694,9 @@ class TestAptSourceConfig(TestCase):
         }
         cfg = self.wrapv1conf([cfg1, cfg2, cfg3])
 
-        with mock.patch.object(subp, "subp") as mockobj:
+        with mock.patch.object(
+            subp, "subp", return_value=("PID", "")
+        ) as mockobj:
             cc_apt_configure.handle("test", cfg, self.cloud, None)
         calls = [
             call(

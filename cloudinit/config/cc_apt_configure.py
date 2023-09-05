@@ -244,11 +244,24 @@ def apply_apt(cfg, cloud, target):
         )
     # GH: 4344 - stop gpg-agent/dirmgr daemons spawned by gpg key imports.
     # Daemons spawned by cloud-config.service on systemd v253 report (running)
-    subp.subp(
-        ["gpgconf", "--kill", "all"],
+    gpg_process_out, _err = subp.subp(
+        ["ps", "-o", "pid,args", "-C", "dirmngr", "-C", "gpg-agent"],
         target=target,
         capture=True,
+        rcs=[0, 1],
     )
+    gpg_pids = re.findall(r"(?P<pid>\d+).*homedir \/root", gpg_process_out)
+    if len(gpg_pids) <= 2:
+        if gpg_pids:
+            LOG.debug("Killing gpg-agent and dirmngr pids: %s", gpg_pids)
+        for gpg_pid in gpg_pids:
+            os.kill(int(gpg_pid))
+    else:
+        LOG.debug(
+            "Leaving all gpg-agent and dirmngr daemons running. Greater than 2"
+            " active daemons present: %s",
+            gpg_process_out,
+        )
 
 
 def debconf_set_selections(selections, target=None):
