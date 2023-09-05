@@ -9,6 +9,7 @@ import os
 import pathlib
 import re
 import shutil
+import signal
 import tempfile
 from unittest import mock
 from unittest.mock import call
@@ -75,7 +76,7 @@ class TestAptSourceConfig(TestCase):
         get_arch.return_value = "amd64"
         self.addCleanup(apatcher.stop)
         subp_patcher = mock.patch.object(
-            subp, "subp", return_value=("PID", "")
+            subp, "subp", return_value=("PPID   PID", "")
         )
         self.m_subp = subp_patcher.start()
         self.addCleanup(subp_patcher.stop)
@@ -568,12 +569,24 @@ class TestAptSourceConfig(TestCase):
         """Test specification of a keyid without source"""
         cfg = {"keyid": "03683F77", "filename": self.aptlistfile}
         cfg = self.wrapv1conf([cfg])
-
+        SAMPLE_GPG_AGENT_DIRMNGR_PIDS = """\
+   PPID     PID
+      1    1057
+      1    1095
+   1511    2493
+   1511    2509
+"""
         with mock.patch.object(
-            subp, "subp", side_effect=[("fakekey 1212", ""), ("PID", "")]
+            subp,
+            "subp",
+            side_effect=[
+                ("fakekey 1212", ""),
+                (SAMPLE_GPG_AGENT_DIRMNGR_PIDS, ""),
+            ],
         ):
             with mock.patch.object(cc_apt_configure, "apt_key") as mockobj:
-                cc_apt_configure.handle("test", cfg, self.cloud, None)
+                with mock.patch.object(cc_apt_configure.os, "kill") as m_kill:
+                    cc_apt_configure.handle("test", cfg, self.cloud, None)
 
         calls = (
             call(
@@ -584,6 +597,10 @@ class TestAptSourceConfig(TestCase):
             ),
         )
         mockobj.assert_has_calls(calls, any_order=True)
+        self.assertEqual(
+            ([call(1057, signal.SIGKILL), call(1095, signal.SIGKILL)]),
+            m_kill.call_args_list,
+        )
 
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
@@ -663,7 +680,7 @@ class TestAptSourceConfig(TestCase):
                     [
                         "ps",
                         "-o",
-                        "pid,args",
+                        "ppid,pid",
                         "-C",
                         "dirmngr",
                         "-C",
@@ -695,7 +712,7 @@ class TestAptSourceConfig(TestCase):
         cfg = self.wrapv1conf([cfg1, cfg2, cfg3])
 
         with mock.patch.object(
-            subp, "subp", return_value=("PID", "")
+            subp, "subp", return_value=("PPID   PID", "")
         ) as mockobj:
             cc_apt_configure.handle("test", cfg, self.cloud, None)
         calls = [

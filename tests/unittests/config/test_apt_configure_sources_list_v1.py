@@ -122,13 +122,13 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
     def test_apt_v1_source_list_debian(self):
         """Test rendering of a source.list from template for debian"""
         with mock.patch.object(
-            subp, "subp", return_value=("PID", "")
+            subp, "subp", return_value=("PPID   PID", "")
         ) as mocksubp:
             self.apt_source_list(
                 "debian", "http://httpredir.debian.org/debian"
             )
         mocksubp.assert_called_once_with(
-            ["ps", "-o", "pid,args", "-C", "dirmngr", "-C", "gpg-agent"],
+            ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
             capture=True,
             target=None,
             rcs=[0, 1],
@@ -137,11 +137,11 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
     def test_apt_v1_source_list_ubuntu(self):
         """Test rendering of a source.list from template for ubuntu"""
         with mock.patch.object(
-            subp, "subp", return_value=("PID", "")
+            subp, "subp", return_value=("PPID   PID", "")
         ) as mocksubp:
             self.apt_source_list("ubuntu", "http://archive.ubuntu.com/ubuntu/")
         mocksubp.assert_called_once_with(
-            ["ps", "-o", "pid,args", "-C", "dirmngr", "-C", "gpg-agent"],
+            ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
             capture=True,
             target=None,
             rcs=[0, 1],
@@ -163,7 +163,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
             util, "is_resolvable", side_effect=self.myresolve
         ) as mockresolve:
             with mock.patch.object(
-                subp, "subp", return_value=("PID", "")
+                subp, "subp", return_value=("PPID   PID", "")
             ) as mocksubp:
                 self.apt_source_list(
                     "debian",
@@ -176,7 +176,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         mockresolve.assert_any_call("http://does.not.exist")
         mockresolve.assert_any_call("http://httpredir.debian.org/debian")
         mocksubp.assert_called_once_with(
-            ["ps", "-o", "pid,args", "-C", "dirmngr", "-C", "gpg-agent"],
+            ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
             capture=True,
             target=None,
             rcs=[0, 1],
@@ -188,7 +188,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
             util, "is_resolvable", side_effect=self.myresolve
         ) as mockresolve:
             with mock.patch.object(
-                subp, "subp", return_value=("PID", "")
+                subp, "subp", return_value=("PPID   PID", "")
             ) as mocksubp:
                 self.apt_source_list(
                     "ubuntu",
@@ -201,7 +201,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         mockresolve.assert_any_call("http://does.not.exist")
         mockresolve.assert_any_call("http://archive.ubuntu.com/ubuntu/")
         mocksubp.assert_called_once_with(
-            ["ps", "-o", "pid,args", "-C", "dirmngr", "-C", "gpg-agent"],
+            ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
             capture=True,
             target=None,
             rcs=[0, 1],
@@ -215,7 +215,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         # the second mock restores the original subp
         with mock.patch.object(util, "write_file") as mockwrite:
             with mock.patch.object(
-                subp, "subp", return_value=("PID", "")
+                subp, "subp", return_value=("PPID   PID", "")
             ) as mocksubp:
                 with mock.patch.object(
                     Distro, "get_primary_arch", return_value="amd64"
@@ -226,7 +226,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
             "/etc/apt/sources.list", EXPECTED_CONVERTED_CONTENT, mode=420
         )
         mocksubp.assert_called_once_with(
-            ["ps", "-o", "pid,args", "-C", "dirmngr", "-C", "gpg-agent"],
+            ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
             capture=True,
             target=None,
             rcs=[0, 1],

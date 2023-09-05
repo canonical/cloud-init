@@ -126,7 +126,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
                 mock.patch(cfg_func, return_value=(cfg_on_empty, "test"))
             )
             mock_subp = stack.enter_context(
-                mock.patch.object(subp, "subp", return_value=("PID", ""))
+                mock.patch.object(subp, "subp", return_value=("PPID  PID", ""))
             )
             cc_apt_configure.handle("test", cfg, mycloud, None)
 
@@ -240,7 +240,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
 
         with mock.patch.object(util, "write_file") as mockwrite:
             with mock.patch.object(
-                subp, "subp", return_value=("PID", "")
+                subp, "subp", return_value=("PPID   PID", "")
             ) as mocksubp:
                 with mock.patch.object(
                     Distro, "get_primary_arch", return_value="amd64"
@@ -254,7 +254,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         ]
         mockwrite.assert_has_calls(calls)
         mocksubp.assert_called_once_with(
-            ["ps", "-o", "pid,args", "-C", "dirmngr", "-C", "gpg-agent"],
+            ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
             capture=True,
             target=None,
             rcs=[0, 1],
