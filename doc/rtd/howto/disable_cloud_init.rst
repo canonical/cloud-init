@@ -31,7 +31,7 @@ Example (using GRUB2 with Ubuntu):
 
 .. code-block::
 
-    $ echo 'GRUB_CMDLINE_LINUX=cloud-init.disabled' >> /etc/default/grub
+    $ echo 'GRUB_CMDLINE_LINUX="cloud-init=disabled"' >> /etc/default/grub
     $ grub-mkconfig -o /boot/efi/EFI/ubuntu/grub.cfg
 
 .. note::
