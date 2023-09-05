@@ -1,3 +1,20 @@
+23.3.1
+ - apt: kill dirmngr/gpg-agent without gpgconf dependency (LP: #2034273)
+ - integration tests: fix mount indentation (#4405)
+ - Use grep for faster parsing of cloud config in ds-identify (#4327)
+   [Scott Moser] (LP: #2030729)
+ - doc: fix instructions on how to disable cloud-init from kernel command
+   line (#4406) [Ani Sinha]
+ - doc/vmware: Update contents relevant to disable_vmware_customization
+   [PengpengSun]
+ - Bring back flake8 for python 3.6 (#4394)
+ - integration tests: Fix cgroup parsing (#4402)
+ - summary: Update template parameter descriptions in docs [MJ Moshiri]
+ - Log PPID for better debugging (#4398)
+ - integration tests: don't clean when KEEP_* flags true (#4400)
+ - clean: add a new option to clean generated config files [Ani Sinha]
+ - pep-594: drop deprecated pipes module import
+
 23.3
  - Bump pycloudlib to 1!5.1.0 for ec2 mantic daily image support (#4390)
  - Fix cc_keyboard in mantic (LP: #2030788)
