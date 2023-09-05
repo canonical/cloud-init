@@ -780,21 +780,24 @@ check_config() {
     if [ "$1" = "$files" -a ! -f "$1" ]; then
         return 1
     fi
-    local fname="" line="" ret="" found=0 found_fn=""
-    # shellcheck disable=2094
-    for fname in "$@"; do
-        [ -f "$fname" ] || continue
-        while read line; do
-            line=${line%%#*}
-            case "$line" in
-                $key:\ *|"${key}":)
-                    ret=${line#*:};
-                    ret=${ret# };
-                    found=$((found+1))
-                    found_fn="$fname";;
-            esac
-        done <"$fname"
+    local line="" ret="" found=0 found_fn="" oifs="$IFS" out=""
+    out=$(grep "$key\"\?:" "$@" 2>/dev/null)
+    IFS=${CR}
+    for line in $out; do
+        # drop '# comment'
+        line=${line%%#*}
+        # if more than one file was 'grep'ed, then grep will output filename:
+        # but if only one file, line will not be prefixed.
+        if [ $# -eq 1 ]; then
+            found_fn="$1"
+        else
+            found_fn="${line%%:*}"
+            line=${line#*:}
+        fi
+        ret=${line#*: };
+        found=$((found+1))
     done
+    IFS="$oifs"
     if [ $found -ne 0 ]; then
         _RET="$ret"
         _RET_fname="$found_fn"
