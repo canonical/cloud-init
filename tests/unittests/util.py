@@ -1,7 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 from unittest import mock
 
-from cloudinit import cloud, distros, helpers, subp
+from cloudinit import cloud, distros, helpers
 from cloudinit.sources import DataSource, DataSourceHostname
 from cloudinit.sources.DataSourceNone import DataSourceNone
 
@@ -153,7 +153,7 @@ class MockDistro(distros.Distro):
         return (True, "yay")
 
     def do_as(self, command, args=None, **kwargs):
-        return subp.SubpResult("pip 23.0.1 from /usr/lib/python3/dist-packages/pip (python 3.11)", "stderr")
+        return ("stdout", "stderr")
 
 
 TEST_INSTANCE_ID = "i-testing"
