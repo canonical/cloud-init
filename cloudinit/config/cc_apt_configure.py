@@ -12,6 +12,7 @@ import glob
 import os
 import pathlib
 import re
+import signal
 from textwrap import dedent
 
 from cloudinit import gpg
@@ -244,11 +245,18 @@ def apply_apt(cfg, cloud, target):
         )
     # GH: 4344 - stop gpg-agent/dirmgr daemons spawned by gpg key imports.
     # Daemons spawned by cloud-config.service on systemd v253 report (running)
-    subp.subp(
-        ["gpgconf", "--kill", "all"],
+    gpg_process_out, _err = subp.subp(
+        ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
         target=target,
         capture=True,
+        rcs=[0, 1],
     )
+    gpg_pids = re.findall(r"(?P<ppid>\d+)\s+(?P<pid>\d+)", gpg_process_out)
+    root_gpg_pids = [int(pid[1]) for pid in gpg_pids if pid[0] == "1"]
+    if root_gpg_pids:
+        LOG.debug("Killing gpg-agent and dirmngr pids: %s", root_gpg_pids)
+    for gpg_pid in root_gpg_pids:
+        os.kill(gpg_pid, signal.SIGKILL)
 
 
 def debconf_set_selections(selections, target=None):
