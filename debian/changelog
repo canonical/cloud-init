@@ -1,4 +1,4 @@
-cloud-init (23.3.1-0ubuntu0~22.04.1) UNRELEASED; urgency=medium
+cloud-init (23.3.1-0ubuntu1~22.04.1) jammy; urgency=medium
 
   * d/cloud-init.maintscript: Remove the unused hook-network-manager
     conffile. (LP: #2027861)
@@ -9,14 +9,11 @@ cloud-init (23.3.1-0ubuntu0~22.04.1) UNRELEASED; urgency=medium
   * d/cloud-init.templates: enable Akamai by default.
     Add Akamai to the default templates to allow datasource discovery.
   * d/po/templates.pot: refresh with debconf-updatepo
-  * Upstream snapshot based on 23.3. (LP: #2033310).
-    List of changes from upstream can be found at
-    https://raw.githubusercontent.com/canonical/cloud-init/23.3/ChangeLog
   * Upstream snapshot based on 23.3.1. (LP: #2033310).
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/23.3.1/ChangeLog
 
- -- James Falcon <james.falcon@canonical.com>  Wed, 06 Sep 2023 12:09:11 -0500
+ -- James Falcon <james.falcon@canonical.com>  Wed, 06 Sep 2023 12:09:54 -0500
 
 cloud-init (23.2.2-0ubuntu0~22.04.1) jammy; urgency=medium
 
