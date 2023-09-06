@@ -136,32 +136,13 @@ class AnsiblePullPip(AnsiblePull):
                 import pip  # noqa: F401
             except ImportError:
                 self.distro.install_packages(self.distro.pip_package_name)
-
-            pip_version_output = self.do_as(
-                [
-                    sys.executable,
-                    "-m",
-                    "pip",
-                    "--version",
-                ]
-            ).stdout
-            pip_version = pip_version_output.split()
-
-            if 2 > len(pip_version):
-                LOG.warning(
-                    "Error parsing pip version string: %s", pip_version_output
-                )
-            version = Version.from_str(pip_version[1])
             cmd = [
                 sys.executable,
                 "-m",
                 "pip",
                 "install",
+                "--break-system-packages",
             ]
-
-            # see pip commit e6deb9b87c18cdd27a9ba27cb7e0670ffb81d45e
-            if version >= Version(23, 0, 1):
-                cmd.append("--break-system-packages")
             if self.run_user:
                 cmd.append("--user")
             self.do_as([*cmd, "--upgrade", "pip"])
