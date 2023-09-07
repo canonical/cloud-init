@@ -75,7 +75,6 @@ class Distro(distros.Distro):
         if self.uses_systemd():
             if not out_fn:
                 out_fn = self.systemd_locale_conf_fn
-            out_fn = self.systemd_locale_conf_fn
         else:
             if not out_fn:
                 out_fn = self.locale_conf_fn
