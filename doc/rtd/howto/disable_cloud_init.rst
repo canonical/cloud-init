@@ -6,7 +6,7 @@ How to disable cloud-init
 One may wish to disable cloud-init to ensure that it doesn't do anything on
 subsequent boots. Some parts of cloud-init may run once per boot otherwise.
 
-There are two cross-platform methods of disabling ``cloud-init``.
+There are three cross-platform methods of disabling ``cloud-init``.
 
 Method 1: text file
 ====================
@@ -34,6 +34,15 @@ Example (using GRUB2 with Ubuntu):
     $ echo 'GRUB_CMDLINE_LINUX="cloud-init=disabled"' >> /etc/default/grub
     $ grub-mkconfig -o /boot/efi/EFI/ubuntu/grub.cfg
 
-.. note::
-   When running in containers, ``cloud-init`` will read an environment
-   variable named ``KERNEL_CMDLINE`` in place of a kernel commandline.
+Method 3: environment variable
+==============================
+
+To disable cloud-init, pass the environment variable
+``KERNEL_CMDLINE=cloud-init=disabled`` into each of cloud-init's
+processes.
+
+Example (using systemd):
+
+.. code-block::
+
+    $ echo "DefaultEnvironment=KERNEL_CMDLINE=cloud-init=disabled" >> /etc/systemd/system.conf
