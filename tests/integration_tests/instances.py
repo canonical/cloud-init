@@ -202,7 +202,10 @@ class IntegrationInstance:
             return self._ip
         try:
             # in some cases that ssh is not used, an address is not assigned
-            if self.instance.execute_via_ssh:
+            if (
+                hasattr(self.instance, "execute_via_ssh")
+                and self.instance.execute_via_ssh
+            ):
                 self._ip = self.instance.ip
         except NotImplementedError:
             self._ip = "Unknown"
