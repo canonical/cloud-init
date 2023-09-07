@@ -134,19 +134,13 @@ class ProcessExecutionError(IOError):
     ) -> Union[str, bytes]:
         """
         indent text on all but the first line, allowing for easy to read output
+
+        remove any newlines at end of text first to prevent unneeded blank
+        line in output
         """
-        cr_str = "\n"
-        indent_str = " " * indent_level
-        # if input is bytes, return bytes
-        if isinstance(text, bytes):
-            cr: Union[str, bytes] = cr_str.encode()
-            indent: Union[str, bytes] = indent_str.encode()
-        else:
-            cr = cr_str
-            indent = indent_str
-        # remove any newlines at end of text first to prevent unneeded blank
-        # line in output
-        return text.rstrip(cr).replace(cr, cr + indent)  # type: ignore
+        if not isinstance(text, bytes):
+            return text.rstrip("\n").replace("\n", "\n" + " " * indent_level)
+        return text.rstrip(b"\n").replace(b"\n", b"\n" + b" " * indent_level)
 
 
 def subp(
