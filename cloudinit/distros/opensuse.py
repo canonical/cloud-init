@@ -10,10 +10,13 @@
 
 import logging
 import os
+from typing import Optional
 
 from cloudinit import distros, helpers, subp, util
 from cloudinit.distros import rhel_util as rhutil
 from cloudinit.distros.parsers.hostname import HostnameConf
+from cloudinit.net import ipv4_mask_to_net_prefix
+from cloudinit.net.renderer import Renderer
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
@@ -281,3 +284,141 @@ class Distro(distros.Distro):
                 ]
 
         return self._preferred_ntp_clients
+
+    def _write_network_state(
+        self, network_state, renderer: Renderer, netconfig: Optional[dict]
+    ):
+        super()._write_network_state(network_state, renderer)
+        netconfig_ver = (netconfig or {}).get("version")
+        if netconfig_ver == 1:
+            self._write_routes_v1(netconfig)
+        elif netconfig_ver == 2:
+            self._write_routes_v2(netconfig)
+        else:
+            LOG.warning(
+                "unsupported or missing netconfig version, not writing routes"
+            )
+
+    def _write_routes_v1(self, netconfig):
+        """Write route files, not part of the standard distro interface"""
+        # Due to the implementation of the sysconfig renderer default routes
+        # are setup in ifcfg-* files. But this does not work on SLES or
+        # openSUSE https://bugs.launchpad.net/cloud-init/+bug/1812117
+        # this is a very hacky way to get around the problem until a real
+        # solution is found in the sysconfig renderer
+        device_configs = netconfig.get("config", [])
+        default_nets = ("::", "0.0.0.0")
+        for config in device_configs:
+            if_name = config.get("name")
+            subnets = config.get("subnets", [])
+            config_routes = ""
+            has_default_route = False
+            seen_default_gateway = None
+            for subnet in subnets:
+                # Render the default gateway if it is present
+                gateway = subnet.get("gateway")
+                if gateway:
+                    config_routes += " ".join(["default", gateway, "-", "-\n"])
+                    has_default_route = True
+                    if not seen_default_gateway:
+                        seen_default_gateway = gateway
+                # Render subnet routes
+                routes = subnet.get("routes", [])
+                for route in routes:
+                    dest = route.get("destination") or route.get("network")
+                    if not dest or dest in default_nets:
+                        dest = "default"
+                        if not has_default_route:
+                            has_default_route = True
+                    if dest != "default":
+                        netmask = route.get("netmask")
+                        if netmask:
+                            prefix = ipv4_mask_to_net_prefix(netmask)
+                            dest += "/" + str(prefix)
+                        if "/" not in dest:
+                            LOG.warning(
+                                'Skipping route; has no prefix "%s"', dest
+                            )
+                            continue
+                    gateway = route.get("gateway")
+                    if not gateway:
+                        LOG.warning('Missing gateway for "%s", skipping', dest)
+                        continue
+                    if (
+                        dest == "default"
+                        and has_default_route
+                        and gateway == seen_default_gateway
+                    ):
+                        dest_info = dest
+                        if gateway:
+                            dest_info = " ".join([dest, gateway, "-", "-"])
+                        LOG.warning(
+                            '%s already has default route, skipping "%s"',
+                            if_name,
+                            dest_info,
+                        )
+                        continue
+                    config_routes += " ".join([dest, gateway, "-", "-\n"])
+            if config_routes:
+                route_file = "/etc/sysconfig/network/ifroute-%s" % if_name
+                util.write_file(route_file, config_routes)
+
+    def _render_route_string(self, netconfig_route):
+        route_to = netconfig_route.get("to", None)
+        route_via = netconfig_route.get("via", None)
+        route_metric = netconfig_route.get("metric", None)
+        route_string = ""
+
+        if route_to and route_via:
+            route_string = " ".join([route_to, route_via, "-", "-"])
+            if route_metric:
+                route_string += " metric {}\n".format(route_metric)
+            else:
+                route_string += "\n"
+        else:
+            LOG.warning("invalid route definition, skipping route")
+
+        return route_string
+
+    def _write_routes_v2(self, netconfig):
+        for device_type in netconfig:
+            if device_type == "version":
+                continue
+
+            if device_type == "routes":
+                # global static routes
+                config_routes = ""
+                for route in netconfig["routes"]:
+                    config_routes += self._render_route_string(route)
+                if config_routes:
+                    route_file = "/etc/sysconfig/network/routes"
+                    util.write_file(route_file, config_routes)
+            else:
+                devices = netconfig[device_type]
+                for device_name in devices:
+                    config_routes = ""
+                    device_config = devices[device_name]
+                    try:
+                        gateways = [
+                            v
+                            for k, v in device_config.items()
+                            if "gateway" in k
+                        ]
+                        for gateway in gateways:
+                            config_routes += " ".join(
+                                ["default", gateway, "-", "-\n"]
+                            )
+                        for route in device_config.get("routes", []):
+                            config_routes += self._render_route_string(route)
+                        if config_routes:
+                            route_file = (
+                                "/etc/sysconfig/network/ifroute-{}".format(
+                                    device_name
+                                )
+                            )
+                            util.write_file(route_file, config_routes)
+                    except Exception:
+                        # the parser above epxects another level of nesting
+                        # which should be there in case it's properly
+                        # formatted; if not we may get an exception on items()
+                        pass

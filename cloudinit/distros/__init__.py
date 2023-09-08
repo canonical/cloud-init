@@ -173,7 +173,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         renderer = render_cls(config=self.renderer_configs.get(name))
         return renderer
 
-    def _write_network_state(self, network_state, renderer: Renderer):
+    def _write_network_state(
+        self,
+        network_state,
+        renderer: Renderer,
+        netconfig: Optional[dict] = None,
+    ):
         renderer.render_network_state(network_state)
 
     def _find_tz_file(self, tz):
@@ -286,7 +291,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             )
 
         network_state = parse_net_config_data(netconfig, renderer=renderer)
-        self._write_network_state(network_state, renderer)
+        self._write_network_state(network_state, renderer, netconfig=netconfig)
 
         # Now try to bring them up
         if bring_up:
