@@ -286,10 +286,14 @@ class Distro(distros.Distro):
         return self._preferred_ntp_clients
 
     def _write_network_state(
-        self, network_state, renderer: Renderer, netconfig: Optional[dict]
+        self,
+        network_state,
+        renderer: Renderer,
+        netconfig: Optional[dict] = None,
     ):
         super()._write_network_state(network_state, renderer)
-        netconfig_ver = (netconfig or {}).get("version")
+        netconfig = netconfig or {}
+        netconfig_ver = netconfig.get("version")
         if netconfig_ver == 1:
             self._write_routes_v1(netconfig)
         elif netconfig_ver == 2:
@@ -299,7 +303,7 @@ class Distro(distros.Distro):
                 "unsupported or missing netconfig version, not writing routes"
             )
 
-    def _write_routes_v1(self, netconfig):
+    def _write_routes_v1(self, netconfig: dict):
         """Write route files, not part of the standard distro interface"""
         # Due to the implementation of the sysconfig renderer default routes
         # are setup in ifcfg-* files. But this does not work on SLES or
@@ -360,10 +364,10 @@ class Distro(distros.Distro):
                         continue
                     config_routes += " ".join([dest, gateway, "-", "-\n"])
             if config_routes:
-                route_file = "/etc/sysconfig/network/ifroute-%s" % if_name
+                route_file = f"/etc/sysconfig/network/ifroute-{if_name}"
                 util.write_file(route_file, config_routes)
 
-    def _render_route_string(self, netconfig_route):
+    def _render_route_string(self, netconfig_route: dict):
         route_to = netconfig_route.get("to", None)
         route_via = netconfig_route.get("via", None)
         route_metric = netconfig_route.get("metric", None)
@@ -380,7 +384,7 @@ class Distro(distros.Distro):
 
         return route_string
 
-    def _write_routes_v2(self, netconfig):
+    def _write_routes_v2(self, netconfig: dict):
         for device_type in netconfig:
             if device_type == "version":
                 continue
@@ -418,7 +422,7 @@ class Distro(distros.Distro):
                             )
                             util.write_file(route_file, config_routes)
                     except Exception:
-                        # the parser above epxects another level of nesting
+                        # the parser above expects another level of nesting
                         # which should be there in case it's properly
                         # formatted; if not we may get an exception on items()
                         pass
