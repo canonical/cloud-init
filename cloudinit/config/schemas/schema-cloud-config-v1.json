@@ -2576,7 +2576,12 @@
         "prefer_fqdn_over_hostname": {
           "type": "boolean",
           "description": "If true, the fqdn will be used if it is set. If false, the hostname will be used. If unset, the result is distro-dependent"
-        }
+        },
+	"create_hostname_file": {
+	   "type": "boolean",
+	   "default": false,
+	   "description": "If false, the hostname file (e.g. /etc/hostname) will not be created if it does not exist. If true, the hostname will always be created."
+	}
       }
     },
     "cc_set_passwords": {
@@ -3064,6 +3069,11 @@
           "type": "boolean",
           "default": null,
           "description": "By default, it is distro-dependent whether cloud-init uses the short hostname or fully qualified domain name when both ``local-hostname` and ``fqdn`` are both present in instance metadata. When set ``true``, use fully qualified domain name if present as hostname instead of short hostname. When set ``false``, use ``hostname`` config value if present, otherwise fallback to ``fqdn``."
+        },
+	"create_hostname_file": {
+	   "type": "boolean",
+	   "default": false,
+	   "description": "If false, the hostname file (e.g. /etc/hostname) will not be created if it does not exist. If true, the hostname will always be created."
         }
       }
     },
