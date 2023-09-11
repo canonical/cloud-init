@@ -222,12 +222,12 @@ class Distro(distros.Distro):
 
     def _write_hostname(self, hostname, filename):
         create_hostname_file = util.get_cfg_option_bool(
-            self._cfg, "create_hostname_file"
+            self._cfg, "create_hostname_file", True
         )
         if self.uses_systemd() and filename.endswith("/previous-hostname"):
             util.write_file(filename, hostname)
         elif self.uses_systemd():
-            if not create_hostname_file:
+            if create_hostname_file:
                 subp.subp(["hostnamectl", "set-hostname", str(hostname)])
             else:
                 subp.subp(
@@ -245,7 +245,7 @@ class Distro(distros.Distro):
                 # so lets see if we can read it first.
                 conf = self._read_hostname_conf(filename)
             except IOError:
-                if not create_hostname_file:
+                if create_hostname_file:
                     pass
                 else:
                     return
