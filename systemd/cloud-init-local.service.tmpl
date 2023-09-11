@@ -26,10 +26,9 @@ Before=sysinit.target
 Conflicts=shutdown.target
 {% endif %}
 RequiresMountsFor=/var/lib/cloud
-{% if variant == "rhel" %}
 ConditionPathExists=!/etc/cloud/cloud-init.disabled
 ConditionKernelCommandLine=!cloud-init=disabled
-{% endif %}
+ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
 
 [Service]
 Type=oneshot
