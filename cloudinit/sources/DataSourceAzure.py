@@ -309,7 +309,6 @@ DEF_PASSWD_REDACTION = "REDACTED"
 
 
 class DataSourceAzure(sources.DataSource):
-
     dsname = "Azure"
     default_update_events = {
         EventScope.NETWORK: {
@@ -745,6 +744,13 @@ class DataSourceAzure(sources.DataSource):
         @return: True on success, False on error, invalid or disabled
             datasource.
         """
+        if not self.ds_detect():
+            report_diagnostic_event(
+                "Not running on Azure",
+                logger_func=LOG.warning,
+            )
+            return False
+
         try:
             get_boot_telemetry()
         except Exception as e:
@@ -1730,7 +1736,7 @@ def write_files(datadir, files, dirmode=None):
     if not files:
         files = {}
     util.ensure_dir(datadir, dirmode)
-    for (name, content) in files.items():
+    for name, content in files.items():
         fname = os.path.join(datadir, name)
         if "ovf-env.xml" in name:
             content = _redact_password(content, fname)

@@ -3685,6 +3685,7 @@ class TestProvisioning:
         # Verify DMI usage.
         assert self.mock_dmi_read_dmi_data.mock_calls == [
             mock.call("chassis-asset-tag"),
+            mock.call("chassis-asset-tag"),
             mock.call("system-uuid"),
         ]
         assert (
@@ -3781,6 +3782,7 @@ class TestProvisioning:
 
         # Verify DMI usage.
         assert self.mock_dmi_read_dmi_data.mock_calls == [
+            mock.call("chassis-asset-tag"),
             mock.call("chassis-asset-tag"),
             mock.call("system-uuid"),
         ]
@@ -3903,6 +3905,7 @@ class TestProvisioning:
 
         # Verify DMI usage.
         assert self.mock_dmi_read_dmi_data.mock_calls == [
+            mock.call("chassis-asset-tag"),
             mock.call("chassis-asset-tag"),
             mock.call("system-uuid"),
         ]
@@ -4063,6 +4066,7 @@ class TestProvisioning:
 
         # Verify DMI usage.
         assert self.mock_dmi_read_dmi_data.mock_calls == [
+            mock.call("chassis-asset-tag"),
             mock.call("chassis-asset-tag"),
             mock.call("system-uuid"),
         ]
