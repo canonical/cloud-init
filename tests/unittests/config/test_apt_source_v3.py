@@ -738,7 +738,6 @@ class TestAptSourceConfig:
         # create files
         for (opre, _npre, suff) in files:
             fpath = os.path.join(apt_lists_d, opre + suff)
-            print(fpath)
             util.write_file(fpath, content=fpath)
 
         cc_apt_configure.rename_apt_lists(mirrors, target.strpath, arch)
