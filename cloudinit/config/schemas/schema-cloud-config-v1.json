@@ -2577,11 +2577,11 @@
           "type": "boolean",
           "description": "If true, the fqdn will be used if it is set. If false, the hostname will be used. If unset, the result is distro-dependent"
         },
-	"create_hostname_file": {
-	   "type": "boolean",
-	   "default": false,
-	   "description": "If false, the hostname file (e.g. /etc/hostname) will not be created if it does not exist. If true, the hostname will always be created."
-	}
+        "create_hostname_file": {
+          "type": "boolean",
+          "default": true,
+          "description": "If ``false``, the hostname file (e.g. /etc/hostname) will not be created if it does not exist. On systems that use systemd, setting create_hostname_file to ``false`` will set the hostname transiently. If ``true``, the hostname file will always be created and the hostname will be set statically on systemd systems. Default: ``true``"
+        }
       }
     },
     "cc_set_passwords": {
@@ -3070,10 +3070,10 @@
           "default": null,
           "description": "By default, it is distro-dependent whether cloud-init uses the short hostname or fully qualified domain name when both ``local-hostname` and ``fqdn`` are both present in instance metadata. When set ``true``, use fully qualified domain name if present as hostname instead of short hostname. When set ``false``, use ``hostname`` config value if present, otherwise fallback to ``fqdn``."
         },
-	"create_hostname_file": {
-	   "type": "boolean",
-	   "default": false,
-	   "description": "If false, the hostname file (e.g. /etc/hostname) will not be created if it does not exist. If true, the hostname will always be created."
+        "create_hostname_file": {
+          "type": "boolean",
+          "default": true,
+          "description": "If ``false``, the hostname file (e.g. /etc/hostname) will not be created if it does not exist. On systems that use systemd, setting create_hostname_file to ``false`` will set the hostname transiently. If ``true``, the hostname file will always be created and the hostname will be set statically on systemd systems. Default: ``true``"
         }
       }
     },
