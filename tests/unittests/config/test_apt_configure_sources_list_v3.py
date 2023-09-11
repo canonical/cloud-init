@@ -3,22 +3,26 @@
 """ test_apt_custom_sources_list
 Test templating of custom sources list
 """
-import os
-import shutil
-import tempfile
-from contextlib import ExitStack
-from unittest import mock
-from unittest.mock import call
+import stat
+
+import pytest
 
 from cloudinit import subp, util
 from cloudinit.config import cc_apt_configure
 from cloudinit.distros.debian import Distro
-from tests.unittests import helpers as t_help
 from tests.unittests.util import get_cloud
 
 TARGET = "/"
 
 # Input and expected output for the custom template
+EXAMPLE_TMPL = """\
+## template:jinja
+deb {{mirror}} {{codename}} main restricted
+deb-src {{mirror}} {{codename}} main restricted
+deb {{mirror}} {{codename}}-updates universe restricted
+deb {{security}} {{codename}}-security multiverse
+"""
+
 YAML_TEXT_CUSTOM_SL = """
 apt:
   primary:
@@ -29,10 +33,7 @@ apt:
       uri: http://testsec.ubuntu.com/ubuntu/
   sources_list: |
 
-      # Note, this file is written by cloud-init at install time. It should not
-      # end up on the installed system itself.
-      # See http://help.ubuntu.com/community/UpgradeNotes for how to upgrade to
-      # newer versions of the distribution.
+      # Note, this file is written by cloud-init at install time.
       deb $MIRROR $RELEASE main restricted
       deb-src $MIRROR $RELEASE main restricted
       deb $PRIMARY $RELEASE universe restricted
@@ -41,172 +42,111 @@ apt:
 """
 
 EXPECTED_CONVERTED_CONTENT = """
-# Note, this file is written by cloud-init at install time. It should not
-# end up on the installed system itself.
-# See http://help.ubuntu.com/community/UpgradeNotes for how to upgrade to
-# newer versions of the distribution.
+# Note, this file is written by cloud-init at install time.
 deb http://test.ubuntu.com/ubuntu/ fakerel main restricted
 deb-src http://test.ubuntu.com/ubuntu/ fakerel main restricted
 deb http://test.ubuntu.com/ubuntu/ fakerel universe restricted
 deb http://testsec.ubuntu.com/ubuntu/ fakerel-security multiverse
-# FIND_SOMETHING_SPECIAL
 """
 
 # mocked to be independent to the unittest system
-MOCKED_APT_SRC_LIST = """
-deb http://test.ubuntu.com/ubuntu/ notouched main restricted
-deb-src http://test.ubuntu.com/ubuntu/ notouched main restricted
-deb http://test.ubuntu.com/ubuntu/ notouched-updates main restricted
-deb http://testsec.ubuntu.com/ubuntu/ notouched-security main restricted
+
+EXPECTED_BASE_CONTENT = """\
+deb http://archive.ubuntu.com/ubuntu/ fakerel main restricted
+deb-src http://archive.ubuntu.com/ubuntu/ fakerel main restricted
+deb http://archive.ubuntu.com/ubuntu/ fakerel-updates universe restricted
+deb http://security.ubuntu.com/ubuntu/ fakerel-security multiverse
 """
 
-EXPECTED_BASE_CONTENT = """
-deb http://test.ubuntu.com/ubuntu/ notouched main restricted
-deb-src http://test.ubuntu.com/ubuntu/ notouched main restricted
-deb http://test.ubuntu.com/ubuntu/ notouched-updates main restricted
-deb http://testsec.ubuntu.com/ubuntu/ notouched-security main restricted
+EXPECTED_MIRROR_CONTENT = """\
+deb http://test.ubuntu.com/ubuntu/ fakerel main restricted
+deb-src http://test.ubuntu.com/ubuntu/ fakerel main restricted
+deb http://test.ubuntu.com/ubuntu/ fakerel-updates main restricted
+deb http://test.ubuntu.com/ubuntu/ fakerel-security main restricted
 """
 
-EXPECTED_MIRROR_CONTENT = """
-deb http://test.ubuntu.com/ubuntu/ notouched main restricted
-deb-src http://test.ubuntu.com/ubuntu/ notouched main restricted
-deb http://test.ubuntu.com/ubuntu/ notouched-updates main restricted
-deb http://test.ubuntu.com/ubuntu/ notouched-security main restricted
-"""
-
-EXPECTED_PRIMSEC_CONTENT = """
-deb http://test.ubuntu.com/ubuntu/ notouched main restricted
-deb-src http://test.ubuntu.com/ubuntu/ notouched main restricted
-deb http://test.ubuntu.com/ubuntu/ notouched-updates main restricted
-deb http://testsec.ubuntu.com/ubuntu/ notouched-security main restricted
+EXPECTED_PRIMSEC_CONTENT = """\
+deb http://test.ubuntu.com/ubuntu/ fakerel main restricted
+deb-src http://test.ubuntu.com/ubuntu/ fakerel main restricted
+deb http://test.ubuntu.com/ubuntu/ fakerel-updates universe restricted
+deb http://testsec.ubuntu.com/ubuntu/ fakerel-security multiverse
 """
 
 
-class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
+@pytest.mark.usefixtures("fake_filesystem")
+class TestAptSourceConfigSourceList:
     """TestAptSourceConfigSourceList - Class to test sources list rendering"""
 
-    def setUp(self):
-        super(TestAptSourceConfigSourceList, self).setUp()
-        self.new_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.new_root)
+    @pytest.fixture(autouse=True)
+    def setup(self, mocker):
+        self.subp = mocker.patch.object(
+            subp,
+            "subp",
+            return_value=("PPID   PID", ""),
+        )
+        lsb = mocker.patch("cloudinit.util.lsb_release")
+        lsb.return_value = {"codename": "fakerel"}
+        m_arch = mocker.patch("cloudinit.util.get_dpkg_architecture")
+        m_arch.return_value = "amd64"
 
-        rpatcher = mock.patch("cloudinit.util.lsb_release")
-        get_rel = rpatcher.start()
-        get_rel.return_value = {"codename": "fakerel"}
-        self.addCleanup(rpatcher.stop)
-        apatcher = mock.patch("cloudinit.util.get_dpkg_architecture")
-        get_arch = apatcher.start()
-        get_arch.return_value = "amd64"
-        self.addCleanup(apatcher.stop)
+    @pytest.mark.parametrize(
+        "distro,template_present",
+        (("ubuntu", True), ("debian", True), ("rhel", False)),
+    )
+    def test_apt_v3_empty_cfg_source_list_by_distro(
+        self, distro, template_present, mocker, tmpdir
+    ):
+        """Template based on distro, empty config relies on mirror default."""
+        template = f"/etc/cloud/templates/sources.list.{distro}.tmpl"
+        if template_present:
+            util.write_file(template, EXAMPLE_TMPL)
 
-    def _apt_source_list(self, distro, cfg, cfg_on_empty=False):
-        """_apt_source_list - Test rendering from template (generic)"""
-        # entry at top level now, wrap in 'apt' key
-        cfg = {"apt": cfg}
         mycloud = get_cloud(distro)
-
-        with ExitStack() as stack:
-            mock_writefile = stack.enter_context(
-                mock.patch.object(util, "write_file")
-            )
-            mock_loadfile = stack.enter_context(
-                mock.patch.object(
-                    util, "load_file", return_value=MOCKED_APT_SRC_LIST
-                )
-            )
-            mock_isfile = stack.enter_context(
-                mock.patch.object(os.path, "isfile", return_value=True)
-            )
-            stack.enter_context(mock.patch.object(util, "del_file"))
-            cfg_func = (
-                "cloudinit.config.cc_apt_configure."
-                "_should_configure_on_empty_apt"
-            )
-            mock_shouldcfg = stack.enter_context(
-                mock.patch(cfg_func, return_value=(cfg_on_empty, "test"))
-            )
-            mock_subp = stack.enter_context(
-                mock.patch.object(subp, "subp", return_value=("PPID  PID", ""))
-            )
-            cc_apt_configure.handle("test", cfg, mycloud, None)
-
-            return (
-                mock_writefile,
-                mock_loadfile,
-                mock_isfile,
-                mock_shouldcfg,
-                mock_subp,
-            )
-
-    def test_apt_v3_source_list_debian(self):
-        """test_apt_v3_source_list_debian - without custom sources or parms"""
-        cfg = {}
-        distro = "debian"
-        expected = EXPECTED_BASE_CONTENT
-
-        (
-            mock_writefile,
-            mock_load_file,
-            mock_isfile,
-            mock_shouldcfg,
-            _mock_subp,
-        ) = self._apt_source_list(distro, cfg, cfg_on_empty=True)
-
-        template = "/etc/cloud/templates/sources.list.%s.tmpl" % distro
-        mock_writefile.assert_called_once_with(
-            "/etc/apt/sources.list", expected, mode=0o644
+        mock_shouldcfg = mocker.patch.object(
+            cc_apt_configure,
+            "_should_configure_on_empty_apt",
+            return_value=(True, "test"),
         )
-        mock_load_file.assert_called_with(template)
-        mock_isfile.assert_any_call(template)
-        self.assertEqual(1, mock_shouldcfg.call_count)
+        cc_apt_configure.handle("test", {"apt": {}}, mycloud, None)
 
-    def test_apt_v3_source_list_ubuntu(self):
-        """test_apt_v3_source_list_ubuntu - without custom sources or parms"""
-        cfg = {}
-        distro = "ubuntu"
-        expected = EXPECTED_BASE_CONTENT
+        sources_file = tmpdir.join("/etc/apt/sources.list")
+        if template_present:
+            assert EXPECTED_BASE_CONTENT == sources_file.read()
+            assert 0o644 == stat.S_IMODE(sources_file.stat().mode)
+        else:
+            assert (
+                sources_file.exists() is False
+            ), f"Unexpected file found: {sources_file}"
 
-        (
-            mock_writefile,
-            mock_load_file,
-            mock_isfile,
-            mock_shouldcfg,
-            _mock_subp,
-        ) = self._apt_source_list(distro, cfg, cfg_on_empty=True)
+        assert 1 == mock_shouldcfg.call_count
 
-        template = "/etc/cloud/templates/sources.list.%s.tmpl" % distro
-        mock_writefile.assert_called_once_with(
-            "/etc/apt/sources.list", expected, mode=0o644
-        )
-        mock_load_file.assert_called_with(template)
-        mock_isfile.assert_any_call(template)
-        self.assertEqual(1, mock_shouldcfg.call_count)
-
-    def test_apt_v3_source_list_ubuntu_snappy(self):
+    def test_apt_v3_source_list_ubuntu_snappy(self, mocker):
         """test_apt_v3_source_list_ubuntu_snappy - without custom sources or
         parms"""
         cfg = {"apt": {}}
         mycloud = get_cloud()
 
-        with mock.patch.object(util, "write_file") as mock_writefile:
-            with mock.patch.object(
-                util, "system_is_snappy", return_value=True
-            ) as mock_issnappy:
-                cc_apt_configure.handle("test", cfg, mycloud, None)
+        mock_writefile = mocker.patch.object(util, "write_file")
+        mock_issnappy = mocker.patch.object(util, "system_is_snappy")
+        mock_issnappy.return_value = True
+        cc_apt_configure.handle("test", cfg, mycloud, None)
+        mock_writefile.assert_not_called()
+        assert 1 == mock_issnappy.call_count
 
-        self.assertEqual(0, mock_writefile.call_count)
-        self.assertEqual(1, mock_issnappy.call_count)
-
-    def test_apt_v3_source_list_centos(self):
-        """test_apt_v3_source_list_centos - without custom sources or parms"""
-        cfg = {}
-        distro = "rhel"
-
-        mock_writefile, _, _, _, _ = self._apt_source_list(distro, cfg)
-
-        self.assertEqual(0, mock_writefile.call_count)
-
-    def test_apt_v3_source_list_psm(self):
+    @pytest.mark.parametrize(
+        "tmpl_file,tmpl_content,apt_file,expected",
+        (
+            (
+                "/etc/cloud/templates/sources.list.ubuntu.tmpl",
+                EXAMPLE_TMPL,
+                "/etc/apt/sources.list",
+                EXPECTED_PRIMSEC_CONTENT,
+            ),
+        ),
+    )
+    def test_apt_v3_source_list_psm(
+        self, tmpl_file, tmpl_content, apt_file, expected, tmpdir
+    ):
         """test_apt_v3_source_list_psm - Test specifying prim+sec mirrors"""
         pm = "http://test.ubuntu.com/ubuntu/"
         sm = "http://testsec.ubuntu.com/ubuntu/"
@@ -215,45 +155,36 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
             "primary": [{"arches": ["default"], "uri": pm}],
             "security": [{"arches": ["default"], "uri": sm}],
         }
-        distro = "ubuntu"
-        expected = EXPECTED_PRIMSEC_CONTENT
 
+        util.write_file(tmpl_file, tmpl_content)
+        mycloud = get_cloud("ubuntu")
+        cc_apt_configure.handle("test", {"apt": cfg}, mycloud, None)
+
+        sources_file = tmpdir.join(apt_file)
+        assert expected == sources_file.read()
+        assert 0o644 == stat.S_IMODE(sources_file.stat().mode)
+
+    @pytest.mark.parametrize(
+        "cfg,apt_file,expected",
         (
-            mock_writefile,
-            mock_load_file,
-            mock_isfile,
-            _,
-            _,
-        ) = self._apt_source_list(distro, cfg, cfg_on_empty=True)
-
-        template = "/etc/cloud/templates/sources.list.%s.tmpl" % distro
-        mock_writefile.assert_called_once_with(
-            "/etc/apt/sources.list", expected, mode=0o644
-        )
-        mock_load_file.assert_called_with(template)
-        mock_isfile.assert_any_call(template)
-
-    def test_apt_v3_srcl_custom(self):
+            pytest.param(
+                util.load_yaml(YAML_TEXT_CUSTOM_SL),
+                "/etc/apt/sources.list",
+                EXPECTED_CONVERTED_CONTENT + "# FIND_SOMETHING_SPECIAL\n",
+                id="sources_list_writes_list_file",
+            ),
+        ),
+    )
+    def test_apt_v3_srcl_custom(self, cfg, apt_file, expected, mocker, tmpdir):
         """test_apt_v3_srcl_custom - Test rendering a custom source template"""
-        cfg = util.load_yaml(YAML_TEXT_CUSTOM_SL)
-        mycloud = get_cloud()
+        mycloud = get_cloud("debian")
 
-        with mock.patch.object(util, "write_file") as mockwrite:
-            with mock.patch.object(
-                subp, "subp", return_value=("PPID   PID", "")
-            ) as mocksubp:
-                with mock.patch.object(
-                    Distro, "get_primary_arch", return_value="amd64"
-                ):
-                    cc_apt_configure.handle("notimportant", cfg, mycloud, None)
-
-        calls = [
-            call(
-                "/etc/apt/sources.list", EXPECTED_CONVERTED_CONTENT, mode=0o644
-            )
-        ]
-        mockwrite.assert_has_calls(calls)
-        mocksubp.assert_called_once_with(
+        mocker.patch.object(Distro, "get_primary_arch", return_value="amd64")
+        cc_apt_configure.handle("notimportant", cfg, mycloud, None)
+        sources_file = tmpdir.join(apt_file)
+        assert expected == sources_file.read()
+        assert 0o644 == stat.S_IMODE(sources_file.stat().mode)
+        self.subp.assert_called_once_with(
             ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
             capture=True,
             target=None,

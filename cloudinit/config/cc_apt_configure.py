@@ -562,7 +562,11 @@ def add_apt_sources(
         ent = srcdict[filename]
         LOG.debug("adding source/key '%s'", ent)
         if "filename" not in ent:
-            ent["filename"] = filename
+            if target and filename.startswith(target):
+                # Strip target path prefix from filename
+                ent["filename"] = filename[len(target) :]
+            else:
+                ent["filename"] = filename
 
         if "source" in ent and "$KEY_FILE" in ent["source"]:
             key_file = add_apt_key(ent, target, hardened=True)
