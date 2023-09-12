@@ -8,10 +8,12 @@
 
 """Apt Configure: Configure apt for the user."""
 
+import functools
 import glob
 import os
 import pathlib
 import re
+import shutil
 import signal
 from textwrap import dedent
 
@@ -216,7 +218,7 @@ def apply_apt(cfg, cloud, target):
     LOG.debug("Apt Mirror info: %s", mirrors)
 
     if util.is_false(cfg.get("preserve_sources_list", False)):
-        add_mirror_keys(cfg, target)
+        add_mirror_keys(cfg, cloud, target)
         generate_sources_list(cfg, release, mirrors, cloud)
         rename_apt_lists(mirrors, target, arch)
 
@@ -372,7 +374,7 @@ def rename_apt_lists(new_mirrors, target, arch):
     default_mirrors = get_default_mirrors(arch)
 
     pre = subp.target_path(target, APT_LISTS)
-    for (name, omirror) in default_mirrors.items():
+    for name, omirror in default_mirrors.items():
         nmirror = new_mirrors.get(name)
         if not nmirror:
             continue
@@ -448,11 +450,11 @@ def disable_suites(disabled, src, release):
     return retsrc
 
 
-def add_mirror_keys(cfg, target):
+def add_mirror_keys(cfg, cloud, target):
     """Adds any keys included in the primary/security mirror clauses"""
     for key in ("primary", "security"):
         for mirror in cfg.get(key, []):
-            add_apt_key(mirror, target, file_name=key)
+            add_apt_key(mirror, cloud, target, file_name=key)
 
 
 def generate_sources_list(cfg, release, mirrors, cloud):
@@ -499,12 +501,19 @@ def add_apt_key_raw(key, file_name, hardened=False, target=None):
         raise
 
 
-def add_apt_key(ent, target=None, hardened=False, file_name=None):
+@functools.lru_cache(maxsize=1)
+def _ensure_gpg(cloud):
+    if not shutil.which("gpg"):
+        cloud.distro.install_packages(["gnupg"])
+
+
+def add_apt_key(ent, cloud, target=None, hardened=False, file_name=None):
     """
     Add key to the system as defined in ent (if any).
     Supports raw keys or keyid's
     The latter will as a first step fetched to get the raw key
     """
+    _ensure_gpg(cloud)
     if "keyid" in ent and "key" not in ent:
         keyserver = DEFAULT_KEYSERVER
         if "keyserver" in ent:
@@ -569,10 +578,10 @@ def add_apt_sources(
                 ent["filename"] = filename
 
         if "source" in ent and "$KEY_FILE" in ent["source"]:
-            key_file = add_apt_key(ent, target, hardened=True)
+            key_file = add_apt_key(ent, cloud, target, hardened=True)
             template_params["KEY_FILE"] = key_file
         else:
-            key_file = add_apt_key(ent, target)
+            key_file = add_apt_key(ent, cloud, target)
 
         if "source" not in ent:
             continue

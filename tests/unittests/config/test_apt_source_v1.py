@@ -77,6 +77,7 @@ class TestAptSourceConfig:
             "cloudinit.util.get_dpkg_architecture", return_value="amd64"
         )
         mocker.patch.object(subp, "subp", return_value=("PPID   PID", ""))
+        mocker.patch("cloudinit.config.cc_apt_configure._ensure_gpg")
 
     def _get_default_params(self):
         """get_default_params
@@ -351,16 +352,17 @@ class TestAptSourceConfig:
         Test specification of a source + keyid
         """
         cfg = self.wrapv1conf(cfg)
+        cloud = get_cloud()
 
         with mock.patch.object(cc_apt_configure, "add_apt_key") as mockobj:
-            cc_apt_configure.handle("test", cfg, get_cloud(), [])
+            cc_apt_configure.handle("test", cfg, cloud, [])
 
         # check if it added the right number of keys
         calls = []
         sources = cfg["apt"]["sources"]
         for src in sources:
             print(sources[src])
-            calls.append(call(sources[src], None))
+            calls.append(call(sources[src], cloud, None))
 
         mockobj.assert_has_calls(calls, any_order=True)
 
@@ -473,16 +475,17 @@ class TestAptSourceConfig:
         Test specification of a source + key
         """
         cfg = self.wrapv1conf([cfg])
+        cloud = get_cloud()
 
         with mock.patch.object(cc_apt_configure, "add_apt_key") as mockobj:
-            cc_apt_configure.handle("test", cfg, get_cloud(), [])
+            cc_apt_configure.handle("test", cfg, cloud, [])
 
         # check if it added the right amount of keys
         sources = cfg["apt"]["sources"]
         calls = []
         for src in sources:
             print(sources[src])
-            calls.append(call(sources[src], None))
+            calls.append(call(sources[src], cloud, None))
 
         mockobj.assert_has_calls(calls, any_order=True)
 
