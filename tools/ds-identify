@@ -1060,18 +1060,8 @@ is_azure_chassis() {
 }
 
 dscheck_Azure() {
-    # http://paste.ubuntu.com/23630873/
-    # $ grep /sr0 /run/blkid/blkid.tab
-    # <device DEVNO="0x0b00" TIME="1481737655.543841"
-    #  UUID="112D211272645f72" LABEL="rd_rdfe_stable.161212-1209"
-    #  TYPE="udf">/dev/sr0</device>
-    #
     is_azure_chassis && return $DS_FOUND
     check_seed_dir azure ovf-env.xml && return ${DS_FOUND}
-
-    [ "${DI_VIRT}" = "microsoft" ] || return ${DS_NOT_FOUND}
-
-    has_fs_with_label "rd_rdfe_*" && return ${DS_FOUND}
 
     return ${DS_NOT_FOUND}
 }
