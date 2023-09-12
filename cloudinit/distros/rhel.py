@@ -109,7 +109,20 @@ class Distro(distros.Distro):
             conf.set_hostname(hostname)
             util.write_file(filename, str(conf), 0o644)
         elif self.uses_systemd():
-            subp.subp(["hostnamectl", "set-hostname", str(hostname)])
+            create_hostname_file = util.get_cfg_option_bool(
+                self._cfg, "create_hostname_file", True
+            )
+            if create_hostname_file:
+                subp.subp(["hostnamectl", "set-hostname", str(hostname)])
+            else:
+                subp.subp(
+                    [
+                        "hostnamectl",
+                        "set-hostname",
+                        "--transient",
+                        str(hostname),
+                    ]
+                )
         else:
             host_cfg = {
                 "HOSTNAME": hostname,
