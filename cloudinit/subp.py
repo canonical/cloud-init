@@ -343,9 +343,10 @@ def target_path(target, path=None):
         return target
 
     # os.path.join("/etc", "/foo") returns "/foo". Chomp all leading /.
+    if path.startswith(target):
+        return path
     while len(path) and path[0] == "/":
         path = path[1:]
-
     return os.path.join(target, path)
 
 

@@ -16,8 +16,11 @@ import re
 import shutil
 import signal
 from textwrap import dedent
+from typing import Dict
 
-from cloudinit import gpg, subp, templater, util
+import apt_pkg
+
+from cloudinit import features, gpg, subp, templater, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
@@ -461,34 +464,97 @@ def add_mirror_keys(cfg, cloud, target):
             add_apt_key(mirror, cloud, target, file_name=key)
 
 
+def is_deb822_format(apt_src_content: str) -> bool:
+    """Simple check for deb822 format for apt source content
+
+    Only validates that minimal required keys are present in the file, which
+    indicates we are likely deb822 format.
+
+    Doesn't handle if multiple sections all contain deb822 keys.
+
+    Return True if content looks like it is deb822 formatted APT source.
+    """
+    # TODO(At jammy EOL: use aptsources.sourceslist.Deb822SourceEntry.invalid)
+    try:
+        apt_src = safeyaml.load(apt_src_content)
+    except (safeyaml.YAMLError, TypeError, ValueError):
+        return False
+    if not isinstance(apt_src, dict):
+        return False
+
+    # Are all required deb822 keys present
+    required_keys = set(["Types", "Suites", "Components", "URIs"])
+    return required_keys == required_keys.intersection(apt_src.keys())
+
+
+DEFAULT_APT_CFG = {
+    "sourcelist": "/etc/apt/sources.list",
+    "sourceparts": "/etc/apt/sources.list.d",
+}
+
+
+def get_apt_cfg() -> Dict[str, str]:
+    """Return a dict of applicable apt configuration or defaults."""
+    return {
+        "sourcelist": apt_pkg.config.find_file(
+            "Dir::Etc::sourcelist", DEFAULT_APT_CFG["sourcelist"]
+        ),
+        "sourceparts": apt_pkg.config.find_dir(
+            "Dir::Etc::sourceparts", DEFAULT_APT_CFG["sourceparts"]
+        ),
+    }
+
+
 def generate_sources_list(cfg, release, mirrors, cloud):
     """generate_sources_list
     create a source.list file based on a custom or default template
     by replacing mirrors and release in the template"""
-    aptsrc = "/etc/apt/sources.list"
+    apt_cfg = get_apt_cfg()
+    apt_sources_list = apt_cfg["sourcelist"]
+    apt_sources_deb822 = f"{apt_cfg['sourceparts']}{cloud.distro.name}.sources"
+    if features.APT_DEB822_SOURCE_LIST_FILE:
+        aptsrc_file = apt_sources_deb822
+    else:
+        aptsrc_file = apt_sources_list
+
     params = {"RELEASE": release, "codename": release}
     for k in mirrors:
         params[k] = mirrors[k]
         params[k.lower()] = mirrors[k]
 
     tmpl = cfg.get("sources_list", None)
-    if tmpl is None:
+    if not tmpl:
         LOG.info("No custom template provided, fall back to builtin")
+        tmpl_fmt = ".deb822" if features.APT_DEB822_SOURCE_LIST_FILE else ""
         template_fn = cloud.get_template_filename(
-            "sources.list.%s" % (cloud.distro.name)
+            f"sources.list.{cloud.distro.name}{tmpl_fmt}"
         )
         if not template_fn:
             template_fn = cloud.get_template_filename("sources.list")
         if not template_fn:
-            LOG.warning(
-                "No template found, not rendering /etc/apt/sources.list"
-            )
+            LOG.warning("No template found, not rendering %s", aptsrc_file)
             return
         tmpl = util.load_file(template_fn)
 
     rendered = templater.render_string(tmpl, params)
+    if tmpl:
+        if is_deb822_format(rendered):
+            if aptsrc_file == apt_sources_list:
+                LOG.debug(
+                    "Provided 'sources_list' user-data is deb822 format,"
+                    " writing to %s",
+                    apt_sources_deb822,
+                )
+                aptsrc_file = apt_sources_deb822
+        else:
+            LOG.debug(
+                "Provided 'sources_list' user-data is not deb822 format,"
+                " fallback to %s",
+                apt_sources_list,
+            )
+            aptsrc_file = apt_sources_list
     disabled = disable_suites(cfg.get("disable_suites"), rendered, release)
-    util.write_file(aptsrc, disabled, mode=0o644)
+    util.write_file(aptsrc_file, disabled, mode=0o644)
 
 
 def add_apt_key_raw(key, file_name, hardened=False, target=None):
