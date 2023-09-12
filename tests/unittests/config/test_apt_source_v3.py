@@ -1439,3 +1439,105 @@ class TestDebconfSelections:
     def test_dpkg_reconfigure_not_done_if_no_cleaners(self, m_subp):
         cc_apt_configure.dpkg_reconfigure(["pkgfoo", "pkgbar"])
         m_subp.assert_not_called()
+
+
+DEB822_SINGLE_SUITE = """\
+Types: deb
+URIs: https://ppa.launchpadcontent.net/cloud-init-dev/daily/ubuntu/
+Suites: mantic  # Some comment
+Components: main
+"""
+
+DEB822_DISABLED_SINGLE_SUITE = """\
+## Entry disabled by cloud-init, due to disable_suites
+# disabled by cloud-init: Types: deb
+# disabled by cloud-init: URIs: https://ppa.launchpadcontent.net/cloud-init-dev/daily/ubuntu/
+# disabled by cloud-init: Suites: mantic  # Some comment
+# disabled by cloud-init: Components: main
+"""
+
+DEB822_SINGLE_SECTION_TWO_SUITES = """\
+Types: deb
+URIs: https://ppa.launchpadcontent.net/cloud-init-dev/daily/ubuntu/
+Suites: mantic mantic-updates
+Components: main
+"""
+
+DEB822_SINGLE_SECTION_TWO_SUITES_DISABLE_ONE = """\
+Types: deb
+URIs: https://ppa.launchpadcontent.net/cloud-init-dev/daily/ubuntu/
+# cloud-init disable_suites redacted: Suites: mantic mantic-updates
+Suites: mantic-updates
+Components: main
+"""
+
+DEB822_SUITE_2 = """
+# APT Suite 2
+Types: deb
+URIs: https://ppa.launchpadcontent.net/cloud-init-dev/daily/ubuntu/
+Suites: mantic-backports
+Components: main
+"""
+
+
+DEB822_DISABLED_SINGLE_SUITE = """\
+## Entry disabled by cloud-init, due to disable_suites
+# disabled by cloud-init: Types: deb
+# disabled by cloud-init: URIs: https://ppa.launchpadcontent.net/cloud-init-dev/daily/ubuntu/
+# disabled by cloud-init: Suites: mantic  # Some comment
+# disabled by cloud-init: Components: main
+"""
+
+DEB822_DISABLED_MULTIPLE_SUITES = """\
+## Entry disabled by cloud-init, due to disable_suites
+# disabled by cloud-init: Types: deb
+# disabled by cloud-init: URIs: https://ppa.launchpadcontent.net/cloud-init-dev/daily/ubuntu/
+# disabled by cloud-init: Suites: mantic mantic-updates
+# disabled by cloud-init: Components: main
+"""
+
+
+class TestDisableSuitesDeb822:
+    @pytest.mark.parametrize(
+        "disabled_suites,src,expected",
+        (
+            pytest.param(
+                [],
+                DEB822_SINGLE_SUITE,
+                DEB822_SINGLE_SUITE,
+                id="empty_suites_nochange",
+            ),
+            pytest.param(
+                ["$RELEASE-updates"],
+                DEB822_SINGLE_SUITE,
+                DEB822_SINGLE_SUITE,
+                id="no_matching_suites_nochange",
+            ),
+            pytest.param(
+                ["$RELEASE"],
+                DEB822_SINGLE_SUITE,
+                DEB822_DISABLED_SINGLE_SUITE,
+                id="matching_all_suites_disables_whole_section",
+            ),
+            pytest.param(
+                ["$RELEASE"],
+                DEB822_SINGLE_SECTION_TWO_SUITES + DEB822_SUITE_2,
+                DEB822_SINGLE_SECTION_TWO_SUITES_DISABLE_ONE
+                + "\n"
+                + DEB822_SUITE_2,
+                id="matching_some_suites_redacts_matches_and_comments_orig",
+            ),
+            pytest.param(
+                ["$RELEASE", "$RELEASE-updates"],
+                DEB822_SINGLE_SECTION_TWO_SUITES + DEB822_SUITE_2,
+                DEB822_DISABLED_MULTIPLE_SUITES + "\n" + DEB822_SUITE_2,
+                id="matching_all_suites_disables_specific_section",
+            ),
+        ),
+    )
+    def test_disable_deb822_suites_disables_proper_suites(
+        self, disabled_suites, src, expected
+    ):
+        assert expected == cc_apt_configure.disable_suites_deb822(
+            disabled_suites, src, "mantic"
+        )

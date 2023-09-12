@@ -15,7 +15,7 @@ import pathlib
 import re
 import shutil
 import signal
-from textwrap import dedent
+from textwrap import dedent, indent
 from typing import Dict
 
 import apt_pkg
@@ -34,6 +34,7 @@ ADD_APT_REPO_MATCH = r"^[\w-]+:\w"
 APT_LOCAL_KEYS = "/etc/apt/trusted.gpg"
 APT_TRUSTED_GPG_DIR = "/etc/apt/trusted.gpg.d/"
 CLOUD_INIT_GPG_DIR = "/etc/apt/cloud-init.gpg.d/"
+DISABLE_SUITES_REDACT_PREFIX = "# cloud-init disable_suites redacted: "
 
 frequency = PER_INSTANCE
 distros = ["ubuntu", "debian"]
@@ -419,13 +420,78 @@ def map_known_suites(suite):
     return retsuite
 
 
-def disable_suites(disabled, src, release):
+def disable_deb822_section_without_suites(deb822_entry: str) -> str:
+    """If no active Suites, disable this deb822 source."""
+    if not re.findall(r"\nSuites:[ \t]+([\w-]+)", deb822_entry):
+        # No Suites remaining in this entry, disable full entry
+        # Reconstitute commented Suites line to original as we disable entry
+        deb822_entry = re.sub(r"\nSuites:.*", "", deb822_entry)
+        deb822_entry = re.sub(
+            rf"{DISABLE_SUITES_REDACT_PREFIX}", "", deb822_entry
+        )
+        return (
+            "## Entry disabled by cloud-init, due to disable_suites\n"
+            + indent(deb822_entry, "# disabled by cloud-init: ")
+        )
+    return deb822_entry
+
+
+def disable_suites_deb822(disabled, src, release) -> str:
+    """reads the deb822 format config and comment disabled suites"""
+    new_src = []
+    disabled_suite_names = [
+        templater.render_string(map_known_suites(suite), {"RELEASE": release})
+        for suite in disabled
+    ]
+    LOG.debug("Disabling suites %s as %s", disabled, disabled_suite_names)
+    new_deb822_entry = ""
+    for line in src.splitlines():
+        if line.startswith("#"):
+            if new_deb822_entry:
+                new_deb822_entry += f"{line}\n"
+            else:
+                new_src.append(line)
+            continue
+        if not line or line.isspace():
+            # Validate/disable deb822 entry upon whitespace
+            if new_deb822_entry:
+                new_src.append(
+                    disable_deb822_section_without_suites(new_deb822_entry)
+                )
+                new_deb822_entry = ""
+            new_src.append(line)
+            continue
+        new_line = line
+        if not line.startswith("Suites:"):
+            new_deb822_entry += line + "\n"
+            continue
+        # redact all disabled suite names
+        if disabled_suite_names:
+            # Redact any matching Suites from line
+            orig_suites = line.split()[1:]
+            new_suites = [
+                suite
+                for suite in orig_suites
+                if suite not in disabled_suite_names
+            ]
+            if new_suites != orig_suites:
+                new_deb822_entry += f"{DISABLE_SUITES_REDACT_PREFIX}{line}\n"
+                new_line = f"Suites: {' '.join(new_suites)}"
+        new_deb822_entry += new_line + "\n"
+    if new_deb822_entry:
+        new_src.append(disable_deb822_section_without_suites(new_deb822_entry))
+    return "\n".join(new_src)
+
+
+def disable_suites(disabled, src, release) -> str:
     """reads the config for suites to be disabled and removes those
     from the template"""
     if not disabled:
         return src
 
     retsrc = src
+    if is_deb822_format(src):
+        return disable_suites_deb822(disabled, src, release)
     for suite in disabled:
         suite = map_known_suites(suite)
         releasesuite = templater.render_string(suite, {"RELEASE": release})
