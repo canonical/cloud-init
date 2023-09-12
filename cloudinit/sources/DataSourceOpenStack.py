@@ -50,6 +50,9 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
     # Whether we want to get network configuration from the metadata service.
     perform_dhcp_setup = False
 
+    # wait for metadata service by default, some network backends need it
+    url_max_wait = 120
+
     supported_update_events = {
         EventScope.NETWORK: {
             EventType.BOOT_NEW_INSTANCE,

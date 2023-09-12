@@ -49,7 +49,7 @@ The maximum amount of clock time (in seconds) that should be spent searching
 ``metadata_urls``. A value less than zero will result in only one request
 being made, to the first in the list.
 
-Default: -1
+Default: 120
 
 ``timeout``
 -----------
