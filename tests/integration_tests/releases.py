@@ -53,6 +53,21 @@ class Release:
     def __repr__(self):
         return f"Release({self.os}, {self.version})"
 
+    def __eq__(self, other: object):
+        if not isinstance(other, Release):
+            return False
+        if all(
+            [
+                self.os == other.os,
+                self.series == other.series,
+                self.version == other.version,
+            ]
+        ):
+            if self.image_id and other.image_id:
+                return self.image_id == other.image_id
+            return True  # If either image_id is None then ignore it
+        return False
+
     def __lt__(self, other: "Release"):
         if self.os != other.os:
             raise ValueError(f"{self.os} cannot be compared to {other.os}!")

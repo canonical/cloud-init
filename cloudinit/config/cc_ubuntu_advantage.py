@@ -334,16 +334,9 @@ def configure_ua(token, enable=None):
     # related. We can distinguish them by checking if `service` is non-null
     # or null respectively.
 
-    # pylint: disable=import-error
-    from uaclient.messages import ALREADY_ENABLED
-
-    # pylint: enable=import-error
-
-    UA_MC_ALREADY_ENABLED = ALREADY_ENABLED.name
-
     enable_errors: List[dict] = []
     for err in enable_resp.get("errors", []):
-        if err["message_code"] == UA_MC_ALREADY_ENABLED:
+        if err["message_code"] == "service-already-enabled":
             LOG.debug("Service `%s` already enabled.", err["service"])
             continue
         enable_errors.append(err)
