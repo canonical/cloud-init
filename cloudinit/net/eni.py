@@ -81,7 +81,7 @@ def _iface_add_subnet(iface, subnet):
         if key == "address":
             value = "%s/%s" % (subnet["address"], subnet["prefix"])
         if value and key in valid_map:
-            if type(value) == list:
+            if isinstance(value, list):
                 value = " ".join(value)
             if "_" in key:
                 key = key.replace("_", "-")
@@ -126,7 +126,7 @@ def _iface_add_attrs(iface, index, ipv4_subnet_mtu):
 
     for key, value in iface.items():
         # convert bool to string for eni
-        if type(value) == bool:
+        if isinstance(value, bool):
             value = "on" if iface[key] else "off"
         if not value or key in ignore_map:
             continue
@@ -144,7 +144,7 @@ def _iface_add_attrs(iface, index, ipv4_subnet_mtu):
             for v in value:
                 content.append("    {0} {1}".format(renames.get(key, key), v))
             continue
-        if type(value) == list:
+        if isinstance(value, list):
             value = " ".join(value)
         content.append("    {0} {1}".format(renames.get(key, key), value))
 

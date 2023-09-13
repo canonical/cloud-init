@@ -3,28 +3,51 @@
 # and base configuration.
 {% set is_bsd = variant in ["dragonfly", "freebsd", "netbsd", "openbsd"] %}
 {% set is_rhel = variant in ["almalinux", "centos", "cloudlinux", "eurolinux",
-                             "miraclelinux", "rhel", "rocky", "virtuozzo" ] %}
+                             "miraclelinux", "rhel", "rocky", "virtuozzo"] %}
+{% set gecos = ({"amazon": "EC2 Default User", "centos": "Cloud User",
+                 "debian": "Debian", "dragonfly": "DragonFly",
+                 "freebsd": "FreeBSD", "mariner": "MarinerOS",
+                 "rhel": "Cloud User", "netbsd": "NetBSD",
+                 "openbsd": "openBSD", "openmandriva": "OpenMandriva admin",
+                 "photon": "PhotonOS", "ubuntu": "Ubuntu",
+                 "unknown": "Ubuntu"}) %}
+{% set groups = ({"alpine": "adm, wheel", "arch": "wheel, users",
+                  "debian": "adm, audio, cdrom, dialout, dip, floppy, netdev, plugdev, sudo, video",
+                  "gentoo": "users, wheel", "mariner": "wheel",
+                  "photon": "wheel",
+                  "openmandriva": "wheel, users, systemd-journal",
+                  "suse": "cdrom, users",
+                  "ubuntu": "adm, cdrom, dip, lxd, sudo",
+                  "unknown": "adm, cdrom, dip, lxd, sudo"}) %}
+{% set shells = ({"alpine": "/bin/ash", "dragonfly": "/bin/sh",
+                  "freebsd": "/bin/tcsh", "netbsd": "/bin/sh",
+                  "openbsd": "/bin/ksh"}) %}
+{% set usernames = ({"amazon": "ec2-user", "centos": "cloud-user",
+                     "openmandriva": "omv", "rhel": "cloud-user",
+                     "unknown": "ubuntu"}) %}
 {% if is_bsd %}
 syslog_fix_perms: root:wheel
-{% elif variant in ["suse"] %}
+{% elif variant == "suse" %}
 syslog_fix_perms: root:root
 {% endif %}
+
 # A set of users which may be applied and/or used by various modules
 # when a 'default' entry is found it will reference the 'default_user'
 # from the distro configuration specified below
 users:
-{% if variant in ["photon"] %}
-   - name: root
-     lock_passwd: false
+{% if variant == "photon" %}
+  - name: root
+    lock_passwd: false
 {% else %}
-   - default
+  - default
 {% endif %}
 
-{% if variant in ["photon"] %}
+{% if variant == "photon" %}
 # VMware guest customization.
 disable_vmware_customization: true
 manage_etc_hosts: false
-{% endif %}
+
+{% endif -%}
 
 # If this is set, 'root' will not be able to ssh in and they
 # will get a message to login instead as the default $user
@@ -34,7 +57,9 @@ disable_root: false
 disable_root: true
 {% endif %}
 
-{% if variant in ["alpine", "amazon", "fedora", "openeuler", "OpenCloudOS", "openmandriva", "photon", "TencentOS"] or is_rhel %}
+{%- if variant in ["alpine", "amazon", "fedora", "OpenCloudOS", "openeuler",
+                   "openmandriva", "photon", "TencentOS"] or is_rhel %}
+
 {% if is_rhel %}
 mount_default_fields: [~, ~, 'auto', 'defaults,nofail,x-systemd.requires=cloud-init.service,_netdev', '0', '2']
 {% else %}
@@ -45,340 +70,301 @@ resize_rootfs: noblock
 {% endif %}
 {% if variant not in ["photon"] %}
 resize_rootfs_tmp: /dev
-ssh_pwauth:   false
+ssh_pwauth: false
 {% endif %}
 {% endif %}
 
 # This will cause the set+update hostname module to not operate (if true)
 preserve_hostname: false
 
+{% if variant == "debian" %}
+apt:
+  # This prevents cloud-init from rewriting apt's sources.list file,
+  # which has been a source of surprise.
+  preserve_sources_list: true
+
+{% endif -%}
+
 # If you use datasource_list array, keep array items in a single line.
 # If you use multi line array, ds-identify script won't read array items.
 # Example datasource config
 # datasource:
-#    Ec2:
-#      metadata_urls: [ 'blah.com' ]
-#      timeout: 5 # (defaults to 50 seconds)
-#      max_wait: 10 # (defaults to 120 seconds)
-
+#   Ec2:
+#     metadata_urls: [ 'blah.com' ]
+#     timeout: 5 # (defaults to 50 seconds)
+#     max_wait: 10 # (defaults to 120 seconds)
 
 {% if variant == "amazon" %}
 # Amazon Linux relies on ec2-net-utils for network configuration
 network:
   config: disabled
-{% endif %}
+
+{% endif -%}
 
 {% if is_rhel %}
 # Default redhat settings:
-ssh_deletekeys:   true
-ssh_genkeytypes:  ['rsa', 'ecdsa', 'ed25519']
+ssh_deletekeys: true
+ssh_genkeytypes: ['rsa', 'ecdsa', 'ed25519']
 syslog_fix_perms: ~
 disable_vmware_customization: false
-{% endif %}
+{% endif -%}
 
 # The modules that run in the 'init' stage
 cloud_init_modules:
- - migrator
+  - migrator
 {% if variant not in ["netbsd"] %}
- - seed_random
+  - seed_random
 {% endif %}
- - bootcmd
- - write_files
+  - bootcmd
+  - write_files
 {% if variant not in ["netbsd", "openbsd"] %}
- - growpart
- - resizefs
+  - growpart
+  - resizefs
 {% endif %}
 {% if not is_bsd %}
- - disk_setup
- - mounts
+  - disk_setup
+  - mounts
 {% endif %}
- - set_hostname
- - update_hostname
- - update_etc_hosts
+  - set_hostname
+  - update_hostname
+  - update_etc_hosts
 {% if variant in ["alpine", "photon"] %}
- - resolv_conf
+  - resolv_conf
 {% endif %}
 {% if not is_bsd or variant not in ["photon"] %}
- - ca_certs
+  - ca_certs
 {% endif %}
- - rsyslog
- - users_groups
- - ssh
+  - rsyslog
+  - users_groups
+  - ssh
 
 # The modules that run in the 'config' stage
 cloud_config_modules:
 {% if variant in ["ubuntu"] %}
- - wireguard
+  - wireguard
 {% endif %}
-{% if variant in ["ubuntu", "unknown", "debian"] %}
- - snap
+{% if variant in ["debian", "ubuntu", "unknown"] %}
+  - snap
 {% endif %}
-{% if variant in ["ubuntu"] %}
- - ubuntu_autoinstall
+{% if variant == "ubuntu" %}
+  - ubuntu_autoinstall
 {% endif %}
 {% if variant not in ["photon"] %}
- - ssh_import_id
+  - ssh_import_id
 {% if not is_rhel %}
- - keyboard
+  - keyboard
 {% endif %}
- - locale
+  - locale
 {% endif %}
- - set_passwords
+  - set_passwords
+{% if variant == "alpine" %}
+  - apk_configure
+{% elif variant in ["debian", "ubuntu", "unknown"] %}
+  - grub_dpkg
+  - apt_pipelining
+  - apt_configure
+{% if variant == "ubuntu" %}
+  - ubuntu_advantage
+{% endif %}
+{% elif variant in ["fedora", "mariner", "openeuler", "openmandriva",
+                    "photon"] or is_rhel %}
 {% if is_rhel %}
- - rh_subscription
+  - rh_subscription
 {% endif %}
-{% if variant in ["fedora", "mariner", "openmandriva", "photon", "openeuler"] or is_rhel %}
 {% if variant not in ["mariner", "photon"] %}
- - spacewalk
+  - spacewalk
 {% endif %}
- - yum_add_repo
+  - yum_add_repo
+{% elif variant == "suse" %}
+  - zypper_add_repo
 {% endif %}
-{% if variant in ["ubuntu", "unknown", "debian"] %}
- - grub_dpkg
- - apt_pipelining
- - apt_configure
-{% endif %}
-{% if variant in ["ubuntu"] %}
- - ubuntu_advantage
-{% endif %}
-{% if variant in ["suse"] %}
- - zypper_add_repo
-{% endif %}
-{% if variant in ["alpine"] %}
- - apk_configure
-{% endif %}
- - ntp
- - timezone
- - disable_ec2_metadata
- - runcmd
-{% if variant in ["ubuntu", "unknown", "debian"] %}
- - byobu
+  - ntp
+  - timezone
+  - disable_ec2_metadata
+  - runcmd
+{% if variant in ["debian", "ubuntu", "unknown"] %}
+  - byobu
 {% endif %}
 
 # The modules that run in the 'final' stage
 cloud_final_modules:
- - package_update_upgrade_install
-{% if variant in ["ubuntu", "unknown", "debian"] %}
- - fan
- - landscape
- - lxd
+  - package_update_upgrade_install
+{% if variant in ["debian", "ubuntu", "unknown"] %}
+  - fan
+  - landscape
+  - lxd
 {% endif %}
 {% if variant in ["ubuntu", "unknown"] %}
- - ubuntu_drivers
+  - ubuntu_drivers
 {% endif %}
- - write_files_deferred
- - puppet
- - chef
- - ansible
- - mcollective
- - salt_minion
- - reset_rmc
- - rightscale_userdata
- - scripts_vendor
- - scripts_per_once
- - scripts_per_boot
- - scripts_per_instance
- - scripts_user
- - ssh_authkey_fingerprints
- - keys_to_console
- - install_hotplug
- - phone_home
- - final_message
- - power_state_change
+  - write_files_deferred
+  - puppet
+  - chef
+  - ansible
+  - mcollective
+  - salt_minion
+  - reset_rmc
+  - rightscale_userdata
+  - scripts_vendor
+  - scripts_per_once
+  - scripts_per_boot
+  - scripts_per_instance
+  - scripts_user
+  - ssh_authkey_fingerprints
+  - keys_to_console
+  - install_hotplug
+  - phone_home
+  - final_message
+  - power_state_change
 
 # System and/or distro specific settings
 # (not accessible to handlers/transforms)
 system_info:
-   # This will affect which distro class gets used
+  # This will affect which distro class gets used
 {% if variant in ["alpine", "amazon", "arch", "debian", "fedora", "freebsd",
-                  "gentoo", "netbsd", "mariner", "openbsd", "openeuler", "OpenCloudOS",
-                  "openmandriva", "photon", "suse", "TencentOS", "ubuntu"] or is_rhel %}
-   distro: {{ variant }}
-{% elif variant in ["dragonfly"] %}
-   distro: dragonflybsd
+                  "gentoo", "mariner", "netbsd", "openbsd", "OpenCloudOS",
+                  "openeuler", "openmandriva", "photon", "suse", "TencentOS",
+                  "ubuntu"] or is_rhel %}
+  distro: {{ variant }}
+{% elif variant == "dragonfly" %}
+  distro: dragonflybsd
 {% else %}
-   # Unknown/fallback distro.
-   distro: ubuntu
+  # Unknown/fallback distro.
+  distro: ubuntu
 {% endif %}
-{% if variant in ["ubuntu", "unknown", "debian"] %}
-   # Default user name + that default users groups (if added/used)
-   default_user:
-     name: ubuntu
-     lock_passwd: True
-     gecos: Ubuntu
-     groups: [adm, cdrom, dip, lxd, sudo]
-     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
-     shell: /bin/bash
-{# SRU_BLOCKER: do not ship network renderers on Xenial, Bionic or Eoan #}
-   network:
-     renderers: ['netplan', 'eni', 'sysconfig']
-     activators: ['netplan', 'eni', 'network-manager', 'networkd']
-   # Automatically discover the best ntp_client
-   ntp_client: auto
-   # Other config here will be given to the distro class and/or path classes
-   paths:
-      cloud_dir: /var/lib/cloud/
-      templates_dir: /etc/cloud/templates/
-   package_mirrors:
-     - arches: [i386, amd64]
-       failsafe:
-         primary: http://archive.ubuntu.com/ubuntu
-         security: http://security.ubuntu.com/ubuntu
-       search:
-         primary:
-           - http://%(ec2_region)s.ec2.archive.ubuntu.com/ubuntu/
-           - http://%(availability_zone)s.clouds.archive.ubuntu.com/ubuntu/
-           - http://%(region)s.clouds.archive.ubuntu.com/ubuntu/
-         security: []
-     - arches: [arm64, armel, armhf]
-       failsafe:
-         primary: http://ports.ubuntu.com/ubuntu-ports
-         security: http://ports.ubuntu.com/ubuntu-ports
-       search:
-         primary:
-           - http://%(ec2_region)s.ec2.ports.ubuntu.com/ubuntu-ports/
-           - http://%(availability_zone)s.clouds.ports.ubuntu.com/ubuntu-ports/
-           - http://%(region)s.clouds.ports.ubuntu.com/ubuntu-ports/
-         security: []
-     - arches: [default]
-       failsafe:
-         primary: http://ports.ubuntu.com/ubuntu-ports
-         security: http://ports.ubuntu.com/ubuntu-ports
-   ssh_svcname: ssh
-{% elif variant in ["alpine", "amazon", "arch", "fedora",
-                    "gentoo", "openeuler", "OpenCloudOS", "openmandriva", "suse", "TencentOS"] or is_rhel %}
-   # Default user name + that default users groups (if added/used)
-   default_user:
-{% if variant == "amazon" %}
-     name: ec2-user
-     lock_passwd: True
-     gecos: EC2 Default User
-{% elif variant in ["rhel", "centos"] %}
-     name: cloud-user
-     lock_passwd: true
-     gecos: Cloud User
-{% elif variant == "openmandriva" %}
-     name: omv
-     lock_passwd: True
-     gecos: OpenMandriva admin
+  # Default user name + that default users groups (if added/used)
+  default_user:
+{% if variant in usernames %}
+    name: {{ usernames[variant] }}
 {% else %}
-     name: {{ variant }}
-     lock_passwd: True
-     gecos: {{ variant }} Cloud User
+    name: {{ variant }}
 {% endif %}
-{% if variant == "suse" %}
-     groups: [cdrom, users]
-{% elif variant == "gentoo" %}
-     groups: [users, wheel]
-     primary_group: users
-     no_user_group: true
-{% elif variant == "alpine" %}
-     groups: [adm, sudo]
-{% elif variant == "arch" %}
-     groups: [wheel, users]
-{% elif variant == "openmandriva" %}
-     groups: [wheel, users, systemd-journal]
+{% if variant in ["alpine", "amazon", "arch", "debian", "fedora", "gentoo",
+                  "mariner", "OpenCloudOS", "openeuler", "openmandriva",
+                  "photon", "suse", "TencentOS", "ubuntu", "unknown"]
+                 or is_bsd or is_rhel %}
+    lock_passwd: True
+{% endif %}
+{% if variant in gecos %}
+    gecos: {{ gecos[variant] }}
+{% else %}
+    gecos: {{ variant }} Cloud User
+{% endif %}
+{% if variant in groups %}
+    groups: [{{ groups[variant] }}]
+{% elif is_bsd %}
+    groups: [wheel]
 {% elif is_rhel %}
-     groups: [adm, systemd-journal]
+    groups: [adm, systemd-journal]
 {% else %}
-     groups: [wheel, adm, systemd-journal]
+    groups: [wheel, adm, systemd-journal]
 {% endif %}
-     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+{% if variant == "gentoo" %}
+    primary_group: users
+    no_user_group: true
+{% endif %}
+{% if variant in ["alpine", "freebsd", "openbsd"] %}
+{% if variant in usernames %}
+    doas:
+      - permit nopass usernames[{{ variant }}]
+{% else %}
+    doas:
+      - permit nopass {{ variant }}
+{% endif %}
+{% endif %}
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+{% if variant in shells %}
+    shell: {{ shells[variant] }}
+{% else %}
+    shell: /bin/bash
+{% endif %}
 {% if variant == "alpine" %}
-     shell: /bin/ash
-{% else %}
-     shell: /bin/bash
-{% endif %}
-   # Other config here will be given to the distro class and/or path classes
-   paths:
-      cloud_dir: /var/lib/cloud/
-      templates_dir: /etc/cloud/templates/
-   ssh_svcname: sshd
-{% elif variant in ["freebsd"] %}
-   # Default user name + that default users groups (if added/used)
-   default_user:
-     name: freebsd
-     lock_passwd: True
-     gecos: FreeBSD
-     groups: [wheel]
-     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
-     shell: /bin/tcsh
-{% elif variant in ["dragonfly"] %}
-   # Default user name + that default users groups (if added/used)
-   default_user:
-     name: dragonfly
-     lock_passwd: True
-     gecos: DragonFly
-     groups: [wheel]
-     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
-     shell: /bin/sh
-{% elif variant in ["netbsd"] %}
-   default_user:
-     name: netbsd
-     lock_passwd: True
-     gecos: NetBSD
-     groups: [wheel]
-     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
-     shell: /bin/sh
-{% elif variant in ["openbsd"] %}
-   default_user:
-     name: openbsd
-     lock_passwd: True
-     gecos: OpenBSD
-     groups: [wheel]
-     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
-     shell: /bin/ksh
-{% elif variant == "photon" %}
-   default_user:
-     name: photon
-     lock_passwd: True
-     gecos: PhotonOS
-     groups: [wheel]
-     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
-     shell: /bin/bash
-   # Other config here will be given to the distro class and/or path classes
-   paths:
-      cloud_dir: /var/lib/cloud/
-      templates_dir: /etc/cloud/templates/
-   network:
-      renderers: ['networkd']
-
-   ssh_svcname: sshd
-
-   # If set to true, cloud-init will not use fallback network config.
-   # In Photon, we have default network settings, hence if network settings are
-   # not explicitly given in metadata, don't use fallback network config.
-   disable_fallback_netcfg: true
-{% elif variant in ["mariner"] %}
-   default_user:
-     name: mariner
-     lock_passwd: True
-     gecos: MarinerOS
-     groups: [wheel]
-     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
-     shell: /bin/bash
-   # Other config here will be given to the distro class and/or path classes
-   paths:
-      cloud_dir: /var/lib/cloud/
-      templates_dir: /etc/cloud/templates/
-   network:
-      renderers: ['networkd']
-
-   ssh_svcname: sshd
-{% endif %}
-{% if variant in ["freebsd", "netbsd", "openbsd"] %}
-   network:
-      renderers: ['{{ variant }}']
-{% elif variant in ["dragonfly"] %}
-   network:
-      renderers: ['freebsd']
-{% elif variant in ["fedora"] %}
-   network:
-      renderers: ['netplan', 'network-manager', 'networkd', 'sysconfig', 'eni']
-{% elif is_rhel %}
-   network:
-      renderers: ['sysconfig', 'eni', 'netplan', 'network-manager', 'networkd' ]
+  network:
+    renderers: ['eni']
+{% elif variant == "debian" %}
+  network:
+    renderers: ['netplan', 'eni', 'networkd']
+    activators: ['netplan', 'eni', 'network-manager', 'networkd']
+{% elif variant == "dragonfly" %}
+  network:
+    renderers: ['freebsd']
+{% elif variant == "fedora" %}
+  network:
+    renderers: ['netplan', 'network-manager', 'networkd', 'sysconfig', 'eni']
+{% elif variant in ["freebsd", "netbsd", "openbsd"] %}
+  network:
+    renderers: ['{{ variant }}']
+{% elif variant in ["mariner", "photon"] %}
+  network:
+    renderers: ['networkd']
 {% elif variant == "openmandriva" %}
-   network:
-      renderers: ['network-manager', 'networkd']
+  network:
+    renderers: ['network-manager', 'networkd']
+{% elif variant in ["ubuntu", "unknown"] %}
+{# SRU_BLOCKER: do not ship network renderers on Xenial, Bionic or Eoan #}
+  network:
+    renderers: ['netplan', 'eni', 'sysconfig']
+    activators: ['netplan', 'eni', 'network-manager', 'networkd']
+{% elif is_rhel %}
+  network:
+    renderers: ['sysconfig', 'eni', 'netplan', 'network-manager', 'networkd']
+{% endif %}
+{% if variant == "photon" %}
+  # If set to true, cloud-init will not use fallback network config.
+  # In Photon, we have default network settings, hence if network settings are
+  # not explicitly given in metadata, don't use fallback network config.
+  disable_fallback_netcfg: true
+{% endif %}
+{% if variant in ["debian", "ubuntu", "unknown"] %}
+  # Automatically discover the best ntp_client
+  ntp_client: auto
+{% endif %}
+{% if variant in ["alpine", "amazon", "arch", "debian", "fedora", "gentoo",
+                  "mariner", "OpenCloudOS", "openeuler", "openmandriva",
+                  "photon", "suse", "TencentOS", "ubuntu", "unknown"]
+                  or is_rhel %}
+  # Other config here will be given to the distro class and/or path classes
+  paths:
+    cloud_dir: /var/lib/cloud/
+    templates_dir: /etc/cloud/templates/
+{% endif %}
+{% if variant == "debian" %}
+  package_mirrors:
+    - arches: [default]
+      failsafe:
+        primary: https://deb.debian.org/debian
+        security: https://deb.debian.org/debian-security
+{% elif variant in ["ubuntu", "unknown"] %}
+  package_mirrors:
+    - arches: [i386, amd64]
+      failsafe:
+        primary: http://archive.ubuntu.com/ubuntu
+        security: http://security.ubuntu.com/ubuntu
+      search:
+        primary:
+          - http://%(ec2_region)s.ec2.archive.ubuntu.com/ubuntu/
+          - http://%(availability_zone)s.clouds.archive.ubuntu.com/ubuntu/
+          - http://%(region)s.clouds.archive.ubuntu.com/ubuntu/
+        security: []
+    - arches: [arm64, armel, armhf]
+      failsafe:
+        primary: http://ports.ubuntu.com/ubuntu-ports
+        security: http://ports.ubuntu.com/ubuntu-ports
+      search:
+        primary:
+          - http://%(ec2_region)s.ec2.ports.ubuntu.com/ubuntu-ports/
+          - http://%(availability_zone)s.clouds.ports.ubuntu.com/ubuntu-ports/
+          - http://%(region)s.clouds.ports.ubuntu.com/ubuntu-ports/
+        security: []
+    - arches: [default]
+      failsafe:
+        primary: http://ports.ubuntu.com/ubuntu-ports
+        security: http://ports.ubuntu.com/ubuntu-ports
+{% endif %}
+{% if variant in ["debian", "ubuntu", "unknown"] %}
+  ssh_svcname: ssh
+{% elif variant in ["alpine", "amazon", "arch", "fedora", "gentoo",
+                    "mariner", "OpenCloudOS", "openeuler", "openmandriva",
+                    "photon", "suse", "TencentOS"] or is_rhel %}
+  ssh_svcname: sshd
 {% endif %}

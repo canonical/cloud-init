@@ -6,6 +6,7 @@ from unittest import mock
 import pytest
 import setuptools
 
+
 from setup_utils import version_to_pep440
 
 try:
@@ -14,7 +15,8 @@ try:
 except AttributeError:
     pytest.skip(
         "Unable to import necessary setuptools utilities. "
-        "Version is likely too old."
+        "Version is likely too old.",
+        allow_module_level=True,
     )
 
 # Since read-version has a '-' and no .py extension, we have to do this

@@ -183,7 +183,13 @@ class Distro(distros.Distro):
             # so lets see if we can read it first.
             conf = self._read_hostname_conf(filename)
         except IOError:
-            pass
+            create_hostname_file = util.get_cfg_option_bool(
+                self._cfg, "create_hostname_file", True
+            )
+            if create_hostname_file:
+                pass
+            else:
+                return
         if not conf:
             conf = HostnameConf("")
 
@@ -218,7 +224,7 @@ class Distro(distros.Distro):
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
 
     def package_command(self, command, args=None, pkgs=None):
-        cmd = list("emerge")
+        cmd = ["emerge"]
         # Redirect output
         cmd.append("--quiet")
 

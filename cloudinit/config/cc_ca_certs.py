@@ -174,7 +174,7 @@ def disable_default_ca_certs(distro_name, distro_cfg):
             debconf_sel = (
                 "ca-certificates ca-certificates/trust_new_crts " + "select no"
             )
-            subp.subp(("debconf-set-selections", "-"), debconf_sel)
+            subp.subp(("debconf-set-selections", "-"), data=debconf_sel)
 
 
 def disable_system_ca_certs(distro_cfg):

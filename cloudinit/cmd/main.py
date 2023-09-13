@@ -82,10 +82,21 @@ def print_exc(msg=""):
     sys.stderr.write("\n")
 
 
+def log_ppid():
+    if util.is_Linux():
+        ppid = os.getppid()
+        LOG.info(
+            "PID [%s] started cloud-init using: %s",
+            ppid,
+            os.path.realpath(f"/proc/{ppid}/exe"),
+        )
+
+
 def welcome(action, msg=None):
     if not msg:
         msg = welcome_format(action)
     util.multi_log("%s\n" % (msg), console=False, stderr=True, log=LOG)
+    log_ppid()
     return msg
 
 

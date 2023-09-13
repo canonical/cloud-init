@@ -739,6 +739,9 @@ probe_floppy() {
 dscheck_CloudStack() {
     is_container && return ${DS_NOT_FOUND}
     dmi_product_name_matches "CloudStack*" && return $DS_FOUND
+    if [ "$DI_VIRT" = "vmware" ] || [ "$DI_VIRT" = "xen" ]; then
+        return $DS_MAYBE
+    fi
     return $DS_NOT_FOUND
 }
 
@@ -777,21 +780,24 @@ check_config() {
     if [ "$1" = "$files" -a ! -f "$1" ]; then
         return 1
     fi
-    local fname="" line="" ret="" found=0 found_fn=""
-    # shellcheck disable=2094
-    for fname in "$@"; do
-        [ -f "$fname" ] || continue
-        while read line; do
-            line=${line%%#*}
-            case "$line" in
-                $key:\ *|"${key}":)
-                    ret=${line#*:};
-                    ret=${ret# };
-                    found=$((found+1))
-                    found_fn="$fname";;
-            esac
-        done <"$fname"
+    local line="" ret="" found=0 found_fn="" oifs="$IFS" out=""
+    out=$(grep "$key\"\?:" "$@" 2>/dev/null)
+    IFS=${CR}
+    for line in $out; do
+        # drop '# comment'
+        line=${line%%#*}
+        # if more than one file was 'grep'ed, then grep will output filename:
+        # but if only one file, line will not be prefixed.
+        if [ $# -eq 1 ]; then
+            found_fn="$1"
+        else
+            found_fn="${line%%:*}"
+            line=${line#*:}
+        fi
+        ret=${line#*: };
+        found=$((found+1))
     done
+    IFS="$oifs"
     if [ $found -ne 0 ]; then
         _RET="$ret"
         _RET_fname="$found_fn"
@@ -1054,18 +1060,8 @@ is_azure_chassis() {
 }
 
 dscheck_Azure() {
-    # http://paste.ubuntu.com/23630873/
-    # $ grep /sr0 /run/blkid/blkid.tab
-    # <device DEVNO="0x0b00" TIME="1481737655.543841"
-    #  UUID="112D211272645f72" LABEL="rd_rdfe_stable.161212-1209"
-    #  TYPE="udf">/dev/sr0</device>
-    #
     is_azure_chassis && return $DS_FOUND
     check_seed_dir azure ovf-env.xml && return ${DS_FOUND}
-
-    [ "${DI_VIRT}" = "microsoft" ] || return ${DS_NOT_FOUND}
-
-    has_fs_with_label "rd_rdfe_*" && return ${DS_FOUND}
 
     return ${DS_NOT_FOUND}
 }

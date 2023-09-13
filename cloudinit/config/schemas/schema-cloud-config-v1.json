@@ -140,6 +140,14 @@
           "description": "The user's login name. Required otherwise user creation will be skipped for this user.",
           "type": "string"
         },
+        "doas": {
+          "description": "List of doas rules to add for a user. doas or opendoas must be installed for rules to take effect.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
         "expiredate": {
           "default": null,
           "description": "Optional. Date on which the user's account will be disabled. Default: ``null``",
@@ -1419,7 +1427,7 @@
             },
             "variant": {
               "type": "string",
-              "description": "Optional. Keyboard variant. Corresponds to XKBVARIANT."
+              "description": "Required for Alpine Linux, optional otherwise. Keyboard variant. Corresponds to XKBVARIANT."
             },
             "options": {
               "type": "string",
@@ -1903,7 +1911,7 @@
                 },
                 "template": {
                   "type": "string",
-                  "description": "Inline template allowing users to define their\nown ``ntp_client`` configuration template.\nThe value must start with '## template:jinja'\nto enable use of templating support.\n"
+                  "description": "Inline template allowing users to customize their ``ntp_client`` configuration with the use of the Jinja templating engine.\nThe template content should start with ``## template:jinja``.\nWithin the template, you can utilize any of the following ntp module config keys: ``servers``, ``pools``, ``allow``, and ``peers``.\nEach cc_ntp schema config key and expected value type is defined above."
                 }
               }
             }
@@ -2568,6 +2576,11 @@
         "prefer_fqdn_over_hostname": {
           "type": "boolean",
           "description": "If true, the fqdn will be used if it is set. If false, the hostname will be used. If unset, the result is distro-dependent"
+        },
+        "create_hostname_file": {
+          "type": "boolean",
+          "default": true,
+          "description": "If ``false``, the hostname file (e.g. /etc/hostname) will not be created if it does not exist. On systems that use systemd, setting create_hostname_file to ``false`` will set the hostname transiently. If ``true``, the hostname file will always be created and the hostname will be set statically on systemd systems. Default: ``true``"
         }
       }
     },
@@ -3056,6 +3069,11 @@
           "type": "boolean",
           "default": null,
           "description": "By default, it is distro-dependent whether cloud-init uses the short hostname or fully qualified domain name when both ``local-hostname` and ``fqdn`` are both present in instance metadata. When set ``true``, use fully qualified domain name if present as hostname instead of short hostname. When set ``false``, use ``hostname`` config value if present, otherwise fallback to ``fqdn``."
+        },
+        "create_hostname_file": {
+          "type": "boolean",
+          "default": true,
+          "description": "If ``false``, the hostname file (e.g. /etc/hostname) will not be created if it does not exist. On systems that use systemd, setting create_hostname_file to ``false`` will set the hostname transiently. If ``true``, the hostname file will always be created and the hostname will be set statically on systemd systems. Default: ``true``"
         }
       }
     },

@@ -317,9 +317,11 @@ def create_swapfile(fname: str, size: str) -> None:
 
     fstype = util.get_mount_info(swap_dir)[1]
 
-    if (
-        fstype == "xfs" and util.kernel_version() < (4, 18)
-    ) or fstype == "btrfs":
+    if fstype == "btrfs":
+        subp.subp(["truncate", "-s", "0", fname])
+        subp.subp(["chattr", "+C", fname])
+
+    if fstype == "xfs" and util.kernel_version() < (4, 18):
         create_swap(fname, size, "dd")
     else:
         try:

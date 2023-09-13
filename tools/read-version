@@ -89,7 +89,12 @@ def get_version_from_git(
                 version = tiny_p(cmd).strip()
                 version_long = tiny_p(cmd + ["--long"]).strip()
             except subprocess.CalledProcessError as e:
-                if "No tags can describe" not in e.stderr:
+                if not any(
+                    [
+                        "No tags can describe" in e.stderr,
+                        "cannot describe anything" in e.stderr,
+                    ]
+                ):
                     raise
                 version = src_version
                 version_long = ""

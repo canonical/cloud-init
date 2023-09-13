@@ -16,7 +16,6 @@ BOGUS_COMMAND = "this-is-not-expected-to-be-a-program-name"
 
 
 class TestPrependBaseCommands(CiTestCase):
-
     with_logs = True
 
     def test_prepend_base_command_errors_on_neither_string_nor_list(self):
@@ -239,6 +238,7 @@ class TestSubp(CiTestCase):
             capture=True,
             combine_capture=True,
             decode=False,
+            env={"LANG": "C"},
             data=data,
         )
         self.assertEqual(b"", err)

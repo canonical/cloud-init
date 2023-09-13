@@ -259,5 +259,95 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         contents = util.load_file("/etc/hostname")
         self.assertEqual("blah", contents.strip())
 
+    def test_create_hostname_file_false(self):
+        cfg = {
+            "hostname": "foo",
+            "fqdn": "foo.blah.yahoo.com",
+            "create_hostname_file": False,
+        }
+        distro = self._fetch_distro("debian")
+        paths = helpers.Paths({"cloud_dir": self.tmp})
+        ds = None
+        cc = cloud.Cloud(ds, paths, {}, distro, None)
+        self.patchUtils(self.tmp)
+        cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
+        with self.assertRaises(FileNotFoundError):
+            util.load_file("/etc/hostname")
+
+    def test_create_hostname_file_false_arch(self):
+        cfg = {
+            "hostname": "foo",
+            "fqdn": "foo.blah.yahoo.com",
+            "create_hostname_file": False,
+        }
+        distro = self._fetch_distro("arch")
+        paths = helpers.Paths({"cloud_dir": self.tmp})
+        ds = None
+        cc = cloud.Cloud(ds, paths, {}, distro, None)
+        self.patchUtils(self.tmp)
+        cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
+        with self.assertRaises(FileNotFoundError):
+            util.load_file("/etc/hostname")
+
+    def test_create_hostname_file_false_alpine(self):
+        cfg = {
+            "hostname": "foo",
+            "fqdn": "foo.blah.yahoo.com",
+            "create_hostname_file": False,
+        }
+        distro = self._fetch_distro("alpine")
+        paths = helpers.Paths({"cloud_dir": self.tmp})
+        ds = None
+        cc = cloud.Cloud(ds, paths, {}, distro, None)
+        self.patchUtils(self.tmp)
+        cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
+        with self.assertRaises(FileNotFoundError):
+            util.load_file("/etc/hostname")
+
+    def test_create_hostname_file_false_gentoo(self):
+        cfg = {
+            "hostname": "foo",
+            "fqdn": "foo.blah.yahoo.com",
+            "create_hostname_file": False,
+        }
+        distro = self._fetch_distro("gentoo")
+        paths = helpers.Paths({"cloud_dir": self.tmp})
+        ds = None
+        cc = cloud.Cloud(ds, paths, {}, distro, None)
+        self.patchUtils(self.tmp)
+        cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
+        with self.assertRaises(FileNotFoundError):
+            util.load_file("/etc/hostname")
+
+    def test_create_hostname_file_false_photon(self):
+        cfg = {
+            "hostname": "foo",
+            "fqdn": "foo.blah.yahoo.com",
+            "create_hostname_file": False,
+        }
+        distro = self._fetch_distro("photon")
+        paths = helpers.Paths({"cloud_dir": self.tmp})
+        ds = None
+        cc = cloud.Cloud(ds, paths, {}, distro, None)
+        self.patchUtils(self.tmp)
+        cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
+        with self.assertRaises(FileNotFoundError):
+            util.load_file("/etc/hostname")
+
+    def test_create_hostname_file_false_rhel(self):
+        cfg = {
+            "hostname": "foo",
+            "fqdn": "foo.blah.yahoo.com",
+            "create_hostname_file": False,
+        }
+        distro = self._fetch_distro("rhel")
+        paths = helpers.Paths({"cloud_dir": self.tmp})
+        ds = None
+        cc = cloud.Cloud(ds, paths, {}, distro, None)
+        self.patchUtils(self.tmp)
+        cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
+        with self.assertRaises(FileNotFoundError):
+            util.load_file("/etc/hostname")
+
 
 # vi: ts=4 expandtab

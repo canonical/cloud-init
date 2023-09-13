@@ -27,7 +27,7 @@ from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import SubpResult
 from tests.unittests import helpers
-from tests.unittests.helpers import CiTestCase, skipUnlessJinja
+from tests.unittests.helpers import CiTestCase, skipIf, skipUnlessJinja
 
 LOG = logging.getLogger(__name__)
 M_PATH = "cloudinit.util."
@@ -2728,6 +2728,9 @@ class TestLoadShellContent(helpers.TestCase):
         )
 
 
+@skipIf(
+    not util.is_Linux(), "These tests don't make sense on non-Linux systems."
+)
 class TestGetProcEnv(helpers.TestCase):
     """test get_proc_env."""
 
@@ -2791,13 +2794,32 @@ class TestGetProcEnv(helpers.TestCase):
         self.assertEqual({}, util.get_proc_env(1))
         self.assertEqual(1, m_load_file.call_count)
 
-    def test_get_proc_ppid(self):
+
+class TestGetProcPpid(helpers.TestCase):
+    """test get_proc_ppid"""
+
+    @skipIf(not util.is_Linux(), "/proc/$pid/stat is not useful on not-Linux")
+    @mock.patch(M_PATH + "is_Linux")
+    def test_get_proc_ppid_linux(self, m_is_Linux):
         """get_proc_ppid returns correct parent pid value."""
+        m_is_Linux.return_value = True
         my_pid = os.getpid()
         my_ppid = os.getppid()
         self.assertEqual(my_ppid, util.get_proc_ppid(my_pid))
 
-    def test_get_proc_ppid_mocked(self):
+    @pytest.mark.allow_subp_for("ps")
+    @mock.patch(M_PATH + "is_Linux")
+    def test_get_proc_ppid_ps(self, m_is_Linux):
+        """get_proc_ppid returns correct parent pid value."""
+        m_is_Linux.return_value = False
+        my_pid = os.getpid()
+        my_ppid = os.getppid()
+        self.assertEqual(my_ppid, util.get_proc_ppid(my_pid))
+
+    @mock.patch(M_PATH + "is_Linux")
+    def test_get_proc_ppid_mocked(self, m_is_Linux):
+        m_is_Linux.return_value = True
+
         for ppid, proc_data in (
             (
                 0,
@@ -3137,3 +3159,25 @@ class TestComparePermissions:
     )
     def test_compare_permissions(self, perm1, perm2, expected):
         assert util.compare_permission(perm1, perm2) == expected
+
+
+class TestMaybeB64Decode:
+    """Test the maybe_b64decode helper function."""
+
+    @pytest.mark.parametrize("invalid_input", (str("not bytes"), int(4)))
+    def test_raises_error_on_non_bytes(self, invalid_input):
+        """maybe_b64decode should raise error if data is not bytes."""
+        with pytest.raises(TypeError):
+            util.maybe_b64decode(invalid_input)
+
+    @pytest.mark.parametrize(
+        "in_data,expected",
+        [
+            # If data is not b64 encoded, then return value should be the same.
+            (b"this is my data", b"this is my data"),
+            # If data is b64 encoded, then return value should be decoded.
+            (base64.b64encode(b"data"), b"data"),
+        ],
+    )
+    def test_happy_path(self, in_data, expected):
+        assert expected == util.maybe_b64decode(in_data)

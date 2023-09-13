@@ -1932,6 +1932,9 @@ NETWORK_CONFIGS = {
                 method=auto
                 may-fail=false
 
+                [ipv4]
+                method=disabled
+
                 """
             ),
         },
@@ -2044,6 +2047,9 @@ NETWORK_CONFIGS = {
                 method=auto
                 may-fail=false
 
+                [ipv4]
+                method=disabled
+
                 """
             ),
         },
@@ -2091,11 +2097,12 @@ NETWORK_CONFIGS = {
         "expected_sysconfig_rhel": {
             "ifcfg-iface0": textwrap.dedent(
                 """\
-            BOOTPROTO=dhcp
+            BOOTPROTO=none
             DEVICE=iface0
             DHCPV6C=yes
             IPV6INIT=yes
             IPV6_AUTOCONF=no
+            IPV6_FAILURE_FATAL=yes
             IPV6_FORCE_ACCEPT_RA=yes
             DEVICE=iface0
             NM_CONTROLLED=no
@@ -8166,6 +8173,7 @@ class TestGetInterfaces(CiTestCase):
             "eth1": "aa:aa:aa:aa:aa:01",
             "tun0": None,
         },
+        "masters": {},
         "drivers": {
             "enp0s1": "virtio_net",
             "enp0s2": "e1000",
@@ -8193,6 +8201,9 @@ class TestGetInterfaces(CiTestCase):
     def _se_get_interface_mac(self, name):
         return self.data["macs"][name]
 
+    def _se_get_master(self, name):
+        return self.data["masters"].get(name)
+
     def _se_is_bridge(self, name):
         return name in self.data["bridges"]
 
@@ -8214,6 +8225,7 @@ class TestGetInterfaces(CiTestCase):
         mocks = (
             "get_devicelist",
             "get_interface_mac",
+            "get_master",
             "is_bridge",
             "interface_has_own_mac",
             "is_vlan",

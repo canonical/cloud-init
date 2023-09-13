@@ -304,14 +304,10 @@ class TestSwapFileCreation(test_helpers.FilesystemMockingTestCase):
         cc_mounts.handle(None, self.cc, self.mock_cloud, [])
         self.m_subp_subp.assert_has_calls(
             [
+                mock.call(["truncate", "-s", "0", self.swap_path]),
+                mock.call(["chattr", "+C", self.swap_path]),
                 mock.call(
-                    [
-                        "dd",
-                        "if=/dev/zero",
-                        "of=" + self.swap_path,
-                        "bs=1M",
-                        "count=0",
-                    ],
+                    ["fallocate", "-l", "0M", self.swap_path],
                     capture=True,
                 ),
                 mock.call(["mkswap", self.swap_path]),
@@ -340,7 +336,6 @@ class TestSwapFileCreation(test_helpers.FilesystemMockingTestCase):
 
 
 class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
-
     swap_path = "/dev/sdb1"
 
     def setUp(self):
@@ -504,13 +499,17 @@ class TestCreateSwapfile:
     @pytest.mark.parametrize("fstype", ("xfs", "btrfs", "ext4", "other"))
     @mock.patch(M_PATH + "util.get_mount_info")
     @mock.patch(M_PATH + "subp.subp")
-    def test_happy_path(self, m_subp, m_get_mount_info, fstype, tmpdir):
+    @mock.patch(M_PATH + "util.kernel_version")
+    def test_happy_path(
+        self, m_kernel_version, m_subp, m_get_mount_info, fstype, tmpdir
+    ):
         swap_file = tmpdir.join("swap-file")
         fname = str(swap_file)
 
         # Some of the calls to subp.subp should create the swap file; this
         # roughly approximates that
         m_subp.side_effect = lambda *args, **kwargs: swap_file.write("")
+        m_kernel_version.return_value = (4, 31)
 
         m_get_mount_info.return_value = (mock.ANY, fstype)
 
@@ -629,6 +628,3 @@ class TestMountsSchema:
         else:
             with pytest.raises(SchemaValidationError, match=error_msg):
                 validate_cloudconfig_schema(config, get_schema(), strict=True)
-
-
-# vi: ts=4 expandtab

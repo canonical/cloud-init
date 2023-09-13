@@ -18,6 +18,7 @@ def main():
         "centos",
         "cloudlinux",
         "debian",
+        "dragonfly",
         "eurolinux",
         "fedora",
         "freebsd",

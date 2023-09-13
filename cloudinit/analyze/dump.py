@@ -4,7 +4,7 @@ import calendar
 import sys
 from datetime import datetime
 
-from cloudinit import atomic_helper, subp
+from cloudinit import atomic_helper, subp, util
 
 stage_to_description = {
     "finished": "finished running cloud-init",
@@ -44,14 +44,23 @@ def parse_timestamp(timestampstr):
         dt = datetime.strptime(timestampstr, CLOUD_INIT_ASCTIME_FMT)
         timestamp = dt.strftime("%s.%f")
     else:
-        # allow date(1) to handle other formats we don't expect
+        # allow GNU date(1) to handle other formats we don't expect
+        # This may throw a ValueError if no GNU date can be found
         timestamp = parse_timestamp_from_date(timestampstr)
 
     return float(timestamp)
 
 
 def parse_timestamp_from_date(timestampstr):
-    out, _ = subp.subp(["date", "+%s.%3N", "-d", timestampstr])
+    cmd = "date"
+    if not util.is_Linux():
+        if subp.which("gdate"):
+            cmd = "gdate"
+        else:
+            raise ValueError(
+                f"Unable to parse timestamp without GNU date: [{timestampstr}]"
+            )
+    out, _ = subp.subp([cmd, "+%s.%3N", "-d", timestampstr])
     timestamp = out.strip()
     return float(timestamp)
 

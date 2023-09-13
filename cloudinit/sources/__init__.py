@@ -352,10 +352,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 self,
             )
             return True
-        elif self.sys_cfg.get("datasource_list", []) in (
-            [self.dsname],
-            [self.dsname, "None"],
-        ):
+        elif self.sys_cfg.get("datasource_list", []) == [self.dsname]:
             LOG.debug(
                 "Machine is configured to run on single datasource %s.", self
             )
