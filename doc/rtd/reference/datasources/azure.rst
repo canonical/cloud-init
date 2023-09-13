@@ -41,6 +41,10 @@ The settings that may be configured are:
   Boolean set to True to use network configuration described by Azure's IMDS
   endpoint instead of fallback network config of DHCP on eth0. Default is
   True.
+* :command:`apply_ip_network_config`
+
+  Boolean set to True to configure primary and secondary IP addresses for each
+  NIC. Default is True.
 * :command:`data_dir`
 
   Path used to read metadata files and write crawled data.
@@ -62,6 +66,7 @@ An example configuration with the default values is provided below:
    datasource:
      Azure:
        apply_network_config: true
+       apply_ip_network_config: true
        data_dir: /var/lib/waagent
        disk_aliases:
          ephemeral0: /dev/disk/cloud/azure_resource
