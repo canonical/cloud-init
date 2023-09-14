@@ -520,11 +520,12 @@ EXAMPLE_UUID = "d0df4c54-4ecb-4a4b-9954-5bdf3ed5c3b8"
 
 class TestGenerateNetworkConfig:
     @pytest.mark.parametrize(
-        "label,metadata,expected",
+        "label,metadata,ip_config,expected",
         [
             (
                 "simple interface",
                 NETWORK_METADATA["network"],
+                True,
                 {
                     "ethernets": {
                         "eth0": {
@@ -559,6 +560,7 @@ class TestGenerateNetworkConfig:
                         }
                     ]
                 },
+                True,
                 {
                     "ethernets": {
                         "eth0": {
@@ -596,6 +598,7 @@ class TestGenerateNetworkConfig:
                         }
                     ]
                 },
+                True,
                 {
                     "ethernets": {
                         "eth0": {
@@ -633,6 +636,7 @@ class TestGenerateNetworkConfig:
                         }
                     ]
                 },
+                True,
                 {
                     "ethernets": {
                         "eth0": {
@@ -670,6 +674,7 @@ class TestGenerateNetworkConfig:
                     ]
                     * 3
                 },
+                True,
                 {
                     "ethernets": {
                         "eth0": {
@@ -736,10 +741,65 @@ class TestGenerateNetworkConfig:
                         }
                     ]
                 },
+                True,
                 {
                     "ethernets": {
                         "eth0": {
                             "addresses": ["11.0.0.5/24", "12.0.0.6/24"],
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 100},
+                            "dhcp6": True,
+                            "dhcp6-overrides": {"route-metric": 100},
+                            "match": {"macaddress": "00:0d:3a:04:75:98"},
+                            "set-name": "eth0",
+                        }
+                    },
+                    "version": 2,
+                },
+            ),
+            (
+                "secondary IPv4s are not configured",
+                {
+                    "interface": [
+                        {
+                            "macAddress": "000D3A047598",
+                            "ipv6": {
+                                "subnet": [
+                                    {
+                                        "prefix": "10",
+                                        "address": "2001:dead:beef::16",
+                                    }
+                                ],
+                                "ipAddress": [
+                                    {"privateIpAddress": "2001:dead:beef::1"}
+                                ],
+                            },
+                            "ipv4": {
+                                "subnet": [
+                                    {"prefix": "24", "address": "10.0.0.0"},
+                                ],
+                                "ipAddress": [
+                                    {
+                                        "privateIpAddress": "10.0.0.4",
+                                        "publicIpAddress": "104.46.124.81",
+                                    },
+                                    {
+                                        "privateIpAddress": "11.0.0.5",
+                                        "publicIpAddress": "104.46.124.82",
+                                    },
+                                    {
+                                        "privateIpAddress": "12.0.0.6",
+                                        "publicIpAddress": "104.46.124.83",
+                                    },
+                                ],
+                            },
+                        }
+                    ]
+                },
+                False,
+                {
+                    "ethernets": {
+                        "eth0": {
                             "dhcp4": True,
                             "dhcp4-overrides": {"route-metric": 100},
                             "dhcp6": True,
@@ -772,6 +832,7 @@ class TestGenerateNetworkConfig:
                         }
                     ]
                 },
+                True,
                 {
                     "ethernets": {
                         "eth0": {
@@ -787,14 +848,50 @@ class TestGenerateNetworkConfig:
                     "version": 2,
                 },
             ),
+            (
+                "ipv6 secondaries not configured",
+                {
+                    "interface": [
+                        {
+                            "macAddress": "000D3A047598",
+                            "ipv6": {
+                                "subnet": [
+                                    {
+                                        "prefix": "10",
+                                        "address": "2001:dead:beef::16",
+                                    }
+                                ],
+                                "ipAddress": [
+                                    {"privateIpAddress": "2001:dead:beef::1"},
+                                    {"privateIpAddress": "2001:dead:beef::2"},
+                                ],
+                            },
+                        }
+                    ]
+                },
+                False,
+                {
+                    "ethernets": {
+                        "eth0": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 100},
+                            "dhcp6": True,
+                            "dhcp6-overrides": {"route-metric": 100},
+                            "match": {"macaddress": "00:0d:3a:04:75:98"},
+                            "set-name": "eth0",
+                        }
+                    },
+                    "version": 2,
+                },
+            ),
         ],
     )
     def test_parsing_scenarios(
-        self, label, mock_get_interfaces, metadata, expected
+        self, label, mock_get_interfaces, metadata, ip_config, expected
     ):
         assert (
             dsaz.generate_network_config_from_instance_network_metadata(
-                metadata
+                metadata, ip_config
             )
             == expected
         )
