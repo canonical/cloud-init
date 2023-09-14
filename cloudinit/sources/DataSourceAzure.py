@@ -286,7 +286,7 @@ BUILTIN_DS_CONFIG = {
     "data_dir": AGENT_SEED_DIR,
     "disk_aliases": {"ephemeral0": RESOURCE_DISK_PATH},
     "apply_network_config": True,  # Use IMDS published network configuration
-    "apply_ip_network_config": True,  # Set secondary ip addresses
+    "apply_network_config_for_secondary_ips": True,  # Set secondary ip addresses
 }
 
 BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG = {
@@ -1410,7 +1410,7 @@ class DataSourceAzure(sources.DataSource):
             try:
                 return generate_network_config_from_instance_network_metadata(
                     self._metadata_imds["network"],
-                    self.ds_cfg.get("apply_ip_network_config"),
+                    self.ds_cfg.get("apply_network_config_for_secondary_ips"),
                 )
             except Exception as e:
                 LOG.error(
@@ -1858,7 +1858,7 @@ def load_azure_ds_dir(source_dir):
 @azure_ds_telemetry_reporter
 def generate_network_config_from_instance_network_metadata(
     network_metadata: dict,
-    apply_ip_network_config: bool,
+    apply_network_config_for_secondary_ips: bool,
 ) -> dict:
     """Convert imds network metadata dictionary to network v2 configuration.
 
@@ -1897,7 +1897,7 @@ def generate_network_config_from_instance_network_metadata(
                     # route-metric (cost) so default routes prefer
                     # primary nic due to lower route-metric value
                     dev_config["dhcp6-overrides"] = dhcp_override
-            if apply_ip_network_config:
+            if apply_network_config_for_secondary_ips:
                 for addr in addresses[1:]:
                     # Append static address config for ip > 1
                     netPrefix = intf[addr_type]["subnet"][0].get(
