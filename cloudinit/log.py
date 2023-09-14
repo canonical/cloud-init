@@ -130,10 +130,6 @@ def setupLogging(cfg=None):
         setupBasicLogging()
 
 
-def getLogger(name="cloudinit"):
-    return logging.getLogger(name)
-
-
 def _resetLogger(log):
     """Remove all current handlers, unset log level and add a NullHandler.
 
@@ -153,9 +149,6 @@ def _resetLogger(log):
 
 def resetLogging():
     _resetLogger(logging.getLogger())
-    _resetLogger(getLogger())
 
 
 resetLogging()
-
-# vi: ts=4 expandtab
