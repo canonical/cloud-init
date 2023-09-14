@@ -555,20 +555,50 @@ def is_deb822_format(apt_src_content: str) -> bool:
 
 DEFAULT_APT_CFG = {
     "sourcelist": "/etc/apt/sources.list",
-    "sourceparts": "/etc/apt/sources.list.d",
+    "sourceparts": "/etc/apt/sources.list.d/",
 }
+
+APT_CFG_RE = (
+    r"(Dir::Etc|Dir::Etc::sourceparts|Dir::Etc::sourcelist) \"([^\"]+)"
+)
 
 
 def get_apt_cfg() -> Dict[str, str]:
-    """Return a dict of applicable apt configuration or defaults."""
-    return {
-        "sourcelist": apt_pkg.config.find_file(
+    """Return a dict of applicable apt configuration or defaults.
+
+    Prefer python apt_pkg if present.
+    Fallback to apt-config dump command if present out output parsed
+    Fallback to DEFAULT_APT_CFG if apt-config commmand absent or
+    output unparsable.
+    """
+    try:
+        import apt_pkg  # type: ignore
+
+        sourcelist = apt_pkg.config.find_file(
             "Dir::Etc::sourcelist", DEFAULT_APT_CFG["sourcelist"]
-        ),
-        "sourceparts": apt_pkg.config.find_dir(
+        )
+        sourceparts = apt_pkg.config.find_dir(
             "Dir::Etc::sourceparts", DEFAULT_APT_CFG["sourceparts"]
-        ),
-    }
+        )
+    except ImportError:
+
+        try:
+            apt_dump, _ = subp.subp(["apt-config", "dump"])
+        except subp.ProcessExecutionError:
+            # No apt-config, return defaults
+            return DEFAULT_APT_CFG
+        matched_cfg = re.findall(APT_CFG_RE, apt_dump)
+        apt_cmd_config = dict(matched_cfg)
+        etc = apt_cmd_config.get("Dir::Etc", "etc/apt")
+        if apt_cmd_config.get("Dir::Etc::sourcelist"):
+            sourcelist = f"/{etc}/{apt_cmd_config['Dir::Etc::sourcelist']}"
+        else:
+            sourcelist = DEFAULT_APT_CFG["sourcelist"]
+        if apt_cmd_config.get("Dir::Etc::sourceparts"):
+            sourceparts = f"/{etc}/{apt_cmd_config['Dir::Etc::sourceparts']}/"
+        else:
+            sourceparts = DEFAULT_APT_CFG["sourceparts"]
+    return {"sourcelist": sourcelist, "sourceparts": sourceparts}
 
 
 def generate_sources_list(cfg, release, mirrors, cloud):

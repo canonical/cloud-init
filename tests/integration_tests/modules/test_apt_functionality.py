@@ -6,10 +6,13 @@ import pytest
 
 from cloudinit import gpg
 from cloudinit.config import cc_apt_configure
+from cloudinit.util import is_true
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
-from tests.integration_tests.util import verify_clean_log
+from tests.integration_tests.util import (
+    get_feature_flag_value, verify_clean_log
+)
 
 USER_DATA = """\
 #cloud-config
@@ -145,11 +148,19 @@ class TestApt:
         (This is ported from
         `tests/cloud_tests/testcases/modules/apt_configure_sources_list.yaml`.)
         """
-        sources_list = class_client.read_from_file("/etc/apt/sources.list")
-        assert 6 == len(sources_list.rstrip().split("\n"))
-
-        for expected_re in EXPECTED_REGEXES:
-            assert re.search(expected_re, sources_list) is not None
+        feature_deb822 = is_true(
+            get_feature_flag_value(class_client, "APT_DEB822_SOURCE_LIST_FILE")
+        )
+        if feature_deb822:
+            sources_list = class_client.read_from_file("/etc/apt/sources.list")
+            assert 6 == len(sources_list.rstrip().split("\n"))
+            for expected_re in EXPECTED_REGEXES:
+                assert re.search(expected_re, sources_list) is not None
+        else:
+            sources_list = class_client.read_from_file(
+                "/etc/apt/sources.list.d/ubuntu.sources"
+            )
+            assert 6 == len(sources_list.rstrip().split("\n"))
 
     def test_apt_conf(self, class_client: IntegrationInstance):
         """Test the apt conf functionality.

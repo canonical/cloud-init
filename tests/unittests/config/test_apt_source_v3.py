@@ -16,6 +16,7 @@ import pytest
 
 from cloudinit import gpg, subp, util
 from cloudinit.config import cc_apt_configure
+from tests.unittests.helpers import skipIfAptPkg
 from tests.unittests.util import get_cloud
 
 EXPECTEDKEY = """-----BEGIN PGP PUBLIC KEY BLOCK-----
@@ -1541,3 +1542,57 @@ class TestDisableSuitesDeb822:
         assert expected == cc_apt_configure.disable_suites_deb822(
             disabled_suites, src, "mantic"
         )
+
+
+APT_CONFIG_DUMP = """
+APT "";
+Dir "/";
+Dir::Etc "etc/myapt";
+Dir::Etc::sourcelist "sources.my.list";
+Dir::Etc::sourceparts "sources.my.list.d";
+Dir::Etc::main "apt.conf";
+"""
+
+
+class TestGetAptCfg:
+    @skipIfAptPkg()
+    @pytest.mark.parametrize(
+        "subp_side_effect,expected",
+        (
+            pytest.param(
+                [(APT_CONFIG_DUMP, "")],
+                {
+                    "sourcelist": "/etc/myapt/sources.my.list",
+                    "sourceparts": "/etc/myapt/sources.my.list.d/",
+                },
+                id="no_aptpkg_use_apt_config_cmd",
+            ),
+            pytest.param(
+                [("", "")],
+                {
+                    "sourcelist": "/etc/apt/sources.list",
+                    "sourceparts": "/etc/apt/sources.list.d/",
+                },
+                id="no_aptpkg_unparsable_apt_config_cmd_defaults",
+            ),
+            pytest.param(
+                [
+                    subp.ProcessExecutionError(
+                        "No such file or directory 'apt-config'"
+                    )
+                ],
+                {
+                    "sourcelist": "/etc/apt/sources.list",
+                    "sourceparts": "/etc/apt/sources.list.d/",
+                },
+                id="no_aptpkg_no_apt_config_cmd_defaults",
+            ),
+        ),
+    )
+    def test_use_defaults_or_apt_config_dump(
+        self, subp_side_effect, expected, mocker
+    ):
+        subp = mocker.patch("cloudinit.config.cc_apt_configure.subp.subp")
+        subp.side_effect = subp_side_effect
+        assert expected == cc_apt_configure.get_apt_cfg()
+        subp.assert_called_once_with(["apt-config", "dump"])
