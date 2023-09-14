@@ -685,7 +685,6 @@ class DataSourceAzure(sources.DataSource):
                     crawled_data["metadata"]["public-keys"] = ssh_keys
 
                 self._cleanup_markers()
-                self._negotiated = True
 
         return crawled_data
 
@@ -1000,6 +999,9 @@ class DataSourceAzure(sources.DataSource):
                 report_diagnostic_event(msg, logger_func=LOG.error)
                 raise sources.InvalidMetaDataException(msg) from error
 
+        # Reset flag as we will need to report ready again for re-use.
+        self._negotiated = False
+
         if create_marker:
             self._create_report_ready_marker()
 
@@ -1236,6 +1238,7 @@ class DataSourceAzure(sources.DataSource):
                 report_failure_to_fabric(
                     endpoint=self._wireserver_endpoint, error=error
                 )
+                self._negotiated = True
                 return True
             except Exception as e:
                 report_diagnostic_event(
@@ -1258,6 +1261,7 @@ class DataSourceAzure(sources.DataSource):
             report_failure_to_fabric(
                 endpoint=self._wireserver_endpoint, error=error
             )
+            self._negotiated = True
             return True
         except Exception as e:
             report_diagnostic_event(
@@ -1297,6 +1301,7 @@ class DataSourceAzure(sources.DataSource):
 
         # Reporting ready ejected OVF media, no need to do so again.
         self._iso_dev = None
+        self._negotiated = True
         return data
 
     def _ppstype_from_imds(self, imds_md: dict) -> Optional[str]:
