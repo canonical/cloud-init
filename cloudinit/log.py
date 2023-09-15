@@ -17,16 +17,6 @@ import os
 import sys
 import time
 
-# Logging levels for easy access
-CRITICAL = logging.CRITICAL
-FATAL = logging.FATAL
-ERROR = logging.ERROR
-WARNING = logging.WARNING
-WARN = logging.WARN
-INFO = logging.INFO
-DEBUG = logging.DEBUG
-NOTSET = logging.NOTSET
-
 # Default basic format
 DEF_CON_FORMAT = "%(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
 
@@ -34,7 +24,7 @@ DEF_CON_FORMAT = "%(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
 logging.Formatter.converter = time.gmtime
 
 
-def setupBasicLogging(level=DEBUG, formatter=None):
+def setupBasicLogging(level=logging.DEBUG, formatter=None):
     if not formatter:
         formatter = logging.Formatter(DEF_CON_FORMAT)
     root = logging.getLogger()
@@ -130,25 +120,20 @@ def setupLogging(cfg=None):
         setupBasicLogging()
 
 
-def _resetLogger(log):
+def resetLogging():
     """Remove all current handlers, unset log level and add a NullHandler.
 
     (Adding the NullHandler avoids "No handlers could be found for logger XXX"
     messages.)
     """
-    if not log:
-        return
+    log = logging.getLogger()
     handlers = list(log.handlers)
     for h in handlers:
         h.flush()
         h.close()
         log.removeHandler(h)
-    log.setLevel(NOTSET)
+    log.setLevel(logging.NOTSET)
     log.addHandler(logging.NullHandler())
-
-
-def resetLogging():
-    _resetLogger(logging.getLogger())
 
 
 resetLogging()
