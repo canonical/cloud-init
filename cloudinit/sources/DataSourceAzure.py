@@ -286,7 +286,7 @@ BUILTIN_DS_CONFIG = {
     "data_dir": AGENT_SEED_DIR,
     "disk_aliases": {"ephemeral0": RESOURCE_DISK_PATH},
     "apply_network_config": True,  # Use IMDS published network configuration
-    "apply_network_config_for_secondary_ips": True,  # Set secondary ip addresses
+    "apply_network_config_for_secondary_ips": True,  # Configure secondary ips
 }
 
 BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG = {
