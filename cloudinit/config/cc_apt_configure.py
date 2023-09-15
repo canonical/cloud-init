@@ -58,6 +58,10 @@ meta: MetaSchema = {
         cloud-init's distro support for instructions on using
         these config options.
 
+        In cloud-init 23.4 or later, cloud-init will generate default
+        apt sources information in deb822 format at
+        :file:`/etc/apt/sources.list.d/<distro>.sources`.
+
         .. note::
             To ensure that apt configuration is valid yaml, any strings
             containing special characters, especially ``:`` should be quoted.
@@ -134,7 +138,21 @@ meta: MetaSchema = {
                       ------BEGIN PGP PUBLIC KEY BLOCK-------
                       <key data>
                       ------END PGP PUBLIC KEY BLOCK-------"""
-        )
+        ),
+        dedent(
+            """\
+        # cloud-init version 23.4 will generate a deb822 formatted sources
+        # file at /etc/apt/sources.list.d/<distro>.sources instead of
+        # /etc/apt/sources.list when  `sources_list` content is deb822
+        # format.
+        apt:
+            sources_list: |
+              Types: deb
+              URIs: http://archive.ubuntu.com/ubuntu/
+              Suites: $RELEASE
+              Components: main
+            """
+        ),
     ],
     "frequency": frequency,
     "activate_by_schema_keys": [],
