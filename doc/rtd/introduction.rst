@@ -56,7 +56,7 @@ initialising the instance. Here, it will:
 * **Identify the datasource**:
   The datasource is the source of any configuration data. This can be in the
   form of:
-  
+
   * User-provided data (user data), which allows you to provide custom scripts
     and specific actions that should be taken,
   * Metadata about the instance (metadata) such as the machine ID, hostname and
@@ -101,5 +101,5 @@ What's next?
 
 Now that you have an overview of the basics of what cloud-init is, what it does
 and how it works, you will probably want to
-:ref:`try it out for yourself<tutorial_qemu>`_.
+:ref:`try it out for yourself<tutorial_qemu>`.
 
