@@ -277,7 +277,7 @@ class TestUbuntuDrivers:
         assert [mock.call(install_gpgpu)] == m_subp.call_args_list
         assert (
             MPATH[:-1],
-            log.WARNING,
+            logging.WARNING,
             (
                 "the available version of ubuntu-drivers is"
                 " too old to perform requested driver installation"
