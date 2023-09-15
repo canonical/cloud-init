@@ -55,6 +55,7 @@ class TestAptSourceConfig:
             f"{M_PATH}util.lsb_release",
             return_value=MOCK_LSB_RELEASE_DATA.copy(),
         )
+        mocker.patch(f"{M_PATH}_ensure_gpg")
         self.aptlistfile = tmpdir.join("src1.list").strpath
         self.aptlistfile2 = tmpdir.join("src2.list").strpath
         self.aptlistfile3 = tmpdir.join("src3.list").strpath
@@ -269,9 +270,9 @@ class TestAptSourceConfig:
         calls = []
         for key in cfg:
             if is_hardened is not None:
-                calls.append(call(cfg[key], hardened=is_hardened))
+                calls.append(call(cfg[key], None, hardened=is_hardened))
             else:
-                calls.append(call(cfg[key], tmpdir.strpath))
+                calls.append(call(cfg[key], None, tmpdir.strpath))
 
         mockobj.assert_has_calls(calls, any_order=True)
 
@@ -736,7 +737,7 @@ class TestAptSourceConfig:
 
         expected = sorted([npre + suff for opre, npre, suff in files])
         # create files
-        for (opre, _npre, suff) in files:
+        for opre, _npre, suff in files:
             fpath = os.path.join(apt_lists_d, opre + suff)
             util.write_file(fpath, content=fpath)
 
@@ -1285,7 +1286,7 @@ deb http://ubuntu.com/ubuntu/ xenial-proposed main"""
         }
 
         with mock.patch.object(cc_apt_configure, "add_apt_key_raw") as mockadd:
-            cc_apt_configure.add_mirror_keys(cfg, tmpdir.strpath)
+            cc_apt_configure.add_mirror_keys(cfg, None, tmpdir.strpath)
         calls = [
             mock.call("fakekey_primary", "primary", hardened=False),
             mock.call("fakekey_security", "security", hardened=False),
