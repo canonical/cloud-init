@@ -51,13 +51,6 @@ class Cloud:
             )
         self.reporter = reporter
 
-    # If a 'user' manipulates logging or logging services
-    # it is typically useful to cause the logging to be
-    # setup again.
-    def cycle_logging(self):
-        logging.resetLogging()
-        logging.setupLogging(self.cfg)
-
     @property
     def cfg(self):
         # Ensure that cfg is not indirectly modified
