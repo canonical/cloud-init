@@ -8,7 +8,6 @@
 
 """Apt Configure: Configure apt for the user."""
 
-import functools
 import glob
 import os
 import pathlib
@@ -36,6 +35,11 @@ CLOUD_INIT_GPG_DIR = "/etc/apt/cloud-init.gpg.d/"
 
 frequency = PER_INSTANCE
 distros = ["ubuntu", "debian"]
+
+PACKAGE_DEPENDENCY_BY_COMMAND = {
+    "add-apt-repository": "software-properties-common",
+    "gpg": "gnupg",
+}
 
 meta: MetaSchema = {
     "id": "cc_apt_configure",
@@ -501,10 +505,19 @@ def add_apt_key_raw(key, file_name, hardened=False, target=None):
         raise
 
 
-@functools.lru_cache(maxsize=1)
-def _ensure_gpg(cloud):
-    if not shutil.which("gpg"):
-        cloud.distro.install_packages(["gnupg"])
+def _ensure_dependencies(apt_sources_dict, aa_repo_match, cloud):
+    """Install missing package dependencies based on apt_sources config."""
+    missing_packages = []
+    required_cmds = set()
+    for ent in apt_sources_dict.values():
+        if set(["key", "keyid"]).intersection(ent):
+            required_cmds.update(["gpg"])
+        if aa_repo_match(ent.get("source", "")):
+            required_cmds.update(["add-apt-repository"])
+    for command in required_cmds:
+        if not shutil.which(command):
+            missing_packages.append(PACKAGE_DEPENDENCY_BY_COMMAND[command])
+    cloud.distro.install_packages(missing_packages)
 
 
 def add_apt_key(ent, cloud, target=None, hardened=False, file_name=None):
@@ -513,7 +526,6 @@ def add_apt_key(ent, cloud, target=None, hardened=False, file_name=None):
     Supports raw keys or keyid's
     The latter will as a first step fetched to get the raw key
     """
-    _ensure_gpg(cloud)
     if "keyid" in ent and "key" not in ent:
         keyserver = DEFAULT_KEYSERVER
         if "keyserver" in ent:
@@ -566,6 +578,7 @@ def add_apt_sources(
 
     if not isinstance(srcdict, dict):
         raise TypeError("unknown apt format: %s" % (srcdict))
+    _ensure_dependencies(srcdict, aa_repo_match, cloud)
 
     for filename in srcdict:
         ent = srcdict[filename]
@@ -581,7 +594,7 @@ def add_apt_sources(
             key_file = add_apt_key(ent, cloud, target, hardened=True)
             template_params["KEY_FILE"] = key_file
         else:
-            key_file = add_apt_key(ent, cloud, target)
+            add_apt_key(ent, cloud, target)
 
         if "source" not in ent:
             continue

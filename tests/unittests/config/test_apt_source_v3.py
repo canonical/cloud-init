@@ -55,7 +55,7 @@ class TestAptSourceConfig:
             f"{M_PATH}util.lsb_release",
             return_value=MOCK_LSB_RELEASE_DATA.copy(),
         )
-        mocker.patch(f"{M_PATH}_ensure_gpg")
+        mocker.patch(f"{M_PATH}_ensure_dependencies")
         self.aptlistfile = tmpdir.join("src1.list").strpath
         self.aptlistfile2 = tmpdir.join("src2.list").strpath
         self.aptlistfile3 = tmpdir.join("src3.list").strpath

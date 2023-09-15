@@ -77,7 +77,7 @@ class TestAptSourceConfig:
             "cloudinit.util.get_dpkg_architecture", return_value="amd64"
         )
         mocker.patch.object(subp, "subp", return_value=("PPID   PID", ""))
-        mocker.patch("cloudinit.config.cc_apt_configure._ensure_gpg")
+        mocker.patch("cloudinit.config.cc_apt_configure._ensure_dependencies")
 
     def _get_default_params(self):
         """get_default_params
