@@ -17,6 +17,7 @@ from typing import Optional
 from cloudinit import subp, util
 from cloudinit.net import is_ipv6_address, renderer, subnet_is_ipv6
 from cloudinit.net.network_state import NetworkState
+from cloudinit.net.sysconfig import NM_CONF_PATH, disable_nm_dns_handling
 
 NM_RUN_DIR = "/etc/NetworkManager"
 NM_LIB_DIR = "/usr/lib/NetworkManager"
@@ -350,7 +351,7 @@ class Renderer(renderer.Renderer):
 
     def __init__(self, config=None):
         self.connections = {}
-        self.config = config
+        self.config = {} if not config else config
 
     def get_conn(self, con_id):
         return self.connections[con_id]
@@ -389,8 +390,22 @@ class Renderer(renderer.Renderer):
         # Select EUI64 to be used by default by NM for creating the address
         # for use with RFC4862 IPv6 Stateless Address Autoconfiguration.
         util.write_file(
-            cloud_init_nm_conf_filename(target), NM_IPV6_ADDR_GEN_CONF, 0o600
+            cloud_init_nm_ip6_addr_gen_conf_filename(target),
+            NM_IPV6_ADDR_GEN_CONF,
+            0o600,
         )
+
+        nm_conf_filename = self.config.get(
+            "networkmanager_conf_path", NM_CONF_PATH
+        )
+
+        nm_conf_content = disable_nm_dns_handling(network_state, templates)
+        if nm_conf_content:
+            util.write_file(
+                f"{target}/{nm_conf_filename}",
+                nm_conf_content,
+                0o600,
+            )
 
 
 def conn_filename(con_id, target=None):
@@ -399,7 +414,7 @@ def conn_filename(con_id, target=None):
     return f"{target_con_dir}/system-connections/{con_file}"
 
 
-def cloud_init_nm_conf_filename(target=None):
+def cloud_init_nm_ip6_addr_gen_conf_filename(target=None):
     target_con_dir = subp.target_path(target, NM_RUN_DIR)
     conf_file = "30-cloud-init-ip6-addr-gen-mode.conf"
     return f"{target_con_dir}/conf.d/{conf_file}"

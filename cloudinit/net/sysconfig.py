@@ -36,6 +36,7 @@ KNOWN_DISTROS = [
     "TencentOS",
     "virtuozzo",
 ]
+NM_CONF_PATH = "etc/NetworkManager/conf.d/99-cloud-init.conf"
 
 
 def _make_header(sep="#"):
@@ -65,6 +66,21 @@ def _quote_value(value):
             return '"%s"' % value
     else:
         return value
+
+
+def disable_nm_dns_handling(network_state, templates=None):
+    content = networkmanager_conf.NetworkManagerConf("")
+
+    # If DNS server information is provided, configure
+    # NetworkManager to not manage dns, so that /etc/resolv.conf
+    # does not get clobbered.
+    if network_state.dns_nameservers:
+        content.set_section_keypair("main", "dns", "none")
+
+    if len(content) == 0:
+        return None
+    out = "".join([_make_header(), "\n", "\n".join(content.write()), "\n"])
+    return out
 
 
 class ConfigMap:
@@ -374,9 +390,8 @@ class Renderer(renderer.Renderer):
             "netrules_path", "etc/udev/rules.d/70-persistent-net.rules"
         )
         self.dns_path = config.get("dns_path", "etc/resolv.conf")
-        nm_conf_path = "etc/NetworkManager/conf.d/99-cloud-init.conf"
         self.networkmanager_conf_path = config.get(
-            "networkmanager_conf_path", nm_conf_path
+            "networkmanager_conf_path", NM_CONF_PATH
         )
         self.templates = {
             "control": config.get("control"),
@@ -846,21 +861,6 @@ class Renderer(renderer.Renderer):
             content_str = header + "\n" + content_str
         return content_str
 
-    @staticmethod
-    def _render_networkmanager_conf(network_state, templates=None):
-        content = networkmanager_conf.NetworkManagerConf("")
-
-        # If DNS server information is provided, configure
-        # NetworkManager to not manage dns, so that /etc/resolv.conf
-        # does not get clobbered.
-        if network_state.dns_nameservers:
-            content.set_section_keypair("main", "dns", "none")
-
-        if len(content) == 0:
-            return None
-        out = "".join([_make_header(), "\n", "\n".join(content.write()), "\n"])
-        return out
-
     @classmethod
     def _render_bridge_interfaces(cls, network_state, iface_contents, flavor):
         bridge_key_map = {
@@ -1006,9 +1006,7 @@ class Renderer(renderer.Renderer):
             nm_conf_path = subp.target_path(
                 target, self.networkmanager_conf_path
             )
-            nm_conf_content = self._render_networkmanager_conf(
-                network_state, templates
-            )
+            nm_conf_content = disable_nm_dns_handling(network_state, templates)
             if nm_conf_content:
                 util.write_file(nm_conf_path, nm_conf_content, file_mode)
         if self.netrules_path:

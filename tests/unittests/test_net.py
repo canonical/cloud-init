@@ -5887,6 +5887,16 @@ class TestNetworkManagerRendering(CiTestCase):
                 """
         ),
     }
+    expected_nm_conf_d = {
+        "99-cloud-init.conf": textwrap.dedent(
+            """\
+                # Created by cloud-init automatically, do not edit.
+                #
+                [main]
+                dns = none
+                """
+        ),
+    }
 
     def _get_renderer(self):
         return network_manager.Renderer()
@@ -6109,7 +6119,9 @@ class TestNetworkManagerRendering(CiTestCase):
         entry = NETWORK_CONFIGS["all"]
         found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
         self._compare_files_to_expected(
-            entry[self.expected_name], self.expected_conf_d, found
+            entry[self.expected_name],
+            {**self.expected_conf_d, **self.expected_nm_conf_d},
+            found,
         )
         self.assertNotIn(
             "WARNING: Network config: ignoring eth0.101 device-level mtu",
@@ -6120,14 +6132,18 @@ class TestNetworkManagerRendering(CiTestCase):
         entry = NETWORK_CONFIGS["small_v1"]
         found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
         self._compare_files_to_expected(
-            entry[self.expected_name], self.expected_conf_d, found
+            entry[self.expected_name],
+            {**self.expected_conf_d, **self.expected_nm_conf_d},
+            found,
         )
 
     def test_small_config_v2(self):
         entry = NETWORK_CONFIGS["small_v2"]
         found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
         self._compare_files_to_expected(
-            entry[self.expected_name], self.expected_conf_d, found
+            entry[self.expected_name],
+            {**self.expected_conf_d, **self.expected_nm_conf_d},
+            found,
         )
 
     def test_v4_and_v6_static_config(self):
