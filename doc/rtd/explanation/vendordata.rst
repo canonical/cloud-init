@@ -17,7 +17,7 @@ caveats:
    execution or disable handling of specific parts of multi-part input.
 2. By default it only runs on first boot.
 3. Vendor data can be disabled by the user. If the use of vendor data is
-   required for the instance to run, then vendor data should not be used.
+   not required for the instance to run, then vendor data should not be used.
 4. User-supplied cloud-config is merged over cloud-config from vendor data.
 
 Users providing cloud-config data can use the ``#cloud-config-jsonp`` method
