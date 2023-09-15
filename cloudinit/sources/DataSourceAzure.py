@@ -1410,7 +1410,9 @@ class DataSourceAzure(sources.DataSource):
             try:
                 return generate_network_config_from_instance_network_metadata(
                     self._metadata_imds["network"],
-                    self.ds_cfg.get("apply_network_config_for_secondary_ips"),
+                    apply_network_config_for_secondary_ips=self.ds_cfg.get(
+                        "apply_network_config_for_secondary_ips"
+                    ),
                 )
             except Exception as e:
                 LOG.error(
@@ -1858,6 +1860,7 @@ def load_azure_ds_dir(source_dir):
 @azure_ds_telemetry_reporter
 def generate_network_config_from_instance_network_metadata(
     network_metadata: dict,
+    *,
     apply_network_config_for_secondary_ips: bool,
 ) -> dict:
     """Convert imds network metadata dictionary to network v2 configuration.
@@ -1897,18 +1900,21 @@ def generate_network_config_from_instance_network_metadata(
                     # route-metric (cost) so default routes prefer
                     # primary nic due to lower route-metric value
                     dev_config["dhcp6-overrides"] = dhcp_override
-            if apply_network_config_for_secondary_ips:
-                for addr in addresses[1:]:
-                    # Append static address config for ip > 1
-                    netPrefix = intf[addr_type]["subnet"][0].get(
-                        "prefix", default_prefix
-                    )
-                    privateIp = addr["privateIpAddress"]
-                    if not dev_config.get("addresses"):
-                        dev_config["addresses"] = []
-                    dev_config["addresses"].append(
-                        "{ip}/{prefix}".format(ip=privateIp, prefix=netPrefix)
-                    )
+
+            if not apply_network_config_for_secondary_ips:
+                continue
+
+            for addr in addresses[1:]:
+                # Append static address config for ip > 1
+                netPrefix = intf[addr_type]["subnet"][0].get(
+                    "prefix", default_prefix
+                )
+                privateIp = addr["privateIpAddress"]
+                if not dev_config.get("addresses"):
+                    dev_config["addresses"] = []
+                dev_config["addresses"].append(
+                    "{ip}/{prefix}".format(ip=privateIp, prefix=netPrefix)
+                )
         if dev_config and has_ip_address:
             mac = normalize_mac_address(intf["macAddress"])
             dev_config.update(

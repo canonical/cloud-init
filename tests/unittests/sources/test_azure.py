@@ -891,7 +891,7 @@ class TestGenerateNetworkConfig:
     ):
         assert (
             dsaz.generate_network_config_from_instance_network_metadata(
-                metadata, ip_config
+                metadata, apply_network_config_for_secondary_ips=ip_config
             )
             == expected
         )
