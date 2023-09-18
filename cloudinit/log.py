@@ -16,17 +16,13 @@ import logging.handlers
 import os
 import sys
 import time
+from contextlib import suppress
 
-# Default basic format
-DEF_CON_FORMAT = "%(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
-
-# Always format logging timestamps as UTC time
-logging.Formatter.converter = time.gmtime
+DEFAULT_LOG_FORMAT = "%(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
 
 
 def setupBasicLogging(level=logging.DEBUG, formatter=None):
-    if not formatter:
-        formatter = logging.Formatter(DEF_CON_FORMAT)
+    formatter = formatter or logging.Formatter(DEFAULT_LOG_FORMAT)
     root = logging.getLogger()
     for handler in root.handlers:
         if hasattr(handler, "stream") and hasattr(handler.stream, "name"):
@@ -46,10 +42,8 @@ def flushLoggers(root):
         return
     for h in root.handlers:
         if isinstance(h, (logging.StreamHandler)):
-            try:
+            with suppress(IOError):
                 h.flush()
-            except IOError:
-                pass
     flushLoggers(root.parent)
 
 
@@ -83,31 +77,29 @@ def setupLogging(cfg=None):
                 log_cfgs.append("\n".join(cfg_str))
             else:
                 log_cfgs.append(str(a_cfg))
-    defineDeprecationLogger()
 
     # See if any of them actually load...
     am_tried = 0
+
+    # log_cfg may contain either a filepath to a file containing a logger
+    # configuration, or a string containing a logger configuration
+    # https://docs.python.org/3/library/logging.config.html#logging-config-fileformat
     for log_cfg in log_cfgs:
-        try:
+        # The default configuration includes an attempt at using /dev/log,
+        # followed up by writing to a file. /dev/log will not exist in
+        # very early boot, so an exception on that is expected.
+        with suppress(Exception):
             am_tried += 1
-            # Assume its just a string if not a filename
-            if log_cfg.startswith("/") and os.path.isfile(log_cfg):
-                # Leave it as a file and do not make it look like
-                # something that is a file (but is really a buffer that
-                # is acting as a file)
-                pass
-            else:
+
+            # If the value is not a filename, assume that it is a config.
+            if not (log_cfg.startswith("/") and os.path.isfile(log_cfg)):
                 log_cfg = io.StringIO(log_cfg)
-            # Attempt to load its config
+
+            # Attempt to load its config.
             logging.config.fileConfig(log_cfg)
-            # The first one to work wins!
+
+            # Use the first valid configuration.
             return
-        except Exception:
-            # We do not write any logs of this here, because the default
-            # configuration includes an attempt at using /dev/log, followed
-            # up by writing to a file.  /dev/log will not exist in very early
-            # boot, so an exception on that is expected.
-            pass
 
     # If it didn't work, at least setup a basic logger (if desired)
     basic_enabled = cfg.get("log_basic", True)
@@ -136,4 +128,33 @@ def resetLogging():
     log.addHandler(logging.NullHandler())
 
 
-resetLogging()
+def setup_backup_logging():
+    """In the event that internal logging exception occurs and logging is not
+    possible for some reason, make a desparate final attempt to log to stderr
+    which may ease debugging.
+    """
+    fallback_handler = logging.StreamHandler(sys.stderr)
+    fallback_handler.handleError = lambda self, record: None
+    fallback_handler.setFormatter(
+        logging.Formatter(
+            "FALLBACK: %(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
+        )
+    )
+
+    def handleError(self, record):
+        """A closure that emits logs on stderr when other methods fail"""
+        with suppress(IOError):
+            fallback_handler.handle(record)
+            fallback_handler.flush()
+
+    logging.Handler.handleError = handleError
+
+
+def configure_root_logger():
+    """Customize the root logger for cloud-init"""
+
+    # Always format logging timestamps as UTC time
+    logging.Formatter.converter = time.gmtime
+    defineDeprecationLogger()
+    setup_backup_logging()
+    resetLogging()

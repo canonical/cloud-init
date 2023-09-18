@@ -21,7 +21,7 @@ class TestCloudInitLogger(CiTestCase):
         self.ci_logs = io.StringIO()
         self.ci_root = logging.getLogger()
         console = logging.StreamHandler(self.ci_logs)
-        console.setFormatter(logging.Formatter(log.DEF_CON_FORMAT))
+        console.setFormatter(logging.Formatter(log.DEFAULT_LOG_FORMAT))
         console.setLevel(logging.DEBUG)
         self.ci_root.addHandler(console)
         self.ci_root.setLevel(logging.DEBUG)
