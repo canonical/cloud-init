@@ -143,8 +143,10 @@ class AnsiblePullPip(AnsiblePull):
                 "pip",
                 "install",
             ]
-            if os.path.join(
-                sysconfig.get_path("stdlib"), "EXTERNALLY-MANAGED"
+            if os.path.exists(
+                os.path.join(
+                    sysconfig.get_path("stdlib"), "EXTERNALLY-MANAGED"
+                )
             ):
                 cmd.append("--break-system-packages")
             if self.run_user:
