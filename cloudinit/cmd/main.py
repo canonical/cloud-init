@@ -12,9 +12,6 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-# Skip isort on this file because of the patch that comes between imports
-# isort: skip_file
-
 import argparse
 import json
 import os
@@ -24,10 +21,8 @@ import traceback
 import logging
 from typing import Tuple
 
-
 from cloudinit import netinfo
 from cloudinit import signal_handler
-from cloudinit import patcher
 from cloudinit import sources
 from cloudinit import stages
 from cloudinit import url_helper
@@ -40,11 +35,14 @@ from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.config import cc_set_hostname
 from cloudinit.config.modules import Modules
 from cloudinit.config.schema import validate_cloudconfig_schema
-from cloudinit.log import setupBasicLogging, setupLogging, resetLogging
+from cloudinit.log import (
+    setupBasicLogging,
+    setupLogging,
+    resetLogging,
+    configure_root_logger,
+)
 from cloudinit.reporting import events
 from cloudinit.settings import PER_INSTANCE, PER_ALWAYS, PER_ONCE, CLOUD_CONFIG
-
-patcher.patch_logging()
 
 # Welcome message template
 WELCOME_MSG_TPL = (
@@ -844,6 +842,7 @@ def main_features(name, args):
 
 
 def main(sysv_args=None):
+    configure_root_logger()
     if not sysv_args:
         sysv_args = sys.argv
     parser = argparse.ArgumentParser(prog=sysv_args.pop(0))
