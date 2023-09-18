@@ -12,11 +12,12 @@
 
 import contextlib
 import copy
+import logging
 import os
 import re
 from textwrap import dedent
 
-from cloudinit import subp, util, log
+from cloudinit import log, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc

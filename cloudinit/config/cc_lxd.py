@@ -6,11 +6,11 @@
 
 """LXD: configure lxd with ``lxd init`` and optionally lxd-bridge"""
 
+import logging
 import os
 from textwrap import dedent
 from typing import List, Tuple
 
-from cloudinit import log as logging
 from cloudinit import safeyaml, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config

@@ -3,12 +3,12 @@
 """ubuntu_advantage: Configure Ubuntu Advantage support services"""
 
 import json
+import logging
 import re
 from textwrap import dedent
 from typing import Any, List
 from urllib.parse import urlparse
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -512,6 +512,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     #    `{"ubuntu_advantage": "features": {"disable_auto_attach": True}}`
     elif not ua_section.keys() <= {"features"}:
         _attach(ua_section)
-
-
-# vi: ts=4 expandtab

@@ -7,11 +7,10 @@
 # Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+import logging
 import os
 
-from cloudinit import distros, helpers
-from cloudinit import log as logging
-from cloudinit import subp, util
+from cloudinit import distros, helpers, subp, util
 from cloudinit.distros import rhel_util
 from cloudinit.distros.parsers.hostname import HostnameConf
 from cloudinit.settings import PER_INSTANCE
@@ -209,6 +208,3 @@ class Distro(distros.Distro):
             ["makecache"],
             freq=PER_INSTANCE,
         )
-
-
-# vi: ts=4 expandtab

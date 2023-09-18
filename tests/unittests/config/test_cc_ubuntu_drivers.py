@@ -1,12 +1,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import logging
 import os
 import re
 
 import pytest
 
-from cloudinit import log
 from cloudinit.config import cc_ubuntu_drivers as drivers
 from cloudinit.config.schema import (
     SchemaValidationError,

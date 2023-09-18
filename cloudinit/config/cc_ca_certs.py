@@ -4,10 +4,10 @@
 
 """CA Certs: Add ca certificates."""
 
+import logging
 import os
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -285,6 +285,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # Update the system with the new cert configuration.
     LOG.debug("Updating certificates")
     update_ca_certs(distro_cfg)
-
-
-# vi: ts=4 expandtab

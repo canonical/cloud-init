@@ -6,6 +6,7 @@
 
 import copy
 import json
+import logging
 import os
 import sys
 from collections import namedtuple
@@ -19,9 +20,11 @@ from cloudinit import (
     handlers,
     helpers,
     importer,
+    net,
+    sources,
+    type_utils,
+    util,
 )
-from cloudinit import log as logging
-from cloudinit import net, sources, type_utils, util
 from cloudinit.event import EventScope, EventType, userdata_to_events
 
 # Default handlers (used if not overridden)

@@ -6,16 +6,17 @@
 
 """Package Update Upgrade Install: update, upgrade, and install packages"""
 
+import logging
 import os
 import time
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
+from cloudinit.log import flushLoggers
 from cloudinit.settings import PER_INSTANCE
 
 REBOOT_FILE = "/var/run/reboot-required"
@@ -127,7 +128,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 "Rebooting after upgrade or install per %s", REBOOT_FILE
             )
             # Flush the above warning + anything else out...
-            logging.flushLoggers(LOG)
+            flushLoggers(LOG)
             _fire_reboot()
         except Exception as e:
             util.logexc(LOG, "Requested reboot did not happen!")
@@ -138,6 +139,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             "%s failed with exceptions, re-raising the last one", len(errors)
         )
         raise errors[-1]
-
-
-# vi: ts=4 expandtab

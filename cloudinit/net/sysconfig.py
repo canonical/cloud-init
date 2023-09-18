@@ -3,11 +3,11 @@
 import copy
 import glob
 import io
+import logging
 import os
 import re
 from typing import Mapping, Optional
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.distros.parsers import networkmanager_conf, resolv_conf
 from cloudinit.net import (
@@ -1084,6 +1084,3 @@ def available_sysconfig(target=None):
         if os.path.isfile(subp.target_path(target, p)):
             return True
     return False
-
-
-# vi: ts=4 expandtab

@@ -21,34 +21,30 @@ import os
 import sys
 import time
 import traceback
+import logging
 from typing import Tuple
 
-from cloudinit import patcher
-from cloudinit.config.modules import Modules
 
-patcher.patch_logging()
-
-from cloudinit.config.schema import validate_cloudconfig_schema
-from cloudinit import log as logging
 from cloudinit import netinfo
 from cloudinit import signal_handler
+from cloudinit import patcher
 from cloudinit import sources
 from cloudinit import stages
 from cloudinit import url_helper
 from cloudinit import util
 from cloudinit import version
 from cloudinit import warnings
-
 from cloudinit import reporting
+from cloudinit import atomic_helper
+from cloudinit.cmd.devel import read_cfg_paths
+from cloudinit.config import cc_set_hostname
+from cloudinit.config.modules import Modules
+from cloudinit.config.schema import validate_cloudconfig_schema
+from cloudinit.log import setupBasicLogging, setupLogging, resetLogging
 from cloudinit.reporting import events
-
 from cloudinit.settings import PER_INSTANCE, PER_ALWAYS, PER_ONCE, CLOUD_CONFIG
 
-from cloudinit import atomic_helper
-
-from cloudinit.config import cc_set_hostname
-from cloudinit.cmd.devel import read_cfg_paths
-
+patcher.patch_logging()
 
 # Welcome message template
 WELCOME_MSG_TPL = (
@@ -349,8 +345,8 @@ def main_init(name, args):
         LOG.debug(
             "Logging being reset, this logger may no longer be active shortly"
         )
-        logging.resetLogging()
-    logging.setupLogging(init.cfg)
+        resetLogging()
+    setupLogging(init.cfg)
     apply_reporting_cfg(init.cfg)
 
     # Any log usage prior to setupLogging above did not have local user log
@@ -510,7 +506,7 @@ def main_init(name, args):
             (outfmt, errfmt) = util.fixup_output(mods.cfg, name)
     except Exception:
         util.logexc(LOG, "Failed to re-adjust output redirection!")
-    logging.setupLogging(mods.cfg)
+    setupLogging(mods.cfg)
 
     # give the activated datasource a chance to adjust
     init.activate_datasource()
@@ -615,8 +611,8 @@ def main_modules(action_name, args):
         LOG.debug(
             "Logging being reset, this logger may no longer be active shortly"
         )
-        logging.resetLogging()
-    logging.setupLogging(mods.cfg)
+        resetLogging()
+    setupLogging(mods.cfg)
     apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
@@ -677,8 +673,8 @@ def main_single(name, args):
         LOG.debug(
             "Logging being reset, this logger may no longer be active shortly"
         )
-        logging.resetLogging()
-    logging.setupLogging(mods.cfg)
+        resetLogging()
+    setupLogging(mods.cfg)
     apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
@@ -1049,7 +1045,7 @@ def main(sysv_args=None):
     # Setup basic logging to start (until reinitialized)
     # iff in debug mode.
     if args.debug:
-        logging.setupBasicLogging()
+        setupBasicLogging()
 
     # Setup signal handlers before running
     signal_handler.attach_handlers()

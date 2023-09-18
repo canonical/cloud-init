@@ -11,13 +11,13 @@
 
 import errno
 import io
+import logging
 from textwrap import dedent
 
 # Used since this can maintain comments
 # and doesn't need a top level section
 from configobj import ConfigObj
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -27,8 +27,6 @@ from cloudinit.settings import PER_INSTANCE
 PUBCERT_FILE = "/etc/mcollective/ssl/server-public.pem"
 PRICERT_FILE = "/etc/mcollective/ssl/server-private.pem"
 SERVER_CFG = "/etc/mcollective/server.cfg"
-
-LOG = logging.getLogger(__name__)
 
 MODULE_DESCRIPTION = """\
 This module installs, configures and starts mcollective. If the ``mcollective``
@@ -173,6 +171,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     # restart mcollective to handle updated config
     subp.subp(["service", "mcollective", "restart"], capture=False)
-
-
-# vi: ts=4 expandtab

@@ -8,12 +8,11 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 import fcntl
+import logging
 import os
 import time
 
-from cloudinit import distros, helpers
-from cloudinit import log as logging
-from cloudinit import subp, util
+from cloudinit import distros, helpers, subp, util
 from cloudinit.distros.parsers.hostname import HostnameConf
 from cloudinit.settings import PER_INSTANCE
 
@@ -432,6 +431,3 @@ def regenerate_locale(locale, sys_path, keyname="LANG"):
     # finally, trigger regeneration
     LOG.debug("Generating locales for %s", locale)
     subp.subp(["locale-gen", locale], capture=False)
-
-
-# vi: ts=4 expandtab

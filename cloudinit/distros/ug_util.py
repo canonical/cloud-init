@@ -9,7 +9,8 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import log as logging
+import logging
+
 from cloudinit import type_utils, util
 
 LOG = logging.getLogger(__name__)
@@ -257,6 +258,3 @@ def extract_default(users, default_name=None, default_config=None):
     config = tmp_users[name]
     config.pop("default", None)
     return (name, config)
-
-
-# vi: ts=4 expandtab

@@ -1,11 +1,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-
+import logging
 import os
 import time
 
-from cloudinit import helpers
-from cloudinit import log as logging
-from cloudinit import util
+from cloudinit import helpers, util
 
 LOG = logging.getLogger(__name__)
 
@@ -137,6 +135,3 @@ def show_warning(name, cfg=None, sleep=None, mode=True, **kwargs):
     if sleep:
         LOG.debug("sleeping %d seconds for warning '%s'", sleep, name)
         time.sleep(sleep)
-
-
-# vi: ts=4 expandtab

@@ -5,10 +5,10 @@
 """Debug jinja template rendering of user-data."""
 
 import argparse
+import logging
 import os
 import sys
 
-from cloudinit import log
 from cloudinit.cmd.devel import addLogHandlerCLI, read_cfg_paths
 from cloudinit.handlers.jinja_template import (
     JinjaLoadError,
@@ -18,7 +18,7 @@ from cloudinit.handlers.jinja_template import (
 
 NAME = "render"
 
-LOG = log.getLogger(NAME)
+LOG = logging.getLogger(__name__)
 
 
 def get_parser(parser=None):
@@ -61,7 +61,7 @@ def render_template(user_data_path, instance_data_path=None, debug=False):
 
     @return 0 on success, 1 on failure.
     """
-    addLogHandlerCLI(LOG, log.DEBUG if debug else log.WARNING)
+    addLogHandlerCLI(LOG, logging.DEBUG if debug else logging.WARNING)
     if instance_data_path:
         instance_data_fn = instance_data_path
     else:

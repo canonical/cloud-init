@@ -67,15 +67,14 @@ import collections
 import copy
 import ipaddress
 import json
+import logging
 import os
 import socket
 import time
 
 import netifaces
 
-from cloudinit import atomic_helper, dmi
-from cloudinit import log as logging
-from cloudinit import net, sources, util
+from cloudinit import atomic_helper, dmi, log, net, sources, util
 from cloudinit.sources.helpers.vmware.imc import guestcust_util
 from cloudinit.subp import ProcessExecutionError, subp, which
 
@@ -965,7 +964,7 @@ def main():
     Executed when this file is used as a program.
     """
     try:
-        logging.setupBasicLogging()
+        log.setupBasicLogging()
     except Exception:
         pass
     metadata = {
@@ -982,5 +981,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# vi: ts=4 expandtab

@@ -8,11 +8,10 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import os
 
-from cloudinit import handlers
-from cloudinit import log as logging
-from cloudinit import subp, util
+from cloudinit import handlers, subp, util
 from cloudinit.settings import PER_ALWAYS
 
 LOG = logging.getLogger(__name__)
@@ -55,6 +54,3 @@ class BootHookPartHandler(handlers.Handler):
             util.logexc(
                 LOG, "Boothooks unknown error when running %s", filepath
             )
-
-
-# vi: ts=4 expandtab

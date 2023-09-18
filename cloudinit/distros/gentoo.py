@@ -6,9 +6,9 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import distros, helpers
-from cloudinit import log as logging
-from cloudinit import subp, util
+import logging
+
+from cloudinit import distros, helpers, subp, util
 from cloudinit.distros import net_util
 from cloudinit.distros.parsers.hostname import HostnameConf
 from cloudinit.settings import PER_INSTANCE
@@ -264,6 +264,3 @@ def convert_resolv_conf(settings):
         for ns in settings:
             result += "nameserver %s\n" % ns
     return result
-
-
-# vi: ts=4 expandtab
