@@ -1615,7 +1615,9 @@ def can_dev_be_reformatted(devpath, preserve_ntfs):
 
     @azure_ds_telemetry_reporter
     def count_files(mp):
-        ignored = set(["dataloss_warning_readme.txt"])
+        ignored = set(
+            ["dataloss_warning_readme.txt", "system volume information"]
+        )
         return len([f for f in os.listdir(mp) if f.lower() not in ignored])
 
     bmsg = "partition %s (%s) on device %s was ntfs formatted" % (
