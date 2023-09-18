@@ -109,3 +109,28 @@ class TestApport:
 
         apport.add_bug_tags(report)
         assert report.get("Tags", "") == tags
+
+    @pytest.mark.parametrize(
+        "cfg,info_attached",
+        (
+            ({}, False),
+            ({"foo": "bar"}, False),
+            ({"ubuntu_advantage": "asdf"}, True),
+            ({"ubuntu-advantage": "asdf"}, True),
+        ),
+    )
+    @mock.patch("cloudinit.apport.stages.Init")
+    def test_attach_ubuntu_pro_info(self, m_init, cfg, info_attached, apport):
+        m_init.return_value = mock.Mock(cfg=cfg)
+        report = {}
+        apport.attach_ubuntu_pro_info(report)
+
+        if info_attached:
+            assert [
+                mock.call(report, "/var/log/ubuntu-advantage.log"),
+            ] == apport.attach_file_if_exists.call_args_list
+
+            assert report.get("Tags", "") == "ubuntu-pro"
+        else:
+            assert [] == apport.attach_file_if_exists.call_args_list
+            assert report.get("Tags", "") == ""
