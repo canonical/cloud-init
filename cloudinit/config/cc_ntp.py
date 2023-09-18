@@ -7,10 +7,10 @@
 """NTP: enable and configure ntp"""
 
 import copy
+import logging
 import os
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit import subp, temp_utils, templater, type_utils, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -671,6 +671,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     except subp.ProcessExecutionError as e:
         LOG.exception("Failed to reload/start ntp service: %s", e)
         raise
-
-
-# vi: ts=4 expandtab

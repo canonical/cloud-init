@@ -1,16 +1,13 @@
-#!/usr/bin/env python3
-# vi: ts=4 expandtab
-#
 # Copyright (C) 2021-2022 VMware Inc.
 #
 # Author: Shreenidhi Shedi <yesshedi@gmail.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 from collections import OrderedDict
 from typing import Optional
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.net import renderer
 from cloudinit.net.network_state import NetworkState

@@ -3,13 +3,13 @@
 import base64
 import gzip
 import io
+import logging
 import re
 import shutil
 import tempfile
 
 import pytest
 
-from cloudinit import log as logging
 from cloudinit import util
 from cloudinit.config.cc_write_files import decode_perms, handle, write_files
 from cloudinit.config.schema import (

@@ -8,15 +8,14 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import os
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.nonmultipart import MIMENonMultipart
 from email.mime.text import MIMEText
 
-from cloudinit import features, handlers
-from cloudinit import log as logging
-from cloudinit import util
+from cloudinit import features, handlers, util
 from cloudinit.url_helper import UrlError, read_file_or_url
 
 LOG = logging.getLogger(__name__)
@@ -386,6 +385,3 @@ def convert_string(raw_data, content_type=NOT_MULTIPART_TYPE):
         msg = create_binmsg(bdata, content_type)
 
     return msg
-
-
-# vi: ts=4 expandtab

@@ -6,6 +6,7 @@
 
 import base64
 import functools
+import logging
 import os
 import os.path
 import re
@@ -16,7 +17,6 @@ from pathlib import Path
 from time import sleep, time
 from typing import Any, Dict, List, Optional
 
-from cloudinit import log as logging
 from cloudinit import net, sources, ssh_util, subp, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import (

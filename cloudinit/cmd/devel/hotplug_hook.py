@@ -4,6 +4,7 @@
 """Handle reconfiguration on hotplug events."""
 import abc
 import argparse
+import logging
 import os
 import sys
 import time
@@ -16,7 +17,7 @@ from cloudinit.reporting import events
 from cloudinit.sources import DataSource, DataSourceNotFoundException
 from cloudinit.stages import Init
 
-LOG = log.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 NAME = "hotplug-hook"
 
 

@@ -2,11 +2,11 @@
 
 import contextlib
 import errno
+import logging
 import os
 import shutil
 import tempfile
 
-from cloudinit import log as logging
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -111,6 +111,3 @@ def mkdtemp(dir=None, needs_exe: bool = False, **kwargs):
 def mkstemp(dir=None, needs_exe: bool = False, **kwargs):
     dir = _tempfile_dir_arg(dir, needs_exe)
     return tempfile.mkstemp(dir=dir, **kwargs)
-
-
-# vi: ts=4 expandtab

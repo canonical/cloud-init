@@ -9,11 +9,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import json
+import logging
 import re
 from copy import copy, deepcopy
 from ipaddress import IPv4Network
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.net.network_state import net_prefix_to_ipv4_mask
 from cloudinit.simpletable import SimpleTable
@@ -662,6 +662,3 @@ def debug_info(prefix="ci-info: "):
     else:
         lines.extend(route_lines)
     return "\n".join(lines)
-
-
-# vi: ts=4 expandtab

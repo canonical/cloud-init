@@ -10,12 +10,12 @@ This file contains code used to gather the user data passed to an
 instance on rootbox / hyperone cloud platforms
 """
 import errno
+import logging
 import os
 import os.path
 import typing
 from ipaddress import IPv4Address
 
-from cloudinit import log as logging
 from cloudinit import sources, subp, util
 from cloudinit.event import EventScope, EventType
 

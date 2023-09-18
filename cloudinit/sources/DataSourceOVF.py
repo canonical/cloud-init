@@ -9,11 +9,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import base64
+import logging
 import os
 import re
 from xml.dom import minidom
 
-from cloudinit import log as logging
 from cloudinit import safeyaml, sources, subp, util
 
 LOG = logging.getLogger(__name__)
@@ -344,6 +344,3 @@ def safeload_yaml_or_dict(data):
     if not data:
         return {}
     return safeyaml.load(data)
-
-
-# vi: ts=4 expandtab

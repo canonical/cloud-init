@@ -8,8 +8,8 @@
 
 import functools
 import json
+import logging
 
-from cloudinit import log as logging
 from cloudinit import url_helper, util
 
 LOG = logging.getLogger(__name__)
@@ -282,6 +282,3 @@ def get_instance_identity(
         headers_cb=headers_cb,
         exception_cb=exception_cb,
     )
-
-
-# vi: ts=4 expandtab

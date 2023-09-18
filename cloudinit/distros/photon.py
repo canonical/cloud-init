@@ -1,13 +1,10 @@
-#!/usr/bin/env python3
-# vi: ts=4 expandtab
-#
 # Copyright (C) 2021 VMware Inc.
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import distros, helpers
-from cloudinit import log as logging
-from cloudinit import net, subp, util
+import logging
+
+from cloudinit import distros, helpers, net, subp, util
 from cloudinit.distros import rhel_util as rhutil
 from cloudinit.settings import PER_INSTANCE
 

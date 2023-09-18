@@ -5,7 +5,8 @@
 # UpCloud server metadata API:
 # https://developers.upcloud.com/1.3/8-servers/#metadata-service
 
-from cloudinit import log as logging
+import logging
+
 from cloudinit import net as cloudnet
 from cloudinit import sources, util
 from cloudinit.net.dhcp import NoDHCPLeaseError

@@ -1,10 +1,9 @@
+import logging
 import platform
 from typing import List, Optional
 
 import cloudinit.net.netops.bsd_netops as bsd_netops
-from cloudinit import distros, helpers
-from cloudinit import log as logging
-from cloudinit import net, subp, util
+from cloudinit import distros, helpers, net, subp, util
 from cloudinit.distros import bsd_utils
 from cloudinit.distros.networking import BSDNetworking
 

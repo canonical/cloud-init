@@ -2,11 +2,11 @@
 
 import copy
 import glob
+import logging
 import os
 import re
 from typing import Optional
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.net import ParserError, renderer, subnet_is_ipv6
 from cloudinit.net.network_state import NetworkState
@@ -601,6 +601,3 @@ def available(target=None):
         return False
 
     return True
-
-
-# vi: ts=4 expandtab

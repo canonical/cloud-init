@@ -13,11 +13,11 @@
 # noqa: E402
 
 import collections
+import logging
 import re
 import sys
 from typing import Any
 
-from cloudinit import log as logging
 from cloudinit import type_utils as tu
 from cloudinit import util
 from cloudinit.atomic_helper import write_file

@@ -4,6 +4,7 @@
 """Debug network config format conversions."""
 import argparse
 import json
+import logging
 import os
 import sys
 
@@ -99,9 +100,9 @@ def handle_args(name, args):
         os.makedirs(args.directory)
 
     if args.debug:
-        log.setupBasicLogging(level=log.DEBUG)
+        log.setupBasicLogging(level=logging.DEBUG)
     else:
-        log.setupBasicLogging(level=log.WARN)
+        log.setupBasicLogging(level=logging.WARN)
     if args.mac:
         known_macs = {}
         for item in args.mac:

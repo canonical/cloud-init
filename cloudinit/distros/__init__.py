@@ -10,6 +10,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import abc
+import logging
 import os
 import re
 import stat
@@ -19,9 +20,8 @@ from io import StringIO
 from typing import Any, Mapping, MutableMapping, Optional, Type
 
 import cloudinit.net.netops.iproute2 as iproute2
-from cloudinit import importer
-from cloudinit import log as logging
 from cloudinit import (
+    importer,
     net,
     persistence,
     ssh_util,

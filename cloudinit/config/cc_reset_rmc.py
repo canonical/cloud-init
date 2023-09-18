@@ -4,11 +4,9 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 """Reset RMC: Reset rsct node id"""
-
-
+import logging
 import os
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config

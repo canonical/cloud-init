@@ -19,6 +19,7 @@ import gzip
 import hashlib
 import io
 import json
+import logging
 import os
 import os.path
 import platform
@@ -51,9 +52,9 @@ from typing import (
 )
 from urllib import parse
 
-from cloudinit import features, importer
-from cloudinit import log as logging
 from cloudinit import (
+    features,
+    importer,
     mergers,
     net,
     safeyaml,
@@ -3268,7 +3269,7 @@ def deprecate(
             f"{version_removed}. {message}"
         ).rstrip()
         if hasattr(LOG, "deprecated"):
-            LOG.deprecated(deprecate_msg)
+            LOG.deprecated(deprecate_msg)  # type: ignore
         else:
             LOG.warning(deprecate_msg)
 

@@ -9,11 +9,11 @@
 import configparser
 import io
 import itertools
+import logging
 import os
 import uuid
 from typing import Optional
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.net import is_ipv6_address, renderer, subnet_is_ipv6
 from cloudinit.net.network_state import NetworkState
@@ -420,6 +420,3 @@ def available(target=None):
             service_active = False
 
     return config_present and bool(nmcli_present) and service_active
-
-
-# vi: ts=4 expandtab

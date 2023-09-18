@@ -7,8 +7,7 @@ import io
 import logging
 import time
 
-from cloudinit import log as ci_logging
-from cloudinit import util
+from cloudinit import log, util
 from cloudinit.analyze.dump import CLOUD_INIT_ASCTIME_FMT
 from tests.unittests.helpers import CiTestCase
 
@@ -22,10 +21,10 @@ class TestCloudInitLogger(CiTestCase):
         self.ci_logs = io.StringIO()
         self.ci_root = logging.getLogger()
         console = logging.StreamHandler(self.ci_logs)
-        console.setFormatter(logging.Formatter(ci_logging.DEF_CON_FORMAT))
-        console.setLevel(ci_logging.DEBUG)
+        console.setFormatter(logging.Formatter(log.DEF_CON_FORMAT))
+        console.setLevel(logging.DEBUG)
         self.ci_root.addHandler(console)
-        self.ci_root.setLevel(ci_logging.DEBUG)
+        self.ci_root.setLevel(logging.DEBUG)
         self.LOG = logging.getLogger("test_cloudinit_logger")
 
     def test_logger_uses_gmtime(self):
@@ -62,14 +61,14 @@ class TestCloudInitLogger(CiTestCase):
 
 class TestDeprecatedLogs:
     def test_deprecated_log_level(self, caplog):
-        ci_logging.setupLogging()
-        log = ci_logging.getLogger()
-        log.deprecated("deprecated message")
+        logger = logging.getLogger()
+        log.setupLogging()
+        logger.deprecated("deprecated message")
         assert "DEPRECATED" == caplog.records[0].levelname
         assert "deprecated message" in caplog.text
 
     def test_log_deduplication(self, caplog):
-        ci_logging.defineDeprecationLogger()
+        log.defineDeprecationLogger()
         util.deprecate(
             deprecated="stuff",
             deprecated_version="19.1",

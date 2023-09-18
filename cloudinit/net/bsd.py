@@ -1,9 +1,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import re
 from typing import Optional
 
-from cloudinit import log as logging
 from cloudinit import net, subp, util
 from cloudinit.distros import bsd_utils
 from cloudinit.distros.parsers.resolv_conf import ResolvConf
