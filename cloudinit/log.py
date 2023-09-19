@@ -113,11 +113,7 @@ def setupLogging(cfg=None):
 
 
 def resetLogging():
-    """Remove all current handlers, unset log level and add a NullHandler.
-
-    (Adding the NullHandler avoids "No handlers could be found for logger XXX"
-    messages.)
-    """
+    """Remove all current handlers and unset log level."""
     log = logging.getLogger()
     handlers = list(log.handlers)
     for h in handlers:
@@ -125,7 +121,6 @@ def resetLogging():
         h.close()
         log.removeHandler(h)
     log.setLevel(logging.NOTSET)
-    log.addHandler(logging.NullHandler())
 
 
 def setup_backup_logging():
