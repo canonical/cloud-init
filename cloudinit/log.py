@@ -21,7 +21,7 @@ from contextlib import suppress
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
 
 
-def setupBasicLogging(level=logging.DEBUG, formatter=None):
+def setup_basic_logging(level=logging.DEBUG, formatter=None):
     formatter = formatter or logging.Formatter(DEFAULT_LOG_FORMAT)
     root = logging.getLogger()
     for handler in root.handlers:
@@ -37,17 +37,17 @@ def setupBasicLogging(level=logging.DEBUG, formatter=None):
     root.setLevel(level)
 
 
-def flushLoggers(root):
+def flush_loggers(root):
     if not root:
         return
     for h in root.handlers:
         if isinstance(h, (logging.StreamHandler)):
             with suppress(IOError):
                 h.flush()
-    flushLoggers(root.parent)
+    flush_loggers(root.parent)
 
 
-def defineDeprecationLogger(lvl=35):
+def define_deprecation_logger(lvl=35):
     logging.addLevelName(lvl, "DEPRECATED")
 
     def deprecated(self, message, *args, **kwargs):
@@ -57,7 +57,7 @@ def defineDeprecationLogger(lvl=35):
     logging.Logger.deprecated = deprecated
 
 
-def setupLogging(cfg=None):
+def setup_logging(cfg=None):
     # See if the config provides any logging conf...
     if not cfg:
         cfg = {}
@@ -109,10 +109,10 @@ def setupLogging(cfg=None):
     )
     if basic_enabled:
         sys.stderr.write("Setting up basic logging...\n")
-        setupBasicLogging()
+        setup_basic_logging()
 
 
-def resetLogging():
+def reset_logging():
     """Remove all current handlers and unset log level."""
     log = logging.getLogger()
     handlers = list(log.handlers)
@@ -150,6 +150,6 @@ def configure_root_logger():
 
     # Always format logging timestamps as UTC time
     logging.Formatter.converter = time.gmtime
-    defineDeprecationLogger()
+    define_deprecation_logger()
     setup_backup_logging()
-    resetLogging()
+    reset_logging()

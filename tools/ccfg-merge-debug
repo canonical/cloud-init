@@ -26,7 +26,7 @@ def main():
     if args.verbose:
         level = (logging.WARN, logging.INFO,
                  logging.DEBUG)[min(args.verbose, 2)]
-        logging.setupBasicLogging(level)
+        logging.setup_basic_logging(level)
 
     outfile = args.output
     if args.output == "-":

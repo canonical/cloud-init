@@ -100,9 +100,9 @@ def handle_args(name, args):
         os.makedirs(args.directory)
 
     if args.debug:
-        log.setupBasicLogging(level=logging.DEBUG)
+        log.setup_basic_logging(level=logging.DEBUG)
     else:
-        log.setupBasicLogging(level=logging.WARN)
+        log.setup_basic_logging(level=logging.WARN)
     if args.mac:
         known_macs = {}
         for item in args.mac:

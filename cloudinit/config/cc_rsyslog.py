@@ -452,8 +452,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if restarted:
         # This only needs to run if we *actually* restarted
         # syslog above.
-        log.resetLogging()
-        log.setupLogging(cloud.cfg)
+        log.reset_logging()
+        log.setup_logging(cloud.cfg)
         # This should now use rsyslog if
         # the logging was setup to use it...
         LOG.debug("%s configured %s files", name, changes)

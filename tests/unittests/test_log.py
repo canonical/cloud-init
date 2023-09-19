@@ -14,7 +14,7 @@ from tests.unittests.helpers import CiTestCase
 
 class TestCloudInitLogger(CiTestCase):
     def setUp(self):
-        # set up a logger like cloud-init does in setupLogging, but instead
+        # set up a logger like cloud-init does in setup_logging, but instead
         # of sys.stderr, we'll plug in a StringIO() object so we can see
         # what gets logged
         logging.Formatter.converter = time.gmtime
@@ -62,13 +62,13 @@ class TestCloudInitLogger(CiTestCase):
 class TestDeprecatedLogs:
     def test_deprecated_log_level(self, caplog):
         logger = logging.getLogger()
-        log.setupLogging()
+        log.setup_logging()
         logger.deprecated("deprecated message")
         assert "DEPRECATED" == caplog.records[0].levelname
         assert "deprecated message" in caplog.text
 
     def test_log_deduplication(self, caplog):
-        log.defineDeprecationLogger()
+        log.define_deprecation_logger()
         util.deprecate(
             deprecated="stuff",
             deprecated_version="19.1",

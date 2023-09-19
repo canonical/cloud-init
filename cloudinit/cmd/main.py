@@ -36,9 +36,9 @@ from cloudinit.config import cc_set_hostname
 from cloudinit.config.modules import Modules
 from cloudinit.config.schema import validate_cloudconfig_schema
 from cloudinit.log import (
-    setupBasicLogging,
-    setupLogging,
-    resetLogging,
+    setup_basic_logging,
+    setup_logging,
+    reset_logging,
     configure_root_logger,
 )
 from cloudinit.reporting import events
@@ -343,11 +343,11 @@ def main_init(name, args):
         LOG.debug(
             "Logging being reset, this logger may no longer be active shortly"
         )
-        resetLogging()
-    setupLogging(init.cfg)
+        reset_logging()
+    setup_logging(init.cfg)
     apply_reporting_cfg(init.cfg)
 
-    # Any log usage prior to setupLogging above did not have local user log
+    # Any log usage prior to setup_logging above did not have local user log
     # config applied.  We send the welcome message now, as stderr/out have
     # been redirected and log now configured.
     welcome(name, msg=w_msg)
@@ -504,7 +504,7 @@ def main_init(name, args):
             (outfmt, errfmt) = util.fixup_output(mods.cfg, name)
     except Exception:
         util.logexc(LOG, "Failed to re-adjust output redirection!")
-    setupLogging(mods.cfg)
+    setup_logging(mods.cfg)
 
     # give the activated datasource a chance to adjust
     init.activate_datasource()
@@ -609,8 +609,8 @@ def main_modules(action_name, args):
         LOG.debug(
             "Logging being reset, this logger may no longer be active shortly"
         )
-        resetLogging()
-    setupLogging(mods.cfg)
+        reset_logging()
+    setup_logging(mods.cfg)
     apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
@@ -671,8 +671,8 @@ def main_single(name, args):
         LOG.debug(
             "Logging being reset, this logger may no longer be active shortly"
         )
-        resetLogging()
-    setupLogging(mods.cfg)
+        reset_logging()
+    setup_logging(mods.cfg)
     apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
@@ -1044,7 +1044,7 @@ def main(sysv_args=None):
     # Setup basic logging to start (until reinitialized)
     # iff in debug mode.
     if args.debug:
-        setupBasicLogging()
+        setup_basic_logging()
 
     # Setup signal handlers before running
     signal_handler.attach_handlers()

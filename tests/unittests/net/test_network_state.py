@@ -214,7 +214,7 @@ class TestNetworkStateParseConfigV2:
         In netplan targets we perform a passthrough and the warning is not
         needed.
         """
-        log.setupLogging()
+        log.setup_logging()
 
         util.deprecate._log = set()  # type: ignore
         ncfg = safeyaml.load(

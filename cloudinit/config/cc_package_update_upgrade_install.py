@@ -16,7 +16,7 @@ from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
-from cloudinit.log import flushLoggers
+from cloudinit.log import flush_loggers
 from cloudinit.settings import PER_INSTANCE
 
 REBOOT_FILE = "/var/run/reboot-required"
@@ -134,7 +134,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 "Rebooting after upgrade or install per %s", REBOOT_FILE
             )
             # Flush the above warning + anything else out...
-            flushLoggers(LOG)
+            flush_loggers(LOG)
             _fire_reboot()
         except Exception as e:
             util.logexc(LOG, "Requested reboot did not happen!")
