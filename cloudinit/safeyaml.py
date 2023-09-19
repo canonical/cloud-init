@@ -4,7 +4,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from collections import namedtuple
+from collections import defaultdict
 from itertools import chain
 from typing import Any, Dict, List, Tuple
 
@@ -15,9 +15,38 @@ YAMLError = yaml.YAMLError
 # SchemaPathMarks track the path to an element within a loaded YAML file.
 # The start_mark and end_mark contain the row and column indicators
 # which represent the coordinates where the schema element begins and ends.
-SchemaPathMarks = namedtuple(
-    "SchemaPathMarks", ("path", "start_mark", "end_mark")
-)
+class SchemaPathMarks:
+    def __init__(self, path: str, start_mark: yaml.Mark, end_mark: yaml.Mark):
+        self.path = path
+        self.start_mark = start_mark
+        self.end_mark = end_mark
+
+    def __contains__(self, other):
+        """Return whether other start/end marks are within self marks."""
+        if (
+            other.start_mark.line < self.start_mark.line
+            or other.end_mark.line > self.end_mark.line
+        ):
+            return False
+        if (
+            other.start_mark.line == self.start_mark.line
+            and other.start_mark.column < self.start_mark.column
+        ):
+            return False
+        if (
+            other.end_mark.line == self.end_mark.line
+            and other.end_mark.column > self.end_mark.column
+        ):
+            return False
+        return True
+
+    def __eq__(self, other):
+        return (
+            self.start_mark.line == other.start_mark.line
+            and self.start_mark.column == other.start_mark.column
+            and self.end_mark.line == other.end_mark.line
+            and self.end_mark.column == other.end_mark.column
+        )
 
 
 class _CustomSafeLoader(yaml.SafeLoader):
@@ -25,24 +54,60 @@ class _CustomSafeLoader(yaml.SafeLoader):
         return super().construct_scalar(node)
 
 
-def _fix_nested_map_index(new_key_path, marks):
+def _find_closest_parent(child_mark, marks):
+    for mark in marks[::-1]:
+        if child_mark in mark and not child_mark == mark:
+            return mark
+    return None
+
+
+def _reparent_schema_mark_children(line_marks: List[SchemaPathMarks]):
+    """
+    Update any SchemaPathMarks.path for items not under the proper parent.
+    """
+    for mark in line_marks:
+        parent = _find_closest_parent(mark, line_marks)
+        if parent:
+            path_prefix, _path_idx = mark.path.rsplit(".", 1)
+            if mark.path == parent.path or not mark.path.startswith(
+                parent.path
+            ):
+                # Reparent, replacing only the first match of path_prefix
+                mark.path = mark.path.replace(path_prefix, parent.path, 1)
+
+
+def _add_mark_and_reparent_marks(
+    new_mark: SchemaPathMarks, marks: List[SchemaPathMarks]
+) -> List[SchemaPathMarks]:
+    """Insert new_mark into marks, ordering ancestors first.
+
+    Reparent existing SchemaPathMarks.path when new_mark is a parent of
+    an existing mark item.
+
+    Because schema processing is depth first, leaf/child mappings and
+    sequences may be processed for SchemaPathMarks before their parents.
+    This leads to SchemaPathMarks.path of 'grandchildren' being incorrectly
+    parented by the root dictionary instead of an intermediary parents below
+    root.
+
+    Walk through the list of existing marks and reparent marks that are
+    contained within the new_mark.
+    """
     new_marks = []
+    reparent_paths = False
     for mark in marks:
-        if "." not in mark.path:
+        if mark not in new_mark:
             new_marks.append(mark)
             continue
-        path_prefix, _path_idx = mark.path.rsplit(".", 1)
-        if new_key_path not in mark.path and path_prefix in mark.path:
-            new_marks.append(
-                SchemaPathMarks(
-                    # Replace only the first match of path_prefix
-                    mark.path.replace(path_prefix, new_key_path, 1),
-                    mark.start_mark,
-                    mark.end_mark,
-                )
-            )
-        else:
-            new_marks.append(mark)
+        if new_mark not in new_marks:
+            reparent_paths = True
+            # Insert new_mark first as it is a parent of mark
+            new_marks.append(new_mark)
+        new_marks.append(mark)
+    if reparent_paths:
+        _reparent_schema_mark_children(new_marks)
+    else:
+        new_marks.append(new_mark)
     return new_marks
 
 
@@ -78,21 +143,28 @@ class _CustomSafeLoaderWithMarks(yaml.SafeLoader):
 
     def __init__(self, stream):
         super().__init__(stream)
-        self.schemamarks_by_line: Dict[int, List[SchemaPathMarks]] = {}
+        self.schemamarks_by_line: Dict[
+            int, List[SchemaPathMarks]
+        ] = defaultdict(list)
 
     def _get_nested_path_prefix(self, node):
         if node.start_mark.line in self.schemamarks_by_line:
-            return f"{self.schemamarks_by_line[node.start_mark.line][0][0]}."
+            # Find most specific match
+            most_specific_mark = self.schemamarks_by_line[
+                node.start_mark.line
+            ][0]
+            for path_mark in self.schemamarks_by_line[node.start_mark.line][
+                1:
+            ]:
+                if node in path_mark and path_mark in most_specific_mark:
+                    most_specific_mark = path_mark
+            if node in most_specific_mark:
+                return most_specific_mark.path + "."
         for _line_num, schema_marks in sorted(
             self.schemamarks_by_line.items(), reverse=True
         ):
             for mark in schema_marks[::-1]:
-                if (  # Is the node within the scope of the furthest mark
-                    node.start_mark.line >= mark.start_mark.line
-                    and node.start_mark.column >= mark.start_mark.column
-                    and node.end_mark.line <= mark.end_mark.line
-                    and node.end_mark.column <= mark.end_mark.column
-                ):
+                if node in mark:
                     return f"{mark.path}."
         return ""
 
@@ -102,13 +174,12 @@ class _CustomSafeLoaderWithMarks(yaml.SafeLoader):
         for key_node, value_node in node.value:
             node_key_path = f"{nested_path_prefix}{key_node.value}"
             line_num = key_node.start_mark.line
-            mark = SchemaPathMarks(
+            new_mark = SchemaPathMarks(
                 node_key_path, key_node.start_mark, value_node.end_mark
             )
-            if line_num not in self.schemamarks_by_line:
-                self.schemamarks_by_line[line_num] = [mark]
-            else:
-                self.schemamarks_by_line[line_num].append(mark)
+            schema_marks = self.schemamarks_by_line[line_num]
+            new_marks = _add_mark_and_reparent_marks(new_mark, schema_marks)
+            self.schemamarks_by_line[line_num] = new_marks
         return mapping
 
     def construct_sequence(self, node, deep=False):
@@ -117,22 +188,26 @@ class _CustomSafeLoaderWithMarks(yaml.SafeLoader):
         for index, sequence_item in enumerate(node.value):
             line_num = sequence_item.start_mark.line
             node_key_path = f"{nested_path_prefix}{index}"
-            marks = SchemaPathMarks(
+            new_mark = SchemaPathMarks(
                 node_key_path, sequence_item.start_mark, sequence_item.end_mark
             )
             if line_num not in self.schemamarks_by_line:
-                self.schemamarks_by_line[line_num] = [marks]
+                self.schemamarks_by_line[line_num] = [new_mark]
             else:
                 if line_num == sequence_item.end_mark.line:
-                    self.schemamarks_by_line[line_num].append(marks)
+                    schema_marks = self.schemamarks_by_line[line_num]
+                    new_marks = _add_mark_and_reparent_marks(
+                        new_mark, schema_marks
+                    )
+                    self.schemamarks_by_line[line_num] = new_marks
                 else:  # Incorrect multi-line mapping or sequence object.
                     for inner_line in range(
                         line_num, sequence_item.end_mark.line
                     ):
                         if inner_line in self.schemamarks_by_line:
                             schema_marks = self.schemamarks_by_line[inner_line]
-                            new_marks = _fix_nested_map_index(
-                                node_key_path, schema_marks
+                            new_marks = _add_mark_and_reparent_marks(
+                                new_mark, schema_marks
                             )
                             if (
                                 inner_line == line_num
