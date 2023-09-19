@@ -88,7 +88,7 @@ def setupLogging(cfg=None):
         # The default configuration includes an attempt at using /dev/log,
         # followed up by writing to a file. /dev/log will not exist in
         # very early boot, so an exception on that is expected.
-        with suppress(Exception):
+        with suppress(FileNotFoundError):
             am_tried += 1
 
             # If the value is not a filename, assume that it is a config.
