@@ -112,7 +112,8 @@ def get_services_status(client: IntegrationInstance) -> dict:
     assert status_resp.ok
     status = json.loads(status_resp.stdout)
     return {
-        svc["name"]: svc["status"] == "enabled" for svc in status["services"]
+        svc["name"]: svc["status"] in ["enabled", "warning"]
+        for svc in status["services"]
     }
 
 
