@@ -520,9 +520,13 @@ def _ensure_dependencies(cfg, aa_repo_match, cloud):
     missing_packages = []
     required_cmds = set()
     if util.is_false(cfg.get("preserve_sources_list", False)):
-        for key in ("primary", "security"):
-            if cfg.get(key):  # If either key set, we'll add_mirror_keys
-                required_cmds.add("gpg")
+        for mirror_key in ("primary", "security"):
+            if cfg.get(mirror_key):
+                # Include gpg when mirror_key non-empty list and any item
+                # defines key or keyid.
+                for mirror_item in cfg[mirror_key]:
+                    if {"key", "keyid"}.intersection(mirror_item):
+                        required_cmds.add("gpg")
     apt_sources_dict = cfg.get("sources", {})
     for ent in apt_sources_dict.values():
         if {"key", "keyid"}.intersection(ent):
