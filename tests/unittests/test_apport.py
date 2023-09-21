@@ -103,31 +103,28 @@ class TestApport:
         apport.add_bug_tags(report)
         assert report.get("Tags", "") == tags
 
-    @pytest.mark.parametrize(
-        "cfg,info_attached",
-        (
-            ({}, False),
-            ({"foo": "bar"}, False),
-            ({"ubuntu_advantage": "asdf"}, True),
-            ({"ubuntu-advantage": "asdf"}, True),
-        ),
-    )
-    @mock.patch("cloudinit.apport.stages.Init")
-    def test_attach_ubuntu_pro_info(self, m_init, cfg, info_attached):
-
+    @mock.patch(M_PATH + "os.path.exists", return_value=True)
+    def test_attach_ubuntu_pro_info(self, m_exists):
         m_hookutils = mock.Mock()
         with mock.patch.dict(sys.modules, {"apport.hookutils": m_hookutils}):
             reload(sys.modules["cloudinit.apport"])
-            m_init.return_value = mock.Mock(cfg=cfg)
             report = {}
             apport.attach_ubuntu_pro_info(report)
 
-        if info_attached:
-            assert [
-                mock.call(report, "/var/log/ubuntu-advantage.log"),
-            ] == m_hookutils.attach_file_if_exists.call_args_list
+        assert [
+            mock.call(report, "/var/log/ubuntu-advantage.log"),
+        ] == m_hookutils.attach_file_if_exists.call_args_list
+        assert report.get("Tags", "") == "ubuntu-pro"
 
-            assert report.get("Tags", "") == "ubuntu-pro"
-        else:
-            assert [] == apport.attach_file_if_exists.call_args_list
-            assert report.get("Tags", "") == ""
+    @mock.patch(M_PATH + "os.path.exists", return_value=False)
+    def test_attach_ubuntu_pro_info_log_non_present(self, m_exists):
+        m_hookutils = mock.Mock()
+        with mock.patch.dict(sys.modules, {"apport.hookutils": m_hookutils}):
+            reload(sys.modules["cloudinit.apport"])
+            report = {}
+            apport.attach_ubuntu_pro_info(report)
+
+        assert [
+            mock.call(report, "/var/log/ubuntu-advantage.log"),
+        ] == m_hookutils.attach_file_if_exists.call_args_list
+        assert report.get("Tags", "") == ""

@@ -7,7 +7,6 @@
 import json
 import os
 
-from cloudinit import stages
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.cmd.devel.logs import (
     INSTALLER_APPORT_FILES,
@@ -158,21 +157,13 @@ def attach_installer_files(report, ui=None):
 
 def attach_ubuntu_pro_info(report, ui=None):
     """Attach ubuntu pro logs and tag if keys present in user-data."""
-    init = stages.Init()
-    has_up_key = init.cfg and (
-        "ubuntu_advantage" in init.cfg.keys()
-        or "ubuntu-advantage" in init.cfg.keys()
-    )
-    if not has_up_key:
-        return
-
     realpath = os.path.realpath("/var/log/ubuntu-advantage.log")
     attach_file_if_exists(report, realpath)
-
-    report.setdefault("Tags", "")
-    if report["Tags"]:
-        report["Tags"] += " "
-    report["Tags"] += "ubuntu-pro"
+    if os.path.exists(realpath):
+        report.setdefault("Tags", "")
+        if report["Tags"]:
+            report["Tags"] += " "
+        report["Tags"] += "ubuntu-pro"
 
 
 def attach_user_data(report, ui=None):
