@@ -421,6 +421,3 @@ class TestNetworkConvert(CiTestCase):
             sorted(["45.55.249.133", "10.17.0.5"]),
             sorted([i["address"] for i in eth0["subnets"]]),
         )
-
-
-# vi: ts=4 expandtab

@@ -214,6 +214,3 @@ def add_info(report, ui):
     attach_installer_files(report, ui)
     add_bug_tags(report)
     return True
-
-
-# vi: ts=4 expandtab

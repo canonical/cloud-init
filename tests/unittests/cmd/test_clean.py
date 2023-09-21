@@ -462,6 +462,3 @@ class TestClean:
         assert (
             clean_paths.log.exists() is False
         ), f"Unexpected log {clean_paths.log}"
-
-
-# vi: ts=4 expandtab syntax=python

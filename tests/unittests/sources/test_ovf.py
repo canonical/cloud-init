@@ -512,4 +512,3 @@ class TestTransportVmwareGuestinfo(CiTestCase):
 
 
 #
-# vi: ts=4 expandtab

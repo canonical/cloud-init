@@ -8991,6 +8991,3 @@ class TestNetworkState(CiTestCase):
         self.assertEqual(
             "10.1.21.255", bcast_addr("255.255.255.0", "10.1.21.4")
         )
-
-
-# vi: ts=4 expandtab

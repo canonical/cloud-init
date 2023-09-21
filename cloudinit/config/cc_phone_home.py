@@ -203,6 +203,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         util.logexc(
             LOG, "Failed to post phone home data to %s in %s tries", url, tries
         )
-
-
-# vi: ts=4 expandtab

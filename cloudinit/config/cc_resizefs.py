@@ -325,6 +325,3 @@ def do_resize(resize_cmd):
         raise
     # TODO(harlowja): Should we add a fsck check after this to make
     # sure we didn't corrupt anything?
-
-
-# vi: ts=4 expandtab

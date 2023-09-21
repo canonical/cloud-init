@@ -1598,6 +1598,3 @@ class TestMultipleSshAuthorizedKeysFile:
 
         self.execute_and_check(user_bobby, sshd_config, authorized_keys, keys)
         self.execute_and_check(user_suzie, sshd_config, authorized_keys2, keys)
-
-
-# vi: ts=4 expandtab

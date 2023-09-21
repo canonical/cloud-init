@@ -140,6 +140,3 @@ class StaticIpv6Base:
         @return (str): the IPv6GATEWAY setting
         """
         raise NotImplementedError("Ipv6 GATEWAY")
-
-
-# vi: ts=4 expandtab

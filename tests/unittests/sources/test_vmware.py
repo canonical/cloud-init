@@ -1219,6 +1219,3 @@ def get_ds(temp_dir):
     )
     ds.vmware_rpctool = "vmware-rpctool"
     return ds
-
-
-# vi: ts=4 expandtab

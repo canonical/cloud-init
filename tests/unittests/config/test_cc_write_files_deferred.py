@@ -65,6 +65,3 @@ class TestWriteFilesDeferredSchema:
     def test_schema_validation(self, config, error_msg):
         with pytest.raises(SchemaValidationError, match=error_msg):
             validate_cloudconfig_schema(config, get_schema(), strict=True)
-
-
-# vi: ts=4 expandtab

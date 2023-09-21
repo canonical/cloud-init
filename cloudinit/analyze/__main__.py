@@ -310,5 +310,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
     (name, action_functor) = args.action
     action_functor(name, args)
-
-# vi: ts=4 expandtab

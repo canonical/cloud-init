@@ -28,5 +28,3 @@ cloud_init_warnings() {
 
 cloud_init_warnings 1>&2
 unset cloud_init_warnings
-
-# vi: syntax=sh ts=4 expandtab

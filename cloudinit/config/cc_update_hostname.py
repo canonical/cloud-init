@@ -121,6 +121,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             LOG, "Failed to update the hostname to %s (%s)", fqdn, hostname
         )
         raise
-
-
-# vi: ts=4 expandtab

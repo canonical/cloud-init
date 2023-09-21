@@ -133,6 +133,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         util.logexc(LOG, msg)
         raise SetHostnameError("%s: %s" % (msg, e)) from e
     write_json(prev_fn, {"hostname": hostname, "fqdn": fqdn})
-
-
-# vi: ts=4 expandtab

@@ -333,6 +333,3 @@ class TestHandle:
         content = "\n".join(cfg["snap"]["assertions"])
         util.write_file(compare_file, content.encode("utf-8"))
         assert util.load_file(compare_file) == util.load_file(assert_file)
-
-
-# vi: ts=4 expandtab

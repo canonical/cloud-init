@@ -100,6 +100,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         "Migrated %s semaphore files to there canonicalized names", sems_moved
     )
     _migrate_legacy_sems(cloud)
-
-
-# vi: ts=4 expandtab

@@ -225,6 +225,3 @@ class TestNetConvert:
             net_convert.handle_args("somename", args)
         outfile = tmpdir.join("etc/netplan/50-cloud-init.yaml")
         assert yaml.load(content) == yaml.load(outfile.read())
-
-
-# vi: ts=4 expandtab

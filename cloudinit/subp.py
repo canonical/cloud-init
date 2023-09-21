@@ -412,6 +412,3 @@ def runparts(dirp, skip_no_exist=True, exe_prefix=None):
             f'Runparts: {len(failed)} failures ({",".join(failed)}) in '
             f"{len(attempted)} attempted commands"
         )
-
-
-# vi: ts=4 expandtab
