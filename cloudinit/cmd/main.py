@@ -984,7 +984,7 @@ def main(sysv_args=None):
         # Only load subparsers if subcommand is specified to avoid load cost
         subcommand = sysv_args[0]
         if subcommand == "analyze":
-            from cloudinit.analyze.__main__ import get_parser as analyze_parser
+            from cloudinit.analyze import get_parser as analyze_parser
 
             # Construct analyze subcommand parser
             analyze_parser(parser_analyze)
