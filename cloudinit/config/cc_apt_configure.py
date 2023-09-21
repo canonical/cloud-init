@@ -8,7 +8,6 @@
 
 """Apt Configure: Configure apt for the user."""
 
-import functools
 import glob
 import logging
 import os
@@ -35,6 +34,11 @@ CLOUD_INIT_GPG_DIR = "/etc/apt/cloud-init.gpg.d/"
 
 frequency = PER_INSTANCE
 distros = ["ubuntu", "debian"]
+
+PACKAGE_DEPENDENCY_BY_COMMAND = {
+    "add-apt-repository": "software-properties-common",
+    "gpg": "gnupg",
+}
 
 meta: MetaSchema = {
     "id": "cc_apt_configure",
@@ -216,6 +220,12 @@ def apply_apt(cfg, cloud, target):
     mirrors = find_apt_mirror_info(cfg, cloud, arch=arch)
     LOG.debug("Apt Mirror info: %s", mirrors)
 
+    matcher = None
+    matchcfg = cfg.get("add_apt_repo_match", ADD_APT_REPO_MATCH)
+    if matchcfg:
+        matcher = re.compile(matchcfg).search
+    _ensure_dependencies(cfg, matcher, cloud)
+
     if util.is_false(cfg.get("preserve_sources_list", False)):
         add_mirror_keys(cfg, cloud, target)
         generate_sources_list(cfg, release, mirrors, cloud)
@@ -231,11 +241,6 @@ def apply_apt(cfg, cloud, target):
         params = mirrors
         params["RELEASE"] = release
         params["MIRROR"] = mirrors["MIRROR"]
-
-        matcher = None
-        matchcfg = cfg.get("add_apt_repo_match", ADD_APT_REPO_MATCH)
-        if matchcfg:
-            matcher = re.compile(matchcfg).search
 
         add_apt_sources(
             cfg["sources"],
@@ -500,10 +505,37 @@ def add_apt_key_raw(key, file_name, hardened=False, target=None):
         raise
 
 
-@functools.lru_cache(maxsize=1)
-def _ensure_gpg(cloud):
-    if not shutil.which("gpg"):
-        cloud.distro.install_packages(["gnupg"])
+def _ensure_dependencies(cfg, aa_repo_match, cloud):
+    """Install missing package dependencies based on apt_sources config.
+
+    Inspect the cloud config user-data provided. When user-data indicates
+    conditions where add_apt_key or add-apt-repository will be called,
+    ensure the required command dependencies are present installed.
+
+    Perform this inspection upfront because it is very expensive to call
+    distro.install_packages due to a preliminary 'apt update' called before
+    package installation.
+    """
+    missing_packages = []
+    required_cmds = set()
+    if util.is_false(cfg.get("preserve_sources_list", False)):
+        for mirror_key in ("primary", "security"):
+            if cfg.get(mirror_key):
+                # Include gpg when mirror_key non-empty list and any item
+                # defines key or keyid.
+                for mirror_item in cfg[mirror_key]:
+                    if {"key", "keyid"}.intersection(mirror_item):
+                        required_cmds.add("gpg")
+    apt_sources_dict = cfg.get("sources", {})
+    for ent in apt_sources_dict.values():
+        if {"key", "keyid"}.intersection(ent):
+            required_cmds.add("gpg")
+        if aa_repo_match(ent.get("source", "")):
+            required_cmds.add("add-apt-repository")
+    for command in required_cmds:
+        if not shutil.which(command):
+            missing_packages.append(PACKAGE_DEPENDENCY_BY_COMMAND[command])
+    cloud.distro.install_packages(sorted(missing_packages))
 
 
 def add_apt_key(ent, cloud, target=None, hardened=False, file_name=None):
@@ -512,7 +544,6 @@ def add_apt_key(ent, cloud, target=None, hardened=False, file_name=None):
     Supports raw keys or keyid's
     The latter will as a first step fetched to get the raw key
     """
-    _ensure_gpg(cloud)
     if "keyid" in ent and "key" not in ent:
         keyserver = DEFAULT_KEYSERVER
         if "keyserver" in ent:
@@ -580,7 +611,7 @@ def add_apt_sources(
             key_file = add_apt_key(ent, cloud, target, hardened=True)
             template_params["KEY_FILE"] = key_file
         else:
-            key_file = add_apt_key(ent, cloud, target)
+            add_apt_key(ent, cloud, target)
 
         if "source" not in ent:
             continue

@@ -88,7 +88,7 @@ class TestAptSourceConfigSourceList:
         lsb.return_value = {"codename": "fakerel"}
         m_arch = mocker.patch("cloudinit.util.get_dpkg_architecture")
         m_arch.return_value = "amd64"
-        mocker.patch("cloudinit.config.cc_apt_configure._ensure_gpg")
+        mocker.patch("cloudinit.config.cc_apt_configure._ensure_dependencies")
 
     @pytest.mark.parametrize(
         "distro,template_present",

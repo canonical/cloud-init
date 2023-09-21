@@ -8,6 +8,7 @@ from cloudinit.config import cc_apt_configure
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
+from tests.integration_tests.util import verify_clean_log
 
 USER_DATA = """\
 #cloud-config
@@ -412,3 +413,28 @@ def test_apt_proxy(client: IntegrationInstance):
     assert 'Acquire::http::Proxy "http://squid.internal:3128";' in out
     assert 'Acquire::ftp::Proxy "ftp://squid.internal:3128";' in out
     assert 'Acquire::https::Proxy "https://squid.internal:3128";' in out
+
+
+INSTALL_ANY_MISSING_RECOMMENDED_DEPENDENCIES = """\
+#cloud-config
+bootcmd:
+    - apt-get remove gpg -y
+apt:
+  sources:
+    test_keyserver:
+      keyid: 110E21D8B0E2A1F0243AF6820856F197B892ACEA
+      keyserver: keyserver.ubuntu.com
+      source: "deb http://ppa.launchpad.net/canonical-kernel-team/ppa/ubuntu $RELEASE main"
+    test_ppa:
+      keyid: 441614D8
+      keyserver: keyserver.ubuntu.com
+      source: "ppa:simplestreams-dev/trunk"
+"""  # noqa: E501
+
+
+@pytest.mark.skipif(not IS_UBUNTU, reason="Apt usage")
+@pytest.mark.user_data(INSTALL_ANY_MISSING_RECOMMENDED_DEPENDENCIES)
+def test_install_missing_deps(client: IntegrationInstance):
+    log = client.read_from_file("/var/log/cloud-init.log")
+    verify_clean_log(log)
+    assert "install gnupg software-properties-common" in log

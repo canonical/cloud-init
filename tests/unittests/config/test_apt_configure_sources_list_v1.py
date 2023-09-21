@@ -71,7 +71,7 @@ class TestAptSourceConfigSourceList:
         self.subp = mocker.patch.object(
             subp, "subp", return_value=("PPID   PID", "")
         )
-        mocker.patch("cloudinit.config.cc_apt_configure._ensure_gpg")
+        mocker.patch("cloudinit.config.cc_apt_configure._ensure_dependencies")
         lsb = mocker.patch("cloudinit.util.lsb_release")
         lsb.return_value = {"codename": "fakerelease"}
         m_arch = mocker.patch("cloudinit.util.get_dpkg_architecture")
