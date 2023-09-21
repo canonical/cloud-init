@@ -229,8 +229,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                     "manager: %s.",
                     manager,
                 )
+                continue
             if manager.name in [p.name for p in self.package_managers]:
-                # We already installed/attempt these; don't try again
+                # We already installed/attempted these; don't try again
                 continue
             uninstalled.extend(
                 manager.from_config(self._runner, self._cfg).install_packages(

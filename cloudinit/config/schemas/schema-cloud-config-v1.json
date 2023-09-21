@@ -1943,9 +1943,6 @@
           "items": {
             "oneOf": [
               {
-                "$ref": "#/$defs/package_item_definition"
-              },
-              {
                 "type": "object",
                 "properties": {
                   "apt": {
@@ -1961,9 +1958,13 @@
                     }
                   }
                 }
+              },
+              {
+                "$ref": "#/$defs/package_item_definition"
               }
             ]
           },
+          "additionalProperties": false,
           "minItems": 1
         },
         "package_update": {

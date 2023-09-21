@@ -46,7 +46,8 @@ meta: MetaSchema = {
               - [libpython3.8, 3.8.10-0ubuntu1~20.04.2]
               - snap:
                 - certbot
-                - juju
+                - [juju, --edge]
+                - [lxd, --channel=5.15/stable]
               - apt:
                 - mg
             package_update: true

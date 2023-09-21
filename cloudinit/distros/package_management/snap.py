@@ -24,10 +24,10 @@ class Snap(PackageManager):
         failed: List[str] = []
         for pkg in pkglist:
             try:
-                subp.subp(["snap", "install"] + pkg.split("="))
+                subp.subp(["snap", "install"] + pkg.split("=", 1))
             except subp.ProcessExecutionError:
                 failed.append(pkg)
-                LOG.info("Snap failed to install package: %s", pkg)
+                LOG.info("Failed to 'snap install %s'!", pkg)
         return failed
 
     @staticmethod
