@@ -210,6 +210,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 packages_by_manager.get(manager.__class__, set())
                 | generic_packages
             )
+            if not to_try:
+                continue
             uninstalled = manager.install_packages(to_try)
             failed = {
                 pkg for pkg in uninstalled if pkg not in generic_packages
