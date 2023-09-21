@@ -169,9 +169,7 @@ class TestMultiplePackageManagers:
             handle("", cfg, cloud, [])
 
         assert caplog.records[1].levelname == "INFO"
-        assert (
-            caplog.records[1].message == "Snap failed to install package: pkg1"
-        )
+        assert caplog.records[1].message == "Failed to 'snap install pkg1'!"
 
         assert caplog.records[2].levelname == "ERROR"
         assert caplog.records[2].message.startswith(
