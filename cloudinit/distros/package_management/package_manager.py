@@ -22,7 +22,7 @@ class PackageManager(ABC):
         ...
 
     @abstractmethod
-    def install_packages(self, pkglist: Iterable[str]) -> UninstalledPackages:
+    def install_packages(self, pkglist: Iterable) -> UninstalledPackages:
         """Install the given packages.
 
         Return a list of packages that failed to install.

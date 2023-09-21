@@ -17,7 +17,7 @@ class Snap(PackageManager):
     def update_package_sources(self):
         pass
 
-    def install_packages(self, pkglist: Iterable[str]) -> UninstalledPackages:
+    def install_packages(self, pkglist: Iterable) -> UninstalledPackages:
         # Snap doesn't provide us with a mechanism to know which packages
         # are available or have failed, so install one at a time
         pkglist = util.expand_package_list("%s=%s", list(pkglist))

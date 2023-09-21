@@ -158,13 +158,13 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     def _extract_package_by_manager(
         self, pkglist: Iterable
-    ) -> Tuple[Dict[Type[PackageManager], Set[str]], Set[str]]:
+    ) -> Tuple[Dict[Type[PackageManager], Set], Set]:
         """Transform the generic package list to package by package manager.
 
         Additionally, include list of generic packages
         """
         packages_by_manager = defaultdict(set)
-        generic_packages: Set[str] = set()
+        generic_packages: Set = set()
         for entry in pkglist:
             if isinstance(entry, dict):
                 for package_manager, package_list in entry.items():
