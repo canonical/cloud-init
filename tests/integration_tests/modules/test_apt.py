@@ -437,4 +437,4 @@ apt:
 def test_install_missing_deps(client: IntegrationInstance):
     log = client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log)
-    assert "install software-properties-common gnupg" in log
+    assert "install gnupg software-properties-common" in log

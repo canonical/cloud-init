@@ -221,6 +221,12 @@ def apply_apt(cfg, cloud, target):
     mirrors = find_apt_mirror_info(cfg, cloud, arch=arch)
     LOG.debug("Apt Mirror info: %s", mirrors)
 
+    matcher = None
+    matchcfg = cfg.get("add_apt_repo_match", ADD_APT_REPO_MATCH)
+    if matchcfg:
+        matcher = re.compile(matchcfg).search
+    _ensure_dependencies(cfg, matcher, cloud)
+
     if util.is_false(cfg.get("preserve_sources_list", False)):
         add_mirror_keys(cfg, cloud, target)
         generate_sources_list(cfg, release, mirrors, cloud)
@@ -236,11 +242,6 @@ def apply_apt(cfg, cloud, target):
         params = mirrors
         params["RELEASE"] = release
         params["MIRROR"] = mirrors["MIRROR"]
-
-        matcher = None
-        matchcfg = cfg.get("add_apt_repo_match", ADD_APT_REPO_MATCH)
-        if matchcfg:
-            matcher = re.compile(matchcfg).search
 
         add_apt_sources(
             cfg["sources"],
@@ -505,19 +506,33 @@ def add_apt_key_raw(key, file_name, hardened=False, target=None):
         raise
 
 
-def _ensure_dependencies(apt_sources_dict, aa_repo_match, cloud):
-    """Install missing package dependencies based on apt_sources config."""
+def _ensure_dependencies(cfg, aa_repo_match, cloud):
+    """Install missing package dependencies based on apt_sources config.
+
+    Inspect the cloud config user-data provided. When user-data indicates
+    conditions where add_apt_key or add-apt-repository will be called,
+    ensure the required command dependencies are present installed.
+
+    Perform this inspection upfront because it is very expensive to call
+    distro.install_packages due to a preliminary 'apt update' called before
+    package installation.
+    """
     missing_packages = []
     required_cmds = set()
+    if util.is_false(cfg.get("preserve_sources_list", False)):
+        for key in ("primary", "security"):
+            if cfg.get(key):  # If either key set, we'll add_mirror_keys
+                required_cmds.add("gpg")
+    apt_sources_dict = cfg.get("sources", {})
     for ent in apt_sources_dict.values():
-        if set(["key", "keyid"]).intersection(ent):
-            required_cmds.update(["gpg"])
+        if {"key", "keyid"}.intersection(ent):
+            required_cmds.add("gpg")
         if aa_repo_match(ent.get("source", "")):
-            required_cmds.update(["add-apt-repository"])
+            required_cmds.add("add-apt-repository")
     for command in required_cmds:
         if not shutil.which(command):
             missing_packages.append(PACKAGE_DEPENDENCY_BY_COMMAND[command])
-    cloud.distro.install_packages(missing_packages)
+    cloud.distro.install_packages(sorted(missing_packages))
 
 
 def add_apt_key(ent, cloud, target=None, hardened=False, file_name=None):
@@ -578,7 +593,6 @@ def add_apt_sources(
 
     if not isinstance(srcdict, dict):
         raise TypeError("unknown apt format: %s" % (srcdict))
-    _ensure_dependencies(srcdict, aa_repo_match, cloud)
 
     for filename in srcdict:
         ent = srcdict[filename]
