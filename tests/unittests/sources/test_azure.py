@@ -2479,6 +2479,28 @@ class TestCanDevBeReformatted(CiTestCase):
         self.assertTrue(value)
         self.assertIn("safe for", msg.lower())
 
+    def test_one_partition_ntfs_empty_with_svi_file_is_true(self):
+        """1 mountable ntfs partition and only warn file can be formatted."""
+        bypath = self.patchup(
+            {
+                "/dev/sda": {
+                    "partitions": {
+                        "/dev/sda1": {
+                            "num": 1,
+                            "fs": "ntfs",
+                            "files": ["System Volume Information"],
+                        }
+                    }
+                }
+            }
+        )
+        self._domock_mount_cb(bypath)
+        value, msg = dsaz.can_dev_be_reformatted(
+            "/dev/sda", preserve_ntfs=False
+        )
+        self.assertTrue(value)
+        self.assertIn("safe for", msg.lower())
+
     def test_one_partition_through_realpath_is_true(self):
         """A symlink to a device with 1 ntfs partition can be formatted."""
         epath = "/dev/disk/cloud/azure_resource"
