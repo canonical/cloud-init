@@ -43,6 +43,3 @@ class TestSpacewalk(helpers.TestCase):
             ],
             capture=False,
         )
-
-
-# vi: ts=4 expandtab

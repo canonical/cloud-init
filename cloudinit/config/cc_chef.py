@@ -421,6 +421,3 @@ def install_chef_from_gems(ruby_version, chef_version, distro):
             ],
             capture=False,
         )
-
-
-# vi: ts=4 expandtab

@@ -645,6 +645,3 @@ def set_cust_error_status(prefix, error, event, cust_cfg):
     util.logexc(logger, "%s: %s", prefix, error)
     set_customization_status(GuestCustStateEnum.GUESTCUST_STATE_RUNNING, event)
     set_gc_status(cust_cfg, prefix)
-
-
-# vi: ts=4 expandtab

@@ -179,6 +179,3 @@ class TestKeyboard(FilesystemMockingTestCase):
                 variant,
             ],
         )
-
-
-# vi: ts=4 expandtab

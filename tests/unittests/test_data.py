@@ -897,6 +897,3 @@ class TestFetchBaseConfig:
             "key3": "builtin3",
             "keyconfd1": "kconfd1",
         }
-
-
-# vi: ts=4 expandtab

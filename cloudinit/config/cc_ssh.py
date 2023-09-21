@@ -411,6 +411,3 @@ def get_public_host_keys(blacklist: Optional[Sequence[str]] = None):
         if key_data and len(key_data) > 1:
             key_list.append(tuple(key_data[:2]))
     return key_list
-
-
-# vi: ts=4 expandtab

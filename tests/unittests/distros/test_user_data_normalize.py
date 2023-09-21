@@ -362,6 +362,3 @@ class TestUGNormalize(TestCase):
 
         mock_subp.assert_any_call(groupcmd)
         mock_subp.assert_any_call(addcmd, logstring=addcmd)
-
-
-# vi: ts=4 expandtab

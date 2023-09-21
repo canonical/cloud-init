@@ -111,6 +111,3 @@ class SysConf(configobj.ConfigObj):
             val,
             cmnt,
         )
-
-
-# vi: ts=4 expandtab

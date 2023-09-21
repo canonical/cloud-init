@@ -30,6 +30,3 @@ def read_cfg_paths(fetch_existing_datasource: str = "") -> Paths:
         init.fetch(existing=fetch_existing_datasource)
     init.read_cfg()
     return init.paths
-
-
-# vi: ts=4 expandtab

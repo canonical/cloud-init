@@ -264,6 +264,3 @@ class TestWriteFilesSchema:
                 validate_cloudconfig_schema(config, get_schema(), strict=True)
         else:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
-
-
-# vi: ts=4 expandtab

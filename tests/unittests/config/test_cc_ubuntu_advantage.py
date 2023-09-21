@@ -1416,6 +1416,3 @@ class TestSetUAConfig:
         assert "https://user:pass@some-proxy:8088" not in caplog.text
         assert "Disabling UA config for https_proxy\n" in caplog.text
         assert 'Failure enabling/disabling "https_proxy":\n' in caplog.text
-
-
-# vi: ts=4 expandtab

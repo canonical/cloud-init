@@ -211,6 +211,3 @@ def dumps(obj, explicit_start=True, explicit_end=True, noalias=False):
         default_flow_style=False,
         Dumper=(NoAliasSafeDumper if noalias else yaml.dumper.SafeDumper),
     )
-
-
-# vi: ts=4 expandtab

@@ -128,6 +128,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             len(captured_excps),
         )
         raise captured_excps[-1]
-
-
-# vi: ts=4 expandtab

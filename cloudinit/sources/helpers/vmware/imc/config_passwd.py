@@ -67,6 +67,3 @@ class PasswordConfigurator:
                         user,
                         e,
                     )
-
-
-# vi: ts=4 expandtab

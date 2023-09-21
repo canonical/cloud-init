@@ -188,6 +188,3 @@ class TestShouldBringUpInterfaces:
 
         result = main._should_bring_up_interfaces(init, args)
         assert result == expected
-
-
-# vi: ts=4 expandtab

@@ -20,6 +20,3 @@ def version_string():
     if not _PACKAGED_VERSION.startswith("@@"):
         return _PACKAGED_VERSION
     return __VERSION__
-
-
-# vi: ts=4 expandtab

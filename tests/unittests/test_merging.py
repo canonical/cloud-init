@@ -255,6 +255,3 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
         c = _old_mergedict(a, b)
         d = util.mergemanydict([a, b])
         self.assertEqual(c, d)
-
-
-# vi: ts=4 expandtab

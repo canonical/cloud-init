@@ -348,6 +348,3 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
         with self.assertRaises(FileNotFoundError):
             util.load_file("/etc/hostname")
-
-
-# vi: ts=4 expandtab

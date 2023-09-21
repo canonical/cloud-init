@@ -142,6 +142,3 @@ class Config:
     def instance_id(self):
         """Return instance id"""
         return self._configFile.get(Config.CLOUDINIT_INSTANCE_ID, None)
-
-
-# vi: ts=4 expandtab

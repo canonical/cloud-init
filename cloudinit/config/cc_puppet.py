@@ -359,6 +359,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if start_puppetd:
         # Start puppetd
         _manage_puppet_services(cloud, "start")
-
-
-# vi: ts=4 expandtab

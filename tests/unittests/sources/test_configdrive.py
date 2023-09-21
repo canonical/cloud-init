@@ -1076,6 +1076,3 @@ def populate_ds_from_read_config(cfg_ds, source, results):
     cfg_ds._network_config = openstack.convert_net_json(
         cfg_ds.network_json, known_macs=KNOWN_MACS
     )
-
-
-# vi: ts=4 expandtab

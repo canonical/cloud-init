@@ -2058,5 +2058,3 @@ VALID_CFG = {
         },
     },
 }
-
-# vi: ts=4 expandtab

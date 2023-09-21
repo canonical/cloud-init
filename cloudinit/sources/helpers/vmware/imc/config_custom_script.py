@@ -93,6 +93,3 @@ class PostCustomScript(RunCustomScript):
         os.chmod(self.ccScriptPath, st.st_mode | stat.S_IEXEC)
         LOG.info("Creating post customization pending marker")
         util.ensure_file(CustomScriptConstant.POST_CUSTOM_PENDING_MARKER)
-
-
-# vi: ts=4 expandtab

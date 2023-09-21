@@ -191,6 +191,3 @@ class TestAptSourceConfigSourceList:
             target=None,
             rcs=[0, 1],
         )
-
-
-# vi: ts=4 expandtab

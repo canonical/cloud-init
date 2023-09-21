@@ -77,6 +77,3 @@ def select(priority=None, target=None) -> Tuple[str, Type[renderer.Renderer]]:
             % (tmsg, priority)
         )
     return found[0]
-
-
-# vi: ts=4 expandtab

@@ -619,6 +619,3 @@ def does_not_raise():
 
     """
     yield
-
-
-# vi: ts=4 expandtab

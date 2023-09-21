@@ -572,5 +572,3 @@ case "${1:-}" in
     prep|os_info|wait_inside|pytest) _n=$1; shift; "$_n" "$@";;
     *) main "$@";;
 esac
-
-# vi: ts=4 expandtab

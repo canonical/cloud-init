@@ -169,6 +169,3 @@ def merge_together(objs):
         else:
             cfg.merge(ConfigObj(obj))
     return cfg
-
-
-# vi: ts=4 expandtab

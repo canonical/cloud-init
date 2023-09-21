@@ -84,6 +84,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             runparts_path,
         )
         raise
-
-
-# vi: ts=4 expandtab
