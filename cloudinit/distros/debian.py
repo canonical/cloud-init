@@ -7,8 +7,8 @@
 # Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
-import os
 import logging
+import os
 from typing import List
 
 from cloudinit import distros, subp, util
