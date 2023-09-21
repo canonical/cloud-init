@@ -44,10 +44,8 @@ from cloudinit import (
     util,
 )
 from cloudinit.distros.networking import LinuxNetworking, Networking
-from cloudinit.distros.package_management.package_manager import (
-    PackageManager,
-    known_package_managers,
-)
+from cloudinit.distros.package_management.package_manager import PackageManager
+from cloudinit.distros.package_management.utils import known_package_managers
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 from cloudinit.net import activators, dhcp, eni, network_state, renderers
@@ -179,7 +177,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                             ].add(definition)
                         except KeyError:
                             LOG.error(
-                                "Cannot install packages under %s as it is "
+                                "Cannot install packages under '%s' as it is "
                                 "not a supported package manager!",
                                 package_manager,
                             )
@@ -223,13 +221,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # Now attempt any specified package managers not explicitly supported
         # by distro
         for manager, packages in packages_by_manager.items():
-            if manager.name not in known_package_managers:
-                LOG.error(
-                    "Cannot install any packages listed under unknown package "
-                    "manager: %s.",
-                    manager,
-                )
-                continue
             if manager.name in [p.name for p in self.package_managers]:
                 # We already installed/attempted these; don't try again
                 continue
