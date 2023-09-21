@@ -1957,14 +1957,14 @@
                       "$ref": "#/$defs/package_item_definition"
                     }
                   }
-                }
+                },
+                "additionalProperties": false
               },
               {
                 "$ref": "#/$defs/package_item_definition"
               }
             ]
           },
-          "additionalProperties": false,
           "minItems": 1
         },
         "package_update": {
