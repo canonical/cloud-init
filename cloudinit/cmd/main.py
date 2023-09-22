@@ -36,6 +36,7 @@ from cloudinit.config import cc_set_hostname
 from cloudinit.config.modules import Modules
 from cloudinit.config.schema import validate_cloudconfig_schema
 from cloudinit.log import (
+    LogExporter,
     setup_basic_logging,
     setup_logging,
     reset_logging,
@@ -702,6 +703,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     status_link = os.path.join(link_d, "status.json")
     result_path = os.path.join(data_d, "result.json")
     result_link = os.path.join(link_d, "result.json")
+    root_logger = logging.getLogger()
 
     util.ensure_dirs(
         (
@@ -761,7 +763,11 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     v1 = status["v1"]
     v1["stage"] = mode
     v1[mode]["start"] = time.time()
+    v1[mode]["exported_errors"] = next(
+        filter(lambda h: isinstance(h, LogExporter), root_logger.handlers)
+    ).export_logs()
 
+    # Write status.json prior to running init / module code
     atomic_helper.write_json(status_path, status)
     util.sym_link(
         os.path.relpath(status_path, link_d), status_link, force=True
@@ -786,6 +792,10 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     v1[mode]["finished"] = time.time()
     v1["stage"] = None
 
+    # Write status.json after running init / module code
+    v1[mode]["exported_errors"] = next(
+        filter(lambda h: isinstance(h, LogExporter), root_logger.handlers)
+    ).export_logs()
     atomic_helper.write_json(status_path, status)
 
     if mode == "modules-final":

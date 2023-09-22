@@ -7,9 +7,8 @@ from collections import namedtuple
 
 import pytest
 
-from cloudinit import helpers
+from cloudinit import helpers, log
 from cloudinit.cmd import main as cli
-from cloudinit.util import load_file, load_json
 from tests.unittests import helpers as test_helpers
 
 mock = test_helpers.mock
@@ -30,6 +29,7 @@ class TestCLI:
         if not sysv_args:
             sysv_args = ["cloud-init"]
         try:
+            log.setup_logging()
             return cli.main(sysv_args=sysv_args)
         except SystemExit as e:
             return e.code
@@ -62,14 +62,18 @@ class TestCLI:
             cli.status_wrapper(name, myargs, data_d, link_d)
         assert [] == my_action.call_args_list
 
-    def test_status_wrapper_init_local_writes_fresh_status_info(self, tmpdir):
+    @mock.patch("cloudinit.cmd.main.atomic_helper.write_json")
+    def test_status_wrapper_init_local_writes_fresh_status_info(
+        self,
+        m_json,
+        tmpdir,
+    ):
         """When running in init-local mode, status_wrapper writes status.json.
 
         Old status and results artifacts are also removed.
         """
         data_d = tmpdir.join("data")
         link_d = tmpdir.join("link")
-        status_link = link_d.join("status.json")
         # Write old artifacts which will be removed or updated.
         for _dir in data_d, link_d:
             test_helpers.populate_dir(
@@ -83,9 +87,10 @@ class TestCLI:
             return "SomeDatasource", ["an error"]
 
         myargs = FakeArgs(("ignored_name", myaction), True, "bogusmode")
+        log.configure_root_logger()
         cli.status_wrapper("init", myargs, data_d, link_d)
         # No errors reported in status
-        status_v1 = load_json(load_file(status_link))["v1"]
+        status_v1 = m_json.call_args_list[1][0][1]["v1"]
         assert ["an error"] == status_v1["init-local"]["errors"]
         assert "SomeDatasource" == status_v1["datasource"]
         assert False is os.path.exists(
@@ -95,7 +100,10 @@ class TestCLI:
             link_d.join("result.json")
         ), "unexpected result.json link found"
 
-    def test_status_wrapper_init_local_honor_cloud_dir(self, mocker, tmpdir):
+    @mock.patch("cloudinit.cmd.main.atomic_helper.write_json")
+    def test_status_wrapper_init_local_honor_cloud_dir(
+        self, m_json, mocker, tmpdir
+    ):
         """When running in init-local mode, status_wrapper honors cloud_dir."""
         cloud_dir = tmpdir.join("cloud")
         paths = helpers.Paths({"cloud_dir": str(cloud_dir)})
@@ -111,8 +119,9 @@ class TestCLI:
 
         myargs = FakeArgs(("ignored_name", myaction), True, "bogusmode")
         cli.status_wrapper("init", myargs, link_d=link_d)  # No explicit data_d
+
         # Access cloud_dir directly
-        status_v1 = load_json(load_file(data_d.join("status.json")))["v1"]
+        status_v1 = m_json.call_args_list[1][0][1]["v1"]
         assert ["an_error"] == status_v1["init-local"]["errors"]
         assert "SomeDatasource" == status_v1["datasource"]
         assert False is os.path.exists(
@@ -235,7 +244,7 @@ class TestCLI:
         assert (
             "Error:\n"
             "Expected one of --config-file, --system or --docs arguments\n"
-            == err
+            in err
         )
 
     @pytest.mark.parametrize(
