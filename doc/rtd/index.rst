@@ -81,6 +81,7 @@ projects, contributions, suggestions, fixes and constructive feedback.
    :hidden:
    :maxdepth: 2
 
+   Introduction <introduction.rst>
    tutorial/index
    howto/index
    explanation/index
