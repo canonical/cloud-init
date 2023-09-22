@@ -251,7 +251,7 @@ install_packages() {
     case "$OS_NAME" in
         centos|rocky*) yum_install "$@";;
         opensuse*) zypper_install "$@";;
-        debian|ubuntu) apt_install "$@";;
+        debian|ubuntu) apt_install "$@" -y;;
         *) error "Do not know how to install packages on ${OS_NAME}";
            return 1;;
     esac
