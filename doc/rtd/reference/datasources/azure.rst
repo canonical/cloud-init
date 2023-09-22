@@ -43,8 +43,8 @@ The settings that may be configured are:
   True.
 * :command:`apply_network_config_for_secondary_ips`
 
-  Boolean to configure secondary IP address(es) for each NIC per IMDS configuration.
-  Default is True.
+  Boolean to configure secondary IP address(es) for each NIC per IMDS
+  configuration. Default is True.
 * :command:`data_dir`
 
   Path used to read metadata files and write crawled data.
