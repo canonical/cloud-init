@@ -4,7 +4,7 @@ Introduction to cloud-init
 Managing and configuring cloud instances and servers can be a complex
 and time-consuming task. Cloud-init is an open source initialisation tool that
 was designed to make it easier to get your systems up and running with a
-minimum of effort, and already configured according to your needs.
+minimum of effort, already configured according to your needs.
 
 It’s most often used by developers, system administrators and other IT
 professionals to automate configuration of VMs, cloud instances, or machines on
@@ -73,16 +73,16 @@ it will:
     * SSH keys
     * Custom scripts
 
-* **Apply network configuration**:
-  Cloud-init sets up network interfaces, assigns IP and MAC addresses, and
-  configures DNS.
+* **Write network configuration**:
+  Cloud-init writes the network configuration and configures DNS, ready to be
+  applied by the networking services when they come up.
 
 During late boot
 ----------------
 
 In the boot stages that come after the network has been configured, cloud-init
-runs through the tasks that were not critical for provisioning, but will
-configure the running instance according to your needs, as specified in the
+runs through the tasks that were not critical for provisioning. This is where
+it configures the running instance according to your needs, as specified in the
 vendor data and/or user data. It will take care of:
 
 * **Configuration management**:
