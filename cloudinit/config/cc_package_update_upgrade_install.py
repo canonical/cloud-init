@@ -102,7 +102,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     pkglist = util.get_cfg_option_list(cfg, "packages", [])
 
     errors = []
-    if update or len(pkglist) or upgrade:
+    if update or upgrade:
         try:
             cloud.distro.update_package_sources()
         except Exception as e:
