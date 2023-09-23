@@ -28,7 +28,6 @@ KEY_NAMES_NO_DSA = [
 @pytest.fixture(scope="function")
 def publish_hostkey_test_setup(tmpdir):
     test_hostkeys = {
-        "dsa": ("ssh-dss", "AAAAB3NzaC1kc3MAAACB"),
         "ecdsa": ("ecdsa-sha2-nistp256", "AAAAE2VjZ"),
         "ed25519": ("ssh-ed25519", "AAAAC3NzaC1lZDI"),
         "rsa": ("ssh-rsa", "AAAAB3NzaC1yc2EAAA"),
@@ -128,7 +127,6 @@ class TestHandleSsh:
         if not m_fips():
             expected_calls = [
                 mock.call("/etc/ssh/ssh_host_rsa_key"),
-                mock.call("/etc/ssh/ssh_host_dsa_key"),
                 mock.call("/etc/ssh/ssh_host_ecdsa_key"),
                 mock.call("/etc/ssh/ssh_host_ed25519_key"),
             ]
@@ -490,10 +488,6 @@ class TestSshSchema:
         "config, error_msg",
         (
             ({"ssh_authorized_keys": ["key1", "key2"]}, None),
-            (
-                {"ssh_keys": {"dsa_private": "key1", "rsa_public": "key2"}},
-                None,
-            ),
             (
                 {"ssh_keys": {"rsa_a": "key"}},
                 "'rsa_a' does not match any of the regexes",
