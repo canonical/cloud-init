@@ -40,7 +40,7 @@ users:
 class TestKeysToConsoleBlacklist:
     """Test that the blacklist options work as expected."""
 
-    @pytest.mark.parametrize("key_type", ["DSA", "ECDSA"])
+    @pytest.mark.parametrize("key_type", ["ECDSA"])
     def test_excluded_keys(self, class_client, key_type):
         syslog = class_client.read_from_file("/var/log/syslog")
         assert "({})".format(key_type) not in syslog
@@ -73,7 +73,7 @@ class TestAllKeysToConsoleBlacklist:
 class TestKeysToConsoleDisabled:
     """Test that output can be fully disabled."""
 
-    @pytest.mark.parametrize("key_type", ["DSA", "ECDSA", "ED25519", "RSA"])
+    @pytest.mark.parametrize("key_type", ["ECDSA", "ED25519", "RSA"])
     def test_keys_excluded(self, class_client, key_type):
         syslog = class_client.read_from_file("/var/log/syslog")
         assert "({})".format(key_type) not in syslog

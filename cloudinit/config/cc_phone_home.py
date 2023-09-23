@@ -21,7 +21,6 @@ from cloudinit.settings import PER_INSTANCE
 frequency = PER_INSTANCE
 
 POST_LIST_ALL = [
-    "pub_key_dsa",
     "pub_key_rsa",
     "pub_key_ecdsa",
     "pub_key_ed25519",
@@ -36,7 +35,6 @@ If the post url contains the string ``$INSTANCE_ID`` it will be replaced with
 the id of the current instance. Either all data can be posted or a list of
 keys to post. Available keys are:
 
-    - ``pub_key_dsa``
     - ``pub_key_rsa``
     - ``pub_key_ecdsa``
     - ``pub_key_ed25519``
@@ -57,7 +55,7 @@ Data is sent as ``x-www-form-urlencoded`` arguments.
     Accept: */*
     Content-Type: application/x-www-form-urlencoded
 
-    pub_key_dsa=dsa_contents&pub_key_rsa=rsa_contents&pub_key_ecdsa=ecdsa_contents&pub_key_ed25519=ed25519_contents&instance_id=i-87018aed&hostname=myhost&fqdn=myhost.internal
+    pub_key_rsa=rsa_contents&pub_key_ecdsa=ecdsa_contents&pub_key_ed25519=ed25519_contents&instance_id=i-87018aed&hostname=myhost&fqdn=myhost.internal
 """
 
 meta: MetaSchema = {
@@ -80,7 +78,6 @@ meta: MetaSchema = {
             phone_home:
                 url: http://example.com/$INSTANCE_ID/
                 post:
-                    - pub_key_dsa
                     - pub_key_rsa
                     - pub_key_ecdsa
                     - pub_key_ed25519
@@ -103,7 +100,7 @@ LOG = logging.getLogger(__name__)
 #
 # phone_home:
 #  url: http://my.foo.bar/$INSTANCE_ID/
-#  post: [ pub_key_dsa, pub_key_rsa, pub_key_ecdsa, instance_id, hostname,
+#  post: [ pub_key_rsa, pub_key_ecdsa, instance_id, hostname,
 #          fqdn ]
 #
 
@@ -152,7 +149,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     }
 
     pubkeys = {
-        "pub_key_dsa": "/etc/ssh/ssh_host_dsa_key.pub",
         "pub_key_rsa": "/etc/ssh/ssh_host_rsa_key.pub",
         "pub_key_ecdsa": "/etc/ssh/ssh_host_ecdsa_key.pub",
         "pub_key_ed25519": "/etc/ssh/ssh_host_ed25519_key.pub",

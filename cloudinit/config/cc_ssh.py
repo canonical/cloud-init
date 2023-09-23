@@ -43,7 +43,6 @@ login options can be manually specified with ``disable_root_opts``.
 
 Supported public key types for the ``ssh_authorized_keys`` are:
 
-    - dsa
     - rsa
     - ecdsa
     - ed25519
@@ -71,7 +70,7 @@ Supported public key types for the ``ssh_authorized_keys`` are:
     `OpenSSH`_ source, where the sigonly keys are removed. Please see
     ``ssh_util`` for more information.
 
-    ``dsa``, ``rsa``, ``ecdsa`` and ``ed25519`` are added for legacy,
+    ``rsa``, ``ecdsa`` and ``ed25519`` are added for legacy,
     as they are valid public keys in some old distros. They can possibly
     be removed in the future when support for the older distros are dropped
 
@@ -104,7 +103,6 @@ system (i.e. if ``ssh_deletekeys`` was false), no key will be generated.
 Supported host key types for the ``ssh_keys`` and the ``ssh_genkeytypes``
 config flags are:
 
-    - dsa
     - ecdsa
     - ed25519
     - rsa
@@ -141,19 +139,11 @@ meta: MetaSchema = {
               rsa_public: ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7Xd ...
               rsa_certificate: |
                 ssh-rsa-cert-v01@openssh.com AAAAIHNzaC1lZDI1NTE5LWNlcnQt ...
-              dsa_private: |
-                -----BEGIN DSA PRIVATE KEY-----
-                MIIBxwIBAAJhAKD0YSHy73nUgysO13XsJmd4fHiFyQ+00R7VVu2iV9Qco
-                ...
-                -----END DSA PRIVATE KEY-----
-              dsa_public: ssh-dsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7Xd ...
-              dsa_certificate: |
-                ssh-dsa-cert-v01@openssh.com AAAAIHNzaC1lZDI1NTE5LWNlcnQt ...
             ssh_authorized_keys:
               - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEA3FSyQwBI6Z+nCSjUU ...
               - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA3I7VUf2l5gSn5uavROsc5HRDpZ ...
             ssh_deletekeys: true
-            ssh_genkeytypes: [rsa, dsa, ecdsa, ed25519]
+            ssh_genkeytypes: [rsa, ecdsa, ed25519]
             disable_root: true
             disable_root_opts: no-port-forwarding,no-agent-forwarding,no-X11-forwarding
             allow_public_ssh_keys: true
@@ -170,7 +160,7 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
-GENERATE_KEY_NAMES = ["rsa", "dsa", "ecdsa", "ed25519"]
+GENERATE_KEY_NAMES = ["rsa", "ecdsa", "ed25519"]
 FIPS_UNSUPPORTED_KEY_NAMES = ["dsa", "ed25519"]
 
 pattern_unsupported_config_keys = re.compile(
