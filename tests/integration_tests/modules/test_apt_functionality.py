@@ -12,7 +12,8 @@ from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
 from tests.integration_tests.util import (
-    get_feature_flag_value, verify_clean_log
+    get_feature_flag_value,
+    verify_clean_log,
 )
 
 DEB822_SOURCES_FILE = "/etc/apt/sources.list.d/ubuntu.sources"
@@ -22,6 +23,7 @@ USER_DATA = """\
 #cloud-config
 bootcmd:
     - rm -f /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources
+
 apt:
   conf: |
     APT {
@@ -354,7 +356,10 @@ def test_default_primary_with_uri(client: IntegrationInstance):
 
 DISABLED_DATA = """\
 #cloud-config
+bootcmd: [mkdir -p /etc/apt/sources.new.d]
 apt:
+  conf: |
+    Dir::Etc::sourceparts "sources.new.d";
   disable_suites:
   - $RELEASE
   - $RELEASE-updates
@@ -372,7 +377,11 @@ class TestDisabled:
         feature_deb822 = is_true(
             get_feature_flag_value(class_client, "APT_DEB822_SOURCE_LIST_FILE")
         )
-        src_file = DEB822_SOURCES_FILE if feature_deb822 else ORIG_SOURCES_FILE
+        if feature_deb822:
+            # DISABLED_DATA changes Dir:Etc::sourceparts to sources.new.d
+            src_file = DEB822_SOURCES_FILE.replace("list", "new")
+        else:
+            src_file = ORIG_SOURCES_FILE
         sources_list = class_client.execute(
             f"cat {src_file} | grep -v '^#'"
         ).strip()

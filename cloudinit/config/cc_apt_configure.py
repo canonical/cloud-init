@@ -58,9 +58,12 @@ meta: MetaSchema = {
         cloud-init's distro support for instructions on using
         these config options.
 
-        In cloud-init 23.4 or later, cloud-init will generate default
+        By default, cloud-init will generate default
         apt sources information in deb822 format at
-        :file:`/etc/apt/sources.list.d/<distro>.sources`.
+        :file:`/etc/apt/sources.list.d/<distro>.sources`. When the value
+        of `sources_list` does not appear to be deb822 format, or stable
+        distribution releases disable deb822 format,
+        :file:`/etc/apt/sources.list` will be written instead.
 
         .. note::
             To ensure that apt configuration is valid yaml, any strings
@@ -592,6 +595,7 @@ def get_apt_cfg() -> Dict[str, str]:
     try:
         import apt_pkg  # type: ignore
 
+        apt_pkg.init_config()
         sourcelist = apt_pkg.config.find_file(
             "Dir::Etc::sourcelist", DEFAULT_APT_CFG["sourcelist"]
         )
