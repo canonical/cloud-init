@@ -5,6 +5,7 @@ Testing various config variations of the apt_source custom config
 This tries to call all in the new v3 format and cares about new features
 """
 import glob
+import logging
 import os
 import pathlib
 import re
@@ -1596,3 +1597,72 @@ class TestGetAptCfg:
         subp.side_effect = subp_side_effect
         assert expected == cc_apt_configure.get_apt_cfg()
         subp.assert_called_once_with(["apt-config", "dump"])
+
+
+class TestIsDeb822SourcesFormat:
+    @pytest.mark.parametrize(
+        "content,is_deb822,warnings",
+        (
+            pytest.param(
+                "#Something\ndeb-src http://url lunar multiverse\n",
+                False,
+                [],
+                id="any_deb_src_is_not_deb822",
+            ),
+            pytest.param(
+                "#Something\ndeb http://url lunar multiverse\n",
+                False,
+                [],
+                id="any_deb_url_is_not_deb822",
+            ),
+            pytest.param(
+                "#Something\ndeb http://url lunar multiverse\nTypes: deb\n",
+                False,
+                [],
+                id="even_some_deb822_fields_not_deb822_if_any_deb_line",
+            ),
+            pytest.param(
+                "#Something\nTypes: deb\n",
+                True,
+                [],
+                id="types_deb822_keys_and_no_deb_or_deb_src_is_deb822",
+            ),
+            pytest.param(
+                "#Something\nURIs: http://url\n",
+                True,
+                [],
+                id="uris_deb822_keys_and_no_deb_or_deb_src_is_deb822",
+            ),
+            pytest.param(
+                "#Something\nSuites: http://url\n",
+                True,
+                [],
+                id="suites_deb822_keys_and_no_deb_deb_src_is_deb822",
+            ),
+            pytest.param(
+                "#Something\nComponents: http://url\n",
+                True,
+                [],
+                id="components_deb822_keys_and_no_deb_deb_src_is_deb822",
+            ),
+            pytest.param(
+                "#Something neither deb/deb-src nor deb822\n",
+                False,
+                [
+                    "apt.sources_list value does not match either deb822"
+                    " source keys or deb/deb-src list keys. Assuming APT"
+                    " deb/deb-src list format."
+                ],
+                id="neither_deb822_keys_nor_deb_deb_src_warn_and_not_deb822",
+            ),
+        ),
+    )
+    def test_is_deb822_format_prefers_non_deb822(
+        self, content, is_deb822, warnings, caplog
+    ):
+        with caplog.at_level(logging.WARNING):
+            assert is_deb822 is cc_apt_configure.is_deb822_sources_format(
+                content
+            )
+        for warning in warnings:
+            assert warning in caplog.text

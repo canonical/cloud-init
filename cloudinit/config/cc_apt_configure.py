@@ -18,8 +18,6 @@ import signal
 from textwrap import dedent, indent
 from typing import Dict
 
-import apt_pkg
-
 from cloudinit import features, gpg, subp, templater, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -511,7 +509,7 @@ def disable_suites(disabled, src, release) -> str:
         return src
 
     retsrc = src
-    if is_deb822_format(src):
+    if is_deb822_sources_format(src):
         return disable_suites_deb822(disabled, src, release)
     for suite in disabled:
         suite = map_known_suites(suite)
@@ -551,7 +549,7 @@ def add_mirror_keys(cfg, cloud, target):
             add_apt_key(mirror, cloud, target, file_name=key)
 
 
-def is_deb822_format(apt_src_content: str) -> bool:
+def is_deb822_sources_format(apt_src_content: str) -> bool:
     """Simple check for deb822 format for apt source content
 
     Only validates that minimal required keys are present in the file, which
@@ -562,16 +560,18 @@ def is_deb822_format(apt_src_content: str) -> bool:
     Return True if content looks like it is deb822 formatted APT source.
     """
     # TODO(At jammy EOL: use aptsources.sourceslist.Deb822SourceEntry.invalid)
-    try:
-        apt_src = safeyaml.load(apt_src_content)
-    except (safeyaml.YAMLError, TypeError, ValueError):
+    if re.findall(r"^(deb |deb-src )", apt_src_content, re.M):
         return False
-    if not isinstance(apt_src, dict):
-        return False
-
-    # Are all required deb822 keys present
-    required_keys = set(["Types", "Suites", "Components", "URIs"])
-    return required_keys == required_keys.intersection(apt_src.keys())
+    if re.findall(
+        r"^(Types: |Suites: |Components: |URIs: )", apt_src_content, re.M
+    ):
+        return True
+    # Did not match any required deb822 format keys
+    LOG.warning(
+        "apt.sources_list value does not match either deb822 source keys or"
+        " deb/deb-src list keys. Assuming APT deb/deb-src list format."
+    )
+    return False
 
 
 DEFAULT_APT_CFG = {
@@ -656,7 +656,7 @@ def generate_sources_list(cfg, release, mirrors, cloud):
 
     rendered = templater.render_string(tmpl, params)
     if tmpl:
-        if is_deb822_format(rendered):
+        if is_deb822_sources_format(rendered):
             if aptsrc_file == apt_sources_list:
                 LOG.debug(
                     "Provided 'sources_list' user-data is deb822 format,"

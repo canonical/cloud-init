@@ -243,7 +243,7 @@ class TestAptSourceConfigSourceList:
             ),
         ),
     )
-    def test_apt_v3_source_list_psm(
+    def test_apt_v3_source_list_psm_deb822_feature_aware(
         self,
         deb822,
         tmpl_file,
@@ -253,7 +253,11 @@ class TestAptSourceConfigSourceList:
         tmpdir,
         mocker,
     ):
-        """test_apt_v3_source_list_psm - Test specifying prim+sec mirrors"""
+        """test_apt_v3_source_list_psm - Test specifying prim+sec mirrors
+
+        Assert APT_DEB822_SOURCE_LIST_FILE is taken into account when
+        determining which sources.list.tmpl source file to read.
+        """
         pm = "http://test.ubuntu.com/ubuntu/"
         sm = "http://testsec.ubuntu.com/ubuntu/"
         cfg = {
@@ -307,10 +311,15 @@ class TestAptSourceConfigSourceList:
             ),
         ),
     )
-    def test_apt_v3_srcl_custom(
+    def test_apt_v3_srcl_custom_deb822_feature_aware(
         self, deb822, cfg, apt_file, expected, mocker, tmpdir
     ):
-        """test_apt_v3_srcl_custom - Test rendering a custom source template"""
+        """test_apt_v3_srcl_custom - Test rendering a custom source template
+
+        Also take into account deb822 feature flag to assert writing the
+        appropriate deb822 /etc/apt/sources.list.d/*list or *source file based
+        on content and deb822 feature flag.
+        """
         mycloud = get_cloud("debian")
 
         self.deb822 = mocker.patch.object(
