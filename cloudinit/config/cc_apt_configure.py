@@ -575,8 +575,9 @@ def is_deb822_sources_format(apt_src_content: str) -> bool:
 
 
 DEFAULT_APT_CFG = {
-    "sourcelist": "/etc/apt/sources.list",
-    "sourceparts": "/etc/apt/sources.list.d/",
+    "Dir::Etc": "etc/apt",
+    "Dir::Etc::sourcelist": "sources.list",
+    "Dir::Etc::sourceparts": "sources.list.d",
 }
 
 APT_CFG_RE = (
@@ -596,11 +597,12 @@ def get_apt_cfg() -> Dict[str, str]:
         import apt_pkg  # type: ignore
 
         apt_pkg.init_config()
-        sourcelist = apt_pkg.config.find_file(
-            "Dir::Etc::sourcelist", DEFAULT_APT_CFG["sourcelist"]
+        etc = apt_pkg.config.get("Dir::Etc", DEFAULT_APT_CFG["Dir::Etc"])
+        sourcelist = apt_pkg.config.get(
+            "Dir::Etc::sourcelist", DEFAULT_APT_CFG["Dir::Etc::sourcelist"]
         )
-        sourceparts = apt_pkg.config.find_dir(
-            "Dir::Etc::sourceparts", DEFAULT_APT_CFG["sourceparts"]
+        sourceparts = apt_pkg.config.get(
+            "Dir::Etc::sourceparts", DEFAULT_APT_CFG["Dir::Etc::sourceparts"]
         )
     except ImportError:
 
@@ -608,19 +610,26 @@ def get_apt_cfg() -> Dict[str, str]:
             apt_dump, _ = subp.subp(["apt-config", "dump"])
         except subp.ProcessExecutionError:
             # No apt-config, return defaults
-            return DEFAULT_APT_CFG
+            etc = DEFAULT_APT_CFG["Dir::Etc"]
+            sourcelist = DEFAULT_APT_CFG["Dir::Etc::sourcelist"]
+            sourceparts = DEFAULT_APT_CFG["Dir::Etc::sourceparts"]
+            return {
+                "sourcelist": f"/{etc}/{sourcelist}",
+                "sourceparts": f"/{etc}/{sourceparts}/",
+            }
         matched_cfg = re.findall(APT_CFG_RE, apt_dump)
         apt_cmd_config = dict(matched_cfg)
-        etc = apt_cmd_config.get("Dir::Etc", "etc/apt")
-        if apt_cmd_config.get("Dir::Etc::sourcelist"):
-            sourcelist = f"/{etc}/{apt_cmd_config['Dir::Etc::sourcelist']}"
-        else:
-            sourcelist = DEFAULT_APT_CFG["sourcelist"]
-        if apt_cmd_config.get("Dir::Etc::sourceparts"):
-            sourceparts = f"/{etc}/{apt_cmd_config['Dir::Etc::sourceparts']}/"
-        else:
-            sourceparts = DEFAULT_APT_CFG["sourceparts"]
-    return {"sourcelist": sourcelist, "sourceparts": sourceparts}
+        etc = apt_cmd_config.get("Dir::Etc", DEFAULT_APT_CFG["Dir::Etc"])
+        sourcelist = apt_cmd_config.get(
+            "Dir::Etc::sourcelist", DEFAULT_APT_CFG["Dir::Etc::sourcelist"]
+        )
+        sourceparts = apt_cmd_config.get(
+            "Dir::Etc::sourceparts", DEFAULT_APT_CFG["Dir::Etc::sourceparts"]
+        )
+    return {
+        "sourcelist": f"/{etc}/{sourcelist}",
+        "sourceparts": f"/{etc}/{sourceparts}/",
+    }
 
 
 def generate_sources_list(cfg, release, mirrors, cloud):
