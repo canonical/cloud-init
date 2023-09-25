@@ -109,6 +109,11 @@ syslog_fix_perms: ~
 disable_vmware_customization: false
 {% endif -%}
 
+# OpenSSH 7.0 and greater similarly disable the ssh-dss (DSA) public key algorithm. It too is weak and we against its use in openEuler.
+{% if variant in ["openeuler"] %}
+ssh_genkeytypes: ['rsa', 'ecdsa', 'ed25519']
+{% endif %}
+
 # The modules that run in the 'init' stage
 cloud_init_modules:
   - migrator
