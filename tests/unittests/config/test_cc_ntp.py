@@ -540,9 +540,12 @@ class TestNtp(FilesystemMockingTestCase):
         # we are on ubuntu-core here
         self.m_snappy.return_value = True
 
-        # ubuntu core systems will have timesyncd installed
+        # ubuntu core systems will have timesyncd installed, so simulate that.
+        # First None is for the 'eatmydata' check when initializing apt
+        # when initializing the distro class. The rest represent possible
+        # finds the various npt services
         m_which.side_effect = iter(
-            [None, "/lib/systemd/systemd-timesyncd", None, None, None]
+            [None, None, "/lib/systemd/systemd-timesyncd", None, None, None]
         )
         distro = "ubuntu"
         mycloud = self._get_cloud(distro)
@@ -606,7 +609,7 @@ class TestNtp(FilesystemMockingTestCase):
         cfg = {"ntp": {"ntp_client": client}}
         for distro in cc_ntp.distros:
             # client is not installed
-            m_which.side_effect = iter([None])
+            m_which.return_value = None
             mycloud = self._get_cloud(distro)
             with mock.patch.object(
                 mycloud.distro, "install_packages"

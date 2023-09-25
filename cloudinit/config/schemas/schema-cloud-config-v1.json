@@ -453,6 +453,21 @@
       },
       "additionalProperties": true
     },
+    "package_item_definition": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
     "cc_ansible": {
       "type": "object",
       "properties": {
@@ -1924,19 +1939,29 @@
       "properties": {
         "packages": {
           "type": "array",
-          "description": "A list of packages to install. Each entry in the list can be either a package name or a list with two entries, the first being the package name and the second being the specific package version to install.",
+          "description": "An array containing either a package specification, or an object consisting of a package manager key having a package specification value . A package specification can be either a package name or a list with two entries, the first being the package name and the second being the specific package version to install.",
           "items": {
             "oneOf": [
               {
-                "type": "array",
-                "items": {
-                  "type": "string"
+                "type": "object",
+                "properties": {
+                  "apt": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/package_item_definition"
+                    }
+                  },
+                  "snap": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/package_item_definition"
+                    }
+                  }
                 },
-                "minItems": 2,
-                "maxItems": 2
+                "additionalProperties": false
               },
               {
-                "type": "string"
+                "$ref": "#/$defs/package_item_definition"
               }
             ]
           },

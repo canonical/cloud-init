@@ -1,3 +1,4 @@
+# This file is part of cloud-init. See LICENSE file for license information.
 """Series of integration tests covering apt functionality."""
 import re
 

@@ -44,6 +44,12 @@ meta: MetaSchema = {
               - pwgen
               - pastebinit
               - [libpython3.8, 3.8.10-0ubuntu1~20.04.2]
+              - snap:
+                - certbot
+                - [juju, --edge]
+                - [lxd, --channel=5.15/stable]
+              - apt:
+                - mg
             package_update: true
             package_upgrade: true
             package_reboot_if_required: true
@@ -96,7 +102,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     pkglist = util.get_cfg_option_list(cfg, "packages", [])
 
     errors = []
-    if update or len(pkglist) or upgrade:
+    if update or upgrade:
         try:
             cloud.distro.update_package_sources()
         except Exception as e:

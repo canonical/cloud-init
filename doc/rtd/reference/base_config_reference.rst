@@ -111,8 +111,8 @@ Both keys will be processed independently.
 
   - ``paths``: Definitions of common paths used by ``cloud-init``.
 
-    + ``cloud_dir``: Defaults to :file:`/var/lib/cloud`.
-    + ``templates_dir``: Defaults to :file:`/etc/cloud/templates`.
+    + ``cloud_dir``: Default: :file:`/var/lib/cloud`.
+    + ``templates_dir``: Default: :file:`/etc/cloud/templates`.
 
   - ``distro``: Name of distro being used.
   - ``default_user``: Defines the default user for the system using the same
@@ -147,6 +147,18 @@ Both keys will be processed independently.
       * ``network-manager``: For ``nmcli connection load``/
         ``nmcli connection up``.
       * ``networkd``: For ``ip link set up``/``ip link set down``.
+  - ``apt_get_command``: Command used to interact with APT repositories.
+    Default: ``apt-get``.
+  - ``apt_get_upgrade_subcommand``: APT subcommand used to upgrade system.
+    Default: ``dist-upgrade``.
+  - ``apt_get_wrapper``: Command used to wrap the apt-get command.
+
+    + ``enabled``: Whether to use the specified ``apt_wrapper`` command.
+      If set to ``auto``, use the command if it exists on the ``PATH``.
+      Default: ``true``.
+
+    + ``command``: Command used to wrap any ``apt-get`` calls.
+      Default: ``eatmydata``.
 
 Logging keys
 ------------
