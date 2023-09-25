@@ -40,7 +40,7 @@ KNOWN_DISTROS = [
 
 def _make_header(sep="#"):
     lines = [
-        "Created by cloud-init on instance boot automatically, do not edit.",
+        "Created by cloud-init automatically, do not edit.",
         "",
     ]
     for i in range(0, len(lines)):

@@ -297,7 +297,7 @@ Example output:
 
 .. code-block::
 
-   # Created by cloud-init on instance boot automatically, do not edit.
+   # Created by cloud-init automatically, do not edit.
    #
    BOOTPROTO=static
    DEVICE=eth7
@@ -306,7 +306,7 @@ Example output:
    ONBOOT=yes
    TYPE=Ethernet
    USERCTL=no
-   # Created by cloud-init on instance boot automatically, do not edit.
+   # Created by cloud-init automatically, do not edit.
    #
    BOOTPROTO=dhcp
    DEVICE=eth9
