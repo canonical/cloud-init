@@ -64,8 +64,12 @@ main() {
     ds=$?
     debug 1 "ds-identify rc=$ds"
 
-    if [ "$ds" = "1" ]; then
-        debug 1 "cloud-init is enabled but no datasource found, disabling"
+    if [ "$ds" = "1" -o "$ds" = "2" ]; then
+        if [ "$ds" = "1" ]; then
+            debug 1 "cloud-init is enabled but no datasource found, disabling"
+        else
+            debug 1 "cloud-init is disabled by kernel commandline or etc_file"
+        fi
         if [ -f "$link_path" ]; then
             if rm -f "$link_path"; then
                 debug 1 "disabled. removed existing $link_path"

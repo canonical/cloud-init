@@ -330,6 +330,10 @@ class DsIdentifyBase(CiTestCase):
                 "err": "No dmidecode program. ERROR.",
             },
             {
+                "name": "is_disabled",
+                "ret": 1,
+            },
+            {
                 "name": "get_kenv_field",
                 "ret": 1,
                 "err": "No kenv program. ERROR.",
