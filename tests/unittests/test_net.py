@@ -536,7 +536,7 @@ OS_SAMPLES = [
             (
                 "etc/sysconfig/network/ifcfg-eth0",
                 """
-# Created by cloud-init on instance boot automatically, do not edit.
+# Created by cloud-init automatically, do not edit.
 #
 BOOTPROTO=static
 IPADDR=172.19.1.34
@@ -548,7 +548,7 @@ STARTMODE=auto
             (
                 "etc/resolv.conf",
                 """
-; Created by cloud-init on instance boot automatically, do not edit.
+; Created by cloud-init automatically, do not edit.
 ;
 nameserver 172.19.0.12
 """.lstrip(),
@@ -556,7 +556,7 @@ nameserver 172.19.0.12
             (
                 "etc/NetworkManager/conf.d/99-cloud-init.conf",
                 """
-# Created by cloud-init on instance boot automatically, do not edit.
+# Created by cloud-init automatically, do not edit.
 #
 [main]
 dns = none
@@ -576,7 +576,7 @@ dns = none
             (
                 "etc/sysconfig/network-scripts/ifcfg-eth0",
                 """
-# Created by cloud-init on instance boot automatically, do not edit.
+# Created by cloud-init automatically, do not edit.
 #
 BOOTPROTO=none
 DEFROUTE=yes
@@ -594,7 +594,7 @@ USERCTL=no
             (
                 "etc/resolv.conf",
                 """
-; Created by cloud-init on instance boot automatically, do not edit.
+; Created by cloud-init automatically, do not edit.
 ;
 nameserver 172.19.0.12
 """.lstrip(),
@@ -602,7 +602,7 @@ nameserver 172.19.0.12
             (
                 "etc/NetworkManager/conf.d/99-cloud-init.conf",
                 """
-# Created by cloud-init on instance boot automatically, do not edit.
+# Created by cloud-init automatically, do not edit.
 #
 [main]
 dns = none
@@ -697,7 +697,7 @@ route1=0.0.0.0/0,172.19.3.254
             (
                 "etc/sysconfig/network/ifcfg-eth0",
                 """
-# Created by cloud-init on instance boot automatically, do not edit.
+# Created by cloud-init automatically, do not edit.
 #
 BOOTPROTO=static
 IPADDR=172.19.1.34
@@ -711,7 +711,7 @@ STARTMODE=auto
             (
                 "etc/resolv.conf",
                 """
-; Created by cloud-init on instance boot automatically, do not edit.
+; Created by cloud-init automatically, do not edit.
 ;
 nameserver 172.19.0.12
 """.lstrip(),
@@ -719,7 +719,7 @@ nameserver 172.19.0.12
             (
                 "etc/NetworkManager/conf.d/99-cloud-init.conf",
                 """
-# Created by cloud-init on instance boot automatically, do not edit.
+# Created by cloud-init automatically, do not edit.
 #
 [main]
 dns = none
@@ -739,7 +739,7 @@ dns = none
             (
                 "etc/sysconfig/network-scripts/ifcfg-eth0",
                 """
-# Created by cloud-init on instance boot automatically, do not edit.
+# Created by cloud-init automatically, do not edit.
 #
 BOOTPROTO=none
 DEFROUTE=yes
@@ -759,7 +759,7 @@ USERCTL=no
             (
                 "etc/resolv.conf",
                 """
-; Created by cloud-init on instance boot automatically, do not edit.
+; Created by cloud-init automatically, do not edit.
 ;
 nameserver 172.19.0.12
 """.lstrip(),
@@ -767,7 +767,7 @@ nameserver 172.19.0.12
             (
                 "etc/NetworkManager/conf.d/99-cloud-init.conf",
                 """
-# Created by cloud-init on instance boot automatically, do not edit.
+# Created by cloud-init automatically, do not edit.
 #
 [main]
 dns = none
@@ -854,7 +854,7 @@ dns = none
             (
                 "etc/sysconfig/network/ifcfg-eth0",
                 """
-# Created by cloud-init on instance boot automatically, do not edit.
+# Created by cloud-init automatically, do not edit.
 #
 BOOTPROTO=static
 IPADDR=172.19.1.34
@@ -869,7 +869,7 @@ STARTMODE=auto
             (
                 "etc/resolv.conf",
                 """
-; Created by cloud-init on instance boot automatically, do not edit.
+; Created by cloud-init automatically, do not edit.
 ;
 nameserver 172.19.0.12
 """.lstrip(),
@@ -877,7 +877,7 @@ nameserver 172.19.0.12
             (
                 "etc/NetworkManager/conf.d/99-cloud-init.conf",
                 """
-# Created by cloud-init on instance boot automatically, do not edit.
+# Created by cloud-init automatically, do not edit.
 #
 [main]
 dns = none
@@ -897,7 +897,7 @@ dns = none
             (
                 "etc/sysconfig/network-scripts/ifcfg-eth0",
                 """
-# Created by cloud-init on instance boot automatically, do not edit.
+# Created by cloud-init automatically, do not edit.
 #
 BOOTPROTO=none
 DEFROUTE=yes
@@ -921,7 +921,7 @@ USERCTL=no
             (
                 "etc/resolv.conf",
                 """
-; Created by cloud-init on instance boot automatically, do not edit.
+; Created by cloud-init automatically, do not edit.
 ;
 nameserver 172.19.0.12
 """.lstrip(),
@@ -929,7 +929,7 @@ nameserver 172.19.0.12
             (
                 "etc/NetworkManager/conf.d/99-cloud-init.conf",
                 """
-# Created by cloud-init on instance boot automatically, do not edit.
+# Created by cloud-init automatically, do not edit.
 #
 [main]
 dns = none
@@ -3442,7 +3442,7 @@ iface bond0 inet6 static
             ),
             "route6-bond0": textwrap.dedent(
                 """\
-        # Created by cloud-init on instance boot automatically, do not edit.
+        # Created by cloud-init automatically, do not edit.
         #
         2001:67c::/32 via 2001:67c:1562::1  dev bond0
         3001:67c::/32 via 3001:67c:15::1 metric 10000 dev bond0
@@ -4583,10 +4583,7 @@ class TestRhelSysConfigRendering(CiTestCase):
     with_logs = True
 
     scripts_dir = "/etc/sysconfig/network-scripts"
-    header = (
-        "# Created by cloud-init on instance boot automatically, "
-        "do not edit.\n#\n"
-    )
+    header = "# Created by cloud-init automatically, do not edit.\n#\n"
 
     expected_name = "expected_sysconfig_rhel"
 
@@ -4682,7 +4679,7 @@ class TestRhelSysConfigRendering(CiTestCase):
         with open(os.path.join(render_dir, render_file)) as fh:
             content = fh.read()
             expected_content = """
-# Created by cloud-init on instance boot automatically, do not edit.
+# Created by cloud-init automatically, do not edit.
 #
 BOOTPROTO=dhcp
 DEVICE=eth1000
@@ -4890,7 +4887,7 @@ USERCTL=no
         nspath = "/etc/sysconfig/network-scripts/"
         self.assertNotIn(nspath + "ifcfg-lo", found.keys())
         expected = """\
-# Created by cloud-init on instance boot automatically, do not edit.
+# Created by cloud-init automatically, do not edit.
 #
 BOOTPROTO=none
 DEFROUTE=yes
@@ -4920,7 +4917,7 @@ USERCTL=no
         nspath = "/etc/sysconfig/network-scripts/"
         self.assertNotIn(nspath + "ifcfg-lo", found.keys())
         expected_i1 = """\
-# Created by cloud-init on instance boot automatically, do not edit.
+# Created by cloud-init automatically, do not edit.
 #
 BOOTPROTO=none
 DEFROUTE=yes
@@ -4937,7 +4934,7 @@ USERCTL=no
 """
         self.assertEqual(expected_i1, found[nspath + "ifcfg-eth0"])
         expected_i2 = """\
-# Created by cloud-init on instance boot automatically, do not edit.
+# Created by cloud-init automatically, do not edit.
 #
 BOOTPROTO=dhcp
 DEVICE=eth1
@@ -4965,7 +4962,7 @@ USERCTL=no
         nspath = "/etc/sysconfig/network-scripts/"
         self.assertNotIn(nspath + "ifcfg-lo", found.keys())
         expected = """\
-# Created by cloud-init on instance boot automatically, do not edit.
+# Created by cloud-init automatically, do not edit.
 #
 BOOTPROTO=dhcp
 DEVICE=eth0
@@ -5412,7 +5409,7 @@ USERCTL=no
         expected = {
             "ifcfg-eth0": textwrap.dedent(
                 """\
-                # Created by cloud-init on instance boot automatically, do not edit.
+                # Created by cloud-init automatically, do not edit.
                 #
                 BOOTPROTO=none
                 DEFROUTE=yes
@@ -5438,7 +5435,7 @@ USERCTL=no
             ),
             "route-eth0": textwrap.dedent(
                 """\
-                # Created by cloud-init on instance boot automatically, do not edit.
+                # Created by cloud-init automatically, do not edit.
                 #
                 ADDRESS0=10.54.0.1
                 GATEWAY0=0.0.0.0
@@ -5447,7 +5444,7 @@ USERCTL=no
             ),
             "route6-eth0": textwrap.dedent(
                 """\
-                # Created by cloud-init on instance boot automatically, do not edit.
+                # Created by cloud-init automatically, do not edit.
                 #
                 2a00:1730:fff9:100::1/128 via ::0  dev eth0
                 ::0/0 via 2a00:1730:fff9:100::1  dev eth0
@@ -5508,10 +5505,7 @@ class TestOpenSuseSysConfigRendering(CiTestCase):
     with_logs = True
 
     scripts_dir = "/etc/sysconfig/network"
-    header = (
-        "# Created by cloud-init on instance boot automatically, "
-        "do not edit.\n#\n"
-    )
+    header = "# Created by cloud-init automatically, do not edit.\n#\n"
 
     expected_name = "expected_sysconfig_opensuse"
 
@@ -5598,7 +5592,7 @@ class TestOpenSuseSysConfigRendering(CiTestCase):
         with open(os.path.join(render_dir, render_file)) as fh:
             content = fh.read()
             expected_content = """
-# Created by cloud-init on instance boot automatically, do not edit.
+# Created by cloud-init automatically, do not edit.
 #
 BOOTPROTO=dhcp4
 LLADDR=07-1c-c6-75-a4-be
@@ -5716,7 +5710,7 @@ STARTMODE=auto
         nspath = "/etc/sysconfig/network/"
         self.assertNotIn(nspath + "ifcfg-lo", found.keys())
         expected = """\
-# Created by cloud-init on instance boot automatically, do not edit.
+# Created by cloud-init automatically, do not edit.
 #
 BOOTPROTO=static
 IPADDR=10.0.2.15
@@ -5744,7 +5738,7 @@ STARTMODE=auto
         nspath = "/etc/sysconfig/network/"
         self.assertNotIn(nspath + "ifcfg-lo", found.keys())
         expected = """\
-# Created by cloud-init on instance boot automatically, do not edit.
+# Created by cloud-init automatically, do not edit.
 #
 BOOTPROTO=dhcp
 STARTMODE=auto

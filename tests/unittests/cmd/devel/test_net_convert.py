@@ -58,7 +58,7 @@ DHCP=ipv4
 """
 
 SAMPLE_SYSCONFIG_CONTENT = """\
-# Created by cloud-init on instance boot automatically, do not edit.
+# Created by cloud-init automatically, do not edit.
 #
 BOOTPROTO=dhcp
 DEVICE=eth0
