@@ -1099,6 +1099,23 @@ has_ovf_cdrom() {
     return 1
 }
 
+is_disabled() {
+    if [ -f /etc/cloud/cloud-init.disabled ]; then
+        debug 1 "disabled by marker file /etc/cloud-init.disabled"
+        return 0
+    fi
+    if [ "${KERNEL_CMDLINE:-}" = "cloud-init=disabled" ]; then
+        debug 1 "disabled by KERNEL_CMDLINE environment variable"
+        return 0
+    fi
+    case "$DI_KERNEL_CMDLINE" in
+       *cloud-init=disabled*)
+            debug 1 "disabled by kernel command line cloud-init=disabled"
+            return 0
+    esac
+    return 1
+}
+
 dscheck_OVF() {
     check_seed_dir ovf ovf-env.xml && return "${DS_FOUND}"
 
@@ -1547,10 +1564,7 @@ dscheck_VMware() {
 }
 
 collect_info() {
-    read_uname_info
-    read_virt
     read_pid1_product_name
-    read_kernel_cmdline
     read_config
     read_datasource_list
     read_dmi_sys_vendor
@@ -1825,6 +1839,12 @@ _main() {
 
     read_uptime
     debug 1 "[up ${_RET}s]" "ds-identify $*"
+    read_uname_info
+    read_virt
+    read_kernel_cmdline
+    if is_disabled; then
+        return 2
+    fi
     collect_info
 
     if [ "$DI_LOG" = "stderr" ]; then
