@@ -128,7 +128,8 @@ def handle_args(name, args):
         )
     elif args.kind == "azure-imds":
         pre_ns = azure.generate_network_config_from_instance_network_metadata(
-            json.loads(net_data)["network"]
+            json.loads(net_data)["network"],
+            apply_network_config_for_secondary_ips=True,
         )
     elif args.kind == "vmware-imc":
         config = guestcust_util.Config(
