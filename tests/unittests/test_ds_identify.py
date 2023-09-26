@@ -1013,7 +1013,8 @@ class TestDsIdentify(DsIdentifyBase):
 
     def test_vmware_guestinfo_no_data(self):
         """VMware: guestinfo transport no data"""
-        self._test_ds_not_found("VMware-GuestInfo-NoData")
+        self._test_ds_not_found("VMware-GuestInfo-NoData-Rpctool")
+        self._test_ds_not_found("VMware-GuestInfo-NoData-Vmtoolsd")
 
     def test_vmware_guestinfo_no_virt_id(self):
         """VMware: guestinfo transport fails if no virt id"""
@@ -1800,6 +1801,11 @@ VALID_CFG = {
                 "ret": 0,
                 "out": "/usr/bin/vmware-rpctool",
             },
+            {
+                "name": "vmware_has_vmtoolsd",
+                "ret": 1,
+                "out": "/usr/bin/vmtoolsd",
+            },
         ],
         "files": {
             # Setup vmware customization enabled
@@ -1917,7 +1923,7 @@ VALID_CFG = {
             MOCK_VIRT_IS_VMWARE,
         ],
     },
-    "VMware-GuestInfo-NoData": {
+    "VMware-GuestInfo-NoData-Rpctool": {
         "ds": "VMware",
         "policy_dmi": POLICY_FOUND_ONLY,
         "mocks": [
@@ -1927,15 +1933,49 @@ VALID_CFG = {
                 "out": "/usr/bin/vmware-rpctool",
             },
             {
-                "name": "vmware_rpctool_guestinfo_metadata",
+                "name": "vmware_has_vmtoolsd",
+                "ret": 1,
+                "out": "/usr/bin/vmtoolsd",
+            },
+            {
+                "name": "vmware_guestinfo_metadata",
                 "ret": 1,
             },
             {
-                "name": "vmware_rpctool_guestinfo_userdata",
+                "name": "vmware_guestinfo_userdata",
                 "ret": 1,
             },
             {
-                "name": "vmware_rpctool_guestinfo_vendordata",
+                "name": "vmware_guestinfo_vendordata",
+                "ret": 1,
+            },
+            MOCK_VIRT_IS_VMWARE,
+        ],
+    },
+    "VMware-GuestInfo-NoData-Vmtoolsd": {
+        "ds": "VMware",
+        "policy_dmi": POLICY_FOUND_ONLY,
+        "mocks": [
+            {
+                "name": "vmware_has_rpctool",
+                "ret": 1,
+                "out": "/usr/bin/vmware-rpctool",
+            },
+            {
+                "name": "vmware_has_vmtoolsd",
+                "ret": 0,
+                "out": "/usr/bin/vmtoolsd",
+            },
+            {
+                "name": "vmware_guestinfo_metadata",
+                "ret": 1,
+            },
+            {
+                "name": "vmware_guestinfo_userdata",
+                "ret": 1,
+            },
+            {
+                "name": "vmware_guestinfo_vendordata",
                 "ret": 1,
             },
             MOCK_VIRT_IS_VMWARE,
@@ -1950,16 +1990,16 @@ VALID_CFG = {
                 "out": "/usr/bin/vmware-rpctool",
             },
             {
-                "name": "vmware_rpctool_guestinfo_metadata",
+                "name": "vmware_guestinfo_metadata",
                 "ret": 0,
                 "out": "---",
             },
             {
-                "name": "vmware_rpctool_guestinfo_userdata",
+                "name": "vmware_guestinfo_userdata",
                 "ret": 1,
             },
             {
-                "name": "vmware_rpctool_guestinfo_vendordata",
+                "name": "vmware_guestinfo_vendordata",
                 "ret": 1,
             },
         ],
@@ -1969,20 +2009,25 @@ VALID_CFG = {
         "mocks": [
             {
                 "name": "vmware_has_rpctool",
-                "ret": 0,
+                "ret": 1,
                 "out": "/usr/bin/vmware-rpctool",
             },
             {
-                "name": "vmware_rpctool_guestinfo_metadata",
+                "name": "vmware_has_vmtoolsd",
+                "ret": 0,
+                "out": "/usr/bin/vmtoolsd",
+            },
+            {
+                "name": "vmware_guestinfo_metadata",
                 "ret": 0,
                 "out": "---",
             },
             {
-                "name": "vmware_rpctool_guestinfo_userdata",
+                "name": "vmware_guestinfo_userdata",
                 "ret": 1,
             },
             {
-                "name": "vmware_rpctool_guestinfo_vendordata",
+                "name": "vmware_guestinfo_vendordata",
                 "ret": 1,
             },
             MOCK_VIRT_IS_VMWARE,
@@ -1997,16 +2042,21 @@ VALID_CFG = {
                 "out": "/usr/bin/vmware-rpctool",
             },
             {
-                "name": "vmware_rpctool_guestinfo_metadata",
+                "name": "vmware_has_vmtoolsd",
+                "ret": 1,
+                "out": "/usr/bin/vmtoolsd",
+            },
+            {
+                "name": "vmware_guestinfo_metadata",
                 "ret": 1,
             },
             {
-                "name": "vmware_rpctool_guestinfo_userdata",
+                "name": "vmware_guestinfo_userdata",
                 "ret": 0,
                 "out": "---",
             },
             {
-                "name": "vmware_rpctool_guestinfo_vendordata",
+                "name": "vmware_guestinfo_vendordata",
                 "ret": 1,
             },
             MOCK_VIRT_IS_VMWARE,
@@ -2017,19 +2067,24 @@ VALID_CFG = {
         "mocks": [
             {
                 "name": "vmware_has_rpctool",
-                "ret": 0,
+                "ret": 1,
                 "out": "/usr/bin/vmware-rpctool",
             },
             {
-                "name": "vmware_rpctool_guestinfo_metadata",
+                "name": "vmware_has_vmtoolsd",
+                "ret": 0,
+                "out": "/usr/bin/vmtoolsd",
+            },
+            {
+                "name": "vmware_guestinfo_metadata",
                 "ret": 1,
             },
             {
-                "name": "vmware_rpctool_guestinfo_userdata",
+                "name": "vmware_guestinfo_userdata",
                 "ret": 1,
             },
             {
-                "name": "vmware_rpctool_guestinfo_vendordata",
+                "name": "vmware_guestinfo_vendordata",
                 "ret": 0,
                 "out": "---",
             },

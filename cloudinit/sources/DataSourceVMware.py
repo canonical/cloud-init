@@ -88,7 +88,6 @@ DATA_ACCESS_METHOD_ENVVAR = "envvar"
 DATA_ACCESS_METHOD_GUESTINFO = "guestinfo"
 DATA_ACCESS_METHOD_IMC = "imc"
 
-VMWARE_RPCTOOL = which("vmware-rpctool")
 REDACT = "redact"
 CLEANUP_GUESTINFO = "cleanup-guestinfo"
 VMX_GUESTINFO = "VMX_GUESTINFO"
@@ -145,7 +144,8 @@ class DataSourceVMware(sources.DataSource):
 
         self.cfg = {}
         self.data_access_method = None
-        self.vmware_rpctool = VMWARE_RPCTOOL
+        self.rpctool = None
+        self.rpctool_fn = None
 
         # A list includes all possible data transports, each tuple represents
         # one data transport type. This datasource will try to get data from
@@ -236,7 +236,7 @@ class DataSourceVMware(sources.DataSource):
 
         # Reflect any possible local IPv4 or IPv6 addresses in the guest
         # info.
-        advertise_local_ip_addrs(host_info)
+        advertise_local_ip_addrs(host_info, self.rpctool, self.rpctool_fn)
 
         # Ensure the metadata gets updated with information about the
         # host, including the network interfaces, default IP addresses,
@@ -312,7 +312,9 @@ class DataSourceVMware(sources.DataSource):
             keys_to_redact = self.metadata[CLEANUP_GUESTINFO]
 
         if self.data_access_method == DATA_ACCESS_METHOD_GUESTINFO:
-            guestinfo_redact_keys(keys_to_redact, self.vmware_rpctool)
+            guestinfo_redact_keys(
+                keys_to_redact, self.rpctool, self.rpctool_fn
+            )
 
     def get_envvar_data_fn(self):
         """
@@ -330,13 +332,77 @@ class DataSourceVMware(sources.DataSource):
         """
         check to see if there is data via the guestinfo transport
         """
-        md, ud, vd = None, None, None
-        if self.vmware_rpctool:
-            md = guestinfo("metadata", self.vmware_rpctool)
-            ud = guestinfo("userdata", self.vmware_rpctool)
-            vd = guestinfo("vendordata", self.vmware_rpctool)
 
-        return (md, ud, vd)
+        vmtoolsd = which("vmtoolsd")
+        vmware_rpctool = which("vmware-rpctool")
+
+        # Default to using vmware-rpctool if it is available.
+        if vmware_rpctool:
+            self.rpctool = vmware_rpctool
+            self.rpctool_fn = exec_vmware_rpctool
+            LOG.debug("discovered vmware-rpctool: %s", vmware_rpctool)
+
+        if vmtoolsd:
+            # Default to using vmtoolsd if it is available and vmware-rpctool
+            # is not.
+            if not vmware_rpctool:
+                self.rpctool = vmtoolsd
+                self.rpctool_fn = exec_vmtoolsd
+            LOG.debug("discovered vmtoolsd: %s", vmtoolsd)
+
+        # If neither vmware-rpctool nor vmtoolsd are available, then nothing
+        # can be done.
+        if not self.rpctool:
+            LOG.debug("no rpctool discovered")
+            return (None, None, None)
+
+        def query_guestinfo(rpctool, rpctool_fn):
+            md, ud, vd = None, None, None
+            LOG.info("query guestinfo with %s", rpctool)
+            md = guestinfo("metadata", rpctool, rpctool_fn)
+            ud = guestinfo("userdata", rpctool, rpctool_fn)
+            vd = guestinfo("vendordata", rpctool, rpctool_fn)
+            return md, ud, vd
+
+        try:
+            # The first attempt to query guestinfo could occur via either
+            # vmware-rpctool *or* vmtoolsd.
+            return query_guestinfo(self.rpctool, self.rpctool_fn)
+        except Exception as error:
+            util.logexc(
+                LOG,
+                "Failed to query guestinfo with %s: %s",
+                self.rpctool,
+                error,
+            )
+
+            # The second attempt to query guestinfo can only occur with
+            # vmtoolsd.
+
+            # If the first attempt at getting the data was with vmtoolsd, then
+            # no second attempt is made.
+            if vmtoolsd and self.rpctool == vmtoolsd:
+                return (None, None, None)
+
+            if not vmtoolsd:
+                LOG.info("vmtoolsd fallback option not present")
+                return (None, None, None)
+
+            LOG.info("fallback to vmtoolsd")
+            self.rpctool = vmtoolsd
+            self.rpctool_fn = exec_vmtoolsd
+
+            try:
+                return query_guestinfo(self.rpctool, self.rpctool_fn)
+            except Exception:
+                util.logexc(
+                    LOG,
+                    "Failed to query guestinfo with %s: %s",
+                    self.rpctool,
+                    error,
+                )
+
+                return (None, None, None)
 
     def get_imc_data_fn(self):
         """
@@ -446,25 +512,25 @@ def get_none_if_empty_val(val):
     return val
 
 
-def advertise_local_ip_addrs(host_info):
+def advertise_local_ip_addrs(host_info, rpctool, rpctool_fn):
     """
     advertise_local_ip_addrs gets the local IP address information from
     the provided host_info map and sets the addresses in the guestinfo
     namespace
     """
-    if not host_info:
+    if not host_info or not rpctool or not rpctool_fn:
         return
 
     # Reflect any possible local IPv4 or IPv6 addresses in the guest
     # info.
     local_ipv4 = host_info.get(LOCAL_IPV4)
     if local_ipv4:
-        guestinfo_set_value(LOCAL_IPV4, local_ipv4)
+        guestinfo_set_value(LOCAL_IPV4, local_ipv4, rpctool, rpctool_fn)
         LOG.info("advertised local ipv4 address %s in guestinfo", local_ipv4)
 
     local_ipv6 = host_info.get(LOCAL_IPV6)
     if local_ipv6:
-        guestinfo_set_value(LOCAL_IPV6, local_ipv6)
+        guestinfo_set_value(LOCAL_IPV6, local_ipv6, rpctool, rpctool_fn)
         LOG.info("advertised local ipv6 address %s in guestinfo", local_ipv6)
 
 
@@ -506,30 +572,37 @@ def guestinfo_envvar_get_value(key):
     return handle_returned_guestinfo_val(key, os.environ.get(env_key, ""))
 
 
-def guestinfo(key, vmware_rpctool=VMWARE_RPCTOOL):
+def exec_vmware_rpctool(rpctool, arg):
+    (stdout, stderr) = subp([rpctool, arg])
+    return (stdout, stderr)
+
+
+def exec_vmtoolsd(rpctool, arg):
+    (stdout, stderr) = subp([rpctool, "--cmd", arg])
+    return (stdout, stderr)
+
+
+def guestinfo(key, rpctool, rpctool_fn):
     """
     guestinfo returns the guestinfo value for the provided key, decoding
     the value when required
     """
-    val = guestinfo_get_value(key, vmware_rpctool)
+    val = guestinfo_get_value(key, rpctool, rpctool_fn)
     if not val:
         return None
-    enc_type = guestinfo_get_value(key + ".encoding", vmware_rpctool)
+    enc_type = guestinfo_get_value(key + ".encoding", rpctool, rpctool_fn)
     return decode(get_guestinfo_key_name(key), enc_type, val)
 
 
-def guestinfo_get_value(key, vmware_rpctool=VMWARE_RPCTOOL):
+def guestinfo_get_value(key, rpctool, rpctool_fn):
     """
     Returns a guestinfo value for the specified key.
     """
     LOG.debug("Getting guestinfo value for key %s", key)
 
     try:
-        (stdout, stderr) = subp(
-            [
-                vmware_rpctool,
-                "info-get " + get_guestinfo_key_name(key),
-            ]
+        (stdout, stderr) = rpctool_fn(
+            rpctool, "info-get " + get_guestinfo_key_name(key)
         )
         if stderr == NOVAL:
             LOG.debug("No value found for key %s", key)
@@ -537,27 +610,35 @@ def guestinfo_get_value(key, vmware_rpctool=VMWARE_RPCTOOL):
             LOG.error("Failed to get guestinfo value for key %s", key)
         return handle_returned_guestinfo_val(key, stdout)
     except ProcessExecutionError as error:
+        # No matter the tool used to access the data, if NOVAL was returned on
+        # stderr, do not raise an exception.
         if error.stderr == NOVAL:
             LOG.debug("No value found for key %s", key)
         else:
+            # Any other result gets logged as an error, and if the tool was
+            # vmware-rpctool, then raise the exception so the caller can try
+            # again with vmtoolsd.
             util.logexc(
                 LOG,
                 "Failed to get guestinfo value for key %s: %s",
                 key,
                 error,
             )
-    except Exception:
+            raise error
+    except Exception as error:
         util.logexc(
             LOG,
             "Unexpected error while trying to get "
-            "guestinfo value for key %s",
+            "guestinfo value for key %s: %s",
             key,
+            error,
         )
+        raise error
 
     return None
 
 
-def guestinfo_set_value(key, value, vmware_rpctool=VMWARE_RPCTOOL):
+def guestinfo_set_value(key, value, rpctool, rpctool_fn):
     """
     Sets a guestinfo value for the specified key. Set value to an empty string
     to clear an existing guestinfo key.
@@ -573,14 +654,14 @@ def guestinfo_set_value(key, value, vmware_rpctool=VMWARE_RPCTOOL):
     LOG.debug("Setting guestinfo key=%s to value=%s", key, value)
 
     try:
-        subp(
-            [
-                vmware_rpctool,
-                "info-set %s %s" % (get_guestinfo_key_name(key), value),
-            ]
+        rpctool_fn(
+            rpctool, "info-set %s %s" % (get_guestinfo_key_name(key), value)
         )
         return True
     except ProcessExecutionError as error:
+        # Any error result gets logged as an error, and if the tool was
+        # vmware-rpctool, then raise the exception so the caller can try
+        # again with vmtoolsd.
         util.logexc(
             LOG,
             "Failed to set guestinfo key=%s to value=%s: %s",
@@ -600,7 +681,7 @@ def guestinfo_set_value(key, value, vmware_rpctool=VMWARE_RPCTOOL):
     return None
 
 
-def guestinfo_redact_keys(keys, vmware_rpctool=VMWARE_RPCTOOL):
+def guestinfo_redact_keys(keys, rpctool, rpctool_fn):
     """
     guestinfo_redact_keys redacts guestinfo of all of the keys in the given
     list. each key will have its value set to "---". Since the value is valid
@@ -614,11 +695,11 @@ def guestinfo_redact_keys(keys, vmware_rpctool=VMWARE_RPCTOOL):
         key_name = get_guestinfo_key_name(key)
         LOG.info("clearing %s", key_name)
         if not guestinfo_set_value(
-            key, GUESTINFO_EMPTY_YAML_VAL, vmware_rpctool
+            key, GUESTINFO_EMPTY_YAML_VAL, rpctool, rpctool_fn
         ):
             LOG.error("failed to clear %s", key_name)
         LOG.info("clearing %s.encoding", key_name)
-        if not guestinfo_set_value(key + ".encoding", "", vmware_rpctool):
+        if not guestinfo_set_value(key + ".encoding", "", rpctool, rpctool_fn):
             LOG.error("failed to clear %s.encoding", key_name)
 
 

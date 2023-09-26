@@ -198,7 +198,6 @@ class TestReadOvfEnv(CiTestCase):
 
 
 class TestDatasourceOVF(CiTestCase):
-
     with_logs = True
 
     def setUp(self):
@@ -452,9 +451,12 @@ class TestTransportVmwareGuestinfo(CiTestCase):
     rpctool = "vmware-rpctool"
     with_logs = True
     rpctool_path = "/not/important/vmware-rpctool"
+    vmtoolsd_path = "/not/important/vmtoolsd"
 
-    def test_without_vmware_rpctool_returns_notfound(self, m_subp, m_which):
-        m_which.return_value = None
+    def test_without_vmware_rpctool_and_without_vmtoolsd_returns_notfound(
+        self, m_subp, m_which
+    ):
+        m_which.side_effect = [None, None]
         self.assertEqual(NOT_FOUND, dsovf.transport_vmware_guestinfo())
         self.assertEqual(
             0,
@@ -462,9 +464,21 @@ class TestTransportVmwareGuestinfo(CiTestCase):
             "subp should not be called if no rpctool in path.",
         )
 
+    def test_without_vmware_rpctool_and_with_vmtoolsd_returns_found(
+        self, m_subp, m_which
+    ):
+        m_which.side_effect = [self.vmtoolsd_path, None]
+        m_subp.side_effect = [(fill_properties({}), "")]
+        self.assertNotEqual(NOT_FOUND, dsovf.transport_vmware_guestinfo())
+        self.assertEqual(
+            1,
+            m_subp.call_count,
+            "subp should be called once bc/ rpctool missing.",
+        )
+
     def test_notfound_on_exit_code_1(self, m_subp, m_which):
         """If vmware-rpctool exits 1, then must return not found."""
-        m_which.return_value = self.rpctool_path
+        m_which.side_effect = [None, self.rpctool_path]
         m_subp.side_effect = subp.ProcessExecutionError(
             stdout="", stderr="No value found", exit_code=1, cmd=["unused"]
         )
@@ -483,14 +497,14 @@ class TestTransportVmwareGuestinfo(CiTestCase):
         rpctool would exit 1 with 'No value found' on stderr.  But cover
         the case where it exited 0 and just wrote nothing to stdout.
         """
-        m_which.return_value = self.rpctool_path
+        m_which.side_effect = [None, self.rpctool_path]
         m_subp.return_value = ("", "")
         self.assertEqual(NOT_FOUND, dsovf.transport_vmware_guestinfo())
         self.assertEqual(1, m_subp.call_count)
 
     def test_notfound_and_warns_on_unexpected_exit_code(self, m_subp, m_which):
         """If vmware-rpctool exits non zero or 1, warnings should be logged."""
-        m_which.return_value = self.rpctool_path
+        m_which.side_effect = [None, self.rpctool_path]
         m_subp.side_effect = subp.ProcessExecutionError(
             stdout=None, stderr="No value found", exit_code=2, cmd=["unused"]
         )
@@ -504,11 +518,37 @@ class TestTransportVmwareGuestinfo(CiTestCase):
 
     def test_found_when_guestinfo_present(self, m_subp, m_which):
         """When there is a ovf info, transport should return it."""
-        m_which.return_value = self.rpctool_path
+        m_which.side_effect = [None, self.rpctool_path]
         content = fill_properties({})
         m_subp.return_value = (content, "")
         self.assertEqual(content, dsovf.transport_vmware_guestinfo())
         self.assertEqual(1, m_subp.call_count)
+
+    def test_vmware_rpctool_fails_and_vmtoolsd_fails(self, m_subp, m_which):
+        """When vmware-rpctool fails and vmtoolsd fails"""
+        m_which.side_effect = [self.vmtoolsd_path, self.rpctool_path]
+        m_subp.side_effect = [
+            subp.ProcessExecutionError(
+                stdout="", stderr="No value found", exit_code=1, cmd=["unused"]
+            ),
+            subp.ProcessExecutionError(
+                stdout="", stderr="No value found", exit_code=1, cmd=["unused"]
+            ),
+        ]
+        self.assertEqual(NOT_FOUND, dsovf.transport_vmware_guestinfo())
+        self.assertEqual(2, m_subp.call_count)
+
+    def test_vmware_rpctool_fails_and_vmtoolsd_success(self, m_subp, m_which):
+        """When vmware-rpctool fails but vmtoolsd succeeds"""
+        m_which.side_effect = [self.vmtoolsd_path, self.rpctool_path]
+        m_subp.side_effect = [
+            subp.ProcessExecutionError(
+                stdout="", stderr="No value found", exit_code=1, cmd=["unused"]
+            ),
+            (fill_properties({}), ""),
+        ]
+        self.assertNotEqual(NOT_FOUND, dsovf.transport_vmware_guestinfo())
+        self.assertEqual(2, m_subp.call_count)
 
 
 #
