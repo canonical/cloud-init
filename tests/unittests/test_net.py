@@ -5454,7 +5454,7 @@ USERCTL=no
                 """  # noqa: E501
             ),
         }
-        log.setupLogging()
+        log.setup_logging()
 
         found = self._render_and_read(network_config=v2_data)
         self._compare_files_to_expected(expected, found)

@@ -435,7 +435,7 @@ class TestCACertsSchema:
     @mock.patch.object(cc_ca_certs, "update_ca_certs")
     def test_deprecate_key_warnings(self, update_ca_certs, caplog):
         """Assert warnings are logged for deprecated keys."""
-        logger.setupLogging()
+        logger.setup_logging()
         cloud = get_cloud("ubuntu")
         cc_ca_certs.handle(
             "IGNORE", {"ca-certs": {"remove-defaults": False}}, cloud, []

@@ -227,7 +227,7 @@ class Init:
         log_file = util.get_cfg_option_str(self.cfg, "def_log_file")
         if log_file:
             # At this point the log file should have already been created
-            # in the setupLogging function of log.py
+            # in the setup_logging function of log.py
 
             try:
                 fmode = util.get_permissions(log_file)

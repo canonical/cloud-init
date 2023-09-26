@@ -1045,7 +1045,7 @@ def main():
     Executed when this file is used as a program.
     """
     try:
-        log.setupBasicLogging()
+        log.setup_basic_logging()
     except Exception:
         pass
     metadata = {
