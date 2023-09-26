@@ -81,16 +81,15 @@ IRC (``#ubuntu-server`` on Libera) or Discourse. For Juju support see their
 
 Can I use cloud-init as a library?
 ==================================
-Yes, in fact some projects `already do`_. However, ``cloud-init`` does not
-currently make any API guarantees to external consumers - current library
-users are projects that have close contact with ``cloud-init``, which is why
-this model currently works.
+Please don't. Some projects `do`_. However, ``cloud-init`` does not
+currently make any API guarantees to either external consumers or out-of-tree
+datasources / modules. Current users of cloud-init as a library are
+projects that have close contact with ``cloud-init``, which is why this
+(fragile) model currently works.
 
-It is worth mentioning for library users that ``cloud-init`` defines a custom
-log level. This log level, ``35``, is dedicated to logging info
-related to deprecation information. Users of ``cloud-init`` as a library
-may wish to ensure that this log level doesn't collide with external
-libraries that define their own custom log levels.
+For those that choose to ignore this advice, logging in cloud-init is
+configured in ``cloud-init/cmd/main.py``, and reconfigured in the
+``cc_rsyslog`` module for obvious reasons.
 
 Where can I learn more?
 =======================
@@ -134,7 +133,7 @@ Whitepapers:
 .. _IRC channel on Libera: https://kiwiirc.com/nextclient/irc.libera.chat/cloud-init
 .. _Juju: https://ubuntu.com/blog/topics/juju
 .. _discourse page: https://discourse.charmhub.io
-.. _already do: https://github.com/canonical/ubuntu-pro-client/blob/9b46480b9e4b88e918bac5ced0d4b8edb3cbbeab/lib/auto_attach.py#L35
+.. _do: https://github.com/canonical/ubuntu-pro-client/blob/9b46480b9e4b88e918bac5ced0d4b8edb3cbbeab/lib/auto_attach.py#L35
 
 .. _cloud-init - The Good Parts: https://www.youtube.com/watch?v=2_m6EUo6VOI
 .. _Utilising cloud-init on Microsoft Azure (Whitepaper): https://ubuntu.com/engage/azure-cloud-init-whitepaper
