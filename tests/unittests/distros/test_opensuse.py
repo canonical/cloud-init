@@ -48,8 +48,8 @@ class TestPackageCommands:
             "zypper",
             "--non-interactive",
             "update",
-            "python36",
             "gzip",
+            "python36",
         ]
         m_subp.assert_called_with(expected_cmd, capture=False)
 
@@ -92,8 +92,8 @@ class TestPackageCommands:
             "zypper",
             "--non-interactive",
             "update",
-            "python36",
             "gzip",
+            "python36",
         ]
         m_subp.assert_called_with(expected_cmd, capture=False)
 
@@ -118,8 +118,8 @@ class TestPackageCommands:
             "--non-interactive",
             "install",
             "--auto-agree-with-licenses",
-            "python36",
             "gzip",
+            "python36",
         ]
         m_subp.assert_called_with(expected_cmd, capture=False)
 
@@ -165,8 +165,8 @@ class TestPackageCommands:
             "--drop-if-no-change",
             "pkg",
             "update",
-            "python36",
             "gzip",
+            "python36",
         ]
         m_subp.assert_called_with(expected_cmd, capture=False)
 
@@ -212,8 +212,8 @@ class TestPackageCommands:
             "--drop-if-no-change",
             "pkg",
             "update",
-            "python36",
             "gzip",
+            "python36",
         ]
         m_subp.assert_called_with(expected_cmd, capture=False)
 
@@ -238,8 +238,8 @@ class TestPackageCommands:
             "pkg",
             "install",
             "--auto-agree-with-licenses",
-            "python36",
             "gzip",
+            "python36",
         ]
         m_subp.assert_called_with(expected_cmd, capture=False)
 

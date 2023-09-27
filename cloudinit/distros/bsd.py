@@ -97,8 +97,12 @@ class BSD(distros.Distro):
         return nconf
 
     def install_packages(self, pkglist):
+        (
+            _packages_by_manager,  # not yet supported
+            generic_packages,
+        ) = self._extract_package_by_manager(pkglist)
         self.update_package_sources()
-        self.package_command("install", pkgs=pkglist)
+        self.package_command("install", pkgs=generic_packages)
 
     def _get_pkg_cmd_environ(self):
         """Return environment vars used in *BSD package_command operations"""
@@ -126,7 +130,7 @@ class BSD(distros.Distro):
         elif args and isinstance(args, list):
             cmd.extend(args)
 
-        pkglist = util.expand_package_list("%s-%s", pkgs)
+        pkglist = sorted(util.expand_package_list("%s-%s", pkgs))
         cmd.extend(pkglist)
 
         # Allow the output of this to flow outwards (ie not be captured)

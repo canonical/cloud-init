@@ -58,8 +58,12 @@ class Distro(distros.Distro):
         subp.subp(["localectl", "set-locale", locale], capture=False)
 
     def install_packages(self, pkglist):
+        (
+            _packages_by_manager,  # not yet supported
+            generic_packages,
+        ) = self._extract_package_by_manager(pkglist)
         self.update_package_sources()
-        self.package_command("", pkgs=pkglist)
+        self.package_command("", pkgs=generic_packages)
 
     def _get_renderer(self) -> Renderer:
         try:
@@ -185,7 +189,7 @@ class Distro(distros.Distro):
         if command:
             cmd.append(command)
 
-        pkglist = util.expand_package_list("%s-%s", pkgs)
+        pkglist = sorted(util.expand_package_list("%s-%s", pkgs))
         cmd.extend(pkglist)
 
         # Allow the output of this to flow outwards (ie not be captured)

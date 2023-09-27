@@ -56,7 +56,11 @@ class Distro(distros.Distro):
         cfg["ssh_svcname"] = "sshd"
 
     def install_packages(self, pkglist):
-        self.package_command("install", pkgs=pkglist)
+        (
+            _packages_by_manager,  # not yet supported
+            generic_packages,
+        ) = self._extract_package_by_manager(pkglist)
+        self.package_command("install", pkgs=generic_packages)
 
     def get_locale(self):
         """Return the default locale if set, else use system locale"""
@@ -195,7 +199,7 @@ class Distro(distros.Distro):
 
         cmd.append(command)
 
-        pkglist = util.expand_package_list("%s-%s", pkgs)
+        pkglist = sorted(util.expand_package_list("%s-%s", pkgs))
         cmd.extend(pkglist)
 
         # Allow the output of this to flow outwards (ie not be captured)

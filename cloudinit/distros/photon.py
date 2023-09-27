@@ -83,8 +83,11 @@ class Distro(distros.Distro):
         self.exec_cmd(cmd)
 
     def install_packages(self, pkglist):
-        # self.update_package_sources()
-        self.package_command("install", pkgs=pkglist)
+        (
+            _packages_by_manager,  # not yet supported
+            generic_packages,
+        ) = self._extract_package_by_manager(pkglist)
+        self.package_command("install", pkgs=generic_packages)
 
     def _write_hostname(self, hostname, filename):
         if filename and filename.endswith("/previous-hostname"):
@@ -145,7 +148,7 @@ class Distro(distros.Distro):
 
         cmd.append(command)
 
-        pkglist = util.expand_package_list("%s-%s", pkgs)
+        pkglist = sorted(util.expand_package_list("%s-%s", pkgs))
         cmd.extend(pkglist)
 
         ret, _out, err = self.exec_cmd(cmd)

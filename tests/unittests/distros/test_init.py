@@ -266,6 +266,13 @@ class TestInstall:
             return_value=[],
         )
 
+    @pytest.fixture
+    def m_subp(self, mocker):
+        return mocker.patch(
+            "cloudinit.distros.bsd.subp.subp",
+            return_value=("", ""),
+        )
+
     def test_invalid_yaml(self, m_apt_install):
         """Test that an invalid YAML raises an exception."""
         with pytest.raises(ValueError):
@@ -297,6 +304,46 @@ class TestInstall:
         assert "pkg3" not in apt_install_args
 
         assert "pkg3" in m_snap_install.call_args_list[0][1]["pkglist"]
+
+    def test_distrubution_without_package_manager_support(
+        self, m_apt_install, m_snap_install, m_subp, mocker, caplog
+    ):
+        distro = _get_distro("freebsd")
+        with mocker.patch.object(
+            distro, "_get_pkg_cmd_environ", return_value={"fake"}
+        ):
+            distro.install_packages(
+                [
+                    "pkg1",
+                    {"apt": ["pkg2"]},
+                    ["pkg3", "ver3"],
+                    {"snap": ["pkg4"]},
+                    {"pkg": ["pkg5"]},
+                ]
+            )
+        m_apt_install.assert_not_called()
+        m_snap_install.assert_not_called()
+        assert [
+            mock.call(["ifconfig", "-a"]),
+            mock.call(["pkg", "update"], env={"fake"}, capture=False),
+            mock.call(
+                ["pkg", "install", "pkg1", "pkg3-ver3"], env={"fake"}, capture=False
+            ),
+        ] == m_subp.call_args_list
+
+    def test_default_and_specific_package_manager(
+        self, m_apt_install, m_snap_install
+    ):
+        """Test success from package manager not supported by distro."""
+        _get_distro("ubuntu").install_packages(
+            ["pkg1", ["pkg3", "ver3"], {"apt": [["pkg2", "ver2"]]}]
+        )
+        apt_install_args = m_apt_install.call_args_list[0][0][0]
+        assert "pkg1" in apt_install_args
+        assert ("pkg2", "ver2") in apt_install_args
+        assert "pkg3" not in apt_install_args
+
+        m_snap_install.assert_not_called()
 
     def test_non_default_package_manager_fail(
         self, m_apt_install, mocker, caplog

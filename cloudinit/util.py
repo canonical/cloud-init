@@ -2499,6 +2499,8 @@ def is_partition(device):
 
 def expand_package_list(version_fmt, pkgs):
     # we will accept tuples, lists of tuples, or just plain lists
+    if isinstance(pkgs, set):
+        pkgs = [p for p in pkgs]
     if not isinstance(pkgs, list):
         pkgs = [pkgs]
 
@@ -2507,8 +2509,7 @@ def expand_package_list(version_fmt, pkgs):
         if isinstance(pkg, str):
             pkglist.append(pkg)
             continue
-
-        if isinstance(pkg, (tuple, list)):
+        elif isinstance(pkg, (tuple, list)):
             if len(pkg) < 1 or len(pkg) > 2:
                 raise RuntimeError("Invalid package & version tuple.")
 
@@ -2517,7 +2518,6 @@ def expand_package_list(version_fmt, pkgs):
                 continue
 
             pkglist.append(pkg[0])
-
         else:
             raise RuntimeError("Invalid package type.")
 

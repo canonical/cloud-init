@@ -190,6 +190,15 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                     "Invalid 'packages' yaml specification. "
                     "Check schema definition."
                 )
+        for package_manager in packages_by_manager:
+            if package_manager not in getattr(self, "package_managers", []):
+                LOG.error(
+                    "Cannot install packages '%s' under '%s' as it is not a "
+                    "supported package manager for '%s'.",
+                    packages_by_manager[package_manager],
+                    package_manager,
+                    self.osfamily,
+                )
         return dict(packages_by_manager), generic_packages
 
     def install_packages(self, pkglist):

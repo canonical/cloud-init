@@ -68,8 +68,12 @@ class Distro(distros.Distro):
         rhutil.update_sysconfig_file(out_fn, locale_cfg)
 
     def install_packages(self, pkglist):
+        (
+            _packages_by_manager,  # not yet supported
+            generic_packages,
+        ) = self._extract_package_by_manager(pkglist)
         self.package_command(
-            "install", args="--auto-agree-with-licenses", pkgs=pkglist
+            "install", args="--auto-agree-with-licenses", pkgs=generic_packages
         )
 
     def package_command(self, command, args=None, pkgs=None):
@@ -122,7 +126,7 @@ class Distro(distros.Distro):
         elif args and isinstance(args, list):
             cmd.extend(args)
 
-        pkglist = util.expand_package_list("%s-%s", pkgs)
+        pkglist = sorted(util.expand_package_list("%s-%s", pkgs))
         cmd.extend(pkglist)
 
         # Allow the output of this to flow outwards (ie not be captured)
