@@ -5,6 +5,7 @@ Testing various config variations of the apt_source custom config
 This tries to call all in the new v3 format and cares about new features
 """
 import glob
+import logging
 import os
 import pathlib
 import re
@@ -16,6 +17,7 @@ import pytest
 
 from cloudinit import gpg, subp, util
 from cloudinit.config import cc_apt_configure
+from tests.unittests.helpers import skipIfAptPkg
 from tests.unittests.util import get_cloud
 
 EXPECTEDKEY = """-----BEGIN PGP PUBLIC KEY BLOCK-----
@@ -1439,3 +1441,228 @@ class TestDebconfSelections:
     def test_dpkg_reconfigure_not_done_if_no_cleaners(self, m_subp):
         cc_apt_configure.dpkg_reconfigure(["pkgfoo", "pkgbar"])
         m_subp.assert_not_called()
+
+
+DEB822_SINGLE_SUITE = """\
+Types: deb
+URIs: https://ppa.launchpadcontent.net/cloud-init-dev/daily/ubuntu/
+Suites: mantic  # Some comment
+Components: main
+"""
+
+DEB822_DISABLED_SINGLE_SUITE = """\
+## Entry disabled by cloud-init, due to disable_suites
+# disabled by cloud-init: Types: deb
+# disabled by cloud-init: URIs: https://ppa.launchpadcontent.net/cloud-init-dev/daily/ubuntu/
+# disabled by cloud-init: Suites: mantic  # Some comment
+# disabled by cloud-init: Components: main
+"""
+
+DEB822_SINGLE_SECTION_TWO_SUITES = """\
+Types: deb
+URIs: https://ppa.launchpadcontent.net/cloud-init-dev/daily/ubuntu/
+Suites: mantic mantic-updates
+Components: main
+"""
+
+DEB822_SINGLE_SECTION_TWO_SUITES_DISABLE_ONE = """\
+Types: deb
+URIs: https://ppa.launchpadcontent.net/cloud-init-dev/daily/ubuntu/
+# cloud-init disable_suites redacted: Suites: mantic mantic-updates
+Suites: mantic-updates
+Components: main
+"""
+
+DEB822_SUITE_2 = """
+# APT Suite 2
+Types: deb
+URIs: https://ppa.launchpadcontent.net/cloud-init-dev/daily/ubuntu/
+Suites: mantic-backports
+Components: main
+"""
+
+
+DEB822_DISABLED_SINGLE_SUITE = """\
+## Entry disabled by cloud-init, due to disable_suites
+# disabled by cloud-init: Types: deb
+# disabled by cloud-init: URIs: https://ppa.launchpadcontent.net/cloud-init-dev/daily/ubuntu/
+# disabled by cloud-init: Suites: mantic  # Some comment
+# disabled by cloud-init: Components: main
+"""
+
+DEB822_DISABLED_MULTIPLE_SUITES = """\
+## Entry disabled by cloud-init, due to disable_suites
+# disabled by cloud-init: Types: deb
+# disabled by cloud-init: URIs: https://ppa.launchpadcontent.net/cloud-init-dev/daily/ubuntu/
+# disabled by cloud-init: Suites: mantic mantic-updates
+# disabled by cloud-init: Components: main
+"""
+
+
+class TestDisableSuitesDeb822:
+    @pytest.mark.parametrize(
+        "disabled_suites,src,expected",
+        (
+            pytest.param(
+                [],
+                DEB822_SINGLE_SUITE,
+                DEB822_SINGLE_SUITE,
+                id="empty_suites_nochange",
+            ),
+            pytest.param(
+                ["$RELEASE-updates"],
+                DEB822_SINGLE_SUITE,
+                DEB822_SINGLE_SUITE,
+                id="no_matching_suites_nochange",
+            ),
+            pytest.param(
+                ["$RELEASE"],
+                DEB822_SINGLE_SUITE,
+                DEB822_DISABLED_SINGLE_SUITE,
+                id="matching_all_suites_disables_whole_section",
+            ),
+            pytest.param(
+                ["$RELEASE"],
+                DEB822_SINGLE_SECTION_TWO_SUITES + DEB822_SUITE_2,
+                DEB822_SINGLE_SECTION_TWO_SUITES_DISABLE_ONE
+                + "\n"
+                + DEB822_SUITE_2,
+                id="matching_some_suites_redacts_matches_and_comments_orig",
+            ),
+            pytest.param(
+                ["$RELEASE", "$RELEASE-updates"],
+                DEB822_SINGLE_SECTION_TWO_SUITES + DEB822_SUITE_2,
+                DEB822_DISABLED_MULTIPLE_SUITES + "\n" + DEB822_SUITE_2,
+                id="matching_all_suites_disables_specific_section",
+            ),
+        ),
+    )
+    def test_disable_deb822_suites_disables_proper_suites(
+        self, disabled_suites, src, expected
+    ):
+        assert expected == cc_apt_configure.disable_suites_deb822(
+            disabled_suites, src, "mantic"
+        )
+
+
+APT_CONFIG_DUMP = """
+APT "";
+Dir "/";
+Dir::Etc "etc/myapt";
+Dir::Etc::sourcelist "sources.my.list";
+Dir::Etc::sourceparts "sources.my.list.d";
+Dir::Etc::main "apt.conf";
+"""
+
+
+class TestGetAptCfg:
+    @skipIfAptPkg()
+    @pytest.mark.parametrize(
+        "subp_side_effect,expected",
+        (
+            pytest.param(
+                [(APT_CONFIG_DUMP, "")],
+                {
+                    "sourcelist": "/etc/myapt/sources.my.list",
+                    "sourceparts": "/etc/myapt/sources.my.list.d/",
+                },
+                id="no_aptpkg_use_apt_config_cmd",
+            ),
+            pytest.param(
+                [("", "")],
+                {
+                    "sourcelist": "/etc/apt/sources.list",
+                    "sourceparts": "/etc/apt/sources.list.d/",
+                },
+                id="no_aptpkg_unparsable_apt_config_cmd_defaults",
+            ),
+            pytest.param(
+                [
+                    subp.ProcessExecutionError(
+                        "No such file or directory 'apt-config'"
+                    )
+                ],
+                {
+                    "sourcelist": "/etc/apt/sources.list",
+                    "sourceparts": "/etc/apt/sources.list.d/",
+                },
+                id="no_aptpkg_no_apt_config_cmd_defaults",
+            ),
+        ),
+    )
+    def test_use_defaults_or_apt_config_dump(
+        self, subp_side_effect, expected, mocker
+    ):
+        subp = mocker.patch("cloudinit.config.cc_apt_configure.subp.subp")
+        subp.side_effect = subp_side_effect
+        assert expected == cc_apt_configure.get_apt_cfg()
+        subp.assert_called_once_with(["apt-config", "dump"])
+
+
+class TestIsDeb822SourcesFormat:
+    @pytest.mark.parametrize(
+        "content,is_deb822,warnings",
+        (
+            pytest.param(
+                "#Something\ndeb-src http://url lunar multiverse\n",
+                False,
+                [],
+                id="any_deb_src_is_not_deb822",
+            ),
+            pytest.param(
+                "#Something\ndeb http://url lunar multiverse\n",
+                False,
+                [],
+                id="any_deb_url_is_not_deb822",
+            ),
+            pytest.param(
+                "#Something\ndeb http://url lunar multiverse\nTypes: deb\n",
+                False,
+                [],
+                id="even_some_deb822_fields_not_deb822_if_any_deb_line",
+            ),
+            pytest.param(
+                "#Something\nTypes: deb\n",
+                True,
+                [],
+                id="types_deb822_keys_and_no_deb_or_deb_src_is_deb822",
+            ),
+            pytest.param(
+                "#Something\nURIs: http://url\n",
+                True,
+                [],
+                id="uris_deb822_keys_and_no_deb_or_deb_src_is_deb822",
+            ),
+            pytest.param(
+                "#Something\nSuites: http://url\n",
+                True,
+                [],
+                id="suites_deb822_keys_and_no_deb_deb_src_is_deb822",
+            ),
+            pytest.param(
+                "#Something\nComponents: http://url\n",
+                True,
+                [],
+                id="components_deb822_keys_and_no_deb_deb_src_is_deb822",
+            ),
+            pytest.param(
+                "#Something neither deb/deb-src nor deb822\n",
+                False,
+                [
+                    "apt.sources_list value does not match either deb822"
+                    " source keys or deb/deb-src list keys. Assuming APT"
+                    " deb/deb-src list format."
+                ],
+                id="neither_deb822_keys_nor_deb_deb_src_warn_and_not_deb822",
+            ),
+        ),
+    )
+    def test_is_deb822_format_prefers_non_deb822(
+        self, content, is_deb822, warnings, caplog
+    ):
+        with caplog.at_level(logging.WARNING):
+            assert is_deb822 is cc_apt_configure.is_deb822_sources_format(
+                content
+            )
+        for warning in warnings:
+            assert warning in caplog.text

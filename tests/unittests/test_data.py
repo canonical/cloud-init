@@ -475,6 +475,7 @@ c: 4
         EXPIRE_APPLIES_TO_HASHED_USERS=False,
         NETPLAN_CONFIG_ROOT_READ_ONLY=True,
         NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH=False,
+        APT_DEB822_SOURCE_LIST_FILE=True,
     )
     def test_shellscript(self, init_tmp, tmpdir, caplog):
         """Raw text starting #!/bin/sh is treated as script."""
@@ -505,6 +506,7 @@ c: 4
                 "EXPIRE_APPLIES_TO_HASHED_USERS": False,
                 "NETPLAN_CONFIG_ROOT_READ_ONLY": True,
                 "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH": False,
+                "APT_DEB822_SOURCE_LIST_FILE": True,
             },
             "system_info": {
                 "default_user": {"name": "ubuntu"},

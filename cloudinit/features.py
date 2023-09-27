@@ -80,6 +80,13 @@ separators.
 (This flag can be removed when Jammy is no longer supported.)
 """
 
+APT_DEB822_SOURCE_LIST_FILE = True
+"""
+On Debian and Ubuntu systems, cc_apt_configure will write a deb822 compatible
+/etc/apt/sources.list.d/(debian|ubuntu).sources file. When set False, continue
+to write /etc/apt/sources.list directly.
+"""
+
 
 def get_features() -> Dict[str, bool]:
     """Return a dict of applicable features/overrides and their values."""

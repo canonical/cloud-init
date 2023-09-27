@@ -1,0 +1,34 @@
+## template:jinja
+## Note, this file is written by cloud-init on first boot of an instance
+## modifications made here will not survive a re-bundle.
+## if you wish to make changes you can:
+## a.) add 'apt_preserve_sources_list: true' to /etc/cloud/cloud.cfg
+##     or do the same in user-data
+## b.) add supplemental sources in /etc/apt/sources.list.d
+## c.) make changes to template file
+##      /etc/cloud/templates/sources.list.debian.deb822.tmpl
+
+# For how to upgrade to newer versions of the distribution, see:
+# http://www.debian.org/releases/stable/i386/release-notes/ch-upgrading.html
+
+## See the sources.list(5) manual page for further settings.
+
+## Comment any of the following Suites to avoid getting updates from the
+## specific Suite.
+##
+## N.B. software from {{codename}}-backports repository may not have been
+## tested as extensively as that contained in the main release, although it
+## includes newer versions of some applications which may provide useful
+## features.
+Types: deb deb-src
+URIs: {{mirror}}
+Suites: {{codename}} {{codename}}-updates {{codename}}-backports
+Components: main
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+## Major bug fix updates produced after the final release of the distribution.
+Types: deb deb-src
+URIs: {{security}}
+Suites: {{codename}}{% if codename in ('buster', 'stretch') %}/updates{% else %}-security{% endif %}
+Components: main
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
