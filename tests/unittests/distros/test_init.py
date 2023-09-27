@@ -327,7 +327,9 @@ class TestInstall:
             mock.call(["ifconfig", "-a"]),
             mock.call(["pkg", "update"], env={"fake"}, capture=False),
             mock.call(
-                ["pkg", "install", "pkg1", "pkg3-ver3"], env={"fake"}, capture=False
+                ["pkg", "install", "pkg1", "pkg3-ver3"],
+                env={"fake"},
+                capture=False
             ),
         ] == m_subp.call_args_list
 
