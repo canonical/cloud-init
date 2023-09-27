@@ -24,6 +24,8 @@ def read_cfg_paths(fetch_existing_datasource: str = "") -> Paths:
         load the pickled datasource before returning Paths. This is necessary
         when using instance paths via Paths.get_ipath method which are only
         known from the instance-id metadata in the detected datasource.
+
+    :raises: DataSourceNotFoundException when no datasource cache exists.
     """
     init = Init(ds_deps=[])
     if fetch_existing_datasource:
