@@ -240,7 +240,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             if package_name is None:  # conf has no package_nam
                 for puppet_name in PUPPET_PACKAGE_NAMES:
                     try:
-                        cloud.distro.install_packages((puppet_name, version))
+                        cloud.distro.install_packages([(puppet_name, version)])
                         package_name = puppet_name
                         break
                     except subp.ProcessExecutionError:

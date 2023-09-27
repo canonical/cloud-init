@@ -183,6 +183,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                             )
             elif isinstance(entry, str):
                 generic_packages.add(entry)
+            elif isinstance(entry, tuple) and len(entry) == 2:
+                generic_packages.add(entry)
             else:
                 raise ValueError(
                     "Invalid 'packages' yaml specification. "

@@ -115,7 +115,7 @@ class TestPuppetHandle(CiTestCase):
         cfg = {"puppet": {}}
         cc_puppet.handle("notimportant", cfg, self.cloud, None)
         self.assertEqual(
-            [mock.call(("puppet-agent", None))],
+            [mock.call([("puppet-agent", None)])],
             self.cloud.distro.install_packages.call_args_list,
         )
 
@@ -127,7 +127,7 @@ class TestPuppetHandle(CiTestCase):
         cfg = {"puppet": {"install": True}}
         cc_puppet.handle("notimportant", cfg, self.cloud, None)
         self.assertIn(
-            [mock.call(("puppet-agent", None))],
+            [mock.call([("puppet-agent", None)])],
             self.cloud.distro.install_packages.call_args_list,
         )
 
@@ -236,7 +236,7 @@ class TestPuppetHandle(CiTestCase):
         cfg = {"puppet": {"version": "3.8"}}
         cc_puppet.handle("notimportant", cfg, self.cloud, None)
         self.assertEqual(
-            [mock.call(("puppet-agent", "3.8"))],
+            [mock.call([("puppet-agent", "3.8")])],
             self.cloud.distro.install_packages.call_args_list,
         )
 
