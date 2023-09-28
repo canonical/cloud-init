@@ -1,0 +1,210 @@
+From e9cdd7e39058f6ef03c38339aa5307335d3573ec Mon Sep 17 00:00:00 2001
+From: James Falcon <james.falcon@canonical.com>
+Date: Fri, 15 Sep 2023 13:13:06 -0500
+Subject: [PATCH] Install gnupg if gpg not found (#4431)
+
+Ubuntu recommends gnupg in its packaging but does not require it, and
+minimal images will no longer contain gnupg. Given that gpg is only
+used for apt key handling, rather than having a hard requirement,
+this commit installs gnupg if no gpg binary is found.
+
+Fixes GH-4410
+---
+ cloudinit/config/cc_apt_configure.py          | 23 +++++++++++++------
+ .../test_apt_configure_sources_list_v1.py     |  1 +
+ .../test_apt_configure_sources_list_v3.py     |  1 +
+ tests/unittests/config/test_apt_source_v1.py  | 11 +++++----
+ tests/unittests/config/test_apt_source_v3.py  |  9 ++++----
+ 5 files changed, 30 insertions(+), 15 deletions(-)
+
+--- a/cloudinit/config/cc_apt_configure.py
++++ b/cloudinit/config/cc_apt_configure.py
+@@ -8,10 +8,12 @@
+ 
+ """Apt Configure: Configure apt for the user."""
+ 
++import functools
+ import glob
+ import os
+ import pathlib
+ import re
++import shutil
+ import signal
+ from textwrap import dedent
+ 
+@@ -216,7 +218,7 @@ def apply_apt(cfg, cloud, target):
+     LOG.debug("Apt Mirror info: %s", mirrors)
+ 
+     if util.is_false(cfg.get("preserve_sources_list", False)):
+-        add_mirror_keys(cfg, target)
++        add_mirror_keys(cfg, cloud, target)
+         generate_sources_list(cfg, release, mirrors, cloud)
+         rename_apt_lists(mirrors, target, arch)
+ 
+@@ -372,7 +374,7 @@ def rename_apt_lists(new_mirrors, target
+     default_mirrors = get_default_mirrors(arch)
+ 
+     pre = subp.target_path(target, APT_LISTS)
+-    for (name, omirror) in default_mirrors.items():
++    for name, omirror in default_mirrors.items():
+         nmirror = new_mirrors.get(name)
+         if not nmirror:
+             continue
+@@ -448,11 +450,11 @@ def disable_suites(disabled, src, releas
+     return retsrc
+ 
+ 
+-def add_mirror_keys(cfg, target):
++def add_mirror_keys(cfg, cloud, target):
+     """Adds any keys included in the primary/security mirror clauses"""
+     for key in ("primary", "security"):
+         for mirror in cfg.get(key, []):
+-            add_apt_key(mirror, target, file_name=key)
++            add_apt_key(mirror, cloud, target, file_name=key)
+ 
+ 
+ def generate_sources_list(cfg, release, mirrors, cloud):
+@@ -499,12 +501,19 @@ def add_apt_key_raw(key, file_name, hard
+         raise
+ 
+ 
+-def add_apt_key(ent, target=None, hardened=False, file_name=None):
++@functools.lru_cache(maxsize=1)
++def _ensure_gpg(cloud):
++    if not shutil.which("gpg"):
++        cloud.distro.install_packages(["gnupg"])
++
++
++def add_apt_key(ent, cloud, target=None, hardened=False, file_name=None):
+     """
+     Add key to the system as defined in ent (if any).
+     Supports raw keys or keyid's
+     The latter will as a first step fetched to get the raw key
+     """
++    _ensure_gpg(cloud)
+     if "keyid" in ent and "key" not in ent:
+         keyserver = DEFAULT_KEYSERVER
+         if "keyserver" in ent:
+@@ -569,10 +578,10 @@ def add_apt_sources(
+                 ent["filename"] = filename
+ 
+         if "source" in ent and "$KEY_FILE" in ent["source"]:
+-            key_file = add_apt_key(ent, target, hardened=True)
++            key_file = add_apt_key(ent, cloud, target, hardened=True)
+             template_params["KEY_FILE"] = key_file
+         else:
+-            key_file = add_apt_key(ent, target)
++            key_file = add_apt_key(ent, cloud, target)
+ 
+         if "source" not in ent:
+             continue
+--- a/tests/unittests/config/test_apt_configure_sources_list_v1.py
++++ b/tests/unittests/config/test_apt_configure_sources_list_v1.py
+@@ -71,6 +71,7 @@ class TestAptSourceConfigSourceList:
+         self.subp = mocker.patch.object(
+             subp, "subp", return_value=("PPID   PID", "")
+         )
++        mocker.patch("cloudinit.config.cc_apt_configure._ensure_gpg")
+         lsb = mocker.patch("cloudinit.util.lsb_release")
+         lsb.return_value = {"codename": "fakerelease"}
+         m_arch = mocker.patch("cloudinit.util.get_dpkg_architecture")
+--- a/tests/unittests/config/test_apt_configure_sources_list_v3.py
++++ b/tests/unittests/config/test_apt_configure_sources_list_v3.py
+@@ -88,6 +88,7 @@ class TestAptSourceConfigSourceList:
+         lsb.return_value = {"codename": "fakerel"}
+         m_arch = mocker.patch("cloudinit.util.get_dpkg_architecture")
+         m_arch.return_value = "amd64"
++        mocker.patch("cloudinit.config.cc_apt_configure._ensure_gpg")
+ 
+     @pytest.mark.parametrize(
+         "distro,template_present",
+--- a/tests/unittests/config/test_apt_source_v1.py
++++ b/tests/unittests/config/test_apt_source_v1.py
+@@ -77,6 +77,7 @@ class TestAptSourceConfig:
+             "cloudinit.util.get_dpkg_architecture", return_value="amd64"
+         )
+         mocker.patch.object(subp, "subp", return_value=("PPID   PID", ""))
++        mocker.patch("cloudinit.config.cc_apt_configure._ensure_gpg")
+ 
+     def _get_default_params(self):
+         """get_default_params
+@@ -351,16 +352,17 @@ class TestAptSourceConfig:
+         Test specification of a source + keyid
+         """
+         cfg = self.wrapv1conf(cfg)
++        cloud = get_cloud()
+ 
+         with mock.patch.object(cc_apt_configure, "add_apt_key") as mockobj:
+-            cc_apt_configure.handle("test", cfg, get_cloud(), [])
++            cc_apt_configure.handle("test", cfg, cloud, [])
+ 
+         # check if it added the right number of keys
+         calls = []
+         sources = cfg["apt"]["sources"]
+         for src in sources:
+             print(sources[src])
+-            calls.append(call(sources[src], None))
++            calls.append(call(sources[src], cloud, None))
+ 
+         mockobj.assert_has_calls(calls, any_order=True)
+ 
+@@ -473,16 +475,17 @@ class TestAptSourceConfig:
+         Test specification of a source + key
+         """
+         cfg = self.wrapv1conf([cfg])
++        cloud = get_cloud()
+ 
+         with mock.patch.object(cc_apt_configure, "add_apt_key") as mockobj:
+-            cc_apt_configure.handle("test", cfg, get_cloud(), [])
++            cc_apt_configure.handle("test", cfg, cloud, [])
+ 
+         # check if it added the right amount of keys
+         sources = cfg["apt"]["sources"]
+         calls = []
+         for src in sources:
+             print(sources[src])
+-            calls.append(call(sources[src], None))
++            calls.append(call(sources[src], cloud, None))
+ 
+         mockobj.assert_has_calls(calls, any_order=True)
+ 
+--- a/tests/unittests/config/test_apt_source_v3.py
++++ b/tests/unittests/config/test_apt_source_v3.py
+@@ -55,6 +55,7 @@ class TestAptSourceConfig:
+             f"{M_PATH}util.lsb_release",
+             return_value=MOCK_LSB_RELEASE_DATA.copy(),
+         )
++        mocker.patch(f"{M_PATH}_ensure_gpg")
+         self.aptlistfile = tmpdir.join("src1.list").strpath
+         self.aptlistfile2 = tmpdir.join("src2.list").strpath
+         self.aptlistfile3 = tmpdir.join("src3.list").strpath
+@@ -269,9 +270,9 @@ class TestAptSourceConfig:
+         calls = []
+         for key in cfg:
+             if is_hardened is not None:
+-                calls.append(call(cfg[key], hardened=is_hardened))
++                calls.append(call(cfg[key], None, hardened=is_hardened))
+             else:
+-                calls.append(call(cfg[key], tmpdir.strpath))
++                calls.append(call(cfg[key], None, tmpdir.strpath))
+ 
+         mockobj.assert_has_calls(calls, any_order=True)
+ 
+@@ -736,7 +737,7 @@ class TestAptSourceConfig:
+ 
+         expected = sorted([npre + suff for opre, npre, suff in files])
+         # create files
+-        for (opre, _npre, suff) in files:
++        for opre, _npre, suff in files:
+             fpath = os.path.join(apt_lists_d, opre + suff)
+             util.write_file(fpath, content=fpath)
+ 
+@@ -1285,7 +1286,7 @@ deb http://ubuntu.com/ubuntu/ xenial-pro
+         }
+ 
+         with mock.patch.object(cc_apt_configure, "add_apt_key_raw") as mockadd:
+-            cc_apt_configure.add_mirror_keys(cfg, tmpdir.strpath)
++            cc_apt_configure.add_mirror_keys(cfg, None, tmpdir.strpath)
+         calls = [
+             mock.call("fakekey_primary", "primary", hardened=False),
+             mock.call("fakekey_security", "security", hardened=False),
