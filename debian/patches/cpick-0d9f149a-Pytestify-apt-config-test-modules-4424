@@ -1,0 +1,1956 @@
+From 0d9f149a3109a36d3ce41e120777ad592640754b Mon Sep 17 00:00:00 2001
+From: Chad Smith <chad.smith@canonical.com>
+Date: Mon, 11 Sep 2023 14:58:55 -0600
+Subject: [PATCH] Pytestify apt config test modules (#4424)
+
+tests: convert multiple cc_apt_configure tests to pytest
+
+Adapt test_apt_configure_sources_list_v1.py,
+test_apt_configure_sources_list_v3.py and test_apt_source_v3.py
+to pytest
+
+One functional change made for test support in cc_apt_configure.
+    - add_apt_sources function only prepends target
+       test_apt_source_v3.py path to filename
+      if filename does not already start with target.
+
+No production logic invokes add_apt_sources with target= param set.
+
+For pytest conversion, the following procedure was followed:
+- Make use of fake_filesystem fixture and avoid subclassing from
+  FilesystemMockingTestCase
+- Rector common EXAMPLE_TMPL, reusing it as a base test content
+  representation in YAML_TEXT_CUSTOM_SL.
+ - use a common setup fixture in a class for typical mocks are
+   needed for tests
+ - use mocker instead of unittest.mock where possible
+ - drop private _apt_source_list function and complex ExitStack
+   in favor of common setup fixture
+
+
+Now that we are actually writing tmpl files out and reading them
+directly instead of mocking out all isfile, load_file and write_file
+calls, there are a couple of bugs in the testing of
+EXPECTED_CONTENT_MIRROR_CONTENT and EXPECTED_PRIMSEC_CONTENT suites
+represented because of the nested ExitStack mocking was mocking the
+wrong return values
+---
+ cloudinit/config/cc_apt_configure.py          |   6 +-
+ .../test_apt_configure_sources_list_v1.py     | 275 ++++----
+ .../test_apt_configure_sources_list_v3.py     | 297 ++++-----
+ tests/unittests/config/test_apt_source_v3.py  | 595 +++++++++---------
+ 4 files changed, 554 insertions(+), 619 deletions(-)
+
+--- a/cloudinit/config/cc_apt_configure.py
++++ b/cloudinit/config/cc_apt_configure.py
+@@ -562,7 +562,11 @@ def add_apt_sources(
+         ent = srcdict[filename]
+         LOG.debug("adding source/key '%s'", ent)
+         if "filename" not in ent:
+-            ent["filename"] = filename
++            if target and filename.startswith(target):
++                # Strip target path prefix from filename
++                ent["filename"] = filename[len(target) :]
++            else:
++                ent["filename"] = filename
+ 
+         if "source" in ent and "$KEY_FILE" in ent["source"]:
+             key_file = add_apt_key(ent, target, hardened=True)
+--- a/tests/unittests/config/test_apt_configure_sources_list_v1.py
++++ b/tests/unittests/config/test_apt_configure_sources_list_v1.py
+@@ -3,21 +3,33 @@
+ """ test_handler_apt_configure_sources_list
+ Test templating of sources list
+ """
+-import os
+-import shutil
+-import tempfile
+-from unittest import mock
++import stat
+ 
+-from cloudinit import subp, templater, util
++import pytest
++
++from cloudinit import subp, util
+ from cloudinit.config import cc_apt_configure
+-from cloudinit.distros.debian import Distro
+-from tests.unittests import helpers as t_help
+ from tests.unittests.util import get_cloud
+ 
++EXAMPLE_TMPL = """\
++## template:jinja
++## Note, this file is written by cloud-init on first boot of an instance
++## modifications made here will not survive a re-bundle.
++## if you wish to make changes you can:
++## a.) add 'apt_preserve_sources_list: true' to /etc/cloud/cloud.cfg
++##     or do the same in user-data
++## b.) add sources in /etc/apt/sources.list.d
++## c.) make changes to template file /etc/cloud/templates/sources.list.tmpl
++
++# See http://help.ubuntu.com/community/UpgradeNotes for how to upgrade to
++# newer versions of the distribution.
++deb {{mirror}} {{codename}} main restricted
++deb-src {{mirror}} {{codename}} main restricted
++"""
++
+ YAML_TEXT_CUSTOM_SL = """
+ apt_mirror: http://archive.ubuntu.com/ubuntu/
+ apt_custom_sources_list: |
+-    ## template:jinja
+     ## Note, this file is written by cloud-init on first boot of an instance
+     ## modifications made here will not survive a re-bundle.
+     ## if you wish to make changes you can:
+@@ -28,8 +40,8 @@ apt_custom_sources_list: |
+ 
+     # See http://help.ubuntu.com/community/UpgradeNotes for how to upgrade to
+     # newer versions of the distribution.
+-    deb {{mirror}} {{codename}} main restricted
+-    deb-src {{mirror}} {{codename}} main restricted
++    deb $MIRROR $RELEASE main restricted
++    deb-src $MIRROR $RELEASE main restricted
+     # FIND_SOMETHING_SPECIAL
+ """
+ 
+@@ -45,31 +57,26 @@ EXPECTED_CONVERTED_CONTENT = """## Note,
+ # newer versions of the distribution.
+ deb http://archive.ubuntu.com/ubuntu/ fakerelease main restricted
+ deb-src http://archive.ubuntu.com/ubuntu/ fakerelease main restricted
+-# FIND_SOMETHING_SPECIAL
+ """  # noqa: E501
+ 
+ 
+-class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
++@pytest.mark.usefixtures("fake_filesystem")
++class TestAptSourceConfigSourceList:
+     """TestAptSourceConfigSourceList
+     Main Class to test sources list rendering
+     """
+ 
+-    def setUp(self):
+-        super(TestAptSourceConfigSourceList, self).setUp()
+-        self.subp = subp.subp
+-        self.new_root = tempfile.mkdtemp()
+-        self.addCleanup(shutil.rmtree, self.new_root)
+-
+-        rpatcher = mock.patch("cloudinit.util.lsb_release")
+-        get_rel = rpatcher.start()
+-        get_rel.return_value = {"codename": "fakerelease"}
+-        self.addCleanup(rpatcher.stop)
+-        apatcher = mock.patch("cloudinit.util.get_dpkg_architecture")
+-        get_arch = apatcher.start()
+-        get_arch.return_value = "amd64"
+-        self.addCleanup(apatcher.stop)
++    @pytest.fixture(autouse=True)
++    def setup(self, mocker):
++        self.subp = mocker.patch.object(
++            subp, "subp", return_value=("PPID   PID", "")
++        )
++        lsb = mocker.patch("cloudinit.util.lsb_release")
++        lsb.return_value = {"codename": "fakerelease"}
++        m_arch = mocker.patch("cloudinit.util.get_dpkg_architecture")
++        m_arch.return_value = "amd64"
+ 
+-    def apt_source_list(self, distro, mirror, mirrorcheck=None):
++    def apt_source_list(self, distro, mirror, tmpdir, mirrorcheck=None):
+         """apt_source_list
+         Test rendering of a source.list from template for a given distro
+         """
+@@ -78,69 +85,65 @@ class TestAptSourceConfigSourceList(t_he
+ 
+         if isinstance(mirror, list):
+             cfg = {"apt_mirror_search": mirror}
++            expected = EXPECTED_CONVERTED_CONTENT.replace(
++                "http://archive.ubuntu.com/ubuntu/", mirror[-1]
++            )
+         else:
+             cfg = {"apt_mirror": mirror}
++            expected = EXPECTED_CONVERTED_CONTENT.replace(
++                "http://archive.ubuntu.com/ubuntu/", mirror
++            )
+ 
+         mycloud = get_cloud(distro)
++        tmpl_file = f"/etc/cloud/templates/sources.list.{distro}.tmpl"
++        util.write_file(tmpl_file, EXAMPLE_TMPL)
+ 
+-        with mock.patch.object(util, "write_file") as mockwf:
+-            with mock.patch.object(
+-                util, "load_file", return_value="faketmpl"
+-            ) as mocklf:
+-                with mock.patch.object(
+-                    os.path, "isfile", return_value=True
+-                ) as mockisfile:
+-                    with mock.patch.object(
+-                        templater, "render_string", return_value="fake"
+-                    ) as mockrnd:
+-                        with mock.patch.object(util, "rename"):
+-                            cc_apt_configure.handle("test", cfg, mycloud, None)
+-
+-        mockisfile.assert_any_call(
+-            "/etc/cloud/templates/sources.list.%s.tmpl" % distro
+-        )
+-        mocklf.assert_any_call(
+-            "/etc/cloud/templates/sources.list.%s.tmpl" % distro
+-        )
+-        mockrnd.assert_called_once_with(
+-            "faketmpl",
+-            {
+-                "RELEASE": "fakerelease",
+-                "PRIMARY": mirrorcheck,
+-                "MIRROR": mirrorcheck,
+-                "SECURITY": mirrorcheck,
+-                "codename": "fakerelease",
+-                "primary": mirrorcheck,
+-                "mirror": mirrorcheck,
+-                "security": mirrorcheck,
+-            },
+-        )
+-        mockwf.assert_called_once_with(
+-            "/etc/apt/sources.list", "fake", mode=0o644
+-        )
+-
+-    def test_apt_v1_source_list_debian(self):
+-        """Test rendering of a source.list from template for debian"""
+-        with mock.patch.object(
+-            subp, "subp", return_value=("PPID   PID", "")
+-        ) as mocksubp:
+-            self.apt_source_list(
+-                "debian", "http://httpredir.debian.org/debian"
++        cc_apt_configure.handle("test", cfg, mycloud, None)
++        sources_file = tmpdir.join("/etc/apt/sources.list")
++        assert expected == sources_file.read()
++        assert 0o644 == stat.S_IMODE(sources_file.stat().mode)
++
++    @pytest.mark.parametrize(
++        "distro,mirror",
++        (
++            (
++                "ubuntu",
++                "http://archive.ubuntu.com/ubuntu/",
++            ),
++            (
++                "debian",
++                "http://httpredir.debian.org/debian/",
++            ),
++        ),
++    )
++    def test_apt_v1_source_list_by_distro(self, distro, mirror, tmpdir):
++        """Test rendering of a source.list from template for each distro"""
++        mycloud = get_cloud(distro)
++        tmpl_file = f"/etc/cloud/templates/sources.list.{distro}.tmpl"
++        util.write_file(tmpl_file, EXAMPLE_TMPL)
++        cc_apt_configure.handle("test", {"apt_mirror": mirror}, mycloud, None)
++        sources_file = tmpdir.join("/etc/apt/sources.list")
++        assert (
++            EXPECTED_CONVERTED_CONTENT.replace(
++                "http://archive.ubuntu.com/ubuntu/", mirror
+             )
+-        mocksubp.assert_called_once_with(
++            == sources_file.read()
++        )
++        assert 0o644 == stat.S_IMODE(sources_file.stat().mode)
++
++        self.subp.assert_called_once_with(
+             ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
+             capture=True,
+             target=None,
+             rcs=[0, 1],
+         )
+ 
+-    def test_apt_v1_source_list_ubuntu(self):
++    def test_apt_v1_source_list_ubuntu(self, tmpdir):
+         """Test rendering of a source.list from template for ubuntu"""
+-        with mock.patch.object(
+-            subp, "subp", return_value=("PPID   PID", "")
+-        ) as mocksubp:
+-            self.apt_source_list("ubuntu", "http://archive.ubuntu.com/ubuntu/")
+-        mocksubp.assert_called_once_with(
++        self.apt_source_list(
++            "ubuntu", "http://archive.ubuntu.com/ubuntu/", tmpdir
++        )
++        self.subp.assert_called_once_with(
+             ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
+             capture=True,
+             target=None,
+@@ -157,75 +160,79 @@ class TestAptSourceConfigSourceList(t_he
+             print("Faking SUCCESS for '%s'" % name)
+             return True
+ 
+-    def test_apt_v1_srcl_debian_mirrorfail(self):
+-        """Test rendering of a source.list from template for debian"""
+-        with mock.patch.object(
++    @pytest.mark.parametrize(
++        "distro,mirrorlist,mirrorcheck",
++        (
++            (
++                "ubuntu",
++                ["http://does.not.exist", "http://archive.ubuntu.com/ubuntu/"],
++                "http://archive.ubuntu.com/ubuntu/",
++            ),
++            (
++                "debian",
++                [
++                    "http://does.not.exist",
++                    "http://httpredir.debian.org/debian/",
++                ],
++                "http://httpredir.debian.org/debian/",
++            ),
++        ),
++    )
++    def test_apt_v1_srcl_distro_mirrorfail(
++        self, distro, mirrorlist, mirrorcheck, mocker, tmpdir
++    ):
++        """Test rendering of a source.list from template for ubuntu"""
++        mycloud = get_cloud(distro)
++        tmpl_file = f"/etc/cloud/templates/sources.list.{distro}.tmpl"
++        util.write_file(tmpl_file, EXAMPLE_TMPL)
++
++        mockresolve = mocker.patch.object(
+             util, "is_resolvable", side_effect=self.myresolve
+-        ) as mockresolve:
+-            with mock.patch.object(
+-                subp, "subp", return_value=("PPID   PID", "")
+-            ) as mocksubp:
+-                self.apt_source_list(
+-                    "debian",
+-                    [
+-                        "http://does.not.exist",
+-                        "http://httpredir.debian.org/debian",
+-                    ],
+-                    "http://httpredir.debian.org/debian",
+-                )
+-        mockresolve.assert_any_call("http://does.not.exist")
+-        mockresolve.assert_any_call("http://httpredir.debian.org/debian")
+-        mocksubp.assert_called_once_with(
+-            ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
+-            capture=True,
+-            target=None,
+-            rcs=[0, 1],
+         )
++        cc_apt_configure.handle(
++            "test", {"apt_mirror_search": mirrorlist}, mycloud, None
++        )
++        sources_file = tmpdir.join("/etc/apt/sources.list")
++        assert (
++            EXPECTED_CONVERTED_CONTENT.replace(
++                "http://archive.ubuntu.com/ubuntu/", mirrorcheck
++            )
++            == sources_file.read()
++        )
++        assert 0o644 == stat.S_IMODE(sources_file.stat().mode)
+ 
+-    def test_apt_v1_srcl_ubuntu_mirrorfail(self):
+-        """Test rendering of a source.list from template for ubuntu"""
+-        with mock.patch.object(
+-            util, "is_resolvable", side_effect=self.myresolve
+-        ) as mockresolve:
+-            with mock.patch.object(
+-                subp, "subp", return_value=("PPID   PID", "")
+-            ) as mocksubp:
+-                self.apt_source_list(
+-                    "ubuntu",
+-                    [
+-                        "http://does.not.exist",
+-                        "http://archive.ubuntu.com/ubuntu/",
+-                    ],
+-                    "http://archive.ubuntu.com/ubuntu/",
+-                )
+         mockresolve.assert_any_call("http://does.not.exist")
+-        mockresolve.assert_any_call("http://archive.ubuntu.com/ubuntu/")
+-        mocksubp.assert_called_once_with(
++        mockresolve.assert_any_call(mirrorcheck)
++        self.subp.assert_called_once_with(
+             ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
+             capture=True,
+             target=None,
+             rcs=[0, 1],
+         )
+ 
+-    def test_apt_v1_srcl_custom(self):
++    @pytest.mark.parametrize(
++        "cfg,apt_file,expected",
++        (
++            pytest.param(
++                util.load_yaml(YAML_TEXT_CUSTOM_SL),
++                "/etc/apt/sources.list",
++                EXPECTED_CONVERTED_CONTENT + "# FIND_SOMETHING_SPECIAL\n",
++                id="sources_list_writes_list_file",
++            ),
++        ),
++    )
++    def test_apt_v1_srcl_custom(self, cfg, apt_file, expected, tmpdir):
+         """Test rendering from a custom source.list template"""
+-        cfg = util.load_yaml(YAML_TEXT_CUSTOM_SL)
+-        mycloud = get_cloud()
++        mycloud = get_cloud("ubuntu")
++        tmpl_file = "/etc/cloud/templates/sources.list.ubuntu.tmpl"
++        util.write_file(tmpl_file, EXAMPLE_TMPL)
+ 
+         # the second mock restores the original subp
+-        with mock.patch.object(util, "write_file") as mockwrite:
+-            with mock.patch.object(
+-                subp, "subp", return_value=("PPID   PID", "")
+-            ) as mocksubp:
+-                with mock.patch.object(
+-                    Distro, "get_primary_arch", return_value="amd64"
+-                ):
+-                    cc_apt_configure.handle("notimportant", cfg, mycloud, None)
+-
+-        mockwrite.assert_called_once_with(
+-            "/etc/apt/sources.list", EXPECTED_CONVERTED_CONTENT, mode=420
+-        )
+-        mocksubp.assert_called_once_with(
++        cc_apt_configure.handle("notimportant", cfg, mycloud, None)
++        sources_file = tmpdir.join(apt_file)
++        assert expected == sources_file.read()
++        assert 0o644 == stat.S_IMODE(sources_file.stat().mode)
++        self.subp.assert_called_once_with(
+             ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
+             capture=True,
+             target=None,
+--- a/tests/unittests/config/test_apt_configure_sources_list_v3.py
++++ b/tests/unittests/config/test_apt_configure_sources_list_v3.py
+@@ -3,22 +3,26 @@
+ """ test_apt_custom_sources_list
+ Test templating of custom sources list
+ """
+-import os
+-import shutil
+-import tempfile
+-from contextlib import ExitStack
+-from unittest import mock
+-from unittest.mock import call
++import stat
++
++import pytest
+ 
+ from cloudinit import subp, util
+ from cloudinit.config import cc_apt_configure
+ from cloudinit.distros.debian import Distro
+-from tests.unittests import helpers as t_help
+ from tests.unittests.util import get_cloud
+ 
+ TARGET = "/"
+ 
+ # Input and expected output for the custom template
++EXAMPLE_TMPL = """\
++## template:jinja
++deb {{mirror}} {{codename}} main restricted
++deb-src {{mirror}} {{codename}} main restricted
++deb {{mirror}} {{codename}}-updates universe restricted
++deb {{security}} {{codename}}-security multiverse
++"""
++
+ YAML_TEXT_CUSTOM_SL = """
+ apt:
+   primary:
+@@ -29,10 +33,7 @@ apt:
+       uri: http://testsec.ubuntu.com/ubuntu/
+   sources_list: |
+ 
+-      # Note, this file is written by cloud-init at install time. It should not
+-      # end up on the installed system itself.
+-      # See http://help.ubuntu.com/community/UpgradeNotes for how to upgrade to
+-      # newer versions of the distribution.
++      # Note, this file is written by cloud-init at install time.
+       deb $MIRROR $RELEASE main restricted
+       deb-src $MIRROR $RELEASE main restricted
+       deb $PRIMARY $RELEASE universe restricted
+@@ -41,172 +42,111 @@ apt:
+ """
+ 
+ EXPECTED_CONVERTED_CONTENT = """
+-# Note, this file is written by cloud-init at install time. It should not
+-# end up on the installed system itself.
+-# See http://help.ubuntu.com/community/UpgradeNotes for how to upgrade to
+-# newer versions of the distribution.
++# Note, this file is written by cloud-init at install time.
+ deb http://test.ubuntu.com/ubuntu/ fakerel main restricted
+ deb-src http://test.ubuntu.com/ubuntu/ fakerel main restricted
+ deb http://test.ubuntu.com/ubuntu/ fakerel universe restricted
+ deb http://testsec.ubuntu.com/ubuntu/ fakerel-security multiverse
+-# FIND_SOMETHING_SPECIAL
+ """
+ 
+ # mocked to be independent to the unittest system
+-MOCKED_APT_SRC_LIST = """
+-deb http://test.ubuntu.com/ubuntu/ notouched main restricted
+-deb-src http://test.ubuntu.com/ubuntu/ notouched main restricted
+-deb http://test.ubuntu.com/ubuntu/ notouched-updates main restricted
+-deb http://testsec.ubuntu.com/ubuntu/ notouched-security main restricted
+-"""
+ 
+-EXPECTED_BASE_CONTENT = """
+-deb http://test.ubuntu.com/ubuntu/ notouched main restricted
+-deb-src http://test.ubuntu.com/ubuntu/ notouched main restricted
+-deb http://test.ubuntu.com/ubuntu/ notouched-updates main restricted
+-deb http://testsec.ubuntu.com/ubuntu/ notouched-security main restricted
++EXPECTED_BASE_CONTENT = """\
++deb http://archive.ubuntu.com/ubuntu/ fakerel main restricted
++deb-src http://archive.ubuntu.com/ubuntu/ fakerel main restricted
++deb http://archive.ubuntu.com/ubuntu/ fakerel-updates universe restricted
++deb http://security.ubuntu.com/ubuntu/ fakerel-security multiverse
+ """
+ 
+-EXPECTED_MIRROR_CONTENT = """
+-deb http://test.ubuntu.com/ubuntu/ notouched main restricted
+-deb-src http://test.ubuntu.com/ubuntu/ notouched main restricted
+-deb http://test.ubuntu.com/ubuntu/ notouched-updates main restricted
+-deb http://test.ubuntu.com/ubuntu/ notouched-security main restricted
++EXPECTED_MIRROR_CONTENT = """\
++deb http://test.ubuntu.com/ubuntu/ fakerel main restricted
++deb-src http://test.ubuntu.com/ubuntu/ fakerel main restricted
++deb http://test.ubuntu.com/ubuntu/ fakerel-updates main restricted
++deb http://test.ubuntu.com/ubuntu/ fakerel-security main restricted
+ """
+ 
+-EXPECTED_PRIMSEC_CONTENT = """
+-deb http://test.ubuntu.com/ubuntu/ notouched main restricted
+-deb-src http://test.ubuntu.com/ubuntu/ notouched main restricted
+-deb http://test.ubuntu.com/ubuntu/ notouched-updates main restricted
+-deb http://testsec.ubuntu.com/ubuntu/ notouched-security main restricted
++EXPECTED_PRIMSEC_CONTENT = """\
++deb http://test.ubuntu.com/ubuntu/ fakerel main restricted
++deb-src http://test.ubuntu.com/ubuntu/ fakerel main restricted
++deb http://test.ubuntu.com/ubuntu/ fakerel-updates universe restricted
++deb http://testsec.ubuntu.com/ubuntu/ fakerel-security multiverse
+ """
+ 
+ 
+-class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
++@pytest.mark.usefixtures("fake_filesystem")
++class TestAptSourceConfigSourceList:
+     """TestAptSourceConfigSourceList - Class to test sources list rendering"""
+ 
+-    def setUp(self):
+-        super(TestAptSourceConfigSourceList, self).setUp()
+-        self.new_root = tempfile.mkdtemp()
+-        self.addCleanup(shutil.rmtree, self.new_root)
+-
+-        rpatcher = mock.patch("cloudinit.util.lsb_release")
+-        get_rel = rpatcher.start()
+-        get_rel.return_value = {"codename": "fakerel"}
+-        self.addCleanup(rpatcher.stop)
+-        apatcher = mock.patch("cloudinit.util.get_dpkg_architecture")
+-        get_arch = apatcher.start()
+-        get_arch.return_value = "amd64"
+-        self.addCleanup(apatcher.stop)
+-
+-    def _apt_source_list(self, distro, cfg, cfg_on_empty=False):
+-        """_apt_source_list - Test rendering from template (generic)"""
+-        # entry at top level now, wrap in 'apt' key
+-        cfg = {"apt": cfg}
+-        mycloud = get_cloud(distro)
+-
+-        with ExitStack() as stack:
+-            mock_writefile = stack.enter_context(
+-                mock.patch.object(util, "write_file")
+-            )
+-            mock_loadfile = stack.enter_context(
+-                mock.patch.object(
+-                    util, "load_file", return_value=MOCKED_APT_SRC_LIST
+-                )
+-            )
+-            mock_isfile = stack.enter_context(
+-                mock.patch.object(os.path, "isfile", return_value=True)
+-            )
+-            stack.enter_context(mock.patch.object(util, "del_file"))
+-            cfg_func = (
+-                "cloudinit.config.cc_apt_configure."
+-                "_should_configure_on_empty_apt"
+-            )
+-            mock_shouldcfg = stack.enter_context(
+-                mock.patch(cfg_func, return_value=(cfg_on_empty, "test"))
+-            )
+-            mock_subp = stack.enter_context(
+-                mock.patch.object(subp, "subp", return_value=("PPID  PID", ""))
+-            )
+-            cc_apt_configure.handle("test", cfg, mycloud, None)
+-
+-            return (
+-                mock_writefile,
+-                mock_loadfile,
+-                mock_isfile,
+-                mock_shouldcfg,
+-                mock_subp,
+-            )
+-
+-    def test_apt_v3_source_list_debian(self):
+-        """test_apt_v3_source_list_debian - without custom sources or parms"""
+-        cfg = {}
+-        distro = "debian"
+-        expected = EXPECTED_BASE_CONTENT
+-
+-        (
+-            mock_writefile,
+-            mock_load_file,
+-            mock_isfile,
+-            mock_shouldcfg,
+-            _mock_subp,
+-        ) = self._apt_source_list(distro, cfg, cfg_on_empty=True)
+-
+-        template = "/etc/cloud/templates/sources.list.%s.tmpl" % distro
+-        mock_writefile.assert_called_once_with(
+-            "/etc/apt/sources.list", expected, mode=0o644
++    @pytest.fixture(autouse=True)
++    def setup(self, mocker):
++        self.subp = mocker.patch.object(
++            subp,
++            "subp",
++            return_value=("PPID   PID", ""),
+         )
+-        mock_load_file.assert_called_with(template)
+-        mock_isfile.assert_any_call(template)
+-        self.assertEqual(1, mock_shouldcfg.call_count)
+-
+-    def test_apt_v3_source_list_ubuntu(self):
+-        """test_apt_v3_source_list_ubuntu - without custom sources or parms"""
+-        cfg = {}
+-        distro = "ubuntu"
+-        expected = EXPECTED_BASE_CONTENT
++        lsb = mocker.patch("cloudinit.util.lsb_release")
++        lsb.return_value = {"codename": "fakerel"}
++        m_arch = mocker.patch("cloudinit.util.get_dpkg_architecture")
++        m_arch.return_value = "amd64"
++
++    @pytest.mark.parametrize(
++        "distro,template_present",
++        (("ubuntu", True), ("debian", True), ("rhel", False)),
++    )
++    def test_apt_v3_empty_cfg_source_list_by_distro(
++        self, distro, template_present, mocker, tmpdir
++    ):
++        """Template based on distro, empty config relies on mirror default."""
++        template = f"/etc/cloud/templates/sources.list.{distro}.tmpl"
++        if template_present:
++            util.write_file(template, EXAMPLE_TMPL)
+ 
+-        (
+-            mock_writefile,
+-            mock_load_file,
+-            mock_isfile,
+-            mock_shouldcfg,
+-            _mock_subp,
+-        ) = self._apt_source_list(distro, cfg, cfg_on_empty=True)
+-
+-        template = "/etc/cloud/templates/sources.list.%s.tmpl" % distro
+-        mock_writefile.assert_called_once_with(
+-            "/etc/apt/sources.list", expected, mode=0o644
++        mycloud = get_cloud(distro)
++        mock_shouldcfg = mocker.patch.object(
++            cc_apt_configure,
++            "_should_configure_on_empty_apt",
++            return_value=(True, "test"),
+         )
+-        mock_load_file.assert_called_with(template)
+-        mock_isfile.assert_any_call(template)
+-        self.assertEqual(1, mock_shouldcfg.call_count)
++        cc_apt_configure.handle("test", {"apt": {}}, mycloud, None)
++
++        sources_file = tmpdir.join("/etc/apt/sources.list")
++        if template_present:
++            assert EXPECTED_BASE_CONTENT == sources_file.read()
++            assert 0o644 == stat.S_IMODE(sources_file.stat().mode)
++        else:
++            assert (
++                sources_file.exists() is False
++            ), f"Unexpected file found: {sources_file}"
++
++        assert 1 == mock_shouldcfg.call_count
+ 
+-    def test_apt_v3_source_list_ubuntu_snappy(self):
++    def test_apt_v3_source_list_ubuntu_snappy(self, mocker):
+         """test_apt_v3_source_list_ubuntu_snappy - without custom sources or
+         parms"""
+         cfg = {"apt": {}}
+         mycloud = get_cloud()
+ 
+-        with mock.patch.object(util, "write_file") as mock_writefile:
+-            with mock.patch.object(
+-                util, "system_is_snappy", return_value=True
+-            ) as mock_issnappy:
+-                cc_apt_configure.handle("test", cfg, mycloud, None)
+-
+-        self.assertEqual(0, mock_writefile.call_count)
+-        self.assertEqual(1, mock_issnappy.call_count)
+-
+-    def test_apt_v3_source_list_centos(self):
+-        """test_apt_v3_source_list_centos - without custom sources or parms"""
+-        cfg = {}
+-        distro = "rhel"
+-
+-        mock_writefile, _, _, _, _ = self._apt_source_list(distro, cfg)
++        mock_writefile = mocker.patch.object(util, "write_file")
++        mock_issnappy = mocker.patch.object(util, "system_is_snappy")
++        mock_issnappy.return_value = True
++        cc_apt_configure.handle("test", cfg, mycloud, None)
++        mock_writefile.assert_not_called()
++        assert 1 == mock_issnappy.call_count
+ 
+-        self.assertEqual(0, mock_writefile.call_count)
+-
+-    def test_apt_v3_source_list_psm(self):
++    @pytest.mark.parametrize(
++        "tmpl_file,tmpl_content,apt_file,expected",
++        (
++            (
++                "/etc/cloud/templates/sources.list.ubuntu.tmpl",
++                EXAMPLE_TMPL,
++                "/etc/apt/sources.list",
++                EXPECTED_PRIMSEC_CONTENT,
++            ),
++        ),
++    )
++    def test_apt_v3_source_list_psm(
++        self, tmpl_file, tmpl_content, apt_file, expected, tmpdir
++    ):
+         """test_apt_v3_source_list_psm - Test specifying prim+sec mirrors"""
+         pm = "http://test.ubuntu.com/ubuntu/"
+         sm = "http://testsec.ubuntu.com/ubuntu/"
+@@ -215,45 +155,36 @@ class TestAptSourceConfigSourceList(t_he
+             "primary": [{"arches": ["default"], "uri": pm}],
+             "security": [{"arches": ["default"], "uri": sm}],
+         }
+-        distro = "ubuntu"
+-        expected = EXPECTED_PRIMSEC_CONTENT
+ 
+-        (
+-            mock_writefile,
+-            mock_load_file,
+-            mock_isfile,
+-            _,
+-            _,
+-        ) = self._apt_source_list(distro, cfg, cfg_on_empty=True)
+-
+-        template = "/etc/cloud/templates/sources.list.%s.tmpl" % distro
+-        mock_writefile.assert_called_once_with(
+-            "/etc/apt/sources.list", expected, mode=0o644
+-        )
+-        mock_load_file.assert_called_with(template)
+-        mock_isfile.assert_any_call(template)
++        util.write_file(tmpl_file, tmpl_content)
++        mycloud = get_cloud("ubuntu")
++        cc_apt_configure.handle("test", {"apt": cfg}, mycloud, None)
++
++        sources_file = tmpdir.join(apt_file)
++        assert expected == sources_file.read()
++        assert 0o644 == stat.S_IMODE(sources_file.stat().mode)
+ 
+-    def test_apt_v3_srcl_custom(self):
++    @pytest.mark.parametrize(
++        "cfg,apt_file,expected",
++        (
++            pytest.param(
++                util.load_yaml(YAML_TEXT_CUSTOM_SL),
++                "/etc/apt/sources.list",
++                EXPECTED_CONVERTED_CONTENT + "# FIND_SOMETHING_SPECIAL\n",
++                id="sources_list_writes_list_file",
++            ),
++        ),
++    )
++    def test_apt_v3_srcl_custom(self, cfg, apt_file, expected, mocker, tmpdir):
+         """test_apt_v3_srcl_custom - Test rendering a custom source template"""
+-        cfg = util.load_yaml(YAML_TEXT_CUSTOM_SL)
+-        mycloud = get_cloud()
++        mycloud = get_cloud("debian")
+ 
+-        with mock.patch.object(util, "write_file") as mockwrite:
+-            with mock.patch.object(
+-                subp, "subp", return_value=("PPID   PID", "")
+-            ) as mocksubp:
+-                with mock.patch.object(
+-                    Distro, "get_primary_arch", return_value="amd64"
+-                ):
+-                    cc_apt_configure.handle("notimportant", cfg, mycloud, None)
+-
+-        calls = [
+-            call(
+-                "/etc/apt/sources.list", EXPECTED_CONVERTED_CONTENT, mode=0o644
+-            )
+-        ]
+-        mockwrite.assert_has_calls(calls)
+-        mocksubp.assert_called_once_with(
++        mocker.patch.object(Distro, "get_primary_arch", return_value="amd64")
++        cc_apt_configure.handle("notimportant", cfg, mycloud, None)
++        sources_file = tmpdir.join(apt_file)
++        assert expected == sources_file.read()
++        assert 0o644 == stat.S_IMODE(sources_file.stat().mode)
++        self.subp.assert_called_once_with(
+             ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
+             capture=True,
+             target=None,
+--- a/tests/unittests/config/test_apt_source_v3.py
++++ b/tests/unittests/config/test_apt_source_v3.py
+@@ -8,17 +8,14 @@ import glob
+ import os
+ import pathlib
+ import re
+-import shutil
+ import socket
+-import tempfile
+-from unittest import TestCase, mock
++from unittest import mock
+ from unittest.mock import call
+ 
+ import pytest
+ 
+ from cloudinit import gpg, subp, util
+ from cloudinit.config import cc_apt_configure
+-from tests.unittests import helpers as t_help
+ from tests.unittests.util import get_cloud
+ 
+ EXPECTEDKEY = """-----BEGIN PGP PUBLIC KEY BLOCK-----
+@@ -37,8 +34,6 @@ S0ORP6HXET3+jC8BMG4tBWCTK/XEZw==
+ 
+ ADD_APT_REPO_MATCH = r"^[\w-]+:\w"
+ 
+-TARGET = None
+-
+ MOCK_LSB_RELEASE_DATA = {
+     "id": "Ubuntu",
+     "description": "Ubuntu 18.04.1 LTS",
+@@ -46,28 +41,24 @@ MOCK_LSB_RELEASE_DATA = {
+     "codename": "bionic",
+ }
+ 
++M_PATH = "cloudinit.config.cc_apt_configure."
++
+ 
+-class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
++class TestAptSourceConfig:
+     """TestAptSourceConfig
+     Main Class to test apt configs
+     """
+ 
+-    def setUp(self):
+-        super(TestAptSourceConfig, self).setUp()
+-        self.tmp = tempfile.mkdtemp()
+-        self.new_root = tempfile.mkdtemp()
+-        self.addCleanup(shutil.rmtree, self.tmp)
+-        self.addCleanup(shutil.rmtree, self.new_root)
+-        self.aptlistfile = os.path.join(self.tmp, "single-deb.list")
+-        self.aptlistfile2 = os.path.join(self.tmp, "single-deb2.list")
+-        self.aptlistfile3 = os.path.join(self.tmp, "single-deb3.list")
+-        self.join = os.path.join
+-        self.matcher = re.compile(ADD_APT_REPO_MATCH).search
+-        self.add_patch(
+-            "cloudinit.config.cc_apt_configure.util.lsb_release",
+-            "m_lsb_release",
++    @pytest.fixture(autouse=True)
++    def setup(self, mocker, tmpdir):
++        mocker.patch(
++            f"{M_PATH}util.lsb_release",
+             return_value=MOCK_LSB_RELEASE_DATA.copy(),
+         )
++        self.aptlistfile = tmpdir.join("src1.list").strpath
++        self.aptlistfile2 = tmpdir.join("src2.list").strpath
++        self.aptlistfile3 = tmpdir.join("src3.list").strpath
++        self.matcher = re.compile(ADD_APT_REPO_MATCH).search
+ 
+     @staticmethod
+     def _add_apt_sources(*args, **kwargs):
+@@ -87,45 +78,38 @@ class TestAptSourceConfig(t_help.Filesys
+         ]
+         return params
+ 
+-    def _myjoin(self, *args, **kwargs):
+-        """_myjoin - redir into writable tmpdir"""
+-        if (
+-            args[0] == "/etc/apt/sources.list.d/"
+-            and args[1] == "cloud_config_sources.list"
+-            and len(args) == 2
+-        ):
+-            return self.join(self.tmp, args[0].lstrip("/"), args[1])
+-        else:
+-            return self.join(*args, **kwargs)
+-
+-    def _apt_src_basic(self, filename, cfg):
++    def _apt_src_basic(self, filename, cfg, tmpdir):
+         """_apt_src_basic
+         Test Fix deb source string, has to overwrite mirror conf in params
+         """
+         params = self._get_default_params()
+ 
+         self._add_apt_sources(
+-            cfg, TARGET, template_params=params, aa_repo_match=self.matcher
++            cfg,
++            cloud=None,
++            target=tmpdir.strpath,
++            template_params=params,
++            aa_repo_match=self.matcher,
+         )
+ 
+-        self.assertTrue(os.path.isfile(filename))
++        assert (
++            os.path.isfile(filename) is True
++        ), f"Missing expected file {filename}"
+ 
+         contents = util.load_file(filename)
+-        self.assertTrue(
+-            re.search(
+-                r"%s %s %s %s\n"
+-                % (
+-                    "deb",
+-                    "http://test.ubuntu.com/ubuntu",
+-                    "karmic-backports",
+-                    "main universe multiverse restricted",
+-                ),
+-                contents,
+-                flags=re.IGNORECASE,
+-            )
+-        )
++        assert re.search(
++            r"%s %s %s %s\n"
++            % (
++                "deb",
++                "http://test.ubuntu.com/ubuntu",
++                "karmic-backports",
++                "main universe multiverse restricted",
++            ),
++            contents,
++            flags=re.IGNORECASE,
++        ), f"Unexpected APT config in {filename}: {contents}"
+ 
+-    def test_apt_v3_src_basic(self):
++    def test_apt_v3_src_basic(self, tmpdir):
+         """test_apt_v3_src_basic - Test fix deb source string"""
+         cfg = {
+             self.aptlistfile: {
+@@ -136,9 +120,9 @@ class TestAptSourceConfig(t_help.Filesys
+                 )
+             }
+         }
+-        self._apt_src_basic(self.aptlistfile, cfg)
++        self._apt_src_basic(self.aptlistfile, cfg, tmpdir)
+ 
+-    def test_apt_v3_src_basic_tri(self):
++    def test_apt_v3_src_basic_tri(self, tmpdir):
+         """test_apt_v3_src_basic_tri - Test multiple fix deb source strings"""
+         cfg = {
+             self.aptlistfile: {
+@@ -163,116 +147,110 @@ class TestAptSourceConfig(t_help.Filesys
+                 )
+             },
+         }
+-        self._apt_src_basic(self.aptlistfile, cfg)
++        self._apt_src_basic(self.aptlistfile, cfg, tmpdir)
+ 
+         # extra verify on two extra files of this test
+         contents = util.load_file(self.aptlistfile2)
+-        self.assertTrue(
+-            re.search(
+-                r"%s %s %s %s\n"
+-                % (
+-                    "deb",
+-                    "http://test.ubuntu.com/ubuntu",
+-                    "precise-backports",
+-                    "main universe multiverse restricted",
+-                ),
+-                contents,
+-                flags=re.IGNORECASE,
+-            )
+-        )
++        assert re.search(
++            r"%s %s %s %s\n"
++            % (
++                "deb",
++                "http://test.ubuntu.com/ubuntu",
++                "precise-backports",
++                "main universe multiverse restricted",
++            ),
++            contents,
++            flags=re.IGNORECASE,
++        ), f"Unexpected APT format of {self.aptlistfile2}: contents"
+         contents = util.load_file(self.aptlistfile3)
+-        self.assertTrue(
+-            re.search(
+-                r"%s %s %s %s\n"
+-                % (
+-                    "deb",
+-                    "http://test.ubuntu.com/ubuntu",
+-                    "lucid-backports",
+-                    "main universe multiverse restricted",
+-                ),
+-                contents,
+-                flags=re.IGNORECASE,
+-            )
+-        )
++        assert re.search(
++            r"%s %s %s %s\n"
++            % (
++                "deb",
++                "http://test.ubuntu.com/ubuntu",
++                "lucid-backports",
++                "main universe multiverse restricted",
++            ),
++            contents,
++            flags=re.IGNORECASE,
++        ), f"Unexpected APT format of {self.aptlistfile3}: contents"
+ 
+-    def _apt_src_replacement(self, filename, cfg):
++    def _apt_src_replacement(self, filename, cfg, tmpdir):
+         """apt_src_replace
+         Test Autoreplacement of MIRROR and RELEASE in source specs
+         """
+         params = self._get_default_params()
+         self._add_apt_sources(
+-            cfg, TARGET, template_params=params, aa_repo_match=self.matcher
++            cfg,
++            cloud=None,
++            target=tmpdir.strpath,
++            template_params=params,
++            aa_repo_match=self.matcher,
+         )
+ 
+-        self.assertTrue(os.path.isfile(filename))
++        assert os.path.isfile(filename) is True, f"Unexpected file {filename}"
+ 
+         contents = util.load_file(filename)
+-        self.assertTrue(
+-            re.search(
+-                r"%s %s %s %s\n"
+-                % ("deb", params["MIRROR"], params["RELEASE"], "multiverse"),
+-                contents,
+-                flags=re.IGNORECASE,
+-            )
++        assert re.search(
++            r"%s %s %s %s\n"
++            % ("deb", params["MIRROR"], params["RELEASE"], "multiverse"),
++            contents,
++            flags=re.IGNORECASE,
+         )
+ 
+-    def test_apt_v3_src_replace(self):
++    def test_apt_v3_src_replace(self, tmpdir):
+         """test_apt_v3_src_replace - Test replacement of MIRROR & RELEASE"""
+         cfg = {self.aptlistfile: {"source": "deb $MIRROR $RELEASE multiverse"}}
+-        self._apt_src_replacement(self.aptlistfile, cfg)
++        self._apt_src_replacement(self.aptlistfile, cfg, tmpdir)
+ 
+-    def test_apt_v3_src_replace_fn(self):
++    def test_apt_v3_src_replace_fn(self, tmpdir):
+         """test_apt_v3_src_replace_fn - Test filename overwritten in dict"""
+         cfg = {
+             "ignored": {
+                 "source": "deb $MIRROR $RELEASE multiverse",
+-                "filename": self.aptlistfile,
++                "filename": self.aptlistfile.replace(tmpdir.strpath, ""),
+             }
+         }
+         # second file should overwrite the dict key
+-        self._apt_src_replacement(self.aptlistfile, cfg)
++        self._apt_src_replacement(self.aptlistfile, cfg, tmpdir)
+ 
+-    def _apt_src_replace_tri(self, cfg):
++    def _apt_src_replace_tri(self, cfg, tmpdir):
+         """_apt_src_replace_tri
+         Test three autoreplacements of MIRROR and RELEASE in source specs with
+         generic part
+         """
+-        self._apt_src_replacement(self.aptlistfile, cfg)
++        self._apt_src_replacement(self.aptlistfile, cfg, tmpdir)
+ 
+         # extra verify on two extra files of this test
+         params = self._get_default_params()
+         contents = util.load_file(self.aptlistfile2)
+-        self.assertTrue(
+-            re.search(
+-                r"%s %s %s %s\n"
+-                % ("deb", params["MIRROR"], params["RELEASE"], "main"),
+-                contents,
+-                flags=re.IGNORECASE,
+-            )
+-        )
++        assert re.search(
++            r"%s %s %s %s\n"
++            % ("deb", params["MIRROR"], params["RELEASE"], "main"),
++            contents,
++            flags=re.IGNORECASE,
++        ), f"Unexpected APT format {self.aptlistfile2}: {contents}"
+         contents = util.load_file(self.aptlistfile3)
+-        self.assertTrue(
+-            re.search(
+-                r"%s %s %s %s\n"
+-                % ("deb", params["MIRROR"], params["RELEASE"], "universe"),
+-                contents,
+-                flags=re.IGNORECASE,
+-            )
+-        )
++        assert re.search(
++            r"%s %s %s %s\n"
++            % ("deb", params["MIRROR"], params["RELEASE"], "universe"),
++            contents,
++            flags=re.IGNORECASE,
++        ), f"Unexpected APT format {self.aptlistfile3}: {contents}"
+ 
+-    def test_apt_v3_src_replace_tri(self):
++    def test_apt_v3_src_replace_tri(self, tmpdir):
+         """test_apt_v3_src_replace_tri - Test multiple replace/overwrites"""
+         cfg = {
+             self.aptlistfile: {"source": "deb $MIRROR $RELEASE multiverse"},
+             "notused": {
+                 "source": "deb $MIRROR $RELEASE main",
+-                "filename": self.aptlistfile2,
++                "filename": self.aptlistfile2.replace(tmpdir.strpath, ""),
+             },
+             self.aptlistfile3: {"source": "deb $MIRROR $RELEASE universe"},
+         }
+-        self._apt_src_replace_tri(cfg)
++        self._apt_src_replace_tri(cfg, tmpdir)
+ 
+-    def _apt_src_keyid(self, filename, cfg, keynum, is_hardened=None):
++    def _apt_src_keyid(self, filename, cfg, keynum, tmpdir, is_hardened=None):
+         """_apt_src_keyid
+         Test specification of a source + keyid
+         """
+@@ -280,7 +258,11 @@ class TestAptSourceConfig(t_help.Filesys
+ 
+         with mock.patch.object(cc_apt_configure, "add_apt_key") as mockobj:
+             self._add_apt_sources(
+-                cfg, TARGET, template_params=params, aa_repo_match=self.matcher
++                cfg,
++                cloud=None,
++                target=tmpdir.strpath,
++                template_params=params,
++                aa_repo_match=self.matcher,
+             )
+ 
+         # check if it added the right number of keys
+@@ -289,28 +271,26 @@ class TestAptSourceConfig(t_help.Filesys
+             if is_hardened is not None:
+                 calls.append(call(cfg[key], hardened=is_hardened))
+             else:
+-                calls.append(call(cfg[key], TARGET))
++                calls.append(call(cfg[key], tmpdir.strpath))
+ 
+         mockobj.assert_has_calls(calls, any_order=True)
+ 
+-        self.assertTrue(os.path.isfile(filename))
++        assert os.path.isfile(filename) is True
+ 
+         contents = util.load_file(filename)
+-        self.assertTrue(
+-            re.search(
+-                r"%s %s %s %s\n"
+-                % (
+-                    "deb",
+-                    "http://ppa.launchpad.net/smoser/cloud-init-test/ubuntu",
+-                    "xenial",
+-                    "main",
+-                ),
+-                contents,
+-                flags=re.IGNORECASE,
+-            )
++        assert re.search(
++            r"%s %s %s %s\n"
++            % (
++                "deb",
++                "http://ppa.launchpad.net/smoser/cloud-init-test/ubuntu",
++                "xenial",
++                "main",
++            ),
++            contents,
++            flags=re.IGNORECASE,
+         )
+ 
+-    def test_apt_v3_src_keyid(self):
++    def test_apt_v3_src_keyid(self, tmpdir):
+         """test_apt_v3_src_keyid - Test source + keyid with filename"""
+         cfg = {
+             self.aptlistfile: {
+@@ -320,14 +300,14 @@ class TestAptSourceConfig(t_help.Filesys
+                     "smoser/cloud-init-test/ubuntu"
+                     " xenial main"
+                 ),
+-                "filename": self.aptlistfile,
++                "filename": self.aptlistfile.replace(tmpdir.strpath, ""),
+                 "keyid": "03683F77",
+             }
+         }
+-        self._apt_src_keyid(self.aptlistfile, cfg, 1)
++        self._apt_src_keyid(self.aptlistfile, cfg, 1, tmpdir)
+ 
+-    def test_apt_v3_src_keyid_tri(self):
+-        """test_apt_v3_src_keyid_tri - Test multiple src+key+filen writes"""
++    def test_apt_v3_src_keyid_tri(self, tmpdir):
++        """test_apt_v3_src_keyid_tri - Test multiple src+key+file writes"""
+         cfg = {
+             self.aptlistfile: {
+                 "source": (
+@@ -346,7 +326,7 @@ class TestAptSourceConfig(t_help.Filesys
+                     " xenial universe"
+                 ),
+                 "keyid": "03683F77",
+-                "filename": self.aptlistfile2,
++                "filename": self.aptlistfile2.replace(tmpdir.strpath, ""),
+             },
+             self.aptlistfile3: {
+                 "source": (
+@@ -355,42 +335,38 @@ class TestAptSourceConfig(t_help.Filesys
+                     "smoser/cloud-init-test/ubuntu"
+                     " xenial multiverse"
+                 ),
+-                "filename": self.aptlistfile3,
++                "filename": self.aptlistfile3.replace(tmpdir.strpath, ""),
+                 "keyid": "03683F77",
+             },
+         }
+ 
+-        self._apt_src_keyid(self.aptlistfile, cfg, 3)
++        self._apt_src_keyid(self.aptlistfile, cfg, 3, tmpdir)
+         contents = util.load_file(self.aptlistfile2)
+-        self.assertTrue(
+-            re.search(
+-                r"%s %s %s %s\n"
+-                % (
+-                    "deb",
+-                    "http://ppa.launchpad.net/smoser/cloud-init-test/ubuntu",
+-                    "xenial",
+-                    "universe",
+-                ),
+-                contents,
+-                flags=re.IGNORECASE,
+-            )
++        assert re.search(
++            r"%s %s %s %s\n"
++            % (
++                "deb",
++                "http://ppa.launchpad.net/smoser/cloud-init-test/ubuntu",
++                "xenial",
++                "universe",
++            ),
++            contents,
++            flags=re.IGNORECASE,
+         )
+         contents = util.load_file(self.aptlistfile3)
+-        self.assertTrue(
+-            re.search(
+-                r"%s %s %s %s\n"
+-                % (
+-                    "deb",
+-                    "http://ppa.launchpad.net/smoser/cloud-init-test/ubuntu",
+-                    "xenial",
+-                    "multiverse",
+-                ),
+-                contents,
+-                flags=re.IGNORECASE,
+-            )
++        assert re.search(
++            r"%s %s %s %s\n"
++            % (
++                "deb",
++                "http://ppa.launchpad.net/smoser/cloud-init-test/ubuntu",
++                "xenial",
++                "multiverse",
++            ),
++            contents,
++            flags=re.IGNORECASE,
+         )
+ 
+-    def test_apt_v3_src_key(self):
++    def test_apt_v3_src_key(self, mocker, tmpdir):
+         """test_apt_v3_src_key - Test source + key"""
+         params = self._get_default_params()
+         cfg = {
+@@ -401,15 +377,18 @@ class TestAptSourceConfig(t_help.Filesys
+                     "smoser/cloud-init-test/ubuntu"
+                     " xenial main"
+                 ),
+-                "filename": self.aptlistfile,
++                "filename": self.aptlistfile.replace(tmpdir.strpath, ""),
+                 "key": "fakekey 4321",
+             }
+         }
+-
+-        with mock.patch.object(cc_apt_configure, "apt_key") as mockobj:
+-            self._add_apt_sources(
+-                cfg, TARGET, template_params=params, aa_repo_match=self.matcher
+-            )
++        mockobj = mocker.patch.object(cc_apt_configure, "apt_key")
++        self._add_apt_sources(
++            cfg,
++            cloud=None,
++            target=tmpdir.strpath,
++            template_params=params,
++            aa_repo_match=self.matcher,
++        )
+ 
+         calls = (
+             call(
+@@ -420,32 +399,32 @@ class TestAptSourceConfig(t_help.Filesys
+             ),
+         )
+         mockobj.assert_has_calls(calls, any_order=True)
+-        self.assertTrue(os.path.isfile(self.aptlistfile))
+-
+         contents = util.load_file(self.aptlistfile)
+-        self.assertTrue(
+-            re.search(
+-                r"%s %s %s %s\n"
+-                % (
+-                    "deb",
+-                    "http://ppa.launchpad.net/smoser/cloud-init-test/ubuntu",
+-                    "xenial",
+-                    "main",
+-                ),
+-                contents,
+-                flags=re.IGNORECASE,
+-            )
++        assert re.search(
++            r"%s %s %s %s\n"
++            % (
++                "deb",
++                "http://ppa.launchpad.net/smoser/cloud-init-test/ubuntu",
++                "xenial",
++                "main",
++            ),
++            contents,
++            flags=re.IGNORECASE,
+         )
+ 
+-    def test_apt_v3_src_keyonly(self):
++    def test_apt_v3_src_keyonly(self, tmpdir, mocker):
+         """test_apt_v3_src_keyonly - Test key without source"""
+         params = self._get_default_params()
+         cfg = {self.aptlistfile: {"key": "fakekey 4242"}}
+ 
+-        with mock.patch.object(cc_apt_configure, "apt_key") as mockobj:
+-            self._add_apt_sources(
+-                cfg, TARGET, template_params=params, aa_repo_match=self.matcher
+-            )
++        mockobj = mocker.patch.object(cc_apt_configure, "apt_key")
++        self._add_apt_sources(
++            cfg,
++            cloud=None,
++            target=tmpdir.strpath,
++            template_params=params,
++            aa_repo_match=self.matcher,
++        )
+ 
+         calls = (
+             call(
+@@ -458,9 +437,9 @@ class TestAptSourceConfig(t_help.Filesys
+         mockobj.assert_has_calls(calls, any_order=True)
+ 
+         # filename should be ignored on key only
+-        self.assertFalse(os.path.isfile(self.aptlistfile))
++        assert os.path.isfile(self.aptlistfile) is False
+ 
+-    def test_apt_v3_src_keyidonly(self):
++    def test_apt_v3_src_keyidonly(self, tmpdir):
+         """test_apt_v3_src_keyidonly - Test keyid without source"""
+         params = self._get_default_params()
+         cfg = {self.aptlistfile: {"keyid": "03683F77"}}
+@@ -470,7 +449,8 @@ class TestAptSourceConfig(t_help.Filesys
+             with mock.patch.object(cc_apt_configure, "apt_key") as mockobj:
+                 self._add_apt_sources(
+                     cfg,
+-                    TARGET,
++                    cloud=None,
++                    target=tmpdir.strpath,
+                     template_params=params,
+                     aa_repo_match=self.matcher,
+                 )
+@@ -486,9 +466,11 @@ class TestAptSourceConfig(t_help.Filesys
+         mockobj.assert_has_calls(calls, any_order=True)
+ 
+         # filename should be ignored on key only
+-        self.assertFalse(os.path.isfile(self.aptlistfile))
++        assert (
++            os.path.isfile(self.aptlistfile) is False
++        ), f"Unexpected file {self.aptlistfile} found"
+ 
+-    def apt_src_keyid_real(self, cfg, expectedkey, is_hardened=None):
++    def apt_src_keyid_real(self, cfg, expectedkey, tmpdir, is_hardened=None):
+         """apt_src_keyid_real
+         Test specification of a keyid without source including
+         up to addition of the key (add_apt_key_raw mocked to keep the
+@@ -502,7 +484,8 @@ class TestAptSourceConfig(t_help.Filesys
+             ) as mockgetkey:
+                 self._add_apt_sources(
+                     cfg,
+-                    TARGET,
++                    cloud=None,
++                    target=tmpdir.strpath,
+                     template_params=params,
+                     aa_repo_match=self.matcher,
+                 )
+@@ -513,27 +496,29 @@ class TestAptSourceConfig(t_help.Filesys
+         )
+         if is_hardened is not None:
+             mockkey.assert_called_with(
+-                expectedkey, keycfg["keyfile"], hardened=is_hardened
++                expectedkey,
++                keycfg["keyfile"].replace(tmpdir.strpath, ""),
++                hardened=is_hardened,
+             )
+ 
+         # filename should be ignored on key only
+-        self.assertFalse(os.path.isfile(self.aptlistfile))
++        assert os.path.isfile(self.aptlistfile) is False
+ 
+-    def test_apt_v3_src_keyid_real(self):
++    def test_apt_v3_src_keyid_real(self, tmpdir):
+         """test_apt_v3_src_keyid_real - Test keyid including key add"""
+         keyid = "03683F77"
+         cfg = {self.aptlistfile: {"keyid": keyid, "keyfile": self.aptlistfile}}
+ 
+-        self.apt_src_keyid_real(cfg, EXPECTEDKEY, is_hardened=False)
++        self.apt_src_keyid_real(cfg, EXPECTEDKEY, tmpdir, is_hardened=False)
+ 
+-    def test_apt_v3_src_longkeyid_real(self):
++    def test_apt_v3_src_longkeyid_real(self, tmpdir):
+         """test_apt_v3_src_longkeyid_real Test long keyid including key add"""
+         keyid = "B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77"
+         cfg = {self.aptlistfile: {"keyid": keyid, "keyfile": self.aptlistfile}}
+ 
+-        self.apt_src_keyid_real(cfg, EXPECTEDKEY, is_hardened=False)
++        self.apt_src_keyid_real(cfg, EXPECTEDKEY, tmpdir, is_hardened=False)
+ 
+-    def test_apt_v3_src_longkeyid_ks_real(self):
++    def test_apt_v3_src_longkeyid_ks_real(self, tmpdir):
+         """test_apt_v3_src_longkeyid_ks_real Test long keyid from other ks"""
+         keyid = "B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77"
+         cfg = {
+@@ -544,9 +529,9 @@ class TestAptSourceConfig(t_help.Filesys
+             }
+         }
+ 
+-        self.apt_src_keyid_real(cfg, EXPECTEDKEY)
++        self.apt_src_keyid_real(cfg, EXPECTEDKEY, tmpdir)
+ 
+-    def test_apt_v3_src_keyid_keyserver(self):
++    def test_apt_v3_src_keyid_keyserver(self, tmpdir):
+         """test_apt_v3_src_keyid_keyserver - Test custom keyserver"""
+         keyid = "03683F77"
+         params = self._get_default_params()
+@@ -568,25 +553,34 @@ class TestAptSourceConfig(t_help.Filesys
+             ) as mockadd:
+                 self._add_apt_sources(
+                     cfg,
+-                    TARGET,
++                    cloud=None,
++                    target=tmpdir.strpath,
+                     template_params=params,
+                     aa_repo_match=self.matcher,
+                 )
+ 
+         mockgetkey.assert_called_with("03683F77", "test.random.com")
+-        mockadd.assert_called_with("fakekey", self.aptlistfile, hardened=False)
++        mockadd.assert_called_with(
++            "fakekey",
++            self.aptlistfile.replace(tmpdir.strpath, ""),
++            hardened=False,
++        )
+ 
+         # filename should be ignored on key only
+-        self.assertFalse(os.path.isfile(self.aptlistfile))
++        assert os.path.isfile(self.aptlistfile) is False
+ 
+-    def test_apt_v3_src_ppa(self):
++    def test_apt_v3_src_ppa(self, tmpdir):
+         """test_apt_v3_src_ppa - Test specification of a ppa"""
+         params = self._get_default_params()
+         cfg = {self.aptlistfile: {"source": "ppa:smoser/cloud-init-test"}}
+ 
+         with mock.patch("cloudinit.subp.subp") as mockobj:
+             self._add_apt_sources(
+-                cfg, TARGET, template_params=params, aa_repo_match=self.matcher
++                cfg,
++                cloud=None,
++                target=tmpdir.strpath,
++                template_params=params,
++                aa_repo_match=self.matcher,
+             )
+         mockobj.assert_any_call(
+             [
+@@ -594,13 +588,15 @@ class TestAptSourceConfig(t_help.Filesys
+                 "--no-update",
+                 "ppa:smoser/cloud-init-test",
+             ],
+-            target=TARGET,
++            target=tmpdir.strpath,
+         )
+ 
+         # adding ppa should ignore filename (uses add-apt-repository)
+-        self.assertFalse(os.path.isfile(self.aptlistfile))
++        assert (
++            os.path.isfile(self.aptlistfile) is False
++        ), f"Unexpected file found {self.aptlistfile}"
+ 
+-    def test_apt_v3_src_ppa_tri(self):
++    def test_apt_v3_src_ppa_tri(self, tmpdir):
+         """test_apt_v3_src_ppa_tri - Test specification of multiple ppa's"""
+         params = self._get_default_params()
+         cfg = {
+@@ -611,7 +607,11 @@ class TestAptSourceConfig(t_help.Filesys
+ 
+         with mock.patch("cloudinit.subp.subp") as mockobj:
+             self._add_apt_sources(
+-                cfg, TARGET, template_params=params, aa_repo_match=self.matcher
++                cfg,
++                cloud=None,
++                target=tmpdir.strpath,
++                template_params=params,
++                aa_repo_match=self.matcher,
+             )
+         calls = [
+             call(
+@@ -620,7 +620,7 @@ class TestAptSourceConfig(t_help.Filesys
+                     "--no-update",
+                     "ppa:smoser/cloud-init-test",
+                 ],
+-                target=TARGET,
++                target=tmpdir.strpath,
+             ),
+             call(
+                 [
+@@ -628,7 +628,7 @@ class TestAptSourceConfig(t_help.Filesys
+                     "--no-update",
+                     "ppa:smoser/cloud-init-test2",
+                 ],
+-                target=TARGET,
++                target=tmpdir.strpath,
+             ),
+             call(
+                 [
+@@ -636,20 +636,21 @@ class TestAptSourceConfig(t_help.Filesys
+                     "--no-update",
+                     "ppa:smoser/cloud-init-test3",
+                 ],
+-                target=TARGET,
++                target=tmpdir.strpath,
+             ),
+         ]
+         mockobj.assert_has_calls(calls, any_order=True)
+ 
+         # adding ppa should ignore all filenames (uses add-apt-repository)
+-        self.assertFalse(os.path.isfile(self.aptlistfile))
+-        self.assertFalse(os.path.isfile(self.aptlistfile2))
+-        self.assertFalse(os.path.isfile(self.aptlistfile3))
++        for path in [self.aptlistfile, self.aptlistfile2, self.aptlistfile3]:
++            assert not os.path.isfile(
++                self.aptlistfile
++            ), f"Unexpected file {path}"
+ 
+     @mock.patch("cloudinit.config.cc_apt_configure.util.get_dpkg_architecture")
+-    def test_apt_v3_list_rename(self, m_get_dpkg_architecture):
++    def test_apt_v3_list_rename(self, m_get_dpkg_architecture, tmpdir):
+         """test_apt_v3_list_rename - Test find mirror and apt list renaming"""
+-        pre = "/var/lib/apt/lists"
++        pre = tmpdir.join("/var/lib/apt/lists")
+         # filenames are archive dependent
+ 
+         arch = "s390x"
+@@ -680,26 +681,27 @@ class TestAptSourceConfig(t_help.Filesys
+ 
+         mirrors = cc_apt_configure.find_apt_mirror_info(cfg, get_cloud(), arch)
+ 
+-        self.assertEqual(
+-            mirrors["MIRROR"], "http://test.ubuntu.com/%s/" % component
+-        )
+-        self.assertEqual(
+-            mirrors["PRIMARY"], "http://test.ubuntu.com/%s/" % component
+-        )
+-        self.assertEqual(
+-            mirrors["SECURITY"], "http://testsec.ubuntu.com/%s/" % component
++        assert mirrors["MIRROR"] == "http://test.ubuntu.com/%s/" % component
++        assert mirrors["PRIMARY"] == "http://test.ubuntu.com/%s/" % component
++        assert (
++            mirrors["SECURITY"] == "http://testsec.ubuntu.com/%s/" % component
+         )
+ 
+         with mock.patch.object(os, "rename") as mockren:
+             with mock.patch.object(glob, "glob", return_value=[fromfn]):
+-                cc_apt_configure.rename_apt_lists(mirrors, TARGET, arch)
++                cc_apt_configure.rename_apt_lists(
++                    mirrors, tmpdir.strpath, arch
++                )
+ 
+         mockren.assert_any_call(fromfn, tofn)
+ 
+     @mock.patch("cloudinit.config.cc_apt_configure.util.get_dpkg_architecture")
+-    def test_apt_v3_list_rename_non_slash(self, m_get_dpkg_architecture):
+-        target = os.path.join(self.tmp, "rename_non_slash")
+-        apt_lists_d = os.path.join(target, "./" + cc_apt_configure.APT_LISTS)
++    def test_apt_v3_list_rename_non_slash(
++        self, m_get_dpkg_architecture, tmpdir
++    ):
++        target = tmpdir.join("rename_non_slash")
++
++        apt_lists_d = target.join(cc_apt_configure.APT_LISTS).strpath
+ 
+         arch = "amd64"
+         m_get_dpkg_architecture.return_value = arch
+@@ -738,9 +740,8 @@ class TestAptSourceConfig(t_help.Filesys
+             fpath = os.path.join(apt_lists_d, opre + suff)
+             util.write_file(fpath, content=fpath)
+ 
+-        cc_apt_configure.rename_apt_lists(mirrors, target, arch)
+-        found = sorted(os.listdir(apt_lists_d))
+-        self.assertEqual(expected, found)
++        cc_apt_configure.rename_apt_lists(mirrors, target.strpath, arch)
++        assert expected == sorted(os.listdir(apt_lists_d))
+ 
+     @staticmethod
+     def test_apt_v3_proxy():
+@@ -776,9 +777,9 @@ class TestAptSourceConfig(t_help.Filesys
+             cfg, get_cloud(), "amd64"
+         )
+ 
+-        self.assertEqual(mirrors["MIRROR"], pmir)
+-        self.assertEqual(mirrors["PRIMARY"], pmir)
+-        self.assertEqual(mirrors["SECURITY"], smir)
++        assert mirrors["MIRROR"] == pmir
++        assert mirrors["PRIMARY"] == pmir
++        assert mirrors["SECURITY"] == smir
+ 
+     def test_apt_v3_mirror_default(self):
+         """test_apt_v3_mirror_default - Test without defining a mirror"""
+@@ -789,9 +790,9 @@ class TestAptSourceConfig(t_help.Filesys
+         mycloud = get_cloud()
+         mirrors = cc_apt_configure.find_apt_mirror_info({}, mycloud, arch)
+ 
+-        self.assertEqual(mirrors["MIRROR"], pmir)
+-        self.assertEqual(mirrors["PRIMARY"], pmir)
+-        self.assertEqual(mirrors["SECURITY"], smir)
++        assert mirrors["MIRROR"] == pmir
++        assert mirrors["PRIMARY"] == pmir
++        assert mirrors["SECURITY"] == smir
+ 
+     def test_apt_v3_mirror_arches(self):
+         """test_apt_v3_mirror_arches - Test arches selection of mirror"""
+@@ -811,9 +812,9 @@ class TestAptSourceConfig(t_help.Filesys
+ 
+         mirrors = cc_apt_configure.find_apt_mirror_info(cfg, get_cloud(), arch)
+ 
+-        self.assertEqual(mirrors["PRIMARY"], pmir)
+-        self.assertEqual(mirrors["MIRROR"], pmir)
+-        self.assertEqual(mirrors["SECURITY"], smir)
++        assert mirrors["MIRROR"] == pmir
++        assert mirrors["PRIMARY"] == pmir
++        assert mirrors["SECURITY"] == smir
+ 
+     def test_apt_v3_mirror_arches_default(self):
+         """test_apt_v3_mirror_arches - Test falling back to default arch"""
+@@ -834,9 +835,9 @@ class TestAptSourceConfig(t_help.Filesys
+             cfg, get_cloud(), "amd64"
+         )
+ 
+-        self.assertEqual(mirrors["MIRROR"], pmir)
+-        self.assertEqual(mirrors["PRIMARY"], pmir)
+-        self.assertEqual(mirrors["SECURITY"], smir)
++        assert mirrors["MIRROR"] == pmir
++        assert mirrors["PRIMARY"] == pmir
++        assert mirrors["SECURITY"] == smir
+ 
+     @mock.patch("cloudinit.config.cc_apt_configure.util.get_dpkg_architecture")
+     def test_apt_v3_get_def_mir_non_intel_no_arch(
+@@ -848,16 +849,14 @@ class TestAptSourceConfig(t_help.Filesys
+             "PRIMARY": "http://ports.ubuntu.com/ubuntu-ports",
+             "SECURITY": "http://ports.ubuntu.com/ubuntu-ports",
+         }
+-        self.assertEqual(expected, cc_apt_configure.get_default_mirrors())
++        assert expected == cc_apt_configure.get_default_mirrors()
+ 
+     def test_apt_v3_get_default_mirrors_non_intel_with_arch(self):
+-        found = cc_apt_configure.get_default_mirrors("ppc64el")
+-
+         expected = {
+             "PRIMARY": "http://ports.ubuntu.com/ubuntu-ports",
+             "SECURITY": "http://ports.ubuntu.com/ubuntu-ports",
+         }
+-        self.assertEqual(expected, found)
++        assert expected == cc_apt_configure.get_default_mirrors("ppc64el")
+ 
+     def test_apt_v3_mirror_arches_sysdefault(self):
+         """test_apt_v3_mirror_arches - Test arches fallback to sys default"""
+@@ -879,9 +878,9 @@ class TestAptSourceConfig(t_help.Filesys
+ 
+         mirrors = cc_apt_configure.find_apt_mirror_info(cfg, mycloud, arch)
+ 
+-        self.assertEqual(mirrors["MIRROR"], pmir)
+-        self.assertEqual(mirrors["PRIMARY"], pmir)
+-        self.assertEqual(mirrors["SECURITY"], smir)
++        assert mirrors["MIRROR"] == pmir
++        assert mirrors["PRIMARY"] == pmir
++        assert mirrors["SECURITY"] == smir
+ 
+     def test_apt_v3_mirror_search(self):
+         """test_apt_v3_mirror_search - Test searching mirrors in a list
+@@ -905,9 +904,9 @@ class TestAptSourceConfig(t_help.Filesys
+         calls = [call(["pfailme", pmir]), call(["sfailme", smir])]
+         mocksearch.assert_has_calls(calls)
+ 
+-        self.assertEqual(mirrors["MIRROR"], pmir)
+-        self.assertEqual(mirrors["PRIMARY"], pmir)
+-        self.assertEqual(mirrors["SECURITY"], smir)
++        assert mirrors["MIRROR"] == pmir
++        assert mirrors["PRIMARY"] == pmir
++        assert mirrors["SECURITY"] == smir
+ 
+     def test_apt_v3_mirror_search_many2(self):
+         """test_apt_v3_mirror_search_many3 - Test both mirrors specs at once"""
+@@ -953,9 +952,9 @@ class TestAptSourceConfig(t_help.Filesys
+             )
+         mockse.assert_not_called()
+ 
+-        self.assertEqual(mirrors["MIRROR"], pmir)
+-        self.assertEqual(mirrors["PRIMARY"], pmir)
+-        self.assertEqual(mirrors["SECURITY"], smir)
++        assert mirrors["MIRROR"] == pmir
++        assert mirrors["PRIMARY"] == pmir
++        assert mirrors["SECURITY"] == smir
+ 
+     @pytest.mark.allow_dns_lookup
+     def test_apt_v3_url_resolvable(self):
+@@ -985,8 +984,8 @@ class TestAptSourceConfig(t_help.Filesys
+         mocksock.assert_any_call("example.invalid.", None, 0, 0, 1, 2)
+         mocksock.assert_any_call("us.archive.ubuntu.com", None)
+ 
+-        self.assertTrue(ret)
+-        self.assertTrue(ret2)
++        assert ret is True
++        assert ret2 is True
+ 
+         # side effect need only bad ret after initial call
+         with mock.patch.object(
+@@ -995,7 +994,7 @@ class TestAptSourceConfig(t_help.Filesys
+             ret3 = util.is_resolvable_url("http://failme.com/ubuntu")
+         calls = [call("failme.com", None)]
+         mocksock.assert_has_calls(calls)
+-        self.assertFalse(ret3)
++        assert ret3 is False
+ 
+     def test_apt_v3_disable_suites(self):
+         """test_disable_suites - disable_suites with many configurations"""
+@@ -1014,7 +1013,7 @@ deb http://ubuntu.com//ubuntu xenial-sec
+ deb-src http://ubuntu.com//ubuntu universe multiverse
+ deb http://ubuntu.com/ubuntu/ xenial-proposed main"""
+         result = cc_apt_configure.disable_suites(disabled, orig, release)
+-        self.assertEqual(expect, result)
++        assert expect == result
+ 
+         # single disable release suite
+         disabled = ["$RELEASE"]
+@@ -1025,7 +1024,7 @@ deb http://ubuntu.com//ubuntu xenial-sec
+ deb-src http://ubuntu.com//ubuntu universe multiverse
+ deb http://ubuntu.com/ubuntu/ xenial-proposed main"""
+         result = cc_apt_configure.disable_suites(disabled, orig, release)
+-        self.assertEqual(expect, result)
++        assert expect == result
+ 
+         # single disable other suite
+         disabled = ["$RELEASE-updates"]
+@@ -1038,7 +1037,7 @@ deb-src http://ubuntu.com//ubuntu univer
+ deb http://ubuntu.com/ubuntu/ xenial-proposed main"""
+         )
+         result = cc_apt_configure.disable_suites(disabled, orig, release)
+-        self.assertEqual(expect, result)
++        assert expect == result
+ 
+         # multi disable
+         disabled = ["$RELEASE-updates", "$RELEASE-security"]
+@@ -1052,7 +1051,7 @@ deb-src http://ubuntu.com//ubuntu univer
+ deb http://ubuntu.com/ubuntu/ xenial-proposed main"""
+         )
+         result = cc_apt_configure.disable_suites(disabled, orig, release)
+-        self.assertEqual(expect, result)
++        assert expect == result
+ 
+         # multi line disable (same suite multiple times in input)
+         disabled = ["$RELEASE-updates", "$RELEASE-security"]
+@@ -1077,7 +1076,7 @@ deb-src http://ubuntu.com//ubuntu univer
+ deb http://ubuntu.com/ubuntu/ xenial-proposed main"""
+         )
+         result = cc_apt_configure.disable_suites(disabled, orig, release)
+-        self.assertEqual(expect, result)
++        assert expect == result
+ 
+         # comment in input
+         disabled = ["$RELEASE-updates", "$RELEASE-security"]
+@@ -1103,7 +1102,7 @@ deb-src http://ubuntu.com//ubuntu univer
+ deb http://ubuntu.com/ubuntu/ xenial-proposed main"""
+         )
+         result = cc_apt_configure.disable_suites(disabled, orig, release)
+-        self.assertEqual(expect, result)
++        assert expect == result
+ 
+         # single disable custom suite
+         disabled = ["foobar"]
+@@ -1116,7 +1115,7 @@ deb http://ubuntu.com//ubuntu xenial-upd
+ deb http://ubuntu.com//ubuntu xenial-security main
+ # suite disabled by cloud-init: deb http://ubuntu.com/ubuntu/ foobar main"""
+         result = cc_apt_configure.disable_suites(disabled, orig, release)
+-        self.assertEqual(expect, result)
++        assert expect == result
+ 
+         # single disable non existing suite
+         disabled = ["foobar"]
+@@ -1129,7 +1128,7 @@ deb http://ubuntu.com//ubuntu xenial-upd
+ deb http://ubuntu.com//ubuntu xenial-security main
+ deb http://ubuntu.com/ubuntu/ notfoobar main"""
+         result = cc_apt_configure.disable_suites(disabled, orig, release)
+-        self.assertEqual(expect, result)
++        assert expect == result
+ 
+         # single disable suite with option
+         disabled = ["$RELEASE-updates"]
+@@ -1147,7 +1146,7 @@ deb-src http://ubuntu.com//ubuntu univer
+ deb http://ubuntu.com/ubuntu/ xenial-proposed main"""
+         )
+         result = cc_apt_configure.disable_suites(disabled, orig, release)
+-        self.assertEqual(expect, result)
++        assert expect == result
+ 
+         # single disable suite with more options and auto $RELEASE expansion
+         disabled = ["updates"]
+@@ -1163,7 +1162,7 @@ deb http://ubuntu.com//ubuntu xenial-sec
+ deb-src http://ubuntu.com//ubuntu universe multiverse
+ deb http://ubuntu.com/ubuntu/ xenial-proposed main"""
+         result = cc_apt_configure.disable_suites(disabled, orig, release)
+-        self.assertEqual(expect, result)
++        assert expect == result
+ 
+         # single disable suite while options at others
+         disabled = ["$RELEASE-security"]
+@@ -1181,7 +1180,7 @@ deb-src http://ubuntu.com//ubuntu univer
+ deb http://ubuntu.com/ubuntu/ xenial-proposed main"""
+         )
+         result = cc_apt_configure.disable_suites(disabled, orig, release)
+-        self.assertEqual(expect, result)
++        assert expect == result
+ 
+     def test_disable_suites_blank_lines(self):
+         """test_disable_suites_blank_lines - ensure blank lines allowed"""
+@@ -1196,9 +1195,8 @@ deb http://ubuntu.com/ubuntu/ xenial-pro
+         rel = "trusty"
+         repo = "http://example.com/mirrors/ubuntu"
+         orig = "\n".join(lines) % {"repo": repo, "rel": rel}
+-        self.assertEqual(
+-            orig, cc_apt_configure.disable_suites(["proposed"], orig, rel)
+-        )
++
++        assert orig == cc_apt_configure.disable_suites(["proposed"], orig, rel)
+ 
+     @mock.patch("cloudinit.util.get_hostname", return_value="abc.localdomain")
+     def test_apt_v3_mirror_search_dns(self, m_get_hostname):
+@@ -1260,11 +1258,11 @@ deb http://ubuntu.com/ubuntu/ xenial-pro
+         ]
+         mockse.assert_has_calls(calls)
+ 
+-        self.assertEqual(mirrors["MIRROR"], pmir)
+-        self.assertEqual(mirrors["PRIMARY"], pmir)
+-        self.assertEqual(mirrors["SECURITY"], smir)
++        assert mirrors["MIRROR"] == pmir
++        assert mirrors["PRIMARY"] == pmir
++        assert mirrors["SECURITY"] == smir
+ 
+-    def test_apt_v3_add_mirror_keys(self):
++    def test_apt_v3_add_mirror_keys(self, tmpdir):
+         """test_apt_v3_add_mirror_keys - Test adding key for mirrors"""
+         arch = "amd64"
+         cfg = {
+@@ -1287,7 +1285,7 @@ deb http://ubuntu.com/ubuntu/ xenial-pro
+         }
+ 
+         with mock.patch.object(cc_apt_configure, "add_apt_key_raw") as mockadd:
+-            cc_apt_configure.add_mirror_keys(cfg, TARGET)
++            cc_apt_configure.add_mirror_keys(cfg, tmpdir.strpath)
+         calls = [
+             mock.call("fakekey_primary", "primary", hardened=False),
+             mock.call("fakekey_security", "security", hardened=False),
+@@ -1295,7 +1293,7 @@ deb http://ubuntu.com/ubuntu/ xenial-pro
+         mockadd.assert_has_calls(calls, any_order=True)
+ 
+ 
+-class TestDebconfSelections(TestCase):
++class TestDebconfSelections:
+     @mock.patch("cloudinit.config.cc_apt_configure.subp.subp")
+     def test_set_sel_appends_newline_if_absent(self, m_subp):
+         """Automatically append a newline to debconf-set-selections config."""
+@@ -1308,7 +1306,7 @@ class TestDebconfSelections(TestCase):
+             capture=True,
+             target=None,
+         )
+-        self.assertEqual([m_call, m_call], m_subp.call_args_list)
++        assert [m_call, m_call] == m_subp.call_args_list
+ 
+     @mock.patch("cloudinit.config.cc_apt_configure.debconf_set_selections")
+     def test_no_set_sel_if_none_to_set(self, m_set_sel):
+@@ -1333,8 +1331,8 @@ class TestDebconfSelections(TestCase):
+         m_set_sel.return_value = None
+ 
+         cc_apt_configure.apply_debconf_selections({"debconf_selections": data})
+-        self.assertTrue(m_get_inst.called)
+-        self.assertEqual(m_set_sel.call_count, 1)
++        assert m_get_inst.called is True
++        assert m_set_sel.call_count == 1
+ 
+         # assumes called with *args value.
+         selections = m_set_sel.call_args_list[0][0][0].decode()
+@@ -1342,7 +1340,7 @@ class TestDebconfSelections(TestCase):
+         missing = [
+             line for line in lines if line not in selections.splitlines()
+         ]
+-        self.assertEqual([], missing)
++        assert [] == missing
+ 
+     @mock.patch("cloudinit.config.cc_apt_configure.dpkg_reconfigure")
+     @mock.patch("cloudinit.config.cc_apt_configure.debconf_set_selections")
+@@ -1374,10 +1372,10 @@ class TestDebconfSelections(TestCase):
+ 
+         # reconfigure should be called with the intersection
+         # of (packages in config, packages installed)
+-        self.assertEqual(m_dpkg_r.call_count, 1)
++        assert m_dpkg_r.call_count == 1
+         # assumes called with *args (dpkg_reconfigure([a,b,c], target=))
+         packages = m_dpkg_r.call_args_list[0][0][0]
+-        self.assertEqual(set(["cloud-init", "pkgb"]), set(packages))
++        assert set(["cloud-init", "pkgb"]) == set(packages)
+ 
+     @mock.patch("cloudinit.config.cc_apt_configure.dpkg_reconfigure")
+     @mock.patch("cloudinit.config.cc_apt_configure.debconf_set_selections")
+@@ -1400,12 +1398,12 @@ class TestDebconfSelections(TestCase):
+ 
+         cc_apt_configure.apply_debconf_selections({"debconf_selections": data})
+ 
+-        self.assertTrue(m_get_inst.called)
+-        self.assertEqual(m_dpkg_r.call_count, 0)
++        assert m_get_inst.called is True
++        assert m_dpkg_r.call_count == 0
+ 
+     @mock.patch("cloudinit.config.cc_apt_configure.subp.subp")
+-    def test_dpkg_reconfigure_does_reconfigure(self, m_subp):
+-        target = "/foo-target"
++    def test_dpkg_reconfigure_does_reconfigure(self, m_subp, tmpdir):
++        target = tmpdir.strpath
+ 
+         # due to the way the cleaners are called (via dictionary reference)
+         # mocking clean_cloud_init directly does not work.  So we mock
+@@ -1421,16 +1419,15 @@ class TestDebconfSelections(TestCase):
+             )
+         # cloud-init is actually the only package we have a cleaner for
+         # so for now, its the only one that should reconfigured
+-        self.assertTrue(m_subp.called)
+         ci_cleaner.assert_called_with(target)
+-        self.assertEqual(m_subp.call_count, 1)
++        assert m_subp.call_count == 1
+         found = m_subp.call_args_list[0][0][0]
+         expected = [
+             "dpkg-reconfigure",
+             "--frontend=noninteractive",
+             "cloud-init",
+         ]
+-        self.assertEqual(expected, found)
++        assert expected == found
+ 
+     @mock.patch("cloudinit.config.cc_apt_configure.subp.subp")
+     def test_dpkg_reconfigure_not_done_on_no_data(self, m_subp):
+@@ -1441,7 +1438,3 @@ class TestDebconfSelections(TestCase):
+     def test_dpkg_reconfigure_not_done_if_no_cleaners(self, m_subp):
+         cc_apt_configure.dpkg_reconfigure(["pkgfoo", "pkgbar"])
+         m_subp.assert_not_called()
+-
+-
+-#
+-# vi: ts=4 expandtab
