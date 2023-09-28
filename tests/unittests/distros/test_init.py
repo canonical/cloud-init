@@ -318,7 +318,7 @@ class TestInstall:
         )
         with pytest.raises(
             PackageInstallerError,
-            match="Failed to install the following packages: \['pkg3'\]",
+            match="Failed to install the following packages: \\['pkg3'\\]",
         ):
             _get_distro("debian").install_packages(
                 [{"apt": ["pkg1"]}, "pkg2", {"snap": ["pkg3"]}]

@@ -21,7 +21,6 @@ from io import StringIO
 from typing import (
     Any,
     Dict,
-    Iterable,
     List,
     Mapping,
     MutableMapping,
