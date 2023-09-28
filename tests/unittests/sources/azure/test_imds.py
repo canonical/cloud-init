@@ -481,6 +481,46 @@ class TestFetchMetadataWithApiFallback:
             )
         ]
 
+    def test_logs_unique_errors(
+        self,
+        caplog,
+        mock_requests_session_request,
+        mock_url_helper_time_sleep,
+    ):
+        fake_md = {"foo": {"bar": []}}
+        fake_errors = [
+            fake_http_error_for_code(404),
+            fake_http_error_for_code(410),
+            fake_http_error_for_code(429),
+            fake_http_error_for_code(500),
+            requests.ConnectionError("Fake connection error"),
+            requests.Timeout("Fake connection timeout"),
+        ]
+        attempts = len(fake_errors) + 1
+        mock_requests_session_request.side_effect = fake_errors + [
+            mock.Mock(content=json.dumps(fake_md))
+        ]
+
+        md = imds.fetch_metadata_with_api_fallback(retry_deadline=300)
+
+        assert md == fake_md
+        assert len(mock_requests_session_request.mock_calls) == attempts
+        assert mock_url_helper_time_sleep.mock_calls == [mock.call(1)] * (
+            attempts - 1
+        )
+
+        logs = [t[2] for t in caplog.record_tuples if "Polling IMDS" in t[2]]
+        assert all(
+            [
+                logs[i]
+                == StringMatch(
+                    f"Polling IMDS failed attempt {i+1} with exception:"
+                    f".*{error!s}.*"
+                )
+                for i, error in enumerate(fake_errors)
+            ]
+        )
+
 
 class TestFetchReprovisionData:
     url = (
