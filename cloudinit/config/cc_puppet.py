@@ -22,7 +22,7 @@ from cloudinit import helpers, subp, temp_utils, url_helper, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
-from cloudinit.distros import ALL_DISTROS, Distro, InstallerError
+from cloudinit.distros import ALL_DISTROS, Distro, PackageInstallerError
 from cloudinit.settings import PER_INSTANCE
 
 AIO_INSTALL_URL = "https://raw.githubusercontent.com/puppetlabs/install-puppet/main/install.sh"  # noqa: E501
@@ -242,7 +242,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             to_install: List[Union[str, List[str]]]
             if package_name is None:  # conf has no package_nam
                 for puppet_name in PUPPET_PACKAGE_NAMES:
-                    with suppress(InstallerError):
+                    with suppress(PackageInstallerError):
                         to_install = (
                             [[puppet_name, version]]
                             if version

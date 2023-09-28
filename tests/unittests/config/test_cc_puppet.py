@@ -11,7 +11,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from cloudinit.distros import InstallerError
+from cloudinit.distros import PackageInstallerError
 from cloudinit.subp import ProcessExecutionError
 from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
@@ -408,7 +408,7 @@ class TestPuppetHandle(CiTestCase):
             "tests.unittests.util.MockDistro.install_packages"
         ) as install_pkg:
             # puppet-agent not installed, but puppet is
-            install_pkg.side_effect = (InstallerError, 0)
+            install_pkg.side_effect = (PackageInstallerError, 0)
 
             cc_puppet.handle("notimportant", cfg, self.cloud, None)
             expected_calls = [

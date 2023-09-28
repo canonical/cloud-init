@@ -11,7 +11,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from cloudinit.distros import InstallerError
+from cloudinit.distros import PackageInstallerError
 from cloudinit.subp import SubpResult
 from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
@@ -169,7 +169,7 @@ class TestMultiplePackageManagers:
         cloud = get_cloud("ubuntu")
         cfg = {"packages": ["pkg1"]}
         with mock.patch("cloudinit.subp.subp", side_effect=_new_subp):
-            with pytest.raises(InstallerError):
+            with pytest.raises(PackageInstallerError):
                 handle("", cfg, cloud, [])
 
         assert caplog.records[-3].levelname == "WARNING"

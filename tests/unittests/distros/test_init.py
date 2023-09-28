@@ -11,7 +11,7 @@ import pytest
 
 from cloudinit.distros import (
     LDH_ASCII_CHARS,
-    InstallerError,
+    PackageInstallerError,
     _get_package_mirror_info,
 )
 from tests.unittests.distros import _get_distro
@@ -316,7 +316,10 @@ class TestInstall:
             "cloudinit.distros.package_management.snap.Snap.install_packages",
             return_value=["pkg3"],
         )
-        with pytest.raises(InstallerError):
+        with pytest.raises(
+            PackageInstallerError,
+            match="Failed to install the following packages: \['pkg3'\]",
+        ):
             _get_distro("debian").install_packages(
                 [{"apt": ["pkg1"]}, "pkg2", {"snap": ["pkg3"]}]
             )

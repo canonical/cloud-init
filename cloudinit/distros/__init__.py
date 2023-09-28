@@ -120,7 +120,7 @@ PackageList = Union[
 ]
 
 
-class InstallerError(Exception):
+class PackageInstallerError(Exception):
     pass
 
 
@@ -187,7 +187,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         )
 
     def _extract_package_by_manager(
-        self, pkglist: Iterable
+        self, pkglist: PackageList
     ) -> Tuple[Dict[Type[PackageManager], Set], Set]:
         """Transform the generic package list to package by package manager.
 
@@ -257,7 +257,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             )
 
         if uninstalled:
-            raise InstallerError(error_message, uninstalled)
+            raise PackageInstallerError(error_message % uninstalled)
 
     def _write_network(self, settings):
         """Deprecated. Remove if/when arch and gentoo support renderers."""
