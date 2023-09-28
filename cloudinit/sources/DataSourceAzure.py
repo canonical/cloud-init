@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional
 
 from cloudinit import net, sources, ssh_util, subp, util
 from cloudinit.event import EventScope, EventType
+from cloudinit.net import device_driver
 from cloudinit.net.dhcp import (
     NoDHCPLeaseError,
     NoDHCPLeaseInterfaceError,
@@ -371,7 +372,7 @@ class DataSourceAzure(sources.DataSource):
         iface: Optional[str] = None,
         retry_sleep: int = 1,
         timeout_minutes: int = 5,
-    ) -> None:
+    ) -> bool:
         """Setup ephemeral networking.
 
         Keep retrying DHCP up to specified number of minutes.  This does
@@ -381,13 +382,19 @@ class DataSourceAzure(sources.DataSource):
         :param timeout_minutes: Number of minutes to keep retrying for.
 
         :raises NoDHCPLeaseError: If unable to obtain DHCP lease.
+
+        :returns: True if NIC is determined to be primary.
         """
         if self._ephemeral_dhcp_ctx is not None:
             raise RuntimeError(
                 "Bringing up networking when already configured."
             )
 
-        LOG.debug("Requested ephemeral networking (iface=%s)", iface)
+        report_diagnostic_event(
+            "Bringing up ephemeral networking with iface=%s: %r"
+            % (iface, net.get_interfaces()),
+            logger_func=LOG.debug,
+        )
         self._ephemeral_dhcp_ctx = EphemeralDHCPv4(
             self.distro,
             iface=iface,
@@ -458,15 +465,46 @@ class DataSourceAzure(sources.DataSource):
             if lease is None:
                 self._ephemeral_dhcp_ctx = None
                 raise NoDHCPLeaseError()
-            else:
-                # Ensure iface is set.
-                self._ephemeral_dhcp_ctx.iface = lease["interface"]
 
-                # Update wireserver IP from DHCP options.
-                if "unknown-245" in lease:
-                    self._wireserver_endpoint = get_ip_from_lease_value(
-                        lease["unknown-245"]
-                    )
+            # Ensure iface is set.
+            iface = lease["interface"]
+            self._ephemeral_dhcp_ctx.iface = iface
+
+            # Update wireserver IP from DHCP options.
+            if "unknown-245" in lease:
+                self._wireserver_endpoint = get_ip_from_lease_value(
+                    lease["unknown-245"]
+                )
+
+            driver = device_driver(iface)
+            ephipv4 = self._ephemeral_dhcp_ctx._ephipv4
+            if ephipv4 is None:
+                raise RuntimeError("dhcp context missing ephipv4")
+
+            if not ephipv4.static_routes:
+                # Primary nics must contain routes.
+                primary = False
+            else:
+                routed_networks = [r[0] for r in ephipv4.static_routes]
+                primary = any(
+                    n in routed_networks
+                    for n in ["168.63.129.16/32", "169.254.169.254/32"]
+                )
+
+            report_diagnostic_event(
+                "Obtained DHCP lease on interface %r "
+                "(primary=%r driver=%r router=%r routes=%r lease=%r)"
+                % (
+                    iface,
+                    primary,
+                    driver,
+                    ephipv4.router,
+                    ephipv4.static_routes,
+                    lease,
+                ),
+                logger_func=LOG.debug,
+            )
+            return primary
 
     @azure_ds_telemetry_reporter
     def _teardown_ephemeral_networking(self) -> None:
@@ -1007,32 +1045,6 @@ class DataSourceAzure(sources.DataSource):
             self._create_report_ready_marker()
 
     @azure_ds_telemetry_reporter
-    def _check_if_nic_is_primary(self, ifname: str) -> bool:
-        """Check if a given interface is the primary nic or not."""
-        # For now, only a VM's primary NIC can contact IMDS and WireServer. If
-        # DHCP fails for a NIC, we have no mechanism to determine if the NIC is
-        # primary or secondary. In this case, retry DHCP until successful.
-        self._setup_ephemeral_networking(iface=ifname, timeout_minutes=20)
-
-        # Primary nic detection will be optimized in the future. The fact that
-        # primary nic is being attached first helps here. Otherwise each nic
-        # could add several seconds of delay.
-        imds_md = self.get_metadata_from_imds(report_failure=False)
-        if imds_md:
-            # Only primary NIC will get a response from IMDS.
-            LOG.info("%s is the primary nic", ifname)
-            return True
-
-        # If we are not the primary nic, then clean the dhcp context.
-        LOG.warning(
-            "Failed to fetch IMDS metadata using nic %s. "
-            "Assuming this is not the primary nic.",
-            ifname,
-        )
-        self._teardown_ephemeral_networking()
-        return False
-
-    @azure_ds_telemetry_reporter
     def _wait_for_hot_attached_primary_nic(self, nl_sock):
         """Wait until the primary nic for the vm is hot-attached."""
         LOG.info("Waiting for primary nic to be hot-attached")
@@ -1073,12 +1085,16 @@ class DataSourceAzure(sources.DataSource):
                 # won't be in primary_nic_found = false state for long.
                 if not primary_nic_found:
                     LOG.info("Checking if %s is the primary nic", ifname)
-                    primary_nic_found = self._check_if_nic_is_primary(ifname)
+                    primary_nic_found = self._setup_ephemeral_networking(
+                        iface=ifname, timeout_minutes=20
+                    )
 
                 # Exit criteria: check if we've discovered primary nic
                 if primary_nic_found:
                     LOG.info("Found primary nic for this VM.")
                     break
+                else:
+                    self._teardown_ephemeral_networking()
 
         except AssertionError as error:
             report_diagnostic_event(str(error), logger_func=LOG.error)
