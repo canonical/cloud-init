@@ -1,3 +1,4 @@
 cpick-0d9f149a-Pytestify-apt-config-test-modules-4424
 cpick-5023e9f9-Refactor-test_apt_source_v1.py-to-use-pytest-4427
 cpick-e9cdd7e3-Install-gnupg-if-gpg-not-found-4431
+cpick-015543d3-apt-install-software-properties-common-when-absent-but
