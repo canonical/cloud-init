@@ -12,6 +12,7 @@ import logging
 import os
 
 from cloudinit import distros, helpers, subp, util
+from cloudinit.distros import PackageList
 from cloudinit.distros import rhel_util as rhutil
 from cloudinit.distros.parsers.hostname import HostnameConf
 from cloudinit.settings import PER_INSTANCE
@@ -67,7 +68,7 @@ class Distro(distros.Distro):
             locale_cfg = {"RC_LANG": locale}
         rhutil.update_sysconfig_file(out_fn, locale_cfg)
 
-    def install_packages(self, pkglist):
+    def install_packages(self, pkglist: PackageList):
         self.package_command(
             "install", args="--auto-agree-with-licenses", pkgs=pkglist
         )

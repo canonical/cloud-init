@@ -10,7 +10,9 @@ import re
 
 import pytest
 
-from tests.integration_tests.releases import IS_UBUNTU
+from tests.integration_tests.clouds import IntegrationCloud
+from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
+from tests.integration_tests.util import verify_clean_log
 
 USER_DATA = """\
 #cloud-config
@@ -83,3 +85,27 @@ class TestPackageUpdateUpgradeInstall:
         output = class_client.execute("snap list")
         assert "curl" in output
         assert "postman" in output
+
+
+HELLO_VERSIONS_BY_RELEASE = {
+    "mantic": "2.10-3",
+    "lunar": "2.10-3",
+    "jammy": "2.10-2ubuntu4",
+    "focal": "2.10-2ubuntu2",
+}
+
+VERSIONED_USER_DATA = """\
+#cloud-config
+packages:
+- [hello, {pkg_version}]
+"""
+
+
+@pytest.mark.skipif(not IS_UBUNTU, reason="Uses Apt")
+def test_versioned_packages_are_installed(session_cloud: IntegrationCloud):
+    pkg_version = HELLO_VERSIONS_BY_RELEASE[CURRENT_RELEASE.series]
+    with session_cloud.launch(
+        user_data=VERSIONED_USER_DATA.format(pkg_version=pkg_version)
+    ) as client:
+        verify_clean_log(client.read_from_file("/var/log/cloud-init.log"))
+        assert f"hello	{pkg_version}" == client.execute("dpkg-query -W hello")

@@ -29,6 +29,7 @@ from typing import (
     Set,
     Tuple,
     Type,
+    Union,
 )
 
 import cloudinit.net.netops.iproute2 as iproute2
@@ -104,6 +105,24 @@ PREFERRED_NTP_CLIENTS = ["chrony", "systemd-timesyncd", "ntp", "ntpdate"]
 # Letters/Digits/Hyphen characters, for use in domain name validation
 LDH_ASCII_CHARS = string.ascii_letters + string.digits + "-"
 
+# Before you try to go rewriting this better using Unions, read
+# https://github.com/microsoft/pyright/blob/main/docs/type-concepts.md#generic-types  # noqa: E501
+# The Immutable types mentioned there won't work for us because
+# we need to distinguish between a str and a Sequence[str]
+# This also isn't exhaustive. If you have a unique case that adheres to
+# the `packages` schema, you can add it here.
+PackageList = Union[
+    List[str],
+    List[Mapping],
+    List[List[str]],
+    List[Union[str, List[str]]],
+    List[Union[str, List[str], Mapping]],
+]
+
+
+class InstallerError(Exception):
+    pass
+
 
 class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     pip_package_name = "python3-pip"
@@ -156,6 +175,17 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             # missing expected instance state otherwise.
             self.networking = self.networking_cls()
 
+    def _validate_entry(self, entry):
+        if isinstance(entry, str):
+            return entry
+        elif isinstance(entry, (list, tuple)):
+            if len(entry) == 2:
+                return tuple(entry)
+        raise ValueError(
+            "Invalid 'packages' yaml specification. "
+            "Check schema definition."
+        )
+
     def _extract_package_by_manager(
         self, pkglist: Iterable
     ) -> Tuple[Dict[Type[PackageManager], Set], Set]:
@@ -169,8 +199,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if isinstance(entry, dict):
                 for package_manager, package_list in entry.items():
                     for definition in package_list:
-                        if isinstance(definition, list):
-                            definition = tuple(definition)
+                        definition = self._validate_entry(definition)
                         try:
                             packages_by_manager[
                                 known_package_managers[package_manager]
@@ -181,16 +210,11 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                                 "not a supported package manager!",
                                 package_manager,
                             )
-            elif isinstance(entry, str):
-                generic_packages.add(entry)
             else:
-                raise ValueError(
-                    "Invalid 'packages' yaml specification. "
-                    "Check schema definition."
-                )
+                generic_packages.add(self._validate_entry(entry))
         return dict(packages_by_manager), generic_packages
 
-    def install_packages(self, pkglist):
+    def install_packages(self, pkglist: PackageList):
         error_message = (
             "Failed to install the following packages: %s. "
             "See associated package manager logs for more details."
@@ -217,23 +241,23 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 pkg for pkg in uninstalled if pkg not in generic_packages
             }
             if failed:
-                LOG.error(error_message, failed)
+                LOG.info(error_message, failed)
             generic_packages = set(uninstalled)
 
         # Now attempt any specified package managers not explicitly supported
         # by distro
-        for manager, packages in packages_by_manager.items():
-            if manager.name in [p.name for p in self.package_managers]:
+        for manager_type, packages in packages_by_manager.items():
+            if manager_type.name in [p.name for p in self.package_managers]:
                 # We already installed/attempted these; don't try again
                 continue
             uninstalled.extend(
-                manager.from_config(self._runner, self._cfg).install_packages(
-                    pkglist=packages
-                )
+                manager_type.from_config(
+                    self._runner, self._cfg
+                ).install_packages(pkglist=packages)
             )
 
         if uninstalled:
-            LOG.error(error_message, uninstalled)
+            raise InstallerError(error_message, uninstalled)
 
     def _write_network(self, settings):
         """Deprecated. Remove if/when arch and gentoo support renderers."""

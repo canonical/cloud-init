@@ -9,7 +9,11 @@ from unittest import mock
 
 import pytest
 
-from cloudinit.distros import LDH_ASCII_CHARS, _get_package_mirror_info
+from cloudinit.distros import (
+    LDH_ASCII_CHARS,
+    InstallerError,
+    _get_package_mirror_info,
+)
 from tests.unittests.distros import _get_distro
 
 # In newer versions of Python, these characters will be omitted instead
@@ -266,6 +270,12 @@ class TestInstall:
             return_value=[],
         )
 
+    @pytest.fixture
+    def m_subp(self, mocker):
+        return mocker.patch(
+            "cloudinit.distros.bsd.subp.subp", return_value=("", "")
+        )
+
     def test_invalid_yaml(self, m_apt_install):
         """Test that an invalid YAML raises an exception."""
         with pytest.raises(ValueError):
@@ -306,13 +316,23 @@ class TestInstall:
             "cloudinit.distros.package_management.snap.Snap.install_packages",
             return_value=["pkg3"],
         )
-        _get_distro("debian").install_packages(
-            [{"apt": ["pkg1"]}, "pkg2", {"snap": ["pkg3"]}]
-        )
+        with pytest.raises(InstallerError):
+            _get_distro("debian").install_packages(
+                [{"apt": ["pkg1"]}, "pkg2", {"snap": ["pkg3"]}]
+            )
 
         assert "pkg3" in m_snap_install.call_args_list[0][1]["pkglist"]
-        assert (
-            "Failed to install the following packages: ['pkg3']. "
-            "See associated package manager logs for more details"
-            in caplog.text
+
+    def test_default_and_specific_package_manager(
+        self, m_apt_install, m_snap_install
+    ):
+        """Test success from package manager not supported by distro."""
+        _get_distro("ubuntu").install_packages(
+            ["pkg1", ["pkg3", "ver3"], {"apt": [["pkg2", "ver2"]]}]
         )
+        apt_install_args = m_apt_install.call_args_list[0][0][0]
+        assert "pkg1" in apt_install_args
+        assert ("pkg2", "ver2") in apt_install_args
+        assert "pkg3" not in apt_install_args
+
+        m_snap_install.assert_not_called()

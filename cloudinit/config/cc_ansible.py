@@ -136,7 +136,7 @@ class AnsiblePullPip(AnsiblePull):
             try:
                 import pip  # noqa: F401
             except ImportError:
-                self.distro.install_packages(self.distro.pip_package_name)
+                self.distro.install_packages([self.distro.pip_package_name])
             cmd = [
                 sys.executable,
                 "-m",
@@ -162,7 +162,7 @@ class AnsiblePullPip(AnsiblePull):
 class AnsiblePullDistro(AnsiblePull):
     def install(self, pkg_name: str):
         if not self.is_installed():
-            self.distro.install_packages(pkg_name)
+            self.distro.install_packages([pkg_name])
 
     def is_installed(self) -> bool:
         return bool(which("ansible"))

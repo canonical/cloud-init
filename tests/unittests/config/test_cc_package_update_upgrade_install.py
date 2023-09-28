@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import logging
 from unittest import mock
 
 import pytest
@@ -10,6 +11,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
+from cloudinit.distros import InstallerError
 from cloudinit.subp import SubpResult
 from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
@@ -150,6 +152,7 @@ class TestMultiplePackageManagers:
         """Since we haven't checked the package(s) existence, we should fall
         through to additional package installs.
         """
+        caplog.set_level(logging.DEBUG)
 
         def _new_subp(*args, **kwargs):
             if args:
@@ -166,14 +169,13 @@ class TestMultiplePackageManagers:
         cloud = get_cloud("ubuntu")
         cfg = {"packages": ["pkg1"]}
         with mock.patch("cloudinit.subp.subp", side_effect=_new_subp):
-            handle("", cfg, cloud, [])
+            with pytest.raises(InstallerError):
+                handle("", cfg, cloud, [])
 
-        assert caplog.records[1].levelname == "INFO"
-        assert caplog.records[1].message == "Failed to 'snap install pkg1'!"
-
-        assert caplog.records[2].levelname == "ERROR"
-        assert caplog.records[2].message.startswith(
-            "Failed to install the following packages: ['pkg1']"
+        assert caplog.records[-3].levelname == "WARNING"
+        assert (
+            caplog.records[-3].message
+            == "Failed to install packages: ['pkg1']"
         )
 
 

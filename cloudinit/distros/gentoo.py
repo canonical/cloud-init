@@ -9,7 +9,7 @@
 import logging
 
 from cloudinit import distros, helpers, subp, util
-from cloudinit.distros import net_util
+from cloudinit.distros import PackageList, net_util
 from cloudinit.distros.parsers.hostname import HostnameConf
 from cloudinit.settings import PER_INSTANCE
 
@@ -56,7 +56,7 @@ class Distro(distros.Distro):
             ["eselect", "locale", "set", self.default_locale], capture=False
         )
 
-    def install_packages(self, pkglist):
+    def install_packages(self, pkglist: PackageList):
         self.update_package_sources()
         self.package_command("", pkgs=pkglist)
 
