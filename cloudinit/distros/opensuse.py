@@ -10,6 +10,7 @@
 
 import logging
 import os
+from contextlib import suppress
 from typing import Optional
 
 from cloudinit import distros, helpers, subp, util
@@ -402,7 +403,10 @@ class Distro(distros.Distro):
                 for device_name in devices:
                     config_routes = ""
                     device_config = devices[device_name]
-                    try:
+                    # the parser expects another level of nesting
+                    # which should be there in case it's properly
+                    # formatted; if not we may get an exception on items()
+                    with suppress(AttributeError):
                         gateways = [
                             v
                             for k, v in device_config.items()
@@ -421,8 +425,3 @@ class Distro(distros.Distro):
                                 )
                             )
                             util.write_file(route_file, config_routes)
-                    except Exception:
-                        # the parser above expects another level of nesting
-                        # which should be there in case it's properly
-                        # formatted; if not we may get an exception on items()
-                        pass
