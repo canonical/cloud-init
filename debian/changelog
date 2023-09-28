@@ -1,3 +1,14 @@
+cloud-init (23.3.1-0ubuntu2) UNRELEASED; urgency=medium
+
+  * New upstream bug fix release based on 23.3.1.
+    + Install missing dependencies in apt module if required for minimal images.
+      - d/p/cpick-0d9f149a-Pytestify-apt-config-test-modules-4424
+      - d/p/cpick-5023e9f9-Refactor-test_apt_source_v1.py-to-use-pytest-4427
+      - d/p/cpick-e9cdd7e3-Install-gnupg-if-gpg-not-found-4431
+      - d/p/cpick-015543d3-apt-install-software-properties-common-when-absent-but
+
+ -- Brett Holman <brett.holman@canonical.com>  Thu, 28 Sep 2023 10:20:51 -0500
+
 cloud-init (23.3.1-0ubuntu1) mantic; urgency=medium
 
   * New upstream bug fix release based on 23.3.1.
