@@ -16,7 +16,7 @@ import re
 import shutil
 import signal
 from textwrap import dedent, indent
-from typing import Dict
+from typing import Dict, Iterable, List, Mapping
 
 from cloudinit import features, gpg, subp, templater, util
 from cloudinit.cloud import Cloud
@@ -37,7 +37,7 @@ DISABLE_SUITES_REDACT_PREFIX = "# cloud-init disable_suites redacted: "
 frequency = PER_INSTANCE
 distros = ["ubuntu", "debian"]
 
-PACKAGE_DEPENDENCY_BY_COMMAND = {
+PACKAGE_DEPENDENCY_BY_COMMAND: Mapping[str, str] = {
     "add-apt-repository": "software-properties-common",
     "gpg": "gnupg",
 }
@@ -709,8 +709,8 @@ def _ensure_dependencies(cfg, aa_repo_match, cloud):
     distro.install_packages due to a preliminary 'apt update' called before
     package installation.
     """
-    missing_packages = []
-    required_cmds = set()
+    missing_packages: List[str] = []
+    required_cmds: Iterable[str] = set()
     if util.is_false(cfg.get("preserve_sources_list", False)):
         for mirror_key in ("primary", "security"):
             if cfg.get(mirror_key):

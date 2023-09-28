@@ -8,7 +8,7 @@ import logging
 import os
 
 from cloudinit import distros, helpers, subp, util
-from cloudinit.distros import net_util
+from cloudinit.distros import PackageList, net_util
 from cloudinit.distros.parsers.hostname import HostnameConf
 from cloudinit.net.renderer import Renderer
 from cloudinit.net.renderers import RendererNotFoundError
@@ -57,7 +57,7 @@ class Distro(distros.Distro):
         # https://github.com/systemd/systemd/pull/9864
         subp.subp(["localectl", "set-locale", locale], capture=False)
 
-    def install_packages(self, pkglist):
+    def install_packages(self, pkglist: PackageList):
         self.update_package_sources()
         self.package_command("", pkgs=pkglist)
 

@@ -56,7 +56,7 @@ class TestLandscape:
             None,
         )
         mycloud.distro.install_packages.assert_called_once_with(
-            ("landscape-client",)
+            ["landscape-client"]
         )
         assert [
             mock.call(
@@ -119,7 +119,7 @@ class TestLandscape:
             None,
         )
         mycloud.distro.install_packages.assert_called_once_with(
-            ("landscape-client",)
+            ["landscape-client"]
         )
         assert expected_calls == m_subp.call_args_list
         assert "RUN=1\n" == default_fn.read()

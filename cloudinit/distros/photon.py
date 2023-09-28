@@ -5,6 +5,7 @@
 import logging
 
 from cloudinit import distros, helpers, net, subp, util
+from cloudinit.distros import PackageList
 from cloudinit.distros import rhel_util as rhutil
 from cloudinit.settings import PER_INSTANCE
 
@@ -82,7 +83,7 @@ class Distro(distros.Distro):
         cmd = ["systemctl", "restart", "systemd-localed"]
         self.exec_cmd(cmd)
 
-    def install_packages(self, pkglist):
+    def install_packages(self, pkglist: PackageList):
         # self.update_package_sources()
         self.package_command("install", pkgs=pkglist)
 

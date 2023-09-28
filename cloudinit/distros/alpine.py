@@ -69,7 +69,7 @@ class Distro(distros.Distro):
         ]
         util.write_file(out_fn, "\n".join(lines), 0o644)
 
-    def install_packages(self, pkglist):
+    def install_packages(self, pkglist: distros.PackageList):
         self.update_package_sources()
         self.package_command("add", pkgs=pkglist)
 

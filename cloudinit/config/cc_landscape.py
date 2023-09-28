@@ -132,7 +132,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         )
     if not ls_cloudcfg:
         return
-    cloud.distro.install_packages(("landscape-client",))
+    cloud.distro.install_packages(["landscape-client"])
 
     # Later order config values override earlier values
     merge_data = [

@@ -310,14 +310,14 @@ class TestAnsible:
             if install == "distro":
                 cloud.distro.install_packages.assert_called_once()
                 cloud.distro.install_packages.assert_called_with(
-                    "ansible-core"
+                    ["ansible-core"]
                 )
             elif install == "pip":
                 if HAS_PIP:
                     assert 0 == cloud.distro.install_packages.call_count
                 else:
                     cloud.distro.install_packages.assert_called_with(
-                        "python3-pip"
+                        ["python3-pip"]
                     )
 
     @mock.patch(M_PATH + "which", return_value=False)

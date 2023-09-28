@@ -11,8 +11,10 @@
 import logging
 import os
 import socket
+from contextlib import suppress
 from io import StringIO
 from textwrap import dedent
+from typing import List, Union
 
 import yaml
 
@@ -20,7 +22,7 @@ from cloudinit import helpers, subp, temp_utils, url_helper, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
-from cloudinit.distros import ALL_DISTROS, Distro
+from cloudinit.distros import ALL_DISTROS, Distro, PackageInstallerError
 from cloudinit.settings import PER_INSTANCE
 
 AIO_INSTALL_URL = "https://raw.githubusercontent.com/puppetlabs/install-puppet/main/install.sh"  # noqa: E501
@@ -237,21 +239,28 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         )
 
         if install_type == "packages":
+            to_install: List[Union[str, List[str]]]
             if package_name is None:  # conf has no package_nam
                 for puppet_name in PUPPET_PACKAGE_NAMES:
-                    try:
-                        cloud.distro.install_packages((puppet_name, version))
+                    with suppress(PackageInstallerError):
+                        to_install = (
+                            [[puppet_name, version]]
+                            if version
+                            else [puppet_name]
+                        )
+                        cloud.distro.install_packages(to_install)
                         package_name = puppet_name
                         break
-                    except subp.ProcessExecutionError:
-                        pass
                 if not package_name:
                     LOG.warning(
                         "No installable puppet package in any of: %s",
                         ", ".join(PUPPET_PACKAGE_NAMES),
                     )
             else:
-                cloud.distro.install_packages((package_name, version))
+                to_install = (
+                    [[package_name, version]] if version else [package_name]
+                )
+                cloud.distro.install_packages(to_install)
 
         elif install_type == "aio":
             install_puppet_aio(
@@ -289,7 +298,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         puppet_config.read_file(
             StringIO(cleaned_contents), source=p_constants.conf_path
         )
-        for (cfg_name, cfg) in puppet_cfg["conf"].items():
+        for cfg_name, cfg in puppet_cfg["conf"].items():
             # Cert configuration is a special case
             # Dump the puppetserver ca certificate in the correct place
             if cfg_name == "ca_cert":
@@ -307,7 +316,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             else:
                 # Iterate through the config items, we'll use ConfigParser.set
                 # to overwrite or create new items as needed
-                for (o, v) in cfg.items():
+                for o, v in cfg.items():
                     if o == "certname":
                         # Expand %f as the fqdn
                         # TODO(harlowja) should this use the cloud fqdn??
