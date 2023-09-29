@@ -106,7 +106,6 @@ html_theme_options = {
     },
 }
 
-
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 html_static_path = ["static"]
@@ -131,4 +130,3 @@ notfound_context = {
     "title": "Page not found",
     "body": notfound_body,
 }
-
