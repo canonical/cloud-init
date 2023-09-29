@@ -23,6 +23,7 @@ from tests.integration_tests.clouds import (
     LxdVmCloud,
     OciCloud,
     OpenstackCloud,
+    QemuCloud,
     _LxdIntegrationCloud,
 )
 from tests.integration_tests.instances import (
@@ -42,6 +43,7 @@ platforms: Dict[str, Type[IntegrationCloud]] = {
     "ibm": IbmCloud,
     "lxd_container": LxdContainerCloud,
     "lxd_vm": LxdVmCloud,
+    "qemu": QemuCloud,
     "openstack": OpenstackCloud,
 }
 os_list = ["ubuntu"]
