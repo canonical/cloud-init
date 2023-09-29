@@ -16,6 +16,12 @@ precedence; each item overriding the previous.
 - **Kernel command line**: ``ip=`` or
   ``network-config=<Base64 encoded YAML config string>``
 
+Cloud-init will write out the following files representing the network-config
+processed:
+
+- :file:`/run/cloud-init/network-config.json`: world-readable JSON containing
+  the selected source network-config JSON used by cloud-init network renderers.
+
 User data cannot change an instance's network configuration. In the absence
 of network configuration in any of the above sources, ``cloud-init`` will
 write out a network configuration that will issue a DHCP request on a "first"
