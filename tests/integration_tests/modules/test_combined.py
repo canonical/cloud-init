@@ -327,6 +327,27 @@ class TestCombined:
         assert data["system_info"]["default_user"]["name"] == "ubuntu"
 
     @pytest.mark.skipif(
+        PLATFORM not in ("lxd_vm", "lxd_container"),
+        reason="Test is LXD specific",
+    )
+    def test_network_config_json(self, class_client: IntegrationInstance):
+        client = class_client
+        network_json = client.read_from_file(
+            "/run/cloud-init/network-config.json"
+        )
+        devname = "eth0" if PLATFORM == "lxd_container" else "enp5s0"
+        assert {
+            "config": [
+                {
+                    "name": devname,
+                    "subnets": [{"control": "auto", "type": "dhcp"}],
+                    "type": "physical",
+                }
+            ],
+            "version": 1,
+        } == json.loads(network_json)
+
+    @pytest.mark.skipif(
         PLATFORM != "lxd_container",
         reason="Test is LXD container specific",
     )
