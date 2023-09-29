@@ -16,14 +16,15 @@ KEEP_IMAGE = False
 RUN_UNSTABLE = False
 
 # One of:
-#  lxd_container
-#  lxd_vm
 #  azure
 #  ec2
 #  gce
 #  ibm
+#  lxd_container
+#  lxd_vm
 #  oci
 #  openstack
+#  qemu
 PLATFORM = "lxd_container"
 
 # The cloud-specific instance type to run. E.g., a1.medium on AWS
