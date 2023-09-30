@@ -9,6 +9,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import collections.abc
+import copy
 import io
 import logging
 import logging.config
@@ -16,7 +17,9 @@ import logging.handlers
 import os
 import sys
 import time
+from collections import defaultdict
 from contextlib import suppress
+from typing import DefaultDict
 
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
 
@@ -62,6 +65,10 @@ def setup_logging(cfg=None):
     if not cfg:
         cfg = {}
 
+    root_logger = logging.getLogger()
+    exporter = LogExporter()
+    exporter.setLevel(logging.WARN)
+
     log_cfgs = []
     log_cfg = cfg.get("logcfg")
     if log_cfg and isinstance(log_cfg, str):
@@ -98,8 +105,14 @@ def setup_logging(cfg=None):
             # Attempt to load its config.
             logging.config.fileConfig(log_cfg)
 
+            # Configure warning exporter after loading logging configuration
+            root_logger.addHandler(exporter)
+
             # Use the first valid configuration.
             return
+
+    # Configure warning exporter for basic logging
+    root_logger.addHandler(exporter)
 
     # If it didn't work, at least setup a basic logger (if desired)
     basic_enabled = cfg.get("log_basic", True)
@@ -110,6 +123,19 @@ def setup_logging(cfg=None):
     if basic_enabled:
         sys.stderr.write("Setting up basic logging...\n")
         setup_basic_logging()
+
+
+class LogExporter(logging.StreamHandler):
+    holder: DefaultDict[str, list] = defaultdict(list)
+
+    def emit(self, record: logging.LogRecord):
+        self.holder[record.levelname].append(record.getMessage())
+
+    def export_logs(self):
+        return copy.deepcopy(self.holder)
+
+    def flush(self):
+        pass
 
 
 def reset_logging():
@@ -153,3 +179,8 @@ def configure_root_logger():
     define_deprecation_logger()
     setup_backup_logging()
     reset_logging()
+
+    # add handler only to the root logger
+    handler = LogExporter()
+    handler.setLevel(logging.WARN)
+    logging.getLogger().addHandler(handler)
