@@ -612,13 +612,16 @@ class TestMountsSchema:
             ({"swap": {"size": "1.5MB"}}, "swap.size:"),
             (
                 {"swap": {"maxsize": "1.5MT"}},
-                "swap.maxsize: '1.5MT' is not valid",
+                re.escape("swap.maxsize: '1.5MT' does not match '^([0-9]+)?"),
             ),
             (
                 {"swap": {"maxsize": "..5T"}},
-                "swap.maxsize: '..5T' is not valid",
+                re.escape("swap.maxsize: '..5T' does not match '^([0-9]+)?"),
             ),
-            ({"swap": {"size": "K"}}, "swap.size: 'K' is not valid"),
+            (
+                {"swap": {"size": "K"}},
+                "swap.size: 'K' is not of type 'integer'",
+            ),
         ],
     )
     @test_helpers.skipUnlessJsonSchema()
