@@ -2,6 +2,7 @@
 
 import logging
 import os
+import re
 import shutil
 
 import pytest
@@ -98,9 +99,9 @@ class TestUpdateEtcHosts:
                 {"manage_etc_hosts": "templatey"},
                 pytest.raises(
                     SchemaValidationError,
-                    match=(
-                        "manage_etc_hosts: 'templatey' is not valid under any"
-                        " of the given schemas"
+                    match=re.escape(
+                        "manage_etc_hosts: 'templatey' is not one of"
+                        " ['template']",
                     ),
                 ),
             ),
