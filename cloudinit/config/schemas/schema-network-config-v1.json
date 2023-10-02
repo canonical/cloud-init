@@ -417,7 +417,7 @@
     "anyOf_type_route": {
       "type": "object",
       "additionalProperties": false,
-      "anyOf": [
+      "oneOf": [
         {
           "required": [
             "network",
@@ -566,13 +566,20 @@
       }
     }
   },
-  "required": [
-    "network"
-  ],
-  "properties": {
-    "network": {
+  "oneOf": [
+    {
       "$ref": "#/$defs/network_config_version1"
+    },
+    {
+      "required": [
+        "network"
+      ],
+      "properties": {
+        "network": {
+          "$ref": "#/$defs/network_config_version1"
+        }
+      },
+      "additionalProperties": false
     }
-  },
-  "additionalProperties": false
+  ]
 }
