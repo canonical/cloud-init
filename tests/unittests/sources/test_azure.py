@@ -3539,6 +3539,64 @@ class TestEphemeralNetworking:
         assert error_reasons == [error_reason] * 3
 
 
+class TestCheckIfPrimary:
+    @pytest.mark.parametrize(
+        "static_routes",
+        [
+            [("168.63.129.16/32", "10.0.0.1")],
+            [("169.254.169.254/32", "10.0.0.1")],
+        ],
+    )
+    def test_primary(self, azure_ds, static_routes):
+        ephipv4 = ephemeral.EphemeralIPv4Network(
+            distro="ubuntu",
+            interface="eth0",
+            ip="10.0.0.4",
+            prefix_or_mask="32",
+            broadcast="255.255.255.255",
+            router="10.0.0.1",
+            static_routes=static_routes,
+        )
+
+        assert azure_ds._check_if_primary(ephipv4) is True
+
+    def test_primary_via_wireserver_specified_in_option_245(self, azure_ds):
+        ephipv4 = ephemeral.EphemeralIPv4Network(
+            distro="ubuntu",
+            interface="eth0",
+            ip="10.0.0.4",
+            prefix_or_mask="32",
+            broadcast="255.255.255.255",
+            router="10.0.0.1",
+            static_routes=[("1.2.3.4/32", "10.0.0.1")],
+        )
+        azure_ds._wireserver_endpoint = "1.2.3.4"
+
+        assert azure_ds._check_if_primary(ephipv4) is True
+
+    @pytest.mark.parametrize(
+        "static_routes",
+        [
+            [],
+            [("0.0.0.0/0", "10.0.0.1")],
+            [("10.10.10.10/16", "10.0.0.1")],
+        ],
+    )
+    def test_secondary(self, azure_ds, static_routes):
+        ephipv4 = ephemeral.EphemeralIPv4Network(
+            distro="ubuntu",
+            interface="eth0",
+            ip="10.0.0.4",
+            prefix_or_mask="32",
+            broadcast="255.255.255.255",
+            router="10.0.0.1",
+            static_routes=static_routes,
+        )
+        azure_ds._wireserver_endpoint = "1.2.3.4"
+
+        assert azure_ds._check_if_primary(ephipv4) is False
+
+
 class TestInstanceId:
     def test_metadata(self, azure_ds, mock_dmi_read_dmi_data):
         azure_ds.metadata = {"instance-id": "test-id"}

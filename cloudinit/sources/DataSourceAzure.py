@@ -25,7 +25,7 @@ from cloudinit.net.dhcp import (
     NoDHCPLeaseInterfaceError,
     NoDHCPLeaseMissingDhclientError,
 )
-from cloudinit.net.ephemeral import EphemeralDHCPv4
+from cloudinit.net.ephemeral import EphemeralDHCPv4, EphemeralIPv4Network
 from cloudinit.reporting import events
 from cloudinit.sources.azure import errors, identity, imds, kvp
 from cloudinit.sources.helpers import netlink
@@ -366,6 +366,25 @@ class DataSourceAzure(sources.DataSource):
         return "%s (%s)" % (subplatform_type, self.seed)
 
     @azure_ds_telemetry_reporter
+    def _check_if_primary(self, ephipv4: EphemeralIPv4Network) -> bool:
+        if not ephipv4.static_routes:
+            # Primary nics must contain routes.
+            return False
+
+        routed_networks = [r[0] for r in ephipv4.static_routes]
+        wireserver_route = f"{self._wireserver_endpoint}/32"
+        primary = any(
+            n in routed_networks
+            for n in [
+                "168.63.129.16/32",
+                "169.254.169.254/32",
+                wireserver_route,
+            ]
+        )
+
+        return primary
+
+    @azure_ds_telemetry_reporter
     def _setup_ephemeral_networking(
         self,
         *,
@@ -481,16 +500,7 @@ class DataSourceAzure(sources.DataSource):
             if ephipv4 is None:
                 raise RuntimeError("dhcp context missing ephipv4")
 
-            if not ephipv4.static_routes:
-                # Primary nics must contain routes.
-                primary = False
-            else:
-                routed_networks = [r[0] for r in ephipv4.static_routes]
-                primary = any(
-                    n in routed_networks
-                    for n in ["168.63.129.16/32", "169.254.169.254/32"]
-                )
-
+            primary = self._check_if_primary(ephipv4)
             report_diagnostic_event(
                 "Obtained DHCP lease on interface %r "
                 "(primary=%r driver=%r router=%r routes=%r lease=%r)"
