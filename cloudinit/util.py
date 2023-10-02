@@ -1166,7 +1166,7 @@ def read_cc_from_cmdline(cmdline=None):
     if cmdline is None:
         cmdline = get_cmdline()
 
-    tag_begin = "cc:"
+    tag_begin = " cc:"
     tag_end = "end_cc"
     begin_l = len(tag_begin)
     end_l = len(tag_end)
