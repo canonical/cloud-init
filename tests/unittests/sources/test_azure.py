@@ -3918,7 +3918,11 @@ class TestProvisioning:
         # Verify DHCP is setup twice.
         assert self.mock_wrapping_setup_ephemeral_networking.mock_calls == [
             mock.call(timeout_minutes=20),
-            mock.call(iface="ethAttached1", timeout_minutes=20),
+            mock.call(
+                iface="ethAttached1",
+                timeout_minutes=20,
+                report_failure_if_not_primary=False,
+            ),
         ]
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
             mock.call(
@@ -4066,7 +4070,11 @@ class TestProvisioning:
         # Verify DHCP is setup twice.
         assert self.mock_wrapping_setup_ephemeral_networking.mock_calls == [
             mock.call(timeout_minutes=20),
-            mock.call(iface="ethAttached1", timeout_minutes=20),
+            mock.call(
+                iface="ethAttached1",
+                timeout_minutes=20,
+                report_failure_if_not_primary=False,
+            ),
         ]
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
             mock.call(

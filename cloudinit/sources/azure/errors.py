@@ -8,7 +8,7 @@ import logging
 import traceback
 from datetime import datetime
 from io import StringIO
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
@@ -105,6 +105,25 @@ class ReportableErrorDhcpLease(ReportableError):
 
         self.supporting_data["duration"] = duration
         self.supporting_data["interface"] = interface
+
+
+class ReportableErrorDhcpOnNonPrimaryInterface(ReportableError):
+    def __init__(
+        self,
+        *,
+        interface: Optional[str],
+        driver: Optional[str],
+        router: Optional[str],
+        static_routes: Optional[List[Tuple[str, str]]],
+        lease: Dict[str, Any],
+    ) -> None:
+        super().__init__("failure to find primary DHCP interface")
+
+        self.supporting_data["interface"] = interface
+        self.supporting_data["driver"] = driver
+        self.supporting_data["router"] = router
+        self.supporting_data["static_routes"] = static_routes
+        self.supporting_data["lease"] = lease
 
 
 class ReportableErrorImdsUrlError(ReportableError):

@@ -388,6 +388,7 @@ class DataSourceAzure(sources.DataSource):
         self,
         *,
         iface: Optional[str] = None,
+        report_failure_if_not_primary: bool = True,
         retry_sleep: int = 1,
         timeout_minutes: int = 5,
     ) -> bool:
@@ -513,6 +514,18 @@ class DataSourceAzure(sources.DataSource):
                 ),
                 logger_func=LOG.debug,
             )
+
+            if report_failure_if_not_primary and not primary:
+                self._report_failure(
+                    errors.ReportableErrorDhcpOnNonPrimaryInterface(
+                        interface=iface,
+                        driver=driver,
+                        router=ephipv4.router,
+                        static_routes=ephipv4.static_routes,
+                        lease=lease,
+                    ),
+                    host_only=True,
+                )
             return primary
 
     @azure_ds_telemetry_reporter
@@ -1095,7 +1108,9 @@ class DataSourceAzure(sources.DataSource):
                 if not primary_nic_found:
                     LOG.info("Checking if %s is the primary nic", ifname)
                     primary_nic_found = self._setup_ephemeral_networking(
-                        iface=ifname, timeout_minutes=20
+                        iface=ifname,
+                        timeout_minutes=20,
+                        report_failure_if_not_primary=False,
                     )
 
                 # Exit criteria: check if we've discovered primary nic
