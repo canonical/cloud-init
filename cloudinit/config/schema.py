@@ -245,6 +245,39 @@ def _add_deprecated_changed_or_new_msg(
     return f"{description}{changed_new_deprecated}".rstrip()
 
 
+def cloud_init_deepest_matches(errors, instance) -> List[ValidationError]:
+    """Return the best_match errors based on the deepest match in the json_path
+
+    This is useful for anyOf and oneOf subschemas where the most-specific error
+    tends to be the most appropriate.
+    """
+    best_matches = []
+    path_depth = 0
+    is_type = isinstance(instance, dict) and "type" in instance
+    for err in errors:
+        if is_type:
+            # Most appropriate subschema matches given type
+            if instance["type"] in err.schema.get("properties", {}).get(
+                "type", {}
+            ).get("enum", []):
+                return [err]
+
+            if hasattr(err, "json_path"):
+                if err.json_path[-4:] == "type":
+                    # Prioritize cloud-init 'type'-related errors exclusively
+                    best_matches.append(err)
+            elif err.path and err.path[0] == "type":
+                # Use err.paths instead of json_path on jsonschema <= 3.2
+                # Prioritize cloud-init 'type'-related errors exclusively
+                best_matches.append(err)
+        elif len(err.path) == path_depth:
+            best_matches.append(err)
+        elif len(err.path) > path_depth:
+            path_depth = len(err.path)
+            best_matches = [err]
+    return best_matches
+
+
 def _validator(
     _validator,
     deprecated: bool,
@@ -315,7 +348,11 @@ def _anyOf(
         if not errs:
             all_deprecations.extend(deprecations)
             break
-        if "type" in instance and "anyOf_type" in subschema.get("$ref", ""):
+        if (
+            isinstance(instance, dict)
+            and "type" in instance
+            and "anyOf_type" in subschema.get("$ref", "")
+        ):
             if f"anyOf_type_{instance['type']}" in subschema["$ref"]:
                 # A matching anyOf_type_XXX $ref indicates this is likely the
                 # best_match ValidationError. Skip best_match below.
@@ -344,8 +381,6 @@ def _oneOf(
     It treats occurrences of `error_type` as non-errors, but yield them for
     external processing. Useful to process schema annotations, as `deprecated`.
     """
-    from jsonschema.exceptions import best_match
-
     subschemas = enumerate(oneOf)
     all_errors = []
     all_deprecations = []
@@ -363,11 +398,7 @@ def _oneOf(
             break
         all_errors.extend(errs)
     else:
-        yield best_match(all_errors)
-        yield ValidationError(
-            "%r is not valid under any of the given schemas" % (instance,),
-            context=all_errors,
-        )
+        yield from cloud_init_deepest_matches(all_errors, instance)
 
     more_valid = [s for i, s in subschemas if validator.is_valid(instance, s)]
     if more_valid:
