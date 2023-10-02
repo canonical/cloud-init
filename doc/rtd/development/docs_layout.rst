@@ -36,6 +36,9 @@ directory:
 ``man/``
 ========
 
+This subdirectory contains the Linux man pages for the binaries provided
+by cloud-init.
+
 
 ``rtd/``
 ========
@@ -67,6 +70,9 @@ can be found in this folder.
 
 ``sources/``
 ============
+
+This subdirectory contains demos which can help the reader understand
+how parts of the product work.
 
 .. LINKS
 

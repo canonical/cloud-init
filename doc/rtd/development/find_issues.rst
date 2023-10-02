@@ -18,15 +18,13 @@ Claiming an issue
 You can express your interest in an issue by posting a comment on it. You
 should only work on one open issue at a time to avoid overloading yourself.
 
-If you have not submitted a PR (or a draft/"work-in-progress" PR) within a few
-days of leaving your comment, other contributors should consider the issue to
-be available for them to work on.
+If you have not submitted a PR or commented with an updated status within a
+week of leaving your initial comment, other contributors should consider the
+issue to be available for them to work on.
 
 When you submit your proposed fix for an issue, including the issue number in
 the PR commit message will link the issue to your proposed fix. This is the
 ``Fixes GH-0000`` line in the template PR commit message.
-
-We will only assign an issue if there is a PR in progress.
 
 Creating an issue
 =================
@@ -34,10 +32,10 @@ Creating an issue
 If you've spotted something that doesn't already have an issue, you can always
 create one in GitHub.
 
-You can also submit an issue in GitHub through the documentation using the
-"Give feedback" button at the top of each page. It will automatically include
-the URL of the page you came from, so all you need to do is describe the issue
-you've found.
+For documentation issues, you can submit an issue in GitHub using the
+"Give feedback" button at the top of each documentation page. It will
+automatically include the URL of the page you came from, so all you need to
+do is describe the issue you've found.
 
 No-code or low-code options
 ===========================

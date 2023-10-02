@@ -3,36 +3,6 @@
 Directory layout
 ****************
 
-Cloud-init's directory structure is somewhat different from a regular
-application: ::
-
-  /var/lib/cloud/
-      - data/
-         - instance-id
-         - previous-instance-id
-         - datasource
-         - previous-datasource
-         - previous-hostname
-      - handlers/
-      - instance
-      - instances/
-          i-00000XYZ/
-            - boot-finished
-            - cloud-config.txt
-            - datasource
-            - handlers/
-            - obj.pkl
-            - scripts/
-            - sem/
-            - user-data.txt
-            - user-data.txt.i
-      - scripts/
-         - per-boot/
-         - per-instance/
-         - per-once/
-      - seed/
-      - sem/
-
 ``/var/lib/cloud``
 ==================
 
@@ -42,50 +12,50 @@ scenarios where this can be changed.
 
 .. TODO: expand this section
 
-``data/``
-=========
+``.../data/``
+-------------
 
 This directory contains information about instance IDs, datasources and
 hostnames of the previous and current instance if they are different. These can
 be examined as needed to determine any information related to a previous boot
 (if applicable).
 
-``handlers/``
-=============
+``.../handlers/``
+-----------------
 
 Custom ``part-handlers`` code is written out here. Files that end up here are
 written out within the scheme of ``part-handler-XYZ`` where ``XYZ`` is the
 handler number (the first handler found starts at ``0``).
 
-``instance``
-============
+``.../instance``
+----------------
 
 A symlink to the current ``instances/`` subdirectory, which points to the
 currently active instance. Note that the active instance depends on the loaded
 datasource.
 
-``instances/``
-==============
+``.../instances/``
+------------------
 
 All instances that were created using this image end up with instance
 identifier subdirectories (with corresponding data for each instance). The
 currently active instance will be symlinked to the ``instance`` symlink file
 defined previously.
 
-``scripts/``
-============
+``.../scripts/``
+----------------
 
 Scripts in one of these subdirectories are downloaded/created by the
 corresponding ``part-handler``.
 
-``seed/``
-=========
+``.../seed/``
+-------------
 
 Contains seeded data files: :file:`meta-data`, :file:`network-config`,
 :file:`user-data`, :file:`vendor-data`.
 
-``sem/``
-========
+``.../sem/``
+------------
 
 Cloud-init has a concept of a module semaphore, which consists of the module
 name and its frequency. These files are used to ensure a module is only run

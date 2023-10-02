@@ -9,3 +9,5 @@
 .. _Launchpad: https://launchpad.net
 .. _the docs: https://cloudinit.readthedocs.io/en/latest/
 .. _tox: https://tox.readthedocs.io/en/latest/
+.. _Discourse: https://discourse.ubuntu.com/c/server/cloud-init/54
+.. _Github quickstart: https://docs.github.com/en/get-started/quickstart

@@ -49,8 +49,8 @@ Getting started
     first_PR.rst
     code_review.rst
 
-For existing contributors
-=========================
+Contribute
+==========
 
 Pull request checklist
 ----------------------
@@ -62,7 +62,7 @@ Before any pull request can be accepted, remember to do the following:
 * Add or update any :ref:`unit tests<testing>` accordingly.
 * Add or update any :ref:`integration_tests` (if applicable).
 * Format code (using ``black`` and ``isort``) with ``tox -e do_format``.
-* Run unit tests and/or linting checks pass using ``tox``.
+* Ensure unit tests and/or linting checks pass using ``tox``.
 * Submit a PR against the ``main`` branch of the cloud-init repository.
 
 Debugging and reporting
@@ -74,28 +74,6 @@ Debugging and reporting
    ../howto/bugs.rst
    logging.rst
    debugging.rst
-
-Transferring CLA Signatures from Launchpad to GitHub
-----------------------------------------------------
-
-If you signed the CLA in Launchpad before the GitHub username field was
-included, we need to verify the link between your `Launchpad`_ account and
-your `GitHub`_ account. To enable us to do this, we ask that you create a
-branch with both your Launchpad and GitHub usernames against both the Launchpad
-and GitHub cloud-init repositories. We've added a tool
-(``tools/migrate-lp-user-to-github``) to the cloud-init repository to handle
-this migration as automatically as possible.
-
-The cloud-init team will review the two merge proposals, verify that the
-CLA has been signed for the Launchpad user, and record the associated GitHub
-account.
-
-.. note::
-
-   If you are a first time contributor, you will not need to do this. All new
-   CLA signatures are handled as part of the GitHub pull request process when
-   you make your first pull request.
-
 
 .. LINKS:
 .. include:: ../links.txt

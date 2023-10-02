@@ -109,7 +109,7 @@ Common words
 
 There are some common words that should follow specific usage in text:
 
-- **Cloud-init**: Always hyphenated, and follows sentence case, so only
+- **cloud-init**: Always hyphenated, and follows sentence case, so only
   capitalised at the start of a sentence.
 - **metadata**, **datasource**: One word.
 - **user data**, **vendor data**: Two words, not to be combined or hyphenated.

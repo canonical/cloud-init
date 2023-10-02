@@ -55,8 +55,8 @@ You will need to add your GitHub username (alphabetically) to the in-repository
 list that we use to track :ref:`CLA signatures <contributing-prerequisites>`:
 `tools/.github-cla-signers`_.
 
-This needs to be included alongside your first contribution: we cannot merge a
-PR that only adds your name to the CLA.
+Please include this in the same PR alongside your first contribution. Do
+not create a separate PR to add your name to the CLA signatures.
 
 If you need some help with your contribution, you can contact us on our
 `IRC channel <IRC_>`_. If you have already submitted a work-in-progress PR, you

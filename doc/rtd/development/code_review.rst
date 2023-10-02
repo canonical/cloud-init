@@ -25,8 +25,9 @@ Cloud-init contributors, community members and users are encouraged to ask for
 help if they need it. If you have questions about the code review process, or
 need advice on an open PR, these are the available avenues:
 
-* on an open PR, leave a comment on that PR,
+* Open a PR, add "WIP:" to the title, and leave a comment on that PR
 * join the ``#cloud-init`` `channel on the Libera IRC <IRC_>`_ network
+* post on the ``#cloud-init`` `Discourse topic <Discourse_>`_
 * send an email to the cloud-init mailing list: ::
 
     cloud-init@lists.launchpad.net
@@ -132,30 +133,16 @@ There are three potential outcomes: **merged**, **rejected permanently**, and
 the :ref:`inactive pull requests<inactive-PRs>` section for details about
 temporary closure.
 
-In this section, we use the verbs "merge" or "squash merge" to mean "squash
-merged using the GitHub UI", which is the only way that changes can land in
-cloud-init's ``main`` branch.
-
 A committer is assigned
 -----------------------
 
-The committers, as a team, assign a committer to the PR. This committer is
+The committers assign a committer to the PR. This committer is
 expected to shepherd the PR to completion (and to merge it, if that is the
 outcome reached).
 
 They perform an initial review, and monitor the PR to ensure the proposer is
 receiving help if they need it. The committers perform this assignment on a
-daily basis for any new PRs submitted.
-
-This assignment gives the proposer a clear point of contact with a cloud-init
-core developer, and ensures that they get timely feedback on their PR. It does
-not imply that the committer has ownership over the review process, or that
-they are the only person who can review the PR. Any other reviewers should feel
-free to add their comments and suggestions as they wish.
-
-The assigned committer can delegate the code review of a PR to another reviewer
-if they think that person would be better suited. In GitHub terms, this is
-setting an **Assignee**, not requesting a review.
+regular basis for any new PRs submitted.
 
 Committer's initial review
 --------------------------
