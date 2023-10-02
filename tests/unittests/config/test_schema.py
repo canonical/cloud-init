@@ -112,8 +112,11 @@ class TestVersionedSchemas:
         (
             ({}, None),
             ({"version": "v1"}, None),
-            ({"version": "v2"}, "is not valid"),
-            ({"version": "v1", "final_message": -1}, "is not valid"),
+            ({"version": "v2"}, "is not one of ['v1']"),
+            (
+                {"version": "v1", "final_message": -1},
+                "is not of type 'string'",
+            ),
             ({"version": "v1", "final_message": "some msg"}, None),
         ),
     )
