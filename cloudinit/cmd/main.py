@@ -727,7 +727,6 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     modes = (
         "init",
         "init-local",
-        "modules-init",
         "modules-config",
         "modules-final",
     )
@@ -1059,7 +1058,10 @@ def main(sysv_args=None):
     # Setup signal handlers before running
     signal_handler.attach_handlers()
 
-    if name in ("modules", "init"):
+    # Write boot stage data to write status.json and result.json
+    # Exclude modules --mode=init, since it is not a real boot stage and
+    # should not be written into status.json
+    if "init" == name or ("modules" == name and "init" != args.mode):
         functor = status_wrapper
 
     rname = None
