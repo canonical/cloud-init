@@ -594,6 +594,11 @@ def get_apt_cfg() -> Dict[str, str]:
     output unparsable.
     """
     try:
+        # python3-apt package is only a Recommends: not a strict Requires:
+        # in debian/control. Prefer the apt_pkg python module for APT
+        # interaction due to 7 ms performance improvement above subp.
+        # Given that debian/buntu images may not contain python3-apt
+        # fallback to subp if the image lacks this dependency.
         import apt_pkg  # type: ignore
 
         apt_pkg.init_config()
