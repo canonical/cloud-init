@@ -121,13 +121,16 @@ autosectionlabel_maxdepth = 2
 
 # Sphinx-linkcheck config
 linkcheck_ignore = [
-    r"http://\[fd00:ec2::254.*", r"http://instance-data.*",
-    r"https://powersj.io.*", r"http://169.254.169.254.*", r"http://10.10.0.1.*"
+    r"http://\[fd00:ec2::254.*",
+    r"http://instance-data.*",
+    r"https://powersj.io.*",
+    r"http://169.254.169.254.*",
+    r"http://10.10.0.1.*",
 ]
 
 linkcheck_anchors_ignore_for_url = (
     r"https://github.com/canonical/cloud-init.*",
-    r"https://github.com/canonical/ubuntu-pro-client.*"
+    r"https://github.com/canonical/ubuntu-pro-client.*",
 )
 
 # Sphinx-copybutton config options:
