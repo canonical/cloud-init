@@ -1,0 +1,43 @@
+name: linkcheck in CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: {}
+  workflow_dispatch:
+    inputs:
+      failOnError:
+        description: 'Fail job on link check error'
+        required: false
+        default: 'false'
+
+jobs:
+  linkcheck:
+    runs-on: ubuntu-22.04
+    continue-on-error:${{ github.event_name == 'workflow_dispatch' && github.event.inputs.failOnError == 'true' ? false : true }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3.0.0
+
+      - name: "Install Python 3.10"
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10.8'
+
+      - name: Install tox
+        run: pip install tox
+
+      - name: Run Sphinx linkcheck
+        run: tox -e linkcheck | tee output.txt
+
+      - name: Check for broken links below threshold 6
+        run: |
+          broken_count=$(grep -c "broken" output.txt)
+          if [[ $broken_count -ge 3 ]]; then
+            echo "Too many broken links detected: $broken_count"
+            exit 1
+          else
+            echo "Number of broken links is below threshold: $broken_count"
+          fi
