@@ -1,6 +1,6 @@
 cloud-init (23.3-0ubuntu0~23.04.1) UNRELEASED; urgency=medium
 
-  * Upstream snapshot based on upstream/main at ee9078a7.
+  * d/control: add python3-apt as Recommends to read APT config from apt_pkg
   * d/cloud-init.maintscript: Remove the unused hook-network-manager
     conffile. (LP: #2027861)
   * d/patches/retain-old-groups.patch:
@@ -13,7 +13,7 @@ cloud-init (23.3-0ubuntu0~23.04.1) UNRELEASED; urgency=medium
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/23.3/ChangeLog
 
- -- James Falcon <james.falcon@canonical.com>  Mon, 28 Aug 2023 14:57:55 -0500
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 04 Oct 2023 06:53:10 -0600
 
 cloud-init (23.2.2-0ubuntu0~23.04.1) lunar; urgency=medium
 
