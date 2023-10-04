@@ -4287,6 +4287,7 @@ class TestGenerateFallbackConfig(CiTestCase):
             "ethernets": {
                 "eth0": {
                     "dhcp4": True,
+                    "dhcp6": True,
                     "set-name": "eth0",
                     "match": {
                         "macaddress": "00:11:22:33:44:55",
@@ -4371,6 +4372,9 @@ iface lo inet loopback
 
 auto eth0
 iface eth0 inet dhcp
+
+# control-alias eth0
+iface eth0 inet6 dhcp
 """
         self.assertEqual(expected.lstrip(), contents.lstrip())
 
@@ -4460,6 +4464,9 @@ iface lo inet loopback
 
 auto eth1
 iface eth1 inet dhcp
+
+# control-alias eth1
+iface eth1 inet6 dhcp
 """
         self.assertEqual(expected.lstrip(), contents.lstrip())
 
@@ -4683,7 +4690,9 @@ class TestRhelSysConfigRendering(CiTestCase):
 #
 BOOTPROTO=dhcp
 DEVICE=eth1000
+DHCPV6C=yes
 HWADDR=07-1c-c6-75-a4-be
+IPV6INIT=yes
 NM_CONTROLLED=no
 ONBOOT=yes
 TYPE=Ethernet
@@ -5594,7 +5603,8 @@ class TestOpenSuseSysConfigRendering(CiTestCase):
             expected_content = """
 # Created by cloud-init automatically, do not edit.
 #
-BOOTPROTO=dhcp4
+BOOTPROTO=dhcp
+DHCLIENT6_MODE=managed
 LLADDR=07-1c-c6-75-a4-be
 STARTMODE=auto
 """.lstrip()
@@ -5976,6 +5986,10 @@ class TestNetworkManagerRendering(CiTestCase):
                 method=auto
                 may-fail=false
 
+                [ipv6]
+                method=auto
+                may-fail=false
+
                 """
                 ),
             },
@@ -6240,6 +6254,9 @@ iface lo inet loopback
 
 auto eth1000
 iface eth1000 inet dhcp
+
+# control-alias eth1000
+iface eth1000 inet6 dhcp
 """
         self.assertEqual(expected.lstrip(), contents.lstrip())
 
@@ -6299,6 +6316,7 @@ class TestNetplanNetRendering:
                   ethernets:
                     eth1000:
                       dhcp4: true
+                      dhcp6: true
                       match:
                         macaddress: 07-1c-c6-75-a4-be
                       set-name: eth1000
@@ -7798,7 +7816,7 @@ class TestNetworkdNetRendering(CiTestCase):
             Name=eth1000
             MACAddress=07-1c-c6-75-a4-be
             [Network]
-            DHCP=ipv4"""
+            DHCP=yes"""
         ).rstrip(" ")
 
         expected = self.create_conf_dict(expected.splitlines())

@@ -571,7 +571,12 @@ def generate_fallback_config(config_driver=None):
         match = {
             "macaddress": read_sys_net_safe(target_name, "address").lower()
         }
-    cfg = {"dhcp4": True, "set-name": target_name, "match": match}
+    cfg = {
+        "dhcp4": True,
+        "dhcp6": True,
+        "set-name": target_name,
+        "match": match,
+    }
     if config_driver:
         driver = device_driver(target_name)
         if driver:
