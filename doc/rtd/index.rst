@@ -20,6 +20,10 @@ For cloud users, ``cloud-init`` provides no-install first-boot configuration
 management of a cloud instance. For cloud providers, it provides instance setup
 that can be integrated with your cloud.
 
+If you would like to read more about what cloud-init is, what it does and how
+it works, check out our :ref:`high-level introduction<introduction>`
+to the tool.
+
 -----
 
 .. grid:: 1 1 2 2
@@ -71,7 +75,7 @@ Project and community
 projects, contributions, suggestions, fixes and constructive feedback.
 
 * Read our `Code of Conduct`_
-* Ask questions in the ``#cloud-init`` `IRC channel on Libera`_
+* Ask questions in the ``#cloud-init`` `IRC channel on Libera <IRC_>`_
 * Follow announcements or ask a question on `the cloud-init Discourse forum`_
 * Join the `cloud-init mailing list`_
 * :ref:`Contribute on GitHub<contributing>`
@@ -81,17 +85,24 @@ projects, contributions, suggestions, fixes and constructive feedback.
    :hidden:
    :maxdepth: 2
 
-   Introduction <introduction.rst>
    tutorial/index
    howto/index
    explanation/index
    reference/index
-   development/index
+
+.. toctree::
+   :caption: Development
+   :hidden:
+   :maxdepth: 1
+
+   Contributing overview <development/index.rst>
+   Contribute to code <development/contribute_code.rst>
+   Contribute to docs <development/contribute_docs.rst>
+   Community <development/summit.rst>
 
 
 .. LINKS
-.. _Code of Conduct: https://ubuntu.com/community/code-of-conduct
-.. _IRC channel on Libera: https://kiwiirc.com/nextclient/irc.libera.chat/cloud-init
+.. include:: links.txt
 .. _the cloud-init Discourse forum: https://discourse.ubuntu.com/c/server/cloud-init/
 .. _cloud-init mailing list: https://launchpad.net/~cloud-init
 .. _mailing list archive: https://lists.launchpad.net/cloud-init/
