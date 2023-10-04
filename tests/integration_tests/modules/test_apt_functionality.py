@@ -433,9 +433,15 @@ apt:
 """  # noqa: E501
 
 
+RE_GPG_SW_PROPERTIES_INSTALLED = (
+    r"install"
+    r" (gnupg software-properties-common|software-properties-common gnupg)"
+)
+
+
 @pytest.mark.skipif(not IS_UBUNTU, reason="Apt usage")
 @pytest.mark.user_data(INSTALL_ANY_MISSING_RECOMMENDED_DEPENDENCIES)
 def test_install_missing_deps(client: IntegrationInstance):
     log = client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log)
-    assert "install gnupg software-properties-common" in log
+    assert re.search(RE_GPG_SW_PROPERTIES_INSTALLED, log)
