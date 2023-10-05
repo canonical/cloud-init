@@ -73,6 +73,16 @@ class Release:
             raise ValueError(f"{self.os} cannot be compared to {other.os}!")
         return version.parse(self.version) < version.parse(other.version)
 
+    def __eq__(self, other):
+        if not isinstance(other, Release):
+            return False
+        return (self.os, self.series, self.version, self.image_id) == (
+            other.os,
+            other.series,
+            other.version,
+            other.image_id,
+        )
+
     @classmethod
     def from_os_image(
         cls,
