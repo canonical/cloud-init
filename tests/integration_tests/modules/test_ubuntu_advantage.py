@@ -161,7 +161,8 @@ def maybe_install_cloud_init(session_cloud: IntegrationCloud):
 
     launch_kwargs = {
         "image_id": session_cloud.cloud_instance.daily_image(
-            CURRENT_RELEASE.series, image_type=ImageType.PRO
+            CURRENT_RELEASE.image_id or CURRENT_RELEASE.series,
+            image_type=ImageType.PRO,
         )
     }
 
