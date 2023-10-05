@@ -1,11 +1,11 @@
 cloud-init (23.3-0ubuntu0~20.04.1) UNRELEASED; urgency=medium
 
-  * Upstream snapshot based on upstream/main at ee9078a7.
   * d/cloud-init.maintscript: Remove the unused hook-network-manager
     conffile. (LP: #2027861)
   * d/patches/retain-old-groups.patch:
     - Retain original groups in cloud.cfg.tmpl
   * d/control: Add python3-passlib as needed for testing
+  * d/control: add python3-apt as Recommends to read APT config from apt_pkg
   * d/cloud-init.templates: enable Akamai by default.
     Add Akamai to the default templates to allow datasource discovery.
   * d/po/templates.pot: refresh with debconf-updatepo
@@ -13,7 +13,7 @@ cloud-init (23.3-0ubuntu0~20.04.1) UNRELEASED; urgency=medium
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/23.3/ChangeLog
 
- -- James Falcon <james.falcon@canonical.com>  Mon, 28 Aug 2023 17:01:09 -0500
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 05 Oct 2023 11:37:28 -0600
 
 cloud-init (23.2.2-0ubuntu0~20.04.1) focal; urgency=medium
 
