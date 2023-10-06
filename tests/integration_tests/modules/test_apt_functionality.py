@@ -315,7 +315,7 @@ class TestDefaults:
             get_feature_flag_value(class_client, "APT_DEB822_SOURCE_LIST_FILE")
         )
         if class_client.settings.PLATFORM == "azure":
-            sec_url = "deb http://azure.archive.ubuntu.com/ubuntu/"
+            sec_url = "http://azure.archive.ubuntu.com/ubuntu/"
         else:
             sec_url = "http://security.ubuntu.com/ubuntu"
         if feature_deb822:
