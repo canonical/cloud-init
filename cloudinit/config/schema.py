@@ -767,6 +767,7 @@ def _get_config_type_and_rendered_userdata(
         header declared ## template: jinja.
     """
     from cloudinit.handlers.jinja_template import (
+        CustomParsedJinjaException,
         JinjaLoadError,
         NotJinjaError,
         render_jinja_payload_from_file,
@@ -789,6 +790,12 @@ def _get_config_type_and_rendered_userdata(
                     )
                 ]
             ) from e
+        except CustomParsedJinjaException as e:
+            error(
+                "Failed to render templated cloud-config due to jinja parsing error: "
+                + str(e),
+                sys_exit=True,
+            )
         except JinjaLoadError as e:
             error(str(e), sys_exit=True)
         schema_position = "format-l2.c1"

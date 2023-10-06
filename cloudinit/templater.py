@@ -16,6 +16,7 @@ import collections
 import logging
 import re
 import sys
+import traceback
 from typing import Any
 
 from cloudinit import type_utils as tu
@@ -27,7 +28,9 @@ from cloudinit.atomic_helper import write_file
 # JUndefined: typing.Type
 JUndefined: Any
 try:
+    from jinja2 import BaseLoader
     from jinja2 import DebugUndefined as _DebugUndefined
+    from jinja2 import Environment
     from jinja2 import Template as JTemplate
 
     JINJA_AVAILABLE = True
@@ -40,6 +43,10 @@ LOG = logging.getLogger(__name__)
 TYPE_MATCHER = re.compile(r"##\s*template:(.*)", re.I)
 BASIC_MATCHER = re.compile(r"\$\{([A-Za-z0-9_.]+)\}|\$([A-Za-z0-9_.]+)")
 MISSING_JINJA_PREFIX = "CI_MISSING_JINJA_VAR/"
+
+
+class CustomParsedJinjaException(Exception):
+    pass
 
 
 # Mypy, and the PEP 484 ecosystem in general, does not support creating
@@ -102,15 +109,51 @@ def detect_template(text):
     def jinja_render(content, params):
         # keep_trailing_newline is in jinja2 2.7+, not 2.6
         add = "\n" if content.endswith("\n") else ""
-        return (
-            JTemplate(
+        try:
+            result = JTemplate(
                 content,
                 undefined=UndefinedJinjaVariable,
                 trim_blocks=True,
                 extensions=["jinja2.ext.do"],
-            ).render(**params)
-            + add
-        )
+            ).render(**params) + add
+            return result
+
+        except Exception as JTemplateError:
+            # print(JTemplateError)
+            try:  # we know this next line will fail, but we want to get the traceback and error message it throws
+                jinja_env = Environment(
+                    loader=BaseLoader(),
+                    autoescape=False,
+                    undefined=UndefinedJinjaVariable,
+                    trim_blocks=True,
+                    extensions=["jinja2.ext.do"],
+                )
+                template = jinja_env.parse(content)
+                # print("couldn't generate my own error message so re-raising JTEmplateError")
+                raise JTemplateError
+            # TODO: check other exception types
+            except Exception as useful_jinja_error:
+                try:
+                    tb = "".join(
+                        traceback.format_tb(useful_jinja_error.__traceback__)
+                    )
+                    # how reliable and robust is this across different OSs and versions
+                    line_number_matches = re.findall(
+                        r'File "<unknown>", line (\d+)', tb
+                    )
+                    line_number_of_error = int(line_number_matches[0])
+                except:
+                    raise JTemplateError
+                # adjust line number for the fact that the jinja header has been removed from the content
+                if content.split("\n")[0] == "#cloud-config":
+                    line_number_of_error += 1
+                raise CustomParsedJinjaException(
+                    "{e} on line {line_no}".format(
+                        e=useful_jinja_error,
+                        line_no=line_number_of_error,
+                    )
+                )  # from None
+        return result
 
     if text.find("\n") != -1:
         ident, rest = text.split("\n", 1)

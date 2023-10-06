@@ -304,6 +304,7 @@ def read_conf(fname, *, instance_data_file=None) -> Dict:
     """Read a yaml config with optional template, and convert to dict"""
     # Avoid circular import
     from cloudinit.handlers.jinja_template import (
+        CustomParsedJinjaException,
         JinjaLoadError,
         NotJinjaError,
         render_jinja_payload_from_file,
@@ -330,6 +331,11 @@ def read_conf(fname, *, instance_data_file=None) -> Dict:
                 instance_data_file,
                 fname,
             )
+        except CustomParsedJinjaException as e:
+            error_msg = "Failed to render user-data file '{file_path}' due to jinja parsing error: {error}".format(
+                file_path=fname, error=str(e)
+            )
+            LOG.warning(error_msg)
         except NotJinjaError:
             # A log isn't appropriate here as we generally expect most
             # cloud.cfgs to not be templated. The other path is logged
