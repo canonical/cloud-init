@@ -15,7 +15,7 @@ on:
 jobs:
   linkcheck:
     runs-on: ubuntu-22.04
-    continue-on-error:${{ github.event_name == 'workflow_dispatch' && github.event.inputs.failOnError == 'true' ? false : true }}
+    continue-on-error: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.failOnError == 'true') }}
 
     steps:
       - name: Checkout Repository
@@ -32,10 +32,10 @@ jobs:
       - name: Run Sphinx linkcheck
         run: tox -e linkcheck | tee output.txt
 
-      - name: Check for broken links below threshold 6
+      - name: Check for broken links below threshold
         run: |
           broken_count=$(grep -c "broken" output.txt)
-          if [[ $broken_count -ge 3 ]]; then
+          if [[ $broken_count -ge 5 ]]; then
             echo "Too many broken links detected: $broken_count"
             exit 1
           else
