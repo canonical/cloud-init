@@ -1,3 +1,5 @@
+# Author: NWCS.sh <foss@nwcs.sh>
+#
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
