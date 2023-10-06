@@ -17,7 +17,8 @@ from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
 MODULE_DESCRIPTION = """\
-Sets the system timezone based on the value provided.
+Sets the system `timezone <https://www.iana.org/time-zones>`_ based on the
+value provided.
 """
 
 meta: MetaSchema = {
