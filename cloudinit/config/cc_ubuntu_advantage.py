@@ -233,7 +233,7 @@ def set_ua_config(ua_config: Any = None):
         subp_kwargs: dict = {}
         if value is None:
             LOG.debug("Disabling UA config for %s", key)
-            config_cmd = ["ua", "config", "unset", key]
+            config_cmd = ["pro", "config", "unset", key]
         else:
             redacted_key_value = f"{key}=REDACTED"
             LOG.debug("Enabling UA config %s", redacted_key_value)
@@ -241,7 +241,7 @@ def set_ua_config(ua_config: Any = None):
                 key_value = f"{key}={re.escape(value)}"
             else:
                 key_value = f"{key}={value}"
-            config_cmd = ["ua", "config", "set", key_value]
+            config_cmd = ["pro", "config", "set", key_value]
             subp_kwargs = {"logstring": config_cmd[:-1] + [redacted_key_value]}
         try:
             subp.subp(config_cmd, **subp_kwargs)
@@ -280,9 +280,9 @@ def configure_ua(token, enable=None):
 
     # Perform attach
     if enable:
-        attach_cmd = ["ua", "attach", "--no-auto-enable", token]
+        attach_cmd = ["pro", "attach", "--no-auto-enable", token]
     else:
-        attach_cmd = ["ua", "attach", token]
+        attach_cmd = ["pro", "attach", token]
     redacted_cmd = attach_cmd[:-1] + [REDACTED]
     LOG.debug("Attaching to Ubuntu Advantage. %s", " ".join(redacted_cmd))
     try:
@@ -297,7 +297,7 @@ def configure_ua(token, enable=None):
     # Enable services
     if not enable:
         return
-    cmd = ["ua", "enable", "--assume-yes", "--format", "json"] + enable
+    cmd = ["pro", "enable", "--assume-yes", "--format", "json"] + enable
     try:
         enable_stdout, _ = subp.subp(cmd, capture=True, rcs={0, 1})
     except subp.ProcessExecutionError as e:
@@ -360,7 +360,7 @@ def configure_ua(token, enable=None):
 
 def maybe_install_ua_tools(cloud: Cloud):
     """Install ubuntu-advantage-tools if not present."""
-    if subp.which("ua"):
+    if subp.which("pro"):
         return
     try:
         cloud.distro.update_package_sources()
