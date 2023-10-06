@@ -297,7 +297,7 @@ def configure_ua(token, enable=None):
     # Enable services
     if not enable:
         return
-    cmd = ["ua", "enable", "--assume-yes", "--format", "json", "--"] + enable
+    cmd = ["ua", "enable", "--assume-yes", "--format", "json"] + enable
     try:
         enable_stdout, _ = subp.subp(cmd, capture=True, rcs={0, 1})
     except subp.ProcessExecutionError as e:

@@ -144,7 +144,6 @@ class TestConfigureUA:
                             "--assume-yes",
                             "--format",
                             "json",
-                            "--",
                             "fips",
                         ],
                         capture=True,
@@ -182,7 +181,6 @@ class TestConfigureUA:
                             "--assume-yes",
                             "--format",
                             "json",
-                            "--",
                             "fips",
                         ],
                         capture=True,
@@ -271,7 +269,6 @@ class TestConfigureUA:
                 "--assume-yes",
                 "--format",
                 "json",
-                "--",
                 "livepatch",
             ]
             if cmd == fail_cmds and capture:
@@ -303,7 +300,6 @@ class TestConfigureUA:
                     "--assume-yes",
                     "--format",
                     "json",
-                    "--",
                     "livepatch",
                 ],
                 capture=True,
@@ -326,7 +322,6 @@ class TestConfigureUA:
                 "--assume-yes",
                 "--format",
                 "json",
-                "--",
             ]
             if cmd[: len(fail_cmd)] == fail_cmd and capture:
                 response = {
@@ -375,7 +370,6 @@ class TestConfigureUA:
                     "--assume-yes",
                     "--format",
                     "json",
-                    "--",
                     "esm",
                     "cc",
                     "fips",
