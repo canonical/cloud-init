@@ -122,7 +122,9 @@ def run_part(mod, data, filename, payload, frequency, headers):
             mod.handle_part(data, content_type, filename, payload)
         else:
             raise ValueError("Unknown module version %s" % (mod_ver))
-    except Exception:
+    except Exception as e:
+        print("[a-dubs] e: %s" % e)
+        LOG.warning(str(e))
         util.logexc(
             LOG,
             "Failed calling handler %s (%s, %s, %s) with frequency %s",

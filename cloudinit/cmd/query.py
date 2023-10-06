@@ -277,12 +277,19 @@ def handle_args(name, args):
         return 1
     if args.format:
         payload = "## template: jinja\n{fmt}".format(fmt=args.format)
-        rendered_payload = render_jinja_payload(
-            payload=payload,
-            payload_fn="query commandline",
-            instance_data=instance_data,
-            debug=True if args.debug else False,
-        )
+        try:
+            rendered_payload = render_jinja_payload(
+                payload=payload,
+                payload_fn="query commandline",
+                instance_data=instance_data,
+                debug=True if args.debug else False,
+            )
+        except Exception as e:
+            error_msg = "Failed to render templated data due to jinja parsing error: {error}".format(
+                error=str(e),
+            )
+            print(error_msg)
+            return 1
         if rendered_payload:
             print(rendered_payload)
             return 0
