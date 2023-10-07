@@ -91,6 +91,14 @@ class TestCLI:
         cli.status_wrapper("init", myargs, data_d, link_d)
         # No errors reported in status
         status_v1 = m_json.call_args_list[1][0][1]["v1"]
+        assert status_v1.keys() == {
+            "datasource",
+            "init-local",
+            "init",
+            "modules-config",
+            "modules-final",
+            "stage",
+        }
         assert ["an error"] == status_v1["init-local"]["errors"]
         assert "SomeDatasource" == status_v1["datasource"]
         assert False is os.path.exists(
