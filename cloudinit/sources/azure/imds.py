@@ -83,12 +83,16 @@ class ReadUrlRetryHandler:
 
         # Always log if error does not match previous.
         if exception.code is not None:
+            # This is an HTTP response with failing code, log if different.
             if self._last_error != exception.code:
                 log = True
                 self._last_error = exception.code
         elif (
+            # No previous error to match against.
             self._last_error is None
+            # Previous error is exception code (int).
             or not isinstance(self._last_error, type)
+            # Previous error is different class.
             or not isinstance(exception.cause, self._last_error)
         ):
             log = True
