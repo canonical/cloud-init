@@ -11,7 +11,7 @@ jobs:
   unittests:
     strategy:
       matrix:
-        python-version: [ "3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12" ]
+        python-version: [ "3.7", "3.8", "3.9", "3.10", "3.11", "3.12" ]
         toxenv: [ py3 ]
         experimental: [false]
         include:
