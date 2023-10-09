@@ -48,8 +48,7 @@ class TestStatus:
             'null, "start": 1669231096.9621563}, "modules-config": '
             '{"errors": [], "finished": null, "start": null},'
             '"modules-final": {"errors": [], "finished": null, '
-            '"start": null}, "modules-init": {"errors": [], "finished": '
-            'null, "start": null}, "stage": "init-local"} }'
+            '"start": null}, "stage": "init-local"} }'
         ),
     )
     @mock.patch(M_PATH + "os.path.exists", return_value=True)
