@@ -6,7 +6,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import atomic_helper, util
+from cloudinit import atomic_helper, log, util
 from tests.hypothesis import HAS_HYPOTHESIS
 from tests.unittests.helpers import retarget_many_wrapper
 
@@ -75,6 +75,8 @@ def disable_dns_lookup(request):
     ):
         yield
 
+
+log.configure_root_logger()
 
 PYTEST_VERSION_TUPLE = tuple(map(int, pytest.__version__.split(".")))
 

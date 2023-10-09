@@ -87,7 +87,6 @@ class TestCLI:
             return "SomeDatasource", ["an error"]
 
         myargs = FakeArgs(("ignored_name", myaction), True, "bogusmode")
-        log.configure_root_logger()
         cli.status_wrapper("init", myargs, data_d, link_d)
         # No errors reported in status
         status_v1 = m_json.call_args_list[1][0][1]["v1"]
