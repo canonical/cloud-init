@@ -758,7 +758,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     v1 = status["v1"]
     v1["stage"] = mode
     v1[mode]["start"] = time.time()
-    v1[mode]["exported_errors"] = next(
+    v1[mode]["recoverable_errors"] = next(
         filter(lambda h: isinstance(h, LogExporter), root_logger.handlers)
     ).export_logs()
 
@@ -788,7 +788,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     v1["stage"] = None
 
     # Write status.json after running init / module code
-    v1[mode]["exported_errors"] = next(
+    v1[mode]["recoverable_errors"] = next(
         filter(lambda h: isinstance(h, LogExporter), root_logger.handlers)
     ).export_logs()
     atomic_helper.write_json(status_path, status)
