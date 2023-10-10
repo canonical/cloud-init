@@ -54,14 +54,13 @@ class Distro(distros.Distro):
         # calls from repeatly happening (when they
         # should only happen say once per instance...)
         self.osfamily = "debian"
-        self.default_locale = "en_US.UTF-8"
+        self.default_locale = "C.UTF-8"
         self.system_locale = None
         self.apt = Apt.from_config(self._runner, cfg)
         self.package_managers: List[PackageManager] = [self.apt]
 
     def get_locale(self):
         """Return the default locale if set, else use default locale"""
-
         # read system locale value
         if not self.system_locale:
             self.system_locale = read_system_locale()
@@ -84,7 +83,20 @@ class Distro(distros.Distro):
         # Update system locale config with specified locale if needed
         distro_locale = self.get_locale()
         conf_fn_exists = os.path.exists(out_fn)
-        sys_locale_unset = False if self.system_locale else True
+        sys_locale_unset = not self.system_locale
+        if sys_locale_unset:
+            LOG.debug(
+                "System locale not found in %s. "
+                "Assuming system locale is %s based on hardcoded default",
+                LOCALE_CONF_FN,
+                self.default_locale,
+            )
+        else:
+            LOG.debug(
+                "System locale set to %s via %s",
+                self.system_locale,
+                LOCALE_CONF_FN,
+            )
         need_regen = (
             locale.lower() != distro_locale.lower()
             or not conf_fn_exists

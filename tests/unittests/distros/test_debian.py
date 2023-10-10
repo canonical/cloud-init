@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import pytest
+
 from cloudinit import util
 from tests.unittests.util import get_cloud
 
@@ -35,7 +36,7 @@ class TestDebianApplyLocale:
             ["update-locale", f"--locale-file={LOCALE_PATH}", f"LANG={locale}"]
         ] == [p[0][0] for p in m_subp.call_args_list]
 
-    def test_rerun_if_different(self, distro, m_subp):
+    def test_rerun_if_different(self, distro, m_subp, caplog):
         """If system has different locale, locale-gen should be called."""
         locale = "en_US.UTF-8"
         util.write_file(LOCALE_PATH, "LANG=fr_FR.UTF-8", omode="w")
@@ -48,6 +49,15 @@ class TestDebianApplyLocale:
                 f"LANG={locale}",
             ],
         ] == [p[0][0] for p in m_subp.call_args_list]
+        assert (
+            "System locale set to fr_FR.UTF-8 via /etc/default/locale"
+            in caplog.text
+        )
+        assert "Generating locales for en_US.UTF-8" in caplog.text
+        assert (
+            "Updating /etc/default/locale with locale setting LANG=en_US.UTF-8"
+            in caplog.text
+        )
 
     def test_rerun_if_no_file(self, distro, m_subp):
         """If system has no locale file, locale-gen should be called."""
@@ -62,7 +72,7 @@ class TestDebianApplyLocale:
             ],
         ] == [p[0][0] for p in m_subp.call_args_list]
 
-    def test_rerun_on_unset_system_locale(self, distro, m_subp):
+    def test_rerun_on_unset_system_locale(self, distro, m_subp, caplog):
         """If system has unset locale, locale-gen should be called."""
         locale = "en_US.UTF-8"
         util.write_file(LOCALE_PATH, "LANG=", omode="w")
@@ -75,6 +85,15 @@ class TestDebianApplyLocale:
                 f"LANG={locale}",
             ],
         ] == [p[0][0] for p in m_subp.call_args_list]
+        assert (
+            "System locale not found in /etc/default/locale. Assuming system "
+            "locale is C.UTF-8 based on hardcoded default" in caplog.text
+        )
+        assert "Generating locales for en_US.UTF-8" in caplog.text
+        assert (
+            "Updating /etc/default/locale with locale setting LANG=en_US.UTF-8"
+            in caplog.text
+        )
 
     def test_rerun_on_mismatched_keys(self, distro, m_subp):
         """If key is LC_ALL and system has only LANG, rerun is expected."""
