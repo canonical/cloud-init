@@ -80,11 +80,7 @@ def print_exc(msg=""):
 def log_ppid():
     if util.is_Linux():
         ppid = os.getppid()
-        LOG.info(
-            "PID [%s] started cloud-init using: %s",
-            ppid,
-            os.path.realpath(f"/proc/{ppid}/exe"),
-        )
+        LOG.info("PID [%s] started cloud-init.", ppid)
 
 
 def welcome(action, msg=None):
