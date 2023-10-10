@@ -63,4 +63,4 @@ def test_status_json_errors(client):
     """Ensure that deprecated logs end up in the exported errors"""
     assert json.loads(
         client.execute("cat /run/cloud-init/status.json").stdout
-    )["v1"]["init"]["exported_errors"].get("DEPRECATED")
+    )["v1"]["init"]["recoverable_errors"].get("DEPRECATED")
