@@ -171,7 +171,7 @@ sufficient disk by following the following example.
 
         .. code-block::
 
-           $ mcopy -oi seed.iso user-data meta-data
+           $ mcopy -oi seed.iso user-data meta-data ::
 
 3. Create a new qcow image to boot, backed by your original image:
 
