@@ -19,7 +19,7 @@ jobs:
           to have signed the Contributor License Agreement (CLA).
           Please sign the CLA by following our
           contribution guide at:
-            https://cloudinit.readthedocs.io/en/latest/development/contributing.html
+            https://cloudinit.readthedocs.io/en/latest/development/first_PR.html
 
           Thanks,
           Your friendly cloud-init upstream

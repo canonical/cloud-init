@@ -43,7 +43,7 @@ supported, please get in contact with that distribution and send them our way!
 
 ## To start developing cloud-init
 
-Checkout the [contributing](https://cloudinit.readthedocs.io/en/latest/development/contributing.html)
+Checkout the [contributing](https://cloudinit.readthedocs.io/en/latest/development/index.html)
 document that outlines the steps necessary to develop, test, and submit code.
 
 ## Daily builds

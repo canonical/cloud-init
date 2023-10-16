@@ -24,9 +24,14 @@ this is a bug fix) this change on a live deployed system,
 including any necessary configuration files, user-data,
 setup, and teardown. Scripts used may be attached directly to this PR. -->
 
-## Checklist:
+## Checklist
 <!-- Go over all the following points, and put an `x` in all the boxes
 that apply. -->
- - [ ] My code follows the process laid out in [the documentation](https://cloudinit.readthedocs.io/en/latest/development/contributing.html)
- - [ ] I have updated or added any unit tests accordingly
- - [ ] I have updated or added any documentation accordingly
+- [ ] My code follows the process laid out in
+[the documentation](https://cloudinit.readthedocs.io/en/latest/development/index.html)
+- [ ] I have updated or added any
+[unit tests](https://cloudinit.readthedocs.io/en/latest/development/testing.html)
+accordingly
+- [ ] I have updated or added any
+[documentation](https://cloudinit.readthedocs.io/en/latest/development/contribute_docs.html)
+accordingly
