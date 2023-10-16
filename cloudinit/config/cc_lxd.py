@@ -210,6 +210,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             f" '{type(lxd_cfg).__name__}'"
         )
 
+    util.wait_for_snap_seeded(cloud)
     # Grab the configuration
     init_cfg = lxd_cfg.get("init", {})
     preseed_str = lxd_cfg.get("preseed", "")

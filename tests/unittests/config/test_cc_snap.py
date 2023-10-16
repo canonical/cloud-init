@@ -293,8 +293,11 @@ class TestSnapSchema:
 
 
 class TestHandle:
+    @mock.patch("cloudinit.util.wait_for_snap_seeded")
     @mock.patch("cloudinit.config.cc_snap.subp.subp")
-    def test_handle_adds_assertions(self, m_subp, fake_cloud, tmpdir):
+    def test_handle_adds_assertions(
+        self, m_subp, wait_for_snap_seeded, fake_cloud, tmpdir
+    ):
         """Any configured snap assertions are provided to add_assertions."""
         assert_file = os.path.join(
             fake_cloud.paths.get_ipath_cur(), "snapd.assertions"
@@ -309,3 +312,4 @@ class TestHandle:
         assert util.load_text_file(compare_file) == util.load_text_file(
             assert_file
         )
+        wait_for_snap_seeded.assert_called_once_with(fake_cloud)
