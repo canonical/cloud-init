@@ -119,8 +119,9 @@ def detect_template(text):
             return result
 
         except Exception as JTemplateError:
-            # print(JTemplateError)
-            try:  # we know this next line will fail, but we want to get the traceback and error message it throws
+            # if the error is a syntax one, we know this next line will fail
+            # we want to get the traceback and error message it throws
+            try:  
                 jinja_env = Environment(
                     loader=BaseLoader(),
                     autoescape=False,
@@ -129,7 +130,7 @@ def detect_template(text):
                     extensions=["jinja2.ext.do"],
                 )
                 template = jinja_env.parse(content)
-                # print("couldn't generate my own error message so re-raising JTEmplateError")
+                # if we get here, then the previous line didn't fail, so we just need to re-raise the original error
                 raise JTemplateError
             # TODO: check other exception types
             except Exception as useful_jinja_error:
@@ -137,26 +138,24 @@ def detect_template(text):
                     tb = "".join(
                         traceback.format_tb(useful_jinja_error.__traceback__)
                     )
-                    # how reliable and robust is this across different OSs and versions
                     line_number_matches = re.findall(
                         r'File "<unknown>", line (\d+)', tb
                     )
                     line_number_of_error = int(line_number_matches[0])
-                except:
+                except: # if we couldn't parse the traceback for some reason, just re-raise the original error
                     raise JTemplateError
                 # adjust line number for the fact that the jinja header has been removed from the content
-                if content.split("\n")[0] == "#cloud-config":
+                if len(re.findall("##( )?template:( )?jinja", content.split("\n")[0].strip().lower())) == 0:
                     line_number_of_error += 1
                 raise CustomParsedJinjaException(
                     "{e} on line {line_no}".format(
                         e=useful_jinja_error,
                         line_no=line_number_of_error,
                     )
-                )  # from None
-        return result
+                )
 
-    if text.find("\n") != -1:
-        ident, rest = text.split("\n", 1)
+    if text.find("\n") != -1:  
+        ident, rest = text.split("\n", 1)  # remove the first line
     else:
         ident = text
         rest = ""
