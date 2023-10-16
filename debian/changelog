@@ -1,3 +1,11 @@
+cloud-init (23.3.2-0ubuntu0~22.04.1) UNRELEASED; urgency=medium
+
+  * Upstream snapshot based on 23.3.2. (LP: #2039453).
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/23.3.2/ChangeLog
+
+ -- James Falcon <james.falcon@canonical.com>  Mon, 16 Oct 2023 14:48:08 -0500
+
 cloud-init (23.3.1-0ubuntu1~22.04.1) jammy; urgency=medium
 
   * d/cloud-init.maintscript: Remove the unused hook-network-manager
