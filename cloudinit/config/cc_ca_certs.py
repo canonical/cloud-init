@@ -4,10 +4,10 @@
 
 """CA Certs: Add ca certificates."""
 
+import logging
 import os
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -174,7 +174,7 @@ def disable_default_ca_certs(distro_name, distro_cfg):
             debconf_sel = (
                 "ca-certificates ca-certificates/trust_new_crts " + "select no"
             )
-            subp.subp(("debconf-set-selections", "-"), debconf_sel)
+            subp.subp(("debconf-set-selections", "-"), data=debconf_sel)
 
 
 def disable_system_ca_certs(distro_cfg):
@@ -285,6 +285,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # Update the system with the new cert configuration.
     LOG.debug("Updating certificates")
     update_ca_certs(distro_cfg)
-
-
-# vi: ts=4 expandtab

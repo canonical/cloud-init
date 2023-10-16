@@ -78,7 +78,7 @@ snap:
 ssh_import_id:
   - lp:smoser
 
-timezone: US/Aleutian
+timezone: Europe/Madrid
 """
 
 
@@ -207,7 +207,7 @@ class TestCombined:
         timezone_output = client.execute(
             'date "+%Z" --date="Thu, 03 Nov 2016 00:47:00 -0400"'
         )
-        assert timezone_output.strip() == "HDT"
+        assert timezone_output.strip() == "CET"
 
     def test_no_problems(self, class_client: IntegrationInstance):
         """Test no errors, warnings, deprecations, tracebacks or

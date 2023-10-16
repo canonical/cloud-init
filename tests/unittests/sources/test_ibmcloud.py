@@ -421,6 +421,3 @@ class TestDataSourceIBMCloud(test_helpers.CiTestCase):
         self.assertEqual("ibmcloud", self.ds.cloud_name)
         self.assertEqual("ibmcloud", self.ds.platform_type)
         self.assertEqual("plat (src)", self.ds.subplatform)
-
-
-# vi: ts=4 expandtab

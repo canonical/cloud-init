@@ -167,6 +167,3 @@ class TestTemplates(test_helpers.CiTestCase):
             ).strip(),
             expected_result,
         )
-
-
-# vi: ts=4 expandtab

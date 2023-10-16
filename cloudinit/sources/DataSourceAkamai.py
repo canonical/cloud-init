@@ -1,11 +1,11 @@
 import binascii
 import json
+import logging
 from base64 import b64decode
 from contextlib import suppress as noop
 from enum import Enum
 from typing import Any, List, Tuple, Union
 
-from cloudinit import log as logging
 from cloudinit import sources, url_helper, util
 from cloudinit.net import find_fallback_nic, get_interfaces_by_mac
 from cloudinit.net.ephemeral import EphemeralIPNetwork

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# This file runs flake8 for compatibility's sake. As soon as we move off python 3.6, this should be changed to use ruff.
+
 CR="
 "
 pycheck_dirs=( "cloudinit/" "tests/" "tools/"  "setup.py" )
@@ -11,7 +13,7 @@ else
    files=( "$@" )
 fi
 
-cmd=( "python3" -m "ruff" "${files[@]}" )
+cmd=( "python3" -m "flake8" "${files[@]}" )
 
 echo "Running: " "${cmd[@]}" 1>&2
 exec "${cmd[@]}"

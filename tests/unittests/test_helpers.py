@@ -64,6 +64,3 @@ class Testcloud_init_project_dir:
             == test_helpers.cloud_init_project_dir("test")
             == str(Path(self._get_top_level_dir_alt_implementation(), "test"))
         )
-
-
-# vi: ts=4 expandtab

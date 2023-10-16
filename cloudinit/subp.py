@@ -6,6 +6,8 @@ import logging
 import os
 import subprocess
 from errno import ENOEXEC
+from io import TextIOWrapper
+from typing import List, Union
 
 LOG = logging.getLogger(__name__)
 
@@ -39,7 +41,7 @@ def prepend_base_command(base_command, commands):
             elif command[0] != base_command:  # Automatically prepend
                 command.insert(0, base_command)
         elif isinstance(command, str):
-            if not command.startswith("%s " % base_command):
+            if not command.startswith(f"{base_command} "):
                 warnings.append(command)
         else:
             errors.append(str(command))
@@ -64,7 +66,6 @@ def prepend_base_command(base_command, commands):
 
 
 class ProcessExecutionError(IOError):
-
     MESSAGE_TMPL = (
         "%(description)s\n"
         "Command: %(cmd)s\n"
@@ -85,46 +86,33 @@ class ProcessExecutionError(IOError):
         reason=None,
         errno=None,
     ):
-        if not cmd:
-            self.cmd = self.empty_attr
-        else:
-            self.cmd = cmd
+        self.cmd = cmd or self.empty_attr
 
-        if not description:
-            if not exit_code and errno == ENOEXEC:
-                self.description = "Exec format error. Missing #! in script?"
-            else:
-                self.description = "Unexpected error while running command."
-        else:
+        if description:
             self.description = description
-
-        if not isinstance(exit_code, int):
-            self.exit_code = self.empty_attr
+        elif not exit_code and errno == ENOEXEC:
+            self.description = "Exec format error. Missing #! in script?"
         else:
-            self.exit_code = exit_code
+            self.description = "Unexpected error while running command."
+
+        self.exit_code = (
+            exit_code if isinstance(exit_code, int) else self.empty_attr
+        )
 
         if not stderr:
-            if stderr is None:
-                self.stderr = self.empty_attr
-            else:
-                self.stderr = stderr
+            self.stderr = self.empty_attr if stderr is None else stderr
         else:
             self.stderr = self._indent_text(stderr)
 
         if not stdout:
-            if stdout is None:
-                self.stdout = self.empty_attr
-            else:
-                self.stdout = stdout
+            self.stdout = self.empty_attr if stdout is None else stdout
         else:
             self.stdout = self._indent_text(stdout)
 
-        if reason:
-            self.reason = reason
-        else:
-            self.reason = self.empty_attr
+        self.reason = reason or self.empty_attr
 
-        self.errno = errno
+        if errno:
+            self.errno = errno
         message = self.MESSAGE_TMPL % {
             "description": self._ensure_string(self.description),
             "cmd": self._ensure_string(self.cmd),
@@ -141,23 +129,23 @@ class ProcessExecutionError(IOError):
         """
         return text.decode() if isinstance(text, bytes) else text
 
-    def _indent_text(self, text, indent_level=8):
+    def _indent_text(
+        self, text: Union[str, bytes], indent_level=8
+    ) -> Union[str, bytes]:
         """
         indent text on all but the first line, allowing for easy to read output
+
+        remove any newlines at end of text first to prevent unneeded blank
+        line in output
         """
-        cr = "\n"
-        indent = " " * indent_level
-        # if input is bytes, return bytes
-        if isinstance(text, bytes):
-            cr = cr.encode()
-            indent = indent.encode()
-        # remove any newlines at end of text first to prevent unneeded blank
-        # line in output
-        return text.rstrip(cr).replace(cr, cr + indent)
+        if not isinstance(text, bytes):
+            return text.rstrip("\n").replace("\n", "\n" + " " * indent_level)
+        return text.rstrip(b"\n").replace(b"\n", b"\n" + b" " * indent_level)
 
 
 def subp(
     args,
+    *,
     data=None,
     rcs=None,
     env=None,
@@ -257,7 +245,7 @@ def subp(
             logstring,
         )
 
-    stdin = None
+    stdin: Union[TextIOWrapper, int]
     stdout = None
     stderr = None
     if capture:
@@ -279,6 +267,7 @@ def subp(
     # Popen converts entries in the arguments array from non-bytes to bytes.
     # When locale is unset it may use ascii for that encoding which can
     # cause UnicodeDecodeErrors. (LP: #1751051)
+    bytes_args: Union[bytes, List[bytes]]
     if isinstance(args, bytes):
         bytes_args = args
     elif isinstance(args, str):
@@ -321,9 +310,7 @@ def subp(
     if decode:
 
         def ldecode(data, m="utf-8"):
-            if not isinstance(data, bytes):
-                return data
-            return data.decode(m, decode)
+            return data.decode(m, decode) if isinstance(data, bytes) else data
 
         out = ldecode(out)
         err = ldecode(err)
@@ -345,7 +332,7 @@ def target_path(target, path=None):
     if target in (None, ""):
         target = "/"
     elif not isinstance(target, str):
-        raise ValueError("Unexpected input for target: %s" % target)
+        raise ValueError(f"Unexpected input for target: {target}")
     else:
         target = os.path.abspath(target)
         # abspath("//") returns "//" specifically for 2 slashes.
@@ -358,29 +345,25 @@ def target_path(target, path=None):
     # os.path.join("/etc", "/foo") returns "/foo". Chomp all leading /.
     while len(path) and path[0] == "/":
         path = path[1:]
-
     return os.path.join(target, path)
 
 
 def which(program, search=None, target=None):
     target = target_path(target)
 
-    if os.path.sep in program:
+    if os.path.sep in program and is_exe(target_path(target, program)):
         # if program had a '/' in it, then do not search PATH
         # 'which' does consider cwd here. (cd / && which bin/ls) = bin/ls
         # so effectively we set cwd to / (or target)
-        if is_exe(target_path(target, program)):
-            return program
+        return program
 
     if search is None:
         paths = [
             p.strip('"') for p in os.environ.get("PATH", "").split(os.pathsep)
         ]
-        if target == "/":
-            search = paths
-        else:
-            search = [p for p in paths if p.startswith("/")]
-
+        search = (
+            paths if target == "/" else [p for p in paths if p.startswith("/")]
+        )
     # normalize path input
     search = [os.path.abspath(p) for p in search]
 
@@ -425,9 +408,6 @@ def runparts(dirp, skip_no_exist=True, exe_prefix=None):
 
     if failed and attempted:
         raise RuntimeError(
-            "Runparts: %s failures (%s) in %s attempted commands"
-            % (len(failed), ",".join(failed), len(attempted))
+            f'Runparts: {len(failed)} failures ({",".join(failed)}) in '
+            f"{len(attempted)} attempted commands"
         )
-
-
-# vi: ts=4 expandtab

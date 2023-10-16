@@ -57,6 +57,3 @@ class TestMergeRun(helpers.FilesystemMockingTestCase):
         self.assertIn("write_files", which_ran)
         contents = util.load_file("/etc/blah.ini")
         self.assertEqual(contents, "blah")
-
-
-# vi: ts=4 expandtab

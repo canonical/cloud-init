@@ -348,6 +348,3 @@ class TestSubp(CiTestCase):
             "End run command: exit(0)\n",
         ]
         self.assertEqual(expected, logs)
-
-
-# vi: ts=4 expandtab

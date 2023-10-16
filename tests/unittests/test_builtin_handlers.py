@@ -427,6 +427,3 @@ class TestShellScriptByFrequencyHandlers:
 
     def test_get_script_folder_per_once(self):
         self.do_test_frequency(PER_ONCE)
-
-
-# vi: ts=4 expandtab

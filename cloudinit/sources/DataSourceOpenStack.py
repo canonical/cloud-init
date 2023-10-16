@@ -4,11 +4,10 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import time
 
-from cloudinit import dmi
-from cloudinit import log as logging
-from cloudinit import sources, url_helper, util
+from cloudinit import dmi, sources, url_helper, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralDHCPv4

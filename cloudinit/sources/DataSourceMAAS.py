@@ -7,10 +7,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import hashlib
+import logging
 import os
 import time
 
-from cloudinit import log as logging
 from cloudinit import sources, url_helper, util
 
 LOG = logging.getLogger(__name__)
@@ -450,5 +450,3 @@ if __name__ == "__main__":
             crawl(args.url)
 
     main()
-
-# vi: ts=4 expandtab

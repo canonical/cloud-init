@@ -62,6 +62,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             "Skipping module named %s, disabling the ec2 route not enabled",
             name,
         )
-
-
-# vi: ts=4 expandtab

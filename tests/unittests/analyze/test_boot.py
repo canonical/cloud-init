@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from cloudinit.analyze.__main__ import analyze_boot, get_parser
+from cloudinit.analyze import analyze_boot, get_parser
 from cloudinit.analyze.show import (
     CONTAINER_CODE,
     FAIL_CODE,
@@ -158,7 +158,7 @@ class TestAnalyzeBoot:
     @mock.patch("cloudinit.util.is_container", return_value=True)
     @mock.patch("cloudinit.subp.subp", return_value=("U=1000000", None))
     @mock.patch(
-        "cloudinit.analyze.__main__._get_events",
+        "cloudinit.analyze._get_events",
         return_value=[
             {
                 "name": "init-local",

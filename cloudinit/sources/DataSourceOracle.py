@@ -15,12 +15,11 @@ Notes:
 
 import base64
 import ipaddress
+import logging
 from collections import namedtuple
 from typing import Optional, Tuple
 
-from cloudinit import atomic_helper, dmi
-from cloudinit import log as logging
-from cloudinit import net, sources, util
+from cloudinit import atomic_helper, dmi, net, sources, util
 from cloudinit.distros.networking import NetworkConfig
 from cloudinit.net import (
     cmdline,

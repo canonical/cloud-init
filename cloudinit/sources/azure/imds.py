@@ -2,12 +2,12 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 from time import time
 from typing import Dict, Optional
 
 import requests
 
-from cloudinit import log as logging
 from cloudinit import util
 from cloudinit.sources.helpers.azure import report_diagnostic_event
 from cloudinit.url_helper import UrlError, readurl
@@ -185,6 +185,7 @@ def fetch_reprovision_data() -> bytes:
         retry_codes=(
             404,
             410,
+            429,
         ),
         retry_deadline=None,
     )

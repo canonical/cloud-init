@@ -11,6 +11,7 @@
 import abc
 import copy
 import json
+import logging
 import os
 import pickle
 import re
@@ -18,9 +19,7 @@ from collections import namedtuple
 from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Tuple
 
-from cloudinit import atomic_helper, dmi, importer
-from cloudinit import log as logging
-from cloudinit import net, type_utils
+from cloudinit import atomic_helper, dmi, importer, net, type_utils
 from cloudinit import user_data as ud
 from cloudinit import util
 from cloudinit.atomic_helper import write_json
@@ -352,10 +351,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 self,
             )
             return True
-        elif self.sys_cfg.get("datasource_list", []) in (
-            [self.dsname],
-            [self.dsname, "None"],
-        ):
+        elif self.sys_cfg.get("datasource_list", []) == [self.dsname]:
             LOG.debug(
                 "Machine is configured to run on single datasource %s.", self
             )

@@ -3,11 +3,11 @@
 import copy
 import glob
 import io
+import logging
 import os
 import re
 from typing import Mapping, Optional
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.distros.parsers import networkmanager_conf, resolv_conf
 from cloudinit.net import (
@@ -40,7 +40,7 @@ KNOWN_DISTROS = [
 
 def _make_header(sep="#"):
     lines = [
-        "Created by cloud-init on instance boot automatically, do not edit.",
+        "Created by cloud-init automatically, do not edit.",
         "",
     ]
     for i in range(0, len(lines)):
@@ -436,13 +436,13 @@ class Renderer(renderer.Renderer):
                         iface_cfg["BOOTPROTO"] = "dhcp6"
                     iface_cfg["DHCLIENT6_MODE"] = "managed"
                 # only if rhel AND dhcpv6 stateful
-                elif (
-                    flavor == "rhel" and subnet_type == "ipv6_dhcpv6-stateful"
+                elif flavor == "rhel" and (
+                    subnet_type == "ipv6_dhcpv6-stateful"
                 ):
-                    iface_cfg["BOOTPROTO"] = "dhcp"
                     iface_cfg["DHCPV6C"] = True
                     iface_cfg["IPV6INIT"] = True
                     iface_cfg["IPV6_AUTOCONF"] = False
+                    iface_cfg["IPV6_FAILURE_FATAL"] = True
                 else:
                     iface_cfg["IPV6INIT"] = True
                     # Configure network settings using DHCPv6
@@ -1084,6 +1084,3 @@ def available_sysconfig(target=None):
         if os.path.isfile(subp.target_path(target, p)):
             return True
     return False
-
-
-# vi: ts=4 expandtab

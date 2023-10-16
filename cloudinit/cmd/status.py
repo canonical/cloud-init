@@ -43,6 +43,7 @@ class UXAppBootStatusCode(enum.Enum):
     DISABLED_BY_GENERATOR = "disabled-by-generator"
     DISABLED_BY_KERNEL_CMDLINE = "disabled-by-kernel-cmdline"
     DISABLED_BY_MARKER_FILE = "disabled-by-marker-file"
+    DISABLED_BY_ENV_VARIABLE = "disabled-by-environment-variable"
     ENABLED_BY_GENERATOR = "enabled-by-generator"
     ENABLED_BY_KERNEL_CMDLINE = "enabled-by-kernel-cmdline"
     ENABLED_BY_SYSVINIT = "enabled-by-sysvinit"
@@ -54,6 +55,7 @@ DISABLED_BOOT_CODES = frozenset(
         UXAppBootStatusCode.DISABLED_BY_GENERATOR,
         UXAppBootStatusCode.DISABLED_BY_KERNEL_CMDLINE,
         UXAppBootStatusCode.DISABLED_BY_MARKER_FILE,
+        UXAppBootStatusCode.DISABLED_BY_ENV_VARIABLE,
     ]
 )
 
@@ -184,6 +186,16 @@ def get_bootstatus(disable_file, paths) -> Tuple[UXAppBootStatusCode, str]:
     elif "cloud-init=disabled" in cmdline_parts:
         bootstatus_code = UXAppBootStatusCode.DISABLED_BY_KERNEL_CMDLINE
         reason = "Cloud-init disabled by kernel parameter cloud-init=disabled"
+    elif "cloud-init=disabled" in os.environ.get("KERNEL_CMDLINE", "") or (
+        uses_systemd()
+        and "cloud-init=disabled"
+        in subp.subp(["systemctl", "show-environment"]).stdout
+    ):
+        bootstatus_code = UXAppBootStatusCode.DISABLED_BY_ENV_VARIABLE
+        reason = (
+            "Cloud-init disabled by environment variable "
+            "KERNEL_CMDLINE=cloud-init=disabled"
+        )
     elif os.path.exists(os.path.join(paths.run_dir, "disabled")):
         bootstatus_code = UXAppBootStatusCode.DISABLED_BY_GENERATOR
         reason = "Cloud-init disabled by cloud-init-generator"

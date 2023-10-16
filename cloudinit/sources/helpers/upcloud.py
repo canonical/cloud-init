@@ -3,9 +3,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import json
+import logging
 
 from cloudinit import dmi
-from cloudinit import log as logging
 from cloudinit import net as cloudnet
 from cloudinit import url_helper
 

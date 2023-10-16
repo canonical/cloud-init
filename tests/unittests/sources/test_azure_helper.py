@@ -1648,6 +1648,3 @@ class TestOvfEnvXml:
             azure_helper.OvfEnvXml.parse_text(ovf)
 
         assert str(exc_info.value) == error
-
-
-# vi: ts=4 expandtab

@@ -6,9 +6,9 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import os
 
-from cloudinit import log as logging
 from cloudinit import sources, subp, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import eni
@@ -325,6 +325,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab

@@ -625,6 +625,3 @@ class TestVmwareNetConfig(CiTestCase):
         cf._insertKey("CLOUDINIT|USERDATA", "test-userdata")
         conf = Config(cf)
         self.assertEqual("test-userdata", conf.user_data_name)
-
-
-# vi: ts=4 expandtab

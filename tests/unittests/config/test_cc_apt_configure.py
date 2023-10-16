@@ -197,6 +197,3 @@ class TestAPTConfigureSchema:
                 error_msg = error_msg.replace("primary", "security")
                 with pytest.raises(SchemaValidationError, match=error_msg):
                     validate_cloudconfig_schema(config, schema, strict=True)
-
-
-# vi: ts=4 expandtab

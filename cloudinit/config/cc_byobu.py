@@ -114,6 +114,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         cmd = ["/bin/sh", "-c", "%s %s %s" % ("X=0;", shcmd, "exit $X")]
         LOG.debug("Setting byobu to %s", value)
         subp.subp(cmd, capture=False)
-
-
-# vi: ts=4 expandtab

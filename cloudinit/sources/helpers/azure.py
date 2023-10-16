@@ -1246,6 +1246,3 @@ class OvfEnvXml:
                 "value": value,
             }
             self.public_keys.append(ssh_key)
-
-
-# vi: ts=4 expandtab

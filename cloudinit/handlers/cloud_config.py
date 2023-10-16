@@ -8,11 +8,11 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
+
 import jsonpatch
 
-from cloudinit import handlers
-from cloudinit import log as logging
-from cloudinit import mergers, safeyaml, util
+from cloudinit import handlers, mergers, safeyaml, util
 from cloudinit.settings import PER_ALWAYS
 
 LOG = logging.getLogger(__name__)
@@ -158,6 +158,3 @@ class CloudConfigPartHandler(handlers.Handler):
             util.logexc(
                 LOG, "Failed at merging in cloud config part from %s", filename
             )
-
-
-# vi: ts=4 expandtab

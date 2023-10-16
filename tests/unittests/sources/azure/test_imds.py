@@ -533,6 +533,7 @@ class TestFetchReprovisionData:
         [
             fake_http_error_for_code(404),
             fake_http_error_for_code(410),
+            fake_http_error_for_code(429),
         ],
     )
     @pytest.mark.parametrize("failures", [1, 5, 100, 1000])
@@ -591,6 +592,7 @@ class TestFetchReprovisionData:
         [
             fake_http_error_for_code(404),
             fake_http_error_for_code(410),
+            fake_http_error_for_code(429),
         ],
     )
     @pytest.mark.parametrize("failures", [1, 5, 100, 1000])
