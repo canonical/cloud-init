@@ -739,9 +739,6 @@ probe_floppy() {
 dscheck_CloudStack() {
     is_container && return ${DS_NOT_FOUND}
     dmi_product_name_matches "CloudStack*" && return $DS_FOUND
-    if [ "$DI_VIRT" = "vmware" ] || [ "$DI_VIRT" = "xen" ]; then
-        return $DS_MAYBE
-    fi
     return $DS_NOT_FOUND
 }
 
