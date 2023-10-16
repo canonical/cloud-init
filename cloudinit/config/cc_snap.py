@@ -191,7 +191,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             "Skipping module named %s, no 'snap' key in configuration", name
         )
         return
-
+    util.wait_for_snap_seeded(cloud)
     add_assertions(
         cfgin.get("assertions", []),
         os.path.join(cloud.paths.get_ipath_cur(), "snapd.assertions"),
