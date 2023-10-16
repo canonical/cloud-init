@@ -1,0 +1,28 @@
+Description: Do not block user login
+Author: Brett Holman <brett.holman@canonical.com>
+Origin: other
+Bug: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/2039505
+Last-Update: 2023-10-16
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+
+--- a/systemd/cloud-config.service.tmpl
++++ b/systemd/cloud-config.service.tmpl
+@@ -3,7 +3,6 @@
+ Description=Apply the settings specified in cloud-config
+ After=network-online.target cloud-config.target
+ After=snapd.seeded.service
+-Before=systemd-user-sessions.service
+ Wants=network-online.target cloud-config.target
+ {% if variant == "rhel" %}
+ ConditionPathExists=!/etc/cloud/cloud-init.disabled
+--- a/systemd/cloud-init.service.tmpl
++++ b/systemd/cloud-init.service.tmpl
+@@ -38,6 +38,7 @@
+ Before=shutdown.target
+ Conflicts=shutdown.target
+ {% endif %}
++Before=systemd-user-sessions.service
+ {% if variant == "rhel" %}
+ ConditionPathExists=!/etc/cloud/cloud-init.disabled
+ ConditionKernelCommandLine=!cloud-init=disabled
