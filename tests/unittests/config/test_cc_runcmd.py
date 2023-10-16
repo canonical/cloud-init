@@ -22,6 +22,7 @@ from tests.unittests.util import get_cloud
 LOG = logging.getLogger(__name__)
 
 
+@patch("cloudinit.util.wait_for_snap_seeded")
 class TestRuncmd(FilesystemMockingTestCase):
 
     with_logs = True
@@ -33,7 +34,7 @@ class TestRuncmd(FilesystemMockingTestCase):
         self.patchUtils(self.new_root)
         self.paths = helpers.Paths({"scripts": self.new_root})
 
-    def test_handler_skip_if_no_runcmd(self):
+    def test_handler_skip_if_no_runcmd(self, wait_for_snap_seeded):
         """When the provided config doesn't contain runcmd, skip it."""
         cfg = {}
         mycloud = get_cloud(paths=self.paths)
@@ -42,9 +43,10 @@ class TestRuncmd(FilesystemMockingTestCase):
             "Skipping module named notimportant, no 'runcmd' key",
             self.logs.getvalue(),
         )
+        wait_for_snap_seeded.assert_not_called()
 
     @patch("cloudinit.util.shellify")
-    def test_runcmd_shellify_fails(self, cls):
+    def test_runcmd_shellify_fails(self, cls, wait_for_snap_seeded):
         """When shellify fails throw exception"""
         cls.side_effect = TypeError("patched shellify")
         valid_config = {"runcmd": ["echo 42"]}
@@ -53,8 +55,9 @@ class TestRuncmd(FilesystemMockingTestCase):
             with self.allow_subp(["/bin/sh"]):
                 handle("cc_runcmd", valid_config, cc, None)
         self.assertIn("Failed to shellify", str(cm.exception))
+        wait_for_snap_seeded.assert_called_once_with()
 
-    def test_handler_invalid_command_set(self):
+    def test_handler_invalid_command_set(self, wait_for_snap_seeded):
         """Commands which can't be converted to shell will raise errors."""
         invalid_config = {"runcmd": 1}
         cc = get_cloud(paths=self.paths)
@@ -65,8 +68,11 @@ class TestRuncmd(FilesystemMockingTestCase):
             " /var/lib/cloud/instances/iid-datasource-none/scripts/runcmd",
             str(cm.exception),
         )
+        wait_for_snap_seeded.assert_called_once_with()
 
-    def test_handler_write_valid_runcmd_schema_to_file(self):
+    def test_handler_write_valid_runcmd_schema_to_file(
+        self, wait_for_snap_seeded
+    ):
         """Valid runcmd schema is written to a runcmd shell script."""
         valid_config = {"runcmd": [["ls", "/"]]}
         cc = get_cloud(paths=self.paths)
@@ -78,6 +84,7 @@ class TestRuncmd(FilesystemMockingTestCase):
         self.assertEqual("#!/bin/sh\n'ls' '/'\n", util.load_file(runcmd_file))
         file_stat = os.stat(runcmd_file)
         self.assertEqual(0o700, stat.S_IMODE(file_stat.st_mode))
+        wait_for_snap_seeded.assert_called_once_with()
 
 
 @skipUnlessJsonSchema()

@@ -3093,6 +3093,14 @@ def wait_for_files(flist, maxwait, naplen=0.5, log_pre=""):
     return need
 
 
+def wait_for_snap_seeded():
+    """Helper to wait on completion of snap seeding."""
+    if not subp.which("snap"):
+        LOG.debug("Skipping snap wait, no snap command present")
+        return
+    subp.subp(["snap", "wait", "system", "seed.loaded"])
+
+
 def mount_is_read_write(mount_point):
     """Check whether the given mount point is mounted rw"""
     result = get_mount_info(mount_point, get_mnt_opts=True)

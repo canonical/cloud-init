@@ -32,7 +32,9 @@ def get_cloud(
         myds.metadata.update(metadata)
     if paths:
         paths.datasource = myds
-    return cloud.Cloud(myds, paths, sys_cfg, mydist, None)
+    return cloud.Cloud(
+        myds, paths, sys_cfg, mydist, runners=helpers.Runners(paths)
+    )
 
 
 def abstract_to_concrete(abclass):

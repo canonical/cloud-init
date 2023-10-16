@@ -17,7 +17,7 @@ from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
-from cloudinit.settings import PER_INSTANCE
+from cloudinit.settings import PER_INSTANCE, PER_ONCE
 
 # The schema definition for each cloud-config module is a strict contract for
 # describing supported configuration parameters for each cloud-config section.
@@ -85,6 +85,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         )
         return
 
+    cloud.run("snap-seeded", util.wait_for_snap_seeded, [], freq=PER_ONCE)
     out_fn = os.path.join(cloud.get_ipath("scripts"), "runcmd")
     cmd = cfg["runcmd"]
     try:

@@ -11,6 +11,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
+from cloudinit.helpers import Paths
 from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
@@ -64,6 +65,7 @@ class TestvalidateConfigSchema:
             cc_ubuntu_autoinstall.validate_config_schema(src_cfg)
 
 
+@mock.patch(MODPATH + "util.wait_for_snap_seeded")
 @mock.patch(MODPATH + "subp")
 class TestHandleAutoinstall:
     """Test cc_ubuntu_autoinstall handling of config."""
@@ -112,14 +114,23 @@ class TestHandleAutoinstall:
         ],
     )
     def test_handle_autoinstall_cfg(
-        self, subp, cfg, snap_list, subp_calls, logs, caplog
+        self,
+        subp,
+        wait_for_snap_seeded,
+        cfg,
+        snap_list,
+        subp_calls,
+        logs,
+        caplog,
+        tmpdir,
     ):
         subp.return_value = snap_list, ""
-        cloud = get_cloud(distro="ubuntu")
+        cloud = get_cloud(distro="ubuntu", paths=Paths({"cloud_dir": tmpdir}))
         cc_ubuntu_autoinstall.handle("name", cfg, cloud, None)
         assert subp_calls == subp.call_args_list
         for log in logs:
             assert log in caplog.text
+        wait_for_snap_seeded.assert_called_once
 
 
 class TestAutoInstallSchema:

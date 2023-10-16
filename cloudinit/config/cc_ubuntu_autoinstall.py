@@ -6,6 +6,7 @@ import logging
 import re
 from textwrap import dedent
 
+from cloudinit import util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import (
@@ -83,6 +84,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         )
         return
 
+    cloud.run("snap-seeded", util.wait_for_snap_seeded, [], freq=PER_ONCE)
     snap_list, _ = subp(["snap", "list"])
     installer_present = None
     for snap_name in LIVE_INSTALLER_SNAPS:

@@ -11,6 +11,8 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
+from cloudinit.helpers import Paths
+from cloudinit.util import del_file
 from tests.unittests import helpers as t_help
 from tests.unittests.util import get_cloud
 
@@ -44,7 +46,9 @@ class TestLxd(t_help.CiTestCase):
     )
     def test_lxd_init(self, maybe_clean, which, subp, exists, system_info):
         system_info.return_value = {"uname": [0, 1, "mykernel"]}
-        cc = get_cloud(mocked_distro=True)
+        tmpdir = self.tmp_dir()
+        sem_file = f"{tmpdir}/sem/snap_seeded.once"
+        cc = get_cloud(mocked_distro=True, paths=Paths({"cloud_dir": tmpdir}))
         install = cc.distro.install_packages
 
         for backend, cmd, package in BACKEND_DEF:
@@ -84,21 +88,23 @@ class TestLxd(t_help.CiTestCase):
             if backend == "lvm":
                 self.assertEqual(
                     [
+                        mock.call(sem_file),
                         mock.call(
                             "/lib/modules/mykernel/"
                             "kernel/drivers/md/dm-thin-pool.ko"
-                        )
+                        ),
                     ],
                     exists.call_args_list,
                 )
             else:
-                self.assertEqual([], exists.call_args_list)
+                self.assertEqual([mock.call(sem_file)], exists.call_args_list)
+            del_file(sem_file)
 
     @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
     @mock.patch("cloudinit.config.cc_lxd.subp")
     @mock.patch("cloudinit.config.cc_lxd.subp.which", return_value=False)
     def test_lxd_install(self, m_which, mock_subp, m_maybe_clean):
-        cc = get_cloud()
+        cc = get_cloud(paths=Paths({"cloud_dir": self.tmp_dir()}))
         cc.distro = mock.MagicMock()
         mock_subp.which.return_value = None
         cc_lxd.handle("cc_lxd", LXD_INIT_CFG, cc, [])
@@ -112,7 +118,7 @@ class TestLxd(t_help.CiTestCase):
     @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
     @mock.patch("cloudinit.config.cc_lxd.subp")
     def test_no_init_does_nothing(self, mock_subp, m_maybe_clean):
-        cc = get_cloud()
+        cc = get_cloud(paths=Paths({"cloud_dir": self.tmp_dir()}))
         cc.distro = mock.MagicMock()
         cc_lxd.handle("cc_lxd", {"lxd": {}}, cc, [])
         self.assertFalse(cc.distro.install_packages.called)
@@ -122,16 +128,17 @@ class TestLxd(t_help.CiTestCase):
     @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
     @mock.patch("cloudinit.config.cc_lxd.subp")
     def test_no_lxd_does_nothing(self, mock_subp, m_maybe_clean):
-        cc = get_cloud()
+        cc = get_cloud(paths=Paths({"cloud_dir": self.tmp_dir()}))
         cc.distro = mock.MagicMock()
         cc_lxd.handle("cc_lxd", {"package_update": True}, cc, [])
         self.assertFalse(cc.distro.install_packages.called)
         self.assertFalse(mock_subp.subp.called)
         self.assertFalse(m_maybe_clean.called)
 
+    @mock.patch("cloudinit.config.cc_lxd.util.wait_for_snap_seeded")
     @mock.patch("cloudinit.config.cc_lxd.subp")
-    def test_lxd_preseed(self, mock_subp):
-        cc = get_cloud()
+    def test_lxd_preseed(self, mock_subp, wait_for_snap_seeded):
+        cc = get_cloud(paths=Paths({"cloud_dir": self.tmp_dir()}))
         cc.distro = mock.MagicMock()
         cc_lxd.handle(
             "cc_lxd",
@@ -146,6 +153,7 @@ class TestLxd(t_help.CiTestCase):
             ],
             mock_subp.subp.call_args_list,
         )
+        wait_for_snap_seeded.assert_called_once_with()
 
     def test_lxd_debconf_new_full(self):
         data = {

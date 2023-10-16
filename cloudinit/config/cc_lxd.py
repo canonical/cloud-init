@@ -15,7 +15,7 @@ from cloudinit import safeyaml, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
-from cloudinit.settings import PER_INSTANCE
+from cloudinit.settings import PER_INSTANCE, PER_ONCE
 
 LOG = logging.getLogger(__name__)
 
@@ -210,6 +210,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             f" '{type(lxd_cfg).__name__}'"
         )
 
+    cloud.run("snap-seeded", util.wait_for_snap_seeded, [], freq=PER_ONCE)
     # Grab the configuration
     init_cfg = lxd_cfg.get("init", {})
     preseed_str = lxd_cfg.get("preseed", "")

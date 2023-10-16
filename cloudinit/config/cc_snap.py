@@ -13,7 +13,7 @@ from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
-from cloudinit.settings import PER_INSTANCE
+from cloudinit.settings import PER_INSTANCE, PER_ONCE
 from cloudinit.subp import prepend_base_command
 
 distros = ["ubuntu"]
@@ -192,7 +192,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             "Skipping module named %s, no 'snap' key in configuration", name
         )
         return
-
+    cloud.run("snap-seeded", util.wait_for_snap_seeded, [], freq=PER_ONCE)
     add_assertions(
         cfgin.get("assertions", []),
         os.path.join(cloud.paths.get_ipath_cur(), "snapd.assertions"),
