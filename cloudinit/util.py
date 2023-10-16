@@ -65,7 +65,7 @@ from cloudinit import (
     url_helper,
     version,
 )
-from cloudinit.settings import CFG_BUILTIN
+from cloudinit.settings import CFG_BUILTIN, PER_ONCE
 
 _DNS_REDIRECT_IP = None
 LOG = logging.getLogger(__name__)
@@ -3092,6 +3092,18 @@ def wait_for_files(flist, maxwait, naplen=0.5, log_pre=""):
         "%sStill missing files after %s seconds: %s", log_pre, maxwait, need
     )
     return need
+
+
+def wait_for_snap_seeded(cloud):
+    """Helper to wait on completion of snap seeding."""
+
+    def callback():
+        if not subp.which("snap"):
+            LOG.debug("Skipping snap wait, no snap command present")
+            return
+        subp.subp(["snap", "wait", "system", "seed.loaded"])
+
+    cloud.run("snap-seeded", callback, [], freq=PER_ONCE)
 
 
 def mount_is_read_write(mount_point):
