@@ -47,7 +47,8 @@ class BootHookPartHandler(handlers.Handler):
             env = os.environ.copy()
             if self.instance_id is not None:
                 env["INSTANCE_ID"] = str(self.instance_id)
-            subp.subp([filepath], env=env)
+            LOG.debug("Executing boothook")
+            subp.subp([filepath], env=env, capture=False)
         except subp.ProcessExecutionError:
             util.logexc(LOG, "Boothooks script %s execution error", filepath)
         except Exception:
