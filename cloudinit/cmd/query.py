@@ -285,8 +285,11 @@ def handle_args(name, args):
                 debug=True if args.debug else False,
             )
         except Exception as e:
-            error_msg = "Failed to render templated data due to jinja parsing error: {error}".format(
-                error=str(e),
+            error_msg = (
+                "Failed to render templated data due to jinja parsing error: "
+                "{error}".format(
+                    error=str(e),
+                )
             )
             print(error_msg)
             return 1

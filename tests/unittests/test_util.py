@@ -466,7 +466,7 @@ class TestUtil:
         ) in caplog.text
 
     @skipUnlessJinja()
-    def test_read_conf_with_failed_template(self, mocker, caplog):
+    def test_read_conf_with_failed_config_json(self, mocker, caplog):
         mocker.patch("os.path.exists", return_value=True)
         mocker.patch(
             "cloudinit.util.load_file",
@@ -481,7 +481,7 @@ class TestUtil:
         assert conf == {}
 
     @skipUnlessJinja()
-    def test_read_conf_with_failed_vars(self, mocker, caplog):
+    def test_read_conf_with_failed_instance_data_json(self, mocker, caplog):
         mocker.patch("os.path.exists", return_value=True)
         mocker.patch(
             "cloudinit.util.load_file",

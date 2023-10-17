@@ -826,6 +826,34 @@ class TestValidateCloudConfigFile:
             " Nothing to validate" in out
         )
 
+    @pytest.mark.parametrize("annotate", (True, False))
+    def test_validateconfig_file_raises_enhanced_jinja_error(
+        self, annotate, tmpdir, mocker, capsys
+    ):
+        """ """
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch(
+            "cloudinit.util.load_file",
+            return_value='## template: jinja\n{"a": "{{c}}"',  # missing }
+        )
+        mocker.patch(
+            "cloudinit.handlers.jinja_template.load_file",
+            return_value='{"c": "d"}',
+        )
+        config_file = tmpdir.join("my.yaml")
+        config_file.write("## template: jinja\na:b\nc:{{ d } }")
+        with pytest.raises(SystemExit) as context_manager:
+            validate_cloudconfig_file(config_file.strpath, {}, annotate)
+        assert 1 == context_manager.value.code
+
+        _out, err = capsys.readouterr()
+        expected = (
+            "Error:\n"
+            "Failed to render templated cloud-config due to jinja parsing "
+            "error: unexpected '}' on line 3\n"
+        )
+        assert expected == err
+
 
 class TestSchemaDocMarkdown:
     """Tests for get_meta_doc."""

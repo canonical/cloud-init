@@ -332,8 +332,11 @@ def read_conf(fname, *, instance_data_file=None) -> Dict:
                 fname,
             )
         except CustomParsedJinjaException as e:
-            error_msg = "Failed to render user-data file '{file_path}' due to jinja parsing error: {error}".format(
-                file_path=fname, error=str(e)
+            error_msg = (
+                "Failed to render user-data file '{file_path}' "
+                "due to jinja parsing error: {error}".format(
+                    file_path=fname, error=str(e)
+                )
             )
             LOG.warning(error_msg)
         except NotJinjaError:

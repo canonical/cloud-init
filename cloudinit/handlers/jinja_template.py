@@ -61,9 +61,9 @@ class JinjaTemplatePartHandler(handlers.Handler):
             )
         except CustomParsedJinjaException as e:
             LOG.warning(
-                "Failed to render templated cloud-config file due to jinja parsing error: {e}".format(
-                    e=str(e),
-                )
+                "Failed to render templated cloud-config file due to jinja "
+                "parsing error: %s",
+                str(e),
             )
             return
 
@@ -146,8 +146,6 @@ def render_jinja_payload(payload, payload_fn, instance_data, debug=False):
         )
     try:
         rendered_payload = render_string(payload, instance_jinja_vars)
-    # except CustomParsedJinjaException as custom_raised_jinja_error:
-    #     LOG.error("Failed to parse jinja template: %s", str(custom_raised_jinja_error))
     except (TypeError, JUndefinedError) as e:
         LOG.warning("Ignoring jinja template for %s: %s", payload_fn, str(e))
         return None

@@ -101,9 +101,12 @@ def render_template(user_data_path, instance_data_path=None, debug=False):
         )
         return 1
     except CustomParsedJinjaException as e:
-        error_msg = "Failed to render user-data file '{file_path}' due to jinja parsing error: {error}".format(
-            file_path=user_data_path,
-            error=str(e),
+        error_msg = (
+            "Failed to render user-data file '{file_path}' "
+            "due to jinja parsing error: {error}".format(
+                file_path=user_data_path,
+                error=str(e),
+            )
         )
         LOG.error(error_msg)
         sys.stderr.write(error_msg + "\n")
