@@ -1,6 +1,8 @@
 cloud-init (23.3.2-0ubuntu0~23.10.2) UNRELEASED; urgency=medium
   * d/p/do-not-block-user-login.patch:
     - Revert behavior, allow user login after cloud-init stage (LP: #2039505)
+  * cherry-pick 2ab1f340: fix(cc_apt_configure): avoid unneeded call to
+    apt-get update (LP: #2039621)
   * Upstream snapshot based on 23.3.2. (LP: #2039453).
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/23.3.2/ChangeLog
