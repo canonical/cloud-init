@@ -1,0 +1,112 @@
+From 2ab1f3404e1f57ec16e49b8e95ccd1e6e1ea49a7 Mon Sep 17 00:00:00 2001
+From: Alberto Contreras <alberto.contreras@canonical.com>
+Date: Tue, 17 Oct 2023 22:06:16 +0200
+Subject: [PATCH] fix(cc_apt_configure): avoid unneeded call to apt-install
+ (#4519)
+
+If no apt-sources config is given and no apt depencies are required to
+be installed, the avoid unneeded calls to apt-update and apt-install.
+
+The problem was introduced in 015543d304.
+---
+--- a/cloudinit/config/cc_apt_configure.py
++++ b/cloudinit/config/cc_apt_configure.py
+@@ -536,7 +536,8 @@ def _ensure_dependencies(cfg, aa_repo_ma
+     for command in required_cmds:
+         if not shutil.which(command):
+             missing_packages.append(PACKAGE_DEPENDENCY_BY_COMMAND[command])
+-    cloud.distro.install_packages(sorted(missing_packages))
++    if missing_packages:
++        cloud.distro.install_packages(sorted(missing_packages))
+
+
+ def add_apt_key(ent, cloud, target=None, hardened=False, file_name=None):
+--- a/tests/unittests/config/test_cc_apt_configure.py
++++ b/tests/unittests/config/test_cc_apt_configure.py
+@@ -6,12 +6,14 @@ import re
+
+ import pytest
+
++from cloudinit.config import cc_apt_configure
+ from cloudinit.config.schema import (
+     SchemaValidationError,
+     get_schema,
+     validate_cloudconfig_schema,
+ )
+ from tests.unittests.helpers import skipUnlessJsonSchema
++from tests.unittests.util import get_cloud
+
+
+ class TestAPTConfigureSchema:
+@@ -199,4 +201,71 @@ class TestAPTConfigureSchema:
+                     validate_cloudconfig_schema(config, schema, strict=True)
+
+
++class TestEnsureDependencies:
++    @pytest.mark.parametrize(
++        "cfg, already_installed, expected_install",
++        (
++            pytest.param({}, [], [], id="empty_cfg_no_pkg_installs"),
++            pytest.param(
++                {"sources": {"s1": {"keyid": "haveit"}}},
++                ["gpg"],
++                [],
++                id="cfg_needs_gpg_no_installs_when_gpg_present",
++            ),
++            pytest.param(
++                {"sources": {"s1": {"keyid": "haveit"}}},
++                [],
++                ["gnupg"],
++                id="cfg_needs_gpg_installs_gnupg_when_absent",
++            ),
++            pytest.param(
++                {"primary": [{"keyid": "haveit"}]},
++                [],
++                ["gnupg"],
++                id="cfg_primary_needs_gpg_installs_gnupg_when_absent",
++            ),
++            pytest.param(
++                {"security": [{"keyid": "haveit"}]},
++                [],
++                ["gnupg"],
++                id="cfg_security_needs_gpg_installs_gnupg_when_absent",
++            ),
++            pytest.param(
++                {"sources": {"s1": {"source": "ppa:yep"}}},
++                ["add-apt-repository"],
++                [],
++                id="cfg_needs_sw_prop_common_when_present",
++            ),
++            pytest.param(
++                {"sources": {"s1": {"source": "ppa:yep"}}},
++                [],
++                ["software-properties-common"],
++                id="cfg_needs_sw_prop_common_when_add_apt_repo_absent",
++            ),
++        ),
++    )
++    def test_only_install_needed_packages(
++        self, cfg, already_installed, expected_install, mocker
++    ):
++        """Only invoke install_packages when package installs are necessary"""
++        mycloud = get_cloud("debian")
++        install_packages = mocker.patch.object(
++            mycloud.distro, "install_packages"
++        )
++        matcher = re.compile(cc_apt_configure.ADD_APT_REPO_MATCH).search
++
++        def fake_which(cmd):
++            if cmd in already_installed:
++                return "foundit"
++            return None
++
++        which = mocker.patch.object(cc_apt_configure.shutil, "which")
++        which.side_effect = fake_which
++        cc_apt_configure._ensure_dependencies(cfg, matcher, mycloud)
++        if expected_install:
++            install_packages.assert_called_once_with(expected_install)
++        else:
++            install_packages.assert_not_called()
++
++
+ # vi: ts=4 expandtab
