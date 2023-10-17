@@ -64,6 +64,18 @@ CLOUD_CONFIG_FILES = [
 ]
 MIME_WITH_ERRORS = create_mime_message(CLOUD_CONFIG_FILES)[0].as_string()
 
+CLOUD_CONFIG_ARCHIVE = """
+#cloud-config-archive
+- type: 'text/cloud-boothook'
+  content: |
+    #!/bin/sh
+    echo "BOOTHOOK: $(date -R): this is called every boot." | tee /run/boothook.txt
+- type: 'text/cloud-config'
+  content: |
+    bootcmd:
+     - [sh, -c, 'echo "BOOTCMD: $(date -R): $INSTANCE_ID" | tee /run/bootcmd.txt']
+"""  # noqa: E501
+
 
 @pytest.mark.skipif(
     PLATFORM == "qemu", reason="QEMU only supports #cloud-config userdata"
@@ -139,3 +151,17 @@ def test_mime_with_error_parts(client: IntegrationInstance):
     assert (
         "Failed at merging in cloud config part from cfg-invalid.yaml" in log
     )
+
+
+@pytest.mark.ci
+@pytest.mark.user_data(CLOUD_CONFIG_ARCHIVE)
+def test_cloud_config_archive_boot_hook_logging(client: IntegrationInstance):
+    """
+    boot-hook and bootcmd scripts run per boot and log to cloud-init-outout.log
+    """
+    cmd = "cloud-init schema --system"
+    assert "Valid schema user-data" in client.execute(cmd).stdout
+    client.restart()
+    log = client.read_from_file("/var/log/cloud-init-output.log")
+    assert 2 == len(re.findall("BOOTHOOK:.*", log))
+    assert 2 == len(re.findall("BOOTCMD:.*", log))
