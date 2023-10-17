@@ -3,9 +3,11 @@
 """ Tests for cc_apt_configure module """
 
 import re
+from unittest import mock
 
 import pytest
 
+from cloudinit.config import cc_apt_configure
 from cloudinit.config.schema import (
     SchemaValidationError,
     get_schema,
@@ -197,3 +199,12 @@ class TestAPTConfigureSchema:
                 error_msg = error_msg.replace("primary", "security")
                 with pytest.raises(SchemaValidationError, match=error_msg):
                     validate_cloudconfig_schema(config, schema, strict=True)
+
+
+class TestAPTConfigure:
+    def test_ensure_dependencies_no_apt_install(self):
+        """Ensures no apt-install when the user-data does not contain
+        apt-sources entries."""
+        m_cloud = mock.Mock()
+        cc_apt_configure._ensure_dependencies({}, mock.Mock(), m_cloud)
+        assert [] == m_cloud.distro.install_packages.call_args_list

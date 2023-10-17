@@ -733,7 +733,8 @@ def _ensure_dependencies(cfg, aa_repo_match, cloud):
     for command in required_cmds:
         if not shutil.which(command):
             missing_packages.append(PACKAGE_DEPENDENCY_BY_COMMAND[command])
-    cloud.distro.install_packages(sorted(missing_packages))
+    if missing_packages:
+        cloud.distro.install_packages(sorted(missing_packages))
 
 
 def add_apt_key(ent, cloud, target=None, hardened=False, file_name=None):
