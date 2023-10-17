@@ -3,7 +3,6 @@
 """ Tests for cc_apt_configure module """
 
 import re
-from unittest import mock
 
 import pytest
 
@@ -14,6 +13,7 @@ from cloudinit.config.schema import (
     validate_cloudconfig_schema,
 )
 from tests.unittests.helpers import skipUnlessJsonSchema
+from tests.unittests.util import get_cloud
 
 
 class TestAPTConfigureSchema:
@@ -201,10 +201,68 @@ class TestAPTConfigureSchema:
                     validate_cloudconfig_schema(config, schema, strict=True)
 
 
-class TestAPTConfigure:
-    def test_ensure_dependencies_no_apt_install(self):
-        """Ensures no apt-install when the user-data does not contain
-        apt-sources entries."""
-        m_cloud = mock.Mock()
-        cc_apt_configure._ensure_dependencies({}, mock.Mock(), m_cloud)
-        assert [] == m_cloud.distro.install_packages.call_args_list
+class TestEnsureDependencies:
+    @pytest.mark.parametrize(
+        "cfg, already_installed, expected_install",
+        (
+            pytest.param({}, [], [], id="empty_cfg_no_pkg_installs"),
+            pytest.param(
+                {"sources": {"s1": {"keyid": "haveit"}}},
+                ["gpg"],
+                [],
+                id="cfg_needs_gpg_no_installs_when_gpg_present",
+            ),
+            pytest.param(
+                {"sources": {"s1": {"keyid": "haveit"}}},
+                [],
+                ["gnupg"],
+                id="cfg_needs_gpg_installs_gnupg_when_absent",
+            ),
+            pytest.param(
+                {"primary": [{"keyid": "haveit"}]},
+                [],
+                ["gnupg"],
+                id="cfg_primary_needs_gpg_installs_gnupg_when_absent",
+            ),
+            pytest.param(
+                {"security": [{"keyid": "haveit"}]},
+                [],
+                ["gnupg"],
+                id="cfg_security_needs_gpg_installs_gnupg_when_absent",
+            ),
+            pytest.param(
+                {"sources": {"s1": {"source": "ppa:yep"}}},
+                ["add-apt-repository"],
+                [],
+                id="cfg_needs_sw_prop_common_when_present",
+            ),
+            pytest.param(
+                {"sources": {"s1": {"source": "ppa:yep"}}},
+                [],
+                ["software-properties-common"],
+                id="cfg_needs_sw_prop_common_when_add_apt_repo_absent",
+            ),
+        ),
+    )
+    def test_only_install_needed_packages(
+        self, cfg, already_installed, expected_install, mocker
+    ):
+        """Only invoke install_packages when package installs are necessary"""
+        mycloud = get_cloud("debian")
+        install_packages = mocker.patch.object(
+            mycloud.distro, "install_packages"
+        )
+        matcher = re.compile(cc_apt_configure.ADD_APT_REPO_MATCH).search
+
+        def fake_which(cmd):
+            if cmd in already_installed:
+                return "foundit"
+            return None
+
+        which = mocker.patch.object(cc_apt_configure.shutil, "which")
+        which.side_effect = fake_which
+        cc_apt_configure._ensure_dependencies(cfg, matcher, mycloud)
+        if expected_install:
+            install_packages.assert_called_once_with(expected_install)
+        else:
+            install_packages.assert_not_called()
