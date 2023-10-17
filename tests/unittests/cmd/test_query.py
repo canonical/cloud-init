@@ -573,3 +573,58 @@ class TestQuery:
             m_getuid.return_value = 100
             assert 1 == query.handle_args("anyname", args)
         assert expected_error in caplog.text
+
+    def test_handle_args_formats_jinja_successfully(
+        self, caplog, tmpdir, capsys
+    ):
+        """Raise an error when --list-keys and varname specify a non-list."""
+        instance_data = tmpdir.join("instance-data")
+        instance_data.write(
+            '{"v1": {"v1_1": "val1.1", "v1_2": "val1.2"}, "v2": '
+            '{"v2_2": "val2.2"}, "top": "gun"}'
+        )
+        format = "v1_1: {{ v1.v1_1 }}"
+        expected = "v1_1: val1.1\n"
+        args = self.Args(
+            debug=False,
+            dump_all=False,
+            format=format,
+            instance_data=instance_data.strpath,
+            list_keys=False,
+            user_data="ud",
+            vendor_data="vd",
+            varname=None,
+        )
+        with mock.patch("os.getuid") as m_getuid:
+            m_getuid.return_value = 100
+            assert 0 == query.handle_args("anyname", args)
+        out, _err = capsys.readouterr()
+        assert expected == out
+
+    def test_handle_args_invalid_jinja_exception(self, caplog, tmpdir, capsys):
+        """Raise an error when --list-keys and varname specify a non-list."""
+        instance_data = tmpdir.join("instance-data")
+        instance_data.write(
+            '{"v1": {"v1_1": "val1.1", "v1_2": "val1.2"}, "v2": '
+            '{"v2_2": "val2.2"}, "top": "gun"}'
+        )
+        format = "v1_1: {{ v1.v1_1 } }"
+        expected_error = (
+            "Failed to render templated data due to jinja "
+            "parsing error: unexpected '}' on line 2\n"
+        )
+        args = self.Args(
+            debug=False,
+            dump_all=False,
+            format=format,
+            instance_data=instance_data.strpath,
+            list_keys=False,
+            user_data="ud",
+            vendor_data="vd",
+            varname=None,
+        )
+        with mock.patch("os.getuid") as m_getuid:
+            m_getuid.return_value = 100
+            assert 1 == query.handle_args("anyname", args)
+        out, _err = capsys.readouterr()
+        assert expected_error == out

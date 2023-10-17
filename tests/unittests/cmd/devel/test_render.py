@@ -149,7 +149,6 @@ class TestRender:
         render.render_template(user_data, instance_data, False)
         assert "Unable to render user-data file" in caplog.text
 
-    # test that error with "Failed to render template" is logged when jinja syntax error in user data file
     @skipUnlessJinja()
     def test_invalid_jinja_syntax(self, caplog, tmpdir):
         user_data = tmpdir.join("user-data")
@@ -157,4 +156,7 @@ class TestRender:
         instance_data = tmpdir.join("instance-data")
         write_file(instance_data, '{"my-var": "jinja worked"}')
         assert render.render_template(user_data, instance_data, True) == 1
-        assert "due to jinja parsing error: unexpected '}' on line 2" in caplog.text
+        assert (
+            "due to jinja parsing error: unexpected '}' on line 2"
+            in caplog.text
+        )

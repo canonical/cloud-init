@@ -792,8 +792,8 @@ def _get_config_type_and_rendered_userdata(
             ) from e
         except CustomParsedJinjaException as e:
             error(
-                "Failed to render templated cloud-config due to jinja parsing error: "
-                + str(e),
+                "Failed to render templated cloud-config due to jinja parsing "
+                "error: " + str(e),
                 sys_exit=True,
             )
         except JinjaLoadError as e:
