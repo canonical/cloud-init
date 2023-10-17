@@ -1,4 +1,4 @@
-cloud-init (23.3.2-0ubuntu0~23.04.1) UNRELEASED; urgency=medium
+cloud-init (23.3.2-0ubuntu0~23.04.1) lunar; urgency=medium
 
   * d/p/do-not-block-user-login.patch:
     - Revert behavior, allow user login after cloud-init stage (LP: #2039505)
@@ -6,7 +6,7 @@ cloud-init (23.3.2-0ubuntu0~23.04.1) UNRELEASED; urgency=medium
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/23.3.2/ChangeLog
 
- -- Brett Holman <brett.holman@canonical.com>  Mon, 17 Oct 2023 14:01:22 -0600
+ -- Brett Holman <brett.holman@canonical.com>  Mon, 17 Oct 2023 15:54:22 -0600
 
 cloud-init (23.3.1-0ubuntu1~23.04.1) lunar; urgency=medium
 
