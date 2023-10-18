@@ -495,6 +495,31 @@ class TestUtil:
         assert "Could not apply Jinja template" in caplog.text
         assert conf == {"a": "{{c}}"}
 
+    @pytest.mark.parametrize(
+        "template",
+        [
+            '{"a": "{{c} } }"',
+            '{"a": "{{c} } "',
+            '{% if c %} C is present {% else % } C is NOT present {% endif %}',
+        ]
+    )
+    @skipUnlessJinja()
+    def test_read_conf_with_config_invalid_jinja_syntax(
+        self, mocker, caplog, template
+    ):
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch(
+            "cloudinit.util.load_file",
+            return_value='## template: jinja\n' + template,
+        )
+        mocker.patch(
+            "cloudinit.handlers.jinja_template.load_file",
+            return_value='{"c": "d"}',
+        )
+        conf = util.read_conf("cfg_path", instance_data_file="vars_path")
+        assert "Failed to render user-data file" in caplog.text
+        assert conf == {}
+
     @mock.patch(
         M_PATH + "read_conf",
         side_effect=(OSError(errno.EACCES, "Not allowed"), {"0": "0"}),
