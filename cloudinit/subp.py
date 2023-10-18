@@ -405,6 +405,13 @@ def runparts(dirp, skip_no_exist=True, exe_prefix=None):
             except ProcessExecutionError as e:
                 LOG.debug(e)
                 failed.append(exe_name)
+        else:
+            LOG.warning(
+                "skipping %s as its not executable "
+                "or the underlying file system is mounted without "
+                "executable permissions.",
+                exe_path,
+            )
 
     if failed and attempted:
         raise RuntimeError(
