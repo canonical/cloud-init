@@ -28,8 +28,9 @@ pkgs="
     $py_prefix-jsonpointer
     $py_prefix-jsonschema
     $py_prefix-oauthlib
-    $py_prefix-requests
     $py_prefix-pyserial
+    $py_prefix-requests
+    $py_prefix-ssh-import-id
     $py_prefix-yaml
     sudo
 "

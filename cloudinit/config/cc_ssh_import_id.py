@@ -19,7 +19,7 @@ from cloudinit.distros import ug_util
 from cloudinit.settings import PER_INSTANCE
 
 # https://launchpad.net/ssh-import-id
-distros = ["alpine", "cos", "debian", "ubuntu"]
+distros = ["alpine", "cos", "debian", "freebsd", "ubuntu"]
 
 SSH_IMPORT_ID_BINARY = "ssh-import-id"
 MODULE_DESCRIPTION = """\
@@ -54,7 +54,6 @@ LOG = logging.getLogger(__name__)
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
-
     if not is_key_in_nested_dict(cfg, "ssh_import_id"):
         LOG.debug(
             "Skipping module named ssh_import_id, no 'ssh_import_id'"
@@ -81,7 +80,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # import for cloudinit created users
     (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
     elist = []
-    for (user, user_cfg) in users.items():
+    for user, user_cfg in users.items():
         import_ids = []
         if user_cfg["default"]:
             import_ids = util.get_cfg_option_list(cfg, "ssh_import_id", [])
@@ -117,7 +116,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
 
 def import_ssh_ids(ids, user):
-
     if not (user and ids):
         LOG.debug("empty user(%s) or ids(%s). not importing", user, ids)
         return
