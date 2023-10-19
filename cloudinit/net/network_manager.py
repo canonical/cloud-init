@@ -141,9 +141,14 @@ class NMConnection:
         Adds a ipv[46].route<n> property.
         """
 
+        # family of the gateway must match the family of the route
+        gateway_family = "ipv6" if is_ipv6_address(route.get("gateway")) else "ipv4"
+        if gateway_family != family:
+            return
         value = route["network"] + "/" + str(route["prefix"])
         if "gateway" in route:
             value = value + "," + route["gateway"]
+
         self._add_numbered(family, "route", value)
 
     def _add_nameserver(self, dns):
