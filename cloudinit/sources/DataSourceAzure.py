@@ -376,7 +376,6 @@ class DataSourceAzure(sources.DataSource):
         primary = any(
             n in routed_networks
             for n in [
-                "168.63.129.16/32",
                 "169.254.169.254/32",
                 wireserver_route,
             ]
