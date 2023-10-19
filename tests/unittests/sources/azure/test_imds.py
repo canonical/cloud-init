@@ -129,6 +129,9 @@ class TestFetchMetadataWithApiFallback:
     fallback_url = (
         "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
     )
+
+    # Early versions of responses do not appreciate the parameters...
+    base_url = "http://169.254.169.254/metadata/instance"
     headers = {"Metadata": "true"}
     timeout = 30
 
@@ -143,7 +146,7 @@ class TestFetchMetadataWithApiFallback:
         fake_md = {"foo": {"bar": []}}
         responses.add(
             method=responses.GET,
-            url=self.default_url,
+            url=self.base_url,
             json=fake_md,
             status=200,
         )
@@ -187,7 +190,7 @@ class TestFetchMetadataWithApiFallback:
         fake_md = {"foo": {"bar": []}}
         responses.add(
             method=responses.GET,
-            url=self.default_url,
+            url=self.base_url,
             status=400,
         )
         responses.add(
@@ -281,7 +284,7 @@ class TestFetchMetadataWithApiFallback:
         responses_add_errors([error] * error_count, self.default_url)
         responses.add(
             method=responses.GET,
-            url=self.default_url,
+            url=self.base_url,
             json=fake_md,
             status=200,
         )
@@ -340,7 +343,7 @@ class TestFetchMetadataWithApiFallback:
         fake_md = {"foo": {"bar": []}}
         responses.add(
             method=responses.GET,
-            url=self.default_url,
+            url=self.base_url,
             status=400,
         )
         responses.add(
@@ -499,7 +502,7 @@ class TestFetchMetadataWithApiFallback:
     ):
         responses.add(
             method=responses.GET,
-            url=self.default_url,
+            url=self.base_url,
             status=error,
         )
 
@@ -548,7 +551,7 @@ class TestFetchMetadataWithApiFallback:
     ):
         responses.add(
             method=responses.GET,
-            url=self.default_url,
+            url=self.base_url,
             body=body,
         )
 
@@ -598,7 +601,7 @@ class TestFetchMetadataWithApiFallback:
         responses_add_errors(errors, self.default_url)
         responses.add(
             method=responses.GET,
-            url=self.default_url,
+            url=self.base_url,
             json=fake_md,
         )
 
