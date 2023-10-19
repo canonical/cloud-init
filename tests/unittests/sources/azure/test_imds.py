@@ -36,6 +36,14 @@ def caplog(caplog):
 
 
 @pytest.fixture
+def mock_requests():
+    with responses.RequestsMock(
+        assert_all_requests_are_fired=True
+    ) as response:
+        yield response
+
+
+@pytest.fixture
 def wrapped_readurl():
     with mock.patch.object(imds, "readurl", wraps=readurl) as m:
         yield m
@@ -83,7 +91,7 @@ REQUESTS_CONNECTION_ERROR = requests.ConnectionError("Fake connection error")
 REQUESTS_TIMEOUT_ERROR = requests.Timeout("Fake connection timeout")
 
 
-def responses_add_errors(errors, url):
+def add_errors_to_mock_requests(mock_requests, errors, url):
     def callback_connection_error(request):
         raise REQUESTS_CONNECTION_ERROR
 
@@ -92,19 +100,19 @@ def responses_add_errors(errors, url):
 
     for error in errors:
         if isinstance(error, int):
-            responses.add(
+            mock_requests.add(
                 method=responses.GET,
                 url=url,
                 status=error,
             )
         elif error == REQUESTS_CONNECTION_ERROR:
-            responses.add_callback(
+            mock_requests.add_callback(
                 method=responses.GET,
                 url=url,
                 callback=callback_connection_error,
             )
         elif error == REQUESTS_TIMEOUT_ERROR:
-            responses.add_callback(
+            mock_requests.add_callback(
                 method=responses.GET,
                 url=url,
                 callback=callback_timeout,
@@ -136,15 +144,15 @@ class TestFetchMetadataWithApiFallback:
     timeout = 30
 
     @pytest.mark.parametrize("retry_deadline", [0.0, 1.0, 60.0])
-    @responses.activate
     def test_basic(
         self,
         caplog,
         retry_deadline,
         wrapped_readurl,
+        mock_requests,
     ):
         fake_md = {"foo": {"bar": []}}
-        responses.add(
+        mock_requests.add(
             method=responses.GET,
             url=self.base_url,
             json=fake_md,
@@ -180,22 +188,18 @@ class TestFetchMetadataWithApiFallback:
         ]
 
     @pytest.mark.parametrize("retry_deadline", [0.0, 1.0, 60.0])
-    @responses.activate
     def test_basic_fallback(
-        self,
-        caplog,
-        retry_deadline,
-        wrapped_readurl,
+        self, caplog, retry_deadline, wrapped_readurl, mock_requests
     ):
         fake_md = {"foo": {"bar": []}}
-        responses.add(
+        mock_requests.add(
             method=responses.GET,
             url=self.base_url,
             status=400,
         )
-        responses.add(
+        mock_requests.add(
             method=responses.GET,
-            url=self.fallback_url,
+            url=self.base_url,
             json=fake_md,
             status=200,
         )
@@ -271,18 +275,20 @@ class TestFetchMetadataWithApiFallback:
         ],
     )
     @pytest.mark.parametrize("error_count,retry_deadline", [(1, 2.0)])
-    @responses.activate
     def test_will_retry_errors(
         self,
         caplog,
         retry_deadline,
+        mock_requests,
         mock_url_helper_time_sleep,
         error,
         error_count,
     ):
         fake_md = {"foo": {"bar": []}}
-        responses_add_errors([error] * error_count, self.default_url)
-        responses.add(
+        add_errors_to_mock_requests(
+            mock_requests, [error] * error_count, self.base_url
+        )
+        mock_requests.add(
             method=responses.GET,
             url=self.base_url,
             json=fake_md,
@@ -298,7 +304,6 @@ class TestFetchMetadataWithApiFallback:
             mock_url_helper_time_sleep.mock_calls
             == [mock.call(1)] * error_count
         )
-        assert responses.assert_call_count(self.default_url, error_count + 1)
 
         error_regex = regex_for_http_error(error)
         assert caplog.record_tuples == [
@@ -333,27 +338,27 @@ class TestFetchMetadataWithApiFallback:
         ]
 
     @pytest.mark.parametrize("retry_deadline", [3.0, 30.0])
-    @responses.activate
     def test_will_retry_errors_on_fallback(
         self,
         caplog,
         retry_deadline,
+        mock_requests,
         mock_url_helper_time_sleep,
     ):
         fake_md = {"foo": {"bar": []}}
-        responses.add(
+        mock_requests.add(
             method=responses.GET,
             url=self.base_url,
             status=400,
         )
-        responses.add(
+        mock_requests.add(
             method=responses.GET,
-            url=self.fallback_url,
+            url=self.base_url,
             status=429,
         )
-        responses.add(
+        mock_requests.add(
             method=responses.GET,
-            url=self.fallback_url,
+            url=self.base_url,
             json=fake_md,
             status=200,
         )
@@ -363,8 +368,6 @@ class TestFetchMetadataWithApiFallback:
         )
 
         assert md == fake_md
-        assert responses.assert_call_count(self.default_url, 1)
-        assert responses.assert_call_count(self.fallback_url, 2)
         assert mock_url_helper_time_sleep.mock_calls == [mock.call(1)]
         assert caplog.record_tuples == [
             (
@@ -382,8 +385,9 @@ class TestFetchMetadataWithApiFallback:
             (
                 LOG_PATH,
                 logging.WARNING,
-                "Failed to fetch metadata from IMDS: 400 Client Error: "
-                f"Bad Request for url: {self.default_url}",
+                StringMatch(
+                    "Failed to fetch metadata from IMDS:.*400 Client Error.*"
+                ),
             ),
             (
                 LOG_PATH,
@@ -433,16 +437,18 @@ class TestFetchMetadataWithApiFallback:
     @pytest.mark.parametrize(
         "error_count,retry_deadline", [(1, 0.0), (2, 1.0), (301, 300.0)]
     )
-    @responses.activate
     def test_retry_until_failure(
         self,
         error,
         error_count,
         retry_deadline,
         caplog,
+        mock_requests,
         mock_url_helper_time_sleep,
     ):
-        responses_add_errors([error] * error_count, self.default_url)
+        add_errors_to_mock_requests(
+            mock_requests, [error] * error_count, self.base_url
+        )
 
         with pytest.raises(UrlError) as exc_info:
             imds.fetch_metadata_with_api_fallback(
@@ -453,15 +459,19 @@ class TestFetchMetadataWithApiFallback:
         assert re.search(error_regex, str(exc_info.value.cause))
 
         # Connection errors max out at 11 attempts.
-        error_count = (
-            11
-            if error == REQUESTS_CONNECTION_ERROR and error_count > 11
-            else error_count
-        )
+        if error == REQUESTS_CONNECTION_ERROR and error_count > 11:
+            error_count = (
+                11
+                if error == REQUESTS_CONNECTION_ERROR and error_count > 11
+                else error_count
+            )
+
+            # mock_requests will assert since not all calls were made.
+            mock_requests.assert_all_requests_are_fired = False
+
         assert mock_url_helper_time_sleep.mock_calls == [mock.call(1)] * (
             error_count - 1
         )
-        assert responses.assert_call_count(self.default_url, error_count)
 
         logs = [x for x in caplog.record_tuples if x[0] == LOG_PATH]
         assert logs == [
@@ -492,15 +502,15 @@ class TestFetchMetadataWithApiFallback:
         ],
     )
     @pytest.mark.parametrize("retry_deadline", [0.0, 1.0, 60.0])
-    @responses.activate
     def test_will_not_retry_errors(
         self,
         error,
         retry_deadline,
         caplog,
+        mock_requests,
         mock_url_helper_time_sleep,
     ):
-        responses.add(
+        mock_requests.add(
             method=responses.GET,
             url=self.base_url,
             status=error,
@@ -513,7 +523,6 @@ class TestFetchMetadataWithApiFallback:
 
         error_regex = regex_for_http_error(error)
         assert re.search(error_regex, str(exc_info.value.cause))
-        assert responses.assert_call_count(self.default_url, 1)
         assert mock_url_helper_time_sleep.mock_calls == []
 
         assert caplog.record_tuples == [
@@ -541,15 +550,15 @@ class TestFetchMetadataWithApiFallback:
 
     @pytest.mark.parametrize("body", ["", "invalid", "<tag></tag>"])
     @pytest.mark.parametrize("retry_deadline", [0.0, 1.0, 60.0])
-    @responses.activate
     def test_non_json_repsonse(
         self,
         body,
         retry_deadline,
         caplog,
+        mock_requests,
         wrapped_readurl,
     ):
-        responses.add(
+        mock_requests.add(
             method=responses.GET,
             url=self.base_url,
             body=body,
@@ -581,10 +590,10 @@ class TestFetchMetadataWithApiFallback:
             )
         ]
 
-    @responses.activate
     def test_logs_all_errors(
         self,
         caplog,
+        mock_requests,
         mock_url_helper_time_sleep,
     ):
         fake_md = {"foo": {"bar": []}}
@@ -598,8 +607,8 @@ class TestFetchMetadataWithApiFallback:
             + [REQUESTS_TIMEOUT_ERROR] * 10
         )
 
-        responses_add_errors(errors, self.default_url)
-        responses.add(
+        add_errors_to_mock_requests(mock_requests, errors, self.base_url)
+        mock_requests.add(
             method=responses.GET,
             url=self.base_url,
             json=fake_md,
@@ -630,6 +639,9 @@ class TestFetchReprovisionData:
     )
     headers = {"Metadata": "true"}
     timeout = 30
+
+    # Early versions of responses do not appreciate the parameters...
+    base_url = "http://169.254.169.254/metadata/reprovisiondata"
 
     def test_basic(
         self,
@@ -827,10 +839,10 @@ class TestFetchReprovisionData:
             ),
         ]
 
-    @responses.activate
     def test_logs_unique_errors(
         self,
         caplog,
+        mock_requests,
         mock_url_helper_time_sleep,
     ):
         content = b"ovf content"
@@ -844,10 +856,10 @@ class TestFetchReprovisionData:
             + [429] * 10
         )
 
-        responses_add_errors(errors, self.url)
-        responses.add(
+        add_errors_to_mock_requests(mock_requests, errors, self.base_url)
+        mock_requests.add(
             method=responses.GET,
-            url=self.url,
+            url=self.base_url,
             body=content,
         )
 
