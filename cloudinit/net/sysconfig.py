@@ -853,6 +853,11 @@ class Renderer(renderer.Renderer):
         # If DNS server information is provided, configure
         # NetworkManager to not manage dns, so that /etc/resolv.conf
         # does not get clobbered.
+        # This is not required for NetworkManager renderer as it
+        # does not write /etc/resolv.conf directly. DNS information is
+        # written to the interface keyfile and NetworkManager is then
+        # responsible for using the DNS information from the keyfile,
+        # including managing /etc/resolv.conf.
         if network_state.dns_nameservers:
             content.set_section_keypair("main", "dns", "none")
 

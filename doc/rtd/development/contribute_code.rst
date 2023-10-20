@@ -18,13 +18,13 @@ Submissions to cloud-init must include testing. Unit testing and integration
 testing are integral parts of contributing code.
 
 .. toctree::
-   :caption: Testing
    :maxdepth: 1
+   :hidden:
 
    testing.rst
    integration_tests.rst
 
-* :doc:`Testing overview and design principles<testing>`
+* :doc:`Unit testing overview and design principles<testing>`
 * :doc:`Integration testing<integration_tests>`
 
 Popular contributions

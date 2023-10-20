@@ -30,7 +30,7 @@ class ReadUrlRetryHandler:
         self,
         *,
         logging_backoff: float = 1.0,
-        max_connection_errors: int = 10,
+        max_connection_errors: int = 11,
         retry_codes=(
             404,  # not found (yet)
             410,  # gone / unavailable (yet)
@@ -67,7 +67,7 @@ class ReadUrlRetryHandler:
         # primary NIC.
         if isinstance(exception.cause, requests.ConnectionError):
             self.max_connection_errors -= 1
-            if self.max_connection_errors < 0:
+            if self.max_connection_errors <= 0:
                 retry = False
         elif (
             exception.code is not None
@@ -181,7 +181,7 @@ def fetch_reprovision_data() -> bytes:
 
     handler = ReadUrlRetryHandler(
         logging_backoff=2.0,
-        max_connection_errors=0,
+        max_connection_errors=1,
         retry_codes=(
             404,
             410,
