@@ -6,10 +6,10 @@
 
 """keyboard: set keyboard layout"""
 
+import logging
 from textwrap import dedent
 
 from cloudinit import distros
-from cloudinit import log as logging
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
@@ -85,6 +85,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     options = kb_cfg.get("options", "")
     LOG.debug("Setting keyboard layout to '%s'", layout)
     cloud.distro.set_keymap(layout, model, variant, options)
-
-
-# vi: ts=4 expandtab

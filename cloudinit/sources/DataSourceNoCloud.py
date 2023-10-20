@@ -9,11 +9,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import errno
+import logging
 import os
 
-from cloudinit import dmi
-from cloudinit import log as logging
-from cloudinit import sources, util
+from cloudinit import dmi, sources, util
 from cloudinit.net import eni
 
 LOG = logging.getLogger(__name__)

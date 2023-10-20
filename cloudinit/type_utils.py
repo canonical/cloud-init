@@ -26,6 +26,3 @@ def obj_name(obj):
             return repr(obj)
         else:
             return obj_name(obj.__class__)
-
-
-# vi: ts=4 expandtab

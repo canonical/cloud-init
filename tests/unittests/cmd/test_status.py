@@ -164,16 +164,26 @@ class TestStatus:
     ):
         if ensured_file is not None:
             ensure_file(ensured_file(config))
-        (code, reason) = wrap_and_call(
-            M_NAME,
-            {
-                "uses_systemd": uses_systemd,
-                "get_cmdline": get_cmdline,
-            },
-            status.get_bootstatus,
-            config.disable_file,
-            config.paths,
-        )
+        with mock.patch(
+            f"{M_PATH}subp.subp",
+            return_value=SubpResult(
+                """\
+LANG=en_US.UTF-8
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+""",
+                stderr=None,
+            ),
+        ):
+            code, reason = wrap_and_call(
+                M_NAME,
+                {
+                    "uses_systemd": uses_systemd,
+                    "get_cmdline": get_cmdline,
+                },
+                status.get_bootstatus,
+                config.disable_file,
+                config.paths,
+            )
         assert code == expected_bootstatus, failure_msg
         if isinstance(expected_reason, str):
             assert reason == expected_reason

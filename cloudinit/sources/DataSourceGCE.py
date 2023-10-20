@@ -4,11 +4,10 @@
 
 import datetime
 import json
+import logging
 from base64 import b64decode
 
-from cloudinit import dmi
-from cloudinit import log as logging
-from cloudinit import net, sources, url_helper, util
+from cloudinit import dmi, net, sources, url_helper, util
 from cloudinit.distros import ug_util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import NoDHCPLeaseError

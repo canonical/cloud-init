@@ -4,6 +4,7 @@
 """Handle reconfiguration on hotplug events."""
 import abc
 import argparse
+import logging
 import os
 import sys
 import time
@@ -16,7 +17,7 @@ from cloudinit.reporting import events
 from cloudinit.sources import DataSource, DataSourceNotFoundException
 from cloudinit.stages import Init
 
-LOG = log.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 NAME = "hotplug-hook"
 
 
@@ -246,7 +247,7 @@ def handle_args(name, args):
     hotplug_init = Init(ds_deps=[], reporter=hotplug_reporter)
     hotplug_init.read_cfg()
 
-    log.setupLogging(hotplug_init.cfg)
+    log.setup_logging(hotplug_init.cfg)
     if "reporting" in hotplug_init.cfg:
         reporting.update_configuration(hotplug_init.cfg.get("reporting"))
     # Logging isn't going to be setup until now

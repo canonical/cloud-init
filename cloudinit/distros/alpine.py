@@ -6,11 +6,10 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import os
 
-from cloudinit import distros, helpers
-from cloudinit import log as logging
-from cloudinit import subp, util
+from cloudinit import distros, helpers, subp, util
 from cloudinit.distros.parsers.hostname import HostnameConf
 from cloudinit.settings import PER_INSTANCE
 
@@ -70,7 +69,7 @@ class Distro(distros.Distro):
         ]
         util.write_file(out_fn, "\n".join(lines), 0o644)
 
-    def install_packages(self, pkglist):
+    def install_packages(self, pkglist: distros.PackageList):
         self.update_package_sources()
         self.package_command("add", pkgs=pkglist)
 
@@ -81,7 +80,13 @@ class Distro(distros.Distro):
             # so lets see if we can read it first.
             conf = self._read_hostname_conf(filename)
         except IOError:
-            pass
+            create_hostname_file = util.get_cfg_option_bool(
+                self._cfg, "create_hostname_file", True
+            )
+            if create_hostname_file:
+                pass
+            else:
+                return
         if not conf:
             conf = HostnameConf("")
         conf.set_hostname(hostname)

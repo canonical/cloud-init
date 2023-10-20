@@ -5,13 +5,13 @@
 # Vultr Metadata API:
 # https://www.vultr.com/metadata/
 
+import logging
 from typing import Tuple
 
 import cloudinit.sources.helpers.vultr as vultr
-from cloudinit import log as log
 from cloudinit import sources, stages, util, version
 
-LOG = log.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 BUILTIN_DS_CONFIG = {
     "url": "http://169.254.169.254",
     "retries": 30,

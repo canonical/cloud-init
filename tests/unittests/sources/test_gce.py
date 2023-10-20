@@ -489,6 +489,3 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         ds = DataSourceGCE.DataSourceGCE(sys_cfg={}, distro=None, paths=None)
         ds._get_data()
         assert m_dhcp.call_count == 0
-
-
-# vi: ts=4 expandtab

@@ -1,3 +1,7 @@
+23.3.1
+ - apt: kill dirmngr/gpg-agent without gpgconf dependency (LP: #2034273)
+ - integration tests: Fix cgroup parsing (#4402)
+
 23.3
  - Bump pycloudlib to 1!5.1.0 for ec2 mantic daily image support (#4390)
  - Fix cc_keyboard in mantic (LP: #2030788)
@@ -4281,4 +4285,3 @@
  - make the message on 'disable_root' more clear (LP: #672417)
  - do not require public key if private is given in ssh cloud-config
    (LP: #648905)
-# vi: syntax=text textwidth=79

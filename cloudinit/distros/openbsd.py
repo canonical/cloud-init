@@ -2,10 +2,10 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import os
 
 import cloudinit.distros.netbsd
-from cloudinit import log as logging
 from cloudinit import subp, util
 
 LOG = logging.getLogger(__name__)

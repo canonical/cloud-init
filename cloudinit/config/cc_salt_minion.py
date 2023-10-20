@@ -116,7 +116,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     const = SaltConstants(cfg=s_cfg)
 
     # Start by installing the salt package ...
-    cloud.distro.install_packages(const.pkg_name)
+    cloud.distro.install_packages([const.pkg_name])
 
     # Ensure we can configure files at the right dir
     util.ensure_dir(const.conf_dir)

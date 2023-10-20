@@ -6,12 +6,12 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import os
 import pwd
 from contextlib import suppress
 from typing import List, Sequence, Tuple
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 
 LOG = logging.getLogger(__name__)
@@ -686,6 +686,3 @@ def get_opensshd_upstream_version():
         return upstream_version
     except (ValueError, TypeError):
         LOG.warning("Could not parse sshd version: %s", upstream_version)
-
-
-# vi: ts=4 expandtab

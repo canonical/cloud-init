@@ -129,6 +129,3 @@ class TestLaunchFilter(helpers.ResourceUsingTestCase):
             "1": 2,
         }
         self.assertCounts(message, expected_counts)
-
-
-# vi: ts=4 expandtab

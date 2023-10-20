@@ -1,11 +1,10 @@
+import logging
 import platform
 from typing import List, Optional
 
 import cloudinit.net.netops.bsd_netops as bsd_netops
-from cloudinit import distros, helpers
-from cloudinit import log as logging
-from cloudinit import net, subp, util
-from cloudinit.distros import bsd_utils
+from cloudinit import distros, helpers, net, subp, util
+from cloudinit.distros import PackageList, bsd_utils
 from cloudinit.distros.networking import BSDNetworking
 
 LOG = logging.getLogger(__name__)
@@ -97,7 +96,7 @@ class BSD(distros.Distro):
             )
         return nconf
 
-    def install_packages(self, pkglist):
+    def install_packages(self, pkglist: PackageList):
         self.update_package_sources()
         self.package_command("install", pkgs=pkglist)
 

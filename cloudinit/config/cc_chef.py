@@ -13,6 +13,7 @@ import json
 import logging
 import os
 from textwrap import dedent
+from typing import List
 
 from cloudinit import subp, temp_utils, templater, url_helper, util
 from cloudinit.cloud import Cloud
@@ -161,7 +162,7 @@ def get_template_params(iid, chef_cfg):
     # Allow users to overwrite any of the keys they want (if they so choose),
     # when a value is None, then the value will be set to None and no boolean
     # or string version will be populated...
-    for (k, v) in chef_cfg.items():
+    for k, v in chef_cfg.items():
         if k not in CHEF_RB_TPL_KEYS:
             LOG.debug("Skipping unknown chef template key '%s'", k)
             continue
@@ -233,7 +234,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         # are associated with paths have their parent directory created
         # before they are used by the chef-client itself.
         param_paths = set()
-        for (k, v) in params.items():
+        for k, v in params.items():
             if k in CHEF_RB_TPL_PATH_KEYS and v:
                 param_paths.add(os.path.dirname(v))
         util.ensure_dirs(param_paths)
@@ -363,7 +364,7 @@ def install_chef(cloud: Cloud, chef_cfg):
         run = util.get_cfg_option_bool(chef_cfg, "exec", default=True)
     elif install_type == "packages":
         # This will install and run the chef-client from packages
-        cloud.distro.install_packages(("chef",))
+        cloud.distro.install_packages(["chef"])
     elif install_type == "omnibus":
         omnibus_version = util.get_cfg_option_str(chef_cfg, "omnibus_version")
         install_chef_from_omnibus(
@@ -378,9 +379,9 @@ def install_chef(cloud: Cloud, chef_cfg):
     return run
 
 
-def get_ruby_packages(version):
+def get_ruby_packages(version) -> List[str]:
     # return a list of packages needed to install ruby at version
-    pkgs = ["ruby%s" % version, "ruby%s-dev" % version]
+    pkgs: List[str] = ["ruby%s" % version, "ruby%s-dev" % version]
     if version == "1.8":
         pkgs.extend(("libopenssl-ruby1.8", "rubygems1.8"))
     return pkgs
@@ -421,6 +422,3 @@ def install_chef_from_gems(ruby_version, chef_version, distro):
             ],
             capture=False,
         )
-
-
-# vi: ts=4 expandtab

@@ -169,7 +169,13 @@ class IntegrationCloud(ABC):
         return IntegrationInstance(self, cloud_instance, settings)
 
     def destroy(self):
-        self.cloud_instance.clean()
+        if self.settings.KEEP_IMAGE or self.settings.KEEP_INSTANCE:
+            log.info(
+                "NOT cleaning cloud instance because KEEP_IMAGE or "
+                "KEEP_INSTANCE is True"
+            )
+        else:
+            self.cloud_instance.clean()
 
     def snapshot(self, instance):
         return self.cloud_instance.snapshot(instance, clean=True)

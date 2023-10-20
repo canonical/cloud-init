@@ -631,6 +631,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         except subp.ProcessExecutionError:
             LOG.warning(fmt, "FAIL")
             util.logexc(LOG, fmt, "FAIL")
-
-
-# vi: ts=4 expandtab

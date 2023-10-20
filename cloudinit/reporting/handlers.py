@@ -3,6 +3,7 @@
 import abc
 import fcntl
 import json
+import logging
 import os
 import queue
 import struct
@@ -13,7 +14,6 @@ from datetime import datetime
 from threading import Event
 from typing import Union
 
-from cloudinit import log as logging
 from cloudinit import url_helper, util
 from cloudinit.registry import DictRegistry
 

@@ -6,11 +6,11 @@
 
 """LXD: configure lxd with ``lxd init`` and optionally lxd-bridge"""
 
+import logging
 import os
 from textwrap import dedent
 from typing import List, Tuple
 
-from cloudinit import log as logging
 from cloudinit import safeyaml, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -237,7 +237,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         return
     # Set up lxd if init config is given
     if init_cfg:
-
         # type is known, number of elements is not
         # in the case of the ubuntu+lvm backend workaround
         init_keys: Tuple[str, ...] = (
@@ -305,7 +304,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                     )
                     + "\n"
                 )
-                subp.subp(["debconf-communicate"], data)
+                subp.subp(["debconf-communicate"], data=data)
             except Exception:
                 util.logexc(
                     LOG, "Failed to run '%s' for lxd with" % dconf_comm

@@ -1,12 +1,10 @@
-#!/usr/bin/env python3
-# vi: ts=4 expandtab
-#
 # Copyright (C) 2021 VMware Inc.
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
+
 from cloudinit import helpers
-from cloudinit import log as logging
 from cloudinit.distros import photon
 
 LOG = logging.getLogger(__name__)

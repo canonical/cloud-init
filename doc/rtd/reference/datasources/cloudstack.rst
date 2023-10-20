@@ -63,4 +63,4 @@ An example configuration with the default values is provided below:
 
 
 .. _Apache CloudStack: http://cloudstack.apache.org/
-.. _CloudStack Administrator Guide: http://docs.cloudstack.apache.org/projects/cloudstack-administration/en/latest/virtual_machines.html#user-data-and-meta-data
+.. _CloudStack Administrator Guide: https://docs.cloudstack.apache.org/en/latest/adminguide/virtual_machines.html#user-data-and-meta-data

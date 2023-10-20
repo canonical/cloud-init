@@ -15,6 +15,7 @@ def main():
         "alpine",
         "amazon",
         "arch",
+        "benchmark",
         "centos",
         "cloudlinux",
         "debian",

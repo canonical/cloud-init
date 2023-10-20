@@ -3,13 +3,12 @@
 import copy
 import io
 import ipaddress
+import logging
 import os
 import textwrap
 from typing import Optional, cast
 
-from cloudinit import features
-from cloudinit import log as logging
-from cloudinit import safeyaml, subp, util
+from cloudinit import features, safeyaml, subp, util
 from cloudinit.net import (
     IPV6_DYNAMIC_TYPES,
     SYS_CLASS_NET,

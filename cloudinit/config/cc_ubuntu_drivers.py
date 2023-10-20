@@ -2,6 +2,7 @@
 
 """Ubuntu Drivers: Interact with third party drivers in Ubuntu."""
 
+import logging
 import os
 from textwrap import dedent
 
@@ -17,7 +18,6 @@ except ImportError:
     HAS_DEBCONF = False
 
 
-from cloudinit import log as logging
 from cloudinit import subp, temp_utils, type_utils, util
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc

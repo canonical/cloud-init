@@ -6,9 +6,9 @@
 
 """Apk Configure: Configures apk repositories file."""
 
+import logging
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit import temp_utils, templater, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -190,6 +190,3 @@ def _write_repositories_file(alpine_repo, alpine_version, local_repo):
     templater.render_to_file(template_fn, repo_file, params)
     # Clean up temporary template
     util.del_file(template_fn)
-
-
-# vi: ts=4 expandtab

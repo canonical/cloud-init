@@ -73,6 +73,3 @@ class TestDisableEc2MetadataSchema:
         schema = get_schema()
         with pytest.raises(SchemaValidationError, match=error_msg):
             validate_cloudconfig_schema(config, schema, strict=True)
-
-
-# vi: ts=4 expandtab

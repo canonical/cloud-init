@@ -5,10 +5,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import logging
 import os
 from typing import Optional
 
-from cloudinit import log as logging
 from cloudinit.distros import Distro
 from cloudinit.helpers import Paths, Runners
 from cloudinit.reporting import events
@@ -50,13 +50,6 @@ class Cloud:
                 reporting_enabled=False,
             )
         self.reporter = reporter
-
-    # If a 'user' manipulates logging or logging services
-    # it is typically useful to cause the logging to be
-    # setup again.
-    def cycle_logging(self):
-        logging.resetLogging()
-        logging.setupLogging(self.cfg)
 
     @property
     def cfg(self):
@@ -110,6 +103,3 @@ class Cloud:
 
     def get_ipath(self, name=None):
         return self.paths.get_ipath(name)
-
-
-# vi: ts=4 expandtab

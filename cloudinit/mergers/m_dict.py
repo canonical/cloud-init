@@ -81,6 +81,3 @@ class Merger:
         else:
             raise NotImplementedError("Unknown merge type %s" % (self._method))
         return merged
-
-
-# vi: ts=4 expandtab

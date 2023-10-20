@@ -12,12 +12,12 @@
 
 import contextlib
 import copy
+import logging
 import os
 import re
 from textwrap import dedent
 
-from cloudinit import log as logging
-from cloudinit import subp, util
+from cloudinit import log, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
@@ -452,7 +452,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if restarted:
         # This only needs to run if we *actually* restarted
         # syslog above.
-        cloud.cycle_logging()
+        log.reset_logging()
+        log.setup_logging(cloud.cfg)
         # This should now use rsyslog if
         # the logging was setup to use it...
         LOG.debug("%s configured %s files", name, changes)

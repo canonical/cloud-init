@@ -23,18 +23,22 @@ rcvar="cloudinit_enable"
 
 dsidentify_start()
 {
-    echo "${command} starting"
-    if kenv -q kernel_options | grep -q 'cloud-init=disabled'; then
-        warn "cloud-init is disabled via kernel_options."
-    elif test -e {{ prefix }}/etc/cloud-init.disabled; then
-        warn "cloud-init is disabled via cloud-init.disabled file."
-    else
-        ${command}
+    if checkyesno cloudinit_dsidentify_enable; then
+        echo "${command} starting"
+        if kenv -q kernel_options | grep -q 'cloud-init=disabled'; then
+            warn "cloud-init is disabled via kernel_options."
+        elif test -e {{ prefix }}/etc/cloud-init.disabled; then
+            warn "cloud-init is disabled via cloud-init.disabled file."
+        else
+            ${command}
+        fi
     fi
 }
 
 load_rc_config 'cloudinit'
 
 : ${cloudinit_enable="NO"}
+: ${cloudinit_dsidentify_enable="YES"}
+: ${dsidentify_env="PATH_DI_CONFIG={{ prefix }}/etc/cloud/ds-identify.cfg PATH_ETC_CLOUD={{ prefix }}/etc/cloud"}
 
 run_rc_command "$1"

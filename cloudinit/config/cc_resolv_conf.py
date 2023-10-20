@@ -8,9 +8,9 @@
 
 """Resolv Conf: configure resolv.conf"""
 
+import logging
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit import templater, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -166,6 +166,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         target_fname=cloud.distro.resolve_conf_fn,
     )
     return
-
-
-# vi: ts=4 expandtab

@@ -1,10 +1,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Classes and functions related to event handling."""
 
+import logging
 from enum import Enum
 from typing import Dict, Set
-
-from cloudinit import log as logging
 
 LOG = logging.getLogger(__name__)
 
@@ -70,6 +69,3 @@ def userdata_to_events(user_config: dict) -> Dict[EventScope, Set[EventType]]:
         update_config[new_scope] = set(new_values)
 
     return update_config
-
-
-# vi: ts=4 expandtab

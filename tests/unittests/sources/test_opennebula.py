@@ -1066,6 +1066,3 @@ def populate_context_dir(path, variables):
     for k, v in variables.items():
         data += "%s='%s'\n" % (k.upper(), v.replace(r"'", r"'\''"))
     populate_dir(path, {"context.sh": data})
-
-
-# vi: ts=4 expandtab

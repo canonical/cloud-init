@@ -1059,6 +1059,3 @@ def mkfs(fs_cfg):
         subp.subp(fs_cmd, shell=shell)
     except Exception as e:
         raise RuntimeError("Failed to exec of '%s':\n%s" % (fs_cmd, e)) from e
-
-
-# vi: ts=4 expandtab

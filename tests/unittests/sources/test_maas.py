@@ -222,6 +222,3 @@ class TestGetIdHash(CiTestCase):
         cfg["unrelated"] = "HI MOM"
         result = DataSourceMAAS.get_id_from_ds_cfg(cfg)
         self.assertEqual(self.v1_id, result)
-
-
-# vi: ts=4 expandtab

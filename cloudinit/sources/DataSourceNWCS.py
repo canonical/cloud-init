@@ -1,10 +1,12 @@
+# Author: NWCS.sh <foss@nwcs.sh>
+#
 # This file is part of cloud-init. See LICENSE file for license information.
+
+import logging
 
 from requests import exceptions
 
-from cloudinit import dmi
-from cloudinit import log as logging
-from cloudinit import net, sources, subp, url_helper, util
+from cloudinit import dmi, net, sources, subp, url_helper, util
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralDHCPv4
 
@@ -151,5 +153,3 @@ def read_metadata(url, timeout=2, sec_between=2, retries=30):
 datasources = [
     (DataSourceNWCS, (sources.DEP_FILESYSTEM,)),
 ]
-
-# vi: ts=4 expandtab

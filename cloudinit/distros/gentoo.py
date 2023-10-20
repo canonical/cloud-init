@@ -6,10 +6,10 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import distros, helpers
-from cloudinit import log as logging
-from cloudinit import subp, util
-from cloudinit.distros import net_util
+import logging
+
+from cloudinit import distros, helpers, subp, util
+from cloudinit.distros import PackageList, net_util
 from cloudinit.distros.parsers.hostname import HostnameConf
 from cloudinit.settings import PER_INSTANCE
 
@@ -56,7 +56,7 @@ class Distro(distros.Distro):
             ["eselect", "locale", "set", self.default_locale], capture=False
         )
 
-    def install_packages(self, pkglist):
+    def install_packages(self, pkglist: PackageList):
         self.update_package_sources()
         self.package_command("", pkgs=pkglist)
 
@@ -183,7 +183,13 @@ class Distro(distros.Distro):
             # so lets see if we can read it first.
             conf = self._read_hostname_conf(filename)
         except IOError:
-            pass
+            create_hostname_file = util.get_cfg_option_bool(
+                self._cfg, "create_hostname_file", True
+            )
+            if create_hostname_file:
+                pass
+            else:
+                return
         if not conf:
             conf = HostnameConf("")
 
@@ -218,7 +224,7 @@ class Distro(distros.Distro):
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
 
     def package_command(self, command, args=None, pkgs=None):
-        cmd = list("emerge")
+        cmd = ["emerge"]
         # Redirect output
         cmd.append("--quiet")
 
@@ -258,6 +264,3 @@ def convert_resolv_conf(settings):
         for ns in settings:
             result += "nameserver %s\n" % ns
     return result
-
-
-# vi: ts=4 expandtab

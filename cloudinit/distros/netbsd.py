@@ -3,12 +3,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import functools
+import logging
 import os
 import platform
 from typing import Any
 
 import cloudinit.distros.bsd
-from cloudinit import log as logging
 from cloudinit import subp, util
 
 try:
@@ -161,6 +161,3 @@ class NetBSD(cloudinit.distros.bsd.BSD):
 
 class Distro(NetBSD):
     pass
-
-
-# vi: ts=4 expandtab

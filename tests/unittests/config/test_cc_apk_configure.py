@@ -384,6 +384,3 @@ class TestApkConfigureSchema:
         else:
             with pytest.raises(SchemaValidationError, match=error_msg):
                 validate_cloudconfig_schema(config, schema, strict=True)
-
-
-# vi: ts=4 expandtab

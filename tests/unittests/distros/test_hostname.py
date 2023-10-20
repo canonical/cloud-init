@@ -37,6 +37,3 @@ class TestHostnameHelper(unittest.TestCase):
 bbbbd
 """
         self.assertEqual(str(hn).strip(), expected_out.strip())
-
-
-# vi: ts=4 expandtab
