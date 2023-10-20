@@ -19,6 +19,7 @@ import yaml
 from cloudinit import importer, safeyaml
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers import INCLUSION_TYPES_MAP, type_from_starts_with
+from cloudinit.sources import DataSourceNotFoundException
 from cloudinit.util import error, get_modules_from_dir, load_file
 
 try:
@@ -1372,7 +1373,14 @@ def handle_schema_args(name, args):
     if args.docs:
         print(load_doc(args.docs))
         return
-    paths = read_cfg_paths(fetch_existing_datasource="trust")
+    try:
+        paths = read_cfg_paths(fetch_existing_datasource="trust")
+    except DataSourceNotFoundException:
+        paths = read_cfg_paths()
+        print(
+            "WARNING: datasource not detected, using default"
+            " instance-data/user-data paths."
+        )
     if args.instance_data:
         instance_data_path = args.instance_data
     elif os.getuid() != 0:

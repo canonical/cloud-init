@@ -4,9 +4,9 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 from io import StringIO
 
-from cloudinit import log as logging
 from cloudinit import util
 from cloudinit.distros.parsers import chop_comment
 
@@ -161,6 +161,3 @@ class ResolvConf:
                 raise IOError("Unexpected resolv.conf option %s" % (cfg_opt))
             entries.append(("option", [cfg_opt, cfg_values, tail]))
         return entries
-
-
-# vi: ts=4 expandtab

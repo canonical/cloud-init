@@ -6,9 +6,9 @@
 
 "Users and Groups: Configure users and groups"
 
+import logging
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit.cloud import Cloud
 
 # Ensure this is aliased to a name not 'distros'
@@ -238,6 +238,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 config["cloud_public_ssh_keys"] = cloud_keys
 
         cloud.distro.create_user(user, **config)
-
-
-# vi: ts=4 expandtab

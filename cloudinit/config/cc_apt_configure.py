@@ -9,14 +9,16 @@
 """Apt Configure: Configure apt for the user."""
 
 import glob
+import logging
 import os
 import pathlib
 import re
-from textwrap import dedent
+import shutil
+import signal
+from textwrap import dedent, indent
+from typing import Dict, Iterable, List, Mapping
 
-from cloudinit import gpg
-from cloudinit import log as logging
-from cloudinit import subp, templater, util
+from cloudinit import features, gpg, subp, templater, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
@@ -30,9 +32,15 @@ ADD_APT_REPO_MATCH = r"^[\w-]+:\w"
 APT_LOCAL_KEYS = "/etc/apt/trusted.gpg"
 APT_TRUSTED_GPG_DIR = "/etc/apt/trusted.gpg.d/"
 CLOUD_INIT_GPG_DIR = "/etc/apt/cloud-init.gpg.d/"
+DISABLE_SUITES_REDACT_PREFIX = "# cloud-init disable_suites redacted: "
 
 frequency = PER_INSTANCE
 distros = ["ubuntu", "debian"]
+
+PACKAGE_DEPENDENCY_BY_COMMAND: Mapping[str, str] = {
+    "add-apt-repository": "software-properties-common",
+    "gpg": "gnupg",
+}
 
 meta: MetaSchema = {
     "id": "cc_apt_configure",
@@ -47,6 +55,13 @@ meta: MetaSchema = {
         handled on a per-distro basis, so consult documentation for
         cloud-init's distro support for instructions on using
         these config options.
+
+        By default, cloud-init will generate default
+        apt sources information in deb822 format at
+        :file:`/etc/apt/sources.list.d/<distro>.sources`. When the value
+        of `sources_list` does not appear to be deb822 format, or stable
+        distribution releases disable deb822 format,
+        :file:`/etc/apt/sources.list` will be written instead.
 
         .. note::
             To ensure that apt configuration is valid yaml, any strings
@@ -124,7 +139,21 @@ meta: MetaSchema = {
                       ------BEGIN PGP PUBLIC KEY BLOCK-------
                       <key data>
                       ------END PGP PUBLIC KEY BLOCK-------"""
-        )
+        ),
+        dedent(
+            """\
+        # cloud-init version 23.4 will generate a deb822 formatted sources
+        # file at /etc/apt/sources.list.d/<distro>.sources instead of
+        # /etc/apt/sources.list when  `sources_list` content is deb822
+        # format.
+        apt:
+            sources_list: |
+              Types: deb
+              URIs: http://archive.ubuntu.com/ubuntu/
+              Suites: $RELEASE
+              Components: main
+            """
+        ),
     ],
     "frequency": frequency,
     "activate_by_schema_keys": [],
@@ -214,8 +243,14 @@ def apply_apt(cfg, cloud, target):
     mirrors = find_apt_mirror_info(cfg, cloud, arch=arch)
     LOG.debug("Apt Mirror info: %s", mirrors)
 
+    matcher = None
+    matchcfg = cfg.get("add_apt_repo_match", ADD_APT_REPO_MATCH)
+    if matchcfg:
+        matcher = re.compile(matchcfg).search
+    _ensure_dependencies(cfg, matcher, cloud)
+
     if util.is_false(cfg.get("preserve_sources_list", False)):
-        add_mirror_keys(cfg, target)
+        add_mirror_keys(cfg, cloud, target)
         generate_sources_list(cfg, release, mirrors, cloud)
         rename_apt_lists(mirrors, target, arch)
 
@@ -230,11 +265,6 @@ def apply_apt(cfg, cloud, target):
         params["RELEASE"] = release
         params["MIRROR"] = mirrors["MIRROR"]
 
-        matcher = None
-        matchcfg = cfg.get("add_apt_repo_match", ADD_APT_REPO_MATCH)
-        if matchcfg:
-            matcher = re.compile(matchcfg).search
-
         add_apt_sources(
             cfg["sources"],
             cloud,
@@ -244,11 +274,18 @@ def apply_apt(cfg, cloud, target):
         )
     # GH: 4344 - stop gpg-agent/dirmgr daemons spawned by gpg key imports.
     # Daemons spawned by cloud-config.service on systemd v253 report (running)
-    subp.subp(
-        ["gpgconf", "--kill", "all"],
+    gpg_process_out, _err = subp.subp(
+        ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
         target=target,
         capture=True,
+        rcs=[0, 1],
     )
+    gpg_pids = re.findall(r"(?P<ppid>\d+)\s+(?P<pid>\d+)", gpg_process_out)
+    root_gpg_pids = [int(pid[1]) for pid in gpg_pids if pid[0] == "1"]
+    if root_gpg_pids:
+        LOG.debug("Killing gpg-agent and dirmngr pids: %s", root_gpg_pids)
+    for gpg_pid in root_gpg_pids:
+        os.kill(gpg_pid, signal.SIGKILL)
 
 
 def debconf_set_selections(selections, target=None):
@@ -364,7 +401,7 @@ def rename_apt_lists(new_mirrors, target, arch):
     default_mirrors = get_default_mirrors(arch)
 
     pre = subp.target_path(target, APT_LISTS)
-    for (name, omirror) in default_mirrors.items():
+    for name, omirror in default_mirrors.items():
         nmirror = new_mirrors.get(name)
         if not nmirror:
             continue
@@ -402,13 +439,78 @@ def map_known_suites(suite):
     return retsuite
 
 
-def disable_suites(disabled, src, release):
+def disable_deb822_section_without_suites(deb822_entry: str) -> str:
+    """If no active Suites, disable this deb822 source."""
+    if not re.findall(r"\nSuites:[ \t]+([\w-]+)", deb822_entry):
+        # No Suites remaining in this entry, disable full entry
+        # Reconstitute commented Suites line to original as we disable entry
+        deb822_entry = re.sub(r"\nSuites:.*", "", deb822_entry)
+        deb822_entry = re.sub(
+            rf"{DISABLE_SUITES_REDACT_PREFIX}", "", deb822_entry
+        )
+        return (
+            "## Entry disabled by cloud-init, due to disable_suites\n"
+            + indent(deb822_entry, "# disabled by cloud-init: ")
+        )
+    return deb822_entry
+
+
+def disable_suites_deb822(disabled, src, release) -> str:
+    """reads the deb822 format config and comment disabled suites"""
+    new_src = []
+    disabled_suite_names = [
+        templater.render_string(map_known_suites(suite), {"RELEASE": release})
+        for suite in disabled
+    ]
+    LOG.debug("Disabling suites %s as %s", disabled, disabled_suite_names)
+    new_deb822_entry = ""
+    for line in src.splitlines():
+        if line.startswith("#"):
+            if new_deb822_entry:
+                new_deb822_entry += f"{line}\n"
+            else:
+                new_src.append(line)
+            continue
+        if not line or line.isspace():
+            # Validate/disable deb822 entry upon whitespace
+            if new_deb822_entry:
+                new_src.append(
+                    disable_deb822_section_without_suites(new_deb822_entry)
+                )
+                new_deb822_entry = ""
+            new_src.append(line)
+            continue
+        new_line = line
+        if not line.startswith("Suites:"):
+            new_deb822_entry += line + "\n"
+            continue
+        # redact all disabled suite names
+        if disabled_suite_names:
+            # Redact any matching Suites from line
+            orig_suites = line.split()[1:]
+            new_suites = [
+                suite
+                for suite in orig_suites
+                if suite not in disabled_suite_names
+            ]
+            if new_suites != orig_suites:
+                new_deb822_entry += f"{DISABLE_SUITES_REDACT_PREFIX}{line}\n"
+                new_line = f"Suites: {' '.join(new_suites)}"
+        new_deb822_entry += new_line + "\n"
+    if new_deb822_entry:
+        new_src.append(disable_deb822_section_without_suites(new_deb822_entry))
+    return "\n".join(new_src)
+
+
+def disable_suites(disabled, src, release) -> str:
     """reads the config for suites to be disabled and removes those
     from the template"""
     if not disabled:
         return src
 
     retsrc = src
+    if is_deb822_sources_format(src):
+        return disable_suites_deb822(disabled, src, release)
     for suite in disabled:
         suite = map_known_suites(suite)
         releasesuite = templater.render_string(suite, {"RELEASE": release})
@@ -440,41 +542,151 @@ def disable_suites(disabled, src, release):
     return retsrc
 
 
-def add_mirror_keys(cfg, target):
+def add_mirror_keys(cfg, cloud, target):
     """Adds any keys included in the primary/security mirror clauses"""
     for key in ("primary", "security"):
         for mirror in cfg.get(key, []):
-            add_apt_key(mirror, target, file_name=key)
+            add_apt_key(mirror, cloud, target, file_name=key)
+
+
+def is_deb822_sources_format(apt_src_content: str) -> bool:
+    """Simple check for deb822 format for apt source content
+
+    Only validates that minimal required keys are present in the file, which
+    indicates we are likely deb822 format.
+
+    Doesn't handle if multiple sections all contain deb822 keys.
+
+    Return True if content looks like it is deb822 formatted APT source.
+    """
+    # TODO(At jammy EOL: use aptsources.sourceslist.Deb822SourceEntry.invalid)
+    if re.findall(r"^(deb |deb-src )", apt_src_content, re.M):
+        return False
+    if re.findall(
+        r"^(Types: |Suites: |Components: |URIs: )", apt_src_content, re.M
+    ):
+        return True
+    # Did not match any required deb822 format keys
+    LOG.warning(
+        "apt.sources_list value does not match either deb822 source keys or"
+        " deb/deb-src list keys. Assuming APT deb/deb-src list format."
+    )
+    return False
+
+
+DEFAULT_APT_CFG = {
+    "Dir::Etc": "etc/apt",
+    "Dir::Etc::sourcelist": "sources.list",
+    "Dir::Etc::sourceparts": "sources.list.d",
+}
+
+APT_CFG_RE = (
+    r"(Dir::Etc|Dir::Etc::sourceparts|Dir::Etc::sourcelist) \"([^\"]+)"
+)
+
+
+def get_apt_cfg() -> Dict[str, str]:
+    """Return a dict of applicable apt configuration or defaults.
+
+    Prefer python apt_pkg if present.
+    Fallback to apt-config dump command if present out output parsed
+    Fallback to DEFAULT_APT_CFG if apt-config commmand absent or
+    output unparsable.
+    """
+    try:
+        # python3-apt package is only a Recommends: not a strict Requires:
+        # in debian/control. Prefer the apt_pkg python module for APT
+        # interaction due to 7 ms performance improvement above subp.
+        # Given that debian/buntu images may not contain python3-apt
+        # fallback to subp if the image lacks this dependency.
+        import apt_pkg  # type: ignore
+
+        apt_pkg.init_config()
+        etc = apt_pkg.config.get("Dir::Etc", DEFAULT_APT_CFG["Dir::Etc"])
+        sourcelist = apt_pkg.config.get(
+            "Dir::Etc::sourcelist", DEFAULT_APT_CFG["Dir::Etc::sourcelist"]
+        )
+        sourceparts = apt_pkg.config.get(
+            "Dir::Etc::sourceparts", DEFAULT_APT_CFG["Dir::Etc::sourceparts"]
+        )
+    except ImportError:
+
+        try:
+            apt_dump, _ = subp.subp(["apt-config", "dump"])
+        except subp.ProcessExecutionError:
+            # No apt-config, return defaults
+            etc = DEFAULT_APT_CFG["Dir::Etc"]
+            sourcelist = DEFAULT_APT_CFG["Dir::Etc::sourcelist"]
+            sourceparts = DEFAULT_APT_CFG["Dir::Etc::sourceparts"]
+            return {
+                "sourcelist": f"/{etc}/{sourcelist}",
+                "sourceparts": f"/{etc}/{sourceparts}/",
+            }
+        matched_cfg = re.findall(APT_CFG_RE, apt_dump)
+        apt_cmd_config = dict(matched_cfg)
+        etc = apt_cmd_config.get("Dir::Etc", DEFAULT_APT_CFG["Dir::Etc"])
+        sourcelist = apt_cmd_config.get(
+            "Dir::Etc::sourcelist", DEFAULT_APT_CFG["Dir::Etc::sourcelist"]
+        )
+        sourceparts = apt_cmd_config.get(
+            "Dir::Etc::sourceparts", DEFAULT_APT_CFG["Dir::Etc::sourceparts"]
+        )
+    return {
+        "sourcelist": f"/{etc}/{sourcelist}",
+        "sourceparts": f"/{etc}/{sourceparts}/",
+    }
 
 
 def generate_sources_list(cfg, release, mirrors, cloud):
     """generate_sources_list
     create a source.list file based on a custom or default template
     by replacing mirrors and release in the template"""
-    aptsrc = "/etc/apt/sources.list"
+    apt_cfg = get_apt_cfg()
+    apt_sources_list = apt_cfg["sourcelist"]
+    apt_sources_deb822 = f"{apt_cfg['sourceparts']}{cloud.distro.name}.sources"
+    if features.APT_DEB822_SOURCE_LIST_FILE:
+        aptsrc_file = apt_sources_deb822
+    else:
+        aptsrc_file = apt_sources_list
+
     params = {"RELEASE": release, "codename": release}
     for k in mirrors:
         params[k] = mirrors[k]
         params[k.lower()] = mirrors[k]
 
     tmpl = cfg.get("sources_list", None)
-    if tmpl is None:
+    if not tmpl:
         LOG.info("No custom template provided, fall back to builtin")
+        tmpl_fmt = ".deb822" if features.APT_DEB822_SOURCE_LIST_FILE else ""
         template_fn = cloud.get_template_filename(
-            "sources.list.%s" % (cloud.distro.name)
+            f"sources.list.{cloud.distro.name}{tmpl_fmt}"
         )
         if not template_fn:
             template_fn = cloud.get_template_filename("sources.list")
         if not template_fn:
-            LOG.warning(
-                "No template found, not rendering /etc/apt/sources.list"
-            )
+            LOG.warning("No template found, not rendering %s", aptsrc_file)
             return
         tmpl = util.load_file(template_fn)
 
     rendered = templater.render_string(tmpl, params)
+    if tmpl:
+        if is_deb822_sources_format(rendered):
+            if aptsrc_file == apt_sources_list:
+                LOG.debug(
+                    "Provided 'sources_list' user-data is deb822 format,"
+                    " writing to %s",
+                    apt_sources_deb822,
+                )
+                aptsrc_file = apt_sources_deb822
+        else:
+            LOG.debug(
+                "Provided 'sources_list' user-data is not deb822 format,"
+                " fallback to %s",
+                apt_sources_list,
+            )
+            aptsrc_file = apt_sources_list
     disabled = disable_suites(cfg.get("disable_suites"), rendered, release)
-    util.write_file(aptsrc, disabled, mode=0o644)
+    util.write_file(aptsrc_file, disabled, mode=0o644)
 
 
 def add_apt_key_raw(key, file_name, hardened=False, target=None):
@@ -491,7 +703,41 @@ def add_apt_key_raw(key, file_name, hardened=False, target=None):
         raise
 
 
-def add_apt_key(ent, target=None, hardened=False, file_name=None):
+def _ensure_dependencies(cfg, aa_repo_match, cloud):
+    """Install missing package dependencies based on apt_sources config.
+
+    Inspect the cloud config user-data provided. When user-data indicates
+    conditions where add_apt_key or add-apt-repository will be called,
+    ensure the required command dependencies are present installed.
+
+    Perform this inspection upfront because it is very expensive to call
+    distro.install_packages due to a preliminary 'apt update' called before
+    package installation.
+    """
+    missing_packages: List[str] = []
+    required_cmds: Iterable[str] = set()
+    if util.is_false(cfg.get("preserve_sources_list", False)):
+        for mirror_key in ("primary", "security"):
+            if cfg.get(mirror_key):
+                # Include gpg when mirror_key non-empty list and any item
+                # defines key or keyid.
+                for mirror_item in cfg[mirror_key]:
+                    if {"key", "keyid"}.intersection(mirror_item):
+                        required_cmds.add("gpg")
+    apt_sources_dict = cfg.get("sources", {})
+    for ent in apt_sources_dict.values():
+        if {"key", "keyid"}.intersection(ent):
+            required_cmds.add("gpg")
+        if aa_repo_match(ent.get("source", "")):
+            required_cmds.add("add-apt-repository")
+    for command in required_cmds:
+        if not shutil.which(command):
+            missing_packages.append(PACKAGE_DEPENDENCY_BY_COMMAND[command])
+    if missing_packages:
+        cloud.distro.install_packages(sorted(missing_packages))
+
+
+def add_apt_key(ent, cloud, target=None, hardened=False, file_name=None):
     """
     Add key to the system as defined in ent (if any).
     Supports raw keys or keyid's
@@ -554,13 +800,17 @@ def add_apt_sources(
         ent = srcdict[filename]
         LOG.debug("adding source/key '%s'", ent)
         if "filename" not in ent:
-            ent["filename"] = filename
+            if target and filename.startswith(target):
+                # Strip target path prefix from filename
+                ent["filename"] = filename[len(target) :]
+            else:
+                ent["filename"] = filename
 
         if "source" in ent and "$KEY_FILE" in ent["source"]:
-            key_file = add_apt_key(ent, target, hardened=True)
+            key_file = add_apt_key(ent, cloud, target, hardened=True)
             template_params["KEY_FILE"] = key_file
         else:
-            key_file = add_apt_key(ent, target)
+            add_apt_key(ent, cloud, target)
 
         if "source" not in ent:
             continue
@@ -994,5 +1244,3 @@ def apt_key(
 CONFIG_CLEANERS = {
     "cloud-init": clean_cloud_init,
 }
-
-# vi: ts=4 expandtab

@@ -1,10 +1,11 @@
+import logging
 import os
 
-from cloudinit import log, util
+from cloudinit import util
 from cloudinit.handlers import Handler
 from cloudinit.settings import PER_ALWAYS, PER_INSTANCE, PER_ONCE
 
-LOG = log.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 # cloudinit/settings.py defines PER_*** frequency constants. It makes sense to
 # use them here, instead of hardcodes, and map them to the 'per-***' frequency-

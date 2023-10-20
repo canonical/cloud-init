@@ -33,6 +33,3 @@ class ShellScriptPartHandler(handlers.Handler):
         payload = util.dos2unix(payload)
         path = os.path.join(self.script_dir, filename)
         util.write_file(path, payload, 0o700)
-
-
-# vi: ts=4 expandtab

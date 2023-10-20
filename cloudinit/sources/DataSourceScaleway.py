@@ -6,6 +6,7 @@
 # https://developer.scaleway.com/#metadata
 
 import json
+import logging
 import os
 import socket
 import time
@@ -18,9 +19,7 @@ from requests.exceptions import ConnectionError
 from urllib3.connection import HTTPConnection
 from urllib3.poolmanager import PoolManager
 
-from cloudinit import dmi
-from cloudinit import log as logging
-from cloudinit import net, sources, url_helper, util
+from cloudinit import dmi, net, sources, url_helper, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralDHCPv4, EphemeralIPv6Network

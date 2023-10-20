@@ -1,12 +1,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import logging
 import os
 import re
 
 import pytest
 
-from cloudinit import log
 from cloudinit.config import cc_ubuntu_drivers as drivers
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -277,7 +277,7 @@ class TestUbuntuDrivers:
         assert [mock.call(install_gpgpu)] == m_subp.call_args_list
         assert (
             MPATH[:-1],
-            log.WARNING,
+            logging.WARNING,
             (
                 "the available version of ubuntu-drivers is"
                 " too old to perform requested driver installation"
@@ -428,6 +428,3 @@ class TestUbuntuAdvantageSchema:
         else:
             with pytest.raises(SchemaValidationError, match=error_msg):
                 validate_cloudconfig_schema(config, get_schema(), strict=True)
-
-
-# vi: ts=4 expandtab

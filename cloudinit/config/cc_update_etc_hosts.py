@@ -148,6 +148,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             hosts_fn,
             name,
         )
-
-
-# vi: ts=4 expandtab

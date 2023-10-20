@@ -5,9 +5,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Red Hat Subscription: Register Red Hat Enterprise Linux based system"""
 
+import logging
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -510,6 +510,3 @@ def _sub_man_cli(cmd, logstring_val=False):
     separate function for later use in mocking and unittests
     """
     return subp.subp(["subscription-manager"] + cmd, logstring=logstring_val)
-
-
-# vi: ts=4 expandtab

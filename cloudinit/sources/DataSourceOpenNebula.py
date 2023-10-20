@@ -14,14 +14,13 @@
 
 import collections
 import functools
+import logging
 import os
 import pwd
 import re
 import string
 
-from cloudinit import atomic_helper
-from cloudinit import log as logging
-from cloudinit import net, sources, subp, util
+from cloudinit import atomic_helper, net, sources, subp, util
 
 LOG = logging.getLogger(__name__)
 
@@ -521,6 +520,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab

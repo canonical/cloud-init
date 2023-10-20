@@ -205,6 +205,3 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
         (which_ran, failures) = mods.run_section("cloud_init_modules")
         self.assertTrue(len(failures) == 0)
         self.assertEqual([], which_ran)
-
-
-# vi: ts=4 expandtab

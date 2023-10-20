@@ -7,13 +7,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import logging
 from inspect import signature
 from types import ModuleType
 from typing import Dict, List, NamedTuple, Optional
 
-from cloudinit import config, importer
-from cloudinit import log as logging
-from cloudinit import type_utils, util
+from cloudinit import config, importer, type_utils, util
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.helpers import ConfigMerger
 from cloudinit.reporting.events import ReportEventStack

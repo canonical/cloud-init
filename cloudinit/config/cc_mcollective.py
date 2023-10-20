@@ -11,13 +11,13 @@
 
 import errno
 import io
+import logging
 from textwrap import dedent
 
 # Used since this can maintain comments
 # and doesn't need a top level section
 from configobj import ConfigObj
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -27,8 +27,6 @@ from cloudinit.settings import PER_INSTANCE
 PUBCERT_FILE = "/etc/mcollective/ssl/server-public.pem"
 PRICERT_FILE = "/etc/mcollective/ssl/server-private.pem"
 SERVER_CFG = "/etc/mcollective/server.cfg"
-
-LOG = logging.getLogger(__name__)
 
 MODULE_DESCRIPTION = """\
 This module installs, configures and starts mcollective. If the ``mcollective``
@@ -111,7 +109,7 @@ def configure(
                 server_cfg,
             )
             mcollective_config = ConfigObj()
-    for (cfg_name, cfg) in config.items():
+    for cfg_name, cfg in config.items():
         if cfg_name == "public-cert":
             util.write_file(pubcert_file, cfg, mode=0o644)
             mcollective_config["plugin.ssl_server_public"] = pubcert_file
@@ -129,7 +127,7 @@ def configure(
                 # it is needed and then add/or create items as needed
                 if cfg_name not in mcollective_config.sections:
                     mcollective_config[cfg_name] = {}
-                for (o, v) in cfg.items():
+                for o, v in cfg.items():
                     mcollective_config[cfg_name][o] = v
             else:
                 # Otherwise just try to convert it to a string
@@ -153,7 +151,6 @@ def configure(
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
-
     # If there isn't a mcollective key in the configuration don't do anything
     if "mcollective" not in cfg:
         LOG.debug(
@@ -165,7 +162,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     mcollective_cfg = cfg["mcollective"]
 
     # Start by installing the mcollective package ...
-    cloud.distro.install_packages(("mcollective",))
+    cloud.distro.install_packages(["mcollective"])
 
     # ... and then update the mcollective configuration
     if "conf" in mcollective_cfg:
@@ -173,6 +170,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     # restart mcollective to handle updated config
     subp.subp(["service", "mcollective", "restart"], capture=False)
-
-
-# vi: ts=4 expandtab

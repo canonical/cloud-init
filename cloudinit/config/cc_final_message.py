@@ -108,6 +108,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     if cloud.datasource.is_disconnected:
         LOG.warning("Used fallback datasource")
-
-
-# vi: ts=4 expandtab

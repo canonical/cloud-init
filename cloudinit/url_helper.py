@@ -10,6 +10,7 @@
 
 import copy
 import json
+import logging
 import os
 import threading
 import time
@@ -25,7 +26,6 @@ from urllib.parse import quote, urlparse, urlunparse
 import requests
 from requests import exceptions
 
-from cloudinit import log as logging
 from cloudinit import version
 
 LOG = logging.getLogger(__name__)
@@ -846,6 +846,3 @@ def retry_on_url_exc(
     if exc.cause and isinstance(exc.cause, retry_instances):
         return True
     return False
-
-
-# vi: ts=4 expandtab

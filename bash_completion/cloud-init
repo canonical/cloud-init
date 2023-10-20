@@ -83,5 +83,3 @@ _cloudinit_complete()
     esac
 }
 complete -F _cloudinit_complete cloud-init
-
-# vi: syntax=sh expandtab

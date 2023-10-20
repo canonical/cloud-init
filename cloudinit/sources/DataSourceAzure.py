@@ -6,6 +6,7 @@
 
 import base64
 import functools
+import logging
 import os
 import os.path
 import re
@@ -16,7 +17,6 @@ from pathlib import Path
 from time import sleep, time
 from typing import Any, Dict, List, Optional
 
-from cloudinit import log as logging
 from cloudinit import net, sources, ssh_util, subp, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import (
@@ -286,6 +286,7 @@ BUILTIN_DS_CONFIG = {
     "data_dir": AGENT_SEED_DIR,
     "disk_aliases": {"ephemeral0": RESOURCE_DISK_PATH},
     "apply_network_config": True,  # Use IMDS published network configuration
+    "apply_network_config_for_secondary_ips": True,  # Configure secondary ips
 }
 
 BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG = {
@@ -685,7 +686,6 @@ class DataSourceAzure(sources.DataSource):
                     crawled_data["metadata"]["public-keys"] = ssh_keys
 
                 self._cleanup_markers()
-                self._negotiated = True
 
         return crawled_data
 
@@ -1000,6 +1000,9 @@ class DataSourceAzure(sources.DataSource):
                 report_diagnostic_event(msg, logger_func=LOG.error)
                 raise sources.InvalidMetaDataException(msg) from error
 
+        # Reset flag as we will need to report ready again for re-use.
+        self._negotiated = False
+
         if create_marker:
             self._create_report_ready_marker()
 
@@ -1236,6 +1239,7 @@ class DataSourceAzure(sources.DataSource):
                 report_failure_to_fabric(
                     endpoint=self._wireserver_endpoint, error=error
                 )
+                self._negotiated = True
                 return True
             except Exception as e:
                 report_diagnostic_event(
@@ -1258,6 +1262,7 @@ class DataSourceAzure(sources.DataSource):
             report_failure_to_fabric(
                 endpoint=self._wireserver_endpoint, error=error
             )
+            self._negotiated = True
             return True
         except Exception as e:
             report_diagnostic_event(
@@ -1297,6 +1302,7 @@ class DataSourceAzure(sources.DataSource):
 
         # Reporting ready ejected OVF media, no need to do so again.
         self._iso_dev = None
+        self._negotiated = True
         return data
 
     def _ppstype_from_imds(self, imds_md: dict) -> Optional[str]:
@@ -1408,7 +1414,10 @@ class DataSourceAzure(sources.DataSource):
         ):
             try:
                 return generate_network_config_from_instance_network_metadata(
-                    self._metadata_imds["network"]
+                    self._metadata_imds["network"],
+                    apply_network_config_for_secondary_ips=self.ds_cfg.get(
+                        "apply_network_config_for_secondary_ips"
+                    ),
                 )
             except Exception as e:
                 LOG.error(
@@ -1615,7 +1624,9 @@ def can_dev_be_reformatted(devpath, preserve_ntfs):
 
     @azure_ds_telemetry_reporter
     def count_files(mp):
-        ignored = set(["dataloss_warning_readme.txt"])
+        ignored = set(
+            ["dataloss_warning_readme.txt", "system volume information"]
+        )
         return len([f for f in os.listdir(mp) if f.lower() not in ignored])
 
     bmsg = "partition %s (%s) on device %s was ntfs formatted" % (
@@ -1856,6 +1867,8 @@ def load_azure_ds_dir(source_dir):
 @azure_ds_telemetry_reporter
 def generate_network_config_from_instance_network_metadata(
     network_metadata: dict,
+    *,
+    apply_network_config_for_secondary_ips: bool,
 ) -> dict:
     """Convert imds network metadata dictionary to network v2 configuration.
 
@@ -1894,6 +1907,10 @@ def generate_network_config_from_instance_network_metadata(
                     # route-metric (cost) so default routes prefer
                     # primary nic due to lower route-metric value
                     dev_config["dhcp6-overrides"] = dhcp_override
+
+            if not apply_network_config_for_secondary_ips:
+                continue
+
             for addr in addresses[1:]:
                 # Append static address config for ip > 1
                 netPrefix = intf[addr_type]["subnet"][0].get(

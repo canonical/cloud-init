@@ -2,13 +2,13 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import os
 import select
 import socket
 import struct
 from collections import namedtuple
 
-from cloudinit import log as logging
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -341,6 +341,3 @@ def read_netlink_messages(
             ):
                 return
         data = data[offset:]
-
-
-# vi: ts=4 expandtab

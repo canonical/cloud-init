@@ -17,7 +17,8 @@ from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
 MODULE_DESCRIPTION = """\
-Sets the system timezone based on the value provided.
+Sets the system `timezone <https://www.iana.org/time-zones>`_ based on the
+value provided.
 """
 
 meta: MetaSchema = {
@@ -49,6 +50,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     # Let the distro handle settings its timezone
     cloud.distro.set_timezone(timezone)
-
-
-# vi: ts=4 expandtab

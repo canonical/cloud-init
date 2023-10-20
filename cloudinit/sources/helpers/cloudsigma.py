@@ -90,6 +90,3 @@ class CepkoResult:
 
     def __iter__(self):
         return self.result.__iter__()
-
-
-# vi: ts=4 expandtab

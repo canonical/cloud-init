@@ -4,12 +4,11 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import re
 from base64 import b64decode
 
-from cloudinit import dmi
-from cloudinit import log as logging
-from cloudinit import sources
+from cloudinit import dmi, sources
 from cloudinit.sources import DataSourceHostname
 from cloudinit.sources.helpers.cloudsigma import SERIAL_PORT, Cepko
 
@@ -117,6 +116,3 @@ def get_datasource_list(depends):
     Return a list of data sources that match this set of dependencies
     """
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab

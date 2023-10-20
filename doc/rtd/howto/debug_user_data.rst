@@ -33,5 +33,12 @@ tracebacks. Tracebacks are always reportable bugs.
 
 To report any bugs you find, :ref:`refer to this guide <reporting_bugs>`.
 
+Validation service
+------------------
+
+Another option to is to use the self-hosted HTTP `validation service`_,
+refer to its documentation for more info.
+
 .. LINKS
 .. _validate-yaml.py: https://github.com/canonical/cloud-init/blob/main/tools/validate-yaml.py
+.. _validation service: https://github.com/aciba90/cloud-config-validator

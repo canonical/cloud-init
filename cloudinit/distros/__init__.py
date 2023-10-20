@@ -10,18 +10,31 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import abc
+import logging
 import os
 import re
 import stat
 import string
 import urllib.parse
+from collections import defaultdict
 from io import StringIO
-from typing import Any, Mapping, MutableMapping, Optional, Type
+from typing import (
+    Any,
+    Dict,
+    List,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+)
 
 import cloudinit.net.netops.iproute2 as iproute2
-from cloudinit import importer
-from cloudinit import log as logging
 from cloudinit import (
+    helpers,
+    importer,
     net,
     persistence,
     ssh_util,
@@ -31,6 +44,8 @@ from cloudinit import (
     util,
 )
 from cloudinit.distros.networking import LinuxNetworking, Networking
+from cloudinit.distros.package_management.package_manager import PackageManager
+from cloudinit.distros.package_management.utils import known_package_managers
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 from cloudinit.net import activators, dhcp, eni, network_state, renderers
@@ -89,6 +104,24 @@ PREFERRED_NTP_CLIENTS = ["chrony", "systemd-timesyncd", "ntp", "ntpdate"]
 # Letters/Digits/Hyphen characters, for use in domain name validation
 LDH_ASCII_CHARS = string.ascii_letters + string.digits + "-"
 
+# Before you try to go rewriting this better using Unions, read
+# https://github.com/microsoft/pyright/blob/main/docs/type-concepts.md#generic-types  # noqa: E501
+# The Immutable types mentioned there won't work for us because
+# we need to distinguish between a str and a Sequence[str]
+# This also isn't exhaustive. If you have a unique case that adheres to
+# the `packages` schema, you can add it here.
+PackageList = Union[
+    List[str],
+    List[Mapping],
+    List[List[str]],
+    List[Union[str, List[str]]],
+    List[Union[str, List[str], Mapping]],
+]
+
+
+class PackageInstallerError(Exception):
+    pass
+
 
 class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     pip_package_name = "python3-pip"
@@ -126,6 +159,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             dhcp.Udhcpc,
         ]
         self.net_ops = iproute2.Iproute2
+        self._runner = helpers.Runners(paths)
+        self.package_managers: List[PackageManager] = []
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         """Perform deserialization fixes for Distro."""
@@ -139,9 +174,89 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             # missing expected instance state otherwise.
             self.networking = self.networking_cls()
 
-    @abc.abstractmethod
-    def install_packages(self, pkglist):
-        raise NotImplementedError()
+    def _validate_entry(self, entry):
+        if isinstance(entry, str):
+            return entry
+        elif isinstance(entry, (list, tuple)):
+            if len(entry) == 2:
+                return tuple(entry)
+        raise ValueError(
+            "Invalid 'packages' yaml specification. "
+            "Check schema definition."
+        )
+
+    def _extract_package_by_manager(
+        self, pkglist: PackageList
+    ) -> Tuple[Dict[Type[PackageManager], Set], Set]:
+        """Transform the generic package list to package by package manager.
+
+        Additionally, include list of generic packages
+        """
+        packages_by_manager = defaultdict(set)
+        generic_packages: Set = set()
+        for entry in pkglist:
+            if isinstance(entry, dict):
+                for package_manager, package_list in entry.items():
+                    for definition in package_list:
+                        definition = self._validate_entry(definition)
+                        try:
+                            packages_by_manager[
+                                known_package_managers[package_manager]
+                            ].add(definition)
+                        except KeyError:
+                            LOG.error(
+                                "Cannot install packages under '%s' as it is "
+                                "not a supported package manager!",
+                                package_manager,
+                            )
+            else:
+                generic_packages.add(self._validate_entry(entry))
+        return dict(packages_by_manager), generic_packages
+
+    def install_packages(self, pkglist: PackageList):
+        error_message = (
+            "Failed to install the following packages: %s. "
+            "See associated package manager logs for more details."
+        )
+        # If an entry hasn't been included with an explicit package name,
+        # add it to a 'generic' list of packages
+        (
+            packages_by_manager,
+            generic_packages,
+        ) = self._extract_package_by_manager(pkglist)
+
+        # First install packages using package manager(s)
+        # supported by the distro
+        uninstalled = []
+        for manager in self.package_managers:
+            to_try = (
+                packages_by_manager.get(manager.__class__, set())
+                | generic_packages
+            )
+            if not to_try:
+                continue
+            uninstalled = manager.install_packages(to_try)
+            failed = {
+                pkg for pkg in uninstalled if pkg not in generic_packages
+            }
+            if failed:
+                LOG.info(error_message, failed)
+            generic_packages = set(uninstalled)
+
+        # Now attempt any specified package managers not explicitly supported
+        # by distro
+        for manager_type, packages in packages_by_manager.items():
+            if manager_type.name in [p.name for p in self.package_managers]:
+                # We already installed/attempted these; don't try again
+                continue
+            uninstalled.extend(
+                manager_type.from_config(
+                    self._runner, self._cfg
+                ).install_packages(pkglist=packages)
+            )
+
+        if uninstalled:
+            raise PackageInstallerError(error_message % uninstalled)
 
     def _write_network(self, settings):
         """Deprecated. Remove if/when arch and gentoo support renderers."""
@@ -202,11 +317,19 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def package_command(self, command, args=None, pkgs=None):
+        # Long-term, this method should be removed and callers refactored.
+        # Very few commands are going to be consistent across all package
+        # managers.
         raise NotImplementedError()
 
-    @abc.abstractmethod
     def update_package_sources(self):
-        raise NotImplementedError()
+        for manager in self.package_managers:
+            try:
+                manager.update_package_sources()
+            except Exception as e:
+                LOG.error(
+                    "Failed to update package using %s: %s", manager.name, e
+                )
 
     def get_primary_arch(self):
         arch = os.uname()[4]
@@ -781,7 +904,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             cmd.append("-e")
 
         try:
-            subp.subp(cmd, pass_string, logstring="chpasswd for %s" % user)
+            subp.subp(
+                cmd, data=pass_string, logstring="chpasswd for %s" % user
+            )
         except Exception as e:
             util.logexc(LOG, "Failed to set password for %s", user)
             raise e
@@ -796,7 +921,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             + "\n"
         )
         cmd = ["chpasswd"] + (["-e"] if hashed else [])
-        subp.subp(cmd, payload)
+        subp.subp(cmd, data=payload)
 
     def is_doas_rule_valid(self, user, rule):
         rule_pattern = (

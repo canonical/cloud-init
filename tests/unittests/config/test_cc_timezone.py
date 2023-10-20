@@ -48,6 +48,3 @@ class TestTimezone(t_help.FilesystemMockingTestCase):
 
         contents = util.load_file("/etc/localtime")
         self.assertEqual(dummy_contents, contents.strip())
-
-
-# vi: ts=4 expandtab

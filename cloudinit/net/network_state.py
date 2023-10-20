@@ -1119,6 +1119,3 @@ def parse_net_config_data(
         )
 
     return state
-
-
-# vi: ts=4 expandtab

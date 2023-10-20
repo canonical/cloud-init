@@ -112,6 +112,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             " was not found in configuration",
             name,
         )
-
-
-# vi: ts=4 expandtab

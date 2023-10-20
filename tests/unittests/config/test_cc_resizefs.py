@@ -508,6 +508,3 @@ class TestResizefsSchema:
         else:
             with pytest.raises(SchemaValidationError, match=error_msg):
                 validate_cloudconfig_schema(config, get_schema(), strict=True)
-
-
-# vi: ts=4 expandtab

@@ -10,6 +10,7 @@ knowledge and become better at using and configuring ``cloud-init``.
 .. toctree::
    :maxdepth: 1
 
+   introduction.rst
    configuration.rst
    boot.rst
    format.rst

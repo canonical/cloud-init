@@ -2,10 +2,10 @@
 
 """Autoinstall: Support ubuntu live-server autoinstall syntax."""
 
+import logging
 import re
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import (

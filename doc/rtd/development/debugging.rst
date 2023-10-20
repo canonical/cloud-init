@@ -1,13 +1,13 @@
 .. _debugging:
 
-Debugging ``cloud-init``
-************************
+Debugging cloud-init
+********************
 
 Overview
 ========
 
-This topic will discuss general approaches for testing and debugging
-``cloud-init`` on deployed instances.
+This topic will discuss general approaches for testing and debugging cloud-init
+on deployed instances.
 
 .. _boot_time_analysis:
 
@@ -18,13 +18,13 @@ Boot time analysis
 -----------------------------
 
 Occasionally, instances don't appear as performant as we would like and
-``cloud-init`` packages a simple facility to inspect which operations took the
+cloud-init packages a simple facility to inspect which operations took the
 longest during boot and setup.
 
 The script :file:`/usr/bin/cloud-init` has an analysis sub-command,
 :command:`analyze`, which parses any :file:`cloud-init.log` file into formatted
 and sorted events. It allows for detailed analysis of the most costly
-``cloud-init`` operations, and to determine the long-pole in ``cloud-init``
+cloud-init operations, and to determine the long-pole in cloud-init
 configuration and setup. These subcommands default to reading
 :file:`/var/log/cloud-init.log`.
 
@@ -81,7 +81,7 @@ Example output:
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 Parse :file:`cloud-init.log` into event records and sort them based on the
-highest time cost for a quick assessment of areas of ``cloud-init`` that may
+highest time cost for a quick assessment of areas of cloud-init that may
 need improvement.
 
 .. code-block:: shell-session
@@ -101,8 +101,8 @@ Example output:
 :command:`analyze boot`
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Make subprocess calls to the kernel in order to get relevant pre-``cloud-init``
-timestamps, such as the kernel start, kernel finish boot, and ``cloud-init``
+Make subprocess calls to the kernel in order to get relevant pre-cloud-init
+timestamps, such as the kernel start, kernel finish boot, and cloud-init
 start.
 
 .. code-block:: shell-session
@@ -123,7 +123,7 @@ Example output:
 Analyze quickstart - LXC
 ------------------------
 
-To quickly obtain a ``cloud-init`` log, try using :command:``lxc`` on any
+To quickly obtain a cloud-init log, try using :command:`lxc` on any
 Ubuntu system:
 
 .. code-block:: shell-session
@@ -138,7 +138,7 @@ Ubuntu system:
 
 Analyze quickstart - KVM
 ------------------------
-To quickly analyze a KVM ``cloud-init`` log:
+To quickly analyze a KVM cloud-init log:
 
 1. Download the current cloud image
 
@@ -188,7 +188,7 @@ load the configured datasource and run a single cloud-config module once, using
 the cached user data and metadata after the instance has booted. Each
 cloud-config module has a module ``FREQUENCY`` configured: ``PER_INSTANCE``,
 ``PER_BOOT``, ``PER_ONCE`` or ``PER_ALWAYS``. When a module is run by
-``cloud-init``, it stores a semaphore file in
+cloud-init, it stores a semaphore file in
 :file:`/var/lib/cloud/instance/sem/config_<module_name>.<frequency>` which
 marks when the module last successfully ran. Presence of this semaphore file
 prevents a module from running again if it has already been run. To ensure that
@@ -212,37 +212,37 @@ a result.
 
 .. _proposed_sru_testing:
 
-Stable Release Updates (SRU) testing for ``cloud-init``
-=======================================================
+Stable Release Updates (SRU) testing for cloud-init
+===================================================
 
 Once an Ubuntu release is stable (i.e. after it is released), updates for it
 must follow a special procedure called a "Stable Release Update" (`SRU`_).
 
-The ``cloud-init`` project has a specific process it follows when validating
-a ``cloud-init`` SRU, documented in the `CloudinitUpdates`_ wiki page.
+The cloud-init project has a specific process it follows when validating
+a cloud-init SRU, documented in the `CloudinitUpdates`_ wiki page.
 
-Generally an SRU test of ``cloud-init`` performs the following:
+Generally an SRU test of cloud-init performs the following:
 
- * Install a pre-release version of ``cloud-init`` from the **-proposed** APT
+* Install a pre-release version of cloud-init from the **-proposed** APT
    pocket (e.g., **bionic-proposed**).
- * Upgrade ``cloud-init`` and attempt a clean run of ``cloud-init`` to assert
+* Upgrade cloud-init and attempt a clean run of cloud-init to assert
    that the new version works properly on the specific platform and Ubuntu
    series.
- * Check for tracebacks or errors in behaviour.
+* Check for tracebacks or errors in behaviour.
 
 Manual SRU verification procedure
 ---------------------------------
 
-Below are steps to manually test a pre-release version of ``cloud-init``
+Below are steps to manually test a pre-release version of cloud-init
 from **-proposed**
 
 .. note::
     For each Ubuntu SRU, the Ubuntu Server team manually validates the new
-    version of ``cloud-init`` on these platforms: **Amazon EC2, Azure, GCE,
+    version of cloud-init on these platforms: **Amazon EC2, Azure, GCE,
     OpenStack, Oracle, Softlayer (IBM), LXD, KVM**
 
 1. Launch a VM on your favorite platform, providing this cloud-config
-   user data and replacing `<YOUR_LAUNCHPAD_USERNAME>` with your username:
+   user data and replacing ``<YOUR_LAUNCHPAD_USERNAME>`` with your username:
 
 .. code-block:: yaml
 
@@ -251,9 +251,9 @@ from **-proposed**
     ssh_import_id: [<YOUR_LAUNCHPAD_USERNAME>]
     hostname: SRU-worked-{{v1.cloud_name}}
 
-2. Wait for current ``cloud-init`` to complete, replace ``<YOUR_VM_IP>`` with
+2. Wait for current cloud-init to complete, replace ``<YOUR_VM_IP>`` with
    the IP address of the VM that you launched in step 1. Be sure to make a
-   note of the datasource ``cloud-init`` detected in ``--long`` output. You
+   note of the datasource cloud-init detected in ``--long`` output. You
    will need this during step 5, where you will use it to confirm the same
    datasource is detected after the upgrade:
 
@@ -263,8 +263,8 @@ from **-proposed**
     $ ssh ubuntu@$CI_VM_IP -- cloud-init status --wait --long
 
 3. Set up the **-proposed** pocket on your VM and upgrade to the **-proposed**
-   ``cloud-init``. To do this, create the following bash script, which will
-   add the **-proposed** pocket to APT's sources and install ``cloud-init``
+   cloud-init. To do this, create the following bash script, which will
+   add the **-proposed** pocket to APT's sources and install cloud-init
    from that pocket:
 
 .. code-block:: bash
@@ -283,16 +283,16 @@ from **-proposed**
     $ scp setup_proposed.sh ubuntu@$CI_VM_IP:.
     $ ssh ubuntu@$CI_VM_IP -- sudo bash setup_proposed.sh
 
-4. Change hostname, clean ``cloud-init``'s state, and reboot to run
-   ``cloud-init`` from scratch:
+4. Change hostname, clean cloud-init's state, and reboot to run cloud-init from
+   scratch:
 
 .. code-block:: shell-session
 
     $ ssh ubuntu@$CI_VM_IP -- sudo hostname something-else
     $ ssh ubuntu@$CI_VM_IP -- sudo cloud-init clean --logs --reboot
 
-5. Validate **-proposed** ``cloud-init`` came up without error. First, we block
-   until ``cloud-init`` completes, then verify from ``--long`` that the
+5. Validate **-proposed** cloud-init came up without error. First, we block
+   until cloud-init completes, then verify from ``--long`` that the
    datasource is the same as the one picked up from step 1. Errors will show up
    in ``--long``:
 
@@ -306,7 +306,7 @@ Make sure the hostname was set properly to `SRU-worked-<cloud name>`:
 
    $ ssh ubuntu@$CI_VM_IP -- hostname
 
-Then, check for any errors or warnings in ``cloud-init`` logs. If successful,
+Then, check for any errors or warnings in cloud-init logs. If successful,
 this will produce no output:
 
 .. code-block:: shell-session
@@ -315,10 +315,12 @@ this will produce no output:
 
 6. If you encounter an error during SRU testing:
 
-   * Create a `new cloud-init bug`_ reporting the version of ``cloud-init``
+   * Create a `new cloud-init bug`_ reporting the version of cloud-init
      affected
-   * Ping upstream ``cloud-init`` on Libera's `#cloud-init IRC channel`_
+   * Ping upstream cloud-init on Libera's `#cloud-init IRC channel <IRC_>`_
 
+.. LINKS
+.. include:: ../links.txt
 .. _SRU: https://wiki.ubuntu.com/StableReleaseUpdates
 .. _CloudinitUpdates: https://wiki.ubuntu.com/CloudinitUpdates
 .. _new cloud-init bug: https://github.com/canonical/cloud-init/issues
