@@ -1409,6 +1409,3 @@ class TestSerialConcurrency(CiTestCase):
                 client.get(key)
 
         self.assertIsNone(self.mdata_proc.exitcode)
-
-
-# vi: ts=4 expandtab

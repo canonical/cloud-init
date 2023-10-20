@@ -5,13 +5,12 @@
 # Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
-
 import inspect
+import logging
 import signal
 import sys
 from io import StringIO
 
-from cloudinit import log as logging
 from cloudinit import util
 from cloudinit import version as vr
 
@@ -55,6 +54,3 @@ def attach_handlers():
         signal.signal(signum, _handle_exit)
     sigs_attached += len(EXIT_FOR)
     return sigs_attached
-
-
-# vi: ts=4 expandtab

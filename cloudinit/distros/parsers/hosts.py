@@ -79,6 +79,3 @@ class HostsConf:
                 pieces = "\t".join(pieces)
                 contents.write("%s%s\n" % (pieces, tail))
         return contents.getvalue()
-
-
-# vi: ts=4 expandtab

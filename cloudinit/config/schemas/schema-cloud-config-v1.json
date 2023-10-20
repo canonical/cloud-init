@@ -453,6 +453,21 @@
       },
       "additionalProperties": true
     },
+    "package_item_definition": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
     "cc_ansible": {
       "type": "object",
       "properties": {
@@ -1911,7 +1926,7 @@
                 },
                 "template": {
                   "type": "string",
-                  "description": "Inline template allowing users to define their\nown ``ntp_client`` configuration template.\nThe value must start with '## template:jinja'\nto enable use of templating support.\n"
+                  "description": "Inline template allowing users to customize their ``ntp_client`` configuration with the use of the Jinja templating engine.\nThe template content should start with ``## template:jinja``.\nWithin the template, you can utilize any of the following ntp module config keys: ``servers``, ``pools``, ``allow``, and ``peers``.\nEach cc_ntp schema config key and expected value type is defined above."
                 }
               }
             }
@@ -1924,19 +1939,29 @@
       "properties": {
         "packages": {
           "type": "array",
-          "description": "A list of packages to install. Each entry in the list can be either a package name or a list with two entries, the first being the package name and the second being the specific package version to install.",
+          "description": "An array containing either a package specification, or an object consisting of a package manager key having a package specification value . A package specification can be either a package name or a list with two entries, the first being the package name and the second being the specific package version to install.",
           "items": {
             "oneOf": [
               {
-                "type": "array",
-                "items": {
-                  "type": "string"
+                "type": "object",
+                "properties": {
+                  "apt": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/package_item_definition"
+                    }
+                  },
+                  "snap": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/package_item_definition"
+                    }
+                  }
                 },
-                "minItems": 2,
-                "maxItems": 2
+                "additionalProperties": false
               },
               {
-                "type": "string"
+                "$ref": "#/$defs/package_item_definition"
               }
             ]
           },
@@ -2576,6 +2601,11 @@
         "prefer_fqdn_over_hostname": {
           "type": "boolean",
           "description": "If true, the fqdn will be used if it is set. If false, the hostname will be used. If unset, the result is distro-dependent"
+        },
+        "create_hostname_file": {
+          "type": "boolean",
+          "default": true,
+          "description": "If ``false``, the hostname file (e.g. /etc/hostname) will not be created if it does not exist. On systems that use systemd, setting create_hostname_file to ``false`` will set the hostname transiently. If ``true``, the hostname file will always be created and the hostname will be set statically on systemd systems. Default: ``true``"
         }
       }
     },
@@ -3064,6 +3094,11 @@
           "type": "boolean",
           "default": null,
           "description": "By default, it is distro-dependent whether cloud-init uses the short hostname or fully qualified domain name when both ``local-hostname` and ``fqdn`` are both present in instance metadata. When set ``true``, use fully qualified domain name if present as hostname instead of short hostname. When set ``false``, use ``hostname`` config value if present, otherwise fallback to ``fqdn``."
+        },
+        "create_hostname_file": {
+          "type": "boolean",
+          "default": true,
+          "description": "If ``false``, the hostname file (e.g. /etc/hostname) will not be created if it does not exist. On systems that use systemd, setting create_hostname_file to ``false`` will set the hostname transiently. If ``true``, the hostname file will always be created and the hostname will be set statically on systemd systems. Default: ``true``"
         }
       }
     },

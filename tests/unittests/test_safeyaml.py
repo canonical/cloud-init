@@ -46,7 +46,7 @@ class TestLoadWithMarks:
             pytest.param(
                 b"{a: [a1, a2], b: [b3]}",
                 {"a": ["a1", "a2"], "b": ["b3"]},
-                {"a": 1, "a.0": 1, "a.1": 1, "b": 1},
+                {"a": 1, "a.0": 1, "a.1": 1, "b": 1, "b.0": 1},
                 id="dict_of_lists_oneline",
             ),
             pytest.param(
@@ -65,11 +65,42 @@ class TestLoadWithMarks:
                 b"a:\n- a1\n- a2\nb:\n- b3",
                 {"a": ["a1", "a2"], "b": ["b3"]},
                 {"a": 1, "a.0": 2, "a.1": 3, "b": 4, "b.0": 5},
-                id="separate_dicts_nestes_lists",
+                id="separate_dicts_nested_lists",
+            ),
+            pytest.param(
+                b"a:\n- {a1: 1}\n- {a2: 2}\n",
+                {"a": [{"a1": 1}, {"a2": 2}]},
+                {"a": 1, "a.0": 2, "a.0.a1": 2, "a.1": 3, "a.1.a2": 3},
+                id="list_of_dict_items",
+            ),
+            pytest.param(
+                b"a:\n- x: ['i', 'ii']\n",
+                {"a": [{"x": ["i", "ii"]}]},
+                {"a": 1, "a.0": 2, "a.0.x": 2, "a.0.x.0": 2, "a.0.x.1": 2},
+                id="list_of_dict_items_with_nested_lists",
+            ),
+            pytest.param(
+                b"a:\n- x: [['i', 'ii']]\n- y: ['iii', 'iv']\n",
+                {"a": [{"x": [["i", "ii"]]}, {"y": ["iii", "iv"]}]},
+                {
+                    "a": 1,
+                    "a.0": 2,
+                    "a.0.x": 2,
+                    "a.0.x.0": 2,
+                    "a.0.x.0.0": 2,
+                    "a.0.x.0.1": 2,
+                    "a.1": 3,
+                    "a.1.y": 3,
+                    "a.1.y.0": 3,
+                    "a.1.y.1": 3,
+                },
+                id="list_of_dict_items_with_nested_lists_of_lists",
             ),
         ),
     )
     def test_schema_marks_preserved(
         self, source_yaml, loaded_yaml, schemamarks
     ):
-        assert (loaded_yaml, schemamarks) == load_with_marks(source_yaml)
+        (processed_yaml, yaml_marks) = load_with_marks(source_yaml)
+        assert loaded_yaml == processed_yaml
+        assert schemamarks == yaml_marks

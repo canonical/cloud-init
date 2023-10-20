@@ -4,12 +4,11 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import os
 
-from cloudinit import distros, helpers
-from cloudinit import log as logging
-from cloudinit import subp, util
-from cloudinit.distros import net_util
+from cloudinit import distros, helpers, subp, util
+from cloudinit.distros import PackageList, net_util
 from cloudinit.distros.parsers.hostname import HostnameConf
 from cloudinit.net.renderer import Renderer
 from cloudinit.net.renderers import RendererNotFoundError
@@ -58,7 +57,7 @@ class Distro(distros.Distro):
         # https://github.com/systemd/systemd/pull/9864
         subp.subp(["localectl", "set-locale", locale], capture=False)
 
-    def install_packages(self, pkglist):
+    def install_packages(self, pkglist: PackageList):
         self.update_package_sources()
         self.package_command("", pkgs=pkglist)
 
@@ -119,7 +118,13 @@ class Distro(distros.Distro):
             # so lets see if we can read it first.
             conf = self._read_hostname_conf(filename)
         except IOError:
-            pass
+            create_hostname_file = util.get_cfg_option_bool(
+                self._cfg, "create_hostname_file", True
+            )
+            if create_hostname_file:
+                pass
+            else:
+                return
         if not conf:
             conf = HostnameConf("")
         conf.set_hostname(hostname)
@@ -258,6 +263,3 @@ def convert_resolv_conf(settings):
         for ns in settings:
             result = result + "nameserver %s\n" % ns
     return result
-
-
-# vi: ts=4 expandtab

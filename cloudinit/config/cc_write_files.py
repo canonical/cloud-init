@@ -7,10 +7,10 @@
 """Write Files: write arbitrary files"""
 
 import base64
+import logging
 import os
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit import util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -216,6 +216,3 @@ def extract_contents(contents, extraction_types):
         elif t == TEXT_PLAIN_ENC:
             pass
     return result
-
-
-# vi: ts=4 expandtab

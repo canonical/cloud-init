@@ -67,6 +67,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     LOG.debug("Setting locale to %s", locale)
     locale_cfgfile = util.get_cfg_option_str(cfg, "locale_configfile")
     cloud.distro.apply_locale(locale, locale_cfgfile)
-
-
-# vi: ts=4 expandtab

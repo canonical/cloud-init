@@ -5,9 +5,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Fan: Configure ubuntu fan networking"""
 
+import logging
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -107,6 +107,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         config_file=mycfg.get("config_path"),
         content=mycfg.get("config"),
     )
-
-
-# vi: ts=4 expandtab

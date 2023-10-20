@@ -579,6 +579,3 @@ class TestUrlHelper:
         self.event.set()
         assert not url
         assert not response_contents
-
-
-# vi: ts=4 expandtab

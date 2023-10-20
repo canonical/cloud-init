@@ -573,6 +573,3 @@ class TestQuery:
             m_getuid.return_value = 100
             assert 1 == query.handle_args("anyname", args)
         assert expected_error in caplog.text
-
-
-# vi: ts=4 expandtab

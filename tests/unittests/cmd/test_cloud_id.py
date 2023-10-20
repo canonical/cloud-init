@@ -230,6 +230,3 @@ class TestCloudId:
             with pytest.raises(SystemExit) as context_manager:
                 cloud_id.main()
         assert exit_code == context_manager.value.code
-
-
-# vi: ts=4 expandtab

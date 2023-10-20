@@ -1,10 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import logging
 import os
 import re
 from collections import namedtuple
 from typing import Optional
 
-from cloudinit import log as logging
 from cloudinit import subp
 from cloudinit.util import is_container, is_FreeBSD
 
@@ -208,6 +208,3 @@ def sub_dmi_vars(src: str) -> str:
         )
         src = src.replace(f"__dmi.{match}__", dmi_value)
     return src
-
-
-# vi: ts=4 expandtab

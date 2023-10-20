@@ -1,16 +1,29 @@
+# This file is part of cloud-init. See LICENSE file for license information.
 """Series of integration tests covering apt functionality."""
 import re
+from textwrap import dedent
 
 import pytest
 
 from cloudinit import gpg
 from cloudinit.config import cc_apt_configure
+from cloudinit.util import is_true
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
+from tests.integration_tests.util import (
+    get_feature_flag_value,
+    verify_clean_log,
+)
+
+DEB822_SOURCES_FILE = "/etc/apt/sources.list.d/ubuntu.sources"
+ORIG_SOURCES_FILE = "/etc/apt/sources.list"
 
 USER_DATA = """\
 #cloud-config
+bootcmd:
+    - rm -f /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources
+
 apt:
   conf: |
     APT {
@@ -140,20 +153,16 @@ class TestApt:
         expected number of sources.list entries is present, and (b) that each
         expected line appears in the file.
 
-        (This is ported from
-        `tests/cloud_tests/testcases/modules/apt_configure_sources_list.yaml`.)
+        Since sources_list is no deb822-compliant, ORIG_SOURCES_FILE will
+        always be written regardless of feature.APT_DEB822_SOURCE_LIST_FILE
         """
-        sources_list = class_client.read_from_file("/etc/apt/sources.list")
+        sources_list = class_client.read_from_file(ORIG_SOURCES_FILE)
         assert 6 == len(sources_list.rstrip().split("\n"))
-
         for expected_re in EXPECTED_REGEXES:
             assert re.search(expected_re, sources_list) is not None
 
     def test_apt_conf(self, class_client: IntegrationInstance):
-        """Test the apt conf functionality.
-
-        Ported from tests/cloud_tests/testcases/modules/apt_configure_conf.py
-        """
+        """Test the apt conf functionality."""
         apt_config = class_client.read_from_file(
             "/etc/apt/apt.conf.d/94cloud-init-config"
         )
@@ -161,27 +170,17 @@ class TestApt:
         assert 'Fix-Broken "true";' in apt_config
 
     def test_ppa_source(self, class_client: IntegrationInstance):
-        """Test the apt ppa functionality.
-
-        Ported from
-        tests/cloud_tests/testcases/modules/apt_configure_sources_ppa.py
-        """
+        """Test the apt ppa functionality."""
+        ppa_path = (
+            "/etc/apt/sources.list.d/simplestreams-dev-ubuntu-trunk-{}".format(
+                CURRENT_RELEASE.series
+            )
+        )
         if CURRENT_RELEASE.series < "mantic":
-            ppa_path_contents = class_client.read_from_file(
-                "/etc/apt/sources.list.d/"
-                "simplestreams-dev-ubuntu-trunk-{}.list".format(
-                    CURRENT_RELEASE.series
-                )
-            )
+            ppa_path += ".list"
         else:
-            # deb822 support present on mantic and later
-            ppa_path_contents = class_client.read_from_file(
-                "/etc/apt/sources.list.d/"
-                "simplestreams-dev-ubuntu-trunk-{}.sources".format(
-                    CURRENT_RELEASE.series
-                )
-            )
-
+            ppa_path += ".sources"
+        ppa_path_contents = class_client.read_from_file(ppa_path)
         assert (
             "://ppa.launchpad.net/simplestreams-dev/trunk/ubuntu"
             in ppa_path_contents
@@ -218,11 +217,7 @@ class TestApt:
             )
 
     def test_key(self, class_client: IntegrationInstance):
-        """Test the apt key functionality.
-
-        Ported from
-        tests/cloud_tests/testcases/modules/apt_configure_sources_key.py
-        """
+        """Test the apt key functionality."""
         test_archive_contents = class_client.read_from_file(
             "/etc/apt/sources.list.d/test_key.list"
         )
@@ -234,11 +229,7 @@ class TestApt:
         assert TEST_KEY in self.get_keys(class_client)
 
     def test_keyserver(self, class_client: IntegrationInstance):
-        """Test the apt keyserver functionality.
-
-        Ported from
-        tests/cloud_tests/testcases/modules/apt_configure_sources_keyserver.py
-        """
+        """Test the apt keyserver functionality."""
         test_keyserver_contents = class_client.read_from_file(
             "/etc/apt/sources.list.d/test_keyserver.list"
         )
@@ -251,10 +242,7 @@ class TestApt:
         assert TEST_KEYSERVER_KEY in self.get_keys(class_client)
 
     def test_os_pipelining(self, class_client: IntegrationInstance):
-        """Test 'os' settings does not write apt config file.
-
-        Ported from tests/cloud_tests/testcases/modules/apt_pipelining_os.py
-        """
+        """Test 'os' settings does not write apt config file."""
         conf_exists = class_client.execute(
             "test -f /etc/apt/apt.conf.d/90cloud-init-pipelining"
         ).ok
@@ -313,28 +301,40 @@ class TestDefaults:
         When no uri is provided.
         """
         zone = class_client.execute("cloud-init query v1.availability_zone")
-        sources_list = class_client.read_from_file("/etc/apt/sources.list")
+        feature_deb822 = is_true(
+            get_feature_flag_value(class_client, "APT_DEB822_SOURCE_LIST_FILE")
+        )
+        src_file = DEB822_SOURCES_FILE if feature_deb822 else ORIG_SOURCES_FILE
+        sources_list = class_client.read_from_file(src_file)
         assert "{}.clouds.archive.ubuntu.com".format(zone) in sources_list
 
     def test_security(self, class_client: IntegrationInstance):
-        """Test apt default security sources.
-
-        Ported from
-        tests/cloud_tests/testcases/modules/apt_configure_security.py
-        """
-        sources_list = class_client.read_from_file("/etc/apt/sources.list")
-
-        # 3 lines from main, universe, and multiverse
+        """Test apt default security sources."""
         series = CURRENT_RELEASE.series
-        sec_url = f"deb http://security.ubuntu.com/ubuntu {series}-security"
+        feature_deb822 = is_true(
+            get_feature_flag_value(class_client, "APT_DEB822_SOURCE_LIST_FILE")
+        )
         if class_client.settings.PLATFORM == "azure":
-            sec_url = (
-                f"deb http://azure.archive.ubuntu.com/ubuntu/"
-                f" {series}-security"
+            sec_url = "http://azure.archive.ubuntu.com/ubuntu/"
+        else:
+            sec_url = "http://security.ubuntu.com/ubuntu"
+        if feature_deb822:
+            expected_cfg = dedent(
+                f"""\
+                Types: deb
+                URIs: {sec_url}
+                Suites: {series}-security
+                """
             )
-        sec_src_url = sec_url.replace("deb ", "# deb-src ")
-        assert 3 == sources_list.count(sec_url)
-        assert 3 == sources_list.count(sec_src_url)
+            sources_list = class_client.read_from_file(DEB822_SOURCES_FILE)
+            assert expected_cfg in sources_list
+        else:
+            sources_list = class_client.read_from_file(ORIG_SOURCES_FILE)
+            # 3 lines from main, universe, and multiverse
+            sec_deb_line = f"deb {sec_url} {series}-security"
+            sec_src_deb_line = sec_deb_line.replace("deb ", "# deb-src ")
+            assert 3 == sources_list.count(sec_deb_line)
+            assert 3 == sources_list.count(sec_src_deb_line)
 
 
 DEFAULT_DATA_WITH_URI = _DEFAULT_DATA.format(
@@ -344,20 +344,22 @@ DEFAULT_DATA_WITH_URI = _DEFAULT_DATA.format(
 
 @pytest.mark.user_data(DEFAULT_DATA_WITH_URI)
 def test_default_primary_with_uri(client: IntegrationInstance):
-    """Test apt default primary sources.
-
-    Ported from
-    tests/cloud_tests/testcases/modules/apt_configure_primary.py
-    """
-    sources_list = client.read_from_file("/etc/apt/sources.list")
+    """Test apt default primary sources."""
+    feature_deb822 = is_true(
+        get_feature_flag_value(client, "APT_DEB822_SOURCE_LIST_FILE")
+    )
+    src_file = DEB822_SOURCES_FILE if feature_deb822 else ORIG_SOURCES_FILE
+    sources_list = client.read_from_file(src_file)
     assert "archive.ubuntu.com" not in sources_list
-
     assert "something.random.invalid" in sources_list
 
 
 DISABLED_DATA = """\
 #cloud-config
+bootcmd: [mkdir -p /etc/apt/sources.new.d]
 apt:
+  conf: |
+    Dir::Etc::sourceparts "sources.new.d";
   disable_suites:
   - $RELEASE
   - $RELEASE-updates
@@ -371,22 +373,22 @@ apt_pipelining: false
 @pytest.mark.user_data(DISABLED_DATA)
 class TestDisabled:
     def test_disable_suites(self, class_client: IntegrationInstance):
-        """Test disabling of apt suites.
-
-        Ported from
-        tests/cloud_tests/testcases/modules/apt_configure_disable_suites.py
-        """
+        """Test disabling of apt suites."""
+        feature_deb822 = is_true(
+            get_feature_flag_value(class_client, "APT_DEB822_SOURCE_LIST_FILE")
+        )
+        if feature_deb822:
+            # DISABLED_DATA changes Dir:Etc::sourceparts to sources.new.d
+            src_file = DEB822_SOURCES_FILE.replace("list", "new")
+        else:
+            src_file = ORIG_SOURCES_FILE
         sources_list = class_client.execute(
-            "cat /etc/apt/sources.list | grep -v '^#'"
+            f"cat {src_file} | grep -v '^#'"
         ).strip()
         assert "" == sources_list
 
     def test_disable_apt_pipelining(self, class_client: IntegrationInstance):
-        """Test disabling of apt pipelining.
-
-        Ported from
-        tests/cloud_tests/testcases/modules/apt_pipelining_disable.py
-        """
+        """Test disabling of apt pipelining."""
         conf = class_client.read_from_file(
             "/etc/apt/apt.conf.d/90cloud-init-pipelining"
         )
@@ -412,3 +414,34 @@ def test_apt_proxy(client: IntegrationInstance):
     assert 'Acquire::http::Proxy "http://squid.internal:3128";' in out
     assert 'Acquire::ftp::Proxy "ftp://squid.internal:3128";' in out
     assert 'Acquire::https::Proxy "https://squid.internal:3128";' in out
+
+
+INSTALL_ANY_MISSING_RECOMMENDED_DEPENDENCIES = """\
+#cloud-config
+bootcmd:
+    - apt-get remove gpg -y
+apt:
+  sources:
+    test_keyserver:
+      keyid: 110E21D8B0E2A1F0243AF6820856F197B892ACEA
+      keyserver: keyserver.ubuntu.com
+      source: "deb http://ppa.launchpad.net/canonical-kernel-team/ppa/ubuntu $RELEASE main"
+    test_ppa:
+      keyid: 441614D8
+      keyserver: keyserver.ubuntu.com
+      source: "ppa:simplestreams-dev/trunk"
+"""  # noqa: E501
+
+
+RE_GPG_SW_PROPERTIES_INSTALLED = (
+    r"install"
+    r" (gnupg software-properties-common|software-properties-common gnupg)"
+)
+
+
+@pytest.mark.skipif(not IS_UBUNTU, reason="Apt usage")
+@pytest.mark.user_data(INSTALL_ANY_MISSING_RECOMMENDED_DEPENDENCIES)
+def test_install_missing_deps(client: IntegrationInstance):
+    log = client.read_from_file("/var/log/cloud-init.log")
+    verify_clean_log(log)
+    assert re.search(RE_GPG_SW_PROPERTIES_INSTALLED, log)

@@ -4,11 +4,11 @@
 
 """Snap: Install, configure and manage snapd and snap packages."""
 
+import logging
 import os
 import sys
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -198,6 +198,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         os.path.join(cloud.paths.get_ipath_cur(), "snapd.assertions"),
     )
     run_commands(cfgin.get("commands", []))
-
-
-# vi: ts=4 expandtab

@@ -322,6 +322,3 @@ class TestEc2Util(helpers.ResponsesTestCase):
         self.assertEqual(md["ami-launch-index"], "1")
         md = ec2.get_instance_metadata(self.VERSION, retries=0, timeout=0.1)
         self.assertEqual(len(md), 0)
-
-
-# vi: ts=4 expandtab

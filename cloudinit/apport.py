@@ -155,6 +155,17 @@ def attach_installer_files(report, ui=None):
         attach_file_if_exists(report, realpath, apport_file.label)
 
 
+def attach_ubuntu_pro_info(report, ui=None):
+    """Attach ubuntu pro logs and tag if keys present in user-data."""
+    realpath = os.path.realpath("/var/log/ubuntu-advantage.log")
+    attach_file_if_exists(report, realpath)
+    if os.path.exists(realpath):
+        report.setdefault("Tags", "")
+        if report["Tags"]:
+            report["Tags"] += " "
+        report["Tags"] += "ubuntu-pro"
+
+
 def attach_user_data(report, ui=None):
     """Optionally provide user-data if desired."""
     if ui:
@@ -212,8 +223,6 @@ def add_info(report, ui):
     attach_cloud_info(report, ui)
     attach_user_data(report, ui)
     attach_installer_files(report, ui)
+    attach_ubuntu_pro_info(report, ui)
     add_bug_tags(report)
     return True
-
-
-# vi: ts=4 expandtab

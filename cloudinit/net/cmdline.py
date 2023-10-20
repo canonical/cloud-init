@@ -285,6 +285,3 @@ def read_kernel_cmdline_config(cmdline=None):
             return util.load_yaml(_b64dgz(data64))
 
     return None
-
-
-# vi: ts=4 expandtab

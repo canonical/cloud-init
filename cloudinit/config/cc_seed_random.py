@@ -9,11 +9,11 @@
 """Seed Random: Provide random seed data"""
 
 import base64
+import logging
 import os
 from io import BytesIO
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -143,6 +143,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     except ValueError as e:
         LOG.warning("handling random command [%s] failed: %s", command, e)
         raise e
-
-
-# vi: ts=4 expandtab

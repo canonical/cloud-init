@@ -109,6 +109,3 @@ class TestVmwareCustomScript(CiTestCase):
                         content, "This is the script to run post cust"
                     )
                     self.assertTrue(os.path.exists(markerFile))
-
-
-# vi: ts=4 expandtab

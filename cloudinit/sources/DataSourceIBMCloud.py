@@ -94,11 +94,10 @@ TODO:
 """
 import base64
 import json
+import logging
 import os
 
-from cloudinit import atomic_helper
-from cloudinit import log as logging
-from cloudinit import sources, subp, util
+from cloudinit import atomic_helper, sources, subp, util
 from cloudinit.sources.helpers import openstack
 
 LOG = logging.getLogger(__name__)
@@ -425,5 +424,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
     data = read_md()
     print(atomic_helper.json_dumps(data))
-
-# vi: ts=4 expandtab

@@ -233,6 +233,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             c_repo_id, repo_configs.get(c_repo_id)
         )
         util.write_file(path, repo_blob)
-
-
-# vi: ts=4 expandtab

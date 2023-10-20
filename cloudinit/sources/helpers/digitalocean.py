@@ -3,10 +3,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import json
+import logging
 import random
 
 from cloudinit import dmi
-from cloudinit import log as logging
 from cloudinit import net as cloudnet
 from cloudinit import subp, url_helper, util
 
@@ -241,6 +241,3 @@ def read_sysinfo():
         raise RuntimeError(msg)
 
     return (True, droplet_id)
-
-
-# vi: ts=4 expandtab

@@ -8,11 +8,11 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import os
 
-from cloudinit import distros, helpers
-from cloudinit import log as logging
-from cloudinit import subp, util
+from cloudinit import distros, helpers, subp, util
+from cloudinit.distros import PackageList
 from cloudinit.distros import rhel_util as rhutil
 from cloudinit.distros.parsers.hostname import HostnameConf
 from cloudinit.settings import PER_INSTANCE
@@ -68,7 +68,7 @@ class Distro(distros.Distro):
             locale_cfg = {"RC_LANG": locale}
         rhutil.update_sysconfig_file(out_fn, locale_cfg)
 
-    def install_packages(self, pkglist):
+    def install_packages(self, pkglist: PackageList):
         self.package_command(
             "install", args="--auto-agree-with-licenses", pkgs=pkglist
         )
@@ -221,10 +221,23 @@ class Distro(distros.Distro):
                 self.update_method = "zypper"
 
     def _write_hostname(self, hostname, filename):
+        create_hostname_file = util.get_cfg_option_bool(
+            self._cfg, "create_hostname_file", True
+        )
         if self.uses_systemd() and filename.endswith("/previous-hostname"):
             util.write_file(filename, hostname)
         elif self.uses_systemd():
-            subp.subp(["hostnamectl", "set-hostname", str(hostname)])
+            if create_hostname_file:
+                subp.subp(["hostnamectl", "set-hostname", str(hostname)])
+            else:
+                subp.subp(
+                    [
+                        "hostnamectl",
+                        "set-hostname",
+                        "--transient",
+                        str(hostname),
+                    ]
+                )
         else:
             conf = None
             try:
@@ -232,7 +245,10 @@ class Distro(distros.Distro):
                 # so lets see if we can read it first.
                 conf = self._read_hostname_conf(filename)
             except IOError:
-                pass
+                if create_hostname_file:
+                    pass
+                else:
+                    return
             if not conf:
                 conf = HostnameConf("")
             conf.set_hostname(hostname)
@@ -266,6 +282,3 @@ class Distro(distros.Distro):
                 ]
 
         return self._preferred_ntp_clients
-
-
-# vi: ts=4 expandtab

@@ -92,6 +92,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         except Exception:
             util.logexc(LOG, "Failed to run bootcmd module %s", name)
             raise
-
-
-# vi: ts=4 expandtab

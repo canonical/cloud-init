@@ -134,6 +134,3 @@ class TestTempUtils(CiTestCase):
             os.rmdir(tdir)
             # Since the directory is already gone, shutil.rmtree would raise
             # OSError, but we suppress that
-
-
-# vi: ts=4 expandtab

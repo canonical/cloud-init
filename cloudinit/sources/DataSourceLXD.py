@@ -8,6 +8,7 @@ Notes:
  * Info on dev-lxd API: https://documentation.ubuntu.com/lxd/en/latest/dev-lxd/
 """
 
+import logging
 import os
 import socket
 import stat
@@ -23,9 +24,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.connection import HTTPConnection
 from urllib3.connectionpool import HTTPConnectionPool
 
-from cloudinit import atomic_helper
-from cloudinit import log as logging
-from cloudinit import sources, subp, url_helper, util
+from cloudinit import atomic_helper, sources, subp, url_helper, util
 from cloudinit.net import find_fallback_nic
 
 LOG = logging.getLogger(__name__)
@@ -475,5 +474,3 @@ if __name__ == "__main__":
     print(
         atomic_helper.json_dumps(read_metadata(metadata_keys=MetaDataKeys.ALL))
     )
-
-# vi: ts=4 expandtab

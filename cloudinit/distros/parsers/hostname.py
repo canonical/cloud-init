@@ -73,6 +73,3 @@ class HostnameConf:
         if len(hostnames_found) > 1:
             raise IOError("Multiple hostnames (%s) found!" % (hostnames_found))
         return entries
-
-
-# vi: ts=4 expandtab

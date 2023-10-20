@@ -79,6 +79,3 @@ class Merger:
         for i in range(0, common_len):
             merged_list[i] = merge_same_index(merged_list[i], merge_with[i])
         return merged_list
-
-
-# vi: ts=4 expandtab

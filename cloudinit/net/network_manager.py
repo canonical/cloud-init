@@ -9,11 +9,11 @@
 import configparser
 import io
 import itertools
+import logging
 import os
 import uuid
 from typing import Optional
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.net import is_ipv6_address, renderer, subnet_is_ipv6
 from cloudinit.net.network_state import NetworkState
@@ -104,6 +104,14 @@ class NMConnection:
             return
         if self.config[family]["method"] == "auto" and method == "manual":
             return
+
+        if (
+            subnet_type == "ipv6_dhcpv6-stateful"
+            or subnet_type == "ipv6_dhcpv6-stateless"
+            or subnet_type == "ipv6_slaac"
+        ):
+            # set ipv4 method to 'disabled' to align with sysconfig renderer.
+            self._set_default("ipv4", "method", "disabled")
 
         self.config[family]["method"] = method
         self._set_default(family, "may-fail", "false")
@@ -342,6 +350,7 @@ class Renderer(renderer.Renderer):
 
     def __init__(self, config=None):
         self.connections = {}
+        self.config = config
 
     def get_conn(self, con_id):
         return self.connections[con_id]
@@ -411,6 +420,3 @@ def available(target=None):
             service_active = False
 
     return config_present and bool(nmcli_present) and service_active
-
-
-# vi: ts=4 expandtab
