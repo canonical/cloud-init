@@ -14,15 +14,5 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  After=snapd.seeded.service
 -Before=systemd-user-sessions.service
  Wants=network-online.target cloud-config.target
- {% if variant == "rhel" %}
- ConditionPathExists=!/etc/cloud/cloud-init.disabled
---- a/systemd/cloud-init.service.tmpl
-+++ b/systemd/cloud-init.service.tmpl
-@@ -38,6 +38,7 @@
- Before=shutdown.target
- Conflicts=shutdown.target
- {% endif %}
-+Before=systemd-user-sessions.service
- {% if variant == "rhel" %}
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
