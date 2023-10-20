@@ -1,12 +1,13 @@
-cloud-init (23.4~1gc84369ac-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (23.4~1g14b76c44-0ubuntu1) UNRELEASED; urgency=medium
 
   * d/p/do-not-block-user-login.patch:
     - Revert behavior, allow user login after cloud-init stage (LP: #2039505)
   * d/control: add python3-apt as Recommends to read APT config from apt_pkg
-  * Upstream snapshot based on main at c84369ac.
+  * Upstream snapshot based on main at 14b76c44.
     - Bugs fixed in this snapshot: (LP: #2034273, #2030729)
+      (LP: #2038945, #2039453)
 
- -- Brett Holman <brett.holman@canonical.com>  Thu, 18 Oct 2023 13:18:45 -0600
+ -- James Falcon <james.falcon@canonical.com>  Fri, 20 Oct 2023 15:40:25 -0500
 
 cloud-init (23.3-0ubuntu1) mantic; urgency=medium
 
