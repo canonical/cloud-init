@@ -446,20 +446,11 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                 dedent(
                     """\
                    ---
-                   _schema_version: '1'
                    boot_status_code: enabled-by-kernel-cmdline
                    datasource: ''
                    detail: 'Running in stage: init'
                    errors: []
                    last_update: Thu, 01 Jan 1970 00:02:04 +0000
-                   schemas:
-                       '1':
-                           boot_status_code: enabled-by-kernel-cmdline
-                           datasource: ''
-                           detail: 'Running in stage: init'
-                           errors: []
-                           last_update: Thu, 01 Jan 1970 00:02:04 +0000
-                           status: running
                    status: running
                    ...
 
@@ -481,22 +472,11 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                 MyArgs(long=False, wait=False, format="json"),
                 0,
                 {
-                    "_schema_version": "1",
                     "boot_status_code": "enabled-by-kernel-cmdline",
                     "datasource": "",
                     "detail": "Running in stage: init",
                     "errors": [],
                     "last_update": "Thu, 01 Jan 1970 00:02:04 +0000",
-                    "schemas": {
-                        "1": {
-                            "boot_status_code": "enabled-by-kernel-cmdline",
-                            "datasource": "",
-                            "detail": "Running in stage: init",
-                            "errors": [],
-                            "last_update": "Thu, 01 Jan 1970 00:02:04 +0000",
-                            "status": "running",
-                        }
-                    },
                     "status": "running",
                 },
                 id="running_json_format",
