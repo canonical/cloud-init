@@ -310,7 +310,6 @@ def get_status_details(paths: Optional[Paths] = None) -> StatusDetails:
                 latest_event = event_time
     if errors:
         status = UXAppStatus.ERROR
-        description = "\n".join(errors)
     elif status == UXAppStatus.NOT_RUN and latest_event > 0:
         status = UXAppStatus.DONE
     if uses_systemd() and status not in (
