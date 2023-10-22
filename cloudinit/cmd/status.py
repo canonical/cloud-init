@@ -135,8 +135,6 @@ def handle_status_args(name, args) -> int:
         "errors": details.errors,
         "last_update": details.last_update,
     }
-    details_dict["schemas"] = {"1": copy.deepcopy(details_dict)}
-    details_dict["_schema_version"] = "1"
 
     if args.format == "tabular":
         prefix = "\n" if args.wait else ""
