@@ -1457,6 +1457,19 @@ class TestReadCcFromCmdline:
                 "cc:runcmd%3A%20%5B%20%5B%20ls%2C%20-l%20%5D%20%5D end_cc",
                 {"ssh_import_id": ["smoser"], "runcmd": [["ls", "-l"]]},
             ),
+            # Parse cmdlines that contain an IPv6 with cc: in different
+            # positions
+            ("BOOTIF=aa:bb:cc:dd bar", None),
+            ("BOOTIF=aa:bb:cc:dd cc: end_cc bar", None),
+            ("BOOTIF=aa:bb:cc:dd cc: ssh_pwauth: true", {"ssh_pwauth": True}),
+            (
+                "BOOTIF=aa:bb:cc:dd cc: ssh_pwauth: true end_cc",
+                {"ssh_pwauth": True},
+            ),
+            (
+                "cc: ssh_pwauth: true end_cc BOOTIF=aa:bb:cc:dd",
+                {"ssh_pwauth": True},
+            ),
         ],
     )
     def test_read_conf_from_cmdline_config(self, expected_cfg, cmdline):
