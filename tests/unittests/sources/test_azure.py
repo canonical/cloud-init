@@ -13,7 +13,7 @@ import requests
 
 from cloudinit import distros, dmi, helpers, subp, url_helper
 from cloudinit.atomic_helper import b64e, json_dumps
-from cloudinit.net import dhcp
+from cloudinit.net import dhcp, ephemeral
 from cloudinit.reporting.handlers import HyperVKvpReportingHandler
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceAzure as dsaz
@@ -84,6 +84,15 @@ def mock_chassis_asset_tag():
         yield m
 
 
+@pytest.fixture(autouse=True)
+def mock_device_driver():
+    with mock.patch(
+        MOCKPATH + "device_driver",
+        return_value="fake_driver",
+    ) as m:
+        yield m
+
+
 @pytest.fixture
 def mock_generate_fallback_config():
     with mock.patch(
@@ -121,11 +130,31 @@ def mock_dmi_read_dmi_data():
 
 
 @pytest.fixture
-def mock_ephemeral_dhcp_v4():
+def mock_ephemeral_dhcp_v4(mock_ephemeral_ipv4_network):
     with mock.patch(
         MOCKPATH + "EphemeralDHCPv4",
+    ) as m:
+        m.return_value._ephipv4 = mock_ephemeral_ipv4_network.return_value
+        yield m
+
+
+@pytest.fixture
+def mock_ephemeral_ipv4_network():
+    with mock.patch(
+        "cloudinit.net.ephemeral.EphemeralIPv4Network",
         autospec=True,
     ) as m:
+        m.return_value.distro = "ubuntu"
+        m.return_value.interface = "eth0"
+        m.return_value.ip = "10.0.0.4"
+        m.return_value.prefix_or_mask = "32"
+        m.return_value.broadcast = "255.255.255.255"
+        m.return_value.router = "10.0.0.1"
+        m.return_value.static_routes = [
+            ("0.0.0.0/0", "10.0.0.1"),
+            ("168.63.129.16/32", "10.0.0.1"),
+            ("169.254.169.254/32", "10.0.0.1"),
+        ]
         yield m
 
 
@@ -172,15 +201,6 @@ def mock_net_dhcp_maybe_perform_dhcp_discovery():
                 "subnet-mask": "255.255.255.0",
             }
         ],
-        autospec=True,
-    ) as m:
-        yield m
-
-
-@pytest.fixture
-def mock_net_dhcp_EphemeralIPv4Network():
-    with mock.patch(
-        "cloudinit.net.ephemeral.EphemeralIPv4Network",
         autospec=True,
     ) as m:
         yield m
@@ -1005,7 +1025,6 @@ class TestAzureDataSource(CiTestCase):
             mock.patch.object(
                 dsaz,
                 "EphemeralDHCPv4",
-                autospec=True,
             )
         )
         self.m_dhcp.return_value.lease = {}
@@ -2868,25 +2887,6 @@ class TestDeterminePPSTypeScenarios:
         ]
 
 
-@mock.patch("os.path.isfile", return_value=False)
-class TestReprovision(CiTestCase):
-    def setUp(self):
-        super(TestReprovision, self).setUp()
-        tmp = self.tmp_dir()
-        self.waagent_d = self.tmp_path("/var/lib/waagent", tmp)
-        self.paths = helpers.Paths({"cloud_dir": tmp})
-        dsaz.BUILTIN_DS_CONFIG["data_dir"] = self.waagent_d
-
-    @mock.patch(MOCKPATH + "DataSourceAzure._poll_imds")
-    def test_reprovision_calls__poll_imds(self, _poll_imds, isfile):
-        """_reprovision will poll IMDS."""
-        isfile.return_value = False
-        _poll_imds.return_value = construct_ovf_env()
-        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
-        dsa._reprovision()
-        _poll_imds.assert_called_with()
-
-
 class TestPreprovisioningHotAttachNics(CiTestCase):
     def setUp(self):
         super(TestPreprovisioningHotAttachNics, self).setUp()
@@ -2924,7 +2924,6 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
     @mock.patch(MOCKPATH + "DataSourceAzure._report_ready")
     @mock.patch(MOCKPATH + "DataSourceAzure.wait_for_link_up")
     @mock.patch("cloudinit.sources.helpers.netlink.wait_for_nic_attach_event")
-    @mock.patch(MOCKPATH + "imds.fetch_metadata_with_api_fallback")
     @mock.patch(MOCKPATH + "EphemeralDHCPv4", autospec=True)
     @mock.patch(MOCKPATH + "DataSourceAzure._wait_for_nic_detach")
     @mock.patch("os.path.isfile")
@@ -2933,7 +2932,6 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         m_isfile,
         m_detach,
         m_dhcpv4,
-        m_imds,
         m_attach,
         m_link_up,
         m_report_ready,
@@ -2953,22 +2951,27 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         }
 
         # Simulate two NICs by adding the same one twice.
-        md = {
-            "interface": [
-                IMDS_NETWORK_METADATA["interface"][0],
-                IMDS_NETWORK_METADATA["interface"][0],
-            ]
-        }
-
         m_isfile.return_value = True
         m_attach.side_effect = [
             "eth0",
             "eth1",
         ]
-        dhcp_ctx = mock.MagicMock(lease=lease)
-        dhcp_ctx.obtain_lease.return_value = lease
-        m_dhcpv4.return_value = dhcp_ctx
-        m_imds.side_effect = [md]
+        dhcp_ctx_primary = mock.MagicMock(lease=lease)
+        dhcp_ctx_primary.obtain_lease.return_value = lease
+        dhcp_ctx_primary._ephipv4 = ephemeral.EphemeralIPv4Network(
+            distro="ubuntu",
+            interface="eth0",
+            ip="10.0.0.4",
+            prefix_or_mask="32",
+            broadcast="255.255.255.255",
+            router="10.0.0.1",
+            static_routes=[
+                ("0.0.0.0/0", "10.0.0.1"),
+                ("168.63.129.16/32", "10.0.0.1"),
+                ("169.254.169.254/32", "10.0.0.1"),
+            ],
+        )
+        m_dhcpv4.side_effect = [dhcp_ctx_primary]
 
         dsa._wait_for_pps_savable_reuse()
 
@@ -2977,99 +2980,34 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         self.assertEqual(1, m_attach.call_count)
         # DHCP and network metadata calls will only happen on the primary NIC.
         self.assertEqual(1, m_dhcpv4.call_count)
-        self.assertEqual(1, m_imds.call_count)
         # no call to bring link up on secondary nic
         self.assertEqual(1, m_link_up.call_count)
 
         # reset mock to test again with primary nic being eth1
+        dhcp_ctx_primary.interface = "eth1"
+        dhcp_ctx_secondary = mock.MagicMock(lease=lease)
+        dhcp_ctx_secondary.obtain_lease.return_value = lease
+        dhcp_ctx_secondary._ephipv4 = ephemeral.EphemeralIPv4Network(
+            distro="ubuntu",
+            interface="eth0",
+            ip="10.0.0.4",
+            prefix_or_mask="32",
+            broadcast="255.255.255.255",
+            router="10.0.0.1",
+            static_routes=None,
+        )
         m_detach.reset_mock()
         m_attach.reset_mock()
         m_dhcpv4.reset_mock()
+        m_dhcpv4.side_effect = [dhcp_ctx_secondary, dhcp_ctx_primary]
         m_link_up.reset_mock()
         m_attach.side_effect = ["eth0", "eth1"]
-        m_imds.reset_mock()
-        m_imds.side_effect = [{}, md]
         dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         dsa._wait_for_pps_savable_reuse()
         self.assertEqual(1, m_detach.call_count)
         self.assertEqual(2, m_attach.call_count)
         self.assertEqual(2, m_dhcpv4.call_count)
-        self.assertEqual(2, m_imds.call_count)
         self.assertEqual(2, m_link_up.call_count)
-
-    @mock.patch("cloudinit.url_helper.time.sleep", autospec=True)
-    @mock.patch("requests.Session.request", autospec=True)
-    @mock.patch(MOCKPATH + "EphemeralDHCPv4", autospec=True)
-    @mock.patch(MOCKPATH + "time", autospec=True)
-    @mock.patch("cloudinit.sources.azure.imds.time", autospec=True)
-    def test_check_if_nic_is_primary_retries_on_failures(
-        self, m_imds_time, m_time, m_dhcpv4, m_request, m_sleep
-    ):
-        """Retry polling for network metadata on all failures except timeout
-        and network unreachable errors"""
-        distro = mock.MagicMock()
-        distro.get_tmp_exec_path = self.tmp_dir
-        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
-        lease = {
-            "interface": "eth9",
-            "fixed-address": "192.168.2.9",
-            "routers": "192.168.2.1",
-            "subnet-mask": "255.255.255.0",
-            "unknown-245": "624c3620",
-        }
-
-        m_req = mock.Mock(content=json.dumps({"not": "empty"}))
-        errors = (
-            [requests.Timeout("Fake connection timeout")] * 5
-            + [requests.ConnectionError("Fake Network Unreachable")] * 5
-            + [fake_http_error_for_code(410)] * 5
-            + [m_req]
-        )
-        m_request.side_effect = errors
-        m_dhcpv4.return_value.lease = lease
-        fake_time = 0.0
-        fake_time_increment = 5.0
-
-        def fake_timer():
-            nonlocal fake_time, fake_time_increment
-            fake_time += fake_time_increment
-            return fake_time
-
-        m_time.side_effect = fake_timer
-        m_imds_time.side_effect = fake_timer
-
-        is_primary = dsa._check_if_nic_is_primary("eth0")
-        self.assertEqual(True, is_primary)
-        assert len(m_request.mock_calls) == len(errors)
-
-        # Re-run tests to verify max http failures.
-        attempts = 3
-        fake_time = 0.0
-        fake_time_increment = 300 / attempts
-
-        m_time.side_effect = fake_timer
-        m_imds_time.side_effect = fake_timer
-        m_request.reset_mock()
-        errors = 100 * [fake_http_error_for_code(410)]
-        m_request.side_effect = errors
-
-        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
-
-        is_primary = dsa._check_if_nic_is_primary("eth1")
-        self.assertEqual(False, is_primary)
-        assert len(m_request.mock_calls) == attempts
-
-        # Re-run tests to verify max connection error retries.
-        m_request.reset_mock()
-        m_request.side_effect = [
-            requests.ConnectionError("Fake Network Unreachable")
-        ] * 15
-
-        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
-
-        is_primary = dsa._check_if_nic_is_primary("eth1")
-        self.assertEqual(False, is_primary)
-        assert len(m_request.mock_calls) == attempts
 
     @mock.patch("cloudinit.distros.networking.LinuxNetworking.try_set_link_up")
     def test_wait_for_link_up_returns_if_already_up(self, m_is_link_up):
@@ -3120,8 +3058,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
 
 
 @mock.patch("cloudinit.net.find_fallback_nic", return_value="eth9")
-@mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
-@mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
+@mock.patch(MOCKPATH + "EphemeralDHCPv4")
 @mock.patch(
     "cloudinit.sources.helpers.netlink.wait_for_media_disconnect_connect"
 )
@@ -3140,7 +3077,6 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         m_fetch_reprovisiondata,
         m_media_switch,
         m_dhcp,
-        m_net,
         m_fallback,
     ):
         """The poll_imds will retry DHCP on IMDS timeout."""
@@ -3155,7 +3091,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
             "subnet-mask": "255.255.255.0",
             "unknown-245": "624c3620",
         }
-        m_dhcp.return_value = [lease]
+        m_dhcp.obtain_lease.return_value = [lease]
         m_media_switch.return_value = None
         dhcp_ctx = mock.MagicMock(lease=lease)
         dhcp_ctx.obtain_lease.return_value = lease
@@ -3175,7 +3111,6 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         m_fetch_reprovisiondata,
         m_media_switch,
         m_dhcp,
-        m_net,
         m_fallback,
     ):
         """The poll_imds function should reuse the dhcp ctx if it is already
@@ -3191,15 +3126,12 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         self.assertEqual(0, m_media_switch.call_count)
 
     @mock.patch("os.path.isfile")
-    @mock.patch(MOCKPATH + "EphemeralDHCPv4", autospec=True)
     def test_poll_imds_does_dhcp_on_retries_if_ctx_present(
         self,
-        m_ephemeral_dhcpv4,
         m_isfile,
         m_fetch_reprovisiondata,
         m_media_switch,
         m_dhcp,
-        m_net,
         m_fallback,
     ):
         """The poll_imds function should reuse the dhcp ctx if it is already
@@ -3225,92 +3157,9 @@ class TestPreprovisioningPollIMDS(CiTestCase):
             dsa._ephemeral_dhcp_ctx = m_dhcp_ctx
             dsa._poll_imds()
             self.assertEqual(1, m_dhcp_ctx.clean_network.call_count)
-        self.assertEqual(1, m_ephemeral_dhcpv4.call_count)
+        self.assertEqual(1, m_dhcp.call_count)
         self.assertEqual(0, m_media_switch.call_count)
         self.assertEqual(2, m_fetch_reprovisiondata.call_count)
-
-
-@mock.patch(MOCKPATH + "DataSourceAzure._report_ready", mock.MagicMock())
-@mock.patch(MOCKPATH + "subp.subp", mock.MagicMock())
-@mock.patch(MOCKPATH + "util.write_file", mock.MagicMock())
-@mock.patch(
-    "cloudinit.sources.helpers.netlink.wait_for_media_disconnect_connect"
-)
-@mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network", autospec=True)
-@mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
-@mock.patch(
-    MOCKPATH + "imds.fetch_reprovision_data", side_effect=[b"ovf data"]
-)
-class TestAzureDataSourcePreprovisioning(CiTestCase):
-    def setUp(self):
-        super(TestAzureDataSourcePreprovisioning, self).setUp()
-        tmp = self.tmp_dir()
-        self.waagent_d = self.tmp_path("/var/lib/waagent", tmp)
-        self.paths = helpers.Paths({"cloud_dir": tmp})
-        dsaz.BUILTIN_DS_CONFIG["data_dir"] = self.waagent_d
-
-    def test_poll_imds_returns_ovf_env(
-        self, m_fetch_reprovisiondata, m_dhcp, m_net, m_media_switch
-    ):
-        """The _poll_imds method should return the ovf_env.xml."""
-        m_media_switch.return_value = None
-        m_dhcp.return_value = [
-            {
-                "interface": "eth9",
-                "fixed-address": "192.168.2.9",
-                "routers": "192.168.2.1",
-                "subnet-mask": "255.255.255.0",
-            }
-        ]
-        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
-        dsa._ephemeral_dhcp_ctx = None
-        self.assertTrue(len(dsa._poll_imds()) > 0)
-        self.assertEqual(m_dhcp.call_count, 1)
-        m_net.assert_any_call(
-            dsa.distro,
-            broadcast="192.168.2.255",
-            interface="eth9",
-            ip="192.168.2.9",
-            prefix_or_mask="255.255.255.0",
-            router="192.168.2.1",
-            static_routes=None,
-        )
-        self.assertEqual(m_net.call_count, 1)
-
-    def test__reprovision_calls__poll_imds(
-        self, m_fetch_reprovisiondata, m_dhcp, m_net, m_media_switch
-    ):
-        """The _reprovision method should call poll IMDS."""
-        m_media_switch.return_value = None
-        m_dhcp.return_value = [
-            {
-                "interface": "eth9",
-                "fixed-address": "192.168.2.9",
-                "routers": "192.168.2.1",
-                "subnet-mask": "255.255.255.0",
-                "unknown-245": "624c3620",
-            }
-        ]
-        hostname = "myhost"
-        username = "myuser"
-        content = construct_ovf_env(username=username, hostname=hostname)
-        m_fetch_reprovisiondata.side_effect = [content]
-        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
-        dsa._ephemeral_dhcp_ctx = None
-        md, _ud, cfg, _d = dsa._reprovision()
-        self.assertEqual(md["local-hostname"], hostname)
-        self.assertEqual(cfg["system_info"]["default_user"]["name"], username)
-        self.assertEqual(m_dhcp.call_count, 1)
-        m_net.assert_any_call(
-            dsa.distro,
-            broadcast="192.168.2.255",
-            interface="eth9",
-            ip="192.168.2.9",
-            prefix_or_mask="255.255.255.0",
-            router="192.168.2.1",
-            static_routes=None,
-        )
-        self.assertEqual(m_net.call_count, 1)
 
 
 class TestRemoveUbuntuNetworkConfigScripts(CiTestCase):
@@ -3570,10 +3419,30 @@ class TestEphemeralNetworking:
         assert mock_sleep.mock_calls == [mock.call(1)]
         assert mock_report_diagnostic_event.mock_calls == [
             mock.call(
+                "Bringing up ephemeral networking with iface=None: "
+                "[('dummy0', '9e:65:d6:19:19:01', None, None), "
+                "('enP3', '00:11:22:33:44:02', 'unknown_accel', '0x3'), "
+                "('eth0', '00:11:22:33:44:00', 'hv_netvsc', '0x3'), "
+                "('eth2', '00:11:22:33:44:01', 'unknown', '0x3'), "
+                "('eth3', '00:11:22:33:44:02', "
+                "'unknown_with_unknown_vf', '0x3'), "
+                "('lo', '00:00:00:00:00:00', None, None)]",
+                logger_func=dsaz.LOG.debug,
+            ),
+            mock.call(
                 "Command failed: cmd=['failed', 'cmd'] "
                 "stderr='test_stderr' stdout='test_stdout' exit_code=4",
                 logger_func=dsaz.LOG.error,
-            )
+            ),
+            mock.call(
+                "Obtained DHCP lease on interface 'fakeEth0' "
+                "(primary=True driver='fake_driver' router='10.0.0.1' "
+                "routes=[('0.0.0.0/0', '10.0.0.1'), "
+                "('168.63.129.16/32', '10.0.0.1'), "
+                "('169.254.169.254/32', '10.0.0.1')] "
+                "lease={'interface': 'fakeEth0'})",
+                logger_func=dsaz.LOG.debug,
+            ),
         ]
 
     @pytest.mark.parametrize(
@@ -3670,6 +3539,64 @@ class TestEphemeralNetworking:
         assert error_reasons == [error_reason] * 3
 
 
+class TestCheckIfPrimary:
+    @pytest.mark.parametrize(
+        "static_routes",
+        [
+            [("168.63.129.16/32", "10.0.0.1")],
+            [("169.254.169.254/32", "10.0.0.1")],
+        ],
+    )
+    def test_primary(self, azure_ds, static_routes):
+        ephipv4 = ephemeral.EphemeralIPv4Network(
+            distro="ubuntu",
+            interface="eth0",
+            ip="10.0.0.4",
+            prefix_or_mask="32",
+            broadcast="255.255.255.255",
+            router="10.0.0.1",
+            static_routes=static_routes,
+        )
+
+        assert azure_ds._check_if_primary(ephipv4) is True
+
+    def test_primary_via_wireserver_specified_in_option_245(self, azure_ds):
+        ephipv4 = ephemeral.EphemeralIPv4Network(
+            distro="ubuntu",
+            interface="eth0",
+            ip="10.0.0.4",
+            prefix_or_mask="32",
+            broadcast="255.255.255.255",
+            router="10.0.0.1",
+            static_routes=[("1.2.3.4/32", "10.0.0.1")],
+        )
+        azure_ds._wireserver_endpoint = "1.2.3.4"
+
+        assert azure_ds._check_if_primary(ephipv4) is True
+
+    @pytest.mark.parametrize(
+        "static_routes",
+        [
+            [],
+            [("0.0.0.0/0", "10.0.0.1")],
+            [("10.10.10.10/16", "10.0.0.1")],
+        ],
+    )
+    def test_secondary(self, azure_ds, static_routes):
+        ephipv4 = ephemeral.EphemeralIPv4Network(
+            distro="ubuntu",
+            interface="eth0",
+            ip="10.0.0.4",
+            prefix_or_mask="32",
+            broadcast="255.255.255.255",
+            router="10.0.0.1",
+            static_routes=static_routes,
+        )
+        azure_ds._wireserver_endpoint = "1.2.3.4"
+
+        assert azure_ds._check_if_primary(ephipv4) is False
+
+
 class TestInstanceId:
     def test_metadata(self, azure_ds, mock_dmi_read_dmi_data):
         azure_ds.metadata = {"instance-id": "test-id"}
@@ -3692,7 +3619,7 @@ class TestProvisioning:
         mock_azure_get_metadata_from_fabric,
         mock_azure_report_failure_to_fabric,
         mock_net_dhcp_maybe_perform_dhcp_discovery,
-        mock_net_dhcp_EphemeralIPv4Network,
+        mock_ephemeral_ipv4_network,
         mock_dmi_read_dmi_data,
         mock_get_interfaces,
         mock_get_interface_mac,
@@ -3720,9 +3647,7 @@ class TestProvisioning:
         self.mock_net_dhcp_maybe_perform_dhcp_discovery = (
             mock_net_dhcp_maybe_perform_dhcp_discovery
         )
-        self.mock_net_dhcp_EphemeralIPv4Network = (
-            mock_net_dhcp_EphemeralIPv4Network
-        )
+        self.mock_ephemeral_ipv4_network = mock_ephemeral_ipv4_network
         self.mock_dmi_read_dmi_data = mock_dmi_read_dmi_data
         self.mock_get_interfaces = mock_get_interfaces
         self.mock_get_interface_mac = mock_get_interface_mac
@@ -3953,7 +3878,6 @@ class TestProvisioning:
         )
         self.mock_readurl.side_effect = [
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
-            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
             mock.MagicMock(contents=construct_ovf_env().encode()),
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]
@@ -3962,15 +3886,6 @@ class TestProvisioning:
         self.azure_ds._check_and_get_data()
 
         assert self.mock_readurl.mock_calls == [
-            mock.call(
-                "http://169.254.169.254/metadata/instance?"
-                "api-version=2021-08-01&extended=true",
-                exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
-                infinite=True,
-                log_req_resp=True,
-                timeout=30,
-            ),
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
@@ -4097,9 +4012,6 @@ class TestProvisioning:
         )
         self.mock_readurl.side_effect = [
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
-            mock.MagicMock(
-                contents=json.dumps(self.imds_md["network"]).encode()
-            ),
             mock.MagicMock(contents=construct_ovf_env().encode()),
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]
@@ -4108,7 +4020,7 @@ class TestProvisioning:
         )
 
         # Fake DHCP teardown failure.
-        ipv4_net = self.mock_net_dhcp_EphemeralIPv4Network
+        ipv4_net = self.mock_ephemeral_ipv4_network
         ipv4_net.return_value.__exit__.side_effect = [
             subp.ProcessExecutionError(
                 cmd=["failed", "cmd"],
@@ -4122,15 +4034,6 @@ class TestProvisioning:
         self.azure_ds._check_and_get_data()
 
         assert self.mock_readurl.mock_calls == [
-            mock.call(
-                "http://169.254.169.254/metadata/instance?"
-                "api-version=2021-08-01&extended=true",
-                exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
-                infinite=True,
-                log_req_resp=True,
-                timeout=30,
-            ),
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
