@@ -5,12 +5,12 @@
 
 """zypper_add_repo: Add zypper repositories to the system"""
 
+import logging
 import os
 from textwrap import dedent
 
 import configobj
 
-from cloudinit import log as logging
 from cloudinit import util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -209,6 +209,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     _write_zypp_config(zypper_config)
     _write_repos(repos, repo_base_path)
-
-
-# vi: ts=4 expandtab

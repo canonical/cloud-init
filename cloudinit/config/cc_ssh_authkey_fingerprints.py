@@ -137,6 +137,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
         (key_fn, key_entries) = ssh_util.extract_authorized_keys(user_name)
         _pprint_key_entries(user_name, key_fn, key_entries, hash_meth)
-
-
-# vi: ts=4 expandtab

@@ -2,12 +2,12 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 from time import time
 from typing import Dict, Optional
 
 import requests
 
-from cloudinit import log as logging
 from cloudinit import util
 from cloudinit.sources.helpers.azure import report_diagnostic_event
 from cloudinit.url_helper import UrlError, readurl
@@ -30,7 +30,7 @@ class ReadUrlRetryHandler:
         self,
         *,
         logging_backoff: float = 1.0,
-        max_connection_errors: int = 10,
+        max_connection_errors: int = 11,
         retry_codes=(
             404,  # not found (yet)
             410,  # gone / unavailable (yet)
@@ -67,7 +67,7 @@ class ReadUrlRetryHandler:
         # primary NIC.
         if isinstance(exception.cause, requests.ConnectionError):
             self.max_connection_errors -= 1
-            if self.max_connection_errors < 0:
+            if self.max_connection_errors <= 0:
                 retry = False
         elif (
             exception.code is not None
@@ -181,10 +181,11 @@ def fetch_reprovision_data() -> bytes:
 
     handler = ReadUrlRetryHandler(
         logging_backoff=2.0,
-        max_connection_errors=0,
+        max_connection_errors=1,
         retry_codes=(
             404,
             410,
+            429,
         ),
         retry_deadline=None,
     )

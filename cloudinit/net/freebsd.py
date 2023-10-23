@@ -1,9 +1,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
+
 import cloudinit.net.bsd
-from cloudinit import distros
-from cloudinit import log as logging
-from cloudinit import net, subp, util
+from cloudinit import distros, net, subp, util
 
 LOG = logging.getLogger(__name__)
 

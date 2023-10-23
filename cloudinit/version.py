@@ -4,7 +4,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-__VERSION__ = "23.3"
+__VERSION__ = "23.3.1"
 _PACKAGED_VERSION = "@@PACKAGED_VERSION@@"
 
 FEATURES = [
@@ -20,6 +20,3 @@ def version_string():
     if not _PACKAGED_VERSION.startswith("@@"):
         return _PACKAGED_VERSION
     return __VERSION__
-
-
-# vi: ts=4 expandtab

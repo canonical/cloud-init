@@ -74,5 +74,3 @@ PER_ONCE = "once"
 
 # Used to sanity check incoming handlers/modules frequencies
 FREQUENCIES = [PER_INSTANCE, PER_ALWAYS, PER_ONCE]
-
-# vi: ts=4 expandtab

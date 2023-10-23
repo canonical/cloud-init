@@ -644,7 +644,7 @@ class TestValidateCloudConfigSchema:
     def test_validateconfig_logs_deprecations(
         self, schema, config, expected_msg, log_deprecations, caplog
     ):
-        log.setupLogging()
+        log.setup_logging()
         validate_cloudconfig_schema(
             config,
             schema,

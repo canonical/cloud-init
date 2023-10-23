@@ -1,10 +1,11 @@
 """ansible enables running on first boot either ansible-pull"""
 import abc
+import logging
 import os
 import re
 import sys
+import sysconfig
 from copy import deepcopy
-from logging import getLogger
 from textwrap import dedent
 from typing import Optional
 
@@ -60,7 +61,7 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
-LOG = getLogger(__name__)
+LOG = logging.getLogger(__name__)
 CFG_OVERRIDE = "ansible_config"
 
 
@@ -135,14 +136,19 @@ class AnsiblePullPip(AnsiblePull):
             try:
                 import pip  # noqa: F401
             except ImportError:
-                self.distro.install_packages(self.distro.pip_package_name)
+                self.distro.install_packages([self.distro.pip_package_name])
             cmd = [
                 sys.executable,
                 "-m",
                 "pip",
                 "install",
-                "--break-system-packages",
             ]
+            if os.path.exists(
+                os.path.join(
+                    sysconfig.get_path("stdlib"), "EXTERNALLY-MANAGED"
+                )
+            ):
+                cmd.append("--break-system-packages")
             if self.run_user:
                 cmd.append("--user")
             self.do_as([*cmd, "--upgrade", "pip"])
@@ -156,7 +162,7 @@ class AnsiblePullPip(AnsiblePull):
 class AnsiblePullDistro(AnsiblePull):
     def install(self, pkg_name: str):
         if not self.is_installed():
-            self.distro.install_packages(pkg_name)
+            self.distro.install_packages([pkg_name])
 
     def is_installed(self) -> bool:
         return bool(which("ansible"))

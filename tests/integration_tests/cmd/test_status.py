@@ -1,4 +1,6 @@
 """Tests for `cloud-init status`"""
+import json
+
 import pytest
 
 from tests.integration_tests.clouds import IntegrationCloud
@@ -47,3 +49,18 @@ def test_wait_when_no_datasource(session_cloud: IntegrationCloud, setup_image):
         status_out = wait_for_cloud_init(client).stdout.strip()
         assert "status: disabled" in status_out
         assert client.execute("cloud-init status --wait").ok
+
+
+USER_DATA = """\
+#cloud-config
+ca-certs:
+  remove_defaults: false
+"""
+
+
+@pytest.mark.user_data(USER_DATA)
+def test_status_json_errors(client):
+    """Ensure that deprecated logs end up in the exported errors"""
+    assert json.loads(
+        client.execute("cat /run/cloud-init/status.json").stdout
+    )["v1"]["init"]["exported_errors"].get("DEPRECATED")

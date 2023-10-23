@@ -10,9 +10,9 @@ import abc
 import base64
 import copy
 import functools
+import logging
 import os
 
-from cloudinit import log as logging
 from cloudinit import net, sources, subp, url_helper, util
 from cloudinit.sources import BrokenMetadata
 from cloudinit.sources.helpers import ec2
@@ -764,6 +764,3 @@ def convert_net_json(network_json=None, known_macs=None):
         config.append(cfg)
 
     return {"version": 1, "config": config}
-
-
-# vi: ts=4 expandtab

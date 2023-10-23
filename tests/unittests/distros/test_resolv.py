@@ -65,6 +65,3 @@ class TestResolvHelper(TestCase):
         self.assertEqual(len(rp.search_domains), 6)
         self.assertRaises(ValueError, rp.add_search_domain, "bbb5.y.com")
         self.assertEqual(len(rp.search_domains), 6)
-
-
-# vi: ts=4 expandtab

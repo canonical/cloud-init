@@ -1091,6 +1091,3 @@ class TestCanonicalCloudID(CiTestCase):
                 cloud_name="azure", region="!chinaeast", platform="platform"
             ),
         )
-
-
-# vi: ts=4 expandtab

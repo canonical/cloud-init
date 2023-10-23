@@ -12,12 +12,12 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import os
 import time
 from socket import gaierror, getaddrinfo, inet_ntoa
 from struct import pack
 
-from cloudinit import log as logging
 from cloudinit import sources, subp
 from cloudinit import url_helper as uhelp
 from cloudinit import util

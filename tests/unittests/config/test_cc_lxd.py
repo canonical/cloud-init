@@ -471,6 +471,3 @@ class TestLXDSchema:
             cc_lxd.supplemental_schema_validation(
                 init_cfg, bridge_cfg, preseed_str
             )
-
-
-# vi: ts=4 expandtab

@@ -375,6 +375,3 @@ class TestNetInfo:
     def test_netdev_info_iproute_json(self, input, expected):
         out = _netdev_info_iproute_json(json.dumps(input))
         assert out == expected
-
-
-# vi: ts=4 expandtab

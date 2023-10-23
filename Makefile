@@ -39,6 +39,7 @@ render-template:
 # Our generator is a shell script. Make it easy to measure the
 # generator. This should be monitored for performance regressions
 benchmark-generator: FILE=$(GENERATOR_F).tmpl
+benchmark-generator: VARIANT="benchmark"
 benchmark-generator: export ITER=$(NUM_ITER)
 benchmark-generator: render-template
 	$(BENCHMARK) $(GENERATOR_F)

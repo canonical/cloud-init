@@ -7,14 +7,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Set Passwords: Set user passwords and enable/disable SSH password auth"""
 
+import logging
 import re
 from string import ascii_letters, digits
 from textwrap import dedent
 from typing import List
 
-from cloudinit import features
-from cloudinit import log as logging
-from cloudinit import subp, util
+from cloudinit import features, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc

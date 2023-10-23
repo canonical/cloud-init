@@ -39,6 +39,14 @@ SkipTest = unittest.SkipTest
 skipIf = unittest.skipIf
 
 
+try:
+    import apt_pkg  # type: ignore # noqa: F401
+
+    HAS_APT_PKG = True
+except ImportError:
+    HAS_APT_PKG = False
+
+
 # Makes the old path start
 # with new base instead of whatever
 # it previously had
@@ -519,6 +527,13 @@ def readResource(name, mode="r"):
         return fh.read()
 
 
+def skipIfAptPkg():
+    return skipIf(
+        HAS_APT_PKG,
+        "No python-apt dependency present.",
+    )
+
+
 try:
     import jsonschema
 
@@ -619,6 +634,3 @@ def does_not_raise():
 
     """
     yield
-
-
-# vi: ts=4 expandtab

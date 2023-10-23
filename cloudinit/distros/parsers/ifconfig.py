@@ -5,13 +5,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import logging
 import re
 from collections import defaultdict
 from functools import lru_cache
 from ipaddress import IPv4Address, IPv4Interface, IPv6Interface
 from typing import Dict, List, Optional, Tuple, Union
-
-from cloudinit import log as logging
 
 LOG = logging.getLogger(__name__)
 

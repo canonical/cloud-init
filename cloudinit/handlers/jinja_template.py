@@ -1,13 +1,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import logging
 import os
 import re
 from errno import EACCES
 from typing import Optional, Type
 
 from cloudinit import handlers
-from cloudinit import log as logging
 from cloudinit.atomic_helper import b64d, json_dumps
 from cloudinit.helpers import Paths
 from cloudinit.settings import PER_ALWAYS

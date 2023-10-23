@@ -142,13 +142,26 @@ class TestUbuntuAdvantage:
         verify_clean_log(log)
         assert is_attached(client)
 
+        # Assert service-already-enabled handling for esm-infra.
+        # First totally destroy ubuntu-advantage-tools data and state.
+        # This is a hack but results in a system that thinks it
+        # is detached even though esm-infra is still enabled.
+        # When cloud-init runs again, it will successfully re-attach
+        # and then notice that esm-infra is already enabled.
+        client.execute("rm -rf /var/lib/ubuntu-advantage")
+        assert client.execute("cloud-init clean --logs").ok
+        client.restart()
+        log = client.read_from_file("/var/log/cloud-init.log")
+        verify_clean_log(log)
+        assert "Service `esm-infra` already enabled" in log
+
 
 def maybe_install_cloud_init(session_cloud: IntegrationCloud):
     source = get_validated_source(session_cloud)
 
     launch_kwargs = {
         "image_id": session_cloud.cloud_instance.daily_image(
-            CURRENT_RELEASE.image_id, image_type=ImageType.PRO
+            CURRENT_RELEASE.series, image_type=ImageType.PRO
         )
     }
 

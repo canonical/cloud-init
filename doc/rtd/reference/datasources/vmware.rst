@@ -11,7 +11,7 @@ vSphere and currently supports the following data transports:
 
 The configuration method is dependent upon the transport.
 
-Guest OS customisation
+Guest OS customization
 ======================
 
 The following configuration can be set for this datasource in ``cloud-init``
@@ -22,56 +22,69 @@ System configuration
 --------------------
 
 * ``disable_vmware_customization``: true (disable) or false (enable) the VMware
-  traditional Linux guest customisation. Traditional Linux guest customisation
-  is customising a Linux virtual machine with a
-  `traditional Linux customisation specification`_. Setting this configuration
+  traditional Linux guest customization. Traditional Linux guest customization
+  is customizing a Linux virtual machine with a
+  `traditional Linux customization specification`_. Setting this configuration
   to false is required to make sure this datasource is found in ``ds-identify``
-  when using Guest OS customisation transport.
+  when using Guest OS customization transport. VMware Tools only checks this
+  configuration in :file:`/etc/cloud/cloud.cfg`.
 
   Default: true
 
 Datasource configuration
 ------------------------
 
-* ``allow_raw_data``: true (enable) or false (disable) the VMware customisation
+* ``allow_raw_data``: true (enable) or false (disable) the VMware customization
   using ``cloud-init`` metadata and user data directly. Since vSphere 7.0
-  Update 3 version, users can create a Linux customisation specification with
+  Update 3 version, users can create a Linux customization specification with
   minimal ``cloud-init`` metadata and user data, and apply this specification
   to a virtual machine. This datasource will parse the metadata and user data
   and configure the virtual machine with them. See
-  `Guest customisation using cloud-init`_ for more information.
+  `Guest customization using cloud-init`_ for more information.
 
   Default: true
 
 * ``vmware_cust_file_max_wait``: The maximum amount of clock time (in seconds)
-  that should be spent waiting for VMware customisation files.
+  that should be spent waiting for VMware customization files.
 
   Default: 15
 
 Configuration examples
 ----------------------
 
-1. Create the :file:`/etc/cloud/cloud.cfg.d/99-vmware-guest-customization.cfg`
-   file with the following content, which will enable VMware customisation and
-   set the maximum waiting time for the VMware customisation file to 10
-   seconds:
+1. Enable VMware customization and set the maximum waiting time for the
+   VMware customization file to 10 seconds:
+
+   Set ``disable_vmware_customization`` in the :file:`/etc/cloud/cloud.cfg`
 
    .. code-block:: yaml
 
       disable_vmware_customization: false
+
+   Create a :file:`/etc/cloud/cloud.cfg.d/99-vmware-guest-customization.cfg`
+   with the following content
+
+   .. code-block:: yaml
+
       datasource:
         VMware:
           vmware_cust_file_max_wait: 10
 
-2. Create the :file:`/etc/cloud/cloud.cfg.d/99-vmware-guest-customization.cfg`
-   file with the following content, which will enable VMware customisation but
-   will only try to apply a traditional Linux Guest Customisation
-   configuration, and set the maximum waiting time for the VMware
-   customisation file to 10 seconds:
+2. Enable VMware customization but only try to apply a traditional Linux
+   Guest Customization configuration, and set the maximum waiting time for
+   the VMware customization file to 10 seconds:
+
+   Set ``disable_vmware_customization`` in the :file:`/etc/cloud/cloud.cfg`
 
    .. code-block:: yaml
 
       disable_vmware_customization: false
+
+   Create a :file:`/etc/cloud/cloud.cfg.d/99-vmware-guest-customization.cfg`
+   with the following content
+
+   .. code-block:: yaml
+
       datasource:
         VMware:
           allow_raw_data: false
@@ -89,15 +102,15 @@ Tools configuration options with the following command:
     vmware-toolbox-cmd config set <section> <key> <value>
 
 The following VMware Tools configuration option affects this datasource's
-behaviour when applying customisation configuration with custom scripts:
+behaviour when applying customization configuration with custom scripts:
 
 * ``[deploypkg] enable-custom-scripts``: If this option is absent in VMware
   Tools configuration, the custom script is disabled by default for security
   reasons. Some VMware products could change this default behaviour (for
-  example: enabled by default) via customisation of the specification settings.
+  example: enabled by default) via customization of the specification settings.
 
   VMware admins can refer to `customization configuration`_ and set the
-  customisation specification settings.
+  customization specification settings.
 
 For more information, see `VMware vSphere Product Documentation`_ and specific
 VMware Tools configuration options.
@@ -134,6 +147,30 @@ Features
 ========
 
 This section reviews several features available in this datasource.
+
+Graceful rpctool fallback
+-------------------------
+
+The datasource initially attempts to use the program ``vmware-rpctool`` if it
+is available. However, if the program returns a non-zero exit code, then the
+datasource falls back to using the program ``vmtoolsd`` with the ``--cmd``
+argument.
+
+On some older versions of ESXi and open-vm-tools, the ``vmware-rpctool``
+program is much more performant than ``vmtoolsd``. While this gap was
+closed, it is not reasonable to expect the guest where cloud-init is running to
+know whether the underlying hypervisor has the patch.
+
+Additionally, vSphere VMs may have the following present in their VMX file:
+
+.. code-block:: ini
+
+   guest_rpc.rpci.auth.cmd.info-set = "TRUE"
+   guest_rpc.rpci.auth.cmd.info-get = "TRUE"
+
+The above configuration causes the ``vmware-rpctool`` command to return a
+non-zero exit code with the error message ``Permission denied``. If this should
+occur, the datasource falls back to using ``vmtoolsd``.
 
 Instance data and lazy networks
 -------------------------------
@@ -441,8 +478,8 @@ the metadata key ``network``. Valid encodings are ``base64`` and
 .. LINKS
 .. _Guest OS Customization: https://docs.vmware.com/en/VMware-vSphere/8.0/vsphere-vm-administration/GUID-58E346FF-83AE-42B8-BE58-253641D257BC.html
 .. _GuestInfo keys: https://github.com/vmware/govmomi/blob/master/govc/USAGE.md
-.. _traditional Linux customisation specification: https://docs.vmware.com/en/VMware-vSphere/8.0/vsphere-vm-administration/GUID-EB5F090E-723C-4470-B640-50B35D1EC016.html#GUID-9A5093A5-C54F-4502-941B-3F9C0F573A39__GUID-40C60643-A2EB-4B05-8927-B51AF7A6CC5E
-.. _Guest customisation using cloud-init: https://developer.vmware.com/docs/17020/vsphere-web-services-sdk-programming-guide--8-0-/GUID-75E27FA9-2E40-4CBF-BF3D-22DCFC8F11F7.html
+.. _traditional Linux customization specification: https://docs.vmware.com/en/VMware-vSphere/8.0/vsphere-vm-administration/GUID-EB5F090E-723C-4470-B640-50B35D1EC016.html#GUID-9A5093A5-C54F-4502-941B-3F9C0F573A39__GUID-40C60643-A2EB-4B05-8927-B51AF7A6CC5E
+.. _Guest customization using cloud-init: https://developer.vmware.com/docs/17686/vsphere-web-services-sdk-programming-guide--8-0-/GUID-75E27FA9-2E40-4CBF-BF3D-22DCFC8F11F7.html
 .. _VMware Tools: https://docs.vmware.com/en/VMware-Tools/index.html
 .. _customization configuration: https://github.com/canonical/cloud-init/blob/main/cloudinit/sources/helpers/vmware/imc/config.py
 .. _VMware vSphere Product Documentation: https://docs.vmware.com/en/VMware-vSphere/8.0/vsphere-vm-administration/GUID-EB5F090E-723C-4470-B640-50B35D1EC016.html#GUID-9A5093A5-C54F-4502-941B-3F9C0F573A39__GUID-40C60643-A2EB-4B05-8927-B51AF7A6CC5E

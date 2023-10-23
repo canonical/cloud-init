@@ -10,6 +10,7 @@
 import base64
 import copy
 import json
+import logging
 import os
 import os.path
 import re
@@ -20,7 +21,6 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Tuple
 
-from cloudinit import log as logging
 from cloudinit import subp, temp_utils, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config

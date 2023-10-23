@@ -20,6 +20,7 @@ class TestGetFeatures:
             EXPIRE_APPLIES_TO_HASHED_USERS=False,
             NETPLAN_CONFIG_ROOT_READ_ONLY=True,
             NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH=False,
+            APT_DEB822_SOURCE_LIST_FILE=True,
         ):
             assert {
                 "ERROR_ON_USER_DATA_FAILURE": True,
@@ -27,4 +28,5 @@ class TestGetFeatures:
                 "EXPIRE_APPLIES_TO_HASHED_USERS": False,
                 "NETPLAN_CONFIG_ROOT_READ_ONLY": True,
                 "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH": False,
+                "APT_DEB822_SOURCE_LIST_FILE": True,
             } == features.get_features()

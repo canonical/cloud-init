@@ -9,13 +9,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import logging
 import os
 import time
 from typing import List
 
-from cloudinit import dmi
-from cloudinit import log as logging
-from cloudinit import net, sources
+from cloudinit import dmi, net, sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util, warnings
 from cloudinit.event import EventScope, EventType

@@ -16,11 +16,12 @@ output; if this fails, they are treated as binary.
 """
 
 import argparse
+import logging
 import os
 import sys
 from errno import EACCES
 
-from cloudinit import atomic_helper, log, util
+from cloudinit import atomic_helper, util
 from cloudinit.cmd.devel import addLogHandlerCLI, read_cfg_paths
 from cloudinit.handlers.jinja_template import (
     convert_jinja_instance_data,
@@ -30,7 +31,7 @@ from cloudinit.handlers.jinja_template import (
 from cloudinit.sources import REDACT_SENSITIVE_VALUE
 
 NAME = "query"
-LOG = log.getLogger(NAME)
+LOG = logging.getLogger(__name__)
 
 
 def get_parser(parser=None):
@@ -261,7 +262,7 @@ def _find_instance_data_leaf_by_varname_path(
 
 def handle_args(name, args):
     """Handle calls to 'cloud-init query' as a subcommand."""
-    addLogHandlerCLI(LOG, log.DEBUG if args.debug else log.WARNING)
+    addLogHandlerCLI(LOG, logging.DEBUG if args.debug else logging.WARNING)
     if not any([args.list_keys, args.varname, args.format, args.dump_all]):
         LOG.error(
             "Expected one of the options: --all, --format,"

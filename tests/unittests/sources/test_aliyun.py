@@ -292,6 +292,3 @@ class TestIsAliYun(test_helpers.CiTestCase):
             self.read_dmi_data_expected, m_read_dmi_data.call_args_list
         )
         self.assertEqual(False, ret)
-
-
-# vi: ts=4 expandtab

@@ -25,6 +25,7 @@ import binascii
 import errno
 import fcntl
 import json
+import logging
 import os
 import random
 import re
@@ -32,9 +33,7 @@ import socket
 
 import serial
 
-from cloudinit import atomic_helper, dmi
-from cloudinit import log as logging
-from cloudinit import sources, subp, util
+from cloudinit import atomic_helper, dmi, sources, subp, util
 from cloudinit.event import EventScope, EventType
 
 LOG = logging.getLogger(__name__)
@@ -1052,5 +1051,3 @@ if __name__ == "__main__":
         load_key(client=jmc, key=key, data=data)
 
     print(json.dumps(data, indent=1, sort_keys=True, separators=(",", ": ")))
-
-# vi: ts=4 expandtab

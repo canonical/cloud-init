@@ -23,6 +23,8 @@ CLOUD_SYSTEM_TARGET="/lib/systemd/system/cloud-init.target"
 {% if variant in ["almalinux", "centos", "cloudlinux", "eurolinux", "fedora",
                   "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva", "rhel", "rocky", "TencentOS", "virtuozzo"] %}
     dsidentify="/usr/libexec/cloud-init/ds-identify"
+{% elif variant == "benchmark" %}
+    dsidentify="/bin/true"
 {% else %}
     dsidentify="/usr/lib/cloud-init/ds-identify"
 {% endif %}
@@ -40,105 +42,51 @@ debug() {
     echo "$@" >> "$LOG"
 }
 
-etc_file() {
-    local pprefix="${1:-/etc/cloud/cloud-init.}"
-    _RET="unset"
-    [ -f "${pprefix}$ENABLE" ] && _RET="$ENABLE" && return 0
-    [ -f "${pprefix}$DISABLE" ] && _RET="$DISABLE" && return 0
-    return 0
-}
-
-read_proc_cmdline() {
-    # return /proc/cmdline for non-container, and /proc/1/cmdline for container
-    local ctname="systemd"
-    if [ -n "$CONTAINER" ] && ctname=$CONTAINER ||
-        systemd-detect-virt --container --quiet; then
-        if { _RET=$(tr '\0' ' ' < /proc/1/cmdline); } 2>/dev/null; then
-            _RET_MSG="container[$ctname]: pid 1 cmdline"
-            return
-        fi
-        _RET=""
-        _RET_MSG="container[$ctname]: pid 1 cmdline not available"
-        return 0
-    fi
-
-    _RET_MSG="/proc/cmdline"
-    read _RET < /proc/cmdline
-}
-
-kernel_cmdline() {
-    local cmdline="" tok=""
-    if [ -n "${KERNEL_CMDLINE+x}" ]; then
-        # use KERNEL_CMDLINE if present in environment even if empty
-        cmdline=${KERNEL_CMDLINE}
-        debug 1 "kernel command line from env KERNEL_CMDLINE: $cmdline"
-    else
-        read_proc_cmdline && cmdline="$_RET" &&
-                debug 1 "kernel command line ($_RET_MSG): $cmdline"
-    fi
-    _RET="unset"
-    cmdline=" $cmdline "
-    tok=${cmdline##* cloud-init=}
-    [ "$tok" = "$cmdline" ] && _RET="unset"
-    tok=${tok%% *}
-    [ "$tok" = "$ENABLE" -o "$tok" = "$DISABLE" ] && _RET="$tok"
-    return 0
-}
-
-default() {
-    _RET="$ENABLE"
-}
-
-check_for_datasource() {
-    local ds_rc=""
-    if [ ! -x "$dsidentify" ]; then
-        debug 1 "no ds-identify in $dsidentify"
-        return 0
-    fi
-    $dsidentify
-    ds_rc=$?
-    debug 1 "ds-identify rc=$ds_rc"
-    if [ "$ds_rc" = "0" ]; then
-        return 0
-    fi
-    return 1
-}
-
 main() {
     local normal_d="$1" early_d="$2" late_d="$3"
     local target_name="multi-user.target" gen_d="$early_d"
     local link_path="$gen_d/${target_name}.wants/${CLOUD_TARGET_NAME}"
-    local ds=""
+    local ds="" ret=""
 
     debug 1 "$0 normal=$normal_d early=$early_d late=$late_d"
     debug 2 "$0 $*"
 
-    local search result="error" ret=""
-    for search in kernel_cmdline etc_file default; do
-        if $search; then
-            debug 1 "$search found $_RET"
-            [ "$_RET" = "$ENABLE" -o "$_RET" = "$DISABLE" ] &&
-                result=$_RET && break
-        else
-            ret=$?
-            debug 0 "search $search returned $ret"
-        fi
-    done
+    # ds=found => enable
+    # ds=notfound => disable
+    # <any> => disable
+    debug 1 "checking for datasource"
 
-    # enable AND ds=found == enable
-    # enable AND ds=notfound == disable
-    # disable || <any> == disabled
-    if [ "$result" = "$ENABLE" ]; then
-        debug 1 "checking for datasource"
-        check_for_datasource
-        ds=$?
+    if [ ! -x "$dsidentify" ]; then
+        debug 1 "no ds-identify in $dsidentify"
+        ds=0
+    fi
+    $dsidentify
+    ds=$?
+    debug 1 "ds-identify rc=$ds"
+
+    if [ "$ds" = "1" -o "$ds" = "2" ]; then
         if [ "$ds" = "1" ]; then
             debug 1 "cloud-init is enabled but no datasource found, disabling"
-            result="$DISABLE"
+        else
+            debug 1 "cloud-init is disabled by kernel commandline or etc_file"
         fi
-    fi
+        if [ -f "$link_path" ]; then
+            if rm -f "$link_path"; then
+                debug 1 "disabled. removed existing $link_path"
+            else
+                ret=$?
+                debug 0 "[$ret] disable failed, remove $link_path"
+            fi
+        else
+            debug 1 "already disabled: no change needed [no $link_path]"
+        fi
+        if [ -e "$RUN_ENABLED_FILE" ]; then
+            debug 1 "removing $RUN_ENABLED_FILE and creating $RUN_DISABLED_FILE"
+            rm -f "$RUN_ENABLED_FILE"
+        fi
+        : > "$RUN_DISABLED_FILE"
 
-    if [ "$result" = "$ENABLE" ]; then
+    elif [ "$ds" = "0" ]; then
         if [ -e "$link_path" ]; then
                 debug 1 "already enabled: no change needed"
         else
@@ -157,22 +105,6 @@ main() {
             rm -f $RUN_DISABLED_FILE
         fi
         : > "$RUN_ENABLED_FILE"
-    elif [ "$result" = "$DISABLE" ]; then
-        if [ -f "$link_path" ]; then
-            if rm -f "$link_path"; then
-                debug 1 "disabled. removed existing $link_path"
-            else
-                ret=$?
-                debug 0 "[$ret] disable failed, remove $link_path"
-            fi
-        else
-            debug 1 "already disabled: no change needed [no $link_path]"
-        fi
-        if [ -e "$RUN_ENABLED_FILE" ]; then
-            debug 1 "removing $RUN_ENABLED_FILE and creating $RUN_DISABLED_FILE"
-            rm -f "$RUN_ENABLED_FILE"
-        fi
-        : > "$RUN_DISABLED_FILE"
     else
         debug 0 "unexpected result '$result' 'ds=$ds'"
         ret=3

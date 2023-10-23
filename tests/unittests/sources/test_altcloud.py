@@ -454,6 +454,3 @@ def force_arch(arch=None):
         setattr(os, "uname", _os_uname)
     elif arch is None:
         setattr(os, "uname", OS_UNAME_ORIG)
-
-
-# vi: ts=4 expandtab

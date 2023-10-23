@@ -266,6 +266,3 @@ def run_after_pid_gone(pid, pidcmdline, timeout, condition, func, args):
         fatal("Unexpected Exception when checking condition: %s" % e)
 
     func(*args)
-
-
-# vi: ts=4 expandtab

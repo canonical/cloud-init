@@ -109,6 +109,3 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     except Exception:
         LOG.warning("Writing keys to the system console failed!")
         raise
-
-
-# vi: ts=4 expandtab

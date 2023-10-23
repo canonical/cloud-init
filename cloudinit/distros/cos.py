@@ -7,6 +7,3 @@ from cloudinit.distros import gentoo
 # https://cloud.google.com/container-optimized-os/docs
 class Distro(gentoo.Distro):
     pass
-
-
-# vi: ts=4 expandtab

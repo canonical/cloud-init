@@ -6,6 +6,7 @@
 
 import copy
 import json
+import logging
 import os
 import sys
 from collections import namedtuple
@@ -19,9 +20,11 @@ from cloudinit import (
     handlers,
     helpers,
     importer,
+    net,
+    sources,
+    type_utils,
+    util,
 )
-from cloudinit import log as logging
-from cloudinit import net, sources, type_utils, util
 from cloudinit.event import EventScope, EventType, userdata_to_events
 
 # Default handlers (used if not overridden)
@@ -224,7 +227,7 @@ class Init:
         log_file = util.get_cfg_option_str(self.cfg, "def_log_file")
         if log_file:
             # At this point the log file should have already been created
-            # in the setupLogging function of log.py
+            # in the setup_logging function of log.py
 
             try:
                 fmode = util.get_permissions(log_file)

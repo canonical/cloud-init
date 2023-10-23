@@ -501,6 +501,3 @@ class TestDistro:
             assert "/tmp" == tmp_path
         else:
             assert "/usr_lib_exec/cloud-init/clouddir" == tmp_path
-
-
-# vi: ts=4 expandtab
