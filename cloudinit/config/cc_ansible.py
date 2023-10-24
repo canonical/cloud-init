@@ -3,6 +3,7 @@ import abc
 import os
 import re
 import sys
+import sysconfig
 from copy import deepcopy
 from logging import getLogger
 from textwrap import dedent
@@ -141,8 +142,13 @@ class AnsiblePullPip(AnsiblePull):
                 "-m",
                 "pip",
                 "install",
-                "--break-system-packages",
             ]
+            if os.path.exists(
+                os.path.join(
+                    sysconfig.get_path("stdlib"), "EXTERNALLY-MANAGED"
+                )
+            ):
+                cmd.append("--break-system-packages")
             if self.run_user:
                 cmd.append("--user")
             self.do_as([*cmd, "--upgrade", "pip"])
