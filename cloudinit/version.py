@@ -4,7 +4,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-__VERSION__ = "23.3.1"
+__VERSION__ = "23.3.3"
 _PACKAGED_VERSION = "@@PACKAGED_VERSION@@"
 
 FEATURES = [
