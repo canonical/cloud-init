@@ -6,6 +6,7 @@ These would be for behavior manually invoked by user from the command line
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
 
 VALID_USER_DATA = """\
 #cloud-config
@@ -49,6 +50,9 @@ def test_valid_userdata(client: IntegrationInstance):
         )
 
 
+@pytest.mark.skipif(
+    PLATFORM == "qemu", reason="QEMU only supports #cloud-config userdata"
+)
 @pytest.mark.user_data(INVALID_USER_DATA_HEADER)
 def test_invalid_userdata(client: IntegrationInstance):
     """Test `cloud-init schema` with invalid userdata.
