@@ -818,8 +818,8 @@ def _get_config_type_and_rendered_userdata(
         header declared ## template: jinja.
     """
     from cloudinit.handlers.jinja_template import (
-        CustomParsedJinjaException,
         JinjaLoadError,
+        JinjaSyntaxParsingException,
         NotJinjaError,
         render_jinja_payload_from_file,
     )
@@ -841,7 +841,7 @@ def _get_config_type_and_rendered_userdata(
                     )
                 ]
             ) from e
-        except CustomParsedJinjaException as e:
+        except JinjaSyntaxParsingException as e:
             error(
                 "Failed to render templated cloud-config due to jinja parsing "
                 "error: " + str(e),

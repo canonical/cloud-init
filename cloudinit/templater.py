@@ -19,6 +19,8 @@ import sys
 import traceback
 from typing import Any
 
+from jinja2 import TemplateSyntaxError
+
 from cloudinit import type_utils as tu
 from cloudinit import util
 from cloudinit.atomic_helper import write_file
@@ -45,7 +47,7 @@ BASIC_MATCHER = re.compile(r"\$\{([A-Za-z0-9_.]+)\}|\$([A-Za-z0-9_.]+)")
 MISSING_JINJA_PREFIX = "CI_MISSING_JINJA_VAR/"
 
 
-class CustomParsedJinjaException(Exception):
+class JinjaSyntaxParsingException(Exception):
     pass
 
 
@@ -121,7 +123,7 @@ def detect_template(text):
             )
             return result
 
-        except Exception as JTemplateError:
+        except Exception as jtemplate_error:
             # if the error is a syntax one, we know this next line will fail
             # we want to get the traceback and error message it throws
             try:
@@ -135,38 +137,43 @@ def detect_template(text):
                 jinja_env.parse(content)
                 # if we get here, then the previous line didn't fail,
                 # so we just need to re-raise the original error
-                raise JTemplateError
-            except Exception as useful_jinja_error:
+                raise jtemplate_error
+            except TemplateSyntaxError as template_syntax_error:
                 try:
                     tb = "".join(
-                        traceback.format_tb(useful_jinja_error.__traceback__)
+                        traceback.format_tb(
+                            template_syntax_error.__traceback__
+                        )
                     )
                     line_number_matches = re.findall(
                         r'File "<unknown>", line (\d+)', tb
                     )
                     line_number_of_error = int(line_number_matches[0])
+                    # adjust line number to adjust for the jinja header having been
+                    # removed from the content
+                    if (
+                        len(
+                            re.findall(
+                                "##( )?template:( )?jinja",
+                                content.split("\n")[0].strip().lower(),
+                            )
+                        )
+                        == 0
+                    ):
+                        line_number_of_error += 1
+                    raise JinjaSyntaxParsingException(
+                        "{e} on line {line_no}".format(
+                            e=template_syntax_error,
+                            line_no=line_number_of_error,
+                        )
+                    ) from jtemplate_error
+
                 # if we couldn't parse the traceback for some reason,
                 # just re-raise the original error
                 except Exception:
-                    raise JTemplateError from useful_jinja_error
-                # adjust line number to adjust for the jinja header having been
-                # removed from the content
-                if (
-                    len(
-                        re.findall(
-                            "##( )?template:( )?jinja",
-                            content.split("\n")[0].strip().lower(),
-                        )
-                    )
-                    == 0
-                ):
-                    line_number_of_error += 1
-                raise CustomParsedJinjaException(
-                    "{e} on line {line_no}".format(
-                        e=useful_jinja_error,
-                        line_no=line_number_of_error,
-                    )
-                ) from useful_jinja_error
+                    raise jtemplate_error
+            except Exception:
+                raise jtemplate_error
 
     if text.find("\n") != -1:
         ident, rest = text.split("\n", 1)  # remove the first line

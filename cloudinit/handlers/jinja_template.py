@@ -13,7 +13,7 @@ from cloudinit.helpers import Paths
 from cloudinit.settings import PER_ALWAYS
 from cloudinit.templater import (
     MISSING_JINJA_PREFIX,
-    CustomParsedJinjaException,
+    JinjaSyntaxParsingException,
     detect_template,
     render_string,
 )
@@ -59,10 +59,10 @@ class JinjaTemplatePartHandler(handlers.Handler):
             rendered_payload = render_jinja_payload_from_file(
                 payload, filename, jinja_json_file
             )
-        except CustomParsedJinjaException as e:
+        except JinjaSyntaxParsingException as e:
             LOG.warning(
-                "Failed to render templated cloud-config file due to jinja "
-                "parsing error: %s",
+                "Ignoring jinja template for %s. Failed to render due to jinja parsing error: %s",
+                filename,
                 str(e),
             )
             return
