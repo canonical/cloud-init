@@ -144,7 +144,7 @@ class ProcessExecutionError(IOError):
 
 
 def subp(
-    args,
+    args: Union[str, bytes, List[str], List[bytes]],
     *,
     data=None,
     rcs=None,
@@ -276,6 +276,7 @@ def subp(
             stderr="-" if decode else b"-",
         ) from e
     if decode:
+
         def ldecode(data, m="utf-8"):
             return data.decode(m, decode) if isinstance(data, bytes) else data
 
