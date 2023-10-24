@@ -440,6 +440,23 @@ network:
 
 NETPLAN_BOND_GRAT_ARP = """
 network:
+    version: 2
+    ethernets:
+        ens3:
+            dhcp4: false
+            dhcp6: false
+            match:
+                macaddress: 52:54:00:ab:cd:ef
+        ens4:
+            dhcp4: false
+            dhcp6: false
+            match:
+                macaddress: 52:54:00:11:22:ff
+        ens5:
+            dhcp4: false
+            dhcp6: false
+            match:
+                macaddress: 52:54:00:99:11:99
     bonds:
         bond0:
             interfaces:
@@ -460,23 +477,6 @@ network:
             - ens5
             macaddress: 68:05:ca:64:d3:6e
             mtu: 9000
-    ethernets:
-        ens3:
-            dhcp4: false
-            dhcp6: false
-            match:
-                macaddress: 52:54:00:ab:cd:ef
-        ens4:
-            dhcp4: false
-            dhcp6: false
-            match:
-                macaddress: 52:54:00:11:22:ff
-        ens5:
-            dhcp4: false
-            dhcp6: false
-            match:
-                macaddress: 52:54:00:99:11:99
-    version: 2
 """
 
 NETPLAN_DHCP_FALSE = """
@@ -2126,11 +2126,11 @@ NETWORK_CONFIGS = {
         "expected_netplan": textwrap.dedent(
             """
             network:
+                version: 2
                 ethernets:
                     iface0:
                         dhcp4: true
                         wakeonlan: false
-                version: 2
         """
         ),
         "expected_sysconfig_opensuse": {
@@ -2201,11 +2201,11 @@ NETWORK_CONFIGS = {
         "expected_netplan": textwrap.dedent(
             """
             network:
+                version: 2
                 ethernets:
                     iface0:
                         dhcp4: true
                         wakeonlan: true
-                version: 2
         """
         ),
         "expected_sysconfig_opensuse": {
@@ -3316,6 +3316,17 @@ iface bond0 inet6 static
         "expected_netplan-v2": textwrap.dedent(
             """
          network:
+             version: 2
+             ethernets:
+                 eth0:
+                     match:
+                         driver: virtio_net
+                         macaddress: aa:bb:cc:dd:e8:00
+                 vf0:
+                     match:
+                         driver: e1000
+                         macaddress: aa:bb:cc:dd:e8:01
+                     set-name: vf0
              bonds:
                  bond0:
                      addresses:
@@ -3344,17 +3355,6 @@ iface bond0 inet6 static
                      -   metric: 10000
                          to: 3001:67c:15:8007::1/64
                          via: 3001:67c:15:8007::aac:40b2
-             ethernets:
-                 eth0:
-                     match:
-                         driver: virtio_net
-                         macaddress: aa:bb:cc:dd:e8:00
-                 vf0:
-                     match:
-                         driver: e1000
-                         macaddress: aa:bb:cc:dd:e8:01
-                     set-name: vf0
-             version: 2
         """
         ),
         "expected_sysconfig_opensuse": {

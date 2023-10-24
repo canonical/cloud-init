@@ -240,6 +240,7 @@ V2_TO_V2_NET_CFG_OUTPUT = """\
 # /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
 # network: {config: disabled}
 network:
+    version: 2
     ethernets:
         eth7:
             addresses:
@@ -247,7 +248,6 @@ network:
             gateway4: 192.168.1.254
         eth9:
             dhcp4: true
-    version: 2
 """
 
 
@@ -270,6 +270,7 @@ V2_PASSTHROUGH_NET_CFG_OUTPUT = """\
 # /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
 # network: {config: disabled}
 network:
+    version: 2
     ethernets:
         eth7:
             addresses:
@@ -279,7 +280,6 @@ network:
             -   metric: 100
                 to: default
                 via: 10.0.4.1
-    version: 2
 """
 
 
