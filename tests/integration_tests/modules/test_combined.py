@@ -264,6 +264,7 @@ class TestCombined:
                 "gce": "DataSourceGCELocal",
                 "oci": "DataSourceOracle",
                 "openstack": "DataSourceOpenStackLocal [net,ver=2]",
+                "qemu": "DataSourceNoCloud [seed=/dev/vda][dsmode=net]",
             }
             assert (
                 platform_datasources[client.settings.PLATFORM]
