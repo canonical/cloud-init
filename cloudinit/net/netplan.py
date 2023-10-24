@@ -45,6 +45,18 @@ def _get_params_dict_by_match(config, match):
     )
 
 
+# workaround yaml dictionary key sorting when dumping
+def _render_section(name, section):
+    if section:
+        dump = safeyaml.dumps({name: section},
+                              explicit_start=False,
+                              explicit_end=False,
+                              noalias=True)
+        txt = textwrap.indent(dump, " " * 4)
+        return [txt]
+    return []
+
+
 def _extract_addresses(config: dict, entry: dict, ifname, features=None):
     """This method parse a cloudinit.net.network_state dictionary (config) and
        maps netstate keys/values into a dictionary (entry) to represent
@@ -352,16 +364,27 @@ class Renderer(renderer.Renderer):
                 "successfully for all devices."
             ) from last_exception
 
+    def _render_passthrough(self, config):
+        """ Render netplan content as passthrough but ensure that
+            'ethernets' is the first key in the final netplan content. netplan
+            parser will fail if bond, bridges, vlans reference links which have
+            not be parsed.
+        """
+        content = []
+        content.append("network:\n    version: 2\n")
+        to_render = ['ethernets'] + [
+            sec for sec in config.keys()
+            if sec not in ["ethernets", "version"]]
+        for section in to_render:
+            content += _render_section(section, config[section])
+        return "".join(content)
+
     def _render_content(self, network_state: NetworkState) -> str:
 
         # if content already in netplan format, pass it back
         if network_state.version == 2:
             LOG.debug("V2 to V2 passthrough")
-            return safeyaml.dumps(
-                {"network": network_state.config},
-                explicit_start=False,
-                explicit_end=False,
-            )
+            return self._render_passthrough(network_state.config)
 
         ethernets = {}
         wifis: dict = {}
