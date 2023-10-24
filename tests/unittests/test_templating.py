@@ -176,7 +176,7 @@ class TestTemplates(test_helpers.CiTestCase):
             "{% for i in input % } {% do r.append(i) %} {% endfor %} {{r}}"
         )
         self.assertRaises(
-            templater.CustomParsedJinjaException,
+            templater.JinjaSyntaxParsingException,
             templater.render_string,
             self.add_header("jinja", jinja_template),
             {},

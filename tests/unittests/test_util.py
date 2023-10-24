@@ -500,8 +500,8 @@ class TestUtil:
         [
             '{"a": "{{c} } }"',
             '{"a": "{{c} } "',
-            '{% if c %} C is present {% else % } C is NOT present {% endif %}',
-        ]
+            "{% if c %} C is present {% else % } C is NOT present {% endif %}",
+        ],
     )
     @skipUnlessJinja()
     def test_read_conf_with_config_invalid_jinja_syntax(
@@ -510,7 +510,7 @@ class TestUtil:
         mocker.patch("os.path.exists", return_value=True)
         mocker.patch(
             "cloudinit.util.load_file",
-            return_value='## template: jinja\n' + template,
+            return_value="## template: jinja\n" + template,
         )
         mocker.patch(
             "cloudinit.handlers.jinja_template.load_file",
