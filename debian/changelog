@@ -1,3 +1,11 @@
+cloud-init (23.3.3-0ubuntu0~23.10.1) UNRELEASED; urgency=medium
+
+  * Upstream snapshot based on 23.3.3. (LP: #2040291).
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/23.3.3/ChangeLog
+
+ -- James Falcon <james.falcon@canonical.com>  Tue, 24 Oct 2023 10:42:09 -0500
+
 cloud-init (23.3.2-0ubuntu0~23.10.1) mantic; urgency=medium
 
   [ Brett Holman ]
