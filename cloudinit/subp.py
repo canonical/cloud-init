@@ -153,7 +153,6 @@ def subp(
     shell=False,
     logstring=False,
     decode="replace",
-    target=None,
     update_env=None,
     cwd=None,
 ) -> SubpResult:
@@ -178,9 +177,6 @@ def subp(
         be bytes.  Other allowed values are 'strict', 'ignore', and 'replace'.
         These values are passed through to bytes().decode() as the 'errors'
         parameter.  There is no support for decoding to other than utf-8.
-    :param target:
-        not supported, kwarg present only to make function signature similar
-        to curtin's subp.
     :param update_env:
         update the enviornment for this command with this dictionary.
         this will not affect the current processes os.environ.
@@ -196,11 +192,6 @@ def subp(
                 entries in tuple will be bytes
     """
 
-    # not supported in cloud-init (yet), for now kept in the call signature
-    # to ease maintaining code shared between cloud-init and curtin
-    if target is not None:
-        raise ValueError("target arg not supported by cloud-init")
-
     if rcs is None:
         rcs = [0]
 
@@ -209,9 +200,6 @@ def subp(
             env = os.environ
         env = env.copy()
         env.update(update_env)
-
-    if target_path(target) != "/":
-        args = ["chroot", target] + list(args)
 
     if not logstring:
         LOG.debug(
