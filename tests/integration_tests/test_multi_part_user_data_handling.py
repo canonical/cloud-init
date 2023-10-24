@@ -7,6 +7,7 @@ import pytest
 
 from cloudinit.cmd.devel.make_mime import create_mime_message
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
 
 PER_FREQ_TEMPLATE = """\
 #!/bin/bash
@@ -64,6 +65,9 @@ CLOUD_CONFIG_FILES = [
 MIME_WITH_ERRORS = create_mime_message(CLOUD_CONFIG_FILES)[0].as_string()
 
 
+@pytest.mark.skipif(
+    PLATFORM == "qemu", reason="QEMU only supports #cloud-config userdata"
+)
 @pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
 def test_per_freq(client: IntegrationInstance):
@@ -119,6 +123,9 @@ hostname: \d+		# E2
 # E2: \d+ is not of type 'string'"""
 
 
+@pytest.mark.skipif(
+    PLATFORM == "qemu", reason="QEMU only supports #cloud-config userdata"
+)
 @pytest.mark.ci
 @pytest.mark.user_data(MIME_WITH_ERRORS)
 def test_mime_with_error_parts(client: IntegrationInstance):
