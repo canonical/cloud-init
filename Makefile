@@ -131,6 +131,7 @@ _CHECK_SPELLING := find doc -type f -exec spellintian {} + | \
                -e 'doc/examples/cloud-config-power-state.txt: Bye Bye' \
                -e 'doc/examples/cloud-config.txt: Bye Bye' \
                -e 'doc/rtd/topics/cli.rst: DOCS DOCS' \
+               -e 'doc/summit/2023_summit_shared_notes.md: Moustafa Moustafa' \
                -e 'dependant'
 
 
