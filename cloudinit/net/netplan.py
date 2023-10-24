@@ -372,7 +372,7 @@ class Renderer(renderer.Renderer):
         """
         content = []
         content.append("network:\n    version: 2\n")
-        to_render = ['ethernets'] + [
+        to_render = ["ethernets"] + [
             sec for sec in config.keys()
             if sec not in ["ethernets", "version"]]
         for section in to_render:
