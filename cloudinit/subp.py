@@ -156,7 +156,6 @@ def subp(
     decode="replace",
     target=None,
     update_env=None,
-    status_cb=None,
     cwd=None,
 ):
     """Run a subprocess.
@@ -192,9 +191,6 @@ def subp(
     :param update_env:
         update the enviornment for this command with this dictionary.
         this will not affect the current processes os.environ.
-    :param status_cb:
-        call this fuction with a single string argument before starting
-        and after finishing.
     :param cwd:
         change the working directory to cwd before executing the command.
 
@@ -226,9 +222,6 @@ def subp(
     if target_path(target) != "/":
         args = ["chroot", target] + list(args)
 
-    if status_cb:
-        command = " ".join(args) if isinstance(args, list) else args
-        status_cb("Begin run command: {command}\n".format(command=command))
     if not logstring:
         LOG.debug(
             "Running command %s with allowed return codes %s"
@@ -288,8 +281,6 @@ def subp(
         )
         (out, err) = sp.communicate(data)
     except OSError as e:
-        if status_cb:
-            status_cb("ERROR: End run command: invalid command provided\n")
         raise ProcessExecutionError(
             cmd=args,
             reason=e,
@@ -317,13 +308,9 @@ def subp(
 
     rc = sp.returncode
     if rc not in rcs:
-        if status_cb:
-            status_cb("ERROR: End run command: exit({code})\n".format(code=rc))
         raise ProcessExecutionError(
             stdout=out, stderr=err, exit_code=rc, cmd=args
         )
-    if status_cb:
-        status_cb("End run command: exit({code})\n".format(code=rc))
     return SubpResult(out, err)
 
 
