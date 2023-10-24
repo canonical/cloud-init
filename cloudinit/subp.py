@@ -150,7 +150,6 @@ def subp(
     rcs=None,
     env=None,
     capture=True,
-    combine_capture=False,
     shell=False,
     logstring=False,
     decode="replace",
@@ -170,12 +169,6 @@ def subp(
     :param capture:
         boolean indicating if output should be captured.  If True, then stderr
         and stdout will be returned.  If False, they will not be redirected.
-    :param combine_capture:
-        boolean indicating if stderr should be redirected to stdout. When True,
-        interleaved stderr and stdout will be returned as the first element of
-        a tuple, the second will be empty string or bytes (per decode).
-        if combine_capture is True, then output is captured independent of
-        the value of capture.
     :param shell: boolean indicating if this should be run with a shell.
     :param logstring:
         the command will be logged to DEBUG.  If it contains info that should
@@ -229,7 +222,7 @@ def subp(
             args,
             rcs,
             shell,
-            "combine" if combine_capture else capture,
+            capture,
         )
     else:
         LOG.debug(
@@ -244,9 +237,6 @@ def subp(
     if capture:
         stdout = subprocess.PIPE
         stderr = subprocess.PIPE
-    if combine_capture:
-        stdout = subprocess.PIPE
-        stderr = subprocess.STDOUT
     if data is None:
         # using devnull assures any reads get null, rather
         # than possibly waiting on input.
@@ -279,7 +269,7 @@ def subp(
             shell=shell,
             cwd=cwd,
         )
-        (out, err) = sp.communicate(data)
+        out, err = sp.communicate(data)
     except OSError as e:
         raise ProcessExecutionError(
             cmd=args,
@@ -291,15 +281,7 @@ def subp(
     finally:
         if devnull_fp:
             devnull_fp.close()
-
-    # Just ensure blank instead of none.
-    if capture or combine_capture:
-        if not out:
-            out = b""
-        if not err:
-            err = b""
     if decode:
-
         def ldecode(data, m="utf-8"):
             return data.decode(m, decode) if isinstance(data, bytes) else data
 

@@ -6,7 +6,6 @@
 
 import logging
 import os
-import sys
 from textwrap import dedent
 
 from cloudinit import subp, util
