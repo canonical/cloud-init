@@ -48,10 +48,12 @@ def _get_params_dict_by_match(config, match):
 # workaround yaml dictionary key sorting when dumping
 def _render_section(name, section):
     if section:
-        dump = safeyaml.dumps({name: section},
-                              explicit_start=False,
-                              explicit_end=False,
-                              noalias=True)
+        dump = safeyaml.dumps(
+            {name: section},
+            explicit_start=False,
+            explicit_end=False,
+            noalias=True,
+        )
         txt = textwrap.indent(dump, " " * 4)
         return [txt]
     return []
@@ -365,16 +367,16 @@ class Renderer(renderer.Renderer):
             ) from last_exception
 
     def _render_passthrough(self, config):
-        """ Render netplan content as passthrough but ensure that
-            'ethernets' is the first key in the final netplan content. netplan
-            parser will fail if bond, bridges, vlans reference links which have
-            not be parsed.
+        """Render netplan content as passthrough but ensure that
+        'ethernets' is the first key in the final netplan content. netplan
+        parser will fail if bond, bridges, vlans reference links which have
+        not be parsed.
         """
         content = []
         content.append("network:\n    version: 2\n")
         to_render = ["ethernets"] + [
-            sec for sec in config.keys()
-            if sec not in ["ethernets", "version"]]
+            sec for sec in config.keys() if sec not in ["ethernets", "version"]
+        ]
         for section in to_render:
             content += _render_section(section, config[section])
         return "".join(content)
