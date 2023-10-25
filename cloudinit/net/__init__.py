@@ -984,6 +984,15 @@ def get_interfaces_by_mac_on_linux() -> dict:
                 )
                 continue
 
+            if name.startswith("cali") and mac == "ee:ee:ee:ee:ee:ee":
+                LOG.debug(
+                    "Ignoring duplicate macs from '%s' and '%s' due to "
+                    "calico network.",
+                    name,
+                    ret[mac],
+                )
+                continue
+
             msg = "duplicate mac found! both '%s' and '%s' have mac '%s'." % (
                 name,
                 ret[mac],
