@@ -6,7 +6,7 @@ from unittest import mock
 import pytest
 import yaml
 
-from cloudinit import url_helper
+from cloudinit import helpers, settings, url_helper
 from cloudinit.sources import DataSourceMAAS
 from tests.unittests.helpers import populate_dir
 
@@ -156,6 +156,70 @@ class TestMAASDataSource:
 
         assert valid["meta-data/instance-id"] == md["instance-id"]
         assert expected_vd == vd
+
+    @pytest.mark.parametrize(
+        "initramfs_file, cmdline_value, expected",
+        (
+            pytest.param(
+                None,
+                "no net in cmdline",
+                False,
+                id="no_maas_local_when_missing_run_files_and_cmdline",
+            ),
+            pytest.param(
+                "some initramfs cfg",
+                "no net in cmdline",
+                False,
+                id="no_maas_local_when_run_files_and_no_cmdline",
+            ),
+            pytest.param(
+                "some initframfs cfg",
+                "ip=dhcp cmdline config",
+                True,
+                id="maas_local_when_run_and_ip_cmdline_present",
+            ),
+        ),
+    )
+    @pytest.mark.usefixtures("fake_filesystem")
+    @mock.patch("cloudinit.util.get_cmdline")
+    def tests_wb_local_stage_detects_datasource_on_initramfs_network(
+        self, cmdline, initramfs_file, cmdline_value, expected, tmpdir
+    ):
+        """Only detect local MAAS datasource net config is seen in initframfs
+
+        MAAS Ephemeral launches provide initramfs network configuration to the
+        instance being launched. Assert that MAASDataSourceLocal can only be
+        discovered and detected when initramfs net config is applicable.
+
+        The datasource needs to also prioritize the network config on disk
+        before initramfs configuration. Because the ephemeral instance
+        launches provide a custom cloud-config-url that will provide
+        network configuration to the VM which is more complete than the
+        initramfs config.
+        """
+        cmdline.return_value = cmdline_value
+        ds = DataSourceMAAS.DataSourceMAASLocal(
+            settings.CFG_BUILTIN, None, helpers.Paths({"cloud_dir": tmpdir})
+        )
+        tmpdir.mkdir("run")
+
+        # Create valid maas seed dir so parent DataSourceMAAS.get_data succeeds
+        tmpdir.mkdir("seed")
+        seed_dir = tmpdir.join("seed/maas")
+        seed_dir.mkdir()
+        userdata = b"valid01-userdata"
+        data = {
+            "meta-data/instance-id": "i-valid01",
+            "meta-data/local-hostname": "valid01-hostname",
+            "user-data": userdata,
+            "public-keys": "ssh-rsa AAAAB3Nz...aC1yc2E= keyname",
+        }
+        populate_dir(seed_dir.strpath, data)
+
+        if initramfs_file:
+            klibc_net_cfg = tmpdir.join("run/net-eno.conf")
+            klibc_net_cfg.write(initramfs_file)
+        assert expected == ds.get_data()
 
 
 @mock.patch("cloudinit.sources.DataSourceMAAS.url_helper.OauthUrlHelper")
