@@ -16,32 +16,40 @@ STATUS_DETAILS_DONE = status.StatusDetails(
     status.UXAppBootStatusCode.UNKNOWN,
     "DataSourceNoCloud somedetail",
     [],
+    {},
     "",
     "nocloud",
+    {},
 )
 STATUS_DETAILS_DISABLED = status.StatusDetails(
     status.UXAppStatus.DISABLED,
     status.UXAppBootStatusCode.DISABLED_BY_GENERATOR,
     "DataSourceNoCloud somedetail",
     [],
+    {},
     "",
     "",
+    {},
 )
 STATUS_DETAILS_NOT_RUN = status.StatusDetails(
     status.UXAppStatus.NOT_RUN,
     status.UXAppBootStatusCode.UNKNOWN,
     "",
     [],
+    {},
     "",
     "",
+    {},
 )
 STATUS_DETAILS_RUNNING = status.StatusDetails(
     status.UXAppStatus.RUNNING,
     status.UXAppBootStatusCode.UNKNOWN,
     "",
     [],
+    {},
     "",
     "",
+    {},
 )
 
 
@@ -50,8 +58,10 @@ STATUS_DETAILS_RUNNING_DS_NONE = status.StatusDetails(
     status.UXAppBootStatusCode.UNKNOWN,
     "",
     [],
+    {},
     "",
     None,
+    {},
 )
 
 
