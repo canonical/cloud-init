@@ -4,7 +4,7 @@
 
 import logging
 from time import time
-from typing import Dict, Optional
+from typing import Dict, Optional, Type, Union
 
 import requests
 
@@ -45,6 +45,7 @@ class ReadUrlRetryHandler:
         self.retry_deadline = retry_deadline
         self._logging_threshold = 1.0
         self._request_count = 0
+        self._last_error: Union[None, Type, int] = None
 
     def exception_callback(self, req_args, exception) -> bool:
         self._request_count += 1
@@ -79,6 +80,23 @@ class ReadUrlRetryHandler:
             self._logging_threshold *= self.logging_backoff
         else:
             log = False
+
+        # Always log if error does not match previous.
+        if exception.code is not None:
+            # This is an HTTP response with failing code, log if different.
+            if self._last_error != exception.code:
+                log = True
+                self._last_error = exception.code
+        elif (
+            # No previous error to match against.
+            self._last_error is None
+            # Previous error is exception code (int).
+            or not isinstance(self._last_error, type)
+            # Previous error is different class.
+            or not isinstance(exception.cause, self._last_error)
+        ):
+            log = True
+            self._last_error = type(exception.cause)
 
         if log or not retry:
             report_diagnostic_event(
