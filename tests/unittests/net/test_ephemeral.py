@@ -4,6 +4,8 @@ from unittest import mock
 
 import pytest
 
+from contextlib import nullcontext
+from cloudinit.subp import ProcessExecutionError
 from cloudinit.net.ephemeral import EphemeralIPNetwork
 from tests.unittests.util import MockDistro
 
@@ -51,3 +53,33 @@ class TestEphemeralIPNetwork:
             expected_call_args_list
             == m_exit_stack.return_value.enter_context.call_args_list
         )
+
+    @mock.patch(
+        "cloudinit.net.read_sys_net",
+    )
+    @mock.patch(
+        "cloudinit.net.netops.iproute2.subp",
+    )
+    @pytest.mark.parametrize(
+        "m_v4, m_v6, m_context, m_side_effects", [
+             (False, True, nullcontext(), [None, None]),
+             (True, False, nullcontext(), [None, None]),
+             (True, True, nullcontext(), [ProcessExecutionError, None]),
+             (True, True, nullcontext(), [None, ProcessExecutionError]),
+             (
+                 True, True, pytest.raises(ProcessExecutionError), [
+                     ProcessExecutionError, ProcessExecutionError
+                 ]
+             ),
+        ]
+    )
+    def test_interface_init_failures(
+            self, m_subp, m_link_up, m_v4, m_v6, m_context, m_side_effects
+    ):
+        distro = MockDistro()
+        m_link_up.side_effect = m_side_effects
+        with m_context:
+            with EphemeralIPNetwork(
+                    distro, "eth0", ipv4=m_v4, ipv6=m_v4
+            ):
+                pass

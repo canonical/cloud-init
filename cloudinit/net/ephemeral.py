@@ -8,7 +8,7 @@ from functools import partial
 from typing import Any, Callable, Dict, List, Optional
 
 import cloudinit.net as net
-from cloudinit import subp
+from cloudinit.subp import ProcessExecutionError
 from cloudinit.net.dhcp import (
     IscDhclient,
     NoDHCPLeaseError,
@@ -106,7 +106,7 @@ class EphemeralIPv4Network:
                 self._bringup_static_routes()
             elif self.router:
                 self._bringup_router()
-        except subp.ProcessExecutionError:
+        except ProcessExecutionError:
             self.__exit__(None, None, None)
             raise
 
@@ -126,7 +126,7 @@ class EphemeralIPv4Network:
         )
         try:
             self.distro.net_ops.add_addr(self.interface, cidr, self.broadcast)
-        except subp.ProcessExecutionError as e:
+        except ProcessExecutionError as e:
             if "File exists" not in str(e.stderr):
                 raise
             LOG.debug(
@@ -383,8 +383,8 @@ class EphemeralIPNetwork:
                         )
                     )
                     ephemeral_obtained = True
-                except subp.ProcessExecutionError as e:
-                    LOG.info("Failed to bring up EphemeralIPv4Network.")
+                except (ProcessExecutionError, NoDHCPLeaseError) as e:
+                    LOG.info(f"Failed to bring up {self} for ipv4.")
                     exceptions.append(e)
 
             if self.ipv6:
@@ -396,8 +396,8 @@ class EphemeralIPNetwork:
                         )
                     )
                     ephemeral_obtained = True
-                except subp.ProcessExecutionError as e:
-                    LOG.info("Failed to bring up EphemeralIPv6Network.")
+                except ProcessExecutionError as e:
+                    LOG.info(f"Failed to bring up {self} for ipv6.")
                     exceptions.append(e)
 
             if not ephemeral_obtained:
