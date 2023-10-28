@@ -85,7 +85,8 @@ def render_tmpl(template, mode=None):
     subprocess.run(
         [
             sys.executable,
-            "./tools/render-cloudcfg",
+            "./tools/render-template",
+            "--no-yaml",
         ]
         + cmd_prefix
         + cmd_variant

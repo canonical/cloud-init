@@ -161,11 +161,16 @@ def render_string(content, params):
 
 
 def render_cloudcfg(variant, template, output, prefix=None):
+    render_template(variant, template, output, False, prefix)
+
+
+def render_template(variant, template, output, no_yaml, prefix=None):
     with open(template, "r") as fh:
         contents = fh.read()
     tpl_params = {"variant": variant, "prefix": prefix}
     contents = (render_string(contents, tpl_params)).rstrip() + "\n"
-    util.load_yaml(contents)
+    if not no_yaml:
+        util.load_yaml(contents)
     if output == "-":
         sys.stdout.write(contents)
     else:

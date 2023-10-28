@@ -1,4 +1,4 @@
-"""Tests for tools/render-cloudcfg"""
+"""Tests for tools/render-template"""
 
 import sys
 
@@ -7,7 +7,7 @@ import pytest
 from cloudinit import subp, templater, util
 from tests.unittests.helpers import cloud_init_project_dir
 
-# TODO(Look to align with tools.render-cloudcfg or cloudinit.distos.OSFAMILIES)
+# TODO(Look to align with tools.render-template or cloudinit.distos.OSFAMILIES)
 DISTRO_VARIANTS = [
     "amazon",
     "arch",
@@ -30,7 +30,7 @@ DISTRO_VARIANTS = [
 
 @pytest.mark.allow_subp_for(sys.executable)
 class TestRenderCloudCfg:
-    cmd = [sys.executable, cloud_init_project_dir("tools/render-cloudcfg")]
+    cmd = [sys.executable, cloud_init_project_dir("tools/render-template")]
     tmpl_path = cloud_init_project_dir("config/cloud.cfg.tmpl")
     init_path = cloud_init_project_dir("sysvinit/freebsd/dsidentify.tmpl")
 
