@@ -6,7 +6,7 @@ cloud-init: Summit 2019
    This article was written by Joshua Powers and `originally published`_ on 21
    October 2019. It is shared here `under license`_ with no changes.
 
-.. image:: 2019_market.jpg
+.. image:: https://assets.ubuntu.com/v1/e0319f90-2019_market.jpg
    :alt: Seattle market
    :align: center
 
@@ -58,7 +58,7 @@ During the summit, we took time to have merge review and bug squashing time.
 During this time, attendees came with outstanding bugs to discuss possible
 fixes as well as go through outstanding merge requests and get live reviews.
 
-.. image:: 2019_amazon.jpg
+.. image:: https://assets.ubuntu.com/v1/d774b249-2019_amazon.jpg
    :alt: Another talk
    :align: center
 
