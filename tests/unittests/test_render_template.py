@@ -67,7 +67,9 @@ class TestRenderCloudCfg:
         """
         outfile = tmpdir.join("outcfg").strpath
 
-        templater.render_cloudcfg(variant, self.tmpl_path, outfile)
+        templater.render_template(
+            variant, self.tmpl_path, outfile, is_yaml=True
+        )
         with open(outfile) as stream:
             system_cfg = util.load_yaml(stream.read())
         if variant == "unknown":
@@ -80,7 +82,9 @@ class TestRenderCloudCfg:
         call versus calling as subp
         """
         outfile = tmpdir.join("outcfg").strpath
-        templater.render_cloudcfg(variant, self.tmpl_path, outfile)
+        templater.render_template(
+            variant, self.tmpl_path, outfile, is_yaml=True
+        )
         with open(outfile) as stream:
             system_cfg = util.load_yaml(stream.read())
 
@@ -109,7 +113,9 @@ class TestRenderCloudCfg:
         call versus calling as subp
         """
         outfile = tmpdir.join("outcfg").strpath
-        templater.render_cloudcfg(variant, self.tmpl_path, outfile)
+        templater.render_template(
+            variant, self.tmpl_path, outfile, is_yaml=True
+        )
         with open(outfile) as stream:
             system_cfg = util.load_yaml(stream.read())
 

@@ -56,10 +56,13 @@ def main():
         help="define the prefix. Default: " + sys.prefix,
     )
     parser.add_argument(
-        "--no-yaml",
+        "--is-yaml",
         action="store_true",
         default=False,
-        help="render template, not yaml",
+        help=(
+            "Rendered template is not expected to be valid yaml by default."
+            " Add this flag for extra validation."
+        ),
     )
     parser.add_argument(
         "template",
@@ -78,7 +81,7 @@ def main():
 
     args = parser.parse_args(sys.argv[1:])
     templater.render_template(
-        args.variant, args.template, args.output, args.no_yaml, prefix=args.prefix
+        args.variant, args.template, args.output, args.is_yaml, prefix=args.prefix
     )
 
 
