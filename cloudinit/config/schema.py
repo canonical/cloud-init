@@ -1491,6 +1491,19 @@ def handle_schema_args(name, args):
                 sys_exit=True,
             )
             return  # Helps typing
+
+        # Prefer raw user-data.txt when processed cloud-config is empty and
+        # raw user-data.txt is not because processed cloud-config.txt will
+        # not be written in cases where user-data header is not supported.
+        try:
+            if os.stat(userdata_file).st_size == 0:
+                raw_userdata_file = paths.get_ipath("userdata_raw")
+                if os.stat(raw_userdata_file).st_size:
+                    userdata_file = raw_userdata_file
+        except FileNotFoundError:
+            # Error handling on absent userdata_file below
+            pass
+
         config_files = (("user-data", userdata_file),)
         supplemental_config_files = (
             ("vendor-data", paths.get_ipath("vendor_cloud_config")),
