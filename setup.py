@@ -91,7 +91,7 @@ def render_tmpl(template, mode=None, is_yaml=False):
             *cmd_variant,
             *[template, fpath],
         ],
-        check=True
+        check=True,
     )
     if mode:
         os.chmod(fpath, mode)
