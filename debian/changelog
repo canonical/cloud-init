@@ -1,12 +1,13 @@
 cloud-init (23.4~2g74e3e76b-0ubuntu1) UNRELEASED; urgency=medium
 
+  * d/p/status-do-not-remove-duplicated-data.patch:
+    - Revert behavior downstream, leave duplicate data
   * d/p/do-not-block-user-login.patch:
     - Revert behavior, allow user login after cloud-init stage (LP: #2039505)
   * d/control: add python3-apt as Recommends to read APT config from apt_pkg
-  * Upstream snapshot based on main at 14b76c44.
+  * Upstream snapshot based on upstream/main at 74e3e76b.
     - Bugs fixed in this snapshot: (LP: #2034273, #2030729)
       (LP: #2038945, #2039453)
-  * Upstream snapshot based on upstream/main at 74e3e76b.
 
  -- Brett Holman <brett.holman@canonical.com>  Tue, 31 Oct 2023 16:34:02 -0600
 
