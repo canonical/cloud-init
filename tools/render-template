@@ -56,6 +56,15 @@ def main():
         help="define the prefix. Default: " + sys.prefix,
     )
     parser.add_argument(
+        "--is-yaml",
+        action="store_true",
+        default=False,
+        help=(
+            "Rendered template is not expected to be valid yaml by default."
+            " Add this flag for extra validation."
+        ),
+    )
+    parser.add_argument(
         "template",
         nargs="?",
         action="store",
@@ -71,8 +80,8 @@ def main():
     )
 
     args = parser.parse_args(sys.argv[1:])
-    templater.render_cloudcfg(
-        args.variant, args.template, args.output, prefix=args.prefix
+    templater.render_template(
+        args.variant, args.template, args.output, args.is_yaml, prefix=args.prefix
     )
 
 

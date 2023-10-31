@@ -30,7 +30,7 @@ unittest: clean_pyc
 	$(PYTHON) -m pytest -v tests/unittests cloudinit
 
 render-template:
-	$(PYTHON) ./tools/render-cloudcfg --variant=$(VARIANT) $(FILE) $(subst .tmpl,,$(FILE))
+	$(PYTHON) ./tools/render-template --variant=$(VARIANT) $(FILE) $(subst .tmpl,,$(FILE))
 
 # from systemd-generator(7) regarding generators:
 # "We do recommend C code however, since generators are executed
@@ -64,7 +64,7 @@ check_version:
 	else true; fi
 
 config/cloud.cfg:
-	$(PYTHON) ./tools/render-cloudcfg config/cloud.cfg.tmpl config/cloud.cfg
+	$(PYTHON) ./tools/render-template --is-yaml config/cloud.cfg.tmpl config/cloud.cfg
 
 clean_pyc:
 	@find . -type f -name "*.pyc" -delete
