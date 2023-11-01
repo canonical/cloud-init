@@ -4401,13 +4401,17 @@ class TestGetMetadataFromImds:
         azure_ds._route_configured_for_imds = route_configured_for_imds
         mock_imds_fetch_metadata_with_api_fallback.side_effect = exception
         mock_time.return_value = 0.0
+        max_connection_errors = None if route_configured_for_imds else 11
 
         assert (
             azure_ds.get_metadata_from_imds(report_failure=report_failure)
             == {}
         )
         assert mock_imds_fetch_metadata_with_api_fallback.mock_calls == [
-            mock.call(retry_deadline=mock.ANY)
+            mock.call(
+                max_connection_errors=max_connection_errors,
+                retry_deadline=mock.ANY,
+            )
         ]
 
         expected_duration = 300
@@ -4425,11 +4429,11 @@ class TestGetMetadataFromImds:
             mock.call(reported_error)
         ]
 
-        if report_failure and (
-            route_configured_for_imds
-            or not isinstance(exception, url_helper.UrlError)
-            or not isinstance(exception.cause, requests.ConnectionError)
-        ):
+        connection_error = isinstance(
+            exception, url_helper.UrlError
+        ) and isinstance(exception.cause, requests.ConnectionError)
+        report_skipped = not route_configured_for_imds and connection_error
+        if report_failure and not report_skipped:
             assert mock_azure_report_failure_to_fabric.mock_calls == [
                 mock.call(endpoint=mock.ANY, error=reported_error)
             ]
