@@ -16,3 +16,13 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  Wants=network-online.target cloud-config.target
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
+--- a/systemd/cloud-init.service.tmpl
++++ b/systemd/cloud-init.service.tmpl
+@@ -38,6 +38,7 @@ Conflicts=shutdown.target
+ Before=shutdown.target
+ Conflicts=shutdown.target
+ {% endif %}
++Before=systemd-user-sessions.service
+ ConditionPathExists=!/etc/cloud/cloud-init.disabled
+ ConditionKernelCommandLine=!cloud-init=disabled
+ ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
