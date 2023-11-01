@@ -769,11 +769,19 @@ class DataSourceAzure(sources.DataSource):
         start_time = time()
         retry_deadline = start_time + 300
 
+        # As a temporary workaround to support Azure Stack implementations
+        # which may not enable IMDS, limit connection errors to 11.
+        if not self._route_configured_for_imds:
+            max_connection_errors = 11
+        else:
+            max_connection_errors = None
+
         error_string: Optional[str] = None
         error_report: Optional[errors.ReportableError] = None
         try:
             return imds.fetch_metadata_with_api_fallback(
-                retry_deadline=retry_deadline
+                max_connection_errors=max_connection_errors,
+                retry_deadline=retry_deadline,
             )
         except UrlError as error:
             error_string = str(error)
