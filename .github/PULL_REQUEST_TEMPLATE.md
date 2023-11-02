@@ -30,3 +30,7 @@ that apply. -->
 - [ ] My code follows the process laid out in [the documentation](https://cloudinit.readthedocs.io/en/latest/development/index.html)
 - [ ] I have updated or added any [unit tests](https://cloudinit.readthedocs.io/en/latest/development/testing.html) accordingly
 - [ ] I have updated or added any [documentation](https://cloudinit.readthedocs.io/en/latest/development/contribute_docs.html) accordingly
+
+## Merge type
+- [x] Squash merge using "Proposed Commit Message"
+- [ ] Rebase and merge unique commits. Requires commit messages per-commit each referencing the pull request number (#<PR_NUM>)
