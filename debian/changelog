@@ -1,5 +1,7 @@
-cloud-init (23.4~1g74e3e76b-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (23.3-0ubuntu0~23.10.1) UNRELEASED; urgency=medium
 
+  * d/p/status-do-not-remove-duplicated-data.patch:
+    - Revert behavior downstream, leave duplicate data
   * d/p/do-not-block-user-login.patch:
     - Revert behavior, allow user login after cloud-init stage (LP: #2039505)
   * d/control: add python3-apt as Recommends to read APT config from apt_pkg
