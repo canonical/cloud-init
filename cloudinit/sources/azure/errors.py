@@ -136,7 +136,7 @@ class ReportableErrorImdsUrlError(ReportableError):
         elif isinstance(exception.cause, requests.ReadTimeout):
             reason = "read timeout querying IMDS"
         elif exception.code:
-            reason = "http error querying IMDS"
+            reason = f"http error {exception.code} querying IMDS"
         else:
             reason = "unexpected error querying IMDS"
 
