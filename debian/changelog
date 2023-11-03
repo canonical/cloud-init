@@ -1,5 +1,7 @@
 cloud-init (23.3-0ubuntu0~20.04.1) UNRELEASED; urgency=medium
 
+  * d/p/status-do-not-remove-duplicated-data.patch:
+    - Revert behavior downstream, leave duplicate data
   * d/p/do-not-block-user-login.patch:
     - Revert behavior, allow user login after cloud-init stage (LP: #2039505)
   * d/cloud-init.maintscript: Remove the unused hook-network-manager
@@ -14,7 +16,6 @@ cloud-init (23.3-0ubuntu0~20.04.1) UNRELEASED; urgency=medium
   * Upstream snapshot based on 23.3. (LP: #2033310).
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/23.3/ChangeLog
-  * Upstream snapshot based on upstream/main at 14b76c44.
   * Upstream snapshot based on origin/main at 74e3e76b.
 
  -- Brett Holman <brett.holman@canonical.com>  Fri, 03 Nov 2023 14:36:59 -0600
