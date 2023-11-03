@@ -337,7 +337,10 @@ class TestUsersGroupsSchema:
                 {"users": [{"name": "bbsw", "garbage-key": None}]},
                 pytest.raises(
                     SchemaValidationError,
-                    match="is not valid under any of the given schemas",
+                    match=(
+                        "users.0: {'name': 'bbsw', 'garbage-key': None} is"
+                        " not of type 'string'"
+                    ),
                 ),
                 True,
             ),
@@ -407,7 +410,9 @@ class TestUsersGroupsSchema:
                 {"user": ["no_list_allowed"]},
                 pytest.raises(
                     SchemaValidationError,
-                    match=re.escape("user: ['no_list_allowed'] is not valid "),
+                    match=re.escape(
+                        "user: ['no_list_allowed'] is not of type 'string'"
+                    ),
                 ),
                 True,
             ),
@@ -425,7 +430,10 @@ class TestUsersGroupsSchema:
                 },
                 pytest.raises(
                     SchemaValidationError,
-                    match="errors: users.0: {'inactive': True",
+                    match=(
+                        "errors: users.0.inactive: True is not of type"
+                        " 'string'"
+                    ),
                 ),
                 True,
             ),
@@ -491,10 +499,7 @@ class TestUsersGroupsSchema:
                 {"users": [{"name": "a", "expiredate": "2038,1,19"}]},
                 pytest.raises(
                     SchemaValidationError,
-                    match=(
-                        "users.0: {'name': 'a', 'expiredate': '2038,1,19'}"
-                        " is not valid under any of the given schemas"
-                    ),
+                    match=("users.0.expiredate: '2038,1,19' is not a 'date'"),
                 ),
                 True,
             ),

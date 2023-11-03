@@ -55,12 +55,30 @@ USER_DATA = """\
 #cloud-config
 ca-certs:
   remove_defaults: false
+  invalid_key: true
 """
 
 
 @pytest.mark.user_data(USER_DATA)
 def test_status_json_errors(client):
-    """Ensure that deprecated logs end up in the exported errors"""
-    assert json.loads(
-        client.execute("cat /run/cloud-init/status.json").stdout
-    )["v1"]["init"]["exported_errors"].get("DEPRECATED")
+    """Ensure that deprecated logs end up in the recoverable errors and that
+    machine readable status contains recoverable errors
+    """
+    status_json = client.execute("cat /run/cloud-init/status.json").stdout
+    assert json.loads(status_json)["v1"]["init"]["recoverable_errors"].get(
+        "DEPRECATED"
+    )
+
+    status_json = client.execute("cloud-init status --format json").stdout
+    assert "Deprecated cloud-config provided:\nca-certs:" in json.loads(
+        status_json
+    )["init"]["recoverable_errors"].get("DEPRECATED").pop(0)
+    assert "Deprecated cloud-config provided:\nca-certs:" in json.loads(
+        status_json
+    )["recoverable_errors"].get("DEPRECATED").pop(0)
+    assert "Invalid cloud-config provided" in json.loads(status_json)["init"][
+        "recoverable_errors"
+    ].get("WARNING").pop(0)
+    assert "Invalid cloud-config provided" in json.loads(status_json)[
+        "recoverable_errors"
+    ].get("WARNING").pop(0)

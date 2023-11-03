@@ -183,9 +183,22 @@ class TestCollectLogs:
                 subp(cmd)  # Pass through tar cmd so we can check output
             return SubpResult(expected_subp[cmd_tuple], "")
 
+        def fake_subprocess_call(cmd, stdout=None, stderr=None):
+            cmd_tuple = tuple(cmd)
+            if cmd_tuple not in expected_subp:
+                raise AssertionError(
+                    "Unexpected command provided to subprocess: {0}".format(
+                        cmd
+                    )
+                )
+            stdout.write(expected_subp[cmd_tuple])
+
         fake_stderr = mock.MagicMock()
 
         mocker.patch(M_PATH + "subp", side_effect=fake_subp)
+        mocker.patch(
+            M_PATH + "subprocess.call", side_effect=fake_subprocess_call
+        )
         mocker.patch(M_PATH + "sys.stderr", fake_stderr)
         mocker.patch(M_PATH + "CLOUDINIT_LOGS", [log1, log2])
         mocker.patch(M_PATH + "CLOUDINIT_RUN_DIR", run_dir)

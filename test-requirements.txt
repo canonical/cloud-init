@@ -1,10 +1,10 @@
 # Needed generally in tests
 
-# Await pytest > 7.3.2. Breaking change in `testpaths` treatment forced
+# Avoid breaking change in `testpaths` treatment forced
 # test/unittests/conftest.py to be loaded by our integration-tests tox env
 # resulting in an unmet dependency issue:
 # https://github.com/pytest-dev/pytest/issues/11104
-pytest<=7.3.1
+pytest!=7.3.2
 
 pytest-cov
 pytest-mock
