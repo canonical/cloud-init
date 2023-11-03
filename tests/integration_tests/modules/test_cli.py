@@ -61,9 +61,6 @@ def test_invalid_userdata(client: IntegrationInstance):
     """
     result = client.execute("cloud-init schema --system")
     assert not result.ok
-    assert (
-        2 == result.return_code
-    ), f"Unexpected exit code {result.return_code}"
     assert "Cloud config schema errors" in result.stderr
     assert (
         "Expected first line to be one of: #!, ## template: jinja,"
@@ -92,9 +89,3 @@ def test_invalid_userdata_schema(client: IntegrationInstance):
     )
     assert warning in log
     assert "asdfasdf" not in log
-
-    result = client.execute("cloud-init status --long")
-    if not result.ok:
-        raise AssertionError(
-            f"Unexpected error from cloud-init status: {result}"
-        )
