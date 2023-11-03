@@ -19,6 +19,7 @@ from pycloudlib import (
     LXDContainer,
     LXDVirtualMachine,
     Openstack,
+    Qemu,
 )
 from pycloudlib.cloud import BaseCloud, ImageType
 from pycloudlib.ec2.instance import EC2Instance
@@ -401,3 +402,11 @@ class IbmCloud(IntegrationCloud):
         return IBM(
             tag="integration-test-ibm",
         )
+
+
+class QemuCloud(IntegrationCloud):
+    datasource = "qemu"
+    cloud_instance = Qemu
+
+    def _get_cloud_instance(self):
+        return Qemu(tag="qemu-integration-test")

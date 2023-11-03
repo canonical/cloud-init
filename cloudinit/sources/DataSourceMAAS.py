@@ -12,6 +12,8 @@ import os
 import time
 
 from cloudinit import sources, url_helper, util
+from cloudinit.net.cmdline import KlibcNetworkConfigSource
+from cloudinit.sources import NetworkConfigSource
 
 LOG = logging.getLogger(__name__)
 MD_VERSION = "2012-03-01"
@@ -164,6 +166,24 @@ class DataSourceMAAS(sources.DataSource):
         return self.id_hash == get_id_from_ds_cfg(ncfg)
 
 
+class DataSourceMAASLocal(DataSourceMAAS):
+    network_config_sources = (
+        NetworkConfigSource.CMD_LINE,
+        NetworkConfigSource.SYSTEM_CFG,
+        NetworkConfigSource.DS,
+        NetworkConfigSource.INITRAMFS,
+    )
+
+    def _get_data(self):
+        if not KlibcNetworkConfigSource().is_applicable():
+            # We booted from disk. Initramfs didn't bring up a network, so
+            # nothing to do. Wait until network timeframe to run _get_data()
+            LOG.debug("No initramfs applicable config")
+            return False
+        LOG.debug("Found initramfs applicable config")
+        return super()._get_data()
+
+
 def get_oauth_helper(cfg):
     """Return an oauth helper instance for values in cfg.
 
@@ -300,6 +320,7 @@ class MAASSeedDirMalformed(Exception):
 
 # Used to match classes to dependencies
 datasources = [
+    (DataSourceMAAS, (sources.DEP_FILESYSTEM,)),
     (DataSourceMAAS, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 ]
 

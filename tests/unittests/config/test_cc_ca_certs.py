@@ -446,7 +446,7 @@ class TestCACertsSchema:
         ]
         for warning in expected_warnings:
             assert warning in caplog.text
-            assert "DEPRECAT" in caplog.text
+            assert "deprecat" in caplog.text
         assert 1 == update_ca_certs.call_count
 
     @mock.patch.object(cc_ca_certs, "update_ca_certs")

@@ -6,7 +6,7 @@ cloud-init: Summit 2018
    This article was written by Joshua Powers and `originally published`_ on 27
    August 2018. It is shared here `under license`_ with no changes.
 
-.. image:: 2018_waterfront.jpg
+.. image:: https://assets.ubuntu.com/v1/04d0b05b-2018_waterfront.jpg
    :alt: Seattle waterfront
    :align: center
 
@@ -23,7 +23,7 @@ Like last year, the even was held in Seattle, Washington. A special thanks goes
 to Microsoft for providing breakfast and lunch while hosting us and to the
 Amazon Linux and AWS teams for buying everyone dinner!
 
-.. image:: 2018_roadmap.jpg
+.. image:: https://assets.ubuntu.com/v1/78642b7c-2018_roadmap.jpg
    :alt: Roadmap talk
    :align: center
 
@@ -73,7 +73,7 @@ During the summit, we took time to have merge review and bug squashing time.
 During this time, attendees came with outstanding bugs to discuss possible
 fixes as well as go through outstanding merge requests and get live reviews.
 
-.. image:: 2018_talk.jpg
+.. image:: https://assets.ubuntu.com/v1/7d203365-2018_talk.jpg
    :alt: Another talk
    :align: center
 

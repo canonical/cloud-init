@@ -1,13 +1,13 @@
 # PyPI requirements for cloud-init integration testing
 # https://cloudinit.readthedocs.io/en/latest/topics/integration_tests.html
 #
-pycloudlib==1!5.6.0
+pycloudlib>=5.10.0,<1!6
 
-# Await pytest > 7.3.2. Breaking change in `testpaths` treatment forced
+# Avoid breaking change in `testpaths` treatment forced
 # test/unittests/conftest.py to be loaded by our integration-tests tox env
 # resulting in an unmet dependency issue:
 # https://github.com/pytest-dev/pytest/issues/11104
-pytest<=7.3.1
+pytest!=7.3.2
 
 packaging
 passlib

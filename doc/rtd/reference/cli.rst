@@ -307,6 +307,9 @@ Validate cloud-config files using jsonschema.
 * :command:`-h, --help`: Show this help message and exit.
 * :command:`-c CONFIG_FILE, --config-file CONFIG_FILE`: Path of the
   cloud-config YAML file to validate.
+* :command:`-t SCHEMA_TYPE, --schema-type SCHEMA_TYPE`: The schema type to
+  validate --config-file against. One of: cloud-config, network-config.
+  Default: cloud-config.
 * :command:`--system`: Validate the system cloud-config user data.
 * :command:`-d DOCS [cc_module ...], --docs DOCS [cc_module ...]`:
   Print schema module
