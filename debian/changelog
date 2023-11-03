@@ -3,11 +3,12 @@ cloud-init (23.3-0ubuntu0~22.04.1) UNRELEASED; urgency=medium
   * d/control: add python3-apt as Recommends to read APT config from apt_pkg
   * d/cloud-init.maintscript: Remove the unused hook-network-manager
     conffile. (LP: #2027861)
+  * d/p/status-do-not-remove-duplicated-data.patch:
+    - Revert behavior downstream, leave duplicate data
   * d/p/do-not-block-user-login.patch:
     - Revert behavior, allow user login after cloud-init stage (LP: #2039505)
   * d/p/retain-old-groups.patch:
     - Retain original groups in cloud.cfg.tmpl
-  * Upstream snapshot based on upstream/main at 5509b790.
   * d/control: Add python3-passlib as needed for testing
   * d/cloud-init.templates: enable Akamai by default.
     Add Akamai to the default templates to allow datasource discovery.
@@ -15,7 +16,6 @@ cloud-init (23.3-0ubuntu0~22.04.1) UNRELEASED; urgency=medium
   * Upstream snapshot based on 23.3. (LP: #2033310).
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/23.3/ChangeLog
-  * Upstream snapshot based on upstream/main at 14b76c44.
   * Upstream snapshot based on origin/main at 74e3e76b.
 
  -- Brett Holman <brett.holman@canonical.com>  Fri, 03 Nov 2023 14:34:19 -0600
