@@ -210,8 +210,11 @@ def parse_pip_requirements(requirements_path):
             dep = line.split(";")[0]
 
             # remove version requirements
-            if re.search("[>=.<]+", dep):
-                dep_names.append(re.split(r"[>=.<]+", dep)[0].strip())
+            version_comparison = re.compile(r"[~!>=.<]+")
+            if version_comparison.search(dep):
+                dep_names.append(
+                    version_comparison.split(dep)[0].strip()
+                )
             else:
                 dep_names.append(dep)
     return dep_names

@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Tests related to cloudinit.stages module."""
+import json
 import os
 import stat
 
@@ -27,6 +28,7 @@ class TestInit:
                 "paths": {"cloud_dir": self.tmpdir, "run_dir": self.tmpdir},
             }
         }
+        tmpdir.mkdir("instance")
         self.init.datasource = FakeDataSource(paths=self.init.paths)
         self._real_is_new_instance = self.init.is_new_instance
         self.init.is_new_instance = mock.Mock(return_value=True)
@@ -420,6 +422,13 @@ class TestInit:
         self.init.distro.apply_network_config.assert_called_with(
             net_cfg, bring_up=True
         )
+        assert net_cfg == json.loads(
+            self.tmpdir.join("instance/network-config.json").read()
+        )
+        assert net_cfg == json.loads(
+            self.tmpdir.join("network-config.json").read()
+        )
+        assert os.path.islink(self.tmpdir.join("network-config.json"))
 
     @mock.patch("cloudinit.distros.ubuntu.Distro")
     def test_apply_network_on_same_instance_id(self, m_ubuntu, caplog):
@@ -517,9 +526,12 @@ class TestInit:
         self, m_ubuntu, m_macs, caplog
     ):
         """Don't apply network if datasource has no BOOT event."""
-        self._apply_network_setup(m_macs)
+        net_cfg = self._apply_network_setup(m_macs)
         self.init.apply_network_config(True)
         self.init.distro.apply_network_config.assert_not_called()
+        assert net_cfg == json.loads(
+            self.tmpdir.join("network-config.json").read()
+        )
         assert (
             "No network config applied. Neither a new instance nor datasource "
             "network update allowed" in caplog.text

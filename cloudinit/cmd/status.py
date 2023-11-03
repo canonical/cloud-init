@@ -7,11 +7,11 @@
 """Define 'status' utility and handler as part of cloud-init commandline."""
 
 import argparse
-import copy
 import enum
 import json
 import os
 import sys
+from copy import deepcopy
 from time import gmtime, sleep, strftime
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
 
@@ -33,7 +33,22 @@ class UXAppStatus(enum.Enum):
     RUNNING = "running"
     DONE = "done"
     ERROR = "error"
+    DEGRADED_DONE = "degraded done"
+    DEGRADED_RUNNING = "degraded running"
     DISABLED = "disabled"
+
+
+# Extend states when degraded
+UXAppStatusDegradedMap = {
+    UXAppStatus.RUNNING: UXAppStatus.DEGRADED_RUNNING,
+    UXAppStatus.DONE: UXAppStatus.DEGRADED_DONE,
+}
+
+# Map extended states back to simplified states
+UXAppStatusDegradedMapCompat = {
+    UXAppStatus.DEGRADED_RUNNING: UXAppStatus.RUNNING,
+    UXAppStatus.DEGRADED_DONE: UXAppStatus.DONE,
+}
 
 
 @enum.unique
@@ -65,11 +80,14 @@ class StatusDetails(NamedTuple):
     boot_status_code: UXAppBootStatusCode
     description: str
     errors: List[str]
+    recoverable_errors: Dict[str, List[str]]
     last_update: str
     datasource: Optional[str]
+    v1: Dict[str, Dict]
 
 
 TABULAR_LONG_TMPL = """\
+extended_status: {extended_status}
 boot_status_code: {boot_code}
 {last_update}detail:
 {description}"""
@@ -121,7 +139,11 @@ def handle_status_args(name, args) -> int:
     paths = read_cfg_paths()
     details = get_status_details(paths)
     if args.wait:
-        while details.status in (UXAppStatus.NOT_RUN, UXAppStatus.RUNNING):
+        while details.status in (
+            UXAppStatus.NOT_RUN,
+            UXAppStatus.RUNNING,
+            UXAppStatus.DEGRADED_RUNNING,
+        ):
             if args.format == "tabular":
                 sys.stdout.write(".")
                 sys.stdout.flush()
@@ -130,17 +152,26 @@ def handle_status_args(name, args) -> int:
     details_dict: Dict[str, Union[None, str, List[str], Dict[str, Any]]] = {
         "datasource": details.datasource,
         "boot_status_code": details.boot_status_code.value,
-        "status": details.status.value,
+        "status": UXAppStatusDegradedMapCompat.get(
+            details.status, details.status
+        ).value,
+        "extended_status": details.status.value,
         "detail": details.description,
         "errors": details.errors,
+        "recoverable_errors": details.recoverable_errors,
         "last_update": details.last_update,
+        **details.v1,
     }
-    details_dict["schemas"] = {"1": copy.deepcopy(details_dict)}
-    details_dict["_schema_version"] = "1"
 
     if args.format == "tabular":
         prefix = "\n" if args.wait else ""
-        print(f"{prefix}status: {details.status.value}")
+
+        # For backwards compatability, don't report degraded status here,
+        # extended_status key reports the complete status (includes degraded)
+        state = UXAppStatusDegradedMapCompat.get(
+            details.status, details.status
+        ).value
+        print(f"{prefix}status: {state}")
         if args.long:
             if details.last_update:
                 last_update = f"last_update: {details.last_update}\n"
@@ -148,10 +179,36 @@ def handle_status_args(name, args) -> int:
                 last_update = ""
             print(
                 TABULAR_LONG_TMPL.format(
+                    extended_status=details.status.value,
                     prefix=prefix,
                     boot_code=details.boot_status_code.value,
                     description=details.description,
                     last_update=last_update,
+                )
+                + (
+                    "\nerrors:"
+                    + (
+                        "\n\t- " + "\n\t- ".join(details.errors)
+                        if details.errors
+                        else f" {details.errors}"
+                    )
+                )
+                + (
+                    "\nrecoverable_errors:"
+                    + (
+                        "\n"
+                        + "\n".join(
+                            [
+                                f"{k}:\n\t- "
+                                + "\n\t- ".join(
+                                    [i.replace("\n", " ") for i in v]
+                                )
+                                for k, v in details.recoverable_errors.items()
+                            ]
+                        )
+                        if details.recoverable_errors
+                        else f" {details.recoverable_errors}"
+                    )
                 )
             )
     elif args.format == "json":
@@ -162,7 +219,14 @@ def handle_status_args(name, args) -> int:
         )
     elif args.format == "yaml":
         print(safeyaml.dumps(details_dict))
-    return 1 if details.status == UXAppStatus.ERROR else 0
+
+    # Hard error
+    if details.status == UXAppStatus.ERROR:
+        return 1
+    # Recoverable error
+    elif details.status in UXAppStatusDegradedMap.values():
+        return 2
+    return 0
 
 
 def get_bootstatus(disable_file, paths) -> Tuple[UXAppBootStatusCode, str]:
@@ -287,6 +351,7 @@ def get_status_details(paths: Optional[Paths] = None) -> StatusDetails:
             status = UXAppStatus.RUNNING
         status_v1 = load_json(load_file(status_file)).get("v1", {})
     latest_event = 0
+    recoverable_errors = {}
     for key, value in sorted(status_v1.items()):
         if key == "stage":
             if value:
@@ -305,6 +370,18 @@ def get_status_details(paths: Optional[Paths] = None) -> StatusDetails:
             errors.extend(value.get("errors", []))
             start = value.get("start") or 0
             finished = value.get("finished") or 0
+
+            # Aggregate recoverable_errors from all stages
+            current_recoverable_errors = value.get("recoverable_errors", {})
+            for err_type in current_recoverable_errors.keys():
+                if err_type not in recoverable_errors:
+                    recoverable_errors[err_type] = deepcopy(
+                        current_recoverable_errors[err_type]
+                    )
+                else:
+                    recoverable_errors[err_type].extend(
+                        current_recoverable_errors[err_type]
+                    )
             if finished == 0 and start != 0:
                 status = UXAppStatus.RUNNING
             event_time = max(start, finished)
@@ -312,7 +389,6 @@ def get_status_details(paths: Optional[Paths] = None) -> StatusDetails:
                 latest_event = event_time
     if errors:
         status = UXAppStatus.ERROR
-        description = "\n".join(errors)
     elif status == UXAppStatus.NOT_RUN and latest_event > 0:
         status = UXAppStatus.DONE
     if uses_systemd() and status not in (
@@ -328,8 +404,21 @@ def get_status_details(paths: Optional[Paths] = None) -> StatusDetails:
         if latest_event
         else ""
     )
+
+    if recoverable_errors:
+        status = UXAppStatusDegradedMap.get(status, status)
+
+    # this key is a duplicate
+    status_v1.pop("datasource", None)
     return StatusDetails(
-        status, boot_status_code, description, errors, last_update, datasource
+        status,
+        boot_status_code,
+        description,
+        errors,
+        recoverable_errors,
+        last_update,
+        datasource,
+        status_v1,
     )
 
 

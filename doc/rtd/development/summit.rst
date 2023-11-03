@@ -22,3 +22,4 @@ Previous summits
    cloud-init: Summit 2017 <summit/2017_summit.rst>
    summit/2018_summit.rst
    summit/2019_summit.rst
+   summit/2023_summit.rst

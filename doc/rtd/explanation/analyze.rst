@@ -27,8 +27,8 @@ The :command:`analyze` command requires one of the four subcommands:
 Availability
 ============
 
-The :command:`analyze` subcommand is generally available across all
-distributions, with the exception of Gentoo and FreeBSD.
+The :command:`analyze boot` subcommand only works on operating systems that
+use `systemd`.
 
 Subcommands
 ===========

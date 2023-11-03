@@ -160,12 +160,17 @@ def render_string(content, params):
     return renderer(content, params)
 
 
-def render_cloudcfg(variant, template, output, prefix=None):
+def render_template(variant, template, output, is_yaml, prefix=None):
     with open(template, "r") as fh:
         contents = fh.read()
     tpl_params = {"variant": variant, "prefix": prefix}
     contents = (render_string(contents, tpl_params)).rstrip() + "\n"
-    util.load_yaml(contents)
+    if is_yaml:
+        out = util.load_yaml(contents, default=True)
+        if not out:
+            raise RuntimeError(
+                "Cannot render template file %s - invalid yaml." % template
+            )
     if output == "-":
         sys.stdout.write(contents)
     else:

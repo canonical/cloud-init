@@ -347,6 +347,7 @@ class Paths(persistence.CloudInitPickleMixin):
             # file
             "instance_data_sensitive": "instance-data-sensitive.json",
             "combined_cloud_config": "combined-cloud-config.json",
+            "network_config": "network-config.json",
             "instance_id": ".instance-id",
             "manual_clean_marker": "manual-clean",
             "obj_pkl": "obj.pkl",

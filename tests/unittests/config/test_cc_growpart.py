@@ -678,9 +678,8 @@ class TestGrowpartSchema:
                 {"growpart": {"mode": "false"}},
                 pytest.raises(
                     SchemaValidationError,
-                    match=(
-                        "growpart.mode: 'false' is not valid under any of the"
-                        " given schemas"
+                    match=re.escape(
+                        "growpart.mode: 'false' is not one of [False"
                     ),
                 ),
             ),
@@ -688,9 +687,8 @@ class TestGrowpartSchema:
                 {"growpart": {"mode": "a"}},
                 pytest.raises(
                     SchemaValidationError,
-                    match=(
-                        "growpart.mode: 'a' is not valid under any of the"
-                        " given schemas"
+                    match=re.escape(
+                        "growpart.mode: 'a' is not one of ['auto',"
                     ),
                 ),
             ),
