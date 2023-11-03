@@ -18,7 +18,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  ConditionKernelCommandLine=!cloud-init=disabled
 --- a/systemd/cloud-init.service.tmpl
 +++ b/systemd/cloud-init.service.tmpl
-@@ -38,6 +38,7 @@
+@@ -38,6 +38,7 @@ Conflicts=shutdown.target
  Before=shutdown.target
  Conflicts=shutdown.target
  {% endif %}
