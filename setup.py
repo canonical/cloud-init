@@ -50,7 +50,7 @@ VARIANT = None
 PREFIX = None
 
 
-def render_tmpl(template, mode=None):
+def render_tmpl(template, mode=None, is_yaml=False):
     """render template into a tmpdir under same dir as setup.py
 
     This is rendered to a temporary directory under the top level
@@ -85,13 +85,11 @@ def render_tmpl(template, mode=None):
     subprocess.run(
         [
             sys.executable,
-            "./tools/render-cloudcfg",
-        ]
-        + cmd_prefix
-        + cmd_variant
-        + [
-            template,
-            fpath,
+            "./tools/render-template",
+            *(["--is-yaml"] if is_yaml else []),
+            *cmd_prefix,
+            *cmd_variant,
+            *[template, fpath],
         ],
         check=True,
     )
@@ -123,20 +121,22 @@ for a in sys.argv:
             PREFIX = sys.argv[idx + 1]
 
 INITSYS_FILES = {
-    "sysvinit": [f for f in glob("sysvinit/redhat/*") if is_f(f)],
-    "sysvinit_freebsd": [
+    "sysvinit": lambda: [f for f in glob("sysvinit/redhat/*") if is_f(f)],
+    "sysvinit_freebsd": lambda: [
         render_tmpl(f, mode=0o755)
         for f in glob("sysvinit/freebsd/*")
         if is_f(f)
     ],
-    "sysvinit_netbsd": [
+    "sysvinit_netbsd": lambda: [
         render_tmpl(f, mode=0o755)
         for f in glob("sysvinit/netbsd/*")
         if is_f(f)
     ],
-    "sysvinit_deb": [f for f in glob("sysvinit/debian/*") if is_f(f)],
-    "sysvinit_openrc": [f for f in glob("sysvinit/gentoo/*") if is_f(f)],
-    "systemd": [
+    "sysvinit_deb": lambda: [f for f in glob("sysvinit/debian/*") if is_f(f)],
+    "sysvinit_openrc": lambda: [
+        f for f in glob("sysvinit/gentoo/*") if is_f(f)
+    ],
+    "systemd": lambda: [
         render_tmpl(f)
         for f in (
             glob("systemd/*.tmpl")
@@ -146,7 +146,7 @@ INITSYS_FILES = {
         )
         if (is_f(f) and not is_generator(f))
     ],
-    "systemd.generators": [
+    "systemd.generators": lambda: [
         render_tmpl(f, mode=0o755)
         for f in glob("systemd/*")
         if is_f(f) and is_generator(f)
@@ -250,11 +250,10 @@ class InitsysInstallData(install):
                 k for k in INITSYS_ROOTS if k.partition(".")[0] == system
             ]
             for k in datakeys:
-                if not INITSYS_FILES[k]:
+                files = INITSYS_FILES[k]()
+                if not files:
                     continue
-                self.distribution.data_files.append(
-                    (INITSYS_ROOTS[k], INITSYS_FILES[k])
-                )
+                self.distribution.data_files.append((INITSYS_ROOTS[k], files))
         # Force that command to reinitialize (with new file list)
         self.distribution.reinitialize_command("install_data", True)
 
@@ -268,7 +267,7 @@ if not in_virtualenv():
         INITSYS_ROOTS[k] = "/" + INITSYS_ROOTS[k]
 
 data_files = [
-    (ETC + "/cloud", [render_tmpl("config/cloud.cfg.tmpl")]),
+    (ETC + "/cloud", [render_tmpl("config/cloud.cfg.tmpl", is_yaml=True)]),
     (ETC + "/cloud/clean.d", glob("config/clean.d/*")),
     (ETC + "/cloud/cloud.cfg.d", glob("config/cloud.cfg.d/*")),
     (ETC + "/cloud/templates", glob("templates/*")),

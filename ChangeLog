@@ -1,3 +1,10 @@
+23.3.3
+ - Fix pip-managed ansible on pip < 23.0.1 (#4403)
+
+23.3.2
+ - Revert "ds-identify/CloudStack: $DS_MAYBE if vm running on vmware/xen (#4281)"
+   (#4511) (LP: #2039453)
+
 23.3.1
  - apt: kill dirmngr/gpg-agent without gpgconf dependency (LP: #2034273)
  - integration tests: Fix cgroup parsing (#4402)

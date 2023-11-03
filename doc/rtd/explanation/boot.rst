@@ -107,9 +107,8 @@ mounted, including ones that have stale (previous instance) references in
 :file:`/etc/fstab`. As such, entries in :file:`/etc/fstab` other than those
 necessary for cloud-init to run should not be done until after this stage.
 
-A part-handler will run at this stage, as will boothooks including
-cloud-config ``bootcmd``. The user of this functionality has to be aware
-that the system is in the process of booting when their code runs.
+A part-handler and :ref:`boothooks<explanation/format:\`\`cloud-boothook\`\`>`
+will run at this stage.
 
 .. _boot-Config:
 

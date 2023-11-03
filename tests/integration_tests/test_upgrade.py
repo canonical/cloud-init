@@ -138,7 +138,7 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
                 assert post_json["v1"]["datasource"].startswith(
                     "DataSourceAzure"
                 )
-        if PLATFORM == "gce":
+        if PLATFORM in ["gce", "qemu"]:
             # GCE regenerates network config per boot AND
             # GCE uses fallback config AND
             # #4474 changed fallback configuration.

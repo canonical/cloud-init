@@ -48,8 +48,7 @@ class TestStatus:
             'null, "start": 1669231096.9621563}, "modules-config": '
             '{"errors": [], "finished": null, "start": null},'
             '"modules-final": {"errors": [], "finished": null, '
-            '"start": null}, "modules-init": {"errors": [], "finished": '
-            'null, "start": null}, "stage": "init-local"} }'
+            '"start": null}, "stage": "init-local"} }'
         ),
     )
     @mock.patch(M_PATH + "os.path.exists", return_value=True)
@@ -76,8 +75,28 @@ class TestStatus:
             status.UXAppBootStatusCode.ENABLED_BY_GENERATOR,
             "Running in stage: init-local",
             [],
+            {},
             "Wed, 23 Nov 2022 19:18:16 +0000",
             None,  # datasource
+            {
+                "init": {"errors": [], "finished": None, "start": None},
+                "init-local": {
+                    "errors": [],
+                    "finished": None,
+                    "start": 1669231096.9621563,
+                },
+                "modules-config": {
+                    "errors": [],
+                    "finished": None,
+                    "start": None,
+                },
+                "modules-final": {
+                    "errors": [],
+                    "finished": None,
+                    "start": None,
+                },
+                "stage": "init-local",
+            },
         ) == status.get_status_details(paths)
 
     @pytest.mark.parametrize(
@@ -245,9 +264,12 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
         expected = dedent(
             """\
             status: disabled
+            extended_status: disabled
             boot_status_code: disabled-by-kernel-cmdline
             detail:
             disabled for some reason
+            errors: []
+            recoverable_errors: {}
         """
         )
         out, _err = capsys.readouterr()
@@ -335,11 +357,14 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                 dedent(
                     """\
                     status: done
+                    extended_status: done
                     boot_status_code: enabled-by-generator
                     last_update: Thu, 01 Jan 1970 00:02:05 +0000
                     detail:
                     DataSourceNoCloud [seed=/var/.../seed/nocloud-net]\
 [dsmode=net]
+                    errors: []
+                    recoverable_errors: {}
                     """
                 ),
                 id="returns_done_long",
@@ -395,14 +420,18 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                 1,
                 dedent(
                     """\
-                    status: error
-                    boot_status_code: enabled-by-kernel-cmdline
-                    last_update: Thu, 01 Jan 1970 00:02:05 +0000
-                    detail:
-                    error1
-                    error2
-                    error3
-                    """
+                status: error
+                extended_status: error
+                boot_status_code: enabled-by-kernel-cmdline
+                last_update: Thu, 01 Jan 1970 00:02:05 +0000
+                detail:
+                DataSourceNoCloud [seed=/var/.../seed/nocloud-net][dsmode=net]
+                errors:
+                \t- error1
+                \t- error2
+                \t- error3
+                recoverable_errors: {}
+                """
                 ),
                 id="on_errors_long",
             ),
@@ -423,10 +452,13 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                 dedent(
                     """\
                     status: running
+                    extended_status: running
                     boot_status_code: enabled-by-kernel-cmdline
                     last_update: Thu, 01 Jan 1970 00:02:04 +0000
                     detail:
                     Running in stage: init
+                    errors: []
+                    recoverable_errors: {}
                     """
                 ),
                 id="running_long_format",
@@ -447,20 +479,20 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                 dedent(
                     """\
                    ---
-                   _schema_version: '1'
                    boot_status_code: enabled-by-kernel-cmdline
                    datasource: ''
                    detail: 'Running in stage: init'
                    errors: []
+                   extended_status: running
+                   init:
+                       finished: null
+                       start: 124.456
+                   init-local:
+                       finished: 123.46
+                       start: 123.45
                    last_update: Thu, 01 Jan 1970 00:02:04 +0000
-                   schemas:
-                       '1':
-                           boot_status_code: enabled-by-kernel-cmdline
-                           datasource: ''
-                           detail: 'Running in stage: init'
-                           errors: []
-                           last_update: Thu, 01 Jan 1970 00:02:04 +0000
-                           status: running
+                   recoverable_errors: {}
+                   stage: init
                    status: running
                    ...
 
@@ -482,25 +514,192 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                 MyArgs(long=False, wait=False, format="json"),
                 0,
                 {
-                    "_schema_version": "1",
                     "boot_status_code": "enabled-by-kernel-cmdline",
                     "datasource": "",
                     "detail": "Running in stage: init",
                     "errors": [],
-                    "last_update": "Thu, 01 Jan 1970 00:02:04 +0000",
-                    "schemas": {
-                        "1": {
-                            "boot_status_code": "enabled-by-kernel-cmdline",
-                            "datasource": "",
-                            "detail": "Running in stage: init",
-                            "errors": [],
-                            "last_update": "Thu, 01 Jan 1970 00:02:04 +0000",
-                            "status": "running",
-                        }
-                    },
                     "status": "running",
+                    "extended_status": "running",
+                    "init": {"finished": None, "start": 124.456},
+                    "init-local": {"finished": 123.46, "start": 123.45},
+                    "last_update": "Thu, 01 Jan 1970 00:02:04 +0000",
+                    "recoverable_errors": {},
+                    "stage": "init",
                 },
                 id="running_json_format",
+            ),
+            pytest.param(
+                None,
+                status.UXAppBootStatusCode.ENABLED_BY_KERNEL_CMDLINE,
+                {
+                    "v1": {
+                        "stage": None,
+                        "datasource": (
+                            "DataSourceNoCloud "
+                            "[seed=/var/.../seed/nocloud-net]"
+                            "[dsmode=net]"
+                        ),
+                        "init": {
+                            "errors": ["error1"],
+                            "start": 124.567,
+                            "finished": 125.678,
+                        },
+                        "init-local": {
+                            "errors": ["error2", "error3"],
+                            "start": 123.45,
+                            "finished": 123.46,
+                        },
+                    }
+                },
+                None,
+                MyArgs(long=False, wait=False, format="json"),
+                1,
+                {
+                    "boot_status_code": "enabled-by-kernel-cmdline",
+                    "datasource": "nocloud",
+                    "detail": (
+                        "DataSourceNoCloud [seed=/var/.../seed/"
+                        "nocloud-net][dsmode=net]"
+                    ),
+                    "errors": ["error1", "error2", "error3"],
+                    "status": "error",
+                    "extended_status": "error",
+                    "init": {
+                        "finished": 125.678,
+                        "start": 124.567,
+                        "errors": ["error1"],
+                    },
+                    "init-local": {
+                        "finished": 123.46,
+                        "start": 123.45,
+                        "errors": ["error2", "error3"],
+                    },
+                    "last_update": "Thu, 01 Jan 1970 00:02:05 +0000",
+                    "recoverable_errors": {},
+                    "stage": None,
+                },
+                id="running_json_format_with_errors",
+            ),
+            pytest.param(
+                lambda config: config.result_file,
+                status.UXAppBootStatusCode.ENABLED_BY_KERNEL_CMDLINE,
+                {
+                    "v1": {
+                        "stage": None,
+                        "datasource": (
+                            "DataSourceNoCloud "
+                            "[seed=/var/.../seed/nocloud-net]"
+                            "[dsmode=net]"
+                        ),
+                        "modules-final": {
+                            "errors": [],
+                            "recoverable_errors": {
+                                "DEPRECATED": [
+                                    (
+                                        "don't try to open the hatch "
+                                        "or we'll all be soup"
+                                    )
+                                ]
+                            },
+                            "start": 127.567,
+                            "finished": 128.678,
+                        },
+                        "modules-config": {
+                            "errors": [],
+                            "recoverable_errors": {
+                                "CRITICAL": ["Power lost! Prepare to"]
+                            },
+                            "start": 125.567,
+                            "finished": 126.678,
+                        },
+                        "init": {
+                            "errors": [],
+                            "recoverable_errors": {
+                                "WARNINGS": [
+                                    "the prime omega transfuser borkeded!"
+                                ]
+                            },
+                            "start": 124.567,
+                            "finished": 125.678,
+                        },
+                        "init-local": {
+                            "errors": [],
+                            "recoverable_errors": {
+                                "ERROR": [
+                                    "the ion field reactor just transmutated"
+                                ]
+                            },
+                            "start": 123.45,
+                            "finished": 123.46,
+                        },
+                    }
+                },
+                None,
+                MyArgs(long=False, wait=False, format="json"),
+                2,
+                {
+                    "boot_status_code": "enabled-by-kernel-cmdline",
+                    "datasource": "nocloud",
+                    "detail": (
+                        "DataSourceNoCloud [seed=/var/.../"
+                        "seed/nocloud-net][dsmode=net]"
+                    ),
+                    "errors": [],
+                    "status": "done",
+                    "extended_status": "degraded done",
+                    "modules-final": {
+                        "errors": [],
+                        "recoverable_errors": {
+                            "DEPRECATED": [
+                                (
+                                    "don't try to open the "
+                                    "hatch or we'll all be soup"
+                                )
+                            ]
+                        },
+                        "start": 127.567,
+                        "finished": 128.678,
+                    },
+                    "modules-config": {
+                        "errors": [],
+                        "recoverable_errors": {
+                            "CRITICAL": ["Power lost! Prepare to"]
+                        },
+                        "start": 125.567,
+                        "finished": 126.678,
+                    },
+                    "init": {
+                        "errors": [],
+                        "recoverable_errors": {
+                            "WARNINGS": [
+                                "the prime omega transfuser borkeded!"
+                            ]
+                        },
+                        "start": 124.567,
+                        "finished": 125.678,
+                    },
+                    "init-local": {
+                        "errors": [],
+                        "recoverable_errors": {
+                            "ERROR": [
+                                "the ion field reactor just transmutated"
+                            ]
+                        },
+                        "start": 123.45,
+                        "finished": 123.46,
+                    },
+                    "last_update": "Thu, 01 Jan 1970 00:02:08 +0000",
+                    "recoverable_errors": {
+                        "ERROR": ["the ion field reactor just transmutated"],
+                        "WARNINGS": ["the prime omega transfuser borkeded!"],
+                        "CRITICAL": ["Power lost! Prepare to"],
+                        "DEPRECATED": [
+                            "don't try to open the hatch or we'll all be soup"
+                        ],
+                    },
+                    "stage": None,
+                },
+                id="running_json_format_with_recoverable_errors",
             ),
         ],
     )
