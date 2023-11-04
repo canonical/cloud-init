@@ -39,6 +39,22 @@ Add datasource module cloudinit/sources/DataSource<CloudPlatform>.py
 We suggest you start by copying one of the simpler datasources
 such as ``DataSourceHetzner``.
 
+Re-run datasource detection
+---------------------------
+
+While developing a new datasource it may be helpful to manually run datasource
+detection without rebooting the system.
+
+To re-run datasource detection, you must first force :file:`ds-identify` to
+re-run, then clean up any logs, and finally, re-run ``cloud-init``:
+
+.. code-block:: bash
+
+   sudo DI_LOG=stderr /usr/lib/cloud-init/ds-identify --force
+   sudo cloud-init clean --logs
+   sudo cloud-init init --local
+   sudo cloud-init init
+
 Add tests for datasource module
 ===============================
 
