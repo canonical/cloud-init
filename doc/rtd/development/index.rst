@@ -74,6 +74,8 @@ Debugging and reporting
    ../howto/bugs.rst
    logging.rst
    debugging.rst
+   internal_files.rst
+   ../howto/debugging.rst
 
 .. LINKS:
 .. include:: ../links.txt
