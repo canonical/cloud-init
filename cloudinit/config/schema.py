@@ -9,6 +9,7 @@ import sys
 import textwrap
 from collections import defaultdict
 from collections.abc import Iterable
+from contextlib import suppress
 from copy import deepcopy
 from errno import EACCES
 from functools import partial
@@ -19,6 +20,7 @@ from typing import (
     List,
     NamedTuple,
     Optional,
+    Tuple,
     Type,
     Union,
     cast,
@@ -29,6 +31,7 @@ import yaml
 from cloudinit import importer, safeyaml
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers import INCLUSION_TYPES_MAP, type_from_starts_with
+from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceNotFoundException
 from cloudinit.util import error, get_modules_from_dir, load_file
 
@@ -204,6 +207,10 @@ class SchemaValidationError(ValueError):
 
     def has_errors(self) -> bool:
         return bool(self.schema_errors)
+
+
+class SchemaValidationInvalidHeaderError(SchemaValidationError):
+    """Raised when no valid header is declared in the user-data file."""
 
 
 def is_schema_byte_string(checker, instance):
@@ -854,7 +861,7 @@ def _get_config_type_and_rendered_userdata(
         user_data_type = type_from_starts_with(content)
     if not user_data_type:  # Neither jinja2 nor #cloud-config
         header_line, _, _ = content.partition("\n")
-        raise SchemaValidationError(
+        raise SchemaValidationInvalidHeaderError(
             [
                 SchemaProblem(
                     schema_position,
@@ -1475,8 +1482,8 @@ def get_parser(parser=None):
     return parser
 
 
-def handle_schema_args(name, args):
-    """Handle provided schema args and perform the appropriate actions."""
+def _assert_exclusive_args(args):
+    """Error or warn on invalid exclusive parameter combinations."""
     exclusive_args = [args.config_file, args.docs, args.system]
     if len([arg for arg in exclusive_args if arg]) != 1:
         error(
@@ -1493,10 +1500,36 @@ def handle_schema_args(name, args):
             "Invalid flag combination. Cannot use --annotate with --docs",
             sys_exit=True,
         )
-    full_schema = get_schema(schema_type="cloud-config")
-    if args.docs:
-        print(load_doc(args.docs))
-        return
+
+
+def get_config_paths_from_args(
+    args,
+) -> Tuple[str, Tuple[Tuple[str, str], ...]]:
+    def get_processed_or_fallback_path(
+        paths: Paths,
+        primary_path_key: str,
+        raw_fallback_path_key: str,
+    ) -> str:
+        """Get processed data path when non-empty of fallback to raw data path.
+
+        - When primary path and raw path exist and are empty, prefer primary
+          path.
+        - When primary path is empty but the raw fallback path is non-empty,
+          this indicates an invalid and ignored raw user-data was provided and
+          cloud-init emitted a warning and did not process unknown raw
+          user-data.
+          In the case of invalid raw user-data header, prefer
+          raw_fallback_path_key so actionable sensible warnings can be
+          reported ot the user about the raw unparseable user-data.
+        """
+        primary_datapath = paths.get_ipath(primary_path_key) or ""
+        with suppress(FileNotFoundError):
+            if not os.stat(primary_datapath).st_size:
+                raw_path = paths.get_ipath(raw_fallback_path_key) or ""
+                if os.stat(raw_path).st_size:
+                    return raw_path
+        return primary_datapath
+
     try:
         paths = read_cfg_paths(fetch_existing_datasource="trust")
     except (IOError, OSError) as e:
@@ -1520,7 +1553,9 @@ def handle_schema_args(name, args):
     else:
         instance_data_path = paths.get_runpath("instance_data_sensitive")
     if args.config_file:
-        config_files = ((args.schema_type, args.config_file),)
+        config_files: Tuple[Tuple[str, str], ...] = (
+            (args.schema_type or "cloud-config", args.config_file),
+        )
     else:
         if os.getuid() != 0:
             error(
@@ -1528,31 +1563,29 @@ def handle_schema_args(name, args):
                 " user. Try using sudo.",
                 sys_exit=True,
             )
-        userdata_file = paths.get_ipath("cloud_config")
+        userdata_file = get_processed_or_fallback_path(
+            paths, "cloud_config", "userdata_raw"
+        )
         if not userdata_file:
             error(
                 "Unable to obtain user data file. No instance data available",
                 sys_exit=True,
             )
-            return  # Helps typing
-
-        # Prefer raw user-data.txt when processed cloud-config is empty and
-        # raw user-data.txt is not because processed cloud-config.txt will
-        # not be written in cases where user-data header is not supported.
-        try:
-            if os.stat(userdata_file).st_size == 0:
-                raw_userdata_file = paths.get_ipath("userdata_raw")
-                if os.stat(raw_userdata_file).st_size:
-                    userdata_file = raw_userdata_file
-        except FileNotFoundError:
-            # Error handling on absent userdata_file below
-            pass
-
         config_files = (("user-data", userdata_file),)
-        supplemental_config_files = (
-            ("vendor-data", paths.get_ipath("vendor_cloud_config")),
-            ("vendor2-data", paths.get_ipath("vendor2_cloud_config")),
-            ("network-config", paths.get_ipath("network_config")),
+        supplemental_config_files: Tuple[Tuple[str, str], ...] = (
+            (
+                "vendor-data",
+                get_processed_or_fallback_path(
+                    paths, "vendor_cloud_config", "vendordata_raw"
+                ),
+            ),
+            (
+                "vendor2-data",
+                get_processed_or_fallback_path(
+                    paths, "vendor2_cloud_config", "vendordata2_raw"
+                ),
+            ),
+            ("network-config", paths.get_ipath("network_config") or ""),
         )
         for cfg_type, cfg_file in supplemental_config_files:
             if cfg_file and os.path.exists(cfg_file):
@@ -1563,6 +1596,17 @@ def handle_schema_args(name, args):
             fmt="Error: {}",
             sys_exit=True,
         )
+    return instance_data_path, config_files
+
+
+def handle_schema_args(name, args):
+    """Handle provided schema args and perform the appropriate actions."""
+    _assert_exclusive_args(args)
+    full_schema = get_schema(schema_type="cloud-config")
+    if args.docs:
+        print(load_doc(args.docs))
+        return
+    instance_data_path, config_files = get_config_paths_from_args(args)
 
     nested_output_prefix = ""
     multi_config_output = bool(len(config_files) > 1)
@@ -1594,15 +1638,13 @@ def handle_schema_args(name, args):
                 instance_data_path,
             )
         except SchemaValidationError as e:
-            if not cfg_type:
-                cfg_type = "UNKNOWN_CONFIG_HEADER"
             if not args.annotate:
                 print(f"{nested_output_prefix}Invalid {cfg_type} {cfg_file}")
                 error(
                     str(e),
                     fmt=nested_output_prefix + "Error: {}\n",
                 )
-                error_types.append(cfg_type)
+            error_types.append(cfg_type)
         except RuntimeError as e:
             print(f"{nested_output_prefix}Invalid {cfg_type}")
             error(str(e), fmt=nested_output_prefix + "Error: {}\n")
