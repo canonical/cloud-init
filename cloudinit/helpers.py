@@ -14,6 +14,7 @@ import os
 from configparser import NoOptionError, NoSectionError, RawConfigParser
 from io import StringIO
 from time import time
+from typing import Optional
 
 from cloudinit import persistence, type_utils, util
 from cloudinit.settings import CFG_ENV_NAME, PER_ALWAYS, PER_INSTANCE, PER_ONCE
@@ -495,3 +496,32 @@ class DefaultingConfigParser(RawConfigParser):
         if header:
             contents = "\n".join([header, contents, ""])
         return contents
+
+
+def get_processed_or_fallback_path(
+    paths: Paths,
+    primary_path_key: str,
+    raw_fallback_path_key: str,
+) -> Optional[str]:
+    """Get processed data path when non-empty of fallback to raw data path.
+
+    - When primary path isn't set, return None as Paths structure is not setup.
+    - When primary path and raw path are both empty, prefer primary path.
+    - When primary path is empty but the raw fallback path is non-empty,
+      this indicates an invalid and ignored raw user-data was provided and
+      cloud-init emitted a warning and did not process unknown raw user-data.
+      In the case of invalid raw user-data header, prefer raw_fallback_path_key
+      so actionalbe sensible warnings can be reported ot the user about
+      the raw unparseable user-data.
+    """
+    primary_datapath = paths.get_ipath(primary_path_key)
+    if not primary_datapath:
+        return None
+    try:
+        if os.stat(primary_datapath).st_size == 0:
+            raw_path = paths.get_ipath(raw_fallback_path_key)
+            if os.stat(raw_path).st_size:
+                return raw_path
+    except FileNotFoundError:
+        pass
+    return primary_datapath
