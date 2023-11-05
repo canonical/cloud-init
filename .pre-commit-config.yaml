@@ -1,0 +1,14 @@
+repos:
+  - repo: https://github.com/ambv/black
+    rev: 22.3.0  # Also stored in dev-requirements.txt; update both together!
+    hooks:
+    - id: black
+  - repo: https://github.com/pycqa/isort
+    rev: 5.8.0  # Also stored in dev-requirements.txt; update both together!
+    hooks:
+    - id: isort
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.8.0.4 # Also stored in dev-requirements.txt; update both together!
+    hooks:
+    - id: shellcheck
+      args: ['--severity=warning']
