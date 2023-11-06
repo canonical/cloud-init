@@ -826,23 +826,3 @@ def oauth_headers(
     )
     _uri, signed_headers, _body = client.sign(url)
     return signed_headers
-
-
-def retry_on_url_exc(
-    msg, exc, *, retry_codes=(NOT_FOUND,), retry_instances=(requests.Timeout,)
-):
-    """Configurable retry exception callback for readurl().
-
-    :param retry_codes: Codes to retry on. Defaults to 404.
-    :param retry_instances: Exception types to retry on. Defaults to
-      requests.Timeout.
-
-    :returns: False to raise the exception from readurl(), True to retry.
-    """
-    if not isinstance(exc, UrlError):
-        return False
-    if exc.code in retry_codes:
-        return True
-    if exc.cause and isinstance(exc.cause, retry_instances):
-        return True
-    return False
