@@ -2317,10 +2317,6 @@ def make_header(comment_char="#", base="created"):
     return header
 
 
-def abs_join(base, *paths):
-    return os.path.abspath(os.path.join(base, *paths))
-
-
 # shellify, takes a list of commands
 #  for each entry in the list
 #    if it is an array, shell protect it (with single ticks)
