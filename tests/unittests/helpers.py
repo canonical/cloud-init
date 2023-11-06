@@ -276,8 +276,8 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
             make_path = rebase_path(real_path[len(real_root) :], target_root)
             util.ensure_dir(make_path)
             for f in filenames:
-                real_path = util.abs_join(real_path, f)
-                make_path = util.abs_join(make_path, f)
+                real_path = os.path.abspath(os.path.join(real_path, f))
+                make_path = os.path.abspath(os.path.join(make_path, f))
                 shutil.copy(real_path, make_path)
 
     def patchUtils(self, new_root):
