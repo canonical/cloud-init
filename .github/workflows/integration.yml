@@ -17,7 +17,7 @@ env:
   RELEASE: bionic
 
 jobs:
-  package-build:
+  deb-build:
     runs-on: ubuntu-22.04
     steps:
       - name: "Checkout"
@@ -39,7 +39,7 @@ jobs:
           cp /usr/share/doc/sbuild/examples/example.sbuildrc /home/$USER/.sbuildrc
           # Install all build and test dependencies
           ./tools/read-dependencies -r requirements.txt -r test-requirements.txt -d ubuntu -s -i
-      - name: Build package
+      - name: Build DEB package
         run: |
           ./packages/bddeb -S -d --release ${{ env.RELEASE }}
           sudo -E su $USER -c 'mk-sbuild ${{ env.RELEASE }}'
@@ -50,9 +50,34 @@ jobs:
           name: 'cloud-init-${{ env.RELEASE }}-deb'
           path: '${{ runner.temp }}/cloud-init*.deb'
           retention-days: 3
+  rpm-build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v3
+        with:
+          # Fetch all tags for tools/read-version
+          fetch-depth: 0
+      - name: Prepare test tools
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -y update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -y install tox
+      - name: Initialize LXD
+        run: |
+          ssh-keygen -P "" -q -f ~/.ssh/id_rsa
+          echo "[lxd]" > /home/$USER/.config/pycloudlib.toml
+          sudo adduser $USER lxd
+          # Jammy GH Action runners have docker installed, which edits iptables
+          # in a way that is incompatible with lxd.
+          # https://documentation.ubuntu.com/lxd/en/latest/howto/network_bridge_firewalld/#prevent-connectivity-issues-with-lxd-and-docker
+          sudo iptables -I DOCKER-USER -j ACCEPT
+          sudo lxd init --auto
+      - name: Ensure that RPM package builds
+        run: |
+          ./tools/run-container  --package --unittest centos/8-Stream
 
   integration-tests:
-    needs: package-build
+    needs: deb-build
     runs-on: ubuntu-22.04
     steps:
       - name: "Checkout"
