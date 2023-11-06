@@ -2538,7 +2538,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
             ),
             "ifcfg-eth5": textwrap.dedent(
                 """\
-                BOOTPROTO=dhcp
+                BOOTPROTO=dhcp4
                 LLADDR=98:bb:9f:2c:e8:8a
                 STARTMODE=manual"""
             ),
@@ -5740,7 +5740,7 @@ STARTMODE=auto
         expected = """\
 # Created by cloud-init automatically, do not edit.
 #
-BOOTPROTO=dhcp
+BOOTPROTO=dhcp4
 STARTMODE=auto
 """
         self.assertEqual(expected, found[nspath + "ifcfg-eth0"])

@@ -481,7 +481,7 @@ class Renderer(renderer.Renderer):
             elif subnet_type in ["dhcp4", "dhcp"]:
                 bootproto_in = iface_cfg["BOOTPROTO"]
                 iface_cfg["BOOTPROTO"] = "dhcp"
-                if flavor == "suse" and subnet_type == "dhcp4":
+                if flavor == "suse":
                     # If dhcp6 is already specified the user wants dhcp
                     # for both protocols
                     if bootproto_in != "dhcp6":
