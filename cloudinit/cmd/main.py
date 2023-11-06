@@ -431,8 +431,24 @@ def main_init(name, args):
         # dhcp clients to advertize this hostname to any DDNS services
         # LP: #1746455.
         _maybe_set_hostname(init, stage="local", retry_stage="network")
-    init.apply_network_config(bring_up=bring_up_interfaces)
-
+        init.apply_network_config(bring_up=bring_up_interfaces)
+    else:
+        # Until dbus is available, systemd-networkd cannot reload its
+        # config, and therefore a race has occurred: a new configuration was
+        # written, but systemd-networkd was not notified.
+        # Until dbus is available, we mustn't continue otherwise our config
+        # is lost until the next time systemd-networkd restarts. As a oneshot,
+        # cloud-init.service is started before dbus.socket, but does not block
+        # it. Retry until dbus becomes available.
+        while not init.apply_network_config(bring_up=bring_up_interfaces):
+            LOG.warning(
+                "Dbus is not available to notify systemd-networkd of"
+                "a new configuration from netplan. Retrying."
+            )
+            # Why retry every 0.042? it uses a fraction of a percent of one CPU
+            # This seems like a reasonable tradeoff between "get there fast"
+            # and "leave lots of resources available for others".
+            time.sleep(0.042)
     if mode == sources.DSMODE_LOCAL:
         if init.datasource.dsmode != mode:
             LOG.debug(

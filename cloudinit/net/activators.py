@@ -17,12 +17,14 @@ class NoActivatorException(Exception):
     pass
 
 
-def _alter_interface(cmd, device_name) -> bool:
+def _alter_interface(cmd, device_name, fail_on_stderr=False) -> bool:
     LOG.debug("Attempting command %s for device %s", cmd, device_name)
     try:
-        (_out, err) = subp.subp(cmd)
-        if len(err):
+        err = subp.subp(cmd).stderr
+        if err and fail_on_stderr and "Failed to connect system bus:" in err:
             LOG.warning("Running %s resulted in stderr output: %s", cmd, err)
+            return False
+        LOG.info("Running %s resulted in stderr output: %s", cmd, err)
         return True
     except subp.ProcessExecutionError:
         util.logexc(LOG, "Running interface command %s failed", cmd)
