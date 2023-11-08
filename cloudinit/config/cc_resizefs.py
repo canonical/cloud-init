@@ -108,7 +108,7 @@ def _resize_hammer2(mount_point, devpth):
 
 def _resize_bcachefs(mount_point, devpth):
     """Single device resize"""
-    return ("bcachefs", "resize", devpth)
+    return ("bcachefs", "device", "resize", devpth)
 
 
 def _can_skip_resize_ufs(mount_point, devpth):
