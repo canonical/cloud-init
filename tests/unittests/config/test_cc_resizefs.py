@@ -174,7 +174,7 @@ class TestResizefs(CiTestCase):
         mount_point = "/"
         devpth = "/dev/sdf3"
         self.assertEqual(
-            ("bcachefs", "resize", mount_point),
+            ("bcachefs", "device", "resize", devpth),
             _resize_bcachefs(mount_point, devpth),
         )
 
