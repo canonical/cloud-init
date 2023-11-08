@@ -3236,6 +3236,7 @@ def deprecate(
     deprecated_version: str,
     extra_message: Optional[str] = None,
     schedule: int = 5,
+    return_log: bool = False,
 ):
     """Mark a "thing" as deprecated. Deduplicated deprecations are
     logged.
@@ -3252,6 +3253,8 @@ def deprecate(
     @param schedule: Manually set the deprecation schedule. Defaults to
         5 years. Leave a comment explaining your reason for deviation if
         setting this value.
+    @param return_log: Return log text rather than logging it. Useful for
+        running prior to logging setup.
 
     Note: uses keyword-only arguments to improve legibility
     """
@@ -3261,13 +3264,15 @@ def deprecate(
     dedup = hash(deprecated + message + deprecated_version + str(schedule))
     version = Version.from_str(deprecated_version)
     version_removed = Version(version.major + schedule, version.minor)
+    deprecate_msg = (
+        f"{deprecated} is deprecated in "
+        f"{deprecated_version} and scheduled to be removed in "
+        f"{version_removed}. {message}"
+    ).rstrip()
+    if return_log:
+        return deprecate_msg
     if dedup not in deprecate._log:  # type: ignore
         deprecate._log.add(dedup)  # type: ignore
-        deprecate_msg = (
-            f"{deprecated} is deprecated in "
-            f"{deprecated_version} and scheduled to be removed in "
-            f"{version_removed}. {message}"
-        ).rstrip()
         if hasattr(LOG, "deprecated"):
             LOG.deprecated(deprecate_msg)  # type: ignore
         else:
