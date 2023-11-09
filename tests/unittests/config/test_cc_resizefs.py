@@ -6,6 +6,7 @@ from collections import namedtuple
 import pytest
 
 from cloudinit.config.cc_resizefs import (
+    _resize_bcachefs,
     _resize_btrfs,
     _resize_ext,
     _resize_ufs,
@@ -167,6 +168,14 @@ class TestResizefs(CiTestCase):
         devpth = "/dev/sda2"
         self.assertEqual(
             ("growfs", "-y", mount_point), _resize_ufs(mount_point, devpth)
+        )
+
+    def test_resize_bcachefs_cmd_return(self):
+        mount_point = "/"
+        devpth = "/dev/sdf3"
+        self.assertEqual(
+            ("bcachefs", "device", "resize", devpth),
+            _resize_bcachefs(mount_point, devpth),
         )
 
     @mock.patch("cloudinit.util.is_container", return_value=False)
