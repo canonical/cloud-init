@@ -231,15 +231,15 @@
           "type": "boolean"
         },
         "passwd": {
-          "description": "Hash of user password applied when user does not exist. This will NOT be applied if the user already exists. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** While hashed password is better than plain text, using ``passwd`` in user-data represents a security risk as user-data could be accessible by third-parties depending on your cloud platform.",
+          "description": "Hash of user password applied when user does not exist. This will NOT be applied if the user already exists. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** Your password might possibly be visible to unpriveledged users on your system, depending on your cloud's security model.",
           "type": "string"
         },
         "hashed_passwd": {
-          "description": "Hash of user password to be applied. This will be applied even if the user is pre-existing. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** While ``hashed_password`` is better than ``plain_text_passwd``, using ``passwd`` in user-data represents a security risk as user-data could be accessible by third-parties depending on your cloud platform.",
+          "description": "Hash of user password to be applied. This will be applied even if the user is pre-existing. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** Your password might possibly be visible to unpriveledged users on your system, depending on your cloud's security model.",
           "type": "string"
         },
         "plain_text_passwd": {
-          "description": "Clear text of user password to be applied. This will be applied even if the user is pre-existing. There are many more secure options than using plain text passwords, such as ``ssh_import_id`` or ``hashed_passwd``. Do not use this in production as user-data and your password can be exposed.",
+          "description": "Clear text of user password to be applied. This will be applied even if the user is pre-existing. There are many more secure options than using plain text passwords, such as ``ssh_import_id``. **Note:** Your password might possibly be visible to unpriveledged users on your system, depending on your cloud's security model.",
           "type": "string"
         },
         "create_groups": {
@@ -253,11 +253,11 @@
           "type": "string"
         },
         "selinux_user": {
-          "description": "SELinux user for user's login. Default to default SELinux user.",
+          "description": "SELinux user for user's login. Default: the default SELinux user.",
           "type": "string"
         },
         "shell": {
-          "description": "Path to the user's login shell. The default is to set no shell, which results in a system-specific default being used.",
+          "description": "Path to the user's login shell. Default: the host system's default shell.",
           "type": "string"
         },
         "snapuser": {
@@ -273,7 +273,7 @@
           "minItems": 1
         },
         "ssh_import_id": {
-          "description": "List of SSH IDs to import for user. Can not be combined with ``ssh_redirect_user``.",
+          "description": "List of ssh ids to import for user. Can not be combined with ``ssh_redirect_user``. See the man page[1] for more details. [1] https://manpages.ubuntu.com/manpages/noble/en/man1/ssh-import-id.1.html",
           "type": "array",
           "items": {
             "type": "string"
@@ -308,7 +308,7 @@
           ]
         },
         "uid": {
-          "description": "The user's ID. Default is next available value.",
+          "description": "The user's ID. Default value [system default].",
           "oneOf": [
             {
               "type": "integer"
@@ -379,7 +379,7 @@
           "deprecated_description": "Use ``remove_defaults`` instead."
         },
         "remove_defaults": {
-          "description": "Remove default CA certificates if true. Default: false",
+          "description": "Remove default CA certificates if true. Default: ``false``",
           "type": "boolean",
           "default": false
         },
@@ -993,7 +993,7 @@
             "client_key": {
               "type": "string",
               "default": "/etc/chef/client.pem",
-              "description": "Optional path for client_cert. Default to ``/etc/chef/client.pem``."
+              "description": "Optional path for client_cert. Default: ``/etc/chef/client.pem``."
             },
             "encrypted_data_bag_secret": {
               "type": "string",
@@ -1042,7 +1042,7 @@
             "omnibus_url_retries": {
               "type": "integer",
               "default": 5,
-              "description": "The number of retries that will be attempted to reach the Omnibus URL. Default is 5."
+              "description": "The number of retries that will be attempted to reach the Omnibus URL. Default: ``5``."
             },
             "omnibus_version": {
               "type": "string",
@@ -1113,7 +1113,7 @@
       "properties": {
         "disable_ec2_metadata": {
           "default": false,
-          "description": "Set true to disable IPv4 routes to EC2 metadata. Default: false.",
+          "description": "Set true to disable IPv4 routes to EC2 metadata. Default: ``false.``",
           "type": "boolean"
         }
       }
@@ -2624,7 +2624,7 @@
               "changed_description": "Use of non-boolean values for this field is deprecated."
             }
           ],
-          "description": "Sets whether or not to accept password authentication. ``true`` will enable password auth. ``false`` will disable. Default is to leave the value unchanged. In order for this config to be applied, SSH may need to be restarted. On systemd systems, this restart will only happen if the SSH service has already been started. On non-systemd systems, a restart will be attempted regardless of the service state."
+          "description": "Sets whether or not to accept password authentication. ``true`` will enable password auth. ``false`` will disable. Default: leave the value unchanged. In order for this config to be applied, SSH may need to be restarted. On systemd systems, this restart will only happen if the SSH service has already been started. On non-systemd systems, a restart will be attempted regardless of the service state."
         },
         "chpasswd": {
           "type": "object",
@@ -2636,7 +2636,7 @@
               "description": "Whether to expire all user passwords such that a password will need to be reset on the user's next login. Default: ``true``"
             },
             "users": {
-              "description": "This key represents a list of existing users to set passwords for. Each item under users contains the following required keys: ``name`` and ``password`` or in the case of a randomly generated password, ``name`` and ``type``. The ``type`` key has a default value of ``hash``, and may alternatively be set to ``text`` or ``RANDOM``.",
+              "description": "This key represents a list of existing users to set passwords for. Each item under users contains the following required keys: ``name`` and ``password`` or in the case of a randomly generated password, ``name`` and ``type``. The ``type`` key has a default value of ``hash``, and may alternatively be set to ``text`` or ``RANDOM``. Randomly generated keys may be insecure, use at your own risk.",
               "type": "array",
               "items": {
                 "minItems": 1,
@@ -2833,7 +2833,7 @@
       "properties": {
         "ssh_keys": {
           "type": "object",
-          "description": "A dictionary entries for the public and private host keys of each desired key type. Entries in the ``ssh_keys`` config dict should have keys in the format ``<key type>_private``, ``<key type>_public``, and, optionally, ``<key type>_certificate``, e.g. ``rsa_private: <key>``, ``rsa_public: <key>``, and ``rsa_certificate: <key>``. Not all key types have to be specified, ones left unspecified will not be used. If this config option is used, then separate keys will not be automatically generated. In order to specify multiline private host keys and certificates, use yaml multiline syntax.",
+          "description": "A dictionary entries for the public and private host keys of each desired key type. Entries in the ``ssh_keys`` config dict should have keys in the format ``<key type>_private``, ``<key type>_public``, and, optionally, ``<key type>_certificate``, e.g. ``rsa_private: <key>``, ``rsa_public: <key>``, and ``rsa_certificate: <key>``. Not all key types have to be specified, ones left unspecified will not be used. If this config option is used, then separate keys will not be automatically generated. In order to specify multiline private host keys and certificates, use yaml multiline syntax. **Note:** Your ssh keys might possibly be visible to unpriveledged users on your system, depending on your cloud's security model.",
           "additionalProperties": false,
           "patternProperties": {
             "^(dsa|ecdsa|ed25519|rsa)_(public|private|certificate)$": {
@@ -3040,7 +3040,7 @@
                 },
                 "version": {
                   "type": "string",
-                  "description": "The version of the driver to install (e.g. \"390\", \"410\"). Defaults to the latest version."
+                  "description": "The version of the driver to install (e.g. \"390\", \"410\"). Default: latest version."
                 }
               }
             }
@@ -3255,7 +3255,7 @@
                   "base64",
                   "text/plain"
                 ],
-                "description": "Optional encoding type of the content. Default is ``text/plain`` and no content decoding is performed. Supported encoding types are: gz, gzip, gz+base64, gzip+base64, gz+b64, gzip+b64, b64, base64"
+                "description": "Optional encoding type of the content. Default: ``text/plain``. No decoding is performed by default. Supported encoding types are: gz, gzip, gz+base64, gzip+base64, gz+b64, gzip+b64, b64, base64"
               },
               "append": {
                 "type": "boolean",
