@@ -1,6 +1,9 @@
 name: Lint Tests
 on:
   pull_request:
+  push:
+    branches:
+      - main
 
 concurrency:
   group: 'ci-${{ github.workflow }}-${{ github.ref }}'
