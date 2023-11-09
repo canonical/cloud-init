@@ -1,14 +1,18 @@
-cloud-init (23.4~2g74e3e76b-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (23.4~3g0cb0b80f-0ubuntu1) UNRELEASED; urgency=medium
 
   * d/p/do-not-block-user-login.patch:
     - Revert behavior, allow user login after cloud-init stage (LP: #2039505)
   * d/control: add python3-apt as Recommends to read APT config from apt_pkg
-  * Upstream snapshot based on main at 14b76c44.
+  * drop the following cherry-picks now included:
+    + d/p/cpick-0d9f149a-Pytestify-apt-config-test-modules-4424
+    + d/p/cpick-5023e9f9-Refactor-test_apt_source_v1.py-to-use-pytest-4427
+    + d/p/cpick-e9cdd7e3-Install-gnupg-if-gpg-not-found-4431
+    + d/p/cpick-015543d3-apt-install-software-properties-common-when-absent-but
+  * Upstream snapshot based on upstream/main at 0cb0b80f.
     - Bugs fixed in this snapshot: (LP: #2034273, #2030729)
       (LP: #2038945, #2039453)
-  * Upstream snapshot based on upstream/main at 74e3e76b.
 
- -- Brett Holman <brett.holman@canonical.com>  Tue, 31 Oct 2023 16:34:02 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 08 Nov 2023 22:23:56 -0700
 
 cloud-init (23.3.1-0ubuntu2) mantic; urgency=medium
 
@@ -27,6 +31,8 @@ cloud-init (23.3.1-0ubuntu1) mantic; urgency=medium
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/23.3.1/ChangeLog
     - Bugs fixed in this snapshot: (LP: #2034273)
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 05 Sep 2023 17:03:59 -0600
 
 cloud-init (23.3-0ubuntu1) mantic; urgency=medium
 
