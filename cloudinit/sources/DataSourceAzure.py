@@ -663,7 +663,7 @@ class DataSourceAzure(sources.DataSource):
 
             # validate imds pps metadata
             imds_ppstype = self._ppstype_from_imds(imds_md)
-            if imds_ppstype != PPSType.NONE.value:
+            if imds_ppstype is not None and imds_ppstype != PPSType.NONE.value:
                 self._report_failure(
                     errors.ReportableErrorImdsInvalidMetadata(
                         key="extended.compute.ppsType", value=imds_ppstype
