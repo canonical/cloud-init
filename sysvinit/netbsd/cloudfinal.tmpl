@@ -13,7 +13,7 @@ start_cloud_init()
     test -e {{prefix}}/etc/cloud/cloud-init.disabled \
       && warn "cloud-init disabled by cloud-init.disabled file" \
       && exit 0
-    {{prefix}}/bin/cloud-init modules --mode final
+    {{prefix}}/bin/cloud-init --stage=config
 }
 
 load_rc_config $name

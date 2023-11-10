@@ -44,7 +44,7 @@ ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/cloud-init init
+ExecStart=/usr/bin/cloud-init --stage init
 RemainAfterExit=yes
 TimeoutSec=0
 

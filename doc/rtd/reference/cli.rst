@@ -15,8 +15,8 @@ Example output:
 
 .. code-block::
 
-   usage: cloud-init [-h] [--version] [--file FILES] [--debug] [--force]
-                                                               {init,modules,single,query,features,analyze,devel,collect-logs,clean,status,schema} ...
+   usage: cloud-init [-h] [--version] [--file FILES] [--debug] [--force] [--stage STAGE]
+                                                               {single,query,features,analyze,devel,collect-logs,clean,status,schema} ...
 
     options:
       -h, --help            show this help message and exit
@@ -25,11 +25,10 @@ Example output:
                             Use additional yaml configuration files.
       --debug, -d           Show additional pre-action logging (default: False).
       --force               Force running even if no datasource is found (use at your own risk).
+      --stage               Specify which stage to run {local,network,config,final}
 
     Subcommands:
       {init,modules,single,query,features,analyze,devel,collect-logs,clean,status,schema}
-        init                Initialize cloud-init and perform initial modules.
-        modules             Activate modules using a given configuration key.
         single              Run a single module.
         query               Query standardized instance metadata from the command line.
         features            List defined features.
@@ -159,42 +158,6 @@ Example output:
 
    NETWORK_CONFIG_V1
    NETWORK_CONFIG_V2
-
-
-.. _cli_init:
-
-:command:`init`
-===============
-
-Generally run by OS init systems to execute ``cloud-init``'s stages:
-*init* and *init-local*. See :ref:`boot_stages` for more info.
-Can be run on the commandline, but is generally gated to run only once
-due to semaphores in :file:`/var/lib/cloud/instance/sem/` and
-:file:`/var/lib/cloud/sem`.
-
-* :command:`--local`: Run *init-local* stage instead of *init*.
-
-.. _cli_modules:
-
-:command:`modules`
-==================
-
-Generally run by OS init systems to execute ``modules:config`` and
-``modules:final`` boot stages. This executes cloud config :ref:`modules`
-configured to run in the Init, Config and Final stages. The modules are
-declared to run in various boot stages in the file
-:file:`/etc/cloud/cloud.cfg` under keys:
-
-* ``cloud_init_modules``
-* ``cloud_config_modules``
-* ``cloud_final_modules``
-
-Can be run on the command line, but each module is gated to run only once due
-to semaphores in :file:`/var/lib/cloud/`.
-
-* :command:`--mode [init|config|final]`: Run ``modules:init``,
-  ``modules:config`` or ``modules:final`` ``cloud-init`` stages.
-  See :ref:`boot_stages` for more info.
 
 .. _cli_query:
 

@@ -40,10 +40,10 @@ def test_webhook_reporting(client: IntegrationInstance):
     # Run through our standard process here. This remove any uncertainty
     # around messages transmitting during pre-network boot.
     client.execute(
-        "cloud-init init --local; "
-        "cloud-init init; "
-        "cloud-init modules --mode=config; "
-        "cloud-init modules --mode=final; "
+        "cloud-init --stage=local; "
+        "cloud-init --stage=init; "
+        "cloud-init --stage=config; "
+        "cloud-init --stage=final; "
         "cloud-init status --wait"
     )
     verify_clean_log(client.read_from_file("/var/log/cloud-init.log"))

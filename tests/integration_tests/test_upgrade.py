@@ -91,15 +91,15 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
         # Upgrade
         instance.install_new_cloud_init(source, take_snapshot=False)
 
-        # 'cloud-init init' helps us understand if our pickling upgrade paths
+        # 'cloud-init --stage=init' helps us understand if our pickling upgrade paths
         # have broken across re-constitution of a cached datasource. Some
         # platforms invalidate their datasource cache on reboot, so we run
         # it here to ensure we get a dirty run.
         assert instance.execute(
-            "cloud-init init --local; "
-            "cloud-init init; "
-            "cloud-init modules --mode=config; "
-            "cloud-init modules --mode=final"
+            "cloud-init --stage=local; "
+            "cloud-init --stage=init; "
+            "cloud-init --stage=config; "
+            "cloud-init --stage=final"
         ).ok
 
         # Reboot

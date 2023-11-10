@@ -37,7 +37,7 @@ ExecStartPre=/bin/mkdir -p /run/cloud-init
 ExecStartPre=/sbin/restorecon /run/cloud-init
 ExecStartPre=/usr/bin/touch /run/cloud-init/enabled
 {% endif %}
-ExecStart=/usr/bin/cloud-init init --local
+ExecStart=/usr/bin/cloud-init --stage init
 RemainAfterExit=yes
 TimeoutSec=0
 

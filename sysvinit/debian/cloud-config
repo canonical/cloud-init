@@ -5,7 +5,7 @@
 # Required-Stop:
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Cloud init modules --mode config
+# Short-Description: Cloud init --stage=config
 # Description:       Cloud configuration initialization
 ### END INIT INFO
 
@@ -17,7 +17,7 @@ PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DESC="Cloud service"
 NAME=cloud-init
 DAEMON=/usr/bin/$NAME
-DAEMON_ARGS="modules --mode config"
+DAEMON_ARGS="--stage=config"
 SCRIPTNAME=/etc/init.d/$NAME
 
 # Exit if the package is not installed

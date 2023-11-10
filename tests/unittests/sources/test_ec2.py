@@ -603,7 +603,7 @@ class TestEc2(test_helpers.ResponsesTestCase):
         """get_instance-id gets DataSourceEc2Local.identity if not present.
 
         This handles an upgrade case where the old pickled datasource didn't
-        set up self.identity, but 'systemctl cloud-init init' runs
+        set up self.identity, but 'systemctl cloud-init --stage=init' runs
         get_instance_id which traces on missing self.identity. lp:1748354.
         """
         self.datasource = ec2.DataSourceEc2Local

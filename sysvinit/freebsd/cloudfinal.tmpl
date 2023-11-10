@@ -23,7 +23,7 @@ cloudfinal_start()
     elif test -e {{prefix}}/etc/cloud/cloud-init.disabled; then
         warn "cloud-init is disabled via cloud-init.disabled file."
     else
-        ${command} modules --mode final
+        ${command} --stage=config
     fi
 }
 

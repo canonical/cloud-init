@@ -8,7 +8,7 @@ from tests.integration_tests.integration_settings import PLATFORM
 
 def _test_crawl(client, ip):
     assert client.execute("cloud-init clean --logs").ok
-    assert client.execute("cloud-init init --local").ok
+    assert client.execute("cloud-init --stage=local").ok
     log = client.read_from_file("/var/log/cloud-init.log")
     assert f"Using metadata source: '{ip}'" in log
     result = re.findall(r"Crawl of metadata service.* (\d+.\d+) seconds", log)

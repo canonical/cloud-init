@@ -5,7 +5,7 @@
 # Required-Stop:
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Cloud init modules final jobs
+# Short-Description: Cloud init final stage
 # Description:       This runs the cloud configuration initialization "final" jobs
 #                    and can be seen as the traditional "rc.local" time for the cloud.
 #                    It runs after all cloud-config jobs are run
@@ -19,7 +19,7 @@ PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DESC="Cloud service"
 NAME=cloud-init
 DAEMON=/usr/bin/$NAME
-DAEMON_ARGS="modules --mode final"
+DAEMON_ARGS="--stage=config"
 SCRIPTNAME=/etc/init.d/$NAME
 
 # Exit if the package is not installed

@@ -51,5 +51,5 @@ re-run, then clean up any logs, and finally, re-run ``cloud-init``:
 
    sudo DI_LOG=stderr /usr/lib/cloud-init/ds-identify --force
    sudo cloud-init clean --logs
-   sudo cloud-init init --local
-   sudo cloud-init init
+   sudo cloud-init --stage=local
+   sudo cloud-init --stage=init

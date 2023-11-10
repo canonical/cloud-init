@@ -394,9 +394,8 @@ def main_init(name, args):
             )
             return (None, [])
     except sources.DataSourceNotFoundException:
-        # In the case of 'cloud-init init' without '--local' it is a bit
-        # more likely that the user would consider it failure if nothing was
-        # found.
+        # In the case of 'cloud-init --stage=init' it is a bit more likely that
+        # the user would consider it failure if nothing was found.
         if mode == sources.DSMODE_LOCAL:
             LOG.debug("No local datasource found")
         else:
@@ -689,6 +688,7 @@ def main_single(name, args):
 
 
 def status_wrapper(name, args, data_d=None, link_d=None):
+    modes = ("local", "init", "config", "final")
     if data_d is None:
         paths = read_cfg_paths()
         data_d = paths.get_cpath("data")
@@ -708,31 +708,10 @@ def status_wrapper(name, args, data_d=None, link_d=None):
         )
     )
 
-    (_name, functor) = args.action
-
-    if name == "init":
-        if args.local:
-            mode = "init-local"
-        else:
-            mode = "init"
-    elif name == "modules":
-        mode = "modules-%s" % args.mode
-    else:
-        raise ValueError("unknown name: %s" % name)
-
-    modes = (
-        "init",
-        "init-local",
-        "modules-config",
-        "modules-final",
-    )
-    if mode not in modes:
-        raise ValueError(
-            "Invalid cloud init mode specified '{0}'".format(mode)
-        )
+    _, functor = args.action
 
     status = None
-    if mode == "init-local":
+    if name == "local":
         for f in (status_link, result_link, status_path, result_path):
             util.del_file(f)
     else:
@@ -756,9 +735,9 @@ def status_wrapper(name, args, data_d=None, link_d=None):
             status["v1"][m] = nullstatus.copy()
 
     v1 = status["v1"]
-    v1["stage"] = mode
-    v1[mode]["start"] = time.time()
-    v1[mode]["recoverable_errors"] = next(
+    v1["stage"] = name
+    v1[name]["start"] = time.time()
+    v1[name]["recoverable_errors"] = next(
         filter(lambda h: isinstance(h, LogExporter), root_logger.handlers)
     ).export_logs()
 
@@ -770,30 +749,30 @@ def status_wrapper(name, args, data_d=None, link_d=None):
 
     try:
         ret = functor(name, args)
-        if mode in ("init", "init-local"):
-            (datasource, errors) = ret
+        if name in ("init", "local"):
+            datasource, errors = ret
             if datasource is not None:
                 v1["datasource"] = str(datasource)
         else:
             errors = ret
 
-        v1[mode]["errors"] = [str(e) for e in errors]
+        v1[name]["errors"] = [str(e) for e in errors]
 
     except Exception as e:
-        util.logexc(LOG, "failed stage %s", mode)
-        print_exc("failed run of stage %s" % mode)
-        v1[mode]["errors"] = [str(e)]
+        util.logexc(LOG, "failed stage %s", name)
+        print_exc("failed run of stage %s" % name)
+        v1[name]["errors"] = [str(e)]
 
-    v1[mode]["finished"] = time.time()
+    v1[name]["finished"] = time.time()
     v1["stage"] = None
 
     # Write status.json after running init / module code
-    v1[mode]["recoverable_errors"] = next(
+    v1[name]["recoverable_errors"] = next(
         filter(lambda h: isinstance(h, LogExporter), root_logger.handlers)
     ).export_logs()
     atomic_helper.write_json(status_path, status)
 
-    if mode == "modules-final":
+    if name == "final":
         # write the 'finished' file
         errors = []
         for m in modes:
@@ -808,7 +787,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
             os.path.relpath(result_path, link_d), result_link, force=True
         )
 
-    return len(v1[mode]["errors"])
+    return len(v1[name]["errors"])
 
 
 def _maybe_persist_instance_data(init: stages.Init):
@@ -844,6 +823,14 @@ def _maybe_set_hostname(init, stage, retry_stage):
 
 def main_features(name, args):
     sys.stdout.write("\n".join(sorted(version.FEATURES)) + "\n")
+
+
+STAGE_FROM_NAME = {
+    "local": main_init,
+    "network": main_init,
+    "config": main_modules,
+    "final": main_modules,
+}
 
 
 def main(sysv_args=None):
@@ -885,39 +872,17 @@ def main(sysv_args=None):
         dest="force",
         default=False,
     )
+    parser.add_argument(
+        "--stage",
+        action="store",
+        help="Cloud-init stage to start",
+        choices=("init", "network", "config", "final"),
+        default=None,
+    )
 
     parser.set_defaults(reporter=None)
     subparsers = parser.add_subparsers(title="Subcommands", dest="subcommand")
     subparsers.required = True
-
-    # Each action and its sub-options (if any)
-    parser_init = subparsers.add_parser(
-        "init", help="Initialize cloud-init and perform initial modules."
-    )
-    parser_init.add_argument(
-        "--local",
-        "-l",
-        action="store_true",
-        help="Start in local mode (default: %(default)s).",
-        default=False,
-    )
-    # This is used so that we can know which action is selected +
-    # the functor to use to run this subcommand
-    parser_init.set_defaults(action=("init", main_init))
-
-    # These settings are used for the 'config' and 'final' stages
-    parser_mod = subparsers.add_parser(
-        "modules", help="Activate modules using a given configuration key."
-    )
-    parser_mod.add_argument(
-        "--mode",
-        "-m",
-        action="store",
-        help="Module configuration name to use (default: %(default)s).",
-        default="config",
-        choices=("init", "config", "final"),
-    )
-    parser_mod.set_defaults(action=("modules", main_modules))
 
     # This subcommand allows you to run a single module
     parser_single = subparsers.add_parser(
@@ -1042,9 +1007,7 @@ def main(sysv_args=None):
             parser_status.set_defaults(action=("status", handle_status_args))
 
     args = parser.parse_args(args=sysv_args)
-
-    # Subparsers.required = True and each subparser sets action=(name, functor)
-    (name, functor) = args.action
+    name, functor = args.action
 
     # Setup basic logging to start (until reinitialized)
     # iff in debug mode.
@@ -1053,23 +1016,11 @@ def main(sysv_args=None):
 
     # Setup signal handlers before running
     signal_handler.attach_handlers()
-
-    # Write boot stage data to write status.json and result.json
-    # Exclude modules --mode=init, since it is not a real boot stage and
-    # should not be written into status.json
-    if "init" == name or ("modules" == name and "init" != args.mode):
-        functor = status_wrapper
-
-    rname = None
     report_on = True
-    if name == "init":
-        if args.local:
-            rname, rdesc = ("init-local", "searching for local datasources")
-        else:
-            rname, rdesc = (
-                "init-network",
-                "searching for network datasources",
-            )
+    if name in ["local", "network", "config", "final"]:
+        rname, rdesc = name, f"running in stage {name}"
+        args.action = (args.stage, STAGE_FROM_NAME[args.stage])
+        functor = status_wrapper
     elif name == "modules":
         rname, rdesc = (
             "modules-%s" % args.mode,

@@ -13,7 +13,7 @@ start() {
   elif test -e /etc/cloud/cloud-init.disabled; then
     ewarn "$RC_SVCNAME is disabled via cloud-init.disabled file"
   else
-    cloud-init modules --mode config
+    cloud-init --stage=config
   fi
   eend 0
 }
