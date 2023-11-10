@@ -4,7 +4,7 @@ cleanup_lp1552999() {
     dpkg --compare-versions "$oldver" le "$last_bad_ver" || return 0
     local edir="/etc/systemd/system/multi-user.target.wants"
     rm -f "$edir/cloud-config.service" "$edir/cloud-final.service" \
-        "$edir/cloud-init-local.service" "$edir/cloud-init.service"
+        "$edir/cloud-init-local.service" "$edir/cloud-network.service"
 }
 
 

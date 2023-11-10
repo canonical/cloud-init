@@ -282,8 +282,8 @@ def _get_systemd_status() -> Optional[UXAppStatus]:
     for service in [
         "cloud-final.service",
         "cloud-config.service",
+        "cloud-network.service",
         "cloud-init.service",
-        "cloud-init-local.service",
     ]:
         stdout = subp.subp(
             [

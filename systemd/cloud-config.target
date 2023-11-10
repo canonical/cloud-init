@@ -14,5 +14,5 @@
 
 [Unit]
 Description=Cloud-config availability
-Wants=cloud-init-local.service cloud-init.service
-After=cloud-init-local.service cloud-init.service
+Wants=cloud-init-local.service cloud-network.service
+After=cloud-init-local.service cloud-network.service

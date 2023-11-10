@@ -1780,12 +1780,12 @@
         },
         "mount_default_fields": {
           "type": "array",
-          "description": "Default mount configuration for any mount entry with less than 6 options provided. When specified, 6 items are required and represent ``/etc/fstab`` entries. Default: ``defaults,nofail,x-systemd.requires=cloud-init.service,_netdev``",
+          "description": "Default mount configuration for any mount entry with less than 6 options provided. When specified, 6 items are required and represent ``/etc/fstab`` entries. Default: ``defaults,nofail,x-systemd.requires=cloud-network.service,_netdev``",
           "default": [
             null,
             null,
             "auto",
-            "defaults,nofail,x-systemd.requires=cloud-init.service",
+            "defaults,nofail,x-systemd.requires=cloud-network.service",
             "0",
             "2"
           ],

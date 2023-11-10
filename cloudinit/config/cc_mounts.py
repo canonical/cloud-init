@@ -38,7 +38,7 @@ unconfigured in `/etc/fstab`::
 
     mounts:
         - ["ephemeral0", "/mnt", "auto",\
-"defaults,nofail,x-systemd.requires=cloud-init.service", "0", "2"]
+"defaults,nofail,x-systemd.requires=cloud-network.service", "0", "2"]
         - ["swap", "none", "swap", "sw", "0", "0"]
 
 In order to remove a previously listed mount, an entry can be added to
@@ -51,7 +51,7 @@ for the fields in a ``mounts`` entry that are not specified, aside from the
 containing 6 values. It defaults to::
 
     mount_default_fields: [none, none, "auto",\
-"defaults,nofail,x-systemd.requires=cloud-init.service", "0", "2"]
+"defaults,nofail,x-systemd.requires=cloud-network.service", "0", "2"]
 
 Non-systemd init systems will vary in ``mount_default_fields``.
 
@@ -427,7 +427,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     uses_systemd = cloud.distro.uses_systemd()
     if uses_systemd:
         def_mnt_opts = (
-            "defaults,nofail,x-systemd.requires=cloud-init.service,_netdev"
+            "defaults,nofail,x-systemd.requires=cloud-network.service,_netdev"
         )
 
     defvals = [None, None, "auto", def_mnt_opts, "0", "2"]

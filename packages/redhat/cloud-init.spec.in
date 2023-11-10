@@ -124,7 +124,7 @@ if [ $1 -eq 1 ]
 then
     /bin/systemctl enable cloud-config.service     >/dev/null 2>&1 || :
     /bin/systemctl enable cloud-final.service      >/dev/null 2>&1 || :
-    /bin/systemctl enable cloud-init.service       >/dev/null 2>&1 || :
+    /bin/systemctl enable cloud-network.service       >/dev/null 2>&1 || :
     /bin/systemctl enable cloud-init-local.service >/dev/null 2>&1 || :
 fi
 %else
@@ -141,7 +141,7 @@ if [ $1 -eq 0 ]
 then
     /bin/systemctl --no-reload disable cloud-config.service >/dev/null 2>&1 || :
     /bin/systemctl --no-reload disable cloud-final.service  >/dev/null 2>&1 || :
-    /bin/systemctl --no-reload disable cloud-init.service   >/dev/null 2>&1 || :
+    /bin/systemctl --no-reload disable cloud-network.service   >/dev/null 2>&1 || :
     /bin/systemctl --no-reload disable cloud-init-local.service >/dev/null 2>&1 || :
 fi
 %else

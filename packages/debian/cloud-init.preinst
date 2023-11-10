@@ -8,7 +8,7 @@ cleanup_lp1552999() {
     hdir="$hdir/multi-user.target.wants" 
     local edir="/etc/systemd/system/multi-user.target.wants"
     rm -f "$hdir/cloud-config.service" "$hdir/cloud-final.service" \
-        "$hdir/cloud-init-local.service" "$hdir/cloud-init.service"
+        "$hdir/cloud-init-local.service" "$hdir/cloud-network.service"
 }
 
 
