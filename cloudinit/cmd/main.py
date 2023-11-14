@@ -43,6 +43,7 @@ from cloudinit.log import (
     configure_root_logger,
 )
 from cloudinit.reporting import events
+from cloudinit.safeyaml import load
 from cloudinit.settings import PER_INSTANCE, PER_ALWAYS, PER_ONCE, CLOUD_CONFIG
 
 # Welcome message template
@@ -477,9 +478,10 @@ def main_init(name, args):
         return (init.datasource, ["Consuming user data failed!"])
 
     # Validate user-data adheres to schema definition
-    if os.path.exists(init.paths.get_ipath_cur("userdata_raw")):
+    cloud_cfg_path = init.paths.get_ipath_cur("cloud_config")
+    if os.path.exists(cloud_cfg_path) and os.stat(cloud_cfg_path).st_size != 0:
         validate_cloudconfig_schema(
-            config=init.cfg,
+            config=load(util.load_file(cloud_cfg_path)),
             strict=False,
             log_details=False,
             log_deprecations=True,
