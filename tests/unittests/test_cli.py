@@ -68,7 +68,7 @@ class TestCLI:
         m_json,
         tmpdir,
     ):
-        """When running in init-local mode, status_wrapper writes status.json.
+        """When running in stage=local, status_wrapper writes status.json.
 
         Old status and results artifacts are also removed.
         """
@@ -92,13 +92,13 @@ class TestCLI:
         status_v1 = m_json.call_args_list[1][0][1]["v1"]
         assert status_v1.keys() == {
             "datasource",
-            "init-local",
+            "local",
             "init",
-            "modules-config",
-            "modules-final",
+            "config",
+            "final",
             "stage",
         }
-        assert ["an error"] == status_v1["init-local"]["errors"]
+        assert ["an error"] == status_v1["local"]["errors"]
         assert "SomeDatasource" == status_v1["datasource"]
         assert False is os.path.exists(
             data_d.join("result.json")
@@ -111,7 +111,7 @@ class TestCLI:
     def test_status_wrapper_init_local_honor_cloud_dir(
         self, m_json, mocker, tmpdir
     ):
-        """When running in init-local mode, status_wrapper honors cloud_dir."""
+        """When running in local stage, status_wrapper honors cloud_dir."""
         cloud_dir = tmpdir.join("cloud")
         paths = helpers.Paths({"cloud_dir": str(cloud_dir)})
         mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
@@ -129,7 +129,7 @@ class TestCLI:
 
         # Access cloud_dir directly
         status_v1 = m_json.call_args_list[1][0][1]["v1"]
-        assert ["an_error"] == status_v1["init-local"]["errors"]
+        assert ["an_error"] == status_v1["local"]["errors"]
         assert "SomeDatasource" == status_v1["datasource"]
         assert False is os.path.exists(
             data_d.join("result.json")
@@ -164,24 +164,11 @@ class TestCLI:
             "clean",
             "devel",
             "features",
-            "init",
-            "modules",
             "single",
             "schema",
         ]
         for subcommand in expected_subcommands:
             assert subcommand in err
-
-    @pytest.mark.parametrize("subcommand", ["init", "modules"])
-    @mock.patch("cloudinit.cmd.main.status_wrapper")
-    def test_modules_subcommand_parser(self, m_status_wrapper, subcommand):
-        """The subcommand 'subcommand' calls status_wrapper passing modules."""
-        self._call_main(["cloud-init", subcommand])
-        (name, parseargs) = m_status_wrapper.call_args_list[0][0]
-        assert subcommand == name
-        assert subcommand == parseargs.subcommand
-        assert subcommand == parseargs.action[0]
-        assert f"main_{subcommand}" == parseargs.action[1].__name__
 
     @pytest.mark.parametrize(
         "subcommand",
