@@ -584,6 +584,17 @@ def validate_cloudconfig_schema(
         validator.iter_errors(config), key=lambda e: e.path
     ):
         path = ".".join([str(p) for p in schema_error.path])
+        if (
+            not path
+            and schema_error.validator == "additionalProperties"
+            and schema_error.schema == schema
+        ):
+            # an issue with invalid top-level property
+            prop_match = re.match(
+                r".*\('(?P<name>.*)' was unexpected\)", schema_error.message
+            )
+            if prop_match:
+                path = prop_match["name"]
         problem = (SchemaProblem(path, schema_error.message),)
         if isinstance(
             schema_error, SchemaDeprecationError
