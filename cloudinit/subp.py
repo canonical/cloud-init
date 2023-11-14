@@ -5,6 +5,7 @@ import collections
 import logging
 import os
 import subprocess
+import time
 from errno import ENOEXEC
 from io import TextIOWrapper
 from typing import List, Union
@@ -241,6 +242,7 @@ def subp(
             x if isinstance(x, bytes) else x.encode("utf-8") for x in args
         ]
     try:
+        before = time.time()
         sp = subprocess.Popen(
             bytes_args,
             stdout=stdout,
@@ -251,6 +253,9 @@ def subp(
             cwd=cwd,
         )
         out, err = sp.communicate(data)
+        total = time.time() - before
+        if total > 0.1:
+            LOG.debug("command %s took %.3ss to run", args, total)
     except OSError as e:
         raise ProcessExecutionError(
             cmd=args,
