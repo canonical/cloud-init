@@ -590,8 +590,8 @@ read_datasource_list() {
     case "$DI_KERNEL_CMDLINE" in
         *cc:*datasource_list*)
             t=${DI_KERNEL_CMDLINE##*datasource_list}
-            t=${t%%"$cb"*}
-            t=${t##*"$ob"}
+            t=${t%%"${cb}"*}
+            t=${t##*"${ob}"}
             parse_yaml_array "$t"
             dslist=${_RET}
             ;;
