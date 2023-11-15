@@ -1137,7 +1137,7 @@ ec2_read_strict_setting() {
     # 4. kernel command line
     case " ${DI_KERNEL_CMDLINE} " in
         *\ $key=*\ )
-            val=${DI_KERNEL_CMDLINE##*"$key"=}
+            val=${DI_KERNEL_CMDLINE##*"${key}"=}
             val=${val%% *};
             _RET=${val:-$default}
             return 0
