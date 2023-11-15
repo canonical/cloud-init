@@ -156,7 +156,7 @@ def subp(
     target=None,
     update_env=None,
     cwd=None,
-):
+) -> SubpResult:
     """Run a subprocess.
 
     :param args: command to run in a list. [cmd, arg1, arg2...]
