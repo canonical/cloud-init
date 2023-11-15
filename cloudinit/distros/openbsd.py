@@ -3,7 +3,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
-import os
 
 import cloudinit.distros.netbsd
 from cloudinit import subp, util
@@ -58,5 +57,4 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
 
     def _get_pkg_cmd_environ(self):
         """Return env vars used in OpenBSD package_command operations"""
-        e = os.environ.copy()
-        return e
+        return {}

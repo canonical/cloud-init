@@ -148,7 +148,6 @@ def subp(
     *,
     data=None,
     rcs=None,
-    env=None,
     capture=True,
     shell=False,
     logstring=False,
@@ -164,7 +163,6 @@ def subp(
         a list of allowed return codes.  If subprocess exits with a value not
         in this list, a ProcessExecutionError will be raised.  By default,
         data is returned as a string.  See 'decode' parameter.
-    :param env: a dictionary for the command's environment.
     :param capture:
         boolean indicating if output should be captured.  If True, then stderr
         and stdout will be returned.  If False, they will not be redirected.
@@ -178,7 +176,7 @@ def subp(
         These values are passed through to bytes().decode() as the 'errors'
         parameter.  There is no support for decoding to other than utf-8.
     :param update_env:
-        update the enviornment for this command with this dictionary.
+        update the environment for this command with this dictionary.
         this will not affect the current processes os.environ.
     :param cwd:
         change the working directory to cwd before executing the command.
@@ -195,10 +193,8 @@ def subp(
     if rcs is None:
         rcs = [0]
 
+    env = os.environ.copy()
     if update_env:
-        if env is None:
-            env = os.environ
-        env = env.copy()
         env.update(update_env)
 
     if not logstring:

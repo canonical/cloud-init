@@ -146,14 +146,12 @@ class NetBSD(cloudinit.distros.bsd.BSD):
         """Return env vars used in NetBSD package_command operations"""
         os_release = platform.release()
         os_arch = platform.machine()
-        e = os.environ.copy()
-        e[
-            "PKG_PATH"
-        ] = "http://cdn.netbsd.org/pub/pkgsrc/packages/NetBSD/%s/%s/All" % (
-            os_arch,
-            os_release,
-        )
-        return e
+        return {
+            "PKG_PATH": (
+                f"http://cdn.netbsd.org/pub/pkgsrc/packages/NetBSD"
+                f"/{os_arch}/{os_release}/All"
+            )
+        }
 
     def update_package_sources(self):
         pass

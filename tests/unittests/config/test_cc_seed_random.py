@@ -209,7 +209,7 @@ class TestRandomSeed(TestCase):
 
         # this just instists that the first time subp was called,
         # RANDOM_SEED_FILE was in the environment set up correctly
-        subp_env = [f["env"] for f in self.subp_called]
+        subp_env = [f["update_env"] for f in self.subp_called]
         self.assertEqual(subp_env[0].get("RANDOM_SEED_FILE"), self._seed_file)
 
 
