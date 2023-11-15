@@ -869,7 +869,7 @@ dscheck_NoCloud() {
 
 is_ds_enabled() {
     local name="$1" pad=" ${DI_DSLIST} "
-    [ "${pad#* "$name" }" != "${pad}" ]
+    [ "${pad#* "${name}" }" != "${pad}" ]
 }
 
 check_configdrive_v2() {
