@@ -20,6 +20,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
+from cloudinit.subp import SubpResult
 from tests.unittests.helpers import (
     TestCase,
     does_not_raise,
@@ -137,27 +138,27 @@ class TestConfig(TestCase):
         os.remove(self.tmppath)
 
     @mock.patch.object(os.path, "isfile", return_value=False)
-    @mock.patch.dict("os.environ", clear=True)
     def test_no_resizers_auto_is_fine(self, m_isfile):
         with mock.patch.object(
-            subp, "subp", return_value=(HELP_GROWPART_NO_RESIZE, "")
+            subp, "subp", return_value=SubpResult(HELP_GROWPART_NO_RESIZE, "")
         ) as mockobj:
             config = {"growpart": {"mode": "auto"}}
             self.handle(self.name, config, self.cloud, self.args)
 
             mockobj.assert_has_calls(
                 [
-                    mock.call(["growpart", "--help"], env={"LANG": "C"}),
                     mock.call(
-                        ["gpart", "help"], env={"LANG": "C"}, rcs=[0, 1]
+                        ["growpart", "--help"], update_env={"LANG": "C"}
+                    ),
+                    mock.call(
+                        ["gpart", "help"], update_env={"LANG": "C"}, rcs=[0, 1]
                     ),
                 ]
             )
 
-    @mock.patch.dict("os.environ", clear=True)
     def test_no_resizers_mode_growpart_is_exception(self):
         with mock.patch.object(
-            subp, "subp", return_value=(HELP_GROWPART_NO_RESIZE, "")
+            subp, "subp", return_value=SubpResult(HELP_GROWPART_NO_RESIZE, "")
         ) as mockobj:
             config = {"growpart": {"mode": "growpart"}}
             self.assertRaises(
@@ -170,13 +171,12 @@ class TestConfig(TestCase):
             )
 
             mockobj.assert_called_once_with(
-                ["growpart", "--help"], env={"LANG": "C"}
+                ["growpart", "--help"], update_env={"LANG": "C"}
             )
 
-    @mock.patch.dict("os.environ", clear=True)
     def test_mode_auto_prefers_growpart(self):
         with mock.patch.object(
-            subp, "subp", return_value=(HELP_GROWPART_RESIZE, "")
+            subp, "subp", return_value=SubpResult(HELP_GROWPART_RESIZE, "")
         ) as mockobj:
             ret = cc_growpart.resizer_factory(
                 mode="auto", distro=mock.Mock(), devices=["/"]
@@ -184,10 +184,9 @@ class TestConfig(TestCase):
             self.assertIsInstance(ret, cc_growpart.ResizeGrowPart)
 
             mockobj.assert_called_once_with(
-                ["growpart", "--help"], env={"LANG": "C"}
+                ["growpart", "--help"], update_env={"LANG": "C"}
             )
 
-    @mock.patch.dict("os.environ", {"LANG": "cs_CZ.UTF-8"}, clear=True)
     @mock.patch.object(temp_utils, "mkdtemp", return_value="/tmp/much-random")
     @mock.patch.object(stat, "S_ISDIR", return_value=False)
     @mock.patch.object(os.path, "samestat", return_value=True)
@@ -203,7 +202,7 @@ class TestConfig(TestCase):
     @mock.patch.object(os, "lstat", return_value="interesting metadata")
     def test_force_lang_check_tempfile(self, *args, **kwargs):
         with mock.patch.object(
-            subp, "subp", return_value=(HELP_GROWPART_RESIZE, "")
+            subp, "subp", return_value=SubpResult(HELP_GROWPART_RESIZE, "")
         ) as mockobj:
             ret = cc_growpart.resizer_factory(
                 mode="auto", distro=mock.Mock(), devices=["/"]
@@ -217,20 +216,19 @@ class TestConfig(TestCase):
             [
                 mock.call(
                     ["growpart", "--dry-run", diskdev, partnum],
-                    env={"LANG": "C", "TMPDIR": "/tmp"},
+                    update_env={"LANG": "C", "TMPDIR": "/tmp"},
                 ),
                 mock.call(
                     ["growpart", diskdev, partnum],
-                    env={"LANG": "C", "TMPDIR": "/tmp"},
+                    update_env={"LANG": "C", "TMPDIR": "/tmp"},
                 ),
             ]
         )
 
-    @mock.patch.dict("os.environ", clear=True)
     @mock.patch.object(os.path, "isfile", return_value=True)
     def test_mode_use_growfs_on_root(self, m_isfile):
         with mock.patch.object(
-            subp, "subp", return_value=("File not found", "")
+            subp, "subp", return_value=SubpResult("File not found", "")
         ) as mockobj:
             ret = cc_growpart.resizer_factory(
                 mode="auto", distro=mock.Mock(), devices=["/"]
@@ -239,14 +237,15 @@ class TestConfig(TestCase):
 
             mockobj.assert_has_calls(
                 [
-                    mock.call(["growpart", "--help"], env={"LANG": "C"}),
+                    mock.call(
+                        ["growpart", "--help"], update_env={"LANG": "C"}
+                    ),
                 ]
             )
 
-    @mock.patch.dict("os.environ", {"LANG": "cs_CZ.UTF-8"}, clear=True)
     def test_mode_auto_falls_back_to_gpart(self):
         with mock.patch.object(
-            subp, "subp", return_value=("", HELP_GPART)
+            subp, "subp", return_value=SubpResult("", HELP_GPART)
         ) as mockobj:
             ret = cc_growpart.resizer_factory(
                 mode="auto", distro=mock.Mock(), devices=["/", "/opt"]
@@ -255,18 +254,19 @@ class TestConfig(TestCase):
 
             mockobj.assert_has_calls(
                 [
-                    mock.call(["growpart", "--help"], env={"LANG": "C"}),
                     mock.call(
-                        ["gpart", "help"], env={"LANG": "C"}, rcs=[0, 1]
+                        ["growpart", "--help"], update_env={"LANG": "C"}
+                    ),
+                    mock.call(
+                        ["gpart", "help"], update_env={"LANG": "C"}, rcs=[0, 1]
                     ),
                 ]
             )
 
     @mock.patch.object(os.path, "isfile", return_value=True)
-    @mock.patch.dict("os.environ", {"LANG": "cs_CZ.UTF-8"}, clear=True)
     def test_mode_auto_falls_back_to_growfs(self, m_isfile):
         with mock.patch.object(
-            subp, "subp", return_value=("", HELP_GPART)
+            subp, "subp", return_value=SubpResult("", HELP_GPART)
         ) as mockobj:
             ret = cc_growpart.resizer_factory(
                 mode="auto", distro=mock.Mock(), devices=["/"]
@@ -275,7 +275,9 @@ class TestConfig(TestCase):
 
             mockobj.assert_has_calls(
                 [
-                    mock.call(["growpart", "--help"], env={"LANG": "C"}),
+                    mock.call(
+                        ["growpart", "--help"], update_env={"LANG": "C"}
+                    ),
                 ]
             )
 

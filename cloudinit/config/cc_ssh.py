@@ -275,8 +275,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 ",".join(skipped_keys),
             )
 
-        lang_c = os.environ.copy()
-        lang_c["LANG"] = "C"
         for keytype in key_names:
             keyfile = KEY_FILE_TPL % (keytype)
             if os.path.exists(keyfile):
@@ -287,7 +285,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             # TODO(harlowja): Is this guard needed?
             with util.SeLinuxGuard("/etc/ssh", recursive=True):
                 try:
-                    out, err = subp.subp(cmd, capture=True, env=lang_c)
+                    out, err = subp.subp(
+                        cmd, capture=True, update_env={"LANG": "C"}
+                    )
                     if not util.get_cfg_option_bool(
                         cfg, "ssh_quiet_keygen", False
                     ):
