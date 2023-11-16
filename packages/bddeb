@@ -71,7 +71,7 @@ def get_release_suffix(release):
 def run_helper(helper, args=None, strip=True):
     if args is None:
         args = []
-    cmd = [util.abs_join(find_root(), "tools", helper)] + args
+    cmd = [os.path.abspath(os.path.join(find_root(), "tools", helper))] + args
     (stdout, _stderr) = subp.subp(cmd)
     if strip:
         stdout = stdout.strip()
@@ -82,16 +82,18 @@ def write_debian_folder(root, templ_data, cloud_util_deps):
     """Create a debian package directory with all rendered template files."""
     print("Creating a debian/ folder in %r" % (root))
 
-    deb_dir = util.abs_join(root, "debian")
+    deb_dir = os.path.abspath(os.path.join(root, "debian"))
 
     # Just copy debian/ dir and then update files
-    pdeb_d = util.abs_join(find_root(), "packages", "debian")
+    pdeb_d = os.path.abspath(os.path.join(find_root(), "packages", "debian"))
     subp.subp(["cp", "-a", pdeb_d, deb_dir])
 
     # Fill in the change log template
     templater.render_to_file(
-        util.abs_join(find_root(), "packages", "debian", "changelog.in"),
-        util.abs_join(deb_dir, "changelog"),
+        os.path.abspath(os.path.join(
+            find_root(), "packages", "debian", "changelog.in")
+        ),
+        os.path.abspath(os.path.join(deb_dir, "changelog")),
         params=templ_data,
     )
 
@@ -128,8 +130,10 @@ def write_debian_folder(root, templ_data, cloud_util_deps):
         else:
             build_deps += f",{debhelper_matches[-1]}"
     templater.render_to_file(
-        util.abs_join(find_root(), "packages", "debian", "control.in"),
-        util.abs_join(deb_dir, "control"),
+        os.path.abspath(os.path.join(
+            find_root(), "packages", "debian", "control.in")
+        ),
+        os.path.abspath(os.path.join(deb_dir, "control")),
         params={"build_depends": build_deps},
     )
 
@@ -306,7 +310,7 @@ def main():
         # since we will extract it then add in the debian
         # folder, then re-archive it for debian happiness
         tarball = "cloud-init_%s.orig.tar.gz" % ver_data["version_long"]
-        tarball_fp = util.abs_join(tdir, tarball)
+        tarball_fp = os.path.abspath(os.path.join(tdir, tarball))
         path = None
         for pd in ("./", "../", "../dl/"):
             if os.path.exists(pd + tarball):
@@ -329,7 +333,9 @@ def main():
         cmd = ["tar", "-xvzf", tarball_fp, "-C", tdir]
         subp.subp(cmd, capture=capture)
 
-        xdir = util.abs_join(tdir, "cloud-init-%s" % ver_data["version_long"])
+        xdir = os.path.abspath(
+            os.path.join(tdir, "cloud-init-%s" % ver_data["version_long"])
+        )
         templ_data.update(ver_data)
 
         if args.packaging_branch:
