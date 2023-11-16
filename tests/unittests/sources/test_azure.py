@@ -3440,7 +3440,8 @@ class TestEphemeralNetworking:
                 "routes=[('0.0.0.0/0', '10.0.0.1'), "
                 "('168.63.129.16/32', '10.0.0.1'), "
                 "('169.254.169.254/32', '10.0.0.1')] "
-                "lease={'interface': 'fakeEth0'})",
+                "lease={'interface': 'fakeEth0'} "
+                "imds_routed=True wireserver_routed=True)",
                 logger_func=dsaz.LOG.debug,
             ),
         ]
@@ -3918,7 +3919,11 @@ class TestProvisioning:
         # Verify DHCP is setup twice.
         assert self.mock_wrapping_setup_ephemeral_networking.mock_calls == [
             mock.call(timeout_minutes=20),
-            mock.call(iface="ethAttached1", timeout_minutes=20),
+            mock.call(
+                iface="ethAttached1",
+                timeout_minutes=20,
+                report_failure_if_not_primary=False,
+            ),
         ]
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
             mock.call(
@@ -4066,7 +4071,11 @@ class TestProvisioning:
         # Verify DHCP is setup twice.
         assert self.mock_wrapping_setup_ephemeral_networking.mock_calls == [
             mock.call(timeout_minutes=20),
-            mock.call(iface="ethAttached1", timeout_minutes=20),
+            mock.call(
+                iface="ethAttached1",
+                timeout_minutes=20,
+                report_failure_if_not_primary=False,
+            ),
         ]
         assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
             mock.call(
@@ -4358,6 +4367,7 @@ class TestProvisioning:
 
 
 class TestGetMetadataFromImds:
+    @pytest.mark.parametrize("route_configured_for_imds", [False, True])
     @pytest.mark.parametrize("report_failure", [False, True])
     @pytest.mark.parametrize(
         "exception,reported_error_type",
@@ -4379,14 +4389,18 @@ class TestGetMetadataFromImds:
         mock_azure_report_failure_to_fabric,
         mock_imds_fetch_metadata_with_api_fallback,
         mock_kvp_report_failure_to_host,
+        mock_time,
         monkeypatch,
         report_failure,
         reported_error_type,
+        route_configured_for_imds,
     ):
         monkeypatch.setattr(
             azure_ds, "_is_ephemeral_networking_up", lambda: True
         )
+        azure_ds._route_configured_for_imds = route_configured_for_imds
         mock_imds_fetch_metadata_with_api_fallback.side_effect = exception
+        mock_time.return_value = 0.0
 
         assert (
             azure_ds.get_metadata_from_imds(report_failure=report_failure)
@@ -4396,13 +4410,26 @@ class TestGetMetadataFromImds:
             mock.call(retry_deadline=mock.ANY)
         ]
 
+        expected_duration = 300
+        assert (
+            mock_imds_fetch_metadata_with_api_fallback.call_args[1][
+                "retry_deadline"
+            ]
+            == expected_duration
+        )
+
         reported_error = mock_kvp_report_failure_to_host.call_args[0][0]
         assert isinstance(reported_error, reported_error_type)
         assert reported_error.supporting_data["exception"] == repr(exception)
         assert mock_kvp_report_failure_to_host.mock_calls == [
             mock.call(reported_error)
         ]
-        if report_failure:
+
+        if report_failure and (
+            route_configured_for_imds
+            or not isinstance(exception, url_helper.UrlError)
+            or not isinstance(exception.cause, requests.ConnectionError)
+        ):
             assert mock_azure_report_failure_to_fabric.mock_calls == [
                 mock.call(endpoint=mock.ANY, error=reported_error)
             ]

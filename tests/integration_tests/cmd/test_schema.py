@@ -70,6 +70,6 @@ class TestSchemaDeprecations:
             # D3: Default: ``false``. Deprecated in version 22.2. Use ``package_reboot_if_required`` instead.
 
 
-            Valid cloud-config: /root/user-data"""  # noqa: E501
+            Valid schema /root/user-data"""  # noqa: E501
         )
         assert expected_output in annotated_result.stdout

@@ -1,6 +1,9 @@
 name: Lint Tests
 on:
   pull_request:
+  push:
+    branches:
+      - main
 
 concurrency:
   group: 'ci-${{ github.workflow }}-${{ github.ref }}'
@@ -93,6 +96,22 @@ jobs:
           TOXENV: doc
         run: |
           tox
+
+  shell-lint:
+    name: Shell Lint
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.0.0
+
+      - name: Install ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt install shellcheck
+
+      - name: Run ShellCheck
+        run: |
+          shellcheck ./tools/ds-identify
 
   check-cla-signers:
     runs-on: ubuntu-22.04

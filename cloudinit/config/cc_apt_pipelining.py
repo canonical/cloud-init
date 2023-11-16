@@ -42,16 +42,14 @@ meta: MetaSchema = {
 
         Value configuration options for this module are:
 
-        * ``false`` (Default): disable pipelining altogether
-        * ``none``, ``unchanged``, or ``os``: use distro default
+        * ``os``: (Default) use distro default
+        * ``false`` disable pipelining altogether
         * ``<number>``: Manually specify pipeline depth. This is not recommended."""  # noqa: E501
     ),
     "distros": distros,
     "frequency": frequency,
     "examples": [
         "apt_pipelining: false",
-        "apt_pipelining: none",
-        "apt_pipelining: unchanged",
         "apt_pipelining: os",
         "apt_pipelining: 3",
     ],

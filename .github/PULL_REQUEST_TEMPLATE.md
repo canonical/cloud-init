@@ -1,13 +1,23 @@
 ## Proposed Commit Message
-<!-- Include a proposed commit message because all PRs are squash merged -->
+<!-- Include a proposed commit message because PRs are squash merged
+by default.
 
+See https://www.conventionalcommits.org/en/v1.0.0/#specification
+for our commit message convention.
+
+If the change is related to a particular cloud or particular distro,
+please include the "optional scope" in the summary line. E.g.,
+feat(ec2): Add support for foo to the baz
+
+Types used by this project:
+feat, fix, docs, ci, test, refactor, chore
+-->
 ```
-summary: no more than 70 characters
+<type>(optional scope): <summary>  # no more than 72 characters
 
 A description of what the change being made is and why it is being
-made, if the summary line is insufficient.  The blank line above is
-required. This should be wrapped at 72 characters, but otherwise has
-no particular length requirements.
+made if the summary line is insufficient.  This should be wrapped at
+72 characters.
 
 If you need to write multiple paragraphs, feel free.
 
@@ -30,3 +40,8 @@ that apply. -->
 - [ ] My code follows the process laid out in [the documentation](https://cloudinit.readthedocs.io/en/latest/development/index.html)
 - [ ] I have updated or added any [unit tests](https://cloudinit.readthedocs.io/en/latest/development/testing.html) accordingly
 - [ ] I have updated or added any [documentation](https://cloudinit.readthedocs.io/en/latest/development/contribute_docs.html) accordingly
+
+## Merge type
+
+- [x] Squash merge using "Proposed Commit Message"
+- [ ] Rebase and merge unique commits. Requires commit messages per-commit each referencing the pull request number (#<PR_NUM>)
