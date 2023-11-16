@@ -17,6 +17,8 @@ from pathlib import Path
 from time import sleep, time
 from typing import Any, Dict, List, Optional
 
+import requests
+
 from cloudinit import net, sources, ssh_util, subp, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import device_driver
@@ -334,6 +336,8 @@ class DataSourceAzure(sources.DataSource):
         self._iso_dev = None
         self._network_config = None
         self._ephemeral_dhcp_ctx = None
+        self._route_configured_for_imds = False
+        self._route_configured_for_wireserver = False
         self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
         self._reported_ready_marker_file = os.path.join(
             paths.cloud_dir, "data", "reported_ready"
@@ -344,6 +348,8 @@ class DataSourceAzure(sources.DataSource):
 
         self._ephemeral_dhcp_ctx = None
         self._iso_dev = None
+        self._route_configured_for_imds = False
+        self._route_configured_for_wireserver = False
         self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
         self._reported_ready_marker_file = os.path.join(
             self.paths.cloud_dir, "data", "reported_ready"
@@ -371,23 +377,28 @@ class DataSourceAzure(sources.DataSource):
             # Primary nics must contain routes.
             return False
 
-        routed_networks = [r[0] for r in ephipv4.static_routes]
-        wireserver_route = f"{self._wireserver_endpoint}/32"
-        primary = any(
-            n in routed_networks
-            for n in [
-                "169.254.169.254/32",
-                wireserver_route,
-            ]
+        routed_networks = [r[0].split("/")[0] for r in ephipv4.static_routes]
+
+        # Expected to be true for all of Azure public cloud and future Azure
+        # Stack versions with IMDS capabilities, but false for existing ones.
+        self._route_configured_for_imds = "169.254.169.254" in routed_networks
+
+        # Expected to be true for Azure public cloud and Azure Stack.
+        self._route_configured_for_wireserver = (
+            self._wireserver_endpoint in routed_networks
         )
 
-        return primary
+        return (
+            self._route_configured_for_imds
+            or self._route_configured_for_wireserver
+        )
 
     @azure_ds_telemetry_reporter
     def _setup_ephemeral_networking(
         self,
         *,
         iface: Optional[str] = None,
+        report_failure_if_not_primary: bool = True,
         retry_sleep: int = 1,
         timeout_minutes: int = 5,
     ) -> bool:
@@ -502,7 +513,8 @@ class DataSourceAzure(sources.DataSource):
             primary = self._check_if_primary(ephipv4)
             report_diagnostic_event(
                 "Obtained DHCP lease on interface %r "
-                "(primary=%r driver=%r router=%r routes=%r lease=%r)"
+                "(primary=%r driver=%r router=%r routes=%r lease=%r "
+                "imds_routed=%r wireserver_routed=%r)"
                 % (
                     iface,
                     primary,
@@ -510,14 +522,30 @@ class DataSourceAzure(sources.DataSource):
                     ephipv4.router,
                     ephipv4.static_routes,
                     lease,
+                    self._route_configured_for_imds,
+                    self._route_configured_for_wireserver,
                 ),
                 logger_func=LOG.debug,
             )
+
+            if report_failure_if_not_primary and not primary:
+                self._report_failure(
+                    errors.ReportableErrorDhcpOnNonPrimaryInterface(
+                        interface=iface,
+                        driver=driver,
+                        router=ephipv4.router,
+                        static_routes=ephipv4.static_routes,
+                        lease=lease,
+                    ),
+                    host_only=True,
+                )
             return primary
 
     @azure_ds_telemetry_reporter
     def _teardown_ephemeral_networking(self) -> None:
         """Teardown ephemeral networking."""
+        self._route_configured_for_imds = False
+        self._route_configured_for_wireserver = False
         if self._ephemeral_dhcp_ctx is None:
             return
 
@@ -740,6 +768,7 @@ class DataSourceAzure(sources.DataSource):
     def get_metadata_from_imds(self, report_failure: bool) -> Dict:
         start_time = time()
         retry_deadline = start_time + 300
+
         error_string: Optional[str] = None
         error_report: Optional[errors.ReportableError] = None
         try:
@@ -752,6 +781,14 @@ class DataSourceAzure(sources.DataSource):
             error_report = errors.ReportableErrorImdsUrlError(
                 exception=error, duration=duration
             )
+
+            # As a temporary workaround to support Azure Stack implementations
+            # which may not enable IMDS, don't report connection errors to
+            # wireserver if route is not configured.
+            if not self._route_configured_for_imds and isinstance(
+                error.cause, requests.ConnectionError
+            ):
+                report_failure = False
         except ValueError as error:
             error_string = str(error)
             error_report = errors.ReportableErrorImdsMetadataParsingException(
@@ -1095,7 +1132,9 @@ class DataSourceAzure(sources.DataSource):
                 if not primary_nic_found:
                     LOG.info("Checking if %s is the primary nic", ifname)
                     primary_nic_found = self._setup_ephemeral_networking(
-                        iface=ifname, timeout_minutes=20
+                        iface=ifname,
+                        timeout_minutes=20,
+                        report_failure_if_not_primary=False,
                     )
 
                 # Exit criteria: check if we've discovered primary nic

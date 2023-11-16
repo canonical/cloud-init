@@ -5,31 +5,24 @@ from typing import Optional
 from packaging import version
 
 from cloudinit import subp
-from cloudinit.subp import ProcessExecutionError
 from tests.integration_tests import integration_settings
 
 log = logging.getLogger("integration_testing")
 
 
-def get_all_ubuntu_series() -> list:
-    """Use distro-info-data's ubuntu.csv to get a list of Ubuntu series"""
-    out = ""
-    try:
-        out, _err = subp.subp(["ubuntu-distro-info", "-a"])
-    except ProcessExecutionError:
-        log.info(
-            "ubuntu-distro-info (from the distro-info package) must be"
-            " installed to guess Ubuntu os/release"
-        )
-    return out.splitlines()
-
-
 def ubuntu_version_from_series(series) -> str:
+    running_ubuntu = subp.which("ubuntu-distro-info")
     try:
-        out, _err = subp.subp(
+        out = subp.subp(
             ["ubuntu-distro-info", "--release", "--series", series]
-        )
+        ).stdout
     except subp.ProcessExecutionError as e:
+        if not running_ubuntu:
+            log.info(
+                "ubuntu-distro-info (from the distro-info package) not "
+                " installed, attempting pass through Ubuntu os/release"
+            )
+            return series
         raise ValueError(
             f"'{series}' is not a recognized Ubuntu release"
         ) from e

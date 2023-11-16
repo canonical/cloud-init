@@ -1166,7 +1166,8 @@ def read_cc_from_cmdline(cmdline=None):
     if cmdline is None:
         cmdline = get_cmdline()
 
-    tag_begin = "cc:"
+    cmdline = f" {cmdline}"
+    tag_begin = " cc:"
     tag_end = "end_cc"
     begin_l = len(tag_begin)
     end_l = len(tag_end)
@@ -2314,10 +2315,6 @@ def make_header(comment_char="#", base="created"):
     header += " %s by cloud-init v. %s" % (base.title(), ci_ver)
     header += " on %s" % time_rfc2822()
     return header
-
-
-def abs_join(base, *paths):
-    return os.path.abspath(os.path.join(base, *paths))
 
 
 # shellify, takes a list of commands

@@ -330,8 +330,8 @@ read_fs_info_linux() {
     [ -n "$dev" -a "$ftype" = "iso9660" ] &&
         isodevs="${isodevs},${dev}=$label"
 
-    DI_FS_LABELS="${labels%${delim}}"
-    DI_FS_UUIDS="${uuids%${delim}}"
+    DI_FS_LABELS="${labels%"${delim}"}"
+    DI_FS_UUIDS="${uuids%"${delim}"}"
     DI_ISO9660_DEVS="${isodevs#,}"
 }
 
@@ -381,7 +381,7 @@ read_fs_info_freebsd() {
         labels="${labels}${label}${delim}"
     done
 
-    DI_FS_LABELS="${labels%${delim}}"
+    DI_FS_LABELS="${labels%"${delim}"}"
     DI_ISO9660_DEVS="${isodevs#,}"
 }
 
@@ -462,7 +462,7 @@ is_container() {
 }
 
 is_socket_file() {
-    [ -S $1 ] && return 0 || return 1
+    [ -S "$1" ] && return 0 || return 1
 }
 
 read_kernel_cmdline() {
@@ -590,8 +590,8 @@ read_datasource_list() {
     case "$DI_KERNEL_CMDLINE" in
         *cc:*datasource_list*)
             t=${DI_KERNEL_CMDLINE##*datasource_list}
-            t=${t%%$cb*}
-            t=${t##*$ob}
+            t=${t%%"${cb}"*}
+            t=${t##*"${ob}"}
             parse_yaml_array "$t"
             dslist=${_RET}
             ;;
@@ -687,7 +687,7 @@ nocase_equal() {
     local delim="-delim-"
     # shellcheck disable=2018,2019
     out=$(echo "$1${delim}$2" | tr A-Z a-z)
-    [ "${out#*${delim}}" = "${out%${delim}*}" ]
+    [ "${out#*"${delim}"}" = "${out%"${delim}"*}" ]
 }
 
 check_seed_dir() {
@@ -713,7 +713,7 @@ check_writable_seed_dir() {
     # over the top of /var/lib/cloud, but the mount might not be done yet.
     local wdir="/writable/system-data"
     [ -d "${PATH_ROOT}$wdir" ] || return 1
-    local sdir="${PATH_ROOT}$wdir${PATH_VAR_LIB_CLOUD#${PATH_ROOT}}"
+    local sdir="${PATH_ROOT}$wdir${PATH_VAR_LIB_CLOUD#"${PATH_ROOT}"}"
     local PATH_VAR_LIB_CLOUD="$sdir"
     check_seed_dir "$@"
 }
@@ -866,7 +866,7 @@ dscheck_NoCloud() {
 
 is_ds_enabled() {
     local name="$1" pad=" ${DI_DSLIST} "
-    [ "${pad#* $name }" != "${pad}" ]
+    [ "${pad#* "${name}" }" != "${pad}" ]
 }
 
 check_configdrive_v2() {
@@ -1006,27 +1006,17 @@ vmware_guestinfo_ovfenv_err() {
 }
 
 vmware_guestinfo_metadata() {
-    if [ "${1:-}" = "err" ]; then
-      vmware_guestinfo_err "metadata"
-    else
-      vmware_guestinfo "metadata"
-    fi
+    vmware_guestinfo "metadata"
 }
 
 vmware_guestinfo_userdata() {
-    if [ "${1:-}" = "err" ]; then
-      vmware_guestinfo_err "userdata"
-    else
-      vmware_guestinfo "userdata"
-    fi
+
+    vmware_guestinfo "userdata"
 }
 
 vmware_guestinfo_vendordata() {
-    if [ "${1:-}" = "err" ]; then
-      vmware_guestinfo_err "vendordata"
-    else
-      vmware_guestinfo "vendordata"
-    fi
+
+    vmware_guestinfo "vendordata"
 }
 
 ovf_vmware_transport_guestinfo() {
@@ -1085,7 +1075,7 @@ is_cdrom_ovf() {
 has_ovf_cdrom() {
     # DI_ISO9660_DEVS is <device>=label,<device>=label2
     # like /dev/sr0=OVF-TRANSPORT,/dev/other=with spaces
-    if [ "${DI_ISO9660_DEVS#${UNAVAILABLE}:}" = "${DI_ISO9660_DEVS}" ]; then
+    if [ "${DI_ISO9660_DEVS#"${UNAVAILABLE}":}" = "${DI_ISO9660_DEVS}" ]; then
         local oifs="$IFS"
         # shellcheck disable=2086
         { IFS=","; set -- ${DI_ISO9660_DEVS}; IFS="$oifs"; }
@@ -1161,7 +1151,7 @@ ec2_read_strict_setting() {
     # 4. kernel command line
     case " ${DI_KERNEL_CMDLINE} " in
         *\ $key=*\ )
-            val=${DI_KERNEL_CMDLINE##*$key=}
+            val=${DI_KERNEL_CMDLINE##*"${key}"=}
             val=${val%% *};
             _RET=${val:-$default}
             return 0
@@ -1676,7 +1666,7 @@ _read_config() {
     local keyname="${1:-_unset}"
     local line="" hash="#" key="" val=""
     while read line; do
-        line=${line%%${hash}*}
+        line=${line%%"${hash}"*}
         key="${line%%:*}"
 
         # no : in the line.
