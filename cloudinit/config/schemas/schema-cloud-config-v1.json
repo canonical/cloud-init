@@ -231,15 +231,15 @@
           "type": "boolean"
         },
         "passwd": {
-          "description": "Hash of user password applied when user does not exist. This will NOT be applied if the user already exists. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** Your password might possibly be visible to unpriveledged users on your system, depending on your cloud's security model.",
+          "description": "Hash of user password applied when user does not exist. This will NOT be applied if the user already exists. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** Your password might possibly be visible to unprivileged users on your system, depending on your cloud's security model.",
           "type": "string"
         },
         "hashed_passwd": {
-          "description": "Hash of user password to be applied. This will be applied even if the user is pre-existing. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** Your password might possibly be visible to unpriveledged users on your system, depending on your cloud's security model.",
+          "description": "Hash of user password to be applied. This will be applied even if the user is preexisting. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** Your password might possibly be visible to unprivileged users on your system, depending on your cloud's security model.",
           "type": "string"
         },
         "plain_text_passwd": {
-          "description": "Clear text of user password to be applied. This will be applied even if the user is pre-existing. There are many more secure options than using plain text passwords, such as ``ssh_import_id``. **Note:** Your password might possibly be visible to unpriveledged users on your system, depending on your cloud's security model.",
+          "description": "Clear text of user password to be applied. This will be applied even if the user is preexisting. There are many more secure options than using plain text passwords, such as ``ssh_import_id``. **Note:** Your password might possibly be visible to unprivileged users on your system, depending on your cloud's security model.",
           "type": "string"
         },
         "create_groups": {
@@ -308,7 +308,7 @@
           ]
         },
         "uid": {
-          "description": "The user's ID. Default value [system default].",
+          "description": "The user's ID. Default value [system default]",
           "oneOf": [
             {
               "type": "integer"
@@ -815,7 +815,7 @@
             },
             "conf": {
               "type": "string",
-              "description": "Specify configuration for apt, such as proxy configuration. This configuration is specified as a string. For multiline APT configuration, make sure to follow yaml syntax."
+              "description": "Specify configuration for apt, such as proxy configuration. This configuration is specified as a string. For mult-line APT configuration, make sure to follow YAML syntax."
             },
             "https_proxy": {
               "type": "string",
@@ -1113,7 +1113,7 @@
       "properties": {
         "disable_ec2_metadata": {
           "default": false,
-          "description": "Set true to disable IPv4 routes to EC2 metadata. Default: ``false.``",
+          "description": "Set true to disable IPv4 routes to EC2 metadata. Default: ``false``",
           "type": "boolean"
         }
       }
@@ -1308,7 +1308,7 @@
           "properties": {
             "mode": {
               "default": "auto",
-              "description": "The utility to use for resizing. Default: ``auto``\n\nPossible options:\n\n* ``auto`` - Use any available utility\n\n* ``growpart`` - Use growpart utility\n\n* ``gpart`` - Use BSD gpart utility\n\n* ``off`` - Take no action.",
+              "description": "The utility to use for resizing. Default: ``auto``\n\nPossible options:\n\n* ``auto`` - Use any available utility\n\n* ``growpart`` - Use growpart utility\n\n* ``gpart`` - Use BSD gpart utility\n\n* ``off`` - Take no action",
               "oneOf": [
                 {
                   "enum": [
@@ -2199,7 +2199,7 @@
             },
             "conf": {
               "type": "object",
-              "description": "Every key present in the conf object will be added to puppet.conf. As such, section names should be one of: ``main``, ``server``, ``agent`` or ``user`` and keys should be valid puppet configuration options. The configuration is specified as a dictionary containing high-level ``<section>`` keys and lists of ``<key>=<value>`` pairs within each section. The ``certname`` key supports string substitutions for ``%i`` and ``%f``, corresponding to the instance id and fqdn of the machine respectively.\n\n``ca_cert`` is a special case. It won't be added to puppet.conf. It holds the puppetserver certificate in pem format. It should be a multi-line string (using the | yaml notation for multi-line strings).",
+              "description": "Every key present in the conf object will be added to puppet.conf. As such, section names should be one of: ``main``, ``server``, ``agent`` or ``user`` and keys should be valid puppet configuration options. The configuration is specified as a dictionary containing high-level ``<section>`` keys and lists of ``<key>=<value>`` pairs within each section. The ``certname`` key supports string substitutions for ``%i`` and ``%f``, corresponding to the instance id and fqdn of the machine respectively.\n\n``ca_cert`` is a special case. It won't be added to puppet.conf. It holds the puppetserver certificate in pem format. It should be a multi-line string (using the | YAML notation for multi-line strings).",
               "additionalProperties": false,
               "properties": {
                 "main": {
@@ -2552,7 +2552,7 @@
             },
             "data": {
               "type": "string",
-              "description": "This data will be written to ``file`` before data from the datasource. When using a multiline value or specifying binary data, be sure to follow yaml syntax and use the ``|`` and ``!binary`` yaml format specifiers when appropriate"
+              "description": "This data will be written to ``file`` before data from the datasource. When using a multi-line value or specifying binary data, be sure to follow YAML syntax and use the ``|`` and ``!binary`` YAML format specifiers when appropriate"
             },
             "encoding": {
               "type": "string",
@@ -2636,7 +2636,7 @@
               "description": "Whether to expire all user passwords such that a password will need to be reset on the user's next login. Default: ``true``"
             },
             "users": {
-              "description": "This key represents a list of existing users to set passwords for. Each item under users contains the following required keys: ``name`` and ``password`` or in the case of a randomly generated password, ``name`` and ``type``. The ``type`` key has a default value of ``hash``, and may alternatively be set to ``text`` or ``RANDOM``. Randomly generated keys may be insecure, use at your own risk.",
+              "description": "This key represents a list of existing users to set passwords for. Each item under users contains the following required keys: ``name`` and ``password`` or in the case of a randomly generated password, ``name`` and ``type``. The ``type`` key has a default value of ``hash``, and may alternatively be set to ``text`` or ``RANDOM``. Randomly generated passwords may be insecure, use at your own risk.",
               "type": "array",
               "items": {
                 "minItems": 1,
@@ -2833,7 +2833,7 @@
       "properties": {
         "ssh_keys": {
           "type": "object",
-          "description": "A dictionary entries for the public and private host keys of each desired key type. Entries in the ``ssh_keys`` config dict should have keys in the format ``<key type>_private``, ``<key type>_public``, and, optionally, ``<key type>_certificate``, e.g. ``rsa_private: <key>``, ``rsa_public: <key>``, and ``rsa_certificate: <key>``. Not all key types have to be specified, ones left unspecified will not be used. If this config option is used, then separate keys will not be automatically generated. In order to specify multiline private host keys and certificates, use yaml multiline syntax. **Note:** Your ssh keys might possibly be visible to unpriveledged users on your system, depending on your cloud's security model.",
+          "description": "A dictionary entries for the public and private host keys of each desired key type. Entries in the ``ssh_keys`` config dict should have keys in the format ``<key type>_private``, ``<key type>_public``, and, optionally, ``<key type>_certificate``, e.g. ``rsa_private: <key>``, ``rsa_public: <key>``, and ``rsa_certificate: <key>``. Not all key types have to be specified, ones left unspecified will not be used. If this config option is used, then separate keys will not be automatically generated. In order to specify multi-line private host keys and certificates, use YAML multi-line syntax. **Note:** Your ssh keys might possibly be visible to unprivileged users on your system, depending on your cloud's security model.",
           "additionalProperties": false,
           "patternProperties": {
             "^(dsa|ecdsa|ed25519|rsa)_(public|private|certificate)$": {
@@ -3053,7 +3053,7 @@
       "properties": {
         "manage_etc_hosts": {
           "default": false,
-          "description": "Whether to manage ``/etc/hosts`` on the system. If ``true``, render the hosts file using ``/etc/cloud/templates/hosts.tmpl`` replacing ``$hostname`` and ``$fdqn``. If ``localhost``, append a ``127.0.1.1`` entry that resolves from FQDN and hostname every boot. Default: ``false``.",
+          "description": "Whether to manage ``/etc/hosts`` on the system. If ``true``, render the hosts file using ``/etc/cloud/templates/hosts.tmpl`` replacing ``$hostname`` and ``$fdqn``. If ``localhost``, append a ``127.0.1.1`` entry that resolves from FQDN and hostname every boot. Default: ``false``",
           "oneOf": [
             {
               "enum": [
