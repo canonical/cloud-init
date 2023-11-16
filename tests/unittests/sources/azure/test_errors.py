@@ -160,9 +160,16 @@ def test_dhcp_interface_not_found():
         (
             UrlError(
                 Exception(),
+                code=404,
+            ),
+            "http error 404 querying IMDS",
+        ),
+        (
+            UrlError(
+                Exception(),
                 code=500,
             ),
-            "http error querying IMDS",
+            "http error 500 querying IMDS",
         ),
         (
             UrlError(

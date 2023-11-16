@@ -106,6 +106,11 @@ def _resize_hammer2(mount_point, devpth):
     return ("hammer2", "growfs", mount_point)
 
 
+def _resize_bcachefs(mount_point, devpth):
+    """Single device resize"""
+    return ("bcachefs", "device", "resize", devpth)
+
+
 def _can_skip_resize_ufs(mount_point, devpth):
     # possible errors cases on the code-path to growfs -N following:
     # https://github.com/freebsd/freebsd/blob/HEAD/sbin/growfs/growfs.c
@@ -135,6 +140,7 @@ RESIZE_FS_PREFIXES_CMDS = [
     ("ufs", _resize_ufs),
     ("zfs", _resize_zfs),
     ("hammer2", _resize_hammer2),
+    ("bcachefs", _resize_bcachefs),
 ]
 
 RESIZE_FS_PRECHECK_CMDS = {"ufs": _can_skip_resize_ufs}

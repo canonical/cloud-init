@@ -883,10 +883,21 @@
             },
             {
               "type": "string",
-              "enum": [
-                "none",
-                "unchanged",
-                "os"
+              "oneOf": [
+                {
+                  "enum": [
+                    "os"
+                  ]
+                },
+                {
+                  "deprecated": true,
+                  "deprecated_version": "22.4",
+                  "deprecated_description": "Use ``os`` instead.",
+                  "enum": [
+                    "none",
+                    "unchanged"
+                  ]
+                }
               ]
             }
           ]

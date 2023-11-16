@@ -36,7 +36,7 @@ RPM_BUILD_SUBDIRS = ['BUILD', 'RPMS', 'SOURCES', 'SPECS', 'SRPMS']
 def run_helper(helper, args=None, strip=True):
     if args is None:
         args = []
-    cmd = [util.abs_join(find_root(), 'tools', helper)] + args
+    cmd = [os.path.abspath(os.path.join(find_root(), 'tools', helper))] + args
     (stdout, _stderr) = subp.subp(cmd)
     if strip:
         stdout = stdout.strip()
@@ -161,15 +161,15 @@ def main():
         print("Archived the code in %r" % (real_archive_fn))
 
         # Form the spec file to be used
-        tmpl_fn = util.abs_join(find_root(), 'packages',
-                                args.distro, 'cloud-init.spec.in')
+        tmpl_fn = os.path.abspath(os.path.join(find_root(), 'packages',
+                                args.distro, 'cloud-init.spec.in'))
         contents = generate_spec_contents(args, version_data, tmpl_fn, topdir,
                                           os.path.basename(archive_fn))
-        spec_fn = util.abs_join(topdir, 'SPECS', 'cloud-init.spec')
+        spec_fn = os.path.abspath(os.path.join(topdir, 'SPECS', 'cloud-init.spec'))
         util.write_file(spec_fn, contents)
         print("Created spec file at %r" % (spec_fn))
         for p in args.patches:
-            util.copy(p, util.abs_join(topdir, 'SOURCES', os.path.basename(p)))
+            util.copy(p, os.path.abspath(os.path.join(topdir, 'SOURCES', os.path.basename(p)))_
 
         # Now build it!
         print("Running 'rpmbuild' in %r" % (topdir))
@@ -184,15 +184,19 @@ def main():
         # Copy the items built to our local dir
         globs = []
         globs.extend(glob.glob("%s/*.rpm" %
-                               (util.abs_join(topdir, 'RPMS', 'noarch'))))
+                               (os.path.abspath(os.path.join(topdir, 'RPMS', 'noarch')))))
         globs.extend(glob.glob("%s/*.rpm" %
-                               (util.abs_join(topdir, 'RPMS', 'x86_64'))))
+                               (os.path.abspath(os.path.join(topdir, 'RPMS',
+                                                             'x86_64')))))
         globs.extend(glob.glob("%s/*.rpm" %
-                               (util.abs_join(topdir, 'RPMS'))))
+                               (os.path.abspath(os.path.join(topdir,
+                                                             'RPMS')))))
         globs.extend(glob.glob("%s/*.rpm" %
-                               (util.abs_join(topdir, 'SRPMS'))))
+                               (os.path.abspath(os.path.join(topdir,
+                                                             'SRPMS')))))
         for rpm_fn in globs:
-            tgt_fn = util.abs_join(os.getcwd(), os.path.basename(rpm_fn))
+            tgt_fn = os.path.abspath(os.path.join(os.getcwd(),
+                                                  os.path.basename(rpm_fn)))
             shutil.move(rpm_fn, tgt_fn)
             print("Wrote out %s package %r" % (args.distro, tgt_fn))
     finally:
