@@ -1012,7 +1012,7 @@ class DataSourceAzure(sources.DataSource):
             else:
                 report_diagnostic_event(
                     "The preprovisioned nic %s is detached" % ifname,
-                    logger_func=LOG.warning,
+                    logger_func=LOG.debug,
                 )
         except AssertionError as error:
             report_diagnostic_event(str(error), logger_func=LOG.error)
