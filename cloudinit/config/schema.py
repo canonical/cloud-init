@@ -9,6 +9,7 @@ import sys
 import textwrap
 from collections import defaultdict
 from collections.abc import Iterable
+from contextlib import suppress
 from copy import deepcopy
 from errno import EACCES
 from functools import partial
@@ -31,7 +32,7 @@ import yaml
 from cloudinit import importer, safeyaml
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers import INCLUSION_TYPES_MAP, type_from_starts_with
-from cloudinit.helpers import get_processed_or_fallback_path
+from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceNotFoundException
 from cloudinit.util import error, get_modules_from_dir, load_file
 
@@ -1494,7 +1495,35 @@ def _assert_exclusive_args(args):
         )
 
 
-def get_config_paths_from_args(args) -> Tuple[str, Tuple[str, str]]:
+def get_config_paths_from_args(
+    args,
+) -> Tuple[str, Tuple[Tuple[str, str], ...]]:
+    def get_processed_or_fallback_path(
+        paths: Paths,
+        primary_path_key: str,
+        raw_fallback_path_key: str,
+    ) -> str:
+        """Get processed data path when non-empty of fallback to raw data path.
+        - When primary path isn't set, return empty string as Paths structure
+          is not yet setup.
+        - When primary path and raw path exist and are empty, prefer primary
+          path.
+        - When primary path is empty but the raw fallback path is non-empty,
+          this indicates an invalid and ignored raw user-data was provided and
+          cloud-init emitted a warning and did not process unknown raw
+          user-data.
+          In the case of invalid raw user-data header, prefer
+          raw_fallback_path_key so actionable sensible warnings can be
+          reported ot the user about the raw unparseable user-data.
+        """
+        primary_datapath = paths.get_ipath(primary_path_key) or ""
+        with suppress(FileNotFoundError):
+            if not os.stat(primary_datapath).st_size:
+                raw_path = paths.get_ipath(raw_fallback_path_key) or ""
+                if os.stat(raw_path).st_size:
+                    return raw_path
+        return primary_datapath
+
     try:
         paths = read_cfg_paths(fetch_existing_datasource="trust")
     except (IOError, OSError) as e:
@@ -1518,7 +1547,7 @@ def get_config_paths_from_args(args) -> Tuple[str, Tuple[str, str]]:
     else:
         instance_data_path = paths.get_runpath("instance_data_sensitive")
     if args.config_file:
-        config_files = (
+        config_files: Tuple[Tuple[str, str], ...] = (
             (args.schema_type or "cloud-config", args.config_file),
         )
     else:
@@ -1537,7 +1566,7 @@ def get_config_paths_from_args(args) -> Tuple[str, Tuple[str, str]]:
                 sys_exit=True,
             )
         config_files = (("user-data", userdata_file),)
-        supplemental_config_files = (
+        supplemental_config_files: Tuple[Tuple[str, str], ...] = (
             (
                 "vendor-data",
                 get_processed_or_fallback_path(
@@ -1550,7 +1579,7 @@ def get_config_paths_from_args(args) -> Tuple[str, Tuple[str, str]]:
                     paths, "vendor2_cloud_config", "vendordata2_raw"
                 ),
             ),
-            ("network-config", paths.get_ipath("network_config")),
+            ("network-config", paths.get_ipath("network_config") or ""),
         )
         for cfg_type, cfg_file in supplemental_config_files:
             if cfg_file and os.path.exists(cfg_file):
