@@ -3824,7 +3824,6 @@ class TestProvisioning:
         ]
 
         # Verify reports via KVP.
-        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 1
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
         assert self.mock_kvp_report_failure_to_host.mock_calls == [
