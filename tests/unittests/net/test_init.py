@@ -261,6 +261,7 @@ class TestGenerateFallbackConfig(CiTestCase):
                 "eth1": {
                     "match": {"macaddress": mac},
                     "dhcp4": True,
+                    "dhcp6": True,
                     "set-name": "eth1",
                 }
             },
@@ -278,6 +279,7 @@ class TestGenerateFallbackConfig(CiTestCase):
                 "eth0": {
                     "match": {"macaddress": mac},
                     "dhcp4": True,
+                    "dhcp6": True,
                     "set-name": "eth0",
                 }
             },
@@ -293,6 +295,7 @@ class TestGenerateFallbackConfig(CiTestCase):
             "ethernets": {
                 "eth0": {
                     "dhcp4": True,
+                    "dhcp6": True,
                     "match": {"macaddress": mac},
                     "set-name": "eth0",
                 }
@@ -359,6 +362,7 @@ class TestGenerateFallbackConfig(CiTestCase):
             "ethernets": {
                 "ens3": {
                     "dhcp4": True,
+                    "dhcp6": True,
                     "match": {"name": "ens3"},
                     "set-name": "ens3",
                 }
