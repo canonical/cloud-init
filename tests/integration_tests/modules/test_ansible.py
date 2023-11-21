@@ -312,6 +312,7 @@ def test_ansible_pull_distro(client):
     CURRENT_RELEASE < FOCAL,
     reason="Pip install is not supported for Ansible on release",
 )
+@pytest.mark.skip(reason="Need proxy support first. GH: #4527")
 def test_ansible_controller(client):
     log = client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log)
