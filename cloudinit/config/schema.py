@@ -628,6 +628,7 @@ def validate_cloudconfig_schema(
                 "see the schema errors."
             )
         LOG.warning(details)
+    return True
 
 
 class _Annotator:
@@ -957,9 +958,14 @@ def validate_cloudconfig_file(
             )
             return False
     try:
-        validate_cloudconfig_schema(
+        if not validate_cloudconfig_schema(
             cloudconfig, schema, strict=True, log_deprecations=False
-        )
+        ):
+            print(
+                f"Skipping {schema_type} schema validation."
+                " Jsonschema dependency missing."
+            )
+            return False
     except SchemaValidationError as e:
         if e.has_errors():
             errors += e.schema_errors
