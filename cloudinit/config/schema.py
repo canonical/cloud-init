@@ -942,7 +942,7 @@ def validate_cloudconfig_file(
             cloudconfig, schema, strict=True, log_deprecations=False
         ):
             print(
-                f"Skipping {schema_type}schema validation."
+                f"Skipping {schema_type} schema validation."
                 " Jsonschema dependency missing."
             )
             return False
