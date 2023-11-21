@@ -1302,14 +1302,15 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     if defs.get(meta["id"]):
         schema = defs.get(meta["id"], {})
         schema = cast(dict, schema)
-    try:
-        meta_copy["property_doc"] = _get_property_doc(
-            schema, defs=defs, prefix="      "
-        )
-    except AttributeError:
-        LOG.warning("Unable to render property_doc due to invalid schema")
-        meta_copy["property_doc"] = ""
-    if not meta_copy["property_doc"]:
+    if any(schema["properties"].values()):
+        try:
+            meta_copy["property_doc"] = _get_property_doc(
+                schema, defs=defs, prefix="      "
+            )
+        except AttributeError:
+            LOG.warning("Unable to render property_doc due to invalid schema")
+            meta_copy["property_doc"] = ""
+    if not meta_copy.get("property_doc", ""):
         meta_copy[
             "property_doc"
         ] = "      No schema definitions for this module"
