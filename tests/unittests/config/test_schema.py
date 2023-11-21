@@ -212,7 +212,13 @@ class TestGetSchema:
             [meta["id"] for meta in get_metas().values() if meta is not None]
         )
         assert "http://json-schema.org/draft-04/schema#" == schema["$schema"]
-        assert ["$defs", "$schema", "allOf"] == sorted(list(schema.keys()))
+        assert [
+            "$defs",
+            "$schema",
+            "additionalProperties",
+            "allOf",
+            "properties",
+        ] == sorted(list(schema.keys()))
         # New style schema should be defined in static schema file in $defs
         expected_subschema_defs = [
             {"$ref": "#/$defs/base_config"},
@@ -1626,6 +1632,29 @@ class TestAnnotatedCloudconfigFile:
             schemamarks=schemamarks,
             schema_errors=schema_errors,
         )
+
+    @skipUnlessJsonSchema()
+    def test_annotated_invalid_top_level_key(self, tmp_path: Path, capsys):
+        expected_err = dedent(
+            """\
+            #cloud-config
+            invalid_key: value		# E1
+
+            # Errors: -------------
+            # E1: Additional properties are not allowed ('invalid_key' was unexpected)
+            """  # noqa: E501
+        )
+        config_file = tmp_path / "my.yaml"
+        config_file.write_text("#cloud-config\ninvalid_key: value\n")
+        with pytest.raises(
+            SchemaValidationError,
+            match="errors: invalid_key: Additional properties are not allowed",
+        ):
+            validate_cloudconfig_file(
+                str(config_file), get_schema(), annotate=True
+            )
+        out, _err = capsys.readouterr()
+        assert out.strip() == expected_err.strip()
 
 
 @mock.patch(M_PATH + "read_cfg_paths")  # called by parse_args help docs
