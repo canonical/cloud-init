@@ -271,6 +271,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_yum_add_repo"},
             {"$ref": "#/$defs/cc_zypper_add_repo"},
             {"$ref": "#/$defs/reporting_config"},
+            {"$ref": "#/$defs/output_config"},
         ]
         found_subschema_defs = []
         legacy_schema_keys = []
