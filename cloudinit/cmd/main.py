@@ -1046,9 +1046,14 @@ def main(sysv_args=None):
     # Subparsers.required = True and each subparser sets action=(name, functor)
     (name, functor) = args.action
 
-    # Setup basic logging to start (until reinitialized)
-    # iff in debug mode.
-    if args.debug:
+    # Setup basic logging for cloud-init:
+    # - for cloud-init stages if --debug
+    # - for all other subcommands:
+    #   - if --debug is passed, logging.DEBUG
+    #   - if --debug is not passed, logging.WARNING
+    if name not in ("init", "modules"):
+        setup_basic_logging(logging.DEBUG if args.debug else logging.WARNING)
+    elif args.debug:
         setup_basic_logging()
 
     # Setup signal handlers before running
