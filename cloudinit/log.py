@@ -27,12 +27,6 @@ DEFAULT_LOG_FORMAT = "%(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
 def setup_basic_logging(level=logging.DEBUG, formatter=None):
     formatter = formatter or logging.Formatter(DEFAULT_LOG_FORMAT)
     root = logging.getLogger()
-    for handler in root.handlers:
-        if hasattr(handler, "stream") and hasattr(handler.stream, "name"):
-            if handler.stream.name == "<stderr>":
-                handler.setLevel(level)
-                return
-    # Didn't have an existing stderr handler; create a new handler
     console = logging.StreamHandler(sys.stderr)
     console.setFormatter(formatter)
     console.setLevel(level)
