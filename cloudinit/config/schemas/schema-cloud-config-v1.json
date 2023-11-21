@@ -432,6 +432,10 @@
         },
         "cloud_final_modules": {
           "$ref": "#/$defs/modules_definition"
+        },
+        "launch-index": {
+          "type": "integer",
+          "description": "The launch index for the specified cloud-config."
         }
       }
     },
@@ -3382,6 +3386,62 @@
         }
       }
     },
+    "output_log_operator": {
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "A filepath operation configuration. This is a string containing a filepath and an optional leading operator: '>', '>>' or '|'. Operators '>' and '>>' indicate whether to overwrite or append to the file. The operator '|' redirects content to the command arguments specified."
+        },
+        {
+          "type": "array",
+          "description": "A list specifying filepath operation configuration for stdout and stderror",
+          "items": {
+            "type": [
+              "string"
+            ]
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "output": {
+              "type": "string",
+              "description": "A filepath operation configuration. This is a string containing a filepath and an optional leading operator: '>', '>>' or '|'. Operators '>' and '>>' indicate whether to overwrite or append to the file. The operator '|' redirects content to the command arguments specified."
+            },
+            "error": {
+              "type": "string",
+              "description": "A filepath operation configuration. A string containing a filepath and an optional leading operator: '>', '>>' or '|'. Operators '>' and '>>' indicate whether to overwrite or append to the file. The operator '|' redirects content to the command arguments specified."
+            }
+          }
+        }
+      ]
+    },
+    "output_config": {
+      "type": "object",
+      "properties": {
+        "output": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "all": {
+              "$ref": "#/$defs/output_log_operator"
+            },
+            "init": {
+              "$ref": "#/$defs/output_log_operator"
+            },
+            "config": {
+              "$ref": "#/$defs/output_log_operator"
+            },
+            "final": {
+              "$ref": "#/$defs/output_log_operator"
+            }
+          }
+        }
+      }
+    },
     "reporting_config": {
       "type": "object",
       "properties": {
@@ -3678,6 +3738,9 @@
     },
     {
       "$ref": "#/$defs/reporting_config"
+    },
+    {
+      "$ref": "#/$defs/output_config"
     }
   ]
 }
