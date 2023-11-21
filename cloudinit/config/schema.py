@@ -12,7 +12,16 @@ from collections.abc import Iterable
 from copy import deepcopy
 from functools import partial
 from itertools import chain
-from typing import TYPE_CHECKING, List, NamedTuple, Optional, Type, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    DefaultDict,
+    List,
+    NamedTuple,
+    Optional,
+    Type,
+    Union,
+    cast,
+)
 
 import yaml
 
@@ -627,7 +636,7 @@ class _Annotator:
         return f"# {title}: -------------\n{body}\n\n"
 
     def _build_errors_by_line(self, schema_problems: SchemaProblems):
-        errors_by_line = defaultdict(list)
+        errors_by_line: DefaultDict[Union[str, int], List] = defaultdict(list)
         for path, msg in schema_problems:
             match = re.match(r"format-l(?P<line>\d+)\.c(?P<col>\d+).*", path)
             if match:
