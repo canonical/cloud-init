@@ -33,7 +33,6 @@ def setup_mocks(mocker):
     mocker.patch("cloudinit.cmd.query.read_cfg_paths", return_value=Paths({}))
 
 
-@mock.patch(M_PATH + "addLogHandlerCLI", lambda *args: "")
 class TestQuery:
     Args = namedtuple(
         "Args",
@@ -84,10 +83,7 @@ class TestQuery:
             vendor_data=None,
             varname=None,
         )
-        with mock.patch(
-            M_PATH + "addLogHandlerCLI", return_value=""
-        ) as m_cli_log:
-            assert 1 == query.handle_args("anyname", args)
+        assert 1 == query.handle_args("anyname", args)
         expected_error = (
             "Expected one of the options: --all, --format, --list-keys"
             " or varname\n"
@@ -95,7 +91,6 @@ class TestQuery:
         assert expected_error in caplog.text
         out, _err = capsys.readouterr()
         assert "usage: query" in out
-        assert 1 == m_cli_log.call_count
 
     @pytest.mark.parametrize(
         "inst_data,varname,expected_error",
@@ -131,10 +126,9 @@ class TestQuery:
         paths, _, _, _ = self._setup_paths(tmpdir)
         with mock.patch(M_PATH + "read_cfg_paths") as m_paths:
             m_paths.return_value = paths
-            with mock.patch(M_PATH + "addLogHandlerCLI", return_value=""):
-                with mock.patch(M_PATH + "load_userdata") as m_lud:
-                    m_lud.return_value = "ud"
-                    assert 1 == query.handle_args("anyname", args)
+            with mock.patch(M_PATH + "load_userdata") as m_lud:
+                m_lud.return_value = "ud"
+                assert 1 == query.handle_args("anyname", args)
         assert expected_error in caplog.text
 
     def test_handle_args_error_on_missing_instance_data(self, caplog, tmpdir):

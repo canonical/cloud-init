@@ -2,19 +2,8 @@
 
 """Common cloud-init devel commandline utility functions."""
 
-
-import logging
-
-from cloudinit import log
 from cloudinit.helpers import Paths
 from cloudinit.stages import Init
-
-
-def addLogHandlerCLI(logger, log_level):
-    """Add a commandline logging handler to emit messages to stderr."""
-    formatter = logging.Formatter("%(levelname)s: %(message)s")
-    log.setup_basic_logging(log_level, formatter=formatter)
-    return logger
 
 
 def read_cfg_paths(fetch_existing_datasource: str = "") -> Paths:
