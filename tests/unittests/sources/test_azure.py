@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import datetime
 import json
 import os
 import stat
@@ -271,6 +272,14 @@ def mock_sleep():
 def mock_subp_subp():
     with mock.patch(MOCKPATH + "subp.subp", side_effect=[]) as m:
         yield m
+
+
+@pytest.fixture
+def mock_timestamp():
+    timestamp = datetime.datetime.utcnow()
+    with mock.patch.object(errors, "datetime", autospec=True) as m:
+        m.utcnow.return_value = timestamp
+        yield timestamp
 
 
 @pytest.fixture
@@ -3629,6 +3638,7 @@ class TestProvisioning:
         mock_netlink,
         mock_readurl,
         mock_subp_subp,
+        mock_timestamp,
         mock_util_ensure_dir,
         mock_util_find_devs_with,
         mock_util_load_file,
@@ -3657,6 +3667,7 @@ class TestProvisioning:
         self.mock_netlink = mock_netlink
         self.mock_readurl = mock_readurl
         self.mock_subp_subp = mock_subp_subp
+        self.mock_timestmp = mock_timestamp
         self.mock_util_ensure_dir = mock_util_ensure_dir
         self.mock_util_find_devs_with = mock_util_find_devs_with
         self.mock_util_load_file = mock_util_load_file
@@ -3760,13 +3771,78 @@ class TestProvisioning:
         assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
-    def test_running_pps(self):
-        self.imds_md["extended"]["compute"]["ppsType"] = "Running"
+    @pytest.mark.parametrize("pps_type", ["Savable", "Running"])
+    def test_stale_pps(self, pps_type):
+        imds_md_source = copy.deepcopy(self.imds_md)
+        imds_md_source["extended"]["compute"]["ppsType"] = pps_type
 
         nl_sock = mock.MagicMock()
         self.mock_netlink.create_bound_netlink_socket.return_value = nl_sock
         self.mock_readurl.side_effect = [
-            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+            mock.MagicMock(contents=json.dumps(imds_md_source).encode()),
+            mock.MagicMock(contents=construct_ovf_env().encode()),
+            mock.MagicMock(contents=json.dumps(imds_md_source).encode()),
+        ]
+        self.mock_azure_get_metadata_from_fabric.return_value = []
+
+        self.azure_ds._check_and_get_data()
+
+        assert self.mock_readurl.mock_calls == [
+            mock.call(
+                "http://169.254.169.254/metadata/instance?"
+                "api-version=2021-08-01&extended=true",
+                exception_cb=mock.ANY,
+                headers={"Metadata": "true"},
+                infinite=True,
+                log_req_resp=True,
+                timeout=30,
+            ),
+            mock.call(
+                "http://169.254.169.254/metadata/reprovisiondata?"
+                "api-version=2019-06-01",
+                exception_cb=mock.ANY,
+                headers={"Metadata": "true"},
+                log_req_resp=False,
+                infinite=True,
+                timeout=30,
+            ),
+            mock.call(
+                "http://169.254.169.254/metadata/instance?"
+                "api-version=2021-08-01&extended=true",
+                exception_cb=mock.ANY,
+                headers={"Metadata": "true"},
+                infinite=True,
+                log_req_resp=True,
+                timeout=30,
+            ),
+        ]
+
+        # Verify DMI usage.
+        assert self.mock_dmi_read_dmi_data.mock_calls == [
+            mock.call("chassis-asset-tag"),
+            mock.call("system-uuid"),
+            mock.call("system-uuid"),
+        ]
+
+        # Verify reports via KVP.
+        assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
+
+        assert self.mock_kvp_report_failure_to_host.mock_calls == [
+            mock.call(
+                errors.ReportableErrorImdsInvalidMetadata(
+                    key="extended.compute.ppsType", value=pps_type
+                ),
+            ),
+        ]
+
+    def test_running_pps(self):
+        imds_md_source = copy.deepcopy(self.imds_md)
+        imds_md_source["extended"]["compute"]["ppsType"] = "Running"
+
+        nl_sock = mock.MagicMock()
+        self.mock_netlink.create_bound_netlink_socket.return_value = nl_sock
+        self.mock_readurl.side_effect = [
+            mock.MagicMock(contents=json.dumps(imds_md_source).encode()),
             mock.MagicMock(contents=construct_ovf_env().encode()),
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]
@@ -3869,7 +3945,8 @@ class TestProvisioning:
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 2
 
     def test_savable_pps(self):
-        self.imds_md["extended"]["compute"]["ppsType"] = "Savable"
+        imds_md_source = copy.deepcopy(self.imds_md)
+        imds_md_source["extended"]["compute"]["ppsType"] = "Savable"
 
         nl_sock = mock.MagicMock()
         self.mock_netlink.create_bound_netlink_socket.return_value = nl_sock
@@ -3878,7 +3955,7 @@ class TestProvisioning:
             "ethAttached1"
         )
         self.mock_readurl.side_effect = [
-            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+            mock.MagicMock(contents=json.dumps(imds_md_source).encode()),
             mock.MagicMock(contents=construct_ovf_env().encode()),
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]
@@ -4007,7 +4084,8 @@ class TestProvisioning:
         ],
     )
     def test_savable_pps_early_unplug(self, fabric_side_effect):
-        self.imds_md["extended"]["compute"]["ppsType"] = "Savable"
+        imds_md_source = copy.deepcopy(self.imds_md)
+        imds_md_source["extended"]["compute"]["ppsType"] = "Savable"
 
         nl_sock = mock.MagicMock()
         self.mock_netlink.create_bound_netlink_socket.return_value = nl_sock
@@ -4016,7 +4094,7 @@ class TestProvisioning:
             "ethAttached1"
         )
         self.mock_readurl.side_effect = [
-            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+            mock.MagicMock(contents=json.dumps(imds_md_source).encode()),
             mock.MagicMock(contents=construct_ovf_env().encode()),
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]
@@ -4136,10 +4214,11 @@ class TestProvisioning:
     @pytest.mark.parametrize("pps_type", ["Savable", "Running", "None"])
     def test_recovery_pps(self, pps_type):
         self.patched_reported_ready_marker_path.write_text("")
-        self.imds_md["extended"]["compute"]["ppsType"] = pps_type
+        imds_md_source = copy.deepcopy(self.imds_md)
+        imds_md_source["extended"]["compute"]["ppsType"] = pps_type
 
         self.mock_readurl.side_effect = [
-            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+            mock.MagicMock(contents=json.dumps(imds_md_source).encode()),
             mock.MagicMock(contents=construct_ovf_env().encode()),
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]

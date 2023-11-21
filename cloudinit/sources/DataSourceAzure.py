@@ -676,6 +676,15 @@ class DataSourceAzure(sources.DataSource):
             # fetch metadata again as it has changed after reprovisioning
             imds_md = self.get_metadata_from_imds(report_failure=True)
 
+            # validate imds pps metadata
+            imds_ppstype = self._ppstype_from_imds(imds_md)
+            if imds_ppstype not in (None, PPSType.NONE.value):
+                self._report_failure(
+                    errors.ReportableErrorImdsInvalidMetadata(
+                        key="extended.compute.ppsType", value=imds_ppstype
+                    )
+                )
+
         # Report errors if IMDS network configuration is missing data.
         self.validate_imds_network_metadata(imds_md=imds_md)
 

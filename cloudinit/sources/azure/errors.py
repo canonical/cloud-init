@@ -170,3 +170,11 @@ class ReportableErrorUnhandledException(ReportableError):
 
         self.supporting_data["exception"] = repr(exception)
         self.supporting_data["traceback_base64"] = trace_base64
+
+
+class ReportableErrorImdsInvalidMetadata(ReportableError):
+    def __init__(self, *, key: str, value: Any) -> None:
+        super().__init__(f"invalid IMDS metadata for key={key}")
+
+        self.supporting_data["key"] = key
+        self.supporting_data["value"] = repr(value)
