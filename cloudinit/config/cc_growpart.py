@@ -284,11 +284,15 @@ class ResizeGpart(Resizer):
 
 
 def get_size(filename):
-    fd = os.open(filename, os.O_RDONLY)
+    fd = None
     try:
+        fd = os.open(filename, os.O_RDONLY)
         return os.lseek(fd, 0, os.SEEK_END)
+    except FileNotFoundError:
+        return None
     finally:
-        os.close(fd)
+        if fd:
+            os.close(fd)
 
 
 def device_part_info(devpath):
@@ -571,13 +575,22 @@ def resize_devices(resizer, devices):
             continue
 
         try:
-            (old, new) = resizer.resize(disk, ptnum, blockdev)
+            old, new = resizer.resize(disk, ptnum, blockdev)
             if old == new:
                 info.append(
                     (
                         devent,
                         RESIZE.NOCHANGE,
                         "no change necessary (%s, %s)" % (disk, ptnum),
+                    )
+                )
+            elif new is None:
+                info.append(
+                    (
+                        devent,
+                        RESIZE.CHANGED,
+                        "changed (%s, %s) from %s, new size is unknown"
+                        % (disk, ptnum, old),
                     )
                 )
             else:
