@@ -333,8 +333,7 @@ def read_conf(fname, *, instance_data_file=None) -> Dict:
             )
         except JinjaSyntaxParsingException as e:
             LOG.warning(
-                "Failed to render user-data file '%s' "
-                "due to jinja parsing error: %s",
+                "Failed to render templated yaml config file '%s'. %s",
                 fname,
                 str(e),
             )

@@ -8,6 +8,7 @@ from cloudinit.cmd.devel import render
 from cloudinit.helpers import Paths
 from cloudinit.util import ensure_dir, write_file
 from tests.unittests.helpers import mock, skipUnlessJinja
+from cloudinit.templater import JinjaSyntaxParsingException
 
 M_PATH = "cloudinit.cmd.devel.render."
 
@@ -157,6 +158,10 @@ class TestRender:
         write_file(instance_data, '{"my-var": "jinja worked"}')
         assert render.render_template(user_data, instance_data, True) == 1
         assert (
-            "due to jinja parsing error: unexpected '}' on line 2"
+            JinjaSyntaxParsingException.message_template.format(
+                syntax_error="unexpected '}'",
+                line_no=2,
+                line_content="rendering: {{ my_var } }",
+            )
             in caplog.text
         )

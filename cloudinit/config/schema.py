@@ -816,6 +816,8 @@ def _get_config_type_and_rendered_userdata(
     :return: UserDataTypeAndDecodedContent
     :raises: SchemaValidationError when non-jinja content found but
         header declared ## template: jinja.
+    :raises JinjaSyntaxParsingException when jinja syntax error found.
+    :raises JinjaLoadError when jinja template fails to load.
     """
     from cloudinit.handlers.jinja_template import (
         JinjaLoadError,
@@ -843,8 +845,7 @@ def _get_config_type_and_rendered_userdata(
             ) from e
         except JinjaSyntaxParsingException as e:
             error(
-                "Failed to render templated cloud-config due to jinja parsing "
-                "error: " + str(e),
+                "Failed to render templated user-data. " + str(e),
                 sys_exit=True,
             )
         except JinjaLoadError as e:

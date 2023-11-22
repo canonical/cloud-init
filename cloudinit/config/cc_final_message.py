@@ -96,6 +96,10 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             stderr=True,
             log=LOG,
         )
+    except templater.JinjaSyntaxParsingException as e:
+        util.logexc(
+            LOG, "Failed to render templated final message: %s", str(e)
+        )
     except Exception:
         util.logexc(LOG, "Failed to render final message template")
 

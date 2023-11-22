@@ -517,7 +517,10 @@ class TestUtil:
             return_value='{"c": "d"}',
         )
         conf = util.read_conf("cfg_path", instance_data_file="vars_path")
-        assert "Failed to render user-data file" in caplog.text
+        assert (
+            "Failed to render templated yaml config file 'cfg_path'"
+            in caplog.text
+        )
         assert conf == {}
 
     @mock.patch(

@@ -52,6 +52,8 @@ from tests.unittests.helpers import (
     skipUnlessJsonSchema,
     skipUnlessJsonSchemaVersionGreaterThan,
 )
+from cloudinit.templater import JinjaSyntaxParsingException
+
 
 M_PATH = "cloudinit.config.schema."
 DEPRECATED_LOG_LEVEL = 35
@@ -831,17 +833,19 @@ class TestValidateCloudConfigFile:
         self, annotate, tmpdir, mocker, capsys
     ):
         """ """
+        # will throw error because of space between last two }'s
+        invalid_jinja_template = "## template: jinja\na:b\nc:{{ d } }"
         mocker.patch("os.path.exists", return_value=True)
         mocker.patch(
             "cloudinit.util.load_file",
-            return_value='## template: jinja\n{"a": "{{c}}"',  # missing }
+            return_value=invalid_jinja_template,
         )
         mocker.patch(
             "cloudinit.handlers.jinja_template.load_file",
             return_value='{"c": "d"}',
         )
         config_file = tmpdir.join("my.yaml")
-        config_file.write("## template: jinja\na:b\nc:{{ d } }")
+        config_file.write(invalid_jinja_template)
         with pytest.raises(SystemExit) as context_manager:
             validate_cloudconfig_file(config_file.strpath, {}, annotate)
         assert 1 == context_manager.value.code
@@ -849,8 +853,12 @@ class TestValidateCloudConfigFile:
         _out, err = capsys.readouterr()
         expected = (
             "Error:\n"
-            "Failed to render templated cloud-config due to jinja parsing "
-            "error: unexpected '}' on line 3\n"
+            "Failed to render templated user-data: " + 
+            JinjaSyntaxParsingException.message_template.format(
+                syntax_error="unexpected '}'", 
+                line_no=3,
+                line_content="c:{{ d } }",
+            )
         )
         assert expected == err
 

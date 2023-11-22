@@ -168,7 +168,6 @@ class TestTemplates(test_helpers.CiTestCase):
             expected_result,
         )
 
-    # give invalid jinja that has a `} }` and catch the error
     def test_jinja_invalid_syntax(self):
         """Make sure invalid jinja syntax is caught"""
         jinja_template = (
@@ -181,3 +180,7 @@ class TestTemplates(test_helpers.CiTestCase):
             self.add_header("jinja", jinja_template),
             {},
         )
+        with self.assertRaises(templater.JinjaSyntaxParsingException) as cm:
+            templater.render_string(
+                self.add_header("jinja", jinja_template), {}
+            )

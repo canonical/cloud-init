@@ -48,6 +48,10 @@ MISSING_JINJA_PREFIX = "CI_MISSING_JINJA_VAR/"
 
 
 class JinjaSyntaxParsingException(Exception):
+    message_template = (
+        "Unable to parse Jinja template due to syntax error: "
+        "{syntax_error} on line {line_no}: {line_content}"
+    )
     pass
 
 
@@ -139,39 +143,14 @@ def detect_template(text):
                 # so we just need to re-raise the original error
                 raise jtemplate_error
             except TemplateSyntaxError as template_syntax_error:
-                try:
-                    tb = "".join(
-                        traceback.format_tb(
-                            template_syntax_error.__traceback__
-                        )
+                ln = template_syntax_error.lineno
+                raise JinjaSyntaxParsingException(
+                    JinjaSyntaxParsingException.message_template.format(
+                        syntax_error=template_syntax_error.message,
+                        line_no=ln + 1,
+                        line_content=content.splitlines()[ln - 1].strip(),
                     )
-                    line_number_matches = re.findall(
-                        r'File "<unknown>", line (\d+)', tb
-                    )
-                    line_number_of_error = int(line_number_matches[0])
-                    # adjust line number to adjust for the jinja header having been
-                    # removed from the content
-                    if (
-                        len(
-                            re.findall(
-                                "##( )?template:( )?jinja",
-                                content.split("\n")[0].strip().lower(),
-                            )
-                        )
-                        == 0
-                    ):
-                        line_number_of_error += 1
-                    raise JinjaSyntaxParsingException(
-                        "{e} on line {line_no}".format(
-                            e=template_syntax_error,
-                            line_no=line_number_of_error,
-                        )
-                    ) from jtemplate_error
-
-                # if we couldn't parse the traceback for some reason,
-                # just re-raise the original error
-                except Exception:
-                    raise jtemplate_error
+                ) from jtemplate_error
             except Exception:
                 raise jtemplate_error
 

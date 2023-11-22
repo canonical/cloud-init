@@ -101,15 +101,11 @@ def render_template(user_data_path, instance_data_path=None, debug=False):
         )
         return 1
     except JinjaSyntaxParsingException as e:
-        error_msg = (
-            "Failed to render user-data file '{file_path}' "
-            "due to jinja parsing error: {error}".format(
-                file_path=user_data_path,
-                error=str(e),
-            )
+        LOG.error(
+            "Failed to render templated user-data file '%s'. %s",
+            user_data_path,
+            str(e),
         )
-        LOG.error(error_msg)
-        # sys.stderr.write(error_msg + "\n")
         return 1
     if not rendered_payload:
         LOG.error("Unable to render user-data file: %s", user_data_path)
