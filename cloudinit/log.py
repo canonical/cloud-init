@@ -149,7 +149,7 @@ def setup_backup_logging():
     which may ease debugging.
     """
     fallback_handler = logging.StreamHandler(sys.stderr)
-    fallback_handler.handleError = lambda self, record: None
+    fallback_handler.handleError = lambda record: None
     fallback_handler.setFormatter(
         logging.Formatter(
             "FALLBACK: %(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
