@@ -3,8 +3,7 @@
 # Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
-
-__VERSION__ = "23.2.1"
+__VERSION__ = "23.2.2"
 _PACKAGED_VERSION = "@@PACKAGED_VERSION@@"
 
 FEATURES = [

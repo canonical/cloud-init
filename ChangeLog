@@ -1,5 +1,10 @@
+23.2.2
+ - Fix NoCloud kernel commandline key parsing (#4273) (Fixes: #4271)
+   (LP: #2028562)
+ - Fix reference before assignment (#4292) (Fixes: #4288) (LP: #2028784)
+
 23.2.1
-    - nocloud: Fix parse_cmdline detection of nocloud-net datasource (#4204)
+    - nocloud: parse_cmdline no longer detects nocloud-net datasource (#4204)
       (Fixes: 4203) (LP: #2025180)
 23.2
  - BSD: simplify finding MBR partitions by removing duplicate code
