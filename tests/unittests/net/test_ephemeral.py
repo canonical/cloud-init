@@ -4,9 +4,9 @@ from unittest import mock
 
 import pytest
 
-from contextlib import nullcontext
-from cloudinit.subp import ProcessExecutionError
 from cloudinit.net.ephemeral import EphemeralIPNetwork
+from cloudinit.subp import ProcessExecutionError
+from tests.unittests.helpers import does_not_raise
 from tests.unittests.util import MockDistro
 
 M_PATH = "cloudinit.net.ephemeral."
@@ -54,32 +54,51 @@ class TestEphemeralIPNetwork:
             == m_exit_stack.return_value.enter_context.call_args_list
         )
 
-    @mock.patch(
-        "cloudinit.net.read_sys_net",
-    )
-    @mock.patch(
-        "cloudinit.net.netops.iproute2.subp",
-    )
     @pytest.mark.parametrize(
-        "m_v4, m_v6, m_context, m_side_effects", [
-             (False, True, nullcontext(), [None, None]),
-             (True, False, nullcontext(), [None, None]),
-             (True, True, nullcontext(), [ProcessExecutionError, None]),
-             (True, True, nullcontext(), [None, ProcessExecutionError]),
-             (
-                 True, True, pytest.raises(ProcessExecutionError), [
-                     ProcessExecutionError, ProcessExecutionError
-                 ]
-             ),
-        ]
+        "m_v4, m_v6, m_context, m_side_effects",
+        [
+            pytest.param(
+                False, True, does_not_raise(), [None, None], id="v6_only"
+            ),
+            pytest.param(
+                True, False, does_not_raise(), [None, None], id="v4_only"
+            ),
+            pytest.param(
+                True,
+                True,
+                does_not_raise(),
+                [ProcessExecutionError, None],
+                id="v4_error",
+            ),
+            pytest.param(
+                True,
+                True,
+                does_not_raise(),
+                [None, ProcessExecutionError],
+                id="v6_error",
+            ),
+            pytest.param(
+                True,
+                True,
+                pytest.raises(ProcessExecutionError),
+                [
+                    ProcessExecutionError,
+                    ProcessExecutionError,
+                ],
+                id="v4_v6_error",
+            ),
+        ],
     )
     def test_interface_init_failures(
-            self, m_subp, m_link_up, m_v4, m_v6, m_context, m_side_effects
+        self, m_v4, m_v6, m_context, m_side_effects, mocker
     ):
+        mocker.patch(
+            "cloudinit.net.ephemeral.EphemeralDHCPv4"
+        ).return_value.__enter__.side_effect = m_side_effects[0]
+        mocker.patch(
+            "cloudinit.net.ephemeral.EphemeralIPv6Network"
+        ).return_value.__enter__.side_effect = m_side_effects[1]
         distro = MockDistro()
-        m_link_up.side_effect = m_side_effects
         with m_context:
-            with EphemeralIPNetwork(
-                    distro, "eth0", ipv4=m_v4, ipv6=m_v4
-            ):
+            with EphemeralIPNetwork(distro, "eth0", ipv4=m_v4, ipv6=m_v6):
                 pass

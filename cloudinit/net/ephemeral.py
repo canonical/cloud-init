@@ -8,12 +8,12 @@ from functools import partial
 from typing import Any, Callable, Dict, List, Optional
 
 import cloudinit.net as net
-from cloudinit.subp import ProcessExecutionError
 from cloudinit.net.dhcp import (
     IscDhclient,
     NoDHCPLeaseError,
     maybe_perform_dhcp_discovery,
 )
+from cloudinit.subp import ProcessExecutionError
 
 LOG = logging.getLogger(__name__)
 
@@ -384,7 +384,7 @@ class EphemeralIPNetwork:
                     )
                     ephemeral_obtained = True
                 except (ProcessExecutionError, NoDHCPLeaseError) as e:
-                    LOG.info(f"Failed to bring up {self} for ipv4.")
+                    LOG.info("Failed to bring up %s for ipv4.", self)
                     exceptions.append(e)
 
             if self.ipv6:
@@ -397,9 +397,8 @@ class EphemeralIPNetwork:
                     )
                     ephemeral_obtained = True
                 except ProcessExecutionError as e:
-                    LOG.info(f"Failed to bring up {self} for ipv6.")
+                    LOG.info("Failed to bring up %s for ipv6.", self)
                     exceptions.append(e)
-
             if not ephemeral_obtained:
                 # Ephemeral network setup failed in linkup for both ipv4 and
                 # ipv6. Raise only the first exception found.
