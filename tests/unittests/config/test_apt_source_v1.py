@@ -362,7 +362,7 @@ class TestAptSourceConfig:
         sources = cfg["apt"]["sources"]
         for src in sources:
             print(sources[src])
-            calls.append(call(sources[src], cloud, None))
+            calls.append(call(sources[src], cloud))
 
         mockobj.assert_has_calls(calls, any_order=True)
 
@@ -485,7 +485,7 @@ class TestAptSourceConfig:
         calls = []
         for src in sources:
             print(sources[src])
-            calls.append(call(sources[src], cloud, None))
+            calls.append(call(sources[src], cloud))
 
         mockobj.assert_has_calls(calls, any_order=True)
 
@@ -665,7 +665,6 @@ class TestAptSourceConfig:
                     "--no-update",
                     "ppa:smoser/cloud-init-test",
                 ],
-                target=None,
             ),
             mock.call(
                 [
@@ -678,7 +677,6 @@ class TestAptSourceConfig:
                     "gpg-agent",
                 ],
                 capture=True,
-                target=None,
                 rcs=[0, 1],
             ),
         ]
@@ -712,7 +710,6 @@ class TestAptSourceConfig:
                     "--no-update",
                     "ppa:smoser/cloud-init-test",
                 ],
-                target=None,
             ),
             call(
                 [
@@ -720,7 +717,6 @@ class TestAptSourceConfig:
                     "--no-update",
                     "ppa:smoser/cloud-init-test2",
                 ],
-                target=None,
             ),
             call(
                 [
@@ -728,7 +724,6 @@ class TestAptSourceConfig:
                     "--no-update",
                     "ppa:smoser/cloud-init-test3",
                 ],
-                target=None,
             ),
         ]
         mockobj.assert_has_calls(calls, any_order=True)

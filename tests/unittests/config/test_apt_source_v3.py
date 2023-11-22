@@ -4,7 +4,6 @@
 Testing various config variations of the apt_source custom config
 This tries to call all in the new v3 format and cares about new features
 """
-import glob
 import logging
 import os
 import pathlib
@@ -90,7 +89,6 @@ class TestAptSourceConfig:
         self._add_apt_sources(
             cfg,
             cloud=None,
-            target=tmpdir.strpath,
             template_params=params,
             aa_repo_match=self.matcher,
         )
@@ -186,7 +184,6 @@ class TestAptSourceConfig:
         self._add_apt_sources(
             cfg,
             cloud=None,
-            target=tmpdir.strpath,
             template_params=params,
             aa_repo_match=self.matcher,
         )
@@ -211,7 +208,7 @@ class TestAptSourceConfig:
         cfg = {
             "ignored": {
                 "source": "deb $MIRROR $RELEASE multiverse",
-                "filename": self.aptlistfile.replace(tmpdir.strpath, ""),
+                "filename": self.aptlistfile,
             }
         }
         # second file should overwrite the dict key
@@ -247,7 +244,7 @@ class TestAptSourceConfig:
             self.aptlistfile: {"source": "deb $MIRROR $RELEASE multiverse"},
             "notused": {
                 "source": "deb $MIRROR $RELEASE main",
-                "filename": self.aptlistfile2.replace(tmpdir.strpath, ""),
+                "filename": self.aptlistfile2,
             },
             self.aptlistfile3: {"source": "deb $MIRROR $RELEASE universe"},
         }
@@ -263,7 +260,6 @@ class TestAptSourceConfig:
             self._add_apt_sources(
                 cfg,
                 cloud=None,
-                target=tmpdir.strpath,
                 template_params=params,
                 aa_repo_match=self.matcher,
             )
@@ -274,7 +270,7 @@ class TestAptSourceConfig:
             if is_hardened is not None:
                 calls.append(call(cfg[key], None, hardened=is_hardened))
             else:
-                calls.append(call(cfg[key], None, tmpdir.strpath))
+                calls.append(call(cfg[key], None))
 
         mockobj.assert_has_calls(calls, any_order=True)
 
@@ -303,7 +299,7 @@ class TestAptSourceConfig:
                     "smoser/cloud-init-test/ubuntu"
                     " xenial main"
                 ),
-                "filename": self.aptlistfile.replace(tmpdir.strpath, ""),
+                "filename": self.aptlistfile,
                 "keyid": "03683F77",
             }
         }
@@ -329,7 +325,7 @@ class TestAptSourceConfig:
                     " xenial universe"
                 ),
                 "keyid": "03683F77",
-                "filename": self.aptlistfile2.replace(tmpdir.strpath, ""),
+                "filename": self.aptlistfile2,
             },
             self.aptlistfile3: {
                 "source": (
@@ -338,7 +334,7 @@ class TestAptSourceConfig:
                     "smoser/cloud-init-test/ubuntu"
                     " xenial multiverse"
                 ),
-                "filename": self.aptlistfile3.replace(tmpdir.strpath, ""),
+                "filename": self.aptlistfile3,
                 "keyid": "03683F77",
             },
         }
@@ -369,7 +365,7 @@ class TestAptSourceConfig:
             flags=re.IGNORECASE,
         )
 
-    def test_apt_v3_src_key(self, mocker, tmpdir):
+    def test_apt_v3_src_key(self, mocker):
         """test_apt_v3_src_key - Test source + key"""
         params = self._get_default_params()
         cfg = {
@@ -380,7 +376,7 @@ class TestAptSourceConfig:
                     "smoser/cloud-init-test/ubuntu"
                     " xenial main"
                 ),
-                "filename": self.aptlistfile.replace(tmpdir.strpath, ""),
+                "filename": self.aptlistfile,
                 "key": "fakekey 4321",
             }
         }
@@ -388,7 +384,6 @@ class TestAptSourceConfig:
         self._add_apt_sources(
             cfg,
             cloud=None,
-            target=tmpdir.strpath,
             template_params=params,
             aa_repo_match=self.matcher,
         )
@@ -415,7 +410,7 @@ class TestAptSourceConfig:
             flags=re.IGNORECASE,
         )
 
-    def test_apt_v3_src_keyonly(self, tmpdir, mocker):
+    def test_apt_v3_src_keyonly(self, mocker):
         """test_apt_v3_src_keyonly - Test key without source"""
         params = self._get_default_params()
         cfg = {self.aptlistfile: {"key": "fakekey 4242"}}
@@ -424,7 +419,6 @@ class TestAptSourceConfig:
         self._add_apt_sources(
             cfg,
             cloud=None,
-            target=tmpdir.strpath,
             template_params=params,
             aa_repo_match=self.matcher,
         )
@@ -442,7 +436,7 @@ class TestAptSourceConfig:
         # filename should be ignored on key only
         assert os.path.isfile(self.aptlistfile) is False
 
-    def test_apt_v3_src_keyidonly(self, tmpdir):
+    def test_apt_v3_src_keyidonly(self):
         """test_apt_v3_src_keyidonly - Test keyid without source"""
         params = self._get_default_params()
         cfg = {self.aptlistfile: {"keyid": "03683F77"}}
@@ -453,7 +447,6 @@ class TestAptSourceConfig:
                 self._add_apt_sources(
                     cfg,
                     cloud=None,
-                    target=tmpdir.strpath,
                     template_params=params,
                     aa_repo_match=self.matcher,
                 )
@@ -473,7 +466,7 @@ class TestAptSourceConfig:
             os.path.isfile(self.aptlistfile) is False
         ), f"Unexpected file {self.aptlistfile} found"
 
-    def apt_src_keyid_real(self, cfg, expectedkey, tmpdir, is_hardened=None):
+    def apt_src_keyid_real(self, cfg, expectedkey, is_hardened=None):
         """apt_src_keyid_real
         Test specification of a keyid without source including
         up to addition of the key (add_apt_key_raw mocked to keep the
@@ -488,7 +481,6 @@ class TestAptSourceConfig:
                 self._add_apt_sources(
                     cfg,
                     cloud=None,
-                    target=tmpdir.strpath,
                     template_params=params,
                     aa_repo_match=self.matcher,
                 )
@@ -500,28 +492,28 @@ class TestAptSourceConfig:
         if is_hardened is not None:
             mockkey.assert_called_with(
                 expectedkey,
-                keycfg["keyfile"].replace(tmpdir.strpath, ""),
+                keycfg["keyfile"],
                 hardened=is_hardened,
             )
 
         # filename should be ignored on key only
         assert os.path.isfile(self.aptlistfile) is False
 
-    def test_apt_v3_src_keyid_real(self, tmpdir):
+    def test_apt_v3_src_keyid_real(self):
         """test_apt_v3_src_keyid_real - Test keyid including key add"""
         keyid = "03683F77"
         cfg = {self.aptlistfile: {"keyid": keyid, "keyfile": self.aptlistfile}}
 
-        self.apt_src_keyid_real(cfg, EXPECTEDKEY, tmpdir, is_hardened=False)
+        self.apt_src_keyid_real(cfg, EXPECTEDKEY, is_hardened=False)
 
-    def test_apt_v3_src_longkeyid_real(self, tmpdir):
+    def test_apt_v3_src_longkeyid_real(self):
         """test_apt_v3_src_longkeyid_real Test long keyid including key add"""
         keyid = "B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77"
         cfg = {self.aptlistfile: {"keyid": keyid, "keyfile": self.aptlistfile}}
 
-        self.apt_src_keyid_real(cfg, EXPECTEDKEY, tmpdir, is_hardened=False)
+        self.apt_src_keyid_real(cfg, EXPECTEDKEY, is_hardened=False)
 
-    def test_apt_v3_src_longkeyid_ks_real(self, tmpdir):
+    def test_apt_v3_src_longkeyid_ks_real(self):
         """test_apt_v3_src_longkeyid_ks_real Test long keyid from other ks"""
         keyid = "B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77"
         cfg = {
@@ -532,9 +524,9 @@ class TestAptSourceConfig:
             }
         }
 
-        self.apt_src_keyid_real(cfg, EXPECTEDKEY, tmpdir)
+        self.apt_src_keyid_real(cfg, EXPECTEDKEY)
 
-    def test_apt_v3_src_keyid_keyserver(self, tmpdir):
+    def test_apt_v3_src_keyid_keyserver(self):
         """test_apt_v3_src_keyid_keyserver - Test custom keyserver"""
         keyid = "03683F77"
         params = self._get_default_params()
@@ -557,7 +549,6 @@ class TestAptSourceConfig:
                 self._add_apt_sources(
                     cfg,
                     cloud=None,
-                    target=tmpdir.strpath,
                     template_params=params,
                     aa_repo_match=self.matcher,
                 )
@@ -565,14 +556,14 @@ class TestAptSourceConfig:
         mockgetkey.assert_called_with("03683F77", "test.random.com")
         mockadd.assert_called_with(
             "fakekey",
-            self.aptlistfile.replace(tmpdir.strpath, ""),
+            self.aptlistfile,
             hardened=False,
         )
 
         # filename should be ignored on key only
         assert os.path.isfile(self.aptlistfile) is False
 
-    def test_apt_v3_src_ppa(self, tmpdir):
+    def test_apt_v3_src_ppa(self):
         """test_apt_v3_src_ppa - Test specification of a ppa"""
         params = self._get_default_params()
         cfg = {self.aptlistfile: {"source": "ppa:smoser/cloud-init-test"}}
@@ -581,7 +572,6 @@ class TestAptSourceConfig:
             self._add_apt_sources(
                 cfg,
                 cloud=None,
-                target=tmpdir.strpath,
                 template_params=params,
                 aa_repo_match=self.matcher,
             )
@@ -591,7 +581,6 @@ class TestAptSourceConfig:
                 "--no-update",
                 "ppa:smoser/cloud-init-test",
             ],
-            target=tmpdir.strpath,
         )
 
         # adding ppa should ignore filename (uses add-apt-repository)
@@ -599,7 +588,7 @@ class TestAptSourceConfig:
             os.path.isfile(self.aptlistfile) is False
         ), f"Unexpected file found {self.aptlistfile}"
 
-    def test_apt_v3_src_ppa_tri(self, tmpdir):
+    def test_apt_v3_src_ppa_tri(self):
         """test_apt_v3_src_ppa_tri - Test specification of multiple ppa's"""
         params = self._get_default_params()
         cfg = {
@@ -612,7 +601,6 @@ class TestAptSourceConfig:
             self._add_apt_sources(
                 cfg,
                 cloud=None,
-                target=tmpdir.strpath,
                 template_params=params,
                 aa_repo_match=self.matcher,
             )
@@ -623,7 +611,6 @@ class TestAptSourceConfig:
                     "--no-update",
                     "ppa:smoser/cloud-init-test",
                 ],
-                target=tmpdir.strpath,
             ),
             call(
                 [
@@ -631,7 +618,6 @@ class TestAptSourceConfig:
                     "--no-update",
                     "ppa:smoser/cloud-init-test2",
                 ],
-                target=tmpdir.strpath,
             ),
             call(
                 [
@@ -639,7 +625,6 @@ class TestAptSourceConfig:
                     "--no-update",
                     "ppa:smoser/cloud-init-test3",
                 ],
-                target=tmpdir.strpath,
             ),
         ]
         mockobj.assert_has_calls(calls, any_order=True)
@@ -651,9 +636,9 @@ class TestAptSourceConfig:
             ), f"Unexpected file {path}"
 
     @mock.patch("cloudinit.config.cc_apt_configure.util.get_dpkg_architecture")
-    def test_apt_v3_list_rename(self, m_get_dpkg_architecture, tmpdir):
+    def test_apt_v3_list_rename(self, m_get_dpkg_architecture):
         """test_apt_v3_list_rename - Test find mirror and apt list renaming"""
-        pre = tmpdir.join("/var/lib/apt/lists")
+        pre = cc_apt_configure.APT_LISTS
         # filenames are archive dependent
 
         arch = "s390x"
@@ -690,61 +675,13 @@ class TestAptSourceConfig:
             mirrors["SECURITY"] == "http://testsec.ubuntu.com/%s/" % component
         )
 
-        with mock.patch.object(os, "rename") as mockren:
-            with mock.patch.object(glob, "glob", return_value=[fromfn]):
-                cc_apt_configure.rename_apt_lists(
-                    mirrors, tmpdir.strpath, arch
-                )
+        with mock.patch.object(cc_apt_configure.os, "rename") as mockren:
+            with mock.patch.object(
+                cc_apt_configure.glob, "glob", return_value=[fromfn]
+            ):
+                cc_apt_configure.rename_apt_lists(mirrors, arch)
 
         mockren.assert_any_call(fromfn, tofn)
-
-    @mock.patch("cloudinit.config.cc_apt_configure.util.get_dpkg_architecture")
-    def test_apt_v3_list_rename_non_slash(
-        self, m_get_dpkg_architecture, tmpdir
-    ):
-        target = tmpdir.join("rename_non_slash")
-
-        apt_lists_d = target.join(cc_apt_configure.APT_LISTS).strpath
-
-        arch = "amd64"
-        m_get_dpkg_architecture.return_value = arch
-
-        mirror_path = "some/random/path/"
-        primary = "http://test.ubuntu.com/" + mirror_path
-        security = "http://test-security.ubuntu.com/" + mirror_path
-        mirrors = {"PRIMARY": primary, "SECURITY": security}
-
-        # these match default archive prefixes
-        opri_pre = "archive.ubuntu.com_ubuntu_dists_xenial"
-        osec_pre = "security.ubuntu.com_ubuntu_dists_xenial"
-        # this one won't match and should not be renamed defaults.
-        other_pre = "dl.google.com_linux_chrome_deb_dists_stable"
-        # these are our new expected prefixes
-        npri_pre = "test.ubuntu.com_some_random_path_dists_xenial"
-        nsec_pre = "test-security.ubuntu.com_some_random_path_dists_xenial"
-
-        files = [
-            # orig prefix, new prefix, suffix
-            (opri_pre, npri_pre, "_main_binary-amd64_Packages"),
-            (opri_pre, npri_pre, "_main_binary-amd64_InRelease"),
-            (opri_pre, npri_pre, "-updates_main_binary-amd64_Packages"),
-            (opri_pre, npri_pre, "-updates_main_binary-amd64_InRelease"),
-            (other_pre, other_pre, "_main_binary-amd64_Packages"),
-            (other_pre, other_pre, "_Release"),
-            (other_pre, other_pre, "_Release.gpg"),
-            (osec_pre, nsec_pre, "_InRelease"),
-            (osec_pre, nsec_pre, "_main_binary-amd64_Packages"),
-            (osec_pre, nsec_pre, "_universe_binary-amd64_Packages"),
-        ]
-
-        expected = sorted([npre + suff for opre, npre, suff in files])
-        # create files
-        for opre, _npre, suff in files:
-            fpath = os.path.join(apt_lists_d, opre + suff)
-            util.write_file(fpath, content=fpath)
-
-        cc_apt_configure.rename_apt_lists(mirrors, target.strpath, arch)
-        assert expected == sorted(os.listdir(apt_lists_d))
 
     @staticmethod
     def test_apt_v3_proxy():
@@ -1288,7 +1225,7 @@ deb http://ubuntu.com/ubuntu/ xenial-proposed main"""
         }
 
         with mock.patch.object(cc_apt_configure, "add_apt_key_raw") as mockadd:
-            cc_apt_configure.add_mirror_keys(cfg, None, tmpdir.strpath)
+            cc_apt_configure.add_mirror_keys(cfg, None)
         calls = [
             mock.call("fakekey_primary", "primary", hardened=False),
             mock.call("fakekey_security", "security", hardened=False),
@@ -1307,7 +1244,6 @@ class TestDebconfSelections:
             ["debconf-set-selections"],
             data=selections + b"\n",
             capture=True,
-            target=None,
         )
         assert [m_call, m_call] == m_subp.call_args_list
 
@@ -1406,7 +1342,6 @@ class TestDebconfSelections:
 
     @mock.patch("cloudinit.config.cc_apt_configure.subp.subp")
     def test_dpkg_reconfigure_does_reconfigure(self, m_subp, tmpdir):
-        target = tmpdir.strpath
 
         # due to the way the cleaners are called (via dictionary reference)
         # mocking clean_cloud_init directly does not work.  So we mock
@@ -1417,12 +1352,9 @@ class TestDebconfSelections:
             values={"cloud-init": ci_cleaner},
             clear=True,
         ):
-            cc_apt_configure.dpkg_reconfigure(
-                ["pkga", "cloud-init"], target=target
-            )
+            cc_apt_configure.dpkg_reconfigure(["pkga", "cloud-init"])
         # cloud-init is actually the only package we have a cleaner for
         # so for now, its the only one that should reconfigured
-        ci_cleaner.assert_called_with(target)
         assert m_subp.call_count == 1
         found = m_subp.call_args_list[0][0][0]
         expected = [
