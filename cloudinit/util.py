@@ -84,20 +84,18 @@ def kernel_version():
 
 
 @lru_cache()
-def get_dpkg_architecture(target=None):
+def get_dpkg_architecture():
     """Return the sanitized string output by `dpkg --print-architecture`.
 
     N.B. This function is wrapped in functools.lru_cache, so repeated calls
     won't shell out every time.
     """
-    out = subp.subp(
-        ["dpkg", "--print-architecture"], capture=True, target=target
-    )
+    out = subp.subp(["dpkg", "--print-architecture"], capture=True)
     return out.stdout.strip()
 
 
 @lru_cache()
-def lsb_release(target=None):
+def lsb_release():
     fmap = {
         "Codename": "codename",
         "Description": "description",
@@ -107,7 +105,7 @@ def lsb_release(target=None):
 
     data = {}
     try:
-        out = subp.subp(["lsb_release", "--all"], capture=True, target=target)
+        out = subp.subp(["lsb_release", "--all"], capture=True)
         for line in out.stdout.splitlines():
             fname, _, val = line.partition(":")
             if fname in fmap:
@@ -2946,8 +2944,8 @@ def message_from_string(string):
     return email.message_from_string(string)
 
 
-def get_installed_packages(target=None):
-    out = subp.subp(["dpkg-query", "--list"], target=target, capture=True)
+def get_installed_packages():
+    out = subp.subp(["dpkg-query", "--list"], capture=True)
 
     pkgs_inst = set()
     for line in out.stdout.splitlines():

@@ -291,7 +291,7 @@ def subp(
     return SubpResult(out, err)
 
 
-def target_path(target, path=None):
+def target_path(target=None, path=None):
     # return 'path' inside target, accepting target as None
     if target in (None, ""):
         target = "/"
