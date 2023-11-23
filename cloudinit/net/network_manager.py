@@ -71,6 +71,57 @@ class NMConnection:
         if not self.config.has_option(section, option):
             self.config[section][option] = value
 
+    def _config_option_is_set(self, section, option):
+        """
+        Checks if a config option is set. Returns True if it is,
+        else returns False.
+        """
+        return self.config.has_section(section) and self.config.has_option(
+            section, option
+        )
+
+    def _get_config_option(self, section, option):
+        """
+        Returns the value of a config option if its set,
+        else returns None.
+        """
+        if self._config_option_is_set(section, option):
+            return self.config[section][option]
+        else:
+            return None
+
+    def _change_set_config_option(self, section, option, value):
+        """
+        Overrides the value of a config option if its already set.
+        Else, if the config option is not set, it does nothing.
+        """
+        if self._config_option_is_set(section, option):
+            self.config[section][option] = value
+
+    def _set_mayfail_true_if_both_false_dhcp(self):
+        """
+        If for both ipv4 and ipv6, 'may-fail' is set to be False,
+        set it to True for both of them.
+        """
+        for family in ["ipv4", "ipv6"]:
+            if self._get_config_option(family, "may-fail") != "false":
+                # if either ipv4 or ipv6 sections are not set/configured,
+                # or if both are configured but for either ipv4 or ipv6,
+                # 'may-fail' is not 'false', do not do anything.
+                return
+            if self._get_config_option(family, "method") not in [
+                "dhcp",
+                "auto",
+            ]:
+                # if both v4 and v6 are not dhcp, do not do anything.
+                return
+
+        # If we landed here, it means both ipv4 and ipv6 are configured
+        # with dhcp/auto and both have 'may-fail' set to 'false'. So set
+        # both to 'true'.
+        for family in ["ipv4", "ipv6"]:
+            self._change_set_config_option(family, "may-fail", "true")
+
     def _set_ip_method(self, family, subnet_type):
         """
         Ensures there's appropriate [ipv4]/[ipv6] for given family
@@ -270,6 +321,14 @@ class NMConnection:
                 self._add_dns_search(family, subnet["dns_search"])
             if family == "ipv4" and "mtu" in subnet:
                 ipv4_mtu = subnet["mtu"]
+
+        # we do not want to set may-fail to false for both ipv4 and ipv6 dhcp
+        # at the at the same time. This will make the network configuration
+        # work only when both ipv4 and ipv6 dhcp succeeds. This may not be
+        # what we want. If we have configured both ipv4 and ipv6 dhcp, any one
+        # succeeding should be enough. Therefore, if "may-fail" is set to
+        # False for both ipv4 and ipv6 dhcp, set them both to True.
+        self._set_mayfail_true_if_both_false_dhcp()
 
         if ipv4_mtu is None:
             ipv4_mtu = device_mtu
