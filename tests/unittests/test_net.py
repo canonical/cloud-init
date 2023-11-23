@@ -1477,11 +1477,11 @@ NETWORK_CONFIGS = {
 
                 [ipv4]
                 method=auto
-                may-fail=false
+                may-fail=true
 
                 [ipv6]
                 method=auto
-                may-fail=false
+                may-fail=true
 
                 """
             ),
@@ -1650,11 +1650,11 @@ NETWORK_CONFIGS = {
 
                 [ipv6]
                 method=auto
-                may-fail=false
+                may-fail=true
 
                 [ipv4]
                 method=auto
-                may-fail=false
+                may-fail=true
 
                 """
             ),
