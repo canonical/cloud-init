@@ -2143,29 +2143,6 @@ def safe_int(possible_int):
         return None
 
 
-def compare_permission(mode1, mode2):
-    """Compare two file modes in octal.
-
-    If mode1 is less restrictive than mode2 return 1
-    If mode1 is more restrictive than mode2 return -1
-    If mode1 is same as mode2, return 0
-
-    The comparison starts from the permission of the
-    set of users in "others" and then works up to the
-    permission of "user" set.
-    """
-    # Convert modes to octal and reverse the last 3 digits
-    # so 0o640 would be become 0o046
-    mode1_oct = oct(mode1)[2:].rjust(3, "0")
-    mode2_oct = oct(mode2)[2:].rjust(3, "0")
-    m1 = int(mode1_oct[:-3] + mode1_oct[-3:][::-1], 8)
-    m2 = int(mode2_oct[:-3] + mode2_oct[-3:][::-1], 8)
-
-    # Then do a traditional cmp()
-    # https://docs.python.org/3.0/whatsnew/3.0.html#ordering-comparisons
-    return (m1 > m2) - (m1 < m2)
-
-
 def chmod(path, mode):
     real_mode = safe_int(mode)
     if path and real_mode:
