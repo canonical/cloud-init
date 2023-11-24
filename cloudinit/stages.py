@@ -10,6 +10,7 @@ import logging
 import os
 import sys
 from collections import namedtuple
+from contextlib import suppress
 from typing import Dict, Iterable, List, Optional, Set
 
 from cloudinit import (
@@ -219,13 +220,25 @@ class Init:
     def initialize(self):
         self._initialize_filesystem()
 
+    @staticmethod
+    def _get_strictest_mode(mode_1: int, mode_2: int) -> int:
+        return mode_1 & mode_2
+
     def _initialize_filesystem(self):
+        mode = 0o640
+
         util.ensure_dirs(self._initial_subdirs())
         log_file = util.get_cfg_option_str(self.cfg, "def_log_file")
         if log_file:
             # At this point the log file should have already been created
             # in the setupLogging function of log.py
-            util.ensure_file(log_file, mode=0o640, preserve_mode=False)
+            with suppress(OSError):
+                mode = self._get_strictest_mode(
+                    0o640, util.get_permissions(log_file)
+                )
+
+            # set file mode to the strictest of 0o640 and the current mode
+            util.ensure_file(log_file, mode, preserve_mode=False)
             perms = self.cfg.get("syslog_fix_perms")
             if not perms:
                 perms = {}

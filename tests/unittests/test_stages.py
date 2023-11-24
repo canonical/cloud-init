@@ -622,23 +622,44 @@ class TestInit_InitializeFilesystem:
         # Assert we create it 0o640  by default if it doesn't already exist
         assert 0o640 == stat.S_IMODE(log_file.stat().mode)
 
-    def test_existing_file_permissions(self, init, tmpdir):
+    @pytest.mark.parametrize(
+        "input, expected",
+        [
+            (0o777, 0o640),
+            (0o640, 0o640),
+            (0o606, 0o600),
+            (0o501, 0o400),
+        ],
+    )
+    def test_existing_file_permissions(self, init, tmpdir, input, expected):
         """Test file permissions are set as expected.
 
-        CIS Hardening requires 640 permissions. These permissions are
-        currently hardcoded on every boot, but if there's ever a reason
-        to change this, we need to then ensure that they
-        are *not* set every boot.
+        CIS Hardening requires file mode 0o640 or stricter. Set the
+        permissions to the subset of 0o640 and the current
+        mode.
 
         See https://bugs.launchpad.net/cloud-init/+bug/1900837.
         """
         log_file = tmpdir.join("cloud-init.log")
         log_file.ensure()
-        # Use a mode that will never be made the default so this test will
-        # always be valid
-        log_file.chmod(0o606)
+        log_file.chmod(input)
         init._cfg = {"def_log_file": str(log_file)}
+        with mock.patch.object(stages.util, "ensure_file") as ensure:
+            init._initialize_filesystem()
+            assert expected == ensure.call_args[0][1]
 
-        init._initialize_filesystem()
 
-        assert 0o640 == stat.S_IMODE(log_file.stat().mode)
+@pytest.mark.parametrize(
+    "mode_1, mode_2, expected",
+    [
+        (0o777, 0o640, 0o640),
+        (0o640, 0o777, 0o640),
+        (0o640, 0o541, 0o440),
+        (0o111, 0o050, 0o010),
+        (0o631, 0o640, 0o600),
+        (0o661, 0o640, 0o640),
+        (0o453, 0o611, 0o411),
+    ],
+)
+def test_strictest_permissions(mode_1, mode_2, expected):
+    assert expected == stages.Init._get_strictest_mode(mode_1, mode_2)
