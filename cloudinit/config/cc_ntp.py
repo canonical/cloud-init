@@ -202,6 +202,14 @@ DISTRO_CLIENT_CONFIG = {
             "service_name": "chronyd",
         },
     },
+    "rocky": {
+        "ntp": {
+            "service_name": "ntpd",
+        },
+        "chrony": {
+            "service_name": "chronyd",
+        },
+    },
     "sles": {
         "chrony": {
             "service_name": "chronyd",
