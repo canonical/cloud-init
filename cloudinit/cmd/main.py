@@ -41,6 +41,7 @@ from cloudinit.log import (
     setup_logging,
     reset_logging,
     configure_root_logger,
+    DEPRECATED,
 )
 from cloudinit.reporting import events
 from cloudinit.safeyaml import load
@@ -221,11 +222,17 @@ def attempt_cmdline_url(path, network=True, cmdline=None) -> Tuple[int, str]:
                 is_cloud_cfg = False
             if is_cloud_cfg:
                 if cmdline_name == "url":
-                    util.deprecate(
-                        deprecated="The kernel command line key `url`",
-                        deprecated_version="22.3",
-                        extra_message=" Please use `cloud-config-url` "
-                        "kernel command line parameter instead",
+                    return (
+                        DEPRECATED,
+                        str(
+                            util.deprecate(
+                                deprecated="The kernel command line key `url`",
+                                deprecated_version="22.3",
+                                extra_message=" Please use `cloud-config-url` "
+                                "kernel command line parameter instead",
+                                return_log=True,
+                            ),
+                        ),
                     )
             else:
                 if cmdline_name == "cloud-config-url":

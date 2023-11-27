@@ -22,6 +22,7 @@ from contextlib import suppress
 from typing import DefaultDict
 
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
+DEPRECATED = 35
 
 
 def setup_basic_logging(level=logging.DEBUG, formatter=None):
@@ -44,7 +45,7 @@ def flush_loggers(root):
     flush_loggers(root.parent)
 
 
-def define_deprecation_logger(lvl=35):
+def define_deprecation_logger(lvl=DEPRECATED):
     logging.addLevelName(lvl, "DEPRECATED")
 
     def deprecated(self, message, *args, **kwargs):
