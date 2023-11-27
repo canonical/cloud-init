@@ -1,6 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-
 import importlib
 import inspect
 import itertools
@@ -12,6 +11,7 @@ import sys
 import unittest
 from collections import namedtuple
 from copy import deepcopy
+from errno import EACCES
 from pathlib import Path
 from textwrap import dedent
 from types import ModuleType
@@ -39,6 +39,7 @@ from cloudinit.config.schema import (
 from cloudinit.distros import OSFAMILIES
 from cloudinit.safeyaml import load, load_with_marks
 from cloudinit.settings import FREQUENCIES
+from cloudinit.sources import DataSourceNotFoundException
 from cloudinit.util import load_file, write_file
 from tests.hypothesis import given
 from tests.hypothesis_jsonschema import from_schema
@@ -2164,6 +2165,56 @@ class TestHandleSchemaArgs:
     Args = namedtuple(
         "Args", "config_file schema_type docs system annotate instance_data"
     )
+
+    @pytest.mark.parametrize(
+        "failure, expected_logs",
+        (
+            (
+                IOError("No permissions on /var/lib/cloud/instance"),
+                ["Using default instance-data/user-data paths for non-root"],
+            ),
+            (
+                DataSourceNotFoundException("No cached datasource found yet"),
+                ["datasource not detected"],
+            ),
+        ),
+    )
+    @mock.patch(M_PATH + "read_cfg_paths")
+    def test_handle_schema_unable_to_read_cfg_paths(
+        self,
+        read_cfg_paths,
+        failure,
+        expected_logs,
+        paths,
+        capsys,
+        caplog,
+        tmpdir,
+    ):
+        if isinstance(failure, IOError):
+            failure.errno = EACCES
+        read_cfg_paths.side_effect = [failure, paths]
+        user_data_fn = tmpdir.join("user-data")
+        with open(user_data_fn, "w") as f:
+            f.write(
+                dedent(
+                    """\
+                    #cloud-config
+                    packages: [sl]
+                    """
+                )
+            )
+        args = self.Args(
+            config_file=str(user_data_fn),
+            schema_type="cloud-config",
+            annotate=False,
+            docs=None,
+            system=None,
+            instance_data=None,
+        )
+        handle_schema_args("unused", args)
+        assert "Valid schema" in capsys.readouterr().out
+        for expected_log in expected_logs:
+            assert expected_log in caplog.text
 
     @pytest.mark.parametrize(
         "annotate, expected_output",
