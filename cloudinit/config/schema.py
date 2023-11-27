@@ -10,6 +10,7 @@ import textwrap
 from collections import defaultdict
 from collections.abc import Iterable
 from copy import deepcopy
+from errno import EACCES
 from functools import partial
 from itertools import chain
 from typing import (
@@ -1490,10 +1491,18 @@ def handle_schema_args(name, args):
         return
     try:
         paths = read_cfg_paths(fetch_existing_datasource="trust")
+    except (IOError, OSError) as e:
+        if e.errno == EACCES:
+            LOG.debug(
+                "Using default instance-data/user-data paths for non-root user"
+            )
+            paths = read_cfg_paths()
+        else:
+            raise
     except DataSourceNotFoundException:
         paths = read_cfg_paths()
-        print(
-            "WARNING: datasource not detected, using default"
+        LOG.warning(
+            "datasource not detected, using default"
             " instance-data/user-data paths."
         )
     if args.instance_data:
