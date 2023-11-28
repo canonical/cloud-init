@@ -173,18 +173,44 @@ class NMConnection:
         self.config[family]["method"] = method
         self._set_default(family, "may-fail", "false")
 
-    def _add_numbered(self, section, key_prefix, value):
-        """
-        Adds a numbered property, such as address<n> or route<n>, ensuring
-        the appropriate value gets used for <n>.
-        """
+    def _get_next_numbered_section(self, section, key_prefix) -> str:
         if not self.config.has_section(section):
             self.config[section] = {}
         for index in itertools.count(1):
             key = f"{key_prefix}{index}"
             if not self.config.has_option(section, key):
-                self.config[section][key] = value
-                break
+                return key
+        return "not_possible"  # for typing
+
+    def _add_numbered(self, section, key_prefix, value):
+        """
+        Adds a numbered property, such as address<n> or route<n>, ensuring
+        the appropriate value gets used for <n>.
+        """
+        key = self._get_next_numbered_section(section, key_prefix)
+        self.config[section][key] = value
+
+    def _add_route_options(self, section, route, key, value):
+        """Add route options to a given route
+
+        Example:
+        Given:
+          section: ipv4
+          route: route0
+          key: mtu
+          value: 500
+
+        Create line under [ipv4] section:
+            route0_options=mtu=500
+
+        If the line already exists, then append the new key/value pair
+        """
+        if not self.config[section].get(f"{route}_options"):
+            self.config[section][f"{route}_options"] = f"{key}={value}"
+        else:
+            self.config[section][
+                f"{route}_options"
+            ] = f'{self.config[section][f"{route}_options"]},{key}={value}'
 
     def _add_address(self, family, subnet):
         """
@@ -201,8 +227,11 @@ class NMConnection:
         family = "ipv6" if is_ipv6_network(route["gateway"]) else "ipv4"
         value = route["network"] + "/" + str(route["prefix"])
         if "gateway" in route:
-            value = value + "," + route["gateway"]
-        self._add_numbered(family, "route", value)
+            value = f"{value}," + route["gateway"]
+        route_key = self._get_next_numbered_section(family, "route")
+        self.config[family][route_key] = value
+        if "mtu" in route:
+            self._add_route_options(family, route_key, "mtu", route["mtu"])
 
     def _add_nameserver(self, dns: str) -> None:
         """
