@@ -55,7 +55,7 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
             "Found unexpected errors: %s" % "\n".join(error_logs)
         )
 
-    warning_count = log.count("WARN")
+    warning_count = log.count("[WARNING]")
     expected_warnings = 0
     traceback_count = log.count("Traceback")
     expected_tracebacks = 0
@@ -74,6 +74,11 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
         # and enabling it
         warning_texts.append(
             "canonical-livepatch returned error when checking status"
+        )
+    if "found network data from DataSourceNone" in log:
+        warning_texts.append("Used fallback datasource")
+        warning_texts.append(
+            "Falling back to a hard restart of systemd-networkd.service"
         )
     if "oracle" in log:
         # LP: #1842752

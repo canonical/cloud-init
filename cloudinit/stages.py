@@ -388,6 +388,30 @@ class Init:
             )
         return instance_dir
 
+    def _write_network_config_json(self, netcfg: dict):
+        """Create /var/lib/cloud/instance/network-config.json
+
+        Only attempt once /var/lib/cloud/instance exists which is created
+        by Init.instancify once a datasource is detected.
+        """
+
+        if not os.path.islink(self.paths.instance_link):
+            # Datasource hasn't been detected yet, so we may not
+            # have visibility to datasource applicable network-config
+            return
+        ncfg_instance_path = self.paths.get_ipath_cur("network_config")
+        network_link = self.paths.get_runpath("network_config")
+        if os.path.exists(ncfg_instance_path):
+            # Compare and only write on delta of current network-config
+            if netcfg != util.load_json(util.load_file(ncfg_instance_path)):
+                atomic_helper.write_json(
+                    ncfg_instance_path, netcfg, mode=0o600
+                )
+        else:
+            atomic_helper.write_json(ncfg_instance_path, netcfg, mode=0o600)
+        if not os.path.islink(network_link):
+            util.sym_link(ncfg_instance_path, network_link)
+
     def _reflect_cur_instance(self):
         # Remove the old symlink and attach a new one so
         # that further reads/writes connect into the right location
@@ -934,22 +958,6 @@ class Init:
         )
 
     def _apply_netcfg_names(self, netcfg):
-        ncfg_instance_path = self.paths.get_ipath_cur("network_config")
-        network_link = self.paths.get_runpath("network_config")
-        if not self._network_already_configured():
-            if os.path.exists(ncfg_instance_path):
-                if netcfg != util.load_json(
-                    util.load_file(ncfg_instance_path)
-                ):
-                    atomic_helper.write_json(
-                        ncfg_instance_path, netcfg, mode=0o600
-                    )
-            else:
-                atomic_helper.write_json(
-                    ncfg_instance_path, netcfg, mode=0o600
-                )
-        if not os.path.islink(network_link):
-            util.sym_link(ncfg_instance_path, network_link)
         try:
             LOG.debug("applying net config names for %s", netcfg)
             self.distro.networking.apply_network_config_names(netcfg)
@@ -1009,6 +1017,7 @@ class Init:
 
         # refresh netcfg after update
         netcfg, src = self._find_networking_config()
+        self._write_network_config_json(netcfg)
 
         if netcfg and netcfg.get("version") == 1:
             validate_cloudconfig_schema(
