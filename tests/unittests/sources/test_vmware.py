@@ -74,7 +74,7 @@ def common_patches():
             is_FreeBSD=mock.Mock(return_value=False),
         ),
         mock.patch(
-            "cloudinit.sources.DataSourceVMware.netifaces.interfaces",
+            "cloudinit.netinfo.netdev_info",
             return_value=[],
         ),
         mock.patch(
