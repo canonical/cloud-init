@@ -437,10 +437,15 @@ cached() {
 detect_virt() {
     local virt="${UNAVAILABLE}" r="" out=""
     if [ -d /run/systemd ]; then
-        out=$(systemd-detect-virt 2>&1)
-        r=$?
-        if [ $r -eq 0 ] || { [ $r -ne 0 ] && [ "$out" = "none" ]; }; then
-            virt="$out"
+        if [ -n "$SYSTEMD_VIRTUALIZATION" ]; then
+            virt=${SYSTEMD_VIRTUALIZATION#*:}
+        else
+            # required for compatibility with systemd version <251
+            out=$(systemd-detect-virt 2>&1)
+            r=$?
+            if [ $r -eq 0 ] || { [ $r -ne 0 ] && [ "$out" = "none" ]; }; then
+                virt="$out"
+            fi
         fi
     elif command -v virt-what >/dev/null 2>&1; then
         # Map virt-what's names to those systemd-detect-virt that

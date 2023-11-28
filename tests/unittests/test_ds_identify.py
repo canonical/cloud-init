@@ -96,19 +96,19 @@ IBM_CONFIG_UUID = "9796-932E"
 
 MOCK_VIRT_IS_CONTAINER_OTHER = {
     "name": "detect_virt",
-    "RET": "container-other",
+    "RET": "container:container-other",
     "ret": 0,
 }
 MOCK_NOT_LXD_DATASOURCE = {"name": "dscheck_LXD", "ret": 1}
-MOCK_VIRT_IS_KVM = {"name": "detect_virt", "RET": "kvm", "ret": 0}
+MOCK_VIRT_IS_KVM = {"name": "detect_virt", "RET": "vm:kvm", "ret": 0}
 # qemu support for LXD is only for host systems > 5.10 kernel as lxd
 # passed `hv_passthrough` which causes systemd < v.251 to misinterpret CPU
 # as "qemu" instead of "kvm"
-MOCK_VIRT_IS_KVM_QEMU = {"name": "detect_virt", "RET": "qemu", "ret": 0}
-MOCK_VIRT_IS_VMWARE = {"name": "detect_virt", "RET": "vmware", "ret": 0}
+MOCK_VIRT_IS_KVM_QEMU = {"name": "detect_virt", "RET": "vm:qemu", "ret": 0}
+MOCK_VIRT_IS_VMWARE = {"name": "detect_virt", "RET": "vm:vmware", "ret": 0}
 # currenty' SmartOS hypervisor "bhyve" is unknown by systemd-detect-virt.
-MOCK_VIRT_IS_VM_OTHER = {"name": "detect_virt", "RET": "vm-other", "ret": 0}
-MOCK_VIRT_IS_XEN = {"name": "detect_virt", "RET": "xen", "ret": 0}
+MOCK_VIRT_IS_VM_OTHER = {"name": "detect_virt", "RET": "vm:vm-other", "ret": 0}
+MOCK_VIRT_IS_XEN = {"name": "detect_virt", "RET": "vm:xen", "ret": 0}
 MOCK_VIRT_IS_WSL = {"name": "detect_virt", "RET": "wsl", "ret": 0}
 MOCK_UNAME_IS_PPC64 = {"name": "uname", "out": UNAME_PPC64EL, "ret": 0}
 MOCK_UNAME_IS_FREEBSD = {"name": "uname", "out": UNAME_FREEBSD, "ret": 0}
@@ -189,6 +189,15 @@ class DsIdentifyBase(CiTestCase):
 
         def write_mock(data):
             ddata = {"out": None, "err": None, "ret": 0, "RET": None}
+
+            # Don't mock when SYSTEMD_VIRTUALIZATION would be set to a value.
+            # When no virtualization is detected, the call path would currently
+            # fall back to calling systemd-detect-virt, which we currently mock
+            # out at the function call to `detect_virt()`. Continue mocking
+            # that code path. One day when systemd 250 is no longer supported
+            # we can simplify this code and not mock `detect_virt()` at all.
+            if "detect_virt" == data["name"] and "none" != data["RET"]:
+                return ""
             ddata.update(data)
             for k in ddata.keys():
                 if ddata[k] is None:
@@ -246,9 +255,18 @@ class DsIdentifyBase(CiTestCase):
         with open(wrap, "w") as fp:
             fp.write("\n".join(head + mocklines + endlines) + "\n")
 
+        detect_virt = None
+        for mock in [*mocks, *default_mocks]:
+            if "detect_virt" == mock["name"]:
+                detect_virt = mock["RET"]
+                break
         rc = 0
         try:
-            out, err = subp.subp(["sh", "-c", ". %s" % wrap], capture=True)
+            out, err = subp.subp(
+                ["sh", "-c", ". %s" % wrap],
+                update_env={"SYSTEMD_VIRTUALIZATION": detect_virt},
+                capture=True,
+            )
         except subp.ProcessExecutionError as e:
             rc = e.exit_code
             out = e.stdout
@@ -1270,7 +1288,7 @@ VALID_CFG = {
     },
     "Ec2-hvm": {
         "ds": "Ec2",
-        "mocks": [{"name": "detect_virt", "RET": "kvm", "ret": 0}],
+        "mocks": [{"name": "detect_virt", "RET": "vm:kvm", "ret": 0}],
         "files": {
             P_PRODUCT_SERIAL: "ec23aef5-54be-4843-8d24-8c819f88453e\n",
             P_PRODUCT_UUID: "EC23AEF5-54BE-4843-8D24-8C819F88453E\n",
