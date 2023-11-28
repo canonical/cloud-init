@@ -21,7 +21,7 @@ from urllib.parse import urlsplit, urlunsplit
 import responses
 
 import cloudinit
-from cloudinit import cloud, distros
+from cloudinit import atomic_helper, cloud, distros
 from cloudinit import helpers as ch
 from cloudinit import subp, util
 from cloudinit.config.schema import (
@@ -292,6 +292,9 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
                 ("del_file", 1),
                 ("sym_link", -1),
                 ("copy", -1),
+            ],
+            atomic_helper: [
+                ("write_json", 1),
             ],
         }
         for (mod, funcs) in patch_funcs.items():
