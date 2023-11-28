@@ -4202,7 +4202,7 @@ iface bond0 inet6 static
                 dhcp6: true
                 nameservers:
                   search: [lab, home]
-                  addresses: [8.8.8.8, FEDC::1]
+                  addresses: [8.8.8.8, "FEDC::1"]
                 routes:
                   - to: 169.254.42.42/32
                     via: 62.210.0.1
