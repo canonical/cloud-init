@@ -231,15 +231,15 @@
           "type": "boolean"
         },
         "passwd": {
-          "description": "Hash of user password applied when user does not exist. This will NOT be applied if the user already exists. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** Your password might possibly be visible to unprivileged users on your system, depending on your cloud's security model.",
+          "description": "Hash of user password applied when user does not exist. This will NOT be applied if the user already exists. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=500000 **Note:** Your password might possibly be visible to unprivileged users on your system, depending on your cloud's security model. Check if your cloud's IMDS server is visible from an unprivileged user to evaluate risk.",
           "type": "string"
         },
         "hashed_passwd": {
-          "description": "Hash of user password to be applied. This will be applied even if the user is preexisting. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** Your password might possibly be visible to unprivileged users on your system, depending on your cloud's security model.",
+          "description": "Hash of user password to be applied. This will be applied even if the user is preexisting. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=500000. **Note:** Your password might possibly be visible to unprivileged users on your system, depending on your cloud's security model. Check if your cloud's IMDS server is visible from an unprivileged user to evaluate risk.",
           "type": "string"
         },
         "plain_text_passwd": {
-          "description": "Clear text of user password to be applied. This will be applied even if the user is preexisting. There are many more secure options than using plain text passwords, such as ``ssh_import_id``. **Note:** Your password might possibly be visible to unprivileged users on your system, depending on your cloud's security model.",
+          "description": "Clear text of user password to be applied. This will be applied even if the user is preexisting. **Note:** SSH keys or certificates are a safer choice for logging in to your system. For local escalation, supplying a hashed password is a safer choice than plain text. Your password might possibly be visible to unprivileged users on your system, depending on your cloud's security model. An exposed plain text password is an immediate security concern. Check if your cloud's IMDS server is visible from an unprivileged user to evaluate risk.",
           "type": "string"
         },
         "create_groups": {
