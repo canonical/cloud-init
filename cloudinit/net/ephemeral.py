@@ -371,49 +371,43 @@ class EphemeralIPNetwork:
             # no ephemeral network requested, but this object still needs to
             # function as a context manager
             return self
-        try:
-            exceptions = []
-            ephemeral_obtained = False
-            if self.ipv4:
-                try:
-                    self.stack.enter_context(
-                        EphemeralDHCPv4(
-                            self.distro,
-                            self.interface,
-                        )
+        exceptions = []
+        ephemeral_obtained = False
+        if self.ipv4:
+            try:
+                self.stack.enter_context(
+                    EphemeralDHCPv4(
+                        self.distro,
+                        self.interface,
                     )
-                    ephemeral_obtained = True
-                except (ProcessExecutionError, NoDHCPLeaseError) as e:
-                    LOG.info("Failed to bring up %s for ipv4.", self)
-                    exceptions.append(e)
-
-            if self.ipv6:
-                try:
-                    self.stack.enter_context(
-                        EphemeralIPv6Network(
-                            self.distro,
-                            self.interface,
-                        )
-                    )
-                    ephemeral_obtained = True
-                except ProcessExecutionError as e:
-                    LOG.info("Failed to bring up %s for ipv6.", self)
-                    exceptions.append(e)
-            if not ephemeral_obtained:
-                # Ephemeral network setup failed in linkup for both ipv4 and
-                # ipv6. Raise only the first exception found.
-                LOG.error(
-                    "Failed to bring up EphemeralIPNetwork. "
-                    "Datasource setup cannot continue"
                 )
-                raise exceptions[0]
-        except NoDHCPLeaseError as e:
-            if self.ipv6:
-                # ipv6 dualstack might succeed when dhcp4 fails, so catch
-                # NoDHCPLeaseError unless only v4 is used
-                self.state_msg = "using link-local ipv6"
-            else:
-                raise e
+                ephemeral_obtained = True
+            except (ProcessExecutionError, NoDHCPLeaseError) as e:
+                LOG.info("Failed to bring up %s for ipv4.", self)
+                exceptions.append(e)
+
+        if self.ipv6:
+            try:
+                self.stack.enter_context(
+                    EphemeralIPv6Network(
+                        self.distro,
+                        self.interface,
+                    )
+                )
+                ephemeral_obtained = True
+                if exceptions or not self.ipv4:
+                    self.state_msg = "using link-local ipv6"
+            except ProcessExecutionError as e:
+                LOG.info("Failed to bring up %s for ipv6.", self)
+                exceptions.append(e)
+        if not ephemeral_obtained:
+            # Ephemeral network setup failed in linkup for both ipv4 and
+            # ipv6. Raise only the first exception found.
+            LOG.error(
+                "Failed to bring up EphemeralIPNetwork. "
+                "Datasource setup cannot continue"
+            )
+            raise exceptions[0]
         return self
 
     def __exit__(self, *_args):
