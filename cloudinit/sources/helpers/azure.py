@@ -794,7 +794,7 @@ class WALinuxAgentShim:
         except Exception as e:
             report_diagnostic_event(
                 "Failed ejecting the provisioning iso: %s" % e,
-                logger_func=LOG.debug,
+                logger_func=LOG.error,
             )
 
     @azure_ds_telemetry_reporter
