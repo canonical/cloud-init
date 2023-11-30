@@ -2140,6 +2140,8 @@ def clean_schema(
         remove_modules(schema, set(modules))
     if defs:
         remove_defs(schema, set(defs))
+    del schema["properties"]
+    del schema["additionalProperties"]
     return schema
 
 
@@ -2153,7 +2155,12 @@ class TestSchemaFuzz:
 
     @skipUnlessHypothesisJsonSchema()
     @given(from_schema(SCHEMA))
-    def test_validate_full_schema(self, config):
+    def test_validate_full_schema(self, orig_config):
+        config = deepcopy(orig_config)
+        valid_props = get_schema()["properties"].keys()
+        for key in orig_config.keys():
+            if key not in valid_props:
+                del config[key]
         try:
             validate_cloudconfig_schema(config, strict=True)
         except SchemaValidationError as ex:
