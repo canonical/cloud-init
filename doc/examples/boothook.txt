@@ -1,0 +1,10 @@
+#cloud-boothook
+#!/bin/sh
+
+sudo ufw enable
+sudo ufw logging on
+
+sudo ufw allow http
+sudo ufw allow "OpenSSH"
+
+sudo iptables -I DOCKER-USER -j ACCEPT

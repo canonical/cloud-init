@@ -12,8 +12,8 @@ Cloud config data
 =================
 
 Cloud-config is the simplest way to accomplish some things via user data.
-Using cloud-config syntax, the user can specify certain things in a
-human-friendly format.
+Using cloud-config syntax, a YAML configuration, the user can specify
+certain things in a human-friendly format.
 
 These things include:
 
@@ -23,14 +23,10 @@ These things include:
 - certain SSH keys should be imported
 - *and many more...*
 
-.. note::
-   This file must be valid YAML syntax.
+Begins with: ``#cloud-config``.
 
 See the :ref:`yaml_examples` section for a commented set of examples of
 supported cloud config formats.
-
-Begins with: ``#cloud-config`` or ``Content-Type: text/cloud-config`` when
-using a MIME archive.
 
 .. note::
    New in ``cloud-init`` v. 18.4: Cloud config data can also render cloud
@@ -44,16 +40,13 @@ User data script
 
 Typically used by those who just want to execute a shell script.
 
-Begins with: ``#!`` or ``Content-Type: text/x-shellscript`` when using a MIME
-archive.
-
-User data scripts can optionally render cloud instance metadata variables using
-jinja templating. See :ref:`instance_metadata` for more information.
 
 Example script
 --------------
 
 Create a script file :file:`myscript.sh` that contains the following:
+
+Begins with: ``#!``.
 
 .. code-block::
 
@@ -65,6 +58,11 @@ Now run:
 .. code-block:: shell-session
 
    $ euca-run-instances --key mykey --user-data-file myscript.sh ami-a07d95c9
+
+.. note::
+   User data scripts can optionally render cloud instance metadata variables using
+   jinja templating. See :ref:`instance_metadata` for more information.
+
 
 Kernel command line
 ===================
@@ -79,6 +77,94 @@ Gzip compressed content
 Content found to be gzip compressed will be uncompressed.
 The uncompressed data will then be used as if it were not compressed.
 This is typically useful because user data is limited to ~16384 [#]_ bytes.
+
+``include`` file
+================
+
+This content is an :file:`include` file.
+
+The file contains a list of URLs, one per line. Each of the URLs will be read
+and their content will be passed through this same set of rules, i.e., the
+content read from the URL can be gzipped, MIME multi-part, or plain text. If
+an error occurs reading a file the remaining files will not be read.
+
+Begins with: ``#include``.
+
+Example
+-------
+
+Include 3 files:
+:file:`file/path/A`, :file:`file/path/B` and :file:`file/path/C`.
+
+.. code-block::
+
+   #include
+   file/path/A
+   file/path/B
+   file/path/C
+
+
+``cloud-boothook``
+==================
+
+This content is `boothook` data.
+This is a valid script(bash, python etc.) that runs during every boot.
+
+This is the earliest `hook`_ to run,
+it runs during the :ref:`Network boot stage<boot-Network>`.
+
+You can use this to configure some network configuration during boot.
+
+Example with simple script
+--------------------------
+
+.. code-block:: bash
+
+   #cloud-boothook
+   #!/bin/sh
+
+   sudo ufw enable
+   sudo ufw logging on
+
+   sudo ufw allow http
+   sudo ufw allow "OpenSSH"
+
+   sudo iptables -I DOCKER-USER -j ACCEPT
+
+Note, there is no mechanism provided for running only once. The
+`boothook` must take care of this itself.
+
+It is provided with the instance id in the environment variable
+``INSTANCE_ID``. This could be made use of to provide a 'once-per-instance'
+type of functionality. An example of a `once-per-instance` script:
+
+Begins with: ``#cloud-boothook``.
+
+Example of once-per-instance script
+-----------------------------------
+
+.. code-block:: bash
+
+   #cloud-boothook
+   #!/bin/sh
+
+   _id=""
+   if [ -r /var/lib/my-instance-id ]
+     then
+       _id=$(cat /var/lib/my-instance-id)
+   fi
+
+   if [ -z $_id ]  || [ $INSTANCE_ID != $_id ]
+       then
+          sudo ufw enable
+          sudo ufw logging on
+
+          sudo ufw allow http
+          sudo ufw allow "OpenSSH"
+
+          sudo iptables -I DOCKER-USER -j ACCEPT
+   fi
+   sudo echo $INSTANCE_ID > /var/lib/my-instance-id
 
 MIME multi-part archive
 =======================
@@ -123,6 +209,48 @@ The :command:`make-mime` subcommand takes pairs of (filename, "text/" mime
 subtype) separated by a colon (e.g., ``config.yaml:cloud-config``) and emits a
 MIME multipart message to :file:`stdout`.
 
+User data format to Mime Content type mapping
+---------------------------------------------
+
+We use the following format to outline the content-type the user is
+using
+
+.. code-block::
+
+   Content-Type: text/<content-type>
+
+Below is a mapping of a specific user data format to the `content-type`
+value to use when using the mime multipart archive format.
+
+
++----------------------------+----------------------------+
+| User data                  | Content Type               |
++============================+============================+
+| cloud boothook             | cloud-boothook             |
++----------------------------+----------------------------+
+| cloud config               | cloud-config               |
++----------------------------+----------------------------+
+| cloud config archive       | cloud-config-archive       |
++----------------------------+----------------------------+
+| cloud config jsonp         | cloud-config-jsonp         |
++----------------------------+----------------------------+
+| Jinja2                     | jinja2                     |
++----------------------------+----------------------------+
+| User data script           | x-shellscript              |
++----------------------------+----------------------------+
+| include file               | x-include-url              |
++----------------------------+----------------------------+
+| include file once          | x-include-once-url         |
++----------------------------+----------------------------+
+| Part handler               | part-handler               |
++----------------------------+----------------------------+
+| x-shellscript-per-instance | x-shellscript-per-instance |
++----------------------------+----------------------------+
+| x-shellscript-per-once     | x-shellscript-per-once     |
++----------------------------+----------------------------+
+| x-shellscript-per-boot     | x-shellscript-per-boot     |
++----------------------------+----------------------------+
+
 Examples
 --------
 
@@ -142,34 +270,6 @@ Create user data containing 3 shell scripts:
 .. code-block:: shell-session
 
     $ cloud-init devel make-mime -a always.sh:x-shellscript-per-boot -a instance.sh:x-shellscript-per-instance -a once.sh:x-shellscript-per-once
-
-``include`` file
-================
-
-This content is an :file:`include` file.
-
-The file contains a list of URLs, one per line. Each of the URLs will be read
-and their content will be passed through this same set of rules, i.e., the
-content read from the URL can be gzipped, MIME multi-part, or plain text. If
-an error occurs reading a file the remaining files will not be read.
-
-Begins with: ``#include`` or ``Content-Type: text/x-include-url``  when using
-a MIME archive.
-
-``cloud-boothook``
-==================
-
-This content is `boothook` data. It is stored in a file under
-:file:`/var/lib/cloud` and executed immediately. This is the earliest `hook`
-available. Note, that there is no mechanism provided for running only once. The
-`boothook` must take care of this itself.
-
-It is provided with the instance id in the environment variable
-``INSTANCE_ID``. This could be made use of to provide a 'once-per-instance'
-type of functionality.
-
-Begins with: ``#cloud-boothook`` or ``Content-Type: text/cloud-boothook`` when
-using a MIME archive.
 
 Part-handler
 ============
@@ -201,8 +301,7 @@ handles any parts, once per part received, and once after all parts have been
 handled. The ``'__begin__'`` and ``'__end__'`` sentinels allow the part
 handler to do initialisation or teardown before or after receiving any parts.
 
-Begins with: ``#part-handler`` or ``Content-Type: text/part-handler`` when
-using a MIME archive.
+Begins with: ``#part-handler``.
 
 Example
 -------
@@ -223,4 +322,5 @@ appliances. Setting ``allow_userdata: false`` in the configuration will disable
 
 .. _make-mime: https://github.com/canonical/cloud-init/blob/main/cloudinit/cmd/devel/make_mime.py
 .. [#] See your cloud provider for applicable user-data size limitations...
+.. _hook: https://en.wikipedia.org/wiki/Hooking
 .. _this blog post: http://foss-boss.blogspot.com/2011/01/advanced-cloud-init-custom-handlers.html
