@@ -11,13 +11,13 @@ from tests.integration_tests.util import get_console_log
 
 BLACKLIST_USER_DATA = """\
 #cloud-config
-ssh_fp_console_blacklist: [ssh-dss, ssh-dsa, ecdsa-sha2-nistp256]
-ssh_key_console_blacklist: [ssh-dss, ssh-dsa, ecdsa-sha2-nistp256]
+ssh_fp_console_blacklist: [ecdsa-sha2-nistp256]
+ssh_key_console_blacklist: [ecdsa-sha2-nistp256]
 """
 
 BLACKLIST_ALL_KEYS_USER_DATA = """\
 #cloud-config
-ssh_fp_console_blacklist: [ssh-dsa, ssh-ecdsa, ssh-ed25519, ssh-rsa, ssh-dss, ecdsa-sha2-nistp256]
+ssh_fp_console_blacklist: [ssh-ecdsa, ssh-ed25519, ssh-rsa, ecdsa-sha2-nistp256]
 """  # noqa: E501
 
 DISABLED_USER_DATA = """\

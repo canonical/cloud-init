@@ -179,8 +179,6 @@ def get_ssh_keys():
 
     # Nice helper to add in the 'running' users key (if they have one)
     key_pth = os.path.expanduser("~/.ssh/id_rsa.pub")
-    if not os.path.isfile(key_pth):
-        key_pth = os.path.expanduser("~/.ssh/id_dsa.pub")
 
     if os.path.isfile(key_pth):
         with open(key_pth, "rb") as fh:
