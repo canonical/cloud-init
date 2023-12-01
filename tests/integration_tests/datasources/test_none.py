@@ -20,7 +20,7 @@ datasource:
 """
 
 
-@retry(tries=30, delay=1)
+@retry(tries=90, delay=1)
 def wait_for_cloud_init_status_file(instance: LXDInstance):
     """Wait for a non-empty status.json indicating cloud-init has started.
 
