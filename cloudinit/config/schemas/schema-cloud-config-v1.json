@@ -421,6 +421,52 @@
         ]
       }
     },
+    "merge_defintion": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "settings"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "enum": [
+                  "list",
+                  "dict",
+                  "str"
+                ]
+              },
+              "settings": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "allow_delete",
+                    "no_replace",
+                    "replace",
+                    "append",
+                    "prepend",
+                    "recurse_dict",
+                    "recurse_list",
+                    "recurse_array",
+                    "recurse_str"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
     "base_config": {
       "type": "object",
       "properties": {
@@ -436,6 +482,12 @@
         "launch-index": {
           "type": "integer",
           "description": "The launch index for the specified cloud-config."
+        },
+        "merge_how": {
+          "$ref": "#/$defs/merge_defintion"
+        },
+        "merge_type": {
+          "$ref": "#/$defs/merge_defintion"
         }
       }
     },
@@ -3788,6 +3840,8 @@
     "manage_etc_hosts": {},
     "manage_resolv_conf": {},
     "mcollective": {},
+    "merge_how": {},
+    "merge_type": {},
     "migrate": {},
     "mount_default_fields": {},
     "mounts": {},
