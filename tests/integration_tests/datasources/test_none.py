@@ -1,9 +1,6 @@
 """DataSourceNone integration tests on LXD."""
 import json
 
-from pycloudlib.lxd.instance import LXDInstance
-
-from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import verify_clean_log
 
@@ -18,18 +15,6 @@ datasource:
       runcmd:
       - touch /var/tmp/success-with-datasource-none
 """
-
-
-@retry(tries=90, delay=1)
-def wait_for_cloud_init_status_file(instance: LXDInstance):
-    """Wait for a non-empty status.json indicating cloud-init has started.
-
-    We don't wait for cloud-init to complete in this scenario as the failure
-    path on some images leaves us with cloud-init status blocking
-    indefinitely in the "running" state.
-    """
-    status_file = instance.read_from_file("/run/cloud-init/status.json")
-    assert len(status_file)
 
 
 def test_datasource_none_discovery(client: IntegrationInstance):
@@ -58,8 +43,8 @@ def test_datasource_none_discovery(client: IntegrationInstance):
             "cp /etc/netplan/50-cloud-init.yaml"
             " /etc/cloud/cloud.cfg.d/99-orig-net.cfg"
         )
-    client.execute("cloud-init clean --logs --reboot")
-    wait_for_cloud_init_status_file(client)
+    client.execute("cloud-init clean --logs")
+    client.restart()
     status = json.loads(client.execute("cloud-init status --format=json"))
     assert [] == status["errors"]
     expected_warnings = [
@@ -77,7 +62,6 @@ def test_datasource_none_discovery(client: IntegrationInstance):
         raise AssertionError(
             f"Unexpected recoverable errors: {list(unexpected_warnings)}"
         )
-    client.execute("cloud-init status --wait")
     log = client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log)
     assert client.execute("test -f /var/tmp/success-with-datasource-none").ok
