@@ -36,8 +36,8 @@ meta: MetaSchema = {
         " ``ssh_fp_console_blacklist`` config key can be used. By default,"
         " all types of keys will have their fingerprints written to console."
         " To avoid host keys of a key type being written to console the"
-        "``ssh_key_console_blacklist`` config key can be used. By default,"
-        " ``ssh-dss`` host keys are not written to console."
+        "``ssh_key_console_blacklist`` config key can be used. By default"
+        " all supported host keys are written to console."
     ),
     "distros": distros,
     "examples": [
@@ -51,7 +51,7 @@ meta: MetaSchema = {
         dedent(
             """\
             # Do not print certain ssh key types to console
-            ssh_key_console_blacklist: [dsa, ssh-dss]
+            ssh_key_console_blacklist: [rsa]
             """
         ),
         dedent(
@@ -99,7 +99,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         cfg, "ssh_fp_console_blacklist", []
     )
     key_blacklist = util.get_cfg_option_list(
-        cfg, "ssh_key_console_blacklist", ["ssh-dss"]
+        cfg, "ssh_key_console_blacklist", []
     )
 
     try:

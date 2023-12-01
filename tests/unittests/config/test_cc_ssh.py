@@ -20,9 +20,6 @@ from tests.unittests.util import get_cloud
 LOG = logging.getLogger(__name__)
 
 MODPATH = "cloudinit.config.cc_ssh."
-KEY_NAMES_NO_DSA = [
-    name for name in cc_ssh.GENERATE_KEY_NAMES if name not in "dsa"
-]
 
 
 @pytest.fixture(scope="function")
@@ -131,7 +128,7 @@ class TestHandleSsh:
                 mock.call("/etc/ssh/ssh_host_ed25519_key"),
             ]
         else:
-            # Enabled fips doesn't generate dsa or ed25519
+            # Enabled fips doesn't generate ed25519
             expected_calls = [
                 mock.call("/etc/ssh/ssh_host_rsa_key"),
                 mock.call("/etc/ssh/ssh_host_ecdsa_key"),
@@ -226,10 +223,10 @@ class TestHandleSsh:
     @pytest.mark.parametrize(
         "cfg, expected_key_types",
         [
-            pytest.param({}, KEY_NAMES_NO_DSA, id="default"),
+            pytest.param({}, cc_ssh.GENERATE_KEY_NAMES, id="default"),
             pytest.param(
                 {"ssh_publish_hostkeys": {"enabled": True}},
-                KEY_NAMES_NO_DSA,
+                cc_ssh.GENERATE_KEY_NAMES,
                 id="config_enable",
             ),
             pytest.param(

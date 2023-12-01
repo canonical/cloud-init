@@ -1541,9 +1541,7 @@
         },
         "ssh_key_console_blacklist": {
           "type": "array",
-          "default": [
-            "ssh-dss"
-          ],
+          "default": [],
           "description": "Avoid printing matching SSH key types to the system console.",
           "items": {
             "type": "string"
@@ -2970,7 +2968,7 @@
             },
             "blacklist": {
               "type": "array",
-              "description": "The SSH key types to ignore when publishing. Default: ``[dsa]``",
+              "description": "The SSH key types to ignore when publishing. Default: ``[]`` to publish all SSH key types",
               "items": {
                 "type": "string"
               }

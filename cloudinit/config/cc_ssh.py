@@ -56,8 +56,6 @@ Supported public key types for the ``ssh_authorized_keys`` are:
     - sk-ecdsa-sha2-nistp256@openssh.com
     - sk-ssh-ed25519-cert-v01@openssh.com
     - sk-ssh-ed25519@openssh.com
-    - ssh-dss-cert-v01@openssh.com
-    - ssh-dss
     - ssh-ed25519-cert-v01@openssh.com
     - ssh-ed25519
     - ssh-rsa-cert-v01@openssh.com
@@ -150,7 +148,7 @@ meta: MetaSchema = {
             ssh_quiet_keygen: true
             ssh_publish_hostkeys:
               enabled: true
-              blacklist: [dsa]
+              blacklist: [rsa]
             """  # noqa: E501
         )
     ],
@@ -161,16 +159,15 @@ __doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
 GENERATE_KEY_NAMES = ["rsa", "ecdsa", "ed25519"]
-FIPS_UNSUPPORTED_KEY_NAMES = ["dsa", "ed25519"]
+FIPS_UNSUPPORTED_KEY_NAMES = ["ed25519"]
 
 pattern_unsupported_config_keys = re.compile(
     "^(ecdsa-sk|ed25519-sk)_(private|public|certificate)$"
 )
 KEY_FILE_TPL = "/etc/ssh/ssh_host_%s_key"
 PUBLISH_HOST_KEYS = True
-# Don't publish the dsa hostkey by default since OpenSSH recommends not using
-# it.
-HOST_KEY_PUBLISH_BLACKLIST = ["dsa"]
+# By default publish all supported hostkey types.
+HOST_KEY_PUBLISH_BLACKLIST: List[str] = []
 
 CONFIG_KEY_TO_FILE = {}
 PRIV_TO_PUB = {}
@@ -373,7 +370,7 @@ def apply_credentials(keys, user, disable_root, disable_root_opts):
 def get_public_host_keys(blacklist: Optional[Sequence[str]] = None):
     """Read host keys from /etc/ssh/*.pub files and return them as a list.
 
-    @param blacklist: List of key types to ignore. e.g. ['dsa', 'rsa']
+    @param blacklist: List of key types to ignore. e.g. ['rsa']
     @returns: List of keys, each formatted as a two-element tuple.
         e.g. [('ssh-rsa', 'AAAAB3Nz...'), ('ssh-ed25519', 'AAAAC3Nx...')]
     """
@@ -382,7 +379,7 @@ def get_public_host_keys(blacklist: Optional[Sequence[str]] = None):
     blacklist_files = []
     if blacklist:
         # Convert blacklist to filenames:
-        # 'dsa' -> '/etc/ssh/ssh_host_dsa_key.pub'
+        # 'rsa' -> '/etc/ssh/ssh_host_rsa_key.pub'
         blacklist_files = [
             public_key_file_tmpl % (key_type,) for key_type in blacklist
         ]
