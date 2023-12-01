@@ -432,6 +432,10 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
+            "required": [
+              "name",
+              "settings"
+            ],
             "properties": {
               "name": {
                 "type": "string",

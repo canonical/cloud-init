@@ -283,6 +283,26 @@ class TestMergingSchema:
                 {
                     "merge_how": [
                         {
+                            "settings": ["recurse_list"],
+                        }
+                    ]
+                },
+                "'name' is a required property",
+            ),
+            (
+                {
+                    "merge_how": [
+                        {
+                            "name": "list",
+                        }
+                    ]
+                },
+                "'settings' is a required property",
+            ),
+            (
+                {
+                    "merge_how": [
+                        {
                             "name": "str",
                             "settings": ["recurse_list"],
                             "badkey": "append",
@@ -304,6 +324,17 @@ class TestMergingSchema:
                     ]
                 },
                 "'badvalue' is not one of",
+            ),
+            (
+                {
+                    "merge_how": [
+                        {
+                            "name": "badvalue",
+                            "settings": ["append"],
+                        }
+                    ]
+                },
+                re.escape("'badvalue' is not one of ['list', 'dict', 'str']"),
             ),
             (
                 {
