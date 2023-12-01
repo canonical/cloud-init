@@ -210,6 +210,27 @@ get_kenv_field() {
     _RET="$val"
 }
 
+get_sysctl_field() {
+    local sys_field="$1" sysctl_field="" val=""
+    command -v sysctl >/dev/null 2>&1 || {
+        warn "No sysctl program. Cannot read $sys_field."
+        return 1
+    }
+    case "$sys_field" in
+        chassis_vendor) sysctl_field='hw.vendor';;
+        chassis_serial) sysctl_field='hw.type';;
+        chassis_version) sysctl_field='hw.uuid';;
+        sys_vendor) sysctl_field='hw.vendor';;
+        product_name) sysctl_field='hw.product';;
+        product_serial) sysctl_field='hw.uuid';;
+        product_uuid) sysctl_field='hw.uuid';;
+        *) error "Unknown field $sys_field. Cannot call sysctl."
+           return 1;;
+    esac
+    val=$(sysctl -nq "$sysctl_field" 2>/dev/null) || return 1
+    _RET="$val"
+}
+
 dmi_decode() {
     local sys_field="$1" dmi_field="" val=""
     command -v dmidecode >/dev/null 2>&1 || {
@@ -234,6 +255,9 @@ get_dmi_field() {
 
     if [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" -o "$DI_UNAME_KERNEL_NAME" = "Dragonfly" ]; then
         get_kenv_field "$1" || _RET="$ERROR"
+        return $?
+    elif [ "$DI_UNAME_KERNEL_NAME" = "OpenBSD" ]; then
+        get_sysctl_field "$1" || _RET="$ERROR"
         return $?
     fi
 
@@ -521,11 +545,8 @@ read_uname_info() {
     # uname is tricky to parse as it outputs always in a given order
     # independent of option order. kernel-version is known to have spaces.
     # 1   -s kernel-name
-    # 2   -n nodename
-    # 3   -r kernel-release
-    # 4.. -v kernel-version(whitespace)
-    # N-2 -m machine
-    # N-1 -o operating-system
+    # 2.. -v kernel-version(whitespace)
+    # N-1 -m machine
     cached "${DI_UNAME_CMD_OUT}" && return
     local out="${1:-}" ret=0 buf=""
     if [ -z "$out" ]; then
