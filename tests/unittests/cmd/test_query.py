@@ -33,7 +33,6 @@ def _gzip_data(data):
 def setup_mocks(mocker):
     mocker.patch("cloudinit.cmd.query.read_cfg_paths", return_value=Paths({}))
 
-
 class TestQuery:
     Args = namedtuple(
         "Args",
@@ -634,36 +633,3 @@ class TestQuery:
         out, err = capsys.readouterr()
         assert expected_error in caplog.text
         assert expected_error in err
-        
-
-    # def test_handle_args_jinja_template_missing_header(self, caplog, tmpdir, capsys):
-    #     """Raise an error when --list-keys and varname specify a non-list."""
-    #     instance_data = tmpdir.join("instance-data")
-    #     instance_data.write(
-    #         '{"v1": {"v1_1": "val1.1", "v1_2": "val1.2"}, "v2": '
-    #         '{"v2_2": "val2.2"}, "top": "gun"}'
-    #     )
-    #     format = "v1_1: {{ v1.v1_1 }}"
-    #     expected_error = (
-    #         "Failed to render templated data. " + 
-    #         JinjaSyntaxParsingException.message_template.format(
-    #             syntax_error="unexpected '{'", 
-    #             line_no=2,
-    #             line_content="v1_1: {{ v1.v1_1 }}"
-    #         )
-    #     )
-    #     args = self.Args(
-    #         debug=False,
-    #         dump_all=False,
-    #         format=format,
-    #         instance_data=instance_data.strpath,
-    #         list_keys=False,
-    #         user_data="ud",
-    #         vendor_data="vd",
-    #         varname=None,
-    #     )
-    #     with mock.patch("os.getuid") as m_getuid:
-    #         m_getuid.return_value = 100
-    #         assert 1 == query.handle_args("anyname", args)
-    #     out, _err = capsys.readouterr()
-    #     assert expected_error == out

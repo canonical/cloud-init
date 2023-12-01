@@ -853,12 +853,12 @@ class TestValidateCloudConfigFile:
         _out, err = capsys.readouterr()
         expected = (
             "Error:\n"
-            "Failed to render templated user-data: " + 
+            "Failed to render templated user-data. " + 
             JinjaSyntaxParsingException.message_template.format(
                 syntax_error="unexpected '}'", 
                 line_no=3,
                 line_content="c:{{ d } }",
-            )
+            ) + "\n"
         )
         assert expected == err
 
