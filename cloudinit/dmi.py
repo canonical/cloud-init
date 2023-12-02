@@ -6,57 +6,74 @@ from collections import namedtuple
 from typing import Optional
 
 from cloudinit import subp
-from cloudinit.util import is_container, is_FreeBSD
+from cloudinit.util import (
+    is_container,
+    is_DragonFlyBSD,
+    is_FreeBSD,
+    is_OpenBSD,
+)
 
 LOG = logging.getLogger(__name__)
 
 # Path for DMI Data
 DMI_SYS_PATH = "/sys/class/dmi/id"
 
-KernelNames = namedtuple("KernelNames", ["linux", "freebsd"])
-KernelNames.__new__.__defaults__ = (None, None)
+KernelNames = namedtuple("KernelNames", ["linux", "freebsd", "openbsd"])
+KernelNames.__new__.__defaults__ = (None, None, None)
 
 # FreeBSD's kenv(1) and Linux /sys/class/dmi/id/* both use different names from
 # dmidecode. The values are the same, and ultimately what we're interested in.
+# Likewise, OpenBSD has the most commonly used things we need in sysctl(8)'s
+# hw hierarchy. Moreover, this means it can be run without kern.allowkmem=1.
 # These tools offer a "cheaper" way to access those values over dmidecode.
 # This is our canonical translation table. If we add more tools on other
 # platforms to find dmidecode's values, their keys need to be put in here.
 DMIDECODE_TO_KERNEL = {
-    "baseboard-asset-tag": KernelNames("board_asset_tag", "smbios.planar.tag"),
+    "baseboard-asset-tag": KernelNames(
+        "board_asset_tag", "smbios.planar.tag", None
+    ),
     "baseboard-manufacturer": KernelNames(
-        "board_vendor", "smbios.planar.maker"
+        "board_vendor", "smbios.planar.maker", None
     ),
     "baseboard-product-name": KernelNames(
-        "board_name", "smbios.planar.product"
+        "board_name", "smbios.planar.product", None
     ),
     "baseboard-serial-number": KernelNames(
-        "board_serial", "smbios.planar.serial"
+        "board_serial", "smbios.planar.serial", None
     ),
-    "baseboard-version": KernelNames("board_version", "smbios.planar.version"),
-    "bios-release-date": KernelNames("bios_date", "smbios.bios.reldate"),
-    "bios-vendor": KernelNames("bios_vendor", "smbios.bios.vendor"),
-    "bios-version": KernelNames("bios_version", "smbios.bios.version"),
+    "baseboard-version": KernelNames(
+        "board_version", "smbios.planar.version", None
+    ),
+    "bios-release-date": KernelNames("bios_date", "smbios.bios.reldate", None),
+    "bios-vendor": KernelNames("bios_vendor", "smbios.bios.vendor", None),
+    "bios-version": KernelNames("bios_version", "smbios.bios.version", None),
     "chassis-asset-tag": KernelNames(
-        "chassis_asset_tag", "smbios.chassis.tag"
+        "chassis_asset_tag", "smbios.chassis.tag", None
     ),
     "chassis-manufacturer": KernelNames(
-        "chassis_vendor", "smbios.chassis.maker"
+        "chassis_vendor", "smbios.chassis.maker", "hw.vendor"
     ),
     "chassis-serial-number": KernelNames(
-        "chassis_serial", "smbios.chassis.serial"
+        "chassis_serial", "smbios.chassis.serial", "hw.uuid"
     ),
     "chassis-version": KernelNames(
-        "chassis_version", "smbios.chassis.version"
+        "chassis_version", "smbios.chassis.version", None
     ),
-    "system-manufacturer": KernelNames("sys_vendor", "smbios.system.maker"),
+    "system-manufacturer": KernelNames(
+        "sys_vendor", "smbios.system.maker", "hw.vendor"
+    ),
     "system-product-name": KernelNames(
-        "product_name", "smbios.system.product"
+        "product_name", "smbios.system.product", "hw.product"
     ),
     "system-serial-number": KernelNames(
-        "product_serial", "smbios.system.serial"
+        "product_serial", "smbios.system.serial", "hw.uuid"
     ),
-    "system-uuid": KernelNames("product_uuid", "smbios.system.uuid"),
-    "system-version": KernelNames("product_version", "smbios.system.version"),
+    "system-uuid": KernelNames(
+        "product_uuid", "smbios.system.uuid", "hw.uuid"
+    ),
+    "system-version": KernelNames(
+        "product_version", "smbios.system.version", None
+    ),
 }
 
 
@@ -110,12 +127,32 @@ def _read_kenv(key: str) -> Optional[str]:
 
     try:
         cmd = ["kenv", "-q", kmap.freebsd]
-        (result, _err) = subp.subp(cmd)
-        result = result.strip()
+        result = subp.subp(cmd).stdout.strip()
         LOG.debug("kenv returned '%s' for '%s'", result, kmap.freebsd)
         return result
     except subp.ProcessExecutionError as e:
         LOG.debug("failed kenv cmd: %s\n%s", cmd, e)
+
+    return None
+
+
+def _read_sysctl(key: str) -> Optional[str]:
+    """
+    Reads dmi data from OpenBSD's sysctl(8)
+    """
+    kmap = DMIDECODE_TO_KERNEL.get(key)
+    if kmap is None or kmap.openbsd is None:
+        return None
+
+    LOG.debug("querying dmi data %s", kmap.openbsd)
+
+    try:
+        cmd = ["sysctl", "-qn", kmap.openbsd]
+        result = subp.subp(cmd).stdout.strip()
+        LOG.debug("sysctl returned '%s' for '%s'", result, kmap.openbsd)
+        return result
+    except subp.ProcessExecutionError as e:
+        LOG.debug("failed sysctl cmd: %s\n%s", cmd, e)
 
     return None
 
@@ -127,8 +164,7 @@ def _call_dmidecode(key: str, dmidecode_path: str) -> Optional[str]:
     """
     try:
         cmd = [dmidecode_path, "--string", key]
-        (result, _err) = subp.subp(cmd)
-        result = result.strip()
+        result = subp.subp(cmd).stdout.strip()
         LOG.debug("dmidecode returned '%s' for '%s'", result, key)
         if result.replace(".", "") == "":
             return ""
@@ -159,8 +195,11 @@ def read_dmi_data(key: str) -> Optional[str]:
     if is_container():
         return None
 
-    if is_FreeBSD():
+    if is_FreeBSD() or is_DragonFlyBSD():
         return _read_kenv(key)
+
+    if is_OpenBSD():
+        return _read_sysctl(key)
 
     syspath_value = _read_dmi_syspath(key)
     if syspath_value is not None:
