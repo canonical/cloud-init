@@ -29,6 +29,12 @@ class Distro(distros.Distro):
     network_script_tpl = "/etc/sysconfig/network-scripts/ifcfg-%s"
     tz_local_fn = "/etc/localtime"
     usr_lib_exec = "/usr/libexec"
+    # RHEL and derivatives use NetworkManager DHCP client by default.
+    # But if NM is configured with using dhclient ("dhcp=dhclient" statement)
+    # then the following location is used:
+    # /var/lib/NetworkManager/dhclient-<uuid>-<network_interface>.lease
+    dhclient_lease_directory = "/var/lib/NetworkManager"
+    dhclient_lease_file_regex = r"dhclient-[\w-]+\.lease"
     renderer_configs = {
         "sysconfig": {
             "control": "etc/sysconfig/network",

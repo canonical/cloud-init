@@ -14,5 +14,11 @@ from cloudinit.distros import rhel
 
 
 class Distro(rhel.Distro):
+    # Amazon Linux 2 stores dhclient leases at following location:
+    # /var/lib/dhclient/dhclient--<iface_name>.leases
+    # Perhaps there could be a UUID in between two "-" in the file name
+    dhclient_lease_directory = "/var/lib/dhcp"
+    dhclient_lease_file_regex = r"dhclient-[\w-]+\.lease"
+
     def update_package_sources(self):
         return None
