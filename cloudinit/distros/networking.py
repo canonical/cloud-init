@@ -142,7 +142,7 @@ class Networking(metaclass=abc.ABCMeta):
         # the current macs present; we only check MAC as cloud-init
         # has not yet renamed interfaces and the netcfg may include
         # such renames.
-        for _ in range(0, 5):
+        for _ in range(5):
             if expected_macs.issubset(present_macs):
                 LOG.debug("net: all expected physical devices present")
                 return

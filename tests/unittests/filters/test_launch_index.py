@@ -38,7 +38,7 @@ class TestLaunchFilter(helpers.ResourceUsingTestCase):
         msg1_msgs = [m for m in filterfalse(ud.is_skippable, msg1_msgs)]
         msg2_msgs = [m for m in msg2.walk()]
         msg2_msgs = [m for m in filterfalse(ud.is_skippable, msg2_msgs)]
-        for i in range(0, len(msg2_msgs)):
+        for i in range(len(msg2_msgs)):
             m1_msg = msg1_msgs[i]
             m2_msg = msg2_msgs[i]
             if m1_msg.get_charset() != m2_msg.get_charset():

@@ -423,7 +423,7 @@ def generate_server_names(distro):
         # so use general x.pool.ntp.org instead. The same applies to EuroLinux
         pool_distro = ""
 
-    for x in range(0, NR_POOL_SERVERS):
+    for x in range(NR_POOL_SERVERS):
         names.append(
             ".".join(
                 [n for n in [str(x)] + [pool_distro] + ["pool.ntp.org"] if n]
