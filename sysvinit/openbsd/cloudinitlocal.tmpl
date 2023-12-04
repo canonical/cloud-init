@@ -1,0 +1,38 @@
+## template:jinja
+#!/bin/ksh
+
+# PROVIDE: cloudinitlocal
+# REQUIRE: NETWORKING
+
+# After NETWORKING because we don't want staticroute to wipe
+# the route set by the DHCP client toward the meta-data server.
+
+daemon="cloud-init"
+daemon_execdir="{{prefix}}/bin"
+daemon_flags="init -l"
+daemon_user=root
+
+. /etc/rc.d/rc.subr
+
+rc_bg="YES" # (undefined or "YES")
+rc_usercheck="YES"
+
+rc_start() {
+    if test -e /etc/cloud/cloud-init.disabled; then
+        echo -n "cloud-init is disabled via cloud-init.disabled file." | logger -t ${daemon}
+    else
+        echo -n "Starting..." | logger -t ${daemon}
+        rc_exec "${daemon_execdir}/${daemon} ${daemon_flags}"
+    fi
+}
+
+rc_check() {
+    pgrep -f "${daemon}" >/dev/null
+}
+
+rc_stop() {
+    echo -n "Stopping..." | logger -t ${daemon}
+    pkill -f "${daemon}" >/dev/null
+}
+
+rc_cmd "$1"
