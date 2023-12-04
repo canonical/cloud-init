@@ -25,3 +25,4 @@ How do I...?
    Identify my datasource <identify_datasource.rst>
    Locate log, configuration, and data files <locate_files.rst>
    Disable cloud-init <disable_cloud_init.rst>
+   Test pre-release cloud-init on Ubuntu <ubuntu_test_prerelease.rst>
