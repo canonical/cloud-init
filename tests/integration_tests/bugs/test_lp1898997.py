@@ -54,6 +54,9 @@ version: 2
     CURRENT_RELEASE < FOCAL, reason="Tested on Focal and above"
 )
 @pytest.mark.lxd_use_exec
+@pytest.mark.skip(
+    reason="Network online race. GH: #4350, GH: #4451, LP: #2036968"
+)
 class TestInterfaceListingWithOpenvSwitch:
     def test_ovs_member_interfaces_not_excluded(self, client):
         # We need to install openvswitch for our provided network configuration

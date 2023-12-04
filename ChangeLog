@@ -1,3 +1,213 @@
+23.4
+ - tests: datasourcenone use client.restart to block until done (#4635)
+ - tests: increase number of retries across reboot to 90 (#4651)
+ - fix: Add schema for merge types (#4648)
+ - feat: Allow aliyun ds to fetch data in init-local (#4590) [qidong.ld]
+ - azure: report failure to eject as error instead of debug (#4643)
+   [Chris Patterson]
+ - bug(schema): write network-config if instance dir present (#4635)
+ - test: fix schema fuzzing test (#4639)
+ - Update build-on-openbsd dependencies (#4644) [CodeBleu]
+ - fix(test): Fix expected log for ipv6-only ephemeral network (#4641)
+ - refactor: Remove metaclass from network_state.py (#4638)
+ - schema: non-root fallback to default paths on perm errors (# 4631)
+ - fix: Don't loosen the permissions of the log file (#4628)
+ - Revert "logging: keep current file mode of log file if its stricter
+   than the new mode (#4250)"
+ - ephemeral: Handle link up failure for both ipv4 and ipv6  (#4547)
+ - fix(main): Don't call logging too early (#4595)
+ - fix: Remove Ubuntu-specific kernel naming convention assertion (#4617)
+ - fix(log): Do not implement handleError with a self parameter (#4617)
+ - fix(log): Don't try to reuse stderr logger (#4617)
+ - feat: Standardize logging output to stderr (#4617)
+ - chore: Sever unmaintained TODO.rst (#4625)
+ - test: Skip failing tests
+ - distros: Add suse
+ - test: Add default hello package version (#4614)
+ - fix(net): Improve DHCPv4 SUSE code, add test
+ - net: Fix DHCPv4 not enabled on SUSE in some cases [bin456789]
+ - fix(schema): Warn if missing dependency (#4616)
+ - fix(cli): main source cloud_config for schema validation (#4562)
+ - feat(schema): annotation path for invalid top-level keys (#4562)
+ - feat(schema): top-level additionalProperties: false (#4562)
+ - test: ensure top-level properties tests will pass (#4562)
+ - fix(schema): Add missing schema definitions (#4562)
+ - test: Fix snap tests (#4562)
+ - azure: Check for stale pps data from IMDS (#4596) [Ksenija Stanojevic]
+ - test: Undo dhcp6 integration test changes (#4612)
+ - azure: update diagnostic from warning level to debug [Chris Patterson]
+ - azure/imds: remove limit for connection errors if route present (#4604)
+   [Chris Patterson]
+ - [enhancement]: Add shellcheck to CI (#4488) [Aviral Singh]
+ - chore: add conventional commits template (#4593)
+ - Revert "net: allow dhcp6 configuration from
+   generate_fallback_configuration()" (#4607)
+ - azure: workaround to disable reporting IMDS failures on Azure Stack
+   [Chris Patterson]
+ - cc_apt_pipelining: Update docs, deprecate options (#4571)
+ - test: add gh workflows on push to main, update status badges (#4597)
+ - util: Remove function abs_join() (#4587)
+ - url_helper: Remove unused function retry_on_url_exc() (#4587)
+ - cc_resizefs: Add bcachefs resize support (#4594)
+ - integration_tests: Support non-Ubuntu distros (#4586)
+ - fix(cmdline): fix cmdline parsing with MAC containing cc:
+ - azure/errors: include http code in reason for IMDS failure
+   [Chris Patterson]
+ - tests: cloud-init schema --system does not return exit code 2
+ - github: allow pull request to specify desired rebase and merge
+ - tests: fix integration test expectations of exit 2 on schema warning
+ - tests: fix schema test expected cli output Valid schema <type>
+ - fix(schema cli): check raw userdata when processed cloud-config empty
+ - azure: report failure to host if ephemeral DHCP secondary NIC (#4558)
+   [Chris Patterson]
+ - man: Document cloud-init error codes (#4500)
+ - Add support for cloud-init "degraded" state (#4500)
+ - status.json: Don't override detail key with error condition (#4500)
+ - status: Remove duplicated data (#4500)
+ - refactor: Rename exported_errors in status.json (#4500)
+ - test: Remove stale status.json value (#4500)
+ - tools/render-template: Make yaml loading opt-in, fix setup.py (#4564)
+ - Add summit digest/trip report to docs (#4561) [Sally]
+ - doc: Fix incorrect statement about `cloud-init analyze`
+ - azure/imds: ensure new errors are logged immediately when retrying
+   (#4468) [Chris Patterson]
+ - Clarify boothook docs (#4543)
+ - boothook: allow stdout/stderr to emit to cloud-init-output.log
+ - summit-notes: add 2023 notes for reference in mailinglist/discourse
+ - fix: added mock to stop leaking journalctl that slows down unit test
+   (#4556) [Alec Warren]
+ - tests: maas test for DataSourceMAASLocal get_data
+ - maas tests: avoid using CiTest case and prefer pytest.tmpdir fixture
+ - MAAS: Add datasource to init-local timeframe
+ - Ensure all tests passed and/or are skipped
+ - Support QEMU in integration tests
+ - fix(read-dependencies): handle version specifiers containing [~!]
+ - test: unpin pytest
+ - schema: network-config optional network key. route uses oneOf (#4482)
+ - schema: add cloud_init_deepest_matches for best error message (#4482)
+ - network: warn invalid cfg add /run/cloud-init/network-config  (#4482)
+ - schema: add network-config support to schema subcommand (#4482)
+ - Update version number and merge ChangeLog from 23.3.3 into main (#4553)
+ - azure: check for primary interface when performing DHCP (#4465)
+   [Chris Patterson]
+ - Fix hypothesis failure
+ - subp: add a log when skipping a file for execution for lack of exe
+   permission (#4506) [Ani Sinha]
+ - azure/imds: refactor max_connection_errors definition (#4467)
+   [Chris Patterson]
+ - chore: fix PR template rendering (#4526)
+ - fix(cc_apt_configure): avoid unneeded call to apt-install (#4519)
+ - comment difference between sysconfig and NetworkManager renderer (#4517)
+   [Ani Sinha]
+ - Set Debian's default locale to be c.UTF-8 (#4503) (LP: #2038945)
+ - Convert test_debian.py to pytest (#4503)
+ - doc: fix cloudstack link
+ - doc: fix development/contributing.html references
+ - doc: hide duplicated links
+ - Revert "ds-identify/CloudStack: $DS_MAYBE if vm running on vmware/xen
+   (#4281)" (#4511) (LP: #2039453)
+ - Fix the missing mcopy argument [Vladimir Pouzanov]
+ - tests: Add logging fix (#4499)
+ - Update upgrade test to account for dhcp6
+ - Remove logging of PPID path (#4502)
+ - Make Python 3.12 CI test non-experimental (#4498)
+ - ds-identify: exit 2 on disabled state from marker or cmdline (#4399)
+ - cloud-init-generator: Various performance optimizations (#4399)
+ - systemd: Standardize cloud-init systemd enablement (#4399)
+ - benchmark: benchmark cloud-init-generator independent of ds-identify
+   (#4399)
+ - tests/integration_tests: add cloud-init disablement coverage (#4399)
+ - doc: Describe disabling cloud-init using an environment variable (#4399)
+ - fix: cloud-init status --wait broken with KERNEL_CMDLINE (#4399)
+ - azure/imds: retry on 429 errors for reprovisiondata (#4470)
+   [Chris Patterson]
+ - cmd: Don't write json status files for non-boot stages (#4478)
+ - ds-identify: Allow disable service and override environment (#4485)
+   [Mina Galić]
+ - Update DataSourceNWCS.py (#4496) [shell-skrimp]
+ - Add r00ta to CLA signers file
+ - Fix override of systemd_locale_conf in rhel [Jacopo Rota]
+ - ci(linkcheck): minor fixes (#4495)
+ - integration test fix for deb822 URI format (#4492)
+ - test: use a mantic-compatible tz in t/i/m/test_combined.py (#4494)
+ - ua: shift CLI command from ua to pro for all interactions
+ - pro: avoid double-dash when enabling inviddual services on CLI
+ - net: allow dhcp6 configuration from generate_fallback_configuration()
+   (#4474) [Ani Sinha]
+ - tests: apt re.search to match alternative ordering of installed pkgs
+ - apt: doc apt_pkg performance improvement over subp apt-config dump
+ - Tidy up contributing docs (#4469) [Sally]
+ - [enhancement]: Automatically linkcheck in CI (#4479) [Aviral Singh]
+ - Revert allowing pro service warnings (#4483)
+ - Export warning logs to status.json (#4455)
+ - Fix regression in package installation (#4466)
+ - schema: cloud-init schema in early boot or in dev environ (#4448)
+ - schema: annotation of nested dicts lists in schema marks (#4448)
+ - feat(apport): collect ubuntu-pro logs if ubuntu-advantage.log present
+   (#4443)
+ - apt_configure: add deb822 support for default sources file (#4437)
+ - net: remove the word "on instance boot" from cloud-init generated config
+   (#4457) [Ani Sinha]
+ - style: Make cloudinit.log functions use snake case (#4449)
+ - Don't recommend using cloud-init as a library (#4459)
+ - vmware: Fall back to vmtoolsd if vmware-rpctool errs (#4444)
+   [Andrew Kutz]
+ - azure: add option to enable/disable secondary ip config (#4432)
+   [Ksenija Stanojevic]
+ - Allow installing snaps via package_update_upgrade_install module (#4202)
+ - docs: Add cloud-init overview/introduction (#4440) [Sally]
+ - apt: install software-properties-common when absent but needed (#4441)
+ - sources/Azure: Ignore system volume information folder while scanning
+   for files in the ntfs resource disk (#4446) [Anh Vo]
+ - refactor: Remove unnecessary __main__.py file
+ - style: Drop vi format comments
+ - cloudinit.log: Use more appropriate exception (#4435)
+ - cloudinit.log: Don't configure NullHandler (#4435)
+ - commit 6bbbfbbb030831c72b5aa2bba9cb8492f19d56f4
+ - cloudinit.log: Remove unnecessary module function and variables (#4435)
+ - cloudinit.log: Remove unused getLogger wrapper (#4435)
+ - cloudinit.log: Standardize use of cloudinit's logging module (#4435)
+ - Remove unnecessary logging wrapper in Cloud class (#4435)
+ - integration test: allow pro service warnings (#4447)
+ - integration tests: fix mount indentation (#4445)
+ - sources/Azure: fix for conflicting reports to platform (#4434)
+   [Chris Patterson]
+ - docs: link the cloud-config validation service (#4442)
+ - Fix pip-managed ansible on pip < 23.0.1 (#4403)
+ - Install gnupg if gpg not found (#4431)
+ - Add "phsm" as contributor (#4429) [Phsm Qwerty]
+ - cc_ubuntu_advantage: do not rely on uaclient.messages module (#4397)
+   [Grant Orndorff]
+ - tools/ds-identify: match Azure datasource's ds_detect() behavior (#4430)
+   [Chris Patterson]
+ - Refactor test_apt_source_v1.py to use pytest (#4427)
+ - sources: do not override datasource detection if None is in list (#4426)
+   [Chris Patterson]
+ - feat: check for create_hostname_file key before writing /etc/hostname
+   (SC-1588) (#4330) [Cat Red]
+ - Pytestify apt config test modules (#4424)
+ - upstream gentoo patch (#4422)
+ - Work around no instance ip (#4419)
+ - Fix typing issues in subp module (#4401)
+ - net: fix ipv6_dhcpv6_stateful/stateless/slaac configuration for rhel
+   (#4395) [Ani Sinha]
+ - Release 23.3.1
+ - apt: kill dirmngr/gpg-agent without gpgconf dependency (LP: #2034273)
+ - integration tests: fix mount indentation (#4405)
+ - Use grep for faster parsing of cloud config in ds-identify (#4327)
+   [Scott Moser] (LP: #2030729)
+ - doc: fix instructions on how to disable cloud-init from kernel command
+   line (#4406) [Ani Sinha]
+ - doc/vmware: Update contents relevant to disable_vmware_customization
+   [PengpengSun]
+ - Bring back flake8 for python 3.6 (#4394)
+ - integration tests: Fix cgroup parsing (#4402)
+ - summary: Update template parameter descriptions in docs [MJ Moshiri]
+ - Log PPID for better debugging (#4398)
+ - integration tests: don't clean when KEEP_* flags true (#4400)
+ - clean: add a new option to clean generated config files [Ani Sinha]
+ - pep-594: drop deprecated pipes module import
+
 23.3.3
  - Fix pip-managed ansible on pip < 23.0.1 (#4403)
 

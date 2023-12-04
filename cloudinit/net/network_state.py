@@ -123,25 +123,6 @@ def ensure_command_keys(required_keys):
     return wrapper
 
 
-class CommandHandlerMeta(type):
-    """Metaclass that dynamically creates a 'command_handlers' attribute.
-
-    This will scan the to-be-created class for methods that start with
-    'handle_' and on finding those will populate a class attribute mapping
-    so that those methods can be quickly located and called.
-    """
-
-    def __new__(cls, name, parents, dct):
-        command_handlers = {}
-        for attr_name, attr in dct.items():
-            if callable(attr) and attr_name.startswith("handle_"):
-                handles_what = attr_name[len("handle_") :]
-                if handles_what:
-                    command_handlers[handles_what] = attr
-        dct["command_handlers"] = command_handlers
-        return super(CommandHandlerMeta, cls).__new__(cls, name, parents, dct)
-
-
 class NetworkState:
     def __init__(
         self, network_state: dict, version: int = NETWORK_STATE_VERSION
@@ -228,7 +209,7 @@ class NetworkState:
         return cls({"config": network_state}, **kwargs)
 
 
-class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
+class NetworkStateInterpreter:
     initial_network_state = {
         "interfaces": {},
         "routes": [],
@@ -253,6 +234,21 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
         self._parsed = False
         self._interface_dns_map: dict = {}
         self._renderer = renderer
+        self.command_handlers = {
+            "bond": self.handle_bond,
+            "bonds": self.handle_bonds,
+            "bridge": self.handle_bridge,
+            "bridges": self.handle_bridges,
+            "ethernets": self.handle_ethernets,
+            "infiniband": self.handle_infiniband,
+            "loopback": self.handle_loopback,
+            "nameserver": self.handle_nameserver,
+            "physical": self.handle_physical,
+            "route": self.handle_route,
+            "vlan": self.handle_vlan,
+            "vlans": self.handle_vlans,
+            "wifis": self.handle_wifis,
+        }
 
     @property
     def network_state(self) -> NetworkState:
@@ -319,7 +315,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                     "No handler found for  command '%s'" % command_type
                 ) from e
             try:
-                handler(self, command)
+                handler(command)
             except InvalidCommand:
                 if not skip_broken:
                     raise
@@ -361,7 +357,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                     "No handler found for command '%s'" % command_type
                 ) from e
             try:
-                handler(self, command)
+                handler(command)
                 self._v2_common(command)
             except InvalidCommand:
                 if not skip_broken:

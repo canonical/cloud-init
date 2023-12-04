@@ -9,7 +9,7 @@ import logging
 import os
 import sys
 
-from cloudinit.cmd.devel import addLogHandlerCLI, read_cfg_paths
+from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers.jinja_template import (
     JinjaLoadError,
     NotJinjaError,
@@ -61,7 +61,6 @@ def render_template(user_data_path, instance_data_path=None, debug=False):
 
     @return 0 on success, 1 on failure.
     """
-    addLogHandlerCLI(LOG, logging.DEBUG if debug else logging.WARNING)
     if instance_data_path:
         instance_data_fn = instance_data_path
     else:

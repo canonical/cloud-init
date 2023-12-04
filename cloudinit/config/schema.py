@@ -10,9 +10,19 @@ import textwrap
 from collections import defaultdict
 from collections.abc import Iterable
 from copy import deepcopy
+from errno import EACCES
 from functools import partial
 from itertools import chain
-from typing import TYPE_CHECKING, List, NamedTuple, Optional, Type, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    DefaultDict,
+    List,
+    NamedTuple,
+    Optional,
+    Type,
+    Union,
+    cast,
+)
 
 import yaml
 
@@ -575,6 +585,17 @@ def validate_cloudconfig_schema(
         validator.iter_errors(config), key=lambda e: e.path
     ):
         path = ".".join([str(p) for p in schema_error.path])
+        if (
+            not path
+            and schema_error.validator == "additionalProperties"
+            and schema_error.schema == schema
+        ):
+            # an issue with invalid top-level property
+            prop_match = re.match(
+                r".*\('(?P<name>.*)' was unexpected\)", schema_error.message
+            )
+            if prop_match:
+                path = prop_match["name"]
         problem = (SchemaProblem(path, schema_error.message),)
         if isinstance(
             schema_error, SchemaDeprecationError
@@ -608,6 +629,7 @@ def validate_cloudconfig_schema(
                 "see the schema errors."
             )
         LOG.warning(details)
+    return True
 
 
 class _Annotator:
@@ -627,7 +649,7 @@ class _Annotator:
         return f"# {title}: -------------\n{body}\n\n"
 
     def _build_errors_by_line(self, schema_problems: SchemaProblems):
-        errors_by_line = defaultdict(list)
+        errors_by_line: DefaultDict[Union[str, int], List] = defaultdict(list)
         for path, msg in schema_problems:
             match = re.match(r"format-l(?P<line>\d+)\.c(?P<col>\d+).*", path)
             if match:
@@ -937,9 +959,14 @@ def validate_cloudconfig_file(
             )
             return False
     try:
-        validate_cloudconfig_schema(
+        if not validate_cloudconfig_schema(
             cloudconfig, schema, strict=True, log_deprecations=False
-        )
+        ):
+            print(
+                f"Skipping {schema_type} schema validation."
+                " Jsonschema dependency missing."
+            )
+            return False
     except SchemaValidationError as e:
         if e.has_errors():
             errors += e.schema_errors
@@ -1293,14 +1320,15 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     if defs.get(meta["id"]):
         schema = defs.get(meta["id"], {})
         schema = cast(dict, schema)
-    try:
-        meta_copy["property_doc"] = _get_property_doc(
-            schema, defs=defs, prefix="      "
-        )
-    except AttributeError:
-        LOG.warning("Unable to render property_doc due to invalid schema")
-        meta_copy["property_doc"] = ""
-    if not meta_copy["property_doc"]:
+    if any(schema["properties"].values()):
+        try:
+            meta_copy["property_doc"] = _get_property_doc(
+                schema, defs=defs, prefix="      "
+            )
+        except AttributeError:
+            LOG.warning("Unable to render property_doc due to invalid schema")
+            meta_copy["property_doc"] = ""
+    if not meta_copy.get("property_doc", ""):
         meta_copy[
             "property_doc"
         ] = "      No schema definitions for this module"
@@ -1463,10 +1491,18 @@ def handle_schema_args(name, args):
         return
     try:
         paths = read_cfg_paths(fetch_existing_datasource="trust")
+    except (IOError, OSError) as e:
+        if e.errno == EACCES:
+            LOG.debug(
+                "Using default instance-data/user-data paths for non-root user"
+            )
+            paths = read_cfg_paths()
+        else:
+            raise
     except DataSourceNotFoundException:
         paths = read_cfg_paths()
-        print(
-            "WARNING: datasource not detected, using default"
+        LOG.warning(
+            "datasource not detected, using default"
             " instance-data/user-data paths."
         )
     if args.instance_data:

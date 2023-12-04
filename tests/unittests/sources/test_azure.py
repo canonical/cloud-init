@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import datetime
 import json
 import os
 import stat
@@ -271,6 +272,14 @@ def mock_sleep():
 def mock_subp_subp():
     with mock.patch(MOCKPATH + "subp.subp", side_effect=[]) as m:
         yield m
+
+
+@pytest.fixture
+def mock_timestamp():
+    timestamp = datetime.datetime.utcnow()
+    with mock.patch.object(errors, "datetime", autospec=True) as m:
+        m.utcnow.return_value = timestamp
+        yield timestamp
 
 
 @pytest.fixture
@@ -3440,7 +3449,8 @@ class TestEphemeralNetworking:
                 "routes=[('0.0.0.0/0', '10.0.0.1'), "
                 "('168.63.129.16/32', '10.0.0.1'), "
                 "('169.254.169.254/32', '10.0.0.1')] "
-                "lease={'interface': 'fakeEth0'})",
+                "lease={'interface': 'fakeEth0'} "
+                "imds_routed=True wireserver_routed=True)",
                 logger_func=dsaz.LOG.debug,
             ),
         ]
@@ -3628,6 +3638,7 @@ class TestProvisioning:
         mock_netlink,
         mock_readurl,
         mock_subp_subp,
+        mock_timestamp,
         mock_util_ensure_dir,
         mock_util_find_devs_with,
         mock_util_load_file,
@@ -3656,6 +3667,7 @@ class TestProvisioning:
         self.mock_netlink = mock_netlink
         self.mock_readurl = mock_readurl
         self.mock_subp_subp = mock_subp_subp
+        self.mock_timestmp = mock_timestamp
         self.mock_util_ensure_dir = mock_util_ensure_dir
         self.mock_util_find_devs_with = mock_util_find_devs_with
         self.mock_util_load_file = mock_util_load_file
@@ -3759,13 +3771,78 @@ class TestProvisioning:
         assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
-    def test_running_pps(self):
-        self.imds_md["extended"]["compute"]["ppsType"] = "Running"
+    @pytest.mark.parametrize("pps_type", ["Savable", "Running"])
+    def test_stale_pps(self, pps_type):
+        imds_md_source = copy.deepcopy(self.imds_md)
+        imds_md_source["extended"]["compute"]["ppsType"] = pps_type
 
         nl_sock = mock.MagicMock()
         self.mock_netlink.create_bound_netlink_socket.return_value = nl_sock
         self.mock_readurl.side_effect = [
-            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+            mock.MagicMock(contents=json.dumps(imds_md_source).encode()),
+            mock.MagicMock(contents=construct_ovf_env().encode()),
+            mock.MagicMock(contents=json.dumps(imds_md_source).encode()),
+        ]
+        self.mock_azure_get_metadata_from_fabric.return_value = []
+
+        self.azure_ds._check_and_get_data()
+
+        assert self.mock_readurl.mock_calls == [
+            mock.call(
+                "http://169.254.169.254/metadata/instance?"
+                "api-version=2021-08-01&extended=true",
+                exception_cb=mock.ANY,
+                headers={"Metadata": "true"},
+                infinite=True,
+                log_req_resp=True,
+                timeout=30,
+            ),
+            mock.call(
+                "http://169.254.169.254/metadata/reprovisiondata?"
+                "api-version=2019-06-01",
+                exception_cb=mock.ANY,
+                headers={"Metadata": "true"},
+                log_req_resp=False,
+                infinite=True,
+                timeout=30,
+            ),
+            mock.call(
+                "http://169.254.169.254/metadata/instance?"
+                "api-version=2021-08-01&extended=true",
+                exception_cb=mock.ANY,
+                headers={"Metadata": "true"},
+                infinite=True,
+                log_req_resp=True,
+                timeout=30,
+            ),
+        ]
+
+        # Verify DMI usage.
+        assert self.mock_dmi_read_dmi_data.mock_calls == [
+            mock.call("chassis-asset-tag"),
+            mock.call("system-uuid"),
+            mock.call("system-uuid"),
+        ]
+
+        # Verify reports via KVP.
+        assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
+
+        assert self.mock_kvp_report_failure_to_host.mock_calls == [
+            mock.call(
+                errors.ReportableErrorImdsInvalidMetadata(
+                    key="extended.compute.ppsType", value=pps_type
+                ),
+            ),
+        ]
+
+    def test_running_pps(self):
+        imds_md_source = copy.deepcopy(self.imds_md)
+        imds_md_source["extended"]["compute"]["ppsType"] = "Running"
+
+        nl_sock = mock.MagicMock()
+        self.mock_netlink.create_bound_netlink_socket.return_value = nl_sock
+        self.mock_readurl.side_effect = [
+            mock.MagicMock(contents=json.dumps(imds_md_source).encode()),
             mock.MagicMock(contents=construct_ovf_env().encode()),
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]
@@ -3868,7 +3945,8 @@ class TestProvisioning:
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 2
 
     def test_savable_pps(self):
-        self.imds_md["extended"]["compute"]["ppsType"] = "Savable"
+        imds_md_source = copy.deepcopy(self.imds_md)
+        imds_md_source["extended"]["compute"]["ppsType"] = "Savable"
 
         nl_sock = mock.MagicMock()
         self.mock_netlink.create_bound_netlink_socket.return_value = nl_sock
@@ -3877,7 +3955,7 @@ class TestProvisioning:
             "ethAttached1"
         )
         self.mock_readurl.side_effect = [
-            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+            mock.MagicMock(contents=json.dumps(imds_md_source).encode()),
             mock.MagicMock(contents=construct_ovf_env().encode()),
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]
@@ -4006,7 +4084,8 @@ class TestProvisioning:
         ],
     )
     def test_savable_pps_early_unplug(self, fabric_side_effect):
-        self.imds_md["extended"]["compute"]["ppsType"] = "Savable"
+        imds_md_source = copy.deepcopy(self.imds_md)
+        imds_md_source["extended"]["compute"]["ppsType"] = "Savable"
 
         nl_sock = mock.MagicMock()
         self.mock_netlink.create_bound_netlink_socket.return_value = nl_sock
@@ -4015,7 +4094,7 @@ class TestProvisioning:
             "ethAttached1"
         )
         self.mock_readurl.side_effect = [
-            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+            mock.MagicMock(contents=json.dumps(imds_md_source).encode()),
             mock.MagicMock(contents=construct_ovf_env().encode()),
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]
@@ -4135,10 +4214,11 @@ class TestProvisioning:
     @pytest.mark.parametrize("pps_type", ["Savable", "Running", "None"])
     def test_recovery_pps(self, pps_type):
         self.patched_reported_ready_marker_path.write_text("")
-        self.imds_md["extended"]["compute"]["ppsType"] = pps_type
+        imds_md_source = copy.deepcopy(self.imds_md)
+        imds_md_source["extended"]["compute"]["ppsType"] = pps_type
 
         self.mock_readurl.side_effect = [
-            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+            mock.MagicMock(contents=json.dumps(imds_md_source).encode()),
             mock.MagicMock(contents=construct_ovf_env().encode()),
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]
@@ -4366,6 +4446,7 @@ class TestProvisioning:
 
 
 class TestGetMetadataFromImds:
+    @pytest.mark.parametrize("route_configured_for_imds", [False, True])
     @pytest.mark.parametrize("report_failure", [False, True])
     @pytest.mark.parametrize(
         "exception,reported_error_type",
@@ -4387,22 +4468,38 @@ class TestGetMetadataFromImds:
         mock_azure_report_failure_to_fabric,
         mock_imds_fetch_metadata_with_api_fallback,
         mock_kvp_report_failure_to_host,
+        mock_time,
         monkeypatch,
         report_failure,
         reported_error_type,
+        route_configured_for_imds,
     ):
         monkeypatch.setattr(
             azure_ds, "_is_ephemeral_networking_up", lambda: True
         )
+        azure_ds._route_configured_for_imds = route_configured_for_imds
         mock_imds_fetch_metadata_with_api_fallback.side_effect = exception
+        mock_time.return_value = 0.0
+        max_connection_errors = None if route_configured_for_imds else 11
 
         assert (
             azure_ds.get_metadata_from_imds(report_failure=report_failure)
             == {}
         )
         assert mock_imds_fetch_metadata_with_api_fallback.mock_calls == [
-            mock.call(retry_deadline=mock.ANY)
+            mock.call(
+                max_connection_errors=max_connection_errors,
+                retry_deadline=mock.ANY,
+            )
         ]
+
+        expected_duration = 300
+        assert (
+            mock_imds_fetch_metadata_with_api_fallback.call_args[1][
+                "retry_deadline"
+            ]
+            == expected_duration
+        )
 
         reported_error = mock_kvp_report_failure_to_host.call_args[0][0]
         assert isinstance(reported_error, reported_error_type)
@@ -4410,7 +4507,12 @@ class TestGetMetadataFromImds:
         assert mock_kvp_report_failure_to_host.mock_calls == [
             mock.call(reported_error)
         ]
-        if report_failure:
+
+        connection_error = isinstance(
+            exception, url_helper.UrlError
+        ) and isinstance(exception.cause, requests.ConnectionError)
+        report_skipped = not route_configured_for_imds and connection_error
+        if report_failure and not report_skipped:
             assert mock_azure_report_failure_to_fabric.mock_calls == [
                 mock.call(endpoint=mock.ANY, error=reported_error)
             ]
