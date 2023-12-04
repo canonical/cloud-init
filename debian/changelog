@@ -1,3 +1,11 @@
+cloud-init (23.4-0ubuntu1) UNRELEASED; urgency=medium
+
+  * Upstream snapshot based on 23.4.
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/23.4/ChangeLog
+
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Mon, 04 Dec 2023 18:33:18 +0100
+
 cloud-init (23.4~3g0cb0b80f-0ubuntu1) noble; urgency=medium
 
   * d/p/do-not-block-user-login.patch:
