@@ -75,7 +75,7 @@ def common_patches():
         ),
         mock.patch(
             "cloudinit.netinfo.netdev_info",
-            return_value=[],
+            return_value={},
         ),
         mock.patch(
             "cloudinit.sources.DataSourceVMware.getfqdn",
