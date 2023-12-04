@@ -69,7 +69,7 @@ def retarget_many_wrapper(new_base, am, old_func):
         nam = am
         if am == -1:
             nam = len(n_args)
-        for i in range(0, nam):
+        for i in range(nam):
             path = args[i]
             # patchOS() wraps various os and os.path functions, however in
             # Python 3 some of these now accept file-descriptors (integers).

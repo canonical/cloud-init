@@ -297,7 +297,7 @@ def generate_records(
     boot_records = []
 
     unprocessed = []
-    for e in range(0, len(sorted_events)):
+    for e in range(len(sorted_events)):
         event = events[e]
         try:
             next_evt = events[e + 1]

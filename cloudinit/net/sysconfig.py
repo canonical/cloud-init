@@ -43,7 +43,7 @@ def _make_header(sep="#"):
         "Created by cloud-init automatically, do not edit.",
         "",
     ]
-    for i in range(0, len(lines)):
+    for i in range(len(lines)):
         if lines[i]:
             lines[i] = sep + " " + lines[i]
         else:

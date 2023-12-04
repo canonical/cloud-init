@@ -332,7 +332,7 @@ class IscDhclient(DhcpClient):
 
         ppid = "unknown"
         daemonized = False
-        for _ in range(0, 1000):
+        for _ in range(1000):
             pid_content = util.load_file(pid_file).strip()
             try:
                 pid = int(pid_content)
