@@ -40,6 +40,7 @@ from cloudinit.distros import OSFAMILIES
 from cloudinit.safeyaml import load, load_with_marks
 from cloudinit.settings import FREQUENCIES
 from cloudinit.sources import DataSourceNotFoundException
+from cloudinit.templater import JinjaSyntaxParsingException
 from cloudinit.util import load_file, write_file
 from tests.hypothesis import given
 from tests.hypothesis_jsonschema import from_schema
@@ -52,8 +53,6 @@ from tests.unittests.helpers import (
     skipUnlessJsonSchema,
     skipUnlessJsonSchemaVersionGreaterThan,
 )
-from cloudinit.templater import JinjaSyntaxParsingException
-
 
 M_PATH = "cloudinit.config.schema."
 DEPRECATED_LOG_LEVEL = 35
@@ -853,12 +852,13 @@ class TestValidateCloudConfigFile:
         _out, err = capsys.readouterr()
         expected = (
             "Error:\n"
-            "Failed to render templated user-data. " + 
-            JinjaSyntaxParsingException.message_template.format(
-                syntax_error="unexpected '}'", 
+            "Failed to render templated user-data. "
+            + JinjaSyntaxParsingException.message_template.format(
+                syntax_error="unexpected '}'",
                 line_no=3,
                 line_content="c:{{ d } }",
-            ) + "\n"
+            )
+            + "\n"
         )
         assert expected == err
 

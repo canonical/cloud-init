@@ -34,6 +34,7 @@ from cloudinit.templater import JinjaSyntaxParsingException
 NAME = "query"
 LOG = logging.getLogger(__name__)
 
+
 def get_parser(parser=None):
     """Build or extend an arg parser for query utility.
 
@@ -289,7 +290,6 @@ def handle_args(name, args):
                 "Failed to render templated data. %s",
                 str(e),
             )
-            print("Failed to render templated data. {}".format(str(e)))
             return 1
         if rendered_payload:
             print(rendered_payload)

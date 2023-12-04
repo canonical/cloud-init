@@ -15,9 +15,9 @@ from cloudinit.atomic_helper import b64e
 from cloudinit.cmd import query
 from cloudinit.helpers import Paths
 from cloudinit.sources import REDACT_SENSITIVE_VALUE
+from cloudinit.templater import JinjaSyntaxParsingException
 from cloudinit.util import write_file
 from tests.unittests.helpers import mock
-from cloudinit.templater import JinjaSyntaxParsingException
 
 M_PATH = "cloudinit.cmd.query."
 
@@ -32,6 +32,7 @@ def _gzip_data(data):
 @pytest.fixture(autouse=True)
 def setup_mocks(mocker):
     mocker.patch("cloudinit.cmd.query.read_cfg_paths", return_value=Paths({}))
+
 
 class TestQuery:
     Args = namedtuple(
@@ -570,7 +571,7 @@ class TestQuery:
 
     @pytest.mark.parametrize(
         "header_included",
-        [ True, False ],
+        [True, False],
     )
     def test_handle_args_formats_jinja_successfully(
         self, caplog, tmpdir, capsys, header_included
@@ -584,7 +585,7 @@ class TestQuery:
         header = "## template: jinja\n" if header_included else ""
         format = header + "v1_1: {{ v1.v1_1 }}"
         expected = header + "v1_1: val1.1\n"
-        
+
         args = self.Args(
             debug=False,
             dump_all=False,
@@ -610,11 +611,11 @@ class TestQuery:
         )
         format = "v1_1: {{ v1.v1_1 } }"
         expected_error = (
-            "Failed to render templated data. " + 
-            JinjaSyntaxParsingException.message_template.format(
-                syntax_error="unexpected '}'", 
+            "Failed to render templated data. "
+            + JinjaSyntaxParsingException.message_template.format(
+                syntax_error="unexpected '}'",
                 line_no=2,
-                line_content="v1_1: {{ v1.v1_1 } }"
+                line_content="v1_1: {{ v1.v1_1 } }",
             )
         )
         args = self.Args(
@@ -630,6 +631,4 @@ class TestQuery:
         with mock.patch("os.getuid") as m_getuid:
             m_getuid.return_value = 100
             assert 1 == query.handle_args("anyname", args)
-        out, err = capsys.readouterr()
         assert expected_error in caplog.text
-        assert expected_error in err

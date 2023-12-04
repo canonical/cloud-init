@@ -6,9 +6,9 @@ import pytest
 
 from cloudinit.cmd.devel import render
 from cloudinit.helpers import Paths
+from cloudinit.templater import JinjaSyntaxParsingException
 from cloudinit.util import ensure_dir, write_file
 from tests.unittests.helpers import mock, skipUnlessJinja
-from cloudinit.templater import JinjaSyntaxParsingException
 
 M_PATH = "cloudinit.cmd.devel.render."
 

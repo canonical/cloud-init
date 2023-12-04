@@ -61,7 +61,8 @@ class JinjaTemplatePartHandler(handlers.Handler):
             )
         except JinjaSyntaxParsingException as e:
             LOG.warning(
-                "Ignoring jinja template for %s. Failed to render template. %s",
+                "Ignoring jinja template for %s. "
+                "Failed to render template. %s",
                 filename,
                 str(e),
             )

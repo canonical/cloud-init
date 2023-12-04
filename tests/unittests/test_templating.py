@@ -6,7 +6,10 @@
 
 import textwrap
 
+import pytest
+
 from cloudinit import templater
+from cloudinit.templater import JinjaSyntaxParsingException
 from cloudinit.util import load_file, write_file
 from tests.unittests import helpers as test_helpers
 
@@ -168,19 +171,45 @@ class TestTemplates(test_helpers.CiTestCase):
             expected_result,
         )
 
-    def test_jinja_invalid_syntax(self):
-        """Make sure invalid jinja syntax is caught"""
-        jinja_template = (
-            "{% set r = [] %} {% set input = [1,2,3] %} "
-            "{% for i in input % } {% do r.append(i) %} {% endfor %} {{r}}"
-        )
-        self.assertRaises(
-            templater.JinjaSyntaxParsingException,
-            templater.render_string,
-            self.add_header("jinja", jinja_template),
-            {},
-        )
-        with self.assertRaises(templater.JinjaSyntaxParsingException) as cm:
-            templater.render_string(
-                self.add_header("jinja", jinja_template), {}
-            )
+
+@pytest.mark.parametrize(
+    "line_no,replace_tuple,syntax_error",
+    (
+        (4, ("%}", "% }"), "unexpected '}'"),
+        (6, ("%}", "% }"), "expected token 'end of statement block', got '%'"),
+        (8, ("%}", "% }"), "expected token 'end of statement block', got '%'"),
+        (4, ("%}", "}}"), "unexpected '}'"),
+        (6, ("%}", "}}"), "unexpected '}'"),
+        (8, ("%}", "}}"), "unexpected '}'"),
+        (4, ("==", "="), "expected token 'end of statement block', got '='",),
+        (7, ("}}", "} }"), "unexpected '}'"),
+    ),
+)
+def test_jinja_syntax_parsing_exception(line_no, replace_tuple, syntax_error):
+    """
+    Test a variety of jinja syntax errors and make sure the exceptions
+    are raised with the correct syntax error, line number, and line content.
+    """
+    jinja_template = (
+        "## template: jinja\n"
+        "#cloud-config\n"
+        "runcmd:\n"
+        "{% if v1.cloud_name == \"unknown\" %}\n"
+        "  - echo \"cloud name is unknown\"\n"
+        "{% else %}\n"
+        "  - echo \"False: cloud name is not unknown. {{ v1.cloud_name }}\"\n" 
+        "{% endif %}\n"
+    )
+    # replace "%}" in line_no with "% }"
+    jinja_template = jinja_template.replace(
+        jinja_template.split("\n")[line_no - 1],
+        jinja_template.split("\n")[line_no - 1].replace(*replace_tuple),
+    )
+    expected = JinjaSyntaxParsingException.message_template.format(
+        syntax_error=syntax_error,
+        line_no=line_no,
+        line_content=jinja_template.split("\n")[line_no - 1].strip(),
+    )
+    with pytest.raises(JinjaSyntaxParsingException) as excinfo:
+        templater.render_string(jinja_template, {})
+    assert str(excinfo.value) == expected

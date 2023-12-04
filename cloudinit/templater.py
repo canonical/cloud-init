@@ -16,7 +16,6 @@ import collections
 import logging
 import re
 import sys
-import traceback
 from typing import Any
 
 from jinja2 import TemplateSyntaxError
@@ -52,7 +51,6 @@ class JinjaSyntaxParsingException(Exception):
         "Unable to parse Jinja template due to syntax error: "
         "{syntax_error} on line {line_no}: {line_content}"
     )
-    pass
 
 
 # Mypy, and the PEP 484 ecosystem in general, does not support creating
@@ -151,8 +149,9 @@ def detect_template(text):
                         line_content=content.splitlines()[ln - 1].strip(),
                     )
                 ) from jtemplate_error
+            # re-raise original error if a syntax error could not be found
             except Exception:
-                raise jtemplate_error
+                raise jtemplate_error from jtemplate_error
 
     if text.find("\n") != -1:
         ident, rest = text.split("\n", 1)  # remove the first line
