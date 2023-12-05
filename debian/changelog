@@ -13,12 +13,14 @@ cloud-init (23.3-0ubuntu0~22.04.1) UNRELEASED; urgency=medium
   * d/cloud-init.templates: enable Akamai by default.
     Add Akamai to the default templates to allow datasource discovery.
   * d/po/templates.pot: refresh with debconf-updatepo
+  * d/p/series: bring back retain-old-groups.patch.
+    This patch was inadvertently dropped in 5d4a3cf.
   * Upstream snapshot based on 23.3. (LP: #2033310).
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/23.3/ChangeLog
   * Upstream snapshot based on upstream/main at 0b90fbf5.
 
- -- James Falcon <james.falcon@canonical.com>  Thu, 16 Nov 2023 17:53:05 -0600
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Tue, 05 Dec 2023 13:33:25 +0100
 
 cloud-init (23.2.2-0ubuntu0~22.04.1) jammy; urgency=medium
 
