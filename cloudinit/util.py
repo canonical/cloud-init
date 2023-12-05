@@ -2070,17 +2070,19 @@ def time_rfc2822():
 
 @lru_cache()
 def boottime():
-    """Use sysctlbyname(3) via ctypes to find kern.boottime
+    """Use sysctl(3) via ctypes to find kern.boottime
 
     kern.boottime is of type struct timeval. Here we create a
     private class to easier unpack it.
+    Use sysctl(3) (or sysctl(2) on OpenBSD) because sysctlbyname(3) does not
+    exist on OpenBSD. That complicates retrieval on NetBSD, which #defines
+    KERN_BOOTTIME as 83 instead of 21.
+    21 on NetBSD is KERN_OBOOTTIME, the kern.boottime up until NetBSD 5.0
 
     @return boottime: float to be compatible with linux
     """
     import ctypes
     import ctypes.util
-
-    NULL_BYTES = b"\x00"
 
     class timeval(ctypes.Structure):
         _fields_ = [("tv_sec", ctypes.c_int64), ("tv_usec", ctypes.c_int64)]
@@ -2088,10 +2090,16 @@ def boottime():
     libc = ctypes.CDLL(ctypes.util.find_library("c"))
     size = ctypes.c_size_t()
     size.value = ctypes.sizeof(timeval)
+    mib_values = [  # This corresponds to
+        1,  # CTL_KERN, and
+        21 if not is_NetBSD() else 83,  # KERN_BOOTTIME
+    ]
+    mib = (ctypes.c_int * 2)(*mib_values)
     buf = timeval()
     if (
-        libc.sysctlbyname(
-            b"kern.boottime" + NULL_BYTES,
+        libc.sysctl(
+            mib,
+            ctypes.c_int(len(mib_values)),
             ctypes.byref(buf),
             ctypes.byref(size),
             None,
