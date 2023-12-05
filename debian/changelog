@@ -2,9 +2,34 @@ cloud-init (23.4-0ubuntu1~23.04.1) UNRELEASED; urgency=medium
 
   * d/p/status-do-not-remove-duplicated-data.patch:
     - Revert behavior downstream, leave duplicate data
+  * d/control: add python3-apt as Recommends to read APT config from apt_pkg
+  * Upstream snapshot based on 23.4. (LP: #2045582).
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/23.4/ChangeLog
+
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Tue, 05 Dec 2023 12:23:55 +0100
+
+cloud-init (23.3.3-0ubuntu0~23.04.1) lunar; urgency=medium
+
+  * Upstream snapshot based on 23.3.3. (LP: #2040291).
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/23.3.3/ChangeLog
+
+ -- James Falcon <james.falcon@canonical.com>  Tue, 24 Oct 2023 10:47:46 -0500
+
+cloud-init (23.3.2-0ubuntu0~23.04.1) lunar; urgency=medium
+
   * d/p/do-not-block-user-login.patch:
     - Revert behavior, allow user login after cloud-init stage (LP: #2039505)
-  * d/control: add python3-apt as Recommends to read APT config from apt_pkg
+  * Upstream snapshot based on 23.3.2. (LP: #2039453).
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/23.3.2/ChangeLog
+
+ -- Brett Holman <brett.holman@canonical.com>  Mon, 17 Oct 2023 15:54:22 -0600
+
+cloud-init (23.3.1-0ubuntu1~23.04.1) lunar; urgency=medium
+
+  * Upstream snapshot based on upstream/main at ee9078a7.
   * d/cloud-init.maintscript: Remove the unused hook-network-manager
     conffile. (LP: #2027861)
   * d/patches/retain-old-groups.patch:
@@ -13,15 +38,11 @@ cloud-init (23.4-0ubuntu1~23.04.1) UNRELEASED; urgency=medium
   * d/cloud-init.templates: enable Akamai by default.
     Add Akamai to the default templates to allow datasource discovery.
   * d/po/templates.pot: refresh with debconf-updatepo
-  * Upstream snapshot based on 23.3. (LP: #2033310).
+  * Upstream snapshot based on 23.3.1. (LP: #2033310).
     List of changes from upstream can be found at
-    https://raw.githubusercontent.com/canonical/cloud-init/23.3/ChangeLog
-  * Upstream snapshot based on upstream/main at 0b90fbf5.
-  * Upstream snapshot based on 23.4. (LP: #2045582).
-    List of changes from upstream can be found at
-    https://raw.githubusercontent.com/canonical/cloud-init/23.4/ChangeLog
+    https://raw.githubusercontent.com/canonical/cloud-init/23.3.1/ChangeLog
 
- -- Alberto Contreras <alberto.contreras@canonical.com>  Tue, 05 Dec 2023 12:23:55 +0100
+ -- James Falcon <james.falcon@canonical.com>  Wed, 06 Sep 2023 11:28:36 -0500
 
 cloud-init (23.2.2-0ubuntu0~23.04.1) lunar; urgency=medium
 
