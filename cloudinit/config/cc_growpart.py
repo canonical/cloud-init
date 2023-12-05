@@ -19,7 +19,7 @@ from abc import ABC, abstractmethod
 from contextlib import suppress
 from pathlib import Path
 from textwrap import dedent
-from typing import Tuple
+from typing import Optional, Tuple
 
 from cloudinit import subp, temp_utils, util
 from cloudinit.cloud import Cloud
@@ -283,7 +283,7 @@ class ResizeGpart(Resizer):
         return (before, get_size(partdev))
 
 
-def get_size(filename):
+def get_size(filename) -> Optional[int]:
     fd = None
     try:
         fd = os.open(filename, os.O_RDONLY)
@@ -584,12 +584,12 @@ def resize_devices(resizer, devices):
                         "no change necessary (%s, %s)" % (disk, ptnum),
                     )
                 )
-            elif new is None:
+            elif new is None or old is None:
                 info.append(
                     (
                         devent,
                         RESIZE.CHANGED,
-                        "changed (%s, %s) from %s, new size is unknown"
+                        "changed (%s, %s) size, new size is unknown"
                         % (disk, ptnum, old),
                     )
                 )
