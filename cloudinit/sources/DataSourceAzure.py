@@ -676,6 +676,15 @@ class DataSourceAzure(sources.DataSource):
             # fetch metadata again as it has changed after reprovisioning
             imds_md = self.get_metadata_from_imds(report_failure=True)
 
+            # validate imds pps metadata
+            imds_ppstype = self._ppstype_from_imds(imds_md)
+            if imds_ppstype not in (None, PPSType.NONE.value):
+                self._report_failure(
+                    errors.ReportableErrorImdsInvalidMetadata(
+                        key="extended.compute.ppsType", value=imds_ppstype
+                    )
+                )
+
         # Report errors if IMDS network configuration is missing data.
         self.validate_imds_network_metadata(imds_md=imds_md)
 
@@ -769,11 +778,19 @@ class DataSourceAzure(sources.DataSource):
         start_time = time()
         retry_deadline = start_time + 300
 
+        # As a temporary workaround to support Azure Stack implementations
+        # which may not enable IMDS, limit connection errors to 11.
+        if not self._route_configured_for_imds:
+            max_connection_errors = 11
+        else:
+            max_connection_errors = None
+
         error_string: Optional[str] = None
         error_report: Optional[errors.ReportableError] = None
         try:
             return imds.fetch_metadata_with_api_fallback(
-                retry_deadline=retry_deadline
+                max_connection_errors=max_connection_errors,
+                retry_deadline=retry_deadline,
             )
         except UrlError as error:
             error_string = str(error)
@@ -1012,7 +1029,7 @@ class DataSourceAzure(sources.DataSource):
             else:
                 report_diagnostic_event(
                     "The preprovisioned nic %s is detached" % ifname,
-                    logger_func=LOG.warning,
+                    logger_func=LOG.debug,
                 )
         except AssertionError as error:
             report_diagnostic_event(str(error), logger_func=LOG.error)

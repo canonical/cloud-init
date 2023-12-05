@@ -10,7 +10,6 @@ import sys
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from cloudinit.cmd.devel import addLogHandlerCLI
 from cloudinit.handlers import INCLUSION_TYPES_MAP
 
 NAME = "make-mime"
@@ -116,7 +115,6 @@ def handle_args(name, args):
 
     @return 0 on success, 1 on failure.
     """
-    addLogHandlerCLI(LOG, logging.DEBUG if args.debug else logging.WARNING)
     if args.list_types:
         print("\n".join(get_content_types(strip_prefix=True)))
         return 0

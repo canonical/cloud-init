@@ -3150,30 +3150,6 @@ class TestHashBuffer:
             )
 
 
-class TestComparePermissions:
-    @pytest.mark.parametrize(
-        "perm1,perm2,expected",
-        [
-            (0o777, 0o777, 0),
-            (0o000, 0o000, 0),
-            (0o421, 0o421, 0),
-            (0o1640, 0o1640, 0),
-            (0o1407, 0o1600, 1),
-            (0o1600, 0o1407, -1),
-            (0o407, 0o600, 1),
-            (0o600, 0o407, -1),
-            (0o007, 0o700, 1),
-            (0o700, 0o007, -1),
-            (0o077, 0o100, 1),
-            (0o644, 0o640, 1),
-            (0o640, 0o600, 1),
-            (0o600, 0o400, 1),
-        ],
-    )
-    def test_compare_permissions(self, perm1, perm2, expected):
-        assert util.compare_permission(perm1, perm2) == expected
-
-
 class TestMaybeB64Decode:
     """Test the maybe_b64decode helper function."""
 

@@ -179,6 +179,53 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
             "metadata (http://100.100.100.200)", self.ds.subplatform
         )
 
+    @mock.patch("cloudinit.net.ephemeral.EphemeralIPv6Network")
+    @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
+    @mock.patch("cloudinit.sources.DataSourceEc2.util.is_resolvable")
+    @mock.patch("cloudinit.sources.DataSourceAliYun._is_aliyun")
+    @mock.patch("cloudinit.net.find_fallback_nic")
+    @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
+    @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
+    def test_aliyun_local_with_mock_server(
+        self,
+        m_is_bsd,
+        m_dhcp,
+        m_fallback_nic,
+        m_is_aliyun,
+        m_resolva,
+        m_net4,
+        m_net6,
+    ):
+        m_is_aliyun.return_value = True
+        m_fallback_nic.return_value = "eth9"
+        m_dhcp.return_value = [
+            {
+                "interface": "eth9",
+                "fixed-address": "192.168.2.9",
+                "routers": "192.168.2.1",
+                "subnet-mask": "255.255.255.0",
+                "broadcast-address": "192.168.2.255",
+            }
+        ]
+        m_is_bsd.return_value = False
+        cfg = {"datasource": {"AliYun": {"timeout": "1", "max_wait": "1"}}}
+        distro = mock.MagicMock()
+        paths = helpers.Paths({"run_dir": self.tmp_dir()})
+        self.ds = ay.DataSourceAliYunLocal(cfg, distro, paths)
+        self.regist_default_server()
+        ret = self.ds.get_data()
+        self.assertEqual(True, ret)
+        self.assertEqual(1, m_is_aliyun.call_count)
+        self._test_get_data()
+        self._test_get_sshkey()
+        self._test_get_iid()
+        self._test_host_name()
+        self.assertEqual("aliyun", self.ds.cloud_name)
+        self.assertEqual("ec2", self.ds.platform)
+        self.assertEqual(
+            "metadata (http://100.100.100.200)", self.ds.subplatform
+        )
+
     @mock.patch("cloudinit.sources.DataSourceAliYun._is_aliyun")
     def test_returns_false_when_not_on_aliyun(self, m_is_aliyun):
         """If is_aliyun returns false, then get_data should return False."""

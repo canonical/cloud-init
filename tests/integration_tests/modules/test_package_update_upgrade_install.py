@@ -103,9 +103,16 @@ packages:
 
 @pytest.mark.skipif(not IS_UBUNTU, reason="Uses Apt")
 def test_versioned_packages_are_installed(session_cloud: IntegrationCloud):
-    pkg_version = HELLO_VERSIONS_BY_RELEASE[CURRENT_RELEASE.series]
+    pkg_version = HELLO_VERSIONS_BY_RELEASE.get(
+        CURRENT_RELEASE.series, "2.10-3"
+    )
     with session_cloud.launch(
         user_data=VERSIONED_USER_DATA.format(pkg_version=pkg_version)
     ) as client:
         verify_clean_log(client.read_from_file("/var/log/cloud-init.log"))
-        assert f"hello	{pkg_version}" == client.execute("dpkg-query -W hello")
+        assert f"hello	{pkg_version}" == client.execute(
+            "dpkg-query -W hello"
+        ), (
+            "If this is failing for a new release, add it to "
+            "HELLO_VERSIONS_BY_RELEASE"
+        )

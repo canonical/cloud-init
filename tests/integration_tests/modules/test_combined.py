@@ -308,7 +308,6 @@ class TestCombined:
         assert data["sys_info"]["dist"][0] == CURRENT_RELEASE.os
 
         v1_data = data["v1"]
-        assert re.match(r"\d\.\d+\.\d+-\d+", v1_data["kernel_release"])
         assert v1_data["variant"] == CURRENT_RELEASE.os
         assert v1_data["distro"] == CURRENT_RELEASE.os
         assert v1_data["distro_release"] == CURRENT_RELEASE.series

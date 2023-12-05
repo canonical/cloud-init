@@ -429,7 +429,7 @@ class Renderer(renderer.Renderer):
             if subnet_type == "dhcp6" or subnet_type == "ipv6_dhcpv6-stateful":
                 if flavor == "suse":
                     # User wants dhcp for both protocols
-                    if iface_cfg["BOOTPROTO"] == "dhcp4":
+                    if iface_cfg["BOOTPROTO"] in ("dhcp4", "dhcp"):
                         iface_cfg["BOOTPROTO"] = "dhcp"
                     else:
                         # Only IPv6 is DHCP, IPv4 may be static
@@ -450,7 +450,7 @@ class Renderer(renderer.Renderer):
             elif subnet_type == "ipv6_dhcpv6-stateless":
                 if flavor == "suse":
                     # User wants dhcp for both protocols
-                    if iface_cfg["BOOTPROTO"] == "dhcp4":
+                    if iface_cfg["BOOTPROTO"] in ("dhcp4", "dhcp"):
                         iface_cfg["BOOTPROTO"] = "dhcp"
                     else:
                         # Only IPv6 is DHCP, IPv4 may be static
@@ -468,7 +468,7 @@ class Renderer(renderer.Renderer):
             elif subnet_type == "ipv6_slaac":
                 if flavor == "suse":
                     # User wants dhcp for both protocols
-                    if iface_cfg["BOOTPROTO"] == "dhcp4":
+                    if iface_cfg["BOOTPROTO"] in ("dhcp4", "dhcp"):
                         iface_cfg["BOOTPROTO"] = "dhcp"
                     else:
                         # Only IPv6 is DHCP, IPv4 may be static
@@ -481,10 +481,10 @@ class Renderer(renderer.Renderer):
             elif subnet_type in ["dhcp4", "dhcp"]:
                 bootproto_in = iface_cfg["BOOTPROTO"]
                 iface_cfg["BOOTPROTO"] = "dhcp"
-                if flavor == "suse" and subnet_type == "dhcp4":
+                if flavor == "suse":
                     # If dhcp6 is already specified the user wants dhcp
                     # for both protocols
-                    if bootproto_in != "dhcp6":
+                    if bootproto_in not in ("dhcp6", "dhcp"):
                         # Only IPv4 is DHCP, IPv6 may be static
                         iface_cfg["BOOTPROTO"] = "dhcp4"
             elif subnet_type in ["static", "static6"]:

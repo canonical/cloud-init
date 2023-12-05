@@ -988,6 +988,58 @@ iface eth1 inet static
 """.lstrip()
 
 NETWORK_CONFIGS = {
+    "small_v1_suse_dhcp6": {
+        "expected_sysconfig_opensuse": {
+            "ifcfg-eth1": textwrap.dedent(
+                """\
+                BOOTPROTO=static
+                LLADDR=cf:d6:af:48:e8:80
+                STARTMODE=auto"""
+            ),
+            "ifcfg-eth99": textwrap.dedent(
+                """\
+                BOOTPROTO=dhcp
+                DHCLIENT6_MODE=managed
+                LLADDR=c0:d6:9f:2c:e8:80
+                IPADDR=192.168.21.3
+                NETMASK=255.255.255.0
+                STARTMODE=auto"""
+            ),
+        },
+        "yaml": textwrap.dedent(
+            """
+            version: 1
+            config:
+                # Physical interfaces.
+                - type: physical
+                  name: eth99
+                  mac_address: c0:d6:9f:2c:e8:80
+                  subnets:
+                      - type: dhcp4
+                      - type: dhcp6
+                      - type: static
+                        address: 192.168.21.3/24
+                        dns_nameservers:
+                          - 8.8.8.8
+                          - 8.8.4.4
+                        dns_search: barley.maas sach.maas
+                        routes:
+                          - gateway: 65.61.151.37
+                            netmask: 0.0.0.0
+                            network: 0.0.0.0
+                            metric: 10000
+                - type: physical
+                  name: eth1
+                  mac_address: cf:d6:af:48:e8:80
+                - type: nameserver
+                  address:
+                    - 1.2.3.4
+                    - 5.6.7.8
+                  search:
+                    - wark.maas
+        """
+        ),
+    },
     "small_v1": {
         "expected_networkd_eth99": textwrap.dedent(
             """\
@@ -2538,7 +2590,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
             ),
             "ifcfg-eth5": textwrap.dedent(
                 """\
-                BOOTPROTO=dhcp
+                BOOTPROTO=dhcp4
                 LLADDR=98:bb:9f:2c:e8:8a
                 STARTMODE=manual"""
             ),
@@ -5740,7 +5792,7 @@ STARTMODE=auto
         expected = """\
 # Created by cloud-init automatically, do not edit.
 #
-BOOTPROTO=dhcp
+BOOTPROTO=dhcp4
 STARTMODE=auto
 """
         self.assertEqual(expected, found[nspath + "ifcfg-eth0"])
@@ -5793,6 +5845,12 @@ STARTMODE=auto
 
     def test_small_config_v1(self):
         entry = NETWORK_CONFIGS["small_v1"]
+        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+
+    def test_small_config_v1_suse(self):
+        entry = NETWORK_CONFIGS["small_v1_suse_dhcp6"]
         found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)

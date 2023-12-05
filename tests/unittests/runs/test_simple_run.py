@@ -3,9 +3,10 @@
 import copy
 import os
 
-from cloudinit import safeyaml, stages, util
+from cloudinit import atomic_helper, safeyaml, stages, util
 from cloudinit.config.modules import Modules
 from cloudinit.settings import PER_INSTANCE
+from cloudinit.sources import NetworkConfigSource
 from tests.unittests import helpers
 
 
@@ -47,6 +48,15 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
     def test_none_ds_populates_var_lib_cloud(self):
         """Init and run_section default behavior creates appropriate dirs."""
         # Now start verifying whats created
+        netcfg = {
+            "version": 1,
+            "config": [{"type": "physical", "name": "eth9"}],
+        }
+
+        def fake_network_config():
+            return netcfg, NetworkConfigSource.FALLBACK
+
+        self.assertFalse(os.path.exists("/var/lib/cloud"))
         initer = stages.Init()
         initer.read_cfg()
         initer.initialize()
@@ -55,10 +65,20 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             self.assertTrue(os.path.isdir(os.path.join("/var/lib/cloud", d)))
 
         initer.fetch()
+        self.assertFalse(os.path.islink("var/lib/cloud/instance"))
         iid = initer.instancify()
         self.assertEqual(iid, "iid-datasource-none")
         initer.update()
         self.assertTrue(os.path.islink("var/lib/cloud/instance"))
+        initer._find_networking_config = fake_network_config
+        self.assertFalse(
+            os.path.exists("/var/lib/cloud/instance/network-config.json")
+        )
+        initer.apply_network_config(False)
+        self.assertEqual(
+            f"{atomic_helper.json_dumps(netcfg)}\n",
+            util.load_file("/var/lib/cloud/instance/network-config.json"),
+        )
 
     def test_none_ds_runs_modules_which_do_not_define_distros(self):
         """Any modules which do not define a distros attribute are run."""
