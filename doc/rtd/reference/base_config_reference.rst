@@ -258,6 +258,13 @@ Format is a dict with ``enabled`` and ``prefix`` keys:
   ``vendor_data``.
 * ``prefix``: A path to prepend to any ``vendor_data``-provided script.
 
+``manual_cache_clean``
+^^^^^^^^^^^^^^^^^^^^^^
+
+By default, cloud-init searches for a datasource on every boot. Setting
+this to ``true`` will disable this behaviour. This is useful if your datasource
+information will not be present every boot. Default: ``false``.
+
 Example
 =======
 
@@ -399,6 +406,32 @@ On an Ubuntu system, :file:`/etc/cloud/cloud.cfg` should look similar to:
             primary: http://ports.ubuntu.com/ubuntu-ports
             security: http://ports.ubuntu.com/ubuntu-ports
       ssh_svcname: ssh
+
+    # configure where output will go
+    output:
+      init: "> /var/log/my-cloud-init.log"
+      config: [ ">> /tmp/foo.out", "> /tmp/foo.err" ]
+      final:
+        output: "| tee /tmp/final.stdout | tee /tmp/bar.stdout"
+        error: "&1"
+
+    # Set `true` to enable the stop searching for a datasource on boot.
+    manual_cache_clean: False
+
+    # def_log_file and syslog_fix_perms work together
+    # if
+    # - logging is set to go to a log file 'L' both with and without syslog
+    # - and 'L' does not exist
+    # - and syslog is configured to write to 'L'
+    # then 'L' will be initially created with root:root ownership (during
+    # cloud-init), and then at cloud-config time (when syslog is available)
+    # the syslog daemon will be unable to write to the file.
+    #
+    # to remedy this situation, 'def_log_file' can be set to a filename
+    # and syslog_fix_perms to a string containing "<user>:<group>"
+    def_log_file: /var/log/my-logging-file.log
+    syslog_fix_perms: syslog:root
+
 
 
 .. _configuration is templated: https://github.com/canonical/cloud-init/blob/main/config/cloud.cfg.tmpl

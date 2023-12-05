@@ -165,7 +165,6 @@ class TestAddAssertions:
 
 
 class TestRunCommands(CiTestCase):
-
     with_logs = True
     allowed_subp = [CiTestCase.SUBP_SHELL_TRUE]
 
@@ -266,13 +265,23 @@ class TestSnapSchema:
             ({"snap": {"commands": {"01": "also valid"}}}, None),
             ({"snap": {"assertions": ["valid"]}}, None),
             ({"snap": {"assertions": {"01": "also valid"}}}, None),
-            ({"commands": [["echo", "bye"], ["echo", "bye"]]}, None),
-            ({"commands": ["echo bye", "echo bye"]}, None),
+            ({"snap": {"commands": [["echo", "bye"], ["echo", "bye"]]}}, None),
+            ({"snap": {"commands": ["echo bye", "echo bye"]}}, None),
             (
-                {"commands": {"00": ["echo", "bye"], "01": ["echo", "bye"]}},
+                {
+                    "snap": {
+                        "commands": {
+                            "00": ["echo", "bye"],
+                            "01": ["echo", "bye"],
+                        }
+                    }
+                },
                 None,
             ),
-            ({"commands": {"00": "echo bye", "01": "echo bye"}}, None),
+            (
+                {"snap": {"commands": {"00": "echo bye", "01": "echo bye"}}},
+                None,
+            ),
             # Invalid
             ({"snap": "wrong type"}, "'wrong type' is not of type 'object'"),
             (

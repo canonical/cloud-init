@@ -437,10 +437,12 @@ class TestFetchMetadataWithApiFallback:
     @pytest.mark.parametrize(
         "error_count,retry_deadline", [(1, 0.0), (2, 1.0), (301, 300.0)]
     )
+    @pytest.mark.parametrize("max_connection_errors", [None, 1, 11])
     def test_retry_until_failure(
         self,
         error,
         error_count,
+        max_connection_errors,
         retry_deadline,
         caplog,
         mock_requests,
@@ -452,25 +454,25 @@ class TestFetchMetadataWithApiFallback:
 
         with pytest.raises(UrlError) as exc_info:
             imds.fetch_metadata_with_api_fallback(
-                retry_deadline=retry_deadline
+                max_connection_errors=max_connection_errors,
+                retry_deadline=retry_deadline,
             )
 
         error_regex = regex_for_http_error(error)
         assert re.search(error_regex, str(exc_info.value.cause))
 
-        # Connection errors max out at 11 attempts.
-        if error == REQUESTS_CONNECTION_ERROR and error_count > 11:
-            error_count = (
-                11
-                if error == REQUESTS_CONNECTION_ERROR and error_count > 11
-                else error_count
-            )
+        max_attempts = (
+            min(max_connection_errors, int(retry_deadline) + 1)
+            if isinstance(error, requests.ConnectionError)
+            and isinstance(max_connection_errors, int)
+            else error_count
+        )
 
-            # mock_requests will assert since not all calls were made.
+        if max_attempts < error_count:
             mock_requests.assert_all_requests_are_fired = False
 
         assert mock_url_helper_time_sleep.mock_calls == [mock.call(1)] * (
-            error_count - 1
+            max_attempts - 1
         )
 
         logs = [x for x in caplog.record_tuples if x[0] == LOG_PATH]
@@ -483,7 +485,7 @@ class TestFetchMetadataWithApiFallback:
                     f"{error_regex}"
                 ),
             )
-            for i in range(1, error_count + 1)
+            for i in range(1, max_attempts + 1)
         ] + [
             (
                 LOG_PATH,

@@ -10,6 +10,7 @@ import logging
 import os
 import sys
 from collections import namedtuple
+from contextlib import suppress
 from typing import Dict, Iterable, List, Optional, Set
 
 from cloudinit import (
@@ -219,25 +220,24 @@ class Init:
     def initialize(self):
         self._initialize_filesystem()
 
+    @staticmethod
+    def _get_strictest_mode(mode_1: int, mode_2: int) -> int:
+        return mode_1 & mode_2
+
     def _initialize_filesystem(self):
         mode = 0o640
-        fmode = None
 
         util.ensure_dirs(self._initial_subdirs())
         log_file = util.get_cfg_option_str(self.cfg, "def_log_file")
         if log_file:
             # At this point the log file should have already been created
-            # in the setup_logging function of log.py
+            # in the setupLogging function of log.py
+            with suppress(OSError):
+                mode = self._get_strictest_mode(
+                    0o640, util.get_permissions(log_file)
+                )
 
-            try:
-                fmode = util.get_permissions(log_file)
-            except OSError:
-                pass
-
-            # if existing file mode fmode is stricter, do not change it.
-            if fmode and util.compare_permission(fmode, mode) < 0:
-                mode = fmode
-
+            # set file mode to the strictest of 0o640 and the current mode
             util.ensure_file(log_file, mode, preserve_mode=False)
             perms = self.cfg.get("syslog_fix_perms")
             if not perms:
@@ -387,6 +387,30 @@ class Init:
                 " Has a datasource been fetched??"
             )
         return instance_dir
+
+    def _write_network_config_json(self, netcfg: dict):
+        """Create /var/lib/cloud/instance/network-config.json
+
+        Only attempt once /var/lib/cloud/instance exists which is created
+        by Init.instancify once a datasource is detected.
+        """
+
+        if not os.path.islink(self.paths.instance_link):
+            # Datasource hasn't been detected yet, so we may not
+            # have visibility to datasource applicable network-config
+            return
+        ncfg_instance_path = self.paths.get_ipath_cur("network_config")
+        network_link = self.paths.get_runpath("network_config")
+        if os.path.exists(ncfg_instance_path):
+            # Compare and only write on delta of current network-config
+            if netcfg != util.load_json(util.load_file(ncfg_instance_path)):
+                atomic_helper.write_json(
+                    ncfg_instance_path, netcfg, mode=0o600
+                )
+        else:
+            atomic_helper.write_json(ncfg_instance_path, netcfg, mode=0o600)
+        if not os.path.islink(network_link):
+            util.sym_link(ncfg_instance_path, network_link)
 
     def _reflect_cur_instance(self):
         # Remove the old symlink and attach a new one so
@@ -934,22 +958,6 @@ class Init:
         )
 
     def _apply_netcfg_names(self, netcfg):
-        ncfg_instance_path = self.paths.get_ipath_cur("network_config")
-        network_link = self.paths.get_runpath("network_config")
-        if not self._network_already_configured():
-            if os.path.exists(ncfg_instance_path):
-                if netcfg != util.load_json(
-                    util.load_file(ncfg_instance_path)
-                ):
-                    atomic_helper.write_json(
-                        ncfg_instance_path, netcfg, mode=0o600
-                    )
-            else:
-                atomic_helper.write_json(
-                    ncfg_instance_path, netcfg, mode=0o600
-                )
-        if not os.path.islink(network_link):
-            util.sym_link(ncfg_instance_path, network_link)
         try:
             LOG.debug("applying net config names for %s", netcfg)
             self.distro.networking.apply_network_config_names(netcfg)
@@ -1009,6 +1017,7 @@ class Init:
 
         # refresh netcfg after update
         netcfg, src = self._find_networking_config()
+        self._write_network_config_json(netcfg)
 
         if netcfg and netcfg.get("version") == 1:
             validate_cloudconfig_schema(

@@ -87,6 +87,7 @@ OSFAMILIES = {
         "sle_hpc",
         "sle-micro",
         "sles",
+        "suse",
     ],
     "openeuler": ["openeuler"],
     "OpenCloudOS": ["OpenCloudOS", "TencentOS"],
