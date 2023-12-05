@@ -184,7 +184,7 @@ fi
 %{_bindir}/cloud-id*
 
 # Docs
-%doc LICENSE ChangeLog TODO.rst requirements.txt
+%doc LICENSE ChangeLog requirements.txt
 %doc %{_defaultdocdir}/cloud-init/*
 
 # Configs
