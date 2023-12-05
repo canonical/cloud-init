@@ -90,8 +90,8 @@ def write_debian_folder(root, templ_data, cloud_util_deps):
 
     # Fill in the change log template
     templater.render_to_file(
-        os.path.abspath(os.path.join(
-            find_root(), "packages", "debian", "changelog.in")
+        os.path.abspath(
+            os.path.join(find_root(), "packages", "debian", "changelog.in")
         ),
         os.path.abspath(os.path.join(deb_dir, "changelog")),
         params=templ_data,
@@ -108,8 +108,8 @@ def write_debian_folder(root, templ_data, cloud_util_deps):
     requires = ["cloud-utils | cloud-guest-utils"] if cloud_util_deps else []
     # We consolidate all deps as Build-Depends as our package build runs all
     # tests so we need all runtime dependencies anyway.
-    # NOTE: python package was moved to the front after debuild -S would fail with
-    # 'Please add apropriate interpreter' errors (as in debian bug 861132)
+    # NOTE: python package was moved to the front after debuild -S would fail
+    # with 'Please add apropriate interpreter' errors (as in debian bug 861132)
     requires.extend(["python3"] + reqs + test_reqs)
     if templ_data["debian_release"] in (
         "buster",
@@ -130,8 +130,8 @@ def write_debian_folder(root, templ_data, cloud_util_deps):
         else:
             build_deps += f",{debhelper_matches[-1]}"
     templater.render_to_file(
-        os.path.abspath(os.path.join(
-            find_root(), "packages", "debian", "control.in")
+        os.path.abspath(
+            os.path.join(find_root(), "packages", "debian", "control.in")
         ),
         os.path.abspath(os.path.join(deb_dir, "control")),
         params={"build_depends": build_deps},
@@ -178,14 +178,14 @@ def get_parser():
         "-v",
         "--verbose",
         dest="verbose",
-        help=("run verbosely" " (default: %(default)s)"),
+        help=("run verbosely (default: %(default)s)"),
         default=False,
         action="store_true",
     )
     parser.add_argument(
         "--cloud-utils",
         dest="cloud_utils",
-        help=("depend on cloud-utils package" " (default: %(default)s)"),
+        help=("depend on cloud-utils package (default: %(default)s)"),
         default=False,
         action="store_true",
     )
@@ -193,7 +193,7 @@ def get_parser():
     parser.add_argument(
         "--init-system",
         dest="init_system",
-        help=("build deb with INIT_SYSTEM=xxx" " (default: %(default)s"),
+        help=("build deb with INIT_SYSTEM=xxx (default: %(default)s"),
         default=os.environ.get("INIT_SYSTEM", "systemd"),
     )
 
