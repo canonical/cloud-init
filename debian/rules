@@ -3,6 +3,7 @@
 include /usr/share/dpkg/pkg-info.mk
 
 INIT_SYSTEM ?= systemd
+export PYBUILD_SYSTEM = distutils
 export PYBUILD_INSTALL_ARGS=--init-system=$(INIT_SYSTEM)
 
 %:
