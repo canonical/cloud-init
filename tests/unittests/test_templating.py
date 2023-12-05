@@ -181,7 +181,11 @@ class TestTemplates(test_helpers.CiTestCase):
         (4, ("%}", "}}"), "unexpected '}'"),
         (6, ("%}", "}}"), "unexpected '}'"),
         (8, ("%}", "}}"), "unexpected '}'"),
-        (4, ("==", "="), "expected token 'end of statement block', got '='",),
+        (
+            4,
+            ("==", "="),
+            "expected token 'end of statement block', got '='",
+        ),
         (7, ("}}", "} }"), "unexpected '}'"),
     ),
 )
@@ -194,10 +198,10 @@ def test_jinja_syntax_parsing_exception(line_no, replace_tuple, syntax_error):
         "## template: jinja\n"
         "#cloud-config\n"
         "runcmd:\n"
-        "{% if v1.cloud_name == \"unknown\" %}\n"
-        "  - echo \"cloud name is unknown\"\n"
+        '{% if v1.cloud_name == "unknown" %}\n'
+        '  - echo "cloud name is unknown"\n'
         "{% else %}\n"
-        "  - echo \"False: cloud name is not unknown. {{ v1.cloud_name }}\"\n" 
+        '  - echo "False: cloud name is not unknown. {{ v1.cloud_name }}"\n'
         "{% endif %}\n"
     )
     # replace "%}" in line_no with "% }"
