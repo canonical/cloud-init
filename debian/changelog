@@ -1,3 +1,9 @@
+cloud-init (24.1~1g70e6f2e3-0ubuntu1) UNRELEASED; urgency=medium
+
+  * d/rules: explicitly tell pybuild to use distutils
+
+ -- Brett Holman <brett.holman@canonical.com>  Tue, 05 Dec 2023 13:23:42 -0600
+
 cloud-init (23.4-0ubuntu1) noble; urgency=medium
 
   * Upstream snapshot based on 23.4.
