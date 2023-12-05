@@ -58,7 +58,7 @@ try:
     )
 except (ImportError, AttributeError):
     try:
-        import passlib
+        import passlib.hash
 
         blowfish_hash = passlib.hash.sha512_crypt.hash
     except ImportError:
