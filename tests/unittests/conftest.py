@@ -78,6 +78,13 @@ def disable_dns_lookup(request):
 
 log.configure_root_logger()
 
+
+@pytest.fixture(autouse=True)
+def disable_root_logger_setup(request):
+    with mock.patch("cloudinit.cmd.main.configure_root_logger", autospec=True):
+        yield
+
+
 PYTEST_VERSION_TUPLE = tuple(map(int, pytest.__version__.split(".")))
 
 if PYTEST_VERSION_TUPLE < (3, 9, 0):

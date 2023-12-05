@@ -36,6 +36,7 @@ from cloudinit.sources import DataSourceVultr as Vultr
 from tests.unittests import helpers as test_helpers
 
 DEFAULT_LOCAL = [
+    AliYun.DataSourceAliYunLocal,
     Azure.DataSourceAzure,
     CloudSigma.DataSourceCloudSigma,
     ConfigDrive.DataSourceConfigDrive,

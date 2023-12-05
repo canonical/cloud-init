@@ -7,8 +7,15 @@ import random
 import re
 import string
 
+import pytest
+
 from cloudinit import helpers as c_helpers
 from cloudinit import util
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
 from cloudinit.handlers import CONTENT_END, CONTENT_START, cloud_config
 from tests.unittests import helpers
 
@@ -255,3 +262,154 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
         c = _old_mergedict(a, b)
         d = util.mergemanydict([a, b])
         self.assertEqual(c, d)
+
+
+class TestMergingSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            ({"merge_how": "list()+dict()+str()"}, None),
+            ({"merge_type": "list()+dict()+str()"}, None),
+            ({"merge_how": []}, "\\[\\] is too short"),
+            (
+                {"merge_how": {"name": "list", "settings": ["append"]}},
+                "is not of type",
+            ),
+            (
+                {"merge_how": [{"name": "list", "settings": "append"}]},
+                "'append' is not of type 'array'",
+            ),
+            (
+                {
+                    "merge_how": [
+                        {
+                            "settings": ["recurse_list"],
+                        }
+                    ]
+                },
+                "'name' is a required property",
+            ),
+            (
+                {
+                    "merge_how": [
+                        {
+                            "name": "list",
+                        }
+                    ]
+                },
+                "'settings' is a required property",
+            ),
+            (
+                {
+                    "merge_how": [
+                        {
+                            "name": "str",
+                            "settings": ["recurse_list"],
+                            "badkey": "append",
+                        }
+                    ]
+                },
+                (
+                    "Additional properties are not allowed "
+                    "\\('badkey' was unexpected\\)"
+                ),
+            ),
+            (
+                {
+                    "merge_how": [
+                        {
+                            "name": "str",
+                            "settings": ["badvalue"],
+                        }
+                    ]
+                },
+                "'badvalue' is not one of",
+            ),
+            (
+                {
+                    "merge_how": [
+                        {
+                            "name": "badvalue",
+                            "settings": ["append"],
+                        }
+                    ]
+                },
+                re.escape("'badvalue' is not one of ['list', 'dict', 'str']"),
+            ),
+            (
+                {
+                    "merge_how": [
+                        {
+                            "name": "str",
+                            "settings": [
+                                "append",
+                                "recurse_dict",
+                                "recurse_list",
+                            ],
+                        },
+                        {
+                            "name": "dict",
+                            "settings": [
+                                "allow_delete",
+                                "no_replace",
+                                "replace",
+                                "recurse_array",
+                            ],
+                        },
+                        {
+                            "name": "list",
+                            "settings": [
+                                "append",
+                                "prepend",
+                                "no_replace",
+                                "replace",
+                                "recurse_str",
+                            ],
+                        },
+                    ]
+                },
+                None,
+            ),
+            (
+                {
+                    "merge_type": [
+                        {
+                            "name": "str",
+                            "settings": [
+                                "append",
+                                "recurse_dict",
+                                "recurse_list",
+                            ],
+                        },
+                        {
+                            "name": "dict",
+                            "settings": [
+                                "allow_delete",
+                                "no_replace",
+                                "replace",
+                                "recurse_array",
+                            ],
+                        },
+                        {
+                            "name": "list",
+                            "settings": [
+                                "append",
+                                "prepend",
+                                "no_replace",
+                                "replace",
+                                "recurse_str",
+                            ],
+                        },
+                    ]
+                },
+                None,
+            ),
+        ],
+    )
+    @helpers.skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)

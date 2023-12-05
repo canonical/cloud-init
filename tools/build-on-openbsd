@@ -10,13 +10,14 @@ pkgs="
    py3-configobj
    py3-jinja2
    py3-jsonschema
+   py3-netifaces
    py3-oauthlib
    py3-requests
    py3-setuptools
    py3-yaml
    sudo--
 "
-[ -f "$depschecked" ] || pkg_add ${pkgs} || fail "install packages"
+[ -f "$depschecked" ] || pkg_add "${pkgs}" || fail "install packages"
 
 touch $depschecked
 
