@@ -1,4 +1,4 @@
-cloud-init (23.3-0ubuntu0~23.10.1) UNRELEASED; urgency=medium
+cloud-init (23.4-0ubuntu1~23.10.1) UNRELEASED; urgency=medium
 
   * d/p/status-do-not-remove-duplicated-data.patch:
     - Revert behavior downstream, leave duplicate data
@@ -6,8 +6,11 @@ cloud-init (23.3-0ubuntu0~23.10.1) UNRELEASED; urgency=medium
     - Revert behavior, allow user login after cloud-init stage (LP: #2039505)
   * d/control: add python3-apt as Recommends to read APT config from apt_pkg
   * Upstream snapshot based on upstream/main at 0b90fbf5.
+  * Upstream snapshot based on 23.4. (LP: #2045582).
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/23.4/ChangeLog
 
- -- James Falcon <james.falcon@canonical.com>  Thu, 16 Nov 2023 17:58:08 -0600
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Tue, 05 Dec 2023 14:11:32 +0100
 
 cloud-init (23.3-0ubuntu1) mantic; urgency=medium
 
