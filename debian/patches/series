@@ -1,4 +1,5 @@
 expire-on-hashed-users.patch
 retain-netplan-world-readable.patch
+retain-old-groups.patch
 do-not-block-user-login.patch
 status-do-not-remove-duplicated-data.patch
