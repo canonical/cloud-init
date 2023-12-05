@@ -44,7 +44,7 @@ def run_helper(helper, args=None, strip=True):
 
 
 def read_dependencies(distro):
-    """Returns the Python package depedencies from requirements.txt files.
+    """Returns the Python package dependencies from requirements.txt files.
 
     @returns a tuple of (build_deps, run_deps, test_deps)
     """
@@ -169,7 +169,7 @@ def main():
         util.write_file(spec_fn, contents)
         print("Created spec file at %r" % (spec_fn))
         for p in args.patches:
-            util.copy(p, os.path.abspath(os.path.join(topdir, 'SOURCES', os.path.basename(p)))_
+            util.copy(p, os.path.abspath(os.path.join(topdir, 'SOURCES', os.path.basename(p))))
 
         # Now build it!
         print("Running 'rpmbuild' in %r" % (topdir))
