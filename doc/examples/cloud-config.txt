@@ -184,14 +184,14 @@ ssh_import_id: [smoser]
 #
 # Default: none
 #
-debconf_selections:
-  # Force debconf priority to critical.
-  set1: debconf debconf/priority select critical
-
-  # Override default frontend to readline, but allow user to select.
-  set2: |
-    debconf debconf/frontend select readline
-    debconf debconf/frontend seen false
+apt:
+  debconf_selections:
+    # Force debconf priority to critical.
+    set1: debconf debconf/priority select critical
+    # Override default frontend to readline, but allow user to select.
+    set2: |
+      debconf debconf/frontend select readline
+      debconf debconf/frontend seen false
 
 # manage byobu defaults
 # byobu_by_default:
@@ -330,25 +330,6 @@ resize_rootfs: True
 # want jinja, you have to start the line with '## template:jinja\n'
 final_message: "The system is finally up, after $UPTIME seconds"
 
-# configure where output will go
-# 'output' entry is a dict with 'init', 'config', 'final' or 'all'
-# entries.  Each one defines where
-#  cloud-init, cloud-config, cloud-config-final or all output will go
-# each entry in the dict can be a string, list or dict.
-#  if it is a string, it refers to stdout and stderr
-#  if it is a list, entry 0 is stdout, entry 1 is stderr
-#  if it is a dict, it is expected to have 'output' and 'error' fields
-# default is to write to console only
-# the special entry "&1" for an error means "same location as stdout"
-#  (Note, that '&1' has meaning in yaml, so it must be quoted)
-output:
-  init: "> /var/log/my-cloud-init.log"
-  config: [ ">> /tmp/foo.out", "> /tmp/foo.err" ]
-  final:
-    output: "| tee /tmp/final.stdout | tee /tmp/bar.stdout"
-    error: "&1"
-
-
 # phone_home: if this dictionary is present, then the phone_home
 # cloud-config module will post specified data back to the given
 # url
@@ -365,26 +346,6 @@ phone_home:
 # timezone: set the timezone for this instance
 # the value of 'timezone' must exist in /usr/share/zoneinfo
 timezone: US/Eastern
-
-# def_log_file and syslog_fix_perms work together
-# if
-# - logging is set to go to a log file 'L' both with and without syslog
-# - and 'L' does not exist
-# - and syslog is configured to write to 'L'
-# then 'L' will be initially created with root:root ownership (during
-# cloud-init), and then at cloud-config time (when syslog is available)
-# the syslog daemon will be unable to write to the file.
-#
-# to remedy this situation, 'def_log_file' can be set to a filename
-# and syslog_fix_perms to a string containing "<user>:<group>"
-# if syslog_fix_perms is a list, it will iterate through and use the
-# first pair that does not raise error.
-#
-# the default values are '/var/log/cloud-init.log' and 'syslog:adm'
-# the value of 'def_log_file' should match what is configured in logging
-# if either is empty, then no change of ownership will be done
-def_log_file: /var/log/my-logging-file.log
-syslog_fix_perms: syslog:root
 
 # you can set passwords for a user or multiple users
 # this is off by default.
@@ -434,16 +395,6 @@ syslog_fix_perms: syslog:root
 password: passw0rd
 chpasswd: { expire: False }
 ssh_pwauth: True
-
-# manual cache clean.
-#  By default, the link from /var/lib/cloud/instance to
-#  the specific instance in /var/lib/cloud/instances/ is removed on every
-#  boot.  The cloud-init code then searches for a DataSource on every boot
-#  if your DataSource will not be present on every boot, then you can set
-#  this option to 'True', and maintain (remove) that link before the image
-#  will be booted as a new instance.
-# default is False
-manual_cache_clean: False
 
 ## configure interaction with ssh server
 # ssh_svcname: ssh

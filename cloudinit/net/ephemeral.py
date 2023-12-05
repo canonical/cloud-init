@@ -8,12 +8,12 @@ from functools import partial
 from typing import Any, Callable, Dict, List, Optional
 
 import cloudinit.net as net
-from cloudinit import subp
 from cloudinit.net.dhcp import (
     IscDhclient,
     NoDHCPLeaseError,
     maybe_perform_dhcp_discovery,
 )
+from cloudinit.subp import ProcessExecutionError
 
 LOG = logging.getLogger(__name__)
 
@@ -106,11 +106,7 @@ class EphemeralIPv4Network:
                 self._bringup_static_routes()
             elif self.router:
                 self._bringup_router()
-        except subp.ProcessExecutionError:
-            LOG.error(
-                "Error bringing up EphemeralIPv4Network. "
-                "Datasource setup cannot continue"
-            )
+        except ProcessExecutionError:
             self.__exit__(None, None, None)
             raise
 
@@ -130,7 +126,7 @@ class EphemeralIPv4Network:
         )
         try:
             self.distro.net_ops.add_addr(self.interface, cidr, self.broadcast)
-        except subp.ProcessExecutionError as e:
+        except ProcessExecutionError as e:
             if "File exists" not in str(e.stderr):
                 raise
             LOG.debug(
@@ -274,11 +270,9 @@ class EphemeralDHCPv4:
 
     def clean_network(self):
         """Exit _ephipv4 context to teardown of ip configuration performed."""
-        if self.lease:
-            self.lease = None
-        if not self._ephipv4:
-            return
-        self._ephipv4.__exit__(None, None, None)
+        self.lease = None
+        if self._ephipv4:
+            self._ephipv4.__exit__(None, None, None)
 
     def obtain_lease(self):
         """Perform dhcp discovery in a sandboxed environment if possible.
@@ -350,7 +344,13 @@ class EphemeralDHCPv4:
 
 
 class EphemeralIPNetwork:
-    """Marries together IPv4 and IPv6 ephemeral context managers"""
+    """Combined ephemeral context manager for IPv4 and IPv6
+
+    Either ipv4 or ipv6 ephemeral network may fail to initialize, but if either
+    succeeds, then this context manager will not raise exception. This allows
+    either ipv4 or ipv6 ephemeral network to succeed, but requires that error
+    handling for networks unavailable be done within the context.
+    """
 
     def __init__(
         self,
@@ -367,24 +367,47 @@ class EphemeralIPNetwork:
         self.distro = distro
 
     def __enter__(self):
-        # ipv6 dualstack might succeed when dhcp4 fails
-        # therefore catch exception unless only v4 is used
-        try:
-            if self.ipv4:
+        if not (self.ipv4 or self.ipv6):
+            # no ephemeral network requested, but this object still needs to
+            # function as a context manager
+            return self
+        exceptions = []
+        ephemeral_obtained = False
+        if self.ipv4:
+            try:
                 self.stack.enter_context(
-                    EphemeralDHCPv4(self.distro, self.interface)
+                    EphemeralDHCPv4(
+                        self.distro,
+                        self.interface,
+                    )
                 )
-            if self.ipv6:
+                ephemeral_obtained = True
+            except (ProcessExecutionError, NoDHCPLeaseError) as e:
+                LOG.info("Failed to bring up %s for ipv4.", self)
+                exceptions.append(e)
+
+        if self.ipv6:
+            try:
                 self.stack.enter_context(
-                    EphemeralIPv6Network(self.distro, self.interface)
+                    EphemeralIPv6Network(
+                        self.distro,
+                        self.interface,
+                    )
                 )
-        # v6 link local might be usable
-        # caller may want to log network state
-        except NoDHCPLeaseError as e:
-            if self.ipv6:
-                self.state_msg = "using link-local ipv6"
-            else:
-                raise e
+                ephemeral_obtained = True
+                if exceptions or not self.ipv4:
+                    self.state_msg = "using link-local ipv6"
+            except ProcessExecutionError as e:
+                LOG.info("Failed to bring up %s for ipv6.", self)
+                exceptions.append(e)
+        if not ephemeral_obtained:
+            # Ephemeral network setup failed in linkup for both ipv4 and
+            # ipv6. Raise only the first exception found.
+            LOG.error(
+                "Failed to bring up EphemeralIPNetwork. "
+                "Datasource setup cannot continue"
+            )
+            raise exceptions[0]
         return self
 
     def __exit__(self, *_args):

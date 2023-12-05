@@ -22,17 +22,12 @@ from contextlib import suppress
 from typing import DefaultDict
 
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
+DEPRECATED = 35
 
 
 def setup_basic_logging(level=logging.DEBUG, formatter=None):
     formatter = formatter or logging.Formatter(DEFAULT_LOG_FORMAT)
     root = logging.getLogger()
-    for handler in root.handlers:
-        if hasattr(handler, "stream") and hasattr(handler.stream, "name"):
-            if handler.stream.name == "<stderr>":
-                handler.setLevel(level)
-                return
-    # Didn't have an existing stderr handler; create a new handler
     console = logging.StreamHandler(sys.stderr)
     console.setFormatter(formatter)
     console.setLevel(level)
@@ -50,7 +45,7 @@ def flush_loggers(root):
     flush_loggers(root.parent)
 
 
-def define_deprecation_logger(lvl=35):
+def define_deprecation_logger(lvl=DEPRECATED):
     logging.addLevelName(lvl, "DEPRECATED")
 
     def deprecated(self, message, *args, **kwargs):
@@ -155,7 +150,7 @@ def setup_backup_logging():
     which may ease debugging.
     """
     fallback_handler = logging.StreamHandler(sys.stderr)
-    fallback_handler.handleError = lambda self, record: None
+    fallback_handler.handleError = lambda record: None
     fallback_handler.setFormatter(
         logging.Formatter(
             "FALLBACK: %(asctime)s - %(filename)s[%(levelname)s]: %(message)s"

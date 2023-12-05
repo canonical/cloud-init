@@ -41,8 +41,10 @@ from cloudinit.log import (
     setup_logging,
     reset_logging,
     configure_root_logger,
+    DEPRECATED,
 )
 from cloudinit.reporting import events
+from cloudinit.safeyaml import load
 from cloudinit.settings import PER_INSTANCE, PER_ALWAYS, PER_ONCE, CLOUD_CONFIG
 
 # Welcome message template
@@ -220,11 +222,17 @@ def attempt_cmdline_url(path, network=True, cmdline=None) -> Tuple[int, str]:
                 is_cloud_cfg = False
             if is_cloud_cfg:
                 if cmdline_name == "url":
-                    util.deprecate(
-                        deprecated="The kernel command line key `url`",
-                        deprecated_version="22.3",
-                        extra_message=" Please use `cloud-config-url` "
-                        "kernel command line parameter instead",
+                    return (
+                        DEPRECATED,
+                        str(
+                            util.deprecate(
+                                deprecated="The kernel command line key `url`",
+                                deprecated_version="22.3",
+                                extra_message=" Please use `cloud-config-url` "
+                                "kernel command line parameter instead",
+                                return_log=True,
+                            ),
+                        ),
                     )
             else:
                 if cmdline_name == "cloud-config-url":
@@ -477,9 +485,10 @@ def main_init(name, args):
         return (init.datasource, ["Consuming user data failed!"])
 
     # Validate user-data adheres to schema definition
-    if os.path.exists(init.paths.get_ipath_cur("userdata_raw")):
+    cloud_cfg_path = init.paths.get_ipath_cur("cloud_config")
+    if os.path.exists(cloud_cfg_path) and os.stat(cloud_cfg_path).st_size != 0:
         validate_cloudconfig_schema(
-            config=init.cfg,
+            config=load(util.load_file(cloud_cfg_path)),
             strict=False,
             log_details=False,
             log_deprecations=True,
@@ -1046,9 +1055,14 @@ def main(sysv_args=None):
     # Subparsers.required = True and each subparser sets action=(name, functor)
     (name, functor) = args.action
 
-    # Setup basic logging to start (until reinitialized)
-    # iff in debug mode.
-    if args.debug:
+    # Setup basic logging for cloud-init:
+    # - for cloud-init stages if --debug
+    # - for all other subcommands:
+    #   - if --debug is passed, logging.DEBUG
+    #   - if --debug is not passed, logging.WARNING
+    if name not in ("init", "modules"):
+        setup_basic_logging(logging.DEBUG if args.debug else logging.WARNING)
+    elif args.debug:
         setup_basic_logging()
 
     # Setup signal handlers before running

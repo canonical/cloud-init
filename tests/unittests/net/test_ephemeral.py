@@ -5,6 +5,8 @@ from unittest import mock
 import pytest
 
 from cloudinit.net.ephemeral import EphemeralIPNetwork
+from cloudinit.subp import ProcessExecutionError
+from tests.unittests.helpers import does_not_raise
 from tests.unittests.util import MockDistro
 
 M_PATH = "cloudinit.net.ephemeral."
@@ -51,3 +53,52 @@ class TestEphemeralIPNetwork:
             expected_call_args_list
             == m_exit_stack.return_value.enter_context.call_args_list
         )
+
+    @pytest.mark.parametrize(
+        "m_v4, m_v6, m_context, m_side_effects",
+        [
+            pytest.param(
+                False, True, does_not_raise(), [None, None], id="v6_only"
+            ),
+            pytest.param(
+                True, False, does_not_raise(), [None, None], id="v4_only"
+            ),
+            pytest.param(
+                True,
+                True,
+                does_not_raise(),
+                [ProcessExecutionError, None],
+                id="v4_error",
+            ),
+            pytest.param(
+                True,
+                True,
+                does_not_raise(),
+                [None, ProcessExecutionError],
+                id="v6_error",
+            ),
+            pytest.param(
+                True,
+                True,
+                pytest.raises(ProcessExecutionError),
+                [
+                    ProcessExecutionError,
+                    ProcessExecutionError,
+                ],
+                id="v4_v6_error",
+            ),
+        ],
+    )
+    def test_interface_init_failures(
+        self, m_v4, m_v6, m_context, m_side_effects, mocker
+    ):
+        mocker.patch(
+            "cloudinit.net.ephemeral.EphemeralDHCPv4"
+        ).return_value.__enter__.side_effect = m_side_effects[0]
+        mocker.patch(
+            "cloudinit.net.ephemeral.EphemeralIPv6Network"
+        ).return_value.__enter__.side_effect = m_side_effects[1]
+        distro = MockDistro()
+        with m_context:
+            with EphemeralIPNetwork(distro, "eth0", ipv4=m_v4, ipv6=m_v6):
+                pass
