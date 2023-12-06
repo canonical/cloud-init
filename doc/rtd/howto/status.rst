@@ -58,5 +58,29 @@ See the list of all possible reported statuses:
     "degraded running"
     "disabled"
 
+Cloud-init enablement status
+----------------------------
+
+Separately from the current running status described above, cloud-init can also
+report how it was disabled or enabled. This can be viewed by checking
+the `boot_status_code` in ``cloud-init status --long``, which may
+contain any of the following states:
+
+- ``'unknown'``: ``ds-identify`` has not run yet to determine if cloud-init
+  should be run during this boot
+- ``'disabled-by-marker-file'``: :file:`/etc/cloud/cloud-init.disabled` exists
+  which prevents cloud-init from ever running
+- ``'disabled-by-generator'``: ``ds-identify`` determined no applicable
+  cloud-init datasources
+- ``'disabled-by-kernel-cmdline'``: kernel command line contained
+  cloud-init=disabled
+- ``'disabled-by-environment-variable'``: environment variable
+  ``KERNEL_CMDLINE`` contained ``cloud-init=disabled``
+- ``'enabled-by-kernel-cmdline'``: kernel command line contained
+  cloud-init=enabled
+- ``'enabled-by-generator'``: ``ds-identify`` detected possible cloud-init
+  datasources
+- ``'enabled-by-sysvinit'``: enabled by default in SysV init environment
+
 See :ref:`our explanation of failure states<failure_states>` for more
 information.
