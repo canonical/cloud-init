@@ -590,7 +590,7 @@ def resize_devices(resizer, devices):
                         devent,
                         RESIZE.CHANGED,
                         "changed (%s, %s) size, new size is unknown"
-                        % (disk, ptnum, old),
+                        % (disk, ptnum),
                     )
                 )
             else:
