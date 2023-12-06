@@ -117,6 +117,13 @@ class NetworkManagerActivator(NetworkActivator):
         from cloudinit.net.network_manager import conn_filename
 
         filename = conn_filename(device_name)
+        if filename is None:
+            LOG.warning(
+                "Unable to find an interface config file. "
+                "Unable to bring up interface."
+            )
+            return False
+
         cmd = ["nmcli", "connection", "load", filename]
         if _alter_interface(cmd, device_name):
             cmd = ["nmcli", "connection", "up", "filename", filename]
