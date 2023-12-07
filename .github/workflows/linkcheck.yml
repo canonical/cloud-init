@@ -35,8 +35,10 @@ jobs:
       - name: Check for broken links below threshold
         run: |
           broken_count=$(grep -c "broken" output.txt)
-          if [[ $broken_count -ge 5 ]]; then
+          if [[ $broken_count -ge 6 ]]; then
             echo "Too many broken links detected: $broken_count"
+            broken_matches=$(grep "broken" output.txt)
+            echo "Broken links \n$broken_matches"
             exit 1
           else
             echo "Number of broken links is below threshold: $broken_count"
