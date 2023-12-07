@@ -64,7 +64,7 @@ def update_event_enabled(
     datasource: sources.DataSource,
     cfg: dict,
     event_source_type: EventType,
-    scope: Optional[EventScope] = None,
+    scope: EventScope,
 ) -> bool:
     """Determine if a particular EventType is enabled.
 
@@ -93,11 +93,7 @@ def update_event_enabled(
     )
     LOG.debug("Allowed events: %s", allowed)
 
-    scopes: Iterable[EventScope]
-    if not scope:
-        scopes = allowed.keys()
-    else:
-        scopes = [scope]
+    scopes: Iterable[EventScope] = [scope]
     scope_values = [s.value for s in scopes]
 
     for evt_scope in scopes:
