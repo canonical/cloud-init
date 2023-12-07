@@ -4174,7 +4174,7 @@ iface bond0 inet6 static
 
                 [ipv4]
                 method=auto
-                may-fail=false
+                may-fail=true
                 route1=169.254.42.42/32,62.210.0.1
                 route2=169.254.42.43/32,62.210.0.2
                 address1=192.168.1.20/16
@@ -4185,7 +4185,7 @@ iface bond0 inet6 static
                 route1=::/0,fe80::dc00:ff:fe20:186
                 route2=fe80::dc00:ff:fe20:188/64,fe80::dc00:ff:fe20:187
                 method=auto
-                may-fail=false
+                may-fail=true
                 dns=FEDC::1;
                 dns-search=lab;home;
                 address1=2001:bc8:1210:232:dc00:ff:fe20:185/64
