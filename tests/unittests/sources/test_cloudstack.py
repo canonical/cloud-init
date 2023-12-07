@@ -5,11 +5,209 @@ import time
 
 from cloudinit import helpers, util
 from cloudinit.net.dhcp import IscDhclient
+from cloudinit.sources import DataSourceHostname
 from cloudinit.sources.DataSourceCloudStack import DataSourceCloudStack
 from tests.unittests.helpers import CiTestCase, ExitStack, mock
 
-MOD_PATH = "cloudinit.sources.DataSourceCloudStack"
+SOURCES_PATH = "cloudinit.sources"
+MOD_PATH = SOURCES_PATH + ".DataSourceCloudStack"
 DS_PATH = MOD_PATH + ".DataSourceCloudStack"
+DHCP_MOD_PATH = "cloudinit.net.dhcp"
+
+
+class TestCloudStackHostname(CiTestCase):
+    def setUp(self):
+        super(TestCloudStackHostname, self).setUp()
+        self.patches = ExitStack()
+        self.addCleanup(self.patches.close)
+        self.hostname = "vm-hostname"
+        self.networkd_domainname = "networkd.local"
+        self.isc_dhclient_domainname = "dhclient.local"
+
+        # Mock the parent class get_hostname() method to return
+        # a non-fqdn hostname
+        get_hostname_parent = mock.MagicMock(
+            return_value=DataSourceHostname(self.hostname, True)
+        )
+        self.patches.enter_context(
+            mock.patch(
+                SOURCES_PATH + ".DataSource.get_hostname", get_hostname_parent
+            )
+        )
+
+        # Mock cloudinit.net.dhcp.networkd_get_option_from_leases() method \
+        # result since we don't have a DHCP client running
+        networkd_get_option_from_leases = mock.MagicMock(
+            return_value=self.networkd_domainname
+        )
+        self.patches.enter_context(
+            mock.patch(
+                DHCP_MOD_PATH + ".networkd_get_option_from_leases",
+                networkd_get_option_from_leases,
+            )
+        )
+
+        # Mock cloudinit.net.dhcp.get_latest_lease() method \
+        # result since we don't have a DHCP client running
+        isc_dhclient_get_latest_lease = mock.MagicMock(
+            return_value="/var/run/dhclient.eth0.lease"
+        )
+        self.patches.enter_context(
+            mock.patch(
+                DHCP_MOD_PATH + ".IscDhclient.get_latest_lease",
+                isc_dhclient_get_latest_lease,
+            )
+        )
+
+        # Mock cloudinit.net.dhcp.networkd_get_option_from_leases() method \
+        # result since we don't have a DHCP client running
+        parse_dhcp_lease_file = mock.MagicMock(
+            return_value=[
+                {
+                    "interface": "eth0",
+                    "fixed-address": "192.168.0.1",
+                    "subnet-mask": "255.255.255.0",
+                    "routers": "192.168.0.1",
+                    "domain-name": self.isc_dhclient_domainname,
+                    "renew": "4 2017/07/27 18:02:30",
+                    "expire": "5 2017/07/28 07:08:15",
+                }
+            ]
+        )
+
+        self.patches.enter_context(
+            mock.patch(
+                DHCP_MOD_PATH + ".IscDhclient.parse_dhcp_lease_file",
+                parse_dhcp_lease_file,
+            )
+        )
+
+        # Mock get_vr_address() method as it relies to
+        # parsing DHCP/networkd files
+        self.patches.enter_context(
+            mock.patch(
+                MOD_PATH + ".get_vr_address",
+                mock.MagicMock(return_value="192.168.0.1"),
+            )
+        )
+
+        self.tmp = self.tmp_dir()
+
+    def test_get_domainname_networkd(self):
+        """
+        Test if DataSourceCloudStack._get_domainname()
+        gets domain name from systemd-networkd leases.
+        """
+        ds = DataSourceCloudStack(
+            {}, None, helpers.Paths({"run_dir": self.tmp})
+        )
+        result = ds._get_domainname()
+        self.assertEqual(self.networkd_domainname, result)
+
+    def test_get_domainname_isc_dhclient(self):
+        """
+        Test if DataSourceCloudStack._get_domainname()
+        gets domain name from isc-dhcp-client leases
+        """
+
+        # Override systemd-networkd reply mock to None
+        # to force the code to fallback to IscDhclient
+        get_networkd_domain = mock.MagicMock(return_value=None)
+        self.patches.enter_context(
+            mock.patch(
+                DHCP_MOD_PATH + ".networkd_get_option_from_leases",
+                get_networkd_domain,
+            )
+        )
+
+        ds = DataSourceCloudStack(
+            {}, None, helpers.Paths({"run_dir": self.tmp})
+        )
+        result = ds._get_domainname()
+        self.assertEqual(self.isc_dhclient_domainname, result)
+
+    def test_get_hostname_non_fqdn(self):
+        """
+        Test get_hostname() method implementation
+        with fqdn parameter=False.
+        It should call the parent class method and should
+        return its response intact.
+        """
+        expected = DataSourceHostname(self.hostname, True)
+
+        ds = DataSourceCloudStack(
+            {}, None, helpers.Paths({"run_dir": self.tmp})
+        )
+        result = ds.get_hostname(fqdn=False)
+        self.assertTupleEqual(expected, result)
+
+    def test_get_hostname_fqdn(self):
+        """
+        Test get_hostname() method implementation
+        with fqdn parameter=True.
+        It should look for domain name in DHCP leases.
+        """
+        expected = DataSourceHostname(
+            self.hostname + "." + self.networkd_domainname, True
+        )
+
+        ds = DataSourceCloudStack(
+            {}, None, helpers.Paths({"run_dir": self.tmp})
+        )
+        result = ds.get_hostname(fqdn=True)
+        self.assertTupleEqual(expected, result)
+
+    def test_get_hostname_fqdn_fallback(self):
+        """
+        Test get_hostname() when some error happens
+        during domainname discovery.
+
+        We mock both systemd-networkd discovery as None,
+        And the IscDhclient not having domain-name option
+        in the lease.
+
+        It should return the hostname without domainname
+        in such cases.
+        """
+        expected = DataSourceHostname(self.hostname, True)
+
+        # Override systemd-networkd reply mock to None
+        # to force the code to fallback to IscDhclient
+        get_networkd_domain = mock.MagicMock(return_value=None)
+        self.patches.enter_context(
+            mock.patch(
+                DHCP_MOD_PATH + ".networkd_get_option_from_leases",
+                get_networkd_domain,
+            )
+        )
+
+        # Override IscDhclient.parse_dhcp_lease_file()
+        # to return a lease without domain-name option.
+        parse_dhcp_lease_file = mock.MagicMock(
+            return_value=[
+                {
+                    "interface": "eth0",
+                    "fixed-address": "192.168.0.1",
+                    "subnet-mask": "255.255.255.0",
+                    "routers": "192.168.0.1",
+                    "renew": "4 2017/07/27 18:02:30",
+                    "expire": "5 2017/07/28 07:08:15",
+                }
+            ]
+        )
+
+        self.patches.enter_context(
+            mock.patch(
+                DHCP_MOD_PATH + ".IscDhclient.parse_dhcp_lease_file",
+                parse_dhcp_lease_file,
+            )
+        )
+
+        ds = DataSourceCloudStack(
+            {}, None, helpers.Paths({"run_dir": self.tmp})
+        )
+        result = ds.get_hostname(fqdn=True)
+        self.assertTupleEqual(expected, result)
 
 
 class TestCloudStackPasswordFetching(CiTestCase):
