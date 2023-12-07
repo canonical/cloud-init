@@ -118,7 +118,7 @@ class Init:
         else:
             self.ds_deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
         # Created on first use
-        self._cfg: Optional[dict] = None
+        self._cfg: Dict = {}
         self._paths: Optional[helpers.Paths] = None
         self._distro: Optional[distros.Distro] = None
         # Changed only when a fetch occurs
@@ -136,7 +136,7 @@ class Init:
 
     def _reset(self):
         # Recreated on access
-        self._cfg = None
+        self._cfg = {}
         self._paths = None
         self._distro = None
 
@@ -172,8 +172,6 @@ class Init:
             ocfg = util.get_cfg_by_path(ocfg, ("system_info",), {})
         elif restriction == "paths":
             ocfg = util.get_cfg_by_path(ocfg, ("system_info", "paths"), {})
-        if not isinstance(ocfg, (dict)):
-            ocfg = {}
         return ocfg
 
     @property
@@ -255,10 +253,8 @@ class Init:
             )
 
     def read_cfg(self, extra_fns=None):
-        # None check so that we don't keep on re-loading if empty
-        if self._cfg is None:
+        if not self._cfg:
             self._cfg = self._read_cfg(extra_fns)
-            # LOG.debug("Loaded 'init' config %s", self._cfg)
 
     def _read_cfg(self, extra_fns):
         no_cfg_paths = helpers.Paths({}, self.datasource)
