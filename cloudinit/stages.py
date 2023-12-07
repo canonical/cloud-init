@@ -138,14 +138,11 @@ class Init:
             )
         self.reporter = reporter
 
-    def _reset(self, reset_ds=False):
+    def _reset(self):
         # Recreated on access
         self._cfg = None
         self._paths = None
         self._distro = None
-        if reset_ds:
-            self.datasource = None
-            self.ds_restored = False
 
     @property
     def distro(self):
