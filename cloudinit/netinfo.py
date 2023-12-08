@@ -186,41 +186,40 @@ def _netdev_info_ifconfig_netbsd(ifconfig_data):
         if line[0] not in ("\t", " "):
             curdev = line.split()[0]
             # current ifconfig pops a ':' on the end of the device
-            if curdev.endswith(":"):
-                curdev = curdev[:-1]
+            curdev = curdev.rstrip(":")
             if curdev not in devs:
                 devs[curdev] = deepcopy(DEFAULT_NETDEV_INFO)
-        toks = line.lower().strip().split()
-        if len(toks) > 1:
-            if re.search(r"flags=[x\d]+<up.*>", toks[1]):
-                devs[curdev]["up"] = True
+            toks = line.lower().strip().split()
+            if len(toks) > 1:
+                if re.search(r"flags=[x\d]+<up.*>", toks[1]):
+                    devs[curdev]["up"] = True
 
-        for i in range(len(toks)):
-            if toks[i] == "inet":  # Create new ipv4 addr entry
-                network, net_bits = toks[i + 1].split("/")
-                devs[curdev]["ipv4"].append(
-                    {"ip": network, "mask": net_prefix_to_ipv4_mask(net_bits)}
-                )
-            elif toks[i] == "broadcast":
-                devs[curdev]["ipv4"][-1]["bcast"] = toks[i + 1]
-            elif toks[i] == "address:":
-                devs[curdev]["hwaddr"] = toks[i + 1]
-            elif toks[i] == "inet6":
-                if toks[i + 1] == "addr:":
-                    devs[curdev]["ipv6"].append({"ip": toks[i + 2]})
-                else:
-                    devs[curdev]["ipv6"].append({"ip": toks[i + 1]})
-            elif toks[i] == "prefixlen":  # Add prefix to current ipv6 value
-                addr6 = devs[curdev]["ipv6"][-1]["ip"] + "/" + toks[i + 1]
-                devs[curdev]["ipv6"][-1]["ip"] = addr6
-            elif toks[i].startswith("scope:"):
-                devs[curdev]["ipv6"][-1]["scope6"] = toks[i].lstrip("scope:")
-            elif toks[i] == "scopeid":
-                res = re.match(r".*<(\S+)>", toks[i + 1])
-                if res:
-                    devs[curdev]["ipv6"][-1]["scope6"] = res.group(1)
-                else:
-                    devs[curdev]["ipv6"][-1]["scope6"] = toks[i + 1]
+            for i in range(len(toks)):
+                if toks[i] == "inet":  # Create new ipv4 addr entry
+                    network, net_bits = toks[i + 1].split("/")
+                    devs[curdev]["ipv4"].append(
+                        {"ip": network, "mask": net_prefix_to_ipv4_mask(net_bits)}
+                    )
+                elif toks[i] == "broadcast":
+                    devs[curdev]["ipv4"][-1]["bcast"] = toks[i + 1]
+                elif toks[i] == "address:":
+                    devs[curdev]["hwaddr"] = toks[i + 1]
+                elif toks[i] == "inet6":
+                    if toks[i + 1] == "addr:":
+                        devs[curdev]["ipv6"].append({"ip": toks[i + 2]})
+                    else:
+                        devs[curdev]["ipv6"].append({"ip": toks[i + 1]})
+                elif toks[i] == "prefixlen":  # Add prefix to current ipv6 value
+                    addr6 = devs[curdev]["ipv6"][-1]["ip"] + "/" + toks[i + 1]
+                    devs[curdev]["ipv6"][-1]["ip"] = addr6
+                elif toks[i].startswith("scope:"):
+                    devs[curdev]["ipv6"][-1]["scope6"] = toks[i].lstrip("scope:")
+                elif toks[i] == "scopeid":
+                    res = re.match(r".*<(\S+)>", toks[i + 1])
+                    if res:
+                        devs[curdev]["ipv6"][-1]["scope6"] = res.group(1)
+                    else:
+                        devs[curdev]["ipv6"][-1]["scope6"] = toks[i + 1]
 
     return devs
 
@@ -234,50 +233,49 @@ def _netdev_info_ifconfig(ifconfig_data):
         if line[0] not in ("\t", " "):
             curdev = line.split()[0]
             # current ifconfig pops a ':' on the end of the device
-            if curdev.endswith(":"):
-                curdev = curdev[:-1]
+            curdev = curdev.rstrip(":")
             if curdev not in devs:
                 devs[curdev] = deepcopy(DEFAULT_NETDEV_INFO)
-        toks = line.lower().strip().split()
-        if toks[0] == "up":
-            devs[curdev]["up"] = True
-        # If the output of ifconfig doesn't contain the required info in the
-        # obvious place, use a regex filter to be sure.
-        elif len(toks) > 1:
-            if re.search(r"flags=\d+<up,", toks[1]):
+            toks = line.lower().strip().split()
+            if toks[0] == "up":
                 devs[curdev]["up"] = True
+            # If the output of ifconfig doesn't contain the required info in the
+            # obvious place, use a regex filter to be sure.
+            elif len(toks) > 1:
+                if re.search(r"flags=\d+<up,", toks[1]):
+                    devs[curdev]["up"] = True
 
-        for i in range(len(toks)):
-            if toks[i] == "inet":  # Create new ipv4 addr entry
-                devs[curdev]["ipv4"].append(
-                    {"ip": toks[i + 1].lstrip("addr:")}
-                )
-            elif toks[i].startswith("bcast:"):
-                devs[curdev]["ipv4"][-1]["bcast"] = toks[i].lstrip("bcast:")
-            elif toks[i] == "broadcast":
-                devs[curdev]["ipv4"][-1]["bcast"] = toks[i + 1]
-            elif toks[i].startswith("mask:"):
-                devs[curdev]["ipv4"][-1]["mask"] = toks[i].lstrip("mask:")
-            elif toks[i] == "netmask":
-                devs[curdev]["ipv4"][-1]["mask"] = toks[i + 1]
-            elif toks[i] == "hwaddr" or toks[i] == "ether":
-                devs[curdev]["hwaddr"] = toks[i + 1]
-            elif toks[i] == "inet6":
-                if toks[i + 1] == "addr:":
-                    devs[curdev]["ipv6"].append({"ip": toks[i + 2]})
-                else:
-                    devs[curdev]["ipv6"].append({"ip": toks[i + 1]})
-            elif toks[i] == "prefixlen":  # Add prefix to current ipv6 value
-                addr6 = devs[curdev]["ipv6"][-1]["ip"] + "/" + toks[i + 1]
-                devs[curdev]["ipv6"][-1]["ip"] = addr6
-            elif toks[i].startswith("scope:"):
-                devs[curdev]["ipv6"][-1]["scope6"] = toks[i].lstrip("scope:")
-            elif toks[i] == "scopeid":
-                res = re.match(r".*<(\S+)>", toks[i + 1])
-                if res:
-                    devs[curdev]["ipv6"][-1]["scope6"] = res.group(1)
-                else:
-                    devs[curdev]["ipv6"][-1]["scope6"] = toks[i + 1]
+            for i in range(len(toks)):
+                if toks[i] == "inet":  # Create new ipv4 addr entry
+                    devs[curdev]["ipv4"].append(
+                        {"ip": toks[i + 1].lstrip("addr:")}
+                    )
+                elif toks[i].startswith("bcast:"):
+                    devs[curdev]["ipv4"][-1]["bcast"] = toks[i].lstrip("bcast:")
+                elif toks[i] == "broadcast":
+                    devs[curdev]["ipv4"][-1]["bcast"] = toks[i + 1]
+                elif toks[i].startswith("mask:"):
+                    devs[curdev]["ipv4"][-1]["mask"] = toks[i].lstrip("mask:")
+                elif toks[i] == "netmask":
+                    devs[curdev]["ipv4"][-1]["mask"] = toks[i + 1]
+                elif toks[i] == "hwaddr" or toks[i] == "ether":
+                    devs[curdev]["hwaddr"] = toks[i + 1]
+                elif toks[i] == "inet6":
+                    if toks[i + 1] == "addr:":
+                        devs[curdev]["ipv6"].append({"ip": toks[i + 2]})
+                    else:
+                        devs[curdev]["ipv6"].append({"ip": toks[i + 1]})
+                elif toks[i] == "prefixlen":  # Add prefix to current ipv6 value
+                    addr6 = devs[curdev]["ipv6"][-1]["ip"] + "/" + toks[i + 1]
+                    devs[curdev]["ipv6"][-1]["ip"] = addr6
+                elif toks[i].startswith("scope:"):
+                    devs[curdev]["ipv6"][-1]["scope6"] = toks[i].lstrip("scope:")
+                elif toks[i] == "scopeid":
+                    res = re.match(r".*<(\S+)>", toks[i + 1])
+                    if res:
+                        devs[curdev]["ipv6"][-1]["scope6"] = res.group(1)
+                    else:
+                        devs[curdev]["ipv6"][-1]["scope6"] = toks[i + 1]
 
     return devs
 

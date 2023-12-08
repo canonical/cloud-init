@@ -152,7 +152,7 @@ def subp(
     capture=True,
     shell=False,
     logstring=False,
-    decode="replace",
+    decode: Union[str, bool] = "replace",
     update_env=None,
     cwd=None,
 ) -> SubpResult:
