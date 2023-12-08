@@ -333,12 +333,12 @@ Attempt to run a single, named, cloud config module.
 
 * :command:`--name`: The cloud-config module name to run.
 * :command:`--frequency`: Module frequency for this run.
-  One of (``always``|``once-per-instance``|``once``).
+  One of (``always``|``instance``|``once``).
 * :command:`--report`: Enable reporting.
 * :command:`--file` : Use additional yaml configuration files.
 
 The following example re-runs the ``cc_set_hostname`` module ignoring the
-module default frequency of ``once-per-instance``:
+module default frequency of ``instance``:
 
 .. code-block:: shell-session
 
