@@ -231,11 +231,11 @@
           "type": "boolean"
         },
         "passwd": {
-          "description": "Hash of user password applied when user does not exist. This will NOT be applied if the user already exists. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=500000 **Note:** Your password might possibly be visible to unprivileged users on your system, depending on your cloud's security model. Check if your cloud's IMDS server is visible from an unprivileged user to evaluate risk.",
+          "description": "Hash of user password applied when user does not exist. This will NOT be applied if the user already exists. To generate this hash, run: ``mkpasswd --method=SHA-512 --rounds=500000`` **Note:** Your password might possibly be visible to unprivileged users on your system, depending on your cloud's security model. Check if your cloud's IMDS server is visible from an unprivileged user to evaluate risk.",
           "type": "string"
         },
         "hashed_passwd": {
-          "description": "Hash of user password to be applied. This will be applied even if the user is preexisting. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=500000. **Note:** Your password might possibly be visible to unprivileged users on your system, depending on your cloud's security model. Check if your cloud's IMDS server is visible from an unprivileged user to evaluate risk.",
+          "description": "Hash of user password to be applied. This will be applied even if the user is preexisting. To generate this hash, run: ``mkpasswd --method=SHA-512 --rounds=500000``. **Note:** Your password might possibly be visible to unprivileged users on your system, depending on your cloud's security model. Check if your cloud's IMDS server is visible from an unprivileged user to evaluate risk.",
           "type": "string"
         },
         "plain_text_passwd": {
@@ -871,7 +871,7 @@
             },
             "conf": {
               "type": "string",
-              "description": "Specify configuration for apt, such as proxy configuration. This configuration is specified as a string. For mult-line APT configuration, make sure to follow YAML syntax."
+              "description": "Specify configuration for apt, such as proxy configuration. This configuration is specified as a string. For multi-line APT configuration, make sure to follow YAML syntax."
             },
             "https_proxy": {
               "type": "string",
@@ -1095,7 +1095,7 @@
             "log_location": {
               "type": "string",
               "default": "/var/log/chef/client.log",
-              "description": "Specifies the location of the chef lof file. By default, the location is specified at ``/var/log/chef/client.log``."
+              "description": "Specifies the location of the chef log file. By default, the location is specified at ``/var/log/chef/client.log``."
             },
             "node_name": {
               "type": "string",

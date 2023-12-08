@@ -64,7 +64,7 @@ def update_event_enabled(
     datasource: sources.DataSource,
     cfg: dict,
     event_source_type: EventType,
-    scope: Optional[EventScope] = None,
+    scope: EventScope,
 ) -> bool:
     """Determine if a particular EventType is enabled.
 
@@ -93,11 +93,7 @@ def update_event_enabled(
     )
     LOG.debug("Allowed events: %s", allowed)
 
-    scopes: Iterable[EventScope]
-    if not scope:
-        scopes = allowed.keys()
-    else:
-        scopes = [scope]
+    scopes: Iterable[EventScope] = [scope]
     scope_values = [s.value for s in scopes]
 
     for evt_scope in scopes:
@@ -122,7 +118,7 @@ class Init:
         else:
             self.ds_deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
         # Created on first use
-        self._cfg: Optional[dict] = None
+        self._cfg: Dict = {}
         self._paths: Optional[helpers.Paths] = None
         self._distro: Optional[distros.Distro] = None
         # Changed only when a fetch occurs
@@ -138,14 +134,11 @@ class Init:
             )
         self.reporter = reporter
 
-    def _reset(self, reset_ds=False):
+    def _reset(self):
         # Recreated on access
-        self._cfg = None
+        self._cfg = {}
         self._paths = None
         self._distro = None
-        if reset_ds:
-            self.datasource = None
-            self.ds_restored = False
 
     @property
     def distro(self):
@@ -179,8 +172,6 @@ class Init:
             ocfg = util.get_cfg_by_path(ocfg, ("system_info",), {})
         elif restriction == "paths":
             ocfg = util.get_cfg_by_path(ocfg, ("system_info", "paths"), {})
-        if not isinstance(ocfg, (dict)):
-            ocfg = {}
         return ocfg
 
     @property
@@ -262,10 +253,8 @@ class Init:
             )
 
     def read_cfg(self, extra_fns=None):
-        # None check so that we don't keep on re-loading if empty
-        if self._cfg is None:
+        if not self._cfg:
             self._cfg = self._read_cfg(extra_fns)
-            # LOG.debug("Loaded 'init' config %s", self._cfg)
 
     def _read_cfg(self, extra_fns):
         no_cfg_paths = helpers.Paths({}, self.datasource)

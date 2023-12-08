@@ -36,7 +36,16 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.viewcode",
+    "sphinxcontrib.spelling",
 ]
+
+
+# Spelling settings for sphinxcontrib.spelling
+# https://docs.ubuntu.com/styleguide/en/
+spelling_warning = True
+
+# Uses case-independent spelling matches from doc/rtd/spelling_word_list.txt
+spelling_filters = ["spelling.WordListFilter"]
 
 # The suffix of source filenames.
 source_suffix = ".rst"
