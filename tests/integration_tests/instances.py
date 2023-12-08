@@ -127,7 +127,6 @@ class IntegrationInstance:
     def install_new_cloud_init(
         self,
         source: CloudInitSource,
-        take_snapshot=True,
         clean=True,
     ):
         if source == CloudInitSource.DEB_PACKAGE:
@@ -148,9 +147,6 @@ class IntegrationInstance:
         log.info("Installed cloud-init version: %s", version)
         if clean:
             self.instance.clean()
-        if take_snapshot:
-            snapshot_id = self.snapshot()
-            self.cloud.snapshot_id = snapshot_id
 
     # assert with retry because we can compete with apt already running in the
     # background and get: E: Could not get lock /var/lib/apt/lists/lock - open

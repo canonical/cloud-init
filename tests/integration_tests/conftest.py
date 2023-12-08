@@ -120,6 +120,9 @@ def setup_image(session_cloud: IntegrationCloud, request):
     log.info("Setting up environment for %s", session_cloud.datasource)
     client = session_cloud.launch()
     client.install_new_cloud_init(source)
+    # All done customizing the image, so snapshot it and make it global
+    snapshot_id = client.snapshot()
+    client.cloud.snapshot_id = snapshot_id
     # Even if we're keeping instances, we don't want to keep this
     # one around as it was just for image creation
     client.destroy()
