@@ -10,9 +10,10 @@ name="cloudinit"
 start_cmd="start_cloud_init"
 start_cloud_init()
 {
-    test -e {{prefix}}/etc/cloud/cloud-init.disabled \
-      && warn "cloud-init disabled by cloud-init.disabled file" \
-      && exit 0
+    if test -e {{prefix}}/etc/cloud/cloud-init.disabled ; then
+       warn "cloud-init disabled by cloud-init.disabled file"
+       exit 0
+    fi
     {{prefix}}/bin/cloud-init modules --mode final
 }
 
