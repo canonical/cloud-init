@@ -115,7 +115,7 @@ def _read_kenv(key: str) -> Optional[str]:
         LOG.debug("kenv returned '%s' for '%s'", result, kmap.freebsd)
         return result
     except subp.ProcessExecutionError as e:
-        LOG.debug("failed kenv cmd: %s\n%s", cmd, e)  # type: ignore
+        LOG.debug("failed kenv cmd: %s\n%s", cmd, e)
 
     return None
 
@@ -134,7 +134,7 @@ def _call_dmidecode(key: str, dmidecode_path: str) -> Optional[str]:
             return ""
         return result
     except subp.ProcessExecutionError as e:
-        LOG.debug("failed dmidecode cmd: %s\n%s", cmd, e)  # type: ignore
+        LOG.debug("failed dmidecode cmd: %s\n%s", cmd, e)
         return None
 
 
