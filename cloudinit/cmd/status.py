@@ -285,14 +285,20 @@ def _get_systemd_status() -> Optional[UXAppStatus]:
         "cloud-init.service",
         "cloud-init-local.service",
     ]:
-        stdout = subp.subp(
-            [
-                "systemctl",
-                "show",
-                "--property=ActiveState,UnitFileState,SubState,MainPID",
-                service,
-            ],
-        ).stdout
+        cmd = [
+            "systemctl",
+            "show",
+            "--property=ActiveState,UnitFileState,SubState,MainPID",
+            service,
+        ]
+        for retry_sleep in [0.25] * 10:  # 10 retries sleeping 0.25 sec between
+            try:
+                stdout = subp.subp(cmd).stdout
+                break
+            except subp.ProcessExecutionError as e:
+                print("Retrying: %s on %s", cmd, e)
+                sleep(retry_sleep)
+
         states = dict(
             [[x.strip() for x in r.split("=")] for r in stdout.splitlines()]
         )

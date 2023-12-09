@@ -12,7 +12,7 @@ import pytest
 from cloudinit.atomic_helper import write_json
 from cloudinit.cmd import status
 from cloudinit.cmd.status import UXAppStatus, _get_systemd_status
-from cloudinit.subp import SubpResult
+from cloudinit.subp import ProcessExecutionError, SubpResult
 from cloudinit.util import ensure_file
 from tests.unittests.helpers import wrap_and_call
 
@@ -874,6 +874,28 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
 
 
 class TestSystemdStatusDetails:
+    def test_retry_on_failures(self):
+        with mock.patch(
+            f"{M_PATH}subp.subp",
+            side_effect=[
+                ProcessExecutionError(
+                    "Message recipient disconnected from message bus without"
+                    " replying"
+                ),
+                ProcessExecutionError(
+                    "Message recipient disconnected from message bus without"
+                    " replying"
+                ),
+                SubpResult(
+                    f"ActiveState=activating\nUnitFileState=enabled\n"
+                    f"SubState=start\nMainPID=123\n",
+                    stderr=None,
+                ),
+            ],
+        ) as m_supb:
+            assert _get_systemd_status() == UXAppStatus.RUNNING
+        assert 3 == m_supb.call_count
+
     @pytest.mark.parametrize(
         ["active_state", "unit_file_state", "sub_state", "main_pid", "status"],
         [
