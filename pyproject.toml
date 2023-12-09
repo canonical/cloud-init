@@ -60,3 +60,13 @@ ignore = [
 ]
 [tool.ruff.per-file-ignores]
 "cloudinit/cmd/main.py" = ["E402"]
+
+[tool.pyright]
+# 1. Suppress "Method {m} overrides class {c} in an incompatible manner"
+reportIncompatibleMethodOverride = false
+# 2. Suppress "{Method} is not a known member of None"
+reportOptionalMemberAccess = false
+# 3. Exclude specified files & folders from the check (overwrites include)
+exclude = ["cloudinit/apport.py"]
+# 4. Include only specified files & folders to the check
+include = []

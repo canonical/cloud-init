@@ -108,15 +108,14 @@ def _read_kenv(key: str) -> Optional[str]:
 
     LOG.debug("querying dmi data %s", kmap.freebsd)
 
-    cmd = ["kenv", "-q", kmap.freebsd]
-
     try:
+        cmd = ["kenv", "-q", kmap.freebsd]
         (result, _err) = subp.subp(cmd)
         result = result.strip()
         LOG.debug("kenv returned '%s' for '%s'", result, kmap.freebsd)
         return result
     except subp.ProcessExecutionError as e:
-        LOG.debug("failed kenv cmd: %s\n%s", cmd, e)
+        LOG.debug("failed kenv cmd: %s\n%s", cmd, e)  # type: ignore
 
     return None
 
@@ -126,8 +125,8 @@ def _call_dmidecode(key: str, dmidecode_path: str) -> Optional[str]:
     Calls out to dmidecode to get the data out. This is mostly for supporting
     OS's without /sys/class/dmi/id support.
     """
-    cmd = [dmidecode_path, "--string", key]
     try:
+        cmd = [dmidecode_path, "--string", key]
         (result, _err) = subp.subp(cmd)
         result = result.strip()
         LOG.debug("dmidecode returned '%s' for '%s'", result, key)
@@ -135,7 +134,7 @@ def _call_dmidecode(key: str, dmidecode_path: str) -> Optional[str]:
             return ""
         return result
     except subp.ProcessExecutionError as e:
-        LOG.debug("failed dmidecode cmd: %s\n%s", cmd, e)
+        LOG.debug("failed dmidecode cmd: %s\n%s", cmd, e)  # type: ignore
         return None
 
 
