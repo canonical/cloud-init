@@ -17,7 +17,9 @@ skip = ["cloudinit/cmd/main.py", ".tox", "packages", "tools"]
 follow_imports = "silent"
 warn_unused_ignores = "true"
 warn_redundant_casts = "true"
-exclude = []
+exclude = [
+    "# type: ignore"  # Is used to ignore pyrght errors
+]
 
 [[tool.mypy.overrides]]
 module = [
