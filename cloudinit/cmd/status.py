@@ -11,6 +11,7 @@ import enum
 import json
 import os
 import sys
+import time
 from copy import deepcopy
 from time import gmtime, sleep, strftime
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
@@ -272,12 +273,15 @@ def get_bootstatus(disable_file, paths) -> Tuple[UXAppBootStatusCode, str]:
     return (bootstatus_code, reason)
 
 
-def _get_systemd_status() -> Optional[UXAppStatus]:
-    """Get status from systemd.
+def _get_error_or_running_from_systemd() -> Optional[UXAppStatus]:
+    """Get if systemd is in error or running state.
 
     Using systemd, we can get more fine-grained status of the
     individual unit. Determine if we're still
-    running or if there's an error we haven't otherwise detected
+    running or if there's an error we haven't otherwise detected.
+
+    If we don't detect error or running, return None as we don't want to
+    report any other particular status based on systemd.
     """
     for service in [
         "cloud-final.service",
@@ -321,6 +325,35 @@ def _get_systemd_status() -> Optional[UXAppStatus]:
         return UXAppStatus.RUNNING
     # All services exited normally or aren't enabled, so don't report
     # any particular status based on systemd.
+    return None
+
+
+def _get_error_or_running_from_systemd_with_retry(
+    existing_status, max_wait=5
+) -> Optional[UXAppStatus]:
+    """Get systemd status and retry if dbus isn't ready.
+
+    If cloud-init has determined that we're still running, then we can
+    ignore the status from systemd. However, if cloud-init has detected error,
+    then we should retry on systemd status so we don't incorrectly report
+    error state while cloud-init is still running.
+    """
+    start_time = time.time()
+    while time.time() - start_time < max_wait:
+        try:
+            return _get_error_or_running_from_systemd()
+        except subp.ProcessExecutionError:
+            if existing_status in (
+                UXAppStatus.DEGRADED_RUNNING,
+                UXAppStatus.RUNNING,
+            ):
+                return None
+            sleep(0.25)
+    print(
+        f"Failed to get status from systemd after {max_wait} seconds. "
+        "Cloud-init may still be running.",
+        file=sys.stderr,
+    )
     return None
 
 
@@ -395,7 +428,7 @@ def get_status_details(paths: Optional[Paths] = None) -> StatusDetails:
         UXAppStatus.NOT_RUN,
         UXAppStatus.DISABLED,
     ):
-        systemd_status = _get_systemd_status()
+        systemd_status = _get_error_or_running_from_systemd_with_retry(status)
         if systemd_status:
             status = systemd_status
 
