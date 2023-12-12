@@ -337,7 +337,6 @@ def _get_error_or_running_from_systemd_with_retry(
     then we should retry on systemd status so we don't incorrectly report
     error state while cloud-init is still running.
     """
-    last_exception = subp.ProcessExecutionError
     while True:
         try:
             return _get_error_or_running_from_systemd()
@@ -435,7 +434,7 @@ def get_status_details(
         UXAppStatus.DISABLED,
     ):
         systemd_status = _get_error_or_running_from_systemd_with_retry(
-            status, wait
+            status, wait=wait
         )
         if systemd_status:
             status = systemd_status
