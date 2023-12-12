@@ -308,6 +308,7 @@ class NMConnection:
 
         device_mtu = iface["mtu"]
         ipv4_mtu = None
+        found_dns_search = []
 
         # Deal with Layer 3 configuration
         for subnet in iface["subnets"]:
@@ -324,9 +325,14 @@ class NMConnection:
                 for nameserver in subnet["dns_nameservers"]:
                     self._add_nameserver(nameserver)
             if "dns_search" in subnet:
-                self._add_dns_search(subnet["dns_search"])
+                found_dns_search.append(subnet["dns_search"])
             if family == "ipv4" and "mtu" in subnet:
                 ipv4_mtu = subnet["mtu"]
+
+        # Now add our DNS search domains. We add them later because we
+        # only want them if an IP family has already been defined
+        for dns_search in found_dns_search:
+            self._add_dns_search(dns_search)
 
         # we do not want to set may-fail to false for both ipv4 and ipv6 dhcp
         # at the at the same time. This will make the network configuration

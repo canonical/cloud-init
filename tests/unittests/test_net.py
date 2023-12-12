@@ -2963,8 +2963,8 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 address1=192.168.0.2/24
                 gateway=192.168.0.1
                 dns=192.168.0.10;10.23.23.134;
-                dns-search=barley.maas;sacchromyces.maas;brettanomyces.maas;
                 address2=192.168.2.10/24
+                dns-search=barley.maas;sacchromyces.maas;brettanomyces.maas;
 
                 """
             ),
@@ -4187,8 +4187,8 @@ iface bond0 inet6 static
                 method=auto
                 may-fail=true
                 dns=FEDC::1;
-                dns-search=lab;home;
                 address1=2001:bc8:1210:232:dc00:ff:fe20:185/64
+                dns-search=lab;home;
 
             """
             )
