@@ -344,7 +344,7 @@ class NMConnection:
 
         if ipv4_mtu is None:
             ipv4_mtu = device_mtu
-        if ipv4_mtu != device_mtu:
+        if not ipv4_mtu == device_mtu:
             LOG.warning(
                 "Network config: ignoring %s device-level mtu:%s"
                 " because ipv4 subnet-level mtu:%s provided.",
