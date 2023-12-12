@@ -35,7 +35,6 @@ cleanup
 cloudinit
 cloudlinux
 cloudplatform
-commandline
 conf
 config
 configdrive
