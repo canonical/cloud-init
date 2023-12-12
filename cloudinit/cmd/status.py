@@ -11,7 +11,6 @@ import enum
 import json
 import os
 import sys
-import time
 from copy import deepcopy
 from time import gmtime, sleep, strftime
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
@@ -138,7 +137,7 @@ def handle_status_args(name, args) -> int:
     """Handle calls to 'cloud-init status' as a subcommand."""
     # Read configured paths
     paths = read_cfg_paths()
-    details = get_status_details(paths)
+    details = get_status_details(paths, args.wait)
     if args.wait:
         while details.status in (
             UXAppStatus.NOT_RUN,
@@ -148,7 +147,7 @@ def handle_status_args(name, args) -> int:
             if args.format == "tabular":
                 sys.stdout.write(".")
                 sys.stdout.flush()
-            details = get_status_details(paths)
+            details = get_status_details(paths, args.wait)
             sleep(0.25)
     details_dict: Dict[str, Union[None, str, List[str], Dict[str, Any]]] = {
         "datasource": details.datasource,
@@ -329,7 +328,7 @@ def _get_error_or_running_from_systemd() -> Optional[UXAppStatus]:
 
 
 def _get_error_or_running_from_systemd_with_retry(
-    existing_status, max_wait=5
+    existing_status: UXAppStatus, *, wait: bool
 ) -> Optional[UXAppStatus]:
     """Get systemd status and retry if dbus isn't ready.
 
@@ -338,26 +337,33 @@ def _get_error_or_running_from_systemd_with_retry(
     then we should retry on systemd status so we don't incorrectly report
     error state while cloud-init is still running.
     """
-    start_time = time.time()
-    while time.time() - start_time < max_wait:
+    last_exception = subp.ProcessExecutionError
+    while True:
         try:
             return _get_error_or_running_from_systemd()
-        except subp.ProcessExecutionError:
+        except subp.ProcessExecutionError as e:
+            last_exception = e
             if existing_status in (
                 UXAppStatus.DEGRADED_RUNNING,
                 UXAppStatus.RUNNING,
             ):
                 return None
-            sleep(0.25)
+            if wait:
+                sleep(0.25)
+            else:
+                break
     print(
-        f"Failed to get status from systemd after {max_wait} seconds. "
-        "Cloud-init may still be running.",
+        "Failed to get status from systemd. "
+        "Cloud-init status may be inaccurate. ",
+        f"Error from systemctl: {last_exception.stderr}",
         file=sys.stderr,
     )
     return None
 
 
-def get_status_details(paths: Optional[Paths] = None) -> StatusDetails:
+def get_status_details(
+    paths: Optional[Paths] = None, wait: bool = False
+) -> StatusDetails:
     """Return a dict with status, details and errors.
 
     @param paths: An initialized cloudinit.helpers.paths object.
@@ -428,7 +434,9 @@ def get_status_details(paths: Optional[Paths] = None) -> StatusDetails:
         UXAppStatus.NOT_RUN,
         UXAppStatus.DISABLED,
     ):
-        systemd_status = _get_error_or_running_from_systemd_with_retry(status)
+        systemd_status = _get_error_or_running_from_systemd_with_retry(
+            status, wait
+        )
         if systemd_status:
             status = systemd_status
 

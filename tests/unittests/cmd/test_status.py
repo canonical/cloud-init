@@ -960,7 +960,7 @@ class TestGetErrorOrRunningFromSystemd:
         )
         assert (
             _get_error_or_running_from_systemd_with_retry(
-                UXAppStatus.RUNNING, max_wait=1000
+                UXAppStatus.RUNNING, wait=True
             )
             is None
         )
@@ -988,14 +988,14 @@ class TestGetErrorOrRunningFromSystemd:
         )
         assert (
             _get_error_or_running_from_systemd_with_retry(
-                UXAppStatus.ERROR, max_wait=1000
+                UXAppStatus.ERROR, wait=True
             )
             is UXAppStatus.RUNNING
         )
         assert 3 == m_subp.call_count
         assert "Failed to get status" not in capsys.readouterr().err
 
-    def test_retry_timeout(self, mocker, capsys):
+    def test_retry_no_wait(self, mocker, capsys):
         m_subp = mocker.patch(
             f"{M_PATH}subp.subp",
             side_effect=subp.ProcessExecutionError(
@@ -1006,12 +1006,12 @@ class TestGetErrorOrRunningFromSystemd:
         mocker.patch("time.time", side_effect=[1, 2, 50])
         assert (
             _get_error_or_running_from_systemd_with_retry(
-                UXAppStatus.ERROR, max_wait=5
+                UXAppStatus.ERROR, wait=False
             )
             is None
         )
         assert 1 == m_subp.call_count
         assert (
-            "Failed to get status from systemd after 5 seconds. "
-            "Cloud-init may still be running."
+            "Failed to get status from systemd. "
+            "Cloud-init status may be inaccurate."
         ) in capsys.readouterr().err
