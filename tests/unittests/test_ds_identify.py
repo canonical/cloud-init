@@ -18,16 +18,14 @@ from tests.unittests.helpers import (
     populate_dir_with_ts,
 )
 
-UNAME_MYSYS = (
-    "Linux 4.4.0-62-generic #83-Ubuntu SMP Wed Jan 18 14:10:15 UTC 2017 x86_64"
-)
+UNAME_MYSYS = "Linux #83-Ubuntu SMP Wed Jan 18 14:10:15 UTC 2017 x86_64"
 UNAME_PPC64EL = (
-    "Linux 4.4.0-83-generic #106-Ubuntu SMP "
-    "Mon Jun 26 17:53:54 UTC 2017 "
+    "Linux #106-Ubuntu SMP mon Jun 26 17:53:54 UTC 2017 "
     "ppc64le ppc64le ppc64le"
 )
 UNAME_FREEBSD = (
-    "FreeBSD 12.1-RELEASE-p10 FreeBSD 12.1-RELEASE-p10 GENERIC  amd64"
+    "FreeBSD FreeBSD 14.0-RELEASE-p3 releng/14.0-n265398-20fae1e1699"
+    "GENERIC-MMCCAM amd64"
 )
 UNAME_OPENBSD = "OpenBSD GENERIC.MP#1397 amd64"
 
@@ -340,7 +338,17 @@ class DsIdentifyBase(CiTestCase):
             },
         ]
 
-        written = [d["name"] for d in mocks]
+        uname = "Linux"
+        runpath = "run"
+        written = []
+        for d in mocks:
+            written.append(d["name"])
+            if d["name"] == "uname":
+                uname = d["out"].split(" ")[0]
+        # set runpath so that BSDs use /var/run rather than /run
+        if uname != "Linux":
+            runpath = "var/run"
+
         for data in mocks:
             mocklines.append(write_mock(data))
         for d in default_mocks:
@@ -363,7 +371,7 @@ class DsIdentifyBase(CiTestCase):
             err = e.stderr
 
         cfg = None
-        cfg_out = os.path.join(rootd, "run/cloud-init/cloud.cfg")
+        cfg_out = os.path.join(rootd, runpath, "cloud-init/cloud.cfg")
         if os.path.exists(cfg_out):
             contents = util.load_file(cfg_out)
             try:
