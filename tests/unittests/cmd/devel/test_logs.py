@@ -231,15 +231,14 @@ class TestCollectLogs:
                 "cloud-init? more like cloud-innit!\n",
             ),
             (
-                ["ls", "/nonexistent-directory"],
+                ["sh", "-c", "echo test 1>&2; exit 42"],
                 (
                     "Unexpected error while running command.\n"
-                    "Command: ['ls', '/nonexistent-directory']\n"
-                    "Exit code: 2\n"
+                    "Command: ['sh', '-c', 'echo test 1>&2; exit 42']\n"
+                    "Exit code: 42\n"
                     "Reason: -\n"
                     "Stdout: \n"
-                    "Stderr: ls: cannot access '/nonexistent-directory': "
-                    "No such file or directory"
+                    "Stderr: test"
                 ),
                 None,
             ),
@@ -270,13 +269,7 @@ class TestCollectLogs:
         "cmd, expected_file_contents",
         [
             (["echo", "cloud-init, shmoud-init"], "cloud-init, shmoud-init\n"),
-            (
-                ["ls", "/nonexistent-directory"],
-                (
-                    "ls: cannot access '/nonexistent-directory': "
-                    "No such file or directory\n"
-                ),
-            ),
+            (["sh", "-c", "echo test 1>&2; exit 42"], "test\n"),
         ],
     )
     def test_stream_command_output_to_file(
