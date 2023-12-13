@@ -34,7 +34,6 @@
         "locale",
         "lxd",
         "mcollective",
-        "migrator",
         "mounts",
         "ntp",
         "package-update-upgrade-install",
@@ -1814,16 +1813,6 @@
               }
             }
           }
-        }
-      }
-    },
-    "cc_migrator": {
-      "type": "object",
-      "properties": {
-        "migrate": {
-          "type": "boolean",
-          "default": true,
-          "description": "Whether to migrate legacy cloud-init semaphores to new format. Default: ``true``"
         }
       }
     },
@@ -3686,9 +3675,6 @@
     },
     {
       "$ref": "#/$defs/cc_mcollective"
-    },
-    {
-      "$ref": "#/$defs/cc_migrator"
     },
     {
       "$ref": "#/$defs/cc_mounts"

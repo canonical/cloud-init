@@ -41,7 +41,6 @@ date. A 5 year timeline may also be expected for changed keys.
 .. automodule:: cloudinit.config.cc_locale
 .. automodule:: cloudinit.config.cc_lxd
 .. automodule:: cloudinit.config.cc_mcollective
-.. automodule:: cloudinit.config.cc_migrator
 .. automodule:: cloudinit.config.cc_mounts
 
 .. _mod-ntp:

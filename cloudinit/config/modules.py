@@ -27,6 +27,13 @@ LOG = logging.getLogger(__name__)
 # name in the lookup path...
 MOD_PREFIX = "cc_"
 
+# List of modules that have removed upstream. This prevents every downstream
+# from having to create upgrade scripts to avoid warnings about missing
+# modules.
+REMOVED_MODULES = [
+    "cc_migrator",  # Removed in 24.1
+]
+
 
 class ModuleDetails(NamedTuple):
     module: ModuleType
@@ -194,11 +201,18 @@ class Modules:
                 mod_name, ["", type_utils.obj_name(config)], ["handle"]
             )
             if not mod_locs:
-                LOG.warning(
-                    "Could not find module named %s (searched %s)",
-                    mod_name,
-                    looked_locs,
-                )
+                if mod_name in REMOVED_MODULES:
+                    LOG.info(
+                        "Module `%s` has been removed from cloud-init. "
+                        "It may be removed from `/etc/cloud/cloud.cfg`.",
+                        mod_name[3:],  # [3:] to remove 'cc_'
+                    )
+                else:
+                    LOG.warning(
+                        "Could not find module named %s (searched %s)",
+                        mod_name,
+                        looked_locs,
+                    )
                 continue
             mod = importer.import_module(mod_locs[0])
             validate_module(mod, raw_name)

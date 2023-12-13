@@ -92,7 +92,6 @@ Example output:
         00.00100s (modules-config/config-apt_pipelining)
         00.00100s (init-network/config-write_files)
         00.00100s (init-network/config-seed_random)
-        00.00100s (init-network/config-migrator)
         00.00000s (modules-final/config-ubuntu_drivers)
         00.00000s (modules-final/config-scripts_user)
         00.00000s (modules-final/config-scripts_per_instance)
