@@ -121,7 +121,10 @@ def test_reportable_errors(
     assert error.as_encoded_report() == "|".join(data)
 
 
-def test_dhcp_lease():
+def test_dhcp_lease(mocker):
+    mocker.patch(
+        "cloudinit.sources.azure.identity.query_vm_id", return_value="foo"
+    )
     error = errors.ReportableErrorDhcpLease(duration=5.6, interface="foo")
 
     assert error.reason == "failure to obtain DHCP lease"
@@ -129,7 +132,10 @@ def test_dhcp_lease():
     assert error.supporting_data["interface"] == "foo"
 
 
-def test_dhcp_interface_not_found():
+def test_dhcp_interface_not_found(mocker):
+    mocker.patch(
+        "cloudinit.sources.azure.identity.query_vm_id", return_value="foo"
+    )
     error = errors.ReportableErrorDhcpInterfaceNotFound(duration=5.6)
 
     assert error.reason == "failure to find DHCP interface"
@@ -180,7 +186,10 @@ def test_dhcp_interface_not_found():
         ),
     ],
 )
-def test_imds_url_error(exception, reason):
+def test_imds_url_error(exception, reason, mocker):
+    mocker.patch(
+        "cloudinit.sources.azure.identity.query_vm_id", return_value="foo"
+    )
     duration = 123.4
     fake_url = "fake://url"
 
@@ -195,7 +204,11 @@ def test_imds_url_error(exception, reason):
     assert error.supporting_data["url"] == fake_url
 
 
-def test_imds_metadata_parsing_exception():
+def test_imds_metadata_parsing_exception(mocker):
+    mocker.patch(
+        "cloudinit.sources.azure.identity.query_vm_id", return_value="foo"
+    )
+
     exception = ValueError("foobar")
 
     error = errors.ReportableErrorImdsMetadataParsingException(
@@ -206,7 +219,11 @@ def test_imds_metadata_parsing_exception():
     assert error.supporting_data["exception"] == repr(exception)
 
 
-def test_unhandled_exception():
+def test_unhandled_exception(mocker):
+    mocker.patch(
+        "cloudinit.sources.azure.identity.query_vm_id", return_value="foo"
+    )
+
     source_error = None
     try:
         raise ValueError("my value error")
@@ -227,7 +244,11 @@ def test_unhandled_exception():
     assert f"|{quoted_value}|" in error.as_encoded_report()
 
 
-def test_imds_invalid_metadata():
+def test_imds_invalid_metadata(mocker):
+    mocker.patch(
+        "cloudinit.sources.azure.identity.query_vm_id", return_value="foo"
+    )
+
     key = "compute"
     value = "Running"
     error = errors.ReportableErrorImdsInvalidMetadata(key=key, value=value)
