@@ -1,0 +1,19 @@
+Description: Disable apt source list generation with DEB822 style
+ To avoid change of behavior, supported releases won't generate apt source
+ files with DEB822 style.
+Author: Alberto Contreras <alberto.contreras@canonical.com>
+Forwarded: not-needed
+Last-Update: 2023-12-14
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/cloudinit/features.py
++++ b/cloudinit/features.py
+@@ -80,7 +80,7 @@
+ (This flag can be removed when Jammy is no longer supported.)
+ """
+ 
+-APT_DEB822_SOURCE_LIST_FILE = True
++APT_DEB822_SOURCE_LIST_FILE = False
+ """
+ On Debian and Ubuntu systems, cc_apt_configure will write a deb822 compatible
+ /etc/apt/sources.list.d/(debian|ubuntu).sources file. When set False, continue
