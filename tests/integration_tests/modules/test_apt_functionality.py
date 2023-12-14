@@ -336,6 +336,21 @@ class TestDefaults:
             assert 3 == sources_list.count(sec_deb_line)
             assert 3 == sources_list.count(sec_src_deb_line)
 
+    def test_no_duplicate_apt_sources(self, class_client: IntegrationInstance):
+        r = class_client.execute("apt-get update", use_sudo=True)
+        assert not re.match(
+            r"^W: Target Packages .+ is configured multiple times in", r.stderr
+        )
+
+    def test_disabled_apt_sources(self, class_client: IntegrationInstance):
+        feature_deb822 = is_true(
+            get_feature_flag_value(class_client, "APT_DEB822_SOURCE_LIST_FILE")
+        )
+        if feature_deb822:
+            assert class_client.execute(
+                f"test -f {ORIG_SOURCES_FILE}"
+            ).failed, f"Found unexpected {ORIG_SOURCES_FILE}"
+
 
 DEFAULT_DATA_WITH_URI = _DEFAULT_DATA.format(
     uri='uri: "http://something.random.invalid/ubuntu"'
