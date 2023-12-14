@@ -209,11 +209,10 @@ class NMConnection:
         """
         Extends the ipv[46].dns property with a name server.
         """
-
         family = "ipv6" if is_ipv6_address(dns) else "ipv4"
-        self._set_default(family, "method", "disabled")
-        self._set_default(family, "dns", "")
-        self.config[family]["dns"] = self.config[family]["dns"] + dns + ";"
+        if self.config.has_section(family):
+            self._set_default(family, "dns", "")
+            self.config[family]["dns"] = self.config[family]["dns"] + dns + ";"
 
     def _add_dns_search(self, dns_search: List[str]) -> None:
         """
@@ -308,9 +307,11 @@ class NMConnection:
 
         device_mtu = iface["mtu"]
         ipv4_mtu = None
+        found_nameservers = []
         found_dns_search = []
 
         # Deal with Layer 3 configuration
+        use_top_level_dns = "dns" in iface
         for subnet in iface["subnets"]:
             family = "ipv6" if subnet_is_ipv6(subnet) else "ipv4"
 
@@ -321,18 +322,26 @@ class NMConnection:
                 self.config[family]["gateway"] = subnet["gateway"]
             for route in subnet["routes"]:
                 self._add_route(route)
-            if "dns_nameservers" in subnet:
+            if not use_top_level_dns and "dns_nameservers" in subnet:
                 for nameserver in subnet["dns_nameservers"]:
-                    self._add_nameserver(nameserver)
-            if "dns_search" in subnet:
+                    found_nameservers.append(nameserver)
+            if not use_top_level_dns and "dns_search" in subnet:
                 found_dns_search.append(subnet["dns_search"])
             if family == "ipv4" and "mtu" in subnet:
                 ipv4_mtu = subnet["mtu"]
 
         # Now add our DNS search domains. We add them later because we
         # only want them if an IP family has already been defined
-        for dns_search in found_dns_search:
-            self._add_dns_search(dns_search)
+        if use_top_level_dns:
+            for nameserver in iface["dns"]["nameservers"]:
+                self._add_nameserver(nameserver)
+            if iface["dns"]["search"]:
+                self._add_dns_search(iface["dns"]["search"])
+        else:
+            for nameserver in found_nameservers:
+                self._add_nameserver(nameserver)
+            for dns_search in found_dns_search:
+                self._add_dns_search(dns_search)
 
         # we do not want to set may-fail to false for both ipv4 and ipv6 dhcp
         # at the at the same time. This will make the network configuration
