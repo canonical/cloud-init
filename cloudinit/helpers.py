@@ -104,10 +104,7 @@ class FileSemaphores:
         sem_file = self._get_path(cname, freq)
         # This isn't really a good atomic check
         # but it suffices for where and when cloudinit runs
-        if os.path.exists(sem_file):
-            return True
-
-        return False
+        return os.path.exists(sem_file)
 
     def _get_path(self, name, freq):
         sem_path = self.sem_path
