@@ -475,7 +475,6 @@ EC2 instance:
      "power_state_change"
     ],
     "cloud_init_modules": [
-     "migrator",
      "seed_random",
      "bootcmd",
      "write_files",

@@ -84,7 +84,6 @@ preserve_hostname: false
 
 # The modules that run in the 'init' stage
 cloud_init_modules:
- - migrator
  - seed_random
  - bootcmd
  - write-files
