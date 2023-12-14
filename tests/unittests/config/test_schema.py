@@ -828,7 +828,7 @@ class TestValidateCloudConfigFile:
         )
 
     @pytest.mark.parametrize("annotate", (True, False))
-    def test_validateconfig_file_raises_enhanced_jinja_error(
+    def test_validateconfig_file_raises_jinja_syntax_error(
         self, annotate, tmpdir, mocker, capsys
     ):
         """ """
@@ -853,9 +853,9 @@ class TestValidateCloudConfigFile:
         expected = (
             "Error:\n"
             "Failed to render templated user-data. "
-            + JinjaSyntaxParsingException.message_template.format(
+            + JinjaSyntaxParsingException.format_error_message(
                 syntax_error="unexpected '}'",
-                line_no=3,
+                line_number=3,
                 line_content="c:{{ d } }",
             )
             + "\n"

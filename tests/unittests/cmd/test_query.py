@@ -612,9 +612,9 @@ class TestQuery:
         format = "v1_1: {{ v1.v1_1 } }"
         expected_error = (
             "Failed to render templated data. "
-            + JinjaSyntaxParsingException.message_template.format(
+            + JinjaSyntaxParsingException.format_error_message(
                 syntax_error="unexpected '}'",
-                line_no=2,
+                line_number=2,
                 line_content="v1_1: {{ v1.v1_1 } }",
             )
         )

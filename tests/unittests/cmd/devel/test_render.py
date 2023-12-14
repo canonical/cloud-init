@@ -158,9 +158,9 @@ class TestRender:
         write_file(instance_data, '{"my-var": "jinja worked"}')
         assert render.render_template(user_data, instance_data, True) == 1
         assert (
-            JinjaSyntaxParsingException.message_template.format(
+            JinjaSyntaxParsingException.format_error_message(
                 syntax_error="unexpected '}'",
-                line_no=2,
+                line_number=2,
                 line_content="rendering: {{ my_var } }",
             )
             in caplog.text

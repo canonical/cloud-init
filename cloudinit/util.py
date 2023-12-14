@@ -335,7 +335,7 @@ def read_conf(fname, *, instance_data_file=None) -> Dict:
             LOG.warning(
                 "Failed to render templated yaml config file '%s'. %s",
                 fname,
-                str(e),
+                e,
             )
         except NotJinjaError:
             # A log isn't appropriate here as we generally expect most
