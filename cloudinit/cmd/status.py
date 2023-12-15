@@ -137,7 +137,7 @@ def handle_status_args(name, args) -> int:
     """Handle calls to 'cloud-init status' as a subcommand."""
     # Read configured paths
     paths = read_cfg_paths()
-    details = get_status_details(paths)
+    details = get_status_details(paths, args.wait)
     if args.wait:
         while details.status in (
             UXAppStatus.NOT_RUN,
@@ -147,7 +147,7 @@ def handle_status_args(name, args) -> int:
             if args.format == "tabular":
                 sys.stdout.write(".")
                 sys.stdout.flush()
-            details = get_status_details(paths)
+            details = get_status_details(paths, args.wait)
             sleep(0.25)
     details_dict: Dict[str, Union[None, str, List[str], Dict[str, Any]]] = {
         "datasource": details.datasource,
@@ -272,12 +272,15 @@ def get_bootstatus(disable_file, paths) -> Tuple[UXAppBootStatusCode, str]:
     return (bootstatus_code, reason)
 
 
-def _get_systemd_status() -> Optional[UXAppStatus]:
-    """Get status from systemd.
+def _get_error_or_running_from_systemd() -> Optional[UXAppStatus]:
+    """Get if systemd is in error or running state.
 
     Using systemd, we can get more fine-grained status of the
     individual unit. Determine if we're still
-    running or if there's an error we haven't otherwise detected
+    running or if there's an error we haven't otherwise detected.
+
+    If we don't detect error or running, return None as we don't want to
+    report any other particular status based on systemd.
     """
     for service in [
         "cloud-final.service",
@@ -324,7 +327,42 @@ def _get_systemd_status() -> Optional[UXAppStatus]:
     return None
 
 
-def get_status_details(paths: Optional[Paths] = None) -> StatusDetails:
+def _get_error_or_running_from_systemd_with_retry(
+    existing_status: UXAppStatus, *, wait: bool
+) -> Optional[UXAppStatus]:
+    """Get systemd status and retry if dbus isn't ready.
+
+    If cloud-init has determined that we're still running, then we can
+    ignore the status from systemd. However, if cloud-init has detected error,
+    then we should retry on systemd status so we don't incorrectly report
+    error state while cloud-init is still running.
+    """
+    while True:
+        try:
+            return _get_error_or_running_from_systemd()
+        except subp.ProcessExecutionError as e:
+            last_exception = e
+            if existing_status in (
+                UXAppStatus.DEGRADED_RUNNING,
+                UXAppStatus.RUNNING,
+            ):
+                return None
+            if wait:
+                sleep(0.25)
+            else:
+                break
+    print(
+        "Failed to get status from systemd. "
+        "Cloud-init status may be inaccurate. ",
+        f"Error from systemctl: {last_exception.stderr}",
+        file=sys.stderr,
+    )
+    return None
+
+
+def get_status_details(
+    paths: Optional[Paths] = None, wait: bool = False
+) -> StatusDetails:
     """Return a dict with status, details and errors.
 
     @param paths: An initialized cloudinit.helpers.paths object.
@@ -395,7 +433,9 @@ def get_status_details(paths: Optional[Paths] = None) -> StatusDetails:
         UXAppStatus.NOT_RUN,
         UXAppStatus.DISABLED,
     ):
-        systemd_status = _get_systemd_status()
+        systemd_status = _get_error_or_running_from_systemd_with_retry(
+            status, wait=wait
+        )
         if systemd_status:
             status = systemd_status
 
