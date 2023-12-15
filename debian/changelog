@@ -1,4 +1,4 @@
-cloud-init (23.4.1-0ubuntu0~20.04.1) UNRELEASED; urgency=medium
+cloud-init (23.4.1-0ubuntu1~20.04.1) focal; urgency=medium
 
   * d/p/retain-apt-pre-deb822.patch:
     - Disable apt source list generation with DEB822 style
@@ -9,7 +9,7 @@ cloud-init (23.4.1-0ubuntu0~20.04.1) UNRELEASED; urgency=medium
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/23.4.1/ChangeLog
 
- -- Alberto Contreras <alberto.contreras@canonical.com>  Fri, 15 Dec 2023 13:27:00 +0100
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Fri, 15 Dec 2023 13:27:06 +0100
 
 cloud-init (23.4-0ubuntu1~20.04.1) focal; urgency=medium
 
