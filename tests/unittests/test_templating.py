@@ -269,7 +269,7 @@ class TestJinjaSyntaxParsingException:
         assert error.lineno == line_no
         assert error.message == syntax_error
         assert (
-            error.source.splitlines()[line_no - 1]
+            error.source.splitlines()[line_no - 2]  # -2 because of header
             == jinja_template.splitlines()[line_no - 1]
         )
 
@@ -285,12 +285,21 @@ class TestJinjaSyntaxParsingException:
         )
         assert error_msg == expected_error_msg
 
-    def test_format_error_message_without_content_line(self):
+    @pytest.mark.parametrize(
+        "line_content",
+        (
+            "",
+            None,
+        ),
+    )
+    def test_format_error_message_without_content_line(self, line_content):
         expected_error_msg = (
             "Unable to parse Jinja template due to syntax error: "
             "unexpected '}' on line 4"
         )
         error_msg = JinjaSyntaxParsingException.format_error_message(
-            syntax_error="unexpected '}'", line_number=4, line_content=None
+            syntax_error="unexpected '}'",
+            line_number=4,
+            line_content=line_content,
         )
         assert error_msg == expected_error_msg
