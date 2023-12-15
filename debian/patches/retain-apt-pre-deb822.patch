@@ -8,7 +8,7 @@ Last-Update: 2023-12-14
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/cloudinit/features.py
 +++ b/cloudinit/features.py
-@@ -80,7 +80,7 @@
+@@ -80,7 +80,7 @@ separators.
  (This flag can be removed when Jammy is no longer supported.)
  """
  
