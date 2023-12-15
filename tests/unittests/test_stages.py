@@ -608,8 +608,9 @@ class TestInit_InitializeFilesystem:
             yield init
 
     @mock.patch(M_PATH + "util.ensure_file")
+    @mock.patch(f"{M_PATH}Init._read_cfg")
     def test_ensure_file_not_called_if_no_log_file_configured(
-        self, m_ensure_file, init
+        self, m_read_cfg, m_ensure_file, init
     ):
         """If no log file is configured, we should not ensure its existence."""
         init._cfg = {}

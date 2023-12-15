@@ -333,6 +333,5 @@ class TestAptSourceConfigSourceList:
         self.subp.assert_called_once_with(
             ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
             capture=True,
-            target=None,
             rcs=[0, 1],
         )

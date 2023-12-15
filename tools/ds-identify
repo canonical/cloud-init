@@ -110,11 +110,8 @@ DI_VIRT=""
 DI_PID_1_PRODUCT_NAME=""
 
 DI_UNAME_KERNEL_NAME=""
-DI_UNAME_KERNEL_RELEASE=""
 DI_UNAME_KERNEL_VERSION=""
 DI_UNAME_MACHINE=""
-DI_UNAME_NODENAME=""
-DI_UNAME_OPERATING_SYSTEM=""
 DI_UNAME_CMD_OUT=""
 
 DS_FOUND=0
@@ -213,6 +210,27 @@ get_kenv_field() {
     _RET="$val"
 }
 
+get_sysctl_field() {
+    local sys_field="$1" sysctl_field="" val=""
+    command -v sysctl >/dev/null 2>&1 || {
+        warn "No sysctl program. Cannot read $sys_field."
+        return 1
+    }
+    case "$sys_field" in
+        chassis_vendor) sysctl_field='hw.vendor';;
+        chassis_serial) sysctl_field='hw.type';;
+        chassis_version) sysctl_field='hw.uuid';;
+        sys_vendor) sysctl_field='hw.vendor';;
+        product_name) sysctl_field='hw.product';;
+        product_serial) sysctl_field='hw.uuid';;
+        product_uuid) sysctl_field='hw.uuid';;
+        *) error "Unknown field $sys_field. Cannot call sysctl."
+           return 1;;
+    esac
+    val=$(sysctl -nq "$sysctl_field" 2>/dev/null) || return 1
+    _RET="$val"
+}
+
 dmi_decode() {
     local sys_field="$1" dmi_field="" val=""
     command -v dmidecode >/dev/null 2>&1 || {
@@ -235,8 +253,11 @@ dmi_decode() {
 get_dmi_field() {
     _RET="$UNAVAILABLE"
 
-    if [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" ]; then
+    if [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" -o "$DI_UNAME_KERNEL_NAME" = "Dragonfly" ]; then
         get_kenv_field "$1" || _RET="$ERROR"
+        return $?
+    elif [ "$DI_UNAME_KERNEL_NAME" = "OpenBSD" ]; then
+        get_sysctl_field "$1" || _RET="$ERROR"
         return $?
     fi
 
@@ -393,7 +414,7 @@ read_fs_info() {
     # - DI_ISO9660_DEVS
     # - DI_FS_UUIDS
 
-    if [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" ]; then
+    if [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" -o "$DI_UNAME_KERNEL_NAME" = "Dragonfly" ]; then
         read_fs_info_freebsd
         return $?
     else
@@ -414,7 +435,7 @@ detect_virt() {
         if [ $r -eq 0 ] || { [ $r -ne 0 ] && [ "$out" = "none" ]; }; then
             virt="$out"
         fi
-    elif [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" ]; then
+    elif [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" -o "$DI_UNAME_KERNEL_NAME" = "Dragonfly" ]; then
         # Map FreeBSD's vm_guest names to those systemd-detect-virt that
         # don't match up. See
         # https://github.com/freebsd/freebsd/blob/master/sys/kern/subr_param.c#L144-L160
@@ -524,33 +545,27 @@ read_uname_info() {
     # uname is tricky to parse as it outputs always in a given order
     # independent of option order. kernel-version is known to have spaces.
     # 1   -s kernel-name
-    # 2   -n nodename
-    # 3   -r kernel-release
-    # 4.. -v kernel-version(whitespace)
-    # N-2 -m machine
-    # N-1 -o operating-system
+    # 2.. -v kernel-version(whitespace)
+    # N-1 -m machine
     cached "${DI_UNAME_CMD_OUT}" && return
     local out="${1:-}" ret=0 buf=""
     if [ -z "$out" ]; then
-        out=$(uname -snrvmo) || {
+        out=$(uname -svm) || {
             ret=$?
-            error "failed reading uname with 'uname -snrvmo'"
+            error "failed reading uname with 'uname -svm'"
             return $ret
         }
     fi
     # shellcheck disable=2086
     set -- $out
     DI_UNAME_KERNEL_NAME="$1"
-    DI_UNAME_NODENAME="$2"
-    DI_UNAME_KERNEL_RELEASE="$3"
-    shift 3
-    while [ $# -gt 2 ]; do
+    shift
+    while [ $# -gt 1 ]; do
         buf="$buf $1"
         shift
     done
     DI_UNAME_KERNEL_VERSION="${buf# }"
     DI_UNAME_MACHINE="$1"
-    DI_UNAME_OPERATING_SYSTEM="$2"
     DI_UNAME_CMD_OUT="$out"
     return 0
 }
@@ -1573,8 +1588,7 @@ _print_info() {
     vars="DMI_PRODUCT_NAME DMI_SYS_VENDOR DMI_PRODUCT_SERIAL"
     vars="$vars DMI_PRODUCT_UUID PID_1_PRODUCT_NAME DMI_CHASSIS_ASSET_TAG"
     vars="$vars DMI_BOARD_NAME FS_LABELS ISO9660_DEVS KERNEL_CMDLINE VIRT"
-    vars="$vars UNAME_KERNEL_NAME UNAME_KERNEL_RELEASE UNAME_KERNEL_VERSION"
-    vars="$vars UNAME_MACHINE UNAME_NODENAME UNAME_OPERATING_SYSTEM"
+    vars="$vars UNAME_KERNEL_NAME UNAME_KERNEL_VERSION UNAME_MACHINE"
     vars="$vars DSNAME DSLIST"
     vars="$vars MODE ON_FOUND ON_MAYBE ON_NOTFOUND"
     for v in ${vars}; do

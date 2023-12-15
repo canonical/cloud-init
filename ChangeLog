@@ -1,3 +1,6 @@
+23.4.1
+ - fix: Handle systemctl commands when dbus not ready (#4681)
+
 23.4
  - tests: datasourcenone use client.restart to block until done (#4635)
  - tests: increase number of retries across reboot to 90 (#4651)

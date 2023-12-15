@@ -27,14 +27,13 @@ DEF_SSHD_CFG = "/etc/ssh/sshd_config"
 # refer to the keytype struct of OpenSSH in the same file, to see
 # if the position of the sigonly flag has been moved.
 #
-# dsa, rsa, ecdsa and ed25519 are added for legacy, as they are valid
+# rsa, ecdsa and ed25519 are added for legacy, as they are valid
 # public keys in some old distros. They can possibly be removed
 # in the future when support for the older distros is dropped
 #
 # When updating the list, also update the _is_printable_key list in
 # cloudinit/config/cc_ssh_authkey_fingerprints.py
 VALID_KEY_TYPES = (
-    "dsa",
     "rsa",
     "ecdsa",
     "ed25519",
@@ -48,8 +47,6 @@ VALID_KEY_TYPES = (
     "sk-ecdsa-sha2-nistp256@openssh.com",
     "sk-ssh-ed25519-cert-v01@openssh.com",
     "sk-ssh-ed25519@openssh.com",
-    "ssh-dss-cert-v01@openssh.com",
-    "ssh-dss",
     "ssh-ed25519-cert-v01@openssh.com",
     "ssh-ed25519",
     "ssh-rsa-cert-v01@openssh.com",
@@ -106,7 +103,7 @@ class AuthKeyLineParser:
      (because of the size of the public key encoding) up to a limit of 8 kilo-
      bytes, which permits DSA keys up to 8 kilobits and RSA keys up to 16
      kilobits.  You don't want to type them in; instead, copy the
-     identity.pub, id_dsa.pub, or the id_rsa.pub file and edit it.
+     identity.pub or the id_rsa.pub file and edit it.
 
      sshd enforces a minimum RSA key modulus size for protocol 1 and protocol
      2 keys of 768 bits.
@@ -204,7 +201,7 @@ def parse_authorized_keys(fnames):
 
 def update_authorized_keys(old_entries, keys):
     to_add = list([k for k in keys if k.valid()])
-    for i in range(0, len(old_entries)):
+    for i in range(len(old_entries)):
         ent = old_entries[i]
         if not ent.valid():
             continue

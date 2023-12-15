@@ -47,20 +47,6 @@ ssh_keys:
     -----END RSA PRIVATE KEY-----
   rsa_public: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC0/Ho+o3eJISydO2JvIgTLnZOtrxPl+fSvJfKDjoOLY0HB2eOjy2s2/2N6d9X9SGZ4+XnyVeNPjfBXw4IyXoqxhfIF16Azfk022iejgjiYssoUxH31M60OfqJhxo16dWEXdkKP1nac06VOt1zS5yEeooyvEuMJEJSsv3VR/7GKhMX3TVhEz5moLmVP3bIAvvoXio8X4urVC1R819QjDC86nlxwNks/GKPRi/IHO5tjJ72Eke7KNsm/vxHgkdX4vZaHNKhfdb/pavFXN5eoUaofz3hxw5oL/u2epI/pXyUhDp8Tb5wO6slykzcIlGCSd0YeO1TnljvViRx0uSxIy97N root@xenial-lxd
   rsa_certificate: ssh-rsa-cert-v01@openssh.com AAAAHHNzaC1yc2EtY2VydC12MDFAb3BlbnNzaC5jb20AAAAgMpgBP4Phn3L8I7Vqh7lmHKcOfIokEvSEbHDw83Y3JloAAAADAQABAAABAQC0/Ho+o3eJISydO2JvIgTLnZOtrxPl+fSvJfKDjoOLY0HB2eOjy2s2/2N6d9X9SGZ4+XnyVeNPjfBXw4IyXoqxhfIF16Azfk022iejgjiYssoUxH31M60OfqJhxo16dWEXdkKP1nac06VOt1zS5yEeooyvEuMJEJSsv3VR/7GKhMX3TVhEz5moLmVP3bIAvvoXio8X4urVC1R819QjDC86nlxwNks/GKPRi/IHO5tjJ72Eke7KNsm/vxHgkdX4vZaHNKhfdb/pavFXN5eoUaofz3hxw5oL/u2epI/pXyUhDp8Tb5wO6slykzcIlGCSd0YeO1TnljvViRx0uSxIy97NAAAAAAAAAAAAAAACAAAACnhlbmlhbC1seGQAAAAAAAAAAF+vVEIAAAAAYY83bgAAAAAAAAAAAAAAAAAAADMAAAALc3NoLWVkMjU1MTkAAAAgz4SlDwbq53ZrRsnS6ISdwxgFDRpnEX44K8jFmLpI9NAAAABTAAAAC3NzaC1lZDI1NTE5AAAAQMWpiRWKNMFvRX0g6OQOELMqDhtNBpkIN92IyO25qiY2oDSd1NyVme6XnGDFt8CS7z5NufV04doP4aacLOBbQww= root@xenial-lxd
-  dsa_private: |
-    -----BEGIN DSA PRIVATE KEY-----
-    MIIBuwIBAAKBgQD5Fstc23IVSDe6k4DNP8smPKuEWUvHDTOGaXrhOVAfzZ6+jklP
-    55mzvC7jO53PWWC31hq10xBoWdev0WtcNF9Tv+4bAa1263y51Rqo4GI7xx+xic1d
-    mLqqfYijBT9k48J/1tV0cs1Wjs6FP/IJTD/kYVC930JjYQMi722lBnUxsQIVAL7i
-    z3fTGKTvSzvW0wQlwnYpS2QFAoGANp+KdyS9V93HgxGQEN1rlj/TSv/a3EVdCKtE
-    nQf55aPHxDAVDVw5JtRh4pZbbRV4oGRPc9KOdjo5BU28vSM3Lmhkb+UaaDXwHkgI
-    nK193o74DKjADWZxuLyyiKHiMOhxozoxDfjWxs8nz6uqvSW0pr521EwIY6RajbED
-    nZ2a3GkCgYEAyoUomNRB6bmpsIfzt8zdtqLP5umIj2uhr9MVPL8/QdbxmJ72Z7pf
-    Q2z1B7QAdIBGOlqJXtlau7ABhWK29Efe+99ObyTSSdDc6RCDeAwUmBAiPRQhDH2E
-    wExw3doDSCUb28L1B50wBzQ8mC3KXp6C7IkBXWspb16DLHUHFSI8bkICFA5kVUcW
-    nCPOXEQsayANi8+Cb7BH
-    -----END DSA PRIVATE KEY-----
-  dsa_public: ssh-dss AAAAB3NzaC1kc3MAAACBAPkWy1zbchVIN7qTgM0/yyY8q4RZS8cNM4ZpeuE5UB/Nnr6OSU/nmbO8LuM7nc9ZYLfWGrXTEGhZ16/Ra1w0X1O/7hsBrXbrfLnVGqjgYjvHH7GJzV2Yuqp9iKMFP2Tjwn/W1XRyzVaOzoU/8glMP+RhUL3fQmNhAyLvbaUGdTGxAAAAFQC+4s930xik70s71tMEJcJ2KUtkBQAAAIA2n4p3JL1X3ceDEZAQ3WuWP9NK/9rcRV0Iq0SdB/nlo8fEMBUNXDkm1GHillttFXigZE9z0o52OjkFTby9IzcuaGRv5RpoNfAeSAicrX3ejvgMqMANZnG4vLKIoeIw6HGjOjEN+NbGzyfPq6q9JbSmvnbUTAhjpFqNsQOdnZrcaQAAAIEAyoUomNRB6bmpsIfzt8zdtqLP5umIj2uhr9MVPL8/QdbxmJ72Z7pfQ2z1B7QAdIBGOlqJXtlau7ABhWK29Efe+99ObyTSSdDc6RCDeAwUmBAiPRQhDH2EwExw3doDSCUb28L1B50wBzQ8mC3KXp6C7IkBXWspb16DLHUHFSI8bkI= root@xenial-lxd
   ed25519_private: |
     -----BEGIN OPENSSH PRIVATE KEY-----
     b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
@@ -87,16 +73,6 @@ class TestSshKeysProvided:
     @pytest.mark.parametrize(
         "config_path,expected_out",
         (
-            (
-                "/etc/ssh/ssh_host_dsa_key.pub",
-                "AAAAB3NzaC1kc3MAAACBAPkWy1zbchVIN7qTgM0/yyY8q4R"
-                "ZS8cNM4ZpeuE5UB/Nnr6OSU/nmbO8LuM",
-            ),
-            (
-                "/etc/ssh/ssh_host_dsa_key",
-                "MIIBuwIBAAKBgQD5Fstc23IVSDe6k4DNP8smPKuEWUvHDTOGaXr"
-                "hOVAfzZ6+jklP",
-            ),
             (
                 "/etc/ssh/ssh_host_rsa_key.pub",
                 "AAAAB3NzaC1yc2EAAAADAQABAAABAQC0/Ho+o3eJISydO2JvIgT"

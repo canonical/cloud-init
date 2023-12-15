@@ -185,12 +185,14 @@ PRIMARY_ARCHES = ["amd64", "i386"]
 PORTS_ARCHES = ["s390x", "arm64", "armhf", "powerpc", "ppc64el", "riscv64"]
 
 
-def get_default_mirrors(arch=None, target=None):
+def get_default_mirrors(
+    arch=None,
+):
     """returns the default mirrors for the target. These depend on the
     architecture, for more see:
     https://wiki.ubuntu.com/UbuntuDevelopment/PackageArchive#Ports"""
     if arch is None:
-        arch = util.get_dpkg_architecture(target)
+        arch = util.get_dpkg_architecture()
     if arch in PRIMARY_ARCHES:
         return PRIMARY_ARCH_MIRRORS.copy()
     if arch in PORTS_ARCHES:
@@ -202,8 +204,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """process the config for apt_config. This can be called from
     curthooks if a global apt config was provided or via the "apt"
     standalone command."""
-    # keeping code close to curtin codebase via entry handler
-    target = None
     # feed back converted config, but only work on the subset under 'apt'
     cfg = convert_to_v3_apt_format(cfg)
     apt_cfg = cfg.get("apt", {})
@@ -215,8 +215,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             )
         )
 
-    apply_debconf_selections(apt_cfg, target)
-    apply_apt(apt_cfg, cloud, target)
+    apply_debconf_selections(apt_cfg)
+    apply_apt(apt_cfg, cloud)
 
 
 def _should_configure_on_empty_apt():
@@ -228,7 +228,7 @@ def _should_configure_on_empty_apt():
     return True, "Apt is available."
 
 
-def apply_apt(cfg, cloud, target):
+def apply_apt(cfg, cloud):
     # cfg is the 'apt' top level dictionary already in 'v3' format.
     if not cfg:
         should_config, msg = _should_configure_on_empty_apt()
@@ -238,8 +238,8 @@ def apply_apt(cfg, cloud, target):
 
     LOG.debug("handling apt config: %s", cfg)
 
-    release = util.lsb_release(target=target)["codename"]
-    arch = util.get_dpkg_architecture(target)
+    release = util.lsb_release()["codename"]
+    arch = util.get_dpkg_architecture()
     mirrors = find_apt_mirror_info(cfg, cloud, arch=arch)
     LOG.debug("Apt Mirror info: %s", mirrors)
 
@@ -250,9 +250,9 @@ def apply_apt(cfg, cloud, target):
     _ensure_dependencies(cfg, matcher, cloud)
 
     if util.is_false(cfg.get("preserve_sources_list", False)):
-        add_mirror_keys(cfg, cloud, target)
+        add_mirror_keys(cfg, cloud)
         generate_sources_list(cfg, release, mirrors, cloud)
-        rename_apt_lists(mirrors, target, arch)
+        rename_apt_lists(mirrors, arch)
 
     try:
         apply_apt_config(cfg, APT_PROXY_FN, APT_CONFIG_FN)
@@ -268,7 +268,6 @@ def apply_apt(cfg, cloud, target):
         add_apt_sources(
             cfg["sources"],
             cloud,
-            target=target,
             template_params=params,
             aa_repo_match=matcher,
         )
@@ -276,7 +275,6 @@ def apply_apt(cfg, cloud, target):
     # Daemons spawned by cloud-config.service on systemd v253 report (running)
     gpg_process_out, _err = subp.subp(
         ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
-        target=target,
         capture=True,
         rcs=[0, 1],
     )
@@ -288,18 +286,17 @@ def apply_apt(cfg, cloud, target):
         os.kill(gpg_pid, signal.SIGKILL)
 
 
-def debconf_set_selections(selections, target=None):
+def debconf_set_selections(selections):
     if not selections.endswith(b"\n"):
         selections += b"\n"
     subp.subp(
         ["debconf-set-selections"],
         data=selections,
-        target=target,
         capture=True,
     )
 
 
-def dpkg_reconfigure(packages, target=None):
+def dpkg_reconfigure(packages):
     # For any packages that are already installed, but have preseed data
     # we populate the debconf database, but the filesystem configuration
     # would be preferred on a subsequent dpkg-reconfigure.
@@ -310,7 +307,7 @@ def dpkg_reconfigure(packages, target=None):
     for pkg in packages:
         if pkg in CONFIG_CLEANERS:
             LOG.debug("unconfiguring %s", pkg)
-            CONFIG_CLEANERS[pkg](target)
+            CONFIG_CLEANERS[pkg]()
             to_config.append(pkg)
         else:
             unhandled.append(pkg)
@@ -327,12 +324,11 @@ def dpkg_reconfigure(packages, target=None):
             ["dpkg-reconfigure", "--frontend=noninteractive"]
             + list(to_config),
             data=None,
-            target=target,
             capture=True,
         )
 
 
-def apply_debconf_selections(cfg, target=None):
+def apply_debconf_selections(cfg):
     """apply_debconf_selections - push content to debconf"""
     # debconf_selections:
     #  set1: |
@@ -344,7 +340,7 @@ def apply_debconf_selections(cfg, target=None):
         return
 
     selections = "\n".join([selsets[key] for key in sorted(selsets.keys())])
-    debconf_set_selections(selections.encode(), target=target)
+    debconf_set_selections(selections.encode())
 
     # get a complete list of packages listed in input
     pkgs_cfgd = set()
@@ -355,7 +351,7 @@ def apply_debconf_selections(cfg, target=None):
             pkg = re.sub(r"[:\s].*", "", line)
             pkgs_cfgd.add(pkg)
 
-    pkgs_installed = util.get_installed_packages(target)
+    pkgs_installed = util.get_installed_packages()
 
     LOG.debug("pkgs_cfgd: %s", pkgs_cfgd)
     need_reconfig = pkgs_cfgd.intersection(pkgs_installed)
@@ -364,14 +360,12 @@ def apply_debconf_selections(cfg, target=None):
         LOG.debug("no need for reconfig")
         return
 
-    dpkg_reconfigure(need_reconfig, target=target)
+    dpkg_reconfigure(need_reconfig)
 
 
-def clean_cloud_init(target):
+def clean_cloud_init():
     """clean out any local cloud-init config"""
-    flist = glob.glob(
-        subp.target_path(target, "/etc/cloud/cloud.cfg.d/*dpkg*")
-    )
+    flist = glob.glob(subp.target_path(path="/etc/cloud/cloud.cfg.d/*dpkg*"))
 
     LOG.debug("cleaning cloud-init config from: %s", flist)
     for dpkg_cfg in flist:
@@ -396,11 +390,11 @@ def mirrorurl_to_apt_fileprefix(mirror):
     return string
 
 
-def rename_apt_lists(new_mirrors, target, arch):
+def rename_apt_lists(new_mirrors, arch):
     """rename_apt_lists - rename apt lists to preserve old cache data"""
     default_mirrors = get_default_mirrors(arch)
 
-    pre = subp.target_path(target, APT_LISTS)
+    pre = subp.target_path(APT_LISTS)
     for name, omirror in default_mirrors.items():
         nmirror = new_mirrors.get(name)
         if not nmirror:
@@ -542,11 +536,11 @@ def disable_suites(disabled, src, release) -> str:
     return retsrc
 
 
-def add_mirror_keys(cfg, cloud, target):
+def add_mirror_keys(cfg, cloud):
     """Adds any keys included in the primary/security mirror clauses"""
     for key in ("primary", "security"):
         for mirror in cfg.get(key, []):
-            add_apt_key(mirror, cloud, target, file_name=key)
+            add_apt_key(mirror, cloud, file_name=key)
 
 
 def is_deb822_sources_format(apt_src_content: str) -> bool:
@@ -689,7 +683,7 @@ def generate_sources_list(cfg, release, mirrors, cloud):
     util.write_file(aptsrc_file, disabled, mode=0o644)
 
 
-def add_apt_key_raw(key, file_name, hardened=False, target=None):
+def add_apt_key_raw(key, file_name, hardened=False):
     """
     actual adding of a key as defined in key argument
     to the system
@@ -737,7 +731,7 @@ def _ensure_dependencies(cfg, aa_repo_match, cloud):
         cloud.distro.install_packages(sorted(missing_packages))
 
 
-def add_apt_key(ent, cloud, target=None, hardened=False, file_name=None):
+def add_apt_key(ent, cloud, hardened=False, file_name=None):
     """
     Add key to the system as defined in ent (if any).
     Supports raw keys or keyid's
@@ -760,9 +754,7 @@ def update_packages(cloud):
     cloud.distro.update_package_sources()
 
 
-def add_apt_sources(
-    srcdict, cloud, target=None, template_params=None, aa_repo_match=None
-):
+def add_apt_sources(srcdict, cloud, template_params=None, aa_repo_match=None):
     """
     install keys and repo source .list files defined in 'sources'
 
@@ -800,17 +792,13 @@ def add_apt_sources(
         ent = srcdict[filename]
         LOG.debug("adding source/key '%s'", ent)
         if "filename" not in ent:
-            if target and filename.startswith(target):
-                # Strip target path prefix from filename
-                ent["filename"] = filename[len(target) :]
-            else:
-                ent["filename"] = filename
+            ent["filename"] = filename
 
         if "source" in ent and "$KEY_FILE" in ent["source"]:
-            key_file = add_apt_key(ent, cloud, target, hardened=True)
+            key_file = add_apt_key(ent, cloud, hardened=True)
             template_params["KEY_FILE"] = key_file
         else:
-            add_apt_key(ent, cloud, target)
+            add_apt_key(ent, cloud)
 
         if "source" not in ent:
             continue
@@ -828,14 +816,13 @@ def add_apt_sources(
             try:
                 subp.subp(
                     ["add-apt-repository", "--no-update", source],
-                    target=target,
                 )
             except subp.ProcessExecutionError:
                 LOG.exception("add-apt-repository failed.")
                 raise
             continue
 
-        sourcefn = subp.target_path(target, ent["filename"])
+        sourcefn = subp.target_path(path=ent["filename"])
         try:
             contents = "%s\n" % (source)
             omode = "a"

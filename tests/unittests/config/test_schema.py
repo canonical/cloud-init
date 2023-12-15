@@ -245,7 +245,6 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_locale"},
             {"$ref": "#/$defs/cc_lxd"},
             {"$ref": "#/$defs/cc_mcollective"},
-            {"$ref": "#/$defs/cc_migrator"},
             {"$ref": "#/$defs/cc_mounts"},
             {"$ref": "#/$defs/cc_ntp"},
             {"$ref": "#/$defs/cc_package_update_upgrade_install"},

@@ -10,7 +10,6 @@
 
 import base64
 import logging
-import os
 from io import BytesIO
 from textwrap import dedent
 
@@ -90,7 +89,7 @@ def _decode(data, encoding=None):
         raise IOError("Unknown random_seed encoding: %s" % (encoding))
 
 
-def handle_random_seed_command(command, required, env=None):
+def handle_random_seed_command(command, required, update_env):
     if not command and required:
         raise ValueError("no command found but required=true")
     elif not command:
@@ -106,7 +105,7 @@ def handle_random_seed_command(command, required, env=None):
         else:
             LOG.debug("command '%s' not found for seed_command", cmd)
             return
-    subp.subp(command, env=env, capture=False)
+    subp.subp(command, update_env=update_env, capture=False)
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
@@ -137,9 +136,11 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     command = mycfg.get("command", None)
     req = mycfg.get("command_required", False)
     try:
-        env = os.environ.copy()
-        env["RANDOM_SEED_FILE"] = seed_path
-        handle_random_seed_command(command=command, required=req, env=env)
+        handle_random_seed_command(
+            command=command,
+            required=req,
+            update_env={"RANDOM_SEED_FILE": seed_path},
+        )
     except ValueError as e:
         LOG.warning("handling random command [%s] failed: %s", command, e)
         raise e

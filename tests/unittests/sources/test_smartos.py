@@ -1385,7 +1385,7 @@ class TestSerialConcurrency(CiTestCase):
         are testing to be sure that cloud-init and mdata-get respect each
         others locks.
         """
-        rcs = list(range(0, 256))
+        rcs = list(range(256))
         while True:
             subp(["mdata-get", "sdc:routes"], rcs=rcs)
 
@@ -1402,7 +1402,7 @@ class TestSerialConcurrency(CiTestCase):
         # 10 times at roughly the same time as cloud-init fetched each key
         # once.  cloud-init would regularly see failures before making it
         # through all keys once.
-        for _ in range(0, 3):
+        for _ in range(3):
             for key in keys:
                 # We don't care about the return value, just that it doesn't
                 # thrown any exceptions.

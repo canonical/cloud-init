@@ -5,6 +5,7 @@ import collections
 import logging
 import os
 import subprocess
+import time
 from errno import ENOEXEC
 from io import TextIOWrapper
 from typing import List, Union
@@ -144,21 +145,17 @@ class ProcessExecutionError(IOError):
 
 
 def subp(
-    args,
+    args: Union[str, bytes, List[str], List[bytes]],
     *,
     data=None,
     rcs=None,
-    env=None,
     capture=True,
-    combine_capture=False,
     shell=False,
     logstring=False,
     decode="replace",
-    target=None,
     update_env=None,
-    status_cb=None,
     cwd=None,
-):
+) -> SubpResult:
     """Run a subprocess.
 
     :param args: command to run in a list. [cmd, arg1, arg2...]
@@ -167,16 +164,9 @@ def subp(
         a list of allowed return codes.  If subprocess exits with a value not
         in this list, a ProcessExecutionError will be raised.  By default,
         data is returned as a string.  See 'decode' parameter.
-    :param env: a dictionary for the command's environment.
     :param capture:
         boolean indicating if output should be captured.  If True, then stderr
         and stdout will be returned.  If False, they will not be redirected.
-    :param combine_capture:
-        boolean indicating if stderr should be redirected to stdout. When True,
-        interleaved stderr and stdout will be returned as the first element of
-        a tuple, the second will be empty string or bytes (per decode).
-        if combine_capture is True, then output is captured independent of
-        the value of capture.
     :param shell: boolean indicating if this should be run with a shell.
     :param logstring:
         the command will be logged to DEBUG.  If it contains info that should
@@ -186,15 +176,9 @@ def subp(
         be bytes.  Other allowed values are 'strict', 'ignore', and 'replace'.
         These values are passed through to bytes().decode() as the 'errors'
         parameter.  There is no support for decoding to other than utf-8.
-    :param target:
-        not supported, kwarg present only to make function signature similar
-        to curtin's subp.
     :param update_env:
-        update the enviornment for this command with this dictionary.
+        update the environment for this command with this dictionary.
         this will not affect the current processes os.environ.
-    :param status_cb:
-        call this fuction with a single string argument before starting
-        and after finishing.
     :param cwd:
         change the working directory to cwd before executing the command.
 
@@ -207,28 +191,13 @@ def subp(
                 entries in tuple will be bytes
     """
 
-    # not supported in cloud-init (yet), for now kept in the call signature
-    # to ease maintaining code shared between cloud-init and curtin
-    if target is not None:
-        raise ValueError("target arg not supported by cloud-init")
-
     if rcs is None:
         rcs = [0]
 
-    devnull_fp = None
-
+    env = os.environ.copy()
     if update_env:
-        if env is None:
-            env = os.environ
-        env = env.copy()
         env.update(update_env)
 
-    if target_path(target) != "/":
-        args = ["chroot", target] + list(args)
-
-    if status_cb:
-        command = " ".join(args) if isinstance(args, list) else args
-        status_cb("Begin run command: {command}\n".format(command=command))
     if not logstring:
         LOG.debug(
             "Running command %s with allowed return codes %s"
@@ -236,7 +205,7 @@ def subp(
             args,
             rcs,
             shell,
-            "combine" if combine_capture else capture,
+            capture,
         )
     else:
         LOG.debug(
@@ -251,14 +220,10 @@ def subp(
     if capture:
         stdout = subprocess.PIPE
         stderr = subprocess.PIPE
-    if combine_capture:
-        stdout = subprocess.PIPE
-        stderr = subprocess.STDOUT
     if data is None:
         # using devnull assures any reads get null, rather
         # than possibly waiting on input.
-        devnull_fp = open(os.devnull)
-        stdin = devnull_fp
+        stdin = subprocess.DEVNULL
     else:
         stdin = subprocess.PIPE
         if not isinstance(data, bytes):
@@ -277,6 +242,7 @@ def subp(
             x if isinstance(x, bytes) else x.encode("utf-8") for x in args
         ]
     try:
+        before = time.time()
         sp = subprocess.Popen(
             bytes_args,
             stdout=stdout,
@@ -286,10 +252,11 @@ def subp(
             shell=shell,
             cwd=cwd,
         )
-        (out, err) = sp.communicate(data)
+        out, err = sp.communicate(data)
+        total = time.time() - before
+        if total > 0.1:
+            LOG.debug("command %s took %.3ss to run", args, total)
     except OSError as e:
-        if status_cb:
-            status_cb("ERROR: End run command: invalid command provided\n")
         raise ProcessExecutionError(
             cmd=args,
             reason=e,
@@ -297,16 +264,6 @@ def subp(
             stdout="-" if decode else b"-",
             stderr="-" if decode else b"-",
         ) from e
-    finally:
-        if devnull_fp:
-            devnull_fp.close()
-
-    # Just ensure blank instead of none.
-    if capture or combine_capture:
-        if not out:
-            out = b""
-        if not err:
-            err = b""
     if decode:
 
         def ldecode(data, m="utf-8"):
@@ -317,17 +274,13 @@ def subp(
 
     rc = sp.returncode
     if rc not in rcs:
-        if status_cb:
-            status_cb("ERROR: End run command: exit({code})\n".format(code=rc))
         raise ProcessExecutionError(
             stdout=out, stderr=err, exit_code=rc, cmd=args
         )
-    if status_cb:
-        status_cb("End run command: exit({code})\n".format(code=rc))
     return SubpResult(out, err)
 
 
-def target_path(target, path=None):
+def target_path(target=None, path=None):
     # return 'path' inside target, accepting target as None
     if target in (None, ""):
         target = "/"

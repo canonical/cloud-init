@@ -332,8 +332,8 @@ The internal or local hostname of the system.
 
 Example output:
 
-  - ip-10-41-41-70
-  - <user-provided-hostname>
+  - ``ip-10-41-41-70``
+  - ``<user-provided-hostname>``
 
 ``v1.machine``
 ^^^^^^^^^^^^^^
@@ -475,7 +475,6 @@ EC2 instance:
      "power_state_change"
     ],
     "cloud_init_modules": [
-     "migrator",
      "seed_random",
      "bootcmd",
      "write_files",

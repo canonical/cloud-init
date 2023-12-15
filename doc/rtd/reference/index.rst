@@ -21,3 +21,6 @@ matrices and so on.
    network-config.rst
    base_config_reference.rst
    datasource_dsname_map.rst
+   performance_analysis.rst
+   ubuntu_stable_release_updates.rst
+   user_files.rst

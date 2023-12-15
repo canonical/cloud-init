@@ -166,6 +166,19 @@ class TestMain(FilesystemMockingTestCase):
         for log in expected_logs:
             self.assertIn(log, self.stderr.getvalue())
 
+    @mock.patch("cloudinit.cmd.clean.get_parser")
+    @mock.patch("cloudinit.cmd.clean.handle_clean_args")
+    @mock.patch("cloudinit.log.configure_root_logger")
+    def test_main_sys_argv(
+        self,
+        _m_configure_root_logger,
+        _m_handle_clean_args,
+        m_clean_get_parser,
+    ):
+        with mock.patch("sys.argv", ["cloudinit", "--debug", "clean"]):
+            main.main()
+        m_clean_get_parser.assert_called_once()
+
 
 class TestShouldBringUpInterfaces:
     @pytest.mark.parametrize(

@@ -29,10 +29,9 @@ class TestPhoneHome:
         assert m_readurl.call_args == mock.call(
             "myurl",
             data={
-                "pub_key_dsa": "0",
-                "pub_key_rsa": "1",
-                "pub_key_ecdsa": "2",
-                "pub_key_ed25519": "3",
+                "pub_key_rsa": "0",
+                "pub_key_ecdsa": "1",
+                "pub_key_ed25519": "2",
                 "instance_id": "iid-datasource-none",
                 "hostname": "hostname",
                 "fqdn": "hostname",
@@ -98,11 +97,11 @@ class TestPhoneHomeSchema:
         "config",
         [
             # phone_home definition with url
-            {"phone_home": {"post": ["pub_key_dsa"]}},
+            {"phone_home": {"post": ["pub_key_rsa"]}},
             # post using string other than "all"
-            {"phone_home": {"url": "test_url", "post": "pub_key_dsa"}},
+            {"phone_home": {"url": "test_url", "post": "pub_key_rsa"}},
             # post using list with misspelled entry
-            {"phone_home": {"url": "test_url", "post": ["pub_kye_dsa"]}},
+            {"phone_home": {"url": "test_url", "post": ["pub_kye_rsa"]}},
         ],
     )
     @skipUnlessJsonSchema()

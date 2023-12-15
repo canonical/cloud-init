@@ -191,17 +191,6 @@ class TestSubp(CiTestCase):
             out, _err = subp.subp(self.printenv + ["FOO"], capture=True)
         self.assertEqual("FOO=BAR", out.splitlines()[0])
 
-    def test_subp_env_and_update_env(self):
-        out, _err = subp.subp(
-            self.printenv + ["FOO", "HOME", "K1", "K2"],
-            capture=True,
-            env={"FOO": "BAR"},
-            update_env={"HOME": "/myhome", "K2": "V2"},
-        )
-        self.assertEqual(
-            ["FOO=BAR", "HOME=/myhome", "K1=", "K2=V2"], out.splitlines()
-        )
-
     def test_subp_update_env(self):
         extra = {"FOO": "BAR", "HOME": "/root", "K1": "V1"}
         with mock.patch.dict("os.environ", values=extra):
@@ -229,20 +218,6 @@ class TestSubp(CiTestCase):
                 subp.subp,
                 (noshebang,),
             )
-
-    def test_subp_combined_stderr_stdout(self):
-        """Providing combine_capture as True redirects stderr to stdout."""
-        data = b"hello world"
-        (out, err) = subp.subp(
-            self.stdin2err,
-            capture=True,
-            combine_capture=True,
-            decode=False,
-            env={"LANG": "C"},
-            data=data,
-        )
-        self.assertEqual(b"", err)
-        self.assertEqual(data, out)
 
     def test_returns_none_if_no_capture(self):
         (out, err) = subp.subp(self.stdin2out, data=b"", capture=False)
@@ -313,38 +288,3 @@ class TestSubp(CiTestCase):
             decode=False,
         )
         self.assertEqual(self.utf8_valid, out)
-
-    def test_bogus_command_logs_status_messages(self):
-        """status_cb gets status messages logs on bogus commands provided."""
-        logs = []
-
-        def status_cb(log):
-            logs.append(log)
-
-        with self.assertRaises(subp.ProcessExecutionError):
-            subp.subp([BOGUS_COMMAND], status_cb=status_cb)
-
-        expected = [
-            "Begin run command: {cmd}\n".format(cmd=BOGUS_COMMAND),
-            "ERROR: End run command: invalid command provided\n",
-        ]
-        self.assertEqual(expected, logs)
-
-    def test_command_logs_exit_codes_to_status_cb(self):
-        """status_cb gets status messages containing command exit code."""
-        logs = []
-
-        def status_cb(log):
-            logs.append(log)
-
-        with self.assertRaises(subp.ProcessExecutionError):
-            subp.subp([BASH, "-c", "exit 2"], status_cb=status_cb)
-        subp.subp([BASH, "-c", "exit 0"], status_cb=status_cb)
-
-        expected = [
-            "Begin run command: %s -c exit 2\n" % BASH,
-            "ERROR: End run command: exit(2)\n",
-            "Begin run command: %s -c exit 0\n" % BASH,
-            "End run command: exit(0)\n",
-        ]
-        self.assertEqual(expected, logs)

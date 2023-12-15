@@ -15,54 +15,6 @@ Having trouble? We would like to help!
 - Find a bug? Check out the :ref:`reporting_bugs` topic to find out how to
   report one
 
-Why did ``cloud-init`` never complete?
-======================================
-
-To check if ``cloud-init`` is running still, run:
-
-.. code-block:: shell-session
-
-   cloud-init status
-
-To wait for ``cloud-init`` to complete, run:
-
-.. code-block:: shell-session
-
-   cloud-init status --wait
-
-There are a number of reasons that ``cloud-init`` might never complete. This
-list is not exhaustive, but attempts to enumerate potential causes:
-
-External reasons
-----------------
-
-- Failed dependent services in the boot.
-- Bugs in the kernel or drivers.
-- Bugs in external userspace tools that are called by ``cloud-init``.
-
-Internal reasons
-----------------
-
-- A command in ``bootcmd`` or ``runcmd`` that never completes (e.g., running
-  :command:`cloud-init status --wait` will wait forever on itself and never
-  complete).
-- Non-standard configurations that disable timeouts or set extremely high
-  values ("never" is used in a loose sense here).
-
-Failing to complete on ``systemd``
-----------------------------------
-
-``Cloud-init`` consists of multiple services on ``systemd``. If a service
-that ``cloud-init`` depends on stalls, ``cloud-init`` will not continue.
-If reporting a bug related to ``cloud-init`` failing to complete on
-``systemd``, please make sure to include the following logs.
-
-.. code-block:: shell-session
-
-   systemd-analyze critical-chain cloud-init.target
-   journalctl --boot=-1
-   systemctl --failed
-
 ``autoinstall``, ``preruncmd``, ``postruncmd``
 ==============================================
 

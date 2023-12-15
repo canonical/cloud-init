@@ -27,7 +27,7 @@ FS_TYPES = ("vfat", "iso9660")
 LABEL_TYPES = ("config-2", "CONFIG-2")
 POSSIBLE_MOUNTS = ("sr", "cd")
 OPTICAL_DEVICES = tuple(
-    ("/dev/%s%s" % (z, i) for z in POSSIBLE_MOUNTS for i in range(0, 2))
+    ("/dev/%s%s" % (z, i) for z in POSSIBLE_MOUNTS for i in range(2))
 )
 
 

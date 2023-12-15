@@ -84,20 +84,18 @@ def kernel_version():
 
 
 @lru_cache()
-def get_dpkg_architecture(target=None):
+def get_dpkg_architecture():
     """Return the sanitized string output by `dpkg --print-architecture`.
 
     N.B. This function is wrapped in functools.lru_cache, so repeated calls
     won't shell out every time.
     """
-    out = subp.subp(
-        ["dpkg", "--print-architecture"], capture=True, target=target
-    )
+    out = subp.subp(["dpkg", "--print-architecture"], capture=True)
     return out.stdout.strip()
 
 
 @lru_cache()
-def lsb_release(target=None):
+def lsb_release():
     fmap = {
         "Codename": "codename",
         "Description": "description",
@@ -107,7 +105,7 @@ def lsb_release(target=None):
 
     data = {}
     try:
-        out = subp.subp(["lsb_release", "--all"], capture=True, target=target)
+        out = subp.subp(["lsb_release", "--all"], capture=True)
         for line in out.stdout.splitlines():
             fname, _, val = line.partition(":")
             if fname in fmap:
@@ -287,7 +285,7 @@ def rand_str(strlen=32, select_from=None):
     r = random.SystemRandom()
     if not select_from:
         select_from = string.ascii_letters + string.digits
-    return "".join([r.choice(select_from) for _x in range(0, strlen)])
+    return "".join([r.choice(select_from) for _x in range(strlen)])
 
 
 def rand_dict_key(dictionary, postfix=None):
@@ -2072,17 +2070,19 @@ def time_rfc2822():
 
 @lru_cache()
 def boottime():
-    """Use sysctlbyname(3) via ctypes to find kern.boottime
+    """Use sysctl(3) via ctypes to find kern.boottime
 
     kern.boottime is of type struct timeval. Here we create a
     private class to easier unpack it.
+    Use sysctl(3) (or sysctl(2) on OpenBSD) because sysctlbyname(3) does not
+    exist on OpenBSD. That complicates retrieval on NetBSD, which #defines
+    KERN_BOOTTIME as 83 instead of 21.
+    21 on NetBSD is KERN_OBOOTTIME, the kern.boottime up until NetBSD 5.0
 
     @return boottime: float to be compatible with linux
     """
     import ctypes
     import ctypes.util
-
-    NULL_BYTES = b"\x00"
 
     class timeval(ctypes.Structure):
         _fields_ = [("tv_sec", ctypes.c_int64), ("tv_usec", ctypes.c_int64)]
@@ -2090,10 +2090,16 @@ def boottime():
     libc = ctypes.CDLL(ctypes.util.find_library("c"))
     size = ctypes.c_size_t()
     size.value = ctypes.sizeof(timeval)
+    mib_values = [  # This corresponds to
+        1,  # CTL_KERN, and
+        21 if not is_NetBSD() else 83,  # KERN_BOOTTIME
+    ]
+    mib = (ctypes.c_int * 2)(*mib_values)
     buf = timeval()
     if (
-        libc.sysctlbyname(
-            b"kern.boottime" + NULL_BYTES,
+        libc.sysctl(
+            mib,
+            ctypes.c_int(len(mib_values)),
             ctypes.byref(buf),
             ctypes.byref(size),
             None,
@@ -2946,8 +2952,8 @@ def message_from_string(string):
     return email.message_from_string(string)
 
 
-def get_installed_packages(target=None):
-    out = subp.subp(["dpkg-query", "--list"], target=target, capture=True)
+def get_installed_packages():
+    out = subp.subp(["dpkg-query", "--list"], capture=True)
 
     pkgs_inst = set()
     for line in out.stdout.splitlines():

@@ -70,7 +70,7 @@ def _make_dict(current_depth, max_depth, rand):
     if t in [dict, list, tuple]:
         if t in [dict]:
             amount = rand.randint(0, 5)
-            keys = [_random_str(rand) for _i in range(0, amount)]
+            keys = [_random_str(rand) for _i in range(amount)]
             base = {}
             for k in keys:
                 try:
@@ -80,7 +80,7 @@ def _make_dict(current_depth, max_depth, rand):
         elif t in [list, tuple]:
             base = []
             amount = rand.randint(0, 5)
-            for _i in range(0, amount):
+            for _i in range(amount):
                 try:
                     base.append(_make_dict(current_depth + 1, max_depth, rand))
                 except _NoMoreException:

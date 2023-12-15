@@ -298,7 +298,6 @@ On an Ubuntu system, :file:`/etc/cloud/cloud.cfg` should look similar to:
 
     # The modules that run in the 'init' stage
     cloud_init_modules:
-    - migrator
     - seed_random
     - bootcmd
     - write_files

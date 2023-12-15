@@ -6,7 +6,6 @@
 
 import logging
 import os
-import sys
 from textwrap import dedent
 
 from cloudinit import subp, util
@@ -174,7 +173,7 @@ def run_commands(commands):
     for command in fixed_snap_commands:
         shell = isinstance(command, str)
         try:
-            subp.subp(command, shell=shell, status_cb=sys.stderr.write)
+            subp.subp(command, shell=shell)
         except subp.ProcessExecutionError as e:
             cmd_failures.append(str(e))
     if cmd_failures:

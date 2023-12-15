@@ -49,7 +49,6 @@ class TestSshAuthkeyFingerprints:
 
         assert re.search(r"256 SHA256:.*(ECDSA)", syslog_output) is not None
         assert re.search(r"256 SHA256:.*(ED25519)", syslog_output) is not None
-        assert re.search(r"1024 SHA256:.*(DSA)", syslog_output) is None
         assert re.search(r"2048 SHA256:.*(RSA)", syslog_output) is None
 
 

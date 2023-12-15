@@ -130,7 +130,7 @@ class BSD(distros.Distro):
         cmd.extend(pkglist)
 
         # Allow the output of this to flow outwards (ie not be captured)
-        subp.subp(cmd, env=self._get_pkg_cmd_environ(), capture=False)
+        subp.subp(cmd, update_env=self._get_pkg_cmd_environ(), capture=False)
 
     def set_timezone(self, tz):
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))

@@ -19,17 +19,17 @@ from tests.unittests.helpers import (
 )
 
 UNAME_MYSYS = (
-    "Linux bart 4.4.0-62-generic #83-Ubuntu "
-    "SMP Wed Jan 18 14:10:15 UTC 2017 x86_64 GNU/Linux"
+    "Linux 4.4.0-62-generic #83-Ubuntu SMP Wed Jan 18 14:10:15 UTC 2017 x86_64"
 )
 UNAME_PPC64EL = (
-    "Linux diamond 4.4.0-83-generic #106-Ubuntu SMP "
+    "Linux 4.4.0-83-generic #106-Ubuntu SMP "
     "Mon Jun 26 17:53:54 UTC 2017 "
-    "ppc64le ppc64le ppc64le GNU/Linux"
+    "ppc64le ppc64le ppc64le"
 )
 UNAME_FREEBSD = (
-    "FreeBSD fbsd12-1 12.1-RELEASE-p10 FreeBSD 12.1-RELEASE-p10 GENERIC  amd64"
+    "FreeBSD 12.1-RELEASE-p10 FreeBSD 12.1-RELEASE-p10 GENERIC  amd64"
 )
+UNAME_OPENBSD = "OpenBSD GENERIC.MP#1397 amd64"
 
 BLKID_EFI_ROOT = """
 DEVNAME=/dev/sda1
@@ -84,7 +84,6 @@ preserve_hostname: false
 
 # The modules that run in the 'init' stage
 cloud_init_modules:
- - migrator
  - seed_random
  - bootcmd
  - write-files
@@ -246,6 +245,7 @@ MOCK_VIRT_IS_VM_OTHER = {"name": "detect_virt", "RET": "vm-other", "ret": 0}
 MOCK_VIRT_IS_XEN = {"name": "detect_virt", "RET": "xen", "ret": 0}
 MOCK_UNAME_IS_PPC64 = {"name": "uname", "out": UNAME_PPC64EL, "ret": 0}
 MOCK_UNAME_IS_FREEBSD = {"name": "uname", "out": UNAME_FREEBSD, "ret": 0}
+MOCK_UNAME_IS_OPENBSD = {"name": "uname", "out": UNAME_OPENBSD, "ret": 0}
 
 shell_true = 0
 shell_false = 1
@@ -434,11 +434,8 @@ class TestDsIdentify(DsIdentifyBase):
             "KERNEL_CMDLINE",
             "VIRT",
             "UNAME_KERNEL_NAME",
-            "UNAME_KERNEL_RELEASE",
             "UNAME_KERNEL_VERSION",
             "UNAME_MACHINE",
-            "UNAME_NODENAME",
-            "UNAME_OPERATING_SYSTEM",
             "DSNAME",
             "DSLIST",
             "MODE",
@@ -1062,6 +1059,7 @@ class TestBSDNoSys(DsIdentifyBase):
     """Test *BSD code paths
 
     FreeBSD doesn't have /sys so we use kenv(1) here.
+    OpenBSD uses sysctl(8).
     Other BSD systems fallback to dmidecode(8).
     BSDs also doesn't have systemd-detect-virt(8), so we use sysctl(8) to query
     kern.vm_guest, and optionally map it"""
@@ -1072,6 +1070,13 @@ class TestBSDNoSys(DsIdentifyBase):
         This will be used on FreeBSD systems.
         """
         self._test_ds_found("Hetzner-kenv")
+
+    def test_dmi_sysctl(self):
+        """Test that sysctl(8) works on systems which don't have /sys
+
+        This will be used on OpenBSD systems.
+        """
+        self._test_ds_found("Hetzner-sysctl")
 
     def test_dmi_dmidecode(self):
         """Test that dmidecode(8) works on systems which don't have /sys
@@ -1616,6 +1621,13 @@ VALID_CFG = {
             {"name": "get_kenv_field", "ret": 0, "RET": "Hetzner"},
         ],
     },
+    "Hetzner-sysctl": {
+        "ds": "Hetzner",
+        "mocks": [
+            MOCK_UNAME_IS_OPENBSD,
+            {"name": "get_sysctl_field", "ret": 0, "RET": "Hetzner"},
+        ],
+    },
     "Hetzner-dmidecode": {
         "ds": "Hetzner",
         "mocks": [{"name": "dmi_decode", "ret": 0, "RET": "Hetzner"}],
@@ -1766,10 +1778,7 @@ VALID_CFG = {
             {
                 "name": "uname",
                 "ret": 0,
-                "out": (
-                    "Linux d43da87a-daca-60e8-e6d4-d2ed372662a3 4.3.0 "
-                    "BrandZ virtual linux x86_64 GNU/Linux"
-                ),
+                "out": ("Linux BrandZ virtual linux x86_64"),
             },
             {"name": "blkid", "ret": 2, "out": ""},
         ],

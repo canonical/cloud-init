@@ -34,7 +34,6 @@
         "locale",
         "lxd",
         "mcollective",
-        "migrator",
         "mounts",
         "ntp",
         "package-update-upgrade-install",
@@ -231,15 +230,15 @@
           "type": "boolean"
         },
         "passwd": {
-          "description": "Hash of user password applied when user does not exist. This will NOT be applied if the user already exists. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** While hashed password is better than plain text, using ``passwd`` in user-data represents a security risk as user-data could be accessible by third-parties depending on your cloud platform.",
+          "description": "Hash of user password applied when user does not exist. This will NOT be applied if the user already exists. To generate this hash, run: ``mkpasswd --method=SHA-512 --rounds=500000`` **Note:** Your password might possibly be visible to unprivileged users on your system, depending on your cloud's security model. Check if your cloud's IMDS server is visible from an unprivileged user to evaluate risk.",
           "type": "string"
         },
         "hashed_passwd": {
-          "description": "Hash of user password to be applied. This will be applied even if the user is pre-existing. To generate this hash, run: mkpasswd --method=SHA-512 --rounds=4096. **Note:** While ``hashed_password`` is better than ``plain_text_passwd``, using ``passwd`` in user-data represents a security risk as user-data could be accessible by third-parties depending on your cloud platform.",
+          "description": "Hash of user password to be applied. This will be applied even if the user is preexisting. To generate this hash, run: ``mkpasswd --method=SHA-512 --rounds=500000``. **Note:** Your password might possibly be visible to unprivileged users on your system, depending on your cloud's security model. Check if your cloud's IMDS server is visible from an unprivileged user to evaluate risk.",
           "type": "string"
         },
         "plain_text_passwd": {
-          "description": "Clear text of user password to be applied. This will be applied even if the user is pre-existing. There are many more secure options than using plain text passwords, such as ``ssh_import_id`` or ``hashed_passwd``. Do not use this in production as user-data and your password can be exposed.",
+          "description": "Clear text of user password to be applied. This will be applied even if the user is preexisting. **Note:** SSH keys or certificates are a safer choice for logging in to your system. For local escalation, supplying a hashed password is a safer choice than plain text. Your password might possibly be visible to unprivileged users on your system, depending on your cloud's security model. An exposed plain text password is an immediate security concern. Check if your cloud's IMDS server is visible from an unprivileged user to evaluate risk.",
           "type": "string"
         },
         "create_groups": {
@@ -253,11 +252,11 @@
           "type": "string"
         },
         "selinux_user": {
-          "description": "SELinux user for user's login. Default to default SELinux user.",
+          "description": "SELinux user for user's login. Default: the default SELinux user.",
           "type": "string"
         },
         "shell": {
-          "description": "Path to the user's login shell. The default is to set no shell, which results in a system-specific default being used.",
+          "description": "Path to the user's login shell. Default: the host system's default shell.",
           "type": "string"
         },
         "snapuser": {
@@ -273,7 +272,7 @@
           "minItems": 1
         },
         "ssh_import_id": {
-          "description": "List of SSH IDs to import for user. Can not be combined with ``ssh_redirect_user``.",
+          "description": "List of ssh ids to import for user. Can not be combined with ``ssh_redirect_user``. See the man page[1] for more details. [1] https://manpages.ubuntu.com/manpages/noble/en/man1/ssh-import-id.1.html",
           "type": "array",
           "items": {
             "type": "string"
@@ -308,7 +307,7 @@
           ]
         },
         "uid": {
-          "description": "The user's ID. Default is next available value.",
+          "description": "The user's ID. Default value [system default]",
           "oneOf": [
             {
               "type": "integer"
@@ -379,7 +378,7 @@
           "deprecated_description": "Use ``remove_defaults`` instead."
         },
         "remove_defaults": {
-          "description": "Remove default CA certificates if true. Default: false",
+          "description": "Remove default CA certificates if true. Default: ``false``",
           "type": "boolean",
           "default": false
         },
@@ -871,7 +870,7 @@
             },
             "conf": {
               "type": "string",
-              "description": "Specify configuration for apt, such as proxy configuration. This configuration is specified as a string. For multiline APT configuration, make sure to follow yaml syntax."
+              "description": "Specify configuration for apt, such as proxy configuration. This configuration is specified as a string. For multi-line APT configuration, make sure to follow YAML syntax."
             },
             "https_proxy": {
               "type": "string",
@@ -1060,7 +1059,7 @@
             "client_key": {
               "type": "string",
               "default": "/etc/chef/client.pem",
-              "description": "Optional path for client_cert. Default to ``/etc/chef/client.pem``."
+              "description": "Optional path for client_cert. Default: ``/etc/chef/client.pem``."
             },
             "encrypted_data_bag_secret": {
               "type": "string",
@@ -1095,7 +1094,7 @@
             "log_location": {
               "type": "string",
               "default": "/var/log/chef/client.log",
-              "description": "Specifies the location of the chef lof file. By default, the location is specified at ``/var/log/chef/client.log``."
+              "description": "Specifies the location of the chef log file. By default, the location is specified at ``/var/log/chef/client.log``."
             },
             "node_name": {
               "type": "string",
@@ -1109,7 +1108,7 @@
             "omnibus_url_retries": {
               "type": "integer",
               "default": 5,
-              "description": "The number of retries that will be attempted to reach the Omnibus URL. Default is 5."
+              "description": "The number of retries that will be attempted to reach the Omnibus URL. Default: ``5``."
             },
             "omnibus_version": {
               "type": "string",
@@ -1180,7 +1179,7 @@
       "properties": {
         "disable_ec2_metadata": {
           "default": false,
-          "description": "Set true to disable IPv4 routes to EC2 metadata. Default: false.",
+          "description": "Set true to disable IPv4 routes to EC2 metadata. Default: ``false``",
           "type": "boolean"
         }
       }
@@ -1375,7 +1374,7 @@
           "properties": {
             "mode": {
               "default": "auto",
-              "description": "The utility to use for resizing. Default: ``auto``\n\nPossible options:\n\n* ``auto`` - Use any available utility\n\n* ``growpart`` - Use growpart utility\n\n* ``gpart`` - Use BSD gpart utility\n\n* ``off`` - Take no action.",
+              "description": "The utility to use for resizing. Default: ``auto``\n\nPossible options:\n\n* ``auto`` - Use any available utility\n\n* ``growpart`` - Use growpart utility\n\n* ``gpart`` - Use BSD gpart utility\n\n* ``off`` - Take no action",
               "oneOf": [
                 {
                   "enum": [
@@ -1541,9 +1540,7 @@
         },
         "ssh_key_console_blacklist": {
           "type": "array",
-          "default": [
-            "ssh-dss"
-          ],
+          "default": [],
           "description": "Avoid printing matching SSH key types to the system console.",
           "items": {
             "type": "string"
@@ -1816,16 +1813,6 @@
               }
             }
           }
-        }
-      }
-    },
-    "cc_migrator": {
-      "type": "object",
-      "properties": {
-        "migrate": {
-          "type": "boolean",
-          "default": true,
-          "description": "Whether to migrate legacy cloud-init semaphores to new format. Default: ``true``"
         }
       }
     },
@@ -2103,7 +2090,6 @@
                   "items": {
                     "type": "string",
                     "enum": [
-                      "pub_key_dsa",
                       "pub_key_rsa",
                       "pub_key_ecdsa",
                       "pub_key_ed25519",
@@ -2266,7 +2252,7 @@
             },
             "conf": {
               "type": "object",
-              "description": "Every key present in the conf object will be added to puppet.conf. As such, section names should be one of: ``main``, ``server``, ``agent`` or ``user`` and keys should be valid puppet configuration options. The configuration is specified as a dictionary containing high-level ``<section>`` keys and lists of ``<key>=<value>`` pairs within each section. The ``certname`` key supports string substitutions for ``%i`` and ``%f``, corresponding to the instance id and fqdn of the machine respectively.\n\n``ca_cert`` is a special case. It won't be added to puppet.conf. It holds the puppetserver certificate in pem format. It should be a multi-line string (using the | yaml notation for multi-line strings).",
+              "description": "Every key present in the conf object will be added to puppet.conf. As such, section names should be one of: ``main``, ``server``, ``agent`` or ``user`` and keys should be valid puppet configuration options. The configuration is specified as a dictionary containing high-level ``<section>`` keys and lists of ``<key>=<value>`` pairs within each section. The ``certname`` key supports string substitutions for ``%i`` and ``%f``, corresponding to the instance id and fqdn of the machine respectively.\n\n``ca_cert`` is a special case. It won't be added to puppet.conf. It holds the puppetserver certificate in pem format. It should be a multi-line string (using the | YAML notation for multi-line strings).",
               "additionalProperties": false,
               "properties": {
                 "main": {
@@ -2619,7 +2605,7 @@
             },
             "data": {
               "type": "string",
-              "description": "This data will be written to ``file`` before data from the datasource. When using a multiline value or specifying binary data, be sure to follow yaml syntax and use the ``|`` and ``!binary`` yaml format specifiers when appropriate"
+              "description": "This data will be written to ``file`` before data from the datasource. When using a multi-line value or specifying binary data, be sure to follow YAML syntax and use the ``|`` and ``!binary`` YAML format specifiers when appropriate"
             },
             "encoding": {
               "type": "string",
@@ -2691,7 +2677,7 @@
               "changed_description": "Use of non-boolean values for this field is deprecated."
             }
           ],
-          "description": "Sets whether or not to accept password authentication. ``true`` will enable password auth. ``false`` will disable. Default is to leave the value unchanged. In order for this config to be applied, SSH may need to be restarted. On systemd systems, this restart will only happen if the SSH service has already been started. On non-systemd systems, a restart will be attempted regardless of the service state."
+          "description": "Sets whether or not to accept password authentication. ``true`` will enable password auth. ``false`` will disable. Default: leave the value unchanged. In order for this config to be applied, SSH may need to be restarted. On systemd systems, this restart will only happen if the SSH service has already been started. On non-systemd systems, a restart will be attempted regardless of the service state."
         },
         "chpasswd": {
           "type": "object",
@@ -2703,7 +2689,7 @@
               "description": "Whether to expire all user passwords such that a password will need to be reset on the user's next login. Default: ``true``"
             },
             "users": {
-              "description": "This key represents a list of existing users to set passwords for. Each item under users contains the following required keys: ``name`` and ``password`` or in the case of a randomly generated password, ``name`` and ``type``. The ``type`` key has a default value of ``hash``, and may alternatively be set to ``text`` or ``RANDOM``.",
+              "description": "This key represents a list of existing users to set passwords for. Each item under users contains the following required keys: ``name`` and ``password`` or in the case of a randomly generated password, ``name`` and ``type``. The ``type`` key has a default value of ``hash``, and may alternatively be set to ``text`` or ``RANDOM``. Randomly generated passwords may be insecure, use at your own risk.",
               "type": "array",
               "items": {
                 "minItems": 1,
@@ -2900,10 +2886,10 @@
       "properties": {
         "ssh_keys": {
           "type": "object",
-          "description": "A dictionary entries for the public and private host keys of each desired key type. Entries in the ``ssh_keys`` config dict should have keys in the format ``<key type>_private``, ``<key type>_public``, and, optionally, ``<key type>_certificate``, e.g. ``rsa_private: <key>``, ``rsa_public: <key>``, and ``rsa_certificate: <key>``. Not all key types have to be specified, ones left unspecified will not be used. If this config option is used, then separate keys will not be automatically generated. In order to specify multiline private host keys and certificates, use yaml multiline syntax.",
+          "description": "A dictionary entries for the public and private host keys of each desired key type. Entries in the ``ssh_keys`` config dict should have keys in the format ``<key type>_private``, ``<key type>_public``, and, optionally, ``<key type>_certificate``, e.g. ``rsa_private: <key>``, ``rsa_public: <key>``, and ``rsa_certificate: <key>``. Not all key types have to be specified, ones left unspecified will not be used. If this config option is used, then separate keys will not be automatically generated. In order to specify multi-line private host keys and certificates, use YAML multi-line syntax. **Note:** Your ssh keys might possibly be visible to unprivileged users on your system, depending on your cloud's security model.",
           "additionalProperties": false,
           "patternProperties": {
-            "^(dsa|ecdsa|ed25519|rsa)_(public|private|certificate)$": {
+            "^(ecdsa|ed25519|rsa)_(public|private|certificate)$": {
               "label": "<key_type>",
               "type": "string"
             }
@@ -2924,9 +2910,8 @@
         },
         "ssh_genkeytypes": {
           "type": "array",
-          "description": "The SSH key types to generate. Default: ``[rsa, dsa, ecdsa, ed25519]``",
+          "description": "The SSH key types to generate. Default: ``[rsa, ecdsa, ed25519]``",
           "default": [
-            "dsa",
             "ecdsa",
             "ed25519",
             "rsa"
@@ -2935,7 +2920,6 @@
           "items": {
             "type": "string",
             "enum": [
-              "dsa",
               "ecdsa",
               "ed25519",
               "rsa"
@@ -2973,7 +2957,7 @@
             },
             "blacklist": {
               "type": "array",
-              "description": "The SSH key types to ignore when publishing. Default: ``[dsa]``",
+              "description": "The SSH key types to ignore when publishing. Default: ``[]`` to publish all SSH key types",
               "items": {
                 "type": "string"
               }
@@ -3107,7 +3091,7 @@
                 },
                 "version": {
                   "type": "string",
-                  "description": "The version of the driver to install (e.g. \"390\", \"410\"). Defaults to the latest version."
+                  "description": "The version of the driver to install (e.g. \"390\", \"410\"). Default: latest version."
                 }
               }
             }
@@ -3120,7 +3104,7 @@
       "properties": {
         "manage_etc_hosts": {
           "default": false,
-          "description": "Whether to manage ``/etc/hosts`` on the system. If ``true``, render the hosts file using ``/etc/cloud/templates/hosts.tmpl`` replacing ``$hostname`` and ``$fdqn``. If ``localhost``, append a ``127.0.1.1`` entry that resolves from FQDN and hostname every boot. Default: ``false``.",
+          "description": "Whether to manage ``/etc/hosts`` on the system. If ``true``, render the hosts file using ``/etc/cloud/templates/hosts.tmpl`` replacing ``$hostname`` and ``$fdqn``. If ``localhost``, append a ``127.0.1.1`` entry that resolves from FQDN and hostname every boot. Default: ``false``",
           "oneOf": [
             {
               "enum": [
@@ -3322,7 +3306,7 @@
                   "base64",
                   "text/plain"
                 ],
-                "description": "Optional encoding type of the content. Default is ``text/plain`` and no content decoding is performed. Supported encoding types are: gz, gzip, gz+base64, gzip+base64, gz+b64, gzip+b64, b64, base64"
+                "description": "Optional encoding type of the content. Default: ``text/plain``. No decoding is performed by default. Supported encoding types are: gz, gzip, gz+base64, gzip+base64, gz+b64, gzip+b64, b64, base64"
               },
               "append": {
                 "type": "boolean",
@@ -3691,9 +3675,6 @@
     },
     {
       "$ref": "#/$defs/cc_mcollective"
-    },
-    {
-      "$ref": "#/$defs/cc_migrator"
     },
     {
       "$ref": "#/$defs/cc_mounts"
