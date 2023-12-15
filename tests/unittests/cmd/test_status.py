@@ -9,9 +9,14 @@ from unittest import mock
 
 import pytest
 
+from cloudinit import subp
 from cloudinit.atomic_helper import write_json
 from cloudinit.cmd import status
-from cloudinit.cmd.status import UXAppStatus, _get_systemd_status
+from cloudinit.cmd.status import (
+    UXAppStatus,
+    _get_error_or_running_from_systemd,
+    _get_error_or_running_from_systemd_with_retry,
+)
 from cloudinit.subp import SubpResult
 from cloudinit.util import ensure_file
 from tests.unittests.helpers import wrap_and_call
@@ -59,7 +64,10 @@ class TestStatus:
             "Cloud-init enabled by systemd cloud-init-generator",
         ),
     )
-    @mock.patch(f"{M_PATH}_get_systemd_status", return_value=None)
+    @mock.patch(
+        f"{M_PATH}_get_error_or_running_from_systemd_with_retry",
+        return_value=None,
+    )
     def test_get_status_details_ds_none(
         self,
         m_get_systemd_status,
@@ -704,7 +712,10 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
         ],
     )
     @mock.patch(M_PATH + "read_cfg_paths")
-    @mock.patch(f"{M_PATH}_get_systemd_status", return_value=None)
+    @mock.patch(
+        f"{M_PATH}_get_error_or_running_from_systemd_with_retry",
+        return_value=None,
+    )
     def test_status_output(
         self,
         m_get_systemd_status,
@@ -745,7 +756,10 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
             assert out == expected_status
 
     @mock.patch(M_PATH + "read_cfg_paths")
-    @mock.patch(f"{M_PATH}_get_systemd_status", return_value=None)
+    @mock.patch(
+        f"{M_PATH}_get_error_or_running_from_systemd_with_retry",
+        return_value=None,
+    )
     def test_status_wait_blocks_until_done(
         self, m_get_systemd_status, m_read_cfg_paths, config: Config, capsys
     ):
@@ -796,7 +810,10 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
         assert out == "....\nstatus: done\n"
 
     @mock.patch(M_PATH + "read_cfg_paths")
-    @mock.patch(f"{M_PATH}_get_systemd_status", return_value=None)
+    @mock.patch(
+        f"{M_PATH}_get_error_or_running_from_systemd_with_retry",
+        return_value=None,
+    )
     def test_status_wait_blocks_until_error(
         self, m_get_systemd_status, m_read_cfg_paths, config: Config, capsys
     ):
@@ -849,7 +866,10 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
         assert out == "....\nstatus: error\n"
 
     @mock.patch(M_PATH + "read_cfg_paths")
-    @mock.patch(f"{M_PATH}_get_systemd_status", return_value=None)
+    @mock.patch(
+        f"{M_PATH}_get_error_or_running_from_systemd_with_retry",
+        return_value=None,
+    )
     def test_status_main(
         self, m_get_systemd_status, m_read_cfg_paths, config: Config, capsys
     ):
@@ -873,7 +893,12 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
         assert out == "status: running\n"
 
 
-class TestSystemdStatusDetails:
+class TestGetErrorOrRunningFromSystemd:
+    @pytest.fixture(autouse=True)
+    def common_mocks(self, mocker):
+        mocker.patch("cloudinit.cmd.status.sleep")
+        yield
+
     @pytest.mark.parametrize(
         ["active_state", "unit_file_state", "sub_state", "main_pid", "status"],
         [
@@ -881,7 +906,7 @@ class TestSystemdStatusDetails:
             # enabled, enabled-runtime, and static into an "enabled" state
             # and everything else functionally disabled.
             # Additionally, SubStates are undocumented and may mean something
-            # different depending on the ActiveState they are mapped too.
+            # different depending on the ActiveState they are mapped to.
             # Because of this I'm only testing SubState combinations seen
             # in real-world testing (or using "any" string if we dont care).
             ("activating", "enabled", "start", "123", UXAppStatus.RUNNING),
@@ -910,7 +935,7 @@ class TestSystemdStatusDetails:
             ("failed", "invalid", "failed", "0", UXAppStatus.ERROR),
         ],
     )
-    def test_get_systemd_status(
+    def test_get_error_or_running_from_systemd(
         self, active_state, unit_file_state, sub_state, main_pid, status
     ):
         with mock.patch(
@@ -923,4 +948,70 @@ class TestSystemdStatusDetails:
                 stderr=None,
             ),
         ):
-            assert _get_systemd_status() == status
+            assert _get_error_or_running_from_systemd() == status
+
+    def test_exception_while_running(self, mocker, capsys):
+        m_subp = mocker.patch(
+            f"{M_PATH}subp.subp",
+            side_effect=subp.ProcessExecutionError(
+                "Message recipient disconnected from message bus without"
+                " replying"
+            ),
+        )
+        assert (
+            _get_error_or_running_from_systemd_with_retry(
+                UXAppStatus.RUNNING, wait=True
+            )
+            is None
+        )
+        assert 1 == m_subp.call_count
+        assert "Failed to get status" not in capsys.readouterr().err
+
+    def test_retry(self, mocker, capsys):
+        m_subp = mocker.patch(
+            f"{M_PATH}subp.subp",
+            side_effect=[
+                subp.ProcessExecutionError(
+                    "Message recipient disconnected from message bus without"
+                    " replying"
+                ),
+                subp.ProcessExecutionError(
+                    "Message recipient disconnected from message bus without"
+                    " replying"
+                ),
+                SubpResult(
+                    "ActiveState=activating\nUnitFileState=enabled\n"
+                    "SubState=start\nMainPID=123\n",
+                    stderr=None,
+                ),
+            ],
+        )
+        assert (
+            _get_error_or_running_from_systemd_with_retry(
+                UXAppStatus.ERROR, wait=True
+            )
+            is UXAppStatus.RUNNING
+        )
+        assert 3 == m_subp.call_count
+        assert "Failed to get status" not in capsys.readouterr().err
+
+    def test_retry_no_wait(self, mocker, capsys):
+        m_subp = mocker.patch(
+            f"{M_PATH}subp.subp",
+            side_effect=subp.ProcessExecutionError(
+                "Message recipient disconnected from message bus without"
+                " replying"
+            ),
+        )
+        mocker.patch("time.time", side_effect=[1, 2, 50])
+        assert (
+            _get_error_or_running_from_systemd_with_retry(
+                UXAppStatus.ERROR, wait=False
+            )
+            is None
+        )
+        assert 1 == m_subp.call_count
+        assert (
+            "Failed to get status from systemd. "
+            "Cloud-init status may be inaccurate."
+        ) in capsys.readouterr().err
