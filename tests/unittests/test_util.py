@@ -466,7 +466,7 @@ class TestUtil:
         ) in caplog.text
 
     @skipUnlessJinja()
-    def test_read_conf_with_failed_template(self, mocker, caplog):
+    def test_read_conf_with_failed_config_json(self, mocker, caplog):
         mocker.patch("os.path.exists", return_value=True)
         mocker.patch(
             "cloudinit.util.load_file",
@@ -481,7 +481,7 @@ class TestUtil:
         assert conf == {}
 
     @skipUnlessJinja()
-    def test_read_conf_with_failed_vars(self, mocker, caplog):
+    def test_read_conf_with_failed_instance_data_json(self, mocker, caplog):
         mocker.patch("os.path.exists", return_value=True)
         mocker.patch(
             "cloudinit.util.load_file",
@@ -494,6 +494,34 @@ class TestUtil:
         conf = util.read_conf("cfg_path", instance_data_file="vars_path")
         assert "Could not apply Jinja template" in caplog.text
         assert conf == {"a": "{{c}}"}
+
+    @pytest.mark.parametrize(
+        "template",
+        [
+            '{"a": "{{c} } }"',
+            '{"a": "{{c} } "',
+            "{% if c %} C is present {% else % } C is NOT present {% endif %}",
+        ],
+    )
+    @skipUnlessJinja()
+    def test_read_conf_with_config_invalid_jinja_syntax(
+        self, mocker, caplog, template
+    ):
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch(
+            "cloudinit.util.load_file",
+            return_value="## template: jinja\n" + template,
+        )
+        mocker.patch(
+            "cloudinit.handlers.jinja_template.load_file",
+            return_value='{"c": "d"}',
+        )
+        conf = util.read_conf("cfg_path", instance_data_file="vars_path")
+        assert (
+            "Failed to render templated yaml config file 'cfg_path'"
+            in caplog.text
+        )
+        assert conf == {}
 
     @mock.patch(
         M_PATH + "read_conf",

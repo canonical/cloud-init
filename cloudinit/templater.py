@@ -18,6 +18,8 @@ import re
 import sys
 from typing import Any
 
+from jinja2 import TemplateSyntaxError
+
 from cloudinit import type_utils as tu
 from cloudinit import util
 from cloudinit.atomic_helper import write_file
@@ -40,6 +42,47 @@ LOG = logging.getLogger(__name__)
 TYPE_MATCHER = re.compile(r"##\s*template:(.*)", re.I)
 BASIC_MATCHER = re.compile(r"\$\{([A-Za-z0-9_.]+)\}|\$([A-Za-z0-9_.]+)")
 MISSING_JINJA_PREFIX = "CI_MISSING_JINJA_VAR/"
+
+
+class JinjaSyntaxParsingException(TemplateSyntaxError):
+    def __init__(
+        self,
+        error: TemplateSyntaxError,
+    ) -> None:
+        super().__init__(
+            error.message or "unknown syntax error",
+            error.lineno,
+            error.name,
+            error.filename,
+        )
+        self.source = error.source
+
+    def __str__(self):
+        """Avoid jinja2.TemplateSyntaxErrror multi-line __str__ format."""
+        return self.format_error_message(
+            syntax_error=self.message,
+            line_number=self.lineno,
+            line_content=self.source.splitlines()[self.lineno - 2].strip(),
+        )
+
+    @staticmethod
+    def format_error_message(
+        syntax_error: str,
+        line_number: str,
+        line_content: str = "",
+    ) -> str:
+        """Avoid jinja2.TemplateSyntaxErrror multi-line __str__ format."""
+        line_content = f": {line_content}" if line_content else ""
+        return JinjaSyntaxParsingException.message_template.format(
+            syntax_error=syntax_error,
+            line_number=line_number,
+            line_content=line_content,
+        )
+
+    message_template = (
+        "Unable to parse Jinja template due to syntax error: "
+        "{syntax_error} on line {line_number}{line_content}"
+    )
 
 
 # Mypy, and the PEP 484 ecosystem in general, does not support creating
@@ -102,18 +145,27 @@ def detect_template(text):
     def jinja_render(content, params):
         # keep_trailing_newline is in jinja2 2.7+, not 2.6
         add = "\n" if content.endswith("\n") else ""
-        return (
-            JTemplate(
-                content,
-                undefined=UndefinedJinjaVariable,
-                trim_blocks=True,
-                extensions=["jinja2.ext.do"],
-            ).render(**params)
-            + add
-        )
+        try:
+            return (
+                JTemplate(
+                    content,
+                    undefined=UndefinedJinjaVariable,
+                    trim_blocks=True,
+                    extensions=["jinja2.ext.do"],
+                ).render(**params)
+                + add
+            )
+        except TemplateSyntaxError as template_syntax_error:
+            template_syntax_error.lineno += 1
+            raise JinjaSyntaxParsingException(
+                error=template_syntax_error,
+                # source=content,
+            ) from template_syntax_error
+        except Exception as unknown_error:
+            raise unknown_error from unknown_error
 
     if text.find("\n") != -1:
-        ident, rest = text.split("\n", 1)
+        ident, rest = text.split("\n", 1)  # remove the first line
     else:
         ident = text
         rest = ""

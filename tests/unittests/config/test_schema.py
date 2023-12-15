@@ -40,6 +40,7 @@ from cloudinit.distros import OSFAMILIES
 from cloudinit.safeyaml import load, load_with_marks
 from cloudinit.settings import FREQUENCIES
 from cloudinit.sources import DataSourceNotFoundException
+from cloudinit.templater import JinjaSyntaxParsingException
 from cloudinit.util import load_file, write_file
 from tests.hypothesis import given
 from tests.hypothesis_jsonschema import from_schema
@@ -824,6 +825,41 @@ class TestValidateCloudConfigFile:
             f"Empty 'cloud-config' found at {cloud_config_file}."
             " Nothing to validate" in out
         )
+
+    @pytest.mark.parametrize("annotate", (True, False))
+    def test_validateconfig_file_raises_jinja_syntax_error(
+        self, annotate, tmpdir, mocker, capsys
+    ):
+        """ """
+        # will throw error because of space between last two }'s
+        invalid_jinja_template = "## template: jinja\na:b\nc:{{ d } }"
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch(
+            "cloudinit.util.load_file",
+            return_value=invalid_jinja_template,
+        )
+        mocker.patch(
+            "cloudinit.handlers.jinja_template.load_file",
+            return_value='{"c": "d"}',
+        )
+        config_file = tmpdir.join("my.yaml")
+        config_file.write(invalid_jinja_template)
+        with pytest.raises(SystemExit) as context_manager:
+            validate_cloudconfig_file(config_file.strpath, {}, annotate)
+        assert 1 == context_manager.value.code
+
+        _out, err = capsys.readouterr()
+        expected = (
+            "Error:\n"
+            "Failed to render templated user-data. "
+            + JinjaSyntaxParsingException.format_error_message(
+                syntax_error="unexpected '}'",
+                line_number=3,
+                line_content="c:{{ d } }",
+            )
+            + "\n"
+        )
+        assert expected == err
 
 
 class TestSchemaDocMarkdown:

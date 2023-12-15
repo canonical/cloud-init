@@ -303,6 +303,7 @@ def read_conf(fname, *, instance_data_file=None) -> Dict:
     # Avoid circular import
     from cloudinit.handlers.jinja_template import (
         JinjaLoadError,
+        JinjaSyntaxParsingException,
         NotJinjaError,
         render_jinja_payload_from_file,
     )
@@ -327,6 +328,12 @@ def read_conf(fname, *, instance_data_file=None) -> Dict:
                 "configuration loaded from '%s'",
                 instance_data_file,
                 fname,
+            )
+        except JinjaSyntaxParsingException as e:
+            LOG.warning(
+                "Failed to render templated yaml config file '%s'. %s",
+                fname,
+                e,
             )
         except NotJinjaError:
             # A log isn't appropriate here as we generally expect most
