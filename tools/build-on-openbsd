@@ -44,7 +44,7 @@ else
     RC_LOCAL="/etc/rc.local"
     RC_LOCAL_CONTENT="
 
-/usr/lib/cloud-init/ds-identify
+/usr/local/lib/cloud-init/ds-identify
 
 cloud-init init --local
 
