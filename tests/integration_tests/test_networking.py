@@ -1,7 +1,10 @@
 """Networking-related tests."""
+import contextlib
+
 import pytest
 import yaml
 
+from cloudinit.subp import subp
 from tests.integration_tests import random_mac_address
 from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.instances import IntegrationInstance
@@ -13,6 +16,7 @@ from tests.integration_tests.releases import (
     MANTIC,
     NOBLE,
 )
+from tests.integration_tests.util import verify_clean_log
 
 
 def _add_dummy_bridge_to_netplan(client: IntegrationInstance):
@@ -282,3 +286,81 @@ def test_invalid_network_v2_netplan(
                 "# E1: Invalid netplan schema. Error in network definition:"
                 " invalid boolean value 'badval"
             ) in client.execute("cloud-init schema --system --annotate")
+
+
+@pytest.mark.skipif(PLATFORM != "ec2", reason="test is ec2 specific")
+def test_ec2_multi_nic_reboot(setup_image, session_cloud: IntegrationCloud):
+    """Tests that additional secondary NICs and secondary IPs on them are
+    routable from non-local networks after a reboot event when network updates
+    are configured on every boot."""
+    ec2 = session_cloud.cloud_instance.client
+    with session_cloud.launch(launch_kwargs={}, user_data=USER_DATA) as client:
+        # Add secondary NIC
+        secondary_priv_ip_0 = client.instance.add_network_interface()
+        response = ec2.describe_network_interfaces(
+            Filters=[
+                {
+                    "Name": "private-ip-address",
+                    "Values": [secondary_priv_ip_0],
+                },
+            ],
+        )
+        nic_id = response["NetworkInterfaces"][0]["NetworkInterfaceId"]
+        # Add secondary IP to secondary NIC
+        association_0 = ec2.assign_private_ip_addresses(
+            NetworkInterfaceId=nic_id, SecondaryPrivateIpAddressCount=1
+        )
+        assert association_0["ResponseMetadata"]["HTTPStatusCode"] == 200
+        secondary_priv_ip_1 = association_0["AssignedPrivateIpAddresses"][0][
+            "PrivateIpAddress"
+        ]
+
+        # Assing elastic IPs
+        # Refactor after https://github.com/canonical/pycloudlib/issues/337 is
+        # completed
+        allocation_0 = ec2.allocate_address(Domain="vpc")
+        allocation_1 = ec2.allocate_address(Domain="vpc")
+        try:
+            secondary_pub_ip_0 = allocation_0["PublicIp"]
+            secondary_pub_ip_1 = allocation_1["PublicIp"]
+
+            association_0 = ec2.associate_address(
+                AllocationId=allocation_0["AllocationId"],
+                NetworkInterfaceId=nic_id,
+                PrivateIpAddress=secondary_priv_ip_0,
+            )
+            assert association_0["ResponseMetadata"]["HTTPStatusCode"] == 200
+            association_1 = ec2.associate_address(
+                AllocationId=allocation_1["AllocationId"],
+                NetworkInterfaceId=nic_id,
+                PrivateIpAddress=secondary_priv_ip_1,
+            )
+            assert association_1["ResponseMetadata"]["HTTPStatusCode"] == 200
+
+            # Reboot to update network config
+            client.execute("cloud-init clean --logs")
+            client.restart()
+
+            log_content = client.read_from_file("/var/log/cloud-init.log")
+            verify_clean_log(log_content)
+
+            # SSH over primary NIC works
+            instance_pub_ip = client.instance.ip
+            subp("nc -w 5 -zv " + instance_pub_ip + " 22", shell=True)
+
+            # SSH over secondary NIC works
+            subp("nc -w 5 -zv " + secondary_pub_ip_0 + " 22", shell=True)
+            subp("nc -w 5 -zv " + secondary_pub_ip_1 + " 22", shell=True)
+        finally:
+            with contextlib.suppress(Exception):
+                ec2.disassociate_address(
+                    AssociationId=association_0["AssociationId"]
+                )
+            with contextlib.suppress(Exception):
+                ec2.release_address(AllocationId=allocation_0["AllocationId"])
+            with contextlib.suppress(Exception):
+                ec2.disassociate_address(
+                    AssociationId=association_1["AssociationId"]
+                )
+            with contextlib.suppress(Exception):
+                ec2.release_address(AllocationId=allocation_1["AllocationId"])
