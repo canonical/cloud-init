@@ -12,6 +12,7 @@ import os
 import re
 import subprocess
 import time
+import platform
 from textwrap import dedent
 
 from cloudinit import subp, util
@@ -24,6 +25,7 @@ from cloudinit.settings import PER_INSTANCE
 frequency = PER_INSTANCE
 
 EXIT_FAIL = 254
+AIX = 0
 
 MODULE_DESCRIPTION = """\
 This module handles shutdown/reboot after all config modules have been run. By
@@ -94,6 +96,9 @@ def givecmdline(pid):
             line = output.splitlines()[1]
             m = re.search(r"\d+ (\w|\.|-)+\s+(/\w.+)", line)
             return m.group(2)
+        elif AIX:
+            (ps_out, _err) = subp.subp(["/usr/bin/ps", "-p", str(pid), "-oargs="], rcs=[0, 1])
+            return ps_out.strip()
         else:
             return util.load_file("/proc/%s/cmdline" % pid)
     except IOError:
@@ -125,6 +130,9 @@ def check_condition(cond):
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
+    if platform.system().lower() == "aix":
+        global AIX
+        AIX = 1
     try:
         (args, timeout, condition) = load_power_state(cfg, cloud.distro)
         if args is None:

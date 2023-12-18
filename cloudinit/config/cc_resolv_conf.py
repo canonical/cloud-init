@@ -9,6 +9,7 @@
 """Resolv Conf: configure resolv.conf"""
 
 import logging
+import platform
 from textwrap import dedent
 
 from cloudinit import templater, util
@@ -66,6 +67,7 @@ meta: MetaSchema = {
         "opensuse-tumbleweed",
         "photon",
         "rhel",
+        "aix",
         "sle_hpc",
         "sle-micro",
         "sles",
@@ -119,7 +121,14 @@ def generate_resolv_conf(template_fn, params, target_fname):
 
     params["flags"] = flags
     LOG.debug("Writing resolv.conf from template %s", template_fn)
-    templater.render_to_file(template_fn, target_fname, params)
+    if platform.system().lower() == "aix":
+        templater.render_to_file(template_fn, '/etc/resolv.conf', params)
+    else:    
+        # Network Manager likes to overwrite the resolv.conf file, so make sure
+        # it is immutable after write
+        subp.subp(["chattr", "-i", target_fname])
+        templater.render_to_file(template_fn, target_fname, params)
+        subp.subp(["chattr", "+i", target_fname])
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:

@@ -19,7 +19,7 @@ from cloudinit.distros import ug_util
 from cloudinit.settings import PER_INSTANCE
 
 # https://launchpad.net/ssh-import-id
-distros = ["alpine", "cos", "debian", "ubuntu"]
+distros = ["alpine", "cos", "debian", "ubuntu", "aix"]
 
 SSH_IMPORT_ID_BINARY = "ssh-import-id"
 MODULE_DESCRIPTION = """\

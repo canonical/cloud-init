@@ -9,6 +9,7 @@
 
 import logging
 import re
+import platform
 from string import ascii_letters, digits
 from textwrap import dedent
 from typing import List
@@ -154,18 +155,26 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
         return
 
     if distro.uses_systemd():
-        state = subp.subp(
-            [
-                "systemctl",
-                "show",
-                "--property",
-                "ActiveState",
-                "--value",
-                service,
-            ]
-        ).stdout.strip()
-        if state.lower() in ["active", "activating", "reloading"]:
-            _restart_ssh_daemon(distro, service)
+        if platform.system().lower() == "aix":
+            cmd = ['/usr/bin/stopsrc', '-s', 'sshd']
+            # Allow 0 and 1 return codes since it will return 1 if sshd is
+            # currently down.
+            subp.subp(cmd, rcs=[0, 1])
+            cmd = ["/usr/bin/startsrc", "-s", "sshd"]
+            subp.subp(cmd)
+        else:    
+            state = subp.subp(
+                [
+                    "systemctl",
+                    "show",
+                    "--property",
+                    "ActiveState",
+                    "--value",
+                    service,
+                ]
+            ).stdout.strip()
+            if state.lower() in ["active", "activating", "reloading"]:
+                _restart_ssh_daemon(distro, service)
     else:
         _restart_ssh_daemon(distro, service)
 
@@ -291,8 +300,12 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             expired_users = []
             for u in users_to_expire:
                 try:
-                    distro.expire_passwd(u)
-                    expired_users.append(u)
+                    if platform.system().lower() == "aix":
+                        subp.subp(["/usr/bin/pwdadm", "-f", "ADMCHG", u])
+                        expired_users.append(u)
+                    else:    
+                        distro.expire_passwd(u)
+                        expired_users.append(u)
                 except Exception as e:
                     errors.append(e)
                     util.logexc(LOG, "Failed to set 'expire' for %s", u)

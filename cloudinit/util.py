@@ -618,6 +618,9 @@ def get_linux_distro():
     elif is_BSD():
         distro_name = platform.system().lower()
         distro_version = platform.release()
+    elif platform.system().lower() == "aix":
+        distro_name = "aix"
+        distro_version = platform.release()
     else:
         dist = ("", "", "")
         try:
@@ -690,6 +693,7 @@ def _get_variant(info):
         "netbsd",
         "openbsd",
         "dragonfly",
+        "aix",
     ):
         variant = system
 
@@ -967,10 +971,16 @@ def fetch_ssl_details(paths=None):
     ssl_details = {}
     # Lookup in these locations for ssl key/cert files
     if not paths:
-        ssl_cert_paths = [
-            "/var/lib/cloud/data/ssl",
-            "/var/lib/cloud/instance/data/ssl",
-        ]
+        if platform.system().lower() == "aix":
+            ssl_cert_paths = [
+                "/opt/freeware/var/lib/cloud/data/ssl",
+                "/opt/freeware/var/lib/cloud/instance/data/ssl",
+            ]   
+        else:
+            ssl_cert_paths = [
+                "/var/lib/cloud/data/ssl",
+                "/var/lib/cloud/instance/data/ssl",
+            ]
     else:
         ssl_cert_paths = [
             os.path.join(paths.get_ipath_cur("data"), "ssl"),
@@ -2127,6 +2137,14 @@ def uptime():
             contents = load_file("/proc/uptime")
             if contents:
                 uptime_str = contents.split()[0]
+        elif os.path.exists("/usr/sbin/acct/fwtmp"): # for AIX support
+            method = '/usr/sbin/acct/fwtmp'
+            raw_contents = subprocess.run(['/usr/sbin/acct/fwtmp < /var/adm/wtmp | /usr/bin/grep "system boot" 2>/dev/null'], shell=True, check=True, stdout=subprocess.PIPE, universal_newlines=True)
+            contents = raw_contents.stdout 
+            if contents:
+                bootup = contents.splitlines()[-1].split()[6]
+                now = time.time()
+                uptime_str = now - float(bootup)
         else:
             method = "ctypes"
             # This is the *BSD codepath

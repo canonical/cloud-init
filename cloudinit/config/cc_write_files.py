@@ -9,6 +9,7 @@
 import base64
 import logging
 import os
+import platform
 from textwrap import dedent
 
 from cloudinit import util
@@ -119,6 +120,10 @@ __doc__ = get_meta_doc(meta)
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
+    if platform.system().lower() == "aix":
+        global DEFAULT_OWNER
+        DEFAULT_OWNER = "root:system"
+
     file_list = cfg.get("write_files", [])
     filtered_files = [
         f

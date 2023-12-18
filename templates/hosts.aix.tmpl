@@ -1,0 +1,19 @@
+## This file (/etc/cloud/templates/hosts.tmpl) is only utilized
+## if enabled in cloud-config.  Specifically, in order to enable it
+## you need to add the following to config:
+##    manage_etc_hosts: True
+##
+## Note, double-hash commented lines will not appear in /etc/hosts
+# 
+# Your system has configured 'manage_etc_hosts' as True.
+# As a result, if you wish for changes to this file to persist
+# then you will need to either
+# a.) make changes to the master file in /opt/freeware/etc/cloud/templates/hosts.aix.tmpl
+# b.) change or remove the value of 'manage_etc_hosts' in
+#     /opt/freeware/etc/cloud/cloud.cfg or cloud-config from user-data
+# 
+# The following lines are desirable for IPv4 capable hosts
+127.0.0.1 loopback localhost
+
+# The following lines are desirable for IPv6 capable hosts
+::1 loopback localhost

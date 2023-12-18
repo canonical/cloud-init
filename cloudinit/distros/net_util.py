@@ -132,7 +132,7 @@ def translate_network(settings):
                     if val:
                         iface_info["ipv6"][k] = val
         else:
-            for k in ["netmask", "address", "gateway", "broadcast"]:
+            for k in ["netmask", "address", "gateway", "broadcast", "mtu"]:
                 if k in info:
                     val = info[k].strip().lower()
                     if val:

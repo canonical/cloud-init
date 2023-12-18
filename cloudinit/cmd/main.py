@@ -386,7 +386,12 @@ def main_init(name, args):
                 LOG.debug("manual cache clean found from marker: %s", mfile)
                 existing = "trust"
 
-        init.purge_cache()
+        # rm_instance_lnk is now set to True. Else, cache will be used in case
+        # instead of optical disk to fetch network config. This check make sure 
+        # that customer always uses latest config data even if the instance-id 
+        # is matching
+        init.purge_cache(True)
+
 
     # Stage 5
     bring_up_interfaces = _should_bring_up_interfaces(init, args)

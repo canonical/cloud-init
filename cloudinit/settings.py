@@ -7,12 +7,16 @@
 # Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+import platform
 
 # Set and read for determining the cloud config file location
 CFG_ENV_NAME = "CLOUD_CFG"
 
 # This is expected to be a yaml formatted file
-CLOUD_CONFIG = "/etc/cloud/cloud.cfg"
+if platform.system().lower() == "aix":
+    CLOUD_CONFIG = "/opt/freeware/etc/cloud/cloud.cfg"
+else:    
+    CLOUD_CONFIG = "/etc/cloud/cloud.cfg"
 
 CLEAN_RUNPARTS_DIR = "/etc/cloud/clean.d"
 
@@ -54,13 +58,13 @@ CFG_BUILTIN = {
     ],
     "def_log_file": "/var/log/cloud-init.log",
     "log_cfgs": [],
-    "syslog_fix_perms": ["syslog:adm", "root:adm", "root:wheel", "root:root"],
+    "syslog_fix_perms": ["root:system", "syslog:adm", "root:adm", "root:wheel", "root:root"],
     "system_info": {
         "paths": {
-            "cloud_dir": "/var/lib/cloud",
-            "templates_dir": "/etc/cloud/templates/",
+            "cloud_dir": "/var/lib/cloud", "/opt/freeware/var/lib/cloud",
+            "templates_dir": "/etc/cloud/templates/", "/opt/freeware/etc/cloud/templates/",
         },
-        "distro": "ubuntu",
+        "distro": "ubuntu", "aix",
         "network": {"renderers": None},
     },
     "vendor_data": {"enabled": True, "prefix": []},

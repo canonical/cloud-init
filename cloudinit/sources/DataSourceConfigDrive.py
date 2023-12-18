@@ -8,12 +8,14 @@
 
 import logging
 import os
+import platform
 
 from cloudinit import sources, subp, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import eni
 from cloudinit.sources.DataSourceIBMCloud import get_ibm_platform
 from cloudinit.sources.helpers import openstack
+from cloudinit.distros import aix_util
 
 LOG = logging.getLogger(__name__)
 
@@ -26,9 +28,12 @@ DEFAULT_METADATA = {
 FS_TYPES = ("vfat", "iso9660")
 LABEL_TYPES = ("config-2", "CONFIG-2")
 POSSIBLE_MOUNTS = ("sr", "cd")
-OPTICAL_DEVICES = tuple(
-    ("/dev/%s%s" % (z, i) for z in POSSIBLE_MOUNTS for i in range(2))
-)
+if platform.system().lower() == "aix":
+    OPTICAL_DEVICES = tuple(('cd%s' % i for i in range(0, 2)))
+else:    
+    OPTICAL_DEVICES = tuple(
+        ("/dev/%s%s" % (z, i) for z in POSSIBLE_MOUNTS for i in range(2))
+    )
 
 
 class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
@@ -84,9 +89,14 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
                     if dev.startswith("/dev/cd"):
                         mtype = "cd9660"
                 try:
-                    results = util.mount_cb(
-                        dev, read_config_drive, mtype=mtype
-                    )
+                    if platform.system().lower() == "aix":
+                        results = aix_util.mount_cb(
+                            dev, read_config_drive, mtype=mtype
+                        )
+                    else:
+                        results = util.mount_cb(
+                            dev, read_config_drive, mtype=mtype
+                        )
                     found = dev
                 except openstack.NonReadable:
                     pass
@@ -268,20 +278,26 @@ def find_candidate_devs(probe_optical=True, dslist=None):
         dslist = []
 
     # query optical drive to get it in blkid cache for 2.6 kernels
+    by_fstype = []
     if probe_optical:
         for device in OPTICAL_DEVICES:
             try:
-                util.find_devs_with(path=device)
+                if platform.system().lower() == "aix":
+                    by_fstype.extend(aix_util.find_devs_with(device))
+                else:    
+                    util.find_devs_with(path=device)
             except subp.ProcessExecutionError:
                 pass
 
-    by_fstype = []
-    for fs_type in FS_TYPES:
-        by_fstype.extend(util.find_devs_with("TYPE=%s" % (fs_type)))
+    if platform.system().lower() == "aix":
+        devices = by_fstype
+    else:    
+        for fs_type in FS_TYPES:
+            by_fstype.extend(util.find_devs_with("TYPE=%s" % (fs_type)))
 
-    by_label = []
-    for label in LABEL_TYPES:
-        by_label.extend(util.find_devs_with("LABEL=%s" % (label)))
+        by_label = []
+        for label in LABEL_TYPES:
+            by_label.extend(util.find_devs_with("LABEL=%s" % (label)))
 
     # give preference to "last available disk" (vdb over vda)
     # note, this is not a perfect rendition of that.

@@ -11,6 +11,7 @@
 import contextlib
 import logging
 import os
+import platform
 from configparser import NoOptionError, NoSectionError, RawConfigParser
 from io import StringIO
 from time import time
@@ -306,7 +307,10 @@ class Paths(persistence.CloudInitPickleMixin):
     def __init__(self, path_cfgs: dict, ds=None):
         self.cfgs = path_cfgs
         # Populate all the initial paths
-        self.cloud_dir: str = path_cfgs.get("cloud_dir", "/var/lib/cloud")
+        if platform.system().lower() == "aix":
+            self.cloud_dir: str = path_cfgs.get("cloud_dir", "/opt/freeware/var/lib/cloud")
+        else:    
+            self.cloud_dir: str = path_cfgs.get("cloud_dir", "/var/lib/cloud")
         self.run_dir: str = path_cfgs.get("run_dir", "/run/cloud-init")
         self.instance_link: str = os.path.join(self.cloud_dir, "instance")
         self.boot_finished: str = os.path.join(
@@ -314,9 +318,12 @@ class Paths(persistence.CloudInitPickleMixin):
         )
         self.seed_dir: str = os.path.join(self.cloud_dir, "seed")
         # This one isn't joined, since it should just be read-only
-        template_dir: str = path_cfgs.get(
-            "templates_dir", "/etc/cloud/templates/"
-        )
+        if platform.system().lower() == "aix":
+            template_dir: str = path_cfgs.get("templates_dir", "/opt/freeware/etc/cloud/templates/")
+        else:    
+            template_dir: str = path_cfgs.get(
+                "templates_dir", "/etc/cloud/templates/"
+            )
         self.template_tpl: str = os.path.join(template_dir, "%s.tmpl")
         self.lookups = {
             "boothooks": "boothooks",

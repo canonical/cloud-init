@@ -141,6 +141,9 @@ def is_efi_booted() -> bool:
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
+    if _cloud.distro.name not in distros:
+        return
+
     mycfg = cfg.get("grub_dpkg", cfg.get("grub-dpkg", {}))
     if not mycfg:
         mycfg = {}

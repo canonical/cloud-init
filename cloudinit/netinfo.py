@@ -11,6 +11,9 @@
 import json
 import logging
 import re
+import cloudinit.distros.aix_util as aix_util
+import os
+import platform
 from copy import copy, deepcopy
 from ipaddress import IPv4Network
 
@@ -232,7 +235,10 @@ def _netdev_info_ifconfig(ifconfig_data):
         if len(line) == 0:
             continue
         if line[0] not in ("\t", " "):
-            curdev = line.split()[0]
+            if platform.system().lower() == "aix":
+                curdev = line.split()[0].replace(':', '')
+            else:    
+                curdev = line.split()[0]
             # current ifconfig pops a ':' on the end of the device
             if curdev.endswith(":"):
                 curdev = curdev[:-1]
@@ -244,7 +250,7 @@ def _netdev_info_ifconfig(ifconfig_data):
         # If the output of ifconfig doesn't contain the required info in the
         # obvious place, use a regex filter to be sure.
         elif len(toks) > 1:
-            if re.search(r"flags=\d+<up,", toks[1]):
+            if (re.search(r"flags=\d+<up,", toks[1]) or re.search(r"flags=[a-zA-Z0-9,]+<up,", toks[1])):
                 devs[curdev]["up"] = True
 
         for i in range(len(toks)):
@@ -503,22 +509,121 @@ def _netdev_route_info_netstat(route_data):
     return routes
 
 
+def _netdev_route_info_netstat_aix(route_data):
+    routes = {}
+    routes["ipv4"] = []
+    routes["ipv6"] = []
+
+    print("route_data: ", route_data)
+    entries = route_data.splitlines()
+    for line in entries:
+        if not line:
+            continue
+        toks = line.split()
+     
+        if ( toks[0] == "Routing"
+            or
+            toks[0] == "Destination"
+            or
+            toks[0] == "Route" ):
+            continue
+
+        if "U" in toks[1]:
+            toks.insert(1, "-")
+
+        entry = {
+            "destination": toks[0],
+            "gateway": toks[1],
+            "genmask": toks[2],
+            "flags": toks[2],
+            "metric": toks[4],
+            "ref": toks[5],
+            "use": toks[6],
+            "iface": toks[5],
+        }
+ 
+        # Update the entry for aix output with "FLags" and "If"
+        # AIX shows 8 items in the routing table:
+        # Destination        Gateway           Flags   Refs     Use  If   Exp  Groups
+        # default            9.3.78.1          UG       16    166026 en0  -     -
+        #if os.path.exists("/usr/sbin/lsattr"):
+        entry["genmask"] = aix_util.get_mask(toks[5])
+            #entry['flags'] = toks[2]
+            #entry['iface'] = toks[5]
+
+        routes["ipv4"].append(entry)
+
+    try:
+        (route_data6, _err6) = subp.subp(
+            ["netstat", "-rn", "-f", "inet6"], rcs=[0, 1]
+        )
+    except subp.ProcessExecutionError:
+        pass
+
+    entries6 = route_data6.splitlines()
+    for line in entries6:
+
+        if not line:
+            continue
+        toks = line.split()
+    
+        if ( toks[0] == "Routing"
+            or
+            toks[0] == "Destination"
+            or
+            toks[0] == "Route" ):
+            continue
+
+        if "U" in toks[1]:
+            toks.insert(1, "-")
+
+        entry = {
+            "destination": toks[0],
+            "gateway": toks[1],
+            "genmask": toks[2],
+            "flags": toks[2],
+            "metric": toks[4],
+            "ref": toks[5],
+            "use": toks[6],
+            "iface": toks[5],
+        }
+ 
+        # Update the entry for aix output with "FLags" and "If"
+        # AIX shows 8 items in the routing table:
+        # Destination        Gateway           Flags   Refs     Use  If   Exp  Groups
+        # default            9.3.78.1          UG       16    166026 en0  -     -
+        #if os.path.exists("/usr/sbin/lsattr"):
+        entry['genmask'] = aix_util.get_mask(toks[5])
+        #    entry['flags'] = toks[2]
+        #    entry['iface'] = toks[5]
+
+        # skip lo interface on ipv6
+        if entry["iface"] == "lo":
+            continue
+        routes["ipv6"].append(entry)
+    return routes
+
+
 def route_info():
     routes = {}
-    if subp.which("ip"):
-        # Try iproute first of all
-        (iproute_out, _err) = subp.subp(["ip", "-o", "route", "list"])
-        routes = _netdev_route_info_iproute(iproute_out)
-    elif subp.which("netstat"):
-        # Fall back to net-tools if iproute2 is not present
-        (route_out, _err) = subp.subp(
-            ["netstat", "--route", "--numeric", "--extend"], rcs=[0, 1]
-        )
-        routes = _netdev_route_info_netstat(route_out)
+    if platform.system().lower() == "aix":
+        (route_out, _err) = subp.subp(["netstat", "-rn", "-f", "inet"], rcs=[0, 1])
+        routes = _netdev_route_info_netstat_aix(route_out)
     else:
-        LOG.warning(
-            "Could not print routes: missing 'ip' and 'netstat' commands"
-        )
+        if subp.which("ip"):
+            # Try iproute first of all
+            (iproute_out, _err) = subp.subp(["ip", "-o", "route", "list"])
+            routes = _netdev_route_info_iproute(iproute_out)
+        elif subp.which("netstat"):
+            # Fall back to net-tools if iproute2 is not present
+            (route_out, _err) = subp.subp(
+                ["netstat", "--route", "--numeric", "--extend"], rcs=[0, 1]
+            )
+            routes = _netdev_route_info_netstat(route_out)
+        else:
+            LOG.warning(
+                "Could not print routes: missing 'ip' and 'netstat' commands"
+            )
     return routes
 
 

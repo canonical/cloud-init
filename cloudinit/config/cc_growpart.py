@@ -15,6 +15,7 @@ import os
 import os.path
 import re
 import stat
+import platform
 from abc import ABC, abstractmethod
 from contextlib import suppress
 from pathlib import Path
@@ -601,6 +602,9 @@ def resize_devices(resizer, devices):
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
+    if platform.system().lower() == "aix":
+        return
+
     if "growpart" not in cfg:
         LOG.debug(
             "No 'growpart' entry in cfg.  Using default: %s", DEFAULT_CONFIG

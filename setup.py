@@ -141,6 +141,7 @@ INITSYS_FILES = {
     "sysvinit_openrc": lambda: [
         f for f in glob("sysvinit/gentoo/*") if is_f(f)
     ],
+    "aix": [f for f in glob("sysvinit/aix/*") if is_f(f)],
     "systemd": lambda: [
         render_tmpl(f)
         for f in (
@@ -164,6 +165,7 @@ INITSYS_ROOTS = {
     "sysvinit_openbsd": "etc/rc.d",
     "sysvinit_deb": "etc/init.d",
     "sysvinit_openrc": "etc/init.d",
+    "aix": "etc/rc.d/init.d",
     "systemd": pkg_config_read("systemd", "systemdsystemunitdir"),
     "systemd.generators": pkg_config_read(
         "systemd", "systemdsystemgeneratordir"
@@ -275,6 +277,7 @@ if not in_virtualenv():
 data_files = [
     (ETC + "/cloud", [render_tmpl("config/cloud.cfg.tmpl", is_yaml=True)]),
     (ETC + "/cloud/clean.d", glob("config/clean.d/*")),
+    (ETC + "/cloud", glob("config/*.cfg")),
     (ETC + "/cloud/cloud.cfg.d", glob("config/cloud.cfg.d/*")),
     (ETC + "/cloud/templates", glob("templates/*")),
     (
@@ -284,6 +287,7 @@ data_files = [
             "tools/hook-hotplug",
             "tools/uncloud-init",
             "tools/write-ssh-key-fingerprints",
+            "tools/create_pvid_to_vg_mappings.sh",
         ],
     ),
     (

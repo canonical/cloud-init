@@ -11,9 +11,11 @@
 import errno
 import logging
 import os
+import platform
 
 from cloudinit import dmi, sources, util
 from cloudinit.net import eni
+from cloudinit.distros import aix_util
 
 LOG = logging.getLogger(__name__)
 
@@ -37,15 +39,17 @@ class DataSourceNoCloud(sources.DataSource):
         return "%s [seed=%s][dsmode=%s]" % (root, self.seed, self.dsmode)
 
     def _get_devices(self, label):
-        fslist = util.find_devs_with("TYPE=vfat")
-        fslist.extend(util.find_devs_with("TYPE=iso9660"))
-
-        label_list = util.find_devs_with("LABEL=%s" % label.upper())
-        label_list.extend(util.find_devs_with("LABEL=%s" % label.lower()))
-        label_list.extend(util.find_devs_with("LABEL_FATBOOT=%s" % label))
-
-        devlist = list(set(fslist) & set(label_list))
-        devlist.sort(reverse=True)
+        if platform.system().lower() == "aix":
+            devlist = aix_util.find_devs_with("cd0")
+            devlist.extend(aix_util.find_devs_with("cd1"))
+        else:
+            fslist = util.find_devs_with("TYPE=vfat")
+            fslist.extend(util.find_devs_with("TYPE=iso9660"))
+            label_list = util.find_devs_with("LABEL=%s" % label.upper())
+            label_list.extend(util.find_devs_with("LABEL=%s" % label.lower()))
+            label_list.extend(util.find_devs_with("LABEL_FATBOOT=%s" % label))
+            devlist = list(set(fslist) & set(label_list))
+            devlist.sort(reverse=True)
         return devlist
 
     def _get_data(self):
@@ -123,9 +127,14 @@ class DataSourceNoCloud(sources.DataSource):
                     LOG.debug("Attempting to use data from %s", dev)
 
                     try:
-                        seeded = util.mount_cb(
-                            dev, _pp2d_callback, pp2d_kwargs
-                        )
+                        if platform.system().lower() == "aix":
+                            seeded = aix_util.mount_cb(
+                                dev, _pp2d_callback, pp2d_kwargs
+                            )
+                        else:
+                            seeded = util.mount_cb(
+                                dev, _pp2d_callback, pp2d_kwargs
+                            )
                     except ValueError:
                         LOG.warning(
                             "device %s with label=%s not a valid seed.",

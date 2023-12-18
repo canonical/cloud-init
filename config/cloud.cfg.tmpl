@@ -51,14 +51,14 @@ manage_etc_hosts: false
 
 # If this is set, 'root' will not be able to ssh in and they
 # will get a message to login instead as the default $user
-{% if variant in ["freebsd", "photon"] %}
+{% if variant in ["freebsd", "photon", "aix"] %}
 disable_root: false
 {% else %}
 disable_root: true
 {% endif %}
 
 {%- if variant in ["alpine", "amazon", "fedora", "OpenCloudOS", "openeuler",
-                   "openmandriva", "photon", "TencentOS"] or is_rhel %}
+                   "openmandriva", "photon", "TencentOS", "aix"] or is_rhel %}
 
 {% if is_rhel %}
 mount_default_fields: [~, ~, 'auto', 'defaults,nofail,x-systemd.requires=cloud-init.service,_netdev', '0', '2']

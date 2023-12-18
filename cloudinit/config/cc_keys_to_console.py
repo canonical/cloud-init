@@ -10,6 +10,7 @@
 
 import logging
 import os
+import platform
 from textwrap import dedent
 
 from cloudinit import subp, util
@@ -19,6 +20,7 @@ from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
 # This is a tool that cloud init provides
+HELPER_TOOL_TPL_AIX = "/opt/freeware/lib/cloud-init/write-ssh-key-fingerprints"
 HELPER_TOOL_TPL = "%s/cloud-init/write-ssh-key-fingerprints"
 
 distros = ["all"]
@@ -72,6 +74,9 @@ LOG = logging.getLogger(__name__)
 
 
 def _get_helper_tool_path(distro):
+    if platform.system().lower() == "aix":
+       return HELPER_TOOL_TPL_AIX
+
     try:
         base_lib = distro.usr_lib_exec
     except AttributeError:

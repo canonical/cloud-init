@@ -12,6 +12,7 @@ import errno
 import logging
 import os
 import stat
+import platform
 from textwrap import dedent
 
 from cloudinit import subp, util
@@ -235,6 +236,9 @@ def maybe_get_writable_device_path(devpath, info):
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
+    if platform.system().lower() == "aix":
+        return
+
     if len(args) != 0:
         resize_root = args[0]
     else:

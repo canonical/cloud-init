@@ -173,6 +173,21 @@ class Networking(metaclass=abc.ABCMeta):
         """Try setting the link to up explicitly and return if it is up."""
 
 
+class AIXNetworking(Networking):
+    """Implementation of networking functionality shared across AIXs"""
+
+    def is_physical(self, devname: DeviceName) -> bool:
+        return "en" in devname
+
+    def settle(self, *, exists=None) -> None:
+        """AIX has no equivalent to `udevadm settle`; noop."""
+
+    def try_set_link_up(self, devname: DeviceName) -> bool:
+        subp.subp(["ifconfig", devname, "up"])
+        print("try_set_link_up devname %s" % devname)
+        return self.is_up(devname)
+
+
 class BSDNetworking(Networking):
     """Implementation of networking functionality shared across BSDs."""
 

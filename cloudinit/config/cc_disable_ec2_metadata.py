@@ -18,7 +18,7 @@ from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_ALWAYS
 
-REJECT_CMD_IF = ["route", "add", "-host", "169.254.169.254", "reject"]
+REJECT_CMD_IF = ["route", "add", "-host", "169.254.169.254", "127.0.0.1", "reject"]
 REJECT_CMD_IP = ["ip", "route", "add", "prohibit", "169.254.169.254"]
 
 LOG = logging.getLogger(__name__)

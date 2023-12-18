@@ -91,6 +91,7 @@ OSFAMILIES = {
     ],
     "openeuler": ["openeuler"],
     "OpenCloudOS": ["OpenCloudOS", "TencentOS"],
+    "aix": ["aix"],
 }
 
 LOG = logging.getLogger(__name__)
@@ -300,6 +301,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             )
         return tz_file
 
+    def get_init_cmd(self):
+        return self.init_cmd
+
     def get_option(self, opt_name, default=None):
         return self._cfg.get(opt_name, default)
 
@@ -364,6 +368,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # pylint: enable=assignment-from-no-return
         # Now try to bring them up
         if bring_up:
+            self._bring_down_interfaces(dev_names)
             return self._bring_up_interfaces(dev_names)
         return False
 
@@ -620,6 +625,28 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         am_failed = 0
         for d in device_names:
             if not self._bring_up_interface(d):
+                am_failed += 1
+        if am_failed == 0:
+            return True
+        return False
+
+    def _bring_down_interface(self, device_name):
+        cmd = ["ifdown", device_name]
+        LOG.debug("Attempting to run bring down interface %s using command %s",
+                   device_name, cmd)
+        try:
+            (_out, err) = subp.subp(cmd)
+            if len(err):
+                LOG.warn("Running %s resulted in stderr output: %s", cmd, err)
+            return True
+        except subp.ProcessExecutionError:
+            util.logexc(LOG, "Running interface command %s failed", cmd)
+            return False
+
+    def _bring_down_interfaces(self, device_names):
+        am_failed = 0
+        for d in device_names:
+            if not self._bring_down_interface(d):
                 am_failed += 1
         if am_failed == 0:
             return True

@@ -757,13 +757,16 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return None
 
     def get_locale(self):
-        """Default locale is en_US.UTF-8, but allow distros to override"""
-        locale = self.default_locale
-        try:
-            locale = self.distro.get_locale()
-        except NotImplementedError:
-            pass
-        return locale
+        if self.distro.name == "aix":
+            return 'en_US'
+        else:
+            """Default locale is en_US.UTF-8, but allow distros to override"""
+            locale = self.default_locale
+            try:
+                locale = self.distro.get_locale()
+            except NotImplementedError:
+                pass
+            return locale
 
     @property
     def availability_zone(self):
