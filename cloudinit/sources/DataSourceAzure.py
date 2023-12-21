@@ -44,7 +44,7 @@ from cloudinit.sources.helpers.azure import (
     get_ip_from_lease_value,
     get_metadata_from_fabric,
     get_system_info,
-    push_log_to_kvp,
+    report_dmesg_to_kvp,
     report_diagnostic_event,
     report_failure_to_fabric,
 )
@@ -1473,7 +1473,7 @@ class DataSourceAzure(sources.DataSource):
                 preserve_ntfs=self.ds_cfg.get(DS_CFG_KEY_PRESERVE_NTFS, False),
             )
         finally:
-            push_log_to_kvp(self.sys_cfg["def_log_file"])
+            report_dmesg_to_kvp()
         return
 
     @property
