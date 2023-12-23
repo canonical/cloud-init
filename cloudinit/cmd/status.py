@@ -12,7 +12,7 @@ import json
 import os
 import sys
 from copy import deepcopy
-from time import gmtime, sleep, strftime
+from time import gmtime, sleep, strftime, time
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
 
 from cloudinit import safeyaml, subp
@@ -130,6 +130,13 @@ def get_parser(parser=None):
         default=False,
         help="Block waiting on cloud-init to complete",
     )
+    parser.add_argument(
+        "-t",
+        "--timeout",
+        type=int,
+        nargs=1,
+        help="Timeout in seconds for --wait flag - use to avoid forever wait",
+    )
     return parser
 
 
@@ -139,15 +146,26 @@ def handle_status_args(name, args) -> int:
     paths = read_cfg_paths()
     details = get_status_details(paths, args.wait)
     if args.wait:
+        if args.timeout:
+            timeout_secs = args.timeout[0] * 0.01
         while details.status in (
             UXAppStatus.NOT_RUN,
             UXAppStatus.RUNNING,
             UXAppStatus.DEGRADED_RUNNING,
         ):
+            if args.timeout:
+                start_time = time()
+
             if args.format == "tabular":
                 sys.stdout.write(".")
                 sys.stdout.flush()
             details = get_status_details(paths, args.wait)
+
+            if args.timeout:
+                timeout_secs -= time() - start_time
+                if timeout_secs < 0:
+                    break
+
             sleep(0.25)
     details_dict: Dict[str, Union[None, str, List[str], Dict[str, Any]]] = {
         "datasource": details.datasource,
