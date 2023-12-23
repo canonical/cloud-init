@@ -84,3 +84,12 @@ contain any of the following states:
 
 See :ref:`our explanation of failure states<failure_states>` for more
 information.
+
+Cloud-init status --wait
+-----------------
+To wait for the status to be fetched use ``cloud-init status --wait``: script will wait forever
+for the status response.
+To wait for the status to be fetched add the ``--timeout`` flag to set desired time for script to
+terminate in seconds e.g. ``--timeout 5``. **Using '--timeout' flag will exit without finishing the configuration if
+there are no status changes**
+
