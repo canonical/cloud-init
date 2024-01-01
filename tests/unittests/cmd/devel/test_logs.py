@@ -35,6 +35,7 @@ class TestCollectLogs:
             " Try sudo cloud-init collect-logs\n" == m_stderr.getvalue()
         )
 
+    @pytest.mark.allow_all_subp
     def test_collect_logs_creates_tarfile(self, m_getuid, mocker, tmpdir):
         """collect-logs creates a tarfile with all related cloud-init info."""
         m_getuid.return_value = 100
@@ -98,7 +99,6 @@ class TestCollectLogs:
             M_PATH + "subprocess.call", side_effect=fake_subprocess_call
         )
         mocker.patch(M_PATH + "sys.stderr", fake_stderr)
-        # mocker.patch(M_PATH + "CLOUDINIT_LOGS", [log1, log2])
         mocker.patch(M_PATH + "CLOUDINIT_RUN_DIR", run_dir)
         mocker.patch(M_PATH + "INSTALLER_APPORT_FILES", [])
         mocker.patch(M_PATH + "INSTALLER_APPORT_SENSITIVE_FILES", [])
@@ -137,6 +137,7 @@ class TestCollectLogs:
         )
         fake_stderr.write.assert_any_call("Wrote %s\n" % output_tarfile)
 
+    @pytest.mark.allow_all_subp
     def test_collect_logs_includes_optional_userdata(
         self, m_getuid, mocker, tmpdir
     ):
@@ -200,7 +201,6 @@ class TestCollectLogs:
             M_PATH + "subprocess.call", side_effect=fake_subprocess_call
         )
         mocker.patch(M_PATH + "sys.stderr", fake_stderr)
-        # mocker.patch(M_PATH + "CLOUDINIT_LOGS", [log1, log2])
         mocker.patch(M_PATH + "CLOUDINIT_RUN_DIR", run_dir)
         mocker.patch(M_PATH + "INSTALLER_APPORT_FILES", [])
         mocker.patch(M_PATH + "INSTALLER_APPORT_SENSITIVE_FILES", [])
