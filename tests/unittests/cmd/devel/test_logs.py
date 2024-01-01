@@ -98,7 +98,7 @@ class TestCollectLogs:
             M_PATH + "subprocess.call", side_effect=fake_subprocess_call
         )
         mocker.patch(M_PATH + "sys.stderr", fake_stderr)
-        mocker.patch(M_PATH + "CLOUDINIT_LOGS", [log1, log2])
+        # mocker.patch(M_PATH + "CLOUDINIT_LOGS", [log1, log2])
         mocker.patch(M_PATH + "CLOUDINIT_RUN_DIR", run_dir)
         mocker.patch(M_PATH + "INSTALLER_APPORT_FILES", [])
         mocker.patch(M_PATH + "INSTALLER_APPORT_SENSITIVE_FILES", [])
@@ -200,7 +200,7 @@ class TestCollectLogs:
             M_PATH + "subprocess.call", side_effect=fake_subprocess_call
         )
         mocker.patch(M_PATH + "sys.stderr", fake_stderr)
-        mocker.patch(M_PATH + "CLOUDINIT_LOGS", [log1, log2])
+        # mocker.patch(M_PATH + "CLOUDINIT_LOGS", [log1, log2])
         mocker.patch(M_PATH + "CLOUDINIT_RUN_DIR", run_dir)
         mocker.patch(M_PATH + "INSTALLER_APPORT_FILES", [])
         mocker.patch(M_PATH + "INSTALLER_APPORT_SENSITIVE_FILES", [])
