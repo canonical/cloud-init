@@ -338,6 +338,7 @@ this datasource using the GuestInfo keys transport:
 
        instance-id: cloud-vm
        local-hostname: cloud-vm
+       create_hostname_file: true
        network:
          version: 2
          ethernets:

@@ -141,7 +141,7 @@ sufficient disk by following the following example.
 .. code-block:: sh
 
    $ echo -e "instance-id: iid-local01\nlocal-hostname: cloudimg" > meta-data
-   $ echo -e "#cloud-config\npassword: passw0rd\nchpasswd: { expire: False }\nssh_pwauth: True\n" > user-data
+   $ echo -e "#cloud-config\npassword: passw0rd\nchpasswd: { expire: False }\nssh_pwauth: True\ncreate_hostname_file: true\n" > user-data
 
 2. At this stage you have three options:
 
@@ -216,6 +216,7 @@ Example ``meta-data``
       broadcast 192.168.1.255
       gateway 192.168.1.254
     hostname: myhost
+    create_hostname_file: true
 
 
 Network configuration can also be provided to ``cloud-init`` in either

@@ -22,6 +22,7 @@ EOF
 cat << EOF > meta-data
 instance-id: someid/somehostname
 local-hostname: jammy
+create_hostname_file: true
 EOF
 
 touch vendor-data
