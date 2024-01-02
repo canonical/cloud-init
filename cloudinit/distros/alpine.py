@@ -86,6 +86,9 @@ class Distro(distros.Distro):
             if create_hostname_file:
                 pass
             else:
+                LOG.info(
+                    "create_hostname_file is False; hostname file not created"
+                )
                 return
         if not conf:
             conf = HostnameConf("")

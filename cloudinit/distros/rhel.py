@@ -121,6 +121,9 @@ class Distro(distros.Distro):
                         str(hostname),
                     ]
                 )
+                LOG.info(
+                    "create_hostname_file is False; hostname set transiently"
+                )
         else:
             host_cfg = {
                 "HOSTNAME": hostname,
