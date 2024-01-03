@@ -15,6 +15,7 @@ from cloudinit.atomic_helper import b64e
 from cloudinit.cmd import query
 from cloudinit.helpers import Paths
 from cloudinit.sources import REDACT_SENSITIVE_VALUE
+from cloudinit.templater import JinjaSyntaxParsingException
 from cloudinit.util import write_file
 from tests.unittests.helpers import mock
 
@@ -562,6 +563,70 @@ class TestQuery:
             user_data="ud",
             vendor_data="vd",
             varname="top",
+        )
+        with mock.patch("os.getuid") as m_getuid:
+            m_getuid.return_value = 100
+            assert 1 == query.handle_args("anyname", args)
+        assert expected_error in caplog.text
+
+    @pytest.mark.parametrize(
+        "header_included",
+        [True, False],
+    )
+    def test_handle_args_formats_jinja_successfully(
+        self, caplog, tmpdir, capsys, header_included
+    ):
+        """Test that rendering a jinja template works as expected."""
+        instance_data = tmpdir.join("instance-data")
+        instance_data.write(
+            '{"v1": {"v1_1": "val1.1", "v1_2": "val1.2"}, "v2": '
+            '{"v2_2": "val2.2"}, "top": "gun"}'
+        )
+        header = "## template: jinja\n" if header_included else ""
+        format = header + "v1_1: {{ v1.v1_1 }}"
+        expected = header + "v1_1: val1.1\n"
+
+        args = self.Args(
+            debug=False,
+            dump_all=False,
+            format=format,
+            instance_data=instance_data.strpath,
+            list_keys=False,
+            user_data="ud",
+            vendor_data="vd",
+            varname=None,
+        )
+        with mock.patch("os.getuid") as m_getuid:
+            m_getuid.return_value = 100
+            assert 0 == query.handle_args("anyname", args)
+        out, _err = capsys.readouterr()
+        assert expected == out
+
+    def test_handle_args_invalid_jinja_exception(self, caplog, tmpdir, capsys):
+        """Raise an error when a jinja syntax error is encountered."""
+        instance_data = tmpdir.join("instance-data")
+        instance_data.write(
+            '{"v1": {"v1_1": "val1.1", "v1_2": "val1.2"}, "v2": '
+            '{"v2_2": "val2.2"}, "top": "gun"}'
+        )
+        format = "v1_1: {{ v1.v1_1 } }"
+        expected_error = (
+            "Failed to render templated data. "
+            + JinjaSyntaxParsingException.format_error_message(
+                syntax_error="unexpected '}'",
+                line_number=2,
+                line_content="v1_1: {{ v1.v1_1 } }",
+            )
+        )
+        args = self.Args(
+            debug=False,
+            dump_all=False,
+            format=format,
+            instance_data=instance_data.strpath,
+            list_keys=False,
+            user_data="ud",
+            vendor_data="vd",
+            varname=None,
         )
         with mock.patch("os.getuid") as m_getuid:
             m_getuid.return_value = 100

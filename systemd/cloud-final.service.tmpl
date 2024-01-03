@@ -1,7 +1,7 @@
 ## template:jinja
 [Unit]
 Description=Execute cloud user/final scripts
-After=network-online.target cloud-config.service rc-local.service
+After=network-online.target time-sync.target cloud-config.service rc-local.service
 {% if variant in ["ubuntu", "unknown", "debian"] %}
 After=multi-user.target
 Before=apt-daily.service

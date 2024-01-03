@@ -29,6 +29,7 @@ from cloudinit.handlers.jinja_template import (
     render_jinja_payload,
 )
 from cloudinit.sources import REDACT_SENSITIVE_VALUE
+from cloudinit.templater import JinjaSyntaxParsingException
 
 NAME = "query"
 LOG = logging.getLogger(__name__)
@@ -277,12 +278,19 @@ def handle_args(name, args):
         return 1
     if args.format:
         payload = "## template: jinja\n{fmt}".format(fmt=args.format)
-        rendered_payload = render_jinja_payload(
-            payload=payload,
-            payload_fn="query commandline",
-            instance_data=instance_data,
-            debug=True if args.debug else False,
-        )
+        try:
+            rendered_payload = render_jinja_payload(
+                payload=payload,
+                payload_fn="query commandline",
+                instance_data=instance_data,
+                debug=True if args.debug else False,
+            )
+        except JinjaSyntaxParsingException as e:
+            LOG.error(
+                "Failed to render templated data. %s",
+                str(e),
+            )
+            return 1
         if rendered_payload:
             print(rendered_payload)
             return 0

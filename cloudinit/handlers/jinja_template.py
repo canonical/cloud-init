@@ -13,6 +13,7 @@ from cloudinit.helpers import Paths
 from cloudinit.settings import PER_ALWAYS
 from cloudinit.templater import (
     MISSING_JINJA_PREFIX,
+    JinjaSyntaxParsingException,
     detect_template,
     render_string,
 )
@@ -54,9 +55,19 @@ class JinjaTemplatePartHandler(handlers.Handler):
         if ctype in handlers.CONTENT_SIGNALS:
             return
         jinja_json_file = self.paths.get_runpath("instance_data_sensitive")
-        rendered_payload = render_jinja_payload_from_file(
-            payload, filename, jinja_json_file
-        )
+        try:
+            rendered_payload = render_jinja_payload_from_file(
+                payload, filename, jinja_json_file
+            )
+        except JinjaSyntaxParsingException as e:
+            LOG.warning(
+                "Ignoring jinja template for %s. "
+                "Failed to render template. %s",
+                filename,
+                str(e),
+            )
+            return
+
         if not rendered_payload:
             return
         subtype = handlers.type_from_starts_with(rendered_payload)
