@@ -30,6 +30,10 @@ UNAME_FREEBSD = (
     "FreeBSD 12.1-RELEASE-p10 FreeBSD 12.1-RELEASE-p10 GENERIC  amd64"
 )
 UNAME_OPENBSD = "OpenBSD GENERIC.MP#1397 amd64"
+UNAME_WSL = (
+    "Linux 5.15.133.1-microsoft-standard-WSL2 #1 SMP Thu Oct 5 21:02:42 "
+    "UTC 2023 x86_64"
+)
 
 BLKID_EFI_ROOT = """
 DEVNAME=/dev/sda1
@@ -243,9 +247,11 @@ MOCK_VIRT_IS_VMWARE = {"name": "detect_virt", "RET": "vmware", "ret": 0}
 # currenty' SmartOS hypervisor "bhyve" is unknown by systemd-detect-virt.
 MOCK_VIRT_IS_VM_OTHER = {"name": "detect_virt", "RET": "vm-other", "ret": 0}
 MOCK_VIRT_IS_XEN = {"name": "detect_virt", "RET": "xen", "ret": 0}
+MOCK_VIRT_IS_WSL = {"name": "detect_virt", "RET": "wsl", "ret": 0}
 MOCK_UNAME_IS_PPC64 = {"name": "uname", "out": UNAME_PPC64EL, "ret": 0}
 MOCK_UNAME_IS_FREEBSD = {"name": "uname", "out": UNAME_FREEBSD, "ret": 0}
 MOCK_UNAME_IS_OPENBSD = {"name": "uname", "out": UNAME_OPENBSD, "ret": 0}
+MOCK_UNAME_IS_WSL = {"name": "uname", "out": UNAME_WSL, "ret": 0}
 
 shell_true = 0
 shell_false = 1
@@ -1141,6 +1147,20 @@ class TestOracle(DsIdentifyBase):
         mycfg = copy.deepcopy(VALID_CFG["Oracle"])
         mycfg["files"][P_CHASSIS_ASSET_TAG] = "Not Oracle"
         self._check_via_dict(mycfg, rc=RC_NOT_FOUND)
+
+
+class TestWSL(DsIdentifyBase):
+    def test_found(self):
+        """Simple positive test of WSL."""
+        self._test_ds_found("WSL-supported")
+
+    def test_not_found(self):
+        """Simple negative test for WSL due other virt."""
+        self._test_ds_not_found("Not-WSL")
+
+    def test_almost_found(self):
+        """Simple negative test by lack of host filesystem mount points."""
+        self._test_ds_not_found("WSL-no-host-mounts")
 
 
 def blkid_out(disks=None):
@@ -2118,6 +2138,44 @@ VALID_CFG = {
         "files": {
             P_PRODUCT_NAME: "Not 3DS Outscale VM\n",
             P_SYS_VENDOR: "3DS Outscale\n",
+        },
+    },
+    "Not-WSL": {
+        "ds": "WSL",
+        "mocks": [
+            MOCK_VIRT_IS_KVM,
+        ],
+    },
+    "WSL-no-host-mounts": {
+        "ds": "WSL",
+        "mocks": [
+            MOCK_VIRT_IS_WSL,
+            MOCK_UNAME_IS_WSL,
+        ],
+        "files": {
+            "proc/mounts": (
+                "/dev/sdd / ext4 rw,errors=remount-ro,data=ordered 0 0\n"
+                "cgroup2 /sys/fs/cgroup cgroup2 rw,nosuid,nodev,noexec0 0\n"
+                "snapfuse /snap/core22/1033 fuse.snapfuse ro,nodev,user_id=0,"
+                "group_id=0,allow_other 0 0"
+            ),
+        },
+    },
+    "WSL-supported": {
+        "ds": "WSL",
+        "mocks": [
+            MOCK_VIRT_IS_WSL,
+            MOCK_UNAME_IS_WSL,
+        ],
+        "files": {
+            "proc/mounts": (
+                "/dev/sdd / ext4 rw,errors=remount-ro,data=ordered 0 0\n"
+                "cgroup2 /sys/fs/cgroup cgroup2 rw,nosuid,nodev,noexec0 0\n"
+                "C:\\134 /mnt/c 9p rw,dirsync,aname=drvfs;path=C:\\;uid=0;\n"
+                "gid=0;symlinkroot=/mnt/...\n"
+                "snapfuse /snap/core22/1033 fuse.snapfuse ro,nodev,user_id=0,"
+                "group_id=0,allow_other 0 0"
+            ),
         },
     },
 }
