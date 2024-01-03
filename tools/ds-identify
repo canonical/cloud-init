@@ -1967,7 +1967,7 @@ main() {
     if [ "${1:+$1}" != "--force" ] && [ -f "$PATH_RUN_CI_CFG" ] &&
         [ -f "$PATH_RUN_DI_RESULT" ]; then
         if read ret < "$PATH_RUN_DI_RESULT"; then
-            if [ "$ret" = "0" ] || [ "$ret" = "1" ]; then
+            if [ "$ret" = "0" ] || [ "$ret" = "1" ] || [ "$ret" = "2" ]; then
                 debug 2 "used cached result $ret. pass --force to re-run."
                 return "$ret";
             fi
