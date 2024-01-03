@@ -3,9 +3,12 @@
 """ Tests for cc_apt_configure module """
 
 import re
+from pathlib import Path
+from unittest import mock
 
 import pytest
 
+from cloudinit import features
 from cloudinit.config import cc_apt_configure
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -14,6 +17,8 @@ from cloudinit.config.schema import (
 )
 from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
+
+M_PATH = "cloudinit.config.cc_apt_configure."
 
 
 class TestAPTConfigureSchema:
@@ -266,3 +271,33 @@ class TestEnsureDependencies:
             install_packages.assert_called_once_with(expected_install)
         else:
             install_packages.assert_not_called()
+
+
+class TestAptConfigure:
+    @mock.patch(M_PATH + "get_apt_cfg")
+    def test_disable_source(self, m_get_apt_cfg, tmpdir):
+        m_get_apt_cfg.return_value = {
+            "sourcelist": f"{tmpdir}/etc/apt/sources.list",
+            "sourceparts": f"{tmpdir}/etc/apt/sources.list.d/",
+        }
+        cloud = get_cloud("ubuntu")
+        features.APT_DEB822_SOURCE_LIST_FILE = True
+        sources_file = tmpdir.join("/etc/apt/sources.list")
+        Path(sources_file).parent.mkdir(parents=True, exist_ok=True)
+        with open(sources_file, "w") as f:
+            f.write("content")
+
+        cfg = {
+            "sources_list": """\
+Types: deb
+URIs: {{mirror}}
+Suites: {{codename}} {{codename}}-updates {{codename}}-backports
+Components: main restricted universe multiverse
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg"""
+        }
+        cc_apt_configure.generate_sources_list(cfg, "noble", {}, cloud)
+        assert not Path(f"{tmpdir}/etc/apt/sources.list").exists()
+        assert (
+            Path(f"{tmpdir}/etc/apt/sources.list.disabled").read_text()
+            == "# disabled by cloud-init\ncontent"
+        )
