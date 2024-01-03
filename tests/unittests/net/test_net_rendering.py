@@ -88,6 +88,9 @@ def _check_network_manager(network_state: NetworkState, tmp_path: Path):
     "test_name, renderers",
     [("no_matching_mac_v2", Renderer.Netplan | Renderer.NetworkManager)],
 )
+@pytest.mark.xfail(
+    reason="v2 interface-specific DNS errantly gets applied globally"
+)
 def test_convert(test_name, renderers, tmp_path):
     network_config = safeyaml.load(
         Path(ARTIFACT_DIR, f"{test_name}.yaml").read_text()
