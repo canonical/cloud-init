@@ -32,6 +32,46 @@ LEASE_F = "/run/dhclient.lease"
 DHCLIENT = "/sbin/dhclient"
 
 
+@pytest.mark.parametrize(
+    "server_address,lease_file_content",
+    (
+        pytest.param(None, None, id="no_server_addr_on_absent_lease_file"),
+        pytest.param(None, "", id="no_server_addr_on_empty_lease_file"),
+        pytest.param(
+            None,
+            "lease {\n  fixed-address: 10.1.2.3;\n}\n",
+            id="no_server_addr_when_no_server_ident",
+        ),
+        pytest.param(
+            "10.4.5.6",
+            "lease {\n fixed-address: 10.1.2.3;\n"
+            "  option dhcp-server-identifier 10.4.5.6;\n"
+            "  option dhcp-renewal-time 1800;\n}\n",
+            id="server_addr_found_when_server_ident_present",
+        ),
+    ),
+)
+class TestParseDHCPServerFromLeaseFile:
+    def test_find_server_address_when_present(
+        self, server_address, lease_file_content, tmp_path
+    ):
+        """Test that we return None in the case of no file or file contains no
+        server address, otherwise return the address.
+        """
+        lease_file = tmp_path / "dhcp.leases"
+        if server_address:
+            if lease_file_content:
+                lease_file.write_text(lease_file_content)
+            assert (
+                server_address
+                == IscDhclient.parse_dhcp_server_from_lease_file(lease_file)
+            )
+        else:
+            assert not IscDhclient.parse_dhcp_server_from_lease_file(
+                lease_file
+            )
+
+
 class TestParseDHCPLeasesFile(CiTestCase):
     def test_parse_empty_lease_file_errors(self):
         """parse_dhcp_lease_file errors when file content is empty."""

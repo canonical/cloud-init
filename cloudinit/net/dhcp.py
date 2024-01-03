@@ -5,15 +5,15 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import abc
-import contextlib
 import glob
 import logging
 import os
 import re
 import signal
 import time
+from contextlib import suppress
 from io import StringIO
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import configobj
 
@@ -268,7 +268,7 @@ class IscDhclient(DhcpClient):
 
         # this function waits for these files to exist, clean previous runs
         # to avoid false positive in wait_for_files
-        with contextlib.suppress(FileNotFoundError):
+        with suppress(FileNotFoundError):
             os.remove(pid_file)
             os.remove(lease_file)
 
@@ -514,9 +514,15 @@ class IscDhclient(DhcpClient):
         return latest_file
 
     @staticmethod
-    def parse_dhcp_server_from_lease_file(lease_file):
-        with open(lease_file, "r") as fd:
-            for line in fd:
+    def parse_dhcp_server_from_lease_file(lease_file) -> Optional[str]:
+        """Parse a lease file for the dhcp server address
+
+        @param lease_file: Name of a file to be parsed
+        @return: An address if found, or None
+        """
+        latest_address = None
+        with suppress(FileNotFoundError), open(lease_file, "r") as file:
+            for line in file:
                 if "dhcp-server-identifier" in line:
                     words = line.strip(" ;\r\n").split(" ")
                     if len(words) > 2:
@@ -561,7 +567,7 @@ class Udhcpc(DhcpClient):
 
         tmp_dir = temp_utils.get_tmp_ancestor(needs_exe=True)
         lease_file = os.path.join(tmp_dir, interface + ".lease.json")
-        with contextlib.suppress(FileNotFoundError):
+        with suppress(FileNotFoundError):
             os.remove(lease_file)
 
         # udhcpc needs the interface up to send initial discovery packets
