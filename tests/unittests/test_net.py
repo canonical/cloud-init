@@ -646,6 +646,7 @@ method=manual
 may-fail=false
 address1=172.19.1.34/22
 route1=0.0.0.0/0,172.19.3.254
+dns=172.19.0.12;
 
 """.lstrip(),
             ),
@@ -2822,6 +2823,8 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 method=manual
                 may-fail=false
                 address1=192.168.200.7/24
+                dns=8.8.8.8;4.4.4.4;8.8.4.4;
+                dns-search=barley.maas;wark.maas;foobar.maas;
 
                 """
             ),
@@ -2930,12 +2933,15 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 method=manual
                 may-fail=false
                 address1=192.168.14.2/24
+                dns=8.8.8.8;4.4.4.4;8.8.4.4;
+                dns-search=barley.maas;wark.maas;foobar.maas;
 
                 [ipv6]
                 method=manual
                 may-fail=false
                 address1=2001:1::1/64
                 route1=::/0,2001:4800:78ff:1b::1
+                dns-search=barley.maas;wark.maas;foobar.maas;
 
                 """
             ),

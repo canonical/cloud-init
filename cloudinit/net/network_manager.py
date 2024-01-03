@@ -246,7 +246,7 @@ class NMConnection:
         """
         return addr.replace("-", ":").upper()
 
-    def render_interface(self, iface, renderer):
+    def render_interface(self, iface, network_state, renderer):
         """
         Integrate information from network state interface information
         into the connection. Most of the work is done here.
@@ -307,6 +307,7 @@ class NMConnection:
 
         device_mtu = iface["mtu"]
         ipv4_mtu = None
+        has_address = False
         found_nameservers = []
         found_dns_search = []
 
@@ -317,6 +318,7 @@ class NMConnection:
             self._set_ip_method(family, subnet["type"])
             if "address" in subnet:
                 self._add_address(family, subnet)
+                has_address = True
             if "gateway" in subnet:
                 self.config[family]["gateway"] = subnet["gateway"]
             for route in subnet["routes"]:
@@ -333,6 +335,14 @@ class NMConnection:
         if "dns" in iface:
             found_nameservers = iface["dns"]["nameservers"]
             found_dns_search = iface["dns"]["search"]
+
+        # Now add in the global DNS information if we have an address but no
+        # DNS information yet
+        if has_address:
+            if not found_nameservers and network_state.dns_nameservers:
+                found_nameservers = network_state.dns_nameservers
+            if not found_dns_search and network_state.dns_searchdomains:
+                found_dns_search = network_state.dns_searchdomains
 
         for nameserver in found_nameservers:
             self._add_nameserver(nameserver)
@@ -453,7 +463,7 @@ class Renderer(renderer.Renderer):
         # Now render the actual interface configuration
         for iface in network_state.iter_interfaces():
             conn = self.connections[iface["name"]]
-            conn.render_interface(iface, self)
+            conn.render_interface(iface, network_state, self)
 
         # And finally write the files
         for con_id, conn in self.connections.items():
