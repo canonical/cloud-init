@@ -4,6 +4,7 @@ import re
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.releases import CURRENT_RELEASE
 
 USER_DATA = """\
 #cloud-config
@@ -32,7 +33,15 @@ write_files:
 class TestCleanCommand:
     def test_clean_by_param(self, class_client: IntegrationInstance):
         """Clean with various params alters expected files without error"""
-        assert class_client.execute("cloud-init status --wait").ok
+        result = class_client.execute("cloud-init status --wait --long")
+
+        # Expect warning exit code 2 on Ubuntu Noble due to cloud-init
+        # disabling /etc/apt/sources.list build artifact in favor of deb822
+        return_code = 2 if CURRENT_RELEASE.series == "noble" else 0
+        assert return_code == result.return_code, (
+            f"Unexpected cloud-init status exit code {result.return_code}\n"
+            f"Output:\n{result}"
+        )
         result = class_client.execute("cloud-init clean")
         assert (
             result.ok
