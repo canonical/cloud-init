@@ -23,6 +23,7 @@ from cloudinit.config.schema import (
     VERSIONED_USERDATA_SCHEMA_FILE,
     MetaSchema,
     SchemaProblem,
+    SchemaType,
     SchemaValidationError,
     annotated_cloudconfig_file,
     get_jsonschema_validator,
@@ -2019,7 +2020,7 @@ def _get_meta_doc_examples(file_glob="cloud-config*.txt"):
 
 class TestSchemaDocExamples:
     schema = get_schema()
-    net_schema = get_schema(schema_type="network-config")
+    net_schema = get_schema(schema_type=SchemaType.NETWORK_CONFIG)
 
     @pytest.mark.parametrize("example_path", _get_meta_doc_examples())
     @skipUnlessJsonSchema()
@@ -2092,7 +2093,7 @@ VALID_BOND_CONFIG = {
 
 @skipUnlessJsonSchema()
 class TestNetworkSchema:
-    net_schema = get_schema(schema_type="network-config")
+    net_schema = get_schema(schema_type=SchemaType.NETWORK_CONFIG)
 
     @pytest.mark.parametrize(
         "src_config, expectation",
