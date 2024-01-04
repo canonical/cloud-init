@@ -68,7 +68,7 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
         "thinpool by default on Ubuntu due to LP #1982780",
         "WARNING]: Could not match supplied host pattern, ignoring:",
         # Old Ubuntu cloud-images contain /etc/apt/sources.list
-        "WARNING]: Disabling /etc/apt/sources.list to favor deb822 source"
+        "WARNING]: Removing /etc/apt/sources.list to favor deb822 source"
         " format",
     ]
     traceback_texts = []
