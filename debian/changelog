@@ -1,9 +1,9 @@
-cloud-init (24.1~2gb6a1c635-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (24.1~2gb6a1c635-0ubuntu1) noble; urgency=medium
 
   * Upstream snapshot based on upstream/main at b6a1c635.
     - Bugs fixed in this snapshot: (LP: #2045086, #1951639)
 
- -- Alberto Contreras <alberto.contreras@canonical.com>  Thu, 04 Jan 2024 10:15:48 +0100
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Thu, 04 Jan 2024 10:16:55 +0100
 
 cloud-init (24.1~1g1003d438-0ubuntu1) noble; urgency=medium
 
