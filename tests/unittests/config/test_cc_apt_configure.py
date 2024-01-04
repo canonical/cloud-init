@@ -275,7 +275,7 @@ class TestEnsureDependencies:
 
 class TestAptConfigure:
     @mock.patch(M_PATH + "get_apt_cfg")
-    def test_disable_source(self, m_get_apt_cfg, tmpdir):
+    def test_remove_source(self, m_get_apt_cfg, caplog, tmpdir):
         m_get_apt_cfg.return_value = {
             "sourcelist": f"{tmpdir}/etc/apt/sources.list",
             "sourceparts": f"{tmpdir}/etc/apt/sources.list.d/",
@@ -283,9 +283,11 @@ class TestAptConfigure:
         cloud = get_cloud("ubuntu")
         features.APT_DEB822_SOURCE_LIST_FILE = True
         sources_file = tmpdir.join("/etc/apt/sources.list")
+        deb822_sources_file = tmpdir.join(
+            "/etc/apt/sources.list.d/ubuntu.sources"
+        )
         Path(sources_file).parent.mkdir(parents=True, exist_ok=True)
-        with open(sources_file, "w") as f:
-            f.write("content")
+        sources_file.write("content")
 
         cfg = {
             "sources_list": """\
@@ -296,8 +298,5 @@ Components: main restricted universe multiverse
 Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg"""
         }
         cc_apt_configure.generate_sources_list(cfg, "noble", {}, cloud)
-        assert not Path(f"{tmpdir}/etc/apt/sources.list").exists()
-        assert (
-            Path(f"{tmpdir}/etc/apt/sources.list.disabled").read_text()
-            == "# disabled by cloud-init\ncontent"
-        )
+        assert not sources_file.exists()
+        assert deb822_sources_file.exists()
