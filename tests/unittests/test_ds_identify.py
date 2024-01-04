@@ -2171,7 +2171,7 @@ VALID_CFG = {
             "proc/mounts": (
                 "/dev/sdd / ext4 rw,errors=remount-ro,data=ordered 0 0\n"
                 "cgroup2 /sys/fs/cgroup cgroup2 rw,nosuid,nodev,noexec0 0\n"
-                "C:\\134 /mnt/c 9p rw,dirsync,aname=drvfs;path=C:\\;uid=0;\n"
+                "C:\\134 /mnt/c 9p rw,dirsync,aname=drvfs;path=C:\\;uid=0;"
                 "gid=0;symlinkroot=/mnt/...\n"
                 "snapfuse /snap/core22/1033 fuse.snapfuse ro,nodev,user_id=0,"
                 "group_id=0,allow_other 0 0"
