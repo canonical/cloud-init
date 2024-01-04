@@ -329,7 +329,6 @@ def build_minimal_ovf(
 
 
 class AzureEndpointHttpClient:
-
     headers = {
         "x-ms-agent-name": "WALinuxAgent",
         "x-ms-version": "2012-11-30",
@@ -426,7 +425,6 @@ class GoalState:
 
 
 class OpenSSLManager:
-
     certificate_names = {
         "private_key": "TransportPrivate.pem",
         "certificate": "TransportCert.pem",
@@ -555,7 +553,6 @@ class OpenSSLManager:
 
 
 class GoalStateHealthReporter:
-
     HEALTH_REPORT_XML_TEMPLATE = textwrap.dedent(
         """\
         <?xml version="1.0" encoding="utf-8"?>
@@ -683,8 +680,6 @@ class GoalStateHealthReporter:
 
     @azure_ds_telemetry_reporter
     def _post_health_report(self, document: bytes) -> None:
-        report_dmesg_to_kvp()
-
         # Whenever report_diagnostic_event(diagnostic_msg) is invoked in code,
         # the diagnostic messages are written to special files
         # (/var/opt/hyperv/.kvp_pool_*) as Hyper-V KVP messages.

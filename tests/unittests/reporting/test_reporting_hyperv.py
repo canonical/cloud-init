@@ -10,7 +10,7 @@ from unittest import mock
 
 from cloudinit import util
 from cloudinit.reporting import events, instantiated_handler_registry
-from cloudinit.reporting.handlers import HyperVKvpReportingHandler, LogHandler
+from cloudinit.reporting.handlers import HyperVKvpReportingHandler
 from cloudinit.sources.helpers import azure
 from tests.unittests.helpers import CiTestCase
 
