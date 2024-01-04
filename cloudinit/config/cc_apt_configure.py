@@ -604,7 +604,6 @@ def get_apt_cfg() -> Dict[str, str]:
             "Dir::Etc::sourceparts", DEFAULT_APT_CFG["Dir::Etc::sourceparts"]
         )
     except ImportError:
-
         try:
             apt_dump, _ = subp.subp(["apt-config", "dump"])
         except subp.ProcessExecutionError:
@@ -680,7 +679,20 @@ def generate_sources_list(cfg, release, mirrors, cloud):
             )
             aptsrc_file = apt_sources_list
     disabled = disable_suites(cfg.get("disable_suites"), rendered, release)
+    disable_apt_sources_list = False
+    if aptsrc_file == apt_sources_deb822 and os.path.exists(apt_sources_list):
+        disable_apt_sources_list = True
     util.write_file(aptsrc_file, disabled, mode=0o644)
+    if disable_apt_sources_list:
+        LOG.warning(
+            "Disabling %s to favor deb822 source format", apt_sources_list
+        )
+        content = pathlib.Path(apt_sources_list).read_bytes()
+        content = b"# disabled by cloud-init\n" + content
+        util.rename(apt_sources_list, f"{apt_sources_list}.disabled")
+        util.write_file(
+            f"{apt_sources_list}.disabled", content, preserve_mode=True
+        )
 
 
 def add_apt_key_raw(key, file_name, hardened=False):

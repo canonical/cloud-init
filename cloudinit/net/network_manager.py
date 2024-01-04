@@ -12,10 +12,15 @@ import itertools
 import logging
 import os
 import uuid
-from typing import Optional
+from typing import List, Optional
 
 from cloudinit import subp, util
-from cloudinit.net import is_ipv6_address, renderer, subnet_is_ipv6
+from cloudinit.net import (
+    is_ipv6_address,
+    is_ipv6_network,
+    renderer,
+    subnet_is_ipv6,
+)
 from cloudinit.net.network_state import NetworkState
 from cloudinit.net.sysconfig import available_nm_ifcfg_rh
 
@@ -158,11 +163,11 @@ class NMConnection:
         if self.config[family]["method"] == "auto" and method == "manual":
             return
 
-        if (
-            subnet_type == "ipv6_dhcpv6-stateful"
-            or subnet_type == "ipv6_dhcpv6-stateless"
-            or subnet_type == "ipv6_slaac"
-        ):
+        if subnet_type in [
+            "ipv6_dhcpv6-stateful",
+            "ipv6_dhcpv6-stateless",
+            "ipv6_slaac",
+        ]:
             # set ipv4 method to 'disabled' to align with sysconfig renderer.
             self._set_default("ipv4", "method", "disabled")
 
@@ -174,7 +179,8 @@ class NMConnection:
         Adds a numbered property, such as address<n> or route<n>, ensuring
         the appropriate value gets used for <n>.
         """
-
+        if not self.config.has_section(section):
+            self.config[section] = {}
         for index in itertools.count(1):
             key = f"{key_prefix}{index}"
             if not self.config.has_option(section, key):
@@ -189,40 +195,37 @@ class NMConnection:
         value = subnet["address"] + "/" + str(subnet["prefix"])
         self._add_numbered(family, "address", value)
 
-    def _add_route(self, family, route):
-        """
-        Adds a ipv[46].route<n> property.
-        """
-
+    def _add_route(self, route):
+        """Adds a ipv[46].route<n> property."""
+        # Because network v2 route definitions can have mixed v4 and v6
+        # routes, determine the family per route based on the gateway
+        family = "ipv6" if is_ipv6_network(route["gateway"]) else "ipv4"
         value = route["network"] + "/" + str(route["prefix"])
         if "gateway" in route:
             value = value + "," + route["gateway"]
         self._add_numbered(family, "route", value)
 
-    def _add_nameserver(self, dns):
+    def _add_nameserver(self, dns: str) -> None:
         """
         Extends the ipv[46].dns property with a name server.
         """
-
-        # FIXME: the subnet contains IPv4 and IPv6 name server mixed
-        # together. We might be getting an IPv6 name server while
-        # we're dealing with an IPv4 subnet. Sort this out by figuring
-        # out the correct family and making sure a valid section exist.
         family = "ipv6" if is_ipv6_address(dns) else "ipv4"
-        self._set_default(family, "method", "disabled")
+        if self.config.has_section(family):
+            self._set_default(family, "dns", "")
+            self.config[family]["dns"] = self.config[family]["dns"] + dns + ";"
 
-        self._set_default(family, "dns", "")
-        self.config[family]["dns"] = self.config[family]["dns"] + dns + ";"
-
-    def _add_dns_search(self, family, dns_search):
+    def _add_dns_search(self, dns_search: List[str]) -> None:
         """
         Extends the ipv[46].dns-search property with a name server.
         """
-
-        self._set_default(family, "dns-search", "")
-        self.config[family]["dns-search"] = (
-            self.config[family]["dns-search"] + ";".join(dns_search) + ";"
-        )
+        for family in ["ipv4", "ipv6"]:
+            if self.config.has_section(family):
+                self._set_default(family, "dns-search", "")
+                self.config[family]["dns-search"] = (
+                    self.config[family]["dns-search"]
+                    + ";".join(dns_search)
+                    + ";"
+                )
 
     def con_uuid(self):
         """
@@ -304,8 +307,11 @@ class NMConnection:
 
         device_mtu = iface["mtu"]
         ipv4_mtu = None
+        found_nameservers = []
+        found_dns_search = []
 
         # Deal with Layer 3 configuration
+        use_top_level_dns = "dns" in iface
         for subnet in iface["subnets"]:
             family = "ipv6" if subnet_is_ipv6(subnet) else "ipv4"
 
@@ -315,14 +321,27 @@ class NMConnection:
             if "gateway" in subnet:
                 self.config[family]["gateway"] = subnet["gateway"]
             for route in subnet["routes"]:
-                self._add_route(family, route)
-            if "dns_nameservers" in subnet:
+                self._add_route(route)
+            if not use_top_level_dns and "dns_nameservers" in subnet:
                 for nameserver in subnet["dns_nameservers"]:
-                    self._add_nameserver(nameserver)
-            if "dns_search" in subnet:
-                self._add_dns_search(family, subnet["dns_search"])
+                    found_nameservers.append(nameserver)
+            if not use_top_level_dns and "dns_search" in subnet:
+                found_dns_search.append(subnet["dns_search"])
             if family == "ipv4" and "mtu" in subnet:
                 ipv4_mtu = subnet["mtu"]
+
+        # Now add our DNS search domains. We add them later because we
+        # only want them if an IP family has already been defined
+        if use_top_level_dns:
+            for nameserver in iface["dns"]["nameservers"]:
+                self._add_nameserver(nameserver)
+            if iface["dns"]["search"]:
+                self._add_dns_search(iface["dns"]["search"])
+        else:
+            for nameserver in found_nameservers:
+                self._add_nameserver(nameserver)
+            for dns_search in found_dns_search:
+                self._add_dns_search(dns_search)
 
         # we do not want to set may-fail to false for both ipv4 and ipv6 dhcp
         # at the at the same time. This will make the network configuration

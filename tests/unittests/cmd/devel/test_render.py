@@ -6,6 +6,7 @@ import pytest
 
 from cloudinit.cmd.devel import render
 from cloudinit.helpers import Paths
+from cloudinit.templater import JinjaSyntaxParsingException
 from cloudinit.util import ensure_dir, write_file
 from tests.unittests.helpers import mock, skipUnlessJinja
 
@@ -148,3 +149,19 @@ class TestRender:
         write_file(instance_data, '{"my-var": "jinja worked"}')
         render.render_template(user_data, instance_data, False)
         assert "Unable to render user-data file" in caplog.text
+
+    @skipUnlessJinja()
+    def test_invalid_jinja_syntax(self, caplog, tmpdir):
+        user_data = tmpdir.join("user-data")
+        write_file(user_data, "##template: jinja\nrendering: {{ my_var } }")
+        instance_data = tmpdir.join("instance-data")
+        write_file(instance_data, '{"my-var": "jinja worked"}')
+        assert render.render_template(user_data, instance_data, True) == 1
+        assert (
+            JinjaSyntaxParsingException.format_error_message(
+                syntax_error="unexpected '}'",
+                line_number=2,
+                line_content="rendering: {{ my_var } }",
+            )
+            in caplog.text
+        )

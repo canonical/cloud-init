@@ -104,7 +104,7 @@ class ReadUrlRetryHandler:
             report_diagnostic_event(
                 "Polling IMDS failed attempt %d with exception: %r"
                 % (self._request_count, exception),
-                logger_func=LOG.info,
+                logger_func=LOG.warning,
             )
         return retry
 
