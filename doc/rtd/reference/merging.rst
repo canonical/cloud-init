@@ -3,19 +3,12 @@
 Merging user data sections
 **************************
 
-The ability to merge user data sections is a feature that was implemented by
-popular request. It was identified that there should be a way to specify how
+The ability to merge user data sections allows a way to specify how
 cloud-config YAML "dictionaries" provided as user data are handled when there
 are multiple YAML files to be merged together (e.g., when performing an
 #include).
 
-The previous merging algorithm was very simple and would only overwrite
-(and not append). So, it was decided to create a new and improved way to merge
-dictionaries (and their contained objects) together in a customisable way,
-thus allowing users who provide cloud-config user data to determine exactly
-how their objects will be merged.
-
-For example:
+For example merging these two configurations:
 
 .. code-block:: yaml
 
@@ -29,17 +22,7 @@ For example:
      - bash3
      - bash4
 
-The previous way of merging the two objects above would result in a final
-cloud-config object that contains the following:
-
-.. code-block:: yaml
-
-   #cloud-config (merged)
-   runcmd:
-     - bash3
-     - bash4
-
-Typically this is not what users want - instead they would prefer:
+Yields the following merged config:
 
 .. code-block:: yaml
 
@@ -49,10 +32,6 @@ Typically this is not what users want - instead they would prefer:
      - bash2
      - bash3
      - bash4
-
-This change makes it easier to combine the various cloud-config objects you
-have into a more useful list. In this way, we reduce the duplication necessary
-to accomplish the same result with the previous method.
 
 Built-in mergers
 ================
