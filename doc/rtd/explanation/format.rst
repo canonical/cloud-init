@@ -50,22 +50,6 @@ archive.
 User data scripts can optionally render cloud instance metadata variables using
 jinja templating. See :ref:`instance_metadata` for more information.
 
-Example script
---------------
-
-Create a script file :file:`myscript.sh` that contains the following:
-
-.. code-block::
-
-   #!/bin/sh
-   echo "Hello World.  The time is now $(date -R)!" | tee /root/output.txt
-
-Now run:
-
-.. code-block:: shell-session
-
-   $ euca-run-instances --key mykey --user-data-file myscript.sh ami-a07d95c9
-
 Kernel command line
 ===================
 
