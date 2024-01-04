@@ -7,6 +7,7 @@ import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import CURRENT_RELEASE
 
 VALID_USER_DATA = """\
 #cloud-config
@@ -44,10 +45,13 @@ def test_valid_userdata(client: IntegrationInstance):
     assert result.ok
     assert "Valid schema user-data" in result.stdout.strip()
     result = client.execute("cloud-init status --long")
-    if not result.ok:
-        raise AssertionError(
-            f"Unexpected error from cloud-init status: {result}"
-        )
+    # Ubuntu Noble will exit 2 for status due to cloud-init's warning about
+    # disabling /etc/apt/sources.list in favor of deb822 sources
+    return_code = 2 if CURRENT_RELEASE.series == "noble" else 0
+    assert return_code == result.return_code, (
+        f"Unexpected exit {result.return_code} from cloud-init status:"
+        f" {result}"
+    )
 
 
 @pytest.mark.skipif(
