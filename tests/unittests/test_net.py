@@ -1209,8 +1209,8 @@ NETWORK_CONFIGS = {
                 may-fail=false
                 address1=192.168.21.3/24
                 route1=0.0.0.0/0,65.61.151.37
-                dns=1.2.3.4;5.6.7.8;8.8.4.4;8.8.8.8;
-                dns-search=barley.maas;sach.maas;wark.maas;
+                dns=8.8.8.8;8.8.4.4;
+                dns-search=barley.maas;sach.maas;
 
                 """
             ),
@@ -1385,7 +1385,7 @@ NETWORK_CONFIGS = {
                 may-fail=false
                 route1=0.0.0.0/0,65.61.151.37
                 address1=192.168.21.3/24
-                dns=8.8.4.4;8.8.8.8;
+                dns=8.8.8.8;8.8.4.4;
                 dns-search=barley.maas;sach.maas;
 
                 """
@@ -2798,8 +2798,8 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 [ipv4]
                 method=auto
                 may-fail=false
-                dns=4.4.4.4;8.8.4.4;8.8.8.8;
-                dns-search=barley.maas;foobar.maas;wark.maas;
+                dns=8.8.8.8;4.4.4.4;8.8.4.4;
+                dns-search=barley.maas;wark.maas;foobar.maas;
 
                 """
             ),
@@ -2825,8 +2825,8 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 method=manual
                 may-fail=false
                 address1=192.168.200.7/24
-                dns=4.4.4.4;8.8.4.4;8.8.8.8;
-                dns-search=barley.maas;foobar.maas;wark.maas;
+                dns=8.8.8.8;4.4.4.4;8.8.4.4;
+                dns-search=barley.maas;wark.maas;foobar.maas;
 
                 """
             ),
@@ -2851,8 +2851,8 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 [ipv4]
                 method=auto
                 may-fail=false
-                dns=4.4.4.4;8.8.4.4;8.8.8.8;
-                dns-search=barley.maas;foobar.maas;wark.maas;
+                dns=8.8.8.8;4.4.4.4;8.8.4.4;
+                dns-search=barley.maas;wark.maas;foobar.maas;
 
                 """
             ),
@@ -2937,15 +2937,15 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 method=manual
                 may-fail=false
                 address1=192.168.14.2/24
-                dns=4.4.4.4;8.8.4.4;8.8.8.8;
-                dns-search=barley.maas;foobar.maas;wark.maas;
+                dns=8.8.8.8;4.4.4.4;8.8.4.4;
+                dns-search=barley.maas;wark.maas;foobar.maas;
 
                 [ipv6]
                 method=manual
                 may-fail=false
                 address1=2001:1::1/64
                 route1=::/0,2001:4800:78ff:1b::1
-                dns-search=barley.maas;foobar.maas;wark.maas;
+                dns-search=barley.maas;wark.maas;foobar.maas;
 
                 """
             ),
@@ -2973,8 +2973,8 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 address1=192.168.0.2/24
                 gateway=192.168.0.1
                 address2=192.168.2.10/24
-                dns=10.23.23.134;192.168.0.10;4.4.4.4;8.8.4.4;8.8.8.8;
-                dns-search=barley.maas;brettanomyces.maas;foobar.maas;sacchromyces.maas;wark.maas;
+                dns=192.168.0.10;10.23.23.134;
+                dns-search=barley.maas;sacchromyces.maas;brettanomyces.maas;
 
                 """
             ),
@@ -3000,7 +3000,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 [ipv6]
                 method=auto
                 may-fail=false
-                dns-search=barley.maas;foobar.maas;wark.maas;
+                dns-search=barley.maas;wark.maas;foobar.maas;
 
                 """
             ),
@@ -4190,7 +4190,7 @@ iface bond0 inet6 static
                 route2=169.254.42.43/32,62.210.0.2
                 address1=192.168.1.20/16
                 dns=8.8.8.8;
-                dns-search=home;lab;
+                dns-search=lab;home;
 
                 [ipv6]
                 route1=::/0,fe80::dc00:ff:fe20:186
@@ -4199,7 +4199,7 @@ iface bond0 inet6 static
                 may-fail=true
                 address1=2001:bc8:1210:232:dc00:ff:fe20:185/64
                 dns=FEDC::1;
-                dns-search=home;lab;
+                dns-search=lab;home;
 
             """
             )
@@ -4251,13 +4251,13 @@ iface bond0 inet6 static
                 method=auto
                 may-fail=true
                 dns=8.8.8.8;
-                dns-search=home;lab;
+                dns-search=lab;home;
 
                 [ipv6]
                 method=auto
                 may-fail=true
                 dns=FEDC::1;
-                dns-search=home;lab;
+                dns-search=lab;home;
 
             """
             )

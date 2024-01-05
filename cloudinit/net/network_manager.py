@@ -307,8 +307,8 @@ class NMConnection:
 
         device_mtu = iface["mtu"]
         ipv4_mtu = None
-        found_nameservers = set()
-        found_dns_search = set()
+        found_nameservers = []
+        found_dns_search = []
 
         # Deal with Layer 3 configuration
         for subnet in iface["subnets"]:
@@ -323,28 +323,37 @@ class NMConnection:
                 self._add_route(route)
             # Add subnet-level DNS
             if "dns_nameservers" in subnet:
-                found_nameservers.update(subnet["dns_nameservers"])
+                found_nameservers.extend(subnet["dns_nameservers"])
             if "dns_search" in subnet:
-                found_dns_search.update(subnet["dns_search"])
+                found_dns_search.extend(subnet["dns_search"])
             if family == "ipv4" and "mtu" in subnet:
                 ipv4_mtu = subnet["mtu"]
 
         # Add interface-level DNS
         if "dns" in iface:
-            found_nameservers.update(iface["dns"]["nameservers"])
-            found_dns_search.update(iface["dns"]["search"])
+            found_nameservers += [
+                dns
+                for dns in iface["dns"]["nameservers"]
+                if dns not in found_nameservers
+            ]
+            found_dns_search += [
+                search
+                for search in iface["dns"]["search"]
+                if search not in found_dns_search
+            ]
 
-        # Add global DNS
-        if network_state.dns_nameservers:
-            found_nameservers.update(network_state.dns_nameservers)
-        if network_state.dns_searchdomains:
-            found_dns_search.update(network_state.dns_searchdomains)
+        # We prefer any interface-specific DNS entries, but if we do not
+        # have any, add the global DNS to the connection
+        if not found_nameservers and network_state.dns_nameservers:
+            found_nameservers = network_state.dns_nameservers
+        if not found_dns_search and network_state.dns_searchdomains:
+            found_dns_search = network_state.dns_searchdomains
 
         # Write out all DNS entries to the connection
-        for nameserver in sorted(list(found_nameservers)):
+        for nameserver in found_nameservers:
             self._add_nameserver(nameserver)
         if found_dns_search:
-            self._add_dns_search(sorted(list(found_dns_search)))
+            self._add_dns_search(found_dns_search)
 
         # we do not want to set may-fail to false for both ipv4 and ipv6 dhcp
         # at the at the same time. This will make the network configuration
