@@ -3,23 +3,23 @@
 Boot stages
 ***********
 
-To be able to provide the functionality that it does, ``cloud-init`` must be
-integrated into the boot in a fairly controlled way. There are five
-stages to boot:
+There are five stages to boot:
 
-1. Generator
+1. Detect
 2. Local
 3. Network
 4. Config
 5. Final
 
-.. _boot-Generator:
+.. _boot-Detect:
 
-Generator
-=========
-When booting under ``systemd``, a generator will run that determines if
-cloud-init.target should be included in the boot goals. ``ds-identify``
-runs at this stage.
+Detect
+======
+
+A platform identification tool called ``ds-identify`` runs in the first stage.
+This tool detects which platorm the instance is running on. This tool is
+integrated into the init system to disable cloud-init when no platform is
+found, and enable cloud-init when a valid platform is detected.
 
 .. _boot-Local:
 
