@@ -246,7 +246,7 @@ class NMConnection:
         """
         return addr.replace("-", ":").upper()
 
-    def render_interface(self, iface, renderer):
+    def render_interface(self, iface, network_state, renderer):
         """
         Integrate information from network state interface information
         into the connection. Most of the work is done here.
@@ -311,7 +311,6 @@ class NMConnection:
         found_dns_search = []
 
         # Deal with Layer 3 configuration
-        use_top_level_dns = "dns" in iface
         for subnet in iface["subnets"]:
             family = "ipv6" if subnet_is_ipv6(subnet) else "ipv4"
 
@@ -322,26 +321,39 @@ class NMConnection:
                 self.config[family]["gateway"] = subnet["gateway"]
             for route in subnet["routes"]:
                 self._add_route(route)
-            if not use_top_level_dns and "dns_nameservers" in subnet:
-                for nameserver in subnet["dns_nameservers"]:
-                    found_nameservers.append(nameserver)
-            if not use_top_level_dns and "dns_search" in subnet:
-                found_dns_search.append(subnet["dns_search"])
+            # Add subnet-level DNS
+            if "dns_nameservers" in subnet:
+                found_nameservers.extend(subnet["dns_nameservers"])
+            if "dns_search" in subnet:
+                found_dns_search.extend(subnet["dns_search"])
             if family == "ipv4" and "mtu" in subnet:
                 ipv4_mtu = subnet["mtu"]
 
-        # Now add our DNS search domains. We add them later because we
-        # only want them if an IP family has already been defined
-        if use_top_level_dns:
-            for nameserver in iface["dns"]["nameservers"]:
-                self._add_nameserver(nameserver)
-            if iface["dns"]["search"]:
-                self._add_dns_search(iface["dns"]["search"])
-        else:
-            for nameserver in found_nameservers:
-                self._add_nameserver(nameserver)
-            for dns_search in found_dns_search:
-                self._add_dns_search(dns_search)
+        # Add interface-level DNS
+        if "dns" in iface:
+            found_nameservers += [
+                dns
+                for dns in iface["dns"]["nameservers"]
+                if dns not in found_nameservers
+            ]
+            found_dns_search += [
+                search
+                for search in iface["dns"]["search"]
+                if search not in found_dns_search
+            ]
+
+        # We prefer any interface-specific DNS entries, but if we do not
+        # have any, add the global DNS to the connection
+        if not found_nameservers and network_state.dns_nameservers:
+            found_nameservers = network_state.dns_nameservers
+        if not found_dns_search and network_state.dns_searchdomains:
+            found_dns_search = network_state.dns_searchdomains
+
+        # Write out all DNS entries to the connection
+        for nameserver in found_nameservers:
+            self._add_nameserver(nameserver)
+        if found_dns_search:
+            self._add_dns_search(found_dns_search)
 
         # we do not want to set may-fail to false for both ipv4 and ipv6 dhcp
         # at the at the same time. This will make the network configuration
@@ -457,7 +469,7 @@ class Renderer(renderer.Renderer):
         # Now render the actual interface configuration
         for iface in network_state.iter_interfaces():
             conn = self.connections[iface["name"]]
-            conn.render_interface(iface, self)
+            conn.render_interface(iface, network_state, self)
 
         # And finally write the files
         for con_id, conn in self.connections.items():
