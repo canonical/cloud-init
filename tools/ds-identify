@@ -1566,6 +1566,10 @@ dscheck_VMware() {
 }
 
 dscheck_WSL() {
+    if [ ! "${DI_UNAME_KERNEL_NAME}" = "Linux" ]; then
+        return "${DS_NOT_FOUND}"
+    fi
+
     if [ ! "${DI_VIRT}" = "wsl" ]; then
         return "${DS_NOT_FOUND}"
     fi
