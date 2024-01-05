@@ -95,6 +95,8 @@ FOCAL = Release("ubuntu", "focal", "20.04")
 JAMMY = Release("ubuntu", "jammy", "22.04")
 KINETIC = Release("ubuntu", "kinetic", "22.10")
 LUNAR = Release("ubuntu", "lunar", "23.04")
+MANTIC = Release("ubuntu", "mantic", "23.10")
+NOBLE = Release("ubuntu", "noble", "24.04")
 
 CURRENT_RELEASE = Release.from_os_image()
 IS_UBUNTU = CURRENT_RELEASE.os == "ubuntu"
