@@ -48,8 +48,8 @@ Cloud-init did not run
 
 2. Check the contents of :file:`/run/cloud-init/ds-identify.log`
 
-   This log file is used by the systemd generator and sets cloud-init
-   to be enabled or disabled.
+   This log file is used when the platform that cloud-init is running on
+   :ref:`is detected<boot-Detect>`. This stage enables or disables cloud-init.
 
 3. Check the status of the services
 
