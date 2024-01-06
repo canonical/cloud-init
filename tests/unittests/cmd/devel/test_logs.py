@@ -129,7 +129,7 @@ class TestCollectLogs:
         )
         assert "cloud-init-log-rotated" == load_file(
             os.path.join(out_logdir, "cloud-init.log.1.gz")
-        )    
+        )
         assert "cloud-init-output-log" == load_file(
             os.path.join(out_logdir, "cloud-init-output.log")
         )
