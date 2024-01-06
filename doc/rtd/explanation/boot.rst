@@ -17,7 +17,7 @@ Detect
 ======
 
 A platform identification tool called ``ds-identify`` runs in the first stage.
-This tool detects which platorm the instance is running on. This tool is
+This tool detects which platform the instance is running on. This tool is
 integrated into the init system to disable cloud-init when no platform is
 found, and enable cloud-init when a valid platform is detected.
 

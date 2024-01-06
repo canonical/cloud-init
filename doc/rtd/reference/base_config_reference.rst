@@ -242,8 +242,8 @@ There are a few reasons to modify the ``datasource_list``:
 2. Force cloud-init to use a specific datasource: A single entry in
    the list (or a single entry and ``None``) will override datasource
    discovery, which will force the specified datasource to run.
-3. Remove known invalid datasources: On distros that do not use ``ds-identify``
-   to detect and select the datasource, this might improve boot speed.
+3. Remove known invalid datasources: this might improve boot speed on distros
+   that do not use ``ds-identify`` to detect and select the datasource, 
 
 .. warning::
 
