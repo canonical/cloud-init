@@ -4,6 +4,7 @@ import re
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.releases import IS_UBUNTU
 
 USER_DATA = """\
 #cloud-config
@@ -30,6 +31,28 @@ write_files:
 
 @pytest.mark.user_data(USER_DATA)
 class TestCleanCommand:
+    @pytest.mark.skipif(
+        not IS_UBUNTU, reason="Hasn't been tested on other distros"
+    )
+    def test_clean_rotated_logs(self, class_client: IntegrationInstance):
+        """Clean with log params alters expected files without error"""
+        assert class_client.execute("cloud-init status --wait").ok
+        assert class_client.execute(
+            "logrotate /etc/logrotate.d/cloud-init.logrotate"
+        ).ok
+        log_paths = (
+            "/var/log/cloud-init.log",
+            "/var/log/cloud-init.log.1.gz",
+            "/var/log/cloud-init-output.log",
+            "/var/log/cloud-init-output.log.1.gz",
+        )
+
+        assert class_client.execute("cloud-init clean --logs").ok
+        for path in log_paths:
+            assert class_client.execute(
+                f"test -f {path}"
+            ).failed, f"Unexpected file found {path}"
+
     def test_clean_by_param(self, class_client: IntegrationInstance):
         """Clean with various params alters expected files without error"""
         assert class_client.execute("cloud-init status --wait").ok
