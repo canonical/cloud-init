@@ -153,7 +153,9 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         if self.perform_dhcp_setup:  # Setup networking in init-local stage.
             try:
 
-                with EphemeralDHCPv4(self.distro, self.fallback_interface):
+                with EphemeralDHCPv4(
+                    self.distro, self.distro.fallback_interface
+                ):
                     results = util.log_time(
                         logfunc=LOG.debug,
                         msg="Crawl of metadata service",

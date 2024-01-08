@@ -8,6 +8,8 @@ from unittest import mock
 import pytest
 
 from cloudinit import distros, util
+from cloudinit.distros.ubuntu import Distro
+from cloudinit.net.dhcp import Dhcpcd, IscDhclient, Udhcpc
 from tests.unittests import helpers
 
 M_PATH = "cloudinit.distros."
@@ -501,3 +503,72 @@ class TestDistro:
             assert "/tmp" == tmp_path
         else:
             assert "/usr_lib_exec/cloud-init/clouddir" == tmp_path
+
+
+@pytest.mark.parametrize(
+    "chosen_client, config, which_override",
+    [
+        pytest.param(
+            IscDhclient,
+            {"network": {"dhcp_client_priority": ["dhclient"]}},
+            None,
+            id="single_client_is_found_from_config_dhclient",
+        ),
+        pytest.param(
+            Udhcpc,
+            {"network": {"dhcp_client_priority": ["udhcpc"]}},
+            None,
+            id="single_client_is_found_from_config_udhcpc",
+        ),
+        pytest.param(
+            Dhcpcd,
+            {"network": {"dhcp_client_priority": ["dhcpcd"]}},
+            None,
+            id="single_client_is_found_from_config_dhcpcd",
+        ),
+        pytest.param(
+            Dhcpcd,
+            {"network": {"dhcp_client_priority": ["dhcpcd", "dhclient"]}},
+            None,
+            id="first_client_is_found_from_config_dhcpcd",
+        ),
+        pytest.param(
+            Udhcpc,
+            {
+                "network": {
+                    "dhcp_client_priority": ["udhcpc", "dhcpcd", "dhclient"]
+                }
+            },
+            None,
+            id="first_client_is_found_from_config_udhcpc",
+        ),
+        pytest.param(
+            IscDhclient,
+            {"network": {"dhcp_client_priority": []}},
+            None,
+            id="first_client_is_found_no_config_dhclient",
+        ),
+        pytest.param(
+            Dhcpcd,
+            {
+                "network": {
+                    "dhcp_client_priority": ["udhcpc", "dhcpcd", "dhclient"]
+                }
+            },
+            [False, False, True, True],
+            id="second_client_is_found_from_config_dhcpcd",
+        ),
+    ],
+)
+class TestDHCP:
+    @mock.patch("cloudinit.net.dhcp.subp.which")
+    def test_dhcp_configuration(
+        self, m_which, chosen_client, config, which_override
+    ):
+        """check that, when a user provides a configuration at
+        network.dhcp_client_priority, the correct client is chosen
+        """
+        m_which.side_effect = which_override
+        distro = Distro("", {}, {})
+        distro._cfg = config
+        assert isinstance(distro.dhcp_client, chosen_client)

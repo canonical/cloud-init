@@ -195,9 +195,6 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     #  - seed-dir (<dirname>)
     _subplatform = None
 
-    # Track the discovered fallback nic for use in configuration generation.
-    _fallback_interface = None
-
     # The network configuration sources that should be considered for this data
     # source.  (The first source in this list that provides network
     # configuration will be used without considering any that follow.)  This
@@ -606,17 +603,6 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if self.vendordata2 is None:
             self.vendordata2 = self.ud_proc.process(self.get_vendordata2_raw())
         return self.vendordata2
-
-    @property
-    def fallback_interface(self):
-        """Determine the network interface used during local network config."""
-        if self._fallback_interface is None:
-            self._fallback_interface = net.find_fallback_nic()
-            if self._fallback_interface is None:
-                LOG.warning(
-                    "Did not find a fallback interface on %s.", self.cloud_name
-                )
-        return self._fallback_interface
 
     @property
     def platform_type(self):

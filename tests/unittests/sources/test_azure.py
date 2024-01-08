@@ -193,15 +193,13 @@ def mock_kvp_report_success_to_host():
 def mock_net_dhcp_maybe_perform_dhcp_discovery():
     with mock.patch(
         "cloudinit.net.ephemeral.maybe_perform_dhcp_discovery",
-        return_value=[
-            {
-                "unknown-245": "0a:0b:0c:0d",
-                "interface": "ethBoot0",
-                "fixed-address": "192.168.2.9",
-                "routers": "192.168.2.1",
-                "subnet-mask": "255.255.255.0",
-            }
-        ],
+        return_value={
+            "unknown-245": "0a:0b:0c:0d",
+            "interface": "ethBoot0",
+            "fixed-address": "192.168.2.9",
+            "routers": "192.168.2.1",
+            "subnet-mask": "255.255.255.0",
+        },
         autospec=True,
     ) as m:
         yield m

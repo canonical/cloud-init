@@ -124,14 +124,14 @@ def lsb_release():
     return data
 
 
-def decode_binary(blob, encoding="utf-8"):
+def decode_binary(blob, encoding="utf-8") -> str:
     # Converts a binary type into a text type using given encoding.
     if isinstance(blob, str):
         return blob
     return blob.decode(encoding)
 
 
-def encode_text(text, encoding="utf-8"):
+def encode_text(text, encoding="utf-8") -> bytes:
     # Converts a text string into a binary type using given encoding.
     if isinstance(text, bytes):
         return text

@@ -76,6 +76,17 @@ def disable_dns_lookup(request):
         yield
 
 
+# @pytest.fixture(autouse=True)
+@pytest.fixture()
+def dhclient_exists():
+    with mock.patch(
+        "cloudinit.net.dhcp.subp.which",
+        return_value="/sbin/dhclient",
+        autospec=True,
+    ):
+        yield
+
+
 log.configure_root_logger()
 
 

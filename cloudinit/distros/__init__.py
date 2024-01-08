@@ -147,7 +147,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     resolve_conf_fn = "/etc/resolv.conf"
 
     osfamily: str
-    dhcp_client_priority = [dhcp.IscDhclient, dhcp.Dhcpcd, dhcp.Udhcpc]
     # Directory where the distro stores their DHCP leases.
     # The children classes should override this with their dhcp leases
     # directory
@@ -162,14 +161,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self._cfg = cfg
         self.name = name
         self.networking: Networking = self.networking_cls()
-        self.dhcp_client_priority = [
-            dhcp.IscDhclient,
-            dhcp.Dhcpcd,
-            dhcp.Udhcpc,
-        ]
+        self.dhcp_client_priority = dhcp.ALL_DHCP_CLIENTS
         self.net_ops = iproute2.Iproute2
         self._runner = helpers.Runners(paths)
         self.package_managers: List[PackageManager] = []
+        self._dhcp_client = None
+        self._fallback_interface = None
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         """Perform deserialization fixes for Distro."""
@@ -182,6 +179,10 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             # either because it isn't present at all, or because it will be
             # missing expected instance state otherwise.
             self.networking = self.networking_cls()
+        if not hasattr(self, "_dhcp_client"):
+            self._dhcp_client = None
+        if not hasattr(self, "_fallback_interface"):
+            self._fallback_interface = None
 
     def _validate_entry(self, entry):
         if isinstance(entry, str):
@@ -273,6 +274,66 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             "Legacy function '_write_network' was called in distro '%s'.\n"
             "_write_network_config needs implementation.\n" % self.name
         )
+
+    @property
+    def dhcp_client(self) -> dhcp.DhcpClient:
+        """access the distro's preferred dhcp client
+
+        if no client has been selected yet select one - uses
+        self.dhcp_client_priority, which may be overriden in each distro's
+        object to eliminate checking for clients which will not be provided
+        by the distro
+        """
+        if self._dhcp_client:
+            return self._dhcp_client
+
+        # no client has been selected yet, so pick one
+        #
+        # set the default priority list to the distro-defined priority list
+        dhcp_client_priority = self.dhcp_client_priority
+
+        # if the configuration includes a network.dhcp_client_priority list
+        # then attempt to use it
+        config_priority = util.get_cfg_by_path(
+            self._cfg, ("network", "dhcp_client_priority"), []
+        )
+
+        if config_priority:
+            # user or image builder configured a custom dhcp client priority
+            # list
+            found_clients = []
+            LOG.debug(
+                "Using configured dhcp client priority list: %s",
+                config_priority,
+            )
+            for client_configured in config_priority:
+                for client_class in dhcp.ALL_DHCP_CLIENTS:
+                    if client_configured == client_class.client_name:
+                        found_clients.append(client_class)
+                        break
+                else:
+                    LOG.warning(
+                        "Configured dhcp client %s is not supported, skipping",
+                        client_configured,
+                    )
+            # If dhcp_client_priority is defined in the configuration, but none
+            # of the defined clients are supported by cloud-init, then we don't
+            # override the distro default. If at least one client in the
+            # configured list exists, then we use that for our list of clients
+            # to check.
+            if found_clients:
+                dhcp_client_priority = found_clients
+
+        # iterate through our priority list and use the first client that is
+        # installed on the system
+        for client in dhcp_client_priority:
+            try:
+                self._dhcp_client = client()
+                LOG.debug("DHCP client selected: %s", client.client_name)
+                return self._dhcp_client
+            except (dhcp.NoDHCPLeaseMissingDhclientError,):
+                LOG.debug("DHCP client not found: %s", client.client_name)
+        raise dhcp.NoDHCPLeaseMissingDhclientError()
 
     @property
     def network_activator(self) -> Optional[Type[activators.NetworkActivator]]:
@@ -1247,6 +1308,22 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             "-sf",
             "/bin/true",
         ] + (["-cf", config_file, interface] if config_file else [interface])
+
+    @property
+    def fallback_interface(self):
+        """Determine the network interface used during local network config."""
+        if self._fallback_interface is None:
+            self._fallback_interface = net.find_fallback_nic()
+            if not self._fallback_interface:
+                LOG.warning(
+                    "Did not find a fallback interface on distro: %s.",
+                    self.name,
+                )
+        return self._fallback_interface
+
+    @fallback_interface.setter
+    def fallback_interface(self, value):
+        self._fallback_interface = value
 
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
