@@ -1,3 +1,4 @@
 do-not-block-user-login.patch
 status-do-not-remove-duplicated-data.patch
 retain-apt-pre-deb822.patch
+status-retain-recoverable-error-exit-code.patch
