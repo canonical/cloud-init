@@ -336,7 +336,7 @@ class NetworkStateInterpreter:
             if iface:
                 nameservers, search = dns
                 iface["dns"] = {
-                    "addresses": nameservers,
+                    "nameservers": nameservers,
                     "search": search,
                 }
 
