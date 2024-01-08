@@ -1,0 +1,28 @@
+Description: Retain exit code in cloud-init status for recoverable errors
+ (LP: #2048522).
+Author: Alberto Contreras <alberto.contreras@canonical.com>
+Last-Update: 2024-01-08
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/cloudinit/cmd/status.py
++++ b/cloudinit/cmd/status.py
+@@ -227,7 +227,7 @@
+         return 1
+     # Recoverable error
+     elif details.status in UXAppStatusDegradedMap.values():
+-        return 2
++        return 0
+     return 0
+
+
+--- a/tests/unittests/cmd/test_status.py
++++ b/tests/unittests/cmd/test_status.py
+@@ -708,7 +708,7 @@
+                 },
+                 None,
+                 MyArgs(long=False, wait=False, format="json"),
+-                2,
++                0,
+                 {
+                     "_schema_version": "1",
+                     "boot_status_code": "enabled-by-kernel-cmdline",
