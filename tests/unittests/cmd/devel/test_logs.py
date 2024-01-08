@@ -35,7 +35,6 @@ class TestCollectLogs:
             " Try sudo cloud-init collect-logs\n" == m_stderr.getvalue()
         )
 
-    @pytest.mark.allow_all_subp
     def test_collect_logs_creates_tarfile(self, m_getuid, mocker, tmpdir):
         """collect-logs creates a tarfile with all related cloud-init info."""
         m_getuid.return_value = 100
@@ -56,6 +55,12 @@ class TestCollectLogs:
             "sensitive",
         )
         output_tarfile = str(tmpdir.join("logs.tgz"))
+
+        mocker.patch(M_PATH + "Init", autospec=True)
+        mocker.patch(
+            M_PATH + "get_config_logfiles",
+            return_value=[log1, log1_rotated, log2, log2_rotated],
+        )
 
         date = datetime.utcnow().date().strftime("%Y-%m-%d")
         date_logdir = "cloud-init-logs-{0}".format(date)
@@ -147,7 +152,6 @@ class TestCollectLogs:
         )
         fake_stderr.write.assert_any_call("Wrote %s\n" % output_tarfile)
 
-    @pytest.mark.allow_all_subp
     def test_collect_logs_includes_optional_userdata(
         self, m_getuid, mocker, tmpdir
     ):
@@ -166,6 +170,12 @@ class TestCollectLogs:
             "sensitive",
         )
         output_tarfile = str(tmpdir.join("logs.tgz"))
+
+        mocker.patch(M_PATH + "Init", autospec=True)
+        mocker.patch(
+            M_PATH + "get_config_logfiles",
+            return_value=[log1, log2],
+        )
 
         date = datetime.utcnow().date().strftime("%Y-%m-%d")
         date_logdir = "cloud-init-logs-{0}".format(date)
