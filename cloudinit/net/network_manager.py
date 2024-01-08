@@ -205,12 +205,13 @@ class NMConnection:
 
         If the line already exists, then append the new key/value pair
         """
-        if not self.config[section].get(f"{route}_options"):
-            self.config[section][f"{route}_options"] = f"{key}={value}"
-        else:
-            self.config[section][
-                f"{route}_options"
-            ] = f'{self.config[section][f"{route}_options"]},{key}={value}'
+        numbered_key = f"{route}_options"
+        route_options = self.config[section].get(numbered_key)
+        self.config[section][numbered_key] = (
+            f"{route_options},{key}={value}"
+            if route_options
+            else f"{key}={value}"
+        )
 
     def _add_address(self, family, subnet):
         """
@@ -225,9 +226,7 @@ class NMConnection:
         # Because network v2 route definitions can have mixed v4 and v6
         # routes, determine the family per route based on the gateway
         family = "ipv6" if is_ipv6_network(route["gateway"]) else "ipv4"
-        value = route["network"] + "/" + str(route["prefix"])
-        if "gateway" in route:
-            value = f"{value}," + route["gateway"]
+        value = f'{route["network"]}/{route["prefix"]},{route["gateway"]}'
         route_key = self._get_next_numbered_section(family, "route")
         self.config[family][route_key] = value
         if "mtu" in route:
@@ -466,7 +465,10 @@ class NMConnection:
 
 
 class Renderer(renderer.Renderer):
-    """Renders network information in a NetworkManager keyfile format."""
+    """Renders network information in a NetworkManager keyfile format.
+
+    See https://networkmanager.dev/docs/api/latest/nm-settings-keyfile.html
+    """
 
     def __init__(self, config=None):
         self.connections = {}
