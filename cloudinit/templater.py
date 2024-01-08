@@ -159,7 +159,6 @@ def detect_template(text):
             template_syntax_error.lineno += 1
             raise JinjaSyntaxParsingException(
                 error=template_syntax_error,
-                # source=content,
             ) from template_syntax_error
         except Exception as unknown_error:
             raise unknown_error from unknown_error

@@ -68,7 +68,6 @@ DI_DISABLED="disabled"
 DI_DEBUG_LEVEL="${DEBUG_LEVEL:-1}"
 
 PATH_ROOT=${PATH_ROOT:-""}
-PATH_RUN=${PATH_RUN:-"${PATH_ROOT}/run"}
 PATH_SYS_CLASS_DMI_ID=${PATH_SYS_CLASS_DMI_ID:-${PATH_ROOT}/sys/class/dmi/id}
 PATH_SYS_HYPERVISOR=${PATH_SYS_HYPERVISOR:-${PATH_ROOT}/sys/hypervisor}
 PATH_SYS_CLASS_BLOCK=${PATH_SYS_CLASS_BLOCK:-${PATH_ROOT}/sys/class/block}
@@ -82,11 +81,17 @@ PATH_PROC_UPTIME=${PATH_PROC_UPTIME:-${PATH_ROOT}/proc/uptime}
 PATH_ETC_CLOUD="${PATH_ETC_CLOUD:-${PATH_ROOT}/etc/cloud}"
 PATH_ETC_CI_CFG="${PATH_ETC_CI_CFG:-${PATH_ETC_CLOUD}/cloud.cfg}"
 PATH_ETC_CI_CFG_D="${PATH_ETC_CI_CFG_D:-${PATH_ETC_CI_CFG}.d}"
-PATH_RUN_CI="${PATH_RUN_CI:-${PATH_RUN}/cloud-init}"
-PATH_RUN_CI_CFG=${PATH_RUN_CI_CFG:-${PATH_RUN_CI}/cloud.cfg}
-PATH_RUN_DI_RESULT=${PATH_RUN_DI_RESULT:-${PATH_RUN_CI}/.ds-identify.result}
 
-DI_LOG="${DI_LOG:-${PATH_RUN_CI}/ds-identify.log}"
+# Declare global here, so they can be overwritten from the outside.
+# if not overwritten from the outside, we'll populate them with system default
+# paths, once we have determined the system we're running on.
+# This is done in set_run_path(), which must run after read_uname_info().
+PATH_RUN="${PATH_RUN:-}"
+PATH_RUN_CI="${PATH_RUN_CI:-}"
+PATH_RUN_CI_CFG="${PATH_RUN_CI_CFG:-}"
+PATH_RUN_DI_RESULT="${PATH_RUN_DI_RESULT:-}"
+
+DI_LOG="${DI_LOG:-}"
 _DI_LOGGED=""
 
 # set DI_MAIN='noop' in environment to source this file with no main called.
@@ -153,6 +158,8 @@ debug() {
     local lvl="$1"
     shift
     [ "$lvl" -gt "${DI_DEBUG_LEVEL}" ] && return
+
+    [ "$DI_LOG" = "" ] && DI_LOG="stderr"
 
     if [ "$_DI_LOGGED" != "$DI_LOG" ]; then
         # first time here, open file descriptor for append
@@ -1579,6 +1586,7 @@ collect_info() {
 }
 
 print_info() {
+    read_uname_info
     collect_info
     _print_info
 }
@@ -1835,12 +1843,25 @@ read_uptime() {
     return
 }
 
+set_run_path() {
+    if [ "$DI_UNAME_KERNEL_NAME" != "Linux" ]; then
+        PATH_RUN=${PATH_RUN:-"${PATH_ROOT}/var/run"}
+    else
+        PATH_RUN=${PATH_RUN:-"${PATH_ROOT}/run"}
+    fi
+
+    PATH_RUN_CI="${PATH_RUN_CI:-${PATH_RUN}/cloud-init}"
+    PATH_RUN_CI_CFG=${PATH_RUN_CI_CFG:-${PATH_RUN_CI}/cloud.cfg}
+    PATH_RUN_DI_RESULT=${PATH_RUN_DI_RESULT:-${PATH_RUN_CI}/.ds-identify.result}
+
+    DI_LOG="${DI_LOG:-${PATH_RUN_CI}/ds-identify.log}"
+}
+
 _main() {
     local dscheck_fn="" ret_dis=1 ret_en=0
 
     read_uptime
     debug 1 "[up ${_RET}s]" "ds-identify $*"
-    read_uname_info
     read_virt
     read_kernel_cmdline
     if is_disabled; then
@@ -1963,11 +1984,14 @@ _main() {
 main() {
     local ret=""
     ensure_sane_path
+    read_uname_info
+    set_run_path
+
     [ -d "$PATH_RUN_CI" ] || mkdir -p "$PATH_RUN_CI"
     if [ "${1:+$1}" != "--force" ] && [ -f "$PATH_RUN_CI_CFG" ] &&
         [ -f "$PATH_RUN_DI_RESULT" ]; then
         if read ret < "$PATH_RUN_DI_RESULT"; then
-            if [ "$ret" = "0" ] || [ "$ret" = "1" ]; then
+            if [ "$ret" = "0" ] || [ "$ret" = "1" ] || [ "$ret" = "2" ]; then
                 debug 2 "used cached result $ret. pass --force to re-run."
                 return "$ret";
             fi

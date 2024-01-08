@@ -108,6 +108,9 @@ class Distro(distros.Distro):
                         str(hostname),
                     ]
                 )
+                LOG.info(
+                    "create_hostname_file is False; hostname set transiently"
+                )
             if ret:
                 LOG.warning(
                     (

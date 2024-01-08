@@ -604,7 +604,6 @@ def get_apt_cfg() -> Dict[str, str]:
             "Dir::Etc::sourceparts", DEFAULT_APT_CFG["Dir::Etc::sourceparts"]
         )
     except ImportError:
-
         try:
             apt_dump, _ = subp.subp(["apt-config", "dump"])
         except subp.ProcessExecutionError:
@@ -681,6 +680,11 @@ def generate_sources_list(cfg, release, mirrors, cloud):
             aptsrc_file = apt_sources_list
     disabled = disable_suites(cfg.get("disable_suites"), rendered, release)
     util.write_file(aptsrc_file, disabled, mode=0o644)
+    if aptsrc_file == apt_sources_deb822 and os.path.exists(apt_sources_list):
+        LOG.warning(
+            "Removing %s to favor deb822 source format", apt_sources_list
+        )
+        util.del_file(apt_sources_list)
 
 
 def add_apt_key_raw(key, file_name, hardened=False):

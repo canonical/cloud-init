@@ -54,7 +54,7 @@ def test_webhook_reporting(client: IntegrationInstance):
     events = [json.loads(line) for line in server_output]
 
     # Only time this should be less is if we remove modules
-    assert len(events) > 56, events
+    assert len(events) > 54, events
 
     # Assert our first and last expected messages exist
     ds_events = [

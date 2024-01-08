@@ -178,7 +178,7 @@ USR = "usr"
 ETC = "etc"
 USR_LIB_EXEC = "usr/lib"
 LIB = "lib"
-if os.uname()[0] in ["FreeBSD", "DragonFly"]:
+if os.uname()[0] in ["FreeBSD", "DragonFly", "OpenBSD"]:
     USR = "usr/local"
     USR_LIB_EXEC = "usr/local/lib"
 elif os.path.isfile("/etc/redhat-release"):

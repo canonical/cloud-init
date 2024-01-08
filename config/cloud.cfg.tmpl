@@ -326,6 +326,9 @@ system_info:
   paths:
     cloud_dir: /var/lib/cloud/
     templates_dir: /etc/cloud/templates/
+{% elif is_bsd %}
+  paths:
+    run_dir: /var/run/
 {% endif %}
 {% if variant == "debian" %}
   package_mirrors:
