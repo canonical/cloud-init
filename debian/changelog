@@ -1,3 +1,11 @@
+cloud-init (23.4.1-0ubuntu1~23.04.2) lunar; urgency=medium
+
+  * d/p/status-retain-recoverable-error-exit-code.patch:
+    Retain exit code in cloud-init status for recoverable errors.
+    (LP: #2048522)
+
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Mon, 08 Jan 2024 17:02:29 +0100
+
 cloud-init (23.4.1-0ubuntu1~23.04.1) lunar; urgency=medium
 
   * d/p/retain-apt-pre-deb822.patch:
