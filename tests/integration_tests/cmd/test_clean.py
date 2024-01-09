@@ -4,7 +4,7 @@ import re
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.releases import IS_UBUNTU, CURRENT_RELEASE
+from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
 
 USER_DATA = """\
 #cloud-config
