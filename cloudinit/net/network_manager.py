@@ -173,18 +173,45 @@ class NMConnection:
         self.config[family]["method"] = method
         self._set_default(family, "may-fail", "false")
 
-    def _add_numbered(self, section, key_prefix, value):
-        """
-        Adds a numbered property, such as address<n> or route<n>, ensuring
-        the appropriate value gets used for <n>.
-        """
+    def _get_next_numbered_section(self, section, key_prefix) -> str:
         if not self.config.has_section(section):
             self.config[section] = {}
         for index in itertools.count(1):
             key = f"{key_prefix}{index}"
             if not self.config.has_option(section, key):
-                self.config[section][key] = value
-                break
+                return key
+        return "not_possible"  # for typing
+
+    def _add_numbered(self, section, key_prefix, value):
+        """
+        Adds a numbered property, such as address<n> or route<n>, ensuring
+        the appropriate value gets used for <n>.
+        """
+        key = self._get_next_numbered_section(section, key_prefix)
+        self.config[section][key] = value
+
+    def _add_route_options(self, section, route, key, value):
+        """Add route options to a given route
+
+        Example:
+        Given:
+          section: ipv4
+          route: route0
+          key: mtu
+          value: 500
+
+        Create line under [ipv4] section:
+            route0_options=mtu=500
+
+        If the line already exists, then append the new key/value pair
+        """
+        numbered_key = f"{route}_options"
+        route_options = self.config[section].get(numbered_key)
+        self.config[section][numbered_key] = (
+            f"{route_options},{key}={value}"
+            if route_options
+            else f"{key}={value}"
+        )
 
     def _add_address(self, family, subnet):
         """
@@ -199,10 +226,11 @@ class NMConnection:
         # Because network v2 route definitions can have mixed v4 and v6
         # routes, determine the family per route based on the gateway
         family = "ipv6" if is_ipv6_network(route["gateway"]) else "ipv4"
-        value = route["network"] + "/" + str(route["prefix"])
-        if "gateway" in route:
-            value = value + "," + route["gateway"]
-        self._add_numbered(family, "route", value)
+        value = f'{route["network"]}/{route["prefix"]},{route["gateway"]}'
+        route_key = self._get_next_numbered_section(family, "route")
+        self.config[family][route_key] = value
+        if "mtu" in route:
+            self._add_route_options(family, route_key, "mtu", route["mtu"])
 
     def _add_nameserver(self, dns: str) -> None:
         """
@@ -437,7 +465,10 @@ class NMConnection:
 
 
 class Renderer(renderer.Renderer):
-    """Renders network information in a NetworkManager keyfile format."""
+    """Renders network information in a NetworkManager keyfile format.
+
+    See https://networkmanager.dev/docs/api/latest/nm-settings-keyfile.html
+    """
 
     def __init__(self, config=None):
         self.connections = {}

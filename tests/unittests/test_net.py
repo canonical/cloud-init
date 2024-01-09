@@ -4182,19 +4182,24 @@ iface bond0 inet6 static
                 org.freedesktop.NetworkManager.origin=cloud-init
 
                 [ethernet]
+                mtu=500
 
                 [ipv4]
                 method=auto
                 may-fail=true
                 route1=169.254.42.42/32,62.210.0.1
+                route1_options=mtu=400
                 route2=169.254.42.43/32,62.210.0.2
+                route2_options=mtu=200
                 address1=192.168.1.20/16
                 dns=8.8.8.8;
                 dns-search=lab;home;
 
                 [ipv6]
                 route1=::/0,fe80::dc00:ff:fe20:186
+                route1_options=mtu=300
                 route2=fe80::dc00:ff:fe20:188/64,fe80::dc00:ff:fe20:187
+                route2_options=mtu=100
                 method=auto
                 may-fail=true
                 address1=2001:bc8:1210:232:dc00:ff:fe20:185/64
@@ -4211,18 +4216,23 @@ iface bond0 inet6 static
               eth0:
                 dhcp4: true
                 dhcp6: true
+                mtu: 500
                 nameservers:
                   search: [lab, home]
                   addresses: [8.8.8.8, "FEDC::1"]
                 routes:
                   - to: 169.254.42.42/32
                     via: 62.210.0.1
+                    mtu: 400
                   - via: fe80::dc00:ff:fe20:186
                     to: ::/0
+                    mtu: 300
                   - to: 169.254.42.43/32
                     via: 62.210.0.2
+                    mtu: 200
                   - via: fe80::dc00:ff:fe20:187
                     to: fe80::dc00:ff:fe20:188
+                    mtu: 100
                 addresses:
                   - 192.168.1.20/16
                   - 2001:bc8:1210:232:dc00:ff:fe20:185/64
