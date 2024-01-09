@@ -221,12 +221,6 @@ class Renderer(renderer.Renderer):
     def parse_dns(self, iface, cfg: CfgParser, ns: NetworkState):
         sec = "Network"
 
-        dns_cfg_map = {
-            "search": "Domains",
-            "nameservers": "DNS",
-            "addresses": "DNS",
-        }
-
         dns = iface.get("dns")
         if not dns and ns.version == 1:
             dns = {
@@ -236,9 +230,10 @@ class Renderer(renderer.Renderer):
         elif not dns and ns.version == 2:
             return
 
-        for k, v in dns_cfg_map.items():
-            if k in dns and dns[k]:
-                cfg.update_section(sec, v, " ".join(dns[k]))
+        if dns.get("search"):
+            cfg.update_section(sec, "Domains", " ".join(dns["search"]))
+        if dns.get("nameservers"):
+            cfg.update_section(sec, "DNS", " ".join(dns["nameservers"]))
 
     def parse_dhcp_overrides(self, cfg: CfgParser, device, dhcp, version):
         dhcp_config_maps = {

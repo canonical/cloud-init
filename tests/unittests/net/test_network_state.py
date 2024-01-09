@@ -258,7 +258,10 @@ class TestNetworkStateParseNameservers:
         # If an interface was specified, DNS should be part of the interface
         for iface in config.iter_interfaces():
             if iface["name"] == "eth1":
-                assert iface["dns"]["addresses"] == ["192.168.1.1", "8.8.8.8"]
+                assert iface["dns"]["nameservers"] == [
+                    "192.168.1.1",
+                    "8.8.8.8",
+                ]
                 assert iface["dns"]["search"] == ["spam.local"]
             else:
                 assert "dns" not in iface
