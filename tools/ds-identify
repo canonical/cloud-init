@@ -129,7 +129,7 @@ DI_DSNAME=""
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean Vultr AliYun Ec2 GCE OpenNebula OpenStack \
 OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud VMware \
-LXD NWCS Akamai"
+LXD NWCS Akamai WSL"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -1570,6 +1570,29 @@ dscheck_VMware() {
     vmware_guest_customization && return "${DS_FOUND}"
 
     return "${DS_NOT_FOUND}"
+}
+
+dscheck_WSL() {
+    if [ "${DI_UNAME_KERNEL_NAME}" != "Linux" ]; then
+        return "${DS_NOT_FOUND}"
+    fi
+
+    if [ "${DI_VIRT}" != "wsl" ]; then
+        return "${DS_NOT_FOUND}"
+    fi
+
+    # The datasource needs to find the cloud-config files in the Windows host
+    # filesystem, which is exposed as 9p mount points, one per disk drive (partition).
+    # If none is found, the datasource cannot proceed.
+    # See https://youtu.be/lwhMThePdIo?t=2431&si=JKTHx39TyRgPbzkZ and
+    # https://learn.microsoft.com/en-us/windows/wsl/wsl-config#what-is-drvfs
+    # for more information.
+    if [ "$(grep -c '^[^[:space:]]* [^[:space:]]* 9p [^[:space:]]*aname=drvfs;.*' "${PATH_ROOT}/proc/mounts")" = 0 ]; then
+        debug 1 "WSL datasource requires access to Windows drives mount points"
+        return "${DS_NOT_FOUND}"
+    fi
+
+    return "${DS_FOUND}"
 }
 
 collect_info() {
