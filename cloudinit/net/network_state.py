@@ -336,7 +336,7 @@ class NetworkStateInterpreter:
             if iface:
                 nameservers, search = dns
                 iface["dns"] = {
-                    "addresses": nameservers,
+                    "nameservers": nameservers,
                     "search": search,
                 }
 
@@ -926,6 +926,7 @@ class NetworkStateInterpreter:
                         "destination": route.get("to"),
                         "gateway": route.get("via"),
                         "metric": route.get("metric"),
+                        "mtu": route.get("mtu"),
                     }
                 )
             )

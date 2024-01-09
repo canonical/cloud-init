@@ -137,6 +137,10 @@ linkcheck_ignore = [
 ]
 
 linkcheck_anchors_ignore_for_url = (
+    # Ignore github anchors in rst or md files
+    r"https://github.com/.*\.rst",
+    r"https://github.com/.*\.md",
+    # Ignore github line number anchors in cloud-init and ubuntu-pro-client
     r"https://github.com/canonical/cloud-init.*",
     r"https://github.com/canonical/ubuntu-pro-client.*",
 )

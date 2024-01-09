@@ -969,7 +969,10 @@ class Init:
         Find the config, determine whether to apply it, apply it via
         the distro, and optionally bring it up
         """
-        from cloudinit.config.schema import validate_cloudconfig_schema
+        from cloudinit.config.schema import (
+            SchemaType,
+            validate_cloudconfig_schema,
+        )
 
         netcfg, src = self._find_networking_config()
         if netcfg is None:
@@ -1011,7 +1014,7 @@ class Init:
         if netcfg and netcfg.get("version") == 1:
             validate_cloudconfig_schema(
                 config=netcfg,
-                schema_type="network-config",
+                schema_type=SchemaType.NETWORK_CONFIG,
                 strict=False,
                 log_details=True,
                 log_deprecations=True,

@@ -24,8 +24,8 @@ Disabling ``security.devlxd`` over the life of the container will result in
 warnings from ``cloud-init``, and ``cloud-init`` will keep the
 originally-detected LXD datasource.
 
-The LXD datasource is detected as viable by ``ds-identify`` during ``systemd``
-generator time when either ``/dev/lxd/sock`` exists, or
+The LXD datasource is detected as viable by ``ds-identify`` during the
+:ref:`detect stage<boot-Detect>` when either ``/dev/lxd/sock`` exists or
 ``/sys/class/dmi/id/board_name`` matches "LXD".
 
 The LXD datasource provides ``cloud-init`` with the ability to react to

@@ -9,7 +9,9 @@ import sys
 import textwrap
 from collections import defaultdict
 from collections.abc import Iterable
+from contextlib import suppress
 from copy import deepcopy
+from enum import Enum
 from errno import EACCES
 from functools import partial
 from itertools import chain
@@ -19,6 +21,7 @@ from typing import (
     List,
     NamedTuple,
     Optional,
+    Tuple,
     Type,
     Union,
     cast,
@@ -29,6 +32,7 @@ import yaml
 from cloudinit import importer, safeyaml
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers import INCLUSION_TYPES_MAP, type_from_starts_with
+from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceNotFoundException
 from cloudinit.util import error, get_modules_from_dir, load_file
 
@@ -55,15 +59,6 @@ VERSIONED_USERDATA_SCHEMA_FILE = "versions.schema.cloud-config.json"
 # 3. Add the new version definition to versions.schema.cloud-config.json
 USERDATA_SCHEMA_FILE = "schema-cloud-config-v1.json"
 NETWORK_CONFIG_V1_SCHEMA_FILE = "schema-network-config-v1.json"
-
-SCHEMA_FILES_BY_TYPE = {
-    "cloud-config": {
-        "latest": USERDATA_SCHEMA_FILE,
-    },
-    "network-config": {
-        "latest": NETWORK_CONFIG_V1_SCHEMA_FILE,
-    },
-}
 
 _YAML_MAP = {True: "true", False: "false", None: "null"}
 SCHEMA_DOC_TMPL = """
@@ -148,6 +143,49 @@ class SchemaProblem(NamedTuple):
 SchemaProblems = List[SchemaProblem]
 
 
+class SchemaType(Enum):
+    """Supported schema types are etiher cloud-config or network-config.
+
+    Vendordata and Vendordata2 format adheres to cloud-config schema type.
+    Cloud Metadata is unique schema to each cloud platform and likely will not
+    be represented in this enum.
+    """
+
+    CLOUD_CONFIG = "cloud-config"
+    NETWORK_CONFIG = "network-config"
+
+
+# Placeholders for versioned schema and schema file locations.
+# The "latest" key is used in absence of a requested specific version.
+SCHEMA_FILES_BY_TYPE = {
+    SchemaType.CLOUD_CONFIG: {
+        "latest": USERDATA_SCHEMA_FILE,
+    },
+    SchemaType.NETWORK_CONFIG: {
+        "latest": NETWORK_CONFIG_V1_SCHEMA_FILE,
+    },
+}
+
+
+class InstanceDataType(Enum):
+    """Types of instance data provided to cloud-init"""
+
+    USERDATA = "user-data"
+    NETWORK_CONFIG = "network-config"
+    VENDORDATA = "vendor-data"
+    VENDOR2DATA = "vendor2-data"
+    # METADATA = "metadata"
+
+    def __str__(self):  # pylint: disable=invalid-str-returned
+        return self.value
+
+
+class InstanceDataPart(NamedTuple):
+    config_type: InstanceDataType
+    schema_type: SchemaType
+    config_path: str
+
+
 class UserDataTypeAndDecodedContent(NamedTuple):
     userdata_type: str
     content: str
@@ -204,6 +242,10 @@ class SchemaValidationError(ValueError):
 
     def has_errors(self) -> bool:
         return bool(self.schema_errors)
+
+
+class SchemaValidationInvalidHeaderError(SchemaValidationError):
+    """Raised when no valid header is declared in the user-data file."""
 
 
 def is_schema_byte_string(checker, instance):
@@ -535,7 +577,7 @@ def validate_cloudconfig_metaschema(validator, schema: dict, throw=True):
 def validate_cloudconfig_schema(
     config: dict,
     schema: Optional[dict] = None,
-    schema_type: str = "cloud-config",
+    schema_type: SchemaType = SchemaType.CLOUD_CONFIG,
     strict: bool = False,
     strict_metaschema: bool = False,
     log_details: bool = True,
@@ -548,8 +590,9 @@ def validate_cloudconfig_schema(
     @param schema: jsonschema dict describing the supported schema definition
        for the cloud config module (config.cc_*). If None, validate against
        global schema.
-    @param schema_type: Optional string. One of: cloud-config, network-config
-       Default: cloud-config.
+    @param schema_type: Optional SchemaType.
+       One of: SchemaType.CLOUD_CONFIG or  SchemaType.NETWORK_CONFIG.
+       Default: SchemaType.CLOUD_CONFIG
     @param strict: Boolean, when True raise SchemaValidationErrors instead of
        logging warnings.
     @param strict_metaschema: Boolean, when True validates schema using strict
@@ -562,8 +605,8 @@ def validate_cloudconfig_schema(
     @raises: SchemaValidationError when provided config does not validate
         against the provided schema.
     @raises: RuntimeError when provided config sourced from YAML is not a dict.
-    @raises: ValueError on invalid schema_type not in cloud-config or
-        network_config
+    @raises: ValueError on invalid schema_type not in CLOUD_CONFIG or
+        NETWORK_CONFIG
     """
     if schema is None:
         schema = get_schema(schema_type)
@@ -619,12 +662,12 @@ def validate_cloudconfig_schema(
         if log_details:
             details = _format_schema_problems(
                 errors,
-                prefix=f"Invalid {schema_type} provided:\n",
+                prefix=f"Invalid {schema_type.value} provided:\n",
                 separator="\n",
             )
         else:
             details = (
-                f"Invalid {schema_type} provided: "
+                f"Invalid {schema_type.value} provided: "
                 "Please run 'sudo cloud-init schema --system' to "
                 "see the schema errors."
             )
@@ -854,7 +897,7 @@ def _get_config_type_and_rendered_userdata(
         user_data_type = type_from_starts_with(content)
     if not user_data_type:  # Neither jinja2 nor #cloud-config
         header_line, _, _ = content.partition("\n")
-        raise SchemaValidationError(
+        raise SchemaValidationInvalidHeaderError(
             [
                 SchemaProblem(
                     schema_position,
@@ -875,7 +918,7 @@ def _get_config_type_and_rendered_userdata(
 def validate_cloudconfig_file(
     config_path: str,
     schema: dict,
-    schema_type: str = "cloud-config",
+    schema_type: SchemaType = SchemaType.CLOUD_CONFIG,
     annotate: bool = False,
     instance_data_path: str = None,
 ) -> bool:
@@ -884,7 +927,7 @@ def validate_cloudconfig_file(
     @param config_path: Path to the yaml cloud-config file to parse, or None
         to default to system userdata from Paths object.
     @param schema: Dict describing a valid jsonschema to validate against.
-    @param schema_type: One of network-config or cloud-config.
+    @param schema_type: One of SchemaType.NETWORK_CONFIG or CLOUD_CONFIG
     @param annotate: Boolean set True to print original config file with error
         annotations on the offending lines.
     @param instance_data_path: Path to instance_data JSON, used for text/jinja
@@ -898,13 +941,13 @@ def validate_cloudconfig_file(
     if not decoded_content:
         print(
             "Empty '%s' found at %s. Nothing to validate."
-            % (schema_type, config_path)
+            % (schema_type.value, config_path)
         )
         return False
 
-    if schema_type in ("network-config",):
+    if schema_type in (SchemaType.NETWORK_CONFIG,):
         decoded_config = UserDataTypeAndDecodedContent(
-            schema_type, decoded_content
+            schema_type.value, decoded_content
         )
     else:
         decoded_config = _get_config_type_and_rendered_userdata(
@@ -951,9 +994,9 @@ def validate_cloudconfig_file(
         # Return a meaningful message on empty cloud-config
         if not annotate:
             raise RuntimeError(
-                f"{schema_type} {config_path} is not a YAML dict."
+                f"{schema_type.value} {config_path} is not a YAML dict."
             )
-    if schema_type == "network-config":
+    if schema_type == SchemaType.NETWORK_CONFIG:
         # Pop optional top-level "network" key when present
         netcfg = cloudconfig.get("network", cloudconfig)
         if not netcfg:
@@ -971,7 +1014,7 @@ def validate_cloudconfig_file(
             cloudconfig, schema, strict=True, log_deprecations=False
         ):
             print(
-                f"Skipping {schema_type} schema validation."
+                f"Skipping {schema_type.value} schema validation."
                 " Jsonschema dependency missing."
             )
             return False
@@ -1288,7 +1331,7 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     """
 
     if schema is None:
-        schema = get_schema(schema_type="cloud-config")
+        schema = get_schema()
     if not meta or not schema:
         raise ValueError("Expected non-empty meta and schema")
     keys = set(meta.keys())
@@ -1389,7 +1432,7 @@ def get_schema_dir() -> str:
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "schemas")
 
 
-def get_schema(schema_type: str = "cloud-config") -> dict:
+def get_schema(schema_type: SchemaType = SchemaType.CLOUD_CONFIG) -> dict:
     """Return jsonschema for a specific type.
 
     Return empty schema when no specific schema file exists.
@@ -1403,7 +1446,7 @@ def get_schema(schema_type: str = "cloud-config") -> dict:
     except (IOError, OSError):
         LOG.warning(
             "Skipping %s schema valiation. No JSON schema file found %s.",
-            schema_type,
+            schema_type.value,
             schema_file,
         )
         return {}
@@ -1432,10 +1475,13 @@ def get_parser(parser=None):
         "-t",
         "--schema-type",
         type=str,
-        choices=["cloud-config", "network-config"],
+        choices=[
+            SchemaType.CLOUD_CONFIG.value,
+            SchemaType.NETWORK_CONFIG.value,
+        ],
         help=(
             "When providing --config-file, the schema type to validate config"
-            " against. Default: cloud-config"
+            f" against. Default: {SchemaType.CLOUD_CONFIG}"
         ),
     )
     parser.add_argument(
@@ -1475,8 +1521,8 @@ def get_parser(parser=None):
     return parser
 
 
-def handle_schema_args(name, args):
-    """Handle provided schema args and perform the appropriate actions."""
+def _assert_exclusive_args(args):
+    """Error or warn on invalid exclusive parameter combinations."""
     exclusive_args = [args.config_file, args.docs, args.system]
     if len([arg for arg in exclusive_args if arg]) != 1:
         error(
@@ -1493,10 +1539,48 @@ def handle_schema_args(name, args):
             "Invalid flag combination. Cannot use --annotate with --docs",
             sys_exit=True,
         )
-    full_schema = get_schema(schema_type="cloud-config")
-    if args.docs:
-        print(load_doc(args.docs))
-        return
+
+
+def get_config_paths_from_args(
+    args,
+) -> Tuple[str, List[InstanceDataPart]]:
+    """Return appropiate instance-data.json and instance data parts
+
+    Based on commandline args, and user permissions, determine the
+    appropriate instance-data.json to source for jinja templates and
+    a list of applicable InstanceDataParts such as user-data, vendor-data
+    and network-config for which to validate schema. Avoid returning any
+    InstanceDataParts when the expected config_path does not exist.
+
+    :return: A tuple of the instance-data.json path and a list of
+        viable InstanceDataParts present on the system.
+    """
+
+    def get_processed_or_fallback_path(
+        paths: Paths,
+        primary_path_key: str,
+        raw_fallback_path_key: str,
+    ) -> str:
+        """Get processed data path when non-empty of fallback to raw data path.
+
+        - When primary path and raw path exist and are empty, prefer primary
+          path.
+        - When primary path is empty but the raw fallback path is non-empty,
+          this indicates an invalid and ignored raw user-data was provided and
+          cloud-init emitted a warning and did not process unknown raw
+          user-data.
+          In the case of invalid raw user-data header, prefer
+          raw_fallback_path_key so actionable sensible warnings can be
+          reported ot the user about the raw unparseable user-data.
+        """
+        primary_datapath = paths.get_ipath(primary_path_key) or ""
+        with suppress(FileNotFoundError):
+            if not os.stat(primary_datapath).st_size:
+                raw_path = paths.get_ipath(raw_fallback_path_key) or ""
+                if os.stat(raw_path).st_size:
+                    return raw_path
+        return primary_datapath
+
     try:
         paths = read_cfg_paths(fetch_existing_datasource="trust")
     except (IOError, OSError) as e:
@@ -1519,8 +1603,19 @@ def handle_schema_args(name, args):
         instance_data_path = paths.get_runpath("instance_data")
     else:
         instance_data_path = paths.get_runpath("instance_data_sensitive")
+    config_files: List[InstanceDataPart] = []
     if args.config_file:
-        config_files = ((args.schema_type, args.config_file),)
+        if args.schema_type:
+            schema_type = SchemaType(args.schema_type)
+        else:
+            schema_type = SchemaType.CLOUD_CONFIG
+        config_files.append(
+            InstanceDataPart(
+                InstanceDataType.USERDATA,
+                schema_type,
+                args.config_file,
+            )
+        )
     else:
         if os.getuid() != 0:
             error(
@@ -1528,92 +1623,111 @@ def handle_schema_args(name, args):
                 " user. Try using sudo.",
                 sys_exit=True,
             )
-        userdata_file = paths.get_ipath("cloud_config")
-        if not userdata_file:
-            error(
-                "Unable to obtain user data file. No instance data available",
-                sys_exit=True,
-            )
-            return  # Helps typing
-
-        # Prefer raw user-data.txt when processed cloud-config is empty and
-        # raw user-data.txt is not because processed cloud-config.txt will
-        # not be written in cases where user-data header is not supported.
-        try:
-            if os.stat(userdata_file).st_size == 0:
-                raw_userdata_file = paths.get_ipath("userdata_raw")
-                if os.stat(raw_userdata_file).st_size:
-                    userdata_file = raw_userdata_file
-        except FileNotFoundError:
-            # Error handling on absent userdata_file below
-            pass
-
-        config_files = (("user-data", userdata_file),)
-        supplemental_config_files = (
-            ("vendor-data", paths.get_ipath("vendor_cloud_config")),
-            ("vendor2-data", paths.get_ipath("vendor2_cloud_config")),
-            ("network-config", paths.get_ipath("network_config")),
+        userdata_file = get_processed_or_fallback_path(
+            paths, "cloud_config", "userdata_raw"
         )
-        for cfg_type, cfg_file in supplemental_config_files:
-            if cfg_file and os.path.exists(cfg_file):
-                config_files += ((cfg_type, cfg_file),)
-    if not os.path.exists(config_files[0][1]):
+        config_files.append(
+            InstanceDataPart(
+                InstanceDataType.USERDATA,
+                SchemaType.CLOUD_CONFIG,
+                userdata_file,
+            )
+        )
+        supplemental_config_files: List[InstanceDataPart] = [
+            InstanceDataPart(
+                InstanceDataType.VENDORDATA,
+                SchemaType.CLOUD_CONFIG,
+                get_processed_or_fallback_path(
+                    paths, "vendor_cloud_config", "vendordata_raw"
+                ),
+            ),
+            InstanceDataPart(
+                InstanceDataType.VENDOR2DATA,
+                SchemaType.CLOUD_CONFIG,
+                get_processed_or_fallback_path(
+                    paths, "vendor2_cloud_config", "vendordata2_raw"
+                ),
+            ),
+            InstanceDataPart(
+                InstanceDataType.NETWORK_CONFIG,
+                SchemaType.NETWORK_CONFIG,
+                paths.get_ipath("network_config") or "",
+            ),
+        ]
+        for data_part in supplemental_config_files:
+            if data_part.config_path and os.path.exists(data_part.config_path):
+                config_files.append(data_part)
+    if not os.path.exists(config_files[0].config_path):
         error(
-            f"Config file {config_files[0][1]} does not exist",
+            f"Config file {config_files[0].config_path} does not exist",
             fmt="Error: {}",
             sys_exit=True,
         )
+    return instance_data_path, config_files
+
+
+def handle_schema_args(name, args):
+    """Handle provided schema args and perform the appropriate actions."""
+    _assert_exclusive_args(args)
+    full_schema = get_schema()
+    if args.docs:
+        print(load_doc(args.docs))
+        return
+    instance_data_path, config_files = get_config_paths_from_args(args)
 
     nested_output_prefix = ""
     multi_config_output = bool(len(config_files) > 1)
     if multi_config_output:
         print(
             "Found cloud-config data types: %s"
-            % ", ".join(cfg_type for cfg_type, _ in config_files)
+            % ", ".join(str(cfg_part.config_type) for cfg_part in config_files)
         )
         nested_output_prefix = "  "
 
     error_types = []
-    for idx, (cfg_type, cfg_file) in enumerate(config_files, 1):
+    for idx, cfg_part in enumerate(config_files, 1):
         performed_schema_validation = False
         if multi_config_output:
-            print(f"\n{idx}. {cfg_type} at {cfg_file}:")
-        if cfg_type == "network-config":
-            cfg_schema = get_schema(cfg_type)
-            schema_type = cfg_type
+            print(
+                f"\n{idx}. {cfg_part.config_type} at {cfg_part.config_path}:"
+            )
+        if cfg_part.schema_type == SchemaType.NETWORK_CONFIG:
+            cfg_schema = get_schema(cfg_part.schema_type)
         else:
             cfg_schema = full_schema
-            cfg_type = "user-data" if cfg_type == "cloud-config" else cfg_type
-            schema_type = "cloud-config"
         try:
             performed_schema_validation = validate_cloudconfig_file(
-                cfg_file,
+                cfg_part.config_path,
                 cfg_schema,
-                schema_type,
+                cfg_part.schema_type,
                 args.annotate,
                 instance_data_path,
             )
         except SchemaValidationError as e:
-            if not cfg_type:
-                cfg_type = "UNKNOWN_CONFIG_HEADER"
             if not args.annotate:
-                print(f"{nested_output_prefix}Invalid {cfg_type} {cfg_file}")
+                print(
+                    f"{nested_output_prefix}Invalid"
+                    f" {cfg_part.config_type} {cfg_part.config_path}"
+                )
                 error(
                     str(e),
                     fmt=nested_output_prefix + "Error: {}\n",
                 )
-                error_types.append(cfg_type)
+            error_types.append(cfg_part.config_type)
         except RuntimeError as e:
-            print(f"{nested_output_prefix}Invalid {cfg_type}")
+            print(f"{nested_output_prefix}Invalid {cfg_part.config_type!s}")
             error(str(e), fmt=nested_output_prefix + "Error: {}\n")
-            error_types.append(cfg_type)
+            error_types.append(cfg_part.config_type)
         else:
             if performed_schema_validation:
-                cfg = cfg_file if args.config_file else cfg_type
-                print(f"{nested_output_prefix}Valid schema {cfg}")
+                if args.config_file:
+                    cfg = cfg_part.config_path
+                else:
+                    cfg = cfg_part.config_type
+                print(f"{nested_output_prefix}Valid schema {cfg!s}")
     if error_types:
         error(
-            ", ".join(error_type for error_type in error_types),
+            ", ".join(str(error_type) for error_type in error_types),
             fmt="Error: Invalid schema: {}\n",
             sys_exit=True,
         )
