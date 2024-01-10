@@ -1011,15 +1011,14 @@ class Init:
         netcfg, src = self._find_networking_config()
         self._write_network_config_json(netcfg)
 
-        if netcfg and netcfg.get("version") == 1:
+        if netcfg:
             validate_cloudconfig_schema(
                 config=netcfg,
                 schema_type=SchemaType.NETWORK_CONFIG,
-                strict=False,
-                log_details=True,
+                strict=False,  # Warnings not raising exceptions
+                log_details=False,  # May have wifi passwords in net cfg
                 log_deprecations=True,
             )
-
         # ensure all physical devices in config are present
         self.distro.networking.wait_for_physdevs(netcfg)
 
