@@ -812,7 +812,6 @@ class NetworkStateInterpreter:
                     name_cmd.update({"search": search})
                 if len(dns) > 0:
                     name_cmd.update({"address": dns})
-                self.handle_nameserver(name_cmd)
 
                 mac_address: Optional[str] = dev_cfg.get("match", {}).get(
                     "macaddress"

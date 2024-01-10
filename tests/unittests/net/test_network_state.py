@@ -290,15 +290,11 @@ class TestNetworkStateParseNameservers:
                     "search": ["foo.local", "bar.local"],
                 }
 
-        # Ensure DNS defined on interface also exists globally (since there
-        # is no global DNS definitions in v2)
-        assert ["4.4.4.4", "8.8.8.8"] == sorted(config.dns_nameservers)
-        assert [
-            "bar.local",
-            "eggs.local",
-            "foo.local",
-            "spam.local",
-        ] == sorted(config.dns_searchdomains)
+        # Ensure DNS defined on interface does not exist globally
+        for server in ["4.4.4.4", "8.8.8.8"]:
+            assert server not in config.dns_nameservers
+        for search in ["bar.local", "eggs.local", "foo.local", "spam.local"]:
+            assert search not in config.dns_searchdomains
 
 
 class TestNetworkStateHelperFunctions(CiTestCase):

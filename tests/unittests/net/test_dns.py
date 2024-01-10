@@ -29,4 +29,6 @@ ethernets:
 """
             )
         )
-        assert "10.0.0.3" in state.dns_nameservers
+        assert (
+            "10.0.0.3" in next(state.iter_interfaces())["dns"]["nameservers"]
+        )
