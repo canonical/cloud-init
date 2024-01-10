@@ -15,6 +15,7 @@ from cloudinit import distros, subp, util
 from cloudinit.distros.package_management.apt import Apt
 from cloudinit.distros.package_management.package_manager import PackageManager
 from cloudinit.distros.parsers.hostname import HostnameConf
+from cloudinit.net.netplan import CLOUDINIT_NETPLAN_FILE
 
 LOG = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class Distro(distros.Distro):
     hostname_conf_fn = "/etc/hostname"
     network_conf_fn = {
         "eni": "/etc/network/interfaces.d/50-cloud-init",
-        "netplan": "/etc/netplan/50-cloud-init.yaml",
+        "netplan": CLOUDINIT_NETPLAN_FILE,
     }
     renderer_configs = {
         "eni": {
