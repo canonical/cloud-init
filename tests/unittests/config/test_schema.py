@@ -33,6 +33,7 @@ from cloudinit.config.schema import (
     handle_schema_args,
     load_doc,
     main,
+    netplan_validate_network_schema,
     validate_cloudconfig_file,
     validate_cloudconfig_metaschema,
     validate_cloudconfig_schema,
@@ -330,10 +331,94 @@ class SchemaValidationErrorTest(CiTestCase):
         self.assertTrue(isinstance(exception, ValueError))
 
 
+class FakeNetplanParserException(Exception):
+    def __init__(self, filename, line, column, message):
+        self.filename = filename
+        self.line = line
+        self.column = column
+        self.message = message
+
+
+class TestNetplanValidateNetworkSchema:
+    """Tests for netplan_validate_network_schema.
+
+    Heavily mocked because github.com/canonical/netplan project does not
+    have a pyproject.toml or setup.py or pypi release that allows us to
+    define tox unittest dependencies.
+    """
+
+    @pytest.mark.parametrize(
+        "config,expected_log",
+        (
+            ({}, ""),
+            ({"version": 1}, ""),
+            (
+                {"version": 2},
+                "Skipping netplan schema validation. No netplan available",
+            ),
+            (
+                {"network": {"version": 2}},
+                "Skipping netplan schema validation. No netplan available",
+            ),
+        ),
+    )
+    def test_network_config_schema_validation_false_when_skipped(
+        self, config, expected_log, caplog
+    ):
+        """netplan_validate_network_schema returns false when skipped."""
+        with mock.patch.dict("sys.modules"):
+            sys.modules.pop("netplan", None)
+            assert False is netplan_validate_network_schema(config)
+        assert expected_log in caplog.text
+
+    @pytest.mark.parametrize(
+        "error,error_log",
+        (
+            (None, ""),
+            (
+                FakeNetplanParserException(
+                    "net.yaml",
+                    line=1,
+                    column=12,
+                    message="incorrect YAML value: yes for dhcp value",
+                ),
+                "Invalid network-config provided:\nformat-l1.c12: Invalid"
+                " netplan schema. incorrect YAML value: yes for dhcp value",
+            ),
+        ),
+    )
+    def test_network_config_schema_validation(
+        self, error, error_log, caplog, tmpdir
+    ):
+
+        fake_tmpdir = tmpdir.join("mkdtmp")
+
+        class FakeParser:
+            def load_yaml_hierarchy(self, parse_dir):
+                # Since we mocked mkdtemp to tmpdir, assert we pass tmpdir
+                assert parse_dir == fake_tmpdir
+                if error:
+                    raise error
+
+        # Mock expected imports
+        with mock.patch.dict(
+            "sys.modules",
+            netplan=mock.MagicMock(
+                NetplanParserException=FakeNetplanParserException,
+                Parser=FakeParser,
+            ),
+        ):
+            with mock.patch(
+                "cloudinit.config.schema.mkdtemp",
+                return_value=fake_tmpdir.strpath,
+            ):
+                assert netplan_validate_network_schema({"version": 2})
+            if error_log:
+                assert error_log in caplog.text
+
+
 class TestValidateCloudConfigSchema:
     """Tests for validate_cloudconfig_schema."""
-
-    with_logs = True
 
     @pytest.mark.parametrize(
         "schema, call_count",
@@ -356,7 +441,7 @@ class TestValidateCloudConfigSchema:
     def test_validateconfig_schema_non_strict_emits_warnings(self, caplog):
         """When strict is False validate_cloudconfig_schema emits warnings."""
         schema = {"properties": {"p1": {"type": "string"}}}
-        validate_cloudconfig_schema({"p1": -1}, schema, strict=False)
+        validate_cloudconfig_schema({"p1": -1}, schema=schema, strict=False)
         [(module, log_level, log_msg)] = caplog.record_tuples
         assert "cloudinit.config.schema" == module
         assert logging.WARNING == log_level
@@ -374,7 +459,7 @@ class TestValidateCloudConfigSchema:
         }
         validate_cloudconfig_schema(
             {"hashed-password": "secret"},
-            schema,
+            schema=schema,
             strict=False,
             log_details=False,
         )
@@ -403,7 +488,7 @@ class TestValidateCloudConfigSchema:
         """When strict is True validate_cloudconfig_schema raises errors."""
         schema = {"properties": {"p1": {"type": "string"}}}
         with pytest.raises(SchemaValidationError) as context_mgr:
-            validate_cloudconfig_schema({"p1": -1}, schema, strict=True)
+            validate_cloudconfig_schema({"p1": -1}, schema=schema, strict=True)
         assert (
             "Cloud config schema errors: p1: -1 is not of type 'string'"
             == (str(context_mgr.value))
@@ -414,7 +499,9 @@ class TestValidateCloudConfigSchema:
         """With strict True, validate_cloudconfig_schema errors on format."""
         schema = {"properties": {"p1": {"type": "string", "format": "email"}}}
         with pytest.raises(SchemaValidationError) as context_mgr:
-            validate_cloudconfig_schema({"p1": "-1"}, schema, strict=True)
+            validate_cloudconfig_schema(
+                {"p1": "-1"}, schema=schema, strict=True
+            )
         assert "Cloud config schema errors: p1: '-1' is not a 'email'" == (
             str(context_mgr.value)
         )
@@ -425,7 +512,10 @@ class TestValidateCloudConfigSchema:
         schema = {"properties": {"p1": {"type": "string", "format": "email"}}}
         with pytest.raises(SchemaValidationError) as context_mgr:
             validate_cloudconfig_schema(
-                {"p1": "-1"}, schema, strict=True, strict_metaschema=True
+                {"p1": "-1"},
+                schema=schema,
+                strict=True,
+                strict_metaschema=True,
             )
         assert "Cloud config schema errors: p1: '-1' is not a 'email'" == str(
             context_mgr.value
@@ -442,7 +532,7 @@ class TestValidateCloudConfigSchema:
         """
         schema = {"properties": {"p1": {"types": "string", "format": "email"}}}
         validate_cloudconfig_schema(
-            {"p1": "-1"}, schema, strict_metaschema=True
+            {"p1": "-1"}, schema=schema, strict_metaschema=True
         )
         assert (
             "Meta-schema validation failed, attempting to validate config"
@@ -657,7 +747,7 @@ class TestValidateCloudConfigSchema:
     ):
         validate_cloudconfig_schema(
             config,
-            schema,
+            schema=schema,
             strict_metaschema=True,
             log_deprecations=log_deprecations,
         )
@@ -714,7 +804,7 @@ class TestCloudConfigExamples:
                 ]
             )
             schema["properties"].update(supplemental_props)
-        validate_cloudconfig_schema(config_load, schema, strict=True)
+        validate_cloudconfig_schema(config_load, schema=schema, strict=True)
 
 
 @pytest.mark.usefixtures("fake_filesystem")
@@ -1794,7 +1884,10 @@ class TestMain:
             ("cloud-config", b"#cloud-config\nntp:", "Valid schema"),
             (
                 "network-config",
-                b"network: {'version': 2, 'ethernets': {'eth0': {'dhcp': true}}}",
+                (
+                    b"network: {'version': 2, 'ethernets':"
+                    b" {'eth0': {'dhcp': true}}}"
+                ),
                 "Skipping network-config schema validation. No network schema"
                 " for version: 2",
             ),
@@ -1817,7 +1910,11 @@ class TestMain:
             myargs += ["--schema-type", schema_type]
         myyaml.write(content)  # shortest ntp schema
         with mock.patch("sys.argv", myargs):
-            assert 0 == main(), "Expected 0 exit code"
+            # Always assert we have no netplan module which triggers
+            # schema skip of network-config version: 2 until cloud-init
+            # grows internal schema-network-config-v2.json.
+            with mock.patch.dict("sys.modules", netplan=ImportError()):
+                assert 0 == main(), "Expected 0 exit code"
         out, _err = capsys.readouterr()
         assert expected in out
 
@@ -1943,7 +2040,7 @@ class TestMain:
                 id="netv2_validation_is_skipped",
             ),
             pytest.param(
-                "network:\n",
+                "network: {}\n",
                 "Skipping network-config schema validation on empty config.",
                 does_not_raise(),
                 id="empty_net_validation_is_skipped",
@@ -1992,8 +2089,12 @@ class TestMain:
         write_file(network_file, net_config)
         myargs = ["mycmd", "--system"]
         with error_raised:
-            with mock.patch("sys.argv", myargs):
-                main()
+            # Always assert we have no netplan module which triggers
+            # schema skip of network-config version: 2 until cloud-init
+            # grows internal schema-network-config-v2.json.
+            with mock.patch.dict("sys.modules", netplan=ImportError()):
+                with mock.patch("sys.argv", myargs):
+                    main()
         out, _err = capsys.readouterr()
 
         net_output = net_output.format(network_file=network_file)
