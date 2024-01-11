@@ -78,10 +78,6 @@ FN_ALLOWED = "_-.()" + string.digits + string.ascii_letters
 TRUE_STRINGS = ("true", "1", "on", "yes")
 FALSE_STRINGS = ("off", "0", "no", "false")
 
-# logrotate
-LOG_COMPRESSION = "gz"
-LOG_ROTATION = 5  # value obtained from logrotate config file
-
 
 def kernel_version():
     return tuple(map(int, os.uname().release.split(".")[:2]))
@@ -1772,13 +1768,12 @@ def get_config_logfiles(cfg):
             logs.append(parts[2])
 
     # add rotated log files
-    for rotation in range(1, (LOG_ROTATION + 1)):
-        for _log in logs:
-            rotated_logfile = (
-                _log + "." + str(rotation) + "." + LOG_COMPRESSION
-            )
-            if os.path.isfile(rotated_logfile):
-                rotated_logs.append(rotated_logfile)
+    for _log in logs:
+        for _rotated_logfile in glob.glob(f"{_log}*"):
+            # Check that log file exists and is rotated.
+            # Do not add current one
+            if os.path.isfile(_rotated_logfile) and _rotated_logfile != _log:
+                rotated_logs.append(_rotated_logfile)
 
     return list(set(logs + rotated_logs))
 
