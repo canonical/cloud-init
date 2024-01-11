@@ -1787,15 +1787,39 @@ class TestMain:
         assert "\nNTP\n---\n" in out
         assert "\nRuncmd\n------\n" in out
 
-    def test_main_validates_config_file(self, _read_cfg_paths, tmpdir, capsys):
+    @pytest.mark.parametrize(
+        "schema_type,content,expected",
+        (
+            (None, b"#cloud-config\nntp:", "Valid schema"),
+            ("cloud-config", b"#cloud-config\nntp:", "Valid schema"),
+            (
+                "network-config",
+                b"network: {'version': 2, 'ethernets': {'eth0': {'dhcp': true}}}",
+                "Skipping network-config schema validation. No network schema"
+                " for version: 2",
+            ),
+        ),
+    )
+    def test_main_validates_config_file(
+        self,
+        _read_cfg_paths,
+        schema_type,
+        content,
+        expected,
+        tmpdir,
+        capsys,
+        caplog,
+    ):
         """When --config-file parameter is provided, main validates schema."""
         myyaml = tmpdir.join("my.yaml")
         myargs = ["mycmd", "--config-file", myyaml.strpath]
-        myyaml.write(b"#cloud-config\nntp:")  # shortest ntp schema
+        if schema_type:
+            myargs += ["--schema-type", schema_type]
+        myyaml.write(content)  # shortest ntp schema
         with mock.patch("sys.argv", myargs):
             assert 0 == main(), "Expected 0 exit code"
         out, _err = capsys.readouterr()
-        assert f"Valid schema {myyaml}\n" == out
+        assert expected in out
 
     @pytest.mark.parametrize(
         "update_path_content_by_key, expected_keys",

@@ -1609,12 +1609,12 @@ def get_config_paths_from_args(
             schema_type = SchemaType(args.schema_type)
         else:
             schema_type = SchemaType.CLOUD_CONFIG
+        if schema_type == SchemaType.NETWORK_CONFIG:
+            instancedata_type = InstanceDataType.NETWORK_CONFIG
+        else:
+            instancedata_type = InstanceDataType.USERDATA
         config_files.append(
-            InstanceDataPart(
-                InstanceDataType.USERDATA,
-                schema_type,
-                args.config_file,
-            )
+            InstanceDataPart(instancedata_type, schema_type, args.config_file)
         )
     else:
         if os.getuid() != 0:
