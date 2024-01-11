@@ -1314,6 +1314,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             )
         return None
 
+    @staticmethod
+    def eject_media(device: str) -> None:
+        cmd = ["/lib/udev/cdrom_id", "--eject-media", device]
+        if not uses_systemd():
+            cmd = ["eject", device]
+        subp.subp(cmd)
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
     """
