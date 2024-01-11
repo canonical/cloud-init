@@ -10,8 +10,7 @@
          "pyserial" : "python3-serial"
       },
       "requires" : [
-         "procps",
-         "logrotate"
+         "procps"
       ]
    },
    "centos" : {
@@ -25,8 +24,7 @@
          "procps",
          "rsyslog",
          "shadow-utils",
-         "sudo",
-         "logrotate"
+         "sudo"
       ]
    },
    "eurolinux" : {
@@ -40,8 +38,7 @@
          "procps",
          "rsyslog",
          "shadow-utils",
-         "sudo",
-         "logrotate"
+         "sudo"
       ]
    },
    "redhat" : {
@@ -56,8 +53,7 @@
          "rsyslog",
          "shadow-utils",
          "sudo",
-         "hostname",
-         "logrotate"
+         "hostname"
       ]
    },
    "suse" : {
@@ -76,8 +72,7 @@
          "e2fsprogs",
          "net-tools",
          "procps",
-         "sudo",
-         "logrotate"
+         "sudo"
       ]
    }
 }
