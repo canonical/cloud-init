@@ -26,6 +26,8 @@ write_files:
   content: '#!/bin/sh\necho DID NOT RUN BECAUSE NO EXEC PERMS'
   permissions: '0644'
   owner: root:root
+packages:
+- logrotate
 """
 
 
