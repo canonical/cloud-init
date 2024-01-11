@@ -7,7 +7,9 @@ from textwrap import dedent
 import pytest
 import responses
 
+from cloudinit.distros import amazon, centos, debian, freebsd, rhel
 from cloudinit.net.dhcp import (
+    DHCLIENT_FALLBACK_LEASE_DIR,
     InvalidDHCPLeaseFileError,
     IscDhclient,
     NoDHCPLeaseError,
@@ -1134,4 +1136,163 @@ class TestUDHCPCDiscoveryClean(CiTestCase):
                     capture=True,
                 ),
             ]
+        )
+
+
+class TestISCDHClient(CiTestCase):
+    @mock.patch(
+        "os.listdir",
+        return_value=(
+            "some_file",
+            # rhel style lease file
+            "dhclient-0-u-u-i-d-enp2s0f0.lease",
+            "some_other_file",
+        ),
+    )
+    @mock.patch("os.path.getmtime", return_value=123.45)
+    def test_get_latest_lease_rhel(self, *_):
+        """
+        Test that an rhel style lease has been found
+        """
+        self.assertEqual(
+            "/var/lib/NetworkManager/dhclient-0-u-u-i-d-enp2s0f0.lease",
+            IscDhclient.get_latest_lease(
+                rhel.Distro.dhclient_lease_directory,
+                rhel.Distro.dhclient_lease_file_regex,
+            ),
+        )
+
+    @mock.patch(
+        "os.listdir",
+        return_value=(
+            "some_file",
+            # amazon linux style
+            "dhclient--eth0.leases",
+            "some_other_file",
+        ),
+    )
+    @mock.patch("os.path.getmtime", return_value=123.45)
+    def test_get_latest_lease_amazonlinux(self, *_):
+        """
+        Test that an amazon style lease has been found
+        """
+        self.assertEqual(
+            "/var/lib/dhcp/dhclient--eth0.leases",
+            IscDhclient.get_latest_lease(
+                amazon.Distro.dhclient_lease_directory,
+                amazon.Distro.dhclient_lease_file_regex,
+            ),
+        )
+
+    @mock.patch(
+        "os.listdir",
+        return_value=(
+            "some_file",
+            # freebsd style lease file
+            "dhclient.leases.vtynet0",
+            "some_other_file",
+        ),
+    )
+    @mock.patch("os.path.getmtime", return_value=123.45)
+    def test_get_latest_lease_freebsd(self, *_):
+        """
+        Test that an freebsd style lease has been found
+        """
+        self.assertEqual(
+            "/var/db/dhclient.leases.vtynet0",
+            IscDhclient.get_latest_lease(
+                freebsd.Distro.dhclient_lease_directory,
+                freebsd.Distro.dhclient_lease_file_regex,
+            ),
+        )
+
+    @mock.patch(
+        "os.listdir",
+        return_value=(
+            "some_file",
+            # debian style lease file
+            "dhclient.eth0.leases",
+            "some_other_file",
+        ),
+    )
+    @mock.patch("os.path.getmtime", return_value=123.45)
+    def test_get_latest_lease_debian(self, *_):
+        """
+        Test that an debian style lease has been found
+        """
+        self.assertEqual(
+            "/var/lib/dhcp/dhclient.eth0.leases",
+            IscDhclient.get_latest_lease(
+                debian.Distro.dhclient_lease_directory,
+                debian.Distro.dhclient_lease_file_regex,
+            ),
+        )
+
+    @mock.patch(
+        "os.listdir",
+        return_value=(
+            "some_file",
+            "!@#$-eth0.lease",
+            "some_other_file",
+        ),
+    )
+    @mock.patch("os.path.getmtime", return_value=123.45)
+    def test_no_distro_hints_fallback(self, *_):
+        """
+        This tests a situation where Distro doesn't provide
+        hints for dhclient leases.
+        The code should resort to hardcoded lease location
+        """
+        # Provide lease_dir and regex as None
+        self.assertEqual(
+            os.path.join(DHCLIENT_FALLBACK_LEASE_DIR, "!@#$-eth0.lease"),
+            IscDhclient.get_latest_lease(
+                None,
+                None,
+            ),
+        )
+
+    # If argument to listdir is '/var/lib/NetworkManager'
+    # then mock an empty reply
+    # otherwise mock a reply with leasefile
+    @mock.patch(
+        "os.listdir",
+        side_effect=lambda x: []
+        if x == "/var/lib/NetworkManager"
+        else ["some_file", "!@#$-eth0.lease", "some_other_file"],
+    )
+    @mock.patch("os.path.getmtime", return_value=123.45)
+    def test_fallback_when_nothing_found(self, *_):
+        """
+        This tests a situation where Distro provides lease information
+        but the lease wasn't found on that location
+        """
+        self.assertEqual(
+            os.path.join(DHCLIENT_FALLBACK_LEASE_DIR, "!@#$-eth0.lease"),
+            IscDhclient.get_latest_lease(
+                rhel.Distro.dhclient_lease_directory,
+                rhel.Distro.dhclient_lease_file_regex,
+            ),
+        )
+
+    @mock.patch(
+        "os.listdir",
+        return_value=(
+            "some_file",
+            "totally_not_a_leasefile",
+            "some_other_file",
+        ),
+    )
+    @mock.patch("os.path.getmtime", return_value=123.45)
+    def test_get_latest_lease_notfound(self, *_):
+        """
+        Test the case when no leases were found
+        """
+        # Any Distro would suffice for the absense test, choose Centos then.
+        self.assertEqual(
+            None,
+            IscDhclient.get_latest_lease(
+                centos.Distro.dhclient_lease_directory,
+                centos.Distro.dhclient_lease_file_regex,
+            ),
         )

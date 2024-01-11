@@ -47,6 +47,10 @@ class Distro(distros.Distro):
             "postcmds": True,
         },
     }
+    # Debian stores dhclient leases at following location:
+    # /var/lib/dhcp/dhclient.<iface_name>.leases
+    dhclient_lease_directory = "/var/lib/dhcp"
+    dhclient_lease_file_regex = r"dhclient\.\w+\.leases"
 
     def __init__(self, name, cfg, paths):
         super().__init__(name, cfg, paths)

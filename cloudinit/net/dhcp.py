@@ -29,6 +29,9 @@ from cloudinit.net import (
 LOG = logging.getLogger(__name__)
 
 NETWORKD_LEASES_DIR = "/run/systemd/netif/leases"
+DHCLIENT_FALLBACK_LEASE_DIR = "/var/lib/dhclient"
+# Match something.lease or something.leases
+DHCLIENT_FALLBACK_LEASE_REGEX = r".+\.leases?$"
 UDHCPC_SCRIPT = """#!/bin/sh
 log() {
     echo "udhcpc[$PPID]" "$interface: $2"
@@ -467,51 +470,38 @@ class IscDhclient(DhcpClient):
         return static_routes
 
     @staticmethod
-    def get_dhclient_d():
-        # find lease files directory
-        supported_dirs = [
-            "/var/lib/dhclient",
-            "/var/lib/dhcp",
-            "/var/lib/NetworkManager",
-        ]
-        for d in supported_dirs:
-            if os.path.exists(d) and len(os.listdir(d)) > 0:
-                LOG.debug("Using %s lease directory", d)
-                return d
-        return None
-
-    @staticmethod
-    def get_latest_lease(lease_d=None):
-        # find latest lease file
-        if lease_d is None:
-            lease_d = IscDhclient.get_dhclient_d()
-        if not lease_d:
-            return None
-        lease_files = os.listdir(lease_d)
-        latest_mtime = -1
+    def get_latest_lease(lease_dir, lease_file_regex):
         latest_file = None
 
-        # lease files are named inconsistently across distros.
-        # We assume that 'dhclient6' indicates ipv6 and ignore it.
-        # ubuntu:
-        #   dhclient.<iface>.leases, dhclient.leases, dhclient6.leases
-        # centos6:
-        #   dhclient-<iface>.leases, dhclient6.leases
-        # centos7: ('--' is not a typo)
-        #   dhclient--<iface>.lease, dhclient6.leases
-        for fname in lease_files:
-            if fname.startswith("dhclient6"):
-                # avoid files that start with dhclient6 assuming dhcpv6.
-                continue
-            if not (fname.endswith((".lease", ".leases"))):
+        # Try primary dir/regex, then the fallback ones
+        for directory, regex in (
+            (lease_dir, lease_file_regex),
+            (DHCLIENT_FALLBACK_LEASE_DIR, DHCLIENT_FALLBACK_LEASE_REGEX),
+        ):
+            if not directory:
                 continue
 
-            abs_path = os.path.join(lease_d, fname)
-            mtime = os.path.getmtime(abs_path)
-            if mtime > latest_mtime:
-                latest_mtime = mtime
-                latest_file = abs_path
-        return latest_file
+            lease_files = []
+            try:
+                lease_files = os.listdir(directory)
+            except FileNotFoundError:
+                continue
+
+            latest_mtime = -1
+            for fname in lease_files:
+                if not re.search(regex, fname):
+                    continue
+
+                abs_path = os.path.join(directory, fname)
+                mtime = os.path.getmtime(abs_path)
+                if mtime > latest_mtime:
+                    latest_mtime = mtime
+                    latest_file = abs_path
+
+            # Lease file found, skipping falling back
+            if latest_file:
+                return latest_file
+        return None
 
     @staticmethod
     def parse_dhcp_server_from_lease_file(lease_file) -> Optional[str]:
