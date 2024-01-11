@@ -6,6 +6,7 @@ from tests.integration_tests import random_mac_address
 from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import CURRENT_RELEASE, NOBLE
 
 
 def _add_dummy_bridge_to_netplan(client: IntegrationInstance):
@@ -131,6 +132,17 @@ network:
     eth0:
       dhcp4: true
       set-name: eth0
+      match:
+        macaddress: {mac_addr}
+"""
+
+BAD_NETWORK_V2 = """\
+version: 2
+ethernets:
+  eth0:
+    dhcp4: badval
+    match:
+      {match_condition}
 """
 
 
@@ -190,11 +202,54 @@ def test_schema_warnings(
     expected["network"]["ethernets"]["eth0"]["match"]["macaddress"] = mac_addr
     with session_cloud.launch(launch_kwargs=launch_kwargs) as client:
         result = client.execute("cloud-init status --format=json")
-        assert result.failed
-        assert result.return_code == 2  # Warning
+        if CURRENT_RELEASE < NOBLE:
+            assert result.ok
+            assert result.return_code == 0  # Stable release still exit 0
+        else:
+            assert result.failed
+            assert result.return_code == 2  # Warnings exit 2 after 23.4
         assert (
             'eth01234567890123\\" is wrong: \\"name\\" not a valid ifname'
             in result.stdout
         )
         result = client.execute("cloud-init schema --system")
-        assert "Invalid network-config" in result.stdout
+        assert "Invalid network-config " in result.stdout
+
+
+@pytest.mark.skipif(
+    PLATFORM not in ("lxd_vm", "lxd_container"),
+    reason="Test requires lxc exec feature due to broken network config",
+)
+def test_invalid_network_v2_netplan(session_cloud: IntegrationCloud):
+    mac_addr = random_mac_address()
+    if PLATFORM == "lxd_vm":
+        config_dict = {
+            "cloud-init.network-config": BAD_NETWORK_V2.format(
+                match_condition=f"macaddress: {mac_addr}"
+            ),
+            "volatile.eth0.hwaddr": mac_addr,
+        }
+    else:
+        config_dict = {
+            "cloud-init.network-config": BAD_NETWORK_V2.format(
+                match_condition="name: eth0"
+            )
+        }
+    with session_cloud.launch(
+        launch_kwargs={
+            "execute_via_ssh": False,
+            "config_dict": config_dict,
+        }
+    ) as client:
+        status_json = client.execute("cloud-init status --format=json")
+        assert (
+            "Invalid network-config provided: Please run "
+            "'sudo cloud-init schema --system' to see the schema errors."
+        ) in status_json
+        schema_out = client.execute("cloud-init schema --system")
+        assert "Invalid network-config /var/lib/cloud/instances/" in schema_out
+        annotate_out = client.execute("cloud-init schema --system --annotate")
+        assert (
+            "# E1: Invalid netplan schema. Error in network definition:"
+            " invalid boolean value 'badval" in annotate_out
+        )
