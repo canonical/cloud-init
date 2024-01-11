@@ -47,7 +47,7 @@ DISTRO_OVERRIDES = {
     },
     "photon":{
         "ca_cert_path": "/etc/ssl/certs/",
-        "ca_cert_local_path": "/etc/ssl/certs/",
+        "ca_cert_local_path": "/etc/pki/tls/certs/",
         "ca_cert_filename": "cloud-init-ca-cert-{cert_index}.crt",
         "ca_cert_config": None,
         "ca_cert_update_cmd": ["rehash_ca_certificates.sh"],
@@ -173,7 +173,7 @@ def disable_default_ca_certs(distro_name, distro_cfg):
     @param distro_name: String providing the distro class name.
     @param distro_cfg: A hash providing _distro_ca_certs_configs function.
     """
-    if distro_name == "rhel":
+    if distro_name in ["rhel", "photon"]:
         remove_default_ca_certs(distro_cfg)
     elif distro_name in ["alpine", "debian", "ubuntu"]:
         disable_system_ca_certs(distro_cfg)

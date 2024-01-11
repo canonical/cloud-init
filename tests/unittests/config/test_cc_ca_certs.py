@@ -339,7 +339,7 @@ class TestRemoveDefaultCaCerts(TestCase):
 
                 cc_ca_certs.disable_default_ca_certs(distro_name, conf)
 
-                if distro_name == "rhel":
+                if distro_name in ["rhel", "photon"]:
                     mock_delete.assert_has_calls(
                         [
                             mock.call(conf["ca_cert_path"]),
