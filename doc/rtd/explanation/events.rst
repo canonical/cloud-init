@@ -72,9 +72,10 @@ metadata, ``cloud-init`` will also bring up/down the newly added interface.
 
 .. warning::
    Due to its use of ``systemd`` sockets, ``hotplug`` functionality is
-   currently incompatible with SELinux. This issue is being `tracked
-   in GitHub #3890`_. Additionally, ``hotplug`` support is considered
-   experimental for non-Debian-based systems.
+   currently incompatible with SELinux on Linux distributions using systemd.
+   This issue is being `tracked in GitHub #3890`_. Additionally, ``hotplug``
+   support is considered experimental for non-Alpine and non-Debian-based
+   systems.
 
 Example
 =======
