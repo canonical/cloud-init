@@ -63,6 +63,7 @@ class TestLandscape:
                 [
                     "landscape-config",
                     "--silent",
+                    "--is-registered",
                     "--data-path",
                     "/var/lib/landscape/client",
                     "--log-level",
@@ -95,6 +96,7 @@ class TestLandscape:
                 [
                     "landscape-config",
                     "--silent",
+                    "--is-registered",
                     "--data-path",
                     "/var/lib/data",
                     "--log-level",
@@ -140,6 +142,7 @@ class TestLandscape:
                 [
                     "landscape-config",
                     "--silent",
+                    "--is-registered",
                     "--computer-title",
                     "My PC",
                     "--data-path",
@@ -183,6 +186,7 @@ class TestLandscape:
                 [
                     "landscape-config",
                     "--silent",
+                    "--is-registered",
                     "--computer-title",
                     'My" PC',
                     "--data-path",
