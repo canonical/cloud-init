@@ -9,6 +9,6 @@ pytest!=7.3.2
 pytest-cov
 pytest-mock
 setuptools
-jsonschema
+jsonschema<=4.20.0
 responses
 passlib
