@@ -14,10 +14,10 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
+from tests.helpers import cloud_init_project_dir
 from tests.unittests.helpers import (
     FilesystemMockingTestCase,
     ResponsesTestCase,
-    cloud_init_project_dir,
     mock,
     skipIf,
     skipUnlessJsonSchema,

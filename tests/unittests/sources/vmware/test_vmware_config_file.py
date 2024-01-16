@@ -25,7 +25,8 @@ from cloudinit.sources.helpers.vmware.imc.guestcust_util import (
     get_network_data_from_vmware_cust_cfg,
     get_non_network_data_from_vmware_cust_cfg,
 )
-from tests.unittests.helpers import CiTestCase, cloud_init_project_dir
+from tests.helpers import cloud_init_project_dir
+from tests.unittests.helpers import CiTestCase
 
 logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
 logger = logging.getLogger(__name__)

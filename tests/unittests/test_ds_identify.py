@@ -10,9 +10,9 @@ from cloudinit import atomic_helper, safeyaml, subp, util
 from cloudinit.sources import DataSourceIBMCloud as ds_ibm
 from cloudinit.sources import DataSourceOracle as ds_oracle
 from cloudinit.sources import DataSourceSmartOS as ds_smartos
+from tests.helpers import cloud_init_project_dir
 from tests.unittests.helpers import (
     CiTestCase,
-    cloud_init_project_dir,
     dir2dict,
     populate_dir,
     populate_dir_with_ts,

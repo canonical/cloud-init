@@ -6,7 +6,8 @@ import os
 from pathlib import Path
 
 from cloudinit import sources
-from tests.unittests import helpers as test_helpers
+from tests.helpers import cloud_init_project_dir, get_top_level_dir
+from tests.unittests.helpers import ResourceUsingTestCase
 
 
 class MyDataSource(sources.DataSource):
@@ -16,7 +17,7 @@ class MyDataSource(sources.DataSource):
         return self._instance_id
 
 
-class TestPaths(test_helpers.ResourceUsingTestCase):
+class TestPaths(ResourceUsingTestCase):
     def test_get_ipath_and_instance_id_with_slashes(self):
         myds = MyDataSource(sys_cfg={}, distro=None, paths={})
         myds._instance_id = "/foo/bar"
@@ -37,7 +38,7 @@ class TestPaths(test_helpers.ResourceUsingTestCase):
 
 
 class Testcloud_init_project_dir:
-    top_dir = test_helpers.get_top_level_dir()
+    top_dir = get_top_level_dir()
 
     @staticmethod
     def _get_top_level_dir_alt_implementation():
@@ -61,6 +62,6 @@ class Testcloud_init_project_dir:
         """
         assert (
             str(Path(self.top_dir, "test"))
-            == test_helpers.cloud_init_project_dir("test")
+            == cloud_init_project_dir("test")
             == str(Path(self._get_top_level_dir_alt_implementation(), "test"))
         )

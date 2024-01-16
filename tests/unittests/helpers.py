@@ -12,7 +12,6 @@ import tempfile
 import time
 import unittest
 from contextlib import ExitStack, contextmanager
-from pathlib import Path
 from typing import ClassVar, List, Union
 from unittest import mock
 from unittest.util import strclass
@@ -20,7 +19,6 @@ from urllib.parse import urlsplit, urlunsplit
 
 import responses
 
-import cloudinit
 from cloudinit import atomic_helper, cloud, distros
 from cloudinit import helpers as ch
 from cloudinit import subp, util
@@ -30,6 +28,7 @@ from cloudinit.config.schema import (
 )
 from cloudinit.sources import DataSourceNone
 from cloudinit.templater import JINJA_AVAILABLE
+from tests.helpers import cloud_init_project_dir
 from tests.hypothesis_jsonschema import HAS_HYPOTHESIS_JSONSCHEMA
 
 _real_subp = subp.subp
@@ -594,24 +593,6 @@ if not hasattr(mock.Mock, "assert_not_called"):
             raise AssertionError(msg)
 
     mock.Mock.assert_not_called = __mock_assert_not_called  # type: ignore
-
-
-def get_top_level_dir() -> Path:
-    """Return the absolute path to the top cloudinit project directory
-
-    @return Path('<top-cloudinit-dir>')
-    """
-    return Path(cloudinit.__file__).parent.parent.resolve()
-
-
-def cloud_init_project_dir(sub_path: str) -> str:
-    """Get a path within the cloudinit project directory
-
-    @return str of the combined path
-
-    Example: cloud_init_project_dir("my/path") -> "/path/to/cloud-init/my/path"
-    """
-    return str(get_top_level_dir() / sub_path)
 
 
 @contextmanager
