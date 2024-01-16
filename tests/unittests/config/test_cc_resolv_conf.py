@@ -17,9 +17,9 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
+from tests.helpers import cloud_init_project_dir
 from tests.unittests.helpers import (
     FilesystemMockingTestCase,
-    cloud_init_project_dir,
     skipUnlessJsonSchema,
 )
 from tests.unittests.util import MockDistro

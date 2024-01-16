@@ -15,7 +15,8 @@ from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import FREQUENCIES
 from cloudinit.stages import Init
-from tests.unittests.helpers import cloud_init_project_dir, mock
+from tests.helpers import cloud_init_project_dir
+from tests.unittests.helpers import mock
 
 M_PATH = "cloudinit.config.modules."
 
