@@ -1768,12 +1768,12 @@ def get_config_logfiles(cfg):
             logs.append(parts[2])
 
     # add rotated log files
-    for _log in logs:
-        for _rotated_logfile in glob.glob(f"{_log}*"):
+    for logfile in logs:
+        for rotated_logfile in glob.glob(f"{logfile}*"):
             # Check that log file exists and is rotated.
             # Do not add current one
-            if os.path.isfile(_rotated_logfile) and _rotated_logfile != _log:
-                rotated_logs.append(_rotated_logfile)
+            if os.path.isfile(rotated_logfile) and rotated_logfile != logfile:
+                rotated_logs.append(rotated_logfile)
 
     return list(set(logs + rotated_logs))
 
