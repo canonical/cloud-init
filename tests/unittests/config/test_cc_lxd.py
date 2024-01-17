@@ -58,14 +58,14 @@ class TestLxd(t_help.CiTestCase):
                 which.assert_called_with(cmd)
             # no bridge config, so maybe_cleanup should not be called.
             self.assertFalse(maybe_clean.called)
+            if package:
+                self.assertEqual(
+                    [mock.call([package])],
+                    install.call_args_list,
+                )
             self.assertEqual(
                 [
-                    mock.call(list(filter(None, ["lxd", package]))),
-                ],
-                install.call_args_list,
-            )
-            self.assertEqual(
-                [
+                    mock.call(["snap", "install", "lxd"]),
                     mock.call(["lxd", "waitready", "--timeout=300"]),
                     mock.call(
                         [
@@ -96,7 +96,8 @@ class TestLxd(t_help.CiTestCase):
 
     @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
     @mock.patch("cloudinit.config.cc_lxd.subp")
-    def test_lxd_install(self, mock_subp, m_maybe_clean):
+    @mock.patch("cloudinit.config.cc_lxd.subp.which", return_value=False)
+    def test_lxd_install(self, m_which, mock_subp, m_maybe_clean):
         cc = get_cloud()
         cc.distro = mock.MagicMock()
         mock_subp.which.return_value = None
@@ -106,7 +107,7 @@ class TestLxd(t_help.CiTestCase):
         cc_lxd.handle("cc_lxd", LXD_INIT_CFG, cc, [])
         self.assertFalse(m_maybe_clean.called)
         install_pkg = cc.distro.install_packages.call_args_list[0][0][0]
-        self.assertEqual(sorted(install_pkg), ["lxd", "zfsutils-linux"])
+        self.assertEqual(sorted(install_pkg), ["zfsutils-linux"])
 
     @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
     @mock.patch("cloudinit.config.cc_lxd.subp")
@@ -360,8 +361,7 @@ class TestGetRequiredPackages:
             init_cfg = lxd_cfg["lxd"]["init"]
 
         packages = cc_lxd.get_required_packages(init_cfg, preseed)
-        assert "lxd" in packages
-        which_calls = [mock.call("lxd")]
+        which_calls = []
         if package:
             which_calls.append(mock.call(cmd))
             assert package in packages

@@ -11,6 +11,8 @@ import pytest
 
 from cloudinit.atomic_helper import write_json
 from cloudinit.cmd import status
+from cloudinit.cmd.status import UXAppStatus, _get_systemd_status
+from cloudinit.subp import SubpResult
 from cloudinit.util import ensure_file
 from tests.unittests.helpers import wrap_and_call
 
@@ -58,8 +60,14 @@ class TestStatus:
             "Cloud-init enabled by systemd cloud-init-generator",
         ),
     )
+    @mock.patch(f"{M_PATH}_get_systemd_status", return_value=None)
     def test_get_status_details_ds_none(
-        self, m_get_boot_status, m_p_exists, m_load_json, tmpdir
+        self,
+        m_get_systemd_status,
+        m_get_boot_status,
+        m_p_exists,
+        m_load_json,
+        tmpdir,
     ):
         paths = mock.Mock()
         paths.run_dir = str(tmpdir)
@@ -487,8 +495,10 @@ class TestStatus:
         ],
     )
     @mock.patch(M_PATH + "read_cfg_paths")
+    @mock.patch(f"{M_PATH}_get_systemd_status", return_value=None)
     def test_status_output(
         self,
+        m_get_systemd_status,
         m_read_cfg_paths,
         ensured_file: Optional[Callable],
         bootstatus: status.UXAppBootStatusCode,
@@ -526,8 +536,9 @@ class TestStatus:
             assert out == expected_status
 
     @mock.patch(M_PATH + "read_cfg_paths")
+    @mock.patch(f"{M_PATH}_get_systemd_status", return_value=None)
     def test_status_wait_blocks_until_done(
-        self, m_read_cfg_paths, config: Config, capsys
+        self, m_get_systemd_status, m_read_cfg_paths, config: Config, capsys
     ):
         """Specifying wait will poll every 1/4 second until done state."""
         m_read_cfg_paths.return_value = config.paths
@@ -576,8 +587,9 @@ class TestStatus:
         assert out == "....\nstatus: done\n"
 
     @mock.patch(M_PATH + "read_cfg_paths")
+    @mock.patch(f"{M_PATH}_get_systemd_status", return_value=None)
     def test_status_wait_blocks_until_error(
-        self, m_read_cfg_paths, config: Config, capsys
+        self, m_get_systemd_status, m_read_cfg_paths, config: Config, capsys
     ):
         """Specifying wait will poll every 1/4 second until error state."""
         m_read_cfg_paths.return_value = config.paths
@@ -628,7 +640,10 @@ class TestStatus:
         assert out == "....\nstatus: error\n"
 
     @mock.patch(M_PATH + "read_cfg_paths")
-    def test_status_main(self, m_read_cfg_paths, config: Config, capsys):
+    @mock.patch(f"{M_PATH}_get_systemd_status", return_value=None)
+    def test_status_main(
+        self, m_get_systemd_status, m_read_cfg_paths, config: Config, capsys
+    ):
         """status.main can be run as a standalone script."""
         m_read_cfg_paths.return_value = config.paths
         write_json(
@@ -649,4 +664,54 @@ class TestStatus:
         assert out == "status: running\n"
 
 
-# vi: ts=4 expandtab syntax=python
+class TestSystemdStatusDetails:
+    @pytest.mark.parametrize(
+        ["active_state", "unit_file_state", "sub_state", "main_pid", "status"],
+        [
+            # To cut down on the combination of states, I'm grouping
+            # enabled, enabled-runtime, and static into an "enabled" state
+            # and everything else functionally disabled.
+            # Additionally, SubStates are undocumented and may mean something
+            # different depending on the ActiveState they are mapped too.
+            # Because of this I'm only testing SubState combinations seen
+            # in real-world testing (or using "any" string if we dont care).
+            ("activating", "enabled", "start", "123", UXAppStatus.RUNNING),
+            ("activating", "enabled", "start", "123", UXAppStatus.RUNNING),
+            ("active", "enabled-runtime", "exited", "0", None),
+            ("active", "enabled", "exited", "0", None),
+            ("active", "enabled", "running", "345", UXAppStatus.RUNNING),
+            ("active", "enabled", "running", "0", None),
+            # Dead doesn't mean exited here. It means not run yet.
+            ("inactive", "static", "dead", "123", UXAppStatus.RUNNING),
+            ("reloading", "enabled", "start", "123", UXAppStatus.RUNNING),
+            (
+                "deactivating",
+                "enabled-runtime",
+                "any",
+                "123",
+                UXAppStatus.RUNNING,
+            ),
+            ("failed", "static", "failed", "0", UXAppStatus.ERROR),
+            # Try previous combinations again with "not enabled" states
+            ("activating", "linked", "start", "0", UXAppStatus.ERROR),
+            ("active", "linked-runtime", "exited", "0", UXAppStatus.ERROR),
+            ("inactive", "masked", "dead", "0", UXAppStatus.ERROR),
+            ("reloading", "masked-runtime", "start", "0", UXAppStatus.ERROR),
+            ("deactivating", "disabled", "any", "0", UXAppStatus.ERROR),
+            ("failed", "invalid", "failed", "0", UXAppStatus.ERROR),
+        ],
+    )
+    def test_get_systemd_status(
+        self, active_state, unit_file_state, sub_state, main_pid, status
+    ):
+        with mock.patch(
+            f"{M_PATH}subp.subp",
+            return_value=SubpResult(
+                f"ActiveState={active_state}\n"
+                f"UnitFileState={unit_file_state}\n"
+                f"SubState={sub_state}\n"
+                f"MainPID={main_pid}\n",
+                stderr=None,
+            ),
+        ):
+            assert _get_systemd_status() == status

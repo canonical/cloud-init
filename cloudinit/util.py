@@ -8,6 +8,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import binascii
 import contextlib
 import copy as obj_copy
 import email
@@ -32,6 +33,7 @@ import string
 import subprocess
 import sys
 import time
+from base64 import b64decode
 from collections import deque, namedtuple
 from contextlib import suppress
 from errno import EACCES, ENOENT
@@ -135,6 +137,22 @@ def encode_text(text, encoding="utf-8"):
     if isinstance(text, bytes):
         return text
     return text.encode(encoding)
+
+
+def maybe_b64decode(data: bytes) -> bytes:
+    """base64 decode data
+
+    If data is base64 encoded bytes, return b64decode(data).
+    If not, return data unmodified.
+
+    @param data: data as bytes. TypeError is raised if not bytes.
+    """
+    if not isinstance(data, bytes):
+        raise TypeError("data is '%s', expected bytes" % type(data))
+    try:
+        return b64decode(data, validate=True)
+    except binascii.Error:
+        return data
 
 
 def fully_decoded_payload(part):
@@ -1406,7 +1424,7 @@ def find_devs_with_netbsd(
     for dev in out.stdout.split():
         if label or _type:
             mscdlabel_out, _ = subp.subp(["mscdlabel", dev], rcs=[0, 1])
-        if label and not ('label "%s"' % label) in mscdlabel_out:
+        if label and ('label "%s"' % label) not in mscdlabel_out:
             continue
         if _type == "iso9660" and "ISO filesystem" not in mscdlabel_out:
             continue
@@ -1444,15 +1462,9 @@ def find_devs_with_dragonflybsd(
     ]
 
     if criteria == "TYPE=iso9660":
-        devlist = [
-            i for i in devlist if i.startswith("cd") or i.startswith("acd")
-        ]
+        devlist = [i for i in devlist if i.startswith(("cd", "acd"))]
     elif criteria in ["LABEL=CONFIG-2", "TYPE=vfat"]:
-        devlist = [
-            i
-            for i in devlist
-            if not (i.startswith("cd") or i.startswith("acd"))
-        ]
+        devlist = [i for i in devlist if not (i.startswith(("cd", "acd")))]
     elif criteria:
         LOG.debug("Unexpected criteria: %s", criteria)
     return ["/dev/" + i for i in devlist]
@@ -2127,6 +2139,29 @@ def safe_int(possible_int):
         return int(possible_int)
     except (ValueError, TypeError):
         return None
+
+
+def compare_permission(mode1, mode2):
+    """Compare two file modes in octal.
+
+    If mode1 is less restrictive than mode2 return 1
+    If mode1 is more restrictive than mode2 return -1
+    If mode1 is same as mode2, return 0
+
+    The comparison starts from the permission of the
+    set of users in "others" and then works up to the
+    permission of "user" set.
+    """
+    # Convert modes to octal and reverse the last 3 digits
+    # so 0o640 would be become 0o046
+    mode1_oct = oct(mode1)[2:].rjust(3, "0")
+    mode2_oct = oct(mode2)[2:].rjust(3, "0")
+    m1 = int(mode1_oct[:-3] + mode1_oct[-3:][::-1], 8)
+    m2 = int(mode2_oct[:-3] + mode2_oct[-3:][::-1], 8)
+
+    # Then do a traditional cmp()
+    # https://docs.python.org/3.0/whatsnew/3.0.html#ordering-comparisons
+    return (m1 > m2) - (m1 < m2)
 
 
 def chmod(path, mode):
@@ -2945,7 +2980,7 @@ def get_installed_packages(target=None):
             (state, pkg, _) = line.split(None, 2)
         except ValueError:
             continue
-        if state.startswith("hi") or state.startswith("ii"):
+        if state.startswith(("hi", "ii")):
             pkgs_inst.add(re.sub(":.*", "", pkg))
 
     return pkgs_inst
@@ -3082,9 +3117,9 @@ def udevadm_settle(exists=None, timeout=None):
     return subp.subp(settle_cmd)
 
 
-def get_proc_ppid(pid):
+def get_proc_ppid_linux(pid):
     """
-    Return the parent pid of a process.
+    Return the parent pid of a process by parsing /proc/$pid/stat.
     """
     ppid = 0
     try:
@@ -3103,6 +3138,24 @@ def get_proc_ppid(pid):
     except IOError as e:
         LOG.warning("Failed to load /proc/%s/stat. %s", pid, e)
     return ppid
+
+
+def get_proc_ppid_ps(pid):
+    """
+    Return the parent pid of a process by checking ps
+    """
+    ppid, _ = subp.subp(["ps", "-oppid=", "-p", str(pid)])
+    return int(ppid.strip())
+
+
+def get_proc_ppid(pid):
+    """
+    Return the parent pid of a process.
+    """
+    if is_Linux():
+        return get_proc_ppid_linux(pid)
+    else:
+        return get_proc_ppid_ps(pid)
 
 
 def error(msg, rc=1, fmt="Error:\n{}", sys_exit=False):

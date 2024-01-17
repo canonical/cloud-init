@@ -165,6 +165,43 @@ class TestDataSourceDigitalOcean(CiTestCase):
         self.assertTrue(m_read_sysinfo.called)
 
     @mock.patch("cloudinit.sources.helpers.digitalocean.read_metadata")
+    @mock.patch("cloudinit.sources.util.deprecate")
+    def test_deprecation_log_on_init(self, mock_deprecate, _mock_readmd):
+        ds = self.get_ds()
+        self.assertTrue(ds.get_data())
+        mock_deprecate.assert_called_with(
+            deprecated="DataSourceDigitalOcean",
+            deprecated_version="23.2",
+            extra_message="Deprecated in favour of DataSourceConfigDrive.",
+        )
+
+    @mock.patch("cloudinit.sources.helpers.digitalocean.read_metadata")
+    @mock.patch("cloudinit.sources.util.deprecate")
+    def test_deprecation_log_on_unpick(self, mock_deprecate, _mock_readmd):
+        ds = self.get_ds()
+        self.assertTrue(ds.get_data())
+        ds._unpickle(0)
+        self.assertEqual(mock_deprecate.call_count, 2)
+        mock_deprecate.assert_has_calls(
+            [
+                mock.call(
+                    deprecated="DataSourceDigitalOcean",
+                    deprecated_version="23.2",
+                    extra_message=(
+                        "Deprecated in favour of DataSourceConfigDrive."
+                    ),
+                ),
+                mock.call(
+                    deprecated="DataSourceDigitalOcean",
+                    deprecated_version="23.2",
+                    extra_message=(
+                        "Deprecated in favour of DataSourceConfigDrive."
+                    ),
+                ),
+            ]
+        )
+
+    @mock.patch("cloudinit.sources.helpers.digitalocean.read_metadata")
     def test_metadata(self, mock_readmd):
         mock_readmd.return_value = DO_META.copy()
 

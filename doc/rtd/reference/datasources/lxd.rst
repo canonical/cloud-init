@@ -111,4 +111,4 @@ DHCP configuration of ``eth1``:
     $ lxc config device add my-lxd eth1 nic name=eth1 nictype=bridged parent=my-bridge
     Device eth1 added to my-lxd
 
-.. _LXD socket device: https://linuxcontainers.org/lxd/docs/master/dev-lxd
+.. _LXD socket device: https://documentation.ubuntu.com/lxd/en/latest/dev-lxd/

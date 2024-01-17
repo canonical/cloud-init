@@ -346,9 +346,11 @@ On an Ubuntu system, :file:`/etc/cloud/cloud.cfg` should look similar to:
       # Default user name + that default users groups (if added/used)
       default_user:
         name: ubuntu
+        doas:
+          - permit nopass ubuntu
         lock_passwd: True
         gecos: Ubuntu
-        groups: [adm, audio, cdrom, dialout, dip, floppy, lxd, netdev, plugdev, sudo, video]
+        groups: [adm, cdrom, dip, lxd, sudo]
         sudo: ["ALL=(ALL) NOPASSWD:ALL"]
         shell: /bin/bash
       network:

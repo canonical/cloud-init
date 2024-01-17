@@ -74,7 +74,7 @@ class TestPowerChange:
             user_data=USER_DATA.format(
                 delay=delay, mode=mode, timeout=timeout, condition="true"
             ),
-            launch_kwargs={"wait": False},
+            wait=False,
         ) as instance:
             if mode == "reboot":
                 _detect_reboot(instance)

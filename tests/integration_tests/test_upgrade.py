@@ -143,12 +143,12 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
         pre_analyze_totals = [
             x
             for x in pre_cloud_analyze.splitlines()
-            if x.startswith("Finished stage") or x.startswith("Total Time")
+            if x.startswith(("Finished stage", "Total Time"))
         ]
         post_analyze_totals = [
             x
             for x in post_cloud_analyze.splitlines()
-            if x.startswith("Finished stage") or x.startswith("Total Time")
+            if x.startswith(("Finished stage", "Total Time"))
         ]
 
         # pylint: disable=logging-format-interpolation

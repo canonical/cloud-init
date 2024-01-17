@@ -1,0 +1,19 @@
+network:
+  version: 1
+  config:
+    # Simple network adapter
+    - type: physical
+      name: interface0
+      mac_address: '00:11:22:33:44:55'
+    # Second nic with Jumbo frames
+    - type: physical
+      name: jumbo0
+      mac_address: 'aa:11:22:33:44:55'
+      mtu: 9000
+    # 10G pair
+    - type: physical
+      name: gbe0
+      mac_address: 'cd:11:22:33:44:00'
+    - type: physical
+      name: gbe1
+      mac_address: 'cd:11:22:33:44:02'

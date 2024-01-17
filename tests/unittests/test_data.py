@@ -51,12 +51,21 @@ def gzip_text(text):
 @pytest.fixture(scope="function")
 def init_tmp(request, tmpdir):
     ci = stages.Init()
+    cloud_dir = tmpdir.join("cloud")
+    cloud_dir.mkdir()
+    run_dir = tmpdir.join("run")
+    run_dir.mkdir()
     ci._cfg = {
         "system_info": {
+            "default_user": {"name": "ubuntu"},
             "distro": "ubuntu",
-            "paths": {"cloud_dir": tmpdir.strpath, "run_dir": tmpdir.strpath},
+            "paths": {
+                "cloud_dir": cloud_dir.strpath,
+                "run_dir": run_dir.strpath,
+            },
         }
     }
+    run_dir.join("instance-data-sensitive.json").write("{}")
     return ci
 
 
@@ -456,7 +465,18 @@ c: 4
             init_tmp.paths.get_ipath("cloud_config"), "", 0o600
         )
 
-    def test_shellscript(self, init_tmp, caplog):
+    # Since features are intended to be overridden downstream, mock them
+    # all here so new feature flags don't require a new change to this
+    # unit test.
+    @mock.patch.multiple(
+        "cloudinit.features",
+        ERROR_ON_USER_DATA_FAILURE=True,
+        ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES=True,
+        EXPIRE_APPLIES_TO_HASHED_USERS=False,
+        NETPLAN_CONFIG_ROOT_READ_ONLY=True,
+        NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH=False,
+    )
+    def test_shellscript(self, init_tmp, tmpdir, caplog):
         """Raw text starting #!/bin/sh is treated as script."""
         script = "#!/bin/sh\necho hello\n"
         init_tmp.datasource = FakeDataSource(script)
@@ -477,6 +497,35 @@ c: 4
                 mock.call(outpath, script, 0o700),
                 mock.call(init_tmp.paths.get_ipath("cloud_config"), "", 0o600),
             ]
+        )
+        expected = {
+            "features": {
+                "ERROR_ON_USER_DATA_FAILURE": True,
+                "ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES": True,
+                "EXPIRE_APPLIES_TO_HASHED_USERS": False,
+                "NETPLAN_CONFIG_ROOT_READ_ONLY": True,
+                "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH": False,
+            },
+            "system_info": {
+                "default_user": {"name": "ubuntu"},
+                "distro": "ubuntu",
+                "paths": {
+                    "cloud_dir": tmpdir.join("cloud").strpath,
+                    "run_dir": tmpdir.join("run").strpath,
+                },
+            },
+        }
+
+        loaded_json = util.load_json(
+            util.load_file(
+                init_tmp.paths.get_runpath("instance_data_sensitive")
+            )
+        )
+        assert expected == loaded_json
+
+        expected["_doc"] = stages.COMBINED_CLOUD_CONFIG_DOC
+        assert expected == util.load_json(
+            util.load_file(init_tmp.paths.get_runpath("combined_cloud_config"))
         )
 
     def test_mime_text_x_shellscript(self, init_tmp, caplog):

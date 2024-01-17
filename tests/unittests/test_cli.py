@@ -178,8 +178,9 @@ class TestCLI:
             "schema",
         ],
     )
+    @mock.patch("cloudinit.stages.Init._read_cfg", return_value={})
     def test_conditional_subcommands_from_entry_point_sys_argv(
-        self, subcommand, capsys, mock_get_user_data_file, tmpdir
+        self, m_read_cfg, subcommand, capsys, mock_get_user_data_file, tmpdir
     ):
         """Subcommands from entry-point are properly parsed from sys.argv."""
         expected_error = f"usage: cloud-init {subcommand}"
@@ -224,7 +225,8 @@ class TestCLI:
         for subcommand in expected_subcommands:
             assert subcommand in err
 
-    def test_wb_schema_subcommand_parser(self, capsys):
+    @mock.patch("cloudinit.stages.Init._read_cfg", return_value={})
+    def test_wb_schema_subcommand_parser(self, m_read_cfg, capsys):
         """The subcommand cloud-init schema calls the correct subparser."""
         exit_code = self._call_main(["cloud-init", "schema"])
         _out, err = capsys.readouterr()
@@ -246,20 +248,20 @@ class TestCLI:
                     "**Supported distros:** almalinux, alpine, centos, "
                     "cloudlinux, cos, debian, eurolinux, fedora, freebsd, "
                     "mariner, miraclelinux, "
-                    "openbsd, openEuler, OpenCloudOS, openmandriva, "
+                    "openbsd, openeuler, OpenCloudOS, openmandriva, "
                     "opensuse, opensuse-microos, opensuse-tumbleweed, "
                     "opensuse-leap, photon, rhel, rocky, sle_hpc, "
                     "sle-micro, sles, TencentOS, ubuntu, virtuozzo",
-                    "**Config schema**:\n    **resize_rootfs:** "
+                    " **resize_rootfs:** ",
                     "(``true``/``false``/``noblock``)",
-                    "**Examples**::\n\n    runcmd:\n        - [ ls, -l, / ]\n",
+                    "runcmd:\n             - [ ls, -l, / ]\n",
                 ],
                 False,
                 id="all_spot_check",
             ),
             pytest.param(
                 ["cc_runcmd"],
-                ["Runcmd\n------\n**Summary:** Run arbitrary commands"],
+                ["\nRuncmd\n------\n\nRun arbitrary commands\n"],
                 False,
                 id="single_spot_check",
             ),
@@ -269,8 +271,8 @@ class TestCLI:
                     "cc_resizefs",
                 ],
                 [
-                    "Runcmd\n------\n**Summary:** Run arbitrary commands",
-                    "Resizefs\n--------\n**Summary:** Resize filesystem",
+                    "\nRuncmd\n------\n\nRun arbitrary commands",
+                    "\nResizefs\n--------\n\nResize filesystem",
                 ],
                 False,
                 id="multiple_spot_check",
@@ -283,7 +285,10 @@ class TestCLI:
             ),
         ],
     )
-    def test_wb_schema_subcommand(self, args, expected_doc_sections, is_error):
+    @mock.patch("cloudinit.stages.Init._read_cfg", return_value={})
+    def test_wb_schema_subcommand(
+        self, m_read_cfg, args, expected_doc_sections, is_error
+    ):
         """Validate that doc content has correct values."""
 
         # Note: patchStdoutAndStderr() is convenient for reducing boilerplate,
@@ -326,6 +331,3 @@ class TestCLI:
         assert "features" == parseargs.action[0]
         assert False is parseargs.debug
         assert False is parseargs.force
-
-
-# : ts=4 expandtab

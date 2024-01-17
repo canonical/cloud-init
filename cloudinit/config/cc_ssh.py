@@ -26,8 +26,7 @@ MODULE_DESCRIPTION = """\
 This module handles most configuration for SSH and both host and authorized SSH
 keys.
 
-Authorized Keys
-^^^^^^^^^^^^^^^
+**Authorized keys**
 
 Authorized keys are a list of public SSH keys that are allowed to connect to
 a user account on a system. They are stored in `.ssh/authorized_keys` in that
@@ -36,8 +35,8 @@ account's home directory. Authorized keys for the default user defined in
 should be specified as a list of public keys.
 
 .. note::
-    see the ``cc_set_passwords`` module documentation to enable/disable SSH
-    password authentication
+    See the ``cc_set_passwords`` module documentation to enable/disable SSH
+    password authentication.
 
 Root login can be enabled/disabled using the ``disable_root`` config key. Root
 login options can be manually specified with ``disable_root_opts``.
@@ -78,8 +77,7 @@ Supported public key types for the ``ssh_authorized_keys`` are:
 
 .. _OpenSSH: https://github.com/openssh/openssh-portable/blob/master/sshkey.c
 
-Host Keys
-^^^^^^^^^
+**Host keys**
 
 Host keys are for authenticating a specific instance. Many images have default
 host SSH keys, which can be removed using ``ssh_deletekeys``.
@@ -90,9 +88,9 @@ When host keys are generated the output of the ssh-keygen command(s) can be
 displayed on the console using the ``ssh_quiet_keygen`` configuration key.
 
 .. note::
-    when specifying private host keys in cloud-config, care should be taken to
+    When specifying private host keys in cloud-config, care should be taken to
     ensure that the communication between the data source and the instance is
-    secure
+    secure.
 
 
 If no host keys are specified using ``ssh_keys``, then keys will be generated

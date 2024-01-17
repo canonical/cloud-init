@@ -45,10 +45,10 @@ In order to remove a previously listed mount, an entry can be added to
 the `mounts` list containing ``fs_spec`` for the device to be removed but no
 mountpoint (i.e. ``[ swap ]`` or ``[ swap, null ]``).
 
-The ``mount_default_fields`` config key allows default options to be specified
-for the values in a ``mounts`` entry that are not specified, aside from the
-``fs_spec`` and the ``fs_file``. If specified, this must be a list containing 6
-values. It defaults to::
+The ``mount_default_fields`` config key allows default values to be specified
+for the fields in a ``mounts`` entry that are not specified, aside from the
+``fs_spec`` and the ``fs_file`` fields. If specified, this must be a list
+containing 6 values. It defaults to::
 
     mount_default_fields: [none, none, "auto",\
 "defaults,nofail,x-systemd.requires=cloud-init.service", "0", "2"]
@@ -59,6 +59,19 @@ Swap files can be configured by setting the path to the swap file to create
 with ``filename``, the size of the swap file with ``size`` maximum size of
 the swap file if using an ``size: auto`` with ``maxsize``. By default no
 swap file is created.
+
+.. note::
+    If multiple mounts are specified where a subsequent mount's mountpoint is
+    inside of a previously declared mount's mountpoint (i.e. the 1st mount has
+    a mountpoint of ``/abc`` and the 2nd mount has a mountpoint of
+    ``/abc/def``) then this will not work as expected - ``cc_mounts`` first
+    creates the directories for all the mountpoints **before** it starts to
+    perform any mounts and so the sub-mountpoint directory will not be created
+    correctly inside the parent mountpoint.
+
+    For systems using util-linux's ``mount`` program this issue can be
+    worked around by specifying ``X-mount.mkdir`` as part of a ``fs_mntops``
+    value for the subsequent mount entry.
 """
 
 example = dedent(
@@ -304,9 +317,11 @@ def create_swapfile(fname: str, size: str) -> None:
 
     fstype = util.get_mount_info(swap_dir)[1]
 
-    if (
-        fstype == "xfs" and util.kernel_version() < (4, 18)
-    ) or fstype == "btrfs":
+    if fstype == "btrfs":
+        subp.subp(["truncate", "-s", "0", fname])
+        subp.subp(["chattr", "+C", fname])
+
+    if fstype == "xfs" and util.kernel_version() < (4, 18):
         create_swap(fname, size, "dd")
     else:
         try:

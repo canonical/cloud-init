@@ -51,3 +51,4 @@ mapping between datasource module names and ``dsname`` in the table below.
     DataSourceExoscale.py, Exoscale
     DataSourceAliYun.py, AliYun
     DataSourceNWCS.py, NWCS
+    DataSourceAkamai.py, Akamai

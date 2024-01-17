@@ -37,7 +37,7 @@ distros = [
     "mariner",
     "miraclelinux",
     "openbsd",
-    "openEuler",
+    "openeuler",
     "OpenCloudOS",
     "openmandriva",
     "opensuse",

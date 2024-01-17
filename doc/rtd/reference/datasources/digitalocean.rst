@@ -2,6 +2,9 @@
 
 DigitalOcean
 ************
+.. warning::
+    Deprecated in version 23.2. Use ``DataSourceConfigDrive`` instead.
+
 
 The `DigitalOcean`_ datasource consumes the content served from DigitalOcean's
 metadata service. This metadata service serves information about the

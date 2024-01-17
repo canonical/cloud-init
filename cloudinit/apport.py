@@ -29,6 +29,7 @@ except ImportError:
 KNOWN_CLOUD_NAMES = [
     "AliYun",
     "AltCloud",
+    "Akamai",
     "Amazon - Ec2",
     "Azure",
     "Bigstep",

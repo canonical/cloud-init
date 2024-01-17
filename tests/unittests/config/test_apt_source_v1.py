@@ -9,6 +9,7 @@ import os
 import pathlib
 import re
 import shutil
+import signal
 import tempfile
 from unittest import mock
 from unittest.mock import call
@@ -74,6 +75,11 @@ class TestAptSourceConfig(TestCase):
         get_arch = apatcher.start()
         get_arch.return_value = "amd64"
         self.addCleanup(apatcher.stop)
+        subp_patcher = mock.patch.object(
+            subp, "subp", return_value=("PPID   PID", "")
+        )
+        self.m_subp = subp_patcher.start()
+        self.addCleanup(subp_patcher.stop)
 
     def _get_default_params(self):
         """get_default_params
@@ -563,12 +569,24 @@ class TestAptSourceConfig(TestCase):
         """Test specification of a keyid without source"""
         cfg = {"keyid": "03683F77", "filename": self.aptlistfile}
         cfg = self.wrapv1conf([cfg])
-
+        SAMPLE_GPG_AGENT_DIRMNGR_PIDS = """\
+   PPID     PID
+      1    1057
+      1    1095
+   1511    2493
+   1511    2509
+"""
         with mock.patch.object(
-            subp, "subp", return_value=("fakekey 1212", "")
+            subp,
+            "subp",
+            side_effect=[
+                ("fakekey 1212", ""),
+                (SAMPLE_GPG_AGENT_DIRMNGR_PIDS, ""),
+            ],
         ):
             with mock.patch.object(cc_apt_configure, "apt_key") as mockobj:
-                cc_apt_configure.handle("test", cfg, self.cloud, None)
+                with mock.patch.object(cc_apt_configure.os, "kill") as m_kill:
+                    cc_apt_configure.handle("test", cfg, self.cloud, None)
 
         calls = (
             call(
@@ -579,6 +597,10 @@ class TestAptSourceConfig(TestCase):
             ),
         )
         mockobj.assert_has_calls(calls, any_order=True)
+        self.assertEqual(
+            ([call(1057, signal.SIGKILL), call(1095, signal.SIGKILL)]),
+            m_kill.call_args_list,
+        )
 
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
@@ -642,17 +664,34 @@ class TestAptSourceConfig(TestCase):
         }
         cfg = self.wrapv1conf([cfg])
 
-        with mock.patch.object(subp, "subp") as mockobj:
-            cc_apt_configure.handle("test", cfg, self.cloud, None)
-        mockobj.assert_called_once_with(
+        cc_apt_configure.handle("test", cfg, self.cloud, None)
+        self.assertEqual(
+            self.m_subp.call_args_list,
             [
-                "add-apt-repository",
-                "--no-update",
-                "ppa:smoser/cloud-init-test",
+                mock.call(
+                    [
+                        "add-apt-repository",
+                        "--no-update",
+                        "ppa:smoser/cloud-init-test",
+                    ],
+                    target=None,
+                ),
+                mock.call(
+                    [
+                        "ps",
+                        "-o",
+                        "ppid,pid",
+                        "-C",
+                        "dirmngr",
+                        "-C",
+                        "gpg-agent",
+                    ],
+                    capture=True,
+                    target=None,
+                    rcs=[0, 1],
+                ),
             ],
-            target=None,
         )
-
         # adding ppa should ignore filename (uses add-apt-repository)
         self.assertFalse(os.path.isfile(self.aptlistfile))
 
@@ -672,7 +711,9 @@ class TestAptSourceConfig(TestCase):
         }
         cfg = self.wrapv1conf([cfg1, cfg2, cfg3])
 
-        with mock.patch.object(subp, "subp") as mockobj:
+        with mock.patch.object(
+            subp, "subp", return_value=("PPID   PID", "")
+        ) as mockobj:
             cc_apt_configure.handle("test", cfg, self.cloud, None)
         calls = [
             call(

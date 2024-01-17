@@ -54,14 +54,20 @@ provided the default behavior is to create the default user via this config::
     if the cloud-config can be intercepted. SSH authentication is preferred.
 
 .. note::
+    If specifying a doas rule for a user, ensure that the syntax for the rule
+    is valid, as the only checking performed by cloud-init is to ensure that
+    the user referenced in the rule is the correct user.
+
+.. note::
     If specifying a sudo rule for a user, ensure that the syntax for the rule
     is valid, as it is not checked by cloud-init.
 
 .. note::
     Most of these configuration options will not be honored if the user
     already exists. The following options are the exceptions; they are applied
-    to already-existing users: ``plain_text_passwd``, ``hashed_passwd``,
-    ``lock_passwd``, ``sudo``, ``ssh_authorized_keys``, ``ssh_redirect_user``.
+    to already-existing users: ``plain_text_passwd``, ``doas``,
+    ``hashed_passwd``, ``lock_passwd``, ``sudo``, ``ssh_authorized_keys``,
+    ``ssh_redirect_user``.
 
 The ``user`` key can be used to override the ``default_user`` configuration
 defined in ``/etc/cloud/cloud.cfg``. The ``user`` value should be a dictionary
@@ -105,6 +111,26 @@ meta: MetaSchema = {
           groups: users, admin
           sudo: ALL=(ALL) NOPASSWD:ALL
           shell: /bin/bash
+          lock_passwd: true
+          ssh_import_id:
+            - lp:falcojr
+            - gh:TheRealFalcon
+        """
+        ),
+        dedent(
+            """\
+        # Skip creation of the <default> user and only create newsuper.
+        # Password-based login is rejected, but the github user TheRealFalcon
+        # and the launchpad user falcojr can SSH as newsuper. doas/opendoas
+        # is configured to permit this user to run commands as other users
+        # (without being prompted for a password) except not as root.
+        users:
+        - name: newsuper
+          gecos: Big Stuff
+          groups: users, admin
+          doas:
+            - permit nopass newsuper
+            - deny newsuper as root
           lock_passwd: true
           ssh_import_id:
             - lp:falcojr

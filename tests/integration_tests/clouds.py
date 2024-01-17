@@ -21,6 +21,7 @@ from pycloudlib import (
     Openstack,
 )
 from pycloudlib.cloud import BaseCloud, ImageType
+from pycloudlib.ec2.instance import EC2Instance
 from pycloudlib.lxd.cloud import _BaseLXD
 from pycloudlib.lxd.instance import BaseInstance, LXDInstance
 
@@ -32,6 +33,10 @@ from tests.integration_tests.releases import CURRENT_RELEASE
 from tests.integration_tests.util import emit_dots_on_travis
 
 log = logging.getLogger("integration_testing")
+
+DISTRO_TO_USERNAME = {
+    "ubuntu": "ubuntu",
+}
 
 
 def _get_ubuntu_series() -> list:
@@ -86,13 +91,25 @@ class IntegrationCloud(ABC):
             CURRENT_RELEASE.series, **kwargs
         )
 
-    def _perform_launch(self, launch_kwargs, **kwargs) -> BaseInstance:
+    def _maybe_wait(self, pycloudlib_instance, wait):
+        if wait:
+            try:
+                pycloudlib_instance.wait()
+            except Exception:
+                pycloudlib_instance.delete()
+                raise
+
+    def _perform_launch(
+        self, *, launch_kwargs, wait=True, **kwargs
+    ) -> BaseInstance:
         pycloudlib_instance = self.cloud_instance.launch(**launch_kwargs)
+        self._maybe_wait(pycloudlib_instance, wait)
         return pycloudlib_instance
 
     def launch(
         self,
         user_data=None,
+        wait=True,
         launch_kwargs=None,
         settings=integration_settings,
         **kwargs,
@@ -113,6 +130,7 @@ class IntegrationCloud(ABC):
         default_launch_kwargs = {
             "image_id": self.image_id,
             "user_data": user_data,
+            "username": DISTRO_TO_USERNAME[CURRENT_RELEASE.os],
         }
         launch_kwargs = {**default_launch_kwargs, **launch_kwargs}
         display_launch_kwargs = deepcopy(launch_kwargs)
@@ -129,10 +147,12 @@ class IntegrationCloud(ABC):
         )
 
         with emit_dots_on_travis():
-            pycloudlib_instance = self._perform_launch(launch_kwargs, **kwargs)
+            pycloudlib_instance = self._perform_launch(
+                wait=wait, launch_kwargs=launch_kwargs, **kwargs
+            )
         log.info("Launched instance: %s", pycloudlib_instance)
         instance = self.get_instance(pycloudlib_instance, settings)
-        if launch_kwargs.get("wait", True):
+        if wait:
             # If we aren't waiting, we can't rely on command execution here
             log.info(
                 "cloud-init version: %s",
@@ -149,7 +169,7 @@ class IntegrationCloud(ABC):
         return IntegrationInstance(self, cloud_instance, settings)
 
     def destroy(self):
-        pass
+        self.cloud_instance.clean()
 
     def snapshot(self, instance):
         return self.cloud_instance.snapshot(instance, clean=True)
@@ -181,7 +201,9 @@ class Ec2Cloud(IntegrationCloud):
             image_type=self._image_type, **kwargs
         )
 
-    def _perform_launch(self, launch_kwargs, **kwargs):
+    def _perform_launch(
+        self, *, launch_kwargs, wait=True, **kwargs
+    ) -> EC2Instance:
         """Use a dual-stack VPC for cloud-init integration testing."""
         if "vpc" not in launch_kwargs:
             launch_kwargs["vpc"] = self.cloud_instance.get_or_create_vpc(
@@ -196,6 +218,7 @@ class Ec2Cloud(IntegrationCloud):
             launch_kwargs["MetadataOptions"] = {"HttpProtocolIpv6": "enabled"}
 
         pycloudlib_instance = self.cloud_instance.launch(**launch_kwargs)
+        self._maybe_wait(pycloudlib_instance, wait)
         return pycloudlib_instance
 
 
@@ -267,7 +290,7 @@ class _LxdIntegrationCloud(IntegrationCloud):
                 "/etc/cloud/templates",
             ),
         ]
-        for (n, (source_path, target_path)) in enumerate(mounts):
+        for n, (source_path, target_path) in enumerate(mounts):
             format_variables = {
                 "name": instance.name,
                 "source_path": os.path.realpath(source_path),
@@ -286,12 +309,13 @@ class _LxdIntegrationCloud(IntegrationCloud):
             ).format(**format_variables)
             subp(command.split())
 
-    def _perform_launch(self, launch_kwargs, **kwargs):
+    def _perform_launch(
+        self, *, launch_kwargs, wait=True, **kwargs
+    ) -> LXDInstance:
         instance_kwargs = deepcopy(launch_kwargs)
         instance_kwargs["inst_type"] = instance_kwargs.pop(
             "instance_type", None
         )
-        wait = instance_kwargs.pop("wait", True)
         release = instance_kwargs.pop("image_id")
 
         try:

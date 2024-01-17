@@ -425,8 +425,8 @@ syslog_fix_perms: syslog:root
 #   expire: True
 # ssh_pwauth: [ True, False, "" or "unchanged" ]
 #
-# Hashed passwords can be generated in multiple ways, example with python3:
-# python3 -c 'import crypt,getpass; print(crypt.crypt(getpass.getpass(), crypt.mksalt(crypt.METHOD_SHA512)))'
+# Hashed passwords can be generated in multiple ways, example with python3 and the passlib module:
+# python3 -c 'import passlib.hash;print(passlib.hash.sha512_crypt.hash("password"))'
 # Newer versions of 'mkpasswd' will also work: mkpasswd -m sha-512 password
 #
 # So, a simple working example to allow login via ssh, and not expire

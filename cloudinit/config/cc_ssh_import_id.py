@@ -19,7 +19,7 @@ from cloudinit.distros import ug_util
 from cloudinit.settings import PER_INSTANCE
 
 # https://launchpad.net/ssh-import-id
-distros = ["ubuntu", "debian", "cos"]
+distros = ["alpine", "cos", "debian", "ubuntu"]
 
 SSH_IMPORT_ID_BINARY = "ssh-import-id"
 MODULE_DESCRIPTION = """\
@@ -152,13 +152,24 @@ def import_ssh_ids(ids, user):
     # I'm including the `--preserve-env` here as a one-off, but we should
     # have a better way of setting env earlier in boot and using it later.
     # Perhaps a 'set_env' module?
-    cmd = [
-        "sudo",
-        "--preserve-env=https_proxy",
-        "-Hu",
-        user,
-        SSH_IMPORT_ID_BINARY,
-    ] + ids
+    if subp.which("sudo"):
+        cmd = [
+            "sudo",
+            "--preserve-env=https_proxy",
+            "-Hu",
+            user,
+            SSH_IMPORT_ID_BINARY,
+        ] + ids
+    elif subp.which("doas"):
+        cmd = [
+            "doas",
+            "-u",
+            user,
+            SSH_IMPORT_ID_BINARY,
+        ] + ids
+    else:
+        LOG.error("Neither sudo nor doas available! Unable to import SSH ids.")
+        return
     LOG.debug("Importing SSH ids for user %s.", user)
 
     try:

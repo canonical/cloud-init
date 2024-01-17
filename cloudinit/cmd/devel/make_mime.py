@@ -32,9 +32,10 @@ def create_mime_message(files):
         )
         content_type = sub_message.get_content_type().lower()
         if content_type not in get_content_types():
-            msg = (
-                "content type %r for attachment %s " "may be incorrect!"
-            ) % (content_type, i + 1)
+            msg = ("content type %r for attachment %s may be incorrect!") % (
+                content_type,
+                i + 1,
+            )
             errors.append(msg)
         sub_messages.append(sub_message)
     combined_message = MIMEMultipart()

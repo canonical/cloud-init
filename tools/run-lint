@@ -11,7 +11,7 @@ else
    files=( "$@" )
 fi
 
-cmd=( "python3" -m "flake8" "${files[@]}" )
+cmd=( "python3" -m "ruff" "${files[@]}" )
 
 echo "Running: " "${cmd[@]}" 1>&2
 exec "${cmd[@]}"

@@ -832,6 +832,21 @@ class TestDsIdentify(DsIdentifyBase):
             cust64, RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
         )
 
+    def test_vmware_on_vmware_open_vm_tools_i386_linux_gnu(self):
+        """VMware is identified when open-vm-tools installed in
+        /usr/lib/i386-linux-gnu."""
+        cust64 = copy.deepcopy(VALID_CFG["VMware-vmware-customization"])
+        p32 = "usr/lib/vmware-tools/plugins/vmsvc/libdeployPkgPlugin.so"
+        i386 = (
+            "usr/lib/i386-linux-gnu/open-vm-tools/plugins/vmsvc/"
+            "libdeployPkgPlugin.so"
+        )
+        cust64["files"][i386] = cust64["files"][p32]
+        del cust64["files"][p32]
+        return self._check_via_dict(
+            cust64, RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
+        )
+
     def test_vmware_envvar_no_data(self):
         """VMware: envvar transport no data"""
         self._test_ds_not_found("VMware-EnvVar-NoData")
@@ -871,6 +886,27 @@ class TestDsIdentify(DsIdentifyBase):
     def test_vmware_guestinfo_activated_by_vendordata(self):
         """VMware: guestinfo transport activated by vendordata"""
         self._test_ds_found("VMware-GuestInfo-Vendordata")
+
+
+class TestAkamai(DsIdentifyBase):
+    def test_found_by_sys_vendor(self):
+        """ds-identify finds Akamai by system-manufacturer dmi field"""
+        self._test_ds_found("Akamai")
+
+    def test_found_by_sys_vendor_akamai(self):
+        """
+        ds-identify finds Akamai by system-manufacturer dmi field when set with
+        name "Akamai" (expected in the future)
+        """
+        cfg = copy.deepcopy(VALID_CFG["Akamai"])
+        cfg["mocks"][0]["RET"] = "Akamai"
+        self._check_via_dict(cfg, rc=RC_FOUND)
+
+    def test_not_found(self):
+        """ds-identify does not find Akamai by system-manufacturer field"""
+        cfg = copy.deepcopy(VALID_CFG["Akamai"])
+        cfg["mocks"][0]["RET"] = "Other"
+        self._check_via_dict(cfg, rc=RC_NOT_FOUND)
 
 
 class TestBSDNoSys(DsIdentifyBase):
@@ -1017,6 +1053,10 @@ def _print_run_output(rc, out, err, cfg, files):
 
 
 VALID_CFG = {
+    "Akamai": {
+        "ds": "Akamai",
+        "mocks": [{"name": "dmi_decode", "ret": 0, "RET": "Linode"}],
+    },
     "AliYun": {
         "ds": "AliYun",
         "files": {P_PRODUCT_NAME: "Alibaba Cloud ECS\n"},

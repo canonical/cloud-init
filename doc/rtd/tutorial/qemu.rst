@@ -208,7 +208,7 @@ take a few moments to complete.
         -m 512                                                      \
         -nographic                                                  \
         -hda jammy-server-cloudimg-amd64.img                        \
-        -smbios type=1,serial=ds='nocloud-net;s=http://10.0.2.2:8000/'
+        -smbios type=1,serial=ds='nocloud;s=http://10.0.2.2:8000/'
 
 .. note::
    If the output stopped scrolling but you don't see a prompt yet, press
@@ -228,7 +228,7 @@ boot Ubuntu, which already has ``cloud-init`` installed.
 
 The second line tells ``cloud-init`` where it can find user data, using the
 :ref:`NoCloud datasource<datasource_nocloud>`. During boot, ``cloud-init``
-checks the ``SMBIOS`` serial number for ``ds=nocloud-net``. If found,
+checks the ``SMBIOS`` serial number for ``ds=nocloud``. If found,
 ``cloud-init`` will use the specified URL to source its user data config files.
 
 In this case, we use the default gateway of the virtual machine (``10.0.2.2``)
