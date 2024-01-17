@@ -7,7 +7,7 @@ from textwrap import dedent
 import pytest
 import responses
 
-from cloudinit.distros import amazon, centos, debian, freebsd, rhel
+from cloudinit.distros import alpine, amazon, centos, debian, freebsd, rhel
 from cloudinit.net.dhcp import (
     DHCLIENT_FALLBACK_LEASE_DIR,
     InvalidDHCPLeaseFileError,
@@ -1203,6 +1203,28 @@ class TestISCDHClient(CiTestCase):
             IscDhclient.get_latest_lease(
                 freebsd.Distro.dhclient_lease_directory,
                 freebsd.Distro.dhclient_lease_file_regex,
+            ),
+        )
+
+    @mock.patch(
+        "os.listdir",
+        return_value=(
+            "some_file",
+            # alpine style lease file
+            "dhclient.leases",
+            "some_other_file",
+        ),
+    )
+    @mock.patch("os.path.getmtime", return_value=123.45)
+    def test_get_latest_lease_alpine(self, *_):
+        """
+        Test that an alpine style lease has been found
+        """
+        self.assertEqual(
+            "/var/lib/dhcp/dhclient.leases",
+            IscDhclient.get_latest_lease(
+                alpine.Distro.dhclient_lease_directory,
+                alpine.Distro.dhclient_lease_file_regex,
             ),
         )
 
