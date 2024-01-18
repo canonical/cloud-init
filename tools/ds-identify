@@ -442,6 +442,18 @@ detect_virt() {
         if [ $r -eq 0 ] || { [ $r -ne 0 ] && [ "$out" = "none" ]; }; then
             virt="$out"
         fi
+    elif command -v virt-what >/dev/null 2>&1; then
+        # Map virt-what's names to those systemd-detect-virt that
+        # don't match up.
+        out=$(virt-what 2>&1 | head -n 1) && {
+            case "$out" in
+                ibm_systemz-zvm)    virt="zvm" ;;
+                hyperv)             virt="microsoft" ;;
+                virtualbox)         virt="oracle" ;;
+                xen-domU)           virt="xen" ;;
+                *)                  virt="$out"
+            esac
+        }
     elif [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" -o "$DI_UNAME_KERNEL_NAME" = "Dragonfly" ]; then
         # Map FreeBSD's vm_guest names to those systemd-detect-virt that
         # don't match up. See
@@ -747,11 +759,15 @@ probe_floppy() {
     [ -b "$fpath" ] ||
         { STATE_FLOPPY_PROBED=1; return 1; }
 
-    modprobe --use-blacklist floppy >/dev/null 2>&1 ||
+    # Use "-b" option as Busybox modprobe doesn't support long-option
+    modprobe -b floppy >/dev/null 2>&1 ||
         { STATE_FLOPPY_PROBED=1; return 1; }
 
-    udevadm settle "--exit-if-exists=$fpath" ||
-        { STATE_FLOPPY_PROBED=1; return 1; }
+    # Some Linux distros/non-Linux OSes may not have udev
+    if command -v udevadm; then
+        udevadm settle "--exit-if-exists=$fpath" ||
+            { STATE_FLOPPY_PROBED=1; return 1; }
+    fi
 
     [ -b "$fpath" ]
     STATE_FLOPPY_PROBED=$?
@@ -1091,7 +1107,8 @@ is_cdrom_ovf() {
     fi
 
     local idstr="http://schemas.dmtf.org/ovf/environment/1"
-    grep --quiet --ignore-case "$idstr" "${PATH_ROOT}$dev"
+    # POSIX grep only supports short-options, long-options are GNU-specific
+    grep -q -i "$idstr" "${PATH_ROOT}$dev"
 }
 
 has_ovf_cdrom() {
