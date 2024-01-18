@@ -40,8 +40,12 @@ class TestCollectLogs:
         m_getuid.return_value = 100
         log1 = tmpdir.join("cloud-init.log")
         write_file(log1, "cloud-init-log")
+        log1_rotated = tmpdir.join("cloud-init.log.1.gz")
+        write_file(log1_rotated, "cloud-init-log-rotated")
         log2 = tmpdir.join("cloud-init-output.log")
         write_file(log2, "cloud-init-output-log")
+        log2_rotated = tmpdir.join("cloud-init-output.log.1.gz")
+        write_file(log2_rotated, "cloud-init-output-log-rotated")
         run_dir = tmpdir.join("run")
         write_file(run_dir.join("results.json"), "results")
         write_file(
@@ -51,6 +55,12 @@ class TestCollectLogs:
             "sensitive",
         )
         output_tarfile = str(tmpdir.join("logs.tgz"))
+
+        mocker.patch(M_PATH + "Init", autospec=True)
+        mocker.patch(
+            M_PATH + "get_config_logfiles",
+            return_value=[log1, log1_rotated, log2, log2_rotated],
+        )
 
         date = datetime.utcnow().date().strftime("%Y-%m-%d")
         date_logdir = "cloud-init-logs-{0}".format(date)
@@ -98,7 +108,6 @@ class TestCollectLogs:
             M_PATH + "subprocess.call", side_effect=fake_subprocess_call
         )
         mocker.patch(M_PATH + "sys.stderr", fake_stderr)
-        mocker.patch(M_PATH + "CLOUDINIT_LOGS", [log1, log2])
         mocker.patch(M_PATH + "CLOUDINIT_RUN_DIR", run_dir)
         mocker.patch(M_PATH + "INSTALLER_APPORT_FILES", [])
         mocker.patch(M_PATH + "INSTALLER_APPORT_SENSITIVE_FILES", [])
@@ -123,8 +132,14 @@ class TestCollectLogs:
         assert "cloud-init-log" == load_file(
             os.path.join(out_logdir, "cloud-init.log")
         )
+        assert "cloud-init-log-rotated" == load_file(
+            os.path.join(out_logdir, "cloud-init.log.1.gz")
+        )
         assert "cloud-init-output-log" == load_file(
             os.path.join(out_logdir, "cloud-init-output.log")
+        )
+        assert "cloud-init-output-log-rotated" == load_file(
+            os.path.join(out_logdir, "cloud-init-output.log.1.gz")
         )
         assert "dmesg-out\n" == load_file(
             os.path.join(out_logdir, "dmesg.txt")
@@ -155,6 +170,12 @@ class TestCollectLogs:
             "sensitive",
         )
         output_tarfile = str(tmpdir.join("logs.tgz"))
+
+        mocker.patch(M_PATH + "Init", autospec=True)
+        mocker.patch(
+            M_PATH + "get_config_logfiles",
+            return_value=[log1, log2],
+        )
 
         date = datetime.utcnow().date().strftime("%Y-%m-%d")
         date_logdir = "cloud-init-logs-{0}".format(date)
@@ -200,7 +221,6 @@ class TestCollectLogs:
             M_PATH + "subprocess.call", side_effect=fake_subprocess_call
         )
         mocker.patch(M_PATH + "sys.stderr", fake_stderr)
-        mocker.patch(M_PATH + "CLOUDINIT_LOGS", [log1, log2])
         mocker.patch(M_PATH + "CLOUDINIT_RUN_DIR", run_dir)
         mocker.patch(M_PATH + "INSTALLER_APPORT_FILES", [])
         mocker.patch(M_PATH + "INSTALLER_APPORT_SENSITIVE_FILES", [])

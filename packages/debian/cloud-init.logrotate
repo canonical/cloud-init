@@ -1,0 +1,10 @@
+/var/log/cloud-init.log
+/var/log/cloud-init-output.log
+{
+    missingok
+    nocreate
+    notifempty
+    rotate 5
+    compress
+    size 1M   
+}

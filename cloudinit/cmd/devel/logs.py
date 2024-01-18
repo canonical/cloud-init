@@ -17,11 +17,17 @@ from typing import NamedTuple
 
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.helpers import Paths
+from cloudinit.stages import Init
 from cloudinit.subp import ProcessExecutionError, subp
 from cloudinit.temp_utils import tempdir
-from cloudinit.util import chdir, copy, ensure_dir, write_file
+from cloudinit.util import (
+    chdir,
+    copy,
+    ensure_dir,
+    get_config_logfiles,
+    write_file,
+)
 
-CLOUDINIT_LOGS = ["/var/log/cloud-init.log", "/var/log/cloud-init-output.log"]
 CLOUDINIT_RUN_DIR = "/run/cloud-init"
 
 
@@ -209,6 +215,8 @@ def collect_logs(tarfile, include_userdata: bool, verbosity=0):
             " Try sudo cloud-init collect-logs\n"
         )
         return 1
+
+    init = Init(ds_deps=[])
     tarfile = os.path.abspath(tarfile)
     log_dir = datetime.utcnow().date().strftime("cloud-init-logs-%Y-%m-%d")
     with tempdir(dir="/tmp") as tmp_dir:
@@ -242,7 +250,8 @@ def collect_logs(tarfile, include_userdata: bool, verbosity=0):
             verbosity=verbosity,
         )
 
-        for log in CLOUDINIT_LOGS:
+        init.read_cfg()
+        for log in get_config_logfiles(init.cfg):
             _collect_file(log, log_dir, verbosity)
         if include_userdata:
             user_data_file = _get_user_data_file()
