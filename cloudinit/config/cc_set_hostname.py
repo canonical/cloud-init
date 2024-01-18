@@ -60,7 +60,7 @@ meta: MetaSchema = {
         dedent(
             """\
             hostname: myhost
-            ceate_hostname_file: true
+            create_hostname_file: true
             fqdn: myhost.example.com
             prefer_fqdn_over_hostname: true
             """
