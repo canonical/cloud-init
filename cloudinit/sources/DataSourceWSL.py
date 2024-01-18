@@ -114,7 +114,11 @@ def win_user_profile_dir() -> Optional[PurePath]:
     if cmd is None:
         return None
 
-    home, _ = subp.subp([cmd.as_posix(), "/C", "echo %USERPROFILE%"])
+    # cloud-init runs too early to rely on binfmt to execute Windows binaries.
+    # But we know that `/init` is the interpreter, so we can run it directly.
+    # See /proc/sys/fs/binfmt_misc/WSLInterop[-late]
+    # inside any WSL instance for more details.
+    home, _ = subp.subp(["/init", cmd.as_posix(), "/C", "echo %USERPROFILE%"])
     home = home.rstrip()
     if not home:
         LOG.error("No output from cmd to show the user profile dir.")
