@@ -121,3 +121,107 @@ def win_user_profile_dir() -> Optional[PurePath]:
         return None
 
     return win_path_2_wsl(home.rstrip())
+
+
+def machine_id():
+    """
+    Returns the local machine ID value from /etc/machine-id.
+    """
+    MACHINE_ID_FILE = "/etc/machine-id"
+
+    if util.wait_for_files([MACHINE_ID_FILE], 2.0):
+        LOG.debug("%s file not found", MACHINE_ID_FILE)
+        return None
+
+    return util.load_file(MACHINE_ID_FILE, decode=True)
+
+
+def candidate_user_data_file_names(instance_name) -> List[str]:
+    """
+    Return a list of candidate file names that may contain user-data
+    in some supported format, ordered by precedence.
+    """
+    lsb_rel = util.lsb_release()
+    distribution_id = lsb_rel["id"]
+    release_codename = lsb_rel["codename"]
+
+    return [
+        # WSL instance specific:
+        "%s.user-data" % instance_name,
+        # release codename specific
+        "%s-%s.user-data" % (distribution_id, release_codename),
+        # distribution specific (Alpine, Arch, Fedora, openSUSE, Ubuntu...)
+        "%s-all.user-data" % distribution_id,
+        # generic, valid for all WSL distros and instances.
+        "config.user-data",
+    ]
+
+
+class DataSourceWSL(sources.DataSource):
+    dsname = "WSL"
+
+    def __init__(self, sys_cfg, distro, paths):
+        sources.DataSource.__init__(self, sys_cfg, distro, paths)
+        self._network_config = sources.UNSET
+        self.dsmode = sources.DSMODE_LOCAL
+        self.distro = distro
+        self.instance_name = instance_name()
+
+    def find_user_data_file(self) -> Optional[PurePath]:
+        """
+        Finds the most precendent of the candidate files that may contain
+        user-data, if any, or None otherwise.
+        """
+        profile_dir = win_user_profile_dir()
+        if profile_dir is None:
+            LOG.warning(
+                "Cannot proceed without finding the Windows %USERPROFILE% dir."
+            )
+            return None
+
+        seed_dir = os.path.join(profile_dir, ".cloud-init")
+        if not os.path.isdir(seed_dir):
+            LOG.warning("%s directory doesn't exist.", seed_dir)
+            return None
+
+        for filename in candidate_user_data_file_names(self.instance_name):
+            file = os.path.join(seed_dir, filename)
+            if os.path.isfile(file):
+                return PurePath(file)
+
+        LOG.warning(
+            "%s doesn't contain any of the expected user-data files", seed_dir
+        )
+        return None
+
+    def _get_data(self) -> bool:
+        self.vendordata_raw = None
+
+        self.metadata = dict()
+        m_id = machine_id()
+        if m_id is None:
+            LOG.debug("Instance ID will be the WSL instance name only")
+            self.metadata["instance-id"] = self.instance_name
+        else:
+            self.metadata["instance-id"] = "{}-{}".format(
+                self.instance_name, m_id
+            )
+
+        file = self.find_user_data_file()
+        if file is None:
+            self.userdata_raw = None
+        else:
+            self.userdata_raw = cast(str, util.load_file(file, decode=True))
+
+        return True
+
+
+# Used to match classes to dependencies
+datasources = [
+    (DataSourceWSL, (sources.DEP_FILESYSTEM,)),
+]
+
+
+# Return a list of data sources that match this set of dependencies
+def get_datasource_list(depends):
+    return sources.list_from_depends(depends, datasources)
