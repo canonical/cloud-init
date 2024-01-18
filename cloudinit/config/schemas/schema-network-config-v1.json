@@ -17,6 +17,7 @@
         },
         "name": {
           "type": "string",
+          "maxLength": 15,
           "description": "Desired device name should be less than 15 characters. Any characters exceeding 15 will be truncated. This is a limitation of the Linux kernel network-device structure."
         },
         "mac_address": {
