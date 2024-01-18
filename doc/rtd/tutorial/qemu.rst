@@ -143,8 +143,6 @@ Now let's run the following command, which creates a file named
 
     $ cat << EOF > meta-data
     instance-id: someid/somehostname
-    local-hostname: jammy
-    create_hostname_file: true
 
     EOF
 

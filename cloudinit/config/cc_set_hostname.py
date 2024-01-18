@@ -68,7 +68,7 @@ meta: MetaSchema = {
         dedent(
             """\
             # On a machine without an ``/etc/hostname`` file, don't create it
-            # In most clouds, this will results in a DHCP configured hostname
+            # In most clouds, this will result in a DHCP-configured hostname
             # provided by the cloud
             create_hostname_file: false
             """

@@ -216,7 +216,6 @@ Example ``meta-data``
       broadcast 192.168.1.255
       gateway 192.168.1.254
     hostname: myhost
-    create_hostname_file: true
 
 
 Network configuration can also be provided to ``cloud-init`` in either
