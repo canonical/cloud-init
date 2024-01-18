@@ -188,6 +188,9 @@ class DataSourceWSL(sources.DataSource):
             LOG.warning("%s directory doesn't exist.", seed_dir)
             return None
 
+        # Notice that file name casing is irrelevant here. Windows filenames
+        # are case insensitive. Even though accessed through Linux, path
+        # translation just works with whichever casing we try.
         for filename in candidate_user_data_file_names(self.instance_name):
             file = os.path.join(seed_dir, filename)
             if os.path.isfile(file):
