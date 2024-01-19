@@ -1,3 +1,9 @@
+cloud-init (24.1-0ubuntu0~23.10.1) UNRELEASED; urgency=medium
+
+  * d/cloud-init.maintscript: remove /etc/cloud/clean.d/README 
+
+ -- Calvin Mwadime <calvin.mwadime@canonical.com>  Fri, 19 Jan 2024 13:03:02 +0300
+
 cloud-init (23.4.1-0ubuntu1~23.10.2) mantic; urgency=medium
 
   * d/p/status-retain-recoverable-error-exit-code.patch:
