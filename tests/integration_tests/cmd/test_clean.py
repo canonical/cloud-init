@@ -39,9 +39,7 @@ class TestCleanCommand:
     def test_clean_rotated_logs(self, class_client: IntegrationInstance):
         """Clean with log params alters expected files without error"""
         assert class_client.execute("cloud-init status --wait").ok
-        assert class_client.execute(
-            "logrotate /etc/logrotate.d/cloud-init.logrotate"
-        ).ok
+        assert class_client.execute("logrotate /etc/logrotate.d/cloud-init").ok
         log_paths = (
             "/var/log/cloud-init.log",
             "/var/log/cloud-init.log.1.gz",
