@@ -1,10 +1,11 @@
-/var/log/cloud-init.log
-/var/log/cloud-init-output.log
+/var/log/cloud-init*.log
 {
+    su root root
     missingok
     nocreate
     notifempty
-    rotate 5
+    rotate 6
     compress
+    delayacompress
     size 1M   
 }
