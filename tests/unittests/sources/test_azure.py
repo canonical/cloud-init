@@ -15,7 +15,6 @@ import requests
 from cloudinit import distros, dmi, helpers, subp, url_helper
 from cloudinit.atomic_helper import b64e, json_dumps
 from cloudinit.net import dhcp, ephemeral
-from cloudinit.reporting.handlers import HyperVKvpReportingHandler
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceAzure as dsaz
 from cloudinit.sources import InvalidMetaDataException

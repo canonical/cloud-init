@@ -6,13 +6,11 @@ import unittest
 from textwrap import dedent
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape, unescape
-from cloudinit.reporting.handlers import HyperVKvpReportingHandler
 
 import pytest
 import requests
 
 from cloudinit import url_helper
-from cloudinit.reporting import instantiated_handler_registry
 from cloudinit.sources.azure import errors
 from cloudinit.sources.helpers import azure as azure_helper
 from cloudinit.sources.helpers.azure import WALinuxAgentShim as wa_shim
