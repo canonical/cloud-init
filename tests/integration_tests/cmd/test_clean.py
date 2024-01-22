@@ -38,7 +38,14 @@ class TestCleanCommand:
     )
     def test_clean_rotated_logs(self, class_client: IntegrationInstance):
         """Clean with log params alters expected files without error"""
-        assert class_client.execute("cloud-init status --wait").ok
+        # Expect warning exit code 2 on Ubuntu Noble due to cloud-init
+        # disabling /etc/apt/sources.list build artifact in favor of deb822
+        result = class_client.execute("cloud-init status --wait --long")
+        return_code = 2 if CURRENT_RELEASE.series == "noble" else 0
+        assert return_code == result.return_code, (
+            f"Unexpected cloud-init status exit code {result.return_code}\n"
+            f"Output:\n{result}"
+        )
         assert class_client.execute("logrotate /etc/logrotate.d/cloud-init").ok
         log_paths = (
             "/var/log/cloud-init.log",
