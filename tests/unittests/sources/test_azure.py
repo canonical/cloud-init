@@ -169,6 +169,16 @@ def mock_imds_fetch_metadata_with_api_fallback():
         yield m
 
 
+@pytest.fixture(autouse=True)
+def mock_report_dmesg_to_kvp():
+    with mock.patch(
+        MOCKPATH + "report_dmesg_to_kvp",
+        return_value=True,
+        autospec=True,
+    ) as m:
+        yield m
+
+
 @pytest.fixture
 def mock_kvp_report_failure_to_host():
     with mock.patch(
@@ -353,17 +363,6 @@ def patched_reported_ready_marker_path(azure_ds, patched_markers_dir_path):
         azure_ds, "_reported_ready_marker_file", str(reported_ready_marker)
     ):
         yield reported_ready_marker
-
-
-@pytest.fixture
-def telemetry_reporter(tmp_path):
-    kvp_file_path = tmp_path / "kvp_pool_file"
-    kvp_file_path.write_bytes(b"")
-    reporter = HyperVKvpReportingHandler(kvp_file_path=str(kvp_file_path))
-
-    dsaz.kvp.instantiated_handler_registry.register_item("telemetry", reporter)
-    yield reporter
-    dsaz.kvp.instantiated_handler_registry.unregister_item("telemetry")
 
 
 def fake_http_error_for_code(status_code: int):
@@ -3637,6 +3636,7 @@ class TestProvisioning:
         mock_kvp_report_success_to_host,
         mock_netlink,
         mock_readurl,
+        mock_report_dmesg_to_kvp,
         mock_subp_subp,
         mock_timestamp,
         mock_util_ensure_dir,
@@ -3666,6 +3666,7 @@ class TestProvisioning:
         self.mock_kvp_report_success_to_host = mock_kvp_report_success_to_host
         self.mock_netlink = mock_netlink
         self.mock_readurl = mock_readurl
+        self.mock_report_dmesg_to_kvp = mock_report_dmesg_to_kvp
         self.mock_subp_subp = mock_subp_subp
         self.mock_timestmp = mock_timestamp
         self.mock_util_ensure_dir = mock_util_ensure_dir
@@ -3770,6 +3771,9 @@ class TestProvisioning:
         # Verify reports via KVP.
         assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
+
+        # Verify dmesg reported via KVP.
+        assert len(self.mock_report_dmesg_to_kvp.mock_calls) == 1
 
     @pytest.mark.parametrize("pps_type", ["Savable", "Running"])
     def test_stale_pps(self, pps_type):
@@ -3944,6 +3948,9 @@ class TestProvisioning:
         assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 2
 
+        # Verify dmesg reported via KVP.
+        assert len(self.mock_report_dmesg_to_kvp.mock_calls) == 2
+
     def test_savable_pps(self):
         imds_md_source = copy.deepcopy(self.imds_md)
         imds_md_source["extended"]["compute"]["ppsType"] = "Savable"
@@ -4061,6 +4068,9 @@ class TestProvisioning:
         # Verify reports via KVP.
         assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 2
+
+        # Verify dmesg reported via KVP.
+        assert len(self.mock_report_dmesg_to_kvp.mock_calls) == 2
 
     @pytest.mark.parametrize(
         "fabric_side_effect",
@@ -4522,13 +4532,14 @@ class TestGetMetadataFromImds:
 
 class TestReportFailure:
     @pytest.mark.parametrize("kvp_enabled", [False, True])
-    def report_host_only_kvp_enabled(
+    def test_report_host_only_kvp_enabled(
         self,
         azure_ds,
         kvp_enabled,
         mock_azure_report_failure_to_fabric,
         mock_kvp_report_failure_to_host,
         mock_kvp_report_success_to_host,
+        mock_report_dmesg_to_kvp,
     ):
         mock_kvp_report_failure_to_host.return_value = kvp_enabled
         error = errors.ReportableError(reason="foo")
@@ -4538,6 +4549,7 @@ class TestReportFailure:
         assert mock_kvp_report_failure_to_host.mock_calls == [mock.call(error)]
         assert mock_kvp_report_success_to_host.mock_calls == []
         assert mock_azure_report_failure_to_fabric.mock_calls == []
+        assert mock_report_dmesg_to_kvp.mock_calls == [mock.call()]
 
 
 class TestValidateIMDSMetadata:

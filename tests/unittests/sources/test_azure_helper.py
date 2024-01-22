@@ -6,11 +6,13 @@ import unittest
 from textwrap import dedent
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape, unescape
+from cloudinit.reporting.handlers import HyperVKvpReportingHandler
 
 import pytest
 import requests
 
 from cloudinit import url_helper
+from cloudinit.reporting import instantiated_handler_registry
 from cloudinit.sources.azure import errors
 from cloudinit.sources.helpers import azure as azure_helper
 from cloudinit.sources.helpers.azure import WALinuxAgentShim as wa_shim
@@ -146,7 +148,6 @@ class TestGetIpFromLeaseValue:
 
 
 class TestGoalStateParsing(CiTestCase):
-
     default_parameters = {
         "incarnation": 1,
         "container_id": "MyContainerId",
@@ -242,7 +243,6 @@ class TestGoalStateParsing(CiTestCase):
 
 
 class TestAzureEndpointHttpClient(CiTestCase):
-
     regular_headers = {
         "x-ms-agent-name": "WALinuxAgent",
         "x-ms-version": "2012-11-30",
@@ -556,7 +556,6 @@ class TestOpenSSLManagerActions(CiTestCase):
 
 
 class TestGoalStateHealthReporter(CiTestCase):
-
     maxDiff = None
 
     default_parameters = {
@@ -1648,3 +1647,33 @@ class TestOvfEnvXml:
             azure_helper.OvfEnvXml.parse_text(ovf)
 
         assert str(exc_info.value) == error
+
+
+class TestReportDmesgToKvp:
+    @mock.patch.object(
+        azure_helper.subp, "subp", return_value=("dmesg test", "")
+    )
+    @mock.patch.object(azure_helper, "report_compressed_event")
+    def test_report_dmesg_to_kvp(
+        self, mock_report_compressed_event, mock_subp
+    ):
+        azure_helper.report_dmesg_to_kvp()
+
+        assert mock_subp.mock_calls == [
+            mock.call(["dmesg"], decode=False, capture=True)
+        ]
+        assert mock_report_compressed_event.mock_calls == [
+            mock.call("dmesg", "dmesg test")
+        ]
+
+    @mock.patch.object(azure_helper.subp, "subp", side_effect=[Exception()])
+    @mock.patch.object(azure_helper, "report_compressed_event")
+    def test_report_dmesg_to_kvp_dmesg_error(
+        self, mock_report_compressed_event, mock_subp
+    ):
+        azure_helper.report_dmesg_to_kvp()
+
+        assert mock_subp.mock_calls == [
+            mock.call(["dmesg"], decode=False, capture=True)
+        ]
+        assert mock_report_compressed_event.mock_calls == []

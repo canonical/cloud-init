@@ -313,7 +313,6 @@ DEF_PASSWD_REDACTION = "REDACTED"
 
 
 class DataSourceAzure(sources.DataSource):
-
     dsname = "Azure"
     default_update_events = {
         EventScope.NETWORK: {
@@ -1306,6 +1305,7 @@ class DataSourceAzure(sources.DataSource):
             f"Azure datasource failure occurred: {error.as_encoded_report()}",
             logger_func=LOG.error,
         )
+        report_dmesg_to_kvp()
         reported = kvp.report_failure_to_host(error)
         if host_only:
             return reported
@@ -1365,6 +1365,7 @@ class DataSourceAzure(sources.DataSource):
 
         :returns: List of SSH keys, if requested.
         """
+        report_dmesg_to_kvp()
         kvp.report_success_to_host()
 
         try:
@@ -1822,7 +1823,7 @@ def write_files(datadir, files, dirmode=None):
     if not files:
         files = {}
     util.ensure_dir(datadir, dirmode)
-    for (name, content) in files.items():
+    for name, content in files.items():
         fname = os.path.join(datadir, name)
         if "ovf-env.xml" in name:
             content = _redact_password(content, fname)
