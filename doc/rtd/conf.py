@@ -131,6 +131,7 @@ autosectionlabel_maxdepth = 2
 linkcheck_ignore = [
     r"http://\[fd00:ec2::254.*",
     r"http://instance-data.*",
+    r"https://www.scaleway.com/en/developers/api/instance.*",
     r"https://powersj.io.*",
     r"http://169.254.169.254.*",
     r"http://10.10.0.1.*",
