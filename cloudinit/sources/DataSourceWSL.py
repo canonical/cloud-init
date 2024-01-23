@@ -132,8 +132,7 @@ def machine_id():
     """
     Returns the local machine ID value from /etc/machine-id.
     """
-    MACHINE_ID_FILE = "/etc/machine-id"
-
+    from cloudinit.settings import MACHINE_ID_FILE
     if util.wait_for_files([MACHINE_ID_FILE], 2.0):
         LOG.debug("%s file not found", MACHINE_ID_FILE)
         return None
@@ -196,8 +195,7 @@ class DataSourceWSL(sources.DataSource):
         # (ref https://learn.microsoft.com/en-us/windows/wsl/case-sensitivity),
         # thus  better prevent it by always relying on case insensitive match.
         existing_files = {
-            ef.name.casefold(): ef.path
-            for ef in os.scandir(seed_dir)
+            ef.name.casefold(): ef.path for ef in os.scandir(seed_dir)
         }
         if not existing_files:
             LOG.warning("%s directory is empty", seed_dir)
