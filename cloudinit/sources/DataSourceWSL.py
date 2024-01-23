@@ -100,7 +100,9 @@ def cmd_executable() -> Optional[PurePath]:
         LOG.debug("Found cmd.exe at <%s>", cmd)
         return PurePath(cmd)
 
-    LOG.error("Couldn't find cmd.exe in any mount point.")
+    LOG.error(
+        "Couldn't find cmd.exe in any mount point: %s", ", ".join(mounts)
+    )
     return None
 
 
