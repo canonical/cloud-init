@@ -82,27 +82,6 @@ class TestWSLHelperFunctions(CiTestCase):
         mounts = wsl.mounted_win_drives()
         self.assertListEqual([], mounts)
 
-    @mock.patch("cloudinit.util.subp.subp")
-    def test_path_2_wsl_logic(self, m_subp):
-        """
-        Validates that we interpret stderr correctly when translating paths
-        from Windows into Linux.
-        """
-        m_subp.return_value = util.subp.SubpResult("/mnt/c/ProgramData/", "")
-
-        translated = wsl.win_path_2_wsl("C:\\ProgramData")
-        self.assertIsNotNone(translated)
-
-        # When an invalid drive is passed, wslpath prints the following pattern
-        # to stderr:
-        # wslpath: <ARGV_1 (aka the path)>
-        m_subp.return_value = util.subp.SubpResult(
-            "", "wslpath: X:\\ProgramData\\"
-        )
-
-        translated = wsl.win_path_2_wsl("X:\\ProgramData")
-        self.assertIsNone(translated)
-
     @mock.patch("os.access")
     @mock.patch("cloudinit.util.mounts")
     def test_cmd_exe_ok(self, m_mounts, m_os_access):
@@ -135,7 +114,7 @@ class TestWSLHelperFunctions(CiTestCase):
         )
 
         m_os_access.return_value = False
-        self.assertIsNone(wsl.cmd_executable())
+        self.assertRaises(IOError, wsl.cmd_executable)
 
     @mock.patch("os.access")
     @mock.patch("cloudinit.util.mounts")
@@ -148,7 +127,7 @@ class TestWSLHelperFunctions(CiTestCase):
         m_mounts.return_value = deepcopy(GOOD_MOUNTS)
         m_mounts.return_value.pop("C:\\")
         m_mounts.return_value.pop("D:\\")
-        self.assertIsNone(wsl.cmd_executable())
+        self.assertRaises(IOError, wsl.cmd_executable)
 
     @mock.patch("cloudinit.util.lsb_release")
     def test_candidate_files(self, m_lsb):
@@ -207,7 +186,7 @@ class TestWSLDataSource(CiTestCase):
         NICE_MACHINE_ID = "A-Nice-Machine-ID_by_systemd"
         m_load_file.return_value = NICE_MACHINE_ID
         m_iname.return_value = INSTANCE_NAME
-        m_prof_dir.return_value = None
+        m_prof_dir.return_value = self.tmp
 
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,

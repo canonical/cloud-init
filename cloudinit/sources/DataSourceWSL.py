@@ -56,39 +56,34 @@ def mounted_win_drives() -> List[str]:
     return mounted
 
 
-def win_path_2_wsl(path: str) -> Optional[PurePath]:
+def win_path_2_wsl(path: str) -> PurePath:
     """
     Returns a translation of a Windows path to a Linux path that can be
-    accessed inside the current instance filesystem, or None if failed.
+    accessed inside the current instance filesystem.
 
     It requires the Windows drive mounting feature to be enabled and the
-    disk drive must exist for this to succeed.
+    disk drive must be muonted for this to succeed.
 
     Example:
     # Assuming Windows drives are mounted under /mnt/ and "S:" doesn't exist:
     p = winpath2wsl("C:\\ProgramData") # p == "/mnt/c/ProgramData/"
-    n = winpath2wsl("S:\\CoolFolder") # n is None (S doesn't exist)
+    n = winpath2wsl("S:\\CoolFolder") # Exception! S: is not mounted.
 
     :param path: string representing a Windows path. The root drive must exist,
     although the path is not required to.
     """
-    out, err = subp.subp([WSLPATH_CMD, "-au", path], rcs=[0, 1])
-    if err:
-        LOG.debug(err)
-        return None
-
+    out, _ = subp.subp([WSLPATH_CMD, "-au", path])
     return PurePath(out.rstrip())
 
 
-def cmd_executable() -> Optional[PurePath]:
+def cmd_executable() -> PurePath:
     """
     Returns the Linux path to the Windows host's cmd.exe.
     """
 
     mounts = mounted_win_drives()
     if not mounts:
-        LOG.error("Windows drives are not mounted.")
-        return None
+        raise IOError("Windows drives are not mounted.")
 
     # cmd.exe path is being stable for decades.
     candidate = "%s/Windows/System32/cmd.exe"
@@ -100,20 +95,17 @@ def cmd_executable() -> Optional[PurePath]:
         LOG.debug("Found cmd.exe at <%s>", cmd)
         return PurePath(cmd)
 
-    LOG.error(
-        "Couldn't find cmd.exe in any mount point: %s", ", ".join(mounts)
+    raise IOError(
+        "Couldn't find cmd.exe in any mount point: %s" % ", ".join(mounts)
     )
-    return None
 
 
-def win_user_profile_dir() -> Optional[PurePath]:
+def win_user_profile_dir() -> PurePath:
     """
     Returns the Windows user profile directory translated as a Linux path
     accessible inside the current WSL instance.
     """
     cmd = cmd_executable()
-    if cmd is None:
-        return None
 
     # cloud-init runs too early to rely on binfmt to execute Windows binaries.
     # But we know that `/init` is the interpreter, so we can run it directly.
@@ -122,8 +114,9 @@ def win_user_profile_dir() -> Optional[PurePath]:
     home, _ = subp.subp(["/init", cmd.as_posix(), "/C", "echo %USERPROFILE%"])
     home = home.rstrip()
     if not home:
-        LOG.error("No output from cmd to show the user profile dir.")
-        return None
+        raise subp.ProcessExecutionError(
+            "No output from cmd.exe to show the user profile dir."
+        )
 
     return win_path_2_wsl(home.rstrip())
 
@@ -133,6 +126,7 @@ def machine_id():
     Returns the local machine ID value from /etc/machine-id.
     """
     from cloudinit.settings import MACHINE_ID_FILE
+
     if util.wait_for_files([MACHINE_ID_FILE], 2.0):
         LOG.debug("%s file not found", MACHINE_ID_FILE)
         return None
@@ -177,15 +171,9 @@ class DataSourceWSL(sources.DataSource):
         user-data, if any, or None otherwise.
         """
         profile_dir = win_user_profile_dir()
-        if profile_dir is None:
-            LOG.warning(
-                "Cannot proceed without finding the Windows %USERPROFILE% dir."
-            )
-            return None
-
         seed_dir = os.path.join(profile_dir, ".cloud-init")
         if not os.path.isdir(seed_dir):
-            LOG.warning("%s directory doesn't exist.", seed_dir)
+            LOG.error("%s directory doesn't exist.", seed_dir)
             return None
 
         # Notice that by default file name casing is irrelevant here. Windows
@@ -198,7 +186,7 @@ class DataSourceWSL(sources.DataSource):
             ef.name.casefold(): ef.path for ef in os.scandir(seed_dir)
         }
         if not existing_files:
-            LOG.warning("%s directory is empty", seed_dir)
+            LOG.error("%s directory is empty", seed_dir)
             return None
 
         folded_names = [
@@ -209,7 +197,7 @@ class DataSourceWSL(sources.DataSource):
             if filename in existing_files.keys():
                 return PurePath(existing_files[filename])
 
-        LOG.warning(
+        LOG.error(
             "%s doesn't contain any of the expected user-data files", seed_dir
         )
         return None
@@ -227,13 +215,14 @@ class DataSourceWSL(sources.DataSource):
                 self.instance_name, m_id
             )
 
-        file = self.find_user_data_file()
-        if file is None:
-            self.userdata_raw = None
-        else:
+        try:
+            file = self.find_user_data_file()
             self.userdata_raw = cast(str, util.load_file(file, decode=True))
-
-        return True
+            return True
+        except IOError as err:
+            LOG.error("Could not find any user data file: %s", str(err))
+            self.userdata_raw = ""
+            return False
 
 
 # Used to match classes to dependencies
