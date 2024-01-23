@@ -48,9 +48,8 @@ def mounted_win_drives() -> List[str]:
     FS_TYPE = "9p"
     OPTIONS_CONTAIN = "aname=drvfs"
 
-    mounts = util.mounts()
     mounted = []
-    for mnt in mounts.values():
+    for mnt in util.mounts().values():
         if mnt["fstype"] == FS_TYPE and OPTIONS_CONTAIN in mnt["opts"]:
             mounted.append(mnt["mountpoint"])
 
