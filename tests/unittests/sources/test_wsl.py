@@ -46,12 +46,7 @@ GOOD_MOUNTS = {
         "opts": "rw,relatime...",
     },
 }
-SAMPLE_LSB = {
-    "id": "Ubuntu",
-    "description": "Ubuntu 24.04",
-    "release": "24.04",
-    "codename": "noble",
-}
+SAMPLE_LINUX_DISTRO = ("ubuntu", "24.04", "noble")
 
 
 class TestWSLHelperFunctions(CiTestCase):
@@ -129,18 +124,18 @@ class TestWSLHelperFunctions(CiTestCase):
         m_mounts.return_value.pop("D:\\")
         self.assertRaises(IOError, wsl.cmd_executable)
 
-    @mock.patch("cloudinit.util.lsb_release")
-    def test_candidate_files(self, m_lsb):
+    @mock.patch("cloudinit.util.get_linux_distro")
+    def test_candidate_files(self, m_gld):
         """
         Validate the file names candidate for holding user-data and their
         order of precedence.
         """
-        m_lsb.return_value = SAMPLE_LSB
+        m_gld.return_value = SAMPLE_LINUX_DISTRO
         self.assertListEqual(
             [
                 "%s.user-data" % INSTANCE_NAME,
-                "Ubuntu-noble.user-data",
-                "Ubuntu-all.user-data",
+                "ubuntu-noble.user-data",
+                "ubuntu-all.user-data",
                 "config.user-data",
             ],
             wsl.candidate_user_data_file_names(INSTANCE_NAME),
@@ -203,8 +198,8 @@ class TestWSLDataSource(CiTestCase):
     @mock.patch("cloudinit.util.lsb_release")
     @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
     @mock.patch("cloudinit.sources.DataSourceWSL.win_user_profile_dir")
-    def test_get_data_cc(self, m_prof_dir, m_iname, m_lsb):
-        m_lsb.return_value = SAMPLE_LSB
+    def test_get_data_cc(self, m_prof_dir, m_iname, m_gld):
+        m_gld.return_value = SAMPLE_LINUX_DISTRO
         m_iname.return_value = INSTANCE_NAME
         m_prof_dir.return_value = self.tmp
         userdata_file = os.path.join(
@@ -233,8 +228,8 @@ class TestWSLDataSource(CiTestCase):
     @mock.patch("cloudinit.util.lsb_release")
     @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
     @mock.patch("cloudinit.sources.DataSourceWSL.win_user_profile_dir")
-    def test_get_data_sh(self, m_prof_dir, m_iname, m_lsb):
-        m_lsb.return_value = SAMPLE_LSB
+    def test_get_data_sh(self, m_prof_dir, m_iname, m_gld):
+        m_gld.return_value = SAMPLE_LINUX_DISTRO
         m_iname.return_value = INSTANCE_NAME
         m_prof_dir.return_value = self.tmp
         userdata_file = os.path.join(
@@ -261,11 +256,11 @@ class TestWSLDataSource(CiTestCase):
         )
         self.assertIn(COMMAND, userdata)
 
-    @mock.patch("cloudinit.util.lsb_release")
+    @mock.patch("cloudinit.util.get_linux_distro")
     @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
     @mock.patch("cloudinit.sources.DataSourceWSL.win_user_profile_dir")
-    def test_data_precedence(self, m_prof_dir, m_iname, m_lsb):
-        m_lsb.return_value = SAMPLE_LSB
+    def test_data_precedence(self, m_prof_dir, m_iname, m_gld):
+        m_gld.return_value = SAMPLE_LINUX_DISTRO
         m_iname.return_value = INSTANCE_NAME
         m_prof_dir.return_value = self.tmp
         # This is the most specific: should win over the other user-data files.

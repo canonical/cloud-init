@@ -139,9 +139,7 @@ def candidate_user_data_file_names(instance_name) -> List[str]:
     Return a list of candidate file names that may contain user-data
     in some supported format, ordered by precedence.
     """
-    lsb_rel = util.lsb_release()
-    distribution_id = lsb_rel["id"]
-    release_codename = lsb_rel["codename"]
+    distribution_id, _, release_codename = util.get_linux_distro()
 
     return [
         # WSL instance specific:
