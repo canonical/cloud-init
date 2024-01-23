@@ -87,7 +87,14 @@ order specified below:
 Only the first match is loaded, no config merging is done, even in the presence
 of errors. That avoids unexpected behavior due surprising merge scenarios.
 Also, notice that the file name casing is irrelevant since both the Windows
-file names as well as the WSL distro naming is case insensitive.
+file names as well as the WSL distro names are case insensitive by default.
+
+.. note::
+   Some users may have configured case sensitivity for file names on Windows.
+   Note that user data files will still be matched case insensitively. If there
+   are both `InstanceName.user-data` and `instancename.user-data`, which one
+   will be chosen is arbitrary and should not be relied on. Thus it's
+   recommended to avoid that scenario to prevent confusion.
 
 Since WSL instances are scoped by Windows user, having the user data files
 inside the ``%USERPROFILE%`` directory (typically ``C:\Users\<USERNAME>``)

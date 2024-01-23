@@ -285,13 +285,14 @@ class TestWSLDataSource(CiTestCase):
     @mock.patch("cloudinit.util.lsb_release")
     @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
     @mock.patch("cloudinit.sources.DataSourceWSL.win_user_profile_dir")
-    def test_data_precendence(self, m_prof_dir, m_iname, m_lsb):
+    def test_data_precedence(self, m_prof_dir, m_iname, m_lsb):
         m_lsb.return_value = SAMPLE_LSB
         m_iname.return_value = INSTANCE_NAME
         m_prof_dir.return_value = self.tmp
         # This is the most specific: should win over the other user-data files.
+        # Also, notice the file name casing: should be irrelevant.
         userdata_file = os.path.join(
-            self.tmp, ".cloud-init", "Ubuntu-noble.user-data"
+            self.tmp, ".cloud-init", "ubuntu-Noble.user-data"
         )
         util.write_file(
             userdata_file, "#cloud-config\nwrite_files:\n- path: /etc/wsl.conf"

@@ -187,13 +187,27 @@ class DataSourceWSL(sources.DataSource):
             LOG.warning("%s directory doesn't exist.", seed_dir)
             return None
 
-        # Notice that file name casing is irrelevant here. Windows filenames
-        # are case insensitive. Even though accessed through Linux, path
-        # translation just works with whichever casing we try.
-        for filename in candidate_user_data_file_names(self.instance_name):
-            file = os.path.join(seed_dir, filename)
-            if os.path.isfile(file):
-                return PurePath(file)
+        # Notice that by default file name casing is irrelevant here. Windows
+        # filenames are case insensitive. Even though accessed through Linux,
+        # path translation just works with whichever casing we try.
+        # But users can change that behavior with configuration
+        # (ref https://learn.microsoft.com/en-us/windows/wsl/case-sensitivity),
+        # thus  better prevent it by always relying on case insensitive match.
+        existing_files = {
+            ef.name.casefold(): ef.path
+            for ef in os.scandir(seed_dir)
+        }
+        if not existing_files:
+            LOG.warning("%s directory is empty", seed_dir)
+            return None
+
+        folded_names = [
+            f.casefold()
+            for f in candidate_user_data_file_names(self.instance_name)
+        ]
+        for filename in folded_names:
+            if filename in existing_files.keys():
+                return PurePath(existing_files[filename])
 
         LOG.warning(
             "%s doesn't contain any of the expected user-data files", seed_dir
