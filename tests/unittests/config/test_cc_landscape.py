@@ -60,10 +60,12 @@ class TestLandscape:
         )
         assert [
             mock.call(
+                ["landscape-config", "silent", "--is-registered"], rcs=[5]
+            ),
+            mock.call(
                 [
                     "landscape-config",
                     "--silent",
-                    "--is-registered",
                     "--data-path",
                     "/var/lib/landscape/client",
                     "--log-level",
@@ -93,10 +95,12 @@ class TestLandscape:
         }
         expected_calls = [
             mock.call(
+                ["landscape-config", "silent", "--is-registered"], rcs=[5]
+            ),
+            mock.call(
                 [
                     "landscape-config",
                     "--silent",
-                    "--is-registered",
                     "--data-path",
                     "/var/lib/data",
                     "--log-level",
@@ -139,10 +143,12 @@ class TestLandscape:
         cfg = {"landscape": {"client": {}}}
         expected_calls = [
             mock.call(
+                ["landscape-config", "silent", "--is-registered"], rcs=[5]
+            ),
+            mock.call(
                 [
                     "landscape-config",
                     "--silent",
-                    "--is-registered",
                     "--computer-title",
                     "My PC",
                     "--data-path",
@@ -183,10 +189,12 @@ class TestLandscape:
         cfg = {"landscape": {"client": {"computer_title": 'My" PC'}}}
         expected_calls = [
             mock.call(
+                ["landscape-config", "silent", "--is-registered"], rcs=[5]
+            ),
+            mock.call(
                 [
                     "landscape-config",
                     "--silent",
-                    "--is-registered",
                     "--computer-title",
                     'My" PC',
                     "--data-path",

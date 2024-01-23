@@ -151,8 +151,16 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             ]
         )
     )
-    subp.subp(["landscape-config", "--silent", "--is-registered"] + cmd_params)
-    util.write_file(LS_DEFAULT_FILE, "RUN=1\n")
+    try:
+        subp.subp(["landscape-config", "--silent", "--is-registered"], rcs=[5])
+        subp.subp(["landscape-config", "--silent"] + cmd_params)
+        util.write_file(LS_DEFAULT_FILE, "RUN=1\n")
+    except subp.ProcessExecutionError as e:
+        if e.exit_code == 0:
+            LOG.warning("Client already registered to Landscape")
+        else:
+            util.logexc(LOG, "Could not register client")
+            raise e
 
 
 def merge_together(objs):
