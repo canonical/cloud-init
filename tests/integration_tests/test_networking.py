@@ -150,6 +150,7 @@ def test_netplan_rendering(
         },
     }
     expected = yaml.safe_load(EXPECTED_NET_CONFIG)
+    expected["network"]["ethernets"]["eth0"]["match"] = {}
     expected["network"]["ethernets"]["eth0"]["match"]["macaddress"] = mac_addr
     with session_cloud.launch(launch_kwargs=launch_kwargs) as client:
         result = client.execute("cat /etc/netplan/50-cloud-init.yaml")
