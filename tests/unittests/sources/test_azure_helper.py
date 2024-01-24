@@ -106,6 +106,15 @@ HEALTH_REPORT_DESCRIPTION_TRIM_LEN = 512
 MOCKPATH = "cloudinit.sources.helpers.azure."
 
 
+@pytest.fixture(autouse=True)
+def fake_vm_id(mocker):
+    vm_id = "foo"
+    mocker.patch(
+        "cloudinit.sources.azure.identity.query_vm_id", return_value=vm_id
+    )
+    yield vm_id
+
+
 @pytest.fixture
 def mock_readurl():
     with mock.patch(MOCKPATH + "url_helper.readurl", autospec=True) as m:
@@ -1540,19 +1549,23 @@ class TestOvfEnvXml:
         [
             (
                 construct_ovf_env(username=None),
-                "No ovf-env.xml configuration for 'UserName'",
+                "unexpected metadata parsing ovf-env.xml: "
+                "missing configuration for 'UserName'",
             ),
             (
                 construct_ovf_env(hostname=None),
-                "No ovf-env.xml configuration for 'HostName'",
+                "unexpected metadata parsing ovf-env.xml: "
+                "missing configuration for 'HostName'",
             ),
         ],
     )
     def test_missing_required_fields(self, ovf, error):
-        with pytest.raises(azure_helper.BrokenAzureDataSource) as exc_info:
+        with pytest.raises(
+            errors.ReportableErrorOvfInvalidMetadata
+        ) as exc_info:
             azure_helper.OvfEnvXml.parse_text(ovf)
 
-        assert str(exc_info.value) == error
+        assert str(exc_info.value.reason) == error
 
     def test_multiple_sections_fails(self):
         ovf = """\
@@ -1572,13 +1585,15 @@ class TestOvfEnvXml:
             </ns1:ProvisioningSection>
             </ns0:Environment>"""
 
-        with pytest.raises(azure_helper.BrokenAzureDataSource) as exc_info:
+        with pytest.raises(
+            errors.ReportableErrorOvfInvalidMetadata
+        ) as exc_info:
             azure_helper.OvfEnvXml.parse_text(ovf)
 
         assert (
-            str(exc_info.value)
-            == "Multiple configuration matches in ovf-exml.xml "
-            "for 'ProvisioningSection' (2)"
+            exc_info.value.reason
+            == "unexpected metadata parsing ovf-env.xml: "
+            "multiple configuration matches for 'ProvisioningSection' (2)"
         )
 
     def test_multiple_properties_fails(self):
@@ -1604,13 +1619,15 @@ class TestOvfEnvXml:
             </ns1:PlatformSettingsSection>
             </ns0:Environment>"""
 
-        with pytest.raises(azure_helper.BrokenAzureDataSource) as exc_info:
+        with pytest.raises(
+            errors.ReportableErrorOvfInvalidMetadata
+        ) as exc_info:
             azure_helper.OvfEnvXml.parse_text(ovf)
 
         assert (
-            str(exc_info.value)
-            == "Multiple configuration matches in ovf-exml.xml "
-            "for 'HostName' (2)"
+            exc_info.value.reason
+            == "unexpected metadata parsing ovf-env.xml: "
+            "multiple configuration matches for 'HostName' (2)"
         )
 
     def test_non_azure_ovf(self):
@@ -1629,22 +1646,31 @@ class TestOvfEnvXml:
         )
 
     @pytest.mark.parametrize(
-        "ovf,error",
+        "ovf,reason",
         [
-            ("", "Invalid ovf-env.xml: no element found: line 1, column 0"),
+            (
+                "",
+                "error parsing ovf-env.xml: "
+                "no element found: line 1, column 0",
+            ),
             (
                 "<!!!!>",
-                "Invalid ovf-env.xml: not well-formed (invalid token): "
-                "line 1, column 2",
+                "error parsing ovf-env.xml: "
+                "not well-formed (invalid token): line 1, column 2",
             ),
-            ("badxml", "Invalid ovf-env.xml: syntax error: line 1, column 0"),
+            (
+                "badxml",
+                "error parsing ovf-env.xml: syntax error: line 1, column 0",
+            ),
         ],
     )
-    def test_invalid_xml(self, ovf, error):
-        with pytest.raises(azure_helper.BrokenAzureDataSource) as exc_info:
+    def test_invalid_xml(self, ovf, reason):
+        with pytest.raises(
+            errors.ReportableErrorOvfParsingException
+        ) as exc_info:
             azure_helper.OvfEnvXml.parse_text(ovf)
 
-        assert str(exc_info.value) == error
+        assert exc_info.value.reason == reason
 
 
 class TestReportDmesgToKvp:

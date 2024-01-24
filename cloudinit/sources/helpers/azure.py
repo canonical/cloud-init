@@ -11,15 +11,13 @@ import zlib
 from contextlib import contextmanager
 from datetime import datetime
 from time import sleep, time
-from typing import TYPE_CHECKING, Callable, List, Optional, TypeVar, Union
+from typing import Callable, List, Optional, TypeVar, Union
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape
 
 from cloudinit import distros, subp, temp_utils, url_helper, util, version
 from cloudinit.reporting import events
-
-if TYPE_CHECKING:
-    from cloudinit.sources.azure import errors
+from cloudinit.sources.azure import errors
 
 LOG = logging.getLogger(__name__)
 
@@ -973,10 +971,6 @@ def dhcp_log_cb(out, err):
     )
 
 
-class BrokenAzureDataSource(Exception):
-    pass
-
-
 class NonAzureDataSource(Exception):
     pass
 
@@ -1016,13 +1010,13 @@ class OvfEnvXml:
         """Parser for ovf-env.xml data.
 
         :raises NonAzureDataSource: if XML is not in Azure's format.
-        :raises BrokenAzureDataSource: if XML is unparseable or invalid.
+        :raises errors.ReportableErrorOvfParsingException: if XML is
+                unparseable or invalid.
         """
         try:
             root = ElementTree.fromstring(ovf_env_xml)
         except ElementTree.ParseError as e:
-            error_str = "Invalid ovf-env.xml: %s" % e
-            raise BrokenAzureDataSource(error_str) from e
+            raise errors.ReportableErrorOvfParsingException(exception=e) from e
 
         # If there's no provisioning section, it's not Azure ovf-env.xml.
         if not root.find("./wa:ProvisioningSection", cls.NAMESPACES):
@@ -1047,14 +1041,14 @@ class OvfEnvXml:
             "./%s:%s" % (namespace, name), OvfEnvXml.NAMESPACES
         )
         if len(matches) == 0:
-            msg = "No ovf-env.xml configuration for %r" % name
+            msg = "missing configuration for %r" % name
             LOG.debug(msg)
             if required:
-                raise BrokenAzureDataSource(msg)
+                raise errors.ReportableErrorOvfInvalidMetadata(msg)
             return None
         elif len(matches) > 1:
-            raise BrokenAzureDataSource(
-                "Multiple configuration matches in ovf-exml.xml for %r (%d)"
+            raise errors.ReportableErrorOvfInvalidMetadata(
+                "multiple configuration matches for %r (%d)"
                 % (name, len(matches))
             )
 
@@ -1071,14 +1065,14 @@ class OvfEnvXml:
     ):
         matches = node.findall("./wa:" + name, OvfEnvXml.NAMESPACES)
         if len(matches) == 0:
-            msg = "No ovf-env.xml configuration for %r" % name
+            msg = "missing configuration for %r" % name
             LOG.debug(msg)
             if required:
-                raise BrokenAzureDataSource(msg)
+                raise errors.ReportableErrorOvfInvalidMetadata(msg)
             return default
         elif len(matches) > 1:
-            raise BrokenAzureDataSource(
-                "Multiple configuration matches in ovf-exml.xml for %r (%d)"
+            raise errors.ReportableErrorOvfInvalidMetadata(
+                "multiple configuration matches for %r (%d)"
                 % (name, len(matches))
             )
 
