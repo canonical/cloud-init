@@ -207,6 +207,7 @@ def maybe_install_cloud_init(session_cloud: IntegrationCloud):
             ).ok
 
         client.install_new_cloud_init(source)
+        session_cloud.snapshot_id = client.snapshot()
         client.destroy()
 
     return {"image_id": session_cloud.snapshot_id}
