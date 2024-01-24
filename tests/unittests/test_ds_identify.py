@@ -330,9 +330,9 @@ class TestDsIdentify(DsIdentifyBase):
         stricter identifiers). Since the MAAS datasource is at the begining of
         the list, this is particularly troublesome and more concerning than
         NoCloud false positives, for example.
+        """
         config = "LXD-kvm-not-MAAS-1"
         self._test_ds_found(config)
-        """
 
     def test_maas_not_detected_2(self):
         """Don't incorrectly identify maas
