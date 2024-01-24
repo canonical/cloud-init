@@ -1,11 +1,11 @@
-cloud-init (24.1~4gd9677655-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (24.1~4gd9677655-0ubuntu1) noble; urgency=medium
 
   * d/cloud-init.maintscript: remove /etc/cloud/clean.d/README 
   * d/cloud-init.logrotate: add logrotate config for cloud-init
   * Upstream snapshot based on upstream/main at d9677655.
     - Bugs fixed in this snapshot: (LP: #2051147)
 
- -- Alberto Contreras <alberto.contreras@canonical.com>  Wed, 24 Jan 2024 18:31:06 +0100
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Wed, 24 Jan 2024 18:45:19 +0100
 
 cloud-init (24.1~3gb729a4c4-0ubuntu1) noble; urgency=medium
 
