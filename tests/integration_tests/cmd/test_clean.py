@@ -32,96 +32,92 @@ packages:
 
 
 @pytest.mark.user_data(USER_DATA)
-@pytest.mark.skipif(
-    not IS_UBUNTU, reason="Hasn't been tested on other distros"
-)
-def test_clean_rotated_logs(client: IntegrationInstance):
-    """Clean with log params alters expected files without error"""
-    # Expect warning exit code 2 on Ubuntu Noble due to cloud-init
-    # disabling /etc/apt/sources.list build artifact in favor of deb822
-    result = client.execute("cloud-init status --wait --long")
-    return_code = 2 if CURRENT_RELEASE.series == "noble" else 0
-    assert return_code == result.return_code, (
-        f"Unexpected cloud-init status exit code {result.return_code}\n"
-        f"Output:\n{result}"
+class TestCleanCommand:
+    @pytest.mark.skipif(
+        not IS_UBUNTU, reason="Hasn't been tested on other distros"
     )
-    assert client.execute("logrotate /etc/logrotate.d/cloud-init").ok
-    log_paths = (
-        "/var/log/cloud-init.log",
-        "/var/log/cloud-init.log.1.gz",
-        "/var/log/cloud-init-output.log",
-        "/var/log/cloud-init-output.log.1.gz",
-    )
+    def test_clean_rotated_logs(self, client: IntegrationInstance):
+        """Clean with log params alters expected files without error"""
+        # Expect warning exit code 2 on Ubuntu Noble due to cloud-init
+        # disabling /etc/apt/sources.list build artifact in favor of deb822
+        result = client.execute("cloud-init status --wait --long")
+        return_code = 2 if CURRENT_RELEASE.series == "noble" else 0
+        assert return_code == result.return_code, (
+            f"Unexpected cloud-init status exit code {result.return_code}\n"
+            f"Output:\n{result}"
+        )
+        assert client.execute("logrotate /etc/logrotate.d/cloud-init").ok
+        log_paths = (
+            "/var/log/cloud-init.log",
+            "/var/log/cloud-init.log.1.gz",
+            "/var/log/cloud-init-output.log",
+            "/var/log/cloud-init-output.log.1.gz",
+        )
 
-    assert client.execute("cloud-init clean --logs").ok
-    for path in log_paths:
-        assert client.execute(
-            f"test -f {path}"
-        ).failed, f"Unexpected file found {path}"
+        assert client.execute("cloud-init clean --logs").ok
+        for path in log_paths:
+            assert client.execute(
+                f"test -f {path}"
+            ).failed, f"Unexpected file found {path}"
 
+    def test_clean_by_param(self, client: IntegrationInstance):
+        """Clean with various params alters expected files without error"""
+        result = client.execute("cloud-init status --wait --long")
 
-@pytest.mark.user_data(USER_DATA)
-@pytest.mark.skipif(
-    not IS_UBUNTU, reason="Hasn't been tested on other distros"
-)
-def test_clean_by_param(client: IntegrationInstance):
-    """Clean with various params alters expected files without error"""
-    result = client.execute("cloud-init status --wait --long")
+        # Expect warning exit code 2 on Ubuntu Noble due to cloud-init
+        # disabling /etc/apt/sources.list build artifact in favor of deb822
+        return_code = 2 if CURRENT_RELEASE.series == "noble" else 0
+        assert return_code == result.return_code, (
+            f"Unexpected cloud-init status exit code {result.return_code}\n"
+            f"Output:\n{result}"
+        )
+        result = client.execute("cloud-init clean")
+        assert (
+            result.ok
+        ), "non-zero exit on cloud-init clean runparts of /etc/cloud/clean.d"
+        # Log files are not removed without --logs
+        log_paths = (
+            "/var/log/cloud-init.log",
+            "/var/log/cloud-init-output.log",
+        )
+        net_cfg_paths = (
+            "/etc/network/interfaces.d/50-cloud-init.cfg",
+            "/etc/netplan/50-cloud-init.yaml",
+            "/etc/systemd/network/10-cloud-init-eth0.network",
+        )
+        for path in log_paths + net_cfg_paths:
+            assert client.execute(
+                f"test -f {path}"
+            ).ok, f"Missing expected file {path}"
+        # /etc/cloud/clean.d runparts scripts are run if executable
+        assert result.stdout == "/etc/cloud/clean.d/runme.sh RAN"
 
-    # Expect warning exit code 2 on Ubuntu Noble due to cloud-init
-    # disabling /etc/apt/sources.list build artifact in favor of deb822
-    return_code = 2 if CURRENT_RELEASE.series == "noble" else 0
-    assert return_code == result.return_code, (
-        f"Unexpected cloud-init status exit code {result.return_code}\n"
-        f"Output:\n{result}"
-    )
-    result = client.execute("cloud-init clean")
-    assert (
-        result.ok
-    ), "non-zero exit on cloud-init clean runparts of /etc/cloud/clean.d"
-    # Log files are not removed without --logs
-    log_paths = (
-        "/var/log/cloud-init.log",
-        "/var/log/cloud-init-output.log",
-    )
-    net_cfg_paths = (
-        "/etc/network/interfaces.d/50-cloud-init.cfg",
-        "/etc/netplan/50-cloud-init.yaml",
-        "/etc/systemd/network/10-cloud-init-eth0.network",
-    )
-    for path in log_paths + net_cfg_paths:
-        assert client.execute(
-            f"test -f {path}"
-        ).ok, f"Missing expected file {path}"
-    # /etc/cloud/clean.d runparts scripts are run if executable
-    assert result.stdout == "/etc/cloud/clean.d/runme.sh RAN"
+        # Log files removed with --logs
+        assert client.execute("cloud-init clean --logs").ok
+        for path in log_paths:
+            assert client.execute(
+                f"test -f {path}"
+            ).failed, f"Unexpected file found {path}"
+        for path in net_cfg_paths:
+            assert client.execute(
+                f"test -f {path}"
+            ).ok, f"Missing expected file {path}"
 
-    # Log files removed with --logs
-    assert client.execute("cloud-init clean --logs").ok
-    for path in log_paths:
-        assert client.execute(
-            f"test -f {path}"
-        ).failed, f"Unexpected file found {path}"
-    for path in net_cfg_paths:
-        assert client.execute(
-            f"test -f {path}"
-        ).ok, f"Missing expected file {path}"
+        prev_machine_id = client.read_from_file("/etc/machine-id")
+        assert re.match(
+            r"^[a-f0-9]{32}$", prev_machine_id
+        ), f"Unexpected machine-id format {prev_machine_id}"
 
-    prev_machine_id = client.read_from_file("/etc/machine-id")
-    assert re.match(
-        r"^[a-f0-9]{32}$", prev_machine_id
-    ), f"Unexpected machine-id format {prev_machine_id}"
+        # --machine-id sets /etc/machine-id
+        assert client.execute("cloud-init clean --machine-id").ok
+        machine_id = client.read_from_file("/etc/machine-id")
+        assert machine_id != prev_machine_id
+        assert "uninitialized" == machine_id
 
-    # --machine-id sets /etc/machine-id
-    assert client.execute("cloud-init clean --machine-id").ok
-    machine_id = client.read_from_file("/etc/machine-id")
-    assert machine_id != prev_machine_id
-    assert "uninitialized" == machine_id
+        # --configs remove network scope
+        assert client.execute("cloud-init clean --configs network").ok
 
-    # --configs remove network scope
-    assert client.execute("cloud-init clean --configs network").ok
-
-    for path in log_paths + net_cfg_paths:
-        assert client.execute(
-            f"test -f {path}"
-        ).failed, f"Unexpected file found {path}"
+        for path in log_paths + net_cfg_paths:
+            assert client.execute(
+                f"test -f {path}"
+            ).failed, f"Unexpected file found {path}"
