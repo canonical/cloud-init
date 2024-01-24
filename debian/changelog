@@ -1,11 +1,11 @@
-cloud-init (23.4.2-0ubuntu0~23.10.1) UNRELEASED; urgency=medium
+cloud-init (23.4.2-0ubuntu0~23.10.1) mantic; urgency=medium
 
   * Upstream snapshot based on 23.4.2. (LP: #2045582).
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/23.4.2/ChangeLog
     - Bugs fixed in this snapshot: (LP: #2051147)
 
- -- Alberto Contreras <alberto.contreras@canonical.com>  Wed, 24 Jan 2024 18:54:57 +0100
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Wed, 24 Jan 2024 18:57:50 +0100
 
 cloud-init (23.4.1-0ubuntu1~23.10.2) mantic; urgency=medium
 
