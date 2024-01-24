@@ -1,3 +1,7 @@
+23.4.2
+ - fix: Handle invalid user configuration gracefully (#4797)
+   (LP: #2051147)
+
 23.4.1
  - fix: Handle systemctl commands when dbus not ready (#4681)
 

@@ -43,11 +43,11 @@ from cloudinit.settings import FREQUENCIES
 from cloudinit.sources import DataSourceNotFoundException
 from cloudinit.templater import JinjaSyntaxParsingException
 from cloudinit.util import load_file, write_file
+from tests.helpers import cloud_init_project_dir
 from tests.hypothesis import given
 from tests.hypothesis_jsonschema import from_schema
 from tests.unittests.helpers import (
     CiTestCase,
-    cloud_init_project_dir,
     does_not_raise,
     mock,
     skipUnlessHypothesisJsonSchema,
@@ -1930,6 +1930,14 @@ class TestMain:
                 "  Invalid network-config {network_file}",
                 pytest.raises(SystemExit),
                 id="netv1_schema_errors_handled",
+            ),
+            pytest.param(
+                "network:\n version: 1\n config:\n  - type: physical\n"
+                "    name: eth01234567890123\n    subnets:\n"
+                "      - type: dhcp\n",
+                "  Invalid network-config {network_file}",
+                pytest.raises(SystemExit),
+                id="netv1_schema_error_on_nic_name_length",
             ),
         ),
     )

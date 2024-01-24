@@ -2344,6 +2344,30 @@ class TestGetConfigLogfiles(helpers.CiTestCase):
             ),
         )
 
+    def test_output_logs_parsed_when_teeing_files_and_rotated(self):
+        """When output configuration is parsed when teeing files and rotated
+        log files are present."""
+        tmpd = self.tmp_dir()
+        log1 = self.tmp_path("my.log", tmpd)
+        log1_rotated = self.tmp_path("my.log.1.gz", tmpd)
+        log2 = self.tmp_path("himom.log", tmpd)
+        log2_rotated = self.tmp_path("himom.log.1.gz", tmpd)
+
+        util.write_file(log1_rotated, "hello")
+        util.write_file(log2_rotated, "hello")
+
+        self.assertEqual(
+            [log2, log2_rotated, log1, log1_rotated],
+            sorted(
+                util.get_config_logfiles(
+                    {
+                        "def_log_file": str(log1),
+                        "output": {"all": f"|tee -a {log2}"},
+                    }
+                )
+            ),
+        )
+
 
 class TestMultiLog(helpers.FilesystemMockingTestCase):
     def _createConsole(self, root):

@@ -131,9 +131,7 @@ def test_lxd_datasource_kernel_override_nocloud_net(
         client.instance.execute_via_ssh = False  # pyright: ignore
         assert wait_for_cloud_init(client, num_retries=60).ok
         if source.installs_new_version():
-            client.install_new_cloud_init(
-                source, take_snapshot=False, clean=False
-            )
+            client.install_new_cloud_init(source, clean=False)
         override_kernel_cmdline(ds_str, client)
 
         logs = client.execute("cat /var/log/cloud-init.log")

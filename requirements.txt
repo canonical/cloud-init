@@ -28,7 +28,7 @@ requests
 jsonpatch
 
 # For validating cloud-config sections per schema definitions
-jsonschema
+jsonschema<=4.20.0
 
 # Used by DataSourceVMware to inspect the host's network configuration during
 # the "setup()" function.

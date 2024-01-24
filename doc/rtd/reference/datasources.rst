@@ -60,6 +60,7 @@ The following is a list of documentation for each supported datasource:
    datasources/oracle.rst
    datasources/ovf.rst
    datasources/rbxcloud.rst
+   datasources/scaleway.rst
    datasources/smartos.rst
    datasources/upcloud.rst
    datasources/vmware.rst

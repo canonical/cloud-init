@@ -9,7 +9,8 @@ import sys
 from unittest import mock
 
 from cloudinit import subp, util
-from tests.unittests.helpers import CiTestCase, get_top_level_dir
+from tests.helpers import get_top_level_dir
+from tests.unittests.helpers import CiTestCase
 
 BASH = subp.which("bash")
 BOGUS_COMMAND = "this-is-not-expected-to-be-a-program-name"

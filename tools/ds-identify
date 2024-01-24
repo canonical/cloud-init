@@ -442,6 +442,18 @@ detect_virt() {
         if [ $r -eq 0 ] || { [ $r -ne 0 ] && [ "$out" = "none" ]; }; then
             virt="$out"
         fi
+    elif command -v virt-what >/dev/null 2>&1; then
+        # Map virt-what's names to those systemd-detect-virt that
+        # don't match up.
+        out=$(virt-what 2>&1 | head -n 1) && {
+            case "$out" in
+                ibm_systemz-zvm)    virt="zvm" ;;
+                hyperv)             virt="microsoft" ;;
+                virtualbox)         virt="oracle" ;;
+                xen-domU)           virt="xen" ;;
+                *)                  virt="$out"
+            esac
+        }
     elif [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" -o "$DI_UNAME_KERNEL_NAME" = "Dragonfly" ]; then
         # Map FreeBSD's vm_guest names to those systemd-detect-virt that
         # don't match up. See
@@ -747,11 +759,15 @@ probe_floppy() {
     [ -b "$fpath" ] ||
         { STATE_FLOPPY_PROBED=1; return 1; }
 
-    modprobe --use-blacklist floppy >/dev/null 2>&1 ||
+    # Use "-b" option as Busybox modprobe doesn't support long-option
+    modprobe -b floppy >/dev/null 2>&1 ||
         { STATE_FLOPPY_PROBED=1; return 1; }
 
-    udevadm settle "--exit-if-exists=$fpath" ||
-        { STATE_FLOPPY_PROBED=1; return 1; }
+    # Some Linux distros/non-Linux OSes may not have udev
+    if command -v udevadm; then
+        udevadm settle "--exit-if-exists=$fpath" ||
+            { STATE_FLOPPY_PROBED=1; return 1; }
+    fi
 
     [ -b "$fpath" ]
     STATE_FLOPPY_PROBED=$?
@@ -799,24 +815,21 @@ check_config() {
     if [ "$1" = "$files" -a ! -f "$1" ]; then
         return 1
     fi
-    local line="" ret="" found=0 found_fn="" oifs="$IFS" out=""
-    out=$(grep "$key\"\?:" "$@" 2>/dev/null)
-    IFS=${CR}
-    for line in $out; do
-        # drop '# comment'
-        line=${line%%#*}
-        # if more than one file was 'grep'ed, then grep will output filename:
-        # but if only one file, line will not be prefixed.
-        if [ $# -eq 1 ]; then
-            found_fn="$1"
-        else
-            found_fn="${line%%:*}"
-            line=${line#*:}
-        fi
-        ret=${line#*: };
-        found=$((found+1))
+    local fname="" line="" ret="" found=0 found_fn=""
+    # shellcheck disable=2094
+    for fname in "$@"; do
+        [ -f "$fname" ] || continue
+        while read line; do
+            line=${line%%#*}
+            case "$line" in
+                $key:\ *|"${key}":)
+                    ret=${line#*:};
+                    ret=${ret# };
+                    found=$((found+1))
+                    found_fn="$fname";;
+            esac
+        done <"$fname"
     done
-    IFS="$oifs"
     if [ $found -ne 0 ]; then
         _RET="$ret"
         _RET_fname="$found_fn"
@@ -1091,7 +1104,8 @@ is_cdrom_ovf() {
     fi
 
     local idstr="http://schemas.dmtf.org/ovf/environment/1"
-    grep --quiet --ignore-case "$idstr" "${PATH_ROOT}$dev"
+    # POSIX grep only supports short-options, long-options are GNU-specific
+    grep -q -i "$idstr" "${PATH_ROOT}$dev"
 }
 
 has_ovf_cdrom() {

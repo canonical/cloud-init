@@ -1748,6 +1748,7 @@ def get_config_logfiles(cfg):
     @param cfg: The cloud-init merged configuration dictionary.
     """
     logs = []
+    rotated_logs = []
     if not cfg or not isinstance(cfg, dict):
         return logs
     default_log = cfg.get("def_log_file")
@@ -1765,7 +1766,16 @@ def get_config_logfiles(cfg):
             logs.append(target)
         elif ["tee", "-a"] == parts[:2]:
             logs.append(parts[2])
-    return list(set(logs))
+
+    # add rotated log files
+    for logfile in logs:
+        for rotated_logfile in glob.glob(f"{logfile}*"):
+            # Check that log file exists and is rotated.
+            # Do not add current one
+            if os.path.isfile(rotated_logfile) and rotated_logfile != logfile:
+                rotated_logs.append(rotated_logfile)
+
+    return list(set(logs + rotated_logs))
 
 
 def logexc(log, msg, *args):

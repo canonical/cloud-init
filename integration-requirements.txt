@@ -11,3 +11,4 @@ pytest!=7.3.2
 
 packaging
 passlib
+coverage==7.2.7  # Last version supported in Python 3.7

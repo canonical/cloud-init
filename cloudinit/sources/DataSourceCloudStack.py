@@ -87,10 +87,12 @@ class DataSourceCloudStack(sources.DataSource):
         # Cloudstack has its metadata/userdata URLs located at
         # http://<virtual-router-ip>/latest/
         self.api_ver = "latest"
-        self.vr_addr = get_vr_address()
+
+        self.distro = distro
+        self.vr_addr = get_vr_address(self.distro)
         if not self.vr_addr:
             raise RuntimeError("No virtual router found!")
-        self.metadata_address = "http://%s/" % (self.vr_addr,)
+        self.metadata_address = f"http://{self.vr_addr}/"
         self.cfg = {}
 
     def _get_domainname(self):
@@ -108,7 +110,10 @@ class DataSourceCloudStack(sources.DataSource):
             "Falling back to ISC dhclient"
         )
 
-        lease_file = dhcp.IscDhclient.get_latest_lease()
+        lease_file = dhcp.IscDhclient.get_latest_lease(
+            self.distro.dhclient_lease_directory,
+            self.distro.dhclient_lease_file_regex,
+        )
         if not lease_file:
             LOG.debug("Dhclient lease file wasn't found")
             return None
@@ -259,7 +264,7 @@ def get_default_gateway():
     return None
 
 
-def get_vr_address():
+def get_vr_address(distro):
     # Get the address of the virtual router via dhcp leases
     # If no virtual router is detected, fallback on default gateway.
     # See http://docs.cloudstack.apache.org/projects/cloudstack-administration/en/4.8/virtual_machines/user-data.html # noqa
@@ -282,7 +287,12 @@ def get_vr_address():
         return latest_address
 
     # Try dhcp lease files next
-    lease_file = dhcp.IscDhclient.get_latest_lease()
+    # get_latest_lease() needs a Distro object to know which directory
+    # stores lease files
+    lease_file = dhcp.IscDhclient.get_latest_lease(
+        distro.dhclient_lease_directory, distro.dhclient_lease_file_regex
+    )
+
     if lease_file:
         latest_address = dhcp.IscDhclient.parse_dhcp_server_from_lease_file(
             lease_file
