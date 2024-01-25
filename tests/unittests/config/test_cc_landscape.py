@@ -60,7 +60,7 @@ class TestLandscape:
         )
         assert [
             mock.call(
-                ["landscape-config", "silent", "--is-registered"], rcs=[5]
+                ["landscape-config", "--silent", "--is-registered"], rcs=[5]
             ),
             mock.call(
                 [
@@ -95,7 +95,7 @@ class TestLandscape:
         }
         expected_calls = [
             mock.call(
-                ["landscape-config", "silent", "--is-registered"], rcs=[5]
+                ["landscape-config", "--silent", "--is-registered"], rcs=[5]
             ),
             mock.call(
                 [
@@ -143,7 +143,7 @@ class TestLandscape:
         cfg = {"landscape": {"client": {}}}
         expected_calls = [
             mock.call(
-                ["landscape-config", "silent", "--is-registered"], rcs=[5]
+                ["landscape-config", "--silent", "--is-registered"], rcs=[5]
             ),
             mock.call(
                 [
@@ -189,7 +189,7 @@ class TestLandscape:
         cfg = {"landscape": {"client": {"computer_title": 'My" PC'}}}
         expected_calls = [
             mock.call(
-                ["landscape-config", "silent", "--is-registered"], rcs=[5]
+                ["landscape-config", "--silent", "--is-registered"], rcs=[5]
             ),
             mock.call(
                 [
