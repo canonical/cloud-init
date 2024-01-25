@@ -17,7 +17,6 @@ from cloudinit.atomic_helper import b64e, json_dumps
 from cloudinit.net import dhcp, ephemeral
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceAzure as dsaz
-from cloudinit.sources import InvalidMetaDataException
 from cloudinit.sources.azure import errors, identity, imds
 from cloudinit.sources.helpers import netlink
 from cloudinit.util import MountFailedError, load_file, load_json, write_file
@@ -1475,13 +1474,12 @@ scbus-1 on xpt0 bus 0
         """crawl_metadata raises an exception on invalid ovf-env.xml."""
         data = {"ovfcontent": "BOGUS", "sys_cfg": {}}
         dsrc = self._get_ds(data)
-        error_msg = (
-            "BrokenAzureDataSource: Invalid ovf-env.xml:"
-            " syntax error: line 1, column 0"
-        )
-        with self.assertRaises(InvalidMetaDataException) as cm:
+        error_msg = "error parsing ovf-env.xml: syntax error: line 1, column 0"
+        with self.assertRaises(
+            errors.ReportableErrorOvfParsingException
+        ) as cm:
             dsrc.crawl_metadata()
-        self.assertEqual(str(cm.exception), error_msg)
+        self.assertEqual(cm.exception.reason, error_msg)
 
     def test_crawl_metadata_call_imds_once_no_reprovision(self):
         """If reprovisioning, report ready at the end"""
@@ -2313,11 +2311,13 @@ class TestLoadAzureDsDir(CiTestCase):
         ovf_path = os.path.join(self.source_dir, "ovf-env.xml")
         with open(ovf_path, "wb") as stream:
             stream.write(b"invalid xml")
-        with self.assertRaises(dsaz.BrokenAzureDataSource) as context_manager:
+        with self.assertRaises(
+            errors.ReportableErrorOvfParsingException
+        ) as context_manager:
             dsaz.load_azure_ds_dir(self.source_dir)
         self.assertEqual(
-            "Invalid ovf-env.xml: syntax error: line 1, column 0",
-            str(context_manager.exception),
+            "error parsing ovf-env.xml: syntax error: line 1, column 0",
+            context_manager.exception.reason,
         )
 
 
@@ -2325,7 +2325,9 @@ class TestReadAzureOvf(CiTestCase):
     def test_invalid_xml_raises_non_azure_ds(self):
         invalid_xml = "<foo>" + construct_ovf_env()
         self.assertRaises(
-            dsaz.BrokenAzureDataSource, dsaz.read_azure_ovf, invalid_xml
+            errors.ReportableErrorOvfParsingException,
+            dsaz.read_azure_ovf,
+            invalid_xml,
         )
 
     def test_load_with_pubkeys(self):

@@ -33,7 +33,6 @@ from cloudinit.sources.azure import errors, identity, imds, kvp
 from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (
     DEFAULT_WIRESERVER_ENDPOINT,
-    BrokenAzureDataSource,
     NonAzureDataSource,
     OvfEnvXml,
     azure_ds_reporter,
@@ -615,10 +614,6 @@ class DataSourceAzure(sources.DataSource):
                     "%s was not mountable" % src, logger_func=LOG.debug
                 )
                 continue
-            except BrokenAzureDataSource as exc:
-                msg = "BrokenAzureDataSource: %s" % exc
-                report_diagnostic_event(msg, logger_func=LOG.error)
-                raise sources.InvalidMetaDataException(msg)
         else:
             msg = (
                 "Unable to find provisioning media, falling back to IMDS "
@@ -1184,7 +1179,7 @@ class DataSourceAzure(sources.DataSource):
             logger_func=LOG.info,
         )
         sleep(31536000)
-        raise BrokenAzureDataSource("Shutdown failure for PPS disk.")
+        raise errors.ReportableErrorOsDiskPpsFailure()
 
     @azure_ds_telemetry_reporter
     def _wait_for_pps_running_reuse(self) -> None:
@@ -1837,7 +1832,7 @@ def read_azure_ovf(contents):
     :return: Tuple of metadata, configuration, userdata dicts.
 
     :raises NonAzureDataSource: if XML is not in Azure's format.
-    :raises BrokenAzureDataSource: if XML is unparseable or invalid.
+    :raises errors.ReportableError: if XML is unparseable or invalid.
     """
     ovf_env = OvfEnvXml.parse_text(contents)
     md: Dict[str, Any] = {}

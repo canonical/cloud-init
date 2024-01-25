@@ -17,12 +17,13 @@ def fake_utcnow():
         yield timestamp
 
 
-@pytest.fixture()
-def fake_vm_id():
-    vm_id = "fake-vm-id"
-    with mock.patch.object(kvp.identity, "query_vm_id", autospec=True) as m:
-        m.return_value = vm_id
-        yield vm_id
+@pytest.fixture
+def fake_vm_id(mocker):
+    vm_id = "foo"
+    mocker.patch(
+        "cloudinit.sources.azure.identity.query_vm_id", return_value=vm_id
+    )
+    yield vm_id
 
 
 @pytest.fixture
