@@ -63,7 +63,7 @@ def test_hotplug_add_remove(client: IntegrationInstance):
     log = client.read_from_file("/var/log/cloud-init.log")
     assert "Exiting hotplug handler" not in log
     assert client.execute(
-        "test -f /etc/udev/rules.d/10-cloud-init-hook-hotplug.rules"
+        "test -f /etc/udev/rules.d/90-cloud-init-hook-hotplug.rules"
     ).ok
 
     # Add new NIC
@@ -109,7 +109,7 @@ def test_no_hotplug_in_userdata(client: IntegrationInstance):
     log = client.read_from_file("/var/log/cloud-init.log")
     assert "Exiting hotplug handler" not in log
     assert client.execute(
-        "test -f /etc/udev/rules.d/10-cloud-init-hook-hotplug.rules"
+        "test -f /etc/udev/rules.d/90-cloud-init-hook-hotplug.rules"
     ).failed
 
     # Add new NIC
@@ -219,3 +219,27 @@ def test_multi_nic_hotplug(setup_image, session_cloud: IntegrationCloud):
                 )
             with contextlib.suppress(Exception):
                 ec2.release_address(AllocationId=allocation["AllocationId"])
+
+
+@pytest.mark.skipif(PLATFORM != "ec2", reason="test is ec2 specific")
+@pytest.mark.user_data(USER_DATA)
+def test_no_hotplug_triggered_by_docker(client: IntegrationInstance):
+    # Install docker
+    r = client.execute("curl -fsSL https://get.docker.com | sh")
+    assert r.ok, r.stderr
+
+    # Start and stop a container
+    r = client.execute("docker run -dit --name ff ubuntu:focal")
+    assert r.ok, r.stderr
+    r = client.execute("docker stop ff")
+    assert r.ok, r.stderr
+
+    # Verify hotplug-hook was not called
+    log = client.read_from_file("/var/log/cloud-init.log")
+    assert "Exiting hotplug handler" not in log
+    assert "hotplug-hook" not in log
+
+    # Verify hotplug was enabled
+    assert "enabled" == client.execute(
+        "cloud-init devel hotplug-hook -s net query"
+    )
