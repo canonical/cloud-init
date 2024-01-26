@@ -54,6 +54,13 @@ def skip_404_tag_errors(exception):
 # Cloud platforms that support IMDSv2 style metadata server
 IDMSV2_SUPPORTED_CLOUD_PLATFORMS = [CloudNames.AWS, CloudNames.ALIYUN]
 
+# Only trigger hook-hotplug on NICs with Ec2 drivers. Avoid triggering
+# it on docker virtual NICs and the like. LP: #1946003
+_EXTRA_HOTPLUG_UDEV_RULES = """
+ENV{ID_NET_DRIVER}=="vif|ena|ixgbevf", GOTO="cloudinit_hook"
+GOTO="cloudinit_end"
+"""
+
 
 class DataSourceEc2(sources.DataSource):
     dsname = "Ec2"
@@ -97,9 +104,15 @@ class DataSourceEc2(sources.DataSource):
         }
     }
 
+    extra_hotplug_udev_rules = _EXTRA_HOTPLUG_UDEV_RULES
+
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceEc2, self).__init__(sys_cfg, distro, paths)
         self.metadata_address = None
+
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        super()._unpickle(ci_pkl_version)
+        self.extra_hotplug_udev_rules = _EXTRA_HOTPLUG_UDEV_RULES
 
     def _get_cloud_name(self):
         """Return the cloud name as identified during _get_data."""
