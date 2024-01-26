@@ -296,6 +296,9 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     # in the updated metadata
     skip_hotplug_detect = False
 
+    # Extra udev rules for cc_install_hotplug
+    extra_hotplug_udev_rules: Optional[str] = None
+
     _ci_pkl_version = 1
 
     def __init__(self, sys_cfg, distro: Distro, paths: Paths, ud_proc=None):
@@ -344,6 +347,8 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
                     e,
                 )
                 raise DatasourceUnpickleUserDataError() from e
+        if not hasattr(self, "extra_hotplug_udev_rules"):
+            self.extra_hotplug_udev_rules = None
 
     def __str__(self):
         return type_utils.obj_name(self)
