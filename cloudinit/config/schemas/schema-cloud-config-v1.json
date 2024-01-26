@@ -50,8 +50,6 @@
         "resolv_conf",
         "rh-subscription",
         "rh_subscription",
-        "rightscale-userdata",
-        "rightscale_userdata",
         "rsyslog",
         "runcmd",
         "salt-minion",
