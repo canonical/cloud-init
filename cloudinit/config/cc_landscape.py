@@ -159,8 +159,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         if e.exit_code == 0:
             LOG.warning("Client already registered to Landscape")
         else:
-            util.logexc(LOG, "Could not register client")
-            raise e
+            msg = f"Failure registering client:\n{e}"
+            util.logexc(LOG, msg)
+            raise RuntimeError(msg) from e
 
 
 def merge_together(objs):

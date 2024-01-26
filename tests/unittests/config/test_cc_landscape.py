@@ -3,6 +3,7 @@ import logging
 
 import pytest
 
+from cloudinit import subp
 from cloudinit.config import cc_landscape
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -14,8 +15,10 @@ from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
+MPATH = "cloudinit.config.cc_landscape"
 
-@mock.patch("cloudinit.config.cc_landscape.subp.subp")
+
+@mock.patch(f"{MPATH}.subp.subp")
 class TestLandscape:
     def test_skip_empty_landscape_cloudconfig(self, m_subp):
         """Empty landscape cloud-config section does no work."""
@@ -221,6 +224,41 @@ class TestLandscape:
             None,
         )
         assert expected_calls == m_subp.call_args_list
+
+    @mock.patch(f"{MPATH}.merge_together")
+    @mock.patch("cloudinit.util.write_file")
+    def test_handler_client_failed_registering(
+        self, m_subp, m_merge_together, m_write_file
+    ):
+        """landscape-client could not be registered"""
+        mycloud = get_cloud("ubuntu")
+        mycloud.distro = mock.MagicMock()
+        cfg = {"landscape": {"client": {"computer_title": 'My" PC'}}}
+        m_subp.side_effect = subp.ProcessExecutionError(
+            "Could not register client"
+        )
+        match = (
+            "Failure registering client:\nUnexpected error while"
+            " running command.\nCommand: -\nExit code: -\nReason: -\n"
+            "Stdout: Could not register client\nStderr: -"
+        )
+        with pytest.raises(RuntimeError, match=match):
+            cc_landscape.handle("notimportant", cfg, mycloud, None)
+
+    @mock.patch(f"{MPATH}.merge_together")
+    @mock.patch("cloudinit.util.write_file")
+    def test_handler_client_is_already_registered(
+        self, m_subp, m_merge_together, m_write_file, caplog
+    ):
+        """landscape-client is already registered"""
+        mycloud = get_cloud("ubuntu")
+        mycloud.distro = mock.MagicMock()
+        cfg = {"landscape": {"client": {"computer_title": 'My" PC'}}}
+        m_subp.side_effect = subp.ProcessExecutionError(
+            "Client already registered to Landscape", exit_code=0
+        )
+        cc_landscape.handle("notimportant", cfg, mycloud, None)
+        assert "Client already registered to Landscape" in caplog.text
 
 
 class TestLandscapeSchema:
