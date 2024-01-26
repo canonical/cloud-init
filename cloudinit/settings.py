@@ -49,6 +49,7 @@ CFG_BUILTIN = {
         "VMware",
         "NWCS",
         "Akamai",
+        "WSL",
         # At the end to act as a 'catch' when none of the above work...
         "None",
     ],
