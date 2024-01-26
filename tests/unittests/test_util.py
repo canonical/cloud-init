@@ -544,7 +544,7 @@ class TestUtil:
         assert {"0": "0"} == util.read_conf_d(tmpdir)
         assert (
             caplog.text.count(
-                f"REDACTED config part {tmpdir}/conf-1.cfg for non-root user"
+                f"REDACTED config part {tmpdir}/conf-1.cfg"
             )
             == 1
         )
@@ -589,7 +589,7 @@ class TestUtil:
         util.read_conf_with_confd(conf_fn)
         assert (
             caplog.text.count(
-                f"REDACTED config part {conf_fn} for non-root user"
+                f"REDACTED config part {conf_fn}"
             )
             == 1
         )
