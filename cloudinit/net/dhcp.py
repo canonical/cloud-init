@@ -359,12 +359,21 @@ class IscDhclient(DhcpClient):
         ppid = "unknown"
         daemonized = False
         pid_content = None
+        debug_msg = ""
         for _ in range(sleep_cycles):
-            pid_content = util.load_file(pid_file).strip()
             try:
+                pid_content = util.load_file(pid_file).strip()
                 pid = int(pid_content)
+            except FileNotFoundError:
+                debug_msg = (
+                    f"No PID file found at {pid_file}, "
+                    "dhclient is still running"
+                )
             except ValueError:
-                pass
+                debug_msg = (
+                    f"PID file contained [{pid_content}], "
+                    "dhclient is still running"
+                )
             else:
                 ppid = util.get_proc_ppid(pid)
                 if ppid == 1:
@@ -373,6 +382,8 @@ class IscDhclient(DhcpClient):
                     daemonized = True
                     break
             time.sleep(sleep_time)
+        else:
+            LOG.debug(debug_msg)
 
         if not daemonized:
             LOG.error(
@@ -583,15 +594,11 @@ class Dhcpcd(DhcpClient):
         sleep_time = 0.01
         sleep_cycles = int(self.timeout / sleep_time)
 
-        # ISC dhclient needs the interface up to send initial discovery packets
+        # dhcpcd needs the interface up to send initial discovery packets
         # Generally dhclient relies on dhclient-script PREINIT action to bring
         # the link up before attempting discovery. Since we are using
         # -sf /bin/true, we need to do that "link up" ourselves first.
         distro.net_ops.link_up(interface)
-
-        # TODO: disabling hooks means we need to get all of the files in
-        # /lib/dhcpcd/dhcpcd-hooks/ and pass each of those with the --nohook
-        # argument to dhcpcd
         try:
             command = [
                 self.dhcp_client_path,  # pyright: ignore
@@ -612,6 +619,23 @@ class Dhcpcd(DhcpClient):
             # Attempt cleanup and leave breadcrumbs if it fails, but return
             # the lease regardless of failure to clean up dhcpcd.
             if lease:
+                # pid file arrival can take very long, and stdout might contain
+                # the PID, so attempt to use a stdout parsed PID
+                for line in reversed(out.split("\n")):
+                    if "forked to background, child pid " in line:
+                        try:
+                            os.kill(int(line.split()[-1]), signal.SIGKILL)
+                        except ValueError:
+                            LOG.debug(
+                                "Clouldn't kill process: couldn't parse "
+                                "pid from stdout"
+                            )
+                        except ProcessLookupError:
+                            LOG.debug(
+                                "Couldn't kill process, it already exited"
+                            )
+                LOG.debug("PID not in stdout, waiting for PID file")
+
                 # Note: the pid file location depends on the arguments passed
                 # it can be discovered with the -P flag
                 pid_file = subp.subp([*command, "-P"]).stdout
@@ -712,7 +736,7 @@ class Dhcpcd(DhcpClient):
             return self.parse_dhcpcd_lease(
                 subp.subp(
                     [
-                        "dhcpcd",
+                        self.dhcp_client_path,
                         "--dumplease",
                         "--ipv4only",
                         interface,
