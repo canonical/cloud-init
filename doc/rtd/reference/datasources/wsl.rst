@@ -122,23 +122,49 @@ Unsupported or restricted modules and features
 ===============================================
 
 Certain features of cloud-init and its modules either require further
-customisation in the code to better fit the WSL platform or cannot be supported
+customization in the code to better fit the WSL platform or cannot be supported
 at all due constraints of that platform. When writing user-data config files,
 please check the following restrictions:
 
-* Network configuration is not suported.
+* File paths in an include file must be Linux absolute paths.
+
+  Users may get surprised with that requirement since the user data files are
+  inside the Windows file system. But remember that cloud-init is still running
+  inside a Linux instance, and the files referenced in the include user data
+  file will be read by cloud-init, thus they must be represented with paths
+  understandable inside the Linux instance. Most users will find their Windows
+  system drive mounted as `/mnt/c`, so let's consider that assumption in the
+  following example:
+
+``C:\Users\Me\.cloud-init\noble-cpp.user-data``
+
+.. code-block::
+
+   #include
+   /mnt/c/Users/me/.cloud-init/config.user-data
+   /mnt/c/Users/me/Downloads/cpp.yaml
+
+When initializing an instance named ``Noble-Cpp`` cloud-init will find that
+include file, referring to files inside the Windows file system, and will load
+them effectively. A failure would happen if Windows paths were otherwise in the
+include file.
+
+* Network configuration is not supported.
+
   WSL has full control of the instances' networking features and configuration.
   A limited set of options for networking is exposed to the user via
   ``/etc/wsl.conf``. Those options don't fit well with the networking model
   cloud-init expects or understands.
 
 * Set Hostname.
+
   WSL automatically assigns the instances hostname and any attempt to change it
   will take effect only until the next boot, when WSL takes over again.
   The user can set the desired hostname via ``/etc/wsl.conf``, if really
   necessary.
 
 * Default user.
+
   While creating users through cloud-init work as in any other platform, WSL
   has the concept of the *default user*, which is the user logged in by
   default. So, to create the default user with cloud-init, one must supply user
@@ -164,16 +190,19 @@ please check the following restrictions:
         default=j
 
 * Disk setup, Growpart, Mounts and Resizefs.
+
   The root filesystem must have the layout expected by WSL. Other mount points
   may work, depending on how the hardware devices are exposed by the Windows
   host, and fstab processing during boot is subject to configuration via
   ``/etc/wsl.conf``, so users should expect limited functionality.
 
 * Grub Dpkg.
+
   WSL controls the boot process, meaning that attempts to install and configure
   Grub as any other bootloader won't be effective.
 
 * Resolv Conf and Update Etc Hosts.
+
   WSL automatically generates those files by default, unless configured to
   behave otherwise in ``/etc/wsl.conf``. Overwriting may work, but only
   until the next reboot.
