@@ -375,7 +375,7 @@ class IscDhclient(DhcpClient):
                     "dhclient is still running"
                 )
             else:
-                ppid = util.get_proc_ppid(pid)
+                ppid = distro.get_proc_ppid(pid)
                 if ppid == 1:
                     LOG.debug("killing dhclient with pid=%s", pid)
                     os.kill(pid, signal.SIGKILL)
@@ -624,7 +624,11 @@ class Dhcpcd(DhcpClient):
                 for line in reversed(out.split("\n")):
                     if "forked to background, child pid " in line:
                         try:
-                            os.kill(int(line.split()[-1]), signal.SIGKILL)
+                            pid = int(line.split()[-1])
+                            gid = distro.get_proc_pgid(pid)
+                            if gid:
+                                os.kill(gid, signal.SIGKILL)
+                                break
                         except ValueError:
                             LOG.debug(
                                 "Clouldn't kill process: couldn't parse "
@@ -645,8 +649,12 @@ class Dhcpcd(DhcpClient):
                     try:
                         pid_content = util.load_file(pid_file).strip()
                         pid = int(pid_content)
-                        LOG.debug("killing dhcpcd with pid=%s", pid)
-                        os.kill(pid, signal.SIGKILL)
+                        gid = distro.get_proc_pgid(pid)
+                        if gid:
+                            LOG.debug(
+                                "killing dhcpcd with pid=%s gid=%s", pid, gid
+                            )
+                            os.kill(gid, signal.SIGKILL)
                     except FileNotFoundError:
                         debug_msg = (
                             f"No PID file found at {pid_file}, "

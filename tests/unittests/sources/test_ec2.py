@@ -10,9 +10,9 @@ import requests
 import responses
 
 from cloudinit import helpers
-from cloudinit.distros import ubuntu
 from cloudinit.sources import DataSourceEc2 as ec2
 from tests.unittests import helpers as test_helpers
+from tests.unittests.util import MockDistro
 
 DYNAMIC_METADATA = {
     "instance-identity": {
@@ -876,7 +876,7 @@ class TestEc2(test_helpers.ResponsesTestCase):
             platform_data=self.valid_platform_data,
             sys_cfg={"datasource": {"Ec2": {"strict_id": False}}},
             md={"md": DEFAULT_METADATA},
-            distro=ubuntu.Distro("", {}, {}),
+            distro=MockDistro("", {}, {}),
         )
 
         ret = ds.get_data()

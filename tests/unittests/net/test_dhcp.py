@@ -496,20 +496,18 @@ class TestDHCPDiscoveryClean(CiTestCase):
         m_kill.assert_not_called()
 
     @mock.patch("cloudinit.net.dhcp.os.remove")
-    @mock.patch("cloudinit.net.dhcp.util.get_proc_ppid")
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.util.wait_for_files")
     @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhclient")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
     def test_dhcp_discovery_waits_on_lease_and_pid(
-        self, m_subp, m_which, m_wait, m_kill, m_getppid, m_remove
+        self, m_subp, m_which, m_wait, m_kill, m_remove
     ):
         """dhcp_discovery waits for the presence of pidfile and dhcp.leases."""
         m_subp.return_value = ("", "")
 
         # Don't create pid or leases file
         m_wait.return_value = [PID_F]  # Return the missing pidfile wait for
-        m_getppid.return_value = 1  # Indicate that dhclient has daemonized
         self.assertEqual(
             {}, IscDhclient().dhcp_discovery("eth9", distro=MockDistro())
         )
@@ -525,7 +523,6 @@ class TestDHCPDiscoveryClean(CiTestCase):
 
     @mock.patch("cloudinit.net.dhcp.is_ib_interface", return_value=False)
     @mock.patch("cloudinit.net.dhcp.os.remove")
-    @mock.patch("cloudinit.net.dhcp.util.get_proc_ppid")
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
     @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhclient")
@@ -536,7 +533,6 @@ class TestDHCPDiscoveryClean(CiTestCase):
         m_which,
         m_subp,
         m_kill,
-        m_getppid,
         m_remove,
         mocked_is_ib_interface,
     ):
@@ -556,8 +552,6 @@ class TestDHCPDiscoveryClean(CiTestCase):
         """
         )
         my_pid = 1
-        m_getppid.return_value = 1  # Indicate that dhclient has daemonized
-
         with mock.patch(
             "cloudinit.util.load_file", side_effect=["1", lease_content]
         ):
@@ -603,7 +597,6 @@ class TestDHCPDiscoveryClean(CiTestCase):
     )
     @mock.patch("cloudinit.net.dhcp.is_ib_interface", return_value=True)
     @mock.patch("cloudinit.net.dhcp.os.remove")
-    @mock.patch("cloudinit.net.dhcp.util.get_proc_ppid", return_value=1)
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhclient")
     @mock.patch("cloudinit.net.dhcp.subp.subp", return_value=("", ""))
@@ -614,7 +607,6 @@ class TestDHCPDiscoveryClean(CiTestCase):
         m_subp,
         m_which,
         m_kill,
-        m_getppid,
         m_remove,
         mocked_is_ib_interface,
         get_interface_mac,
@@ -683,13 +675,12 @@ class TestDHCPDiscoveryClean(CiTestCase):
         )
 
     @mock.patch("cloudinit.net.dhcp.os.remove")
-    @mock.patch("cloudinit.net.dhcp.util.get_proc_ppid")
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
     @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhclient")
     @mock.patch("cloudinit.util.wait_for_files")
     def test_dhcp_output_error_stream(
-        self, m_wait, m_which, m_subp, m_kill, m_getppid, m_remove
+        self, m_wait, m_which, m_subp, m_kill, m_remove
     ):
         """ "dhcp_log_func is called with the output and error streams of
         dhclient when the callable is passed."""
@@ -712,7 +703,6 @@ class TestDHCPDiscoveryClean(CiTestCase):
         pid_file = os.path.join(tmpdir, "dhclient.pid")
         my_pid = 1
         write_file(pid_file, "%d\n" % my_pid)
-        m_getppid.return_value = 1  # Indicate that dhclient has daemonized
 
         def dhcp_log_func(out, err):
             self.assertEqual(out, dhclient_out)

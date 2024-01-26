@@ -76,7 +76,6 @@ def disable_dns_lookup(request):
         yield
 
 
-# @pytest.fixture(autouse=True)
 @pytest.fixture()
 def dhclient_exists():
     with mock.patch(

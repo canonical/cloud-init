@@ -23,6 +23,7 @@ import pytest
 import yaml
 
 from cloudinit import atomic_helper, features, importer, subp, url_helper, util
+from cloudinit.distros import Distro
 from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import SubpResult
@@ -2840,27 +2841,25 @@ class TestGetProcPpid(helpers.TestCase):
     """test get_proc_ppid"""
 
     @skipIf(not util.is_Linux(), "/proc/$pid/stat is not useful on not-Linux")
-    @mock.patch(M_PATH + "is_Linux")
-    def test_get_proc_ppid_linux(self, m_is_Linux):
+    def test_get_proc_ppid_linux(self):
         """get_proc_ppid returns correct parent pid value."""
-        m_is_Linux.return_value = True
         my_pid = os.getpid()
         my_ppid = os.getppid()
-        self.assertEqual(my_ppid, util.get_proc_ppid(my_pid))
+        self.assertEqual(my_ppid, Distro.get_proc_ppid(my_pid))
+
+    @skipIf(not util.is_Linux(), "/proc/$pid/stat is not useful on not-Linux")
+    def test_get_proc_pgrp_linux(self):
+        """get_proc_ppid returns correct parent pid value."""
+        self.assertEqual(os.getpgid(0), Distro.get_proc_pgid(os.getpid()))
 
     @pytest.mark.allow_subp_for("ps")
-    @mock.patch(M_PATH + "is_Linux")
-    def test_get_proc_ppid_ps(self, m_is_Linux):
+    def test_get_proc_ppid_ps(self):
         """get_proc_ppid returns correct parent pid value."""
-        m_is_Linux.return_value = False
         my_pid = os.getpid()
         my_ppid = os.getppid()
-        self.assertEqual(my_ppid, util.get_proc_ppid(my_pid))
+        self.assertEqual(my_ppid, Distro.get_proc_ppid(my_pid))
 
-    @mock.patch(M_PATH + "is_Linux")
-    def test_get_proc_ppid_mocked(self, m_is_Linux):
-        m_is_Linux.return_value = True
-
+    def test_get_proc_ppid_mocked(self):
         for ppid, proc_data in (
             (
                 0,
@@ -2895,11 +2894,20 @@ class TestGetProcPpid(helpers.TestCase):
                 "0 0 0 0 20 0 1 0 4136 175616000 1394 18446744073709551615 1 1"
                 "0 0 0 0 0 4096 0 0 0 0 17 8 0 0 0 0 0 0 0 0 0 0 0 0 0",
             ),
+            (
+                144855,
+                "167644 (python) R 144855 167644 144855 34819 167644 4194304 "
+                "12692 0 0 0 114 10 0 0 20 0 1 0 8929754 69824512 13959 "
+                "18446744073709551615 4321280 7154413 140733469268592 0 0 0 0 "
+                "16781312 1258 0 0 0 17 0 0 0 0 0 0 9719240 11022936 13484032 "
+                "140733469277329 140733469277436 140733469277436 "
+                "140733469282250 0",
+            ),
         ):
             with mock.patch(
                 "cloudinit.util.load_file", return_value=proc_data
             ):
-                assert ppid == util.get_proc_ppid("mocked")
+                assert ppid == Distro.get_proc_ppid(-999)
 
 
 class TestHuman2Bytes:

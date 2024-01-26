@@ -71,7 +71,10 @@ class MockDistro(distros.Distro):
     @property
     def dhcp_client(self):
         if not self._client:
-            self._client = IscDhclient()
+            with mock.patch(
+                "cloudinit.net.dhcp.subp.which", return_value=True
+            ):
+                self._client = IscDhclient()
         return self._client
 
     def install_packages(self, pkglist):
@@ -83,6 +86,10 @@ class MockDistro(distros.Distro):
     @staticmethod
     def uses_systemd():
         return True
+
+    @staticmethod
+    def get_proc_ppid(_):
+        return 1
 
     def get_primary_arch(self):
         return "i386"

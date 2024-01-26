@@ -17,6 +17,7 @@ import stat
 import string
 import urllib.parse
 from collections import defaultdict
+from contextlib import suppress
 from io import StringIO
 from typing import (
     Any,
@@ -1324,6 +1325,59 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     @fallback_interface.setter
     def fallback_interface(self, value):
         self._fallback_interface = value
+
+    @staticmethod
+    def get_proc_ppid(pid: int) -> Optional[int]:
+        """Return the parent pid of a process by parsing /proc/$pid/stat"""
+        match = Distro._get_proc_stat_by_index(pid, 4)
+        if match is not None:
+            with suppress(ValueError):
+                return int(match)
+            LOG.warning("/proc/%s/stat has an invalid ppid [%s]", pid, match)
+        return None
+
+    @staticmethod
+    def get_proc_pgid(pid: int) -> Optional[int]:
+        """Return the parent pid of a process by parsing /proc/$pid/stat"""
+        match = Distro._get_proc_stat_by_index(pid, 5)
+        if match is not None:
+            with suppress(ValueError):
+                return int(match)
+            LOG.warning("/proc/%s/stat has an invalid pgid [%s]", pid, match)
+        return None
+
+    @staticmethod
+    def _get_proc_stat_by_index(pid: int, field: int) -> Optional[int]:
+        """
+        parse /proc/$pid/stat for a specific field as numbered in man:proc(5)
+
+        param pid: integer to query /proc/$pid/stat for
+        param field: field number within /proc/$pid/stat to return
+        """
+        try:
+            content: str = util.load_file(
+                "/proc/%s/stat" % pid, quiet=True
+            ).strip()  # pyright: ignore
+            match = re.search(
+                r"^(\d+) (\(.+\)) ([RSDZTtWXxKPI]) (\d+) (\d+)", content
+            )
+            if not match:
+                LOG.warning(
+                    "/proc/%s/stat has an invalid contents [%s]", pid, content
+                )
+                return None
+            return int(match.group(field))
+        except IOError as e:
+            LOG.warning("Failed to load /proc/%s/stat. %s", pid, e)
+        except IndexError:
+            LOG.warning(
+                "Unable to match field %s of process pid=%s (%s) (%s)",
+                field,
+                pid,
+                content,  # pyright: ignore
+                match,  # pyright: ignore
+            )
+        return None
 
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
