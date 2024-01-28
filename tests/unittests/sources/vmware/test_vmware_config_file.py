@@ -25,7 +25,8 @@ from cloudinit.sources.helpers.vmware.imc.guestcust_util import (
     get_network_data_from_vmware_cust_cfg,
     get_non_network_data_from_vmware_cust_cfg,
 )
-from tests.unittests.helpers import CiTestCase, cloud_init_project_dir
+from tests.helpers import cloud_init_project_dir
+from tests.unittests.helpers import CiTestCase
 
 logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
 logger = logging.getLogger(__name__)
@@ -50,18 +51,8 @@ class TestVmwareConfigFile(CiTestCase):
         self.assertEqual(2, len(cf), "insert size")
         self.assertEqual("foo", cf["PASSWORD|-PASS"], "password")
         self.assertTrue("PASSWORD|-PASS" in cf, "hasPassword")
-        self.assertFalse(
-            cf.should_keep_current_value("PASSWORD|-PASS"), "keepPassword"
-        )
-        self.assertFalse(
-            cf.should_remove_current_value("PASSWORD|-PASS"), "removePassword"
-        )
         self.assertFalse("FOO" in cf, "hasFoo")
-        self.assertTrue(cf.should_keep_current_value("FOO"), "keepFoo")
-        self.assertFalse(cf.should_remove_current_value("FOO"), "removeFoo")
         self.assertTrue("BAR" in cf, "hasBar")
-        self.assertFalse(cf.should_keep_current_value("BAR"), "keepBar")
-        self.assertTrue(cf.should_remove_current_value("BAR"), "removeBar")
 
     def test_configfile_without_instance_id(self):
         """
@@ -95,7 +86,6 @@ class TestVmwareConfigFile(CiTestCase):
 
         self.assertEqual("myhost1", conf.host_name, "hostName")
         self.assertEqual("Africa/Abidjan", conf.timezone, "tz")
-        self.assertTrue(conf.utc, "utc")
 
         self.assertEqual(
             ["10.20.145.1", "10.20.145.2"], conf.name_servers, "dns"
@@ -636,6 +626,3 @@ class TestVmwareNetConfig(CiTestCase):
         cf._insertKey("CLOUDINIT|USERDATA", "test-userdata")
         conf = Config(cf)
         self.assertEqual("test-userdata", conf.user_data_name)
-
-
-# vi: ts=4 expandtab

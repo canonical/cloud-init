@@ -11,6 +11,3 @@ class BootProtoEnum:
 
     DHCP = "dhcp"
     STATIC = "static"
-
-
-# vi: ts=4 expandtab

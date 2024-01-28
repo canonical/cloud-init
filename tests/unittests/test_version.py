@@ -27,6 +27,3 @@ class TestVersionString(CiTestCase):
     def test_package_version_skipped(self):
         """If _PACKAGED_VERSION is not modified, then return __VERSION__."""
         self.assertEqual("17.2", version.version_string())
-
-
-# vi: ts=4 expandtab

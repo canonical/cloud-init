@@ -8,8 +8,8 @@
 
 """Keys to Console: Control which SSH host keys may be written to console"""
 
+import logging
 import os
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import subp, util
@@ -36,8 +36,8 @@ meta: MetaSchema = {
         " ``ssh_fp_console_blacklist`` config key can be used. By default,"
         " all types of keys will have their fingerprints written to console."
         " To avoid host keys of a key type being written to console the"
-        "``ssh_key_console_blacklist`` config key can be used. By default,"
-        " ``ssh-dss`` host keys are not written to console."
+        "``ssh_key_console_blacklist`` config key can be used. By default"
+        " all supported host keys are written to console."
     ),
     "distros": distros,
     "examples": [
@@ -51,7 +51,7 @@ meta: MetaSchema = {
         dedent(
             """\
             # Do not print certain ssh key types to console
-            ssh_key_console_blacklist: [dsa, ssh-dss]
+            ssh_key_console_blacklist: [rsa]
             """
         ),
         dedent(
@@ -68,6 +68,8 @@ meta: MetaSchema = {
 }
 __doc__ = get_meta_doc(meta)
 
+LOG = logging.getLogger(__name__)
+
 
 def _get_helper_tool_path(distro):
     try:
@@ -77,18 +79,16 @@ def _get_helper_tool_path(distro):
     return HELPER_TOOL_TPL % base_lib
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if util.is_false(cfg.get("ssh", {}).get("emit_keys_to_console", True)):
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, logging of SSH host keys disabled", name
         )
         return
 
     helper_path = _get_helper_tool_path(cloud.distro)
     if not os.path.exists(helper_path):
-        log.warning(
+        LOG.warning(
             "Unable to activate module %s, helper tool not found at %s",
             name,
             helper_path,
@@ -99,7 +99,7 @@ def handle(
         cfg, "ssh_fp_console_blacklist", []
     )
     key_blacklist = util.get_cfg_option_list(
-        cfg, "ssh_key_console_blacklist", ["ssh-dss"]
+        cfg, "ssh_key_console_blacklist", []
     )
 
     try:
@@ -107,8 +107,5 @@ def handle(
         (stdout, _stderr) = subp.subp(cmd)
         util.multi_log("%s\n" % (stdout.strip()), stderr=False, console=True)
     except Exception:
-        log.warning("Writing keys to the system console failed!")
+        LOG.warning("Writing keys to the system console failed!")
         raise
-
-
-# vi: ts=4 expandtab

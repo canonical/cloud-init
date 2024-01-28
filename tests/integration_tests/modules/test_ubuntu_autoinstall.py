@@ -2,6 +2,8 @@
 
 import pytest
 
+from tests.integration_tests.releases import IS_UBUNTU
+
 USER_DATA = """\
 #cloud-config
 autoinstall:
@@ -16,7 +18,7 @@ snap:
 LOG_MSG = "Valid autoinstall schema. Config will be processed by subiquity"
 
 
-@pytest.mark.ubuntu
+@pytest.mark.skipif(not IS_UBUNTU, reason="Test is Ubuntu specific")
 @pytest.mark.user_data(USER_DATA)
 class TestUbuntuAutoinstall:
     def test_autoinstall_schema_valid_when_snap_present(self, class_client):

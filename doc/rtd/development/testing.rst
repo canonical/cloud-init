@@ -3,12 +3,6 @@
 Testing
 *******
 
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   integration_tests.rst
-
 ``Cloud-init`` has both unit tests and integration tests. Unit tests can
 be found at :file:`tests/unittests`. Integration tests can be found at
 :file:`tests/integration_tests`. Documentation specifically for integration

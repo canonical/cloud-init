@@ -10,17 +10,32 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import abc
+import logging
 import os
 import re
 import stat
 import string
 import urllib.parse
+from collections import defaultdict
 from io import StringIO
+from typing import (
+    Any,
+    Dict,
+    List,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+)
 from typing import Any, List, Mapping, MutableMapping, Optional, Type
 
-from cloudinit import importer
-from cloudinit import log as logging
+import cloudinit.net.netops.iproute2 as iproute2
 from cloudinit import (
+    helpers,
+    importer,
     net,
     persistence,
     ssh_util,
@@ -30,9 +45,11 @@ from cloudinit import (
     util,
 )
 from cloudinit.distros.networking import LinuxNetworking, Networking
+from cloudinit.distros.package_management.package_manager import PackageManager
+from cloudinit.distros.package_management.utils import known_package_managers
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
-from cloudinit.net import activators, eni, network_state, renderers
+from cloudinit.net import activators, dhcp, eni, network_state, renderers
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.net.renderer import Renderer
 
@@ -63,8 +80,18 @@ OSFAMILIES = {
         "rocky",
         "virtuozzo",
     ],
-    "suse": ["opensuse", "sles"],
-    "openEuler": ["openEuler"],
+    "suse": [
+        "opensuse",
+        "opensuse-leap",
+        "opensuse-microos",
+        "opensuse-tumbleweed",
+        "sle_hpc",
+        "sle-micro",
+        "sles",
+        "suse",
+    ],
+    "openeuler": ["openeuler"],
+    "OpenCloudOS": ["OpenCloudOS", "TencentOS"],
 }
 
 LOG = logging.getLogger(__name__)
@@ -79,11 +106,30 @@ PREFERRED_NTP_CLIENTS = ["chrony", "systemd-timesyncd", "ntp", "ntpdate"]
 # Letters/Digits/Hyphen characters, for use in domain name validation
 LDH_ASCII_CHARS = string.ascii_letters + string.digits + "-"
 
+# Before you try to go rewriting this better using Unions, read
+# https://github.com/microsoft/pyright/blob/main/docs/type-concepts.md#generic-types  # noqa: E501
+# The Immutable types mentioned there won't work for us because
+# we need to distinguish between a str and a Sequence[str]
+# This also isn't exhaustive. If you have a unique case that adheres to
+# the `packages` schema, you can add it here.
+PackageList = Union[
+    List[str],
+    List[Mapping],
+    List[List[str]],
+    List[Union[str, List[str]]],
+    List[Union[str, List[str], Mapping]],
+]
+
+
+class PackageInstallerError(Exception):
+    pass
+
 
 class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     pip_package_name = "python3-pip"
     usr_lib_exec = "/usr/lib"
     hosts_fn = "/etc/hosts"
+    doas_fn = "/etc/doas.conf"
     ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"
     hostname_conf_fn = "/etc/hostname"
     tz_zone_dir = "/usr/share/zoneinfo"
@@ -102,18 +148,36 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     # This is used by self.shutdown_command(), and can be overridden in
     # subclasses
     shutdown_options_map = {"halt": "-H", "poweroff": "-P", "reboot": "-r"}
+    net_ops = iproute2.Iproute2
 
     _ci_pkl_version = 1
     prefer_fqdn = False
     resolve_conf_fn = "/etc/resolv.conf"
 
     osfamily: str
+    dhcp_client_priority = [dhcp.IscDhclient, dhcp.Dhcpcd, dhcp.Udhcpc]
+    # Directory where the distro stores their DHCP leases.
+    # The children classes should override this with their dhcp leases
+    # directory
+    dhclient_lease_directory: Optional[str] = None
+    # A regex to match DHCP lease file(s)
+    # The children classes should override this with a regex matching
+    # their lease file name format
+    dhclient_lease_file_regex: Optional[str] = None
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
         self._cfg = cfg
         self.name = name
         self.networking: Networking = self.networking_cls()
+        self.dhcp_client_priority = [
+            dhcp.IscDhclient,
+            dhcp.Dhcpcd,
+            dhcp.Udhcpc,
+        ]
+        self.net_ops = iproute2.Iproute2
+        self._runner = helpers.Runners(paths)
+        self.package_managers: List[PackageManager] = []
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         """Perform deserialization fixes for Distro."""
@@ -127,9 +191,89 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             # missing expected instance state otherwise.
             self.networking = self.networking_cls()
 
-    @abc.abstractmethod
-    def install_packages(self, pkglist):
-        raise NotImplementedError()
+    def _validate_entry(self, entry):
+        if isinstance(entry, str):
+            return entry
+        elif isinstance(entry, (list, tuple)):
+            if len(entry) == 2:
+                return tuple(entry)
+        raise ValueError(
+            "Invalid 'packages' yaml specification. "
+            "Check schema definition."
+        )
+
+    def _extract_package_by_manager(
+        self, pkglist: PackageList
+    ) -> Tuple[Dict[Type[PackageManager], Set], Set]:
+        """Transform the generic package list to package by package manager.
+
+        Additionally, include list of generic packages
+        """
+        packages_by_manager = defaultdict(set)
+        generic_packages: Set = set()
+        for entry in pkglist:
+            if isinstance(entry, dict):
+                for package_manager, package_list in entry.items():
+                    for definition in package_list:
+                        definition = self._validate_entry(definition)
+                        try:
+                            packages_by_manager[
+                                known_package_managers[package_manager]
+                            ].add(definition)
+                        except KeyError:
+                            LOG.error(
+                                "Cannot install packages under '%s' as it is "
+                                "not a supported package manager!",
+                                package_manager,
+                            )
+            else:
+                generic_packages.add(self._validate_entry(entry))
+        return dict(packages_by_manager), generic_packages
+
+    def install_packages(self, pkglist: PackageList):
+        error_message = (
+            "Failed to install the following packages: %s. "
+            "See associated package manager logs for more details."
+        )
+        # If an entry hasn't been included with an explicit package name,
+        # add it to a 'generic' list of packages
+        (
+            packages_by_manager,
+            generic_packages,
+        ) = self._extract_package_by_manager(pkglist)
+
+        # First install packages using package manager(s)
+        # supported by the distro
+        uninstalled = []
+        for manager in self.package_managers:
+            to_try = (
+                packages_by_manager.get(manager.__class__, set())
+                | generic_packages
+            )
+            if not to_try:
+                continue
+            uninstalled = manager.install_packages(to_try)
+            failed = {
+                pkg for pkg in uninstalled if pkg not in generic_packages
+            }
+            if failed:
+                LOG.info(error_message, failed)
+            generic_packages = set(uninstalled)
+
+        # Now attempt any specified package managers not explicitly supported
+        # by distro
+        for manager_type, packages in packages_by_manager.items():
+            if manager_type.name in [p.name for p in self.package_managers]:
+                # We already installed/attempted these; don't try again
+                continue
+            uninstalled.extend(
+                manager_type.from_config(
+                    self._runner, self._cfg
+                ).install_packages(pkglist=packages)
+            )
+
+        if uninstalled:
+            raise PackageInstallerError(error_message % uninstalled)
 
     def _write_network(self, settings):
         """Deprecated. Remove if/when arch and gentoo support renderers."""
@@ -183,17 +327,26 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self._write_hostname(writeable_hostname, self.hostname_conf_fn)
         self._apply_hostname(writeable_hostname)
 
-    def uses_systemd(self):
+    @staticmethod
+    def uses_systemd():
         """Wrapper to report whether this distro uses systemd or sysvinit."""
         return uses_systemd()
 
     @abc.abstractmethod
     def package_command(self, command, args=None, pkgs=None):
+        # Long-term, this method should be removed and callers refactored.
+        # Very few commands are going to be consistent across all package
+        # managers.
         raise NotImplementedError()
 
-    @abc.abstractmethod
     def update_package_sources(self):
-        raise NotImplementedError()
+        for manager in self.package_managers:
+            try:
+                manager.update_package_sources()
+            except Exception as e:
+                LOG.error(
+                    "Failed to update package using %s: %s", manager.name, e
+                )
 
     def get_primary_arch(self):
         arch = os.uname()[4]
@@ -547,12 +700,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 groups = groups.split(",")
 
             if isinstance(groups, dict):
-                LOG.warning(
-                    "DEPRECATED: The user %s has a 'groups' config value of"
-                    " type dict which is deprecated and will be removed in a"
-                    " future version of cloud-init. Use a comma-delimited"
-                    " string or array instead: group1,group2.",
-                    name,
+                util.deprecate(
+                    deprecated=f"The user {name} has a 'groups' config value "
+                    "of type dict",
+                    deprecated_version="22.3",
+                    extra_message="Use a comma-delimited string or "
+                    "array instead: group1,group2.",
                 )
 
             # remove any white spaces in group names, most likely
@@ -577,7 +730,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         # Check the values and create the command
         for key, val in sorted(kwargs.items()):
-
             if key in useradd_opts and val and isinstance(val, str):
                 useradd_cmd.extend([useradd_opts[key], val])
 
@@ -650,6 +802,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         * ``plain_text_passwd``
         * ``hashed_passwd``
         * ``lock_passwd``
+        * ``doas``
         * ``sudo``
         * ``ssh_authorized_keys``
         * ``ssh_redirect_user``
@@ -675,16 +828,21 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if kwargs.get("lock_passwd", True):
             self.lock_passwd(name)
 
+        # Configure doas access
+        if "doas" in kwargs:
+            if kwargs["doas"]:
+                self.write_doas_rules(name, kwargs["doas"])
+
         # Configure sudo access
         if "sudo" in kwargs:
             if kwargs["sudo"]:
                 self.write_sudo_rules(name, kwargs["sudo"])
             elif kwargs["sudo"] is False:
-                LOG.warning(
-                    "DEPRECATED: The user %s has a 'sudo' config value of"
-                    " 'false' which will be dropped after April 2027."
-                    " Use 'null' instead.",
-                    name,
+                util.deprecate(
+                    deprecated=f"The value of 'false' in user {name}'s "
+                    "'sudo' config",
+                    deprecated_version="22.3",
+                    extra_message="Use 'null' instead.",
                 )
 
         # Import SSH keys
@@ -763,7 +921,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             cmd.append("-e")
 
         try:
-            subp.subp(cmd, pass_string, logstring="chpasswd for %s" % user)
+            subp.subp(
+                cmd, data=pass_string, logstring="chpasswd for %s" % user
+            )
         except Exception as e:
             util.logexc(LOG, "Failed to set password for %s", user)
             raise e
@@ -778,7 +938,75 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             + "\n"
         )
         cmd = ["chpasswd"] + (["-e"] if hashed else [])
-        subp.subp(cmd, payload)
+        subp.subp(cmd, data=payload)
+
+    def is_doas_rule_valid(self, user, rule):
+        rule_pattern = (
+            r"^(?:permit|deny)"
+            r"(?:\s+(?:nolog|nopass|persist|keepenv|setenv \{[^}]+\})+)*"
+            r"\s+([a-zA-Z0-9_]+)+"
+            r"(?:\s+as\s+[a-zA-Z0-9_]+)*"
+            r"(?:\s+cmd\s+[^\s]+(?:\s+args\s+[^\s]+(?:\s*[^\s]+)*)*)*"
+            r"\s*$"
+        )
+
+        LOG.debug(
+            "Checking if user '%s' is referenced in doas rule %r", user, rule
+        )
+
+        valid_match = re.search(rule_pattern, rule)
+        if valid_match:
+            LOG.debug(
+                "User '%s' referenced in doas rule", valid_match.group(1)
+            )
+            if valid_match.group(1) == user:
+                LOG.debug("Correct user is referenced in doas rule")
+                return True
+            else:
+                LOG.debug(
+                    "Incorrect user '%s' is referenced in doas rule",
+                    valid_match.group(1),
+                )
+                return False
+        else:
+            LOG.debug("doas rule does not appear to reference any user")
+            return False
+
+    def write_doas_rules(self, user, rules, doas_file=None):
+        if not doas_file:
+            doas_file = self.doas_fn
+
+        for rule in rules:
+            if not self.is_doas_rule_valid(user, rule):
+                msg = (
+                    "Invalid doas rule %r for user '%s',"
+                    " not writing any doas rules for user!" % (rule, user)
+                )
+                LOG.error(msg)
+                return
+
+        lines = ["", "# cloud-init User rules for %s" % user]
+        for rule in rules:
+            lines.append("%s" % rule)
+        content = "\n".join(lines)
+        content += "\n"  # trailing newline
+
+        if not os.path.exists(doas_file):
+            contents = [util.make_header(), content]
+            try:
+                util.write_file(doas_file, "\n".join(contents), mode=0o440)
+            except IOError as e:
+                util.logexc(LOG, "Failed to write doas file %s", doas_file)
+                raise e
+        else:
+            if content not in util.load_file(doas_file):
+                try:
+                    util.append_file(doas_file, content)
+                except IOError as e:
+                    util.logexc(
+                        LOG, "Failed to append to doas file %s", doas_file
+                    )
+                    raise e
 
     def ensure_sudo_dir(self, path, sudo_base="/etc/sudoers"):
         # Ensure the dir is included and that
@@ -849,6 +1077,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         content += "\n"  # trailing newline
 
         self.ensure_sudo_dir(os.path.dirname(sudo_file))
+
         if not os.path.exists(sudo_file):
             contents = [
                 util.make_header(),
@@ -860,11 +1089,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 util.logexc(LOG, "Failed to write sudoers file %s", sudo_file)
                 raise e
         else:
-            try:
-                util.append_file(sudo_file, content)
-            except IOError as e:
-                util.logexc(LOG, "Failed to append sudoers file %s", sudo_file)
-                raise e
+            if content not in util.load_file(sudo_file):
+                try:
+                    util.append_file(sudo_file, content)
+                except IOError as e:
+                    util.logexc(
+                        LOG, "Failed to append to sudoers file %s", sudo_file
+                    )
+                    raise e
 
     def create_group(self, name, members=None):
         group_add_cmd = ["groupadd", name]
@@ -942,14 +1174,29 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return subp.subp(cmd, capture=True)
 
     def manage_service(self, action: str, service: str):
+    @classmethod
+    def reload_init(cls, rcs=None):
+        """
+        Reload systemd startup daemon.
+        May raise ProcessExecutionError
+        """
+        init_cmd = cls.init_cmd
+        if cls.uses_systemd() or "systemctl" in init_cmd:
+            cmd = [init_cmd, "daemon-reload"]
+            return subp.subp(cmd, capture=True, rcs=rcs)
+
+    @classmethod
+    def manage_service(
+        cls, action: str, service: str, *extra_args: str, rcs=None
+    ):
         """
         Perform the requested action on a service. This handles the common
         'systemctl' and 'service' cases and may be overridden in subclasses
         as necessary.
         May raise ProcessExecutionError
         """
-        init_cmd = self.init_cmd
-        if self.uses_systemd() or "systemctl" in init_cmd:
+        init_cmd = cls.init_cmd
+        if cls.uses_systemd() or "systemctl" in init_cmd:
             init_cmd = ["systemctl"]
             cmds = {
                 "stop": ["stop", service],
@@ -973,9 +1220,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "status": [service, "status"],
             }
         cmd = list(init_cmd) + list(cmds[action])
-        return subp.subp(cmd, capture=True)
+        return subp.subp(cmd, capture=True, rcs=rcs)
 
-    def set_keymap(self, layout, model, variant, options):
+    def set_keymap(self, layout: str, model: str, variant: str, options: str):
         if self.uses_systemd():
             subp.subp(
                 [
@@ -1017,36 +1264,25 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             **kwargs,
         )
 
-    @property
-    def is_virtual(self) -> Optional[bool]:
-        """Detect if running on a virtual machine or bare metal.
-
-        If the detection fails, it returns None.
-        """
-        if not uses_systemd():
-            # For non systemd systems the method should be
-            # implemented in the distro class.
-            LOG.warning("is_virtual should be implemented on distro class")
-            return None
-
-        try:
-            detect_virt_path = subp.which("systemd-detect-virt")
-            if detect_virt_path:
-                out, _ = subp.subp(
-                    [detect_virt_path], capture=True, rcs=[0, 1]
-                )
-
-                return not out.strip() == "none"
-            else:
-                err_msg = "detection binary not found"
-        except subp.ProcessExecutionError as e:
-            err_msg = str(e)
-
-        LOG.warning(
-            "Failed to detect virtualization with systemd-detect-virt: %s",
-            err_msg,
-        )
-        return None
+    @staticmethod
+    def build_dhclient_cmd(
+        path: str,
+        lease_file: str,
+        pid_file: str,
+        interface: str,
+        config_file: str,
+    ) -> list:
+        return [
+            path,
+            "-1",
+            "-v",
+            "-lf",
+            lease_file,
+            "-pf",
+            pid_file,
+            "-sf",
+            "/bin/true",
+        ] + (["-cf", config_file, interface] if config_file else [interface])
 
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
@@ -1178,10 +1414,10 @@ def _get_package_mirror_info(
         subst["region"] = data_source.region
 
     results = {}
-    for (name, mirror) in mirror_info.get("failsafe", {}).items():
+    for name, mirror in mirror_info.get("failsafe", {}).items():
         results[name] = mirror
 
-    for (name, searchlist) in mirror_info.get("search", {}).items():
+    for name, searchlist in mirror_info.get("search", {}).items():
         mirrors = []
         for tmpl in searchlist:
             try:
@@ -1249,6 +1485,3 @@ def uses_systemd():
         return stat.S_ISDIR(res.st_mode)
     except Exception:
         return False
-
-
-# vi: ts=4 expandtab

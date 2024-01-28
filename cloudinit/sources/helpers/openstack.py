@@ -10,9 +10,9 @@ import abc
 import base64
 import copy
 import functools
+import logging
 import os
 
-from cloudinit import log as logging
 from cloudinit import net, sources, subp, url_helper, util
 from cloudinit.sources import BrokenMetadata
 from cloudinit.sources.helpers import ec2
@@ -642,6 +642,14 @@ def convert_net_json(network_json=None, known_macs=None):
                     }
                 )
 
+            dns_nameservers = [
+                service["address"]
+                for service in network.get("services", [])
+                if service.get("type") == "dns"
+            ]
+            if dns_nameservers:
+                subnet["dns_nameservers"] = dns_nameservers
+
             # Enable accept_ra for stateful and legacy ipv6_dhcp types
             if network["type"] in ["ipv6_dhcpv6-stateful", "ipv6_dhcp"]:
                 cfg.update({"accept-ra": True})
@@ -756,6 +764,3 @@ def convert_net_json(network_json=None, known_macs=None):
         config.append(cfg)
 
     return {"version": 1, "config": config}
-
-
-# vi: ts=4 expandtab

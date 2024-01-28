@@ -180,6 +180,7 @@ all further cloud instances during this test run. It ensures:
 
 Examples
 --------
+
 A simple test case using the ``client`` fixture:
 
 .. code-block:: python

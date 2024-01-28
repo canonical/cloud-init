@@ -4,6 +4,7 @@
 
 """Cloud-init apport interface"""
 
+import json
 import os
 
 from cloudinit.cmd.devel import read_cfg_paths
@@ -28,6 +29,7 @@ except ImportError:
 KNOWN_CLOUD_NAMES = [
     "AliYun",
     "AltCloud",
+    "Akamai",
     "Amazon - Ec2",
     "Azure",
     "Bigstep",
@@ -101,8 +103,29 @@ def attach_hwinfo(report, ui=None):
 
 
 def attach_cloud_info(report, ui=None):
-    """Prompt for cloud details if available."""
+    """Prompt for cloud details if instance-data unavailable.
+
+    When we have valid _get_instance_data, apport/generic-hooks/cloud_init.py
+    provides CloudName, CloudID, CloudPlatform and CloudSubPlatform.
+
+    Apport/generic-hooks are delivered by cloud-init's downstream branches
+    ubuntu/(devel|kinetic|jammy|focal|bionic) so they will not be represented
+    in upstream main.
+
+    In absence of viable instance-data.json format, prompt for the cloud below.
+    """
+
     if ui:
+        paths = read_cfg_paths()
+        try:
+            with open(paths.get_runpath("instance_data")) as file:
+                instance_data = json.load(file)
+                assert instance_data.get("v1", {}).get("cloud_name")
+                return  # Valid instance-data means generic-hooks will report
+        except (IOError, json.decoder.JSONDecodeError, AssertionError):
+            pass
+
+        # No valid /run/cloud/instance-data.json on system. Prompt for cloud.
         prompt = "Is this machine running in a cloud environment?"
         response = ui.yesno(prompt)
         if response is None:
@@ -130,6 +153,17 @@ def attach_installer_files(report, ui=None):
     for apport_file in INSTALLER_APPORT_FILES:
         realpath = os.path.realpath(apport_file.path)
         attach_file_if_exists(report, realpath, apport_file.label)
+
+
+def attach_ubuntu_pro_info(report, ui=None):
+    """Attach ubuntu pro logs and tag if keys present in user-data."""
+    realpath = os.path.realpath("/var/log/ubuntu-advantage.log")
+    attach_file_if_exists(report, realpath)
+    if os.path.exists(realpath):
+        report.setdefault("Tags", "")
+        if report["Tags"]:
+            report["Tags"] += " "
+        report["Tags"] += "ubuntu-pro"
 
 
 def attach_user_data(report, ui=None):
@@ -189,8 +223,6 @@ def add_info(report, ui):
     attach_cloud_info(report, ui)
     attach_user_data(report, ui)
     attach_installer_files(report, ui)
+    attach_ubuntu_pro_info(report, ui)
     add_bug_tags(report)
     return True
-
-
-# vi: ts=4 expandtab

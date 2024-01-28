@@ -48,6 +48,7 @@ CFG_BUILTIN = {
         "UpCloud",
         "VMware",
         "NWCS",
+        "Akamai",
         # At the end to act as a 'catch' when none of the above work...
         "None",
     ],
@@ -73,5 +74,3 @@ PER_ONCE = "once"
 
 # Used to sanity check incoming handlers/modules frequencies
 FREQUENCIES = [PER_INSTANCE, PER_ALWAYS, PER_ONCE]
-
-# vi: ts=4 expandtab

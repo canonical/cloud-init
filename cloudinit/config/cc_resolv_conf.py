@@ -8,10 +8,9 @@
 
 """Resolv Conf: configure resolv.conf"""
 
-from logging import Logger
+import logging
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit import templater, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -62,9 +61,15 @@ meta: MetaSchema = {
         "fedora",
         "mariner",
         "opensuse",
+        "opensuse-leap",
+        "opensuse-microos",
+        "opensuse-tumbleweed",
         "photon",
         "rhel",
+        "sle_hpc",
+        "sle-micro",
         "sles",
+        "openeuler",
     ],
     "frequency": PER_INSTANCE,
     "examples": [
@@ -117,20 +122,18 @@ def generate_resolv_conf(template_fn, params, target_fname):
     templater.render_to_file(template_fn, target_fname, params)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """
     Handler for resolv.conf
 
-    @param name: The module name "resolv-conf" from cloud.cfg
+    @param name: The module name "resolv_conf" from cloud.cfg
     @param cfg: A nested dict containing the entire cloud config contents.
     @param cloud: The L{CloudInit} object in use.
     @param log: Pre-initialized Python logger object to use for logging.
     @param args: Any module arguments from cloud.cfg
     """
     if "manage_resolv_conf" not in cfg:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s,"
             " no 'manage_resolv_conf' key in configuration",
             name,
@@ -138,7 +141,7 @@ def handle(
         return
 
     if not util.get_cfg_option_bool(cfg, "manage_resolv_conf", False):
-        log.debug(
+        LOG.debug(
             "Skipping module named %s,"
             " 'manage_resolv_conf' present but set to False",
             name,
@@ -146,7 +149,7 @@ def handle(
         return
 
     if "resolv_conf" not in cfg:
-        log.warning("manage_resolv_conf True but no parameters provided!")
+        LOG.warning("manage_resolv_conf True but no parameters provided!")
         return
 
     try:
@@ -154,7 +157,7 @@ def handle(
             RESOLVE_CONFIG_TEMPLATE_MAP[cloud.distro.resolve_conf_fn]
         )
     except KeyError:
-        log.warning("No template found, not rendering resolve configs")
+        LOG.warning("No template found, not rendering resolve configs")
         return
 
     generate_resolv_conf(
@@ -163,6 +166,3 @@ def handle(
         target_fname=cloud.distro.resolve_conf_fn,
     )
     return
-
-
-# vi: ts=4 expandtab

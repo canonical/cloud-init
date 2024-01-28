@@ -4,6 +4,8 @@ from pycloudlib.lxd.instance import LXDInstance
 
 from cloudinit.subp import subp
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import IS_UBUNTU
 
 ASCII_TEXT = "ASCII text"
 
@@ -55,13 +57,13 @@ def load_wireguard_kernel_module_lxd(instance: LXDInstance):
 
 @pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
-@pytest.mark.lxd_vm
-@pytest.mark.gce
-@pytest.mark.ec2
-@pytest.mark.azure
-@pytest.mark.openstack
-@pytest.mark.oci
-@pytest.mark.ubuntu
+@pytest.mark.skipif(
+    not IS_UBUNTU, reason="Hasn't been tested on other distros"
+)
+@pytest.mark.skipif(
+    PLATFORM not in ["lxd_vm", "gce", "ec2", "azure", "openstack", "oci"],
+    reason=f"Test hasn't been tested on {PLATFORM}",
+)
 class TestWireguard:
     @pytest.mark.parametrize(
         "cmd,expected_out",
@@ -119,8 +121,10 @@ class TestWireguard:
 @pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
 @pytest.mark.lxd_setup.with_args(load_wireguard_kernel_module_lxd)
-@pytest.mark.lxd_container
-@pytest.mark.ubuntu
+@pytest.mark.skipif(
+    PLATFORM != "lxd_container", reason=f"Not testing on {PLATFORM}"
+)
+@pytest.mark.skipif(not IS_UBUNTU, reason="Has only been tested on Ubuntu")
 class TestWireguardWithoutKmod:
     def test_wireguard_tools_installed(
         self, class_client: IntegrationInstance

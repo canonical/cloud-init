@@ -8,7 +8,7 @@
 
 """Phone Home: Post data to url"""
 
-from logging import Logger
+import logging
 from textwrap import dedent
 
 from cloudinit import templater, url_helper, util
@@ -21,7 +21,6 @@ from cloudinit.settings import PER_INSTANCE
 frequency = PER_INSTANCE
 
 POST_LIST_ALL = [
-    "pub_key_dsa",
     "pub_key_rsa",
     "pub_key_ecdsa",
     "pub_key_ed25519",
@@ -36,7 +35,6 @@ If the post url contains the string ``$INSTANCE_ID`` it will be replaced with
 the id of the current instance. Either all data can be posted or a list of
 keys to post. Available keys are:
 
-    - ``pub_key_dsa``
     - ``pub_key_rsa``
     - ``pub_key_ecdsa``
     - ``pub_key_ed25519``
@@ -57,7 +55,7 @@ Data is sent as ``x-www-form-urlencoded`` arguments.
     Accept: */*
     Content-Type: application/x-www-form-urlencoded
 
-    pub_key_dsa=dsa_contents&pub_key_rsa=rsa_contents&pub_key_ecdsa=ecdsa_contents&pub_key_ed25519=ed25519_contents&instance_id=i-87018aed&hostname=myhost&fqdn=myhost.internal
+    pub_key_rsa=rsa_contents&pub_key_ecdsa=ecdsa_contents&pub_key_ed25519=ed25519_contents&instance_id=i-87018aed&hostname=myhost&fqdn=myhost.internal
 """
 
 meta: MetaSchema = {
@@ -80,7 +78,6 @@ meta: MetaSchema = {
             phone_home:
                 url: http://example.com/$INSTANCE_ID/
                 post:
-                    - pub_key_dsa
                     - pub_key_rsa
                     - pub_key_ecdsa
                     - pub_key_ed25519
@@ -95,7 +92,7 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
-
+LOG = logging.getLogger(__name__)
 # phone_home:
 #  url: http://my.foo.bar/$INSTANCE/
 #  post: all
@@ -103,19 +100,17 @@ __doc__ = get_meta_doc(meta)
 #
 # phone_home:
 #  url: http://my.foo.bar/$INSTANCE_ID/
-#  post: [ pub_key_dsa, pub_key_rsa, pub_key_ecdsa, instance_id, hostname,
+#  post: [ pub_key_rsa, pub_key_ecdsa, instance_id, hostname,
 #          fqdn ]
 #
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if len(args) != 0:
         ph_cfg = util.read_conf(args[0])
     else:
         if "phone_home" not in cfg:
-            log.debug(
+            LOG.debug(
                 "Skipping module named %s, "
                 "no 'phone_home' configuration found",
                 name,
@@ -124,7 +119,7 @@ def handle(
         ph_cfg = cfg["phone_home"]
 
     if "url" not in ph_cfg:
-        log.warning(
+        LOG.warning(
             "Skipping module named %s, "
             "no 'url' found in 'phone_home' configuration",
             name,
@@ -139,7 +134,7 @@ def handle(
     except (ValueError, TypeError):
         tries = 10
         util.logexc(
-            log,
+            LOG,
             "Configuration entry 'tries' is not an integer, using %s instead",
             tries,
         )
@@ -154,7 +149,6 @@ def handle(
     }
 
     pubkeys = {
-        "pub_key_dsa": "/etc/ssh/ssh_host_dsa_key.pub",
         "pub_key_rsa": "/etc/ssh/ssh_host_rsa_key.pub",
         "pub_key_ecdsa": "/etc/ssh/ssh_host_ecdsa_key.pub",
         "pub_key_ed25519": "/etc/ssh/ssh_host_ed25519_key.pub",
@@ -165,7 +159,7 @@ def handle(
             all_keys[n] = util.load_file(path)
         except Exception:
             util.logexc(
-                log, "%s: failed to open, can not phone home that data!", path
+                LOG, "%s: failed to open, can not phone home that data!", path
             )
 
     submit_keys = {}
@@ -174,7 +168,7 @@ def handle(
             submit_keys[k] = all_keys[k]
         else:
             submit_keys[k] = None
-            log.warning(
+            LOG.warning(
                 "Requested key %s from 'post'"
                 " configuration list not available",
                 k,
@@ -203,8 +197,5 @@ def handle(
         )
     except Exception:
         util.logexc(
-            log, "Failed to post phone home data to %s in %s tries", url, tries
+            LOG, "Failed to post phone home data to %s in %s tries", url, tries
         )
-
-
-# vi: ts=4 expandtab

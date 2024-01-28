@@ -132,6 +132,3 @@ class TestConversion(TestCase):
         self.assertEqual(
             expected, cc_apt_configure.convert_to_v3_apt_format(mydata)
         )
-
-
-# vi: ts=4 expandtab

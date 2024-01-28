@@ -62,6 +62,3 @@ class CloudInitPickleMixin:
         ``ci_pkl_version`` will be the version stored in the pickle for this
         object, or 0 if no version is present.
         """
-
-
-# vi: ts=4 expandtab

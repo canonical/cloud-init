@@ -171,5 +171,5 @@ Each module contains examples of how to use it.
 You can also head over to the :ref:`examples page<yaml_examples>` for
 examples of more common use cases.
 
-.. _LXD: https://linuxcontainers.org/lxd/
-.. _other installation options: https://linuxcontainers.org/lxd/getting-started-cli/#other-installation-options
+.. _LXD: https://ubuntu.com/lxd
+.. _other installation options: https://documentation.ubuntu.com/lxd/en/latest/installing/#other-installation-options

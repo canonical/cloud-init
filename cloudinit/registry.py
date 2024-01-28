@@ -36,6 +36,3 @@ class DictRegistry:
         This cannot be used to modify the contents of the registry.
         """
         return copy.copy(self._items)
-
-
-# vi: ts=4 expandtab

@@ -1,3 +1,693 @@
+23.4.2
+ - fix: Handle invalid user configuration gracefully (#4797)
+   (LP: #2051147)
+
+23.4.1
+ - fix: Handle systemctl commands when dbus not ready (#4681)
+
+23.4
+ - tests: datasourcenone use client.restart to block until done (#4635)
+ - tests: increase number of retries across reboot to 90 (#4651)
+ - fix: Add schema for merge types (#4648)
+ - feat: Allow aliyun ds to fetch data in init-local (#4590) [qidong.ld]
+ - azure: report failure to eject as error instead of debug (#4643)
+   [Chris Patterson]
+ - bug(schema): write network-config if instance dir present (#4635)
+ - test: fix schema fuzzing test (#4639)
+ - Update build-on-openbsd dependencies (#4644) [CodeBleu]
+ - fix(test): Fix expected log for ipv6-only ephemeral network (#4641)
+ - refactor: Remove metaclass from network_state.py (#4638)
+ - schema: non-root fallback to default paths on perm errors (# 4631)
+ - fix: Don't loosen the permissions of the log file (#4628)
+ - Revert "logging: keep current file mode of log file if its stricter
+   than the new mode (#4250)"
+ - ephemeral: Handle link up failure for both ipv4 and ipv6  (#4547)
+ - fix(main): Don't call logging too early (#4595)
+ - fix: Remove Ubuntu-specific kernel naming convention assertion (#4617)
+ - fix(log): Do not implement handleError with a self parameter (#4617)
+ - fix(log): Don't try to reuse stderr logger (#4617)
+ - feat: Standardize logging output to stderr (#4617)
+ - chore: Sever unmaintained TODO.rst (#4625)
+ - test: Skip failing tests
+ - distros: Add suse
+ - test: Add default hello package version (#4614)
+ - fix(net): Improve DHCPv4 SUSE code, add test
+ - net: Fix DHCPv4 not enabled on SUSE in some cases [bin456789]
+ - fix(schema): Warn if missing dependency (#4616)
+ - fix(cli): main source cloud_config for schema validation (#4562)
+ - feat(schema): annotation path for invalid top-level keys (#4562)
+ - feat(schema): top-level additionalProperties: false (#4562)
+ - test: ensure top-level properties tests will pass (#4562)
+ - fix(schema): Add missing schema definitions (#4562)
+ - test: Fix snap tests (#4562)
+ - azure: Check for stale pps data from IMDS (#4596) [Ksenija Stanojevic]
+ - test: Undo dhcp6 integration test changes (#4612)
+ - azure: update diagnostic from warning level to debug [Chris Patterson]
+ - azure/imds: remove limit for connection errors if route present (#4604)
+   [Chris Patterson]
+ - [enhancement]: Add shellcheck to CI (#4488) [Aviral Singh]
+ - chore: add conventional commits template (#4593)
+ - Revert "net: allow dhcp6 configuration from
+   generate_fallback_configuration()" (#4607)
+ - azure: workaround to disable reporting IMDS failures on Azure Stack
+   [Chris Patterson]
+ - cc_apt_pipelining: Update docs, deprecate options (#4571)
+ - test: add gh workflows on push to main, update status badges (#4597)
+ - util: Remove function abs_join() (#4587)
+ - url_helper: Remove unused function retry_on_url_exc() (#4587)
+ - cc_resizefs: Add bcachefs resize support (#4594)
+ - integration_tests: Support non-Ubuntu distros (#4586)
+ - fix(cmdline): fix cmdline parsing with MAC containing cc:
+ - azure/errors: include http code in reason for IMDS failure
+   [Chris Patterson]
+ - tests: cloud-init schema --system does not return exit code 2
+ - github: allow pull request to specify desired rebase and merge
+ - tests: fix integration test expectations of exit 2 on schema warning
+ - tests: fix schema test expected cli output Valid schema <type>
+ - fix(schema cli): check raw userdata when processed cloud-config empty
+ - azure: report failure to host if ephemeral DHCP secondary NIC (#4558)
+   [Chris Patterson]
+ - man: Document cloud-init error codes (#4500)
+ - Add support for cloud-init "degraded" state (#4500)
+ - status.json: Don't override detail key with error condition (#4500)
+ - status: Remove duplicated data (#4500)
+ - refactor: Rename exported_errors in status.json (#4500)
+ - test: Remove stale status.json value (#4500)
+ - tools/render-template: Make yaml loading opt-in, fix setup.py (#4564)
+ - Add summit digest/trip report to docs (#4561) [Sally]
+ - doc: Fix incorrect statement about `cloud-init analyze`
+ - azure/imds: ensure new errors are logged immediately when retrying
+   (#4468) [Chris Patterson]
+ - Clarify boothook docs (#4543)
+ - boothook: allow stdout/stderr to emit to cloud-init-output.log
+ - summit-notes: add 2023 notes for reference in mailinglist/discourse
+ - fix: added mock to stop leaking journalctl that slows down unit test
+   (#4556) [Alec Warren]
+ - tests: maas test for DataSourceMAASLocal get_data
+ - maas tests: avoid using CiTest case and prefer pytest.tmpdir fixture
+ - MAAS: Add datasource to init-local timeframe
+ - Ensure all tests passed and/or are skipped
+ - Support QEMU in integration tests
+ - fix(read-dependencies): handle version specifiers containing [~!]
+ - test: unpin pytest
+ - schema: network-config optional network key. route uses oneOf (#4482)
+ - schema: add cloud_init_deepest_matches for best error message (#4482)
+ - network: warn invalid cfg add /run/cloud-init/network-config  (#4482)
+ - schema: add network-config support to schema subcommand (#4482)
+ - Update version number and merge ChangeLog from 23.3.3 into main (#4553)
+ - azure: check for primary interface when performing DHCP (#4465)
+   [Chris Patterson]
+ - Fix hypothesis failure
+ - subp: add a log when skipping a file for execution for lack of exe
+   permission (#4506) [Ani Sinha]
+ - azure/imds: refactor max_connection_errors definition (#4467)
+   [Chris Patterson]
+ - chore: fix PR template rendering (#4526)
+ - fix(cc_apt_configure): avoid unneeded call to apt-install (#4519)
+ - comment difference between sysconfig and NetworkManager renderer (#4517)
+   [Ani Sinha]
+ - Set Debian's default locale to be c.UTF-8 (#4503) (LP: #2038945)
+ - Convert test_debian.py to pytest (#4503)
+ - doc: fix cloudstack link
+ - doc: fix development/contributing.html references
+ - doc: hide duplicated links
+ - Revert "ds-identify/CloudStack: $DS_MAYBE if vm running on vmware/xen
+   (#4281)" (#4511) (LP: #2039453)
+ - Fix the missing mcopy argument [Vladimir Pouzanov]
+ - tests: Add logging fix (#4499)
+ - Update upgrade test to account for dhcp6
+ - Remove logging of PPID path (#4502)
+ - Make Python 3.12 CI test non-experimental (#4498)
+ - ds-identify: exit 2 on disabled state from marker or cmdline (#4399)
+ - cloud-init-generator: Various performance optimizations (#4399)
+ - systemd: Standardize cloud-init systemd enablement (#4399)
+ - benchmark: benchmark cloud-init-generator independent of ds-identify
+   (#4399)
+ - tests/integration_tests: add cloud-init disablement coverage (#4399)
+ - doc: Describe disabling cloud-init using an environment variable (#4399)
+ - fix: cloud-init status --wait broken with KERNEL_CMDLINE (#4399)
+ - azure/imds: retry on 429 errors for reprovisiondata (#4470)
+   [Chris Patterson]
+ - cmd: Don't write json status files for non-boot stages (#4478)
+ - ds-identify: Allow disable service and override environment (#4485)
+   [Mina Galić]
+ - Update DataSourceNWCS.py (#4496) [shell-skrimp]
+ - Add r00ta to CLA signers file
+ - Fix override of systemd_locale_conf in rhel [Jacopo Rota]
+ - ci(linkcheck): minor fixes (#4495)
+ - integration test fix for deb822 URI format (#4492)
+ - test: use a mantic-compatible tz in t/i/m/test_combined.py (#4494)
+ - ua: shift CLI command from ua to pro for all interactions
+ - pro: avoid double-dash when enabling inviddual services on CLI
+ - net: allow dhcp6 configuration from generate_fallback_configuration()
+   (#4474) [Ani Sinha]
+ - tests: apt re.search to match alternative ordering of installed pkgs
+ - apt: doc apt_pkg performance improvement over subp apt-config dump
+ - Tidy up contributing docs (#4469) [Sally]
+ - [enhancement]: Automatically linkcheck in CI (#4479) [Aviral Singh]
+ - Revert allowing pro service warnings (#4483)
+ - Export warning logs to status.json (#4455)
+ - Fix regression in package installation (#4466)
+ - schema: cloud-init schema in early boot or in dev environ (#4448)
+ - schema: annotation of nested dicts lists in schema marks (#4448)
+ - feat(apport): collect ubuntu-pro logs if ubuntu-advantage.log present
+   (#4443)
+ - apt_configure: add deb822 support for default sources file (#4437)
+ - net: remove the word "on instance boot" from cloud-init generated config
+   (#4457) [Ani Sinha]
+ - style: Make cloudinit.log functions use snake case (#4449)
+ - Don't recommend using cloud-init as a library (#4459)
+ - vmware: Fall back to vmtoolsd if vmware-rpctool errs (#4444)
+   [Andrew Kutz]
+ - azure: add option to enable/disable secondary ip config (#4432)
+   [Ksenija Stanojevic]
+ - Allow installing snaps via package_update_upgrade_install module (#4202)
+ - docs: Add cloud-init overview/introduction (#4440) [Sally]
+ - apt: install software-properties-common when absent but needed (#4441)
+ - sources/Azure: Ignore system volume information folder while scanning
+   for files in the ntfs resource disk (#4446) [Anh Vo]
+ - refactor: Remove unnecessary __main__.py file
+ - style: Drop vi format comments
+ - cloudinit.log: Use more appropriate exception (#4435)
+ - cloudinit.log: Don't configure NullHandler (#4435)
+ - commit 6bbbfbbb030831c72b5aa2bba9cb8492f19d56f4
+ - cloudinit.log: Remove unnecessary module function and variables (#4435)
+ - cloudinit.log: Remove unused getLogger wrapper (#4435)
+ - cloudinit.log: Standardize use of cloudinit's logging module (#4435)
+ - Remove unnecessary logging wrapper in Cloud class (#4435)
+ - integration test: allow pro service warnings (#4447)
+ - integration tests: fix mount indentation (#4445)
+ - sources/Azure: fix for conflicting reports to platform (#4434)
+   [Chris Patterson]
+ - docs: link the cloud-config validation service (#4442)
+ - Fix pip-managed ansible on pip < 23.0.1 (#4403)
+ - Install gnupg if gpg not found (#4431)
+ - Add "phsm" as contributor (#4429) [Phsm Qwerty]
+ - cc_ubuntu_advantage: do not rely on uaclient.messages module (#4397)
+   [Grant Orndorff]
+ - tools/ds-identify: match Azure datasource's ds_detect() behavior (#4430)
+   [Chris Patterson]
+ - Refactor test_apt_source_v1.py to use pytest (#4427)
+ - sources: do not override datasource detection if None is in list (#4426)
+   [Chris Patterson]
+ - feat: check for create_hostname_file key before writing /etc/hostname
+   (SC-1588) (#4330) [Cat Red]
+ - Pytestify apt config test modules (#4424)
+ - upstream gentoo patch (#4422)
+ - Work around no instance ip (#4419)
+ - Fix typing issues in subp module (#4401)
+ - net: fix ipv6_dhcpv6_stateful/stateless/slaac configuration for rhel
+   (#4395) [Ani Sinha]
+ - Release 23.3.1
+ - apt: kill dirmngr/gpg-agent without gpgconf dependency (LP: #2034273)
+ - integration tests: fix mount indentation (#4405)
+ - Use grep for faster parsing of cloud config in ds-identify (#4327)
+   [Scott Moser] (LP: #2030729)
+ - doc: fix instructions on how to disable cloud-init from kernel command
+   line (#4406) [Ani Sinha]
+ - doc/vmware: Update contents relevant to disable_vmware_customization
+   [PengpengSun]
+ - Bring back flake8 for python 3.6 (#4394)
+ - integration tests: Fix cgroup parsing (#4402)
+ - summary: Update template parameter descriptions in docs [MJ Moshiri]
+ - Log PPID for better debugging (#4398)
+ - integration tests: don't clean when KEEP_* flags true (#4400)
+ - clean: add a new option to clean generated config files [Ani Sinha]
+ - pep-594: drop deprecated pipes module import
+
+23.3.3
+ - Fix pip-managed ansible on pip < 23.0.1 (#4403)
+
+23.3.2
+ - Revert "ds-identify/CloudStack: $DS_MAYBE if vm running on vmware/xen (#4281)"
+   (#4511) (LP: #2039453)
+
+23.3.1
+ - apt: kill dirmngr/gpg-agent without gpgconf dependency (LP: #2034273)
+ - integration tests: Fix cgroup parsing (#4402)
+
+23.3
+ - Bump pycloudlib to 1!5.1.0 for ec2 mantic daily image support (#4390)
+ - Fix cc_keyboard in mantic (LP: #2030788)
+ - ec2: initialize get_instance_userdata return value to bytes (#4387)
+   [Noah Meyerhans]
+ - cc_users_groups: Add doas/opendoas support (#4363) [dermotbradley]
+ - Fix pip-managed ansible
+ - status: treat SubState=running and MainPID=0 as service exited
+ - azure/imds: increase read-timeout to 30s (#4372) [Chris Patterson]
+ - collect-logs fix memory usage (SC-1590) (#4289)
+   [Alec Warren] (LP: #1980150)
+ - cc_mounts: Use fallocate to create swapfile on btrfs (#4369) [王煎饼]
+ - Undocument nocloud-net (#4318)
+ - feat(akamai): add akamai to settings.py and apport.py (#4370)
+ - read-version: fallback to get_version when git describe fails (#4366)
+ - apt: fix cloud-init status --wait blocking on systemd v 253 (#4364)
+ - integration tests: Pass username to pycloudlib (#4324)
+ - Bump pycloudlib to 1!5.1.0 (#4353)
+ - cloud.cfg.tmpl: reorganise, minimise/reduce duplication (#4272)
+   [dermotbradley]
+ - analyze: fix (unexpected) timestamp parsing (#4347) [Mina Galić]
+ - cc_growpart: fix tests to run on FreeBSD (#4351) [Mina Galić]
+ - subp: Fix spurious test failure on FreeBSD (#4355) [Mina Galić]
+ - cmd/clean: fix tests on non-Linux platforms (#4352) [Mina Galić]
+ - util: Fix get_proc_ppid() on non-Linux systems (#4348) [Mina Galić]
+ - cc_wireguard: make tests pass on FreeBSD (#4346) [Mina Galić]
+ - unittests: fix breakage in test_read_cfg_paths_fetches_cached_datasource
+   (#4328) [Ani Sinha]
+ - Fix test_tools.py collection (#4315)
+ - cc_keyboard: add Alpine support (#4278) [dermotbradley]
+ - Flake8 fixes (#4340) [Robert Schweikert]
+ - cc_mounts: Fix swapfile not working on btrfs (#4319) [王煎饼] (LP: #1884127)
+ - ds-identify/CloudStack: $DS_MAYBE if vm running on vmware/xen (#4281)
+   [Wei Zhou]
+ - ec2: Support double encoded userdata (#4276) [Noah Meyerhans]
+ - cc_mounts: xfs is a Linux only FS (#4334) [Mina Galić]
+ - tests/net: fix TestGetInterfaces' mock coverage for get_master (#4336)
+   [Chris Patterson]
+ - change openEuler to openeuler and fix some bugs in openEuler (#4317)
+   [sxt1001]
+ - Replace flake8 with ruff (#4314)
+ - NM renderer: set default IPv6 addr-gen-mode for all interfaces to eui64
+   (#4291) [Ani Sinha]
+ - cc_ssh_import_id: add Alpine support and add doas support (#4277)
+   [dermotbradley]
+ - Release 23.2.2 (#4300)
+ - sudoers not idempotent (SC-1589)  (#4296) [Alec Warren] (LP: #1998539)
+ - Added support for Akamai Connected Cloud (formerly Linode) (#4167)
+   [Will Smith]
+ - Fix reference before assignment (#4292)
+ - Overhaul module reference page (#4237) [Sally]
+ - replaced spaces with commas for setting passenv (#4269) [Alec Warren]
+ - DS VMware: modify a few log level (#4284) [PengpengSun]
+ - tools/read-version refactors and unit tests (#4268)
+ - Ensure get_features() grabs all features (#4285)
+ - Don't always require passlib dependency (#4274)
+ - tests: avoid leaks into host system checking of ovs-vsctl cmd (#4275)
+ - Fix NoCloud kernel commandline key parsing (#4273)
+ - testing: Clear all LRU caches after each test (#4249)
+ - Remove the crypt dependency (#2139) [Gonéri Le Bouder]
+ - logging: keep current file mode of log file if its stricter than the
+   new mode (#4250) [Ani Sinha]
+ - Remove default membership in redundant groups (#4258)
+   [Dave Jones] (LP: #1923363)
+ - doc: improve datasource_creation.rst (#4262)
+ - Remove duplicate Integration testing button (#4261) [Rishita Shaw]
+ - tools/read-version: fix the tool so that it can handle version parsing
+   errors (#4234) [Ani Sinha]
+ - net/dhcp: add udhcpc support (#4190) [Jean-François Roche]
+ - DS VMware: add i386 arch dir to deployPkg plugin search path
+   [PengpengSun]
+ - LXD moved from linuxcontainers.org to Canonical [Simon Deziel]
+ - cc_mounts.py: Add note about issue with creating mounts inside mounts
+   (#4232) [dermotbradley]
+ - lxd: install lxd from snap, not deb if absent in image
+ - landscape: use landscape-config to write configuration
+ - Add deprecation log during init of DataSourceDigitalOcean (#4194)
+   [tyb-truth]
+ - doc: fix typo on apt.primary.arches (#4238) [Dan Bungert]
+ - Inspect systemd state for cloud-init status (#4230)
+ - instance-data: add system-info and features to combined-cloud-config
+   (#4224)
+ - systemd: Block login until config stage completes (#2111) (LP: #2013403)
+ - tests: proposed should invoke apt-get install -t=<release>-proposed
+   (#4235)
+ - cloud.cfg.tmpl: reinstate ca_certs entry (#4236) [dermotbradley]
+ - Remove feature flag override ability (#4228)
+ - tests: drop stray unrelated file presence test (#4227)
+ - Update LXD URL (#4223) [Sally]
+ - schema: add network v1 schema definition and validation functions
+ - tests: daily PPA for devel series is version 99.daily update tests to
+   match (#4225)
+ - instance-data: write /run/cloud-init/combined-cloud-config.json
+ - mount parse: Fix matching non-existent directories (#4222) [Mina Galić]
+ - Specify build-system for pep517 (#4218)
+ - Fix network v2 metric rendering (#4220)
+ - Migrate content out of FAQ page (SD-1187) (#4205) [Sally]
+ - setup: fix generation of init templates (#4209) [Mina Galić]
+ - docs: Correct some bootcmd example wording
+ - fix changelog
+ - Release 23.2.1 (#4207) (LP: #2025180)
+ - tests: reboot client to assert x-shellscript-per-boot is triggered
+ - nocloud: parse_cmdline no longer detects nocloud-net datasource (#4204)
+   (LP: 4203, #2025180)
+ - Add docstring and typing to mergemanydict (#4200)
+ - BSD: add dsidentify to early startup scripts (#4182) [Mina Galić]
+ - handler: report errors on skipped merged cloud-config.txt parts
+   (LP: #1999952)
+ - Add cloud-init summit writeups (#4179) [Sally]
+ - tests: Update test_clean_log for oci (#4187)
+ - gce: improve ephemeral fallback NIC selection (CPC-2578) (#4163)
+ - tests: pin pytest 7.3.1 to avoid adverse testpaths behavior (#4184)
+ - Ephemeral Networking for FreeBSD (#2165) [Mina Galić]
+ - Clarify directory syntax for nocloud local filesystem. (#4178)
+ - Set default renderer as sysconfig for centos/rhel (#4165) [Ani Sinha]
+ - Test static routes and netplan 0.106
+ - FreeBSD fix parsing of mount and mount options (#2146) [Mina Galić]
+ - test: add tracking bug id (#4164)
+ - tests: can't match MAC for LXD container veth due to netplan 0.106
+   (#4162)
+ - Add kaiwalyakoparkar as a contributor (#4156) [Kaiwalya Koparkar]
+ - BSD: remove datasource_list from cloud.cfg template (#4159) [Mina Galić]
+ - launching salt-minion in masterless mode (#4110) [Denis Halturin]
+ - tools: fix run-container builds for rockylinux/8 git hash mismatch
+   (#4161)
+ - fix doc lint: spellchecker tripped up (#4160) [Mina Galić]
+ - Support Ephemeral Networking for BSD (#2127)
+ - Added / fixed support for static routes on OpenBSD and FreeBSD (#2157)
+   [Kadir Mueller]
+ - cc_rsyslog: Refactor for better multi-platform support (#4119)
+   [Mina Galić] (LP: #1798055)
+ - tests: fix test_lp1835584 (#4154)
+ - cloud.cfg mod names: docs and rename salt_minion and set_password (#4153)
+ - tests: apt support for deb822 format .sources files on mantic
+ - vultr: remove check_route check (#2151) [Jonas Chevalier]
+ - Update SECURITY.md (#4150) [Indrranil Pawar]
+ - Update CONTRIBUTING.rst (#4149) [Indrranil Pawar]
+ - Update .github-cla-signers (#4151) [Indrranil Pawar]
+ - Standardise module names in cloud.cfg.tmpl to only use underscore
+   (#4128) [dermotbradley]
+ - tests: update test_webhook_reporting
+ - Modify PR template so autoclose works
+ - doc: add missing semi-colon to nocloud cmdline docs (#4120)
+ - .gitignore: extend coverage pattern (#4143) [Mina Galić]
+
+23.2.2
+ - Fix NoCloud kernel commandline key parsing (#4273) (Fixes: #4271)
+   (LP: #2028562)
+ - Fix reference before assignment (#4292) (Fixes: #4288) (LP: #2028784)
+
+23.2.1
+    - nocloud: Fix parse_cmdline detection of nocloud-net datasource (#4204)
+      (Fixes: 4203) (LP: #2025180)
+23.2
+ - BSD: simplify finding MBR partitions by removing duplicate code
+   [Mina Galić]
+ - tests: bump pycloudlib version for mantic builds
+ - network-manager: Set higher autoconnect priority for nm keyfiles (#3671)
+   [Ani Sinha]
+ - alpine.py: change the locale file used (#4139) [dermotbradley]
+ - cc_ntp: Sync up with current FreeBSD ntp.conf (#4122) [Mina Galić]
+ - config: drop refresh_rmc_and_interface as RHEL 7 no longer supported
+   [Robert Schweikert]
+ - docs: Add feedback button to docs
+ - net/sysconfig: enable sysconfig renderer if network manager has ifcfg-rh
+   plugin (#4132) [Ani Sinha]
+ - For Alpine use os-release PRETTY_NAME (#4138) [dermotbradley]
+ - network_manager: add a method for ipv6 static IP configuration (#4127)
+   [Ani Sinha]
+ - correct misnamed template file host.mariner.tmpl (#4124) [dermotbradley]
+ - nm: generate ipv6 stateful dhcp config at par with sysconfig (#4115)
+   [Ani Sinha]
+ - Add templates for GitHub Issues
+ - Add 'peers' and 'allow' directives in cc_ntp (#3124) [Jacob Salmela]
+ - FreeBSD: Fix user account locking (#4114) [Mina Galić] (GH: #1854594)
+ - FreeBSD: add ResizeGrowFS class to cc_growpart (#2334) [Mina Galić]
+ - Update tests in Azure TestCanDevBeReformatted class (#2771)
+   [Ksenija Stanojevic]
+ - Replace Launchpad references with GitHub Issues
+ - Fix KeyError in iproute pformat (#3287) [Dmitry Zykov]
+ - schema: read_cfg_paths call init.fetch to lookup /v/l/c/instance
+ - azure/errors: introduce reportable errors for imds (#3647)
+   [Chris Patterson]
+ - FreeBSD (and friends): better identify MBR slices (#2168)
+   [Mina Galić] (LP: #2016350)
+ - azure/errors: add host reporting for dhcp errors (#2167)
+   [Chris Patterson]
+ - net: purge blacklist_drivers across net and azure (#2160)
+   [Chris Patterson]
+ - net: refactor hyper-v VF filtering and apply to get_interfaces() (#2153)
+   [Chris Patterson]
+ - tests: avoid leaks to underlying filesystem for /etc/cloud/clean.d
+   (#2251)
+ - net: refactor find_candidate_nics_on_linux() to use get_interfaces()
+   (#2159) [Chris Patterson]
+ - resolv_conf: Allow > 3 nameservers (#2152) [Major Hayden]
+ - Remove mount NTFS error message (#2134) [Ksenija Stanojevic]
+ - integration tests: fix image specification parsing (#2166)
+ - ci: add hypothesis scheduled GH check (#2149)
+ - Move supported distros list to docs (#2162)
+ - Fix logger, use instance rather than module function (#2163)
+ - README: Point to Github Actions build status (#2158)
+ - Revert "fix linux-specific code on bsd (#2143)" (#2161)
+ - Do not generate dsa and ed25519 key types when crypto FIPS mode is
+   enabled (#2142) [Ani Sinha] (LP: 2017761)
+ - Add documentation label automatically (#2156)
+ - sources/azure: report success to host and introduce kvp module (#2141)
+   [Chris Patterson]
+ - setup.py: use pkg-config for udev/rules path (#2137) [dankm]
+ - openstack/static: honor the DNS servers associated with a network
+   (#2138) [Gonéri Le Bouder]
+ - fix linux-specific code on bsd (#2143)
+ - cli: schema validation of jinja template user-data (SC-1385) (#2132)
+   (LP: #1881925)
+ - gce: activate network discovery on every boot (#2128)
+ - tests: update integration test to assert 640 across reboots (#2145)
+ - Make user/vendor data sensitive and remove log permissions (#2144)
+   (LP: #2013967)
+ - Update kernel command line docs (SC-1457) (#2133)
+ - docs: update network configuration path links (#2140) [d1r3ct0r]
+ - sources/azure: report failures to host via kvp (#2136) [Chris Patterson]
+ - net: Document use of `ip route append` to add routes (#2130)
+ - dhcp: Add missing mocks (#2135)
+ - azure/imds: retry fetching metadata up to 300 seconds (#2121)
+   [Chris Patterson]
+ - [1/2] DHCP: Refactor dhcp client code  (#2122)
+ - azure/errors: treat traceback_base64 as string (#2131) [Chris Patterson]
+ - azure/errors: introduce reportable errors (#2129) [Chris Patterson]
+ - users: schema permit empty list to indicate create no users
+ - azure: introduce identity module (#2116) [Chris Patterson]
+ - Standardize disabling cloud-init on non-systemd (#2112)
+ - Update .github-cla-signers (#2126) [Rob Tongue]
+ - NoCloud: Use seedfrom protocol to determine mode (#2107)
+ - rhel: Remove sysvinit files. (#2114)
+ - tox.ini: set -vvvv --showlocals for pytest (#2104) [Chris Patterson]
+ - Fix NoCloud kernel commandline semi-colon args
+ - run-container: make the container/VM timeout configurable (#2118)
+   [Paride Legovini]
+ - suse: Remove sysvinit files. (#2115)
+ - test: Backport assert_call_count for old requests (#2119)
+ - Add "licebmi" as contributor (#2113) [Mark Martinez]
+ - Adapt DataSourceScaleway to upcoming IPv6 support (#2033)
+   [Louis Bouchard]
+ - rhel: make sure previous-hostname file ends with a new line (#2108)
+   [Ani Sinha]
+ - Adding contributors for DataSourceAkamai (#2110) [acourdavAkamai]
+ - Cleanup ephemeral IP routes on exception (#2100) [sxt1001]
+ - commit 09a64badfb3f51b1b391fa29be19962381a4bbeb [sxt1001] (LP: #2011291)
+ - Standardize kernel commandline user interface (#2093)
+ - config/cc_resizefs: fix do_resize arguments (#2106) [Chris Patterson]
+ - Fix test_dhclient_exits_with_error (#2105)
+ - net/dhcp: catch dhclient failures and raise NoDHCPLeaseError (#2083)
+   [Chris Patterson]
+ - sources/azure: move pps handling out of _poll_imds() (#2075)
+   [Chris Patterson]
+ - tests: bump pycloudlib version (#2102)
+ - schema: do not manipulate draft4 metaschema for jsonschema 2.6.0 (#2098)
+ - sources/azure/imds: don't count timeout errors as connection errors
+   (#2074) [Chris Patterson]
+ - Fix Python 3.12 unit test failures (#2099)
+ - integration tests: Refactor instance checking (#1989)
+ - ci: migrate remaining jobs from travis to gh (#2085)
+ - missing ending quote in instancedata docs(#2094) [Hong L]
+ - refactor: stop passing log instances to cc_* handlers (#2016) [d1r3ct0r]
+ - tests/vmware: fix test_no_data_access_method failure (#2092)
+   [Chris Patterson]
+ - Don't change permissions of netrules target (#2076) (LP: #2011783)
+ - tests/sources: patch util.get_cmdline() for datasource tests (#2091)
+   [Chris Patterson]
+ - macs: ignore duplicate MAC for devs with driver driver qmi_wwan (#2090)
+   (LP: #2008888)
+ - Fedora: Enable CA handling (#2086) [František Zatloukal]
+ - Add frantisekz as contributor (#2087) [František Zatloukal]
+ - Send dhcp-client-identifier for InfiniBand ports (#2043) [Waleed Mousa]
+ - cc_ansible: complete the examples and doc (#2082) [Yves]
+ - contributor: add bdrung
+ - bddeb: for dev package, derive debhelper-compat from host system
+ - apport: only prompt for cloud_name when instance-data.json is absent
+ - datasource: Optimize datasource detection, fix bugs (#2060)
+ - Handle non existent ca-cert-config situation (#2073) [Shreenidhi Shedi]
+ - sources/azure: add networking check for all source PPS (#2061)
+   [Chris Patterson]
+ - do not attempt dns resolution on ip addresses (#2040)
+ - chore: fix style tip (#2071)
+ - Fix metadata IP in instancedata.rst (#2063) [Brian Haley]
+ - util: Pass deprecation schedule in deprecate_call() (#2064)
+ - config: Update grub-dpkg docs (#2058)
+ - docs: Cosmetic improvements and styling (#2057) [s-makin]
+ - cc_grub_dpkg: Added UEFI support (#2029) [Alexander Birkner]
+ - tests: Write to /var/spool/rsyslog to adhere to apparmor profile (#2059)
+ - oracle-ds: prefer system_cfg over ds network config source (#1998)
+   (LP: #1956788)
+ - Remove dead code (#2038)
+ - Release 23.1.1 (#2052)
+ - source: Force OpenStack when it is only option (#2045) (LP: #2008727)
+ - cc_ubuntu_advantage: improve UA logs discovery
+ - sources/azure: fix regressions in IMDS behavior (#2041) [Chris Patterson]
+ - tests: fix test_schema (#2042)
+ - dhcp: Cleanup unused kwarg (#2037)
+ - sources/vmware/imc: fix-missing-catch-few-negtive-scenarios (#2027)
+   [PengpengSun]
+ - dhclient_hook: remove vestigal dhclient_hook command (#2015)
+ - log: Add standardized deprecation tooling (SC-1312) (#2026)
+ - Enable SUSE based distros for ca handling (#2036) [Robert Schweikert]
+
+23.1.2
+ - Make user/vendor data sensitive and remove log permissions
+   (LP: #2013967) (CVE-2023-1786)
+
+23.1.1
+ - source: Force OpenStack when it is only option (#2045)
+ - sources/azure: fix regressions in IMDS behavior (#2041)
+   [Chris Patterson]
+
+23.1
+ - Support transactional-updates for SUSE based distros (#1997)
+   [Robert Schweikert]
+ - Set ownership for new folders in Write Files Module (#1980)
+   [Jack] (LP: #1990513)
+ - add OpenCloudOS and TencentOS support (#1964) [wynnfeng]
+ - lxd: Retry if the server isn't ready (#2025)
+ - test: switch pycloudlib source to pypi (#2024)
+ - test: Fix integration test deprecation message (#2023)
+ - Recognize opensuse-microos, dev tooling fixes [Robert Schweikert]
+ - sources/azure: refactor imds handler into own module (#1977)
+   [Chris Patterson]
+ - docs: deprecation generation support [1/2] (#2013)
+ - add function is_virtual to distro/FreeBSD (#1957) [Mina Galić]
+ - cc_ssh: support multiple hostcertificates (#2018) (LP: #1999164)
+ - Fix minor schema validation regression and fixup typing (#2017)
+ - doc: Reword user data debug section (#2019)
+ - Overhaul/rewrite of certificate handling as follows: (#1962)
+   [dermotbradley] (LP: #1931174)
+ - disk_setup: use byte string when purging the partition table (#2012)
+   [Stefan Prietl]
+ - cli: schema also validate vendordata*.
+ - ci: sort and add checks for cla signers file [Stefan Prietl]
+ - Add "ederst" as contributor (#2010) [Stefan Prietl]
+ - readme: add reference to packages dir (#2001)
+ - docs: update downstream package list (#2002)
+ - docs: add google search verification (#2000) [s-makin]
+ - docs: fix 404 render use default notfound_urls_prefix in RTD conf (#2004)
+ - Fix OpenStack datasource detection on bare metal (#1923)
+   [Alexander Birkner] (LP: #1815990)
+ - docs: add themed RTD 404 page and pointer to readthedocs-hosted (#1993)
+ - schema: fix gpt labels, use type string for GUID (#1995)
+ - cc_disk_setup: code cleanup (#1996)
+ - netplan: keep custom strict perms when 50-cloud-init.yaml exists
+ - cloud-id: better handling of change in datasource files
+   [d1r3ct0r] (LP: #1998998)
+ - tests: Remove restart check from test
+ - Ignore duplicate macs from mscc_felix and fsl_enetc (LP: #1997922)
+ - Warn on empty network key (#1990)
+ - Fix Vultr cloud_interfaces usage (#1986) [eb3095]
+ - cc_puppet: Update puppet service name (#1970) [d1r3ct0r] (LP: #2002969)
+ - docs: Clarify networking docs (#1987)
+ - lint: remove httpretty (#1985) [sxt1001]
+ - cc_set_passwords: Prevent traceback when restarting ssh (#1981)
+ - tests: fix lp1912844 (#1978)
+ - tests: Skip ansible test on bionic (#1984)
+ - Wait for NetworkManager (#1983) [Robert Schweikert]
+ - docs: minor polishing (#1979) [s-makin]
+ - CI: migrate integration-test to GH actions (#1969)
+ - Fix permission of SSH host keys (#1971) [Ron Gebauer]
+ - Fix default route rendering on v2 ipv6 (#1973) (LP: #2003562)
+ - doc: fix path in net_convert command (#1975)
+ - docs: update net_convert docs (#1974)
+ - doc: fix dead link
+ - cc_set_hostname: ignore /var/lib/cloud/data/set-hostname if it's empty
+   (#1967) [Emanuele Giuseppe Esposito]
+ - distros/rhel.py: _read_hostname() missing strip on "hostname" (#1941)
+   [Mark Mielke]
+ - integration tests: add  IBM VPC support (SC-1352) (#1915)
+ - machine-id: set to uninitialized to trigger regeneration on clones
+   (LP: #1999680)
+ - sources/azure: retry on connection error when fetching metdata (#1968)
+   [Chris Patterson]
+ - Ensure ssh state accurately obtained (#1966)
+ - bddeb: drop dh-systemd dependency on newer deb-based releases [d1r3ct0r]
+ - doc: fix `config formats` link in cloudsigma.rst (#1960)
+ - Fix wrong subp syntax in cc_set_passwords.py (#1961)
+ - docs: update the PR template link to readthedocs (#1958) [d1r3ct0r]
+ - ci: switch unittests to gh actions (#1956)
+ - Add mount_default_fields for PhotonOS. (#1952) [Shreenidhi Shedi]
+ - sources/azure: minor refactor for metadata source detection logic
+   (#1936) [Chris Patterson]
+ - add "CalvoM" as contributor (#1955) [d1r3ct0r]
+ - ci: doc to gh actions (#1951)
+ - lxd: handle 404 from missing devices route for LXD 4.0 (LP: #2001737)
+ - docs: Diataxis overhaul (#1933) [s-makin]
+ - vultr: Fix issue regarding cache and region codes (#1938) [eb3095]
+ - cc_set_passwords: Move ssh status checking later (SC-1368) (#1909)
+   (LP: #1998526)
+ - Improve Wireguard module idempotency (#1940) [Fabian Lichtenegger-Lukas]
+ - network/netplan: add gateways as on-link when necessary (#1931)
+   [Louis Sautier] (LP: #2000596)
+ - tests: test_lxd assert features.networks.zones when present (#1939)
+ - Use btrfs enquque when available (#1926) [Robert Schweikert]
+ - sources/azure: drop description for report_failure_to_fabric() (#1934)
+   [Chris Patterson]
+ - cc_disk_setup.py: fix MBR single partition creation (#1932)
+   [dermotbradley] (LP: #1851438)
+ - Fix typo with package_update/package_upgrade (#1927) [eb3095]
+ - sources/azure: fix device driver matching for net config (#1914)
+   [Chris Patterson]
+ - BSD: fix duplicate macs in Ifconfig parser (#1917) [Mina Galić]
+ - test: mock dns calls (#1922)
+ - pycloudlib: add lunar support for integration tests (#1928)
+ - nocloud: add support for dmi variable expansion for seedfrom URL
+   (LP: #1994980)
+ - tools: read-version drop extra call to git describe --long
+ - doc: improve cc_write_files doc (#1916)
+ - read-version: When insufficient tags, use cloudinit.version.get_version
+ - mounts: document weird prefix in schema (#1913)
+ - add utility function test cases (#1910) [sxt1001]
+ - test: mock file deletion in dhcp tests (#1911)
+ - Ensure network ready before cloud-init service runs on RHEL (#1893)
+   (LP: #1998655)
+ - docs: add copy button to code blocks (#1890) [s-makin]
+ - netplan: define features.NETPLAN_CONFIG_ROOT_READ_ONLY flag
+ - azure: fix support for systems without az command installed (#1908)
+ - Networking Clarification (#1892)
+ - Fix the distro.osfamily output problem in the openEuler system. (#1895)
+   [sxt1001] (LP: #1999042)
+ - pycloudlib: bump commit dropping azure api smoke test
+ - * net: netplan config root read-only as wifi config can contain creds
+ - autoinstall: clarify docs for users
+ - sources/azure: encode health report as utf-8 (#1897) [Chris Patterson]
+ - Add back gateway4/6 deprecation to docs (#1898)
+ - networkd: Add support for multiple [Route] sections (#1868)
+   [Nigel Kukard]
+ - doc: add qemu tutorial (#1863)
+ - lint: fix tip-flake8 and tip-mypy (#1896)
+ - Add support for setting uid when creating users on FreeBSD (#1888)
+   [einsibjarni]
+ - Fix exception in BSD networking code-path (#1894) [Mina Galić]
+ - Append derivatives to is_rhel list in cloud.cfg.tmpl (#1887) [Louis Abel]
+ - FreeBSD init: use cloudinit_enable as only rcvar (#1875) [Mina Galić]
+ - feat: add support aliyun metadata security harden mode (#1865)
+   [Manasseh Zhou]
+ - docs: uprate analyze to performance page [s-makin]
+ - test: fix lxd preseed managed network config (#1881)
+ - Add support for static IPv6 addresses for FreeBSD (#1839) [einsibjarni]
+ - Make 3.12 failures not fail the build (#1873)
+ - Docs: adding relative links [s-makin]
+ - Update read-version
+ - Fix setup.py to align with PEP 440 versioning replacing trailing
+ - travis: promote 3.11-dev to 3.11 (#1866)
+ - test_cloud_sigma: delete useless test (#1828) [sxt1001]
+ - Add "nkukard" as contributor (#1864) [Nigel Kukard]
+ - tests: ds-id mocks for vmware-rpctool as utility may not exist in env
+ - doc: add how to render new module doc (#1855)
+ - doc: improve module creation explanation (#1851)
+ - Add Support for IPv6 metadata to OpenStack (#1805)
+   [Marvin Vogt] (LP: #1906849)
+ - add xiaoge1001 to .github-cla-signers (#1854) [sxt1001]
+ - network: Deprecate gateway{4,6} keys in network config v2 (#1794)
+   (LP: #1992512)
+ - VMware: Move Guest Customization transport from OVF to VMware (#1573)
+   [PengpengSun]
+ - doc: home page links added (#1852) [s-makin]
+
 22.4.2
  - status: handle ds not defined in status.json (#1876) (LP: #1997559)
 
@@ -3819,4 +4509,3 @@
  - make the message on 'disable_root' more clear (LP: #672417)
  - do not require public key if private is given in ssh cloud-config
    (LP: #648905)
-# vi: syntax=text textwidth=79

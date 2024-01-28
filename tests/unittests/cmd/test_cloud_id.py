@@ -4,7 +4,7 @@
 
 import pytest
 
-from cloudinit import util
+from cloudinit import atomic_helper
 from cloudinit.cmd import cloud_id, status
 from cloudinit.helpers import Paths
 from tests.unittests.helpers import mock
@@ -16,32 +16,40 @@ STATUS_DETAILS_DONE = status.StatusDetails(
     status.UXAppBootStatusCode.UNKNOWN,
     "DataSourceNoCloud somedetail",
     [],
+    {},
     "",
     "nocloud",
+    {},
 )
 STATUS_DETAILS_DISABLED = status.StatusDetails(
     status.UXAppStatus.DISABLED,
     status.UXAppBootStatusCode.DISABLED_BY_GENERATOR,
     "DataSourceNoCloud somedetail",
     [],
+    {},
     "",
     "",
+    {},
 )
 STATUS_DETAILS_NOT_RUN = status.StatusDetails(
     status.UXAppStatus.NOT_RUN,
     status.UXAppBootStatusCode.UNKNOWN,
     "",
     [],
+    {},
     "",
     "",
+    {},
 )
 STATUS_DETAILS_RUNNING = status.StatusDetails(
     status.UXAppStatus.RUNNING,
     status.UXAppBootStatusCode.UNKNOWN,
     "",
     [],
+    {},
     "",
     "",
+    {},
 )
 
 
@@ -50,8 +58,10 @@ STATUS_DETAILS_RUNNING_DS_NONE = status.StatusDetails(
     status.UXAppBootStatusCode.UNKNOWN,
     "",
     [],
+    {},
     "",
     None,
+    {},
 )
 
 
@@ -189,7 +199,7 @@ class TestCloudId:
             '{"v1": {"cloud_name": "unknown", "region": "dfw",'
             ' "platform": "openstack", "public_ssh_keys": []}}',
         )
-        expected = util.json_dumps(
+        expected = atomic_helper.json_dumps(
             {
                 "cloud_id": "openstack",
                 "cloud_name": "unknown",
@@ -230,6 +240,3 @@ class TestCloudId:
             with pytest.raises(SystemExit) as context_manager:
                 cloud_id.main()
         assert exit_code == context_manager.value.code
-
-
-# vi: ts=4 expandtab

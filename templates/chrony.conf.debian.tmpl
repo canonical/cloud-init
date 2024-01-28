@@ -11,6 +11,12 @@ pool {{pool}} iburst
 {% for server in servers -%}
 server {{server}} iburst
 {% endfor %}
+{% for peer in peers -%}
+peer {{peer}}
+{% endfor %}
+{% for a in allow -%}
+allow {{a}}
+{% endfor %}
 
 # This directive specify the location of the file containing ID/key pairs for
 # NTP authentication.

@@ -146,4 +146,4 @@ users:
 #     shell: /bin/bash
 #     lock_passwd: True
 #     gecos: Ubuntu
-#     groups: [adm, audio, cdrom, dialout, floppy, video, plugdev, dip, netdev]
+#     groups: [adm, cdrom, dip, lxd, sudo]

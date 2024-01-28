@@ -12,6 +12,12 @@ pool {{pool}} iburst
 {% for server in servers -%}
 server {{server}} iburst
 {% endfor %}
+{% for peer in peers -%}
+peer {{peer}}
+{% endfor %}
+{% for a in allow -%}
+allow {{a}}
+{% endfor %}
 
 # This directive specify the file into which chronyd will store the rate
 # information.

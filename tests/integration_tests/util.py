@@ -8,12 +8,15 @@ from contextlib import contextmanager
 from functools import lru_cache
 from itertools import chain
 from pathlib import Path
-from typing import Set
+from typing import TYPE_CHECKING, Set
 
 import pytest
 
 from cloudinit.subp import subp
-from tests.integration_tests.instances import IntegrationInstance
+
+if TYPE_CHECKING:
+    # instances.py has imports util.py, so avoid circular import
+    from tests.integration_tests.instances import IntegrationInstance
 
 log = logging.getLogger("integration_testing")
 key_pair = namedtuple("key_pair", "public_key private_key")
@@ -55,7 +58,7 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
             "Found unexpected errors: %s" % "\n".join(error_logs)
         )
 
-    warning_count = log.count("WARN")
+    warning_count = log.count("[WARNING]")
     expected_warnings = 0
     traceback_count = log.count("Traceback")
     expected_tracebacks = 0
@@ -67,8 +70,22 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
         # Ubuntu lxd storage
         "thinpool by default on Ubuntu due to LP #1982780",
         "WARNING]: Could not match supplied host pattern, ignoring:",
+        # Old Ubuntu cloud-images contain /etc/apt/sources.list
+        "WARNING]: Removing /etc/apt/sources.list to favor deb822 source"
+        " format",
     ]
     traceback_texts = []
+    if "install canonical-livepatch" in log:
+        # Ubuntu Pro Client emits a warning in between installing livepatch
+        # and enabling it
+        warning_texts.append(
+            "canonical-livepatch returned error when checking status"
+        )
+    if "found network data from DataSourceNone" in log:
+        warning_texts.append("Used fallback datasource")
+        warning_texts.append(
+            "Falling back to a hard restart of systemd-networkd.service"
+        )
     if "oracle" in log:
         # LP: #1842752
         lease_exists_text = "Stderr: RTNETLINK answers: File exists"
@@ -155,7 +172,28 @@ def get_test_rsa_keypair(key_name: str = "test1") -> key_pair:
     return key_pair(public_key, private_key)
 
 
-def get_console_log(client: IntegrationInstance):
+# We're implementing our own here in case cloud-init status --wait
+# isn't working correctly (LP: #1966085)
+def wait_for_cloud_init(client: "IntegrationInstance", num_retries: int = 30):
+    last_exception = None
+    for _ in range(num_retries):
+        try:
+            result = client.execute("cloud-init status")
+            if (
+                result
+                and result.ok
+                and ("running" not in result or "not run" not in result)
+            ):
+                return result
+        except Exception as e:
+            last_exception = e
+        time.sleep(1)
+    raise Exception(
+        "cloud-init status did not return successfully."
+    ) from last_exception
+
+
+def get_console_log(client: "IntegrationInstance"):
     try:
         console_log = client.instance.console_log()
     except NotImplementedError:
@@ -166,7 +204,7 @@ def get_console_log(client: IntegrationInstance):
 
 
 @lru_cache()
-def lxd_has_nocloud(client: IntegrationInstance) -> bool:
+def lxd_has_nocloud(client: "IntegrationInstance") -> bool:
     # Bionic or Focal may be detected as NoCloud rather than LXD
     lxd_image_metadata = subp(
         ["lxc", "config", "metadata", "show", client.instance.name]
@@ -174,7 +212,7 @@ def lxd_has_nocloud(client: IntegrationInstance) -> bool:
     return "/var/lib/cloud/seed/nocloud" in lxd_image_metadata.stdout
 
 
-def get_feature_flag_value(client: IntegrationInstance, key):
+def get_feature_flag_value(client: "IntegrationInstance", key):
     value = client.execute(
         'python3 -c "from cloudinit import features; '
         f'print(features.{key})"'

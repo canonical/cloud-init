@@ -25,6 +25,7 @@ import binascii
 import errno
 import fcntl
 import json
+import logging
 import os
 import random
 import re
@@ -32,9 +33,7 @@ import socket
 
 import serial
 
-from cloudinit import dmi
-from cloudinit import log as logging
-from cloudinit import sources, subp, util
+from cloudinit import atomic_helper, dmi, sources, subp, util
 from cloudinit.event import EventScope, EventType
 
 LOG = logging.getLogger(__name__)
@@ -419,7 +418,7 @@ class JoyentMetadataClient:
         if not frame_data.get("payload", None):
             LOG.debug("No value found.")
             return None
-        value = util.b64d(frame_data["payload"])
+        value = atomic_helper.b64d(frame_data["payload"])
         LOG.debug('Value "%s" found.', value)
         return value
 
@@ -525,9 +524,6 @@ class JoyentMetadataClient:
             [base64.b64encode(i.encode()) for i in (key, val)]
         ).decode()
         return self.request(rtype="PUT", param=param)
-
-    def delete(self, key):
-        return self.request(rtype="DELETE", param=key)
 
     def close_transport(self):
         if self.fp:
@@ -1055,5 +1051,3 @@ if __name__ == "__main__":
         load_key(client=jmc, key=key, data=data)
 
     print(json.dumps(data, indent=1, sort_keys=True, separators=(",", ": ")))
-
-# vi: ts=4 expandtab

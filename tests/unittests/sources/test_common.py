@@ -1,7 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import settings, sources, type_utils
+from unittest.mock import patch
+
+from cloudinit import importer, settings, sources, type_utils
 from cloudinit.sources import DataSource
+from cloudinit.sources import DataSourceAkamai as Akamai
 from cloudinit.sources import DataSourceAliYun as AliYun
 from cloudinit.sources import DataSourceAltCloud as AltCloud
 from cloudinit.sources import DataSourceAzure as Azure
@@ -33,6 +36,7 @@ from cloudinit.sources import DataSourceVultr as Vultr
 from tests.unittests import helpers as test_helpers
 
 DEFAULT_LOCAL = [
+    AliYun.DataSourceAliYunLocal,
     Azure.DataSourceAzure,
     CloudSigma.DataSourceCloudSigma,
     ConfigDrive.DataSourceConfigDrive,
@@ -41,6 +45,7 @@ DEFAULT_LOCAL = [
     Hetzner.DataSourceHetzner,
     IBMCloud.DataSourceIBMCloud,
     LXD.DataSourceLXD,
+    MAAS.DataSourceMAAS,
     NoCloud.DataSourceNoCloud,
     OpenNebula.DataSourceOpenNebula,
     Oracle.DataSourceOracle,
@@ -54,6 +59,7 @@ DEFAULT_LOCAL = [
     UpCloud.DataSourceUpCloudLocal,
     VMware.DataSourceVMware,
     NWCS.DataSourceNWCS,
+    Akamai.DataSourceAkamaiLocal,
 ]
 
 DEFAULT_NETWORK = [
@@ -70,6 +76,7 @@ DEFAULT_NETWORK = [
     OpenStack.DataSourceOpenStack,
     OVF.DataSourceOVFNet,
     UpCloud.DataSourceUpCloud,
+    Akamai.DataSourceAkamai,
     VMware.DataSourceVMware,
 ]
 
@@ -80,21 +87,42 @@ class ExpectedDataSources(test_helpers.TestCase):
     deps_network = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
     pkg_list = [type_utils.obj_name(sources)]
 
+    @patch.object(
+        importer,
+        "match_case_insensitive_module_name",
+        lambda name: f"DataSource{name}",
+    )
     def test_expected_default_local_sources_found(self):
         found = sources.list_sources(
-            self.builtin_list, self.deps_local, self.pkg_list
+            self.builtin_list,
+            self.deps_local,
+            self.pkg_list,
         )
         self.assertEqual(set(DEFAULT_LOCAL), set(found))
 
+    @patch.object(
+        importer,
+        "match_case_insensitive_module_name",
+        lambda name: f"DataSource{name}",
+    )
     def test_expected_default_network_sources_found(self):
         found = sources.list_sources(
-            self.builtin_list, self.deps_network, self.pkg_list
+            self.builtin_list,
+            self.deps_network,
+            self.pkg_list,
         )
         self.assertEqual(set(DEFAULT_NETWORK), set(found))
 
+    @patch.object(
+        importer,
+        "match_case_insensitive_module_name",
+        lambda name: f"DataSource{name}",
+    )
     def test_expected_nondefault_network_sources_found(self):
         found = sources.list_sources(
-            ["AliYun"], self.deps_network, self.pkg_list
+            ["AliYun"],
+            self.deps_network,
+            self.pkg_list,
         )
         self.assertEqual(set([AliYun.DataSourceAliYun]), set(found))
 
@@ -120,6 +148,3 @@ class TestDataSourceInvariants(test_helpers.TestCase):
             )
             self.assertNotEqual(ds.dsname, DataSource.dsname, fail_msg)
             self.assertIsNotNone(ds.dsname)
-
-
-# vi: ts=4 expandtab

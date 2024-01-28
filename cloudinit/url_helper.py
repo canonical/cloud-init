@@ -10,6 +10,7 @@
 
 import copy
 import json
+import logging
 import os
 import threading
 import time
@@ -25,7 +26,6 @@ from urllib.parse import quote, urlparse, urlunparse
 import requests
 from requests import exceptions
 
-from cloudinit import log as logging
 from cloudinit import version
 
 LOG = logging.getLogger(__name__)
@@ -285,7 +285,7 @@ def readurl(
     # Handle retrying ourselves since the built-in support
     # doesn't handle sleeping between tries...
     # Infinitely retry if infinite is True
-    for i in count() if infinite else range(0, manual_tries):
+    for i in count() if infinite else range(manual_tries):
         req_args["headers"] = headers_cb(url)
         filtered_req_args = {}
         for (k, v) in req_args.items():
@@ -826,26 +826,3 @@ def oauth_headers(
     )
     _uri, signed_headers, _body = client.sign(url)
     return signed_headers
-
-
-def retry_on_url_exc(
-    msg, exc, *, retry_codes=(NOT_FOUND,), retry_instances=(requests.Timeout,)
-):
-    """Configurable retry exception callback for readurl().
-
-    :param retry_codes: Codes to retry on. Defaults to 404.
-    :param retry_instances: Exception types to retry on. Defaults to
-      requests.Timeout.
-
-    :returns: False to raise the exception from readurl(), True to retry.
-    """
-    if not isinstance(exc, UrlError):
-        return False
-    if exc.code in retry_codes:
-        return True
-    if exc.cause and isinstance(exc.cause, retry_instances):
-        return True
-    return False
-
-
-# vi: ts=4 expandtab

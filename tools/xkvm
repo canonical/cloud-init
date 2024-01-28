@@ -705,5 +705,3 @@ if [ "$1" = "tap-control" ]; then
 else
     main "$@"
 fi
-
-# vi: ts=4 expandtab syntax=sh

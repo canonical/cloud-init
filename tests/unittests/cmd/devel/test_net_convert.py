@@ -58,7 +58,7 @@ DHCP=ipv4
 """
 
 SAMPLE_SYSCONFIG_CONTENT = """\
-# Created by cloud-init on instance boot automatically, do not edit.
+# Created by cloud-init automatically, do not edit.
 #
 BOOTPROTO=dhcp
 DEVICE=eth0
@@ -74,6 +74,7 @@ SAMPLE_NETWORK_MANAGER_CONTENT = """\
 [connection]
 id=cloud-init eth0
 uuid=1dd9a779-d327-56e1-8454-c65e2556c12c
+autoconnect-priority=120
 type=ethernet
 interface-name=eth0
 
@@ -224,6 +225,3 @@ class TestNetConvert:
             net_convert.handle_args("somename", args)
         outfile = tmpdir.join("etc/netplan/50-cloud-init.yaml")
         assert yaml.load(content) == yaml.load(outfile.read())
-
-
-# vi: ts=4 expandtab

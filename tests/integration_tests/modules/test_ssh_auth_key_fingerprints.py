@@ -36,7 +36,7 @@ class TestSshAuthkeyFingerprints:
     def test_ssh_authkey_fingerprints_disable(self, client):
         cloudinit_output = client.read_from_file("/var/log/cloud-init.log")
         assert (
-            "Skipping module named ssh-authkey-fingerprints, "
+            "Skipping module named ssh_authkey_fingerprints, "
             "logging of SSH fingerprints disabled" in cloudinit_output
         )
 
@@ -49,7 +49,6 @@ class TestSshAuthkeyFingerprints:
 
         assert re.search(r"256 SHA256:.*(ECDSA)", syslog_output) is not None
         assert re.search(r"256 SHA256:.*(ED25519)", syslog_output) is not None
-        assert re.search(r"1024 SHA256:.*(DSA)", syslog_output) is None
         assert re.search(r"2048 SHA256:.*(RSA)", syslog_output) is None
 
 

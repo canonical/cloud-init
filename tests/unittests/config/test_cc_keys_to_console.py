@@ -42,7 +42,7 @@ class TestHandle:
         m_path_exists.return_value = True
         m_subp.return_value = ("", "")
 
-        cc_keys_to_console.handle("name", cfg, mock.Mock(), mock.Mock(), ())
+        cc_keys_to_console.handle("name", cfg, mock.Mock(), ())
 
         assert subp_called == (m_subp.call_count == 1)
 
@@ -114,6 +114,3 @@ class TestKeysToConsoleSchema:
         schema = get_schema()
         with pytest.raises(SchemaValidationError, match=error_msg):
             validate_cloudconfig_schema(config, schema, strict=True)
-
-
-# vi: ts=4 expandtab

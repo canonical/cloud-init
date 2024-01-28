@@ -1,0 +1,61 @@
+## template:jinja
+## Note, this file is written by cloud-init on first boot of an instance
+## modifications made here will not survive a re-bundle.
+## if you wish to make changes you can:
+## a.) add 'apt_preserve_sources_list: true' to /etc/cloud/cloud.cfg
+##     or do the same in user-data
+## b.) add supplemental sources in /etc/apt/sources.list.d
+## c.) make changes to template file
+##      /etc/cloud/templates/sources.list.ubuntu.deb822.tmpl
+##
+## See http://help.ubuntu.com/community/UpgradeNotes for how to upgrade to
+## newer versions of the distribution.
+##
+## The following settings can be tweaked to configure which packages to use
+## from Ubuntu.
+## Mirror your choices (except for URIs and Suites) in the security section
+## below to ensure timely security updates.
+##
+## Types: Append deb-src to enable the fetching of source package.
+## URIs: A URL to the repository (you may add multiple URLs)
+## Suites: The following additional suites can be configured
+##   <name>-updates   - Major bug fix updates produced after the final release
+##                      of the distribution.
+##   <name>-backports - software from this repository may not have been tested
+##                      as extensively as that contained in the main release,
+##                      although it includes newer versions of some
+##                      applications which may provide useful features.
+##                      Also, please note that software in backports WILL NOT
+##                      receive any review or updates from the Ubuntu security
+##                      team.
+## Components: Aside from main, the following components can be added to the
+## list:
+##   restricted  - Software that may not be under a free license, or protected
+##                 by patents.
+##   universe    - Community maintained packages. Software from this repository
+##                 is ENTIRELY UNSUPPORTED by the Ubuntu team. Also, please
+##                 note that software in universe WILL NOT receive any
+##                 review or updates from the Ubuntu security team.
+##   multiverse  - Community maintained of restricted. Software from this
+##                 repository is ENTIRELY UNSUPPORTED by the Ubuntu team, and
+##                 may not be under a free licence. Please satisfy yourself as
+##                 to your rights to use the software.
+##                 Also, please note that software in multiverse WILL NOT
+##                 receive any review or updates from the Ubuntu security team.
+##
+## See the sources.list(5) manual page for further settings.
+# Types: deb deb-src
+Types: deb
+URIs: {{mirror}}
+Suites: {{codename}} {{codename}}-updates {{codename}}-backports
+Components: main restricted universe multiverse
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+
+## Ubuntu security updates. Aside from URIs and Suites,
+## this should mirror your choices in the previous section.
+# Types: deb deb-src
+Types: deb
+URIs: {{security}}
+Suites: {{codename}}-security
+Components: main restricted universe multiverse
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg

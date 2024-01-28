@@ -30,9 +30,11 @@ import re
 import pytest
 from pycloudlib.cloud import ImageType
 
-from tests.integration_tests.clouds import ImageSpecification, IntegrationCloud
+from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.conftest import get_validated_source
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import CURRENT_RELEASE
 
 
 def _check_iid_insensitive_across_kernel_upgrade(
@@ -67,17 +69,15 @@ def _check_iid_insensitive_across_kernel_upgrade(
     assert 1 == ssh_runs, "config_ssh ran too many times {}".format(ssh_runs)
 
 
-@pytest.mark.azure
+@pytest.mark.skipif(PLATFORM != "azure", reason="Test is Azure specific")
 @pytest.mark.integration_cloud_args(image_type=ImageType.PRO_FIPS)
 def test_azure_kernel_upgrade_case_insensitive_uuid(
     session_cloud: IntegrationCloud,
 ):
-    cfg_image_spec = ImageSpecification.from_os_image()
-    if (cfg_image_spec.os, cfg_image_spec.release) != ("ubuntu", "bionic"):
+    if (CURRENT_RELEASE.os, CURRENT_RELEASE.series) != ("ubuntu", "bionic"):
         pytest.skip(
-            "Test only supports ubuntu:bionic not {0.os}:{0.release}".format(
-                cfg_image_spec
-            )
+            f"Test only supports ubuntu:bionic not {CURRENT_RELEASE.os}: "
+            f"{CURRENT_RELEASE.series}"
         )
     source = get_validated_source(session_cloud)
     if not source.installs_new_version():
@@ -87,14 +87,12 @@ def test_azure_kernel_upgrade_case_insensitive_uuid(
     with session_cloud.launch(
         launch_kwargs={
             "image_id": session_cloud.cloud_instance.daily_image(
-                cfg_image_spec.image_id, image_type=ImageType.PRO_FIPS
+                CURRENT_RELEASE.series, image_type=ImageType.PRO_FIPS
             )
         }
     ) as instance:
         # We can't use setup_image fixture here because we want to avoid
         # taking a snapshot or cleaning the booted machine after cloud-init
         # upgrade.
-        instance.install_new_cloud_init(
-            source, take_snapshot=False, clean=False
-        )
+        instance.install_new_cloud_init(source, clean=False)
         _check_iid_insensitive_across_kernel_upgrade(instance)

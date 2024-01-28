@@ -14,13 +14,13 @@
 
 import collections
 import functools
+import logging
 import os
 import pwd
 import re
 import string
 
-from cloudinit import log as logging
-from cloudinit import net, sources, subp, util
+from cloudinit import atomic_helper, net, sources, subp, util
 
 LOG = logging.getLogger(__name__)
 
@@ -161,9 +161,6 @@ class OpenNebulaNetwork:
     def mac2ip(self, mac):
         return ".".join([str(int(c, 16)) for c in mac.split(":")[2:]])
 
-    def mac2network(self, mac):
-        return self.mac2ip(mac).rpartition(".")[0] + ".0"
-
     def get_nameservers(self, dev):
         nameservers = {}
         dns = self.get_field(dev, "dns", "").split()
@@ -207,9 +204,6 @@ class OpenNebulaNetwork:
 
     def get_mask(self, dev):
         return self.get_field(dev, "mask", "255.255.255.0")
-
-    def get_network(self, dev, mac):
-        return self.get_field(dev, "network", self.mac2network(mac))
 
     def get_field(self, dev, name, default=None):
         """return the field name in context for device dev.
@@ -492,7 +486,7 @@ def read_context_disk_dir(source_dir, distro, asuser=None):
         )
         if encoding == "base64":
             try:
-                results["userdata"] = util.b64d(results["userdata"])
+                results["userdata"] = atomic_helper.b64d(results["userdata"])
             except TypeError:
                 LOG.warning("Failed base64 decoding of userdata")
 
@@ -526,6 +520,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab

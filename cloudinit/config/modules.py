@@ -7,12 +7,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import logging
+from inspect import signature
 from types import ModuleType
 from typing import Dict, List, NamedTuple, Optional
 
-from cloudinit import config, importer
-from cloudinit import log as logging
-from cloudinit import type_utils, util
+from cloudinit import config, importer, type_utils, util
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.helpers import ConfigMerger
 from cloudinit.reporting.events import ReportEventStack
@@ -26,6 +26,13 @@ LOG = logging.getLogger(__name__)
 # we will not find something else with the same
 # name in the lookup path...
 MOD_PREFIX = "cc_"
+
+# List of modules that have removed upstream. This prevents every downstream
+# from having to create upgrade scripts to avoid warnings about missing
+# modules.
+REMOVED_MODULES = [
+    "cc_migrator",  # Removed in 24.1
+]
 
 
 class ModuleDetails(NamedTuple):
@@ -194,11 +201,18 @@ class Modules:
                 mod_name, ["", type_utils.obj_name(config)], ["handle"]
             )
             if not mod_locs:
-                LOG.warning(
-                    "Could not find module named %s (searched %s)",
-                    mod_name,
-                    looked_locs,
-                )
+                if mod_name in REMOVED_MODULES:
+                    LOG.info(
+                        "Module `%s` has been removed from cloud-init. "
+                        "It may be removed from `/etc/cloud/cloud.cfg`.",
+                        mod_name[3:],  # [3:] to remove 'cc_'
+                    )
+                else:
+                    LOG.warning(
+                        "Could not find module named %s (searched %s)",
+                        mod_name,
+                        looked_locs,
+                    )
                 continue
             mod = importer.import_module(mod_locs[0])
             validate_module(mod, raw_name)
@@ -221,17 +235,12 @@ class Modules:
         # and which ones failed + the exception of why it failed
         failures = []
         which_ran = []
-        for (mod, name, freq, args) in mostly_mods:
+        for mod, name, freq, args in mostly_mods:
             try:
                 LOG.debug(
                     "Running module %s (%s) with frequency %s", name, mod, freq
                 )
 
-                # Use the configs logger and not our own
-                # TODO(harlowja): possibly check the module
-                # for having a LOG attr and just give it back
-                # its own logger?
-                func_args = [name, self.cfg, cc, LOG, args]
                 # Mark it as having started running
                 which_ran.append(name)
                 # This name will affect the semaphore name created
@@ -241,8 +250,22 @@ class Modules:
                 myrep = ReportEventStack(
                     name=run_name, description=desc, parent=self.reporter
                 )
+                func_args = {
+                    "name": name,
+                    "cfg": self.cfg,
+                    "cloud": cc,
+                    "args": args,
+                }
 
                 with myrep:
+                    func_signature = signature(mod.handle)
+                    func_params = func_signature.parameters
+                    if len(func_params) == 5:
+                        util.deprecate(
+                            deprecated="Config modules with a `log` parameter",
+                            deprecated_version="23.2",
+                        )
+                        func_args.update({"log": LOG})
                     ran, _r = cc.run(
                         run_name, mod.handle, func_args, freq=freq
                     )

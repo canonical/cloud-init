@@ -1,0 +1,61 @@
+network:
+  version: 1
+  config:
+  - name: eth0
+    mac_address: 'd4:be:d9:a8:49:13'
+    mtu: 1500
+    subnets:
+    - address: 10.245.168.16/21
+      dns_nameservers:
+      - 10.245.168.2
+      gateway: 10.245.168.1
+      type: static
+    type: physical
+  - name: eth1
+    mac_address: 'd4:be:d9:a8:49:15'
+    mtu: 1500
+    subnets:
+    - address: 10.245.188.2/24
+      dns_nameservers: []
+      type: static
+    type: physical
+  - name: eth1.2667
+    mtu: 1500
+    subnets:
+    - address: 10.245.184.2/24
+      dns_nameservers: []
+      type: static
+    type: vlan
+    vlan_id: 2667
+    vlan_link: eth1
+  - name: eth1.2668
+    mtu: 1500
+    subnets:
+    - address: 10.245.185.1/24
+      dns_nameservers: []
+      type: static
+    type: vlan
+    vlan_id: 2668
+    vlan_link: eth1
+  - name: eth1.2669
+    mtu: 1500
+    subnets:
+    - address: 10.245.186.1/24
+      dns_nameservers: []
+      type: static
+    type: vlan
+    vlan_id: 2669
+    vlan_link: eth1
+  - name: eth1.2670
+    mtu: 1500
+    subnets:
+    - address: 10.245.187.2/24
+      dns_nameservers: []
+      type: static
+    type: vlan
+    vlan_id: 2670
+    vlan_link: eth1
+  - address: [10.245.168.2]
+    search:
+    - dellstack
+    type: nameserver

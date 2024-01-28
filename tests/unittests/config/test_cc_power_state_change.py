@@ -126,11 +126,9 @@ class TestCheckCondition(t_help.TestCase):
     def test_cmd_exit_one_false(self):
         self.assertEqual(psc.check_condition(self.cmd_with_exit(1)), False)
 
-    def test_cmd_exit_nonzero_warns(self):
-        mocklog = mock.Mock()
-        self.assertEqual(
-            psc.check_condition(self.cmd_with_exit(2), mocklog), False
-        )
+    @mock.patch("cloudinit.config.cc_power_state_change.LOG")
+    def test_cmd_exit_nonzero_warns(self, mocklog):
+        self.assertEqual(psc.check_condition(self.cmd_with_exit(2)), False)
         self.assertEqual(mocklog.warning.call_count, 1)
 
 
@@ -164,7 +162,7 @@ def check_lps_ret(psc_return, mode=None):
 
     if len(errs):
         lines = ["Errors in result: %s" % str(psc_return)] + errs
-        raise Exception("\n".join(lines))
+        raise RuntimeError("\n".join(lines))
 
 
 class TestPowerStateChangeSchema:
@@ -180,18 +178,20 @@ class TestPowerStateChangeSchema:
             (
                 {"power_state": {"mode": "halt", "delay": "5"}},
                 (
-                    "power_state.delay: DEPRECATED:"
-                    " Use of string for this value will be dropped after"
-                    " April 2027. Use ``now`` or integer type."
+                    "Cloud config schema deprecations: "
+                    "power_state.delay:  Changed in version 22.3. Use "
+                    "of type string for this value is deprecated. Use "
+                    "``now`` or integer type."
                 ),
             ),
             ({"power_state": {"mode": "halt", "delay": "now"}}, None),
             (
                 {"power_state": {"mode": "halt", "delay": "+5"}},
                 (
-                    "power_state.delay: DEPRECATED:"
-                    " Use of string for this value will be dropped after"
-                    " April 2027. Use ``now`` or integer type."
+                    "Cloud config schema deprecations: "
+                    "power_state.delay:  Changed in version 22.3. Use "
+                    "of type string for this value is deprecated. Use "
+                    "``now`` or integer type."
                 ),
             ),
             ({"power_state": {"mode": "halt", "delay": "+"}}, ""),
@@ -215,6 +215,3 @@ class TestPowerStateChangeSchema:
         else:
             with pytest.raises(SchemaValidationError, match=error_msg):
                 validate_cloudconfig_schema(config, get_schema(), strict=True)
-
-
-# vi: ts=4 expandtab

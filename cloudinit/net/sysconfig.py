@@ -1,12 +1,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import glob
 import io
+import logging
 import os
 import re
 from typing import Mapping, Optional
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.distros.parsers import networkmanager_conf, resolv_conf
 from cloudinit.net import (
@@ -26,21 +27,23 @@ KNOWN_DISTROS = [
     "eurolinux",
     "fedora",
     "miraclelinux",
-    "openEuler",
+    "openeuler",
+    "OpenCloudOS",
     "openmandriva",
     "rhel",
     "rocky",
     "suse",
+    "TencentOS",
     "virtuozzo",
 ]
 
 
 def _make_header(sep="#"):
     lines = [
-        "Created by cloud-init on instance boot automatically, do not edit.",
+        "Created by cloud-init automatically, do not edit.",
         "",
     ]
-    for i in range(0, len(lines)):
+    for i in range(len(lines)):
         if lines[i]:
             lines[i] = sep + " " + lines[i]
         else:
@@ -426,20 +429,20 @@ class Renderer(renderer.Renderer):
             if subnet_type == "dhcp6" or subnet_type == "ipv6_dhcpv6-stateful":
                 if flavor == "suse":
                     # User wants dhcp for both protocols
-                    if iface_cfg["BOOTPROTO"] == "dhcp4":
+                    if iface_cfg["BOOTPROTO"] in ("dhcp4", "dhcp"):
                         iface_cfg["BOOTPROTO"] = "dhcp"
                     else:
                         # Only IPv6 is DHCP, IPv4 may be static
                         iface_cfg["BOOTPROTO"] = "dhcp6"
                     iface_cfg["DHCLIENT6_MODE"] = "managed"
                 # only if rhel AND dhcpv6 stateful
-                elif (
-                    flavor == "rhel" and subnet_type == "ipv6_dhcpv6-stateful"
+                elif flavor == "rhel" and (
+                    subnet_type == "ipv6_dhcpv6-stateful"
                 ):
-                    iface_cfg["BOOTPROTO"] = "dhcp"
                     iface_cfg["DHCPV6C"] = True
                     iface_cfg["IPV6INIT"] = True
                     iface_cfg["IPV6_AUTOCONF"] = False
+                    iface_cfg["IPV6_FAILURE_FATAL"] = True
                 else:
                     iface_cfg["IPV6INIT"] = True
                     # Configure network settings using DHCPv6
@@ -447,7 +450,7 @@ class Renderer(renderer.Renderer):
             elif subnet_type == "ipv6_dhcpv6-stateless":
                 if flavor == "suse":
                     # User wants dhcp for both protocols
-                    if iface_cfg["BOOTPROTO"] == "dhcp4":
+                    if iface_cfg["BOOTPROTO"] in ("dhcp4", "dhcp"):
                         iface_cfg["BOOTPROTO"] = "dhcp"
                     else:
                         # Only IPv6 is DHCP, IPv4 may be static
@@ -465,7 +468,7 @@ class Renderer(renderer.Renderer):
             elif subnet_type == "ipv6_slaac":
                 if flavor == "suse":
                     # User wants dhcp for both protocols
-                    if iface_cfg["BOOTPROTO"] == "dhcp4":
+                    if iface_cfg["BOOTPROTO"] in ("dhcp4", "dhcp"):
                         iface_cfg["BOOTPROTO"] = "dhcp"
                     else:
                         # Only IPv6 is DHCP, IPv4 may be static
@@ -478,10 +481,10 @@ class Renderer(renderer.Renderer):
             elif subnet_type in ["dhcp4", "dhcp"]:
                 bootproto_in = iface_cfg["BOOTPROTO"]
                 iface_cfg["BOOTPROTO"] = "dhcp"
-                if flavor == "suse" and subnet_type == "dhcp4":
+                if flavor == "suse":
                     # If dhcp6 is already specified the user wants dhcp
                     # for both protocols
-                    if bootproto_in != "dhcp6":
+                    if bootproto_in not in ("dhcp6", "dhcp"):
                         # Only IPv4 is DHCP, IPv6 may be static
                         iface_cfg["BOOTPROTO"] = "dhcp4"
             elif subnet_type in ["static", "static6"]:
@@ -850,6 +853,11 @@ class Renderer(renderer.Renderer):
         # If DNS server information is provided, configure
         # NetworkManager to not manage dns, so that /etc/resolv.conf
         # does not get clobbered.
+        # This is not required for NetworkManager renderer as it
+        # does not write /etc/resolv.conf directly. DNS information is
+        # written to the interface keyfile and NetworkManager is then
+        # responsible for using the DNS information from the keyfile,
+        # including managing /etc/resolv.conf.
         if network_state.dns_nameservers:
             content.set_section_keypair("main", "dns", "none")
 
@@ -1011,7 +1019,12 @@ class Renderer(renderer.Renderer):
         if self.netrules_path:
             netrules_content = self._render_persistent_net(network_state)
             netrules_path = subp.target_path(target, self.netrules_path)
-            util.write_file(netrules_path, netrules_content, file_mode)
+            util.write_file(
+                netrules_path,
+                content=netrules_content,
+                mode=file_mode,
+                preserve_mode=True,
+            )
 
         sysconfig_path = subp.target_path(target, templates.get("control"))
         # Distros configuring /etc/sysconfig/network as a file e.g. Centos
@@ -1041,9 +1054,27 @@ def _supported_vlan_names(rdev, vid):
 
 
 def available(target=None):
-    if not util.system_info()["variant"] in KNOWN_DISTROS:
+    if util.system_info()["variant"] not in KNOWN_DISTROS:
         return False
+    if available_sysconfig(target):
+        return True
+    if available_nm_ifcfg_rh(target):
+        return True
+    return False
 
+
+def available_nm_ifcfg_rh(target=None):
+    # The ifcfg-rh plugin of NetworkManager is installed.
+    # NetworkManager can handle the ifcfg files.
+    return glob.glob(
+        subp.target_path(
+            target,
+            "usr/lib*/NetworkManager/*/libnm-settings-plugin-ifcfg-rh.so",
+        )
+    )
+
+
+def available_sysconfig(target=None):
     expected = ["ifup", "ifdown"]
     search = ["/sbin", "/usr/sbin"]
     for p in expected:
@@ -1058,6 +1089,3 @@ def available(target=None):
         if os.path.isfile(subp.target_path(target, p)):
             return True
     return False
-
-
-# vi: ts=4 expandtab

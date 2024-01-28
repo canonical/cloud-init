@@ -8,8 +8,8 @@
 
 import functools
 import json
+import logging
 
-from cloudinit import log as logging
 from cloudinit import url_helper, util
 
 LOG = logging.getLogger(__name__)
@@ -152,7 +152,7 @@ def get_instance_userdata(
 ):
     ud_url = url_helper.combine_url(metadata_address, api_version)
     ud_url = url_helper.combine_url(ud_url, "user-data")
-    user_data = ""
+    user_data = b""
     try:
         if not exception_cb:
             # It is ok for userdata to not exist (thats why we are stopping if
@@ -282,6 +282,3 @@ def get_instance_identity(
         headers_cb=headers_cb,
         exception_cb=exception_cb,
     )
-
-
-# vi: ts=4 expandtab

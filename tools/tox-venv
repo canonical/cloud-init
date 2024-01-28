@@ -181,5 +181,3 @@ if [ "$1" = "cmd" -o "$1" = "-" ]; then
 fi
 echo "inside tox:$env running: $*" 1>&2
 debian_chroot="tox:$env" exec "$@"
-
-# vi: ts=4 expandtab

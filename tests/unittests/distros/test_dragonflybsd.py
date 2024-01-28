@@ -1,12 +1,11 @@
-#!/usr/bin/env python3
-
+# This file is part of cloud-init. See LICENSE file for license information.
 
 import cloudinit.util
 from tests.unittests.helpers import mock
 
 
 def test_find_dragonflybsd_part():
-    assert cloudinit.util.find_dragonflybsd_part("/dev/vbd0s3") == "vbd0s3"
+    assert cloudinit.util.find_freebsd_part("/dev/vbd0s3") == "vbd0s3"
 
 
 @mock.patch("cloudinit.util.is_DragonFlyBSD")

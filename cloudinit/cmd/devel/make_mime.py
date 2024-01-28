@@ -5,16 +5,15 @@
 """Generate multi-part mime messages for user-data."""
 
 import argparse
+import logging
 import sys
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from cloudinit import log
-from cloudinit.cmd.devel import addLogHandlerCLI
 from cloudinit.handlers import INCLUSION_TYPES_MAP
 
 NAME = "make-mime"
-LOG = log.getLogger(NAME)
+LOG = logging.getLogger(__name__)
 EPILOG = (
     "Example: make-mime -a config.yaml:cloud-config "
     "-a script.sh:x-shellscript > user-data"
@@ -32,9 +31,10 @@ def create_mime_message(files):
         )
         content_type = sub_message.get_content_type().lower()
         if content_type not in get_content_types():
-            msg = (
-                "content type %r for attachment %s " "may be incorrect!"
-            ) % (content_type, i + 1)
+            msg = ("content type %r for attachment %s may be incorrect!") % (
+                content_type,
+                i + 1,
+            )
             errors.append(msg)
         sub_messages.append(sub_message)
     combined_message = MIMEMultipart()
@@ -115,7 +115,6 @@ def handle_args(name, args):
 
     @return 0 on success, 1 on failure.
     """
-    addLogHandlerCLI(LOG, log.DEBUG if args.debug else log.WARNING)
     if args.list_types:
         print("\n".join(get_content_types(strip_prefix=True)))
         return 0

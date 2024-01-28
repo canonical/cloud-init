@@ -14,6 +14,7 @@ import shutil
 import stat
 import tempfile
 from collections import deque
+from pathlib import Path
 from textwrap import dedent
 from unittest import mock
 from urllib.parse import urlparse
@@ -21,12 +22,12 @@ from urllib.parse import urlparse
 import pytest
 import yaml
 
-from cloudinit import features, importer, subp, url_helper, util
+from cloudinit import atomic_helper, features, importer, subp, url_helper, util
 from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import SubpResult
 from tests.unittests import helpers
-from tests.unittests.helpers import CiTestCase, skipUnlessJinja
+from tests.unittests.helpers import CiTestCase, skipIf, skipUnlessJinja
 
 LOG = logging.getLogger(__name__)
 M_PATH = "cloudinit.util."
@@ -269,6 +270,36 @@ OS_RELEASE_OPENEULER_20 = dedent(
 """
 )
 
+OS_RELEASE_OPENCLOUDOS_8 = dedent(
+    """\
+    NAME="OpenCloudOS"
+    VERSION="8.6"
+    ID="OpenCloudOS"
+    ID_LIKE="rhel fedora"
+    VERSION_ID="8.6"
+    PLATFORM_ID="platform:oc8"
+    PRETTY_NAME="OpenCloudOS 8.6"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:opencloudos:opencloudos:8"
+    HOME_URL="https://www.opencloudos.org/"
+    BUG_REPORT_URL="https://bugs.opencloudos.tech/"
+"""
+)
+
+OS_RELEASE_TENCENTOS_3 = dedent(
+    """\
+    NAME="TencentOS"
+    VERSION="3.1"
+    ID="TencentOS"
+    ID_LIKE="rhel fedora centos"
+    VERSION_ID="3.1"
+    PLATFORM_ID="platform:el3"
+    PRETTY_NAME="TencentOS 3.1"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:tencentos:tencentos:3"
+"""
+)
+
 REDHAT_RELEASE_CENTOS_6 = "CentOS release 6.10 (Final)"
 REDHAT_RELEASE_CENTOS_7 = "CentOS Linux release 7.5.1804 (Core)"
 REDHAT_RELEASE_REDHAT_6 = (
@@ -435,7 +466,7 @@ class TestUtil:
         ) in caplog.text
 
     @skipUnlessJinja()
-    def test_read_conf_with_failed_template(self, mocker, caplog):
+    def test_read_conf_with_failed_config_json(self, mocker, caplog):
         mocker.patch("os.path.exists", return_value=True)
         mocker.patch(
             "cloudinit.util.load_file",
@@ -450,7 +481,7 @@ class TestUtil:
         assert conf == {}
 
     @skipUnlessJinja()
-    def test_read_conf_with_failed_vars(self, mocker, caplog):
+    def test_read_conf_with_failed_instance_data_json(self, mocker, caplog):
         mocker.patch("os.path.exists", return_value=True)
         mocker.patch(
             "cloudinit.util.load_file",
@@ -463,6 +494,34 @@ class TestUtil:
         conf = util.read_conf("cfg_path", instance_data_file="vars_path")
         assert "Could not apply Jinja template" in caplog.text
         assert conf == {"a": "{{c}}"}
+
+    @pytest.mark.parametrize(
+        "template",
+        [
+            '{"a": "{{c} } }"',
+            '{"a": "{{c} } "',
+            "{% if c %} C is present {% else % } C is NOT present {% endif %}",
+        ],
+    )
+    @skipUnlessJinja()
+    def test_read_conf_with_config_invalid_jinja_syntax(
+        self, mocker, caplog, template
+    ):
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch(
+            "cloudinit.util.load_file",
+            return_value="## template: jinja\n" + template,
+        )
+        mocker.patch(
+            "cloudinit.handlers.jinja_template.load_file",
+            return_value='{"c": "d"}',
+        )
+        conf = util.read_conf("cfg_path", instance_data_file="vars_path")
+        assert (
+            "Failed to render templated yaml config file 'cfg_path'"
+            in caplog.text
+        )
+        assert conf == {}
 
     @mock.patch(
         M_PATH + "read_conf",
@@ -823,64 +882,66 @@ class TestBlkid(CiTestCase):
         )
 
 
-@mock.patch("cloudinit.subp.which")
-@mock.patch("cloudinit.subp.subp")
+@mock.patch("cloudinit.util.subp.which")
+@mock.patch("cloudinit.util.subp.subp")
 class TestUdevadmSettle(CiTestCase):
-    def test_with_no_params(self, m_which, m_subp):
+    def test_with_no_params(self, m_subp, m_which):
         """called with no parameters."""
         m_which.side_effect = lambda m: m in ("udevadm",)
         util.udevadm_settle()
-        m_subp.called_once_with(mock.call(["udevadm", "settle"]))
+        m_subp.assert_called_once_with(["udevadm", "settle"])
 
-    def test_udevadm_not_present(self, m_which, m_subp):
+    def test_udevadm_not_present(self, m_subp, m_which):
         """where udevadm program does not exist should not invoke subp."""
         m_which.side_effect = lambda m: m in ("",)
         util.udevadm_settle()
-        m_subp.called_once_with(["which", "udevadm"])
+        m_which.assert_called_once_with("udevadm")
+        m_subp.assert_not_called()
 
-    def test_with_exists_and_not_exists(self, m_which, m_subp):
+    def test_with_exists_and_not_exists(self, m_subp, m_which):
         """with exists=file where file does not exist should invoke subp."""
         m_which.side_effect = lambda m: m in ("udevadm",)
         mydev = self.tmp_path("mydev")
         util.udevadm_settle(exists=mydev)
-        m_subp.called_once_with(
+        m_subp.assert_called_once_with(
             ["udevadm", "settle", "--exit-if-exists=%s" % mydev]
         )
 
-    def test_with_exists_and_file_exists(self, m_which, m_subp):
+    def test_with_exists_and_file_exists(self, m_subp, m_which):
         """with exists=file where file does exist should only invoke subp
         once for 'which' call."""
         m_which.side_effect = lambda m: m in ("udevadm",)
         mydev = self.tmp_path("mydev")
         util.write_file(mydev, "foo\n")
         util.udevadm_settle(exists=mydev)
-        m_subp.called_once_with(["which", "udevadm"])
+        m_which.assert_called_once_with("udevadm")
+        m_subp.assert_not_called()
 
-    def test_with_timeout_int(self, m_which, m_subp):
+    def test_with_timeout_int(self, m_subp, m_which):
         """timeout can be an integer."""
         m_which.side_effect = lambda m: m in ("udevadm",)
         timeout = 9
         util.udevadm_settle(timeout=timeout)
-        m_subp.called_once_with(
+        m_subp.assert_called_once_with(
             ["udevadm", "settle", "--timeout=%s" % timeout]
         )
 
-    def test_with_timeout_string(self, m_which, m_subp):
+    def test_with_timeout_string(self, m_subp, m_which):
         """timeout can be a string."""
         m_which.side_effect = lambda m: m in ("udevadm",)
         timeout = "555"
         util.udevadm_settle(timeout=timeout)
-        m_subp.called_once_with(
+        m_subp.assert_called_once_with(
             ["udevadm", "settle", "--timeout=%s" % timeout]
         )
 
-    def test_with_exists_and_timeout(self, m_which, m_subp):
+    def test_with_exists_and_timeout(self, m_subp, m_which):
         """test call with both exists and timeout."""
         m_which.side_effect = lambda m: m in ("udevadm",)
         mydev = self.tmp_path("mydev")
         timeout = "3"
-        util.udevadm_settle(exists=mydev)
-        m_subp.called_once_with(
+        util.udevadm_settle(exists=mydev, timeout=timeout)
+        m_subp.assert_called_once_with(
             [
                 "udevadm",
                 "settle",
@@ -889,7 +950,7 @@ class TestUdevadmSettle(CiTestCase):
             ]
         )
 
-    def test_subp_exception_raises_to_caller(self, m_which, m_subp):
+    def test_subp_exception_raises_to_caller(self, m_subp, m_which):
         m_which.side_effect = lambda m: m in ("udevadm",)
         m_subp.side_effect = subp.ProcessExecutionError("BOOM")
         self.assertRaises(subp.ProcessExecutionError, util.udevadm_settle)
@@ -1130,6 +1191,22 @@ class TestGetLinuxDistro(CiTestCase):
         self.assertEqual(("openEuler", "20.03", "LTS-SP2"), dist)
 
     @mock.patch(M_PATH + "load_file")
+    def test_get_linux_opencloudos(self, m_os_release, m_path_exists):
+        """Verify get the correct name and release name on OpenCloudOS."""
+        m_os_release.return_value = OS_RELEASE_OPENCLOUDOS_8
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(("OpenCloudOS", "8.6", ""), dist)
+
+    @mock.patch(M_PATH + "load_file")
+    def test_get_linux_tencentos(self, m_os_release, m_path_exists):
+        """Verify get the correct name and release name on TencentOS."""
+        m_os_release.return_value = OS_RELEASE_TENCENTOS_3
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(("TencentOS", "3.1", ""), dist)
+
+    @mock.patch(M_PATH + "load_file")
     def test_get_linux_opensuse(self, m_os_release, m_path_exists):
         """Verify we get the correct name and machine arch on openSUSE
         prior to openSUSE Leap 15.
@@ -1245,10 +1322,12 @@ class TestGetVariant:
             ({"system": "linux", "dist": ("fedora",)}, "fedora"),
             ({"system": "linux", "dist": ("mariner",)}, "mariner"),
             ({"system": "linux", "dist": ("openEuler",)}, "openeuler"),
+            ({"system": "linux", "dist": ("OpenCloudOS",)}, "opencloudos"),
             ({"system": "linux", "dist": ("photon",)}, "photon"),
             ({"system": "linux", "dist": ("rhel",)}, "rhel"),
             ({"system": "linux", "dist": ("rocky",)}, "rocky"),
             ({"system": "linux", "dist": ("suse",)}, "suse"),
+            ({"system": "linux", "dist": ("TencentOS",)}, "tencentos"),
             ({"system": "linux", "dist": ("virtuozzo",)}, "virtuozzo"),
             ({"system": "linux", "dist": ("ubuntu",)}, "ubuntu"),
             ({"system": "linux", "dist": ("linuxmint",)}, "ubuntu"),
@@ -1276,19 +1355,22 @@ class TestGetVariant:
 class TestJsonDumps(CiTestCase):
     def test_is_str(self):
         """json_dumps should return a string."""
-        self.assertTrue(isinstance(util.json_dumps({"abc": "123"}), str))
+        self.assertTrue(
+            isinstance(atomic_helper.json_dumps({"abc": "123"}), str)
+        )
 
     def test_utf8(self):
         smiley = "\\ud83d\\ude03"
         self.assertEqual(
-            {"smiley": smiley}, json.loads(util.json_dumps({"smiley": smiley}))
+            {"smiley": smiley},
+            json.loads(atomic_helper.json_dumps({"smiley": smiley})),
         )
 
     def test_non_utf8(self):
         blob = b"\xba\x03Qx-#y\xea"
         self.assertEqual(
             {"blob": "ci-b64:" + base64.b64encode(blob).decode("utf-8")},
-            json.loads(util.json_dumps({"blob": blob})),
+            json.loads(atomic_helper.json_dumps({"blob": blob})),
         )
 
 
@@ -1367,9 +1449,9 @@ class TestReadCcFromCmdline:
             # 'ssh_import_id: [smoser, bob]\\nruncmd: [ [ ls, -l ], echo hi ]'
             (
                 (
-                    "cc: " + "ssh_import_id%3A%20%5Bsmoser%2C%20bob%5D%5Cn"
+                    "cc: ssh_import_id%3A%20%5Bsmoser%2C%20bob%5D%5Cn"
                     "runcmd%3A%20%5B%20%5B%20ls%2C%20-l%20%5D%2C"
-                    "%20echo%20hi%20%5D" + " end_cc"
+                    "%20echo%20hi%20%5D end_cc"
                 ),
                 {
                     "ssh_import_id": ["smoser", "bob"],
@@ -1382,9 +1464,9 @@ class TestReadCcFromCmdline:
             # 'ssh_import_id: [smoser, bob]\nruncmd: [ [ ls, -l ], echo hi ]'
             (
                 (
-                    "cc: " + "ssh_import_id%3A%20%5Bsmoser%2C%20bob%5D%0A"
+                    "cc: ssh_import_id%3A%20%5Bsmoser%2C%20bob%5D%0A"
                     "runcmd%3A%20%5B%20%5B%20ls%2C%20-l%20%5D%2C"
-                    "%20echo%20hi%20%5D" + " end_cc"
+                    "%20echo%20hi%20%5D end_cc"
                 ),
                 {
                     "ssh_import_id": ["smoser", "bob"],
@@ -1402,6 +1484,19 @@ class TestReadCcFromCmdline:
                 "cc:ssh_import_id%3A%20%5Bsmoser%5D end_cc "
                 "cc:runcmd%3A%20%5B%20%5B%20ls%2C%20-l%20%5D%20%5D end_cc",
                 {"ssh_import_id": ["smoser"], "runcmd": [["ls", "-l"]]},
+            ),
+            # Parse cmdlines that contain an IPv6 with cc: in different
+            # positions
+            ("BOOTIF=aa:bb:cc:dd bar", None),
+            ("BOOTIF=aa:bb:cc:dd cc: end_cc bar", None),
+            ("BOOTIF=aa:bb:cc:dd cc: ssh_pwauth: true", {"ssh_pwauth": True}),
+            (
+                "BOOTIF=aa:bb:cc:dd cc: ssh_pwauth: true end_cc",
+                {"ssh_pwauth": True},
+            ),
+            (
+                "cc: ssh_pwauth: true end_cc BOOTIF=aa:bb:cc:dd",
+                {"ssh_pwauth": True},
             ),
         ],
     )
@@ -1521,6 +1616,30 @@ class TestMountCb:
         assert [
             mock.call(mock.ANY, mock.sentinel.data)
         ] == callback.call_args_list
+
+    @pytest.mark.parametrize("log_error", [True, False])
+    @mock.patch(M_PATH + "subp.subp")
+    def test_mount_cb_log(self, m_subp, log_error, caplog):
+        log_msg = (
+            "Failed to mount device: '/dev/fake0' with type: "
+            "'ntfs' using mount command:"
+        )
+        m_subp.side_effect = subp.ProcessExecutionError(
+            "", "unknown filesystem type 'ntfs'"
+        )
+        callback = mock.Mock(autospec=True)
+        with pytest.raises(Exception):
+            util.mount_cb(
+                "/dev/fake0",
+                callback,
+                mtype="ntfs",
+                update_env_for_mount={"LANG": "C"},
+                log_error=log_error,
+            )
+        if log_error:
+            assert log_msg in caplog.text
+        else:
+            assert log_msg not in caplog.text
 
 
 @mock.patch(M_PATH + "write_file")
@@ -1707,6 +1826,25 @@ class TestWriteFile(helpers.TestCase):
         self.assertTrue(os.path.isdir(dirname))
         self.assertTrue(os.path.isfile(path))
 
+    def test_dir_ownership(self):
+        """Verifiy that directories is created with appropriate ownership."""
+        dirname = os.path.join(self.tmp, "subdir", "subdir2")
+        path = os.path.join(dirname, "NewFile.txt")
+        contents = "Hey there"
+        user = "foo"
+        group = "foo"
+
+        with mock.patch.object(
+            util, "chownbyname", return_value=None
+        ) as mockobj:
+            util.write_file(path, contents, user=user, group=group)
+
+        calls = [
+            mock.call(os.path.join(self.tmp, "subdir"), user, group),
+            mock.call(Path(dirname), user, group),
+        ]
+        mockobj.assert_has_calls(calls, any_order=False)
+
     def test_dir_is_not_created_if_ensure_dir_false(self):
         """Verify directories are not created if ensure_dir_exists is False."""
         dirname = os.path.join(self.tmp, "subdir")
@@ -1877,6 +2015,31 @@ class TestGetCmdline(helpers.TestCase):
         self.assertEqual("abcd 123", ret)
 
 
+class TestFipsEnabled:
+    @pytest.mark.parametrize(
+        "fips_enabled_content,expected",
+        (
+            pytest.param(None, False, id="false_when_no_fips_enabled_file"),
+            pytest.param("0\n", False, id="false_when_fips_disabled"),
+            pytest.param("1\n", True, id="true_when_fips_enabled"),
+            pytest.param("1", True, id="true_when_fips_enabled_no_newline"),
+        ),
+    )
+    @mock.patch(M_PATH + "load_file")
+    def test_fips_enabled_based_on_proc_crypto(
+        self, load_file, fips_enabled_content, expected, tmpdir
+    ):
+        def fake_load_file(path):
+            assert path == "/proc/sys/crypto/fips_enabled"
+            if fips_enabled_content is None:
+                raise IOError("No file exists Bob")
+            return fips_enabled_content
+
+        load_file.side_effect = fake_load_file
+
+        assert expected is util.fips_enabled()
+
+
 class TestLoadYaml(helpers.CiTestCase):
     mydefault = "7b03a8ebace993d806255121073fed52"
     with_logs = True
@@ -1978,7 +2141,6 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
             self.assertEqual(expected, util.parse_mount_info("/", lines))
 
     def test_precise_ext4_root(self):
-
         lines = helpers.readResource("mountinfo_precise_ext4.txt").splitlines()
 
         expected = ("/dev/mapper/vg0-root", "ext4", "/")
@@ -2082,10 +2244,10 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
         self.assertEqual(("/dev/mapper/vg00-lv_root", "ext4", "/"), ret)
         # this one exists in mount_parse_ext.txt
         ret = util.parse_mount("/sys/kernel/debug")
-        self.assertIsNone(ret)
-        # this one does not even exist in mount_parse_ext.txt
-        ret = util.parse_mount("/not/existing/mount")
-        self.assertIsNone(ret)
+        self.assertEqual(("none", "debugfs", "/sys/kernel/debug"), ret)
+        # this one does not exist in mount_parse_ext.txt
+        ret = util.parse_mount("/var/tmp/cloud-init")
+        self.assertEqual(("/dev/mapper/vg00-lv_var", "ext4", "/var"), ret)
 
     @mock.patch("cloudinit.subp.subp")
     def test_parse_mount_with_zfs(self, mount_out):
@@ -2099,9 +2261,9 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
         # this one is the root, valid and also exists in mount_parse_zfs.txt
         ret = util.parse_mount("/")
         self.assertEqual(("vmzroot/ROOT/freebsd", "zfs", "/"), ret)
-        # this one does not even exist in mount_parse_ext.txt
-        ret = util.parse_mount("/not/existing/mount")
-        self.assertIsNone(ret)
+        # this one does not exist in mount_parse_ext.txt
+        ret = util.parse_mount("/var/tmp/cloud-init")
+        self.assertEqual(("vmzroot/var/tmp", "zfs", "/var/tmp"), ret)
 
 
 class TestIsX86(helpers.CiTestCase):
@@ -2177,6 +2339,30 @@ class TestGetConfigLogfiles(helpers.CiTestCase):
                     {
                         "def_log_file": "/my.log",
                         "output": {"all": ">> /test.log"},
+                    }
+                )
+            ),
+        )
+
+    def test_output_logs_parsed_when_teeing_files_and_rotated(self):
+        """When output configuration is parsed when teeing files and rotated
+        log files are present."""
+        tmpd = self.tmp_dir()
+        log1 = self.tmp_path("my.log", tmpd)
+        log1_rotated = self.tmp_path("my.log.1.gz", tmpd)
+        log2 = self.tmp_path("himom.log", tmpd)
+        log2_rotated = self.tmp_path("himom.log.1.gz", tmpd)
+
+        util.write_file(log1_rotated, "hello")
+        util.write_file(log2_rotated, "hello")
+
+        self.assertEqual(
+            [log2, log2_rotated, log1, log1_rotated],
+            sorted(
+                util.get_config_logfiles(
+                    {
+                        "def_log_file": str(log1),
+                        "output": {"all": f"|tee -a {log2}"},
                     }
                 )
             ),
@@ -2421,7 +2607,6 @@ class TestEncode(helpers.TestCase):
 
 
 class TestProcessExecutionError(helpers.TestCase):
-
     template = (
         "{description}\n"
         "Command: {cmd}\n"
@@ -2608,6 +2793,9 @@ class TestLoadShellContent(helpers.TestCase):
         )
 
 
+@skipIf(
+    not util.is_Linux(), "These tests don't make sense on non-Linux systems."
+)
 class TestGetProcEnv(helpers.TestCase):
     """test get_proc_env."""
 
@@ -2671,13 +2859,32 @@ class TestGetProcEnv(helpers.TestCase):
         self.assertEqual({}, util.get_proc_env(1))
         self.assertEqual(1, m_load_file.call_count)
 
-    def test_get_proc_ppid(self):
+
+class TestGetProcPpid(helpers.TestCase):
+    """test get_proc_ppid"""
+
+    @skipIf(not util.is_Linux(), "/proc/$pid/stat is not useful on not-Linux")
+    @mock.patch(M_PATH + "is_Linux")
+    def test_get_proc_ppid_linux(self, m_is_Linux):
         """get_proc_ppid returns correct parent pid value."""
+        m_is_Linux.return_value = True
         my_pid = os.getpid()
         my_ppid = os.getppid()
         self.assertEqual(my_ppid, util.get_proc_ppid(my_pid))
 
-    def test_get_proc_ppid_mocked(self):
+    @pytest.mark.allow_subp_for("ps")
+    @mock.patch(M_PATH + "is_Linux")
+    def test_get_proc_ppid_ps(self, m_is_Linux):
+        """get_proc_ppid returns correct parent pid value."""
+        m_is_Linux.return_value = False
+        my_pid = os.getpid()
+        my_ppid = os.getppid()
+        self.assertEqual(my_ppid, util.get_proc_ppid(my_pid))
+
+    @mock.patch(M_PATH + "is_Linux")
+    def test_get_proc_ppid_mocked(self, m_is_Linux):
+        m_is_Linux.return_value = True
+
         for ppid, proc_data in (
             (
                 0,
@@ -2732,7 +2939,6 @@ class TestHuman2Bytes:
                 util.human2bytes(test_i)
 
     def test_ibibytes2bytes(self):
-
         assert util.human2bytes("0.5GiB") == 536870912
         assert util.human2bytes("100MiB") == 104857600
 
@@ -2809,7 +3015,7 @@ class TestFindDevs:
                 return msdos
             elif pattern == "/dev/iso9660/*":
                 return iso9660
-            raise Exception
+            raise RuntimeError
 
         m_glob.side_effect = fake_glob
 
@@ -2958,3 +3164,61 @@ class TestVersion:
     )
     def test_from_str(self, str_ver, cls_ver):
         assert util.Version.from_str(str_ver) == cls_ver
+
+
+@pytest.mark.allow_dns_lookup
+class TestResolvable:
+    @mock.patch.object(util, "_DNS_REDIRECT_IP", return_value=True)
+    @mock.patch.object(util.socket, "getaddrinfo")
+    def test_ips_need_not_be_resolved(self, m_getaddr, m_dns):
+        """Optimization test: dns resolution may timeout during early boot, and
+        often the urls being checked use IP addresses rather than dns names.
+        Therefore, the fast path checks if the address contains an IP and exits
+        early if the path is a valid IP.
+        """
+        assert util.is_resolvable("http://169.254.169.254/") is True
+        assert util.is_resolvable("http://[fd00:ec2::254]/") is True
+        assert not m_getaddr.called
+
+
+class TestHashBuffer:
+    def test_in_memory(self):
+        buf = io.BytesIO(b"hola")
+        assert (
+            util.hash_buffer(buf)
+            == b"\x99\x80\x0b\x85\xd38>:/\xb4^\xb7\xd0\x06jHy\xa9\xda\xd0"
+        )
+
+    def test_file(self, tmp_path):
+        content = b"hola"
+        file = tmp_path / "file.txt"
+        with file.open("wb") as f:
+            f.write(content)
+
+        with file.open("rb") as f:
+            assert (
+                util.hash_buffer(f)
+                == b"\x99\x80\x0b\x85\xd38>:/\xb4^\xb7\xd0\x06jHy\xa9\xda\xd0"
+            )
+
+
+class TestMaybeB64Decode:
+    """Test the maybe_b64decode helper function."""
+
+    @pytest.mark.parametrize("invalid_input", (str("not bytes"), int(4)))
+    def test_raises_error_on_non_bytes(self, invalid_input):
+        """maybe_b64decode should raise error if data is not bytes."""
+        with pytest.raises(TypeError):
+            util.maybe_b64decode(invalid_input)
+
+    @pytest.mark.parametrize(
+        "in_data,expected",
+        [
+            # If data is not b64 encoded, then return value should be the same.
+            (b"this is my data", b"this is my data"),
+            # If data is b64 encoded, then return value should be decoded.
+            (base64.b64encode(b"data"), b"data"),
+        ],
+    )
+    def test_happy_path(self, in_data, expected):
+        assert expected == util.maybe_b64decode(in_data)

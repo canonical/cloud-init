@@ -15,24 +15,21 @@ Example output:
 
 .. code-block::
 
-   usage: cloud-init [-h] [--version] [--file FILES] [--debug] [--force]
-                                                               {init,modules,single,query,dhclient-hook,features,analyze,devel,collect-logs,clean,status,schema} ...
+   usage: cloud-init [-h] [--version] [--debug] [--force]
+                                                               {init,modules,single,query,features,analyze,devel,collect-logs,clean,status,schema} ...
 
     options:
       -h, --help            show this help message and exit
       --version, -v         Show program's version number and exit.
-      --file FILES, -f FILES
-                            Use additional yaml configuration files.
       --debug, -d           Show additional pre-action logging (default: False).
       --force               Force running even if no datasource is found (use at your own risk).
 
     Subcommands:
-      {init,modules,single,query,dhclient-hook,features,analyze,devel,collect-logs,clean,status,schema}
+      {init,modules,single,query,features,analyze,devel,collect-logs,clean,status,schema}
         init                Initialize cloud-init and perform initial modules.
         modules             Activate modules using a given configuration key.
         single              Run a single module.
         query               Query standardized instance metadata from the command line.
-        dhclient-hook       Run the dhclient hook to record network info.
         features            List defined features.
         analyze             Devel tool: Analyze cloud-init logs and data.
         devel               Run development tools.
@@ -67,9 +64,9 @@ Possible subcommands include:
 :command:`clean`
 ================
 
-Remove ``cloud-init`` artifacts from :file:`/var/lib/cloud` to simulate a clean
-instance. On reboot, ``cloud-init`` will re-run all stages as it did on
-first boot.
+Remove ``cloud-init`` artifacts from :file:`/var/lib/cloud` and config files
+(best effort) to simulate a clean instance. On reboot, ``cloud-init`` will
+re-run all stages as it did on first boot.
 
 * :command:`--logs`: Optionally remove all ``cloud-init`` log files in
   :file:`/var/log/`.
@@ -79,6 +76,37 @@ first boot.
   remove the file. Best practice when cloning a golden image, to ensure the
   next boot of that image auto-generates a unique machine ID.
   `More details on machine-id`_.
+* :command:`--configs [all | ssh_config | network ]`: Optionally remove all
+  ``cloud-init`` generated config files. Argument `ssh_config` cleans
+  config files for ssh daemon. Argument `network` removes all generated
+  config files for network. `all` removes config files of all types.
+
+.. note::
+
+   Cloud-init provides the directory :file:`/etc/cloud/clean.d/` for third party
+   applications which need additional configuration artifact cleanup from
+   the fileystem when the `clean` command is invoked.
+
+   The :command:`clean` operation is typically performed by image creators
+   when preparing a golden image for clone and redeployment. The clean command
+   removes any cloud-init semaphores, allowing cloud-init to treat the next
+   boot of this image as the "first boot". When the image is next booted
+   cloud-init will performing all initial configuration based on any valid
+   datasource meta-data and user-data.
+
+   Any executable scripts in this subdirectory will be invoked in lexicographical
+   order with run-parts when running the :command:`clean` command.
+
+   Typical format of such scripts would be a ##-<some-app> like the following:
+   :file:`/etc/cloud/clean.d/99-live-installer`
+
+   An example of a script is:
+
+   .. code-block:: bash
+
+      sudo rm -rf /var/lib/installer_imgs/
+      sudo rm -rf /var/log/installer/
+
 
 .. _cli_collect_logs:
 
@@ -170,6 +198,7 @@ due to semaphores in :file:`/var/lib/cloud/instance/sem/` and
 :file:`/var/lib/cloud/sem`.
 
 * :command:`--local`: Run *init-local* stage instead of *init*.
+* :command:`--file` : Use additional yaml configuration files.
 
 .. _cli_modules:
 
@@ -192,6 +221,7 @@ to semaphores in :file:`/var/lib/cloud/`.
 * :command:`--mode [init|config|final]`: Run ``modules:init``,
   ``modules:config`` or ``modules:final`` ``cloud-init`` stages.
   See :ref:`boot_stages` for more info.
+* :command:`--file` : Use additional yaml configuration files.
 
 .. _cli_query:
 
@@ -304,6 +334,9 @@ Validate cloud-config files using jsonschema.
 * :command:`-h, --help`: Show this help message and exit.
 * :command:`-c CONFIG_FILE, --config-file CONFIG_FILE`: Path of the
   cloud-config YAML file to validate.
+* :command:`-t SCHEMA_TYPE, --schema-type SCHEMA_TYPE`: The schema type to
+  validate --config-file against. One of: cloud-config, network-config.
+  Default: cloud-config.
 * :command:`--system`: Validate the system cloud-config user data.
 * :command:`-d DOCS [cc_module ...], --docs DOCS [cc_module ...]`:
   Print schema module
@@ -327,11 +360,12 @@ Attempt to run a single, named, cloud config module.
 
 * :command:`--name`: The cloud-config module name to run.
 * :command:`--frequency`: Module frequency for this run.
-  One of (``always``|``once-per-instance``|``once``).
+  One of (``always``|``instance``|``once``).
 * :command:`--report`: Enable reporting.
+* :command:`--file` : Use additional yaml configuration files.
 
 The following example re-runs the ``cc_set_hostname`` module ignoring the
-module default frequency of ``once-per-instance``:
+module default frequency of ``instance``:
 
 .. code-block:: shell-session
 

@@ -12,6 +12,3 @@ class GuestCustErrorEnum:
     GUESTCUST_ERROR_SUCCESS = 0
     GUESTCUST_ERROR_SCRIPT_DISABLED = 6
     GUESTCUST_ERROR_WRONG_META_FORMAT = 9
-
-
-# vi: ts=4 expandtab

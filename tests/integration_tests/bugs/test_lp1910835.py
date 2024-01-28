@@ -19,13 +19,15 @@ will match.
 """
 import pytest
 
+from tests.integration_tests.integration_settings import PLATFORM
+
 USER_DATA_TMPL = """\
 #cloud-config
 ssh_authorized_keys:
     - {}"""
 
 
-@pytest.mark.azure
+@pytest.mark.skipif(PLATFORM != "azure", reason="Test is Azure specific")
 def test_crlf_in_azure_metadata_ssh_keys(session_cloud, setup_image):
     authorized_keys_path = "/home/{}/.ssh/authorized_keys".format(
         session_cloud.cloud_instance.username

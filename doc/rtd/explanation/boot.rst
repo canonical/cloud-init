@@ -3,35 +3,24 @@
 Boot stages
 ***********
 
-To be able to provide the functionality that it does, ``cloud-init`` must be
-integrated into the boot in a fairly controlled way. There are five
-stages to boot:
+There are five stages to boot:
 
-1. Generator
+1. Detect
 2. Local
 3. Network
 4. Config
 5. Final
 
-.. _boot-Generator:
+.. _boot-Detect:
 
-Generator
-=========
+Detect
+======
 
-When booting under ``systemd``, a `generator`_ will run that determines if
-``cloud-init.target`` should be included in the boot goals. By default, this
-generator will enable ``cloud-init``. It will not enable ``cloud-init``
-if either:
-
-- The file :file:`/etc/cloud/cloud-init.disabled` exists, or
-- The kernel command line as found in :file:`/proc/cmdline` contains
-  ``cloud-init=disabled``. When running in a container, the kernel command
-  line is not honored, but ``cloud-init`` will read an environment
-  variable named ``KERNEL_CMDLINE`` in its place.
-
-.. note::
-   These mechanisms for disabling ``cloud-init`` at runtime currently only
-   exist in ``systemd``.
+A platform identification tool called ``ds-identify`` runs in the first stage.
+This tool detects which platform the instance is running on. This tool is
+integrated into the init system to disable cloud-init when no platform is
+found, and enable cloud-init when a valid platform is detected. This stage
+might not be present for every installation of cloud-init.
 
 .. _boot-Local:
 
@@ -119,9 +108,8 @@ mounted, including ones that have stale (previous instance) references in
 :file:`/etc/fstab`. As such, entries in :file:`/etc/fstab` other than those
 necessary for cloud-init to run should not be done until after this stage.
 
-A part-handler will run at this stage, as will boothooks including
-cloud-config ``bootcmd``. The user of this functionality has to be aware
-that the system is in the process of booting when their code runs.
+A part-handler and :ref:`boothooks<explanation/format:\`\`cloud-boothook\`\`>`
+will run at this stage.
 
 .. _boot-Config:
 

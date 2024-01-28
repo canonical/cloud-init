@@ -21,16 +21,16 @@ all: check
 
 check: check_version test yaml
 
-style-check: flake8
+style-check: lint
 
-flake8:
-	@$(CWD)/tools/run-flake8
+lint:
+	@$(CWD)/tools/run-lint
 
 unittest: clean_pyc
 	$(PYTHON) -m pytest -v tests/unittests cloudinit
 
 render-template:
-	$(PYTHON) ./tools/render-cloudcfg --variant=$(VARIANT) $(FILE) $(subst .tmpl,,$(FILE))
+	$(PYTHON) ./tools/render-template --variant=$(VARIANT) $(FILE) $(subst .tmpl,,$(FILE))
 
 # from systemd-generator(7) regarding generators:
 # "We do recommend C code however, since generators are executed
@@ -39,6 +39,7 @@ render-template:
 # Our generator is a shell script. Make it easy to measure the
 # generator. This should be monitored for performance regressions
 benchmark-generator: FILE=$(GENERATOR_F).tmpl
+benchmark-generator: VARIANT="benchmark"
 benchmark-generator: export ITER=$(NUM_ITER)
 benchmark-generator: render-template
 	$(BENCHMARK) $(GENERATOR_F)
@@ -63,7 +64,7 @@ check_version:
 	else true; fi
 
 config/cloud.cfg:
-	$(PYTHON) ./tools/render-cloudcfg config/cloud.cfg.tmpl config/cloud.cfg
+	$(PYTHON) ./tools/render-template --is-yaml config/cloud.cfg.tmpl config/cloud.cfg
 
 clean_pyc:
 	@find . -type f -name "*.pyc" -delete
@@ -123,46 +124,8 @@ fmt:
 fmt-tip:
 	tox -e do_format_tip && tox -e check_format_tip
 
-# Spell check && filter false positives
-_CHECK_SPELLING := find doc -type f -exec spellintian {} + | \
-       grep -v -e 'doc/rtd/topics/cli.rst: modules modules' \
-               -e 'doc/examples/cloud-config-mcollective.txt: WARNING WARNING' \
-               -e 'doc/examples/cloud-config-power-state.txt: Bye Bye' \
-               -e 'doc/examples/cloud-config.txt: Bye Bye' \
-               -e 'doc/rtd/topics/cli.rst: DOCS DOCS' \
-               -e 'dependant'
 
-
-# For CI we require a failing return code when spellintian finds spelling errors
-check_spelling:
-	@! $(_CHECK_SPELLING)
-
-# Manipulate the output of spellintian into a valid "sed" command which is run
-# to fix the error
-#
-# Example spellintian output:
-#
-# doc/examples/kernel-cmdline.txt: everthing -> everything
-#
-# The "fix_spelling" target manipulates the above output into the following command
-# and runs that command.
-#
-# sed -i "s/everthing/everything/g" doc/examples/kernel-cmdline.txt
-#
-# awk notes:
-#
-# -F ': | -> ' means use the strings ": " or " -> " as field delimeters
-# \046 is octal for double quote
-# $$2 will contain the second field, ($ must be escaped because this is in a Makefile)
-#
-# Limitation: duplicate words with newline between them are not automatically fixed
-fix_spelling:
-	@$(_CHECK_SPELLING) | \
-		sed 's/ (duplicate word)//g' | \
-		awk -F ': | -> ' '{printf "sed -i \047s/%s/%s/g\047 %s\n", $$2, $$3, $$1}' | \
-		sh
-
-.PHONY: all check test flake8 clean rpm srpm deb deb-src yaml
+.PHONY: all check test lint clean rpm srpm deb deb-src yaml
 .PHONY: check_version clean_pyc
-.PHONY: unittest style-check fix_spelling render-template benchmark-generator
-.PHONY: clean_pytest clean_packaging check_spelling clean_release doc
+.PHONY: unittest style-check render-template benchmark-generator
+.PHONY: clean_pytest clean_packaging clean_release doc

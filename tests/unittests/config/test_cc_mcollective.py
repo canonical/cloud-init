@@ -149,10 +149,10 @@ class TestHandler(t_help.TestCase):
         cc.distro = t_help.mock.MagicMock()
         mock_util.load_file.return_value = b""
         mycfg = {"mcollective": {"conf": {"loglevel": "debug"}}}
-        cc_mcollective.handle("cc_mcollective", mycfg, cc, LOG, [])
+        cc_mcollective.handle("cc_mcollective", mycfg, cc, [])
         self.assertTrue(cc.distro.install_packages.called)
         install_pkg = cc.distro.install_packages.call_args_list[0][0][0]
-        self.assertEqual(install_pkg, ("mcollective",))
+        self.assertEqual(install_pkg, ["mcollective"])
 
         self.assertTrue(mock_subp.subp.called)
         self.assertEqual(
@@ -190,6 +190,3 @@ class TestMcollectiveSchema:
         else:
             with pytest.raises(SchemaValidationError, match=error_msg):
                 validate_cloudconfig_schema(config, get_schema(), strict=True)
-
-
-# vi: ts=4 expandtab

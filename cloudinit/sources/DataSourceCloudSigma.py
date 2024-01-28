@@ -4,12 +4,11 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import re
 from base64 import b64decode
 
-from cloudinit import dmi
-from cloudinit import log as logging
-from cloudinit import sources
+from cloudinit import dmi, sources
 from cloudinit.sources import DataSourceHostname
 from cloudinit.sources.helpers.cloudsigma import SERIAL_PORT, Cepko
 
@@ -31,7 +30,8 @@ class DataSourceCloudSigma(sources.DataSource):
         self.ssh_public_key = ""
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
 
-    def is_running_in_cloudsigma(self):
+    @staticmethod
+    def ds_detect():
         """
         Uses dmi data to detect if this instance of cloud-init is running
         in the CloudSigma's infrastructure.
@@ -51,8 +51,6 @@ class DataSourceCloudSigma(sources.DataSource):
         as userdata.
         """
         dsmode = None
-        if not self.is_running_in_cloudsigma():
-            return False
 
         try:
             server_context = self.cepko.all().result
@@ -118,6 +116,3 @@ def get_datasource_list(depends):
     Return a list of data sources that match this set of dependencies
     """
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab

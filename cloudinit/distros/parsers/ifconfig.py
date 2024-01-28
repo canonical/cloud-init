@@ -5,13 +5,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import logging
 import re
 from collections import defaultdict
 from functools import lru_cache
 from ipaddress import IPv4Address, IPv4Interface, IPv6Interface
 from typing import Dict, List, Optional, Tuple, Union
-
-from cloudinit import log as logging
 
 LOG = logging.getLogger(__name__)
 
@@ -70,10 +69,6 @@ class Ifstate:
     @property
     def is_vlan(self) -> bool:
         return ("vlan" in self.groups) or (self.vlan != {})
-
-    @property
-    def is_wlan(self) -> bool:
-        return "wlan" in self.groups
 
 
 class Ifconfig:
@@ -200,9 +195,6 @@ class Ifconfig:
 
         self._ifs_by_mac = dict(ifs_by_mac)
         return {**self._ifs_by_name, **self._ifs_by_mac}
-
-    def ifs_by_name(self):
-        return self._ifs_by_name
 
     def ifs_by_mac(self):
         return self._ifs_by_mac

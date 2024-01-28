@@ -81,14 +81,14 @@ of the ``user-script``. If you want to prevent this, use a cloud-config of:
 
    #cloud-config
    cloud_final_modules:
-    - scripts-per-once
-    - scripts-per-instance
-    - scripts-user
-    - ssh-authkey-fingerprints
-    - keys-to-console
-    - phone-home
-    - final-message
-    - power-state-change
+    - scripts_per_once
+    - scripts_per_instance
+    - scripts_user
+    - ssh_authkey_fingerprints
+    - keys_to_console
+    - phone_home
+    - final_message
+    - power_state_change
 
 Alternatively you can use the JSON patch method:
 
@@ -98,14 +98,14 @@ Alternatively you can use the JSON patch method:
    [
         { "op": "replace",
           "path": "/cloud_final_modules",
-          "value": ["scripts-per-once",
-                    "scripts-per-instance",
-                    "scripts-user",
-                    "ssh-authkey-fingerprints",
-                    "keys-to-console",
-                    "phone-home",
-                    "final-message",
-                    "power-state-change"]
+          "value": ["scripts_per_once",
+                    "scripts_per_instance",
+                    "scripts_user",
+                    "ssh_authkey_fingerprints",
+                    "keys_to_console",
+                    "phone_home",
+                    "final_message",
+                    "power_state_change"]
         }
    ]
 

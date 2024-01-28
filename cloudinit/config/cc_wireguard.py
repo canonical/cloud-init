@@ -1,13 +1,12 @@
 # Author: Fabian Lichtenegger-Lukas <fabian.lichtenegger-lukas@nts.eu>
 # Author: Josef Tschiggerl <josef.tschiggerl@nts.eu>
 # This file is part of cloud-init. See LICENSE file for license information.
-
 """Wireguard"""
+
+import logging
 import re
-from logging import Logger
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -258,9 +257,7 @@ def load_wireguard_kernel_module():
         raise
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     wg_section = None
 
     if "wireguard" in cfg:

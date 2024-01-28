@@ -14,6 +14,3 @@ def chop_comment(text, comment_chars):
     before_comment = text[0:min_comment]
     comment = text[min_comment:]
     return (before_comment, comment)
-
-
-# vi: ts=4 expandtab

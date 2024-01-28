@@ -1,14 +1,14 @@
 # This file is part of cloud-init.  See LICENSE file ...
 
 import copy
+import io
 import ipaddress
+import logging
 import os
 import textwrap
 from typing import Optional, cast
 
-from cloudinit import features
-from cloudinit import log as logging
-from cloudinit import safeyaml, subp, util
+from cloudinit import features, safeyaml, subp, util
 from cloudinit.net import (
     IPV6_DYNAMIC_TYPES,
     SYS_CLASS_NET,
@@ -17,6 +17,8 @@ from cloudinit.net import (
     subnet_is_ipv6,
 )
 from cloudinit.net.network_state import NET_CONFIG_TO_V2, NetworkState
+
+CLOUDINIT_NETPLAN_FILE = "/etc/netplan/50-cloud-init.yaml"
 
 KNOWN_SNAPD_CONFIG = b"""\
 # This is the initial network config.
@@ -242,9 +244,7 @@ class Renderer(renderer.Renderer):
     def __init__(self, config=None):
         if not config:
             config = {}
-        self.netplan_path = config.get(
-            "netplan_path", "etc/netplan/50-cloud-init.yaml"
-        )
+        self.netplan_path = config.get("netplan_path", CLOUDINIT_NETPLAN_FILE)
         self.netplan_header = config.get("netplan_header", None)
         self._postcmds = config.get("postcmds", False)
         self.clean_default = config.get("clean_default", True)
@@ -277,30 +277,47 @@ class Renderer(renderer.Renderer):
         fpnplan = os.path.join(subp.target_path(target), self.netplan_path)
 
         util.ensure_dir(os.path.dirname(fpnplan))
-        header = self.netplan_header if self.netplan_header else ""
 
         # render from state
         content = self._render_content(network_state)
 
+        # normalize header
+        header = self.netplan_header if self.netplan_header else ""
         if not header.endswith("\n"):
             header += "\n"
+        content = header + content
+
+        # determine if existing config files have the same content
+        same_content = False
+        if os.path.exists(fpnplan):
+            hashed_content = util.hash_buffer(io.BytesIO(content.encode()))
+            with open(fpnplan, "rb") as f:
+                hashed_original_content = util.hash_buffer(f)
+            if hashed_content == hashed_original_content:
+                same_content = True
 
         mode = 0o600 if features.NETPLAN_CONFIG_ROOT_READ_ONLY else 0o644
-        if os.path.exists(fpnplan):
+        if not same_content and os.path.exists(fpnplan):
             current_mode = util.get_permissions(fpnplan)
             if current_mode & mode == current_mode:
                 # preserve mode if existing perms are more strict than default
                 mode = current_mode
-        util.write_file(fpnplan, header + content, mode=mode)
+        util.write_file(fpnplan, content, mode=mode)
 
         if self.clean_default:
             _clean_default(target=target)
-        self._netplan_generate(run=self._postcmds)
+        self._netplan_generate(run=self._postcmds, same_content=same_content)
         self._net_setup_link(run=self._postcmds)
 
-    def _netplan_generate(self, run=False):
+    def _netplan_generate(self, run: bool = False, same_content: bool = False):
         if not run:
             LOG.debug("netplan generate postcmd disabled")
+            return
+        if same_content:
+            LOG.debug(
+                "skipping call to `netplan generate`."
+                " reason: identical netplan config"
+            )
             return
         subp.subp(self.NETPLAN_GENERATE, capture=True)
 
@@ -500,23 +517,3 @@ def available(target=None):
         if not subp.which(p, search=search, target=target):
             return False
     return True
-
-
-def network_state_to_netplan(network_state, header=None):
-    # render the provided network state, return a string of equivalent eni
-    netplan_path = "etc/network/50-cloud-init.yaml"
-    renderer = Renderer(
-        {
-            "netplan_path": netplan_path,
-            "netplan_header": header,
-        }
-    )
-    if not header:
-        header = ""
-    if not header.endswith("\n"):
-        header += "\n"
-    contents = renderer._render_content(network_state)
-    return header + contents
-
-
-# vi: ts=4 expandtab

@@ -1,6 +1,8 @@
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import IS_UBUNTU
 
 
 def _customize_environment(client: IntegrationInstance):
@@ -15,8 +17,10 @@ def _customize_environment(client: IntegrationInstance):
 
 # This test should be able to work on any cloud whose datasource specifies
 # a NETWORK dependency
-@pytest.mark.gce
-@pytest.mark.ubuntu  # Because netplan
+@pytest.mark.skipif(not IS_UBUNTU, reason="Netplan usage")
+@pytest.mark.skipif(
+    PLATFORM != "gce", reason="Datasource doesn't specify a NETWORK dependency"
+)
 def test_network_activation_disabled(client: IntegrationInstance):
     """Test that the network is not activated during init mode."""
     _customize_environment(client)

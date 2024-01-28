@@ -53,19 +53,19 @@ class TestLxd(t_help.CiTestCase):
             subp.call_args_list = []
             install.call_args_list = []
             exists.call_args_list = []
-            cc_lxd.handle("cc_lxd", lxd_cfg, cc, self.logger, [])
+            cc_lxd.handle("cc_lxd", lxd_cfg, cc, [])
             if cmd:
                 which.assert_called_with(cmd)
             # no bridge config, so maybe_cleanup should not be called.
             self.assertFalse(maybe_clean.called)
+            if package:
+                self.assertEqual(
+                    [mock.call([package])],
+                    install.call_args_list,
+                )
             self.assertEqual(
                 [
-                    mock.call(list(filter(None, ["lxd", package]))),
-                ],
-                install.call_args_list,
-            )
-            self.assertEqual(
-                [
+                    mock.call(["snap", "install", "lxd"]),
                     mock.call(["lxd", "waitready", "--timeout=300"]),
                     mock.call(
                         [
@@ -96,24 +96,25 @@ class TestLxd(t_help.CiTestCase):
 
     @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
     @mock.patch("cloudinit.config.cc_lxd.subp")
-    def test_lxd_install(self, mock_subp, m_maybe_clean):
+    @mock.patch("cloudinit.config.cc_lxd.subp.which", return_value=False)
+    def test_lxd_install(self, m_which, mock_subp, m_maybe_clean):
         cc = get_cloud()
         cc.distro = mock.MagicMock()
         mock_subp.which.return_value = None
-        cc_lxd.handle("cc_lxd", LXD_INIT_CFG, cc, self.logger, [])
+        cc_lxd.handle("cc_lxd", LXD_INIT_CFG, cc, [])
         self.assertNotIn("WARN", self.logs.getvalue())
         self.assertTrue(cc.distro.install_packages.called)
-        cc_lxd.handle("cc_lxd", LXD_INIT_CFG, cc, self.logger, [])
+        cc_lxd.handle("cc_lxd", LXD_INIT_CFG, cc, [])
         self.assertFalse(m_maybe_clean.called)
         install_pkg = cc.distro.install_packages.call_args_list[0][0][0]
-        self.assertEqual(sorted(install_pkg), ["lxd", "zfsutils-linux"])
+        self.assertEqual(sorted(install_pkg), ["zfsutils-linux"])
 
     @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
     @mock.patch("cloudinit.config.cc_lxd.subp")
     def test_no_init_does_nothing(self, mock_subp, m_maybe_clean):
         cc = get_cloud()
         cc.distro = mock.MagicMock()
-        cc_lxd.handle("cc_lxd", {"lxd": {}}, cc, self.logger, [])
+        cc_lxd.handle("cc_lxd", {"lxd": {}}, cc, [])
         self.assertFalse(cc.distro.install_packages.called)
         self.assertFalse(mock_subp.subp.called)
         self.assertFalse(m_maybe_clean.called)
@@ -123,7 +124,7 @@ class TestLxd(t_help.CiTestCase):
     def test_no_lxd_does_nothing(self, mock_subp, m_maybe_clean):
         cc = get_cloud()
         cc.distro = mock.MagicMock()
-        cc_lxd.handle("cc_lxd", {"package_update": True}, cc, self.logger, [])
+        cc_lxd.handle("cc_lxd", {"package_update": True}, cc, [])
         self.assertFalse(cc.distro.install_packages.called)
         self.assertFalse(mock_subp.subp.called)
         self.assertFalse(m_maybe_clean.called)
@@ -136,7 +137,6 @@ class TestLxd(t_help.CiTestCase):
             "cc_lxd",
             {"lxd": {"preseed": '{"chad": True}'}},
             cc,
-            self.logger,
             [],
         )
         self.assertEqual(
@@ -361,8 +361,7 @@ class TestGetRequiredPackages:
             init_cfg = lxd_cfg["lxd"]["init"]
 
         packages = cc_lxd.get_required_packages(init_cfg, preseed)
-        assert "lxd" in packages
-        which_calls = [mock.call("lxd")]
+        which_calls = []
         if package:
             which_calls.append(mock.call(cmd))
             assert package in packages
@@ -472,6 +471,3 @@ class TestLXDSchema:
             cc_lxd.supplemental_schema_validation(
                 init_cfg, bridge_cfg, preseed_str
             )
-
-
-# vi: ts=4 expandtab

@@ -5,9 +5,10 @@ import pytest
 from cloudinit import safeyaml
 from cloudinit.subp import subp
 from cloudinit.util import is_true
-from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import CURRENT_RELEASE, JAMMY
 from tests.integration_tests.util import (
     get_feature_flag_value,
     lxd_has_nocloud,
@@ -62,8 +63,11 @@ def _prefer_lxd_datasource_over_nocloud(client: IntegrationInstance):
 
 # TODO: Once LXD adds MACs to the devices endpoint, support LXD VMs here
 # Currently the names are too unpredictable to be worth testing on VMs.
-@pytest.mark.lxd_container
 @pytest.mark.user_data(USER_DATA)
+@pytest.mark.skipif(
+    PLATFORM != "lxd_container",
+    reason="Test is LXD specific",
+)
 class TestLxdHotplug:
     @pytest.fixture(autouse=True, scope="class")
     def class_teardown(self, class_client: IntegrationInstance):
@@ -113,14 +117,7 @@ class TestLxdHotplug:
         assert "eth2" not in client.execute("ip address")
         pre_netplan = client.read_from_file("/etc/netplan/50-cloud-init.yaml")
         assert "eth2" not in pre_netplan
-        if ImageSpecification.from_os_image().release in [
-            "bionic",
-            "focal",
-        ]:  # pyright: ignore
-            top_key = "user"
-        else:
-            top_key = "cloud-init"
-
+        top_key = "user" if CURRENT_RELEASE < JAMMY else "cloud-init"
         assert subp(
             [
                 "lxc",

@@ -9,8 +9,9 @@ from textwrap import dedent
 
 import pytest
 
-from cloudinit import handlers, helpers, util
+from cloudinit import atomic_helper, handlers, helpers, util
 from cloudinit.cmd.devel import read_cfg_paths
+from cloudinit.handlers.boot_hook import BootHookPartHandler
 from cloudinit.handlers.cloud_config import CloudConfigPartHandler
 from cloudinit.handlers.jinja_template import (
     JinjaLoadError,
@@ -25,6 +26,7 @@ from cloudinit.handlers.shell_script_by_frequency import (
 )
 from cloudinit.settings import PER_ALWAYS, PER_INSTANCE, PER_ONCE
 from tests.unittests.helpers import CiTestCase, mock, skipUnlessJinja
+from tests.unittests.util import FakeDataSource
 
 INSTANCE_DATA_FILE = "instance-data-sensitive.json"
 
@@ -109,7 +111,7 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         # Create required instance data json file
         instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
         instance_data = {"topkey": "echo himom"}
-        util.write_file(instance_json, util.json_dumps(instance_data))
+        util.write_file(instance_json, atomic_helper.json_dumps(instance_data))
         h = JinjaTemplatePartHandler(self.paths, sub_handlers=[script_handler])
         with mock.patch.object(script_handler, "handle_part") as m_part:
             # ctype with leading '!' not in handlers.CONTENT_SIGNALS
@@ -134,7 +136,7 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         # Create required instance-data.json file
         instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
         instance_data = {"topkey": {"sub": "runcmd: [echo hi]"}}
-        util.write_file(instance_json, util.json_dumps(instance_data))
+        util.write_file(instance_json, atomic_helper.json_dumps(instance_data))
         h = JinjaTemplatePartHandler(
             self.paths, sub_handlers=[cloudcfg_handler]
         )
@@ -185,7 +187,7 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         """If instance-data is unreadable, raise an error from handle_part."""
         script_handler = ShellScriptPartHandler(self.paths)
         instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
-        util.write_file(instance_json, util.json_dumps({}))
+        util.write_file(instance_json, atomic_helper.json_dumps({}))
         h = JinjaTemplatePartHandler(self.paths, sub_handlers=[script_handler])
         with mock.patch(self.mpath + "load_file") as m_load:
             with self.assertRaises(JinjaLoadError) as context_manager:
@@ -215,7 +217,7 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         script_handler = ShellScriptPartHandler(self.paths)
         instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
         instance_data = {"topkey": {"subkey": "echo himom"}}
-        util.write_file(instance_json, util.json_dumps(instance_data))
+        util.write_file(instance_json, atomic_helper.json_dumps(instance_data))
         h = JinjaTemplatePartHandler(self.paths, sub_handlers=[script_handler])
         h.handle_part(
             data="data",
@@ -246,7 +248,7 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         script_handler = ShellScriptPartHandler(self.paths)
         instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
         instance_data = {"topkey": {"subkey": "echo himom"}}
-        util.write_file(instance_json, util.json_dumps(instance_data))
+        util.write_file(instance_json, atomic_helper.json_dumps(instance_data))
         h = JinjaTemplatePartHandler(self.paths, sub_handlers=[script_handler])
         h.handle_part(
             data="data",
@@ -407,6 +409,11 @@ class TestRenderJinjaPayload(CiTestCase):
 
 
 class TestShellScriptByFrequencyHandlers:
+    @pytest.fixture(autouse=True)
+    def common_mocks(self):
+        with mock.patch("cloudinit.stages.Init._read_cfg", return_value={}):
+            yield
+
     def do_test_frequency(self, frequency):
         ci_paths = read_cfg_paths()
         scripts_dir = ci_paths.get_cpath("scripts")
@@ -424,4 +431,25 @@ class TestShellScriptByFrequencyHandlers:
         self.do_test_frequency(PER_ONCE)
 
 
-# vi: ts=4 expandtab
+@pytest.mark.allow_all_subp
+@pytest.mark.usefixtures("fake_filesystem")
+class TestBootHookHandler:
+    def test_handle_part(self, paths, tmpdir, capfd):
+        paths.get_ipath = paths.get_ipath_cur
+        datasource = FakeDataSource(paths=paths)
+        handler = BootHookPartHandler(paths=paths, datasource=datasource)
+        # Setup /dev/null file for supb because no data param present
+        tmpdir.mkdir("/dev/")
+        tmpdir.join("dev/null").write("")
+        assert handler.boothook_dir == f"{tmpdir}/cloud_dir/instance/boothooks"
+        payload = f"#!/bin/sh\necho id:$INSTANCE_ID | tee {tmpdir}/boothook\n"
+        handler.handle_part(
+            data="dontcare",
+            ctype="text/cloud-boothook",
+            filename="part-001",
+            payload=payload,
+            frequency=None,
+        )
+        assert payload == util.load_file(f"{handler.boothook_dir}/part-001")
+        assert "id:i-testing\n" == util.load_file(f"{tmpdir}/boothook")
+        assert "id:i-testing\n" == capfd.readouterr().out

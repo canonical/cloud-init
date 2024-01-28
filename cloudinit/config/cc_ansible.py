@@ -1,10 +1,11 @@
 """ansible enables running on first boot either ansible-pull"""
 import abc
+import logging
 import os
 import re
 import sys
+import sysconfig
 from copy import deepcopy
-from logging import Logger, getLogger
 from textwrap import dedent
 from typing import Optional
 
@@ -39,6 +40,7 @@ meta: MetaSchema = {
         dedent(
             """\
             ansible:
+              package_name: ansible-core
               install_method: distro
               pull:
                 url: "https://github.com/holmanb/vmboot.git"
@@ -59,7 +61,7 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
-LOG = getLogger(__name__)
+LOG = logging.getLogger(__name__)
 CFG_OVERRIDE = "ansible_config"
 
 
@@ -68,12 +70,12 @@ class AnsiblePull(abc.ABC):
         self.cmd_pull = ["ansible-pull"]
         self.cmd_version = ["ansible-pull", "--version"]
         self.distro = distro
-        self.env = os.environ
+        self.env = {}
         self.run_user: Optional[str] = None
 
         # some ansible modules directly reference os.environ["HOME"]
         # and cloud-init might not have that set, default: /root
-        self.env["HOME"] = self.env.get("HOME", "/root")
+        self.env["HOME"] = os.environ.get("HOME", "/root")
 
     def get_version(self) -> Optional[Version]:
         stdout, _ = self.do_as(self.cmd_version)
@@ -98,7 +100,7 @@ class AnsiblePull(abc.ABC):
         return self.distro.do_as(command, self.run_user, **kwargs)
 
     def subp(self, command, **kwargs):
-        return subp(command, env=self.env, **kwargs)
+        return subp(command, update_env=self.env, **kwargs)
 
     @abc.abstractmethod
     def is_installed(self):
@@ -134,8 +136,19 @@ class AnsiblePullPip(AnsiblePull):
             try:
                 import pip  # noqa: F401
             except ImportError:
-                self.distro.install_packages(self.distro.pip_package_name)
-            cmd = [sys.executable, "-m", "pip", "install"]
+                self.distro.install_packages([self.distro.pip_package_name])
+            cmd = [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+            ]
+            if os.path.exists(
+                os.path.join(
+                    sysconfig.get_path("stdlib"), "EXTERNALLY-MANAGED"
+                )
+            ):
+                cmd.append("--break-system-packages")
             if self.run_user:
                 cmd.append("--user")
             self.do_as([*cmd, "--upgrade", "pip"])
@@ -149,15 +162,13 @@ class AnsiblePullPip(AnsiblePull):
 class AnsiblePullDistro(AnsiblePull):
     def install(self, pkg_name: str):
         if not self.is_installed():
-            self.distro.install_packages(pkg_name)
+            self.distro.install_packages([pkg_name])
 
     def is_installed(self) -> bool:
         return bool(which("ansible"))
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     ansible_cfg: dict = cfg.get("ansible", {})
     ansible_user = ansible_cfg.get("run_user")

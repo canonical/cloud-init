@@ -26,6 +26,7 @@ from binascii import crc32
 import serial
 
 from cloudinit import helpers as c_helpers
+from cloudinit.atomic_helper import b64e
 from cloudinit.event import EventScope, EventType
 from cloudinit.sources import DataSourceSmartOS
 from cloudinit.sources.DataSourceSmartOS import SERIAL_DEVICE, SMARTOS_ENV_KVM
@@ -37,7 +38,7 @@ from cloudinit.sources.DataSourceSmartOS import (
     identify_file,
 )
 from cloudinit.subp import ProcessExecutionError, subp, which
-from cloudinit.util import b64e, write_file
+from cloudinit.util import write_file
 from tests.unittests.helpers import (
     CiTestCase,
     FilesystemMockingTestCase,
@@ -1384,7 +1385,7 @@ class TestSerialConcurrency(CiTestCase):
         are testing to be sure that cloud-init and mdata-get respect each
         others locks.
         """
-        rcs = list(range(0, 256))
+        rcs = list(range(256))
         while True:
             subp(["mdata-get", "sdc:routes"], rcs=rcs)
 
@@ -1401,13 +1402,10 @@ class TestSerialConcurrency(CiTestCase):
         # 10 times at roughly the same time as cloud-init fetched each key
         # once.  cloud-init would regularly see failures before making it
         # through all keys once.
-        for _ in range(0, 3):
+        for _ in range(3):
             for key in keys:
                 # We don't care about the return value, just that it doesn't
                 # thrown any exceptions.
                 client.get(key)
 
         self.assertIsNone(self.mdata_proc.exitcode)
-
-
-# vi: ts=4 expandtab

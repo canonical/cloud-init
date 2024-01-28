@@ -5,10 +5,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Red Hat Subscription: Register Red Hat Enterprise Linux based system"""
 
-from logging import Logger
+import logging
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -33,7 +32,7 @@ meta: MetaSchema = {
     "name": "Red Hat Subscription",
     "title": "Register Red Hat Enterprise Linux based system",
     "description": MODULE_DESCRIPTION,
-    "distros": ["fedora", "rhel"],
+    "distros": ["fedora", "rhel", "openeuler"],
     "frequency": PER_INSTANCE,
     "examples": [
         dedent(
@@ -80,12 +79,10 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
-    sm = SubscriptionManager(cfg, log=log)
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
+    sm = SubscriptionManager(cfg, log=LOG)
     if not sm.is_configured():
-        log.debug("%s: module not configured.", name)
+        LOG.debug("%s: module not configured.", name)
         return None
 
     if not sm.is_registered():
@@ -513,6 +510,3 @@ def _sub_man_cli(cmd, logstring_val=False):
     separate function for later use in mocking and unittests
     """
     return subp.subp(["subscription-manager"] + cmd, logstring=logstring_val)
-
-
-# vi: ts=4 expandtab

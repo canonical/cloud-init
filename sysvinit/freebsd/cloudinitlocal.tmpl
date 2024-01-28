@@ -1,0 +1,38 @@
+## template:jinja
+#!/bin/sh
+
+# PROVIDE: cloudinitlocal
+{#
+``cloudinitlocal`` purposefully does not depend on ``dsidentify``.
+That makes it easy for image builders to disable ``dsidentify``.
+#}
+# REQUIRE: ldconfig mountcritlocal
+# BEFORE:  NETWORKING cloudinit cloudconfig cloudfinal
+
+. /etc/rc.subr
+
+PATH="{{ prefix }}/sbin:{{ prefix }}/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+name="cloudinitlocal"
+command="{{prefix}}/bin/cloud-init"
+start_cmd="cloudlocal_start"
+stop_cmd=":"
+rcvar="cloudinit_enable"
+
+cloudlocal_start()
+{
+    echo -n "${command} starting"
+    if kenv -q kernel_options | grep -q 'cloud-init=disabled'; then
+        warn "cloud-init is disabled via kernel_options."
+    elif test -e {{prefix}}/etc/cloud/cloud-init.disabled; then
+        warn "cloud-init is disabled via cloud-init.disabled file."
+    else
+        ${command} init --local
+    fi
+}
+
+load_rc_config 'cloudinit'
+
+: ${cloudinit_enable="NO"}
+
+run_rc_command "$1"

@@ -12,15 +12,14 @@ import tempfile
 import time
 import unittest
 from contextlib import ExitStack, contextmanager
-from pathlib import Path
 from typing import ClassVar, List, Union
 from unittest import mock
 from unittest.util import strclass
+from urllib.parse import urlsplit, urlunsplit
 
 import responses
 
-import cloudinit
-from cloudinit import cloud, distros
+from cloudinit import atomic_helper, cloud, distros
 from cloudinit import helpers as ch
 from cloudinit import subp, util
 from cloudinit.config.schema import (
@@ -29,6 +28,7 @@ from cloudinit.config.schema import (
 )
 from cloudinit.sources import DataSourceNone
 from cloudinit.templater import JINJA_AVAILABLE
+from tests.helpers import cloud_init_project_dir
 from tests.hypothesis_jsonschema import HAS_HYPOTHESIS_JSONSCHEMA
 
 _real_subp = subp.subp
@@ -36,6 +36,14 @@ _real_subp = subp.subp
 # Used for skipping tests
 SkipTest = unittest.SkipTest
 skipIf = unittest.skipIf
+
+
+try:
+    import apt_pkg  # type: ignore # noqa: F401
+
+    HAS_APT_PKG = True
+except ImportError:
+    HAS_APT_PKG = False
 
 
 # Makes the old path start
@@ -60,7 +68,7 @@ def retarget_many_wrapper(new_base, am, old_func):
         nam = am
         if am == -1:
             nam = len(n_args)
-        for i in range(0, nam):
+        for i in range(nam):
             path = args[i]
             # patchOS() wraps various os and os.path functions, however in
             # Python 3 some of these now accept file-descriptors (integers).
@@ -173,7 +181,7 @@ class CiTestCase(TestCase):
             )
         if pass_through:
             return _real_subp(*args, **kwargs)
-        raise Exception(
+        raise RuntimeError(
             "called subp. set self.allowed_subp=True to allow\n subp(%s)"
             % ", ".join(
                 [str(repr(a)) for a in args]
@@ -267,8 +275,8 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
             make_path = rebase_path(real_path[len(real_root) :], target_root)
             util.ensure_dir(make_path)
             for f in filenames:
-                real_path = util.abs_join(real_path, f)
-                make_path = util.abs_join(make_path, f)
+                real_path = os.path.abspath(os.path.join(real_path, f))
+                make_path = os.path.abspath(os.path.join(make_path, f))
                 shutil.copy(real_path, make_path)
 
     def patchUtils(self, new_root):
@@ -283,6 +291,9 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
                 ("del_file", 1),
                 ("sym_link", -1),
                 ("copy", -1),
+            ],
+            atomic_helper: [
+                ("write_json", 1),
             ],
         }
         for (mod, funcs) in patch_funcs.items():
@@ -373,12 +384,43 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
             self.patched_funcs.close()
 
 
+class CiRequestsMock(responses.RequestsMock):
+    def assert_call_count(self, url: str, count: int) -> bool:
+        """Focal and older have a version of responses which does
+        not carry this attribute. This can be removed when focal
+        is no longer supported.
+        """
+        if hasattr(super(), "_ensure_url_default_path"):
+            return super().assert_call_count(url, count)
+
+        def _ensure_url_default_path(url):
+            if isinstance(url, str):
+                url_parts = list(urlsplit(url))
+                if url_parts[2] == "":
+                    url_parts[2] = "/"
+                    url = urlunsplit(url_parts)
+            return url
+
+        call_count = len(
+            [
+                1
+                for call in self.calls
+                if call.request.url == _ensure_url_default_path(url)
+            ]
+        )
+        if call_count == count:
+            return True
+        else:
+            raise AssertionError(
+                f"Expected URL '{url}' to be called {count} times. "
+                f"Called {call_count} times."
+            )
+
+
 class ResponsesTestCase(CiTestCase):
     def setUp(self):
         super().setUp()
-        self.responses = responses.RequestsMock(
-            assert_all_requests_are_fired=False
-        )
+        self.responses = CiRequestsMock(assert_all_requests_are_fired=False)
         self.responses.start()
 
     def tearDown(self):
@@ -487,13 +529,34 @@ def readResource(name, mode="r"):
         return fh.read()
 
 
+def skipIfAptPkg():
+    return skipIf(
+        HAS_APT_PKG,
+        "No python-apt dependency present.",
+    )
+
+
 try:
     import jsonschema
 
     assert jsonschema  # avoid pyflakes error F401: import unused
+    _jsonschema_version = tuple(
+        int(part) for part in jsonschema.__version__.split(".")  # type: ignore
+    )
     _missing_jsonschema_dep = False
 except ImportError:
     _missing_jsonschema_dep = True
+    _jsonschema_version = (0, 0, 0)
+
+
+def skipUnlessJsonSchemaVersionGreaterThan(version=(0, 0, 0)):
+    return skipIf(
+        _jsonschema_version <= version,
+        reason=(
+            f"python3-jsonschema {_jsonschema_version} not greater than"
+            f" {version}"
+        ),
+    )
 
 
 def skipUnlessJsonSchema():
@@ -532,24 +595,6 @@ if not hasattr(mock.Mock, "assert_not_called"):
     mock.Mock.assert_not_called = __mock_assert_not_called  # type: ignore
 
 
-def get_top_level_dir() -> Path:
-    """Return the absolute path to the top cloudinit project directory
-
-    @return Path('<top-cloudinit-dir>')
-    """
-    return Path(cloudinit.__file__).parent.parent.resolve()
-
-
-def cloud_init_project_dir(sub_path: str) -> str:
-    """Get a path within the cloudinit project directory
-
-    @return str of the combined path
-
-    Example: cloud_init_project_dir("my/path") -> "/path/to/cloud-init/my/path"
-    """
-    return str(get_top_level_dir() / sub_path)
-
-
 @contextmanager
 def does_not_raise():
     """Context manager to parametrize tests raising and not raising exceptions
@@ -573,6 +618,3 @@ def does_not_raise():
 
     """
     yield
-
-
-# vi: ts=4 expandtab

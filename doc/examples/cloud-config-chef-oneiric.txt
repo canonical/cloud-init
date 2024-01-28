@@ -1,6 +1,6 @@
 #cloud-config
 #
-# This is an example file to automatically install chef-client and run a 
+# This is an example file to automatically install chef-client and run a
 # list of recipes when the instance boots for the first time.
 # Make sure that this file is valid yaml before starting instances.
 # It should be passed as user-data when starting the instance.
@@ -8,12 +8,12 @@
 # This example assumes the instance is 11.10 (oneiric)
 
 
-# The default is to install from packages. 
+# The default is to install from packages.
 
 # Key from http://apt.opscode.com/packages@opscode.com.gpg.key
 apt:
   sources:
-     source1: 
+     source1:
         source: "deb http://apt.opscode.com/ $RELEASE-0.10 main"
         key: |
          -----BEGIN PGP PUBLIC KEY BLOCK-----
@@ -85,8 +85,3 @@ chef:
       prefork:
         maxclients: 100
       keepalive: "off"
-
-
-# Capture all subprocess output into a logfile
-# Useful for troubleshooting cloud-init issues
-output: {all: '| tee -a /var/log/cloud-init-output.log'}

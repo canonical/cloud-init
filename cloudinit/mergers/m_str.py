@@ -26,6 +26,3 @@ class Merger:
         if not self._append:
             return merge_with
         return value + merge_with
-
-
-# vi: ts=4 expandtab

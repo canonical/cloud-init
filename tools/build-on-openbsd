@@ -2,6 +2,12 @@
 
 fail() { echo "FAILED:" "$@" 1>&2; exit 1; }
 
+PYTHON=${PYTHON:-python3}
+if ! command -v ${PYTHON} >/dev/null 2>&1; then
+    echo "Please install python first."
+    exit 1
+fi
+
 # Check dependencies:
 depschecked=/tmp/c-i.dependencieschecked
 pkgs="
@@ -10,17 +16,48 @@ pkgs="
    py3-configobj
    py3-jinja2
    py3-jsonschema
+   py3-netifaces
    py3-oauthlib
    py3-requests
    py3-setuptools
    py3-yaml
    sudo--
+   wget
 "
-[ -f "$depschecked" ] || pkg_add ${pkgs} || fail "install packages"
 
-touch $depschecked
+[ -f $depschecked ] || echo "Installing the following packages: $pkgs"; output=$(pkg_add -zI $pkgs 2>&1)
 
-python3 setup.py build
-python3 setup.py install -O1 --distro openbsd --skip-build
 
-echo "Installation completed."
+if  echo "$output" | grep -q -e "Can't find" -e "Ambiguous"; then
+    echo "Failed to find or install one or more packages"
+    echo "Failed Package(s):"
+    echo "$output"
+    exit 1
+else
+    echo Successfully installed packages
+    touch $depschecked
+
+    python3 setup.py build
+    python3 setup.py install -O1 --distro openbsd --skip-build --init-system sysvinit_openbsd
+
+    echo "Installation completed."
+    RC_LOCAL="/etc/rc.local"
+    RC_LOCAL_CONTENT="
+
+/usr/local/lib/cloud-init/ds-identify
+
+cloud-init init --local
+
+cloud-init init
+
+cloud-init modules --mode config
+
+cloud-init modules --mode final
+"
+    if ! test -e $RC_LOCAL; then
+        echo "export PATH=$PATH:/usr/local/sbin:/usr/local/bin" >> $RC_LOCAL
+        echo "$RC_LOCAL_CONTENT" >> $RC_LOCAL
+    elif ! grep -Fq "cloud-init" $RC_LOCAL; then
+        echo "$RC_LOCAL_CONTENT" >> $RC_LOCAL
+    fi
+fi

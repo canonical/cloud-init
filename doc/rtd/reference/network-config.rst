@@ -16,6 +16,12 @@ precedence; each item overriding the previous.
 - **Kernel command line**: ``ip=`` or
   ``network-config=<Base64 encoded YAML config string>``
 
+Cloud-init will write out the following files representing the network-config
+processed:
+
+- :file:`/run/cloud-init/network-config.json`: world-readable JSON containing
+  the selected source network-config JSON used by cloud-init network renderers.
+
 User data cannot change an instance's network configuration. In the absence
 of network configuration in any of the above sources, ``cloud-init`` will
 write out a network configuration that will issue a DHCP request on a "first"
@@ -64,7 +70,7 @@ Disabling network activation
 Some datasources may not be initialised until after the network has been
 brought up. In this case, ``cloud-init`` will attempt to bring up the
 interfaces specified by the datasource metadata using a network activator
-discovered by `cloudinit.net.activators.select_activators`_.
+discovered by `cloudinit.net.activators.select_activator`_.
 
 This behaviour can be disabled in the ``cloud-init`` configuration dictionary,
 merged from :file:`/etc/cloud/cloud.cfg` and
@@ -278,7 +284,7 @@ Example output:
                            The format of the given network config
      -d PATH, --directory PATH
                            directory to place output in
-     -D {alpine,arch,debian,ubuntu,freebsd,dragonfly,gentoo,cos,netbsd,openbsd,almalinux,amazon,centos,cloudlinux,eurolinux,fedora,mariner,miraclelinux,openmandriva,photon,rhel,rocky,virtuozzo,opensuse,sles,openEuler}, --distro {alpine,arch,debian,ubuntu,freebsd,dragonfly,gentoo,cos,netbsd,openbsd,almalinux,amazon,centos,cloudlinux,eurolinux,fedora,mariner,miraclelinux,openmandriva,photon,rhel,rocky,virtuozzo,opensuse,sles,openEuler}
+     -D {alpine,arch,debian,ubuntu,freebsd,dragonfly,gentoo,cos,netbsd,openbsd,almalinux,amazon,centos,cloudlinux,eurolinux,fedora,mariner,miraclelinux,openmandriva,photon,rhel,rocky,virtuozzo,opensuse,sles,openeuler}, --distro {alpine,arch,debian,ubuntu,freebsd,dragonfly,gentoo,cos,netbsd,openbsd,almalinux,amazon,centos,cloudlinux,eurolinux,fedora,mariner,miraclelinux,openmandriva,photon,rhel,rocky,virtuozzo,opensuse,sles,openEuler}
      -m name,mac, --mac name,mac
                            interface name to mac mapping
      --debug               enable debug logging to stderr.
@@ -297,7 +303,7 @@ Example output:
 
 .. code-block::
 
-   # Created by cloud-init on instance boot automatically, do not edit.
+   # Created by cloud-init automatically, do not edit.
    #
    BOOTPROTO=static
    DEVICE=eth7
@@ -306,7 +312,7 @@ Example output:
    ONBOOT=yes
    TYPE=Ethernet
    USERCTL=no
-   # Created by cloud-init on instance boot automatically, do not edit.
+   # Created by cloud-init automatically, do not edit.
    #
    BOOTPROTO=dhcp
    DEVICE=eth9
@@ -316,8 +322,7 @@ Example output:
    USERCTL=no
 
 
-.. _Cloud-init: https://launchpad.net/cloud-init
-.. _LXD: https://linuxcontainers.org/lxd/docs/master/cloud-init/#custom-network-configuration
+.. _LXD: https://documentation.ubuntu.com/lxd/en/latest/cloud-init/#how-to-specify-network-configuration-data
 .. _NetworkManager: https://networkmanager.dev
 .. _Netplan: https://netplan.io/
 .. _DigitalOcean JSON metadata: https://developers.digitalocean.com/documentation/metadata/
@@ -325,5 +330,5 @@ Example output:
 .. _SmartOS JSON Metadata: https://eng.joyent.com/mdata/datadict.html
 .. _UpCloud JSON metadata: https://developers.upcloud.com/1.3/8-servers/#metadata-service
 .. _Vultr JSON metadata: https://www.vultr.com/metadata/
-.. _cloudinit.net.activators.select_activators: https://github.com/canonical/cloud-init/blob/main/cloudinit/net/activators.py#L279
-.. _FreeBSD.start_services: https://github.com/canonical/cloud-init/blob/main/cloudinit/net/freebsd.py#L28
+.. _cloudinit.net.activators.select_activator: https://github.com/canonical/cloud-init/blob/main/cloudinit/net/activators.py#L249
+.. _FreeBSD.start_services: https://github.com/canonical/cloud-init/blob/main/cloudinit/net/freebsd.py#L46

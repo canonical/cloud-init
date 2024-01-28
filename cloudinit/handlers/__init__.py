@@ -9,11 +9,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import abc
+import logging
 import os
 
-from cloudinit import importer
-from cloudinit import log as logging
-from cloudinit import type_utils, util
+from cloudinit import importer, type_utils, util
 from cloudinit.settings import FREQUENCIES, PER_ALWAYS, PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
@@ -299,6 +298,3 @@ def type_from_starts_with(payload, default=None):
         if payload_lc.startswith(text):
             return INCLUSION_TYPES_MAP[text]
     return default
-
-
-# vi: ts=4 expandtab

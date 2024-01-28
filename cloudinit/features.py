@@ -5,11 +5,8 @@ Feature flags are used as a way to easily toggle configuration
 downstream configuration changes.
 
 Currently used upstream values for feature flags are set in
-``cloudinit/features.py``. Overrides to these values (typically via quilt
-patch) can be placed
-in a file called ``feature_overrides.py`` in the same directory. Any value
-set in ``feature_overrides.py`` will override the original value set
-in ``features.py``.
+``cloudinit/features.py``. Overrides to these values should be
+patched directly (e.g., via quilt patch) by downstreams.
 
 Each flag should include a short comment regarding the reason for
 the flag and intended lifetime.
@@ -17,6 +14,9 @@ the flag and intended lifetime.
 Tests are required for new feature flags, and tests must verify
 all valid states of a flag, not just the default state.
 """
+import re
+import sys
+from typing import Dict
 
 ERROR_ON_USER_DATA_FAILURE = True
 """
@@ -62,7 +62,7 @@ only non-hashed passwords were expired.
 NETPLAN_CONFIG_ROOT_READ_ONLY = True
 """
 If ``NETPLAN_CONFIG_ROOT_READ_ONLY`` is True, then netplan configuration will
-be written as a single root readon-only file /etc/netplan/50-cloud-init.yaml.
+be written as a single root read-only file /etc/netplan/50-cloud-init.yaml.
 This prevents wifi passwords in network v2 configuration from being
 world-readable. Prior to 23.1, netplan configuration is world-readable.
 
@@ -80,8 +80,18 @@ separators.
 (This flag can be removed when Jammy is no longer supported.)
 """
 
-try:
-    # pylint: disable=wildcard-import
-    from cloudinit.feature_overrides import *  # noqa
-except ImportError:
-    pass
+APT_DEB822_SOURCE_LIST_FILE = True
+"""
+On Debian and Ubuntu systems, cc_apt_configure will write a deb822 compatible
+/etc/apt/sources.list.d/(debian|ubuntu).sources file. When set False, continue
+to write /etc/apt/sources.list directly.
+"""
+
+
+def get_features() -> Dict[str, bool]:
+    """Return a dict of applicable features/overrides and their values."""
+    return {
+        k: getattr(sys.modules["cloudinit.features"], k)
+        for k in sys.modules["cloudinit.features"].__dict__.keys()
+        if re.match(r"^[_A-Z0-9]+$", k)
+    }

@@ -12,7 +12,6 @@ import logging
 import math
 import os
 import re
-from logging import Logger
 from string import whitespace
 from textwrap import dedent
 
@@ -46,10 +45,10 @@ In order to remove a previously listed mount, an entry can be added to
 the `mounts` list containing ``fs_spec`` for the device to be removed but no
 mountpoint (i.e. ``[ swap ]`` or ``[ swap, null ]``).
 
-The ``mount_default_fields`` config key allows default options to be specified
-for the values in a ``mounts`` entry that are not specified, aside from the
-``fs_spec`` and the ``fs_file``. If specified, this must be a list containing 6
-values. It defaults to::
+The ``mount_default_fields`` config key allows default values to be specified
+for the fields in a ``mounts`` entry that are not specified, aside from the
+``fs_spec`` and the ``fs_file`` fields. If specified, this must be a list
+containing 6 values. It defaults to::
 
     mount_default_fields: [none, none, "auto",\
 "defaults,nofail,x-systemd.requires=cloud-init.service", "0", "2"]
@@ -60,6 +59,19 @@ Swap files can be configured by setting the path to the swap file to create
 with ``filename``, the size of the swap file with ``size`` maximum size of
 the swap file if using an ``size: auto`` with ``maxsize``. By default no
 swap file is created.
+
+.. note::
+    If multiple mounts are specified where a subsequent mount's mountpoint is
+    inside of a previously declared mount's mountpoint (i.e. the 1st mount has
+    a mountpoint of ``/abc`` and the 2nd mount has a mountpoint of
+    ``/abc/def``) then this will not work as expected - ``cc_mounts`` first
+    creates the directories for all the mountpoints **before** it starts to
+    perform any mounts and so the sub-mountpoint directory will not be created
+    correctly inside the parent mountpoint.
+
+    For systems using util-linux's ``mount`` program this issue can be
+    worked around by specifying ``X-mount.mkdir`` as part of a ``fs_mntops``
+    value for the subsequent mount entry.
 """
 
 example = dedent(
@@ -163,15 +175,15 @@ def _is_block_device(device_path, partition_path=None):
     return os.path.exists(sys_path)
 
 
-def sanitize_devname(startname, transformer, log, aliases=None):
-    log.debug("Attempting to determine the real name of %s", startname)
+def sanitize_devname(startname, transformer, aliases=None):
+    LOG.debug("Attempting to determine the real name of %s", startname)
 
     # workaround, allow user to specify 'ephemeral'
     # rather than more ec2 correct 'ephemeral0'
     devname = startname
     if devname == "ephemeral":
         devname = "ephemeral0"
-        log.debug("Adjusted mount option from ephemeral to ephemeral0")
+        LOG.debug("Adjusted mount option from ephemeral to ephemeral0")
 
     if is_network_device(startname):
         return startname
@@ -182,7 +194,7 @@ def sanitize_devname(startname, transformer, log, aliases=None):
     if aliases:
         device_path = aliases.get(device_path, device_path)
         if orig != device_path:
-            log.debug("Mapped device alias %s to %s", orig, device_path)
+            LOG.debug("Mapped device alias %s to %s", orig, device_path)
 
     if is_meta_device_name(device_path):
         device_path = transformer(device_path)
@@ -190,7 +202,7 @@ def sanitize_devname(startname, transformer, log, aliases=None):
             return None
         if not device_path.startswith("/"):
             device_path = "/dev/%s" % (device_path,)
-        log.debug("Mapped metadata name %s to %s", orig, device_path)
+        LOG.debug("Mapped metadata name %s to %s", orig, device_path)
     else:
         if DEVICE_NAME_RE.match(startname):
             device_path = "/dev/%s" % (device_path,)
@@ -305,9 +317,11 @@ def create_swapfile(fname: str, size: str) -> None:
 
     fstype = util.get_mount_info(swap_dir)[1]
 
-    if (
-        fstype == "xfs" and util.kernel_version() < (4, 18)
-    ) or fstype == "btrfs":
+    if fstype == "btrfs":
+        subp.subp(["truncate", "-s", "0", fname])
+        subp.subp(["chattr", "+C", fname])
+
+    if fstype == "xfs" and util.kernel_version() < (4, 18):
         create_swap(fname, size, "dd")
     else:
         try:
@@ -407,9 +421,7 @@ def handle_swapcfg(swapcfg):
     return None
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
     def_mnt_opts = "defaults,nobootwait"
     uses_systemd = cloud.distro.uses_systemd()
@@ -455,7 +467,7 @@ def handle(
     for i in range(len(cfgmnt)):
         # skip something that wasn't a list
         if not isinstance(cfgmnt[i], list):
-            log.warning(
+            LOG.warning(
                 "Mount option %s not a list, got a %s instead",
                 (i + 1),
                 type_utils.obj_name(cfgmnt[i]),
@@ -464,16 +476,16 @@ def handle(
 
         start = str(cfgmnt[i][0])
         sanitized = sanitize_devname(
-            start, cloud.device_name_to_device, log, aliases=device_aliases
+            start, cloud.device_name_to_device, aliases=device_aliases
         )
         if sanitized != start:
-            log.debug("changed %s => %s" % (start, sanitized))
+            LOG.debug("changed %s => %s", start, sanitized)
 
         if sanitized is None:
-            log.debug("Ignoring nonexistent named mount %s", start)
+            LOG.debug("Ignoring nonexistent named mount %s", start)
             continue
         elif sanitized in fstab_devs:
-            log.info(
+            LOG.info(
                 "Device %s already defined in fstab: %s",
                 sanitized,
                 fstab_devs[sanitized],
@@ -511,16 +523,16 @@ def handle(
     for defmnt in defmnts:
         start = defmnt[0]
         sanitized = sanitize_devname(
-            start, cloud.device_name_to_device, log, aliases=device_aliases
+            start, cloud.device_name_to_device, aliases=device_aliases
         )
         if sanitized != start:
-            log.debug("changed default device %s => %s" % (start, sanitized))
+            LOG.debug("changed default device %s => %s", start, sanitized)
 
         if sanitized is None:
-            log.debug("Ignoring nonexistent default named mount %s", start)
+            LOG.debug("Ignoring nonexistent default named mount %s", start)
             continue
         elif sanitized in fstab_devs:
-            log.debug(
+            LOG.debug(
                 "Device %s already defined in fstab: %s",
                 sanitized,
                 fstab_devs[sanitized],
@@ -536,7 +548,7 @@ def handle(
                 break
 
         if cfgmnt_has:
-            log.debug("Not including %s, already previously included", start)
+            LOG.debug("Not including %s, already previously included", start)
             continue
         cfgmnt.append(defmnt)
 
@@ -545,7 +557,7 @@ def handle(
     actlist = []
     for x in cfgmnt:
         if x[1] is None:
-            log.debug("Skipping nonexistent device named %s", x[0])
+            LOG.debug("Skipping nonexistent device named %s", x[0])
         else:
             actlist.append(x)
 
@@ -554,7 +566,7 @@ def handle(
         actlist.append([swapret, "none", "swap", "sw", "0", "0"])
 
     if len(actlist) == 0:
-        log.debug("No modifications to fstab needed")
+        LOG.debug("No modifications to fstab needed")
         return
 
     cc_lines = []
@@ -577,7 +589,7 @@ def handle(
         try:
             util.ensure_dir(d)
         except Exception:
-            util.logexc(log, "Failed to make '%s' config-mount", d)
+            util.logexc(LOG, "Failed to make '%s' config-mount", d)
         # dirs is list of directories on which a volume should be mounted.
         # If any of them does not already show up in the list of current
         # mount points, we will definitely need to do mount -a.
@@ -600,9 +612,9 @@ def handle(
         activate_cmds.append(["swapon", "-a"])
 
     if len(sops) == 0:
-        log.debug("No changes to /etc/fstab made.")
+        LOG.debug("No changes to /etc/fstab made.")
     else:
-        log.debug("Changes to fstab: %s", sops)
+        LOG.debug("Changes to fstab: %s", sops)
         need_mount_all = True
 
     if need_mount_all:
@@ -615,10 +627,7 @@ def handle(
         fmt = "Activate mounts: %s:" + " ".join(cmd)
         try:
             subp.subp(cmd)
-            log.debug(fmt, "PASS")
+            LOG.debug(fmt, "PASS")
         except subp.ProcessExecutionError:
-            log.warning(fmt, "FAIL")
-            util.logexc(log, fmt, "FAIL")
-
-
-# vi: ts=4 expandtab
+            LOG.warning(fmt, "FAIL")
+            util.logexc(LOG, fmt, "FAIL")

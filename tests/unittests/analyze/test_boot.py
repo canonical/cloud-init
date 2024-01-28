@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from cloudinit.analyze.__main__ import analyze_boot, get_parser
+from cloudinit.analyze import analyze_boot, get_parser
 from cloudinit.analyze.show import (
     CONTAINER_CODE,
     FAIL_CODE,
@@ -28,17 +28,12 @@ class TestDistroChecker(CiTestCase):
 
 
 class TestSystemCtlReader:
-    @pytest.mark.parametrize(
-        "args",
-        [
-            pytest.param(["dummyProperty"], id="invalid_property"),
-            pytest.param(
-                ["dummyProperty", "dummyParameter"], id="invalid_parameter"
-            ),
-        ],
-    )
-    def test_systemctl_invalid(self, args):
-        reader = SystemctlReader(*args)
+    def test_systemctl_invalid(self, mocker):
+        mocker.patch(
+            "cloudinit.analyze.show.subp.subp",
+            return_value=("", "something_invalid"),
+        )
+        reader = SystemctlReader("dont", "care")
         with pytest.raises(RuntimeError):
             reader.parse_epoch_as_float()
 
@@ -158,7 +153,7 @@ class TestAnalyzeBoot:
     @mock.patch("cloudinit.util.is_container", return_value=True)
     @mock.patch("cloudinit.subp.subp", return_value=("U=1000000", None))
     @mock.patch(
-        "cloudinit.analyze.__main__._get_events",
+        "cloudinit.analyze._get_events",
         return_value=[
             {
                 "name": "init-local",

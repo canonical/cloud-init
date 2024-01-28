@@ -28,6 +28,3 @@ class TestDictRegistry(TestCase):
         self.assertRaises(
             ValueError, registry.register_item, item_key, mock.Mock()
         )
-
-
-# vi: ts=4 expandtab

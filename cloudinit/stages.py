@@ -5,14 +5,27 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import json
+import logging
 import os
 import sys
 from collections import namedtuple
+from contextlib import suppress
 from typing import Dict, Iterable, List, Optional, Set
 
-from cloudinit import cloud, distros, handlers, helpers, importer
-from cloudinit import log as logging
-from cloudinit import net, sources, type_utils, util
+from cloudinit import (
+    atomic_helper,
+    cloud,
+    distros,
+    features,
+    handlers,
+    helpers,
+    importer,
+    net,
+    sources,
+    type_utils,
+    util,
+)
 from cloudinit.event import EventScope, EventType, userdata_to_events
 
 # Default handlers (used if not overridden)
@@ -39,11 +52,19 @@ LOG = logging.getLogger(__name__)
 NO_PREVIOUS_INSTANCE_ID = "NO_PREVIOUS_INSTANCE_ID"
 
 
+COMBINED_CLOUD_CONFIG_DOC = (
+    "Aggregated cloud-config created by merging merged_system_cfg"
+    " (/etc/cloud/cloud.cfg and /etc/cloud/cloud.cfg.d), metadata,"
+    " vendordata and userdata. The combined_cloud_config represents"
+    " the aggregated desired configuration acted upon by cloud-init."
+)
+
+
 def update_event_enabled(
     datasource: sources.DataSource,
     cfg: dict,
     event_source_type: EventType,
-    scope: Optional[EventScope] = None,
+    scope: EventScope,
 ) -> bool:
     """Determine if a particular EventType is enabled.
 
@@ -72,11 +93,7 @@ def update_event_enabled(
     )
     LOG.debug("Allowed events: %s", allowed)
 
-    scopes: Iterable[EventScope]
-    if not scope:
-        scopes = allowed.keys()
-    else:
-        scopes = [scope]
+    scopes: Iterable[EventScope] = [scope]
     scope_values = [s.value for s in scopes]
 
     for evt_scope in scopes:
@@ -101,7 +118,7 @@ class Init:
         else:
             self.ds_deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
         # Created on first use
-        self._cfg: Optional[dict] = None
+        self._cfg: Dict = {}
         self._paths: Optional[helpers.Paths] = None
         self._distro: Optional[distros.Distro] = None
         # Changed only when a fetch occurs
@@ -117,14 +134,11 @@ class Init:
             )
         self.reporter = reporter
 
-    def _reset(self, reset_ds=False):
+    def _reset(self):
         # Recreated on access
-        self._cfg = None
+        self._cfg = {}
         self._paths = None
         self._distro = None
-        if reset_ds:
-            self.datasource = None
-            self.ds_restored = False
 
     @property
     def distro(self):
@@ -158,8 +172,6 @@ class Init:
             ocfg = util.get_cfg_by_path(ocfg, ("system_info",), {})
         elif restriction == "paths":
             ocfg = util.get_cfg_by_path(ocfg, ("system_info", "paths"), {})
-        if not isinstance(ocfg, (dict)):
-            ocfg = {}
         return ocfg
 
     @property
@@ -199,11 +211,25 @@ class Init:
     def initialize(self):
         self._initialize_filesystem()
 
+    @staticmethod
+    def _get_strictest_mode(mode_1: int, mode_2: int) -> int:
+        return mode_1 & mode_2
+
     def _initialize_filesystem(self):
+        mode = 0o640
+
         util.ensure_dirs(self._initial_subdirs())
         log_file = util.get_cfg_option_str(self.cfg, "def_log_file")
         if log_file:
-            util.ensure_file(log_file, mode=0o640, preserve_mode=True)
+            # At this point the log file should have already been created
+            # in the setupLogging function of log.py
+            with suppress(OSError):
+                mode = self._get_strictest_mode(
+                    0o640, util.get_permissions(log_file)
+                )
+
+            # set file mode to the strictest of 0o640 and the current mode
+            util.ensure_file(log_file, mode, preserve_mode=False)
             perms = self.cfg.get("syslog_fix_perms")
             if not perms:
                 perms = {}
@@ -227,10 +253,8 @@ class Init:
             )
 
     def read_cfg(self, extra_fns=None):
-        # None check so that we don't keep on re-loading if empty
-        if self._cfg is None:
+        if not self._cfg:
             self._cfg = self._read_cfg(extra_fns)
-            # LOG.debug("Loaded 'init' config %s", self._cfg)
 
     def _read_cfg(self, extra_fns):
         no_cfg_paths = helpers.Paths({}, self.datasource)
@@ -352,6 +376,30 @@ class Init:
                 " Has a datasource been fetched??"
             )
         return instance_dir
+
+    def _write_network_config_json(self, netcfg: dict):
+        """Create /var/lib/cloud/instance/network-config.json
+
+        Only attempt once /var/lib/cloud/instance exists which is created
+        by Init.instancify once a datasource is detected.
+        """
+
+        if not os.path.islink(self.paths.instance_link):
+            # Datasource hasn't been detected yet, so we may not
+            # have visibility to datasource applicable network-config
+            return
+        ncfg_instance_path = self.paths.get_ipath_cur("network_config")
+        network_link = self.paths.get_runpath("network_config")
+        if os.path.exists(ncfg_instance_path):
+            # Compare and only write on delta of current network-config
+            if netcfg != util.load_json(util.load_file(ncfg_instance_path)):
+                atomic_helper.write_json(
+                    ncfg_instance_path, netcfg, mode=0o600
+                )
+        else:
+            atomic_helper.write_json(ncfg_instance_path, netcfg, mode=0o600)
+        if not os.path.islink(network_link):
+            util.sym_link(ncfg_instance_path, network_link)
 
     def _reflect_cur_instance(self):
         # Remove the old symlink and attach a new one so
@@ -498,7 +546,7 @@ class Init:
             )
         # This data may be a list, convert it to a string if so
         if isinstance(data, list):
-            data = util.json_dumps(data)
+            data = atomic_helper.json_dumps(data)
         self._store_rawdata(data, datasource)
 
     def _store_processeddata(self, processed_data, datasource):
@@ -534,9 +582,6 @@ class Init:
             ),
         ]
         return def_handlers
-
-    def _default_userdata_handlers(self):
-        return self._default_handlers()
 
     def _default_vendordata_handlers(self):
         return self._default_handlers(
@@ -709,6 +754,46 @@ class Init:
         # references to the previous config, distro, paths
         # objects before the load of the userdata happened,
         # this is expected.
+        combined_cloud_cfg = copy.deepcopy(self.cfg)
+        combined_cloud_cfg["_doc"] = COMBINED_CLOUD_CONFIG_DOC
+        # Persist system_info key from /etc/cloud/cloud.cfg in both
+        # combined_cloud_config file and instance-data-sensitive.json's
+        # merged_system_cfg key.
+        combined_cloud_cfg["system_info"] = self._extract_cfg("system")
+        # Add features information to allow for file-based discovery of
+        # feature settings.
+        combined_cloud_cfg["features"] = features.get_features()
+        atomic_helper.write_json(
+            self.paths.get_runpath("combined_cloud_config"),
+            combined_cloud_cfg,
+            mode=0o600,
+        )
+        json_sensitive_file = self.paths.get_runpath("instance_data_sensitive")
+        try:
+            instance_json = util.load_json(util.load_file(json_sensitive_file))
+        except (OSError, IOError) as e:
+            LOG.warning(
+                "Skipping write of system_info/features to %s."
+                " Unable to read file: %s",
+                json_sensitive_file,
+                e,
+            )
+            return
+        except (json.JSONDecodeError, TypeError) as e:
+            LOG.warning(
+                "Skipping write of system_info/features to %s."
+                " Invalid JSON found: %s",
+                json_sensitive_file,
+                e,
+            )
+            return
+        instance_json["system_info"] = combined_cloud_cfg["system_info"]
+        instance_json["features"] = combined_cloud_cfg["features"]
+        atomic_helper.write_json(
+            json_sensitive_file,
+            instance_json,
+            mode=0o600,
+        )
 
     def _consume_vendordata(self, vendor_source, frequency=PER_INSTANCE):
         """
@@ -758,10 +843,11 @@ class Init:
             return
 
         if isinstance(enabled, str):
-            LOG.debug(
-                "Use of string '%s' for 'vendor_data:enabled' field "
-                "is deprecated. Use boolean value instead",
-                enabled,
+            util.deprecate(
+                deprecated=f"Use of string '{enabled}' for "
+                "'vendor_data:enabled' field",
+                deprecated_version="23.1",
+                extra_message="Use boolean value instead.",
             )
 
         LOG.debug(
@@ -883,6 +969,11 @@ class Init:
         Find the config, determine whether to apply it, apply it via
         the distro, and optionally bring it up
         """
+        from cloudinit.config.schema import (
+            SchemaType,
+            validate_cloudconfig_schema,
+        )
+
         netcfg, src = self._find_networking_config()
         if netcfg is None:
             LOG.info("network config is disabled by %s", src)
@@ -918,7 +1009,16 @@ class Init:
 
         # refresh netcfg after update
         netcfg, src = self._find_networking_config()
+        self._write_network_config_json(netcfg)
 
+        if netcfg:
+            validate_cloudconfig_schema(
+                config=netcfg,
+                schema_type=SchemaType.NETWORK_CONFIG,
+                strict=False,  # Warnings not raising exceptions
+                log_details=False,  # May have wifi passwords in net cfg
+                log_deprecations=True,
+            )
         # ensure all physical devices in config are present
         self.distro.networking.wait_for_physdevs(netcfg)
 

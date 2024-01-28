@@ -125,4 +125,38 @@ path; if found, settings are applied after (and, hence, overriding) the
 settings from static vendor data. Both sets of vendor data can be overridden
 by user data.
 
+.. _datasource_ironic:
+
+OpenStack Ironic Bare Metal
+===========================
+
+During boot, cloud-init typically has to identify which platform it is running
+on. Since OpenStack Ironic Bare Metal doesn't provide a method for cloud-init
+to discover that it is running on Ironic, extra user configuration is required.
+
+Cloud-init provides two methods to do this:
+
+Method 1: Configuration file
+----------------------------
+
+Explicitly set ``datasource_list`` to only ``openstack``, such as:
+
+.. code-block:: yaml
+
+   datasource_list: ["openstack"]
+
+Method 2: Kernel command line
+-----------------------------
+
+Set the kernel commandline to configure
+:ref:`datasource override <kernel_datasource_override>`.
+
+Example using Ubuntu + GRUB2:
+
+.. code-block::
+
+    $ echo 'ds=openstack' >> /etc/default/grub
+    $ grub-mkconfig -o /boot/efi/EFI/ubuntu/grub.cfg
+
+
 .. _OpenStack Metadata Service: https://docs.openstack.org/nova/latest/admin/metadata-service.html

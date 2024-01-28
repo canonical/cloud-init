@@ -6,10 +6,9 @@
 
 "Users and Groups: Configure users and groups"
 
-from logging import Logger
+import logging
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit.cloud import Cloud
 
 # Ensure this is aliased to a name not 'distros'
@@ -55,14 +54,20 @@ provided the default behavior is to create the default user via this config::
     if the cloud-config can be intercepted. SSH authentication is preferred.
 
 .. note::
+    If specifying a doas rule for a user, ensure that the syntax for the rule
+    is valid, as the only checking performed by cloud-init is to ensure that
+    the user referenced in the rule is the correct user.
+
+.. note::
     If specifying a sudo rule for a user, ensure that the syntax for the rule
     is valid, as it is not checked by cloud-init.
 
 .. note::
     Most of these configuration options will not be honored if the user
     already exists. The following options are the exceptions; they are applied
-    to already-existing users: ``plain_text_passwd``, ``hashed_passwd``,
-    ``lock_passwd``, ``sudo``, ``ssh_authorized_keys``, ``ssh_redirect_user``.
+    to already-existing users: ``plain_text_passwd``, ``doas``,
+    ``hashed_passwd``, ``lock_passwd``, ``sudo``, ``ssh_authorized_keys``,
+    ``ssh_redirect_user``.
 
 The ``user`` key can be used to override the ``default_user`` configuration
 defined in ``/etc/cloud/cloud.cfg``. The ``user`` value should be a dictionary
@@ -114,6 +119,26 @@ meta: MetaSchema = {
         ),
         dedent(
             """\
+        # Skip creation of the <default> user and only create newsuper.
+        # Password-based login is rejected, but the github user TheRealFalcon
+        # and the launchpad user falcojr can SSH as newsuper. doas/opendoas
+        # is configured to permit this user to run commands as other users
+        # (without being prompted for a password) except not as root.
+        users:
+        - name: newsuper
+          gecos: Big Stuff
+          groups: users, admin
+          doas:
+            - permit nopass newsuper
+            - deny newsuper as root
+          lock_passwd: true
+          ssh_import_id:
+            - lp:falcojr
+            - gh:TheRealFalcon
+        """
+        ),
+        dedent(
+            """\
         # On a system with SELinux enabled, add youruser and set the
         # SELinux user to 'staff_u'. When omitted on SELinux, the system will
         # select the configured default SELinux user.
@@ -147,6 +172,12 @@ meta: MetaSchema = {
           sudo: null
         """
         ),
+        dedent(
+            """\
+        # Avoid creating any ``default_user``.
+        users: []
+        """
+        ),
     ],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": [],
@@ -161,9 +192,7 @@ NO_HOME = ("no_create_home", "system")
 NEED_HOME = ("ssh_authorized_keys", "ssh_import_id", "ssh_redirect_user")
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     (users, groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
     (default_user, _user_config) = ug_util.extract_default(users)
     cloud_keys = cloud.get_public_ssh_keys() or []
@@ -209,6 +238,3 @@ def handle(
                 config["cloud_public_ssh_keys"] = cloud_keys
 
         cloud.distro.create_user(user, **config)
-
-
-# vi: ts=4 expandtab

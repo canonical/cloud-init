@@ -7,9 +7,9 @@
 "Yum Add Repo: Add yum repository configuration to the system"
 
 import io
+import logging
 import os
 from configparser import ConfigParser
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import util
@@ -32,11 +32,13 @@ distros = [
     "eurolinux",
     "fedora",
     "mariner",
-    "openEuler",
+    "openeuler",
+    "OpenCloudOS",
     "openmandriva",
     "photon",
     "rhel",
     "rocky",
+    "TencentOS",
     "virtuozzo",
 ]
 
@@ -121,6 +123,7 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
 def _canonicalize_id(repo_id: str) -> str:
@@ -167,12 +170,10 @@ def _format_repository_config(repo_id, repo_config):
     return "".join(lines)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     repos = cfg.get("yum_repos")
     if not repos:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, no 'yum_repos' configuration found",
             name,
         )
@@ -186,14 +187,14 @@ def handle(
         canon_repo_id = _canonicalize_id(repo_id)
         repo_fn_pth = os.path.join(repo_base_path, "%s.repo" % (canon_repo_id))
         if os.path.exists(repo_fn_pth):
-            log.info(
+            LOG.info(
                 "Skipping repo %s, file %s already exists!",
                 repo_id,
                 repo_fn_pth,
             )
             continue
         elif canon_repo_id in repo_locations:
-            log.info(
+            LOG.info(
                 "Skipping repo %s, file %s already pending!",
                 repo_id,
                 repo_fn_pth,
@@ -211,7 +212,7 @@ def handle(
         missing_required = 0
         for req_field in ["baseurl"]:
             if req_field not in repo_config:
-                log.warning(
+                LOG.warning(
                     "Repository %s does not contain a %s"
                     " configuration 'required' entry",
                     repo_id,
@@ -222,7 +223,7 @@ def handle(
             repo_configs[canon_repo_id] = repo_config
             repo_locations[canon_repo_id] = repo_fn_pth
         else:
-            log.warning(
+            LOG.warning(
                 "Repository %s is missing %s required fields, skipping!",
                 repo_id,
                 missing_required,
@@ -232,6 +233,3 @@ def handle(
             c_repo_id, repo_configs.get(c_repo_id)
         )
         util.write_file(path, repo_blob)
-
-
-# vi: ts=4 expandtab

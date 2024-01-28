@@ -25,8 +25,6 @@ class TestSshKeysGenerate:
     @pytest.mark.parametrize(
         "ssh_key_path",
         (
-            "/etc/ssh/ssh_host_dsa_key.pub",
-            "/etc/ssh/ssh_host_dsa_key",
             "/etc/ssh/ssh_host_rsa_key.pub",
             "/etc/ssh/ssh_host_rsa_key",
         ),

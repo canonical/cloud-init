@@ -1,5 +1,5 @@
 # Copyright (C) 2016 Canonical Ltd.
-# Copyright (C) 2016-2022 VMware Inc.
+# Copyright (C) 2016-2023 VMware Inc.
 #
 # Author: Sankar Tanguturi <stanguturi@vmware.com>
 #         Pengpeng Sun <pegnpengs@vmware.com>
@@ -11,14 +11,10 @@ import os
 import re
 import time
 
-from cloudinit import subp, util
+from cloudinit import safeyaml, subp, util
 
 from .config import Config
-from .config_custom_script import (
-    CustomScriptNotFound,
-    PostCustomScript,
-    PreCustomScript,
-)
+from .config_custom_script import PostCustomScript, PreCustomScript
 from .config_file import ConfigFile
 from .config_nic import NicConfigurator
 from .config_passwd import PasswordConfigurator
@@ -106,7 +102,7 @@ def enable_nics(nics):
     enableNicsWaitCount = 5
     enableNicsWaitSeconds = 1
 
-    for attempt in range(0, enableNicsWaitRetries):
+    for attempt in range(enableNicsWaitRetries):
         logger.debug("Trying to connect interfaces, attempt %d", attempt)
         (out, _err) = set_customization_status(
             GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
@@ -121,7 +117,7 @@ def enable_nics(nics):
             logger.warning("NICS connection status query is not supported")
             return
 
-        for count in range(0, enableNicsWaitCount):
+        for count in range(enableNicsWaitCount):
             (out, _err) = set_customization_status(
                 GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
                 GuestCustEventEnum.GUESTCUST_EVENT_QUERY_NICS,
@@ -264,6 +260,17 @@ def get_data_from_imc_raw_data_cust_cfg(cust_cfg):
                 cust_cfg,
             )
             return (None, None, None)
+
+        try:
+            logger.debug("Validating if meta data is valid or not")
+            md = safeyaml.load(md)
+        except safeyaml.YAMLError as e:
+            set_cust_error_status(
+                "Error parsing the cloud-init meta data",
+                str(e),
+                GuestCustErrorEnum.GUESTCUST_ERROR_WRONG_META_FORMAT,
+                cust_cfg,
+            )
 
         ud_file = cust_cfg.user_data_name
         if ud_file:
@@ -512,7 +519,7 @@ def do_pre_custom_script(cust_cfg, custom_script, cust_cfg_dir):
     try:
         precust = PreCustomScript(custom_script, cust_cfg_dir)
         precust.execute()
-    except CustomScriptNotFound as e:
+    except Exception as e:
         set_cust_error_status(
             "Error executing pre-customization script",
             str(e),
@@ -527,7 +534,7 @@ def do_post_custom_script(cust_cfg, custom_script, cust_cfg_dir, ccScriptsDir):
     try:
         postcust = PostCustomScript(custom_script, cust_cfg_dir, ccScriptsDir)
         postcust.execute()
-    except CustomScriptNotFound as e:
+    except Exception as e:
         set_cust_error_status(
             "Error executing post-customization script",
             str(e),
@@ -607,6 +614,7 @@ def is_cust_plugin_available():
         "/usr/lib64/open-vm-tools",
         "/usr/lib/x86_64-linux-gnu/open-vm-tools",
         "/usr/lib/aarch64-linux-gnu/open-vm-tools",
+        "/usr/lib/i386-linux-gnu/open-vm-tools",
     )
     cust_plugin = "libdeployPkgPlugin.so"
     for path in search_paths:
@@ -637,6 +645,3 @@ def set_cust_error_status(prefix, error, event, cust_cfg):
     util.logexc(logger, "%s: %s", prefix, error)
     set_customization_status(GuestCustStateEnum.GUESTCUST_STATE_RUNNING, event)
     set_gc_status(cust_cfg, prefix)
-
-
-# vi: ts=4 expandtab

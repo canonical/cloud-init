@@ -45,6 +45,3 @@ def set_rc_config_value(key, value, fn="/etc/rc.conf"):
     new_content = "\n".join(lines) + "\n"
     if new_content != original_content:
         util.write_file(fn, new_content)
-
-
-# vi: ts=4 expandtab

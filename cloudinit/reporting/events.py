@@ -305,6 +305,3 @@ def _collect_file_info(files):
                 content = base64.b64encode(fp.read()).decode()
         ret.append({"path": fname, "content": content, "encoding": "base64"})
     return ret
-
-
-# vi: ts=4 expandtab

@@ -6,9 +6,9 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import os
 
-from cloudinit import log as logging
 from cloudinit import sources, subp, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import eni
@@ -27,7 +27,7 @@ FS_TYPES = ("vfat", "iso9660")
 LABEL_TYPES = ("config-2", "CONFIG-2")
 POSSIBLE_MOUNTS = ("sr", "cd")
 OPTICAL_DEVICES = tuple(
-    ("/dev/%s%s" % (z, i) for z in POSSIBLE_MOUNTS for i in range(0, 2))
+    ("/dev/%s%s" % (z, i) for z in POSSIBLE_MOUNTS for i in range(2))
 )
 
 
@@ -325,6 +325,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab

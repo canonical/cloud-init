@@ -11,8 +11,8 @@ only specify one user-data per instance.
 import pytest
 import yaml
 
-from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.decorators import retry
+from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
 from tests.integration_tests.util import get_console_log
 
 COMMON_USER_DATA = """\
@@ -182,7 +182,7 @@ class Mixin:
 
     def test_sshd_config_file(self, class_client):
         """Test that SSH config is written in the correct file."""
-        if ImageSpecification.from_os_image().release in {"bionic"}:
+        if CURRENT_RELEASE.series == "bionic":
             sshd_file_target = "/etc/ssh/sshd_config"
         else:
             sshd_file_target = "/etc/ssh/sshd_config.d/50-cloud-init.conf"
@@ -191,7 +191,7 @@ class Mixin:
         # We look for the exact line match, to avoid a commented line matching
         assert "PasswordAuthentication yes" in sshd_config.splitlines()
 
-    @pytest.mark.ubuntu
+    @pytest.mark.skipif(not IS_UBUNTU, reason="Use of systemctl")
     def test_check_ssh_service(self, class_client):
         """Ensure we check the sshd status because we modified the config"""
         log = class_client.read_from_file("/var/log/cloud-init.log")

@@ -6,9 +6,14 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
+import os
+
 from cloudinit import distros, helpers, subp, util
 from cloudinit.distros.parsers.hostname import HostnameConf
 from cloudinit.settings import PER_INSTANCE
+
+LOG = logging.getLogger(__name__)
 
 NETWORK_FILE_HEADER = """\
 # This file is generated from information provided by the datasource. Changes
@@ -22,12 +27,17 @@ NETWORK_FILE_HEADER = """\
 
 class Distro(distros.Distro):
     pip_package_name = "py3-pip"
-    locale_conf_fn = "/etc/profile.d/locale.sh"
+    keymap_path = "/usr/share/bkeymaps/"
+    locale_conf_fn = "/etc/profile.d/50-cloud-init-locale.sh"
     network_conf_fn = "/etc/network/interfaces"
     update_initramfs_cmd = []  # TODO(define initramfs support)
     renderer_configs = {
         "eni": {"eni_path": network_conf_fn, "eni_header": NETWORK_FILE_HEADER}
     }
+    # Alpine stores dhclient leases at following location:
+    # /var/lib/dhcp/dhclient.leases
+    dhclient_lease_directory = "/var/lib/dhcp"
+    dhclient_lease_file_regex = r"dhclient\.leases"
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
@@ -64,7 +74,7 @@ class Distro(distros.Distro):
         ]
         util.write_file(out_fn, "\n".join(lines), 0o644)
 
-    def install_packages(self, pkglist):
+    def install_packages(self, pkglist: distros.PackageList):
         self.update_package_sources()
         self.package_command("add", pkgs=pkglist)
 
@@ -75,7 +85,16 @@ class Distro(distros.Distro):
             # so lets see if we can read it first.
             conf = self._read_hostname_conf(filename)
         except IOError:
-            pass
+            create_hostname_file = util.get_cfg_option_bool(
+                self._cfg, "create_hostname_file", True
+            )
+            if create_hostname_file:
+                pass
+            else:
+                LOG.info(
+                    "create_hostname_file is False; hostname file not created"
+                )
+                return
         if not conf:
             conf = HostnameConf("")
         conf.set_hostname(hostname)
@@ -103,6 +122,40 @@ class Distro(distros.Distro):
 
     def _get_localhost_ip(self):
         return "127.0.1.1"
+
+    def set_keymap(self, layout: str, model: str, variant: str, options: str):
+        if not layout:
+            msg = "Keyboard layout not specified."
+            LOG.error(msg)
+            raise RuntimeError(msg)
+        keymap_layout_path = os.path.join(self.keymap_path, layout)
+        if not os.path.isdir(keymap_layout_path):
+            msg = (
+                "Keyboard layout directory %s does not exist."
+                % keymap_layout_path
+            )
+            LOG.error(msg)
+            raise RuntimeError(msg)
+        if not variant:
+            msg = "Keyboard variant not specified."
+            LOG.error(msg)
+            raise RuntimeError(msg)
+        keymap_variant_path = os.path.join(
+            keymap_layout_path, "%s.bmap.gz" % variant
+        )
+        if not os.path.isfile(keymap_variant_path):
+            msg = (
+                "Keyboard variant file %s does not exist."
+                % keymap_variant_path
+            )
+            LOG.error(msg)
+            raise RuntimeError(msg)
+        if model:
+            LOG.warning("Keyboard model is ignored for Alpine Linux.")
+        if options:
+            LOG.warning("Keyboard options are ignored for Alpine Linux.")
+
+        subp.subp(["setup-keymap", layout, variant])
 
     def set_timezone(self, tz):
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
@@ -174,13 +227,17 @@ class Distro(distros.Distro):
 
         return command
 
-    def uses_systemd(self):
+    @staticmethod
+    def uses_systemd():
         """
         Alpine uses OpenRC, not systemd
         """
         return False
 
-    def manage_service(self, action: str, service: str):
+    @classmethod
+    def manage_service(
+        self, action: str, service: str, *extra_args: str, rcs=None
+    ):
         """
         Perform the requested action on a service. This handles OpenRC
         specific implementation details.
@@ -203,4 +260,4 @@ class Distro(distros.Distro):
             "status": list(init_cmd) + [service, "status"],
         }
         cmd = list(cmds[action])
-        return subp.subp(cmd, capture=True)
+        return subp.subp(cmd, capture=True, rcs=rcs)

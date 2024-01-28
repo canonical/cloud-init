@@ -7,11 +7,26 @@ Any imports that are performed at the top-level here must be installed wherever
 any of these tests run: that is to say, they must be listed in
 ``integration-requirements.txt`` and in ``test-requirements.txt``.
 """
+# If we don't import this early, lru_cache may get applied before we have the
+# chance to patch. This is also too early for the pytest-antilru plugin
+# to work.
+# isort: off
+from tests.unittests.early_patches import get_cached_functions  # noqa: E402
+
+# isort: on
 from unittest import mock
 
 import pytest
 
 from cloudinit import helpers, subp, util
+
+
+@pytest.fixture(autouse=True, scope="function")
+def cleanup_lru_cache():
+    yield
+
+    for func in get_cached_functions():
+        func.cache_clear()
 
 
 class _FixtureUtils:
@@ -62,6 +77,14 @@ class _FixtureUtils:
                 "Missing expected argument to {} marker".format(marker_name)
             )
         return result[0]
+
+
+class UnexpectedSubpError(BaseException):
+    """Error thrown when subp.subp is unexpectedly used.
+
+    We inherit from BaseException so it doesn't get silently swallowed
+    by other error handlers.
+    """
 
 
 @pytest.fixture(autouse=True)
@@ -127,12 +150,12 @@ def disable_subp_usage(request, fixture_utils):
     if allow_all_subp is None and allow_subp_for is None:
         # No marks, default behaviour; disallow all subp.subp usage
         def side_effect(args, *other_args, **kwargs):
-            raise AssertionError("Unexpectedly used subp.subp")
+            raise UnexpectedSubpError("Unexpectedly used subp.subp")
 
     elif allow_all_subp is not None and allow_subp_for is not None:
         # Both marks, ambiguous request; raise an exception on all subp usage
         def side_effect(args, *other_args, **kwargs):
-            raise AssertionError(
+            raise UnexpectedSubpError(
                 "Test marked both allow_all_subp and allow_subp_for: resolve"
                 " this either by modifying your test code, or by modifying"
                 " disable_subp_usage to handle precedence."
@@ -146,7 +169,7 @@ def disable_subp_usage(request, fixture_utils):
         def side_effect(args, *other_args, **kwargs):
             cmd = args[0]
             if cmd not in allow_subp_for:
-                raise AssertionError(
+                raise UnexpectedSubpError(
                     "Unexpectedly used subp.subp to call {} (allowed:"
                     " {})".format(cmd, ",".join(allow_subp_for))
                 )

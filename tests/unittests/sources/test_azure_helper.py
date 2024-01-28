@@ -11,6 +11,7 @@ import pytest
 import requests
 
 from cloudinit import url_helper
+from cloudinit.sources.azure import errors
 from cloudinit.sources.helpers import azure as azure_helper
 from cloudinit.sources.helpers.azure import WALinuxAgentShim as wa_shim
 from cloudinit.util import load_file
@@ -105,13 +106,13 @@ HEALTH_REPORT_DESCRIPTION_TRIM_LEN = 512
 MOCKPATH = "cloudinit.sources.helpers.azure."
 
 
-@pytest.fixture
-def mock_dmi_read_dmi_data():
-    with mock.patch(
-        MOCKPATH + "dmi.read_dmi_data",
-        autospec=True,
-    ) as m:
-        yield m
+@pytest.fixture(autouse=True)
+def fake_vm_id(mocker):
+    vm_id = "foo"
+    mocker.patch(
+        "cloudinit.sources.azure.identity.query_vm_id", return_value=vm_id
+    )
+    yield vm_id
 
 
 @pytest.fixture
@@ -154,7 +155,6 @@ class TestGetIpFromLeaseValue:
 
 
 class TestGoalStateParsing(CiTestCase):
-
     default_parameters = {
         "incarnation": 1,
         "container_id": "MyContainerId",
@@ -195,28 +195,6 @@ class TestGoalStateParsing(CiTestCase):
         instance_id = "TestInstanceId"
         goal_state = self._get_goal_state(instance_id=instance_id)
         self.assertEqual(instance_id, goal_state.instance_id)
-
-    def test_instance_id_byte_swap(self):
-        """Return true when previous_iid is byteswapped current_iid"""
-        previous_iid = "D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8"
-        current_iid = "544CDFD0-CB4E-4B4A-9954-5BDF3ED5C3B8"
-        self.assertTrue(
-            azure_helper.is_byte_swapped(previous_iid, current_iid)
-        )
-
-    def test_instance_id_no_byte_swap_same_instance_id(self):
-        previous_iid = "D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8"
-        current_iid = "D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8"
-        self.assertFalse(
-            azure_helper.is_byte_swapped(previous_iid, current_iid)
-        )
-
-    def test_instance_id_no_byte_swap_diff_instance_id(self):
-        previous_iid = "D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8"
-        current_iid = "G0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8"
-        self.assertFalse(
-            azure_helper.is_byte_swapped(previous_iid, current_iid)
-        )
 
     def test_certificates_xml_parsed_and_fetched_correctly(self):
         m_azure_endpoint_client = mock.MagicMock()
@@ -272,7 +250,6 @@ class TestGoalStateParsing(CiTestCase):
 
 
 class TestAzureEndpointHttpClient(CiTestCase):
-
     regular_headers = {
         "x-ms-agent-name": "WALinuxAgent",
         "x-ms-version": "2012-11-30",
@@ -586,7 +563,6 @@ class TestOpenSSLManagerActions(CiTestCase):
 
 
 class TestGoalStateHealthReporter(CiTestCase):
-
     maxDiff = None
 
     default_parameters = {
@@ -1380,7 +1356,10 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
         )
 
     def test_success_calls_clean_up(self):
-        azure_helper.report_failure_to_fabric(endpoint="test_endpoint")
+        error = errors.ReportableError(reason="test")
+        azure_helper.report_failure_to_fabric(
+            endpoint="test_endpoint", error=error
+        )
         self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
 
     def test_failure_in_shim_report_failure_propagates_exc_and_calls_clean_up(
@@ -1393,64 +1372,33 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
             SentinelException,
             azure_helper.report_failure_to_fabric,
             "test_endpoint",
+            errors.ReportableError(reason="test"),
         )
         self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
 
     def test_report_failure_to_fabric_calls_shim_report_failure(
         self,
     ):
-        azure_helper.report_failure_to_fabric(endpoint="test_endpoint")
+        error = errors.ReportableError(reason="test")
+
+        azure_helper.report_failure_to_fabric(
+            endpoint="test_endpoint",
+            error=error,
+        )
         # default err message description should be shown to the user
         # if an empty description is passed in
         self.m_shim.return_value.register_with_azure_and_report_failure.assert_called_once_with(  # noqa: E501
-            description=(
-                azure_helper.DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
-            )
+            description=error.as_encoded_report(),
         )
 
     def test_instantiates_shim_with_kwargs(self):
         azure_helper.report_failure_to_fabric(
             endpoint="test_endpoint",
+            error=errors.ReportableError(reason="test"),
         )
         self.m_shim.assert_called_once_with(
             endpoint="test_endpoint",
         )
-
-
-class TestChassisAssetTag:
-    def test_true_azure_cloud(self, caplog, mock_dmi_read_dmi_data):
-        mock_dmi_read_dmi_data.return_value = (
-            azure_helper.ChassisAssetTag.AZURE_CLOUD.value
-        )
-
-        asset_tag = azure_helper.ChassisAssetTag.query_system()
-
-        assert asset_tag == azure_helper.ChassisAssetTag.AZURE_CLOUD
-        assert caplog.record_tuples == [
-            (
-                "cloudinit.sources.helpers.azure",
-                10,
-                "Azure chassis asset tag: "
-                "'7783-7084-3265-9085-8269-3286-77' (AZURE_CLOUD)",
-            )
-        ]
-
-    @pytest.mark.parametrize("tag", [None, "", "notazure"])
-    def test_false_on_nonazure_chassis(
-        self, caplog, mock_dmi_read_dmi_data, tag
-    ):
-        mock_dmi_read_dmi_data.return_value = tag
-
-        asset_tag = azure_helper.ChassisAssetTag.query_system()
-
-        assert asset_tag is None
-        assert caplog.record_tuples == [
-            (
-                "cloudinit.sources.helpers.azure",
-                10,
-                "Non-Azure chassis asset tag: %r" % tag,
-            )
-        ]
 
 
 class TestOvfEnvXml:
@@ -1601,19 +1549,23 @@ class TestOvfEnvXml:
         [
             (
                 construct_ovf_env(username=None),
-                "No ovf-env.xml configuration for 'UserName'",
+                "unexpected metadata parsing ovf-env.xml: "
+                "missing configuration for 'UserName'",
             ),
             (
                 construct_ovf_env(hostname=None),
-                "No ovf-env.xml configuration for 'HostName'",
+                "unexpected metadata parsing ovf-env.xml: "
+                "missing configuration for 'HostName'",
             ),
         ],
     )
     def test_missing_required_fields(self, ovf, error):
-        with pytest.raises(azure_helper.BrokenAzureDataSource) as exc_info:
+        with pytest.raises(
+            errors.ReportableErrorOvfInvalidMetadata
+        ) as exc_info:
             azure_helper.OvfEnvXml.parse_text(ovf)
 
-        assert str(exc_info.value) == error
+        assert str(exc_info.value.reason) == error
 
     def test_multiple_sections_fails(self):
         ovf = """\
@@ -1633,13 +1585,15 @@ class TestOvfEnvXml:
             </ns1:ProvisioningSection>
             </ns0:Environment>"""
 
-        with pytest.raises(azure_helper.BrokenAzureDataSource) as exc_info:
+        with pytest.raises(
+            errors.ReportableErrorOvfInvalidMetadata
+        ) as exc_info:
             azure_helper.OvfEnvXml.parse_text(ovf)
 
         assert (
-            str(exc_info.value)
-            == "Multiple configuration matches in ovf-exml.xml "
-            "for 'ProvisioningSection' (2)"
+            exc_info.value.reason
+            == "unexpected metadata parsing ovf-env.xml: "
+            "multiple configuration matches for 'ProvisioningSection' (2)"
         )
 
     def test_multiple_properties_fails(self):
@@ -1665,13 +1619,15 @@ class TestOvfEnvXml:
             </ns1:PlatformSettingsSection>
             </ns0:Environment>"""
 
-        with pytest.raises(azure_helper.BrokenAzureDataSource) as exc_info:
+        with pytest.raises(
+            errors.ReportableErrorOvfInvalidMetadata
+        ) as exc_info:
             azure_helper.OvfEnvXml.parse_text(ovf)
 
         assert (
-            str(exc_info.value)
-            == "Multiple configuration matches in ovf-exml.xml "
-            "for 'HostName' (2)"
+            exc_info.value.reason
+            == "unexpected metadata parsing ovf-env.xml: "
+            "multiple configuration matches for 'HostName' (2)"
         )
 
     def test_non_azure_ovf(self):
@@ -1690,22 +1646,58 @@ class TestOvfEnvXml:
         )
 
     @pytest.mark.parametrize(
-        "ovf,error",
+        "ovf,reason",
         [
-            ("", "Invalid ovf-env.xml: no element found: line 1, column 0"),
+            (
+                "",
+                "error parsing ovf-env.xml: "
+                "no element found: line 1, column 0",
+            ),
             (
                 "<!!!!>",
-                "Invalid ovf-env.xml: not well-formed (invalid token): "
-                "line 1, column 2",
+                "error parsing ovf-env.xml: "
+                "not well-formed (invalid token): line 1, column 2",
             ),
-            ("badxml", "Invalid ovf-env.xml: syntax error: line 1, column 0"),
+            (
+                "badxml",
+                "error parsing ovf-env.xml: syntax error: line 1, column 0",
+            ),
         ],
     )
-    def test_invalid_xml(self, ovf, error):
-        with pytest.raises(azure_helper.BrokenAzureDataSource) as exc_info:
+    def test_invalid_xml(self, ovf, reason):
+        with pytest.raises(
+            errors.ReportableErrorOvfParsingException
+        ) as exc_info:
             azure_helper.OvfEnvXml.parse_text(ovf)
 
-        assert str(exc_info.value) == error
+        assert exc_info.value.reason == reason
 
 
-# vi: ts=4 expandtab
+class TestReportDmesgToKvp:
+    @mock.patch.object(
+        azure_helper.subp, "subp", return_value=("dmesg test", "")
+    )
+    @mock.patch.object(azure_helper, "report_compressed_event")
+    def test_report_dmesg_to_kvp(
+        self, mock_report_compressed_event, mock_subp
+    ):
+        azure_helper.report_dmesg_to_kvp()
+
+        assert mock_subp.mock_calls == [
+            mock.call(["dmesg"], decode=False, capture=True)
+        ]
+        assert mock_report_compressed_event.mock_calls == [
+            mock.call("dmesg", "dmesg test")
+        ]
+
+    @mock.patch.object(azure_helper.subp, "subp", side_effect=[Exception()])
+    @mock.patch.object(azure_helper, "report_compressed_event")
+    def test_report_dmesg_to_kvp_dmesg_error(
+        self, mock_report_compressed_event, mock_subp
+    ):
+        azure_helper.report_dmesg_to_kvp()
+
+        assert mock_subp.mock_calls == [
+            mock.call(["dmesg"], decode=False, capture=True)
+        ]
+        assert mock_report_compressed_event.mock_calls == []

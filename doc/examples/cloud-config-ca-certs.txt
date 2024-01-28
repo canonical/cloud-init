@@ -8,11 +8,12 @@
 # It should be passed as user-data when starting the instance.
 
 ca_certs:
-  # If present and set to True, the 'remove_defaults' parameter will remove
-  # all the default trusted CA certificates that are normally shipped with
-  # Ubuntu.
-  # This is mainly for paranoid admins - most users will not need this
-  # functionality.
+  # If present and set to True, the 'remove_defaults' parameter will either
+  # disable all the trusted CA certifications normally shipped with
+  # Alpine, Debian or Ubuntu. On RedHat, this action will delete those
+  # certificates.
+  # This is mainly for very security-sensitive use cases - most users will not
+  # need this functionality.
   remove_defaults: true
 
   # If present, the 'trusted' parameter should contain a certificate (or list

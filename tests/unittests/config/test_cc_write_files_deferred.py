@@ -1,11 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import shutil
 import tempfile
 
 import pytest
 
-from cloudinit import log as logging
 from cloudinit import util
 from cloudinit.config.cc_write_files_deferred import handle
 from cloudinit.config.schema import (
@@ -44,7 +44,7 @@ class TestWriteFilesDeferred(FilesystemMockingTestCase):
             ]
         }
         cc = self.tmp_cloud("ubuntu")
-        handle("cc_write_files_deferred", config, cc, LOG, [])
+        handle("cc_write_files_deferred", config, cc, [])
         self.assertEqual(util.load_file("/tmp/deferred.file"), expected)
         with self.assertRaises(FileNotFoundError):
             util.load_file("/tmp/not_deferred.file")
@@ -65,6 +65,3 @@ class TestWriteFilesDeferredSchema:
     def test_schema_validation(self, config, error_msg):
         with pytest.raises(SchemaValidationError, match=error_msg):
             validate_cloudconfig_schema(config, get_schema(), strict=True)
-
-
-# vi: ts=4 expandtab

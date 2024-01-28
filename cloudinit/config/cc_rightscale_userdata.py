@@ -6,8 +6,8 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import os
-from logging import Logger
 from urllib.parse import parse_qs
 
 from cloudinit import url_helper as uhelp
@@ -51,6 +51,7 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 #
 # The purpose of this script is to allow cloud-init to consume
@@ -64,25 +65,23 @@ __doc__ = get_meta_doc(meta)
 # - read the blob of data from raw user data, and parse it as key/value
 # - for each key that is found, download the content to
 #   the local instance/scripts directory and set them executable.
-# - the files in that directory will be run by the scripts-user module
+# - the files in that directory will be run by the scripts_user module
 #   Therefore, this must run before that.
 #
 #
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     get_userdata_raw = getattr(cloud, "get_userdata_raw", None)
     if not get_userdata_raw or not callable(get_userdata_raw):
-        log.debug("Failed to get raw userdata in module %s", name)
+        LOG.debug("Failed to get raw userdata in module %s", name)
         return
 
     ud = get_userdata_raw()
     try:
         mdict = parse_qs(ud)
         if not mdict or MY_HOOKNAME not in mdict:
-            log.debug(
+            LOG.debug(
                 "Skipping module %s, did not find %s in parsed raw userdata",
                 name,
                 MY_HOOKNAME,
@@ -90,7 +89,7 @@ def handle(
             return
     except Exception:
         util.logexc(
-            log, "Failed to parse query string %s into a dictionary", ud
+            LOG, "Failed to parse query string %s into a dictionary", ud
         )
         raise
 
@@ -113,22 +112,19 @@ def handle(
         except Exception as e:
             captured_excps.append(e)
             util.logexc(
-                log, "%s failed to read %s and write %s", MY_NAME, url, fname
+                LOG, "%s failed to read %s and write %s", MY_NAME, url, fname
             )
 
     if wrote_fns:
-        log.debug("Wrote out rightscale userdata to %s files", len(wrote_fns))
+        LOG.debug("Wrote out rightscale userdata to %s files", len(wrote_fns))
 
     if len(wrote_fns) != len(urls):
         skipped = len(urls) - len(wrote_fns)
-        log.debug("%s urls were skipped or failed", skipped)
+        LOG.debug("%s urls were skipped or failed", skipped)
 
     if captured_excps:
-        log.warning(
+        LOG.warning(
             "%s failed with exceptions, re-raising the last one",
             len(captured_excps),
         )
         raise captured_excps[-1]
-
-
-# vi: ts=4 expandtab

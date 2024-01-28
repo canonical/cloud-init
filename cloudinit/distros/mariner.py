@@ -1,13 +1,12 @@
-#!/usr/bin/env python3
-# vi: ts=4 expandtab
-#
 # Copyright (C) 2021 VMware Inc.
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
+
 from cloudinit import helpers
-from cloudinit import log as logging
 from cloudinit.distros import photon
+from cloudinit.net.netplan import CLOUDINIT_NETPLAN_FILE
 
 LOG = logging.getLogger(__name__)
 
@@ -26,7 +25,7 @@ class Distro(photon.Distro):
     systemd_locale_conf_fn = "/etc/locale.conf"
     resolve_conf_fn = "/etc/systemd/resolved.conf"
 
-    network_conf_fn = {"netplan": "/etc/netplan/50-cloud-init.yaml"}
+    network_conf_fn = {"netplan": CLOUDINIT_NETPLAN_FILE}
     renderer_configs = {
         "networkd": {
             "resolv_conf_fn": resolve_conf_fn,

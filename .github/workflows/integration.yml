@@ -4,6 +4,9 @@ on:
   pull_request:
     branches-ignore:
       - 'ubuntu/**'
+  push:
+    branches:
+      - main
 
 concurrency:
   group: 'ci-${{ github.workflow }}-${{ github.ref }}'
@@ -37,6 +40,8 @@ jobs:
             ubuntu-dev-tools
           sudo sbuild-adduser $USER
           cp /usr/share/doc/sbuild/examples/example.sbuildrc /home/$USER/.sbuildrc
+          # Install all build and test dependencies
+          ./tools/read-dependencies -r requirements.txt -r test-requirements.txt -d ubuntu -s -i
       - name: Build package
         run: |
           ./packages/bddeb -S -d --release ${{ env.RELEASE }}
@@ -76,7 +81,7 @@ jobs:
           sudo adduser $USER lxd
           # Jammy GH Action runners have docker installed, which edits iptables
           # in a way that is incompatible with lxd.
-          # https://linuxcontainers.org/lxd/docs/master/howto/network_bridge_firewalld/#prevent-issues-with-lxd-and-docker
+          # https://documentation.ubuntu.com/lxd/en/latest/howto/network_bridge_firewalld/#prevent-connectivity-issues-with-lxd-and-docker
           sudo iptables -I DOCKER-USER -j ACCEPT
           sudo lxd init --auto
       - name: Run integration Tests

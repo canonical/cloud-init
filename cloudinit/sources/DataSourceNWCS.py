@@ -1,10 +1,12 @@
+# Author: NWCS.sh <foss@nwcs.sh>
+#
 # This file is part of cloud-init. See LICENSE file for license information.
+
+import logging
 
 from requests import exceptions
 
-from cloudinit import dmi
-from cloudinit import log as logging
-from cloudinit import net, sources, subp, url_helper, util
+from cloudinit import dmi, net, sources, subp, url_helper, util
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralDHCPv4
 
@@ -43,19 +45,10 @@ class DataSourceNWCS(sources.DataSource):
         self.dsmode = sources.DSMODE_NETWORK
 
     def _get_data(self):
-        LOG.info("Detecting if machine is a NWCS instance")
-        on_nwcs = get_nwcs_data()
-
-        if not on_nwcs:
-            LOG.info("Machine is not a NWCS instance")
-            return False
-
-        LOG.info("Machine is a NWCS instance")
-
         md = self.get_metadata()
 
         if md is None:
-            raise Exception("failed to get metadata")
+            raise RuntimeError("failed to get metadata")
 
         self.metadata_full = md
 
@@ -75,6 +68,7 @@ class DataSourceNWCS(sources.DataSource):
             LOG.info("Attempting to get metadata via DHCP")
 
             with EphemeralDHCPv4(
+                self.distro,
                 iface=net.find_fallback_nic(),
                 connectivity_url_data={
                     "url": BASE_URL_V1 + "/metadata/instance-id",
@@ -111,7 +105,7 @@ class DataSourceNWCS(sources.DataSource):
             return self._network_config
 
         if not self.metadata["network"]["config"]:
-            raise Exception("Unable to get metadata from server")
+            raise RuntimeError("Unable to get metadata from server")
 
         # metadata sends interface names, but we dont want to use them
         for i in self.metadata["network"]["config"]:
@@ -125,14 +119,9 @@ class DataSourceNWCS(sources.DataSource):
 
         return self._network_config
 
-
-def get_nwcs_data():
-    vendor_name = dmi.read_dmi_data("system-manufacturer")
-
-    if vendor_name != "NWCS":
-        return False
-
-    return True
+    @staticmethod
+    def ds_detect():
+        return "NWCS" == dmi.read_dmi_data("system-manufacturer")
 
 
 def get_interface_name(mac):
@@ -164,5 +153,3 @@ def read_metadata(url, timeout=2, sec_between=2, retries=30):
 datasources = [
     (DataSourceNWCS, (sources.DEP_FILESYSTEM,)),
 ]
-
-# vi: ts=4 expandtab

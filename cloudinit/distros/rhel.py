@@ -7,22 +7,15 @@
 # Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+import logging
 import os
 
-from cloudinit import distros, helpers
-from cloudinit import log as logging
-from cloudinit import subp, util
-from cloudinit.distros import rhel_util
+from cloudinit import distros, helpers, subp, util
+from cloudinit.distros import PackageList, rhel_util
+from cloudinit.distros.parsers.hostname import HostnameConf
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
-
-
-def _make_sysconfig_bool(val):
-    if val:
-        return "yes"
-    else:
-        return "no"
 
 
 class Distro(distros.Distro):
@@ -38,6 +31,12 @@ class Distro(distros.Distro):
     usr_lib_exec = "/usr/libexec"
 
     update_initramfs_cmd = []  # TODO(dracut support to regen initramfs)
+    # RHEL and derivatives use NetworkManager DHCP client by default.
+    # But if NM is configured with using dhclient ("dhcp=dhclient" statement)
+    # then the following location is used:
+    # /var/lib/NetworkManager/dhclient-<uuid>-<network_interface>.lease
+    dhclient_lease_directory = "/var/lib/NetworkManager"
+    dhclient_lease_file_regex = r"dhclient-[\w-]+\.lease"
     renderer_configs = {
         "sysconfig": {
             "control": "etc/sysconfig/network",
@@ -64,7 +63,7 @@ class Distro(distros.Distro):
         self.system_locale = None
         cfg["ssh_svcname"] = "sshd"
 
-    def install_packages(self, pkglist):
+    def install_packages(self, pkglist: PackageList):
         self.package_command("install", pkgs=pkglist)
 
     def get_locale(self):
@@ -83,7 +82,6 @@ class Distro(distros.Distro):
         if self.uses_systemd():
             if not out_fn:
                 out_fn = self.systemd_locale_conf_fn
-            out_fn = self.systemd_locale_conf_fn
         else:
             if not out_fn:
                 out_fn = self.locale_conf_fn
@@ -113,9 +111,27 @@ class Distro(distros.Distro):
         # systemd will never update previous-hostname for us, so
         # we need to do it ourselves
         if self.uses_systemd() and filename.endswith("/previous-hostname"):
-            util.write_file(filename, hostname)
+            conf = HostnameConf("")
+            conf.set_hostname(hostname)
+            util.write_file(filename, str(conf), 0o644)
         elif self.uses_systemd():
-            subp.subp(["hostnamectl", "set-hostname", str(hostname)])
+            create_hostname_file = util.get_cfg_option_bool(
+                self._cfg, "create_hostname_file", True
+            )
+            if create_hostname_file:
+                subp.subp(["hostnamectl", "set-hostname", str(hostname)])
+            else:
+                subp.subp(
+                    [
+                        "hostnamectl",
+                        "set-hostname",
+                        "--transient",
+                        str(hostname),
+                    ]
+                )
+                LOG.info(
+                    "create_hostname_file is False; hostname set transiently"
+                )
         else:
             host_cfg = {
                 "HOSTNAME": hostname,
@@ -202,6 +218,3 @@ class Distro(distros.Distro):
             ["makecache"],
             freq=PER_INSTANCE,
         )
-
-
-# vi: ts=4 expandtab

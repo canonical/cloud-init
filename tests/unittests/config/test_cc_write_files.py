@@ -3,13 +3,13 @@
 import base64
 import gzip
 import io
+import logging
 import re
 import shutil
 import tempfile
 
 import pytest
 
-from cloudinit import log as logging
 from cloudinit import util
 from cloudinit.config.cc_write_files import decode_perms, handle, write_files
 from cloudinit.config.schema import (
@@ -160,7 +160,7 @@ class TestWriteFiles(FilesystemMockingTestCase):
             ]
         }
         cc = self.tmp_cloud("ubuntu")
-        handle("ignored", cfg, cc, LOG, [])
+        handle("ignored", cfg, cc, [])
         assert content == util.load_file(file_path)
         self.assertNotIn(
             "Unknown encoding type text/plain", self.logs.getvalue()
@@ -171,7 +171,7 @@ class TestWriteFiles(FilesystemMockingTestCase):
         file_path = "/tmp/deferred.file"
         config = {"write_files": [{"path": file_path, "defer": True}]}
         cc = self.tmp_cloud("ubuntu")
-        handle("cc_write_file", config, cc, LOG, [])
+        handle("cc_write_file", config, cc, [])
         with self.assertRaises(FileNotFoundError):
             util.load_file(file_path)
 
@@ -264,6 +264,3 @@ class TestWriteFilesSchema:
                 validate_cloudconfig_schema(config, get_schema(), strict=True)
         else:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
-
-
-# vi: ts=4 expandtab

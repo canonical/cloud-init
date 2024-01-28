@@ -13,12 +13,11 @@ instance on RHEVm and vSphere.
 """
 
 import errno
+import logging
 import os
 import os.path
 
-from cloudinit import dmi
-from cloudinit import log as logging
-from cloudinit import sources, subp, util
+from cloudinit import dmi, sources, subp, util
 
 LOG = logging.getLogger(__name__)
 
@@ -284,6 +283,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab

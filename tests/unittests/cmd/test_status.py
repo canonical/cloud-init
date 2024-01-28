@@ -9,8 +9,15 @@ from unittest import mock
 
 import pytest
 
+from cloudinit import subp
 from cloudinit.atomic_helper import write_json
 from cloudinit.cmd import status
+from cloudinit.cmd.status import (
+    UXAppStatus,
+    _get_error_or_running_from_systemd,
+    _get_error_or_running_from_systemd_with_retry,
+)
+from cloudinit.subp import SubpResult
 from cloudinit.util import ensure_file
 from tests.unittests.helpers import wrap_and_call
 
@@ -46,8 +53,7 @@ class TestStatus:
             'null, "start": 1669231096.9621563}, "modules-config": '
             '{"errors": [], "finished": null, "start": null},'
             '"modules-final": {"errors": [], "finished": null, '
-            '"start": null}, "modules-init": {"errors": [], "finished": '
-            'null, "start": null}, "stage": "init-local"} }'
+            '"start": null}, "stage": "init-local"} }'
         ),
     )
     @mock.patch(M_PATH + "os.path.exists", return_value=True)
@@ -58,8 +64,17 @@ class TestStatus:
             "Cloud-init enabled by systemd cloud-init-generator",
         ),
     )
+    @mock.patch(
+        f"{M_PATH}_get_error_or_running_from_systemd_with_retry",
+        return_value=None,
+    )
     def test_get_status_details_ds_none(
-        self, m_get_boot_status, m_p_exists, m_load_json, tmpdir
+        self,
+        m_get_systemd_status,
+        m_get_boot_status,
+        m_p_exists,
+        m_load_json,
+        tmpdir,
     ):
         paths = mock.Mock()
         paths.run_dir = str(tmpdir)
@@ -68,8 +83,28 @@ class TestStatus:
             status.UXAppBootStatusCode.ENABLED_BY_GENERATOR,
             "Running in stage: init-local",
             [],
+            {},
             "Wed, 23 Nov 2022 19:18:16 +0000",
             None,  # datasource
+            {
+                "init": {"errors": [], "finished": None, "start": None},
+                "init-local": {
+                    "errors": [],
+                    "finished": None,
+                    "start": 1669231096.9621563,
+                },
+                "modules-config": {
+                    "errors": [],
+                    "finished": None,
+                    "start": None,
+                },
+                "modules-final": {
+                    "errors": [],
+                    "finished": None,
+                    "start": None,
+                },
+                "stage": "init-local",
+            },
         ) == status.get_status_details(paths)
 
     @pytest.mark.parametrize(
@@ -156,16 +191,26 @@ class TestStatus:
     ):
         if ensured_file is not None:
             ensure_file(ensured_file(config))
-        (code, reason) = wrap_and_call(
-            M_NAME,
-            {
-                "uses_systemd": uses_systemd,
-                "get_cmdline": get_cmdline,
-            },
-            status.get_bootstatus,
-            config.disable_file,
-            config.paths,
-        )
+        with mock.patch(
+            f"{M_PATH}subp.subp",
+            return_value=SubpResult(
+                """\
+LANG=en_US.UTF-8
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+""",
+                stderr=None,
+            ),
+        ):
+            code, reason = wrap_and_call(
+                M_NAME,
+                {
+                    "uses_systemd": uses_systemd,
+                    "get_cmdline": get_cmdline,
+                },
+                status.get_bootstatus,
+                config.disable_file,
+                config.paths,
+            )
         assert code == expected_bootstatus, failure_msg
         if isinstance(expected_reason, str):
             assert reason == expected_reason
@@ -227,9 +272,12 @@ class TestStatus:
         expected = dedent(
             """\
             status: disabled
+            extended_status: disabled
             boot_status_code: disabled-by-kernel-cmdline
             detail:
             disabled for some reason
+            errors: []
+            recoverable_errors: {}
         """
         )
         out, _err = capsys.readouterr()
@@ -317,11 +365,14 @@ class TestStatus:
                 dedent(
                     """\
                     status: done
+                    extended_status: done
                     boot_status_code: enabled-by-generator
                     last_update: Thu, 01 Jan 1970 00:02:05 +0000
                     detail:
                     DataSourceNoCloud [seed=/var/.../seed/nocloud-net]\
 [dsmode=net]
+                    errors: []
+                    recoverable_errors: {}
                     """
                 ),
                 id="returns_done_long",
@@ -377,14 +428,18 @@ class TestStatus:
                 1,
                 dedent(
                     """\
-                    status: error
-                    boot_status_code: enabled-by-kernel-cmdline
-                    last_update: Thu, 01 Jan 1970 00:02:05 +0000
-                    detail:
-                    error1
-                    error2
-                    error3
-                    """
+                status: error
+                extended_status: error
+                boot_status_code: enabled-by-kernel-cmdline
+                last_update: Thu, 01 Jan 1970 00:02:05 +0000
+                detail:
+                DataSourceNoCloud [seed=/var/.../seed/nocloud-net][dsmode=net]
+                errors:
+                \t- error1
+                \t- error2
+                \t- error3
+                recoverable_errors: {}
+                """
                 ),
                 id="on_errors_long",
             ),
@@ -405,10 +460,13 @@ class TestStatus:
                 dedent(
                     """\
                     status: running
+                    extended_status: running
                     boot_status_code: enabled-by-kernel-cmdline
                     last_update: Thu, 01 Jan 1970 00:02:04 +0000
                     detail:
                     Running in stage: init
+                    errors: []
+                    recoverable_errors: {}
                     """
                 ),
                 id="running_long_format",
@@ -429,20 +487,20 @@ class TestStatus:
                 dedent(
                     """\
                    ---
-                   _schema_version: '1'
                    boot_status_code: enabled-by-kernel-cmdline
                    datasource: ''
                    detail: 'Running in stage: init'
                    errors: []
+                   extended_status: running
+                   init:
+                       finished: null
+                       start: 124.456
+                   init-local:
+                       finished: 123.46
+                       start: 123.45
                    last_update: Thu, 01 Jan 1970 00:02:04 +0000
-                   schemas:
-                       '1':
-                           boot_status_code: enabled-by-kernel-cmdline
-                           datasource: ''
-                           detail: 'Running in stage: init'
-                           errors: []
-                           last_update: Thu, 01 Jan 1970 00:02:04 +0000
-                           status: running
+                   recoverable_errors: {}
+                   stage: init
                    status: running
                    ...
 
@@ -464,31 +522,203 @@ class TestStatus:
                 MyArgs(long=False, wait=False, format="json"),
                 0,
                 {
-                    "_schema_version": "1",
                     "boot_status_code": "enabled-by-kernel-cmdline",
                     "datasource": "",
                     "detail": "Running in stage: init",
                     "errors": [],
-                    "last_update": "Thu, 01 Jan 1970 00:02:04 +0000",
-                    "schemas": {
-                        "1": {
-                            "boot_status_code": "enabled-by-kernel-cmdline",
-                            "datasource": "",
-                            "detail": "Running in stage: init",
-                            "errors": [],
-                            "last_update": "Thu, 01 Jan 1970 00:02:04 +0000",
-                            "status": "running",
-                        }
-                    },
                     "status": "running",
+                    "extended_status": "running",
+                    "init": {"finished": None, "start": 124.456},
+                    "init-local": {"finished": 123.46, "start": 123.45},
+                    "last_update": "Thu, 01 Jan 1970 00:02:04 +0000",
+                    "recoverable_errors": {},
+                    "stage": "init",
                 },
                 id="running_json_format",
+            ),
+            pytest.param(
+                None,
+                status.UXAppBootStatusCode.ENABLED_BY_KERNEL_CMDLINE,
+                {
+                    "v1": {
+                        "stage": None,
+                        "datasource": (
+                            "DataSourceNoCloud "
+                            "[seed=/var/.../seed/nocloud-net]"
+                            "[dsmode=net]"
+                        ),
+                        "init": {
+                            "errors": ["error1"],
+                            "start": 124.567,
+                            "finished": 125.678,
+                        },
+                        "init-local": {
+                            "errors": ["error2", "error3"],
+                            "start": 123.45,
+                            "finished": 123.46,
+                        },
+                    }
+                },
+                None,
+                MyArgs(long=False, wait=False, format="json"),
+                1,
+                {
+                    "boot_status_code": "enabled-by-kernel-cmdline",
+                    "datasource": "nocloud",
+                    "detail": (
+                        "DataSourceNoCloud [seed=/var/.../seed/"
+                        "nocloud-net][dsmode=net]"
+                    ),
+                    "errors": ["error1", "error2", "error3"],
+                    "status": "error",
+                    "extended_status": "error",
+                    "init": {
+                        "finished": 125.678,
+                        "start": 124.567,
+                        "errors": ["error1"],
+                    },
+                    "init-local": {
+                        "finished": 123.46,
+                        "start": 123.45,
+                        "errors": ["error2", "error3"],
+                    },
+                    "last_update": "Thu, 01 Jan 1970 00:02:05 +0000",
+                    "recoverable_errors": {},
+                    "stage": None,
+                },
+                id="running_json_format_with_errors",
+            ),
+            pytest.param(
+                lambda config: config.result_file,
+                status.UXAppBootStatusCode.ENABLED_BY_KERNEL_CMDLINE,
+                {
+                    "v1": {
+                        "stage": None,
+                        "datasource": (
+                            "DataSourceNoCloud "
+                            "[seed=/var/.../seed/nocloud-net]"
+                            "[dsmode=net]"
+                        ),
+                        "modules-final": {
+                            "errors": [],
+                            "recoverable_errors": {
+                                "DEPRECATED": [
+                                    (
+                                        "don't try to open the hatch "
+                                        "or we'll all be soup"
+                                    )
+                                ]
+                            },
+                            "start": 127.567,
+                            "finished": 128.678,
+                        },
+                        "modules-config": {
+                            "errors": [],
+                            "recoverable_errors": {
+                                "CRITICAL": ["Power lost! Prepare to"]
+                            },
+                            "start": 125.567,
+                            "finished": 126.678,
+                        },
+                        "init": {
+                            "errors": [],
+                            "recoverable_errors": {
+                                "WARNINGS": [
+                                    "the prime omega transfuser borkeded!"
+                                ]
+                            },
+                            "start": 124.567,
+                            "finished": 125.678,
+                        },
+                        "init-local": {
+                            "errors": [],
+                            "recoverable_errors": {
+                                "ERROR": [
+                                    "the ion field reactor just transmutated"
+                                ]
+                            },
+                            "start": 123.45,
+                            "finished": 123.46,
+                        },
+                    }
+                },
+                None,
+                MyArgs(long=False, wait=False, format="json"),
+                2,
+                {
+                    "boot_status_code": "enabled-by-kernel-cmdline",
+                    "datasource": "nocloud",
+                    "detail": (
+                        "DataSourceNoCloud [seed=/var/.../"
+                        "seed/nocloud-net][dsmode=net]"
+                    ),
+                    "errors": [],
+                    "status": "done",
+                    "extended_status": "degraded done",
+                    "modules-final": {
+                        "errors": [],
+                        "recoverable_errors": {
+                            "DEPRECATED": [
+                                (
+                                    "don't try to open the "
+                                    "hatch or we'll all be soup"
+                                )
+                            ]
+                        },
+                        "start": 127.567,
+                        "finished": 128.678,
+                    },
+                    "modules-config": {
+                        "errors": [],
+                        "recoverable_errors": {
+                            "CRITICAL": ["Power lost! Prepare to"]
+                        },
+                        "start": 125.567,
+                        "finished": 126.678,
+                    },
+                    "init": {
+                        "errors": [],
+                        "recoverable_errors": {
+                            "WARNINGS": [
+                                "the prime omega transfuser borkeded!"
+                            ]
+                        },
+                        "start": 124.567,
+                        "finished": 125.678,
+                    },
+                    "init-local": {
+                        "errors": [],
+                        "recoverable_errors": {
+                            "ERROR": [
+                                "the ion field reactor just transmutated"
+                            ]
+                        },
+                        "start": 123.45,
+                        "finished": 123.46,
+                    },
+                    "last_update": "Thu, 01 Jan 1970 00:02:08 +0000",
+                    "recoverable_errors": {
+                        "ERROR": ["the ion field reactor just transmutated"],
+                        "WARNINGS": ["the prime omega transfuser borkeded!"],
+                        "CRITICAL": ["Power lost! Prepare to"],
+                        "DEPRECATED": [
+                            "don't try to open the hatch or we'll all be soup"
+                        ],
+                    },
+                    "stage": None,
+                },
+                id="running_json_format_with_recoverable_errors",
             ),
         ],
     )
     @mock.patch(M_PATH + "read_cfg_paths")
+    @mock.patch(
+        f"{M_PATH}_get_error_or_running_from_systemd_with_retry",
+        return_value=None,
+    )
     def test_status_output(
         self,
+        m_get_systemd_status,
         m_read_cfg_paths,
         ensured_file: Optional[Callable],
         bootstatus: status.UXAppBootStatusCode,
@@ -526,8 +756,12 @@ class TestStatus:
             assert out == expected_status
 
     @mock.patch(M_PATH + "read_cfg_paths")
+    @mock.patch(
+        f"{M_PATH}_get_error_or_running_from_systemd_with_retry",
+        return_value=None,
+    )
     def test_status_wait_blocks_until_done(
-        self, m_read_cfg_paths, config: Config, capsys
+        self, m_get_systemd_status, m_read_cfg_paths, config: Config, capsys
     ):
         """Specifying wait will poll every 1/4 second until done state."""
         m_read_cfg_paths.return_value = config.paths
@@ -576,8 +810,12 @@ class TestStatus:
         assert out == "....\nstatus: done\n"
 
     @mock.patch(M_PATH + "read_cfg_paths")
+    @mock.patch(
+        f"{M_PATH}_get_error_or_running_from_systemd_with_retry",
+        return_value=None,
+    )
     def test_status_wait_blocks_until_error(
-        self, m_read_cfg_paths, config: Config, capsys
+        self, m_get_systemd_status, m_read_cfg_paths, config: Config, capsys
     ):
         """Specifying wait will poll every 1/4 second until error state."""
         m_read_cfg_paths.return_value = config.paths
@@ -628,7 +866,13 @@ class TestStatus:
         assert out == "....\nstatus: error\n"
 
     @mock.patch(M_PATH + "read_cfg_paths")
-    def test_status_main(self, m_read_cfg_paths, config: Config, capsys):
+    @mock.patch(
+        f"{M_PATH}_get_error_or_running_from_systemd_with_retry",
+        return_value=None,
+    )
+    def test_status_main(
+        self, m_get_systemd_status, m_read_cfg_paths, config: Config, capsys
+    ):
         """status.main can be run as a standalone script."""
         m_read_cfg_paths.return_value = config.paths
         write_json(
@@ -649,4 +893,125 @@ class TestStatus:
         assert out == "status: running\n"
 
 
-# vi: ts=4 expandtab syntax=python
+class TestGetErrorOrRunningFromSystemd:
+    @pytest.fixture(autouse=True)
+    def common_mocks(self, mocker):
+        mocker.patch("cloudinit.cmd.status.sleep")
+        yield
+
+    @pytest.mark.parametrize(
+        ["active_state", "unit_file_state", "sub_state", "main_pid", "status"],
+        [
+            # To cut down on the combination of states, I'm grouping
+            # enabled, enabled-runtime, and static into an "enabled" state
+            # and everything else functionally disabled.
+            # Additionally, SubStates are undocumented and may mean something
+            # different depending on the ActiveState they are mapped to.
+            # Because of this I'm only testing SubState combinations seen
+            # in real-world testing (or using "any" string if we dont care).
+            ("activating", "enabled", "start", "123", UXAppStatus.RUNNING),
+            ("activating", "enabled", "start", "123", UXAppStatus.RUNNING),
+            ("active", "enabled-runtime", "exited", "0", None),
+            ("active", "enabled", "exited", "0", None),
+            ("active", "enabled", "running", "345", UXAppStatus.RUNNING),
+            ("active", "enabled", "running", "0", None),
+            # Dead doesn't mean exited here. It means not run yet.
+            ("inactive", "static", "dead", "123", UXAppStatus.RUNNING),
+            ("reloading", "enabled", "start", "123", UXAppStatus.RUNNING),
+            (
+                "deactivating",
+                "enabled-runtime",
+                "any",
+                "123",
+                UXAppStatus.RUNNING,
+            ),
+            ("failed", "static", "failed", "0", UXAppStatus.ERROR),
+            # Try previous combinations again with "not enabled" states
+            ("activating", "linked", "start", "0", UXAppStatus.ERROR),
+            ("active", "linked-runtime", "exited", "0", UXAppStatus.ERROR),
+            ("inactive", "masked", "dead", "0", UXAppStatus.ERROR),
+            ("reloading", "masked-runtime", "start", "0", UXAppStatus.ERROR),
+            ("deactivating", "disabled", "any", "0", UXAppStatus.ERROR),
+            ("failed", "invalid", "failed", "0", UXAppStatus.ERROR),
+        ],
+    )
+    def test_get_error_or_running_from_systemd(
+        self, active_state, unit_file_state, sub_state, main_pid, status
+    ):
+        with mock.patch(
+            f"{M_PATH}subp.subp",
+            return_value=SubpResult(
+                f"ActiveState={active_state}\n"
+                f"UnitFileState={unit_file_state}\n"
+                f"SubState={sub_state}\n"
+                f"MainPID={main_pid}\n",
+                stderr=None,
+            ),
+        ):
+            assert _get_error_or_running_from_systemd() == status
+
+    def test_exception_while_running(self, mocker, capsys):
+        m_subp = mocker.patch(
+            f"{M_PATH}subp.subp",
+            side_effect=subp.ProcessExecutionError(
+                "Message recipient disconnected from message bus without"
+                " replying"
+            ),
+        )
+        assert (
+            _get_error_or_running_from_systemd_with_retry(
+                UXAppStatus.RUNNING, wait=True
+            )
+            is None
+        )
+        assert 1 == m_subp.call_count
+        assert "Failed to get status" not in capsys.readouterr().err
+
+    def test_retry(self, mocker, capsys):
+        m_subp = mocker.patch(
+            f"{M_PATH}subp.subp",
+            side_effect=[
+                subp.ProcessExecutionError(
+                    "Message recipient disconnected from message bus without"
+                    " replying"
+                ),
+                subp.ProcessExecutionError(
+                    "Message recipient disconnected from message bus without"
+                    " replying"
+                ),
+                SubpResult(
+                    "ActiveState=activating\nUnitFileState=enabled\n"
+                    "SubState=start\nMainPID=123\n",
+                    stderr=None,
+                ),
+            ],
+        )
+        assert (
+            _get_error_or_running_from_systemd_with_retry(
+                UXAppStatus.ERROR, wait=True
+            )
+            is UXAppStatus.RUNNING
+        )
+        assert 3 == m_subp.call_count
+        assert "Failed to get status" not in capsys.readouterr().err
+
+    def test_retry_no_wait(self, mocker, capsys):
+        m_subp = mocker.patch(
+            f"{M_PATH}subp.subp",
+            side_effect=subp.ProcessExecutionError(
+                "Message recipient disconnected from message bus without"
+                " replying"
+            ),
+        )
+        mocker.patch("time.time", side_effect=[1, 2, 50])
+        assert (
+            _get_error_or_running_from_systemd_with_retry(
+                UXAppStatus.ERROR, wait=False
+            )
+            is None
+        )
+        assert 1 == m_subp.call_count
+        assert (
+            "Failed to get status from systemd. "
+            "Cloud-init status may be inaccurate."
+        ) in capsys.readouterr().err

@@ -7,24 +7,24 @@ import io
 import logging
 import time
 
-from cloudinit import log as ci_logging
+from cloudinit import log, util
 from cloudinit.analyze.dump import CLOUD_INIT_ASCTIME_FMT
 from tests.unittests.helpers import CiTestCase
 
 
 class TestCloudInitLogger(CiTestCase):
     def setUp(self):
-        # set up a logger like cloud-init does in setupLogging, but instead
+        # set up a logger like cloud-init does in setup_logging, but instead
         # of sys.stderr, we'll plug in a StringIO() object so we can see
         # what gets logged
         logging.Formatter.converter = time.gmtime
         self.ci_logs = io.StringIO()
         self.ci_root = logging.getLogger()
         console = logging.StreamHandler(self.ci_logs)
-        console.setFormatter(logging.Formatter(ci_logging.DEF_CON_FORMAT))
-        console.setLevel(ci_logging.DEBUG)
+        console.setFormatter(logging.Formatter(log.DEFAULT_LOG_FORMAT))
+        console.setLevel(logging.DEBUG)
         self.ci_root.addHandler(console)
-        self.ci_root.setLevel(ci_logging.DEBUG)
+        self.ci_root.setLevel(logging.DEBUG)
         self.LOG = logging.getLogger("test_cloudinit_logger")
 
     def test_logger_uses_gmtime(self):
@@ -57,3 +57,40 @@ class TestCloudInitLogger(CiTestCase):
         self.assertLess(parsed_dt, utc_after)
         self.assertLess(utc_before, utc_after)
         self.assertGreater(utc_after, parsed_dt)
+
+
+class TestDeprecatedLogs:
+    def test_deprecated_log_level(self, caplog):
+        logger = logging.getLogger()
+        log.setup_logging()
+        logger.deprecated("deprecated message")
+        assert "DEPRECATED" == caplog.records[0].levelname
+        assert "deprecated message" in caplog.text
+
+    def test_log_deduplication(self, caplog):
+        log.define_deprecation_logger()
+        util.deprecate(
+            deprecated="stuff",
+            deprecated_version="19.1",
+            extra_message=":)",
+        )
+        util.deprecate(
+            deprecated="stuff",
+            deprecated_version="19.1",
+            extra_message=":)",
+        )
+        util.deprecate(
+            deprecated="stuff",
+            deprecated_version="19.1",
+            extra_message=":)",
+            schedule=6,
+        )
+        assert 2 == len(caplog.records)
+
+
+def test_logger_prints_to_stderr(capsys):
+    message = "to stdout"
+    log.setup_basic_logging()
+    LOG = logging.getLogger()
+    LOG.warning(message)
+    assert message in capsys.readouterr().err

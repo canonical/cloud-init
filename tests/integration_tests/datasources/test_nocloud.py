@@ -4,6 +4,7 @@ from pycloudlib.lxd.instance import LXDInstance
 
 from cloudinit.subp import subp
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
 
 VENDOR_DATA = """\
 #cloud-config
@@ -57,10 +58,12 @@ def setup_nocloud(instance: LXDInstance):
     )
 
 
-# Only running on LXD container because we need NoCloud with custom setup
-@pytest.mark.lxd_container
 @pytest.mark.lxd_setup.with_args(setup_nocloud)
 @pytest.mark.lxd_use_exec
+@pytest.mark.skipif(
+    PLATFORM != "lxd_container",
+    reason="Requires NoCloud with custom setup",
+)
 def test_nocloud_seedfrom_vendordata(client: IntegrationInstance):
     """Integration test for #570.
 

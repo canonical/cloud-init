@@ -9,12 +9,10 @@
 """Seed Random: Provide random seed data"""
 
 import base64
-import os
+import logging
 from io import BytesIO
-from logging import Logger
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -91,7 +89,7 @@ def _decode(data, encoding=None):
         raise IOError("Unknown random_seed encoding: %s" % (encoding))
 
 
-def handle_random_seed_command(command, required, env=None):
+def handle_random_seed_command(command, required, update_env):
     if not command and required:
         raise ValueError("no command found but required=true")
     elif not command:
@@ -107,12 +105,10 @@ def handle_random_seed_command(command, required, env=None):
         else:
             LOG.debug("command '%s' not found for seed_command", cmd)
             return
-    subp.subp(command, env=env, capture=False)
+    subp.subp(command, update_env=update_env, capture=False)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     mycfg = cfg.get("random_seed", {})
     seed_path = mycfg.get("file", "/dev/urandom")
     seed_data = mycfg.get("data", b"")
@@ -129,7 +125,7 @@ def handle(
 
     seed_data = seed_buf.getvalue()
     if len(seed_data):
-        log.debug(
+        LOG.debug(
             "%s: adding %s bytes of random seed entropy to %s",
             name,
             len(seed_data),
@@ -140,12 +136,11 @@ def handle(
     command = mycfg.get("command", None)
     req = mycfg.get("command_required", False)
     try:
-        env = os.environ.copy()
-        env["RANDOM_SEED_FILE"] = seed_path
-        handle_random_seed_command(command=command, required=req, env=env)
+        handle_random_seed_command(
+            command=command,
+            required=req,
+            update_env={"RANDOM_SEED_FILE": seed_path},
+        )
     except ValueError as e:
-        log.warning("handling random command [%s] failed: %s", command, e)
+        LOG.warning("handling random command [%s] failed: %s", command, e)
         raise e
-
-
-# vi: ts=4 expandtab

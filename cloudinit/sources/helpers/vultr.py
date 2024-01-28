@@ -3,22 +3,23 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import json
+import logging
 from functools import lru_cache
 
 from requests import exceptions
 
-from cloudinit import dmi
-from cloudinit import log as log
-from cloudinit import net, netinfo, subp, url_helper, util
+from cloudinit import dmi, net, subp, url_helper, util
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralDHCPv4
 
 # Get LOG
-LOG = log.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 @lru_cache()
-def get_metadata(url, timeout, retries, sec_between, agent, tmp_dir=None):
+def get_metadata(
+    distro, url, timeout, retries, sec_between, agent, tmp_dir=None
+):
     # Bring up interface (and try untill one works)
     exception = RuntimeError("Failed to DHCP")
 
@@ -26,14 +27,10 @@ def get_metadata(url, timeout, retries, sec_between, agent, tmp_dir=None):
     for iface in get_interface_list():
         try:
             with EphemeralDHCPv4(
+                distro,
                 iface=iface,
                 connectivity_url_data={"url": url},
-                tmp_dir=tmp_dir,
             ):
-                # Check for the metadata route, skip if not there
-                if not check_route(url):
-                    continue
-
                 # Fetch the metadata
                 v1 = read_metadata(url, timeout, retries, sec_between, agent)
 
@@ -71,24 +68,6 @@ def get_interface_list():
         ifaces.append(iface)
 
     return ifaces
-
-
-# Check for /32 route that our dhcp servers inject
-# in order to determine if this a customer-run dhcp server
-def check_route(url):
-    # Get routes, confirm entry exists
-    routes = netinfo.route_info()
-
-    # If no tools exist and empty dict is returned
-    if "ipv4" not in routes:
-        return False
-
-    # Parse each route into a more searchable format
-    for route in routes["ipv4"]:
-        if route.get("destination", None) in url:
-            return True
-
-    return False
 
 
 # Read the system information from SMBIOS
@@ -287,6 +266,3 @@ def add_interface_names(netcfg):
                 % interface["mac_address"]
             )
         interface["name"] = interface_name
-
-
-# vi: ts=4 expandtab

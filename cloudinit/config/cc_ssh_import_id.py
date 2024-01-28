@@ -7,8 +7,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """SSH Import ID: Import SSH id"""
 
+import logging
 import pwd
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import subp, util
@@ -19,7 +19,7 @@ from cloudinit.distros import ug_util
 from cloudinit.settings import PER_INSTANCE
 
 # https://launchpad.net/ssh-import-id
-distros = ["ubuntu", "debian", "cos"]
+distros = ["alpine", "cos", "debian", "ubuntu"]
 
 SSH_IMPORT_ID_BINARY = "ssh-import-id"
 MODULE_DESCRIPTION = """\
@@ -50,20 +50,19 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     if not is_key_in_nested_dict(cfg, "ssh_import_id"):
-        log.debug(
-            "Skipping module named ssh-import-id, no 'ssh_import_id'"
+        LOG.debug(
+            "Skipping module named ssh_import_id, no 'ssh_import_id'"
             " directives found."
         )
         return
     elif not subp.which(SSH_IMPORT_ID_BINARY):
-        log.warning(
+        LOG.warning(
             "ssh-import-id is not installed, but module ssh_import_id is "
             "configured. Skipping module."
         )
@@ -76,7 +75,7 @@ def handle(
         if len(args) > 1:
             ids = args[1:]
 
-        import_ssh_ids(ids, user, log)
+        import_ssh_ids(ids, user)
         return
 
     # import for cloudinit created users
@@ -90,14 +89,14 @@ def handle(
             try:
                 import_ids = user_cfg["ssh_import_id"]
             except Exception:
-                log.debug("User %s is not configured for ssh_import_id", user)
+                LOG.debug("User %s is not configured for ssh_import_id", user)
                 continue
 
         try:
             import_ids = util.uniq_merge(import_ids)
             import_ids = [str(i) for i in import_ids]
         except Exception:
-            log.debug(
+            LOG.debug(
                 "User %s is not correctly configured for ssh_import_id", user
             )
             continue
@@ -106,10 +105,10 @@ def handle(
             continue
 
         try:
-            import_ssh_ids(import_ids, user, log)
+            import_ssh_ids(import_ids, user)
         except Exception as exc:
             util.logexc(
-                log, "ssh-import-id failed for: %s %s", user, import_ids
+                LOG, "ssh-import-id failed for: %s %s", user, import_ids
             )
             elist.append(exc)
 
@@ -117,10 +116,10 @@ def handle(
         raise elist[0]
 
 
-def import_ssh_ids(ids, user, log):
+def import_ssh_ids(ids, user):
 
     if not (user and ids):
-        log.debug("empty user(%s) or ids(%s). not importing", user, ids)
+        LOG.debug("empty user(%s) or ids(%s). not importing", user, ids)
         return
 
     try:
@@ -153,19 +152,30 @@ def import_ssh_ids(ids, user, log):
     # I'm including the `--preserve-env` here as a one-off, but we should
     # have a better way of setting env earlier in boot and using it later.
     # Perhaps a 'set_env' module?
-    cmd = [
-        "sudo",
-        "--preserve-env=https_proxy",
-        "-Hu",
-        user,
-        SSH_IMPORT_ID_BINARY,
-    ] + ids
-    log.debug("Importing SSH ids for user %s.", user)
+    if subp.which("sudo"):
+        cmd = [
+            "sudo",
+            "--preserve-env=https_proxy",
+            "-Hu",
+            user,
+            SSH_IMPORT_ID_BINARY,
+        ] + ids
+    elif subp.which("doas"):
+        cmd = [
+            "doas",
+            "-u",
+            user,
+            SSH_IMPORT_ID_BINARY,
+        ] + ids
+    else:
+        LOG.error("Neither sudo nor doas available! Unable to import SSH ids.")
+        return
+    LOG.debug("Importing SSH ids for user %s.", user)
 
     try:
         subp.subp(cmd, capture=False)
     except subp.ProcessExecutionError as exc:
-        util.logexc(log, "Failed to run command to import %s SSH ids", user)
+        util.logexc(LOG, "Failed to run command to import %s SSH ids", user)
         raise exc
 
 

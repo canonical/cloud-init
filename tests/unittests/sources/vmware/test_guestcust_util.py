@@ -107,6 +107,3 @@ class TestGuestCustUtil(CiTestCase):
                 ["vmware-rpctool", "info-set guestinfo.gc.status Successful"],
                 rcs=[0],
             )
-
-
-# vi: ts=4 expandtab

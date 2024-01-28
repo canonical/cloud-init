@@ -3,13 +3,12 @@
 """ubuntu_advantage: Configure Ubuntu Advantage support services"""
 
 import json
+import logging
 import re
-from logging import Logger
 from textwrap import dedent
 from typing import Any, List
 from urllib.parse import urlparse
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -234,7 +233,7 @@ def set_ua_config(ua_config: Any = None):
         subp_kwargs: dict = {}
         if value is None:
             LOG.debug("Disabling UA config for %s", key)
-            config_cmd = ["ua", "config", "unset", key]
+            config_cmd = ["pro", "config", "unset", key]
         else:
             redacted_key_value = f"{key}=REDACTED"
             LOG.debug("Enabling UA config %s", redacted_key_value)
@@ -242,7 +241,7 @@ def set_ua_config(ua_config: Any = None):
                 key_value = f"{key}={re.escape(value)}"
             else:
                 key_value = f"{key}={value}"
-            config_cmd = ["ua", "config", "set", key_value]
+            config_cmd = ["pro", "config", "set", key_value]
             subp_kwargs = {"logstring": config_cmd[:-1] + [redacted_key_value]}
         try:
             subp.subp(config_cmd, **subp_kwargs)
@@ -281,9 +280,9 @@ def configure_ua(token, enable=None):
 
     # Perform attach
     if enable:
-        attach_cmd = ["ua", "attach", "--no-auto-enable", token]
+        attach_cmd = ["pro", "attach", "--no-auto-enable", token]
     else:
-        attach_cmd = ["ua", "attach", token]
+        attach_cmd = ["pro", "attach", token]
     redacted_cmd = attach_cmd[:-1] + [REDACTED]
     LOG.debug("Attaching to Ubuntu Advantage. %s", " ".join(redacted_cmd))
     try:
@@ -298,7 +297,7 @@ def configure_ua(token, enable=None):
     # Enable services
     if not enable:
         return
-    cmd = ["ua", "enable", "--assume-yes", "--format", "json", "--"] + enable
+    cmd = ["pro", "enable", "--assume-yes", "--format", "json"] + enable
     try:
         enable_stdout, _ = subp.subp(cmd, capture=True, rcs={0, 1})
     except subp.ProcessExecutionError as e:
@@ -335,16 +334,9 @@ def configure_ua(token, enable=None):
     # related. We can distinguish them by checking if `service` is non-null
     # or null respectively.
 
-    # pylint: disable=import-error
-    from uaclient.messages import ALREADY_ENABLED
-
-    # pylint: enable=import-error
-
-    UA_MC_ALREADY_ENABLED = ALREADY_ENABLED.name
-
     enable_errors: List[dict] = []
     for err in enable_resp.get("errors", []):
-        if err["message_code"] == UA_MC_ALREADY_ENABLED:
+        if err["message_code"] == "service-already-enabled":
             LOG.debug("Service `%s` already enabled.", err["service"])
             continue
         enable_errors.append(err)
@@ -368,7 +360,7 @@ def configure_ua(token, enable=None):
 
 def maybe_install_ua_tools(cloud: Cloud):
     """Install ubuntu-advantage-tools if not present."""
-    if subp.which("ua"):
+    if subp.which("pro"):
         return
     try:
         cloud.distro.update_package_sources()
@@ -398,7 +390,11 @@ def _should_auto_attach(ua_section: dict) -> bool:
     # pylint: enable=import-error
 
     try:
-        result = should_auto_attach()
+        result = util.log_time(
+            logfunc=LOG.debug,
+            msg="Checking if the instance can be attached to Ubuntu Pro",
+            func=should_auto_attach,
+        )
     except UserFacingError as ex:
         LOG.debug("Error during `should_auto_attach`: %s", ex)
         LOG.warning(ERROR_MSG_SHOULD_AUTO_ATTACH)
@@ -409,13 +405,13 @@ def _should_auto_attach(ua_section: dict) -> bool:
 def _attach(ua_section: dict):
     token = ua_section.get("token")
     if not token:
-        msg = "`ubuntu-advantage.token` required in non-Pro Ubuntu instances."
+        msg = "`ubuntu_advantage.token` required in non-Pro Ubuntu instances."
         LOG.error(msg)
         raise RuntimeError(msg)
     enable_beta = ua_section.get("enable_beta")
     if enable_beta:
         LOG.debug(
-            "Ignoring `ubuntu-advantage.enable_beta` services in UA attach:"
+            "Ignoring `ubuntu_advantage.enable_beta` services in UA attach:"
             " %s",
             ", ".join(enable_beta),
         )
@@ -440,7 +436,12 @@ def _auto_attach(ua_section: dict):
         enable_beta=enable_beta,
     )
     try:
-        full_auto_attach(options=options)
+        util.log_time(
+            logfunc=LOG.debug,
+            msg="Attaching to Ubuntu Pro",
+            func=full_auto_attach,
+            kwargs={"options": options},
+        )
     except AlreadyAttachedError:
         if enable_beta is not None or enable is not None:
             # Only warn if the user defined some service to enable/disable.
@@ -455,9 +456,7 @@ def _auto_attach(ua_section: dict):
         raise RuntimeError(msg) from ex
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     ua_section = None
     if "ubuntu-advantage" in cfg:
         LOG.warning(
@@ -495,6 +494,9 @@ def handle(
 
     # ua-auto-attach.service had noop-ed as ua_section is not empty
     validate_schema_features(ua_section)
+    LOG.debug(
+        "To discover more log info, please check /var/log/ubuntu-advantage.log"
+    )
     if _should_auto_attach(ua_section):
         _auto_attach(ua_section)
 
@@ -510,6 +512,3 @@ def handle(
     #    `{"ubuntu_advantage": "features": {"disable_auto_attach": True}}`
     elif not ua_section.keys() <= {"features"}:
         _attach(ua_section)
-
-
-# vi: ts=4 expandtab

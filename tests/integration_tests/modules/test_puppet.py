@@ -38,7 +38,7 @@ puppet:
 
 @pytest.mark.user_data
 @pytest.mark.user_data(EXEC_DATA)
-def test_pupet_exec(client: IntegrationInstance):
+def test_puppet_exec(client: IntegrationInstance):
     """Basic test that puppet gets installed and runs."""
     log = client.read_from_file("/var/log/cloud-init.log")
     assert "Running command ['puppet', 'agent', '--noop']" in log

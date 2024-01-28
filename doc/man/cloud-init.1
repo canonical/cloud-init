@@ -26,10 +26,6 @@ Show help message and exit.
 Show additional pre-action logging (default: False).
 
 .TP
-.B "-f <files>, --files <files>"
-Use additional YAML configuration files.
-
-.TP
 .B "--force"
 Force running even if no datasource is found (use at your own risk).
 
@@ -58,10 +54,6 @@ Remove logs and artifacts so cloud-init can re-run.
 Run development tools. See help output for subcommand details.
 
 .TP
-.B "dhclient-hook"
-Run the dhclient hook to record network info.
-
-.TP
 .B "features"
 List defined features.
 
@@ -88,6 +80,16 @@ Run a single module.
 .TP
 .B "status"
 Report cloud-init status or wait on completion.
+
+.SH EXIT STATUS
+
+.IP
+0 - Success
+.IP
+1 - Error - Cloud-init failed.
+.IP
+2 - Recoverable error - Cloud-init completed but experienced errors.
+
 
 .SH COPYRIGHT
 Copyright (C) 2020 Canonical Ltd. License GPL-3 or Apache-2.0

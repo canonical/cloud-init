@@ -6,6 +6,8 @@ User data formats
 User data that will be acted upon by ``cloud-init`` must be in one of the
 following types.
 
+.. _user_data_formats-cloud_config:
+
 Cloud config data
 =================
 
@@ -31,9 +33,8 @@ Begins with: ``#cloud-config`` or ``Content-Type: text/cloud-config`` when
 using a MIME archive.
 
 .. note::
-   New in ``cloud-init`` v. 18.4: Cloud config data can also render cloud
-   instance metadata variables using jinja templating. See
-   :ref:`instance_metadata` for more information.
+   Cloud config data can also render cloud instance metadata variables using
+   jinja templating. See :ref:`instance_metadata` for more information.
 
 .. _user_data_script:
 

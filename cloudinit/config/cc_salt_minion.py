@@ -4,15 +4,15 @@
 
 """Salt Minion: Setup and run salt minion"""
 
+import logging
 import os
-from logging import Logger
 from textwrap import dedent
 
 from cloudinit import safeyaml, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
-from cloudinit.distros import ALL_DISTROS, bsd_utils
+from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
 MODULE_DESCRIPTION = """\
@@ -45,6 +45,11 @@ meta: MetaSchema = {
                 service_name: salt-minion
                 config_dir: /etc/salt
                 conf:
+                    file_client: local
+                    fileserver_backend:
+                      - gitfs
+                    gitfs_remotes:
+                      - https://github.com/_user_/_repo_.git
                     master: salt.example.com
                 grains:
                     role:
@@ -65,6 +70,7 @@ meta: MetaSchema = {
 }
 
 __doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 # Note: see https://docs.saltstack.com/en/latest/topics/installation/
 # Note: see https://docs.saltstack.com/en/latest/ref/configuration/
@@ -76,7 +82,6 @@ class SaltConstants:
     """
 
     def __init__(self, cfg):
-
         # constants tailored for FreeBSD
         if util.is_FreeBSD():
             self.pkg_name = "py-salt"
@@ -98,12 +103,10 @@ class SaltConstants:
         )
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # If there isn't a salt key in the configuration don't do anything
     if "salt_minion" not in cfg:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, no 'salt_minion' key in configuration",
             name,
         )
@@ -113,17 +116,19 @@ def handle(
     const = SaltConstants(cfg=s_cfg)
 
     # Start by installing the salt package ...
-    cloud.distro.install_packages(const.pkg_name)
+    cloud.distro.install_packages([const.pkg_name])
 
     # Ensure we can configure files at the right dir
     util.ensure_dir(const.conf_dir)
+
+    minion_data = None
 
     # ... and then update the salt configuration
     if "conf" in s_cfg:
         # Add all sections from the conf object to minion config file
         minion_config = os.path.join(const.conf_dir, "minion")
-        minion_data = safeyaml.dumps(s_cfg.get("conf"))
-        util.write_file(minion_config, minion_data)
+        minion_data = s_cfg.get("conf")
+        util.write_file(minion_config, safeyaml.dumps(minion_data))
 
     if "grains" in s_cfg:
         # add grains to /etc/salt/grains
@@ -145,14 +150,19 @@ def handle(
             util.write_file(pub_name, s_cfg["public_key"])
             util.write_file(pem_name, s_cfg["private_key"])
 
-    # we need to have the salt minion service enabled in rc in order to be
-    # able to start the service. this does only apply on FreeBSD servers.
-    if cloud.distro.osfamily == "freebsd":
-        bsd_utils.set_rc_config_value("salt_minion_enable", "YES")
+    minion_daemon = not bool(
+        minion_data and minion_data.get("file_client") == "local"
+    )
 
-    # restart salt-minion. 'service' will start even if not started. if it
-    # was started, it needs to be restarted for config change.
-    subp.subp(["service", const.srv_name, "restart"], capture=False)
+    cloud.distro.manage_service(
+        "enable" if minion_daemon else "disable", const.srv_name
+    )
+    cloud.distro.manage_service(
+        "restart" if minion_daemon else "stop", const.srv_name
+    )
 
-
-# vi: ts=4 expandtab
+    if not minion_daemon:
+        # if salt-minion was configured as masterless, we should not run
+        # salt-minion as a daemon
+        # Note: see https://docs.saltproject.io/en/latest/topics/tutorials/quickstart.html  # noqa: E501
+        subp.subp(["salt-call", "--local", "state.apply"], capture=False)

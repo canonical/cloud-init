@@ -17,9 +17,9 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
+from tests.helpers import cloud_init_project_dir
 from tests.unittests.helpers import (
     FilesystemMockingTestCase,
-    cloud_init_project_dir,
     skipUnlessJsonSchema,
 )
 from tests.unittests.util import MockDistro
@@ -55,7 +55,7 @@ class TestResolvConf(FilesystemMockingTestCase):
             distro = self._fetch_distro(distro_name, conf)
             paths = helpers.Paths({"cloud_dir": self.tmp})
             cc = cloud.Cloud(ds, paths, {}, distro, None)
-        cc_resolv_conf.handle("cc_resolv_conf", conf, cc, LOG, [])
+        cc_resolv_conf.handle("cc_resolv_conf", conf, cc, [])
 
     @mock.patch("cloudinit.config.cc_resolv_conf.templater.render_to_file")
     def test_resolv_conf_systemd_resolved(self, m_render_to_file):
@@ -261,6 +261,3 @@ class TestResolvConfSchema:
         else:
             with pytest.raises(SchemaValidationError, match=error_msg):
                 validate_cloudconfig_schema(config, get_schema(), strict=True)
-
-
-# vi: ts=4 expandtab

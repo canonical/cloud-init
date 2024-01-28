@@ -6,12 +6,11 @@
 
 """LXD: configure lxd with ``lxd init`` and optionally lxd-bridge"""
 
+import logging
 import os
-from logging import Logger
 from textwrap import dedent
 from typing import List, Tuple
 
-from cloudinit import log as logging
 from cloudinit import safeyaml, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -80,7 +79,7 @@ meta: MetaSchema = {
             # storage_pools, profiles, projects, clusters and core config,
             # `lxd:preseed` config will be passed as stdin to the command:
             #  lxd init --preseed
-            # See https://linuxcontainers.org/lxd/docs/master/preseed/ or
+            # See https://documentation.ubuntu.com/lxd/en/latest/howto/initialize/#non-interactive-configuration or
             # run: lxd init --dump to see viable preseed YAML allowed.
             #
             # Preseed settings configuring the LXD daemon for HTTPS connections
@@ -150,7 +149,7 @@ meta: MetaSchema = {
                     name: limited
 
 
-            """
+            """  # noqa: E501
         ),
     ],
     "frequency": PER_INSTANCE,
@@ -197,13 +196,11 @@ def supplemental_schema_validation(
         raise ValueError(". ".join(errors))
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # Get config
     lxd_cfg = cfg.get("lxd")
     if not lxd_cfg:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, not present or disabled by cfg", name
         )
         return
@@ -219,12 +216,19 @@ def handle(
     bridge_cfg = lxd_cfg.get("bridge", {})
     supplemental_schema_validation(init_cfg, bridge_cfg, preseed_str)
 
+    if not subp.which("lxd"):
+        try:
+            subp.subp(["snap", "install", "lxd"])
+        except subp.ProcessExecutionError as e:
+            raise RuntimeError(
+                "Failed to install lxd from snap: %s" % e
+            ) from e
     packages = get_required_packages(init_cfg, preseed_str)
     if len(packages):
         try:
             cloud.distro.install_packages(packages)
         except subp.ProcessExecutionError as exc:
-            log.warning("failed to install packages %s: %s", packages, exc)
+            LOG.warning("failed to install packages %s: %s", packages, exc)
             return
 
     subp.subp(["lxd", "waitready", "--timeout=300"])
@@ -233,7 +237,6 @@ def handle(
         return
     # Set up lxd if init config is given
     if init_cfg:
-
         # type is known, number of elements is not
         # in the case of the ubuntu+lvm backend workaround
         init_keys: Tuple[str, ...] = (
@@ -251,7 +254,7 @@ def handle(
         if init_cfg["storage_backend"] == "lvm" and not os.path.exists(
             f"/lib/modules/{kernel}/kernel/drivers/md/dm-thin-pool.ko"
         ):
-            log.warning(
+            LOG.warning(
                 "cloud-init doesn't use thinpool by default on Ubuntu due to "
                 "LP #1982780. This behavior will change in the future.",
             )
@@ -294,24 +297,24 @@ def handle(
 
             # Update debconf database
             try:
-                log.debug("Setting lxd debconf via " + dconf_comm)
+                LOG.debug("Setting lxd debconf via %s", dconf_comm)
                 data = (
                     "\n".join(
                         ["set %s %s" % (k, v) for k, v in debconf.items()]
                     )
                     + "\n"
                 )
-                subp.subp(["debconf-communicate"], data)
+                subp.subp(["debconf-communicate"], data=data)
             except Exception:
                 util.logexc(
-                    log, "Failed to run '%s' for lxd with" % dconf_comm
+                    LOG, "Failed to run '%s' for lxd with" % dconf_comm
                 )
 
             # Remove the existing configuration file (forces re-generation)
             util.del_file("/etc/default/lxd-bridge")
 
             # Run reconfigure
-            log.debug("Running dpkg-reconfigure for lxd")
+            LOG.debug("Running dpkg-reconfigure for lxd")
             subp.subp(["dpkg-reconfigure", "lxd", "--frontend=noninteractive"])
         else:
             # Built-in LXD bridge support
@@ -323,12 +326,12 @@ def handle(
                 attach=bool(cmd_attach),
             )
             if cmd_create:
-                log.debug("Creating lxd bridge: %s" % " ".join(cmd_create))
+                LOG.debug("Creating lxd bridge: %s", " ".join(cmd_create))
                 _lxc(cmd_create)
 
             if cmd_attach:
-                log.debug(
-                    "Setting up default lxd bridge: %s" % " ".join(cmd_attach)
+                LOG.debug(
+                    "Setting up default lxd bridge: %s", " ".join(cmd_attach)
                 )
                 _lxc(cmd_attach)
 
@@ -382,7 +385,7 @@ def bridge_to_debconf(bridge_cfg):
             debconf["lxd/bridge-domain"] = bridge_cfg.get("domain")
 
     else:
-        raise Exception('invalid bridge mode "%s"' % bridge_cfg.get("mode"))
+        raise RuntimeError('invalid bridge mode "%s"' % bridge_cfg.get("mode"))
 
     return debconf
 
@@ -399,7 +402,7 @@ def bridge_to_cmd(bridge_cfg):
         return None, cmd_attach
 
     if bridge_cfg.get("mode") != "new":
-        raise Exception('invalid bridge mode "%s"' % bridge_cfg.get("mode"))
+        raise RuntimeError('invalid bridge mode "%s"' % bridge_cfg.get("mode"))
 
     cmd_create = ["network", "create", bridge_name]
 
@@ -465,7 +468,7 @@ def maybe_cleanup_default(
     By removing any that lxd-init created, we simply leave the add/attach
     code intact.
 
-    https://github.com/lxc/lxd/issues/4649"""
+    https://github.com/canonical/lxd/issues/4649"""
     if net_name != _DEFAULT_NETWORK_NAME or not did_init:
         return
 
@@ -499,9 +502,6 @@ def maybe_cleanup_default(
 def get_required_packages(init_cfg: dict, preseed_str: str) -> List[str]:
     """identify required packages for install"""
     packages = []
-    if not subp.which("lxd"):
-        packages.append("lxd")
-
     # binary for pool creation must be available for the requested backend:
     # zfs, lvcreate, mkfs.btrfs
     storage_drivers: List[str] = []

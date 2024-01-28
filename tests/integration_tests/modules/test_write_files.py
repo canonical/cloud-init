@@ -51,6 +51,13 @@ write_files:
     owner: 'myuser'
     permissions: '0644'
     append: true
+-   path: '/home/testuser/subdir1/subdir2/my-file'
+    content: |
+      echo 'hello world!'
+    defer: true
+    owner: 'myuser'
+    permissions: '0644'
+    append: true
 """.format(
     B64_CONTENT.decode("ascii")
 )
@@ -97,3 +104,25 @@ class TestWriteFiles:
         class_client.restart()
         out = class_client.read_from_file("/home/testuser/my-file")
         assert "echo 'hello world!'" == out
+
+    def test_write_files_deferred_with_newly_created_dir(self, class_client):
+        """Test that newly created directory works as expected.
+
+        Users get created after write_files module runs, so ensure that
+        with `defer: true`, the file and directories gets written with correct
+        ownership.
+        """
+        out = class_client.read_from_file(
+            "/home/testuser/subdir1/subdir2/my-file"
+        )
+        assert "echo 'hello world!'" == out
+        assert (
+            class_client.execute(
+                'stat -c "%U %a" /home/testuser/subdir1/subdir2'
+            )
+            == "myuser 755"
+        )
+        assert (
+            class_client.execute('stat -c "%U %a" /home/testuser/subdir1')
+            == "myuser 755"
+        )

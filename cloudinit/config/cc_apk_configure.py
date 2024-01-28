@@ -6,10 +6,9 @@
 
 """Apk Configure: Configures apk repositories file."""
 
-from logging import Logger
+import logging
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit import temp_utils, templater, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -109,13 +108,11 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """
     Call to handle apk_repos sections in cloud-config file.
 
-    @param name: The module name "apk-configure" from cloud.cfg
+    @param name: The module name "apk_configure" from cloud.cfg
     @param cfg: A nested dict containing the entire cloud config contents.
     @param cloud: The CloudInit object in use.
     @param log: Pre-initialized Python logger object to use for logging.
@@ -193,6 +190,3 @@ def _write_repositories_file(alpine_repo, alpine_version, local_repo):
     templater.render_to_file(template_fn, repo_file, params)
     # Clean up temporary template
     util.del_file(template_fn)
-
-
-# vi: ts=4 expandtab

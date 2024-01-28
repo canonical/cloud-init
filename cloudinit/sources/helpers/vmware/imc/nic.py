@@ -137,6 +137,3 @@ class StaticIpv6Addr(StaticIpv6Base):
     @property
     def gateway(self):
         return self._nic._get("IPv6GATEWAY|" + str(self._index))
-
-
-# vi: ts=4 expandtab

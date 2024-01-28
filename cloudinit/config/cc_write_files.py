@@ -7,11 +7,10 @@
 """Write Files: write arbitrary files"""
 
 import base64
+import logging
 import os
-from logging import Logger
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit import util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -119,9 +118,7 @@ meta: MetaSchema = {
 __doc__ = get_meta_doc(meta)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     file_list = cfg.get("write_files", [])
     filtered_files = [
         f
@@ -129,7 +126,7 @@ def handle(
         if not util.get_cfg_option_bool(f, "defer", DEFAULT_DEFER)
     ]
     if not filtered_files:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s,"
             " no/empty 'write_files' key in configuration",
             name,
@@ -182,7 +179,9 @@ def write_files(name, files, owner: str):
         (u, g) = util.extract_usergroup(f_info.get("owner", owner))
         perms = decode_perms(f_info.get("permissions"), DEFAULT_PERMS)
         omode = "ab" if util.get_cfg_option_bool(f_info, "append") else "wb"
-        util.write_file(path, contents, omode=omode, mode=perms)
+        util.write_file(
+            path, contents, omode=omode, mode=perms, user=u, group=g
+        )
         util.chownbyname(path, u, g)
 
 
@@ -217,6 +216,3 @@ def extract_contents(contents, extraction_types):
         elif t == TEXT_PLAIN_ENC:
             pass
     return result
-
-
-# vi: ts=4 expandtab

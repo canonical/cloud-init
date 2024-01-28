@@ -14,29 +14,32 @@ def find_root():
     top_dir = os.environ.get("CLOUD_INIT_TOP_D", None)
     if top_dir is None:
         top_dir = os.path.dirname(
-            os.path.dirname(os.path.abspath(sys.argv[0])))
-    if os.path.isfile(os.path.join(top_dir, 'setup.py')):
+            os.path.dirname(os.path.abspath(sys.argv[0]))
+        )
+    if os.path.isfile(os.path.join(top_dir, "setup.py")):
         return os.path.abspath(top_dir)
-    raise OSError(("Unable to determine where your cloud-init topdir is."
-                   " set CLOUD_INIT_TOP_D?"))
+    raise OSError(
+        (
+            "Unable to determine where your cloud-init topdir is."
+            " set CLOUD_INIT_TOP_D?"
+        )
+    )
 
 
 if "avoid-pep8-E402-import-not-top-of-file":
     # Use the util functions from cloudinit
     sys.path.insert(0, find_root())
-    from cloudinit import subp
-    from cloudinit import templater
-    from cloudinit import util
+    from cloudinit import subp, templater, util
 
 
 # Subdirectories of the ~/rpmbuild dir
-RPM_BUILD_SUBDIRS = ['BUILD', 'RPMS', 'SOURCES', 'SPECS', 'SRPMS']
+RPM_BUILD_SUBDIRS = ["BUILD", "RPMS", "SOURCES", "SPECS", "SRPMS"]
 
 
 def run_helper(helper, args=None, strip=True):
     if args is None:
         args = []
-    cmd = [util.abs_join(find_root(), 'tools', helper)] + args
+    cmd = [os.path.abspath(os.path.join(find_root(), "tools", helper))] + args
     (stdout, _stderr) = subp.subp(cmd)
     if strip:
         stdout = stdout.strip()
@@ -44,25 +47,29 @@ def run_helper(helper, args=None, strip=True):
 
 
 def read_dependencies(distro):
-    """Returns the Python package depedencies from requirements.txt files.
+    """Returns the Python package dependencies from requirements.txt files.
 
     @returns a tuple of (build_deps, run_deps, test_deps)
     """
     build_deps = run_helper(
-        'read-dependencies',args=[
-            '--distro', distro, '--build-requires']).splitlines()
+        "read-dependencies", args=["--distro", distro, "--build-requires"]
+    ).splitlines()
     run_deps = run_helper(
-        'read-dependencies', args=[
-            '--distro', distro, '--runtime-requires']).splitlines()
+        "read-dependencies", args=["--distro", distro, "--runtime-requires"]
+    ).splitlines()
     test_deps = run_helper(
-        'read-dependencies', args=[
-            '--requirements-file', 'test-requirements.txt',
-            '--system-pkg-names']).splitlines()
+        "read-dependencies",
+        args=[
+            "--requirements-file",
+            "test-requirements.txt",
+            "--system-pkg-names",
+        ],
+    ).splitlines()
     return (build_deps, run_deps, test_deps)
 
 
 def read_version():
-    return json.loads(run_helper('read-version', ['--json']))
+    return json.loads(run_helper("read-version", ["--json"]))
 
 
 def generate_spec_contents(args, version_data, tmpl_fn, top_dir, arc_fn):
@@ -71,72 +78,95 @@ def generate_spec_contents(args, version_data, tmpl_fn, top_dir, arc_fn):
     subs = {}
 
     if args.sub_release is not None:
-        subs['subrelease'] = str(args.sub_release)
+        subs["subrelease"] = str(args.sub_release)
     else:
-        subs['subrelease'] = ""
+        subs["subrelease"] = ""
 
-    subs['archive_name'] = arc_fn
-    subs['source_name'] = os.path.basename(arc_fn).replace('.tar.gz', '')
+    subs["archive_name"] = arc_fn
+    subs["source_name"] = os.path.basename(arc_fn).replace(".tar.gz", "")
     subs.update(version_data)
 
     # rpm does not like '-' in the Version, so change
     #   X.Y.Z-N-gHASH to X.Y.Z+N.gHASH
-    if "-" in version_data.get('version'):
-        ver, commits, ghash = version_data['version'].split("-")
+    if "-" in version_data.get("version"):
+        ver, commits, ghash = version_data["version"].split("-")
         rpm_upstream_version = "%s+%s.%s" % (ver, commits, ghash)
     else:
-        rpm_upstream_version = version_data['version']
-    subs['rpm_upstream_version'] = rpm_upstream_version
+        rpm_upstream_version = version_data["version"]
+    subs["rpm_upstream_version"] = rpm_upstream_version
 
     build_deps, run_deps, test_deps = read_dependencies(distro=args.distro)
-    subs['buildrequires'] = build_deps + test_deps
-    subs['requires'] = run_deps
+    subs["buildrequires"] = build_deps + test_deps
+    subs["requires"] = run_deps
 
-    if args.boot == 'sysvinit':
-        subs['sysvinit'] = True
+    if args.boot == "sysvinit":
+        subs["sysvinit"] = True
     else:
-        subs['sysvinit'] = False
+        subs["sysvinit"] = False
 
-    if args.boot == 'systemd':
-        subs['systemd'] = True
+    if args.boot == "systemd":
+        subs["systemd"] = True
     else:
-        subs['systemd'] = False
+        subs["systemd"] = False
 
-    subs['init_sys'] = args.boot
-    subs['patches'] = [os.path.basename(p) for p in args.patches]
+    subs["init_sys"] = args.boot
+    subs["patches"] = [os.path.basename(p) for p in args.patches]
     return templater.render_from_file(tmpl_fn, params=subs)
 
 
 def main():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d", "--distro", dest="distro",
-                        help="select distro (default: %(default)s)",
-                        metavar="DISTRO", default='redhat',
-                        choices=('redhat', 'suse'))
-    parser.add_argument('--srpm',
-                        help='Produce a source rpm',
-                        action='store_true')
-    parser.add_argument("-b", "--boot", dest="boot",
-                        help="select boot type (default: %(default)s)",
-                        metavar="TYPE", default='sysvinit',
-                        choices=('sysvinit', 'systemd'))
-    parser.add_argument("-v", "--verbose", dest="verbose",
-                        help=("run verbosely"
-                              " (default: %(default)s)"),
-                        default=False,
-                        action='store_true')
-    parser.add_argument('-s', "--sub-release", dest="sub_release",
-                        metavar="RELEASE",
-                        help=("a 'internal' release number to concat"
-                              " with the bzr version number to form"
-                              " the final version number"),
-                        type=int,
-                        default=None)
-    parser.add_argument("-p", "--patch", dest="patches",
-                        help=("include the following patch when building"),
-                        default=[],
-                        action='append')
+    parser.add_argument(
+        "-d",
+        "--distro",
+        dest="distro",
+        help="select distro (default: %(default)s)",
+        metavar="DISTRO",
+        default="redhat",
+        choices=("redhat", "suse"),
+    )
+    parser.add_argument(
+        "--srpm", help="Produce a source rpm", action="store_true"
+    )
+    parser.add_argument(
+        "-b",
+        "--boot",
+        dest="boot",
+        help="select boot type (default: %(default)s)",
+        metavar="TYPE",
+        default="sysvinit",
+        choices=("sysvinit", "systemd"),
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        dest="verbose",
+        help=("run verbosely (default: %(default)s)"),
+        default=False,
+        action="store_true",
+    )
+    parser.add_argument(
+        "-s",
+        "--sub-release",
+        dest="sub_release",
+        metavar="RELEASE",
+        help=(
+            "a 'internal' release number to concat"
+            " with the bzr version number to form"
+            " the final version number"
+        ),
+        type=int,
+        default=None,
+    )
+    parser.add_argument(
+        "-p",
+        "--patch",
+        dest="patches",
+        help=("include the following patch when building"),
+        default=[],
+        action="append",
+    )
     args = parser.parse_args()
     capture = True
     if args.verbose:
@@ -144,55 +174,82 @@ def main():
 
     workdir = None
     try:
-        workdir = tempfile.mkdtemp(prefix='rpmbuild')
-        os.environ['HOME'] = workdir
-        topdir = os.path.join(workdir, 'rpmbuild')
-        build_dirs = [os.path.join(topdir, dir)
-                      for dir in RPM_BUILD_SUBDIRS]
+        workdir = tempfile.mkdtemp(prefix="rpmbuild")
+        os.environ["HOME"] = workdir
+        topdir = os.path.join(workdir, "rpmbuild")
+        build_dirs = [os.path.join(topdir, dir) for dir in RPM_BUILD_SUBDIRS]
         util.ensure_dirs(build_dirs)
 
         version_data = read_version()
 
         # Archive the code
-        archive_fn = "cloud-init-%s.tar.gz" % version_data['version_long']
-        real_archive_fn = os.path.join(topdir, 'SOURCES', archive_fn)
+        archive_fn = "cloud-init-%s.tar.gz" % version_data["version_long"]
+        real_archive_fn = os.path.join(topdir, "SOURCES", archive_fn)
         archive_fn = run_helper(
-            'make-tarball', ['--long', '--output=' + real_archive_fn])
+            "make-tarball", ["--long", "--output=" + real_archive_fn]
+        )
         print("Archived the code in %r" % (real_archive_fn))
 
         # Form the spec file to be used
-        tmpl_fn = util.abs_join(find_root(), 'packages',
-                                args.distro, 'cloud-init.spec.in')
-        contents = generate_spec_contents(args, version_data, tmpl_fn, topdir,
-                                          os.path.basename(archive_fn))
-        spec_fn = util.abs_join(topdir, 'SPECS', 'cloud-init.spec')
+        tmpl_fn = os.path.abspath(
+            os.path.join(
+                find_root(), "packages", args.distro, "cloud-init.spec.in"
+            )
+        )
+        contents = generate_spec_contents(
+            args, version_data, tmpl_fn, topdir, os.path.basename(archive_fn)
+        )
+        spec_fn = os.path.abspath(
+            os.path.join(topdir, "SPECS", "cloud-init.spec")
+        )
         util.write_file(spec_fn, contents)
         print("Created spec file at %r" % (spec_fn))
         for p in args.patches:
-            util.copy(p, util.abs_join(topdir, 'SOURCES', os.path.basename(p)))
+            util.copy(
+                p,
+                os.path.abspath(
+                    os.path.join(topdir, "SOURCES", os.path.basename(p))
+                ),
+            )
 
         # Now build it!
         print("Running 'rpmbuild' in %r" % (topdir))
 
         if args.srpm:
-            cmd = ['rpmbuild', '-bs', '--nodeps', spec_fn]
+            cmd = ["rpmbuild", "-bs", "--nodeps", spec_fn]
         else:
-            cmd = ['rpmbuild', '-ba', spec_fn]
+            cmd = ["rpmbuild", "-ba", spec_fn]
 
         subp.subp(cmd, capture=capture)
 
         # Copy the items built to our local dir
         globs = []
-        globs.extend(glob.glob("%s/*.rpm" %
-                               (util.abs_join(topdir, 'RPMS', 'noarch'))))
-        globs.extend(glob.glob("%s/*.rpm" %
-                               (util.abs_join(topdir, 'RPMS', 'x86_64'))))
-        globs.extend(glob.glob("%s/*.rpm" %
-                               (util.abs_join(topdir, 'RPMS'))))
-        globs.extend(glob.glob("%s/*.rpm" %
-                               (util.abs_join(topdir, 'SRPMS'))))
+        globs.extend(
+            glob.glob(
+                "%s/*.rpm"
+                % (os.path.abspath(os.path.join(topdir, "RPMS", "noarch")))
+            )
+        )
+        globs.extend(
+            glob.glob(
+                "%s/*.rpm"
+                % (os.path.abspath(os.path.join(topdir, "RPMS", "x86_64")))
+            )
+        )
+        globs.extend(
+            glob.glob(
+                "%s/*.rpm" % (os.path.abspath(os.path.join(topdir, "RPMS")))
+            )
+        )
+        globs.extend(
+            glob.glob(
+                "%s/*.rpm" % (os.path.abspath(os.path.join(topdir, "SRPMS")))
+            )
+        )
         for rpm_fn in globs:
-            tgt_fn = util.abs_join(os.getcwd(), os.path.basename(rpm_fn))
+            tgt_fn = os.path.abspath(
+                os.path.join(os.getcwd(), os.path.basename(rpm_fn))
+            )
             shutil.move(rpm_fn, tgt_fn)
             print("Wrote out %s package %r" % (args.distro, tgt_fn))
     finally:
@@ -202,5 +259,5 @@ def main():
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

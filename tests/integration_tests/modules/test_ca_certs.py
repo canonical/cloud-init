@@ -11,6 +11,7 @@ import os.path
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.releases import IS_UBUNTU
 from tests.integration_tests.util import get_inactive_modules, verify_clean_log
 
 USER_DATA = """\
@@ -57,7 +58,9 @@ ca_certs:
 """
 
 
-@pytest.mark.ubuntu
+@pytest.mark.skipif(
+    not IS_UBUNTU, reason="CA cert functionality is distro specific"
+)
 @pytest.mark.user_data(USER_DATA)
 class TestCaCerts:
     def test_certs_updated(self, class_client: IntegrationInstance):
@@ -76,10 +79,10 @@ class TestCaCerts:
                 unlinked_files.append(filename)
 
         assert ["ca-certificates.crt"] == unlinked_files
-        assert "cloud-init-ca-certs.pem" == links["a535c1f3.0"]
+        assert "cloud-init-ca-cert-1.pem" == links["a535c1f3.0"]
         assert (
-            "/usr/share/ca-certificates/cloud-init-ca-certs.crt"
-            == links["cloud-init-ca-certs.pem"]
+            "/usr/local/share/ca-certificates/cloud-init-ca-cert-1.crt"
+            == links["cloud-init-ca-cert-1.pem"]
         )
 
     def test_cert_installed(self, class_client: IntegrationInstance):
@@ -100,11 +103,11 @@ class TestCaCerts:
         verify_clean_log(log, ignore_deprecations=False)
 
         expected_inactive = {
-            "apt-pipelining",
+            "apt_pipelining",
             "ansible",
             "bootcmd",
             "chef",
-            "disable-ec2-metadata",
+            "disable_ec2_metadata",
             "disk_setup",
             "fan",
             "keyboard",
@@ -112,22 +115,22 @@ class TestCaCerts:
             "lxd",
             "mcollective",
             "ntp",
-            "package-update-upgrade-install",
-            "phone-home",
-            "power-state-change",
+            "package_update_upgrade_install",
+            "phone_home",
+            "power_state_change",
             "puppet",
             "rsyslog",
             "runcmd",
-            "salt-minion",
+            "salt_minion",
             "snap",
             "timezone",
             "ubuntu_autoinstall",
-            "ubuntu-advantage",
-            "ubuntu-drivers",
+            "ubuntu_advantage",
+            "ubuntu_drivers",
             "update_etc_hosts",
             "wireguard",
-            "write-files",
-            "write-files-deferred",
+            "write_files",
+            "write_files_deferred",
         }
 
         # Remove modules that run independent from user-data
@@ -137,8 +140,10 @@ class TestCaCerts:
             expected_inactive.discard("ntp")
         elif class_client.settings.PLATFORM == "lxd_vm":
             if class_client.settings.OS_IMAGE == "bionic":
-                expected_inactive.discard("write-files")
-                expected_inactive.discard("write-files-deferred")
+                expected_inactive.discard("write_files")
+                expected_inactive.discard("write_files_deferred")
+        elif class_client.settings.PLATFORM == "oci":
+            expected_inactive.discard("update_etc_hosts")
 
         diff = expected_inactive.symmetric_difference(
             get_inactive_modules(log)

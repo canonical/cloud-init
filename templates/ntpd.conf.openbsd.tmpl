@@ -12,6 +12,9 @@ servers {{pool}}
 {% for server in servers -%}# servers
 server {{server}}
 {% endfor %}
+{% for peer in peers -%}
+peer {{peer}}
+{% endfor %}
 sensor *
 
 constraint from "9.9.9.9"              # quad9 v4 without DNS

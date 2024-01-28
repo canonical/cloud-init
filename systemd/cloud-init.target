@@ -10,3 +10,6 @@
 [Unit]
 Description=Cloud-init target
 After=multi-user.target
+ConditionPathExists=!/etc/cloud/cloud-init.disabled
+ConditionKernelCommandLine=!cloud-init=disabled
+ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled

@@ -9,8 +9,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import logging
 
-from cloudinit import log as logging
 from cloudinit import user_data as ud
 from cloudinit import util
 
@@ -64,6 +64,3 @@ class Filter:
         if self.wanted_idx is None:
             return root_message
         return self._do_filter(root_message)
-
-
-# vi: ts=4 expandtab

@@ -4,6 +4,7 @@
 """Debug network config format conversions."""
 import argparse
 import json
+import logging
 import os
 import sys
 
@@ -99,9 +100,9 @@ def handle_args(name, args):
         os.makedirs(args.directory)
 
     if args.debug:
-        log.setupBasicLogging(level=log.DEBUG)
+        log.setup_basic_logging(level=logging.DEBUG)
     else:
-        log.setupBasicLogging(level=log.WARN)
+        log.setup_basic_logging(level=logging.WARN)
     if args.mac:
         known_macs = {}
         for item in args.mac:
@@ -127,7 +128,8 @@ def handle_args(name, args):
         )
     elif args.kind == "azure-imds":
         pre_ns = azure.generate_network_config_from_instance_network_metadata(
-            json.loads(net_data)["network"]
+            json.loads(net_data)["network"],
+            apply_network_config_for_secondary_ips=True,
         )
     elif args.kind == "vmware-imc":
         config = guestcust_util.Config(

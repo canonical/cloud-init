@@ -1,6 +1,9 @@
 name: Lint Tests
 on:
   pull_request:
+  push:
+    branches:
+      - main
 
 concurrency:
   group: 'ci-${{ github.workflow }}-${{ github.ref }}'
@@ -14,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        env: [flake8, mypy, pylint, black, isort]
+        env: [ruff, mypy, pylint, black, isort]
         lint-with:
           - {tip-versions: false, os: ubuntu-20.04}
           - {tip-versions: true, os: ubuntu-latest}
@@ -61,6 +64,7 @@ jobs:
       - name: "Test format"
         run: |
           tools/check_json_format.sh cloudinit/config/schemas/schema-cloud-config-v1.json
+          tools/check_json_format.sh cloudinit/config/schemas/schema-network-config-v1.json
           tools/check_json_format.sh cloudinit/config/schemas/versions.schema.cloud-config.json
 
   doc:
@@ -83,15 +87,33 @@ jobs:
       - name: "Install dependencies"
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox lintian
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox
       - name: "Spellcheck"
         run: |
-          make check_spelling
+          tox
+        env:
+          TOXENV: doc-spelling
       - name: "Build docs"
         env:
           TOXENV: doc
         run: |
           tox
+
+  shell-lint:
+    name: Shell Lint
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.0.0
+
+      - name: Install ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt install shellcheck
+
+      - name: Run ShellCheck
+        run: |
+          shellcheck ./tools/ds-identify
 
   check-cla-signers:
     runs-on: ubuntu-22.04

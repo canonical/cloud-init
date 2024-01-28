@@ -100,4 +100,3 @@ locale_warn() {
     locale 2>&1 | locale_warn
 
 unset locale_warn
-# vi: ts=4 expandtab

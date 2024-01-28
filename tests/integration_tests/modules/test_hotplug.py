@@ -5,6 +5,8 @@ import pytest
 import yaml
 
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL
 
 USER_DATA = """\
 #cloud-config
@@ -40,11 +42,17 @@ def _get_ip_addr(client):
     return ips
 
 
-@pytest.mark.openstack
-# On Bionic, we traceback when attempting to detect the hotplugged
-# device in the updated metadata. This is because Bionic is specifically
-# configured not to provide network metadata.
-@pytest.mark.not_bionic
+@pytest.mark.skipif(
+    PLATFORM != "openstack",
+    reason=(
+        f"Test was written for {PLATFORM} but can likely run on "
+        "other platforms."
+    ),
+)
+@pytest.mark.skipif(
+    CURRENT_RELEASE < FOCAL,
+    reason="Openstack network metadata support was added in focal.",
+)
 @pytest.mark.user_data(USER_DATA)
 def test_hotplug_add_remove(client: IntegrationInstance):
     ips_before = _get_ip_addr(client)
@@ -85,7 +93,13 @@ def test_hotplug_add_remove(client: IntegrationInstance):
     )
 
 
-@pytest.mark.openstack
+@pytest.mark.skipif(
+    PLATFORM != "openstack",
+    reason=(
+        f"Test was written for {PLATFORM} but can likely run on "
+        "other platforms."
+    ),
+)
 def test_no_hotplug_in_userdata(client: IntegrationInstance):
     ips_before = _get_ip_addr(client)
     log = client.read_from_file("/var/log/cloud-init.log")

@@ -4,12 +4,10 @@
 
 """Snap: Install, configure and manage snapd and snap packages."""
 
+import logging
 import os
-import sys
-from logging import Logger
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -175,7 +173,7 @@ def run_commands(commands):
     for command in fixed_snap_commands:
         shell = isinstance(command, str)
         try:
-            subp.subp(command, shell=shell, status_cb=sys.stderr.write)
+            subp.subp(command, shell=shell)
         except subp.ProcessExecutionError as e:
             cmd_failures.append(str(e))
     if cmd_failures:
@@ -186,9 +184,7 @@ def run_commands(commands):
         raise RuntimeError(msg)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     cfgin = cfg.get("snap", {})
     if not cfgin:
         LOG.debug(
@@ -201,6 +197,3 @@ def handle(
         os.path.join(cloud.paths.get_ipath_cur(), "snapd.assertions"),
     )
     run_commands(cfgin.get("commands", []))
-
-
-# vi: ts=4 expandtab

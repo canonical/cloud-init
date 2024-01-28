@@ -5,10 +5,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Fan: Configure ubuntu fan networking"""
 
-from logging import Logger
+import logging
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -87,9 +86,7 @@ def stop_update_start(distro, service, config_file, content):
     distro.manage_service("enable", service)
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     cfgin = cfg.get("fan")
     if not cfgin:
         cfgin = {}
@@ -110,6 +107,3 @@ def handle(
         config_file=mycfg.get("config_path"),
         content=mycfg.get("config"),
     )
-
-
-# vi: ts=4 expandtab

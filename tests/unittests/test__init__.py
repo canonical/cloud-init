@@ -341,6 +341,3 @@ class TestCmdlineUrl:
         assert logging.WARN == lvl
         assert url in msg
         assert False is os.path.exists(fpath)
-
-
-# vi: ts=4 expandtab

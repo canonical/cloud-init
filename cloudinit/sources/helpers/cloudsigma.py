@@ -53,10 +53,6 @@ class Cepko:
         request_pattern = self.request_pattern.format("/meta/{}")
         return self.get(key, request_pattern)
 
-    def global_context(self, key=""):
-        request_pattern = self.request_pattern.format("/global_context/{}")
-        return self.get(key, request_pattern)
-
 
 class CepkoResult:
     """
@@ -94,6 +90,3 @@ class CepkoResult:
 
     def __iter__(self):
         return self.result.__iter__()
-
-
-# vi: ts=4 expandtab

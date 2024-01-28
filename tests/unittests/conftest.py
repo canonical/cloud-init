@@ -6,7 +6,8 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import atomic_helper, util
+from cloudinit import atomic_helper, log, util
+from tests.hypothesis import HAS_HYPOTHESIS
 from tests.unittests.helpers import retarget_many_wrapper
 
 FS_FUNCS = {
@@ -45,6 +46,7 @@ FS_FUNCS = {
     ],
     atomic_helper: [
         ("write_file", 1),
+        ("write_json", 1),
     ],
 }
 
@@ -74,6 +76,15 @@ def disable_dns_lookup(request):
         yield
 
 
+log.configure_root_logger()
+
+
+@pytest.fixture(autouse=True)
+def disable_root_logger_setup(request):
+    with mock.patch("cloudinit.cmd.main.configure_root_logger", autospec=True):
+        yield
+
+
 PYTEST_VERSION_TUPLE = tuple(map(int, pytest.__version__.split(".")))
 
 if PYTEST_VERSION_TUPLE < (3, 9, 0):
@@ -81,3 +92,10 @@ if PYTEST_VERSION_TUPLE < (3, 9, 0):
     @pytest.fixture
     def tmp_path(tmpdir):
         return Path(tmpdir)
+
+
+if HAS_HYPOTHESIS:
+    from hypothesis import settings  # pylint: disable=import-error
+
+    settings.register_profile("ci", max_examples=1000)
+    settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "default"))

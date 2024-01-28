@@ -6,29 +6,33 @@ from collections import namedtuple
 from textwrap import dedent
 from uuid import uuid4
 
-from cloudinit import safeyaml, subp, util
+import pytest
+
+from cloudinit import atomic_helper, safeyaml, subp, util
 from cloudinit.sources import DataSourceIBMCloud as ds_ibm
 from cloudinit.sources import DataSourceOracle as ds_oracle
 from cloudinit.sources import DataSourceSmartOS as ds_smartos
+from tests.helpers import cloud_init_project_dir
 from tests.unittests.helpers import (
     CiTestCase,
-    cloud_init_project_dir,
     dir2dict,
     populate_dir,
     populate_dir_with_ts,
 )
 
-UNAME_MYSYS = (
-    "Linux bart 4.4.0-62-generic #83-Ubuntu "
-    "SMP Wed Jan 18 14:10:15 UTC 2017 x86_64 GNU/Linux"
-)
+UNAME_MYSYS = "Linux #83-Ubuntu SMP Wed Jan 18 14:10:15 UTC 2017 x86_64"
 UNAME_PPC64EL = (
-    "Linux diamond 4.4.0-83-generic #106-Ubuntu SMP "
-    "Mon Jun 26 17:53:54 UTC 2017 "
-    "ppc64le ppc64le ppc64le GNU/Linux"
+    "Linux #106-Ubuntu SMP mon Jun 26 17:53:54 UTC 2017 "
+    "ppc64le ppc64le ppc64le"
 )
 UNAME_FREEBSD = (
-    "FreeBSD fbsd12-1 12.1-RELEASE-p10 FreeBSD 12.1-RELEASE-p10 GENERIC  amd64"
+    "FreeBSD FreeBSD 14.0-RELEASE-p3 releng/14.0-n265398-20fae1e1699"
+    "GENERIC-MMCCAM amd64"
+)
+UNAME_OPENBSD = "OpenBSD GENERIC.MP#1397 amd64"
+UNAME_WSL = (
+    "Linux 5.15.133.1-microsoft-standard-WSL2 #1 SMP Thu Oct 5 21:02:42 "
+    "UTC 2023 x86_64"
 )
 
 BLKID_EFI_ROOT = """
@@ -104,8 +108,11 @@ MOCK_VIRT_IS_VMWARE = {"name": "detect_virt", "RET": "vmware", "ret": 0}
 # currenty' SmartOS hypervisor "bhyve" is unknown by systemd-detect-virt.
 MOCK_VIRT_IS_VM_OTHER = {"name": "detect_virt", "RET": "vm-other", "ret": 0}
 MOCK_VIRT_IS_XEN = {"name": "detect_virt", "RET": "xen", "ret": 0}
+MOCK_VIRT_IS_WSL = {"name": "detect_virt", "RET": "wsl", "ret": 0}
 MOCK_UNAME_IS_PPC64 = {"name": "uname", "out": UNAME_PPC64EL, "ret": 0}
 MOCK_UNAME_IS_FREEBSD = {"name": "uname", "out": UNAME_FREEBSD, "ret": 0}
+MOCK_UNAME_IS_OPENBSD = {"name": "uname", "out": UNAME_OPENBSD, "ret": 0}
+MOCK_UNAME_IS_WSL = {"name": "uname", "out": UNAME_WSL, "ret": 0}
 
 shell_true = 0
 shell_false = 1
@@ -186,13 +193,27 @@ class DsIdentifyBase(CiTestCase):
                 "err": "No dmidecode program. ERROR.",
             },
             {
+                "name": "is_disabled",
+                "ret": 1,
+            },
+            {
                 "name": "get_kenv_field",
                 "ret": 1,
                 "err": "No kenv program. ERROR.",
             },
         ]
 
-        written = [d["name"] for d in mocks]
+        uname = "Linux"
+        runpath = "run"
+        written = []
+        for d in mocks:
+            written.append(d["name"])
+            if d["name"] == "uname":
+                uname = d["out"].split(" ")[0]
+        # set runpath so that BSDs use /var/run rather than /run
+        if uname != "Linux":
+            runpath = "var/run"
+
         for data in mocks:
             mocklines.append(write_mock(data))
         for d in default_mocks:
@@ -215,7 +236,7 @@ class DsIdentifyBase(CiTestCase):
             err = e.stderr
 
         cfg = None
-        cfg_out = os.path.join(rootd, "run/cloud-init/cloud.cfg")
+        cfg_out = os.path.join(rootd, runpath, "cloud-init/cloud.cfg")
         if os.path.exists(cfg_out):
             contents = util.load_file(cfg_out)
             try:
@@ -286,11 +307,8 @@ class TestDsIdentify(DsIdentifyBase):
             "KERNEL_CMDLINE",
             "VIRT",
             "UNAME_KERNEL_NAME",
-            "UNAME_KERNEL_RELEASE",
             "UNAME_KERNEL_VERSION",
             "UNAME_MACHINE",
-            "UNAME_NODENAME",
-            "UNAME_OPERATING_SYSTEM",
             "DSNAME",
             "DSLIST",
             "MODE",
@@ -300,6 +318,65 @@ class TestDsIdentify(DsIdentifyBase):
         ]
         for var in expected_vars:
             self.assertIn("{0}=".format(var), err)
+
+    @pytest.mark.xfail(reason="GH-4796")
+    def test_maas_not_detected_1(self):
+        """Don't incorrectly identify maas
+
+        In ds-identify the function check_config() attempts to parse yaml keys
+        in bash, but it sometimes introduces false positives. The maas
+        datasource uses check_config() and the existence of a "MAAS" key to
+        identify itself (which is a very poor identifier - clouds should have
+        stricter identifiers). Since the MAAS datasource is at the begining of
+        the list, this is particularly troublesome and more concerning than
+        NoCloud false positives, for example.
+        """
+        config = "LXD-kvm-not-MAAS-1"
+        self._test_ds_found(config)
+
+    def test_maas_not_detected_2(self):
+        """Don't incorrectly identify maas
+
+        The bug reported in 4794 combined with the previously existing bug
+        reported in 4796 made for very loose MAAS false-positives.
+
+        In ds-identify the function check_config() attempts to parse yaml keys
+        in bash, but it sometimes introduces false positives. The maas
+        datasource uses check_config() and the existence of a "MAAS" key to
+        identify itself (which is a very poor identifier - clouds should have
+        stricter identifiers). Since the MAAS datasource is at the begining of
+        the list, this is particularly troublesome and more concerning than
+        NoCloud false positives, for example.
+        """
+        config = "LXD-kvm-not-MAAS-2"
+        self._test_ds_found(config)
+
+    def test_maas_not_detected_3(self):
+        """Don't incorrectly identify maas
+
+        The bug reported in 4794 combined with the previously existing bug
+        reported in 4796 made for very loose MAAS false-positives.
+
+        In ds-identify the function check_config() attempts to parse yaml keys
+        in bash, but it sometimes introduces false positives. The maas
+        datasource uses check_config() and the existence of a "MAAS" key to
+        identify itself (which is a very poor identifier - clouds should have
+        stricter identifiers). Since the MAAS datasource is at the begining of
+        the list, this is particularly troublesome and more concerning than
+        NoCloud false positives, for example.
+        """
+        config = "LXD-kvm-not-MAAS-3"
+        self._test_ds_found(config)
+
+    def test_azure_invalid_configuration(self):
+        """Don't detect incorrect config when invalid datasource_list provided
+
+        If unparsable list is provided we just ignore it. Some users
+        might assume that since the rest of the configuration is yaml that
+        multi-line yaml lists are valid (they aren't). When this happens, just
+        run ds-identify and figure it out for ourselves which platform to run.
+        """
+        self._test_ds_found("Azure-parse-invalid")
 
     def test_azure_dmi_detection_from_chassis_asset_tag(self):
         """Azure datasource is detected from DMI chassis-asset-tag"""
@@ -832,6 +909,21 @@ class TestDsIdentify(DsIdentifyBase):
             cust64, RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
         )
 
+    def test_vmware_on_vmware_open_vm_tools_i386_linux_gnu(self):
+        """VMware is identified when open-vm-tools installed in
+        /usr/lib/i386-linux-gnu."""
+        cust64 = copy.deepcopy(VALID_CFG["VMware-vmware-customization"])
+        p32 = "usr/lib/vmware-tools/plugins/vmsvc/libdeployPkgPlugin.so"
+        i386 = (
+            "usr/lib/i386-linux-gnu/open-vm-tools/plugins/vmsvc/"
+            "libdeployPkgPlugin.so"
+        )
+        cust64["files"][i386] = cust64["files"][p32]
+        del cust64["files"][p32]
+        return self._check_via_dict(
+            cust64, RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
+        )
+
     def test_vmware_envvar_no_data(self):
         """VMware: envvar transport no data"""
         self._test_ds_not_found("VMware-EnvVar-NoData")
@@ -854,7 +946,8 @@ class TestDsIdentify(DsIdentifyBase):
 
     def test_vmware_guestinfo_no_data(self):
         """VMware: guestinfo transport no data"""
-        self._test_ds_not_found("VMware-GuestInfo-NoData")
+        self._test_ds_not_found("VMware-GuestInfo-NoData-Rpctool")
+        self._test_ds_not_found("VMware-GuestInfo-NoData-Vmtoolsd")
 
     def test_vmware_guestinfo_no_virt_id(self):
         """VMware: guestinfo transport fails if no virt id"""
@@ -873,10 +966,32 @@ class TestDsIdentify(DsIdentifyBase):
         self._test_ds_found("VMware-GuestInfo-Vendordata")
 
 
+class TestAkamai(DsIdentifyBase):
+    def test_found_by_sys_vendor(self):
+        """ds-identify finds Akamai by system-manufacturer dmi field"""
+        self._test_ds_found("Akamai")
+
+    def test_found_by_sys_vendor_akamai(self):
+        """
+        ds-identify finds Akamai by system-manufacturer dmi field when set with
+        name "Akamai" (expected in the future)
+        """
+        cfg = copy.deepcopy(VALID_CFG["Akamai"])
+        cfg["mocks"][0]["RET"] = "Akamai"
+        self._check_via_dict(cfg, rc=RC_FOUND)
+
+    def test_not_found(self):
+        """ds-identify does not find Akamai by system-manufacturer field"""
+        cfg = copy.deepcopy(VALID_CFG["Akamai"])
+        cfg["mocks"][0]["RET"] = "Other"
+        self._check_via_dict(cfg, rc=RC_NOT_FOUND)
+
+
 class TestBSDNoSys(DsIdentifyBase):
     """Test *BSD code paths
 
     FreeBSD doesn't have /sys so we use kenv(1) here.
+    OpenBSD uses sysctl(8).
     Other BSD systems fallback to dmidecode(8).
     BSDs also doesn't have systemd-detect-virt(8), so we use sysctl(8) to query
     kern.vm_guest, and optionally map it"""
@@ -887,6 +1002,13 @@ class TestBSDNoSys(DsIdentifyBase):
         This will be used on FreeBSD systems.
         """
         self._test_ds_found("Hetzner-kenv")
+
+    def test_dmi_sysctl(self):
+        """Test that sysctl(8) works on systems which don't have /sys
+
+        This will be used on OpenBSD systems.
+        """
+        self._test_ds_found("Hetzner-sysctl")
 
     def test_dmi_dmidecode(self):
         """Test that dmidecode(8) works on systems which don't have /sys
@@ -950,7 +1072,21 @@ class TestOracle(DsIdentifyBase):
         """Simple negative test of Oracle."""
         mycfg = copy.deepcopy(VALID_CFG["Oracle"])
         mycfg["files"][P_CHASSIS_ASSET_TAG] = "Not Oracle"
-        self._check_via_dict(mycfg, ds=["openstack", "none"], rc=RC_FOUND)
+        self._check_via_dict(mycfg, rc=RC_NOT_FOUND)
+
+
+class TestWSL(DsIdentifyBase):
+    def test_found(self):
+        """Simple positive test of WSL."""
+        self._test_ds_found("WSL-supported")
+
+    def test_not_found(self):
+        """Simple negative test for WSL due other virt."""
+        self._test_ds_not_found("Not-WSL")
+
+    def test_almost_found(self):
+        """Simple negative test by lack of host filesystem mount points."""
+        self._test_ds_not_found("WSL-no-host-mounts")
 
 
 def blkid_out(disks=None):
@@ -1003,7 +1139,7 @@ def _print_run_output(rc, out, err, cfg, files):
                 "-- err --",
                 str(err),
                 "-- cfg --",
-                util.json_dumps(cfg),
+                atomic_helper.json_dumps(cfg),
             ]
         )
     )
@@ -1017,6 +1153,10 @@ def _print_run_output(rc, out, err, cfg, files):
 
 
 VALID_CFG = {
+    "Akamai": {
+        "ds": "Akamai",
+        "mocks": [{"name": "dmi_decode", "ret": 0, "RET": "Linode"}],
+    },
     "AliYun": {
         "ds": "AliYun",
         "files": {P_PRODUCT_NAME: "Alibaba Cloud ECS\n"},
@@ -1032,6 +1172,15 @@ VALID_CFG = {
         "files": {
             P_CHASSIS_ASSET_TAG: "No-match\n",
             os.path.join(P_SEED_DIR, "azure", "ovf-env.xml"): "present\n",
+        },
+    },
+    "Azure-parse-invalid": {
+        "ds": "Azure",
+        "files": {
+            P_CHASSIS_ASSET_TAG: "7783-7084-3265-9085-8269-3286-77\n",
+            "etc/cloud/cloud.cfg.d/91-azure_datasource.cfg": (
+                "datasource_list:\n   - Azure"
+            ),
         },
     },
     "Ec2-hvm": {
@@ -1056,7 +1205,6 @@ VALID_CFG = {
     "Ec2-brightbox-negative": {
         "ds": "Ec2",
         "files": {P_PRODUCT_SERIAL: "tricky-host.bobrightbox.com\n"},
-        "mocks": [MOCK_VIRT_IS_KVM],
     },
     "GCE": {
         "ds": "GCE",
@@ -1071,6 +1219,38 @@ VALID_CFG = {
     "LXD-kvm": {
         "ds": "LXD",
         "files": {P_BOARD_NAME: "LXD\n"},
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+    },
+    "LXD-kvm-not-MAAS-1": {
+        "ds": "LXD",
+        "files": {
+            P_BOARD_NAME: "LXD\n",
+            "etc/cloud/cloud.cfg.d/92-broken-maas.cfg": (
+                "datasource:\n MAAS:\n metadata_urls: [ 'blah.com' ]"
+            ),
+        },
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+    },
+    "LXD-kvm-not-MAAS-2": {
+        "ds": "LXD",
+        "files": {
+            P_BOARD_NAME: "LXD\n",
+            "etc/cloud/cloud.cfg.d/92-broken-maas.cfg": ("#MAAS: None"),
+        },
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+    },
+    "LXD-kvm-not-MAAS-3": {
+        "ds": "LXD",
+        "files": {
+            P_BOARD_NAME: "LXD\n",
+            "etc/cloud/cloud.cfg.d/92-broken-maas.cfg": ("MAAS: None"),
+        },
         # /dev/lxd/sock does not exist and KVM virt-type
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
@@ -1428,6 +1608,13 @@ VALID_CFG = {
             {"name": "get_kenv_field", "ret": 0, "RET": "Hetzner"},
         ],
     },
+    "Hetzner-sysctl": {
+        "ds": "Hetzner",
+        "mocks": [
+            MOCK_UNAME_IS_OPENBSD,
+            {"name": "get_sysctl_field", "ret": 0, "RET": "Hetzner"},
+        ],
+    },
     "Hetzner-dmidecode": {
         "ds": "Hetzner",
         "mocks": [{"name": "dmi_decode", "ret": 0, "RET": "Hetzner"}],
@@ -1578,10 +1765,7 @@ VALID_CFG = {
             {
                 "name": "uname",
                 "ret": 0,
-                "out": (
-                    "Linux d43da87a-daca-60e8-e6d4-d2ed372662a3 4.3.0 "
-                    "BrandZ virtual linux x86_64 GNU/Linux"
-                ),
+                "out": ("Linux BrandZ virtual linux x86_64"),
             },
             {"name": "blkid", "ret": 2, "out": ""},
         ],
@@ -1598,7 +1782,6 @@ VALID_CFG = {
     "Ec2-E24Cloud-negative": {
         "ds": "Ec2",
         "files": {P_SYS_VENDOR: "e24cloudyday\n"},
-        "mocks": [MOCK_VIRT_IS_KVM],
     },
     "VMware-NoValidTransports": {
         "ds": "VMware",
@@ -1614,6 +1797,11 @@ VALID_CFG = {
                 "name": "vmware_has_rpctool",
                 "ret": 0,
                 "out": "/usr/bin/vmware-rpctool",
+            },
+            {
+                "name": "vmware_has_vmtoolsd",
+                "ret": 1,
+                "out": "/usr/bin/vmtoolsd",
             },
         ],
         "files": {
@@ -1731,7 +1919,7 @@ VALID_CFG = {
             MOCK_VIRT_IS_VMWARE,
         ],
     },
-    "VMware-GuestInfo-NoData": {
+    "VMware-GuestInfo-NoData-Rpctool": {
         "ds": "VMware",
         "mocks": [
             {
@@ -1740,15 +1928,49 @@ VALID_CFG = {
                 "out": "/usr/bin/vmware-rpctool",
             },
             {
-                "name": "vmware_rpctool_guestinfo_metadata",
+                "name": "vmware_has_vmtoolsd",
+                "ret": 1,
+                "out": "/usr/bin/vmtoolsd",
+            },
+            {
+                "name": "vmware_guestinfo_metadata",
                 "ret": 1,
             },
             {
-                "name": "vmware_rpctool_guestinfo_userdata",
+                "name": "vmware_guestinfo_userdata",
                 "ret": 1,
             },
             {
-                "name": "vmware_rpctool_guestinfo_vendordata",
+                "name": "vmware_guestinfo_vendordata",
+                "ret": 1,
+            },
+            MOCK_VIRT_IS_VMWARE,
+        ],
+    },
+    "VMware-GuestInfo-NoData-Vmtoolsd": {
+        "ds": "VMware",
+        "policy_dmi": POLICY_FOUND_ONLY,
+        "mocks": [
+            {
+                "name": "vmware_has_rpctool",
+                "ret": 1,
+                "out": "/usr/bin/vmware-rpctool",
+            },
+            {
+                "name": "vmware_has_vmtoolsd",
+                "ret": 0,
+                "out": "/usr/bin/vmtoolsd",
+            },
+            {
+                "name": "vmware_guestinfo_metadata",
+                "ret": 1,
+            },
+            {
+                "name": "vmware_guestinfo_userdata",
+                "ret": 1,
+            },
+            {
+                "name": "vmware_guestinfo_vendordata",
                 "ret": 1,
             },
             MOCK_VIRT_IS_VMWARE,
@@ -1757,23 +1979,22 @@ VALID_CFG = {
     "VMware-GuestInfo-NoVirtID": {
         "ds": "VMware",
         "mocks": [
-            MOCK_VIRT_IS_KVM,
             {
                 "name": "vmware_has_rpctool",
                 "ret": 0,
                 "out": "/usr/bin/vmware-rpctool",
             },
             {
-                "name": "vmware_rpctool_guestinfo_metadata",
+                "name": "vmware_guestinfo_metadata",
                 "ret": 0,
                 "out": "---",
             },
             {
-                "name": "vmware_rpctool_guestinfo_userdata",
+                "name": "vmware_guestinfo_userdata",
                 "ret": 1,
             },
             {
-                "name": "vmware_rpctool_guestinfo_vendordata",
+                "name": "vmware_guestinfo_vendordata",
                 "ret": 1,
             },
         ],
@@ -1783,20 +2004,25 @@ VALID_CFG = {
         "mocks": [
             {
                 "name": "vmware_has_rpctool",
-                "ret": 0,
+                "ret": 1,
                 "out": "/usr/bin/vmware-rpctool",
             },
             {
-                "name": "vmware_rpctool_guestinfo_metadata",
+                "name": "vmware_has_vmtoolsd",
+                "ret": 0,
+                "out": "/usr/bin/vmtoolsd",
+            },
+            {
+                "name": "vmware_guestinfo_metadata",
                 "ret": 0,
                 "out": "---",
             },
             {
-                "name": "vmware_rpctool_guestinfo_userdata",
+                "name": "vmware_guestinfo_userdata",
                 "ret": 1,
             },
             {
-                "name": "vmware_rpctool_guestinfo_vendordata",
+                "name": "vmware_guestinfo_vendordata",
                 "ret": 1,
             },
             MOCK_VIRT_IS_VMWARE,
@@ -1811,16 +2037,21 @@ VALID_CFG = {
                 "out": "/usr/bin/vmware-rpctool",
             },
             {
-                "name": "vmware_rpctool_guestinfo_metadata",
+                "name": "vmware_has_vmtoolsd",
+                "ret": 1,
+                "out": "/usr/bin/vmtoolsd",
+            },
+            {
+                "name": "vmware_guestinfo_metadata",
                 "ret": 1,
             },
             {
-                "name": "vmware_rpctool_guestinfo_userdata",
+                "name": "vmware_guestinfo_userdata",
                 "ret": 0,
                 "out": "---",
             },
             {
-                "name": "vmware_rpctool_guestinfo_vendordata",
+                "name": "vmware_guestinfo_vendordata",
                 "ret": 1,
             },
             MOCK_VIRT_IS_VMWARE,
@@ -1831,19 +2062,24 @@ VALID_CFG = {
         "mocks": [
             {
                 "name": "vmware_has_rpctool",
-                "ret": 0,
+                "ret": 1,
                 "out": "/usr/bin/vmware-rpctool",
             },
             {
-                "name": "vmware_rpctool_guestinfo_metadata",
+                "name": "vmware_has_vmtoolsd",
+                "ret": 0,
+                "out": "/usr/bin/vmtoolsd",
+            },
+            {
+                "name": "vmware_guestinfo_metadata",
                 "ret": 1,
             },
             {
-                "name": "vmware_rpctool_guestinfo_userdata",
+                "name": "vmware_guestinfo_userdata",
                 "ret": 1,
             },
             {
-                "name": "vmware_rpctool_guestinfo_vendordata",
+                "name": "vmware_guestinfo_vendordata",
                 "ret": 0,
                 "out": "---",
             },
@@ -1863,7 +2099,6 @@ VALID_CFG = {
             P_PRODUCT_NAME: "3DS Outscale VM\n",
             P_SYS_VENDOR: "Not 3DS Outscale\n",
         },
-        "mocks": [MOCK_VIRT_IS_KVM],
     },
     "Ec2-Outscale-negative-productname": {
         "ds": "Ec2",
@@ -1871,8 +2106,43 @@ VALID_CFG = {
             P_PRODUCT_NAME: "Not 3DS Outscale VM\n",
             P_SYS_VENDOR: "3DS Outscale\n",
         },
-        "mocks": [MOCK_VIRT_IS_KVM],
+    },
+    "Not-WSL": {
+        "ds": "WSL",
+        "mocks": [
+            MOCK_VIRT_IS_KVM,
+        ],
+    },
+    "WSL-no-host-mounts": {
+        "ds": "WSL",
+        "mocks": [
+            MOCK_VIRT_IS_WSL,
+            MOCK_UNAME_IS_WSL,
+        ],
+        "files": {
+            "proc/mounts": (
+                "/dev/sdd / ext4 rw,errors=remount-ro,data=ordered 0 0\n"
+                "cgroup2 /sys/fs/cgroup cgroup2 rw,nosuid,nodev,noexec0 0\n"
+                "snapfuse /snap/core22/1033 fuse.snapfuse ro,nodev,user_id=0,"
+                "group_id=0,allow_other 0 0"
+            ),
+        },
+    },
+    "WSL-supported": {
+        "ds": "WSL",
+        "mocks": [
+            MOCK_VIRT_IS_WSL,
+            MOCK_UNAME_IS_WSL,
+        ],
+        "files": {
+            "proc/mounts": (
+                "/dev/sdd / ext4 rw,errors=remount-ro,data=ordered 0 0\n"
+                "cgroup2 /sys/fs/cgroup cgroup2 rw,nosuid,nodev,noexec0 0\n"
+                "C:\\134 /mnt/c 9p rw,dirsync,aname=drvfs;path=C:\\;uid=0;"
+                "gid=0;symlinkroot=/mnt/...\n"
+                "snapfuse /snap/core22/1033 fuse.snapfuse ro,nodev,user_id=0,"
+                "group_id=0,allow_other 0 0"
+            ),
+        },
     },
 }
-
-# vi: ts=4 expandtab

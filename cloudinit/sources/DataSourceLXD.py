@@ -5,15 +5,17 @@ Notes:
  * Older LXD images may not have updates for cloud-init so NoCloud may
    still be detected on those images.
  * Detect LXD datasource when /dev/lxd/sock is an active socket file.
- * Info on dev-lxd API: https://linuxcontainers.org/lxd/docs/master/dev-lxd
+ * Info on dev-lxd API: https://documentation.ubuntu.com/lxd/en/latest/dev-lxd/
 """
 
+import logging
 import os
 import socket
 import stat
+import time
 from enum import Flag, auto
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -22,8 +24,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.connection import HTTPConnection
 from urllib3.connectionpool import HTTPConnectionPool
 
-from cloudinit import log as logging
-from cloudinit import sources, subp, url_helper, util
+from cloudinit import atomic_helper, sources, subp, url_helper, util
 from cloudinit.net import find_fallback_nic
 
 LOG = logging.getLogger(__name__)
@@ -167,11 +168,14 @@ class DataSourceLXD(sources.DataSource):
     _network_config: Union[Dict, str] = sources.UNSET
     _crawled_metadata: Union[Dict, str] = sources.UNSET
 
-    sensitive_metadata_keys = (
-        "merged_cfg",
+    sensitive_metadata_keys: Tuple[
+        str, ...
+    ] = sources.DataSource.sensitive_metadata_keys + (
         "user.meta-data",
         "user.vendor-data",
         "user.user-data",
+        "cloud-init.user-data",
+        "cloud-init.vendor-data",
     )
 
     skip_hotplug_detect = True
@@ -180,16 +184,13 @@ class DataSourceLXD(sources.DataSource):
         super()._unpickle(ci_pkl_version)
         self.skip_hotplug_detect = True
 
-    def _is_platform_viable(self) -> bool:
+    @staticmethod
+    def ds_detect() -> bool:
         """Check platform environment to report if this datasource may run."""
         return is_platform_viable()
 
     def _get_data(self) -> bool:
         """Crawl LXD socket API instance data and return True on success"""
-        if not self._is_platform_viable():
-            LOG.debug("Not an LXD datasource: No LXD socket found.")
-            return False
-
         self._crawled_metadata = util.log_time(
             logfunc=LOG.debug,
             msg="Crawl of metadata service",
@@ -299,7 +300,20 @@ def _get_json_response(
 def _do_request(
     session: requests.Session, url: str, do_raise: bool = True
 ) -> requests.Response:
-    response = session.get(url)
+    for retries in range(30, 0, -1):
+        response = session.get(url)
+        if 500 == response.status_code:
+            # retry every 0.1 seconds for 3 seconds in the case of 500 error
+            # tis evil, but it also works around a bug
+            time.sleep(0.1)
+            LOG.warning(
+                "[GET] [HTTP:%d] %s, retrying %d more time(s)",
+                response.status_code,
+                url,
+                retries,
+            )
+        else:
+            break
     LOG.debug("[GET] [HTTP:%d] %s", response.status_code, url)
     if do_raise and not response.ok:
         raise sources.InvalidMetaDataException(
@@ -457,6 +471,6 @@ if __name__ == "__main__":
     description = """Query LXD metadata and emit a JSON object."""
     parser = argparse.ArgumentParser(description=description)
     parser.parse_args()
-    print(util.json_dumps(read_metadata(metadata_keys=MetaDataKeys.ALL)))
-
-# vi: ts=4 expandtab
+    print(
+        atomic_helper.json_dumps(read_metadata(metadata_keys=MetaDataKeys.ALL))
+    )

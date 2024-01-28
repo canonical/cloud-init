@@ -7,11 +7,10 @@
 """NTP: enable and configure ntp"""
 
 import copy
+import logging
 import os
-from logging import Logger
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit import subp, temp_utils, templater, type_utils, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -36,13 +35,20 @@ distros = [
     "mariner",
     "miraclelinux",
     "openbsd",
-    "openEuler",
+    "openeuler",
+    "OpenCloudOS",
     "openmandriva",
     "opensuse",
+    "opensuse-microos",
+    "opensuse-tumbleweed",
+    "opensuse-leap",
     "photon",
     "rhel",
     "rocky",
+    "sle_hpc",
+    "sle-micro",
     "sles",
+    "TencentOS",
     "ubuntu",
     "virtuozzo",
 ]
@@ -215,6 +221,11 @@ DISTRO_CLIENT_CONFIG = {
     },
 }
 
+for distro in ("opensuse-microos", "opensuse-tumbleweed", "opensuse-leap"):
+    DISTRO_CLIENT_CONFIG[distro] = DISTRO_CLIENT_CONFIG["opensuse"]
+
+for distro in ("sle_hpc", "sle-micro"):
+    DISTRO_CLIENT_CONFIG[distro] = DISTRO_CLIENT_CONFIG["sles"]
 
 # The schema definition for each cloud-config module is a strict contract for
 # describing supported configuration parameters for each cloud-config section.
@@ -271,11 +282,24 @@ meta: MetaSchema = {
                  {% for server in servers -%}
                  server {{server}} iburst
                  {% endfor %}
+                 {% if peers -%}# peers{% endif %}
+                 {% for peer in peers -%}
+                 peer {{peer}}
+                 {% endfor %}
+                 {% if allow -%}# allow{% endif %}
+                 {% for cidr in allow -%}
+                 allow {{cidr}}
+                 {% endfor %}
           pools: [0.int.pool.ntp.org, 1.int.pool.ntp.org, ntp.myorg.org]
           servers:
             - ntp.server.local
             - ntp.ubuntu.com
-            - 192.168.23.2"""
+            - 192.168.23.2
+          allow:
+            - 192.168.23.0/32
+          peers:
+            - km001
+            - km002"""
         ),
     ],
     "frequency": PER_INSTANCE,
@@ -399,7 +423,7 @@ def generate_server_names(distro):
         # so use general x.pool.ntp.org instead. The same applies to EuroLinux
         pool_distro = ""
 
-    for x in range(0, NR_POOL_SERVERS):
+    for x in range(NR_POOL_SERVERS):
         names.append(
             ".".join(
                 [n for n in [str(x)] + [pool_distro] + ["pool.ntp.org"] if n]
@@ -414,6 +438,8 @@ def write_ntp_config_template(
     service_name=None,
     servers=None,
     pools=None,
+    allow=None,
+    peers=None,
     path=None,
     template_fn=None,
     template=None,
@@ -426,6 +452,10 @@ def write_ntp_config_template(
     list.
     @param pools: A list of strings specifying ntp pools. Defaults to empty
     list.
+    @param allow: A list of strings specifying a network/CIDR. Defaults to
+    empty list.
+    @param peers: A list nodes that should peer with each other. Defaults to
+    empty list.
     @param path: A string to specify where to write the rendered template.
     @param template_fn: A string to specify the template source file.
     @param template: A string specifying the contents of the template. This
@@ -439,6 +469,10 @@ def write_ntp_config_template(
         servers = []
     if not pools:
         pools = []
+    if not allow:
+        allow = []
+    if not peers:
+        peers = []
 
     if len(servers) == 0 and len(pools) == 0 and distro_name == "cos":
         return
@@ -463,7 +497,12 @@ def write_ntp_config_template(
     if not template_fn and not template:
         raise ValueError("Not template_fn or template provided")
 
-    params = {"servers": servers, "pools": pools}
+    params = {
+        "servers": servers,
+        "pools": pools,
+        "allow": allow,
+        "peers": peers,
+    }
     if template:
         tfile = temp_utils.mkstemp(prefix="template_name-", suffix=".tmpl")
         template_fn = tfile[1]  # filepath is second item in tuple
@@ -536,9 +575,7 @@ def supplemental_schema_validation(ntp_config):
         )
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """Enable and configure ntp."""
     if "ntp" not in cfg:
         LOG.debug(
@@ -587,11 +624,18 @@ def handle(
             )
             raise RuntimeError(msg)
 
+    LOG.debug("service_name: %s", ntp_client_config.get("service_name"))
+    LOG.debug("servers: %s", ntp_cfg.get("servers", []))
+    LOG.debug("pools: %s", ntp_cfg.get("pools", []))
+    LOG.debug("allow: %s", ntp_cfg.get("allow", []))
+    LOG.debug("peers: %s", ntp_cfg.get("peers", []))
     write_ntp_config_template(
         cloud.distro.name,
         service_name=ntp_client_config.get("service_name"),
         servers=ntp_cfg.get("servers", []),
         pools=ntp_cfg.get("pools", []),
+        allow=ntp_cfg.get("allow", []),
+        peers=ntp_cfg.get("peers", []),
         path=ntp_client_config.get("confpath"),
         template_fn=template_fn,
         template=ntp_client_config.get("template"),
@@ -627,6 +671,3 @@ def handle(
     except subp.ProcessExecutionError as e:
         LOG.exception("Failed to reload/start ntp service: %s", e)
         raise
-
-
-# vi: ts=4 expandtab

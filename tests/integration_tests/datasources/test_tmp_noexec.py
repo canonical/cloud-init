@@ -1,6 +1,7 @@
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.util import verify_clean_log
 
 
@@ -14,11 +15,10 @@ def customize_client(client: IntegrationInstance):
 
 
 @pytest.mark.adhoc
-@pytest.mark.azure
-@pytest.mark.ec2
-@pytest.mark.gce
-@pytest.mark.oci
-@pytest.mark.openstack
+@pytest.mark.skipif(
+    PLATFORM not in ["azure", "ec2", "gce", "oci", "openstack"],
+    reason=f"Test hasn't been tested on {PLATFORM}",
+)
 def test_dhcp_tmp_noexec(client: IntegrationInstance):
     customize_client(client)
     assert (

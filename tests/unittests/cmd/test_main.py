@@ -42,7 +42,7 @@ class TestMain(FilesystemMockingTestCase):
                     "permissions": 0o755,
                 },
             ],
-            "cloud_init_modules": ["write-files", "runcmd"],
+            "cloud_init_modules": ["write_files", "runcmd"],
         }
         cloud_cfg = safeyaml.dumps(self.cfg)
         ensure_dir(os.path.join(self.new_root, "etc", "cloud"))
@@ -112,8 +112,8 @@ class TestMain(FilesystemMockingTestCase):
             subcommand="init",
         )
 
-        def set_hostname(name, cfg, cloud, log, args):
-            self.assertEqual("set-hostname", name)
+        def set_hostname(name, cfg, cloud, args):
+            self.assertEqual("set_hostname", name)
             updated_cfg = copy.deepcopy(self.cfg)
             updated_cfg.update(
                 {
@@ -132,7 +132,6 @@ class TestMain(FilesystemMockingTestCase):
             updated_cfg.pop("system_info")
 
             self.assertEqual(updated_cfg, cfg)
-            self.assertEqual(main.LOG, log)
             self.assertIsNone(args)
 
         (_item1, item2) = wrap_and_call(
@@ -167,6 +166,19 @@ class TestMain(FilesystemMockingTestCase):
         for log in expected_logs:
             self.assertIn(log, self.stderr.getvalue())
 
+    @mock.patch("cloudinit.cmd.clean.get_parser")
+    @mock.patch("cloudinit.cmd.clean.handle_clean_args")
+    @mock.patch("cloudinit.log.configure_root_logger")
+    def test_main_sys_argv(
+        self,
+        _m_configure_root_logger,
+        _m_handle_clean_args,
+        m_clean_get_parser,
+    ):
+        with mock.patch("sys.argv", ["cloudinit", "--debug", "clean"]):
+            main.main()
+        m_clean_get_parser.assert_called_once()
+
 
 class TestShouldBringUpInterfaces:
     @pytest.mark.parametrize(
@@ -189,6 +201,3 @@ class TestShouldBringUpInterfaces:
 
         result = main._should_bring_up_interfaces(init, args)
         assert result == expected
-
-
-# vi: ts=4 expandtab

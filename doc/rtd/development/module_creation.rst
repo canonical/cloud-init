@@ -15,8 +15,7 @@ Example
     # This file is part of cloud-init. See LICENSE file for license information.
     """Example Module: Shows how to create a module"""
 
-    from logging import Logger
-
+    import logging
     from cloudinit.cloud import Cloud
     from cloudinit.config import Config
     from cloudinit.config.schema import MetaSchema, get_meta_doc
@@ -28,6 +27,8 @@ Example
 
     This will likely take multiple lines.
     """
+
+    LOG = logging.getLogger(__name__)
 
     meta: MetaSchema = {
         "id": "cc_example",
@@ -47,9 +48,9 @@ Example
 
 
     def handle(
-        name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+        name: str, cfg: Config, cloud: Cloud, args: list
     ) -> None:
-        log.debug(f"Hi from module {name}")
+        LOG.debug(f"Hi from module {name}")
 
 .. _module_creation-Guidelines:
 
@@ -66,7 +67,6 @@ Guidelines
   * ``cloud``: A cloud object that can be used to access various datasource
     and paths for the given distro and data provided by the various datasource
     instance types.
-  * ``log``: A logger object that can be used to log messages.
   * ``args``: An argument list. This is usually empty and is only populated
     if the module is called independently from the command line or if the
     module definition in :file:`/etc/cloud/cloud.cfg[.d]` has been modified

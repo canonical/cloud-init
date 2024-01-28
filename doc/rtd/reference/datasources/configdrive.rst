@@ -95,7 +95,7 @@ default it is 'pass', meaning this datasource should not be read. Set it to
 datasources after network config.
 
 The difference between 'local' and 'net' is that local will not require
-networking to be up before user-data actions (or boothooks) are run.
+networking to be up before user-data actions are run.
 
 ``instance-id``
 ---------------

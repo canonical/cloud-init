@@ -4,15 +4,16 @@
 """
 import contextlib
 import logging
-from typing import Any, Dict, List, Optional
+from functools import partial
+from typing import Any, Callable, Dict, List, Optional
 
 import cloudinit.net as net
-from cloudinit import subp
 from cloudinit.net.dhcp import (
+    IscDhclient,
     NoDHCPLeaseError,
     maybe_perform_dhcp_discovery,
-    parse_static_routes,
 )
+from cloudinit.subp import ProcessExecutionError
 
 LOG = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class EphemeralIPv4Network:
 
     def __init__(
         self,
+        distro,
         interface,
         ip,
         prefix_or_mask,
@@ -71,7 +73,8 @@ class EphemeralIPv4Network:
         self.router = router
         self.static_routes = static_routes
         # List of commands to run to cleanup state.
-        self.cleanup_cmds: List[str] = []
+        self.cleanup_cmds: List[Callable] = []
+        self.distro = distro
 
     def __enter__(self):
         """Perform ephemeral network setup if interface is not connected."""
@@ -84,44 +87,33 @@ class EphemeralIPv4Network:
                 )
                 return
 
-        self._bringup_device()
+        try:
+            self._bringup_device()
 
-        # rfc3442 requires us to ignore the router config *if* classless static
-        # routes are provided.
-        #
-        # https://tools.ietf.org/html/rfc3442
-        #
-        # If the DHCP server returns both a Classless Static Routes option and
-        # a Router option, the DHCP client MUST ignore the Router option.
-        #
-        # Similarly, if the DHCP server returns both a Classless Static Routes
-        # option and a Static Routes option, the DHCP client MUST ignore the
-        # Static Routes option.
-        if self.static_routes:
-            self._bringup_static_routes()
-        elif self.router:
-            self._bringup_router()
+            # rfc3442 requires us to ignore the router config *if*
+            # classless static routes are provided.
+            #
+            # https://tools.ietf.org/html/rfc3442
+            #
+            # If the DHCP server returns both a Classless Static Routes
+            # option and a Router option, the DHCP client MUST ignore
+            # the Router option.
+            #
+            # Similarly, if the DHCP server returns both a Classless
+            # Static Routes option and a Static Routes option, the DHCP
+            # client MUST ignore the Static Routes option.
+            if self.static_routes:
+                self._bringup_static_routes()
+            elif self.router:
+                self._bringup_router()
+        except ProcessExecutionError:
+            self.__exit__(None, None, None)
+            raise
 
     def __exit__(self, excp_type, excp_value, excp_traceback):
         """Teardown anything we set up."""
         for cmd in self.cleanup_cmds:
-            subp.subp(cmd, capture=True)
-
-    def _delete_address(self, address, prefix):
-        """Perform the ip command to remove the specified address."""
-        subp.subp(
-            [
-                "ip",
-                "-family",
-                "inet",
-                "addr",
-                "del",
-                "%s/%s" % (address, prefix),
-                "dev",
-                self.interface,
-            ],
-            capture=True,
-        )
+            cmd()
 
     def _bringup_device(self):
         """Perform the ip comands to fully setup the device."""
@@ -133,23 +125,8 @@ class EphemeralIPv4Network:
             self.broadcast,
         )
         try:
-            subp.subp(
-                [
-                    "ip",
-                    "-family",
-                    "inet",
-                    "addr",
-                    "add",
-                    cidr,
-                    "broadcast",
-                    self.broadcast,
-                    "dev",
-                    self.interface,
-                ],
-                capture=True,
-                update_env={"LANG": "C"},
-            )
-        except subp.ProcessExecutionError as e:
+            self.distro.net_ops.add_addr(self.interface, cidr, self.broadcast)
+        except ProcessExecutionError as e:
             if "File exists" not in str(e.stderr):
                 raise
             LOG.debug(
@@ -159,68 +136,46 @@ class EphemeralIPv4Network:
             )
         else:
             # Address creation success, bring up device and queue cleanup
-            subp.subp(
-                [
-                    "ip",
-                    "-family",
-                    "inet",
-                    "link",
-                    "set",
-                    "dev",
+            self.distro.net_ops.link_up(self.interface, family="inet")
+            self.cleanup_cmds.append(
+                partial(
+                    self.distro.net_ops.link_down,
                     self.interface,
-                    "up",
-                ],
-                capture=True,
+                    family="inet",
+                )
             )
             self.cleanup_cmds.append(
-                [
-                    "ip",
-                    "-family",
-                    "inet",
-                    "link",
-                    "set",
-                    "dev",
-                    self.interface,
-                    "down",
-                ]
-            )
-            self.cleanup_cmds.append(
-                [
-                    "ip",
-                    "-family",
-                    "inet",
-                    "addr",
-                    "del",
-                    cidr,
-                    "dev",
-                    self.interface,
-                ]
+                partial(self.distro.net_ops.del_addr, self.interface, cidr)
             )
 
     def _bringup_static_routes(self):
         # static_routes = [("169.254.169.254/32", "130.56.248.255"),
         #                  ("0.0.0.0/0", "130.56.240.1")]
         for net_address, gateway in self.static_routes:
-            via_arg = []
-            if gateway != "0.0.0.0":
-                via_arg = ["via", gateway]
-            subp.subp(
-                ["ip", "-4", "route", "append", net_address]
-                + via_arg
-                + ["dev", self.interface],
-                capture=True,
+            # Use "append" rather than "add" since the DHCP server may provide
+            # rfc3442 classless static routes with multiple routes to the same
+            # subnet via different routers or local interface addresses.
+            #
+            # In this scenario, `ip r add` fails.
+            #
+            # RHBZ: #2003231
+            self.distro.net_ops.append_route(
+                self.interface, net_address, gateway
             )
             self.cleanup_cmds.insert(
                 0,
-                ["ip", "-4", "route", "del", net_address]
-                + via_arg
-                + ["dev", self.interface],
+                partial(
+                    self.distro.net_ops.del_route,
+                    self.interface,
+                    net_address,
+                    gateway=gateway,
+                ),
             )
 
     def _bringup_router(self):
         """Perform the ip commands to fully setup the router if needed."""
         # Check if a default route exists and exit if it does
-        out, _ = subp.subp(["ip", "route", "show", "0.0.0.0/0"], capture=True)
+        out = self.distro.net_ops.get_default_route()
         if "default" in out:
             LOG.debug(
                 "Skip ephemeral route setup. %s already has default route: %s",
@@ -228,50 +183,24 @@ class EphemeralIPv4Network:
                 out.strip(),
             )
             return
-        subp.subp(
-            [
-                "ip",
-                "-4",
-                "route",
-                "add",
-                self.router,
-                "dev",
-                self.interface,
-                "src",
-                self.ip,
-            ],
-            capture=True,
+        self.distro.net_ops.add_route(
+            self.interface, self.router, source_address=self.ip
         )
         self.cleanup_cmds.insert(
             0,
-            [
-                "ip",
-                "-4",
-                "route",
-                "del",
-                self.router,
-                "dev",
+            partial(
+                self.distro.net_ops.del_route,
                 self.interface,
-                "src",
-                self.ip,
-            ],
+                self.router,
+                source_address=self.ip,
+            ),
         )
-        subp.subp(
-            [
-                "ip",
-                "-4",
-                "route",
-                "add",
-                "default",
-                "via",
-                self.router,
-                "dev",
-                self.interface,
-            ],
-            capture=True,
+        self.distro.net_ops.add_route(
+            self.interface, "default", gateway=self.router
         )
         self.cleanup_cmds.insert(
-            0, ["ip", "-4", "route", "del", "default", "dev", self.interface]
+            0,
+            partial(self.distro.net_ops.del_route, self.interface, "default"),
         )
 
 
@@ -282,7 +211,7 @@ class EphemeralIPv6Network:
     sufficient for link-local communication.
     """
 
-    def __init__(self, interface):
+    def __init__(self, distro, interface):
         """Setup context manager and validate call signature.
 
         @param interface: Name of the network interface to bring up.
@@ -293,6 +222,7 @@ class EphemeralIPv6Network:
             raise ValueError("Cannot init network on {0}".format(interface))
 
         self.interface = interface
+        self.distro = distro
 
     def __enter__(self):
         """linux kernel does autoconfiguration even when autoconf=0
@@ -300,10 +230,7 @@ class EphemeralIPv6Network:
         https://www.kernel.org/doc/html/latest/networking/ipv6.html
         """
         if net.read_sys_net(self.interface, "operstate") != "up":
-            subp.subp(
-                ["ip", "link", "set", "dev", self.interface, "up"],
-                capture=False,
-            )
+            self.distro.net_ops.link_up(self.interface)
 
     def __exit__(self, *_args):
         """No need to set the link to down state"""
@@ -312,17 +239,17 @@ class EphemeralIPv6Network:
 class EphemeralDHCPv4:
     def __init__(
         self,
+        distro,
         iface=None,
         connectivity_url_data: Optional[Dict[str, Any]] = None,
         dhcp_log_func=None,
-        tmp_dir=None,
     ):
         self.iface = iface
         self._ephipv4 = None
         self.lease = None
         self.dhcp_log_func = dhcp_log_func
         self.connectivity_url_data = connectivity_url_data
-        self.tmp_dir = tmp_dir
+        self.distro = distro
 
     def __enter__(self):
         """Setup sandboxed dhcp context, unless connectivity_url can already be
@@ -343,11 +270,9 @@ class EphemeralDHCPv4:
 
     def clean_network(self):
         """Exit _ephipv4 context to teardown of ip configuration performed."""
-        if self.lease:
-            self.lease = None
-        if not self._ephipv4:
-            return
-        self._ephipv4.__exit__(None, None, None)
+        self.lease = None
+        if self._ephipv4:
+            self._ephipv4.__exit__(None, None, None)
 
     def obtain_lease(self):
         """Perform dhcp discovery in a sandboxed environment if possible.
@@ -361,7 +286,7 @@ class EphemeralDHCPv4:
         if self.lease:
             return self.lease
         leases = maybe_perform_dhcp_discovery(
-            self.iface, self.dhcp_log_func, self.tmp_dir
+            self.distro, self.iface, self.dhcp_log_func
         )
         if not leases:
             raise NoDHCPLeaseError()
@@ -389,12 +314,12 @@ class EphemeralDHCPv4:
                 kwargs["prefix_or_mask"], kwargs["ip"]
             )
         if kwargs["static_routes"]:
-            kwargs["static_routes"] = parse_static_routes(
+            kwargs["static_routes"] = IscDhclient.parse_static_routes(
                 kwargs["static_routes"]
             )
         if self.connectivity_url_data:
             kwargs["connectivity_url_data"] = self.connectivity_url_data
-        ephipv4 = EphemeralIPv4Network(**kwargs)
+        ephipv4 = EphemeralIPv4Network(self.distro, **kwargs)
         ephipv4.__enter__()
         self._ephipv4 = ephipv4
         return self.lease
@@ -419,39 +344,70 @@ class EphemeralDHCPv4:
 
 
 class EphemeralIPNetwork:
-    """Marries together IPv4 and IPv6 ephemeral context managers"""
+    """Combined ephemeral context manager for IPv4 and IPv6
+
+    Either ipv4 or ipv6 ephemeral network may fail to initialize, but if either
+    succeeds, then this context manager will not raise exception. This allows
+    either ipv4 or ipv6 ephemeral network to succeed, but requires that error
+    handling for networks unavailable be done within the context.
+    """
 
     def __init__(
         self,
+        distro,
         interface,
         ipv6: bool = False,
         ipv4: bool = True,
-        tmp_dir=None,
     ):
         self.interface = interface
         self.ipv4 = ipv4
         self.ipv6 = ipv6
         self.stack = contextlib.ExitStack()
         self.state_msg: str = ""
-        self.tmp_dir = tmp_dir
+        self.distro = distro
 
     def __enter__(self):
-        # ipv6 dualstack might succeed when dhcp4 fails
-        # therefore catch exception unless only v4 is used
-        try:
-            if self.ipv4:
+        if not (self.ipv4 or self.ipv6):
+            # no ephemeral network requested, but this object still needs to
+            # function as a context manager
+            return self
+        exceptions = []
+        ephemeral_obtained = False
+        if self.ipv4:
+            try:
                 self.stack.enter_context(
-                    EphemeralDHCPv4(self.interface, tmp_dir=self.tmp_dir)
+                    EphemeralDHCPv4(
+                        self.distro,
+                        self.interface,
+                    )
                 )
-            if self.ipv6:
-                self.stack.enter_context(EphemeralIPv6Network(self.interface))
-        # v6 link local might be usable
-        # caller may want to log network state
-        except NoDHCPLeaseError as e:
-            if self.ipv6:
-                self.state_msg = "using link-local ipv6"
-            else:
-                raise e
+                ephemeral_obtained = True
+            except (ProcessExecutionError, NoDHCPLeaseError) as e:
+                LOG.info("Failed to bring up %s for ipv4.", self)
+                exceptions.append(e)
+
+        if self.ipv6:
+            try:
+                self.stack.enter_context(
+                    EphemeralIPv6Network(
+                        self.distro,
+                        self.interface,
+                    )
+                )
+                ephemeral_obtained = True
+                if exceptions or not self.ipv4:
+                    self.state_msg = "using link-local ipv6"
+            except ProcessExecutionError as e:
+                LOG.info("Failed to bring up %s for ipv6.", self)
+                exceptions.append(e)
+        if not ephemeral_obtained:
+            # Ephemeral network setup failed in linkup for both ipv4 and
+            # ipv6. Raise only the first exception found.
+            LOG.error(
+                "Failed to bring up EphemeralIPNetwork. "
+                "Datasource setup cannot continue"
+            )
+            raise exceptions[0]
         return self
 
     def __exit__(self, *_args):

@@ -9,6 +9,7 @@
 import argparse
 import os
 import shutil
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -16,11 +17,17 @@ from typing import NamedTuple
 
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.helpers import Paths
+from cloudinit.stages import Init
 from cloudinit.subp import ProcessExecutionError, subp
 from cloudinit.temp_utils import tempdir
-from cloudinit.util import chdir, copy, ensure_dir, write_file
+from cloudinit.util import (
+    chdir,
+    copy,
+    ensure_dir,
+    get_config_logfiles,
+    write_file,
+)
 
-CLOUDINIT_LOGS = ["/var/log/cloud-init.log", "/var/log/cloud-init-output.log"]
 CLOUDINIT_RUN_DIR = "/run/cloud-init"
 
 
@@ -143,15 +150,29 @@ def _copytree_rundir_ignore_files(curdir, files):
 
 def _write_command_output_to_file(cmd, filename, msg, verbosity):
     """Helper which runs a command and writes output or error to filename."""
+    ensure_dir(os.path.dirname(filename))
     try:
-        out, _ = subp(cmd)
+        output = subp(cmd).stdout
     except ProcessExecutionError as e:
         write_file(filename, str(e))
         _debug("collecting %s failed.\n" % msg, 1, verbosity)
     else:
-        write_file(filename, out)
+        write_file(filename, output)
         _debug("collected %s\n" % msg, 1, verbosity)
-        return out
+        return output
+
+
+def _stream_command_output_to_file(cmd, filename, msg, verbosity):
+    """Helper which runs a command and writes output or error to filename."""
+    ensure_dir(os.path.dirname(filename))
+    try:
+        with open(filename, "w") as f:
+            subprocess.call(cmd, stdout=f, stderr=f)
+    except OSError as e:
+        write_file(filename, str(e))
+        _debug("collecting %s failed.\n" % msg, 1, verbosity)
+    else:
+        _debug("collected %s\n" % msg, 1, verbosity)
 
 
 def _debug(msg, level, verbosity):
@@ -194,39 +215,43 @@ def collect_logs(tarfile, include_userdata: bool, verbosity=0):
             " Try sudo cloud-init collect-logs\n"
         )
         return 1
+
+    init = Init(ds_deps=[])
     tarfile = os.path.abspath(tarfile)
     log_dir = datetime.utcnow().date().strftime("cloud-init-logs-%Y-%m-%d")
     with tempdir(dir="/tmp") as tmp_dir:
         log_dir = os.path.join(tmp_dir, log_dir)
         version = _write_command_output_to_file(
-            ["cloud-init", "--version"],
-            os.path.join(log_dir, "version"),
-            "cloud-init --version",
-            verbosity,
+            cmd=["cloud-init", "--version"],
+            filename=os.path.join(log_dir, "version"),
+            msg="cloud-init --version",
+            verbosity=verbosity,
         )
         dpkg_ver = _write_command_output_to_file(
-            ["dpkg-query", "--show", "-f=${Version}\n", "cloud-init"],
-            os.path.join(log_dir, "dpkg-version"),
-            "dpkg version",
-            verbosity,
+            cmd=["dpkg-query", "--show", "-f=${Version}\n", "cloud-init"],
+            filename=os.path.join(log_dir, "dpkg-version"),
+            msg="dpkg version",
+            verbosity=verbosity,
         )
         if not version:
             version = dpkg_ver if dpkg_ver else "not-available"
+        print("version: ", version)
         _debug("collected cloud-init version: %s\n" % version, 1, verbosity)
-        _write_command_output_to_file(
-            ["dmesg"],
-            os.path.join(log_dir, "dmesg.txt"),
-            "dmesg output",
-            verbosity,
+        _stream_command_output_to_file(
+            cmd=["dmesg"],
+            filename=os.path.join(log_dir, "dmesg.txt"),
+            msg="dmesg output",
+            verbosity=verbosity,
         )
-        _write_command_output_to_file(
-            ["journalctl", "--boot=0", "-o", "short-precise"],
-            os.path.join(log_dir, "journal.txt"),
-            "systemd journal of current boot",
-            verbosity,
+        _stream_command_output_to_file(
+            cmd=["journalctl", "--boot=0", "-o", "short-precise"],
+            filename=os.path.join(log_dir, "journal.txt"),
+            msg="systemd journal of current boot",
+            verbosity=verbosity,
         )
 
-        for log in CLOUDINIT_LOGS:
+        init.read_cfg()
+        for log in get_config_logfiles(init.cfg):
             _collect_file(log, log_dir, verbosity)
         if include_userdata:
             user_data_file = _get_user_data_file()

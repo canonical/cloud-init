@@ -1,5 +1,4 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-from typing import Optional
 from unittest import mock
 
 from cloudinit import cloud, distros, helpers
@@ -22,7 +21,10 @@ def get_cloud(
     paths = paths or helpers.Paths({})
     sys_cfg = sys_cfg or {}
     cls = distros.fetch(distro) if distro else MockDistro
-    mydist = cls(distro, sys_cfg, paths)
+    # *BSD calls platform.system to determine osfamilies
+    osfamily = distro.lower() if distro else "ubuntu"
+    with mock.patch("platform.system", return_value=osfamily):
+        mydist = cls(distro, sys_cfg, paths)
     if mocked_distro:
         mydist = mock.MagicMock(wraps=mydist)
     myds = DataSourceTesting(sys_cfg, mydist, paths)
@@ -74,7 +76,8 @@ class MockDistro(distros.Distro):
     def set_hostname(self, hostname, fqdn=None):
         pass
 
-    def uses_systemd(self):
+    @staticmethod
+    def uses_systemd():
         return True
 
     def get_primary_arch(self):
@@ -145,10 +148,6 @@ class MockDistro(distros.Distro):
 
     def package_command(self, command, args=None, pkgs=None):
         pass
-
-    @property
-    def is_virtual(self) -> Optional[bool]:
-        return True
 
     def update_package_sources(self):
         return (True, "yay")

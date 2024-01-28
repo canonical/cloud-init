@@ -139,4 +139,3 @@ grep -q vga16fb /etc/modprobe.d/blacklist.conf || {
 #fi
 
 doexec "$@"
-# vi: ts=4 noexpandtab

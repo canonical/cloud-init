@@ -3,6 +3,7 @@
 [connection]
 id=cloud-init encc000.2653
 uuid=116aaf19-aabc-50ea-b480-e9aee18bda59
+autoconnect-priority=120
 type=vlan
 interface-name=encc000.2653
 

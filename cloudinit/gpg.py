@@ -7,9 +7,9 @@
 
 """gpg.py - Collection of gpg key related functions"""
 
+import logging
 import time
 
-from cloudinit import log as logging
 from cloudinit import subp
 
 LOG = logging.getLogger(__name__)
@@ -137,6 +137,3 @@ def getkeybyid(keyid, keyserver="keyserver.ubuntu.com"):
             delete_key(keyid)
 
     return armour
-
-
-# vi: ts=4 expandtab

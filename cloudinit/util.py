@@ -8,15 +8,18 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import binascii
 import contextlib
 import copy as obj_copy
 import email
+import functools
 import glob
 import grp
 import gzip
 import hashlib
 import io
 import json
+import logging
 import os
 import os.path
 import platform
@@ -31,17 +34,29 @@ import string
 import subprocess
 import sys
 import time
-from base64 import b64decode, b64encode
+from base64 import b64decode
 from collections import deque, namedtuple
+from contextlib import suppress
 from errno import EACCES, ENOENT
 from functools import lru_cache, total_ordering
-from typing import Callable, Deque, Dict, List, TypeVar
+from pathlib import Path
+from typing import (
+    Callable,
+    Deque,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    TypeVar,
+)
 from urllib import parse
 
-from cloudinit import features, importer
-from cloudinit import log as logging
 from cloudinit import (
+    features,
+    importer,
     mergers,
+    net,
     safeyaml,
     subp,
     temp_utils,
@@ -69,20 +84,18 @@ def kernel_version():
 
 
 @lru_cache()
-def get_dpkg_architecture(target=None):
+def get_dpkg_architecture():
     """Return the sanitized string output by `dpkg --print-architecture`.
 
     N.B. This function is wrapped in functools.lru_cache, so repeated calls
     won't shell out every time.
     """
-    out = subp.subp(
-        ["dpkg", "--print-architecture"], capture=True, target=target
-    )
+    out = subp.subp(["dpkg", "--print-architecture"], capture=True)
     return out.stdout.strip()
 
 
 @lru_cache()
-def lsb_release(target=None):
+def lsb_release():
     fmap = {
         "Codename": "codename",
         "Description": "description",
@@ -92,7 +105,7 @@ def lsb_release(target=None):
 
     data = {}
     try:
-        out = subp.subp(["lsb_release", "--all"], capture=True, target=target)
+        out = subp.subp(["lsb_release", "--all"], capture=True)
         for line in out.stdout.splitlines():
             fname, _, val = line.partition(":")
             if fname in fmap:
@@ -125,22 +138,20 @@ def encode_text(text, encoding="utf-8"):
     return text.encode(encoding)
 
 
-def b64d(source):
-    # Base64 decode some data, accepting bytes or unicode/str, and returning
-    # str/unicode if the result is utf-8 compatible, otherwise returning bytes.
-    decoded = b64decode(source)
+def maybe_b64decode(data: bytes) -> bytes:
+    """base64 decode data
+
+    If data is base64 encoded bytes, return b64decode(data).
+    If not, return data unmodified.
+
+    @param data: data as bytes. TypeError is raised if not bytes.
+    """
+    if not isinstance(data, bytes):
+        raise TypeError("data is '%s', expected bytes" % type(data))
     try:
-        return decoded.decode("utf-8")
-    except UnicodeDecodeError:
-        return decoded
-
-
-def b64e(source):
-    # Base64 encode some data, accepting bytes or unicode/str, and returning
-    # str/unicode if the result is utf-8 compatible, otherwise returning bytes.
-    if not isinstance(source, bytes):
-        source = source.encode("utf-8")
-    return b64encode(source).decode("utf-8")
+        return b64decode(data, validate=True)
+    except binascii.Error:
+        return data
 
 
 def fully_decoded_payload(part):
@@ -274,7 +285,7 @@ def rand_str(strlen=32, select_from=None):
     r = random.SystemRandom()
     if not select_from:
         select_from = string.ascii_letters + string.digits
-    return "".join([r.choice(select_from) for _x in range(0, strlen)])
+    return "".join([r.choice(select_from) for _x in range(strlen)])
 
 
 def rand_dict_key(dictionary, postfix=None):
@@ -292,6 +303,7 @@ def read_conf(fname, *, instance_data_file=None) -> Dict:
     # Avoid circular import
     from cloudinit.handlers.jinja_template import (
         JinjaLoadError,
+        JinjaSyntaxParsingException,
         NotJinjaError,
         render_jinja_payload_from_file,
     )
@@ -316,6 +328,12 @@ def read_conf(fname, *, instance_data_file=None) -> Dict:
                 "configuration loaded from '%s'",
                 instance_data_file,
                 fname,
+            )
+        except JinjaSyntaxParsingException as e:
+            LOG.warning(
+                "Failed to render templated yaml config file '%s'. %s",
+                fname,
+                e,
             )
         except NotJinjaError:
             # A log isn't appropriate here as we generally expect most
@@ -361,7 +379,7 @@ def uniq_merge(*lists):
 
 
 def clean_filename(fn):
-    for (k, v) in FN_REPLACEMENTS.items():
+    for k, v in FN_REPLACEMENTS.items():
         fn = fn.replace(k, v)
     removals = []
     for k in fn:
@@ -581,7 +599,7 @@ def get_linux_distro():
             # which will include both version codename and architecture
             # on all distributions.
             flavor = platform.machine()
-        elif distro_name == "photon":
+        elif distro_name == "alpine" or distro_name == "photon":
             flavor = os_release.get("PRETTY_NAME", "")
         elif distro_name == "virtuozzo" and not os_release_rhel:
             # Only use this if the redhat file is not parsed
@@ -639,11 +657,13 @@ def _get_variant(info):
             "mariner",
             "miraclelinux",
             "openeuler",
+            "opencloudos",
             "openmandriva",
             "photon",
             "rhel",
             "rocky",
             "suse",
+            "tencentos",
             "virtuozzo",
         ):
             variant = linux_dist
@@ -653,10 +673,12 @@ def _get_variant(info):
             variant = "rhel"
         elif linux_dist in (
             "opensuse",
-            "opensuse-tumbleweed",
             "opensuse-leap",
-            "sles",
+            "opensuse-microos",
+            "opensuse-tumbleweed",
             "sle_hpc",
+            "sle-micro",
+            "sles",
         ):
             variant = "suse"
         else:
@@ -759,7 +781,6 @@ def fixup_output(cfg, mode):
 #   value then output input will not be closed (useful for debugging).
 #
 def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
-
     if is_true(os.environ.get("_CLOUD_INIT_SAVE_STDOUT")):
         LOG.debug("Not redirecting output due to _CLOUD_INIT_SAVE_STDOUT")
         return
@@ -839,11 +860,52 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
             os.dup2(new_fp.fileno(), o_err.fileno())
 
 
-def mergemanydict(srcs, reverse=False) -> dict:
+def mergemanydict(sources: Sequence[Mapping], reverse=False) -> dict:
+    """Merge multiple dicts according to the dict merger rules.
+
+    Dict merger rules can be found in cloud-init documentation. If no mergers
+    have been specified, entries will be recursively added, but no values
+    get replaced if they already exist. Functionally, this means that the
+    highest priority keys must be specified first.
+
+    Example:
+    a = {
+        "a": 1,
+        "b": 2,
+        "c": [1, 2, 3],
+        "d": {
+            "a": 1,
+            "b": 2,
+        },
+    }
+
+    b = {
+        "a": 10,
+        "c": [4],
+        "d": {
+            "a": 3,
+            "f": 10,
+        },
+        "e": 20,
+    }
+
+    mergemanydict([a, b]) results in:
+    {
+        'a': 1,
+        'b': 2,
+        'c': [1, 2, 3],
+        'd': {
+            'a': 1,
+            'b': 2,
+            'f': 10,
+        },
+        'e': 20,
+    }
+    """
     if reverse:
-        srcs = reversed(srcs)
+        sources = list(reversed(sources))
     merged_cfg: dict = {}
-    for cfg in srcs:
+    for cfg in sources:
         if cfg:
             # Figure out which mergers to apply...
             mergers_to_apply = mergers.dict_extract_mergers(cfg)
@@ -1109,7 +1171,8 @@ def read_cc_from_cmdline(cmdline=None):
     if cmdline is None:
         cmdline = get_cmdline()
 
-    tag_begin = "cc:"
+    cmdline = f" {cmdline}"
+    tag_begin = " cc:"
     tag_end = "end_cc"
     begin_l = len(tag_begin)
     end_l = len(tag_end)
@@ -1227,8 +1290,8 @@ def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
     return fqdn
 
 
-def is_resolvable(name):
-    """determine if a url is resolvable, return a boolean
+def is_resolvable(url) -> bool:
+    """determine if a url's network address is resolvable, return a boolean
     This also attempts to be resilent against dns redirection.
 
     Note, that normal nsswitch resolution is used here.  So in order
@@ -1240,6 +1303,8 @@ def is_resolvable(name):
     be resolved inside the search list.
     """
     global _DNS_REDIRECT_IP
+    parsed_url = parse.urlparse(url)
+    name = parsed_url.hostname
     if _DNS_REDIRECT_IP is None:
         badips = set()
         badnames = (
@@ -1247,14 +1312,14 @@ def is_resolvable(name):
             "example.invalid.",
             "__cloud_init_expected_not_found__",
         )
-        badresults = {}
+        badresults: dict = {}
         for iname in badnames:
             try:
                 result = socket.getaddrinfo(
                     iname, None, 0, 0, socket.SOCK_STREAM, socket.AI_CANONNAME
                 )
                 badresults[iname] = []
-                for (_fam, _stype, _proto, cname, sockaddr) in result:
+                for _fam, _stype, _proto, cname, sockaddr in result:
                     badresults[iname].append("%s: %s" % (cname, sockaddr[0]))
                     badips.add(sockaddr[0])
             except (socket.gaierror, socket.error):
@@ -1264,12 +1329,14 @@ def is_resolvable(name):
             LOG.debug("detected dns redirection: %s", badresults)
 
     try:
+        # ip addresses need no resolution
+        with suppress(ValueError):
+            if net.is_ip_address(parsed_url.netloc.strip("[]")):
+                return True
         result = socket.getaddrinfo(name, None)
         # check first result's sockaddr field
         addr = result[0][4][0]
-        if addr in _DNS_REDIRECT_IP:
-            return False
-        return True
+        return addr not in _DNS_REDIRECT_IP
     except (socket.gaierror, socket.error):
         return False
 
@@ -1292,7 +1359,7 @@ def is_resolvable_url(url):
         logfunc=LOG.debug,
         msg="Resolving URL: " + url,
         func=is_resolvable,
-        args=(parse.urlparse(url).hostname,),
+        args=(url,),
     )
 
 
@@ -1364,7 +1431,7 @@ def find_devs_with_netbsd(
     for dev in out.stdout.split():
         if label or _type:
             mscdlabel_out, _ = subp.subp(["mscdlabel", dev], rcs=[0, 1])
-        if label and not ('label "%s"' % label) in mscdlabel_out:
+        if label and ('label "%s"' % label) not in mscdlabel_out:
             continue
         if _type == "iso9660" and "ISO filesystem" not in mscdlabel_out:
             continue
@@ -1402,15 +1469,9 @@ def find_devs_with_dragonflybsd(
     ]
 
     if criteria == "TYPE=iso9660":
-        devlist = [
-            i for i in devlist if i.startswith("cd") or i.startswith("acd")
-        ]
+        devlist = [i for i in devlist if i.startswith(("cd", "acd"))]
     elif criteria in ["LABEL=CONFIG-2", "TYPE=vfat"]:
-        devlist = [
-            i
-            for i in devlist
-            if not (i.startswith("cd") or i.startswith("acd"))
-        ]
+        devlist = [i for i in devlist if not (i.startswith(("cd", "acd")))]
     elif criteria:
         LOG.debug("Unexpected criteria: %s", criteria)
     return ["/dev/" + i for i in devlist]
@@ -1511,12 +1572,6 @@ def blkid(devs=None, disable_cache=False):
     return ret
 
 
-def peek_file(fname, max_bytes):
-    LOG.debug("Peeking at %s (max_bytes=%s)", fname, max_bytes)
-    with open(fname, "rb") as ifh:
-        return ifh.read(max_bytes)
-
-
 def uniq_list(in_list):
     out_list = []
     for i in in_list:
@@ -1570,6 +1625,18 @@ def get_cmdline():
         return os.environ["DEBUG_PROC_CMDLINE"]
 
     return _get_cmdline()
+
+
+def fips_enabled() -> bool:
+    fips_proc = "/proc/sys/crypto/fips_enabled"
+    try:
+        contents = load_file(fips_proc).strip()
+        return contents == "1"
+    except (IOError, OSError):
+        # for BSD systems and Linux systems where the proc entry is not
+        # available, we assume FIPS is disabled to retain the old behavior
+        # for now.
+        return False
 
 
 def pipe_in_out(in_fh, out_fh, chunk_size=1024, chunk_cb=None):
@@ -1681,6 +1748,7 @@ def get_config_logfiles(cfg):
     @param cfg: The cloud-init merged configuration dictionary.
     """
     logs = []
+    rotated_logs = []
     if not cfg or not isinstance(cfg, dict):
         return logs
     default_log = cfg.get("def_log_file")
@@ -1698,7 +1766,16 @@ def get_config_logfiles(cfg):
             logs.append(target)
         elif ["tee", "-a"] == parts[:2]:
             logs.append(parts[2])
-    return list(set(logs))
+
+    # add rotated log files
+    for logfile in logs:
+        for rotated_logfile in glob.glob(f"{logfile}*"):
+            # Check that log file exists and is rotated.
+            # Do not add current one
+            if os.path.isfile(rotated_logfile) and rotated_logfile != logfile:
+                rotated_logs.append(rotated_logfile)
+
+    return list(set(logs + rotated_logs))
 
 
 def logexc(log, msg, *args):
@@ -1719,7 +1796,7 @@ def logexc(log, msg, *args):
     log.debug(msg, exc_info=exc_info, *args)
 
 
-def hash_blob(blob, routine, mlen=None):
+def hash_blob(blob, routine: str, mlen=None) -> str:
     hasher = hashlib.new(routine)
     hasher.update(encode_text(blob))
     digest = hasher.hexdigest()
@@ -1728,6 +1805,18 @@ def hash_blob(blob, routine, mlen=None):
         return digest[0:mlen]
     else:
         return digest
+
+
+def hash_buffer(f: io.BufferedIOBase) -> bytes:
+    """Hash the content of a binary buffer using SHA1.
+
+    @param f: buffered binary stream to hash.
+    @return: digested data as bytes.
+    """
+    hasher = hashlib.sha1()
+    for chunk in iter(lambda: f.read(io.DEFAULT_BUFFER_SIZE), b""):
+        hasher.update(chunk)
+    return hasher.digest()
 
 
 def is_user(name):
@@ -1768,31 +1857,41 @@ def load_json(text, root_types=(dict,)):
     return decoded
 
 
-def json_serialize_default(_obj):
-    """Handler for types which aren't json serializable."""
-    try:
-        return "ci-b64:{0}".format(b64e(_obj))
-    except AttributeError:
-        return "Warning: redacted unserializable type {0}".format(type(_obj))
+def get_non_exist_parent_dir(path):
+    """Get the last directory in a path that does not exist.
+
+    Example: when path=/usr/a/b and /usr/a does not exis but /usr does,
+    return /usr/a
+    """
+    p_path = os.path.dirname(path)
+    # Check if parent directory of path is root
+    if p_path == os.path.dirname(p_path):
+        return path
+    else:
+        if os.path.isdir(p_path):
+            return path
+        else:
+            return get_non_exist_parent_dir(p_path)
 
 
-def json_dumps(data):
-    """Return data in nicely formatted json."""
-    return json.dumps(
-        data,
-        indent=1,
-        sort_keys=True,
-        separators=(",", ": "),
-        default=json_serialize_default,
-    )
-
-
-def ensure_dir(path, mode=None):
+def ensure_dir(path, mode=None, user=None, group=None):
     if not os.path.isdir(path):
+        # Get non existed parent dir first before they are created.
+        non_existed_parent_dir = get_non_exist_parent_dir(path)
         # Make the dir and adjust the mode
         with SeLinuxGuard(os.path.dirname(path), recursive=True):
             os.makedirs(path)
         chmod(path, mode)
+        # Change the ownership
+        if user or group:
+            chownbyname(non_existed_parent_dir, user, group)
+            # if path=/usr/a/b/c and non_existed_parent_dir=/usr,
+            # then sub_relative_dir=PosixPath('a/b/c')
+            sub_relative_dir = Path(path.split(non_existed_parent_dir)[1][1:])
+            sub_path = Path(non_existed_parent_dir)
+            for part in sub_relative_dir.parts:
+                sub_path = sub_path.joinpath(part)
+                chownbyname(sub_path, user, group)
     else:
         # Just adjust the mode
         chmod(path, mode)
@@ -1849,7 +1948,12 @@ def mounts():
 
 
 def mount_cb(
-    device, callback, data=None, mtype=None, update_env_for_mount=None
+    device,
+    callback,
+    data=None,
+    mtype=None,
+    update_env_for_mount=None,
+    log_error=True,
 ):
     """
     Mount the device, call method 'callback' passing the directory
@@ -1909,15 +2013,16 @@ def mount_cb(
                     mountpoint = tmpd
                     break
                 except (IOError, OSError) as exc:
-                    LOG.debug(
-                        "Failed to mount device: '%s' with type: '%s' "
-                        "using mount command: '%s', "
-                        "which caused exception: %s",
-                        device,
-                        mtype,
-                        " ".join(mountcmd),
-                        exc,
-                    )
+                    if log_error:
+                        LOG.debug(
+                            "Failed to mount device: '%s' with type: '%s' "
+                            "using mount command: '%s', "
+                            "which caused exception: %s",
+                            device,
+                            mtype,
+                            " ".join(mountcmd),
+                            exc,
+                        )
                     failure_reason = exc
             if not mountpoint:
                 raise MountFailedError(
@@ -1982,17 +2087,19 @@ def time_rfc2822():
 
 @lru_cache()
 def boottime():
-    """Use sysctlbyname(3) via ctypes to find kern.boottime
+    """Use sysctl(3) via ctypes to find kern.boottime
 
     kern.boottime is of type struct timeval. Here we create a
     private class to easier unpack it.
+    Use sysctl(3) (or sysctl(2) on OpenBSD) because sysctlbyname(3) does not
+    exist on OpenBSD. That complicates retrieval on NetBSD, which #defines
+    KERN_BOOTTIME as 83 instead of 21.
+    21 on NetBSD is KERN_OBOOTTIME, the kern.boottime up until NetBSD 5.0
 
     @return boottime: float to be compatible with linux
     """
     import ctypes
     import ctypes.util
-
-    NULL_BYTES = b"\x00"
 
     class timeval(ctypes.Structure):
         _fields_ = [("tv_sec", ctypes.c_int64), ("tv_usec", ctypes.c_int64)]
@@ -2000,10 +2107,16 @@ def boottime():
     libc = ctypes.CDLL(ctypes.util.find_library("c"))
     size = ctypes.c_size_t()
     size.value = ctypes.sizeof(timeval)
+    mib_values = [  # This corresponds to
+        1,  # CTL_KERN, and
+        21 if not is_NetBSD() else 83,  # KERN_BOOTTIME
+    ]
+    mib = (ctypes.c_int * 2)(*mib_values)
     buf = timeval()
     if (
-        libc.sysctlbyname(
-            b"kern.boottime" + NULL_BYTES,
+        libc.sysctl(
+            mib,
+            ctypes.c_int(len(mib_values)),
             ctypes.byref(buf),
             ctypes.byref(size),
             None,
@@ -2129,6 +2242,8 @@ def write_file(
     preserve_mode=False,
     *,
     ensure_dir_exists=True,
+    user=None,
+    group=None,
 ):
     """
     Writes a file with the given content and sets the file mode as specified.
@@ -2143,6 +2258,8 @@ def write_file(
     @param ensure_dir_exists: If True (the default), ensure that the directory
                               containing `filename` exists before writing to
                               the file.
+    @param user: The user to set on the file.
+    @param group: The group to set on the file.
     """
 
     if preserve_mode:
@@ -2152,7 +2269,7 @@ def write_file(
             pass
 
     if ensure_dir_exists:
-        ensure_dir(os.path.dirname(filename))
+        ensure_dir(os.path.dirname(filename), user=user, group=group)
     if "b" in omode.lower():
         content = encode_text(content)
         write_type = "bytes"
@@ -2198,10 +2315,6 @@ def make_header(comment_char="#", base="created"):
     header += " %s by cloud-init v. %s" % (base.title(), ci_ver)
     header += " on %s" % time_rfc2822()
     return header
-
-
-def abs_join(base, *paths):
-    return os.path.abspath(os.path.join(base, *paths))
 
 
 # shellify, takes a list of commands
@@ -2497,7 +2610,9 @@ def parse_mtab(path):
 
 def find_freebsd_part(fs):
     splitted = fs.split("/")
-    if len(splitted) == 3:
+    if len(splitted) == 1:
+        return splitted[0]
+    elif len(splitted) == 3:
         return splitted[2]
     elif splitted[2] in ["label", "gpt", "ufs"]:
         target_label = fs[5:]
@@ -2512,14 +2627,6 @@ def find_freebsd_part(fs):
         LOG.warning("Unexpected input in find_freebsd_part: %s", fs)
 
 
-def find_dragonflybsd_part(fs):
-    splitted = fs.split("/")
-    if len(splitted) == 3 and splitted[1] == "dev":
-        return splitted[2]
-    else:
-        LOG.warning("Unexpected input in find_dragonflybsd_part: %s", fs)
-
-
 def get_path_dev_freebsd(path, mnt_list):
     path_found = None
     for line in mnt_list.split("\n"):
@@ -2530,7 +2637,7 @@ def get_path_dev_freebsd(path, mnt_list):
     return path_found
 
 
-def get_mount_info_freebsd(path):
+def get_freebsd_devpth(path):
     (result, err) = subp.subp(["mount", "-p", path], rcs=[0, 1])
     if len(err):
         # find a path if the input is not a mounting point
@@ -2541,7 +2648,7 @@ def get_mount_info_freebsd(path):
         result = path_found
     ret = result.split()
     label_part = find_freebsd_part(ret[0])
-    return "/dev/" + label_part, ret[2], ret[1]
+    return "/dev/" + label_part
 
 
 def get_device_info_from_zpool(zpool):
@@ -2564,50 +2671,91 @@ def get_device_info_from_zpool(zpool):
             return disk
 
 
-def parse_mount(path):
+def parse_mount(path, get_mnt_opts=False):
+    """Return the mount information for PATH given the lines ``mount(1)``
+    This function is compatible with ``util.parse_mount_info()``"""
     (mountoutput, _err) = subp.subp(["mount"])
-    mount_locs = mountoutput.splitlines()
+
     # there are 2 types of mount outputs we have to parse therefore
     # the regex is a bit complex. to better understand this regex see:
-    # https://regex101.com/r/2F6c1k/1
-    # https://regex101.com/r/T2en7a/1
+    # https://regex101.com/r/L51Td8/1
     regex = (
-        r"^(/dev/[\S]+|.*zroot\S*?) on (/[\S]*) "
-        r"(?=(?:type)[\s]+([\S]+)|\(([^,]*))"
+        r"^(?P<devpth>[\S]+?) on (?P<mountpoint>[\S]+?) "
+        r"(\(|type )(?P<type>[^,\(\) ]+)( \()?(?P<options>.*?)\)$"
     )
-    if is_DragonFlyBSD():
-        regex = (
-            r"^(/dev/[\S]+|\S*?) on (/[\S]*) "
-            r"(?=(?:type)[\s]+([\S]+)|\(([^,]*))"
-        )
-    for line in mount_locs:
+
+    path_elements = [e for e in path.split("/") if e]
+    devpth = None
+    mount_point = None
+    match_mount_point = None
+    match_mount_point_elements = None
+    for line in mountoutput.splitlines():
         m = re.search(regex, line)
         if not m:
             continue
-        devpth = m.group(1)
-        mount_point = m.group(2)
-        # above regex will either fill the fs_type in group(3)
-        # or group(4) depending on the format we have.
-        fs_type = m.group(3)
-        if fs_type is None:
-            fs_type = m.group(4)
+        devpth = m.group("devpth")
+        mount_point = m.group("mountpoint")
+        mount_point_elements = [e for e in mount_point.split("/") if e]
+
+        # Ignore mounts deeper than the path in question.
+        if len(mount_point_elements) > len(path_elements):
+            continue
+
+        # Ignore mounts where the common path is not the same.
+        x = min(len(mount_point_elements), len(path_elements))
+        if mount_point_elements[0:x] != path_elements[0:x]:
+            continue
+
+        # Ignore mount points higher than an already seen mount
+        # point.
+        if match_mount_point_elements is not None and len(
+            match_mount_point_elements
+        ) > len(mount_point_elements):
+            continue
+
+        match_mount_point = mount_point
+        match_mount_point_elements = mount_point_elements
+
+        fs_type = m.group("type")
+        mount_options = m.group("options")
+        if mount_options is not None:
+            mount_options = ",".join(
+                m.group("options").strip(",").strip().split(", ")
+            )
         LOG.debug(
-            "found line in mount -> devpth: %s, mount_point: %s, fs_type: %s",
+            "found line in mount -> devpth: %s, mount_point: %s, fs_type: %s"
+            ", options: '%s'",
             devpth,
             mount_point,
             fs_type,
+            mount_options,
         )
         # check whether the dev refers to a label on FreeBSD
         # for example, if dev is '/dev/label/rootfs', we should
         # continue finding the real device like '/dev/da0'.
         # this is only valid for non zfs file systems as a zpool
         # can have gpt labels as disk.
-        devm = re.search("^(/dev/.+)p([0-9])$", devpth)
-        if not devm and is_FreeBSD() and fs_type != "zfs":
-            return get_mount_info_freebsd(path)
-        elif mount_point == path:
-            return devpth, fs_type, mount_point
-    return None
+        # It also doesn't really make sense for NFS.
+        devm = re.search("^(/dev/.+)[sp]([0-9])$", devpth)
+        if not devm and is_FreeBSD() and fs_type not in ["zfs", "nfs"]:
+            # don't duplicate the effort of finding the mountpoint in
+            # ``get_freebsd_devpth()`` by passing it the ``path``
+            # instead only resolve the ``devpth``
+            devpth = get_freebsd_devpth(devpth)
+        match_devpth = devpth
+
+        if match_mount_point == path:
+            break
+
+    if not match_mount_point or match_mount_point not in path:
+        # return early here, so we can actually read what's happening below
+        return None
+    if get_mnt_opts:
+        if match_devpth and fs_type and match_mount_point and mount_options:
+            return (match_devpth, fs_type, match_mount_point, mount_options)
+    else:
+        if match_devpth and fs_type and match_mount_point:
+            return (match_devpth, fs_type, match_mount_point)
 
 
 def get_mount_info(path, log=LOG, get_mnt_opts=False):
@@ -2646,7 +2794,7 @@ def get_mount_info(path, log=LOG, get_mnt_opts=False):
     elif os.path.exists("/etc/mtab"):
         return parse_mtab(path)
     else:
-        return parse_mount(path)
+        return parse_mount(path, get_mnt_opts)
 
 
 def has_mount_opt(path, opt: str) -> bool:
@@ -2821,8 +2969,8 @@ def message_from_string(string):
     return email.message_from_string(string)
 
 
-def get_installed_packages(target=None):
-    out = subp.subp(["dpkg-query", "--list"], target=target, capture=True)
+def get_installed_packages():
+    out = subp.subp(["dpkg-query", "--list"], capture=True)
 
     pkgs_inst = set()
     for line in out.stdout.splitlines():
@@ -2830,7 +2978,7 @@ def get_installed_packages(target=None):
             (state, pkg, _) = line.split(None, 2)
         except ValueError:
             continue
-        if state.startswith("hi") or state.startswith("ii"):
+        if state.startswith(("hi", "ii")):
             pkgs_inst.add(re.sub(":.*", "", pkg))
 
     return pkgs_inst
@@ -2967,9 +3115,9 @@ def udevadm_settle(exists=None, timeout=None):
     return subp.subp(settle_cmd)
 
 
-def get_proc_ppid(pid):
+def get_proc_ppid_linux(pid):
     """
-    Return the parent pid of a process.
+    Return the parent pid of a process by parsing /proc/$pid/stat.
     """
     ppid = 0
     try:
@@ -2988,6 +3136,24 @@ def get_proc_ppid(pid):
     except IOError as e:
         LOG.warning("Failed to load /proc/%s/stat. %s", pid, e)
     return ppid
+
+
+def get_proc_ppid_ps(pid):
+    """
+    Return the parent pid of a process by checking ps
+    """
+    ppid, _ = subp.subp(["ps", "-oppid=", "-p", str(pid)])
+    return int(ppid.strip())
+
+
+def get_proc_ppid(pid):
+    """
+    Return the parent pid of a process.
+    """
+    if is_Linux():
+        return get_proc_ppid_linux(pid)
+    else:
+        return get_proc_ppid_ps(pid)
 
 
 def error(msg, rc=1, fmt="Error:\n{}", sys_exit=False):
@@ -3059,3 +3225,89 @@ class Version(namedtuple("Version", ["major", "minor", "patch", "rev"])):
         if self.rev > other.rev:
             return 1
         return -1
+
+
+def deprecate(
+    *,
+    deprecated: str,
+    deprecated_version: str,
+    extra_message: Optional[str] = None,
+    schedule: int = 5,
+    return_log: bool = False,
+):
+    """Mark a "thing" as deprecated. Deduplicated deprecations are
+    logged.
+
+    @param deprecated: Noun to be deprecated. Write this as the start
+        of a sentence, with no period. Version and extra message will
+        be appended.
+    @param deprecated_version: The version in which the thing was
+        deprecated
+    @param extra_message: A remedy for the user's problem. A good
+        message will be actionable and specific (i.e., don't use a
+        generic "Use updated key." if the user used a deprecated key).
+        End the string with a period.
+    @param schedule: Manually set the deprecation schedule. Defaults to
+        5 years. Leave a comment explaining your reason for deviation if
+        setting this value.
+    @param return_log: Return log text rather than logging it. Useful for
+        running prior to logging setup.
+
+    Note: uses keyword-only arguments to improve legibility
+    """
+    if not hasattr(deprecate, "_log"):
+        deprecate._log = set()  # type: ignore
+    message = extra_message or ""
+    dedup = hash(deprecated + message + deprecated_version + str(schedule))
+    version = Version.from_str(deprecated_version)
+    version_removed = Version(version.major + schedule, version.minor)
+    deprecate_msg = (
+        f"{deprecated} is deprecated in "
+        f"{deprecated_version} and scheduled to be removed in "
+        f"{version_removed}. {message}"
+    ).rstrip()
+    if return_log:
+        return deprecate_msg
+    if dedup not in deprecate._log:  # type: ignore
+        deprecate._log.add(dedup)  # type: ignore
+        if hasattr(LOG, "deprecated"):
+            LOG.deprecated(deprecate_msg)  # type: ignore
+        else:
+            LOG.warning(deprecate_msg)
+
+
+def deprecate_call(
+    *, deprecated_version: str, extra_message: str, schedule: int = 5
+):
+    """Mark a "thing" as deprecated. Deduplicated deprecations are
+    logged.
+
+    @param deprecated_version: The version in which the thing was
+        deprecated
+    @param extra_message: A remedy for the user's problem. A good
+        message will be actionable and specific (i.e., don't use a
+        generic "Use updated key." if the user used a deprecated key).
+        End the string with a period.
+    @param schedule: Manually set the deprecation schedule. Defaults to
+        5 years. Leave a comment explaining your reason for deviation if
+        setting this value.
+
+    Note: uses keyword-only arguments to improve legibility
+    """
+
+    def wrapper(func):
+        @functools.wraps(func)
+        def decorator(*args, **kwargs):
+            # don't log message multiple times
+            out = func(*args, **kwargs)
+            deprecate(
+                deprecated_version=deprecated_version,
+                deprecated=func.__name__,
+                extra_message=extra_message,
+                schedule=schedule,
+            )
+            return out
+
+        return decorator
+
+    return wrapper

@@ -2,6 +2,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import re
 from unittest import mock
 
 import pytest
@@ -537,10 +538,19 @@ class TestReportingSchema:
             ({"reporting": "a"}, "'a' is not of type 'object'"),
             ({"reporting": {"a": "b"}}, "'b' is not of type 'object'"),
             # BAD: invalid type
-            ({"reporting": {"a": {"type": "b"}}}, "not valid"),
+            (
+                {"reporting": {"a": {"type": "b"}}},
+                re.escape("'b' is not one of ['log']"),
+            ),
             # BAD: invalid additional properties
-            ({"reporting": {"a": {"type": "print", "a": "b"}}}, "not valid"),
-            ({"reporting": {"a": {"type": "log", "a": "b"}}}, "not valid"),
+            (
+                {"reporting": {"a": {"type": "print", "a": "b"}}},
+                "'a' was unexpected",
+            ),
+            (
+                {"reporting": {"a": {"type": "log", "a": "b"}}},
+                "'a' was unexpected",
+            ),
             (
                 {
                     "reporting": {
@@ -551,14 +561,26 @@ class TestReportingSchema:
                         }
                     }
                 },
-                "not valid",
+                "'a' was unexpected",
             ),
-            ({"reporting": {"a": {"type": "hyperv", "a": "b"}}}, "not valid"),
+            (
+                {"reporting": {"a": {"type": "hyperv", "a": "b"}}},
+                "'a' was unexpected",
+            ),
             # BAD: missing required properties
-            ({"reporting": {"a": {"level": "FATAL"}}}, "not valid"),
-            ({"reporting": {"a": {"endpoint": "http://a"}}}, "not valid"),
-            ({"reporting": {"a": {"kvp_file_path": "/a/b"}}}, "not valid"),
-            ({"reporting": {"a": {"type": "webhook"}}}, "not valid"),
+            ({"reporting": {"a": {"level": "FATAL"}}}, "'type' is a required"),
+            (
+                {"reporting": {"a": {"endpoint": "http://a"}}},
+                "'type' is a required",
+            ),
+            (
+                {"reporting": {"a": {"kvp_file_path": "/a/b"}}},
+                "'endpoint' is a required",
+            ),
+            (
+                {"reporting": {"a": {"type": "webhook"}}},
+                "'endpoint' is a required",
+            ),
         ],
     )
     def test_schema_validation(self, config, error_msg):

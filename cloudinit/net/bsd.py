@@ -1,9 +1,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import re
 from typing import Optional
 
-from cloudinit import log as logging
 from cloudinit import net, subp, util
 from cloudinit.distros import bsd_utils
 from cloudinit.distros.parsers.resolv_conf import ResolvConf
@@ -16,6 +16,8 @@ LOG = logging.getLogger(__name__)
 class BSDRenderer(renderer.Renderer):
     resolv_conf_fn = "etc/resolv.conf"
     rc_conf_fn = "etc/rc.conf"
+    interface_routes = ""
+    route_names = ""
 
     def get_rc_config_value(self, key):
         fn = subp.target_path(self.target, self.rc_conf_fn)
@@ -220,9 +222,6 @@ class BSDRenderer(renderer.Renderer):
         raise NotImplementedError()
 
     def write_config(self, target=None):
-        raise NotImplementedError()
-
-    def set_gateway(self, gateway):
         raise NotImplementedError()
 
     def rename_interface(self, cur_name, device_name):

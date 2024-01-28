@@ -65,7 +65,7 @@ ssh_authorized_keys:
 # Send pre-generated ssh private keys to the server
 # If these are present, they will be written to /etc/ssh and
 # new random keys will not be generated
-#  in addition to 'rsa' and 'dsa' as shown below, 'ecdsa' is also supported
+#  in addition to 'rsa' as shown below, 'ecdsa' is also supported
 ssh_keys:
   rsa_private: |
     -----BEGIN RSA PRIVATE KEY-----
@@ -82,23 +82,6 @@ ssh_keys:
     -----END RSA PRIVATE KEY-----
 
   rsa_public: ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7XdewmZ3h8eIXJD7TRHtVW7aJX1ByifYtlL/HVzJ09nilCl+MSFrpbFnqjxyL8Rr/DSf7QcY/BrGUQbZn2Kc22PemAWthxHO18QJvWPocKJtlsDNi3 smoser@localhost
-
-  dsa_private: |
-    -----BEGIN DSA PRIVATE KEY-----
-    MIIBuwIBAAKBgQDP2HLu7pTExL89USyM0264RCyWX/CMLmukxX0Jdbm29ax8FBJT
-    pLrO8TIXVY5rPAJm1dTHnpuyJhOvU9G7M8tPUABtzSJh4GVSHlwaCfycwcpLv9TX
-    DgWIpSj+6EiHCyaRlB1/CBp9RiaB+10QcFbm+lapuET+/Au6vSDp9IRtlQIVAIMR
-    8KucvUYbOEI+yv+5LW9u3z/BAoGBAI0q6JP+JvJmwZFaeCMMVxXUbqiSko/P1lsa
-    LNNBHZ5/8MOUIm8rB2FC6ziidfueJpqTMqeQmSAlEBCwnwreUnGfRrKoJpyPNENY
-    d15MG6N5J+z81sEcHFeprryZ+D3Ge9VjPq3Tf3NhKKwCDQ0240aPezbnjPeFm4mH
-    bYxxcZ9GAoGAXmLIFSQgiAPu459rCKxT46tHJtM0QfnNiEnQLbFluefZ/yiI4DI3
-    8UzTCOXLhUA7ybmZha+D/csj15Y9/BNFuO7unzVhikCQV9DTeXX46pG4s1o23JKC
-    /QaYWNMZ7kTRv+wWow9MhGiVdML4ZN4XnifuO5krqAybngIy66PMEoQCFEIsKKWv
-    99iziAH0KBMVbxy03Trz
-    -----END DSA PRIVATE KEY-----
-
-  dsa_public: ssh-dss AAAAB3NzaC1kc3MAAACBAM/Ycu7ulMTEvz1RLIzTbrhELJZf8Iwua6TFfQl1ubb1rHwUElOkus7xMhdVjms8AmbV1Meem7ImE69T0bszy09QAG3NImHgZVIeXBoJ/JzByku/1NcOBYilKP7oSIcLJpGUHX8IGn1GJoH7XRBwVub6Vqm4RP78C7q9IOn0hG2VAAAAFQCDEfCrnL1GGzhCPsr/uS1vbt8/wQAAAIEAjSrok/4m8mbBkVp4IwxXFdRuqJKSj8/WWxos00Ednn/ww5QibysHYULrOKJ1+54mmpMyp5CZICUQELCfCt5ScZ9GsqgmnI80Q1h3Xkwbo3kn7PzWwRwcV6muvJn4PcZ71WM+rdN/c2EorAINDTbjRo97NueM94WbiYdtjHFxn0YAAACAXmLIFSQgiAPu459rCKxT46tHJtM0QfnNiEnQLbFluefZ/yiI4DI38UzTCOXLhUA7ybmZha+D/csj15Y9/BNFuO7unzVhikCQV9DTeXX46pG4s1o23JKC/QaYWNMZ7kTRv+wWow9MhGiVdML4ZN4XnifuO5krqAybngIy66PMEoQ= smoser@localhost
-
 
 # remove access to the ec2 metadata service early in boot via null route
 #  the null route can be removed (by root) with:
@@ -131,14 +114,11 @@ runcmd:
 
 # boot commands
 # default: none
-# this is very similar to runcmd above, but commands run very early
+# This is very similar to runcmd above, but commands run very early
 # in the boot process, only slightly after a 'boothook' would run.
-# bootcmd should really only be used for things that could not be
-# done later in the boot process.  bootcmd is very much like
-# boothook, but possibly with more friendly.
-#  * bootcmd will run on every boot
-#  * the INSTANCE_ID variable will be set to the current instance id.
-#  * you can use 'cloud-init-per' command to help only run once
+#  - bootcmd will run on every boot
+#  - INSTANCE_ID variable will be set to the current instance ID
+#  - 'cloud-init-per' command can be used to make bootcmd run exactly once
 bootcmd:
  - echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts
  - [ cloud-init-per, once, mymkfs, mkfs, /dev/vdb ]
@@ -155,12 +135,12 @@ bootcmd:
 # example:
 cloud_config_modules:
  - mounts
- - ssh-import-id
+ - ssh_import_id
  - ssh
- - grub-dpkg
- - [ apt-update-upgrade, always ]
+ - grub_dpkg
+ - [ apt_update_upgrade, always ]
  - puppet
- - disable-ec2-metadata
+ - disable_ec2_metadata
  - runcmd
  - byobu
 
@@ -171,7 +151,7 @@ cloud_config_modules:
 # The default is an empty list (ie, trust modules).
 #
 # Example:
-#   unverified_modules: ['apt-update-upgrade']
+#   unverified_modules: ['apt_update_upgrade']
 #   default: []
 
 # ssh_import_id: [ user1, user2 ]
@@ -187,14 +167,14 @@ ssh_import_id: [smoser]
 #
 # Default: none
 #
-debconf_selections:
-  # Force debconf priority to critical.
-  set1: debconf debconf/priority select critical
-
-  # Override default frontend to readline, but allow user to select.
-  set2: |
-    debconf debconf/frontend select readline
-    debconf debconf/frontend seen false
+apt:
+  debconf_selections:
+    # Force debconf priority to critical.
+    set1: debconf debconf/priority select critical
+    # Override default frontend to readline, but allow user to select.
+    set2: |
+      debconf debconf/frontend select readline
+      debconf debconf/frontend seen false
 
 # manage byobu defaults
 # byobu_by_default:
@@ -333,25 +313,6 @@ resize_rootfs: True
 # want jinja, you have to start the line with '## template:jinja\n'
 final_message: "The system is finally up, after $UPTIME seconds"
 
-# configure where output will go
-# 'output' entry is a dict with 'init', 'config', 'final' or 'all'
-# entries.  Each one defines where
-#  cloud-init, cloud-config, cloud-config-final or all output will go
-# each entry in the dict can be a string, list or dict.
-#  if it is a string, it refers to stdout and stderr
-#  if it is a list, entry 0 is stdout, entry 1 is stderr
-#  if it is a dict, it is expected to have 'output' and 'error' fields
-# default is to write to console only
-# the special entry "&1" for an error means "same location as stdout"
-#  (Note, that '&1' has meaning in yaml, so it must be quoted)
-output:
-  init: "> /var/log/my-cloud-init.log"
-  config: [ ">> /tmp/foo.out", "> /tmp/foo.err" ]
-  final:
-    output: "| tee /tmp/final.stdout | tee /tmp/bar.stdout"
-    error: "&1"
-
-
 # phone_home: if this dictionary is present, then the phone_home
 # cloud-config module will post specified data back to the given
 # url
@@ -363,31 +324,11 @@ output:
 #
 phone_home:
   url: http://my.example.com/$INSTANCE_ID/
-  post: [ pub_key_dsa, pub_key_rsa, pub_key_ecdsa, instance_id ]
+  post: [ pub_key_rsa, pub_key_ecdsa, instance_id ]
 
 # timezone: set the timezone for this instance
 # the value of 'timezone' must exist in /usr/share/zoneinfo
 timezone: US/Eastern
-
-# def_log_file and syslog_fix_perms work together
-# if
-# - logging is set to go to a log file 'L' both with and without syslog
-# - and 'L' does not exist
-# - and syslog is configured to write to 'L'
-# then 'L' will be initially created with root:root ownership (during
-# cloud-init), and then at cloud-config time (when syslog is available)
-# the syslog daemon will be unable to write to the file.
-#
-# to remedy this situation, 'def_log_file' can be set to a filename
-# and syslog_fix_perms to a string containing "<user>:<group>"
-# if syslog_fix_perms is a list, it will iterate through and use the
-# first pair that does not raise error.
-#
-# the default values are '/var/log/cloud-init.log' and 'syslog:adm'
-# the value of 'def_log_file' should match what is configured in logging
-# if either is empty, then no change of ownership will be done
-def_log_file: /var/log/my-logging-file.log
-syslog_fix_perms: syslog:root
 
 # you can set passwords for a user or multiple users
 # this is off by default.
@@ -428,8 +369,8 @@ syslog_fix_perms: syslog:root
 #   expire: True
 # ssh_pwauth: [ True, False, "" or "unchanged" ]
 #
-# Hashed passwords can be generated in multiple ways, example with python3:
-# python3 -c 'import crypt,getpass; print(crypt.crypt(getpass.getpass(), crypt.mksalt(crypt.METHOD_SHA512)))'
+# Hashed passwords can be generated in multiple ways, example with python3 and the passlib module:
+# python3 -c 'import passlib.hash;print(passlib.hash.sha512_crypt.hash("password"))'
 # Newer versions of 'mkpasswd' will also work: mkpasswd -m sha-512 password
 #
 # So, a simple working example to allow login via ssh, and not expire
@@ -437,16 +378,6 @@ syslog_fix_perms: syslog:root
 password: passw0rd
 chpasswd: { expire: False }
 ssh_pwauth: True
-
-# manual cache clean.
-#  By default, the link from /var/lib/cloud/instance to
-#  the specific instance in /var/lib/cloud/instances/ is removed on every
-#  boot.  The cloud-init code then searches for a DataSource on every boot
-#  if your DataSource will not be present on every boot, then you can set
-#  this option to 'True', and maintain (remove) that link before the image
-#  will be booted as a new instance.
-# default is False
-manual_cache_clean: False
 
 ## configure interaction with ssh server
 # ssh_svcname: ssh
@@ -457,7 +388,7 @@ manual_cache_clean: False
 #    boolean indicating if existing ssh keys should be deleted on a
 #    per-instance basis.  On a public image, this should absolutely be set
 #    to 'True'
-# ssh_genkeytypes: ['rsa', 'dsa', 'ecdsa']
+# ssh_genkeytypes: ['rsa', 'ecdsa']
 #    a list of the ssh key types that should be generated
 #    These are passed to 'ssh-keygen -t'
 
