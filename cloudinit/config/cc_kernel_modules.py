@@ -1,8 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Kernel Modules"""
-import re
 import logging
+import re
 from array import array
 from textwrap import dedent
 from typing import List
@@ -322,9 +322,7 @@ def update_initial_ramdisk(cloud: Cloud):
         ) from e
 
 
-def handle(
-    name: str, cfg: Config, cloud: Cloud, args: list
-) -> None:
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     kernel_modules_section = None
     unload_modules = []  # type: list
 
