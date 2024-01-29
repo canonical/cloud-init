@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import copy
 import logging
 from typing import List
 
@@ -29,6 +30,7 @@ class DataSourceAliYun(EC2.DataSourceEc2):
 
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceAliYun, self).__init__(sys_cfg, distro, paths)
+        self.default_update_events = copy.deepcopy(self.default_update_events)
         self.default_update_events[EventScope.NETWORK].add(EventType.BOOT)
 
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
