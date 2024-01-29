@@ -119,7 +119,7 @@ class TestSubp(CiTestCase):
         (out, _err) = subp.subp(cmd.encode("utf-8"), shell=True)
         self.assertEqual("", out)
         self.assertEqual("", _err)
-        self.assertEqual("HI MOM\n", util.load_file(tmp_file))
+        self.assertEqual("HI MOM\n", util.load_text_file(tmp_file))
 
     def test_subp_handles_strings(self):
         """subp can run a string command if shell is True."""
@@ -128,7 +128,7 @@ class TestSubp(CiTestCase):
         (out, _err) = subp.subp(cmd, shell=True)
         self.assertEqual("", out)
         self.assertEqual("", _err)
-        self.assertEqual("HI MOM\n", util.load_file(tmp_file))
+        self.assertEqual("HI MOM\n", util.load_text_file(tmp_file))
 
     def test_subp_handles_utf8(self):
         # The given bytes contain utf-8 accented characters as seen in e.g.

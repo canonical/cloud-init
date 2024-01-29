@@ -320,14 +320,14 @@ def device_part_info(devpath):
     if not os.path.exists(ptpath):
         raise TypeError("%s not a partition" % devpath)
 
-    ptnum = util.load_file(ptpath).rstrip()
+    ptnum = util.load_text_file(ptpath).rstrip()
 
     # for a partition, real syspath is something like:
     # /sys/devices/pci0000:00/0000:00:04.0/virtio1/block/vda/vda1
     rsyspath = os.path.realpath(syspath)
     disksyspath = os.path.dirname(rsyspath)
 
-    diskmajmin = util.load_file(os.path.join(disksyspath, "dev")).rstrip()
+    diskmajmin = util.load_text_file(os.path.join(disksyspath, "dev")).rstrip()
     diskdevpath = os.path.realpath("/dev/block/%s" % diskmajmin)
 
     # diskdevpath has something like 253:0

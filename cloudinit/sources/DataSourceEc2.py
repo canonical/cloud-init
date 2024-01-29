@@ -840,7 +840,7 @@ def _collect_platform_data():
     """
     data = {}
     try:
-        uuid = util.load_file("/sys/hypervisor/uuid").strip()
+        uuid = util.load_text_file("/sys/hypervisor/uuid").strip()
         data["uuid_source"] = "hypervisor"
     except Exception:
         uuid = dmi.read_dmi_data("system-uuid")

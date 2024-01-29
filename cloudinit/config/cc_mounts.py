@@ -397,7 +397,7 @@ def handle_swapcfg(swapcfg):
             )
             return fname
         try:
-            for line in util.load_file("/proc/swaps").splitlines():
+            for line in util.load_text_file("/proc/swaps").splitlines():
                 if line.startswith(fname + " "):
                     LOG.debug("swap file %s already in use", fname)
                     return fname
@@ -450,7 +450,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     fstab_removed = []
 
     if os.path.exists(FSTAB_PATH):
-        for line in util.load_file(FSTAB_PATH).splitlines():
+        for line in util.load_text_file(FSTAB_PATH).splitlines():
             if MNT_COMMENT in line:
                 fstab_removed.append(line)
                 continue

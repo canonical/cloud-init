@@ -104,7 +104,7 @@ class Distro(distros.Distro):
         return (self.hostname_conf_fn, sys_hostname)
 
     def _read_hostname_conf(self, filename):
-        conf = HostnameConf(util.load_file(filename))
+        conf = HostnameConf(util.load_text_file(filename))
         conf.parse()
         return conf
 

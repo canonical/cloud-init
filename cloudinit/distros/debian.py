@@ -155,7 +155,7 @@ class Distro(distros.Distro):
         return (self.hostname_conf_fn, sys_hostname)
 
     def _read_hostname_conf(self, filename):
-        conf = HostnameConf(util.load_file(filename))
+        conf = HostnameConf(util.load_text_file(filename))
         conf.parse()
         return conf
 
@@ -238,7 +238,7 @@ def _maybe_remove_legacy_eth0(path="/etc/network/interfaces.d/eth0.cfg"):
 
     bmsg = "Dynamic networking config may not apply."
     try:
-        contents = util.load_file(path)
+        contents = util.load_text_file(path)
         known_contents = ["auto eth0", "iface eth0 inet dhcp"]
         lines = [
             f.strip() for f in contents.splitlines() if not f.startswith("#")
@@ -261,7 +261,7 @@ def read_system_locale(sys_path=LOCALE_CONF_FN, keyname="LANG"):
         raise ValueError("Invalid path: %s" % sys_path)
 
     if os.path.exists(sys_path):
-        locale_content = util.load_file(sys_path)
+        locale_content = util.load_text_file(sys_path)
         sys_defaults = util.load_shell_content(locale_content)
         sys_val = sys_defaults.get(keyname, "")
 

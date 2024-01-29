@@ -19,7 +19,7 @@ from cloudinit import safeyaml, subp
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.distros import uses_systemd
 from cloudinit.helpers import Paths
-from cloudinit.util import get_cmdline, load_file, load_json
+from cloudinit.util import get_cmdline, load_json, load_text_file
 
 CLOUDINIT_DISABLED_FILE = "/etc/cloud/cloud-init.disabled"
 
@@ -387,7 +387,7 @@ def get_status_details(
     if os.path.exists(status_file):
         if not os.path.exists(result_file):
             status = UXAppStatus.RUNNING
-        status_v1 = load_json(load_file(status_file)).get("v1", {})
+        status_v1 = load_json(load_text_file(status_file)).get("v1", {})
     latest_event = 0
     recoverable_errors = {}
     for key, value in sorted(status_v1.items()):

@@ -310,7 +310,7 @@ class Init:
 
         run_iid_fn = self.paths.get_runpath("instance_id")
         if os.path.exists(run_iid_fn):
-            run_iid = util.load_file(run_iid_fn).strip()
+            run_iid = util.load_text_file(run_iid_fn).strip()
         else:
             run_iid = None
 
@@ -392,7 +392,9 @@ class Init:
         network_link = self.paths.get_runpath("network_config")
         if os.path.exists(ncfg_instance_path):
             # Compare and only write on delta of current network-config
-            if netcfg != util.load_json(util.load_file(ncfg_instance_path)):
+            if netcfg != util.load_json(
+                util.load_text_file(ncfg_instance_path)
+            ):
                 atomic_helper.write_json(
                     ncfg_instance_path, netcfg, mode=0o600
                 )
@@ -423,7 +425,7 @@ class Init:
         previous_ds = None
         ds_fn = os.path.join(idir, "datasource")
         try:
-            previous_ds = util.load_file(ds_fn).strip()
+            previous_ds = util.load_text_file(ds_fn).strip()
         except Exception:
             pass
         if not previous_ds:
@@ -458,7 +460,7 @@ class Init:
         dp = self.paths.get_cpath("data")
         iid_fn = os.path.join(dp, "instance-id")
         try:
-            self._previous_iid = util.load_file(iid_fn).strip()
+            self._previous_iid = util.load_text_file(iid_fn).strip()
         except Exception:
             self._previous_iid = NO_PREVIOUS_INSTANCE_ID
 
@@ -770,7 +772,9 @@ class Init:
         )
         json_sensitive_file = self.paths.get_runpath("instance_data_sensitive")
         try:
-            instance_json = util.load_json(util.load_file(json_sensitive_file))
+            instance_json = util.load_json(
+                util.load_text_file(json_sensitive_file)
+            )
         except (OSError, IOError) as e:
             LOG.warning(
                 "Skipping write of system_info/features to %s."

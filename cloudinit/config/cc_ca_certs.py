@@ -205,7 +205,7 @@ def disable_system_ca_certs(distro_cfg):
     added_header = False
 
     if os.stat(ca_cert_cfg_fn).st_size:
-        orig = util.load_file(ca_cert_cfg_fn)
+        orig = util.load_text_file(ca_cert_cfg_fn)
         out_lines = []
         for line in orig.splitlines():
             if line == header_comment:

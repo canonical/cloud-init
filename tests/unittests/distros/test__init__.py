@@ -69,7 +69,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         self.patchOS(self.tmp)
         self.patchUtils(self.tmp)
         d.write_doas_rules(user, rules)
-        contents = util.load_file(d.doas_fn)
+        contents = util.load_text_file(d.doas_fn)
         return contents, cls, d
 
     def _write_load_sudoers(self, _user, rules):
@@ -80,7 +80,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         self.patchOS(self.tmp)
         self.patchUtils(self.tmp)
         d.write_sudo_rules("harlowja", rules)
-        contents = util.load_file(d.ci_sudoers_fn)
+        contents = util.load_text_file(d.ci_sudoers_fn)
         return contents, cls, d
 
     def _count_in(self, lines_look_for, text_content):
@@ -121,7 +121,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         d = self._write_load_doas("harlowja", rules)[2]
         # write to doas.conf again - should not create duplicate rules
         d.write_doas_rules("harlowja", rules)
-        contents = util.load_file(d.doas_fn)
+        contents = util.load_text_file(d.doas_fn)
         expected = [
             "permit nopass harlowja cmd ls",
             "permit nopass harlowja cmd pwd",
@@ -195,7 +195,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         d = self._write_load_sudoers("harlowja", rules)[2]
         # write to sudoers again - should not create duplicate rules
         d.write_sudo_rules("harlowja", rules)
-        contents = util.load_file(d.ci_sudoers_fn)
+        contents = util.load_text_file(d.ci_sudoers_fn)
         expected = [
             "harlowja ALL=(ALL:ALL) ALL",
             "harlowja B-ALL=(ALL:ALL) ALL",
@@ -215,7 +215,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         self.patchOS(self.tmp)
         self.patchUtils(self.tmp)
         d.ensure_sudo_dir("/b")
-        contents = util.load_file("/etc/sudoers")
+        contents = util.load_text_file("/etc/sudoers")
         self.assertIn("includedir /b", contents)
         self.assertTrue(os.path.isdir("/b"))
 
@@ -226,7 +226,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         util.write_file("/etc/sudoers", "josh, josh\n")
         d.ensure_sudo_dir("/b")
-        contents = util.load_file("/etc/sudoers")
+        contents = util.load_text_file("/etc/sudoers")
         self.assertIn("includedir /b", contents)
         self.assertTrue(os.path.isdir("/b"))
         self.assertIn("josh", contents)
@@ -240,7 +240,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         for char in ["#", "@"]:
             util.write_file("/etc/sudoers", "{}includedir /b".format(char))
             d.ensure_sudo_dir("/b")
-            contents = util.load_file("/etc/sudoers")
+            contents = util.load_text_file("/etc/sudoers")
             self.assertIn("includedir /b", contents)
             self.assertTrue(os.path.isdir("/b"))
             self.assertEqual(1, contents.count("includedir /b"))

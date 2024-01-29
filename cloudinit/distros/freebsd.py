@@ -177,7 +177,7 @@ class Distro(cloudinit.distros.bsd.BSD):
     def apply_locale(self, locale, out_fn=None):
         # Adjust the locales value to the new value
         newconf = StringIO()
-        for line in util.load_file(self.login_conf_fn).splitlines():
+        for line in util.load_text_file(self.login_conf_fn).splitlines():
             newconf.write(
                 re.sub(r"^default:", r"default:lang=%s:" % locale, line)
             )

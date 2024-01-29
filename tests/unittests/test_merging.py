@@ -122,8 +122,8 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
         for i in sorted(source_ids.keys()):
             source_file_contents = []
             for fn in sorted(source_ids[i]):
-                source_file_contents.append([fn, util.load_file(fn)])
-            expected = util.load_yaml(util.load_file(expected_files[i]))
+                source_file_contents.append([fn, util.load_text_file(fn)])
+            expected = util.load_yaml(util.load_text_file(expected_files[i]))
             entry = [source_file_contents, [expected, expected_files[i]]]
             tests.append(entry)
         return tests

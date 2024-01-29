@@ -261,7 +261,7 @@ class TestPuppetHandle(CiTestCase):
         util.write_file(self.conf, "[agent]\nserver = origpuppet\nother = 3")
         self.cloud.distro = mock.MagicMock()
         cc_puppet.handle("notimportant", cfg, self.cloud, None)
-        content = util.load_file(self.conf)
+        content = util.load_text_file(self.conf)
         expected = "[agent]\nserver = puppetserver.example.org\nother = 3\n\n"
         self.assertEqual(expected, content)
 
@@ -298,7 +298,7 @@ class TestPuppetHandle(CiTestCase):
             }
         }
         cc_puppet.handle("notimportant", cfg, self.cloud, None)
-        content = util.load_file(self.csr_attributes_path)
+        content = util.load_text_file(self.csr_attributes_path)
         expected = textwrap.dedent(
             """\
             custom_attributes:

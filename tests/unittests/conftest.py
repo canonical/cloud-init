@@ -31,6 +31,7 @@ FS_FUNCS = {
         ("write_file", 1),
         ("append_file", 1),
         ("load_file", 1),
+        ("load_text_file", 1),
         ("ensure_dir", 1),
         ("chmod", 1),
         ("delete_dir_contents", 1),

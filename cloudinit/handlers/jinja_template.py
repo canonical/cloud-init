@@ -17,7 +17,7 @@ from cloudinit.templater import (
     detect_template,
     render_string,
 )
-from cloudinit.util import load_file, load_json
+from cloudinit.util import load_json, load_text_file
 
 JUndefinedError: Type[Exception]
 try:
@@ -116,7 +116,7 @@ def render_jinja_payload_from_file(
             " present at %s" % instance_data_file
         )
     try:
-        instance_data = load_json(load_file(instance_data_file))
+        instance_data = load_json(load_text_file(instance_data_file))
     except Exception as e:
         msg = "Loading Jinja instance data failed"
         if isinstance(e, (IOError, OSError)):

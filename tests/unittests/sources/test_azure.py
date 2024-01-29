@@ -19,7 +19,12 @@ from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceAzure as dsaz
 from cloudinit.sources.azure import errors, identity, imds
 from cloudinit.sources.helpers import netlink
-from cloudinit.util import MountFailedError, load_file, load_json, write_file
+from cloudinit.util import (
+    MountFailedError,
+    load_json,
+    load_text_file,
+    write_file,
+)
 from tests.unittests.helpers import (
     CiTestCase,
     ExitStack,
@@ -1870,7 +1875,7 @@ scbus-1 on xpt0 bus 0
         ovf_env_path = os.path.join(self.waagent_d, "ovf-env.xml")
 
         # The XML should not be same since the user password is redacted
-        on_disk_ovf = load_file(ovf_env_path)
+        on_disk_ovf = load_text_file(ovf_env_path)
         self.xml_notequals(data["ovfcontent"], on_disk_ovf)
 
         # Make sure that the redacted password on disk is not used by CI
@@ -1893,7 +1898,7 @@ scbus-1 on xpt0 bus 0
         # we expect that the ovf-env.xml file is copied there.
         ovf_env_path = os.path.join(self.waagent_d, "ovf-env.xml")
         self.assertTrue(os.path.exists(ovf_env_path))
-        self.xml_equals(xml, load_file(ovf_env_path))
+        self.xml_equals(xml, load_text_file(ovf_env_path))
 
     def test_ovf_can_include_unicode(self):
         xml = construct_ovf_env()

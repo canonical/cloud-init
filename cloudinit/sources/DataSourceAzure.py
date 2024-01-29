@@ -986,7 +986,7 @@ class DataSourceAzure(sources.DataSource):
         )
         system_uuid = identity.query_system_uuid()
         if os.path.exists(prev_iid_path):
-            previous = util.load_file(prev_iid_path).strip()
+            previous = util.load_text_file(prev_iid_path).strip()
             swapped_id = identity.byte_swap_system_uuid(system_uuid)
 
             # Older kernels than 4.15 will have UPPERCASE product_uuid.

@@ -43,7 +43,7 @@ from cloudinit.safeyaml import load, load_with_marks
 from cloudinit.settings import FREQUENCIES
 from cloudinit.sources import DataSourceNotFoundException
 from cloudinit.templater import JinjaSyntaxParsingException
-from cloudinit.util import load_file, write_file
+from cloudinit.util import load_text_file, write_file
 from tests.helpers import cloud_init_project_dir
 from tests.hypothesis import given
 from tests.hypothesis_jsonschema import from_schema
@@ -138,7 +138,7 @@ class TestVersionedSchemas:
                 r"https:\/\/raw.githubusercontent.com\/canonical\/"
                 r"cloud-init\/main\/cloudinit\/config\/schemas\/",
                 f"file://{schema_dir}/",
-                load_file(version_schemafile),
+                load_text_file(version_schemafile),
             )
         )
         if error_msg:
@@ -926,11 +926,11 @@ class TestValidateCloudConfigFile:
         invalid_jinja_template = "## template: jinja\na:b\nc:{{ d } }"
         mocker.patch("os.path.exists", return_value=True)
         mocker.patch(
-            "cloudinit.util.load_file",
+            "cloudinit.util.load_text_file",
             return_value=invalid_jinja_template,
         )
         mocker.patch(
-            "cloudinit.handlers.jinja_template.load_file",
+            "cloudinit.handlers.jinja_template.load_text_file",
             return_value='{"c": "d"}',
         )
         config_file = tmpdir.join("my.yaml")

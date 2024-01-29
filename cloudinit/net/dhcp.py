@@ -125,7 +125,7 @@ def networkd_load_leases(leases_d=None):
         return ret
     for lfile in os.listdir(leases_d):
         ret[lfile] = networkd_parse_lease(
-            util.load_file(os.path.join(leases_d, lfile))
+            util.load_text_file(os.path.join(leases_d, lfile))
         )
     return ret
 
@@ -257,8 +257,7 @@ class IscDhclient(DhcpClient):
             content.
         """
         with suppress(FileNotFoundError):
-            content: str
-            content = util.load_file(self.lease_file)  # pyright: ignore
+            content = util.load_text_file(self.lease_file)
             if content:
                 dhcp_leases = self.parse_leases(content)
                 if dhcp_leases:
@@ -362,7 +361,7 @@ class IscDhclient(DhcpClient):
         debug_msg = ""
         for _ in range(sleep_cycles):
             try:
-                pid_content = util.load_file(pid_file).strip()
+                pid_content = util.load_text_file(pid_file).strip()
                 pid = int(pid_content)
             except FileNotFoundError:
                 debug_msg = (
@@ -562,8 +561,7 @@ class IscDhclient(DhcpClient):
         """
         lease_file = self.get_newest_lease_file_from_distro(distro)
         if lease_file:
-            content: str
-            content = util.load_file(lease_file)  # pyright: ignore
+            content = util.load_text_file(lease_file)
             if content:
                 for lease in reversed(self.parse_leases(content)):
                     server = lease.get(key)
@@ -638,7 +636,7 @@ class Dhcpcd(DhcpClient):
                 debug_msg = ""
                 for _ in range(sleep_cycles):
                     try:
-                        pid_content = util.load_file(pid_file).strip()
+                        pid_content = util.load_text_file(pid_file).strip()
                         pid = int(pid_content)
                         gid = distro.get_proc_pgid(pid)
                         if gid:
@@ -882,7 +880,7 @@ class Udhcpc(DhcpClient):
         @raises: InvalidDHCPLeaseFileError on empty or unparseable leasefile
             content.
         """
-        return util.load_json(util.load_file(self.lease_file))
+        return util.load_json(util.load_text_file(self.lease_file))
 
     @staticmethod
     def parse_static_routes(routes: str) -> List[Tuple[str, str]]:

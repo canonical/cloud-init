@@ -89,7 +89,7 @@ class Distro(distros.Distro):
 
     @staticmethod
     def _read_hostname_conf(filename):
-        conf = HostnameConf(util.load_file(filename))
+        conf = HostnameConf(util.load_text_file(filename))
         conf.parse()
         return conf
 
