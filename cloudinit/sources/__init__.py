@@ -1169,7 +1169,7 @@ def pkl_load(fname: str) -> Optional[DataSource]:
     """Use pickle to deserialize a instance Datasource from a cache file."""
     pickle_contents = None
     try:
-        pickle_contents = util.load_file(fname, decode=False)
+        pickle_contents = util.load_binary_file(fname)
     except Exception as e:
         if os.path.isfile(fname):
             LOG.warning("failed loading pickle in %s: %s", fname, e)

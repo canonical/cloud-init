@@ -311,7 +311,7 @@ def mock_util_find_devs_with():
 @pytest.fixture
 def mock_util_load_file():
     with mock.patch(
-        MOCKPATH + "util.load_file",
+        MOCKPATH + "util.load_binary_file",
         autospec=True,
         return_value=b"",
     ) as m:

@@ -2804,7 +2804,7 @@ class TestGetProcEnv(helpers.TestCase):
         # return the value portion of key=val decoded.
         return blob.split(b"=", 1)[1].decode(encoding, errors)
 
-    @mock.patch(M_PATH + "load_file")
+    @mock.patch(M_PATH + "load_binary_file")
     def test_non_utf8_in_environment(self, m_load_file):
         """env may have non utf-8 decodable content."""
         content = self.null.join(
@@ -2823,7 +2823,7 @@ class TestGetProcEnv(helpers.TestCase):
         )
         self.assertEqual(1, m_load_file.call_count)
 
-    @mock.patch(M_PATH + "load_file")
+    @mock.patch(M_PATH + "load_binary_file")
     def test_encoding_none_returns_bytes(self, m_load_file):
         """encoding none returns bytes."""
         lines = (self.bootflag, self.simple1, self.simple2, self.mixed)
@@ -2836,7 +2836,7 @@ class TestGetProcEnv(helpers.TestCase):
         )
         self.assertEqual(1, m_load_file.call_count)
 
-    @mock.patch(M_PATH + "load_file")
+    @mock.patch(M_PATH + "load_binary_file")
     def test_all_utf8_encoded(self, m_load_file):
         """common path where only utf-8 decodable content."""
         content = self.null.join((self.simple1, self.simple2))
@@ -2846,7 +2846,7 @@ class TestGetProcEnv(helpers.TestCase):
         )
         self.assertEqual(1, m_load_file.call_count)
 
-    @mock.patch(M_PATH + "load_file")
+    @mock.patch(M_PATH + "load_binary_file")
     def test_non_existing_file_returns_empty_dict(self, m_load_file):
         """as implemented, a non-existing pid returns empty dict.
         This is how it was originally implemented."""

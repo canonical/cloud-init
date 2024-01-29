@@ -62,7 +62,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         cc = cloud.Cloud(ds, paths, {}, distro, None)
         self.patchUtils(self.tmp)
         cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
-        contents = util.load_file("/etc/sysconfig/network", decode=False)
+        contents = util.load_binary_file("/etc/sysconfig/network")
         n_cfg = ConfigObj(BytesIO(contents))
         self.assertEqual({"HOSTNAME": "blah"}, dict(n_cfg))
 
@@ -75,7 +75,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         cc = cloud.Cloud(ds, paths, {}, distro, None)
         self.patchUtils(self.tmp)
         cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
-        contents = util.load_file("/etc/sysconfig/network", decode=False)
+        contents = util.load_binary_file("/etc/sysconfig/network")
         n_cfg = ConfigObj(BytesIO(contents))
         self.assertEqual({"HOSTNAME": "blah.blah.blah.yahoo.com"}, dict(n_cfg))
 

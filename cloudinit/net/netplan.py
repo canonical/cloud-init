@@ -212,7 +212,7 @@ def _clean_default(target=None):
     tpath = subp.target_path(target, "etc/netplan/00-snapd-config.yaml")
     if not os.path.isfile(tpath):
         return
-    content = util.load_file(tpath, decode=False)
+    content = util.load_binary_file(tpath)
     if content != KNOWN_SNAPD_CONFIG:
         return
 
