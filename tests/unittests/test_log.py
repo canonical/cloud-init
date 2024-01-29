@@ -62,7 +62,6 @@ class TestCloudInitLogger(CiTestCase):
 class TestDeprecatedLogs:
     def test_deprecated_log_level(self, caplog):
         logger = logging.getLogger()
-        log.setup_logging()
         logger.deprecated("deprecated message")
         assert "DEPRECATED" == caplog.records[0].levelname
         assert "deprecated message" in caplog.text

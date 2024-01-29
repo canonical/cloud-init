@@ -1374,7 +1374,7 @@ class TestSerialConcurrency(CiTestCase):
         # os.kill() rather than mdata_proc.terminate() to avoid console spam.
         os.kill(self.mdata_proc.pid, signal.SIGKILL)
         self.mdata_proc.join()
-        super(TestSerialConcurrency, self).tearDown()
+        super().tearDown()
 
     def start_mdata_loop(self):
         """

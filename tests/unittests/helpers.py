@@ -152,6 +152,7 @@ class CiTestCase(TestCase):
             handler.setFormatter(formatter)
             self.old_handlers = self.logger.handlers
             self.logger.handlers = [handler]
+            self.old_level = logging.root.level
         if self.allowed_subp is True:
             subp.subp = _real_subp
         else:
@@ -193,7 +194,7 @@ class CiTestCase(TestCase):
         if self.with_logs:
             # Remove the handler we setup
             logging.getLogger().handlers = self.old_handlers
-            logging.getLogger().setLevel(logging.NOTSET)
+            logging.getLogger().setLevel(self.old_level)
         subp.subp = _real_subp
         super(CiTestCase, self).tearDown()
 

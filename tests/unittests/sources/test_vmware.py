@@ -238,7 +238,7 @@ class TestDataSourceVMwareEnvVars(FilesystemMockingTestCase):
 
     def tearDown(self):
         del os.environ[DataSourceVMware.VMX_GUESTINFO]
-        return super(TestDataSourceVMwareEnvVars, self).tearDown()
+        return super().tearDown()
 
     def create_system_files(self):
         rootd = self.tmp_dir()
