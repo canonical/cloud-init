@@ -441,6 +441,10 @@ class TestInit:
                 assert not self.tmpdir.join(path).exists()
 
     @mock.patch("cloudinit.distros.ubuntu.Distro")
+    @mock.patch.dict(
+        sources.DataSource.default_update_events,
+        {EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}},
+    )
     def test_apply_network_on_same_instance_id(self, m_ubuntu, caplog):
         """Only call distro.networking.apply_network_config_names on same
         instance id."""

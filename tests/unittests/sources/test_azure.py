@@ -1055,7 +1055,6 @@ class TestAzureDataSource(CiTestCase):
                 mock.MagicMock(),
             )
         )
-        super(TestAzureDataSource, self).setUp()
 
     def apply_patches(self, patches):
         for module, name, new in patches:

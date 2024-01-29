@@ -42,6 +42,7 @@ class TestRandomSeed(TestCase):
     def tearDown(self):
         apply_patches([i for i in reversed(self.unapply)])
         util.del_file(self._seed_file)
+        super().tearDown()
 
     def apply_patches(self, patches):
         ret = apply_patches(patches)
