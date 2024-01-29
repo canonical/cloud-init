@@ -14,7 +14,7 @@ from cloudinit import url_helper
 from cloudinit.sources.azure import errors
 from cloudinit.sources.helpers import azure as azure_helper
 from cloudinit.sources.helpers.azure import WALinuxAgentShim as wa_shim
-from cloudinit.util import load_file
+from cloudinit.util import load_text_file
 from tests.unittests.helpers import CiTestCase, ExitStack, mock
 from tests.unittests.sources.test_azure import construct_ovf_env
 
@@ -531,8 +531,8 @@ class TestOpenSSLManagerActions(CiTestCase):
 
     @unittest.skip("todo move to cloud_test")
     def test_pubkey_extract(self):
-        cert = load_file(self._data_file("pubkey_extract_cert"))
-        good_key = load_file(self._data_file("pubkey_extract_ssh_key"))
+        cert = load_text_file(self._data_file("pubkey_extract_cert"))
+        good_key = load_text_file(self._data_file("pubkey_extract_ssh_key"))
         sslmgr = azure_helper.OpenSSLManager()
         key = sslmgr._get_ssh_key_from_cert(cert)
         self.assertEqual(good_key, key)
@@ -549,8 +549,10 @@ class TestOpenSSLManagerActions(CiTestCase):
         from certs are extracted and that fingerprints are converted to
         the form specified in the ovf-env.xml file.
         """
-        cert_contents = load_file(self._data_file("parse_certificates_pem"))
-        fingerprints = load_file(
+        cert_contents = load_text_file(
+            self._data_file("parse_certificates_pem")
+        )
+        fingerprints = load_text_file(
             self._data_file("parse_certificates_fingerprints")
         ).splitlines()
         mock_decrypt_certs.return_value = cert_contents

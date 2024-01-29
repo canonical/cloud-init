@@ -15,7 +15,7 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
     init_cmd = ["rcctl"]
 
     def _read_hostname(self, filename, default=None):
-        return util.load_file(self.hostname_conf_fn)
+        return util.load_text_file(self.hostname_conf_fn)
 
     def _write_hostname(self, hostname, filename):
         content = hostname + "\n"

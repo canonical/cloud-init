@@ -38,7 +38,7 @@ class TestCloudStackHostname(CiTestCase):
         )
         self.patches.enter_context(
             mock.patch(
-                DHCP_MOD_PATH + ".util.load_file",
+                DHCP_MOD_PATH + ".util.load_text_file",
                 return_value=dedent(
                     """
                     lease {
@@ -161,7 +161,7 @@ class TestCloudStackHostname(CiTestCase):
             {}, rhel.Distro, helpers.Paths({"run_dir": self.tmp})
         )
         with mock.patch(
-            MOD_PATH + ".util.load_file",
+            MOD_PATH + ".util.load_text_file",
             return_value=dedent(
                 """
                 lease {
@@ -284,7 +284,7 @@ class TestCloudStackHostname(CiTestCase):
 
         self.patches.enter_context(
             mock.patch(
-                DHCP_MOD_PATH + ".util.load_file",
+                DHCP_MOD_PATH + ".util.load_text_file",
                 return_value=dedent(
                     """
                     lease {
@@ -317,7 +317,7 @@ class TestCloudStackHostname(CiTestCase):
             {}, ubuntu.Distro("", {}, {}), helpers.Paths({"run_dir": self.tmp})
         )
         ds.distro.fallback_interface = "eth0"
-        with mock.patch(MOD_PATH + ".util.load_file"):
+        with mock.patch(MOD_PATH + ".util.load_text_file"):
             result = ds.get_hostname(fqdn=True)
             self.assertTupleEqual(expected, result)
 
@@ -414,7 +414,7 @@ class TestCloudStackPasswordFetching(CiTestCase):
     def test_bad_request_doesnt_stop_ds_from_working(self, m_wait):
         m_wait.return_value = True
         self._set_password_server_response("bad_request")
-        # with mock.patch(DHCP_MOD_PATH + ".util.load_file"):
+        # with mock.patch(DHCP_MOD_PATH + ".util.load_text_file"):
         ds = DataSourceCloudStack(
             {}, MockDistro(), helpers.Paths({"run_dir": self.tmp})
         )

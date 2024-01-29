@@ -97,7 +97,7 @@ class TestConfig(t_help.FilesystemMockingTestCase):
         self.assertTrue(os.path.exists(self.server_cfg))
         self.assertTrue(os.path.exists(self.server_cfg + ".old"))
         self.assertEqual(
-            util.load_file(self.server_cfg + ".old"), STOCK_CONFIG
+            util.load_text_file(self.server_cfg + ".old"), STOCK_CONFIG
         )
 
     def test_existing_updated(self):
@@ -136,9 +136,11 @@ class TestConfig(t_help.FilesystemMockingTestCase):
         self.assertEqual(found["securityprovider"], "ssl")
 
         self.assertEqual(
-            util.load_file(self.pricert_file), cfg["private-cert"]
+            util.load_text_file(self.pricert_file), cfg["private-cert"]
         )
-        self.assertEqual(util.load_file(self.pubcert_file), cfg["public-cert"])
+        self.assertEqual(
+            util.load_text_file(self.pubcert_file), cfg["public-cert"]
+        )
 
 
 class TestHandler(t_help.TestCase):

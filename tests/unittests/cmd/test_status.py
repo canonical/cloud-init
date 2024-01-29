@@ -46,7 +46,7 @@ class TestStatus:
     maxDiff = None
 
     @mock.patch(
-        M_PATH + "load_file",
+        M_PATH + "load_text_file",
         return_value=(
             '{"v1": {"datasource": null, "init": {"errors": [], "finished": '
             'null, "start": null}, "init-local": {"errors": [], "finished": '

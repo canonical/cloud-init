@@ -190,7 +190,7 @@ def parse_authorized_keys(fnames):
     for fname in fnames:
         try:
             if os.path.isfile(fname):
-                lines = util.load_file(fname).splitlines()
+                lines = util.load_text_file(fname).splitlines()
                 for line in lines:
                     contents.append(parser.parse(line))
         except (IOError, OSError):
@@ -501,7 +501,7 @@ class SshdConfigLine:
 def parse_ssh_config(fname) -> List[SshdConfigLine]:
     if not os.path.isfile(fname):
         return []
-    return parse_ssh_config_lines(util.load_file(fname).splitlines())
+    return parse_ssh_config_lines(util.load_text_file(fname).splitlines())
 
 
 def parse_ssh_config_lines(lines) -> List[SshdConfigLine]:

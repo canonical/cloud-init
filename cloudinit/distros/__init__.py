@@ -582,7 +582,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def update_etc_hosts(self, hostname, fqdn):
         header = ""
         if os.path.exists(self.hosts_fn):
-            eh = hosts.HostsConf(util.load_file(self.hosts_fn))
+            eh = hosts.HostsConf(util.load_text_file(self.hosts_fn))
         else:
             eh = hosts.HostsConf("")
             header = util.make_header(base="added")
@@ -988,7 +988,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 util.logexc(LOG, "Failed to write doas file %s", doas_file)
                 raise e
         else:
-            if content not in util.load_file(doas_file):
+            if content not in util.load_text_file(doas_file):
                 try:
                     util.append_file(doas_file, content)
                 except IOError as e:
@@ -1003,7 +1003,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         sudoers_contents = ""
         base_exists = False
         if os.path.exists(sudo_base):
-            sudoers_contents = util.load_file(sudo_base)
+            sudoers_contents = util.load_text_file(sudo_base)
             base_exists = True
         found_include = False
         for line in sudoers_contents.splitlines():
@@ -1078,7 +1078,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 util.logexc(LOG, "Failed to write sudoers file %s", sudo_file)
                 raise e
         else:
-            if content not in util.load_file(sudo_file):
+            if content not in util.load_text_file(sudo_file):
                 try:
                     util.append_file(sudo_file, content)
                 except IOError as e:
@@ -1290,7 +1290,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         param field: field number within /proc/$pid/stat to return
         """
         try:
-            content: str = util.load_file(
+            content: str = util.load_text_file(
                 "/proc/%s/stat" % pid, quiet=True
             ).strip()  # pyright: ignore
             match = re.search(

@@ -55,7 +55,7 @@ class TestLocale(FilesystemMockingTestCase):
                     locale_configfile,
                 )
 
-                contents = util.load_file(cc.distro.locale_gen_fn)
+                contents = util.load_text_file(cc.distro.locale_gen_fn)
                 self.assertIn("%s UTF-8" % locale, contents)
                 m_subp.assert_called_with(
                     ["localectl", "set-locale", locale], capture=False

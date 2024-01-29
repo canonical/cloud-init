@@ -474,7 +474,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
         )
 
         with mock.patch(
-            "cloudinit.util.load_file", return_value=lease_content
+            "cloudinit.util.load_text_file", return_value=lease_content
         ):
             self.assertCountEqual(
                 {
@@ -486,7 +486,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
                 IscDhclient().get_newest_lease("eth0"),
             )
         with self.assertRaises(InvalidDHCPLeaseFileError):
-            with mock.patch("cloudinit.util.load_file", return_value=""):
+            with mock.patch("cloudinit.util.load_text_file", return_value=""):
                 IscDhclient().dhcp_discovery("eth9", distro=MockDistro())
         self.assertIn(
             "dhclient(pid=, parentpid=unknown) failed "
@@ -553,7 +553,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
         )
         my_pid = 1
         with mock.patch(
-            "cloudinit.util.load_file", side_effect=["1", lease_content]
+            "cloudinit.util.load_text_file", side_effect=["1", lease_content]
         ):
             self.assertCountEqual(
                 {
@@ -629,7 +629,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
         )
         my_pid = 1
         with mock.patch(
-            "cloudinit.util.load_file", side_effect=["1", lease_content]
+            "cloudinit.util.load_text_file", side_effect=["1", lease_content]
         ):
             self.assertCountEqual(
                 {
@@ -933,7 +933,7 @@ class TestUDHCPCDiscoveryClean(CiTestCase):
     @mock.patch("cloudinit.net.dhcp.os.remove")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
     @mock.patch("cloudinit.util.load_json")
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch("cloudinit.util.load_text_file")
     @mock.patch("cloudinit.util.write_file")
     def test_udhcpc_discovery(
         self,
@@ -998,7 +998,7 @@ class TestUDHCPCDiscoveryClean(CiTestCase):
     @mock.patch("cloudinit.net.dhcp.os.remove")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
     @mock.patch("cloudinit.util.load_json")
-    @mock.patch("cloudinit.util.load_file")
+    @mock.patch("cloudinit.util.load_text_file")
     @mock.patch("cloudinit.util.write_file")
     def test_udhcpc_discovery_ib(
         self,

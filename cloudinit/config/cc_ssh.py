@@ -393,7 +393,7 @@ def get_public_host_keys(blacklist: Optional[Sequence[str]] = None):
     # Read host key files, retrieve first two fields as a tuple and
     # append that tuple to key_list.
     for file_name in file_list:
-        file_contents = util.load_file(file_name)
+        file_contents = util.load_text_file(file_name)
         key_data = file_contents.split()
         if key_data and len(key_data) > 1:
             key_list.append(tuple(key_data[:2]))

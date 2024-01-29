@@ -11,4 +11,4 @@ class TestArch(CiTestCase):
         hostname = "myhostname"
         hostfile = self.tmp_path("hostfile")
         distro._write_hostname(hostname, hostfile)
-        self.assertEqual(hostname + "\n", util.load_file(hostfile))
+        self.assertEqual(hostname + "\n", util.load_text_file(hostfile))

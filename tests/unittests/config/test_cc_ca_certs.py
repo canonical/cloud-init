@@ -325,7 +325,7 @@ class TestRemoveDefaultCaCerts(TestCase):
                 )
                 mock_load = mocks.enter_context(
                     mock.patch.object(
-                        util, "load_file", return_value=ca_certs_content
+                        util, "load_text_file", return_value=ca_certs_content
                     )
                 )
                 mock_subp = mocks.enter_context(

@@ -488,7 +488,7 @@ def main_init(name, args):
     cloud_cfg_path = init.paths.get_ipath_cur("cloud_config")
     if os.path.exists(cloud_cfg_path) and os.stat(cloud_cfg_path).st_size != 0:
         validate_cloudconfig_schema(
-            config=load(util.load_file(cloud_cfg_path)),
+            config=load(util.load_text_file(cloud_cfg_path)),
             strict=False,
             log_details=False,
             log_deprecations=True,
@@ -746,7 +746,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
             util.del_file(f)
     else:
         try:
-            status = json.loads(util.load_file(status_path))
+            status = json.loads(util.load_text_file(status_path))
         except Exception:
             pass
 

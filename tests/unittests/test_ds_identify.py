@@ -238,7 +238,7 @@ class DsIdentifyBase(CiTestCase):
         cfg = None
         cfg_out = os.path.join(rootd, runpath, "cloud-init/cloud.cfg")
         if os.path.exists(cfg_out):
-            contents = util.load_file(cfg_out)
+            contents = util.load_text_file(cfg_out)
             try:
                 cfg = safeyaml.load(contents)
             except Exception as e:

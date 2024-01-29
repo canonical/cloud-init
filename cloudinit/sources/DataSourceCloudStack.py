@@ -269,7 +269,7 @@ def get_data_server():
 
 def get_default_gateway():
     # Returns the default gateway ip address in the dotted format.
-    lines = util.load_file("/proc/net/route").splitlines()
+    lines = util.load_text_file("/proc/net/route").splitlines()
     for line in lines:
         items = line.split("\t")
         if items[1] == "00000000":

@@ -36,7 +36,12 @@ from cloudinit.handlers import INCLUSION_TYPES_MAP, type_from_starts_with
 from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceNotFoundException
 from cloudinit.temp_utils import mkdtemp
-from cloudinit.util import error, get_modules_from_dir, load_file, write_file
+from cloudinit.util import (
+    error,
+    get_modules_from_dir,
+    load_text_file,
+    write_file,
+)
 
 try:
     from jsonschema import ValidationError as _ValidationError
@@ -1051,7 +1056,7 @@ def validate_cloudconfig_file(
     :raises SchemaValidationError containing any of schema_errors encountered.
     :raises RuntimeError when config_path does not exist.
     """
-    decoded_content = load_file(config_path, decode=True)
+    decoded_content = load_text_file(config_path)
     if not decoded_content:
         print(
             "Empty '%s' found at %s. Nothing to validate."
@@ -1560,7 +1565,7 @@ def get_schema(schema_type: SchemaType = SchemaType.CLOUD_CONFIG) -> dict:
     )
     full_schema = None
     try:
-        full_schema = json.loads(load_file(schema_file))
+        full_schema = json.loads(load_text_file(schema_file))
     except (IOError, OSError):
         LOG.warning(
             "Skipping %s schema valiation. No JSON schema file found %s.",

@@ -11,7 +11,7 @@ import pytest
 from cloudinit.cmd.devel import logs
 from cloudinit.cmd.devel.logs import ApportFile
 from cloudinit.subp import SubpResult, subp
-from cloudinit.util import ensure_dir, load_file, write_file
+from cloudinit.util import ensure_dir, load_text_file, write_file
 from tests.unittests.helpers import mock
 
 M_PATH = "cloudinit.cmd.devel.logs."
@@ -125,29 +125,31 @@ class TestCollectLogs:
         ), (
             "Unexpected file found: %s" % INSTANCE_JSON_SENSITIVE_FILE
         )
-        assert "0.7fake\n" == load_file(
+        assert "0.7fake\n" == load_text_file(
             os.path.join(out_logdir, "dpkg-version")
         )
-        assert version_out == load_file(os.path.join(out_logdir, "version"))
-        assert "cloud-init-log" == load_file(
+        assert version_out == load_text_file(
+            os.path.join(out_logdir, "version")
+        )
+        assert "cloud-init-log" == load_text_file(
             os.path.join(out_logdir, "cloud-init.log")
         )
-        assert "cloud-init-log-rotated" == load_file(
+        assert "cloud-init-log-rotated" == load_text_file(
             os.path.join(out_logdir, "cloud-init.log.1.gz")
         )
-        assert "cloud-init-output-log" == load_file(
+        assert "cloud-init-output-log" == load_text_file(
             os.path.join(out_logdir, "cloud-init-output.log")
         )
-        assert "cloud-init-output-log-rotated" == load_file(
+        assert "cloud-init-output-log-rotated" == load_text_file(
             os.path.join(out_logdir, "cloud-init-output.log.1.gz")
         )
-        assert "dmesg-out\n" == load_file(
+        assert "dmesg-out\n" == load_text_file(
             os.path.join(out_logdir, "dmesg.txt")
         )
-        assert "journal-out\n" == load_file(
+        assert "journal-out\n" == load_text_file(
             os.path.join(out_logdir, "journal.txt")
         )
-        assert "results" == load_file(
+        assert "results" == load_text_file(
             os.path.join(out_logdir, "run", "cloud-init", "results.json")
         )
         fake_stderr.write.assert_any_call("Wrote %s\n" % output_tarfile)
@@ -229,10 +231,10 @@ class TestCollectLogs:
         # unpack the tarfile and check file contents
         subp(["tar", "zxvf", output_tarfile, "-C", str(tmpdir)])
         out_logdir = tmpdir.join(date_logdir)
-        assert "user-data" == load_file(
+        assert "user-data" == load_text_file(
             os.path.join(out_logdir, "user-data.txt")
         )
-        assert "sensitive" == load_file(
+        assert "sensitive" == load_text_file(
             os.path.join(
                 out_logdir,
                 "run",
@@ -283,7 +285,7 @@ class TestCollectLogs:
         )
 
         assert expected_return_value == return_output
-        assert expected_file_contents == load_file(output_file)
+        assert expected_file_contents == load_text_file(output_file)
 
     @pytest.mark.parametrize(
         "cmd, expected_file_contents",
@@ -305,7 +307,7 @@ class TestCollectLogs:
             verbosity=1,
         )
 
-        assert expected_file_contents == load_file(output_file)
+        assert expected_file_contents == load_text_file(output_file)
 
 
 class TestCollectInstallerLogs:

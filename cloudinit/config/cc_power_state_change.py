@@ -95,7 +95,7 @@ def givecmdline(pid):
             m = re.search(r"\d+ (\w|\.|-)+\s+(/\w.+)", line)
             return m.group(2)
         else:
-            return util.load_file("/proc/%s/cmdline" % pid)
+            return util.load_text_file("/proc/%s/cmdline" % pid)
     except IOError:
         return None
 
