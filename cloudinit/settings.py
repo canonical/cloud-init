@@ -16,8 +16,6 @@ CLOUD_CONFIG = "/etc/cloud/cloud.cfg"
 
 CLEAN_RUNPARTS_DIR = "/etc/cloud/clean.d"
 
-RUN_CLOUD_CONFIG = "/run/cloud-init/cloud.cfg"
-
 # What u get if no config is provided
 CFG_BUILTIN = {
     "datasource_list": [

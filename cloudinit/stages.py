@@ -38,13 +38,7 @@ from cloudinit.handlers.shell_script_by_frequency import (
 )
 from cloudinit.net import cmdline
 from cloudinit.reporting import events
-from cloudinit.settings import (
-    CLOUD_CONFIG,
-    PER_ALWAYS,
-    PER_INSTANCE,
-    PER_ONCE,
-    RUN_CLOUD_CONFIG,
-)
+from cloudinit.settings import CLOUD_CONFIG, PER_ALWAYS, PER_INSTANCE, PER_ONCE
 from cloudinit.sources import NetworkConfigSource
 
 LOG = logging.getLogger(__name__)
@@ -275,7 +269,20 @@ class Init:
             self._cfg = self._read_cfg(extra_fns)
 
     def _read_cfg(self, extra_fns):
-        no_cfg_paths = helpers.Paths({}, self.datasource)
+        """read and merge our configuration"""
+        # No config is passed to Paths() here because we don't yet have a
+        # config to pass. We must bootstrap a config to identify
+        # distro-specific rund_dir locations. Once we have the run_dir
+        # we re-read our config with a valid Paths() object. This code has to
+        # assume the location of /etc/cloud/cloud.cfg && /etc/cloud/cloud.cfg.d
+        bootstrapped_config = self._read_bootstrap_cfg(extra_fns, {})
+
+        # Now that we know run_dir, lets re-read the config to get a valid
+        # configuration
+        return self._read_bootstrap_cfg(extra_fns, bootstrapped_config)
+
+    def _read_bootstrap_cfg(self, extra_fns, bootstrapped_config: dict):
+        no_cfg_paths = helpers.Paths(bootstrapped_config, self.datasource)
         instance_data_file = no_cfg_paths.get_runpath(
             "instance_data_sensitive"
         )
@@ -283,7 +290,9 @@ class Init:
             paths=no_cfg_paths,
             datasource=self.datasource,
             additional_fns=extra_fns,
-            base_cfg=fetch_base_config(instance_data_file=instance_data_file),
+            base_cfg=fetch_base_config(
+                no_cfg_paths.run_dir, instance_data_file=instance_data_file
+            ),
         )
         return merger.cfg
 
@@ -510,6 +519,9 @@ class Init:
         return ret
 
     def fetch(self, existing="check"):
+        """optionally load datasource from cache, otherwise discovery
+        datasource
+        """
         return self._get_data_source(existing=existing)
 
     def instancify(self):
@@ -1088,11 +1100,11 @@ class Init:
             return
 
 
-def read_runtime_config():
-    return util.read_conf(RUN_CLOUD_CONFIG)
+def read_runtime_config(run_dir: str):
+    return util.read_conf(run_dir)
 
 
-def fetch_base_config(*, instance_data_file=None) -> dict:
+def fetch_base_config(run_dir: str, *, instance_data_file=None) -> dict:
     return util.mergemanydict(
         [
             # builtin config, hardcoded in settings.py.
@@ -1102,7 +1114,7 @@ def fetch_base_config(*, instance_data_file=None) -> dict:
                 CLOUD_CONFIG, instance_data_file=instance_data_file
             ),
             # runtime config. I.e., /run/cloud-init/cloud.cfg
-            read_runtime_config(),
+            read_runtime_config(run_dir),
             # Kernel/cmdline parameters override system config
             util.read_conf_from_cmdline(),
         ],
