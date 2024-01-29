@@ -10,7 +10,7 @@ import pytest
 
 from cloudinit import templater
 from cloudinit.templater import JinjaSyntaxParsingException
-from cloudinit.util import load_file, write_file
+from cloudinit.util import load_binary_file, write_file
 from tests.unittests import helpers as test_helpers
 
 
@@ -126,7 +126,7 @@ class TestTemplates(test_helpers.CiTestCase):
             content=self.add_header("jinja", self.jinja_utf8).encode("utf-8"),
         )
         templater.render_to_file(tmpl_fn, out_fn, {"name": "bob"})
-        result = load_file(out_fn, decode=False).decode("utf-8")
+        result = load_binary_file(out_fn).decode("utf-8")
         self.assertEqual(result, self.jinja_utf8_rbob)
 
     def test_jinja_nonascii_render_from_file(self):

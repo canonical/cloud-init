@@ -137,7 +137,7 @@ class TestWriteFiles(FilesystemMockingTestCase):
         write_files("test_decoding", files, self.owner)
 
         for path, content in expected:
-            self.assertEqual(util.load_file(path, decode=False), content)
+            self.assertEqual(util.load_binary_file(path), content)
 
         # make sure we actually wrote *some* files.
         flen_expected = len(gz_aliases + gz_b64_aliases + b64_aliases) * len(

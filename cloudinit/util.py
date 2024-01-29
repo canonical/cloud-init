@@ -50,7 +50,6 @@ from typing import (
     Sequence,
     TypeVar,
     Union,
-    cast,
 )
 from urllib import parse
 
@@ -1582,7 +1581,12 @@ def uniq_list(in_list):
     return out_list
 
 
-def load_file(fname, read_cb=None, quiet=False, decode=True):
+def load_binary_file(
+    fname: Union[str, os.PathLike],
+    *,
+    read_cb: Optional[Callable[[int], None]] = None,
+    quiet: bool = False,
+) -> bytes:
     LOG.debug("Reading from %s (quiet=%s)", fname, quiet)
     ofh = io.BytesIO()
     try:
@@ -1593,16 +1597,16 @@ def load_file(fname, read_cb=None, quiet=False, decode=True):
             raise
     contents = ofh.getvalue()
     LOG.debug("Read %s bytes from %s", len(contents), fname)
-    if decode:
-        return decode_binary(contents)
-    else:
-        return contents
+    return contents
 
 
-def load_text_file(fname, read_cb=None, quiet=False) -> str:
-    return cast(
-        str, load_file(fname, read_cb=read_cb, quiet=quiet, decode=True)
-    )
+def load_text_file(
+    fname: Union[str, os.PathLike],
+    *,
+    read_cb: Optional[Callable[[int], None]] = None,
+    quiet: bool = False,
+) -> str:
+    return decode_binary(load_binary_file(fname, read_cb=read_cb, quiet=quiet))
 
 
 @lru_cache()
@@ -2459,7 +2463,7 @@ def get_proc_env(pid, encoding="utf-8", errors="replace"):
     fn = os.path.join("/proc", str(pid), "environ")
 
     try:
-        contents = load_file(fn, decode=False)
+        contents = load_binary_file(fn)
     except (IOError, OSError):
         return {}
 
@@ -2874,7 +2878,7 @@ def pathprefix2dict(base, required=None, optional=None, delim=os.path.sep):
     ret = {}
     for f in required + optional:
         try:
-            ret[f] = load_file(base + delim + f, quiet=False, decode=False)
+            ret[f] = load_binary_file(base + delim + f, quiet=False)
         except FileNotFoundError:
             if f in required:
                 missing.append(f)

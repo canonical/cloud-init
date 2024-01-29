@@ -86,7 +86,7 @@ class TestConfig(t_help.FilesystemMockingTestCase):
 
         self.patchUtils(self.tmp)
         cc_mcollective.configure(cfg["mcollective"]["conf"])
-        contents = util.load_file(cc_mcollective.SERVER_CFG, decode=False)
+        contents = util.load_binary_file(cc_mcollective.SERVER_CFG)
         contents = configobj.ConfigObj(BytesIO(contents))
         self.assertEqual(expected, dict(contents))
 
@@ -149,7 +149,7 @@ class TestHandler(t_help.TestCase):
     def test_mcollective_install(self, mock_util, mock_subp):
         cc = get_cloud()
         cc.distro = t_help.mock.MagicMock()
-        mock_util.load_file.return_value = b""
+        mock_util.load_binary_file.return_value = b""
         mycfg = {"mcollective": {"conf": {"loglevel": "debug"}}}
         cc_mcollective.handle("cc_mcollective", mycfg, cc, [])
         self.assertTrue(cc.distro.install_packages.called)

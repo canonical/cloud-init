@@ -361,7 +361,7 @@ def metadata_from_dir(source_dir):
         fpath = os.path.join(source_dir, path)
         raw = None
         try:
-            raw = util.load_file(fpath, decode=False)
+            raw = util.load_binary_file(fpath)
         except IOError as e:
             LOG.debug("Failed reading path '%s': %s", fpath, e)
 

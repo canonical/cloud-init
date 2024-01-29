@@ -98,7 +98,7 @@ def configure(
     # Read server.cfg (if it exists) values from the
     # original file in order to be able to mix the rest up.
     try:
-        old_contents = util.load_file(server_cfg, quiet=False, decode=False)
+        old_contents = util.load_binary_file(server_cfg, quiet=False)
         mcollective_config = ConfigObj(io.BytesIO(old_contents))
     except IOError as e:
         if e.errno != errno.ENOENT:

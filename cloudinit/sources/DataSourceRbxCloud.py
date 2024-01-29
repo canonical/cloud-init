@@ -153,9 +153,7 @@ def read_user_data_callback(mount_dir):
     @returns: A dict containing userdata, metadata and cfg based on metadata.
     """
     meta_data = util.load_json(
-        text=util.load_file(
-            fname=os.path.join(mount_dir, "cloud.json"), decode=False
-        )
+        text=util.load_binary_file(fname=os.path.join(mount_dir, "cloud.json"))
     )
     user_data = util.load_text_file(
         fname=os.path.join(mount_dir, "user.data"), quiet=True
