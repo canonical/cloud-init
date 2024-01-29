@@ -609,9 +609,6 @@ def netplan_validate_network_schema(
     @raises: SchemaValidationError when netplan's parser raises
         NetplanParserExceptions.
     """
-    if network_schema_version(network_config) != 2:
-        return False  # Netplan only validates network version 2 config
-
     try:
         from netplan import NetplanParserException, Parser  # type: ignore
     except ImportError:
@@ -715,11 +712,16 @@ def validate_cloudconfig_schema(
         NETWORK_CONFIG
     """
     if schema_type == SchemaType.NETWORK_CONFIG:
-        if netplan_validate_network_schema(
-            network_config=config, strict=strict, log_details=log_details
-        ):
-            # Schema was validated by netplan
-            return True
+        if network_schema_version(config) == 2:
+            if netplan_validate_network_schema(
+                network_config=config, strict=strict, log_details=log_details
+            ):
+                # Schema was validated by netplan
+                return True
+            # network-config schema version 2 but no netplan.
+            # TODO(add JSON schema definition for network version 2)
+            return False
+
     if schema is None:
         schema = get_schema(schema_type)
     try:

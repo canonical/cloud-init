@@ -4,7 +4,7 @@ from textwrap import dedent
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.releases import CURRENT_RELEASE, NOBLE
+from tests.integration_tests.releases import CURRENT_RELEASE, MANTIC
 from tests.integration_tests.util import verify_clean_log
 
 USER_DATA = """\
@@ -81,7 +81,7 @@ class TestSchemaDeprecations:
                 "annotate": NET_V1_ANNOTATED,
             },
         }
-        if CURRENT_RELEASE >= NOBLE:
+        if CURRENT_RELEASE >= MANTIC:
             # Support for netplan API available
             content_responses[NET_CFG_V2] = {
                 "out": "Valid schema /root/net.yaml"
