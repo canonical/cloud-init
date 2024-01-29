@@ -10,6 +10,7 @@
 
 import logging
 import os
+from typing import List
 
 from cloudinit import distros, helpers, subp, util
 from cloudinit.distros import PackageList
@@ -31,7 +32,7 @@ class Distro(distros.Distro):
     systemd_hostname_conf_fn = "/etc/hostname"
     systemd_locale_conf_fn = "/etc/locale.conf"
     tz_local_fn = "/etc/localtime"
-    update_initramfs = []  # TODO(dracut support to regen initramfs)
+    update_initramfs: List[str] = []  # TODO(dracut support to regen initramfs)
     renderer_configs = {
         "sysconfig": {
             "control": "etc/sysconfig/network/config",

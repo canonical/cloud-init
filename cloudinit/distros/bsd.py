@@ -1,6 +1,6 @@
 import logging
 import platform
-from typing import List, Optional
+from typing import List, Mapping, Optional
 
 import cloudinit.net.netops.bsd_netops as bsd_netops
 from cloudinit import distros, helpers, net, subp, util
@@ -20,8 +20,9 @@ class BSD(distros.Distro):
     # poweroff.
     shutdown_options_map = {"halt": "-H", "poweroff": "-p", "reboot": "-r"}
 
-    kernel_module_cmd_map = {}  # TODO(define modunload/modload/modstat)
-    update_initramfs_cmd = []  # TODO(define initramfs support)
+    kernel_module_cmd_map: Mapping[
+        str, List[str]
+    ] = {}  # TODO(define modunload/modload/modstat)
 
     # Set in BSD distro subclasses
     group_add_cmd_prefix: List[str] = []

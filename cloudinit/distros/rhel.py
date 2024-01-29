@@ -9,6 +9,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
 import os
+from typing import List
 
 from cloudinit import distros, helpers, subp, util
 from cloudinit.distros import PackageList, rhel_util
@@ -29,7 +30,10 @@ class Distro(distros.Distro):
     network_script_tpl = "/etc/sysconfig/network-scripts/ifcfg-%s"
     tz_local_fn = "/etc/localtime"
     usr_lib_exec = "/usr/libexec"
-    update_initramfs_cmd = []  # TODO(dracut support to regen initramfs)
+
+    update_initramfs_cmd: List[
+        str
+    ] = []  # TODO(dracut support to regen initramfs)
     # RHEL and derivatives use NetworkManager DHCP client by default.
     # But if NM is configured with using dhclient ("dhcp=dhclient" statement)
     # then the following location is used:
