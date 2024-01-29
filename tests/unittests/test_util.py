@@ -543,10 +543,7 @@ class TestUtil:
             confs[i].write("{}")
         assert {"0": "0"} == util.read_conf_d(tmpdir)
         assert (
-            caplog.text.count(
-                f"REDACTED config part {tmpdir}/conf-1.cfg"
-            )
-            == 1
+            caplog.text.count(f"REDACTED config part {tmpdir}/conf-1.cfg") == 1
         )
         assert m_read_conf.call_count == 2
         out, err = capsys.readouterr()
@@ -587,12 +584,7 @@ class TestUtil:
         if create_confd:
             confd_fn = tmpdir.mkdir("conf.cfg.d")
         util.read_conf_with_confd(conf_fn)
-        assert (
-            caplog.text.count(
-                f"REDACTED config part {conf_fn}"
-            )
-            == 1
-        )
+        assert caplog.text.count(f"REDACTED config part {conf_fn}") == 1
         assert m_read_conf.call_count == 1
         out, err = capsys.readouterr()
         assert not out
