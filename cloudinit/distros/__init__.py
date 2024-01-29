@@ -30,7 +30,6 @@ from typing import (
     Type,
     Union,
 )
-from typing import Any, List, Mapping, MutableMapping, Optional, Type
 
 import cloudinit.net.netops.iproute2 as iproute2
 from cloudinit import (
@@ -136,7 +135,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     default_owner = "root:root"
     init_cmd: List[str] = ["service"]  # systemctl, service etc
 
-    kernel_module_cmd_map: Mapping[str, str] = {
+    kernel_module_cmd_map: Mapping[str, List[str]] = {
         "list": ["lsmod"],
         "load": ["insmod"],
         "unload": ["rmmod"],
@@ -1167,9 +1166,11 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             )
         cmd = self.kernel_module_cmd_map[action]
         if action != "list":
-            cmd += kernel_module
+            cmd += [str(kernel_module)]
             LOG.debug(
-                "%sing kernel module %s", action, kernel_module.capitalize()
+                "%sing kernel module %s",
+                action,
+                str(kernel_module).capitalize(),
             )
         return subp.subp(cmd, capture=True)
 

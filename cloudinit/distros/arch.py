@@ -6,6 +6,7 @@
 
 import logging
 import os
+from typing import List
 
 from cloudinit import distros, helpers, subp, util
 from cloudinit.distros import PackageList, net_util
@@ -22,7 +23,7 @@ class Distro(distros.Distro):
     locale_gen_fn = "/etc/locale.gen"
     network_conf_dir = "/etc/netctl"
     init_cmd = ["systemctl"]  # init scripts
-    update_initramfs_cmd = []  # TODO(define mkinicpio support)
+    update_initramfs_cmd: List[str] = []  # TODO(define mkinicpio support)
     renderer_configs = {
         "netplan": {
             "netplan_path": CLOUDINIT_NETPLAN_FILE,
