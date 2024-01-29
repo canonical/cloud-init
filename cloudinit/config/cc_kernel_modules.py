@@ -2,12 +2,11 @@
 
 """Kernel Modules"""
 import re
+import logging
 from array import array
-from logging import Logger
 from textwrap import dedent
 from typing import List
 
-from cloudinit import log as logging
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -317,7 +316,7 @@ def update_initial_ramdisk(cloud: Cloud):
 
 
 def handle(
-    name: str, cfg: Config, cloud: Cloud, log: Logger, args: list
+    name: str, cfg: Config, cloud: Cloud, args: list
 ) -> None:
     kernel_modules_section = None
     unload_modules = []  # type: list
