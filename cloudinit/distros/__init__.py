@@ -1173,7 +1173,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             )
         return subp.subp(cmd, capture=True)
 
-    def manage_service(self, action: str, service: str):
     @classmethod
     def reload_init(cls, rcs=None):
         """
