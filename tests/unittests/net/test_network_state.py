@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import log, safeyaml, util
+from cloudinit import safeyaml, util
 from cloudinit.net import network_state
 from cloudinit.net.netplan import Renderer as NetplanRenderer
 from cloudinit.net.renderers import NAME_TO_RENDERER
@@ -214,8 +214,6 @@ class TestNetworkStateParseConfigV2:
         In netplan targets we perform a passthrough and the warning is not
         needed.
         """
-        log.setup_logging()
-
         util.deprecate._log = set()  # type: ignore
         ncfg = safeyaml.load(
             cfg.format(
