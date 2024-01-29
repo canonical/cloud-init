@@ -37,7 +37,7 @@ import time
 from base64 import b64decode
 from collections import deque, namedtuple
 from contextlib import suppress
-from errno import EACCES, ENOENT
+from errno import ENOENT
 from functools import lru_cache, total_ordering
 from pathlib import Path
 from typing import (
@@ -310,11 +310,8 @@ def read_conf(fname, *, instance_data_file=None) -> Dict:
 
     try:
         config_file = load_file(fname)
-    except IOError as e:
-        if e.errno == ENOENT:
-            return {}
-        else:
-            raise
+    except FileNotFoundError:
+        return {}
 
     if instance_data_file and os.path.exists(instance_data_file):
         try:
@@ -1093,18 +1090,20 @@ def read_conf_d(confd, *, instance_data_file=None) -> dict:
     # Load them all so that they can be merged
     cfgs = []
     for fn in confs:
+        path = os.path.join(confd, fn)
         try:
             cfgs.append(
                 read_conf(
-                    os.path.join(confd, fn),
+                    path,
                     instance_data_file=instance_data_file,
                 )
             )
+        except PermissionError:
+            LOG.warning(
+                "REDACTED config part %s, insufficient permissions", path
+            )
         except OSError as e:
-            if e.errno == EACCES:
-                LOG.warning(
-                    "REDACTED config part %s/%s for non-root user", confd, fn
-                )
+            LOG.warning("Error accessing file %s: [%s]", path, e)
 
     return mergemanydict(cfgs)
 
@@ -1125,9 +1124,12 @@ def read_conf_with_confd(cfgfile, *, instance_data_file=None) -> dict:
     cfg: dict = {}
     try:
         cfg = read_conf(cfgfile, instance_data_file=instance_data_file)
+    except PermissionError:
+        LOG.warning(
+            "REDACTED config part %s, insufficient permissions", cfgfile
+        )
     except OSError as e:
-        if e.errno == EACCES:
-            LOG.warning("REDACTED config part %s for non-root user", cfgfile)
+        LOG.warning("Error accessing file %s: [%s]", cfgfile, e)
     else:
         cfgs.append(cfg)
 
@@ -1588,10 +1590,8 @@ def load_file(fname, read_cb=None, quiet=False, decode=True):
     try:
         with open(fname, "rb") as ifh:
             pipe_in_out(ifh, ofh, chunk_cb=read_cb)
-    except IOError as e:
+    except FileNotFoundError:
         if not quiet:
-            raise
-        if e.errno != ENOENT:
             raise
     contents = ofh.getvalue()
     LOG.debug("Read %s bytes from %s", len(contents), fname)
@@ -2067,9 +2067,8 @@ def del_file(path):
     LOG.debug("Attempting to remove %s", path)
     try:
         os.unlink(path)
-    except OSError as e:
-        if e.errno != ENOENT:
-            raise e
+    except FileNotFoundError:
+        pass
 
 
 def copy(src, dest):
@@ -2872,12 +2871,9 @@ def pathprefix2dict(base, required=None, optional=None, delim=os.path.sep):
     for f in required + optional:
         try:
             ret[f] = load_file(base + delim + f, quiet=False, decode=False)
-        except IOError as e:
-            if e.errno != ENOENT:
-                raise
+        except FileNotFoundError:
             if f in required:
                 missing.append(f)
-
     if len(missing):
         raise ValueError(
             "Missing required files: {files}".format(files=",".join(missing))
