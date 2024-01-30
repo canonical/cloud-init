@@ -91,6 +91,10 @@ class MockDistro(distros.Distro):
     def get_proc_ppid(_):
         return 1
 
+    @staticmethod
+    def get_proc_pgid(_):
+        return 99999
+
     def get_primary_arch(self):
         return "i386"
 
