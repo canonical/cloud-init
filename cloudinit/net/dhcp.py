@@ -615,6 +615,7 @@ class Dhcpcd(DhcpClient):
         LOG.debug("Performing a dhcp discovery on %s", interface)
         sleep_time = 0.01
         sleep_cycles = int(self.timeout / sleep_time)
+        infiniband_argument = []
 
         # dhcpcd needs the interface up to send initial discovery packets
         # Generally dhclient relies on dhclient-script PREINIT action to bring
@@ -633,6 +634,8 @@ class Dhcpcd(DhcpClient):
             # Until fixed, we allow dhcpcd to spawn background processes so
             # that we can use --dumplease, but when any option above is fixed,
             # it would be safer to avoid spawning processes using --oneshot
+            if is_ib_interface(interface):
+                infiniband_argument = ["--clientid"]
             command = [
                 self.dhcp_client_path,  # pyright: ignore
                 "--ipv4only",  # only attempt configuring ipv4
@@ -640,6 +643,7 @@ class Dhcpcd(DhcpClient):
                 "--persistent",  # don't deconfigure when dhcpcd exits
                 "--noarp",  # don't be slow
                 "--script=/bin/true",  # disable hooks
+                *infiniband_argument,
                 interface,
             ]
             out, err = subp.subp(
