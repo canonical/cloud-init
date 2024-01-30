@@ -9,11 +9,9 @@ import os
 from typing import List
 
 from cloudinit import distros, helpers, subp, util
-from cloudinit.distros import PackageList, net_util
+from cloudinit.distros import PackageList
 from cloudinit.distros.parsers.hostname import HostnameConf
 from cloudinit.net.netplan import CLOUDINIT_NETPLAN_FILE
-from cloudinit.net.renderer import Renderer
-from cloudinit.net.renderers import RendererNotFoundError
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
@@ -21,7 +19,6 @@ LOG = logging.getLogger(__name__)
 
 class Distro(distros.Distro):
     locale_gen_fn = "/etc/locale.gen"
-    network_conf_dir = "/etc/netctl"
     init_cmd = ["systemctl"]  # init scripts
     update_initramfs_cmd: List[str] = []  # TODO(define mkinicpio support)
     renderer_configs = {
@@ -63,56 +60,6 @@ class Distro(distros.Distro):
     def install_packages(self, pkglist: PackageList):
         self.update_package_sources()
         self.package_command("", pkgs=pkglist)
-
-    def _get_renderer(self) -> Renderer:
-        try:
-            return super()._get_renderer()
-        except RendererNotFoundError as e:
-            # Fall back to old _write_network
-            raise NotImplementedError from e
-
-    def _write_network(self, settings):
-        entries = net_util.translate_network(settings)
-        LOG.debug(
-            "Translated ubuntu style network settings %s into %s",
-            settings,
-            entries,
-        )
-        return _render_network(
-            entries,
-            resolv_conf=self.resolve_conf_fn,
-            conf_dir=self.network_conf_dir,
-            enable_func=self._enable_interface,
-        )
-
-    def _enable_interface(self, device_name):
-        cmd = ["netctl", "reenable", device_name]
-        try:
-            (_out, err) = subp.subp(cmd)
-            if len(err):
-                LOG.warning(
-                    "Running %s resulted in stderr output: %s", cmd, err
-                )
-        except subp.ProcessExecutionError:
-            util.logexc(LOG, "Running interface command %s failed", cmd)
-
-    def _bring_up_interface(self, device_name):
-        cmd = ["netctl", "restart", device_name]
-        LOG.debug(
-            "Attempting to run bring up interface %s using command %s",
-            device_name,
-            cmd,
-        )
-        try:
-            (_out, err) = subp.subp(cmd)
-            if len(err):
-                LOG.warning(
-                    "Running %s resulted in stderr output: %s", cmd, err
-                )
-            return True
-        except subp.ProcessExecutionError:
-            util.logexc(LOG, "Running interface command %s failed", cmd)
-            return False
 
     def _write_hostname(self, hostname, filename):
         conf = None
@@ -201,71 +148,3 @@ class Distro(distros.Distro):
         self._runner.run(
             "update-sources", self.package_command, ["-y"], freq=PER_INSTANCE
         )
-
-
-def _render_network(
-    entries,
-    target="/",
-    conf_dir="etc/netctl",
-    resolv_conf="etc/resolv.conf",
-    enable_func=None,
-):
-    """Render the translate_network format into netctl files in target.
-    Paths will be rendered under target.
-    """
-
-    devs = []
-    nameservers = []
-    resolv_conf = subp.target_path(target, resolv_conf)
-    conf_dir = subp.target_path(target, conf_dir)
-
-    for (dev, info) in entries.items():
-        if dev == "lo":
-            # no configuration should be rendered for 'lo'
-            continue
-        devs.append(dev)
-        net_fn = os.path.join(conf_dir, dev)
-        net_cfg = {
-            "Connection": "ethernet",
-            "Interface": dev,
-            "IP": info.get("bootproto"),
-            "Address": "%s/%s" % (info.get("address"), info.get("netmask")),
-            "Gateway": info.get("gateway"),
-            "DNS": info.get("dns-nameservers", []),
-        }
-        util.write_file(net_fn, convert_netctl(net_cfg))
-        if enable_func and info.get("auto"):
-            enable_func(dev)
-        if "dns-nameservers" in info:
-            nameservers.extend(info["dns-nameservers"])
-
-    if nameservers:
-        util.write_file(resolv_conf, convert_resolv_conf(nameservers))
-    return devs
-
-
-def convert_netctl(settings):
-    """Given a dictionary, returns a string in netctl profile format.
-
-    netctl profile is described at:
-    https://git.archlinux.org/netctl.git/tree/docs/netctl.profile.5.txt
-
-    Note that the 'Special Quoting Rules' are not handled here."""
-    result = []
-    for key in sorted(settings):
-        val = settings[key]
-        if val is None:
-            val = ""
-        elif isinstance(val, (tuple, list)):
-            val = "(" + " ".join("'%s'" % v for v in val) + ")"
-        result.append("%s=%s\n" % (key, val))
-    return "".join(result)
-
-
-def convert_resolv_conf(settings):
-    """Returns a settings string formatted for resolv.conf."""
-    result = ""
-    if isinstance(settings, list):
-        for ns in settings:
-            result = result + "nameserver %s\n" % ns
-    return result

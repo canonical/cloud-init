@@ -5,7 +5,10 @@ from unittest import mock
 import pytest
 
 from cloudinit import subp
-from cloudinit.config.cc_package_update_upgrade_install import handle
+from cloudinit.config.cc_package_update_upgrade_install import (
+    REBOOT_FILES,
+    handle,
+)
 from cloudinit.config.schema import (
     SchemaValidationError,
     get_schema,
@@ -13,8 +16,10 @@ from cloudinit.config.schema import (
 )
 from cloudinit.distros import PackageInstallerError
 from cloudinit.subp import SubpResult
-from tests.unittests.helpers import skipUnlessJsonSchema
+from tests.unittests.helpers import does_not_raise, skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
+
+M_PATH = "cloudinit.config.cc_package_update_upgrade_install."
 
 
 @pytest.fixture
@@ -28,6 +33,97 @@ def common_mocks(mocker):
         "cloudinit.distros.package_management.apt.Apt._apt_lock_available",
         return_value=True,
     )
+
+
+class TestRebootIfRequired:
+    @pytest.mark.parametrize(
+        "cloud_cfg,reboot_file,expectation",
+        (
+            pytest.param(
+                {"package_reboot_if_required": True},
+                "/run/reboot-needed",
+                does_not_raise(),
+                id="no_reboot_when_no_package_changes",
+            ),
+            pytest.param(
+                {"package_reboot_if_required": True, "package_upgrade": True},
+                "/run/reboot-needed",
+                pytest.raises(
+                    RuntimeError
+                ),  # _fire_reboot raises RuntimeError
+                id="perform_reboot_on_package_upgrade_and_suse_reboot_marker",
+            ),
+            pytest.param(
+                {"package_reboot_if_required": True, "package_upgrade": True},
+                "",  # No reboot-needed flag file present
+                does_not_raise(),
+                id="no_reboot_on_package_upgrade_and_no_reboot_required_file",
+            ),
+            pytest.param(
+                {"package_reboot_if_required": True, "package_upgrade": True},
+                "/var/run/reboot-required",
+                pytest.raises(
+                    RuntimeError
+                ),  # _fire_reboot raises RuntimeError
+                id="perform_reboot_on_package_upgrade_and_reboot_marker",
+            ),
+            pytest.param(
+                {"package_reboot_if_required": True, "packages": ["sl"]},
+                "/var/run/reboot-required",
+                pytest.raises(
+                    RuntimeError
+                ),  # _fire_reboot raises RuntimeError
+                id="perform_reboot_on_packages_and_reboot_marker",
+            ),
+        ),
+    )
+    def test_wb_only_reboot_on_reboot_when_configured_and_required(
+        self, cloud_cfg, reboot_file, expectation, common_mocks, caplog
+    ):
+        """Only reboot when packages are updated and reboot_if_required.
+
+        Whitebox testing because _fire_reboot will not actually reboot the
+        system and we expect to fallback to a raised RuntimeError in testing
+
+        NOOP when any of the following are not true:
+          - no reboot_if_requred: true config
+          - no reboot-required flag files exist
+          - no packages were changed by cloud-init via upgrade or packages cfg
+        """
+
+        def _isfile(filename: str):
+            return filename == reboot_file
+
+        cloud = get_cloud("ubuntu")
+
+        subp_call = None
+        sleep_count = 0
+        if cloud_cfg.get("package_reboot_if_required"):
+            if reboot_file in REBOOT_FILES:
+                if cloud_cfg.get("package_upgrade") or cloud_cfg.get(
+                    "packages"
+                ):
+                    sleep_count = 6
+                    # Expect a RuntimeError after sleeps because of mocked
+                    # subp and not really rebooting the system
+                    subp_call = ["/sbin/reboot"]
+
+        caplog.set_level(logging.WARNING)
+        with mock.patch(
+            "cloudinit.subp.subp", return_value=("fakeout", "fakeerr")
+        ) as m_subp:
+            with mock.patch("os.path.isfile", side_effect=_isfile):
+                with mock.patch(M_PATH + "time.sleep") as m_sleep:
+                    with mock.patch(M_PATH + "flush_loggers"):
+                        with expectation:
+                            handle("", cloud_cfg, cloud, [])
+        assert sleep_count == m_sleep.call_count
+        if subp_call:
+            assert (
+                f"Rebooting after upgrade or install per {reboot_file}"
+                in caplog.text
+            )
+            m_subp.assert_called_with(subp_call)
 
 
 class TestMultiplePackageManagers:

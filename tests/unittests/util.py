@@ -86,9 +86,6 @@ class MockDistro(distros.Distro):
     def get_package_mirror_info(self, arch=None, data_source=None):
         pass
 
-    def apply_network(self, settings, bring_up=True):
-        return False
-
     def generate_fallback_config(self):
         return {}
 

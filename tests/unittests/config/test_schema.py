@@ -2230,15 +2230,13 @@ class TestNetworkSchema:
     net_schema = get_schema(schema_type=SchemaType.NETWORK_CONFIG)
 
     @pytest.mark.parametrize(
-        "src_config, expectation",
+        "src_config, expectation, log",
         (
             pytest.param(
                 {"network": {"config": [], "version": 2}},
-                pytest.raises(
-                    SchemaValidationError,
-                    match=re.escape("network.version: 2 is not one of [1]"),
-                ),
-                id="net_v2_invalid",
+                does_not_raise(),
+                "Skipping netplan schema validation. No netplan available",
+                id="net_v2_skipped",
             ),
             pytest.param(
                 {"network": {"version": 1}},
@@ -2246,11 +2244,13 @@ class TestNetworkSchema:
                     SchemaValidationError,
                     match=re.escape("'config' is a required property"),
                 ),
+                "",
                 id="config_key_required",
             ),
             pytest.param(
                 {"network": {"version": 1, "config": []}},
                 does_not_raise(),
+                "",
                 id="config_key_required",
             ),
             pytest.param(
@@ -2267,6 +2267,7 @@ class TestNetworkSchema:
                         " not valid under any of the given schemas"
                     ),
                 ),
+                "",
                 id="unknown_config_type_item",
             ),
             pytest.param(
@@ -2275,6 +2276,7 @@ class TestNetworkSchema:
                     SchemaValidationError,
                     match=r"network.config.0: 'name' is a required property.*",
                 ),
+                "",
                 id="physical_requires_name_property",
             ),
             pytest.param(
@@ -2285,6 +2287,7 @@ class TestNetworkSchema:
                     }
                 },
                 does_not_raise(),
+                "",
                 id="physical_with_name_succeeds",
             ),
             pytest.param(
@@ -2300,6 +2303,7 @@ class TestNetworkSchema:
                     SchemaValidationError,
                     match=r"Additional properties are not allowed.*",
                 ),
+                "",
                 id="physical_no_additional_properties",
             ),
             pytest.param(
@@ -2310,6 +2314,7 @@ class TestNetworkSchema:
                     }
                 },
                 does_not_raise(),
+                "",
                 id="physical_with_all_known_properties",
             ),
             pytest.param(
@@ -2320,18 +2325,21 @@ class TestNetworkSchema:
                     }
                 },
                 does_not_raise(),
+                "",
                 id="bond_with_all_known_properties",
             ),
         ),
     )
-    def test_network_schema(self, src_config, expectation):
+    def test_network_schema(self, src_config, expectation, log, caplog):
         with expectation:
             validate_cloudconfig_schema(
                 config=src_config,
                 schema=self.net_schema,
-                schema_type="netork-config",
+                schema_type=SchemaType.NETWORK_CONFIG,
                 strict=True,
             )
+        if log:
+            assert log in caplog.text
 
 
 class TestStrictMetaschema:
