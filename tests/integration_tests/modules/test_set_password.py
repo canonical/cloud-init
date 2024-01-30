@@ -8,7 +8,6 @@ other tests chpasswd's list being a string.  Both expect the same results, so
 they use a mixin to share their test definitions, because we can (of course)
 only specify one user-data per instance.
 """
-import sys
 
 import pytest
 import yaml
