@@ -7,6 +7,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+from typing import List, Mapping
 
 from cloudinit import distros, helpers, subp, util
 from cloudinit.distros import PackageList
