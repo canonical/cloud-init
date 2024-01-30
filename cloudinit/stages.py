@@ -59,6 +59,8 @@ COMBINED_CLOUD_CONFIG_DOC = (
     " the aggregated desired configuration acted upon by cloud-init."
 )
 
+HOTPLUG_ENABLED_FILE = "/etc/cloud/hotplug.enabled"
+
 
 def update_event_enabled(
     datasource: sources.DataSource,
@@ -91,6 +93,11 @@ def update_event_enabled(
             copy.deepcopy(default_events),
         ]
     )
+    if os.path.exists(HOTPLUG_ENABLED_FILE):
+        LOG.debug("%s detected.", HOTPLUG_ENABLED_FILE)
+        if not allowed.get(EventScope.NETWORK):
+            allowed[EventScope.NETWORK] = set()
+        allowed[EventScope.NETWORK].add(EventType.HOTPLUG)
     LOG.debug("Allowed events: %s", allowed)
 
     scopes: Iterable[EventScope] = [scope]

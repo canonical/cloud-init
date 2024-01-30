@@ -11,6 +11,7 @@ from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.event import EventScope, EventType
 from cloudinit.settings import PER_INSTANCE
+from cloudinit.sources import DataSource
 
 meta: MetaSchema = {
     "id": "cc_install_hotplug",
@@ -71,20 +72,18 @@ LABEL="cloudinit_end"
 """
 
 
-def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
-    network_hotplug_enabled = (
-        "updates" in cfg
-        and "network" in cfg["updates"]
-        and "when" in cfg["updates"]["network"]
-        and "hotplug" in cfg["updates"]["network"]["when"]
-    )
+def install_hotplug(
+    datasource: DataSource,
+    cfg: Config,
+    network_hotplug_enabled: bool,
+):
     hotplug_supported = EventType.HOTPLUG in (
-        cloud.datasource.get_supported_events([EventType.HOTPLUG]).get(
+        datasource.get_supported_events([EventType.HOTPLUG]).get(
             EventScope.NETWORK, set()
         )
     )
     hotplug_enabled = stages.update_event_enabled(
-        datasource=cloud.datasource,
+        datasource=datasource,
         cfg=cfg,
         event_source_type=EventType.HOTPLUG,
         scope=EventScope.NETWORK,
@@ -124,3 +123,13 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         ),
     )
     subp.subp(["udevadm", "control", "--reload-rules"])
+
+
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
+    network_hotplug_enabled = (
+        "updates" in cfg
+        and "network" in cfg["updates"]
+        and "when" in cfg["updates"]["network"]
+        and "hotplug" in cfg["updates"]["network"]["when"]
+    )
+    install_hotplug(cloud.datasource, cfg, network_hotplug_enabled)

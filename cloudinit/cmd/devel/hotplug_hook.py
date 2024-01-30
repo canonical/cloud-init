@@ -9,7 +9,8 @@ import os
 import sys
 import time
 
-from cloudinit import log, reporting, stages
+from cloudinit import log, reporting, stages, util
+from cloudinit.config.cc_install_hotplug import install_hotplug
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import read_sys_net_safe
 from cloudinit.net.network_state import parse_net_config_data
@@ -66,6 +67,10 @@ def get_parser(parser=None):
         required=True,
         help="Specify action to take.",
         choices=["add", "remove"],
+    )
+
+    subparsers.add_parser(
+        "enable", help="Enable hotplug for a given subsystem."
     )
 
     return parser
@@ -237,6 +242,22 @@ def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction):
         raise last_exception
 
 
+def enable_hotplug(hotplug_init: Init, subsystem):
+    LOG.debug("Fetching datasource")
+    datasource = hotplug_init.fetch(existing="trust")
+    if not datasource:
+        return
+    if not datasource.get_supported_events([EventType.HOTPLUG]):
+        LOG.debug("hotplug not supported for event of type %s", subsystem)
+        return
+
+    util.ensure_file(stages.HOTPLUG_ENABLED_FILE, preserve_mode=True)
+    LOG.debug("Installing hotplug.")
+    install_hotplug(
+        datasource, network_hotplug_enabled=True, cfg=hotplug_init.cfg
+    )
+
+
 def handle_args(name, args):
     # Note that if an exception happens between now and when logging is
     # setup, we'll only see it in the journal
@@ -275,13 +296,18 @@ def handle_args(name, args):
                     )
                     sys.exit(1)
                 print("enabled" if datasource else "disabled")
-            else:
+            elif args.hotplug_action == "handle":
                 handle_hotplug(
                     hotplug_init=hotplug_init,
                     devpath=args.devpath,
                     subsystem=args.subsystem,
                     udevaction=args.udevaction,
                 )
+            else:
+                enable_hotplug(
+                    hotplug_init=hotplug_init, subsystem=args.subsystem
+                )
+
         except Exception:
             LOG.exception("Received fatal exception handling hotplug!")
             raise
