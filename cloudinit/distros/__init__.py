@@ -48,7 +48,7 @@ from cloudinit.distros.package_management.package_manager import PackageManager
 from cloudinit.distros.package_management.utils import known_package_managers
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
-from cloudinit.net import activators, dhcp, eni, network_state, renderers
+from cloudinit.net import activators, dhcp, renderers
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.net.renderer import Renderer
 
@@ -267,13 +267,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if uninstalled:
             raise PackageInstallerError(error_message % uninstalled)
 
-    def _write_network(self, settings):
-        """Deprecated. Remove if/when arch and gentoo support renderers."""
-        raise NotImplementedError(
-            "Legacy function '_write_network' was called in distro '%s'.\n"
-            "_write_network_config needs implementation.\n" % self.name
-        )
-
     @property
     def network_activator(self) -> Optional[Type[activators.NetworkActivator]]:
         """Return the configured network activator for this environment."""
@@ -360,41 +353,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             data_source=data_source, mirror_info=arch_info
         )
 
-    def apply_network(self, settings, bring_up=True):
-        """Deprecated. Remove if/when arch and gentoo support renderers."""
-        # this applies network where 'settings' is interfaces(5) style
-        # it is obsolete compared to apply_network_config
-        # Write it out
-
-        # pylint: disable=assignment-from-no-return
-        # We have implementations in arch and gentoo still
-        dev_names = self._write_network(settings)
-        # pylint: enable=assignment-from-no-return
-        # Now try to bring them up
-        if bring_up:
-            return self._bring_up_interfaces(dev_names)
-        return False
-
-    def _apply_network_from_network_config(self, netconfig, bring_up=True):
-        """Deprecated. Remove if/when arch and gentoo support renderers."""
-        distro = self.__class__
-        LOG.warning(
-            "apply_network_config is not currently implemented "
-            "for distribution '%s'.  Attempting to use apply_network",
-            distro,
-        )
-        header = "\n".join(
-            [
-                "# Converted from network_config for distro %s" % distro,
-                "# Implementation of _write_network_config is needed.",
-            ]
-        )
-        ns = network_state.parse_net_config_data(netconfig)
-        contents = eni.network_state_to_eni(
-            ns, header=header, render_hwaddress=True
-        )
-        return self.apply_network(contents, bring_up=bring_up)
-
     def generate_fallback_config(self):
         return net.generate_fallback_config()
 
@@ -407,16 +365,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         Returns True if any devices failed to come up, otherwise False.
         """
-        # This method is preferred to apply_network which only takes
-        # a much less complete network config format (interfaces(5)).
-        try:
-            renderer = self._get_renderer()
-        except NotImplementedError:
-            # backwards compat until all distros have apply_network_config
-            return self._apply_network_from_network_config(
-                netconfig, bring_up=bring_up
-            )
-
+        renderer = self._get_renderer()
         network_state = parse_net_config_data(netconfig, renderer=renderer)
         self._write_network_state(network_state, renderer)
 
@@ -618,20 +567,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             self._preferred_ntp_clients = list(PREFERRED_NTP_CLIENTS)
 
         return self._preferred_ntp_clients
-
-    def _bring_up_interface(self, device_name):
-        """Deprecated. Remove if/when arch and gentoo support renderers."""
-        raise NotImplementedError
-
-    def _bring_up_interfaces(self, device_names):
-        """Deprecated. Remove if/when arch and gentoo support renderers."""
-        am_failed = 0
-        for d in device_names:
-            if not self._bring_up_interface(d):
-                am_failed += 1
-        if am_failed == 0:
-            return True
-        return False
 
     def get_default_user(self):
         return self.get_option("default_user")
