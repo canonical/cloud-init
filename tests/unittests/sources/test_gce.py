@@ -405,9 +405,8 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         autospec=True,
     )
     @mock.patch(M_PATH + "net.find_candidate_nics", return_value=["ens4"])
-    @mock.patch(M_PATH + "DataSourceGCELocal.fallback_interface")
     def test_local_datasource_uses_ephemeral_dhcp(
-        self, _m_fallback, _m_find_candidate_nics, m_dhcp
+        self, _m_find_candidate_nics, m_dhcp
     ):
         self._set_mock_metadata()
         distro = mock.MagicMock()
@@ -424,9 +423,8 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         autospec=True,
     )
     @mock.patch(M_PATH + "net.find_candidate_nics")
-    @mock.patch(M_PATH + "DataSourceGCELocal.fallback_interface")
     def test_local_datasource_tries_on_multi_nic(
-        self, _m_fallback, m_find_candidate_nics, m_dhcp, m_read_md
+        self, m_find_candidate_nics, m_dhcp, m_read_md
     ):
         self._set_mock_metadata()
         distro = mock.MagicMock()
@@ -464,7 +462,7 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
             mock.call(distro, iface="ens0p5"),
             mock.call(distro, iface="ens0p6"),
         ]
-        assert ds._fallback_interface == "ens0p6"
+        assert ds.distro.fallback_interface == "ens0p6"
         assert ds.metadata == "md"
         assert ds.userdata_raw == "ud"
 

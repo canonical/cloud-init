@@ -6,6 +6,7 @@ import os
 import stat
 
 from cloudinit import importer, util
+from cloudinit.distros import ubuntu
 from cloudinit.event import EventScope, EventType
 from cloudinit.helpers import Paths
 from cloudinit.sources import (
@@ -73,7 +74,7 @@ class TestDataSource(CiTestCase):
     def setUp(self):
         super(TestDataSource, self).setUp()
         self.sys_cfg = {"datasource": {"_undef": {"key1": False}}}
-        self.distro = "distrotest"  # generally should be a Distro object
+        self.distro = ubuntu.Distro("somedistro", {}, {})
         self.paths = Paths({})
         self.datasource = DataSource(self.sys_cfg, self.distro, self.paths)
 
@@ -201,28 +202,28 @@ class TestDataSource(CiTestCase):
         for log in expected_logs:
             self.assertIn(log, logs)
 
-    @mock.patch("cloudinit.sources.net.find_fallback_nic")
+    @mock.patch("cloudinit.distros.net.find_fallback_nic")
     def test_fallback_interface_is_discovered(self, m_get_fallback_nic):
         """The fallback_interface is discovered via find_fallback_nic."""
         m_get_fallback_nic.return_value = "nic9"
-        self.assertEqual("nic9", self.datasource.fallback_interface)
+        self.assertEqual("nic9", self.datasource.distro.fallback_interface)
 
     @mock.patch("cloudinit.sources.net.find_fallback_nic")
     def test_fallback_interface_logs_undiscovered(self, m_get_fallback_nic):
         """Log a warning when fallback_interface can not discover the nic."""
-        self.datasource._cloud_name = "MySupahCloud"
         m_get_fallback_nic.return_value = None  # Couldn't discover nic
-        self.assertIsNone(self.datasource.fallback_interface)
+        self.assertIsNone(self.datasource.distro.fallback_interface)
         self.assertEqual(
-            "WARNING: Did not find a fallback interface on MySupahCloud.\n",
+            "WARNING: Did not find a fallback interface on distro: "
+            "somedistro.\n",
             self.logs.getvalue(),
         )
 
     @mock.patch("cloudinit.sources.net.find_fallback_nic")
     def test_wb_fallback_interface_is_cached(self, m_get_fallback_nic):
         """The fallback_interface is cached and won't be rediscovered."""
-        self.datasource._fallback_interface = "nic10"
-        self.assertEqual("nic10", self.datasource.fallback_interface)
+        self.datasource.distro.fallback_interface = "nic10"
+        self.assertEqual("nic10", self.datasource.distro.fallback_interface)
         m_get_fallback_nic.assert_not_called()
 
     def test__get_data_unimplemented(self):

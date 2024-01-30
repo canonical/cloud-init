@@ -124,14 +124,14 @@ def lsb_release():
     return data
 
 
-def decode_binary(blob, encoding="utf-8"):
+def decode_binary(blob, encoding="utf-8") -> str:
     # Converts a binary type into a text type using given encoding.
     if isinstance(blob, str):
         return blob
     return blob.decode(encoding)
 
 
-def encode_text(text, encoding="utf-8"):
+def encode_text(text, encoding="utf-8") -> bytes:
     # Converts a text string into a binary type using given encoding.
     if isinstance(text, bytes):
         return text
@@ -3109,47 +3109,6 @@ def udevadm_settle(exists=None, timeout=None):
         settle_cmd.extend(["--timeout=%s" % timeout])
 
     return subp.subp(settle_cmd)
-
-
-def get_proc_ppid_linux(pid):
-    """
-    Return the parent pid of a process by parsing /proc/$pid/stat.
-    """
-    ppid = 0
-    try:
-        contents = load_file("/proc/%s/stat" % pid, quiet=True)
-        if contents:
-            # see proc.5 for format
-            m = re.search(r"^\d+ \(.+\) [RSDZTtWXxKPI] (\d+)", str(contents))
-            if m:
-                ppid = int(m.group(1))
-            else:
-                LOG.warning(
-                    "Unable to match parent pid of process pid=%s input: %s",
-                    pid,
-                    contents,
-                )
-    except IOError as e:
-        LOG.warning("Failed to load /proc/%s/stat. %s", pid, e)
-    return ppid
-
-
-def get_proc_ppid_ps(pid):
-    """
-    Return the parent pid of a process by checking ps
-    """
-    ppid, _ = subp.subp(["ps", "-oppid=", "-p", str(pid)])
-    return int(ppid.strip())
-
-
-def get_proc_ppid(pid):
-    """
-    Return the parent pid of a process.
-    """
-    if is_Linux():
-        return get_proc_ppid_linux(pid)
-    else:
-        return get_proc_ppid_ps(pid)
 
 
 def error(msg, rc=1, fmt="Error:\n{}", sys_exit=False):
