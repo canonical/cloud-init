@@ -5,7 +5,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
-import os
 from typing import List
 
 from cloudinit import distros, helpers, subp, util
