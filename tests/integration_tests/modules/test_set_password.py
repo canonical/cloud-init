@@ -162,7 +162,6 @@ class Mixin:
         assert "dick:" in console_log
         assert "harry:" in console_log
 
-    @pytest.mark.xfail(sys.version_info[:2] > (3, 12))
     def test_explicit_password_set_correctly(self, class_client):
         """Test that an explicitly-specified password is set correctly."""
         minor_version = int(
