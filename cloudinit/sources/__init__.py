@@ -223,10 +223,28 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     # The datasource also defines a set of default EventTypes that the
     # datasource can react to. These are the event types that will be used
     # if not overridden by the user.
+    #
     # A datasource requiring to write network config on each system boot
-    # would call default_update_events['network'].add(EventType.BOOT).
+    # would either:
+    #
+    # 1) Overwrite the class attribute `default_update_events` like:
+    #
+    # >>> default_update_events = {
+    # ...     EventScope.NETWORK: {
+    # ...         EventType.BOOT_NEW_INSTANCE,
+    # ...         EventType.BOOT,
+    # ...     }
+    # ... }
+    #
+    # 2) Or, if writing network config on every boot has to be determined at
+    # runtime, then deepcopy to not overwrite the class attribute on other
+    # elements of this class hierarchy, like:
+    #
+    # >>> self.default_update_events = copy.deepcopy(
+    # ...    self.default_update_events
+    # ... )
+    # >>> self.default_update_events[EventScope.NETWORK].add(EventType.BOOT)
 
-    # Default: generate network config on new instance id (first boot).
     supported_update_events = {
         EventScope.NETWORK: {
             EventType.BOOT_NEW_INSTANCE,
@@ -235,6 +253,8 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             EventType.HOTPLUG,
         }
     }
+
+    # Default: generate network config on new instance id (first boot).
     default_update_events = {
         EventScope.NETWORK: {
             EventType.BOOT_NEW_INSTANCE,
