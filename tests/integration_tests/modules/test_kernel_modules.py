@@ -70,7 +70,8 @@ class BaseTest:
                 id="ASCII-check-2",
             ),
             pytest.param(
-                "lsmod | grep -e '^lockd\\|^ip_tables\\|^wireguard\\|^btrfs' | wc -l",
+                "lsmod | grep -e '^lockd\\|^ip_tables\\|"
+                "^wireguard\\|^btrfs' | wc -l",
                 "4",
                 id="check-loaded-modules",
             ),

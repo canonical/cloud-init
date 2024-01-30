@@ -121,9 +121,11 @@ def persist_schema_validation(persist: dict) -> List[str]:
                         )
                     for sditem in sdvalues:
                         if not isinstance(sditem, str):
-                            "Expected array of strings for"
-                            f" kernel_modules:persist:softdep:{sdkey}."
-                            " Found {sditem}."
+                            errors.append(
+                                "Expected array of strings for"
+                                f" kernel_modules:persist:softdep:{sdkey}."
+                                " Found {sditem}."
+                            )
     return errors
 
 
@@ -214,9 +216,7 @@ def enhance_module(module_name: str, persist: dict, unload_modules: list):
         entry = f"{key} {module_name} {value}"
         # softdep special case
         if key == "softdep":
-            entry += " pre: ".join({key["pre"]}) + " post: ".join(
-                {key["post"]}
-            )
+            entry += " ".join({key["pre"]}) + " ".join({key["post"]})
         # blacklist special case
         elif key == "blacklist":
             if value:
@@ -310,9 +310,8 @@ def update_initial_ramdisk(cloud: Cloud):
     """
     if not cloud.distro.update_initramfs_cmd:
         raise NotImplementedError(
-            "Unable to update initramfs for %s. Kernel module changes will not"
-            " persist across reboot",
-            cloud.distro.name,
+            f"Unable to update initramfs for {cloud.distro.name}."
+            " Kernel module changes will not persist across reboot."
         )
     try:
         subp.subp(cloud.distro.update_initramfs_cmd)
@@ -341,7 +340,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # check systemd usage
     if not cloud.distro.uses_systemd():
         LOG.debug(
-            "Skipping module named %s, due to " "no systemd installed",
+            "Skipping module named %s, due to no systemd installed",
             name,
         )
         return
