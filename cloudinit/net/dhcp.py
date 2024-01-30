@@ -600,6 +600,17 @@ class Dhcpcd(DhcpClient):
         # -sf /bin/true, we need to do that "link up" ourselves first.
         distro.net_ops.link_up(interface)
         try:
+            # Currently dhcpcd doesn't have a workable --oneshot lease parsing
+            # story. All non-daemon lease parsing options on dhcpcd appear
+            # broken:
+            #
+            #   https://github.com/NetworkConfiguration/dhcpcd/issues/285
+            #   https://github.com/NetworkConfiguration/dhcpcd/issues/286
+            #   https://github.com/NetworkConfiguration/dhcpcd/issues/287
+            #
+            # Until fixed, we allow dhcpcd to spawn background processes so
+            # that we can use --dumplease, but when any option above is fixed,
+            # it would be safer to avoid spawning processes using --oneshot
             command = [
                 self.dhcp_client_path,  # pyright: ignore
                 "--ipv4only",  # only attempt configuring ipv4
@@ -619,31 +630,11 @@ class Dhcpcd(DhcpClient):
             # Attempt cleanup and leave breadcrumbs if it fails, but return
             # the lease regardless of failure to clean up dhcpcd.
             if lease:
-                # pid file arrival can take very long, and stdout might contain
-                # the PID, so attempt to use a stdout parsed PID
-                for line in reversed(out.split("\n")):
-                    if "forked to background, child pid " in line:
-                        try:
-                            pid = int(line.split()[-1])
-                            gid = distro.get_proc_pgid(pid)
-                            if gid:
-                                os.kill(gid, signal.SIGKILL)
-                                break
-                        except ValueError:
-                            LOG.debug(
-                                "Clouldn't kill process: couldn't parse "
-                                "pid from stdout"
-                            )
-                        except ProcessLookupError:
-                            LOG.debug(
-                                "Couldn't kill process, it already exited"
-                            )
-                LOG.debug("PID not in stdout, waiting for PID file")
-
                 # Note: the pid file location depends on the arguments passed
                 # it can be discovered with the -P flag
-                pid_file = subp.subp([*command, "-P"]).stdout
+                pid_file = subp.subp([*command, "-P"]).stdout.strip()
                 pid_content = None
+                gid = False
                 debug_msg = ""
                 for _ in range(sleep_cycles):
                     try:
@@ -654,7 +645,15 @@ class Dhcpcd(DhcpClient):
                             LOG.debug(
                                 "killing dhcpcd with pid=%s gid=%s", pid, gid
                             )
-                            os.kill(gid, signal.SIGKILL)
+                            os.killpg(gid, signal.SIGKILL)
+                            break
+                    except ProcessLookupError:
+                        LOG.debug(
+                            "Process group id [%s] has already exited, "
+                            "nothing to kill",
+                            gid,
+                        )
+                        break
                     except FileNotFoundError:
                         debug_msg = (
                             f"No PID file found at {pid_file}, "
@@ -668,7 +667,8 @@ class Dhcpcd(DhcpClient):
                     else:
                         return lease
                     time.sleep(sleep_time)
-                LOG.debug(debug_msg)
+                else:
+                    LOG.debug(debug_msg)
                 return lease
             raise NoDHCPLeaseError("No lease found")
 
