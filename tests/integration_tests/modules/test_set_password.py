@@ -8,6 +8,7 @@ other tests chpasswd's list being a string.  Both expect the same results, so
 they use a mixin to share their test definitions, because we can (of course)
 only specify one user-data per instance.
 """
+
 import pytest
 import yaml
 
@@ -162,9 +163,17 @@ class Mixin:
 
     def test_explicit_password_set_correctly(self, class_client):
         """Test that an explicitly-specified password is set correctly."""
+        minor_version = int(
+            class_client.execute(
+                "python3 -c 'import sys;print(sys.version_info[1])'"
+            ).strip()
+        )
+        if minor_version > 12:
+            pytest.xfail("Instance under test doesn't have 'crypt' in stdlib")
         shadow_users, _ = self._fetch_and_parse_etc_shadow(class_client)
 
         fmt_and_salt = shadow_users["tom"].rsplit("$", 1)[0]
+
         GEN_CRYPT_CONTENT = (
             "import crypt\n"
             f"print(crypt.crypt('mypassword123!', '{fmt_and_salt}'))\n"
