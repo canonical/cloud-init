@@ -36,6 +36,7 @@ from tests.unittests.util import MockDistro
 PID_F = "/run/dhclient.pid"
 LEASE_F = "/run/dhclient.lease"
 DHCLIENT = "/sbin/dhclient"
+ib_address_prefix = "00:00:00:00:00:00:00:00:00:00:00:00"
 
 
 @pytest.mark.parametrize(
@@ -375,7 +376,6 @@ class TestDHCPParseStaticRoutes(CiTestCase):
 
 class TestDHCPDiscoveryClean(CiTestCase):
     with_logs = True
-    ib_address_prefix = "00:00:00:00:00:00:00:00:00:00:00:00"
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic", return_value="eth9")
     @mock.patch("cloudinit.net.dhcp.os.remove")
@@ -995,7 +995,10 @@ class TestUDHCPCDiscoveryClean(CiTestCase):
         )
 
     @mock.patch("cloudinit.net.dhcp.is_ib_interface", return_value=True)
-    @mock.patch("cloudinit.net.dhcp.get_ib_interface_hwaddr")
+    @mock.patch(
+        "cloudinit.net.dhcp.get_interface_mac",
+        return_value="%s:AA:AA:AA:00:00:AA:AA:AA" % ib_address_prefix,
+    )
     @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/udhcpc")
     @mock.patch("cloudinit.net.dhcp.os.remove")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
@@ -1022,7 +1025,6 @@ class TestUDHCPCDiscoveryClean(CiTestCase):
             "routers": "192.168.2.1",
             "static_routes": "10.240.0.1/32 0.0.0.0 0.0.0.0/0 10.240.0.1",
         }
-        m_get_ib_interface_hwaddr.return_value = "00:21:28:00:01:cf:4b:01"
         self.assertEqual(
             {
                 "fixed-address": "192.168.2.74",
@@ -1053,7 +1055,7 @@ class TestUDHCPCDiscoveryClean(CiTestCase):
                         "-f",
                         "-v",
                         "-x",
-                        "0x3d:0021280001cf4b01",
+                        "0x3d:20AAAAAA0000AAAAAA",
                     ],
                     update_env={
                         "LEASE_FILE": "/var/tmp/cloud-init/ib0.lease.json"
