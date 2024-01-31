@@ -53,7 +53,6 @@ date. A 5 year timeline may also be expected for changed keys.
 .. automodule:: cloudinit.config.cc_resizefs
 .. automodule:: cloudinit.config.cc_resolv_conf
 .. automodule:: cloudinit.config.cc_rh_subscription
-.. automodule:: cloudinit.config.cc_rightscale_userdata
 
 .. _mod-rsyslog:
 

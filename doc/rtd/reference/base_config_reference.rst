@@ -348,7 +348,6 @@ On an Ubuntu system, :file:`/etc/cloud/cloud.cfg` should look similar to:
     - mcollective
     - salt_minion
     - reset_rmc
-    - rightscale_userdata
     - scripts_vendor
     - scripts_per_once
     - scripts_per_boot
