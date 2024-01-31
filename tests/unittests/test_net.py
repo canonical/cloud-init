@@ -1182,7 +1182,7 @@ class TestGenerateFallbackConfig(CiTestCase):
             },
             "version": 2,
         }
-        self.assertEqual(expected, network_cfg)
+        assert expected == network_cfg
 
     @mock.patch("cloudinit.net.openvswitch_is_installed", return_value=False)
     @mock.patch("cloudinit.net.sys_dev_path")
@@ -1247,7 +1247,7 @@ class TestGenerateFallbackConfig(CiTestCase):
         )
         renderer.render_network_state(ns, target=render_dir)
 
-        self.assertTrue(os.path.exists(os.path.join(render_dir, "interfaces")))
+        assert os.path.exists(os.path.join(render_dir, "interfaces"))
         with open(os.path.join(render_dir, "interfaces")) as fh:
             contents = fh.read()
         print(contents)
@@ -1261,9 +1261,9 @@ iface eth0 inet dhcp
 # control-alias eth0
 iface eth0 inet6 dhcp
 """
-        self.assertEqual(expected.lstrip(), contents.lstrip())
+        assert expected.lstrip() == contents.lstrip()
 
-        self.assertTrue(os.path.exists(os.path.join(render_dir, "netrules")))
+        assert os.path.exists(os.path.join(render_dir, "netrules"))
         with open(os.path.join(render_dir, "netrules")) as fh:
             contents = fh.read()
         print(contents)
@@ -1274,7 +1274,7 @@ iface eth0 inet6 dhcp
             'ATTR{address}=="00:11:22:33:44:55"',
             'NAME="eth0"',
         ]
-        self.assertEqual(", ".join(expected_rule) + "\n", contents.lstrip())
+        assert ", ".join(expected_rule) + "\n" == contents.lstrip()
 
     @mock.patch("cloudinit.net.openvswitch_is_installed", return_value=False)
     @mock.patch("cloudinit.net.sys_dev_path")
@@ -1339,7 +1339,7 @@ iface eth0 inet6 dhcp
         )
         renderer.render_network_state(ns, target=render_dir)
 
-        self.assertTrue(os.path.exists(os.path.join(render_dir, "interfaces")))
+        assert os.path.exists(os.path.join(render_dir, "interfaces"))
         with open(os.path.join(render_dir, "interfaces")) as fh:
             contents = fh.read()
         print(contents)
@@ -1353,9 +1353,9 @@ iface eth1 inet dhcp
 # control-alias eth1
 iface eth1 inet6 dhcp
 """
-        self.assertEqual(expected.lstrip(), contents.lstrip())
+        assert expected.lstrip() == contents.lstrip()
 
-        self.assertTrue(os.path.exists(os.path.join(render_dir, "netrules")))
+        assert os.path.exists(os.path.join(render_dir, "netrules"))
         with open(os.path.join(render_dir, "netrules")) as fh:
             contents = fh.read()
         print(contents)
@@ -1366,7 +1366,7 @@ iface eth1 inet6 dhcp
             'ATTR{address}=="00:11:22:33:44:55"',
             'NAME="eth1"',
         ]
-        self.assertEqual(", ".join(expected_rule) + "\n", contents.lstrip())
+        assert ", ".join(expected_rule) + "\n" == contents.lstrip()
 
     @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("cloudinit.util.udevadm_settle")
@@ -1415,7 +1415,7 @@ iface eth1 inet6 dhcp
             dev_attrs=devices,
         )
         net.generate_fallback_config(config_driver=True)
-        self.assertEqual(1, mock_settle.call_count)
+        assert 1 == mock_settle.call_count
 
     @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("cloudinit.util.udevadm_settle")
@@ -1464,7 +1464,7 @@ iface eth1 inet6 dhcp
             dev_attrs=devices,
         )
         net.generate_fallback_config(config_driver=True)
-        self.assertEqual(0, mock_settle.call_count)
+        assert 0 == mock_settle.call_count
 
 
 @mock.patch(
@@ -1524,7 +1524,7 @@ class TestRhelSysConfigRendering(CiTestCase):
         )
         try:
             self.maxDiff = None
-            self.assertEqual(expected_d, scripts_found)
+            assert expected_d == scripts_found
         finally:
             self.maxDiff = orig_maxdiff
 
@@ -1583,7 +1583,7 @@ ONBOOT=yes
 TYPE=Ethernet
 USERCTL=no
 """.lstrip()
-            self.assertEqual(expected_content, content)
+            assert expected_content == content
 
     def test_multiple_ipv4_default_gateways(self):
         """ValueError is raised when duplicate ipv4 gateways exist."""
@@ -1628,9 +1628,9 @@ USERCTL=no
             network_cfg, skip_broken=False
         )
         renderer = self._get_renderer()
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             renderer.render_network_state(ns, target=render_dir)
-        self.assertEqual([], os.listdir(render_dir))
+        assert [] == os.listdir(render_dir)
 
     def test_multiple_ipv6_default_gateways(self):
         """ValueError is raised when duplicate ipv6 gateways exist."""
@@ -1675,9 +1675,9 @@ USERCTL=no
             network_cfg, skip_broken=False
         )
         renderer = self._get_renderer()
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             renderer.render_network_state(ns, target=render_dir)
-        self.assertEqual([], os.listdir(render_dir))
+        assert [] == os.listdir(render_dir)
 
     def test_invalid_network_mask_ipv6(self):
         net_json = {
@@ -1711,7 +1711,7 @@ USERCTL=no
         }
         macs = {"fa:16:3e:ed:9a:59": "eth0"}
         network_cfg = openstack.convert_net_json(net_json, known_macs=macs)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             network_state.parse_net_config_data(network_cfg, skip_broken=False)
 
     def test_invalid_network_mask_ipv4(self):
@@ -1746,7 +1746,7 @@ USERCTL=no
         }
         macs = {"fa:16:3e:ed:9a:59": "eth0"}
         network_cfg = openstack.convert_net_json(net_json, known_macs=macs)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             network_state.parse_net_config_data(network_cfg, skip_broken=False)
 
     def test_openstack_rendering_samples(self):
@@ -1769,7 +1769,7 @@ USERCTL=no
                 "out_sysconfig_rhel", []
             ):
                 with open(os.path.join(render_dir, fn)) as fh:
-                    self.assertEqual(expected_content, fh.read())
+                    assert expected_content == fh.read()
 
     def test_network_config_v1_samples(self):
         ns = network_state.parse_net_config_data(CONFIG_V1_SIMPLE_SUBNET)
@@ -1779,7 +1779,7 @@ USERCTL=no
         renderer.render_network_state(ns, target=render_dir)
         found = dir2dict(render_dir)
         nspath = "/etc/sysconfig/network-scripts/"
-        self.assertNotIn(nspath + "ifcfg-lo", found.keys())
+        assert nspath + "ifcfg-lo" not in found.keys()
         expected = """\
 # Created by cloud-init automatically, do not edit.
 #
@@ -1795,11 +1795,11 @@ ONBOOT=yes
 TYPE=Ethernet
 USERCTL=no
 """
-        self.assertEqual(expected, found[nspath + "ifcfg-interface0"])
+        assert expected == found[nspath + "ifcfg-interface0"]
         # The configuration has no nameserver information make sure we
         # do not write the resolv.conf file
         respath = "/etc/resolv.conf"
-        self.assertNotIn(respath, found.keys())
+        assert respath not in found.keys()
 
     def test_network_config_v1_multi_iface_samples(self):
         ns = network_state.parse_net_config_data(CONFIG_V1_MULTI_IFACE)
@@ -1809,7 +1809,7 @@ USERCTL=no
         renderer.render_network_state(ns, target=render_dir)
         found = dir2dict(render_dir)
         nspath = "/etc/sysconfig/network-scripts/"
-        self.assertNotIn(nspath + "ifcfg-lo", found.keys())
+        assert nspath + "ifcfg-lo" not in found.keys()
         expected_i1 = """\
 # Created by cloud-init automatically, do not edit.
 #
@@ -1826,7 +1826,7 @@ ONBOOT=yes
 TYPE=Ethernet
 USERCTL=no
 """
-        self.assertEqual(expected_i1, found[nspath + "ifcfg-eth0"])
+        assert expected_i1 == found[nspath + "ifcfg-eth0"]
         expected_i2 = """\
 # Created by cloud-init automatically, do not edit.
 #
@@ -1840,7 +1840,7 @@ ONBOOT=yes
 TYPE=Ethernet
 USERCTL=no
 """
-        self.assertEqual(expected_i2, found[nspath + "ifcfg-eth1"])
+        assert expected_i2 == found[nspath + "ifcfg-eth1"]
 
     def test_config_with_explicit_loopback(self):
         ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)
@@ -1854,7 +1854,7 @@ USERCTL=no
         renderer.render_network_state(ns, target=render_dir)
         found = dir2dict(render_dir)
         nspath = "/etc/sysconfig/network-scripts/"
-        self.assertNotIn(nspath + "ifcfg-lo", found.keys())
+        assert nspath + "ifcfg-lo" not in found.keys()
         expected = """\
 # Created by cloud-init automatically, do not edit.
 #
@@ -1865,9 +1865,9 @@ ONBOOT=yes
 TYPE=Ethernet
 USERCTL=no
 """
-        self.assertEqual(expected, found[nspath + "ifcfg-eth0"])
+        assert expected == found[nspath + "ifcfg-eth0"]
         # a dhcp only config should not modify resolv.conf
-        self.assertEqual(resolvconf_content, found["/etc/resolv.conf"])
+        assert resolvconf_content == found["/etc/resolv.conf"]
 
     def test_bond_config(self):
         entry = NETWORK_CONFIGS["bond"]
@@ -1898,9 +1898,9 @@ USERCTL=no
         found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
-        self.assertNotIn(
-            "WARNING: Network config: ignoring eth0.101 device-level mtu",
-            self.logs.getvalue(),
+        assert (
+            "WARNING: Network config: ignoring eth0.101 device-level mtu"
+            not in self.logs.getvalue()
         )
 
     def test_small_config_v1(self):
@@ -1924,7 +1924,7 @@ USERCTL=no
             "WARNING: Network config: ignoring iface0 device-level mtu:8999"
             " because ipv4 subnet-level mtu:9000 provided."
         )
-        self.assertIn(expected_msg, self.logs.getvalue())
+        assert expected_msg in self.logs.getvalue()
 
     def test_dhcpv6_only_config(self):
         entry = NETWORK_CONFIGS["dhcpv6_only"]
@@ -2010,9 +2010,9 @@ USERCTL=no
             network_cfg, skip_broken=False
         )
         renderer = self._get_renderer()
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             renderer.render_network_state(ns, target=render_dir)
-        self.assertEqual([], os.listdir(render_dir))
+        assert [] == os.listdir(render_dir)
 
     def test_static6_from_yaml(self):
         entry = NETWORK_CONFIGS["static6"]
@@ -2068,7 +2068,7 @@ USERCTL=no
             if "dhcp" in snet["type"]
         ]
 
-        self.assertEqual([], dhcp_found)
+        assert [] == dhcp_found
 
     @pytest.mark.xfail(reason="sysconfig should render interface-level DNS")
     def test_v1_dns(self):
@@ -2452,7 +2452,7 @@ class TestOpenSuseSysConfigRendering(CiTestCase):
         )
         try:
             self.maxDiff = None
-            self.assertEqual(expected_d, scripts_found)
+            assert expected_d == scripts_found
         finally:
             self.maxDiff = orig_maxdiff
 
@@ -2506,7 +2506,7 @@ DHCLIENT6_MODE=managed
 LLADDR=07-1c-c6-75-a4-be
 STARTMODE=auto
 """.lstrip()
-            self.assertEqual(expected_content, content)
+            assert expected_content == content
 
     # TODO(rjschwei): re-enable test once route writing is implemented
     # for SUSE distros
@@ -2606,7 +2606,7 @@ STARTMODE=auto
                 "out_sysconfig_opensuse", []
             ):
                 with open(os.path.join(render_dir, fn)) as fh:
-                    self.assertEqual(expected_content, fh.read())
+                    assert expected_content == fh.read()
 
     def test_network_config_v1_samples(self):
         ns = network_state.parse_net_config_data(CONFIG_V1_SIMPLE_SUBNET)
@@ -2616,7 +2616,7 @@ STARTMODE=auto
         renderer.render_network_state(ns, target=render_dir)
         found = dir2dict(render_dir)
         nspath = "/etc/sysconfig/network/"
-        self.assertNotIn(nspath + "ifcfg-lo", found.keys())
+        assert nspath + "ifcfg-lo" not in found.keys()
         expected = """\
 # Created by cloud-init automatically, do not edit.
 #
@@ -2626,11 +2626,11 @@ LLADDR=52:54:00:12:34:00
 NETMASK=255.255.255.0
 STARTMODE=auto
 """
-        self.assertEqual(expected, found[nspath + "ifcfg-interface0"])
+        assert expected == found[nspath + "ifcfg-interface0"]
         # The configuration has no nameserver information make sure we
         # do not write the resolv.conf file
         respath = "/etc/resolv.conf"
-        self.assertNotIn(respath, found.keys())
+        assert respath not in found.keys()
 
     def test_config_with_explicit_loopback(self):
         ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)
@@ -2644,16 +2644,16 @@ STARTMODE=auto
         renderer.render_network_state(ns, target=render_dir)
         found = dir2dict(render_dir)
         nspath = "/etc/sysconfig/network/"
-        self.assertNotIn(nspath + "ifcfg-lo", found.keys())
+        assert nspath + "ifcfg-lo" not in found.keys()
         expected = """\
 # Created by cloud-init automatically, do not edit.
 #
 BOOTPROTO=dhcp4
 STARTMODE=auto
 """
-        self.assertEqual(expected, found[nspath + "ifcfg-eth0"])
+        assert expected == found[nspath + "ifcfg-eth0"]
         # a dhcp only config should not modify resolv.conf
-        self.assertEqual(resolvconf_content, found["/etc/resolv.conf"])
+        assert resolvconf_content == found["/etc/resolv.conf"]
 
     def test_bond_config(self):
         expected_name = "expected_sysconfig_opensuse"
@@ -2694,9 +2694,9 @@ STARTMODE=auto
         found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
-        self.assertNotIn(
-            "WARNING: Network config: ignoring eth0.101 device-level mtu",
-            self.logs.getvalue(),
+        assert (
+            "WARNING: Network config: ignoring eth0.101 device-level mtu"
+            not in self.logs.getvalue()
         )
 
     def test_small_config_v1(self):
@@ -2726,7 +2726,7 @@ STARTMODE=auto
             "WARNING: Network config: ignoring iface0 device-level mtu:8999"
             " because ipv4 subnet-level mtu:9000 provided."
         )
-        self.assertIn(expected_msg, self.logs.getvalue())
+        assert expected_msg in self.logs.getvalue()
 
     def test_dhcpv6_only_config(self):
         entry = NETWORK_CONFIGS["dhcpv6_only"]
@@ -3097,7 +3097,7 @@ class TestEniNetRendering(CiTestCase):
         )
         renderer.render_network_state(ns, target=render_dir)
 
-        self.assertTrue(os.path.exists(os.path.join(render_dir, "interfaces")))
+        assert os.path.exists(os.path.join(render_dir, "interfaces"))
         with open(os.path.join(render_dir, "interfaces")) as fh:
             contents = fh.read()
 
@@ -3111,7 +3111,7 @@ iface eth1000 inet dhcp
 # control-alias eth1000
 iface eth1000 inet6 dhcp
 """
-        self.assertEqual(expected.lstrip(), contents.lstrip())
+        assert expected.lstrip() == contents.lstrip()
 
     def test_config_with_explicit_loopback(self):
         tmp_dir = self.tmp_dir()
@@ -3125,9 +3125,7 @@ iface lo inet loopback
 auto eth0
 iface eth0 inet dhcp
 """
-        self.assertEqual(
-            expected, dir2dict(tmp_dir)["/etc/network/interfaces"]
-        )
+        assert expected == dir2dict(tmp_dir)["/etc/network/interfaces"]
 
     def test_v2_route_metric_to_eni(self):
         """Network v2 route-metric overrides are preserved in eni output"""
@@ -3152,9 +3150,9 @@ iface eth0 inet dhcp
             v2_input = {"version": 2, "ethernets": {"eth0": dhcp_cfg}}
             ns = network_state.parse_net_config_data(v2_input)
             renderer.render_network_state(ns, target=tmp_dir)
-            self.assertEqual(
-                expected_tmpl.format(suffix=suffix),
-                dir2dict(tmp_dir)["/etc/network/interfaces"],
+            assert (
+                expected_tmpl.format(suffix=suffix)
+                == dir2dict(tmp_dir)["/etc/network/interfaces"]
             )
 
 
@@ -3579,7 +3577,7 @@ class TestNetplanCleanDefault(CiTestCase):
         files = sorted(populate_dir(tmpd, content))
         netplan._clean_default(target=tmpd)
         found = [t for t in files if os.path.exists(t)]
-        self.assertEqual([], found)
+        assert [] == found
 
     def test_clean_unknown_config_not_cleaned(self):
         content = {
@@ -3591,7 +3589,7 @@ class TestNetplanCleanDefault(CiTestCase):
         files = sorted(populate_dir(tmpd, content))
         netplan._clean_default(target=tmpd)
         found = [t for t in files if os.path.exists(t)]
-        self.assertEqual(files, found)
+        assert files == found
 
     def test_clean_known_config_cleans_only_expected(self):
         astamp = "run/systemd/generator/another.stamp"
@@ -3610,7 +3608,7 @@ class TestNetplanCleanDefault(CiTestCase):
         netplan._clean_default(target=tmpd)
         found = [t for t in files if os.path.exists(t)]
         expected = [subp.target_path(tmpd, f) for f in (astamp, anet, ayaml)]
-        self.assertEqual(sorted(expected), found)
+        assert sorted(expected) == found
 
 
 class TestNetplanPostcommands(CiTestCase):
@@ -3709,8 +3707,8 @@ class TestEniNetworkStateToEni(CiTestCase):
             network_state=network_state.parse_net_config_data(self.mycfg),
             render_hwaddress=True,
         )
-        self.assertIn(self.my_mac, rendered)
-        self.assertIn("hwaddress", rendered)
+        assert self.my_mac in rendered
+        assert "hwaddress" in rendered
 
     def test_with_header(self):
         header = "# hello world\n"
@@ -3719,16 +3717,16 @@ class TestEniNetworkStateToEni(CiTestCase):
             header=header,
             render_hwaddress=True,
         )
-        self.assertIn(header, rendered)
-        self.assertIn(self.my_mac, rendered)
+        assert header in rendered
+        assert self.my_mac in rendered
 
     def test_no_hwaddress(self):
         rendered = eni.network_state_to_eni(
             network_state=network_state.parse_net_config_data(self.mycfg),
             render_hwaddress=False,
         )
-        self.assertNotIn(self.my_mac, rendered)
-        self.assertNotIn("hwaddress", rendered)
+        assert self.my_mac not in rendered
+        assert "hwaddress" not in rendered
 
 
 class TestCmdlineConfigParsing(CiTestCase):
@@ -3747,15 +3745,15 @@ class TestCmdlineConfigParsing(CiTestCase):
 
     def test_cmdline_convert_dhcp(self):
         found = cmdline._klibc_to_config_entry(DHCP_CONTENT_1)
-        self.assertEqual(found, ("eth0", DHCP_EXPECTED_1))
+        assert found == ("eth0", DHCP_EXPECTED_1)
 
     def test_cmdline_convert_dhcp6(self):
         found = cmdline._klibc_to_config_entry(DHCP6_CONTENT_1)
-        self.assertEqual(found, ("eno1", DHCP6_EXPECTED_1))
+        assert found == ("eno1", DHCP6_EXPECTED_1)
 
     def test_cmdline_convert_static(self):
         found = cmdline._klibc_to_config_entry(STATIC_CONTENT_1)
-        self.assertEqual(found, ("eth1", STATIC_EXPECTED_1))
+        assert found == ("eth1", STATIC_EXPECTED_1)
 
     def test_config_from_cmdline_net_cfg(self):
         files = []
@@ -3782,37 +3780,37 @@ class TestCmdlineConfigParsing(CiTestCase):
             found = cmdline.config_from_klibc_net_cfg(
                 files=files, mac_addrs=macs
             )
-            self.assertEqual(found, expected)
+            assert found == expected
 
     def test_cmdline_with_b64(self):
         data = base64.b64encode(json.dumps(self.simple_cfg).encode())
         encoded_text = data.decode()
         raw_cmdline = "ro network-config=" + encoded_text + " root=foo"
         found = cmdline.read_kernel_cmdline_config(cmdline=raw_cmdline)
-        self.assertEqual(found, self.simple_cfg)
+        assert found == self.simple_cfg
 
     def test_cmdline_with_net_config_disabled(self):
         raw_cmdline = "ro network-config=disabled root=foo"
         found = cmdline.read_kernel_cmdline_config(cmdline=raw_cmdline)
-        self.assertEqual(found, {"config": "disabled"})
+        assert found == {"config": "disabled"}
 
     def test_cmdline_with_net_config_unencoded_logs_error(self):
         """network-config cannot be unencoded besides 'disabled'."""
         raw_cmdline = "ro network-config={config:disabled} root=foo"
         found = cmdline.read_kernel_cmdline_config(cmdline=raw_cmdline)
-        self.assertIsNone(found)
+        assert found is None
         expected_log = (
             "ERROR: Expected base64 encoded kernel commandline parameter"
             " network-config. Ignoring network-config={config:disabled}."
         )
-        self.assertIn(expected_log, self.logs.getvalue())
+        assert expected_log in self.logs.getvalue()
 
     def test_cmdline_with_b64_gz(self):
         data = _gzip_data(json.dumps(self.simple_cfg).encode())
         encoded_text = base64.b64encode(data).decode()
         raw_cmdline = "ro network-config=" + encoded_text + " root=foo"
         found = cmdline.read_kernel_cmdline_config(cmdline=raw_cmdline)
-        self.assertEqual(found, self.simple_cfg)
+        assert found == self.simple_cfg
 
 
 class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
@@ -3837,10 +3835,10 @@ class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
             _cmdline="foo root=/root/bar",
             _mac_addrs=self.macs,
         )
-        self.assertTrue(src.is_applicable())
+        assert src.is_applicable()
         found = src.render_config()
-        self.assertEqual(found["version"], 1)
-        self.assertEqual(found["config"], [exp1])
+        assert found["version"] == 1
+        assert found["config"] == [exp1]
 
     def test_with_ip(self):
         content = {"/run/net-eth0.conf": DHCP_CONTENT_1}
@@ -3855,10 +3853,10 @@ class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
             _cmdline="foo ip=dhcp",
             _mac_addrs=self.macs,
         )
-        self.assertTrue(src.is_applicable())
+        assert src.is_applicable()
         found = src.render_config()
-        self.assertEqual(found["version"], 1)
-        self.assertEqual(found["config"], [exp1])
+        assert found["version"] == 1
+        assert found["config"] == [exp1]
 
     def test_with_ip6(self):
         content = {"/run/net6-eno1.conf": DHCP6_CONTENT_1}
@@ -3870,29 +3868,26 @@ class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
             _cmdline="foo ip6=dhcp root=/dev/sda",
             _mac_addrs=self.macs,
         )
-        self.assertTrue(src.is_applicable())
+        assert src.is_applicable()
         found = src.render_config()
-        self.assertEqual(
-            found,
-            {
-                "version": 1,
-                "config": [
-                    {
-                        "type": "physical",
-                        "name": "eno1",
-                        "mac_address": self.macs["eno1"],
-                        "subnets": [
-                            {
-                                "dns_nameservers": ["2001:67c:1562:8010::2:1"],
-                                "control": "manual",
-                                "type": "dhcp6",
-                                "netmask": "64",
-                            }
-                        ],
-                    }
-                ],
-            },
-        )
+        assert found == {
+            "version": 1,
+            "config": [
+                {
+                    "type": "physical",
+                    "name": "eno1",
+                    "mac_address": self.macs["eno1"],
+                    "subnets": [
+                        {
+                            "dns_nameservers": ["2001:67c:1562:8010::2:1"],
+                            "control": "manual",
+                            "type": "dhcp6",
+                            "netmask": "64",
+                        }
+                    ],
+                }
+            ],
+        }
 
     def test_with_no_ip_or_ip6(self):
         # if there is no ip= or ip6= on cmdline, return value should be None
@@ -3903,7 +3898,7 @@ class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
             _cmdline="foo root=/dev/sda",
             _mac_addrs=self.macs,
         )
-        self.assertFalse(src.is_applicable())
+        assert not src.is_applicable()
 
     def test_with_faux_ip(self):
         content = {"net6-eno1.conf": DHCP6_CONTENT_1}
@@ -3913,7 +3908,7 @@ class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
             _cmdline="foo iscsi_target_ip=root=/dev/sda",
             _mac_addrs=self.macs,
         )
-        self.assertFalse(src.is_applicable())
+        assert not src.is_applicable()
 
     def test_empty_cmdline(self):
         content = {"net6-eno1.conf": DHCP6_CONTENT_1}
@@ -3923,7 +3918,7 @@ class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
             _cmdline="",
             _mac_addrs=self.macs,
         )
-        self.assertFalse(src.is_applicable())
+        assert not src.is_applicable()
 
     def test_whitespace_cmdline(self):
         content = {"net6-eno1.conf": DHCP6_CONTENT_1}
@@ -3933,7 +3928,7 @@ class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
             _cmdline="          ",
             _mac_addrs=self.macs,
         )
-        self.assertFalse(src.is_applicable())
+        assert not src.is_applicable()
 
     def test_cmdline_no_lhand(self):
         content = {"net6-eno1.conf": DHCP6_CONTENT_1}
@@ -3943,7 +3938,7 @@ class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
             _cmdline="=wut",
             _mac_addrs=self.macs,
         )
-        self.assertFalse(src.is_applicable())
+        assert not src.is_applicable()
 
     def test_cmdline_embedded_ip(self):
         content = {"net6-eno1.conf": DHCP6_CONTENT_1}
@@ -3953,7 +3948,7 @@ class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
             _cmdline='opt="some things and ip=foo"',
             _mac_addrs=self.macs,
         )
-        self.assertFalse(src.is_applicable())
+        assert not src.is_applicable()
 
     def test_with_both_ip_ip6(self):
         content = {
@@ -3981,10 +3976,10 @@ class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
             _mac_addrs=self.macs,
         )
 
-        self.assertTrue(src.is_applicable())
+        assert src.is_applicable()
         found = src.render_config()
-        self.assertEqual(found["version"], 1)
-        self.assertEqual(found["config"], expected)
+        assert found["version"] == 1
+        assert found["config"] == expected
 
 
 class TestReadInitramfsConfig(CiTestCase):
@@ -3996,7 +3991,7 @@ class TestReadInitramfsConfig(CiTestCase):
 
     def test_no_sources(self):
         with mock.patch("cloudinit.net.cmdline._INITRAMFS_CONFIG_SOURCES", []):
-            self.assertIsNone(cmdline.read_initramfs_config())
+            assert cmdline.read_initramfs_config() is None
 
     def test_no_applicable_sources(self):
         sources = [
@@ -4007,7 +4002,7 @@ class TestReadInitramfsConfig(CiTestCase):
         with mock.patch(
             "cloudinit.net.cmdline._INITRAMFS_CONFIG_SOURCES", sources
         ):
-            self.assertIsNone(cmdline.read_initramfs_config())
+            assert cmdline.read_initramfs_config() is None
 
     def test_one_applicable_source(self):
         expected_config = object()
@@ -4020,7 +4015,7 @@ class TestReadInitramfsConfig(CiTestCase):
         with mock.patch(
             "cloudinit.net.cmdline._INITRAMFS_CONFIG_SOURCES", sources
         ):
-            self.assertEqual(expected_config, cmdline.read_initramfs_config())
+            assert expected_config == cmdline.read_initramfs_config()
 
     def test_one_applicable_source_after_inapplicable_sources(self):
         expected_config = object()
@@ -4035,7 +4030,7 @@ class TestReadInitramfsConfig(CiTestCase):
         with mock.patch(
             "cloudinit.net.cmdline._INITRAMFS_CONFIG_SOURCES", sources
         ):
-            self.assertEqual(expected_config, cmdline.read_initramfs_config())
+            assert expected_config == cmdline.read_initramfs_config()
 
     def test_first_applicable_source_is_used(self):
         first_config, second_config = object(), object()
@@ -4052,7 +4047,7 @@ class TestReadInitramfsConfig(CiTestCase):
         with mock.patch(
             "cloudinit.net.cmdline._INITRAMFS_CONFIG_SOURCES", sources
         ):
-            self.assertEqual(first_config, cmdline.read_initramfs_config())
+            assert first_config == cmdline.read_initramfs_config()
 
 
 class TestNetplanRoundTrip(CiTestCase):
@@ -4098,9 +4093,9 @@ class TestNetplanRoundTrip(CiTestCase):
         print(entry["expected_netplan"])
         print("-- expected ^ | v rendered --")
         print(files["/etc/netplan/50-cloud-init.yaml"])
-        self.assertEqual(
-            entry["expected_netplan"].splitlines(),
-            files["/etc/netplan/50-cloud-init.yaml"].splitlines(),
+        assert (
+            entry["expected_netplan"].splitlines()
+            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
         )
 
     def testsimple_render_bond_v2_input_netplan(self):
@@ -4111,41 +4106,41 @@ class TestNetplanRoundTrip(CiTestCase):
         print(entry["expected_netplan-v2"])
         print("-- expected ^ | v rendered --")
         print(files["/etc/netplan/50-cloud-init.yaml"])
-        self.assertEqual(
-            entry["expected_netplan-v2"].splitlines(),
-            files["/etc/netplan/50-cloud-init.yaml"].splitlines(),
+        assert (
+            entry["expected_netplan-v2"].splitlines()
+            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
         )
 
     def testsimple_render_small_netplan(self):
         entry = NETWORK_CONFIGS["small_v1"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self.assertEqual(
-            entry["expected_netplan"].splitlines(),
-            files["/etc/netplan/50-cloud-init.yaml"].splitlines(),
+        assert (
+            entry["expected_netplan"].splitlines()
+            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
         )
 
     def testsimple_render_v4_and_v6(self):
         entry = NETWORK_CONFIGS["v4_and_v6"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self.assertEqual(
-            entry["expected_netplan"].splitlines(),
-            files["/etc/netplan/50-cloud-init.yaml"].splitlines(),
+        assert (
+            entry["expected_netplan"].splitlines()
+            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
         )
 
     def testsimple_render_v4_and_v6_static(self):
         entry = NETWORK_CONFIGS["v4_and_v6_static"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self.assertEqual(
-            entry["expected_netplan"].splitlines(),
-            files["/etc/netplan/50-cloud-init.yaml"].splitlines(),
+        assert (
+            entry["expected_netplan"].splitlines()
+            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
         )
 
     def testsimple_render_dhcpv6_only(self):
         entry = NETWORK_CONFIGS["dhcpv6_only"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self.assertEqual(
-            entry["expected_netplan"].splitlines(),
-            files["/etc/netplan/50-cloud-init.yaml"].splitlines(),
+        assert (
+            entry["expected_netplan"].splitlines()
+            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
         )
 
     def testsimple_render_dhcpv6_accept_ra(self):
@@ -4153,9 +4148,9 @@ class TestNetplanRoundTrip(CiTestCase):
         files = self._render_and_read(
             network_config=yaml.load(entry["yaml_v1"])
         )
-        self.assertEqual(
-            entry["expected_netplan"].splitlines(),
-            files["/etc/netplan/50-cloud-init.yaml"].splitlines(),
+        assert (
+            entry["expected_netplan"].splitlines()
+            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
         )
 
     def testsimple_render_dhcpv6_reject_ra(self):
@@ -4163,33 +4158,33 @@ class TestNetplanRoundTrip(CiTestCase):
         files = self._render_and_read(
             network_config=yaml.load(entry["yaml_v1"])
         )
-        self.assertEqual(
-            entry["expected_netplan"].splitlines(),
-            files["/etc/netplan/50-cloud-init.yaml"].splitlines(),
+        assert (
+            entry["expected_netplan"].splitlines()
+            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
         )
 
     def testsimple_render_ipv6_slaac(self):
         entry = NETWORK_CONFIGS["ipv6_slaac"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self.assertEqual(
-            entry["expected_netplan"].splitlines(),
-            files["/etc/netplan/50-cloud-init.yaml"].splitlines(),
+        assert (
+            entry["expected_netplan"].splitlines()
+            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
         )
 
     def testsimple_render_dhcpv6_stateless(self):
         entry = NETWORK_CONFIGS["dhcpv6_stateless"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self.assertEqual(
-            entry["expected_netplan"].splitlines(),
-            files["/etc/netplan/50-cloud-init.yaml"].splitlines(),
+        assert (
+            entry["expected_netplan"].splitlines()
+            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
         )
 
     def testsimple_render_dhcpv6_stateful(self):
         entry = NETWORK_CONFIGS["dhcpv6_stateful"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self.assertEqual(
-            entry["expected_netplan"].splitlines(),
-            files["/etc/netplan/50-cloud-init.yaml"].splitlines(),
+        assert (
+            entry["expected_netplan"].splitlines()
+            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
         )
 
     def testsimple_wakeonlan_disabled_config_v2(self):
@@ -4197,9 +4192,9 @@ class TestNetplanRoundTrip(CiTestCase):
         files = self._render_and_read(
             network_config=yaml.load(entry["yaml_v2"])
         )
-        self.assertEqual(
-            entry["expected_netplan"].splitlines(),
-            files["/etc/netplan/50-cloud-init.yaml"].splitlines(),
+        assert (
+            entry["expected_netplan"].splitlines()
+            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
         )
 
     def testsimple_wakeonlan_enabled_config_v2(self):
@@ -4207,9 +4202,9 @@ class TestNetplanRoundTrip(CiTestCase):
         files = self._render_and_read(
             network_config=yaml.load(entry["yaml_v2"])
         )
-        self.assertEqual(
-            entry["expected_netplan"].splitlines(),
-            files["/etc/netplan/50-cloud-init.yaml"].splitlines(),
+        assert (
+            entry["expected_netplan"].splitlines()
+            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
         )
 
     def testsimple_render_all(self):
@@ -4218,17 +4213,17 @@ class TestNetplanRoundTrip(CiTestCase):
         print(entry["expected_netplan"])
         print("-- expected ^ | v rendered --")
         print(files["/etc/netplan/50-cloud-init.yaml"])
-        self.assertEqual(
-            entry["expected_netplan"].splitlines(),
-            files["/etc/netplan/50-cloud-init.yaml"].splitlines(),
+        assert (
+            entry["expected_netplan"].splitlines()
+            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
         )
 
     def testsimple_render_manual(self):
         entry = NETWORK_CONFIGS["manual"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self.assertEqual(
-            entry["expected_netplan"].splitlines(),
-            files["/etc/netplan/50-cloud-init.yaml"].splitlines(),
+        assert (
+            entry["expected_netplan"].splitlines()
+            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
         )
 
     @pytest.mark.xfail(
@@ -4237,9 +4232,9 @@ class TestNetplanRoundTrip(CiTestCase):
     def testsimple_render_v1_dns(self):
         entry = NETWORK_CONFIGS["v1-dns"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self.assertEqual(
-            entry["expected_netplan"].splitlines(),
-            files["/etc/netplan/50-cloud-init.yaml"].splitlines(),
+        assert (
+            entry["expected_netplan"].splitlines()
+            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
         )
 
     def test_render_output_has_yaml_no_aliases(self):
@@ -4256,7 +4251,7 @@ class TestNetplanRoundTrip(CiTestCase):
         # test load the yaml to ensure we don't render something not loadable
         # this allows single aliases, but not duplicate ones
         parsed = yaml.load(files["/etc/netplan/50-cloud-init.yaml"])
-        self.assertNotEqual(None, parsed)
+        assert parsed is not None
 
         # now look for any alias, avoid rendering them entirely
         # generate the first anchor string using the template
@@ -4270,9 +4265,9 @@ class TestNetplanRoundTrip(CiTestCase):
         print(entry["expected_netplan"])
         print("-- expected ^ | v rendered --")
         print(files["/etc/netplan/50-cloud-init.yaml"])
-        self.assertEqual(
-            entry["expected_netplan"].splitlines(),
-            files["/etc/netplan/50-cloud-init.yaml"].splitlines(),
+        assert (
+            entry["expected_netplan"].splitlines()
+            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
         )
 
     def test_render_output_supports_both_grat_arp_spelling(self):
@@ -4287,9 +4282,9 @@ class TestNetplanRoundTrip(CiTestCase):
         print(entry["expected_netplan"])
         print("-- expected ^ | v rendered --")
         print(files["/etc/netplan/50-cloud-init.yaml"])
-        self.assertEqual(
-            entry["expected_netplan"].splitlines(),
-            files["/etc/netplan/50-cloud-init.yaml"].splitlines(),
+        assert (
+            entry["expected_netplan"].splitlines()
+            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
         )
 
 
@@ -4325,82 +4320,82 @@ class TestEniRoundTrip(CiTestCase):
     def testsimple_convert_and_render(self):
         network_config = eni.convert_eni_data(EXAMPLE_ENI)
         files = self._render_and_read(network_config=network_config)
-        self.assertEqual(
-            RENDERED_ENI.splitlines(),
-            files["/etc/network/interfaces"].splitlines(),
+        assert (
+            RENDERED_ENI.splitlines()
+            == files["/etc/network/interfaces"].splitlines()
         )
 
     def testsimple_render_all(self):
         entry = NETWORK_CONFIGS["all"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self.assertEqual(
-            entry["expected_eni"].splitlines(),
-            files["/etc/network/interfaces"].splitlines(),
+        assert (
+            entry["expected_eni"].splitlines()
+            == files["/etc/network/interfaces"].splitlines()
         )
 
     def testsimple_render_small_v1(self):
         entry = NETWORK_CONFIGS["small_v1"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self.assertEqual(
-            entry["expected_eni"].splitlines(),
-            files["/etc/network/interfaces"].splitlines(),
+        assert (
+            entry["expected_eni"].splitlines()
+            == files["/etc/network/interfaces"].splitlines()
         )
 
     @pytest.mark.xfail(reason="GH-4219")
     def testsimple_render_small_v2(self):
         entry = NETWORK_CONFIGS["small_v2"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self.assertEqual(
-            entry["expected_eni"].splitlines(),
-            files["/etc/network/interfaces"].splitlines(),
+        assert (
+            entry["expected_eni"].splitlines()
+            == files["/etc/network/interfaces"].splitlines()
         )
 
     def testsimple_render_v4_and_v6(self):
         entry = NETWORK_CONFIGS["v4_and_v6"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self.assertEqual(
-            entry["expected_eni"].splitlines(),
-            files["/etc/network/interfaces"].splitlines(),
+        assert (
+            entry["expected_eni"].splitlines()
+            == files["/etc/network/interfaces"].splitlines()
         )
 
     def testsimple_render_dhcpv6_only(self):
         entry = NETWORK_CONFIGS["dhcpv6_only"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self.assertEqual(
-            entry["expected_eni"].splitlines(),
-            files["/etc/network/interfaces"].splitlines(),
+        assert (
+            entry["expected_eni"].splitlines()
+            == files["/etc/network/interfaces"].splitlines()
         )
 
     def testsimple_render_v4_and_v6_static(self):
         entry = NETWORK_CONFIGS["v4_and_v6_static"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self.assertEqual(
-            entry["expected_eni"].splitlines(),
-            files["/etc/network/interfaces"].splitlines(),
+        assert (
+            entry["expected_eni"].splitlines()
+            == files["/etc/network/interfaces"].splitlines()
         )
 
     def testsimple_render_dhcpv6_stateless(self):
         entry = NETWORK_CONFIGS["dhcpv6_stateless"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self.assertEqual(
-            entry["expected_eni"].splitlines(),
-            files["/etc/network/interfaces"].splitlines(),
+        assert (
+            entry["expected_eni"].splitlines()
+            == files["/etc/network/interfaces"].splitlines()
         )
 
     def testsimple_render_ipv6_slaac(self):
         entry = NETWORK_CONFIGS["ipv6_slaac"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self.assertEqual(
-            entry["expected_eni"].splitlines(),
-            files["/etc/network/interfaces"].splitlines(),
+        assert (
+            entry["expected_eni"].splitlines()
+            == files["/etc/network/interfaces"].splitlines()
         )
 
     def testsimple_render_dhcpv6_stateful(self):
         entry = NETWORK_CONFIGS["dhcpv6_stateless"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self.assertEqual(
-            entry["expected_eni"].splitlines(),
-            files["/etc/network/interfaces"].splitlines(),
+        assert (
+            entry["expected_eni"].splitlines()
+            == files["/etc/network/interfaces"].splitlines()
         )
 
     def testsimple_render_dhcpv6_accept_ra(self):
@@ -4408,9 +4403,9 @@ class TestEniRoundTrip(CiTestCase):
         files = self._render_and_read(
             network_config=yaml.load(entry["yaml_v1"])
         )
-        self.assertEqual(
-            entry["expected_eni"].splitlines(),
-            files["/etc/network/interfaces"].splitlines(),
+        assert (
+            entry["expected_eni"].splitlines()
+            == files["/etc/network/interfaces"].splitlines()
         )
 
     def testsimple_render_dhcpv6_reject_ra(self):
@@ -4418,9 +4413,9 @@ class TestEniRoundTrip(CiTestCase):
         files = self._render_and_read(
             network_config=yaml.load(entry["yaml_v1"])
         )
-        self.assertEqual(
-            entry["expected_eni"].splitlines(),
-            files["/etc/network/interfaces"].splitlines(),
+        assert (
+            entry["expected_eni"].splitlines()
+            == files["/etc/network/interfaces"].splitlines()
         )
 
     def testsimple_wakeonlan_disabled_config_v2(self):
@@ -4428,9 +4423,9 @@ class TestEniRoundTrip(CiTestCase):
         files = self._render_and_read(
             network_config=yaml.load(entry["yaml_v2"])
         )
-        self.assertEqual(
-            entry["expected_eni"].splitlines(),
-            files["/etc/network/interfaces"].splitlines(),
+        assert (
+            entry["expected_eni"].splitlines()
+            == files["/etc/network/interfaces"].splitlines()
         )
 
     def testsimple_wakeonlan_enabled_config_v2(self):
@@ -4438,9 +4433,9 @@ class TestEniRoundTrip(CiTestCase):
         files = self._render_and_read(
             network_config=yaml.load(entry["yaml_v2"])
         )
-        self.assertEqual(
-            entry["expected_eni"].splitlines(),
-            files["/etc/network/interfaces"].splitlines(),
+        assert (
+            entry["expected_eni"].splitlines()
+            == files["/etc/network/interfaces"].splitlines()
         )
 
     def testsimple_render_manual(self):
@@ -4453,9 +4448,9 @@ class TestEniRoundTrip(CiTestCase):
         to 'auto', or the MTU would not be set."""
         entry = NETWORK_CONFIGS["manual"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self.assertEqual(
-            entry["expected_eni"].splitlines(),
-            files["/etc/network/interfaces"].splitlines(),
+        assert (
+            entry["expected_eni"].splitlines()
+            == files["/etc/network/interfaces"].splitlines()
         )
 
     def test_routes_rendered(self):
@@ -4532,7 +4527,7 @@ class TestEniRoundTrip(CiTestCase):
         ]
         found = files["/etc/network/interfaces"].splitlines()
 
-        self.assertEqual(expected, [line for line in found if line])
+        assert expected == [line for line in found if line]
 
     def test_ipv6_static_routes(self):
         # as reported in bug 1818669
@@ -4606,32 +4601,32 @@ class TestEniRoundTrip(CiTestCase):
         ]
         found = files["/etc/network/interfaces"].splitlines()
 
-        self.assertEqual(expected, [line for line in found if line])
+        assert expected == [line for line in found if line]
 
     def testsimple_render_bond(self):
         entry = NETWORK_CONFIGS["bond"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self.assertEqual(
-            entry["expected_eni"].splitlines(),
-            files["/etc/network/interfaces"].splitlines(),
+        assert (
+            entry["expected_eni"].splitlines()
+            == files["/etc/network/interfaces"].splitlines()
         )
 
     @pytest.mark.xfail(reason="GH-4219")
     def test_v1_dns(self):
         entry = NETWORK_CONFIGS["v1-dns"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self.assertEqual(
-            entry["expected_eni"].splitlines(),
-            files["/etc/network/interfaces"].splitlines(),
+        assert (
+            entry["expected_eni"].splitlines()
+            == files["/etc/network/interfaces"].splitlines()
         )
 
     @pytest.mark.xfail(reason="GH-4219")
     def test_v2_dns(self):
         entry = NETWORK_CONFIGS["v2-dns"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self.assertEqual(
-            entry["expected_eni"].splitlines(),
-            files["/etc/network/interfaces"].splitlines(),
+        assert (
+            entry["expected_eni"].splitlines()
+            == files["/etc/network/interfaces"].splitlines()
         )
 
 
@@ -4651,7 +4646,7 @@ class TestNetworkdNetRendering(CiTestCase):
 
     def compare_dicts(self, actual, expected):
         for k, v in actual.items():
-            self.assertEqual(sorted(expected[k]), sorted(v))
+            assert sorted(expected[k]) == sorted(v)
 
     @mock.patch("cloudinit.net.util.chownbyname", return_value=True)
     @mock.patch("cloudinit.net.util.get_cmdline", return_value="root=myroot")
@@ -4683,9 +4678,7 @@ class TestNetworkdNetRendering(CiTestCase):
         renderer = networkd.Renderer({})
         renderer.render_network_state(ns, target=render_dir)
 
-        self.assertTrue(
-            os.path.exists(os.path.join(render_dir, render_target))
-        )
+        assert os.path.exists(os.path.join(render_dir, render_target))
         with open(os.path.join(render_dir, render_target)) as fh:
             contents = fh.readlines()
 
@@ -4722,7 +4715,7 @@ class TestNetworkdRoundTrip(CiTestCase):
 
     def compare_dicts(self, actual, expected):
         for k, v in actual.items():
-            self.assertEqual(sorted(expected[k]), sorted(v))
+            assert sorted(expected[k]) == sorted(v)
 
     def _render_and_read(
         self, network_config=None, state=None, nwkd_path=None, dir=None
@@ -5003,13 +4996,13 @@ class TestNetRenderers(CiTestCase):
         m_sysc_avail.return_value = True
         found = renderers.search(priority=["sysconfig", "eni"], first=False)
         names = [f[0] for f in found]
-        self.assertEqual(["sysconfig", "eni"], names)
+        assert ["sysconfig", "eni"] == names
 
     @mock.patch("cloudinit.net.renderers.eni.available")
     def test_search_returns_empty_on_none(self, m_eni_avail):
         m_eni_avail.return_value = False
         found = renderers.search(priority=["eni"], first=False)
-        self.assertEqual([], found)
+        assert [] == found
 
     @mock.patch("cloudinit.net.renderers.sysconfig.available")
     @mock.patch("cloudinit.net.renderers.eni.available")
@@ -5018,7 +5011,7 @@ class TestNetRenderers(CiTestCase):
         m_eni_avail.return_value = True
         m_sysc_avail.side_effect = Exception("Should not call me")
         found = renderers.search(priority=["eni", "sysconfig"], first=True)[0]
-        self.assertEqual(["eni"], [found[0]])
+        assert ["eni"] == [found[0]]
 
     @mock.patch("cloudinit.net.renderers.sysconfig.available")
     @mock.patch("cloudinit.net.renderers.eni.available")
@@ -5026,7 +5019,7 @@ class TestNetRenderers(CiTestCase):
         m_eni_avail.return_value = True
         m_sysc_avail.return_value = False
         found = renderers.select(priority=["sysconfig", "eni"])
-        self.assertEqual("eni", found[0])
+        assert "eni" == found[0]
 
     @mock.patch("cloudinit.net.renderers.sysconfig.available")
     @mock.patch("cloudinit.net.renderers.eni.available")
@@ -5035,7 +5028,7 @@ class TestNetRenderers(CiTestCase):
         m_eni_avail.return_value = False
         m_sysc_avail.return_value = False
 
-        self.assertRaises(
+        pytest.raises(
             net.RendererNotFoundError,
             renderers.select,
             priority=["sysconfig", "eni"],
@@ -5057,13 +5050,13 @@ class TestNetRenderers(CiTestCase):
             if hasattr(util.system_info, "cache_clear"):
                 util.system_info.cache_clear()
             result = sysconfig.available()
-            self.assertTrue(result)
+            assert result
 
     @mock.patch("cloudinit.net.renderers.networkd.available")
     def test_networkd_available(self, m_nwkd_avail):
         m_nwkd_avail.return_value = True
         found = renderers.search(priority=["networkd"], first=False)
-        self.assertEqual("networkd", found[0][0])
+        assert "networkd" == found[0][0]
 
 
 @mock.patch(
@@ -5169,18 +5162,18 @@ class TestGetInterfaces(CiTestCase):
         self._mock_setup()
         ret = net.get_interfaces()
 
-        self.assertIn("enp0s1", self._se_get_devicelist())
-        self.assertIn("eth1", self._se_get_devicelist())
+        assert "enp0s1" in self._se_get_devicelist()
+        assert "eth1" in self._se_get_devicelist()
         found = [ent for ent in ret if "aa:aa:aa:aa:aa:01" in ent]
-        self.assertEqual(len(found), 2)
+        assert len(found) == 2
 
     def test_gi_excludes_any_without_mac_address(self):
         self._mock_setup()
         ret = net.get_interfaces()
 
-        self.assertIn("tun0", self._se_get_devicelist())
+        assert "tun0" in self._se_get_devicelist()
         found = [ent for ent in ret if "tun0" in ent]
-        self.assertEqual(len(found), 0)
+        assert len(found) == 0
 
     def test_gi_excludes_stolen_macs(self):
         self._mock_setup()
@@ -5195,7 +5188,7 @@ class TestGetInterfaces(CiTestCase):
             ("lo", "00:00:00:00:00:00", None, "0x8"),
             ("bridge1-nic", "aa:aa:aa:aa:aa:03", None, "0x3"),
         ]
-        self.assertEqual(sorted(expected), sorted(ret))
+        assert sorted(expected) == sorted(ret)
 
     def test_gi_excludes_bridges(self):
         self._mock_setup()
@@ -5209,7 +5202,7 @@ class TestGetInterfaces(CiTestCase):
         self.data["own_macs"] = self.data["devices"]
         self.data["bridges"] = [f for f in self.data["devices"] if f != "b1"]
         ret = net.get_interfaces()
-        self.assertEqual([("b1", "aa:aa:aa:aa:aa:b1", None, "0x0")], ret)
+        assert [("b1", "aa:aa:aa:aa:aa:b1", None, "0x0")] == ret
         self.mocks["is_bridge"].assert_has_calls(
             [
                 mock.call("bridge1"),
@@ -5239,11 +5232,11 @@ class TestInterfaceHasOwnMac(CiTestCase):
             tx_queue_len:1
             type:1
         """
-        self.assertTrue(interface_has_own_mac("eth0"))
+        assert interface_has_own_mac("eth0")
 
     @mock.patch("cloudinit.net.read_sys_net_int", return_value=None)
     def test_strict_with_no_addr_assign_type_raises(self, m_read_sys_net_int):
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             interface_has_own_mac("eth0", True)
 
     @mock.patch("cloudinit.net.read_sys_net_int")
@@ -5251,12 +5244,10 @@ class TestInterfaceHasOwnMac(CiTestCase):
         msg = "address_assign_type=%d said to not have own mac"
         for address_assign_type in (0, 1, 3):
             m_read_sys_net_int.return_value = address_assign_type
-            self.assertTrue(
-                interface_has_own_mac("eth0", msg % address_assign_type)
-            )
+            assert interface_has_own_mac("eth0", msg % address_assign_type)
 
         m_read_sys_net_int.return_value = 2
-        self.assertFalse(interface_has_own_mac("eth0"))
+        assert not interface_has_own_mac("eth0")
 
 
 @mock.patch(
@@ -5350,18 +5341,18 @@ class TestGetInterfacesByMac(CiTestCase):
     def test_raise_exception_on_duplicate_macs(self):
         self._mock_setup()
         self.data["macs"]["bridge1-nic"] = self.data["macs"]["enp0s1"]
-        self.assertRaises(RuntimeError, net.get_interfaces_by_mac)
+        pytest.raises(RuntimeError, net.get_interfaces_by_mac)
 
     def test_raise_exception_on_duplicate_netvsc_macs(self):
         self._mock_setup()
         self.data["macs"]["netvsc0"] = self.data["macs"]["netvsc1"]
-        self.assertRaises(RuntimeError, net.get_interfaces_by_mac)
+        pytest.raises(RuntimeError, net.get_interfaces_by_mac)
 
     def test_excludes_any_without_mac_address(self):
         self._mock_setup()
         ret = net.get_interfaces_by_mac()
-        self.assertIn("tun0", self._se_get_devicelist())
-        self.assertNotIn("tun0", ret.values())
+        assert "tun0" in self._se_get_devicelist()
+        assert "tun0" not in ret.values()
 
     def test_excludes_stolen_macs(self):
         self._mock_setup()
@@ -5369,17 +5360,14 @@ class TestGetInterfacesByMac(CiTestCase):
         self.mocks["interface_has_own_mac"].assert_has_calls(
             [mock.call("enp0s1"), mock.call("bond1")], any_order=True
         )
-        self.assertEqual(
-            {
-                "aa:aa:aa:aa:aa:01": "enp0s1",
-                "aa:aa:aa:aa:aa:02": "enp0s2",
-                "aa:aa:aa:aa:aa:03": "bridge1-nic",
-                "00:00:00:00:00:00": "lo",
-                "aa:aa:aa:aa:aa:04": "netvsc0",
-                "aa:aa:aa:aa:aa:05": "netvsc1",
-            },
-            ret,
-        )
+        assert {
+            "aa:aa:aa:aa:aa:01": "enp0s1",
+            "aa:aa:aa:aa:aa:02": "enp0s2",
+            "aa:aa:aa:aa:aa:03": "bridge1-nic",
+            "00:00:00:00:00:00": "lo",
+            "aa:aa:aa:aa:aa:04": "netvsc0",
+            "aa:aa:aa:aa:aa:05": "netvsc1",
+        } == ret
 
     def test_excludes_bridges(self):
         self._mock_setup()
@@ -5392,7 +5380,7 @@ class TestGetInterfacesByMac(CiTestCase):
         self.data["own_macs"] = self.data["devices"]
         self.data["bridges"] = [f for f in self.data["devices"] if f != "b1"]
         ret = net.get_interfaces_by_mac()
-        self.assertEqual({"aa:aa:aa:aa:aa:b1": "b1"}, ret)
+        assert {"aa:aa:aa:aa:aa:b1": "b1"} == ret
         self.mocks["is_bridge"].assert_has_calls(
             [
                 mock.call("bridge1"),
@@ -5415,7 +5403,7 @@ class TestGetInterfacesByMac(CiTestCase):
         self.data["own_macs"] = self.data["devices"]
         self.data["vlans"] = [f for f in self.data["devices"] if f != "b1"]
         ret = net.get_interfaces_by_mac()
-        self.assertEqual({"aa:aa:aa:aa:aa:b1": "b1"}, ret)
+        assert {"aa:aa:aa:aa:aa:b1": "b1"} == ret
         self.mocks["is_vlan"].assert_has_calls(
             [
                 mock.call("bridge1"),
@@ -5435,7 +5423,7 @@ class TestGetInterfacesByMac(CiTestCase):
         self.data["devices"].update(set(addnics))
         self.data["own_macs"].extend(list(addnics))
         ret = net.get_interfaces_by_mac()
-        self.assertEqual("lo", ret[empty_mac])
+        assert "lo" == ret[empty_mac]
 
     def test_skip_all_zeros(self):
         """Any mac of 00:... should be skipped."""
@@ -5457,7 +5445,7 @@ class TestGetInterfacesByMac(CiTestCase):
         self.data["devices"].update(set(addnics))
         self.data["own_macs"].extend(addnics.keys())
         ret = net.get_interfaces_by_mac()
-        self.assertEqual("lo", ret["00:00:00:00:00:00"])
+        assert "lo" == ret["00:00:00:00:00:00"]
 
     def test_ib(self):
         ib_addr = "80:00:00:28:fe:80:00:00:00:00:00:00:00:11:22:03:00:33:44:56"
@@ -5475,7 +5463,7 @@ class TestGetInterfacesByMac(CiTestCase):
             ib_addr_eth_format: "ib0",
             ib_addr: "ib0",
         }
-        self.assertEqual(expected, result)
+        assert expected == result
 
 
 @pytest.mark.parametrize("driver", ("mscc_felix", "fsl_enetc", "qmi_wwan"))
@@ -5515,15 +5503,23 @@ class TestDuplicateMac:
 class TestInterfacesSorting(CiTestCase):
     def test_natural_order(self):
         data = ["ens5", "ens6", "ens3", "ens20", "ens13", "ens2"]
-        self.assertEqual(
-            sorted(data, key=natural_sort_key),
-            ["ens2", "ens3", "ens5", "ens6", "ens13", "ens20"],
-        )
+        assert sorted(data, key=natural_sort_key) == [
+            "ens2",
+            "ens3",
+            "ens5",
+            "ens6",
+            "ens13",
+            "ens20",
+        ]
         data2 = ["enp2s0", "enp2s3", "enp0s3", "enp0s13", "enp0s8", "enp1s2"]
-        self.assertEqual(
-            sorted(data2, key=natural_sort_key),
-            ["enp0s3", "enp0s8", "enp0s13", "enp1s2", "enp2s0", "enp2s3"],
-        )
+        assert sorted(data2, key=natural_sort_key) == [
+            "enp0s3",
+            "enp0s8",
+            "enp0s13",
+            "enp1s2",
+            "enp2s0",
+            "enp2s3",
+        ]
 
 
 @mock.patch(
@@ -5597,13 +5593,13 @@ class TestGetIBHwaddrsByInterface(CiTestCase):
         self.data["devices"].remove("ib0")
         result = net.get_ib_hwaddrs_by_interface()
         expected = {}
-        self.assertEqual(expected, result)
+        assert expected == result
 
     def test_ib(self):
         self._mock_setup()
         result = net.get_ib_hwaddrs_by_interface()
         expected = {"ib0": self._ib_addr}
-        self.assertEqual(expected, result)
+        assert expected == result
 
 
 def _gzip_data(data):
@@ -5905,12 +5901,6 @@ class TestNetworkState(CiTestCase):
     def test_bcast_addr(self):
         """Test mask_and_ipv4_to_bcast_addr proper execution."""
         bcast_addr = mask_and_ipv4_to_bcast_addr
-        self.assertEqual(
-            "192.168.1.255", bcast_addr("255.255.255.0", "192.168.1.1")
-        )
-        self.assertEqual(
-            "128.42.7.255", bcast_addr("255.255.248.0", "128.42.5.4")
-        )
-        self.assertEqual(
-            "10.1.21.255", bcast_addr("255.255.255.0", "10.1.21.4")
-        )
+        assert "192.168.1.255" == bcast_addr("255.255.255.0", "192.168.1.1")
+        assert "128.42.7.255" == bcast_addr("255.255.248.0", "128.42.5.4")
+        assert "10.1.21.255" == bcast_addr("255.255.255.0", "10.1.21.4")
