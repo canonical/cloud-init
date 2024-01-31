@@ -382,7 +382,7 @@ class TestNetplanValidateNetworkSchema:
                     column=12,
                     message="incorrect YAML value: yes for dhcp value",
                 ),
-                "Invalid network-config provided:\nformat-l1.c12: Invalid"
+                r"Invalid network-config provided:.*format-l1.c12: Invalid"
                 " netplan schema. incorrect YAML value: yes for dhcp value",
             ),
         ),
@@ -412,9 +412,10 @@ class TestNetplanValidateNetworkSchema:
                 "cloudinit.config.schema.mkdtemp",
                 return_value=fake_tmpdir.strpath,
             ):
-                assert netplan_validate_network_schema({"version": 2})
+                with caplog.at_level(logging.WARNING):
+                    assert netplan_validate_network_schema({"version": 2})
             if error_log:
-                assert error_log in caplog.text
+                assert re.match(error_log, caplog.records[0].msg, re.DOTALL)
 
 
 class TestValidateCloudConfigSchema:
