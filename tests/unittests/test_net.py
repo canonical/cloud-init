@@ -2792,9 +2792,7 @@ STARTMODE=auto
     "cloudinit.net.is_openvswitch_internal_interface",
     mock.Mock(return_value=False),
 )
-class TestNetworkManagerRendering(CiTestCase):
-    with_logs = True
-
+class TestNetworkManagerRendering:
     scripts_dir = "/etc/NetworkManager/system-connections"
     conf_dir = "/etc/NetworkManager/conf.d"
 
@@ -2814,6 +2812,10 @@ class TestNetworkManagerRendering(CiTestCase):
                 """
         ),
     }
+
+    @pytest.fixture(autouse=True)
+    def setup(self, tmpdir):
+        self.tmp_dir = lambda: str(tmpdir)
 
     def _get_renderer(self):
         return network_manager.Renderer()
@@ -2836,7 +2838,6 @@ class TestNetworkManagerRendering(CiTestCase):
     def _compare_files_to_expected(
         self, expected_scripts, expected_conf, found
     ):
-        orig_maxdiff = self.maxDiff
         conf_d = dict(
             (os.path.join(self.conf_dir, k), v)
             for k, v in expected_conf.items()
@@ -2847,11 +2848,7 @@ class TestNetworkManagerRendering(CiTestCase):
         )
         expected_d = {**conf_d, **scripts_d}
 
-        try:
-            self.maxDiff = None
-            self.assertEqual(expected_d, found)
-        finally:
-            self.maxDiff = orig_maxdiff
+        assert expected_d == found
 
     @mock.patch("cloudinit.net.util.get_cmdline", return_value="root=myroot")
     @mock.patch("cloudinit.net.sys_dev_path")
@@ -2932,11 +2929,11 @@ class TestNetworkManagerRendering(CiTestCase):
             renderer.render_network_state(ns, target=render_dir)
             for fn, expected_content in os_sample.get(self.expected_name, []):
                 with open(os.path.join(render_dir, fn)) as fh:
-                    self.assertEqual(expected_content, fh.read())
+                    assert expected_content == fh.read()
 
     def test_network_config_v1_samples(self):
         ns = network_state.parse_net_config_data(CONFIG_V1_SIMPLE_SUBNET)
-        render_dir = self.tmp_path("render")
+        render_dir = os.path.join(self.tmp_dir(), "render")
         os.makedirs(render_dir)
         renderer = self._get_renderer()
         renderer.render_network_state(ns, target=render_dir)
@@ -2973,7 +2970,7 @@ class TestNetworkManagerRendering(CiTestCase):
         )
 
     def test_config_with_explicit_loopback(self):
-        render_dir = self.tmp_path("render")
+        render_dir = os.path.join(self.tmp_dir(), "render")
         os.makedirs(render_dir)
         ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)
         renderer = self._get_renderer()
@@ -3036,15 +3033,15 @@ class TestNetworkManagerRendering(CiTestCase):
             entry[self.expected_name], self.expected_conf_d, found
         )
 
-    def test_all_config(self):
+    def test_all_config(self, caplog):
         entry = NETWORK_CONFIGS["all"]
         found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
         self._compare_files_to_expected(
             entry[self.expected_name], self.expected_conf_d, found
         )
-        self.assertNotIn(
-            "WARNING: Network config: ignoring eth0.101 device-level mtu",
-            self.logs.getvalue(),
+        assert (
+            "WARNING: Network config: ignoring eth0.101 device-level mtu"
+            not in caplog.text
         )
 
     def test_small_config_v1(self):
@@ -3061,17 +3058,17 @@ class TestNetworkManagerRendering(CiTestCase):
             entry[self.expected_name], self.expected_conf_d, found
         )
 
-    def test_v4_and_v6_static_config(self):
+    def test_v4_and_v6_static_config(self, caplog):
         entry = NETWORK_CONFIGS["v4_and_v6_static"]
         found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
         self._compare_files_to_expected(
             entry[self.expected_name], self.expected_conf_d, found
         )
         expected_msg = (
-            "WARNING: Network config: ignoring iface0 device-level mtu:8999"
+            "Network config: ignoring iface0 device-level mtu:8999"
             " because ipv4 subnet-level mtu:9000 provided."
         )
-        self.assertIn(expected_msg, self.logs.getvalue())
+        assert expected_msg in caplog.text
 
     def test_dhcpv6_only_config(self):
         entry = NETWORK_CONFIGS["dhcpv6_only"]
