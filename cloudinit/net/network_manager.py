@@ -224,9 +224,11 @@ class NMConnection:
     def _add_route(self, route):
         """Adds a ipv[46].route<n> property."""
         # Because network v2 route definitions can have mixed v4 and v6
-        # routes, determine the family per route based on the gateway
-        family = "ipv6" if is_ipv6_network(route["gateway"]) else "ipv4"
-        value = f'{route["network"]}/{route["prefix"]},{route["gateway"]}'
+        # routes, determine the family per route based on the network
+        family = "ipv6" if is_ipv6_network(route["network"]) else "ipv4"
+        value = f'{route["network"]}/{route["prefix"]}'
+        if "gateway" in route:
+            value += f',{route["gateway"]}'
         route_key = self._get_next_numbered_section(family, "route")
         self.config[family][route_key] = value
         if "mtu" in route:
