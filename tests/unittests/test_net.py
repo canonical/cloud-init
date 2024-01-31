@@ -1119,14 +1119,14 @@ def _setup_test(
     mock_sys_dev_path.side_effect = sys_dev_path
 
 
-class TestGenerateFallbackConfig(CiTestCase):
-    def setUp(self):
-        super(TestGenerateFallbackConfig, self).setUp()
-        self.add_patch(
+class TestGenerateFallbackConfig:
+    @pytest.fixture(autouse=True)
+    def setup(self, mocker, tmpdir):
+        mocker.patch(
             "cloudinit.util.get_cmdline",
-            "m_get_cmdline",
             return_value="root=/dev/sda1",
         )
+        self.tmp_dir = lambda: str(tmpdir)
 
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
