@@ -3969,129 +3969,45 @@ class TestEniRoundTrip:
             == files["/etc/network/interfaces"].splitlines()
         )
 
-    def testsimple_render_all(self):
-        entry = NETWORK_CONFIGS["all"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        assert (
-            entry["expected_eni"].splitlines()
-            == files["/etc/network/interfaces"].splitlines()
-        )
-
-    def testsimple_render_small_v1(self):
-        entry = NETWORK_CONFIGS["small_v1"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        assert (
-            entry["expected_eni"].splitlines()
-            == files["/etc/network/interfaces"].splitlines()
-        )
-
-    @pytest.mark.xfail(reason="GH-4219")
-    def testsimple_render_small_v2(self):
-        entry = NETWORK_CONFIGS["small_v2"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        assert (
-            entry["expected_eni"].splitlines()
-            == files["/etc/network/interfaces"].splitlines()
-        )
-
-    def testsimple_render_v4_and_v6(self):
-        entry = NETWORK_CONFIGS["v4_and_v6"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        assert (
-            entry["expected_eni"].splitlines()
-            == files["/etc/network/interfaces"].splitlines()
-        )
-
-    def testsimple_render_dhcpv6_only(self):
-        entry = NETWORK_CONFIGS["dhcpv6_only"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        assert (
-            entry["expected_eni"].splitlines()
-            == files["/etc/network/interfaces"].splitlines()
-        )
-
-    def testsimple_render_v4_and_v6_static(self):
-        entry = NETWORK_CONFIGS["v4_and_v6_static"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        assert (
-            entry["expected_eni"].splitlines()
-            == files["/etc/network/interfaces"].splitlines()
-        )
-
-    def testsimple_render_dhcpv6_stateless(self):
-        entry = NETWORK_CONFIGS["dhcpv6_stateless"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        assert (
-            entry["expected_eni"].splitlines()
-            == files["/etc/network/interfaces"].splitlines()
-        )
-
-    def testsimple_render_ipv6_slaac(self):
-        entry = NETWORK_CONFIGS["ipv6_slaac"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        assert (
-            entry["expected_eni"].splitlines()
-            == files["/etc/network/interfaces"].splitlines()
-        )
-
-    def testsimple_render_dhcpv6_stateful(self):
-        entry = NETWORK_CONFIGS["dhcpv6_stateless"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        assert (
-            entry["expected_eni"].splitlines()
-            == files["/etc/network/interfaces"].splitlines()
-        )
-
-    def testsimple_render_dhcpv6_accept_ra(self):
-        entry = NETWORK_CONFIGS["dhcpv6_accept_ra"]
+    @pytest.mark.parametrize(
+        "expected_name,yaml_version",
+        [
+            ("all", "yaml"),
+            ("small_v1", "yaml"),
+            pytest.param(
+                "small_v2", "yaml", marks=pytest.mark.xfail(reason="GH-4219")
+            ),
+            ("v4_and_v6", "yaml"),
+            ("dhcpv6_only", "yaml"),
+            ("v4_and_v6_static", "yaml"),
+            ("dhcpv6_stateless", "yaml"),
+            ("ipv6_slaac", "yaml"),
+            pytest.param(
+                "dhcpv6_stateful",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason="Test never passed due to typo in name"
+                ),
+            ),
+            ("dhcpv6_accept_ra", "yaml_v1"),
+            ("dhcpv6_reject_ra", "yaml_v1"),
+            ("wakeonlan_disabled", "yaml_v2"),
+            ("wakeonlan_enabled", "yaml_v2"),
+            ("manual", "yaml"),
+            ("bond", "yaml"),
+            pytest.param(
+                "v1-dns", "yaml", marks=pytest.mark.xfail(reason="GH-4219")
+            ),
+            pytest.param(
+                "v2-dns", "yaml", marks=pytest.mark.xfail(reason="GH-4219")
+            ),
+        ],
+    )
+    def test_config(self, expected_name, yaml_version):
+        entry = NETWORK_CONFIGS[expected_name]
         files = self._render_and_read(
-            network_config=yaml.load(entry["yaml_v1"])
+            network_config=yaml.load(entry[yaml_version])
         )
-        assert (
-            entry["expected_eni"].splitlines()
-            == files["/etc/network/interfaces"].splitlines()
-        )
-
-    def testsimple_render_dhcpv6_reject_ra(self):
-        entry = NETWORK_CONFIGS["dhcpv6_reject_ra"]
-        files = self._render_and_read(
-            network_config=yaml.load(entry["yaml_v1"])
-        )
-        assert (
-            entry["expected_eni"].splitlines()
-            == files["/etc/network/interfaces"].splitlines()
-        )
-
-    def testsimple_wakeonlan_disabled_config_v2(self):
-        entry = NETWORK_CONFIGS["wakeonlan_disabled"]
-        files = self._render_and_read(
-            network_config=yaml.load(entry["yaml_v2"])
-        )
-        assert (
-            entry["expected_eni"].splitlines()
-            == files["/etc/network/interfaces"].splitlines()
-        )
-
-    def testsimple_wakeonlan_enabled_config_v2(self):
-        entry = NETWORK_CONFIGS["wakeonlan_enabled"]
-        files = self._render_and_read(
-            network_config=yaml.load(entry["yaml_v2"])
-        )
-        assert (
-            entry["expected_eni"].splitlines()
-            == files["/etc/network/interfaces"].splitlines()
-        )
-
-    def testsimple_render_manual(self):
-        """Test rendering of 'manual' for 'type' and 'control'.
-
-        'type: manual' in a subnet is odd, but it is the way that was used
-        to declare that a network device should get a mtu set on it even
-        if there were no addresses to configure.  Also strange is the fact
-        that in order to apply that MTU the ifupdown device must be set
-        to 'auto', or the MTU would not be set."""
-        entry = NETWORK_CONFIGS["manual"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
         assert (
             entry["expected_eni"].splitlines()
             == files["/etc/network/interfaces"].splitlines()
@@ -4246,32 +4162,6 @@ class TestEniRoundTrip:
         found = files["/etc/network/interfaces"].splitlines()
 
         assert expected == [line for line in found if line]
-
-    def testsimple_render_bond(self):
-        entry = NETWORK_CONFIGS["bond"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        assert (
-            entry["expected_eni"].splitlines()
-            == files["/etc/network/interfaces"].splitlines()
-        )
-
-    @pytest.mark.xfail(reason="GH-4219")
-    def test_v1_dns(self):
-        entry = NETWORK_CONFIGS["v1-dns"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        assert (
-            entry["expected_eni"].splitlines()
-            == files["/etc/network/interfaces"].splitlines()
-        )
-
-    @pytest.mark.xfail(reason="GH-4219")
-    def test_v2_dns(self):
-        entry = NETWORK_CONFIGS["v2-dns"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        assert (
-            entry["expected_eni"].splitlines()
-            == files["/etc/network/interfaces"].splitlines()
-        )
 
 
 class TestNetworkdNetRendering:
