@@ -119,7 +119,7 @@ def read_ftps(url: str, timeout: Optional[float] = None) -> "FtpResponse":
                     code=get_return_code_from_exception(e),
                     headers=None,
                     url=url,
-                )
+                ) from e
         try:
             LOG.debug(
                 "Couldn't connect to %s over tls. Strict mode not "
@@ -145,7 +145,7 @@ def read_ftps(url: str, timeout: Optional[float] = None) -> "FtpResponse":
                 code=get_return_code_from_exception(e),
                 headers=None,
                 url=url,
-            )
+            ) from e
 
 
 def read_file(path: str, **kwargs) -> "FileResponse":
