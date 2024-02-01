@@ -3837,9 +3837,37 @@ class TestNetplanRoundTrip:
         renderer.render_network_state(ns, target=target)
         return dir2dict(target)
 
-    def testsimple_render_bond_netplan(self):
-        entry = NETWORK_CONFIGS["bond"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+    @pytest.mark.parametrize(
+        "expected_name,yaml_version",
+        [
+            ("bond", "yaml"),
+            ("small_v1", "yaml"),
+            ("v4_and_v6", "yaml"),
+            ("v4_and_v6_static", "yaml"),
+            ("dhcpv6_only", "yaml"),
+            ("dhcpv6_accept_ra", "yaml_v1"),
+            ("dhcpv6_reject_ra", "yaml_v1"),
+            ("ipv6_slaac", "yaml"),
+            ("dhcpv6_stateless", "yaml"),
+            ("dhcpv6_stateful", "yaml"),
+            ("wakeonlan_disabled", "yaml_v2"),
+            ("wakeonlan_enabled", "yaml_v2"),
+            ("all", "yaml"),
+            ("manual", "yaml"),
+            pytest.param(
+                "v1-dns",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason="netplan should render interface-level nameservers"
+                ),
+            ),
+        ],
+    )
+    def test_config(self, expected_name, yaml_version):
+        entry = NETWORK_CONFIGS[expected_name]
+        files = self._render_and_read(
+            network_config=yaml.load(entry[yaml_version])
+        )
         assert (
             entry["expected_netplan"].splitlines()
             == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
@@ -3852,129 +3880,6 @@ class TestNetplanRoundTrip:
         )
         assert (
             entry["expected_netplan-v2"].splitlines()
-            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
-        )
-
-    def testsimple_render_small_netplan(self):
-        entry = NETWORK_CONFIGS["small_v1"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        assert (
-            entry["expected_netplan"].splitlines()
-            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
-        )
-
-    def testsimple_render_v4_and_v6(self):
-        entry = NETWORK_CONFIGS["v4_and_v6"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        assert (
-            entry["expected_netplan"].splitlines()
-            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
-        )
-
-    def testsimple_render_v4_and_v6_static(self):
-        entry = NETWORK_CONFIGS["v4_and_v6_static"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        assert (
-            entry["expected_netplan"].splitlines()
-            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
-        )
-
-    def testsimple_render_dhcpv6_only(self):
-        entry = NETWORK_CONFIGS["dhcpv6_only"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        assert (
-            entry["expected_netplan"].splitlines()
-            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
-        )
-
-    def testsimple_render_dhcpv6_accept_ra(self):
-        entry = NETWORK_CONFIGS["dhcpv6_accept_ra"]
-        files = self._render_and_read(
-            network_config=yaml.load(entry["yaml_v1"])
-        )
-        assert (
-            entry["expected_netplan"].splitlines()
-            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
-        )
-
-    def testsimple_render_dhcpv6_reject_ra(self):
-        entry = NETWORK_CONFIGS["dhcpv6_reject_ra"]
-        files = self._render_and_read(
-            network_config=yaml.load(entry["yaml_v1"])
-        )
-        assert (
-            entry["expected_netplan"].splitlines()
-            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
-        )
-
-    def testsimple_render_ipv6_slaac(self):
-        entry = NETWORK_CONFIGS["ipv6_slaac"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        assert (
-            entry["expected_netplan"].splitlines()
-            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
-        )
-
-    def testsimple_render_dhcpv6_stateless(self):
-        entry = NETWORK_CONFIGS["dhcpv6_stateless"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        assert (
-            entry["expected_netplan"].splitlines()
-            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
-        )
-
-    def testsimple_render_dhcpv6_stateful(self):
-        entry = NETWORK_CONFIGS["dhcpv6_stateful"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        assert (
-            entry["expected_netplan"].splitlines()
-            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
-        )
-
-    def testsimple_wakeonlan_disabled_config_v2(self):
-        entry = NETWORK_CONFIGS["wakeonlan_disabled"]
-        files = self._render_and_read(
-            network_config=yaml.load(entry["yaml_v2"])
-        )
-        assert (
-            entry["expected_netplan"].splitlines()
-            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
-        )
-
-    def testsimple_wakeonlan_enabled_config_v2(self):
-        entry = NETWORK_CONFIGS["wakeonlan_enabled"]
-        files = self._render_and_read(
-            network_config=yaml.load(entry["yaml_v2"])
-        )
-        assert (
-            entry["expected_netplan"].splitlines()
-            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
-        )
-
-    def testsimple_render_all(self):
-        entry = NETWORK_CONFIGS["all"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        assert (
-            entry["expected_netplan"].splitlines()
-            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
-        )
-
-    def testsimple_render_manual(self):
-        entry = NETWORK_CONFIGS["manual"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        assert (
-            entry["expected_netplan"].splitlines()
-            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
-        )
-
-    @pytest.mark.xfail(
-        reason="netplan should render interface-level nameservers"
-    )
-    def testsimple_render_v1_dns(self):
-        entry = NETWORK_CONFIGS["v1-dns"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        assert (
-            entry["expected_netplan"].splitlines()
             == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
         )
 
