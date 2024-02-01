@@ -11,6 +11,7 @@ import pytest
 import requests
 
 from cloudinit import url_helper
+from cloudinit.net import dhcp
 from cloudinit.sources.azure import errors
 from cloudinit.sources.helpers import azure as azure_helper
 from cloudinit.sources.helpers.azure import WALinuxAgentShim as wa_shim
@@ -150,7 +151,8 @@ class TestGetIpFromLeaseValue:
     )
     def test_get_ip_from_lease_value(self, encoded_address, ip_address):
         assert (
-            azure_helper.get_ip_from_lease_value(encoded_address) == ip_address
+            dhcp.IscDhclient.get_ip_from_lease_value(encoded_address)
+            == ip_address
         )
 
 

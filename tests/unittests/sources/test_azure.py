@@ -207,7 +207,9 @@ def mock_net_dhcp_maybe_perform_dhcp_discovery():
     with mock.patch(
         "cloudinit.net.ephemeral.maybe_perform_dhcp_discovery",
         return_value={
-            "unknown-245": "0a:0b:0c:0d",
+            "unknown-245": dhcp.IscDhclient.get_ip_from_lease_value(
+                "0a:0b:0c:0d"
+            ),
             "interface": "ethBoot0",
             "fixed-address": "192.168.2.9",
             "routers": "192.168.2.1",
@@ -2007,7 +2009,7 @@ scbus-1 on xpt0 bus 0
             # mock crawl metadata failure to cause report failure
             m_crawl_metadata.side_effect = Exception
 
-            test_lease_dhcp_option_245 = "01:02:03:04"
+            test_lease_dhcp_option_245 = "1.2.3.4"
             test_lease = {
                 "unknown-245": test_lease_dhcp_option_245,
                 "interface": "eth0",
@@ -3300,7 +3302,9 @@ class TestEphemeralNetworking:
     ):
         lease = {
             "interface": "fakeEth0",
-            "unknown-245": "10:ff:fe:fd",
+            "unknown-245": dhcp.IscDhclient.get_ip_from_lease_value(
+                "10:ff:fe:fd"
+            ),
         }
         mock_ephemeral_dhcp_v4.return_value.obtain_lease.side_effect = [lease]
 
