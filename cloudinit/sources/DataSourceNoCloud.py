@@ -365,7 +365,12 @@ def _merge_new_seed(cur, seeded):
 class DataSourceNoCloudNet(DataSourceNoCloud):
     def __init__(self, sys_cfg, distro, paths):
         DataSourceNoCloud.__init__(self, sys_cfg, distro, paths)
-        self.supported_seed_starts = ("http://", "https://")
+        self.supported_seed_starts = (
+            "http://",
+            "https://",
+            "ftp://",
+            "stfp://",
+        )
 
     def ds_detect(self):
         """Check dmi and kernel commandline for dsname
