@@ -1864,27 +1864,40 @@ USERCTL=no
         # a dhcp only config should not modify resolv.conf
         assert resolvconf_content == found["/etc/resolv.conf"]
 
-    def test_bond_config(self):
-        entry = NETWORK_CONFIGS["bond"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_vlan_config(self):
-        entry = NETWORK_CONFIGS["vlan"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_bridge_config(self):
-        entry = NETWORK_CONFIGS["bridge"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_manual_config(self):
-        entry = NETWORK_CONFIGS["manual"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+    @pytest.mark.parametrize(
+        "expected_name,yaml_version",
+        [
+            ("bond", "yaml"),
+            ("vlan", "yaml"),
+            ("bridge", "yaml"),
+            ("manual", "yaml"),
+            ("small_v1", "yaml"),
+            ("small_v2", "yaml"),
+            ("dhcpv6_only", "yaml"),
+            ("dhcpv6_accept_ra", "yaml_v1"),
+            ("dhcpv6_accept_ra", "yaml_v2"),
+            ("dhcpv6_reject_ra", "yaml_v1"),
+            ("static6", "yaml"),
+            ("dhcpv6_reject_ra", "yaml_v2"),
+            ("dhcpv6_stateless", "yaml"),
+            ("dhcpv6_stateful", "yaml"),
+            ("wakeonlan_disabled", "yaml_v2"),
+            ("wakeonlan_enabled", "yaml_v2"),
+            pytest.param(
+                "v1-dns",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason="sysconfig should render interface-level DNS"
+                ),
+            ),
+            ("v2-dns", "yaml"),
+        ],
+    )
+    def test_config(self, expected_name, yaml_version):
+        entry = NETWORK_CONFIGS[expected_name]
+        found = self._render_and_read(
+            network_config=yaml.load(entry[yaml_version])
+        )
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
@@ -1898,18 +1911,6 @@ USERCTL=no
             not in caplog.text
         )
 
-    def test_small_config_v1(self):
-        entry = NETWORK_CONFIGS["small_v1"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_small_config_v2(self):
-        entry = NETWORK_CONFIGS["small_v2"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
     def test_v4_and_v6_static_config(self, caplog):
         entry = NETWORK_CONFIGS["v4_and_v6_static"]
         found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
@@ -1920,36 +1921,6 @@ USERCTL=no
             " because ipv4 subnet-level mtu:9000 provided."
         )
         assert expected_msg in caplog.text
-
-    def test_dhcpv6_only_config(self):
-        entry = NETWORK_CONFIGS["dhcpv6_only"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_dhcpv6_accept_ra_config_v1(self):
-        entry = NETWORK_CONFIGS["dhcpv6_accept_ra"]
-        found = self._render_and_read(
-            network_config=yaml.load(entry["yaml_v1"])
-        )
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_dhcpv6_accept_ra_config_v2(self):
-        entry = NETWORK_CONFIGS["dhcpv6_accept_ra"]
-        found = self._render_and_read(
-            network_config=yaml.load(entry["yaml_v2"])
-        )
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_dhcpv6_reject_ra_config_v1(self):
-        entry = NETWORK_CONFIGS["dhcpv6_reject_ra"]
-        found = self._render_and_read(
-            network_config=yaml.load(entry["yaml_v1"])
-        )
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
 
     def test_stattic6_from_json(self):
         net_json = {
@@ -2009,48 +1980,6 @@ USERCTL=no
             renderer.render_network_state(ns, target=render_dir)
         assert [] == os.listdir(render_dir)
 
-    def test_static6_from_yaml(self):
-        entry = NETWORK_CONFIGS["static6"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_dhcpv6_reject_ra_config_v2(self):
-        entry = NETWORK_CONFIGS["dhcpv6_reject_ra"]
-        found = self._render_and_read(
-            network_config=yaml.load(entry["yaml_v2"])
-        )
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_dhcpv6_stateless_config(self):
-        entry = NETWORK_CONFIGS["dhcpv6_stateless"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_dhcpv6_stateful_config(self):
-        entry = NETWORK_CONFIGS["dhcpv6_stateful"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_wakeonlan_disabled_config_v2(self):
-        entry = NETWORK_CONFIGS["wakeonlan_disabled"]
-        found = self._render_and_read(
-            network_config=yaml.load(entry["yaml_v2"])
-        )
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_wakeonlan_enabled_config_v2(self):
-        entry = NETWORK_CONFIGS["wakeonlan_enabled"]
-        found = self._render_and_read(
-            network_config=yaml.load(entry["yaml_v2"])
-        )
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
     def test_netplan_dhcp_false_disable_dhcp_in_state(self):
         """netplan config with dhcp[46]: False should not add dhcp in state"""
         net_config = yaml.load(NETPLAN_DHCP_FALSE)
@@ -2064,20 +1993,6 @@ USERCTL=no
         ]
 
         assert [] == dhcp_found
-
-    @pytest.mark.xfail(reason="sysconfig should render interface-level DNS")
-    def test_v1_dns(self):
-        entry = NETWORK_CONFIGS["v1-dns"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-        # TODO: verify resolv.conf
-
-    def test_v2_dns(self):
-        entry = NETWORK_CONFIGS["v2-dns"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
 
     def test_netplan_dhcp_false_no_dhcp_in_sysconfig(self):
         """netplan cfg with dhcp[46]: False should not have bootproto=dhcp"""
