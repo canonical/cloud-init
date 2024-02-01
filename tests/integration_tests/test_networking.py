@@ -6,7 +6,13 @@ from tests.integration_tests import random_mac_address
 from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
-from tests.integration_tests.releases import CURRENT_RELEASE, NOBLE
+from tests.integration_tests.releases import (
+    CURRENT_RELEASE,
+    IS_UBUNTU,
+    JAMMY,
+    MANTIC,
+    NOBLE,
+)
 
 
 def _add_dummy_bridge_to_netplan(client: IntegrationInstance):
@@ -218,39 +224,61 @@ def test_schema_warnings(
 
 
 @pytest.mark.skipif(
+    not IS_UBUNTU, reason="Dependent on netplan API availability on Ubuntu"
+)
+@pytest.mark.skipif(
     PLATFORM not in ("lxd_vm", "lxd_container"),
     reason="Test requires lxc exec feature due to broken network config",
 )
-def test_invalid_network_v2_netplan(session_cloud: IntegrationCloud):
+def test_invalid_network_v2_netplan(
+    session_cloud: IntegrationCloud, setup_image
+):
     mac_addr = random_mac_address()
+
+    # Older Ubuntu series didn't read cloud-init.* config keys
+    if CURRENT_RELEASE < JAMMY:
+        lxd_network_config_key = "user.network-config"
+    else:
+        lxd_network_config_key = "cloud-init.network-config"
     if PLATFORM == "lxd_vm":
         config_dict = {
-            "cloud-init.network-config": BAD_NETWORK_V2.format(
+            lxd_network_config_key: BAD_NETWORK_V2.format(
                 match_condition=f"macaddress: {mac_addr}"
             ),
             "volatile.eth0.hwaddr": mac_addr,
         }
     else:
         config_dict = {
-            "cloud-init.network-config": BAD_NETWORK_V2.format(
+            lxd_network_config_key: BAD_NETWORK_V2.format(
                 match_condition="name: eth0"
             )
         }
+
     with session_cloud.launch(
         launch_kwargs={
             "execute_via_ssh": False,
             "config_dict": config_dict,
         }
     ) as client:
-        status_json = client.execute("cloud-init status --format=json")
-        assert (
-            "Invalid network-config provided: Please run "
-            "'sudo cloud-init schema --system' to see the schema errors."
-        ) in status_json
-        schema_out = client.execute("cloud-init schema --system")
-        assert "Invalid network-config /var/lib/cloud/instances/" in schema_out
-        annotate_out = client.execute("cloud-init schema --system --annotate")
-        assert (
-            "# E1: Invalid netplan schema. Error in network definition:"
-            " invalid boolean value 'badval" in annotate_out
-        )
+        # Netplan python API only available on MANTIC and later
+        if CURRENT_RELEASE < MANTIC:
+            assert (
+                "Skipping netplan schema validation. No netplan available"
+            ) in client.read_from_file("/var/log/cloud-init.log")
+            assert (
+                "Skipping network-config schema validation. No network schema"
+                " for version: 2"
+            ) in client.execute("cloud-init schema --system")
+        else:
+            assert (
+                "Invalid network-config provided: Please run "
+                "'sudo cloud-init schema --system' to see the schema errors."
+            ) in client.execute("cloud-init status --format=json")
+            assert (
+                "Invalid network-config /var/lib/cloud/instances/"
+                in client.execute("cloud-init schema --system")
+            )
+            assert (
+                "# E1: Invalid netplan schema. Error in network definition:"
+                " invalid boolean value 'badval"
+            ) in client.execute("cloud-init schema --system --annotate")
