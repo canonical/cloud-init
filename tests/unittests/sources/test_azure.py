@@ -3759,6 +3759,7 @@ class TestProvisioning:
         assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
             mock.call(
                 endpoint="10.11.12.13",
+                distro=self.azure_ds.distro,
                 iso_dev="/dev/sr0",
                 pubkey_info=None,
             )
@@ -3924,11 +3925,13 @@ class TestProvisioning:
         assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
             mock.call(
                 endpoint="10.11.12.13",
+                distro=self.azure_ds.distro,
                 iso_dev="/dev/sr0",
                 pubkey_info=None,
             ),
             mock.call(
                 endpoint="10.11.12.13",
+                distro=self.azure_ds.distro,
                 iso_dev=None,
                 pubkey_info=None,
             ),
@@ -4044,11 +4047,13 @@ class TestProvisioning:
         assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
             mock.call(
                 endpoint="10.11.12.13",
+                distro=self.azure_ds.distro,
                 iso_dev="/dev/sr0",
                 pubkey_info=None,
             ),
             mock.call(
                 endpoint="10.11.12.13",
+                distro=self.azure_ds.distro,
                 iso_dev=None,
                 pubkey_info=None,
             ),
@@ -4200,11 +4205,13 @@ class TestProvisioning:
         assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
             mock.call(
                 endpoint="10.11.12.13",
+                distro=self.azure_ds.distro,
                 iso_dev="/dev/sr0",
                 pubkey_info=None,
             ),
             mock.call(
                 endpoint="10.11.12.13",
+                distro=self.azure_ds.distro,
                 iso_dev=None,
                 pubkey_info=None,
             ),
@@ -4288,6 +4295,7 @@ class TestProvisioning:
         assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
             mock.call(
                 endpoint="10.11.12.13",
+                distro=self.azure_ds.distro,
                 iso_dev="/dev/sr0",
                 pubkey_info=None,
             ),
@@ -4397,6 +4405,7 @@ class TestProvisioning:
         assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
             mock.call(
                 endpoint="10.11.12.13",
+                distro=self.azure_ds.distro,
                 iso_dev="/dev/sr0",
                 pubkey_info=None,
             )

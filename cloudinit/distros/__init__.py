@@ -1314,6 +1314,21 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             )
         return None
 
+    @staticmethod
+    def eject_media(device: str) -> None:
+        cmd = None
+        if subp.which("eject"):
+            cmd = ["eject", device]
+        elif subp.which("/lib/udev/cdrom_id"):
+            cmd = ["/lib/udev/cdrom_id", "--eject-media", device]
+        else:
+            raise subp.ProcessExecutionError(
+                cmd="eject_media_cmd",
+                description="eject command not found",
+                reason="neither eject nor /lib/udev/cdrom_id are found",
+            )
+        subp.subp(cmd)
+
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
     """

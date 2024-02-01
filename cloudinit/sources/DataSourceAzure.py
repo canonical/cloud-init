@@ -1366,6 +1366,7 @@ class DataSourceAzure(sources.DataSource):
         try:
             data = get_metadata_from_fabric(
                 endpoint=self._wireserver_endpoint,
+                distro=self.distro,
                 iso_dev=self._iso_dev,
                 pubkey_info=pubkey_info,
             )
