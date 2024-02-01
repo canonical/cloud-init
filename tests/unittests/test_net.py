@@ -2487,27 +2487,34 @@ STARTMODE=auto
         # a dhcp only config should not modify resolv.conf
         assert resolvconf_content == found["/etc/resolv.conf"]
 
-    def test_bond_config(self):
-        entry = NETWORK_CONFIGS["bond"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_vlan_config(self):
-        entry = NETWORK_CONFIGS["vlan"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_bridge_config(self):
-        entry = NETWORK_CONFIGS["bridge"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_manual_config(self):
-        entry = NETWORK_CONFIGS["manual"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+    @pytest.mark.parametrize(
+        "expected_name",
+        [
+            "bond",
+            "vlan",
+            "bridge",
+            "manual",
+            "small_v1",
+            "small_v1_suse_dhcp6",
+            "small_v2",
+            "v4_and_v6_static",
+            "dhcpv6_only",
+            "ipv6_slaac",
+            "dhcpv6_stateless",
+            "wakeonlan_disabled",
+            "wakeonlan_enabled",
+            "v4_and_v6",
+            "v6_and_v4",
+            "v1-dns",
+            "v2-dns",
+        ],
+    )
+    def test_config(self, expected_name):
+        entry = NETWORK_CONFIGS[expected_name]
+        yaml_name = "yaml" if "yaml" in entry else "yaml_v2"
+        found = self._render_and_read(
+            network_config=yaml.load(entry[yaml_name])
+        )
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
@@ -2520,94 +2527,6 @@ STARTMODE=auto
             "Network config: ignoring eth0.101 device-level mtu"
             not in caplog.text
         )
-
-    def test_small_config_v1(self):
-        entry = NETWORK_CONFIGS["small_v1"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_small_config_v1_suse(self):
-        entry = NETWORK_CONFIGS["small_v1_suse_dhcp6"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_small_config_v2(self):
-        entry = NETWORK_CONFIGS["small_v1"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_v4_and_v6_static_config(self, caplog):
-        entry = NETWORK_CONFIGS["v4_and_v6_static"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-        expected_msg = (
-            "Network config: ignoring iface0 device-level mtu:8999"
-            " because ipv4 subnet-level mtu:9000 provided."
-        )
-        assert expected_msg in caplog.text
-
-    def test_dhcpv6_only_config(self):
-        entry = NETWORK_CONFIGS["dhcpv6_only"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_simple_render_ipv6_slaac(self):
-        entry = NETWORK_CONFIGS["ipv6_slaac"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_dhcpv6_stateless_config(self):
-        entry = NETWORK_CONFIGS["dhcpv6_stateless"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_wakeonlan_disabled_config_v2(self):
-        entry = NETWORK_CONFIGS["wakeonlan_disabled"]
-        found = self._render_and_read(
-            network_config=yaml.load(entry["yaml_v2"])
-        )
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_wakeonlan_enabled_config_v2(self):
-        entry = NETWORK_CONFIGS["wakeonlan_enabled"]
-        found = self._render_and_read(
-            network_config=yaml.load(entry["yaml_v2"])
-        )
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_render_v4_and_v6(self):
-        entry = NETWORK_CONFIGS["v4_and_v6"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_render_v6_and_v4(self):
-        entry = NETWORK_CONFIGS["v6_and_v4"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-
-    def test_v1_dns(self):
-        entry = NETWORK_CONFIGS["v1-dns"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
-        # TODO: verify resolv.conf
-
-    def test_v2_dns(self):
-        entry = NETWORK_CONFIGS["v2-dns"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(entry[self.expected_name], found)
-        self._assert_headers(found)
 
 
 @mock.patch(
