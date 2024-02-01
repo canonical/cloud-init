@@ -2404,13 +2404,16 @@ USERCTL=no
     "cloudinit.net.is_openvswitch_internal_interface",
     mock.Mock(return_value=False),
 )
-class TestOpenSuseSysConfigRendering(CiTestCase):
-    with_logs = True
+class TestOpenSuseSysConfigRendering:
 
     scripts_dir = "/etc/sysconfig/network"
     header = "# Created by cloud-init automatically, do not edit.\n#\n"
 
     expected_name = "expected_sysconfig_opensuse"
+
+    @pytest.fixture(autouse=True)
+    def setup(self, tmpdir_factory):
+        self.tmp_dir = lambda: str(tmpdir_factory.mktemp("a", numbered=True))
 
     def _get_renderer(self):
         distro_cls = distros.fetch("opensuse")
@@ -2434,7 +2437,6 @@ class TestOpenSuseSysConfigRendering(CiTestCase):
         return dir2dict(dir)
 
     def _compare_files_to_expected(self, expected, found):
-        orig_maxdiff = self.maxDiff
         expected_d = dict(
             (os.path.join(self.scripts_dir, k), util.load_shell_content(v))
             for k, v in expected.items()
@@ -2446,11 +2448,7 @@ class TestOpenSuseSysConfigRendering(CiTestCase):
             for k, v in found.items()
             if k.startswith(self.scripts_dir)
         )
-        try:
-            self.maxDiff = None
-            assert expected_d == scripts_found
-        finally:
-            self.maxDiff = orig_maxdiff
+        assert expected_d == scripts_found
 
     def _assert_headers(self, found):
         missing = [
@@ -2606,7 +2604,7 @@ STARTMODE=auto
 
     def test_network_config_v1_samples(self):
         ns = network_state.parse_net_config_data(CONFIG_V1_SIMPLE_SUBNET)
-        render_dir = self.tmp_path("render")
+        render_dir = os.path.join(self.tmp_dir(), "render")
         os.makedirs(render_dir)
         renderer = self._get_renderer()
         renderer.render_network_state(ns, target=render_dir)
@@ -2630,7 +2628,7 @@ STARTMODE=auto
 
     def test_config_with_explicit_loopback(self):
         ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)
-        render_dir = self.tmp_path("render")
+        render_dir = os.path.join(self.tmp_dir(), "render")
         os.makedirs(render_dir)
         # write an etc/resolv.conf and expect it to not be modified
         resolvconf = os.path.join(render_dir, "etc/resolv.conf")
@@ -2685,14 +2683,14 @@ STARTMODE=auto
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
-    def test_all_config(self):
+    def test_all_config(self, caplog):
         entry = NETWORK_CONFIGS["all"]
         found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
         assert (
-            "WARNING: Network config: ignoring eth0.101 device-level mtu"
-            not in self.logs.getvalue()
+            "Network config: ignoring eth0.101 device-level mtu"
+            not in caplog.text
         )
 
     def test_small_config_v1(self):
@@ -2713,16 +2711,16 @@ STARTMODE=auto
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
-    def test_v4_and_v6_static_config(self):
+    def test_v4_and_v6_static_config(self, caplog):
         entry = NETWORK_CONFIGS["v4_and_v6_static"]
         found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
         expected_msg = (
-            "WARNING: Network config: ignoring iface0 device-level mtu:8999"
+            "Network config: ignoring iface0 device-level mtu:8999"
             " because ipv4 subnet-level mtu:9000 provided."
         )
-        assert expected_msg in self.logs.getvalue()
+        assert expected_msg in caplog.text
 
     def test_dhcpv6_only_config(self):
         entry = NETWORK_CONFIGS["dhcpv6_only"]
@@ -3063,7 +3061,11 @@ class TestNetworkManagerRendering:
     "cloudinit.net.is_openvswitch_internal_interface",
     mock.Mock(return_value=False),
 )
-class TestEniNetRendering(CiTestCase):
+class TestEniNetRendering:
+    @pytest.fixture(autouse=True)
+    def setup(self, tmpdir_factory):
+        self.tmp_dir = lambda: str(tmpdir_factory.mktemp("a", numbered=True))
+
     @mock.patch("cloudinit.net.util.get_cmdline", return_value="root=myroot")
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
@@ -3539,7 +3541,7 @@ class TestNetplanNetRendering:
         assert 1, mock_clean_default.call_count
 
 
-class TestNetplanCleanDefault(CiTestCase):
+class TestNetplanCleanDefault:
     snapd_known_path = "etc/netplan/00-snapd-config.yaml"
     snapd_known_content = textwrap.dedent(
         """\
@@ -3563,6 +3565,10 @@ class TestNetplanCleanDefault(CiTestCase):
         "run/systemd/network/10-netplan-all-eth.network": "foo-eth",
         "run/systemd/generator/netplan.stamp": "stamp",
     }
+
+    @pytest.fixture(autouse=True)
+    def setup(self, tmpdir_factory):
+        self.tmp_dir = lambda: str(tmpdir_factory.mktemp("a", numbered=True))
 
     def test_clean_known_config_cleaned(self):
         content = {
@@ -3607,7 +3613,7 @@ class TestNetplanCleanDefault(CiTestCase):
         assert sorted(expected) == found
 
 
-class TestNetplanPostcommands(CiTestCase):
+class TestNetplanPostcommands:
     mycfg = {
         "config": [
             {
@@ -3619,6 +3625,10 @@ class TestNetplanPostcommands(CiTestCase):
         ],
         "version": 1,
     }
+
+    @pytest.fixture(autouse=True)
+    def setup(self, tmpdir_factory):
+        self.tmp_dir = lambda: str(tmpdir_factory.mktemp("a", numbered=True))
 
     @mock.patch.object(netplan.Renderer, "_netplan_generate")
     @mock.patch.object(netplan.Renderer, "_net_setup_link")
@@ -3684,7 +3694,7 @@ class TestNetplanPostcommands(CiTestCase):
             mock_subp.assert_has_calls(expected)
 
 
-class TestEniNetworkStateToEni(CiTestCase):
+class TestEniNetworkStateToEni:
     mycfg = {
         "config": [
             {
@@ -3725,9 +3735,7 @@ class TestEniNetworkStateToEni(CiTestCase):
         assert "hwaddress" not in rendered
 
 
-class TestCmdlineConfigParsing(CiTestCase):
-    with_logs = True
-
+class TestCmdlineConfigParsing:
     simple_cfg = {
         "config": [
             {
@@ -3790,16 +3798,16 @@ class TestCmdlineConfigParsing(CiTestCase):
         found = cmdline.read_kernel_cmdline_config(cmdline=raw_cmdline)
         assert found == {"config": "disabled"}
 
-    def test_cmdline_with_net_config_unencoded_logs_error(self):
+    def test_cmdline_with_net_config_unencoded_logs_error(self, caplog):
         """network-config cannot be unencoded besides 'disabled'."""
         raw_cmdline = "ro network-config={config:disabled} root=foo"
         found = cmdline.read_kernel_cmdline_config(cmdline=raw_cmdline)
         assert found is None
         expected_log = (
-            "ERROR: Expected base64 encoded kernel commandline parameter"
+            "Expected base64 encoded kernel commandline parameter"
             " network-config. Ignoring network-config={config:disabled}."
         )
-        assert expected_log in self.logs.getvalue()
+        assert expected_log in caplog.text
 
     def test_cmdline_with_b64_gz(self):
         data = _gzip_data(json.dumps(self.simple_cfg).encode())
@@ -3978,7 +3986,7 @@ class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
         assert found["config"] == expected
 
 
-class TestReadInitramfsConfig(CiTestCase):
+class TestReadInitramfsConfig:
     def _config_source_cls_mock(self, is_applicable, render_config=None):
         return lambda: mock.Mock(
             is_applicable=lambda: is_applicable,
@@ -4046,7 +4054,7 @@ class TestReadInitramfsConfig(CiTestCase):
             assert first_config == cmdline.read_initramfs_config()
 
 
-class TestNetplanRoundTrip(CiTestCase):
+class TestNetplanRoundTrip:
     NETPLAN_INFO_OUT = textwrap.dedent(
         """
     netplan.io:
@@ -4057,10 +4065,13 @@ class TestNetplanRoundTrip(CiTestCase):
     """
     )
 
-    def setUp(self):
-        super(TestNetplanRoundTrip, self).setUp()
-        self.add_patch("cloudinit.net.netplan.subp.subp", "m_subp")
-        self.m_subp.return_value = (self.NETPLAN_INFO_OUT, "")
+    @pytest.fixture(autouse=True)
+    def setup(self, tmpdir_factory, mocker):
+        self.tmp_dir = lambda: str(tmpdir_factory.mktemp("a", numbered=True))
+        mocker.patch(
+            "cloudinit.net.netplan.subp.subp",
+            return_value=(self.NETPLAN_INFO_OUT, ""),
+        )
 
     def _render_and_read(
         self, network_config=None, state=None, netplan_path=None, target=None
@@ -4284,7 +4295,11 @@ class TestNetplanRoundTrip(CiTestCase):
         )
 
 
-class TestEniRoundTrip(CiTestCase):
+class TestEniRoundTrip:
+    @pytest.fixture(autouse=True)
+    def setup(self, tmpdir_factory):
+        self.tmp_dir = lambda: str(tmpdir_factory.mktemp("a", numbered=True))
+
     def _render_and_read(
         self,
         network_config=None,
@@ -4626,7 +4641,11 @@ class TestEniRoundTrip(CiTestCase):
         )
 
 
-class TestNetworkdNetRendering(CiTestCase):
+class TestNetworkdNetRendering:
+    @pytest.fixture(autouse=True)
+    def setup(self, tmpdir_factory):
+        self.tmp_dir = lambda: str(tmpdir_factory.mktemp("a", numbered=True))
+
     def create_conf_dict(self, contents):
         content_dict = {}
         for line in contents:
@@ -4695,7 +4714,11 @@ class TestNetworkdNetRendering(CiTestCase):
         self.compare_dicts(actual, expected)
 
 
-class TestNetworkdRoundTrip(CiTestCase):
+class TestNetworkdRoundTrip:
+    @pytest.fixture(autouse=True)
+    def setup(self, tmpdir_factory):
+        self.tmp_dir = lambda: str(tmpdir_factory.mktemp("a", numbered=True))
+
     def create_conf_dict(self, contents):
         content_dict = {}
         for line in contents:
@@ -4984,7 +5007,7 @@ class TestRenderersSelect:
                 renderers.select(priority=renderers.DEFAULT_PRIORITY)
 
 
-class TestNetRenderers(CiTestCase):
+class TestNetRenderers:
     @mock.patch("cloudinit.net.renderers.sysconfig.available")
     @mock.patch("cloudinit.net.renderers.eni.available")
     def test_eni_and_sysconfig_available(self, m_eni_avail, m_sysc_avail):
@@ -5059,7 +5082,7 @@ class TestNetRenderers(CiTestCase):
     "cloudinit.net.is_openvswitch_internal_interface",
     mock.Mock(return_value=False),
 )
-class TestGetInterfaces(CiTestCase):
+class TestGetInterfaces:
     _data = {
         "bonds": ["bond1"],
         "bridges": ["bridge1"],
@@ -5131,10 +5154,11 @@ class TestGetInterfaces(CiTestCase):
     def _se_is_netfailover(self, name):
         return False
 
-    def _mock_setup(self):
+    @pytest.fixture
+    def mocks(self, mocker):
         self.data = copy.deepcopy(self._data)
         self.data["devices"] = set(list(self.data["macs"].keys()))
-        mocks = (
+        mock_list = (
             "get_devicelist",
             "get_interface_mac",
             "get_master",
@@ -5146,16 +5170,15 @@ class TestGetInterfaces(CiTestCase):
             "is_bond",
             "is_netfailover",
         )
-        self.mocks = {}
-        for n in mocks:
-            m = mock.patch(
-                "cloudinit.net." + n, side_effect=getattr(self, "_se_" + n)
+        all_mocks = {}
+        for name in mock_list:
+            all_mocks[name] = mocker.patch(
+                "cloudinit.net." + name,
+                side_effect=getattr(self, "_se_" + name),
             )
-            self.addCleanup(m.stop)
-            self.mocks[n] = m.start()
+        yield all_mocks
 
-    def test_gi_includes_duplicate_macs(self):
-        self._mock_setup()
+    def test_gi_includes_duplicate_macs(self, mocks):
         ret = net.get_interfaces()
 
         assert "enp0s1" in self._se_get_devicelist()
@@ -5163,18 +5186,16 @@ class TestGetInterfaces(CiTestCase):
         found = [ent for ent in ret if "aa:aa:aa:aa:aa:01" in ent]
         assert len(found) == 2
 
-    def test_gi_excludes_any_without_mac_address(self):
-        self._mock_setup()
+    def test_gi_excludes_any_without_mac_address(self, mocks):
         ret = net.get_interfaces()
 
         assert "tun0" in self._se_get_devicelist()
         found = [ent for ent in ret if "tun0" in ent]
         assert len(found) == 0
 
-    def test_gi_excludes_stolen_macs(self):
-        self._mock_setup()
+    def test_gi_excludes_stolen_macs(self, mocks):
         ret = net.get_interfaces()
-        self.mocks["interface_has_own_mac"].assert_has_calls(
+        mocks["interface_has_own_mac"].assert_has_calls(
             [mock.call("enp0s1"), mock.call("bond1")], any_order=True
         )
         expected = [
@@ -5186,8 +5207,7 @@ class TestGetInterfaces(CiTestCase):
         ]
         assert sorted(expected) == sorted(ret)
 
-    def test_gi_excludes_bridges(self):
-        self._mock_setup()
+    def test_gi_excludes_bridges(self, mocks):
         # add a device 'b1', make all return they have their "own mac",
         # set everything other than 'b1' to be a bridge.
         # then expect b1 is the only thing left.
@@ -5199,7 +5219,7 @@ class TestGetInterfaces(CiTestCase):
         self.data["bridges"] = [f for f in self.data["devices"] if f != "b1"]
         ret = net.get_interfaces()
         assert [("b1", "aa:aa:aa:aa:aa:b1", None, "0x0")] == ret
-        self.mocks["is_bridge"].assert_has_calls(
+        mocks["is_bridge"].assert_has_calls(
             [
                 mock.call("bridge1"),
                 mock.call("enp0s1"),
@@ -5210,7 +5230,7 @@ class TestGetInterfaces(CiTestCase):
         )
 
 
-class TestInterfaceHasOwnMac(CiTestCase):
+class TestInterfaceHasOwnMac:
     """Test interface_has_own_mac.  This is admittedly a bit whitebox."""
 
     @mock.patch("cloudinit.net.read_sys_net_int", return_value=None)
@@ -5250,8 +5270,7 @@ class TestInterfaceHasOwnMac(CiTestCase):
     "cloudinit.net.is_openvswitch_internal_interface",
     mock.Mock(return_value=False),
 )
-class TestGetInterfacesByMac(CiTestCase):
-    with_logs = True
+class TestGetInterfacesByMac:
     _data = {
         "bonds": ["bond1"],
         "bridges": ["bridge1"],
@@ -5292,6 +5311,27 @@ class TestGetInterfacesByMac(CiTestCase):
     }
     data: dict = {}
 
+    @pytest.fixture
+    def mocks(self, mocker):
+        self.data = copy.deepcopy(self._data)
+        self.data["devices"] = set(list(self.data["macs"].keys()))
+        mock_list = (
+            "get_devicelist",
+            "device_driver",
+            "get_interface_mac",
+            "is_bridge",
+            "interface_has_own_mac",
+            "is_vlan",
+            "get_ib_interface_hwaddr",
+        )
+        all_mocks = {}
+        for name in mock_list:
+            all_mocks[name] = mocker.patch(
+                "cloudinit.net." + name,
+                side_effect=getattr(self, "_se_" + name),
+            )
+        yield all_mocks
+
     def _se_get_devicelist(self):
         return list(self.data["devices"])
 
@@ -5314,46 +5354,22 @@ class TestGetInterfacesByMac(CiTestCase):
         ib_hwaddr = self.data.get("ib_hwaddr", {})
         return ib_hwaddr.get(name, {}).get(ethernet_format)
 
-    def _mock_setup(self):
-        self.data = copy.deepcopy(self._data)
-        self.data["devices"] = set(list(self.data["macs"].keys()))
-        mocks = (
-            "get_devicelist",
-            "device_driver",
-            "get_interface_mac",
-            "is_bridge",
-            "interface_has_own_mac",
-            "is_vlan",
-            "get_ib_interface_hwaddr",
-        )
-        self.mocks = {}
-        for n in mocks:
-            m = mock.patch(
-                "cloudinit.net." + n, side_effect=getattr(self, "_se_" + n)
-            )
-            self.addCleanup(m.stop)
-            self.mocks[n] = m.start()
-
-    def test_raise_exception_on_duplicate_macs(self):
-        self._mock_setup()
+    def test_raise_exception_on_duplicate_macs(self, mocks):
         self.data["macs"]["bridge1-nic"] = self.data["macs"]["enp0s1"]
         pytest.raises(RuntimeError, net.get_interfaces_by_mac)
 
-    def test_raise_exception_on_duplicate_netvsc_macs(self):
-        self._mock_setup()
+    def test_raise_exception_on_duplicate_netvsc_macs(self, mocks):
         self.data["macs"]["netvsc0"] = self.data["macs"]["netvsc1"]
         pytest.raises(RuntimeError, net.get_interfaces_by_mac)
 
-    def test_excludes_any_without_mac_address(self):
-        self._mock_setup()
+    def test_excludes_any_without_mac_address(self, mocks):
         ret = net.get_interfaces_by_mac()
         assert "tun0" in self._se_get_devicelist()
         assert "tun0" not in ret.values()
 
-    def test_excludes_stolen_macs(self):
-        self._mock_setup()
+    def test_excludes_stolen_macs(self, mocks):
         ret = net.get_interfaces_by_mac()
-        self.mocks["interface_has_own_mac"].assert_has_calls(
+        mocks["interface_has_own_mac"].assert_has_calls(
             [mock.call("enp0s1"), mock.call("bond1")], any_order=True
         )
         assert {
@@ -5365,8 +5381,7 @@ class TestGetInterfacesByMac(CiTestCase):
             "aa:aa:aa:aa:aa:05": "netvsc1",
         } == ret
 
-    def test_excludes_bridges(self):
-        self._mock_setup()
+    def test_excludes_bridges(self, mocks):
         # add a device 'b1', make all return they have their "own mac",
         # set everything other than 'b1' to be a bridge.
         # then expect b1 is the only thing left.
@@ -5377,7 +5392,7 @@ class TestGetInterfacesByMac(CiTestCase):
         self.data["bridges"] = [f for f in self.data["devices"] if f != "b1"]
         ret = net.get_interfaces_by_mac()
         assert {"aa:aa:aa:aa:aa:b1": "b1"} == ret
-        self.mocks["is_bridge"].assert_has_calls(
+        mocks["is_bridge"].assert_has_calls(
             [
                 mock.call("bridge1"),
                 mock.call("enp0s1"),
@@ -5387,8 +5402,7 @@ class TestGetInterfacesByMac(CiTestCase):
             any_order=True,
         )
 
-    def test_excludes_vlans(self):
-        self._mock_setup()
+    def test_excludes_vlans(self, mocks):
         # add a device 'b1', make all return they have their "own mac",
         # set everything other than 'b1' to be a vlan.
         # then expect b1 is the only thing left.
@@ -5400,7 +5414,7 @@ class TestGetInterfacesByMac(CiTestCase):
         self.data["vlans"] = [f for f in self.data["devices"] if f != "b1"]
         ret = net.get_interfaces_by_mac()
         assert {"aa:aa:aa:aa:aa:b1": "b1"} == ret
-        self.mocks["is_vlan"].assert_has_calls(
+        mocks["is_vlan"].assert_has_calls(
             [
                 mock.call("bridge1"),
                 mock.call("enp0s1"),
@@ -5410,9 +5424,8 @@ class TestGetInterfacesByMac(CiTestCase):
             any_order=True,
         )
 
-    def test_duplicates_of_empty_mac_are_ok(self):
+    def test_duplicates_of_empty_mac_are_ok(self, mocks):
         """Duplicate macs of 00:00:00:00:00:00 should be skipped."""
-        self._mock_setup()
         empty_mac = "00:00:00:00:00:00"
         addnics = ("greptap1", "lo", "greptap2")
         self.data["macs"].update(dict((k, empty_mac) for k in addnics))
@@ -5421,9 +5434,8 @@ class TestGetInterfacesByMac(CiTestCase):
         ret = net.get_interfaces_by_mac()
         assert "lo" == ret[empty_mac]
 
-    def test_skip_all_zeros(self):
+    def test_skip_all_zeros(self, mocks):
         """Any mac of 00:... should be skipped."""
-        self._mock_setup()
         emac1, emac2, emac4, emac6 = (
             "00",
             "00:00",
@@ -5443,10 +5455,9 @@ class TestGetInterfacesByMac(CiTestCase):
         ret = net.get_interfaces_by_mac()
         assert "lo" == ret["00:00:00:00:00:00"]
 
-    def test_ib(self):
+    def test_ib(self, mocks):
         ib_addr = "80:00:00:28:fe:80:00:00:00:00:00:00:00:11:22:03:00:33:44:56"
         ib_addr_eth_format = "00:11:22:33:44:56"
-        self._mock_setup()
         self.data["devices"] = ["enp0s1", "ib0"]
         self.data["own_macs"].append("ib0")
         self.data["macs"]["ib0"] = ib_addr
@@ -5496,7 +5507,7 @@ class TestDuplicateMac:
         assert re.search(pattern, caplog.text)
 
 
-class TestInterfacesSorting(CiTestCase):
+class TestInterfacesSorting:
     def test_natural_order(self):
         data = ["ens5", "ens6", "ens3", "ens20", "ens13", "ens2"]
         assert sorted(data, key=natural_sort_key) == [
@@ -5522,7 +5533,7 @@ class TestInterfacesSorting(CiTestCase):
     "cloudinit.net.is_openvswitch_internal_interface",
     mock.Mock(return_value=False),
 )
-class TestGetIBHwaddrsByInterface(CiTestCase):
+class TestGetIBHwaddrsByInterface:
     _ib_addr = "80:00:00:28:fe:80:00:00:00:00:00:00:00:11:22:03:00:33:44:56"
     _ib_addr_eth_format = "00:11:22:33:44:56"
     _data = {
@@ -5551,22 +5562,23 @@ class TestGetIBHwaddrsByInterface(CiTestCase):
     }
     data: dict = {}
 
-    def _mock_setup(self):
+    @pytest.fixture
+    def mocks(self, mocker):
         self.data = copy.deepcopy(self._data)
-        mocks = (
+        mock_list = (
             "get_devicelist",
             "get_interface_mac",
             "is_bridge",
             "interface_has_own_mac",
             "get_ib_interface_hwaddr",
         )
-        self.mocks = {}
-        for n in mocks:
-            m = mock.patch(
-                "cloudinit.net." + n, side_effect=getattr(self, "_se_" + n)
+        all_mocks = {}
+        for name in mock_list:
+            all_mocks[name] = mocker.patch(
+                "cloudinit.net." + name,
+                side_effect=getattr(self, "_se_" + name),
             )
-            self.addCleanup(m.stop)
-            self.mocks[n] = m.start()
+        yield all_mocks
 
     def _se_get_devicelist(self):
         return self.data["devices"]
@@ -5584,15 +5596,13 @@ class TestGetIBHwaddrsByInterface(CiTestCase):
         ib_hwaddr = self.data.get("ib_hwaddr", {})
         return ib_hwaddr.get(name, {}).get(ethernet_format)
 
-    def test_ethernet(self):
-        self._mock_setup()
+    def test_ethernet(self, mocks):
         self.data["devices"].remove("ib0")
         result = net.get_ib_hwaddrs_by_interface()
         expected = {}
         assert expected == result
 
-    def test_ib(self):
-        self._mock_setup()
+    def test_ib(self, mocks):
         result = net.get_ib_hwaddrs_by_interface()
         expected = {"ib0": self._ib_addr}
         assert expected == result
@@ -5606,7 +5616,7 @@ def _gzip_data(data):
         return iobuf.getvalue()
 
 
-class TestRenameInterfaces(CiTestCase):
+class TestRenameInterfaces:
     @mock.patch("cloudinit.subp.subp")
     def test_rename_all(self, mock_subp):
         renames = [
@@ -5893,7 +5903,7 @@ class TestRenameInterfaces(CiTestCase):
         mock_subp.assert_has_calls(expected)
 
 
-class TestNetworkState(CiTestCase):
+class TestNetworkState:
     def test_bcast_addr(self):
         """Test mask_and_ipv4_to_bcast_addr proper execution."""
         bcast_addr = mask_and_ipv4_to_bcast_addr
