@@ -369,7 +369,7 @@ class DataSourceNoCloudNet(DataSourceNoCloud):
             "http://",
             "https://",
             "ftp://",
-            "stfp://",
+            "ftps://",
         )
 
     def ds_detect(self):
