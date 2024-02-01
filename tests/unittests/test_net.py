@@ -2415,83 +2415,8 @@ STARTMODE=auto
 """.lstrip()
             assert expected_content == content
 
-    # TODO(rjschwei): re-enable test once route writing is implemented
-    # for SUSE distros
-    #    def test_multiple_ipv4_default_gateways(self):
-    #        """ValueError is raised when duplicate ipv4 gateways exist."""
-    #        net_json = {
-    #            "services": [{"type": "dns", "address": "172.19.0.12"}],
-    #            "networks": [{
-    #                "network_id": "dacd568d-5be6-4786-91fe-750c374b78b4",
-    #                "type": "ipv4", "netmask": "255.255.252.0",
-    #                "link": "tap1a81968a-79",
-    #                "routes": [{
-    #                    "netmask": "0.0.0.0",
-    #                    "network": "0.0.0.0",
-    #                    "gateway": "172.19.3.254",
-    #                }, {
-    #                    "netmask": "0.0.0.0",  # A second default gateway
-    #                    "network": "0.0.0.0",
-    #                    "gateway": "172.20.3.254",
-    #                }],
-    #                "ip_address": "172.19.1.34", "id": "network0"
-    #            }],
-    #            "links": [
-    #                {
-    #                    "ethernet_mac_address": "fa:16:3e:ed:9a:59",
-    #                    "mtu": None, "type": "bridge", "id":
-    #                    "tap1a81968a-79",
-    #                    "vif_id": "1a81968a-797a-400f-8a80-567f997eb93f"
-    #                },
-    #            ],
-    #        }
-    #        macs = {'fa:16:3e:ed:9a:59': 'eth0'}
-    #        render_dir = self.tmp_dir()
-    #        network_cfg = openstack.convert_net_json(net_json, known_macs=macs)  # noqa: E501
-    #        ns = network_state.parse_net_config_data(network_cfg,
-    #                                                 skip_broken=False)
-    #        renderer = self._get_renderer()
-    #        with self.assertRaises(ValueError):
-    #            renderer.render_network_state(ns, target=render_dir)
-    #        self.assertEqual([], os.listdir(render_dir))
-    #
-    #    def test_multiple_ipv6_default_gateways(self):
-    #        """ValueError is raised when duplicate ipv6 gateways exist."""
-    #        net_json = {
-    #            "services": [{"type": "dns", "address": "172.19.0.12"}],
-    #            "networks": [{
-    #                "network_id": "public-ipv6",
-    #                "type": "ipv6", "netmask": "",
-    #                "link": "tap1a81968a-79",
-    #                "routes": [{
-    #                    "gateway": "2001:DB8::1",
-    #                    "netmask": "::",
-    #                    "network": "::"
-    #                }, {
-    #                    "gateway": "2001:DB9::1",
-    #                    "netmask": "::",
-    #                    "network": "::"
-    #                }],
-    #                "ip_address": "2001:DB8::10", "id": "network1"
-    #            }],
-    #            "links": [
-    #                {
-    #                    "ethernet_mac_address": "fa:16:3e:ed:9a:59",
-    #                    "mtu": None, "type": "bridge", "id":
-    #                    "tap1a81968a-79",
-    #                    "vif_id": "1a81968a-797a-400f-8a80-567f997eb93f"
-    #                },
-    #            ],
-    #        }
-    #        macs = {'fa:16:3e:ed:9a:59': 'eth0'}
-    #        render_dir = self.tmp_dir()
-    #        network_cfg = openstack.convert_net_json(net_json, known_macs=macs)  # noqa: E501
-    #        ns = network_state.parse_net_config_data(network_cfg,
-    #                                                 skip_broken=False)
-    #        renderer = self._get_renderer()
-    #        with self.assertRaises(ValueError):
-    #            renderer.render_network_state(ns, target=render_dir)
-    #        self.assertEqual([], os.listdir(render_dir))
+    # TODO(rjschwei): re-add tests once route writing is implemented.
+    # See git history for removed commented tests
 
     def test_openstack_rendering_samples(self):
         for os_sample in OS_SAMPLES:
@@ -2563,19 +2488,9 @@ STARTMODE=auto
         assert resolvconf_content == found["/etc/resolv.conf"]
 
     def test_bond_config(self):
-        expected_name = "expected_sysconfig_opensuse"
         entry = NETWORK_CONFIGS["bond"]
         found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        for fname, contents in entry[expected_name].items():
-            print(fname)
-            print(contents)
-            print()
-        print("-- expected ^ | v rendered --")
-        for fname, contents in found.items():
-            print(fname)
-            print(contents)
-            print()
-        self._compare_files_to_expected(entry[expected_name], found)
+        self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
     def test_vlan_config(self):
