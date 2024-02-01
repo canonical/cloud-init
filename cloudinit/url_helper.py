@@ -9,6 +9,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import ftplib
+import io
 import json
 import logging
 import os
@@ -16,17 +18,17 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from email.utils import parsedate
-from errno import ENOENT
 from functools import partial
 from http.client import NOT_FOUND
 from itertools import count
+from ssl import create_default_context
 from typing import Any, Callable, Iterator, List, Optional, Tuple, Union
-from urllib.parse import quote, urlparse, urlunparse
+from urllib.parse import quote, urlparse, urlsplit, urlunparse
 
 import requests
 from requests import exceptions
 
-from cloudinit import version
+from cloudinit import util, version
 
 LOG = logging.getLogger(__name__)
 
@@ -59,7 +61,108 @@ def combine_url(base, *add_ons):
     return url
 
 
-def read_file_or_url(url, **kwargs) -> Union["FileResponse", "UrlResponse"]:
+def read_ftps(url: str, timeout: Optional[float] = None) -> "FtpResponse":
+    """connect to URL using ftp over TLS and read a file
+
+    when using strict mode (ftps://), raise exception in event of failure
+    when not using strict mode (ftp://), fall back to using unencrypted ftp
+
+    returns: UrlResponse
+    """
+
+    def get_return_code_from_exception(exc):
+        # ftplib doesn't expose error codes, so use this lookup table
+        ftp_error_codes = {
+            ftplib.error_reply: 300,  # unexpected [123]xx reply
+            ftplib.error_temp: 400,  # 4xx errors
+            ftplib.error_perm: 500,  # 5xx errors
+            ftplib.error_proto: 600,  # response does not begin with [1-5]
+            EOFError: 700,  # made up
+            # OSError is also possible. Use OSError.errno for that.
+        }
+        code = ftp_error_codes.get(type(exc))  # pyright: ignore
+        if not code:
+            if isinstance(exc, OSError):
+                code = exc.errno
+            else:
+                LOG.warning(
+                    "Unexpected exception type while connecting to ftp server."
+                )
+        return code
+
+    url_parts = urlsplit(url)
+    if not url_parts.hostname:
+        raise UrlError(
+            cause="Invalid url provided", code=NOT_FOUND, headers=None, url=url
+        )
+    with io.BytesIO() as buffer:
+        try:
+            LOG.debug("Attempting to connect to %s over tls.", url)
+            ftp_tls = ftplib.FTP_TLS(
+                host=url_parts.hostname,
+                user=url_parts.username or "",
+                passwd=url_parts.password or "",
+                timeout=timeout or 0.0,  # Python docs are wrong about types
+                context=create_default_context(),
+            )
+            ftp_tls.login()
+            ftp_tls.prot_p()
+            ftp_tls.retrbinary(f"RETR {url_parts.path}", callback=buffer.write)
+            return FtpResponse(url_parts.path, contents=buffer)
+        except ftplib.all_errors as e:
+            if "ftps" == url_parts.scheme:
+                raise UrlError(
+                    cause=(
+                        "Connecting to ftp server over tls "
+                        "failed for url [%s]"
+                    ),
+                    code=get_return_code_from_exception(e),
+                    headers=None,
+                    url=url,
+                )
+        try:
+            LOG.debug(
+                "Couldn't connect to %s over tls. Strict mode not "
+                "required (using protocol 'ftp://' not 'ftps://'), so falling"
+                "back to ftp",
+                url_parts.hostname,
+            )
+            LOG.debug("Attempting to connect to %s over tls.", url)
+            ftp = ftplib.FTP(
+                host=url_parts.hostname,
+                user=url_parts.username or "",
+                passwd=url_parts.password or "",
+                timeout=timeout or 0.0,  # Python docs are wrong about types
+            )
+            ftp.login()
+            ftp.retrbinary(f"RETR {url_parts.path}", callback=buffer.write)
+            return FtpResponse(url_parts.path, contents=buffer)
+        except ftplib.all_errors as e:
+            raise UrlError(
+                cause=(
+                    "Connecting to ftp server over tls failed for url [%s]"
+                ),
+                code=get_return_code_from_exception(e),
+                headers=None,
+                url=url,
+            )
+
+
+def read_file(path: str, **kwargs) -> "FileResponse":
+    if kwargs.get("data"):
+        LOG.warning("Unable to post data to file resource %s", path)
+    try:
+        contents = util.load_binary_file(path)
+        return FileResponse(path, contents=contents)
+    except FileNotFoundError as e:
+        raise UrlError(cause=e, code=NOT_FOUND, headers=None, url=path) from e
+    except IOError as e:
+        raise UrlError(cause=e, code=e.errno, headers=None, url=path) from e
+
+
+def read_file_or_url(
+    url, **kwargs
+) -> Union["FileResponse", "UrlResponse", "FtpResponse"]:
     """Wrapper function around readurl to allow passing a file path as url.
 
     When url is not a local file path, passthrough any kwargs to readurl.
@@ -68,22 +171,16 @@ def read_file_or_url(url, **kwargs) -> Union["FileResponse", "UrlResponse"]:
     parameters. See: call-signature of readurl in this module for param docs.
     """
     url = url.lstrip()
-    if url.startswith("/"):
-        url = "file://%s" % url
-    if url.lower().startswith("file://"):
-        if kwargs.get("data"):
-            LOG.warning("Unable to post data to file resource %s", url)
-        file_path = url[len("file://") :]
-        try:
-            with open(file_path, "rb") as fp:
-                contents = fp.read()
-        except IOError as e:
-            code = e.errno
-            if e.errno == ENOENT:
-                code = NOT_FOUND
-            raise UrlError(cause=e, code=code, headers=None, url=url) from e
-        return FileResponse(file_path, contents=contents)
+    parsed = urlparse(url)
+    scheme = parsed.scheme
+    if scheme == "file" or (url and "/" == url[0]):
+        return read_file(parsed.path, **kwargs)
+    elif scheme in ("ftp", "ftps"):
+        return read_ftps(url)
+    elif scheme in ("http", "https"):
+        return readurl(url, **kwargs)
     else:
+        LOG.warning("Attempting unknown protocol %s", scheme)
         return readurl(url, **kwargs)
 
 
@@ -109,6 +206,11 @@ class StringResponse:
 class FileResponse(StringResponse):
     def __init__(self, path, contents, code=200):
         StringResponse.__init__(self, contents, code=code)
+
+
+class FtpResponse(StringResponse):
+    def __init__(self, path, contents):
+        super().__init__(self, contents)
         self.url = path
 
 
