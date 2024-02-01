@@ -396,13 +396,13 @@ def clean_filename(fn):
 
 def decomp_gzip(data, quiet=True, decode=True):
     try:
-        buf = io.BytesIO(encode_text(data))
-        with contextlib.closing(gzip.GzipFile(None, "rb", 1, buf)) as gh:
-            # E1101 is https://github.com/PyCQA/pylint/issues/1444
+        with io.BytesIO(encode_text(data)) as buf, gzip.GzipFile(
+            None, "rb", 1, buf
+        ) as gh:
             if decode:
-                return decode_binary(gh.read())  # pylint: disable=E1101
+                return decode_binary(gh.read())
             else:
-                return gh.read()  # pylint: disable=E1101
+                return gh.read()
     except Exception as e:
         if quiet:
             return data
@@ -1599,14 +1599,14 @@ def load_binary_file(
     quiet: bool = False,
 ) -> bytes:
     LOG.debug("Reading from %s (quiet=%s)", fname, quiet)
-    ofh = io.BytesIO()
-    try:
-        with open(fname, "rb") as ifh:
-            pipe_in_out(ifh, ofh, chunk_cb=read_cb)
-    except FileNotFoundError:
-        if not quiet:
-            raise
-    contents = ofh.getvalue()
+    with io.BytesIO() as ofh:
+        try:
+            with open(fname, "rb") as ifh:
+                pipe_in_out(ifh, ofh, chunk_cb=read_cb)
+        except FileNotFoundError:
+            if not quiet:
+                raise
+        contents = ofh.getvalue()
     LOG.debug("Read %s bytes from %s", len(contents), fname)
     return contents
 
@@ -2955,8 +2955,6 @@ def is_x86(uname_arch=None):
 
 
 def message_from_string(string):
-    if sys.version_info[:2] < (2, 7):
-        return email.message_from_file(io.StringIO(string))
     return email.message_from_string(string)
 
 
