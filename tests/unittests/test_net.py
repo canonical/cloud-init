@@ -1121,12 +1121,12 @@ def _setup_test(
 
 class TestGenerateFallbackConfig:
     @pytest.fixture(autouse=True)
-    def setup(self, mocker, tmpdir):
+    def setup(self, mocker, tmpdir_factory):
         mocker.patch(
             "cloudinit.util.get_cmdline",
             return_value="root=/dev/sda1",
         )
-        self.tmp_dir = lambda: str(tmpdir)
+        self.tmp_dir = lambda: str(tmpdir_factory.mktemp("a", numbered=True))
 
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
@@ -1471,13 +1471,15 @@ iface eth1 inet6 dhcp
     "cloudinit.net.is_openvswitch_internal_interface",
     mock.Mock(return_value=False),
 )
-class TestRhelSysConfigRendering(CiTestCase):
-    with_logs = True
-
+class TestRhelSysConfigRendering:
     scripts_dir = "/etc/sysconfig/network-scripts"
     header = "# Created by cloud-init automatically, do not edit.\n#\n"
 
     expected_name = "expected_sysconfig_rhel"
+
+    @pytest.fixture(autouse=True)
+    def setup(self, tmpdir_factory):
+        self.tmp_dir = lambda: str(tmpdir_factory.mktemp("a", numbered=True))
 
     def _get_renderer(self):
         distro_cls = distros.fetch("rhel")
@@ -1510,7 +1512,6 @@ class TestRhelSysConfigRendering(CiTestCase):
             # route6- * files aren't shell content, but iproute2 params
             return f
 
-        orig_maxdiff = self.maxDiff
         expected_d = dict(
             (os.path.join(self.scripts_dir, k), _try_load(v))
             for k, v in expected.items()
@@ -1522,11 +1523,7 @@ class TestRhelSysConfigRendering(CiTestCase):
             for k, v in found.items()
             if k.startswith(self.scripts_dir)
         )
-        try:
-            self.maxDiff = None
-            assert expected_d == scripts_found
-        finally:
-            self.maxDiff = orig_maxdiff
+        assert expected_d == scripts_found
 
     def _assert_headers(self, found):
         missing = [
@@ -1773,7 +1770,7 @@ USERCTL=no
 
     def test_network_config_v1_samples(self):
         ns = network_state.parse_net_config_data(CONFIG_V1_SIMPLE_SUBNET)
-        render_dir = self.tmp_path("render")
+        render_dir = os.path.join(self.tmp_dir(), "render")
         os.makedirs(render_dir)
         renderer = self._get_renderer()
         renderer.render_network_state(ns, target=render_dir)
@@ -1803,7 +1800,7 @@ USERCTL=no
 
     def test_network_config_v1_multi_iface_samples(self):
         ns = network_state.parse_net_config_data(CONFIG_V1_MULTI_IFACE)
-        render_dir = self.tmp_path("render")
+        render_dir = os.path.join(self.tmp_dir(), "render")
         os.makedirs(render_dir)
         renderer = self._get_renderer()
         renderer.render_network_state(ns, target=render_dir)
@@ -1844,7 +1841,7 @@ USERCTL=no
 
     def test_config_with_explicit_loopback(self):
         ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)
-        render_dir = self.tmp_path("render")
+        render_dir = os.path.join(self.tmp_dir(), "render")
         os.makedirs(render_dir)
         # write an etc/resolv.conf and expect it to not be modified
         resolvconf = os.path.join(render_dir, "etc/resolv.conf")
@@ -1893,14 +1890,14 @@ USERCTL=no
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
-    def test_all_config(self):
+    def test_all_config(self, caplog):
         entry = NETWORK_CONFIGS["all"]
         found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
         assert (
-            "WARNING: Network config: ignoring eth0.101 device-level mtu"
-            not in self.logs.getvalue()
+            "Network config: ignoring eth0.101 device-level mtu"
+            not in caplog.text
         )
 
     def test_small_config_v1(self):
@@ -1915,16 +1912,16 @@ USERCTL=no
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
-    def test_v4_and_v6_static_config(self):
+    def test_v4_and_v6_static_config(self, caplog):
         entry = NETWORK_CONFIGS["v4_and_v6_static"]
         found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
         expected_msg = (
-            "WARNING: Network config: ignoring iface0 device-level mtu:8999"
+            "Network config: ignoring iface0 device-level mtu:8999"
             " because ipv4 subnet-level mtu:9000 provided."
         )
-        assert expected_msg in self.logs.getvalue()
+        assert expected_msg in caplog.text
 
     def test_dhcpv6_only_config(self):
         entry = NETWORK_CONFIGS["dhcpv6_only"]
@@ -2397,7 +2394,6 @@ USERCTL=no
             mock_sys_dev_path,
             dev_attrs=devices,
         )
-
         entry = NETWORK_CONFIGS["v2-dev-name-via-mac-lookup"]
         found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
         self._compare_files_to_expected(entry[self.expected_name], found)
@@ -3012,7 +3008,7 @@ class TestNetworkManagerRendering:
             entry[self.expected_name], self.expected_conf_d, found
         )
         assert (
-            "WARNING: Network config: ignoring eth0.101 device-level mtu"
+            "Network config: ignoring eth0.101 device-level mtu"
             not in caplog.text
         )
 
