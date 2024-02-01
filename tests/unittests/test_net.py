@@ -31,8 +31,6 @@ from cloudinit.net import (
 )
 from cloudinit.sources.helpers import openstack
 from tests.unittests.helpers import (
-    CiTestCase,
-    FilesystemMockingTestCase,
     dir2dict,
     does_not_raise,
     mock,
@@ -3817,13 +3815,17 @@ class TestCmdlineConfigParsing:
         assert found == self.simple_cfg
 
 
-class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
+class TestCmdlineKlibcNetworkConfigSource:
     macs = {
         "eth0": "14:02:ec:42:48:00",
         "eno1": "14:02:ec:42:48:01",
     }
 
-    def test_without_ip(self):
+    @pytest.fixture(autouse=True)
+    def setup(self, tmpdir_factory):
+        self.tmp_dir = lambda: str(tmpdir_factory.mktemp("a", numbered=True))
+
+    def test_without_ip(self, fake_filesystem):
         content = {
             "/run/net-eth0.conf": DHCP_CONTENT_1,
             cmdline._OPEN_ISCSI_INTERFACE_FILE: "eth0\n",
@@ -3831,9 +3833,7 @@ class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
         exp1 = copy.deepcopy(DHCP_EXPECTED_1)
         exp1["mac_address"] = self.macs["eth0"]
 
-        root = self.tmp_dir()
-        populate_dir(root, content)
-        self.reRoot(root)
+        populate_dir(fake_filesystem, content)
 
         src = cmdline.KlibcNetworkConfigSource(
             _cmdline="foo root=/root/bar",
@@ -3844,14 +3844,12 @@ class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
         assert found["version"] == 1
         assert found["config"] == [exp1]
 
-    def test_with_ip(self):
+    def test_with_ip(self, fake_filesystem):
         content = {"/run/net-eth0.conf": DHCP_CONTENT_1}
         exp1 = copy.deepcopy(DHCP_EXPECTED_1)
         exp1["mac_address"] = self.macs["eth0"]
 
-        root = self.tmp_dir()
-        populate_dir(root, content)
-        self.reRoot(root)
+        populate_dir(fake_filesystem, content)
 
         src = cmdline.KlibcNetworkConfigSource(
             _cmdline="foo ip=dhcp",
@@ -3862,11 +3860,9 @@ class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
         assert found["version"] == 1
         assert found["config"] == [exp1]
 
-    def test_with_ip6(self):
+    def test_with_ip6(self, fake_filesystem):
         content = {"/run/net6-eno1.conf": DHCP6_CONTENT_1}
-        root = self.tmp_dir()
-        populate_dir(root, content)
-        self.reRoot(root)
+        populate_dir(fake_filesystem, content)
 
         src = cmdline.KlibcNetworkConfigSource(
             _cmdline="foo ip6=dhcp root=/dev/sda",
@@ -3954,7 +3950,7 @@ class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
         )
         assert not src.is_applicable()
 
-    def test_with_both_ip_ip6(self):
+    def test_with_both_ip_ip6(self, fake_filesystem):
         content = {
             "/run/net-eth0.conf": DHCP_CONTENT_1,
             "/run/net6-eth0.conf": DHCP6_CONTENT_1.replace("eno1", "eth0"),
@@ -3971,9 +3967,7 @@ class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
         )
         expected = [eth0]
 
-        root = self.tmp_dir()
-        populate_dir(root, content)
-        self.reRoot(root)
+        populate_dir(fake_filesystem, content)
 
         src = cmdline.KlibcNetworkConfigSource(
             _cmdline="foo ip=dhcp ip6=dhcp",
