@@ -3840,9 +3840,6 @@ class TestNetplanRoundTrip:
     def testsimple_render_bond_netplan(self):
         entry = NETWORK_CONFIGS["bond"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        print(entry["expected_netplan"])
-        print("-- expected ^ | v rendered --")
-        print(files["/etc/netplan/50-cloud-init.yaml"])
         assert (
             entry["expected_netplan"].splitlines()
             == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
@@ -3853,9 +3850,6 @@ class TestNetplanRoundTrip:
         files = self._render_and_read(
             network_config=yaml.load(entry["yaml-v2"])
         )
-        print(entry["expected_netplan-v2"])
-        print("-- expected ^ | v rendered --")
-        print(files["/etc/netplan/50-cloud-init.yaml"])
         assert (
             entry["expected_netplan-v2"].splitlines()
             == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
@@ -3960,9 +3954,6 @@ class TestNetplanRoundTrip:
     def testsimple_render_all(self):
         entry = NETWORK_CONFIGS["all"]
         files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        print(entry["expected_netplan"])
-        print("-- expected ^ | v rendered --")
-        print(files["/etc/netplan/50-cloud-init.yaml"])
         assert (
             entry["expected_netplan"].splitlines()
             == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
@@ -4012,9 +4003,6 @@ class TestNetplanRoundTrip:
             msg = "Error at: %s\nContent:\n%s" % (found_alias, content)
             raise ValueError("Found yaml alias in rendered netplan: " + msg)
 
-        print(entry["expected_netplan"])
-        print("-- expected ^ | v rendered --")
-        print(files["/etc/netplan/50-cloud-init.yaml"])
         assert (
             entry["expected_netplan"].splitlines()
             == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
@@ -4029,9 +4017,6 @@ class TestNetplanRoundTrip:
         }
         network_config = yaml.load(entry["yaml"]).get("network")
         files = self._render_and_read(network_config=network_config)
-        print(entry["expected_netplan"])
-        print("-- expected ^ | v rendered --")
-        print(files["/etc/netplan/50-cloud-init.yaml"])
         assert (
             entry["expected_netplan"].splitlines()
             == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
