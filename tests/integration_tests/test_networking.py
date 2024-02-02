@@ -1,5 +1,6 @@
 """Networking-related tests."""
 import contextlib
+import json
 
 import pytest
 import yaml
@@ -364,3 +365,142 @@ def test_ec2_multi_nic_reboot(setup_image, session_cloud: IntegrationCloud):
                 )
             with contextlib.suppress(Exception):
                 ec2.release_address(AllocationId=allocation_1["AllocationId"])
+
+
+@pytest.mark.adhoc  # costly instance not available in all regions / azs
+@pytest.mark.skipif(PLATFORM != "ec2", reason="test is ec2 specific")
+def test_ec2_multi_network_cards(setup_image, session_cloud: IntegrationCloud):
+    """
+    Tests that with an interface type with multiple network cards (non unique
+    device indexes).
+
+    https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html
+    https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/p5-efa.html
+    """
+    ec2 = session_cloud.cloud_instance.client
+
+    vpc = session_cloud.cloud_instance.get_or_create_vpc(
+        name="ec2-cloud-init-integration"
+    )
+    [subnet_id] = [s.id for s in vpc.vpc.subnets.all()]
+    security_group_ids = [sg.id for sg in vpc.vpc.security_groups.all()]
+
+    launch_kwargs = {
+        "InstanceType": "p5.48xlarge",
+        "NetworkInterfaces": [
+            {
+                "NetworkCardIndex": 0,
+                "DeviceIndex": 0,
+                "InterfaceType": "efa",
+                "DeleteOnTermination": True,
+                "Groups": security_group_ids,
+                "SubnetId": subnet_id,
+            },
+            {
+                "NetworkCardIndex": 1,
+                "DeviceIndex": 1,
+                "InterfaceType": "efa",
+                "DeleteOnTermination": True,
+                "Groups": security_group_ids,
+                "SubnetId": subnet_id,
+            },
+            {
+                "NetworkCardIndex": 2,
+                "DeviceIndex": 1,
+                "InterfaceType": "efa",
+                "DeleteOnTermination": True,
+                "Groups": security_group_ids,
+                "SubnetId": subnet_id,
+            },
+        ],
+    }
+    # Instances with this network setups do not get a public ip.
+    # Do not wait until we associate one to the primary interface so that we
+    # can interact with it.
+    with session_cloud.launch(
+        launch_kwargs=launch_kwargs,
+        user_data=USER_DATA,
+        enable_ipv6=False,
+        wait=False,
+    ) as client:
+        client.instance._instance.wait_until_running(
+            Filters=[
+                {
+                    "Name": "instance-id",
+                    "Values": [client.instance.id],
+                }
+            ]
+        )
+
+        network_interfaces = iter(
+            ec2.describe_network_interfaces(
+                Filters=[
+                    {
+                        "Name": "attachment.instance-id",
+                        "Values": [client.instance.id],
+                    }
+                ]
+            )["NetworkInterfaces"]
+        )
+        nic_id_0 = next(network_interfaces)["NetworkInterfaceId"]
+
+        try:
+            allocation_0 = ec2.allocate_address(Domain="vpc")
+            association_0 = ec2.associate_address(
+                AllocationId=allocation_0["AllocationId"],
+                NetworkInterfaceId=nic_id_0,
+            )
+            assert association_0["ResponseMetadata"]["HTTPStatusCode"] == 200
+
+            result = client.execute(
+                "cloud-init query ds.meta-data.network.interfaces.macs"
+            )
+            assert result.ok, result.stderr
+            for _macs, net_metadata in json.load(result.stdout):
+                assert "network-card" in net_metadata
+
+            nic_id_1 = next(network_interfaces)["NetworkInterfaceId"]
+            allocation_1 = ec2.allocate_address(Domain="vpc")
+            association_1 = ec2.associate_address(
+                AllocationId=allocation_1["AllocationId"],
+                NetworkInterfaceId=nic_id_1,
+            )
+            assert association_1["ResponseMetadata"]["HTTPStatusCode"] == 200
+
+            nic_id_2 = next(network_interfaces)["NetworkInterfaceId"]
+            allocation_2 = ec2.allocate_address(Domain="vpc")
+            association_2 = ec2.associate_address(
+                AllocationId=allocation_2["AllocationId"],
+                NetworkInterfaceId=nic_id_2,
+            )
+            assert association_2["ResponseMetadata"]["HTTPStatusCode"] == 200
+
+            # Reboot to update network config
+            client.execute("cloud-init clean --logs")
+            client.restart()
+
+            log_content = client.read_from_file("/var/log/cloud-init.log")
+            verify_clean_log(log_content)
+
+            # SSH over secondary NICs works
+            subp("nc -w 5 -zv " + allocation_1["PublicIp"] + " 22", shell=True)
+            subp("nc -w 5 -zv " + allocation_2["PublicIp"] + " 22", shell=True)
+        finally:
+            with contextlib.suppress(Exception):
+                ec2.disassociate_address(
+                    AssociationId=association_0["AssociationId"]
+                )
+            with contextlib.suppress(Exception):
+                ec2.release_address(AllocationId=allocation_0["AllocationId"])
+            with contextlib.suppress(Exception):
+                ec2.disassociate_address(
+                    AssociationId=association_1["AssociationId"]
+                )
+            with contextlib.suppress(Exception):
+                ec2.release_address(AllocationId=allocation_1["AllocationId"])
+            with contextlib.suppress(Exception):
+                ec2.disassociate_address(
+                    AssociationId=association_2["AssociationId"]
+                )
+            with contextlib.suppress(Exception):
+                ec2.release_address(AllocationId=allocation_2["AllocationId"])

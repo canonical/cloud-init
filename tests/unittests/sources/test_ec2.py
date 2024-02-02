@@ -958,6 +958,144 @@ class TestGetSecondaryAddresses(test_helpers.CiTestCase):
             self.assertIn(log, logs)
 
 
+class TestBuildNicOrder:
+    @pytest.mark.parametrize(
+        ["macs_metadata", "macs", "expected"],
+        [
+            pytest.param({}, [], {}, id="all_empty"),
+            pytest.param(
+                {}, ["0a:f7:8d:96:f2:a1"], {}, id="empty_macs_metadata"
+            ),
+            pytest.param(
+                {
+                    "0a:0d:dd:44:cd:7b": {
+                        "device-number": "0",
+                        "mac": "0a:0d:dd:44:cd:7b",
+                    }
+                },
+                [],
+                {},
+                id="empty_macs",
+            ),
+            pytest.param(
+                {
+                    "0a:0d:dd:44:cd:7b": {
+                        "mac": "0a:0d:dd:44:cd:7b",
+                    },
+                    "0a:f7:8d:96:f2:a1": {
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                },
+                ["0a:f7:8d:96:f2:a1", "0a:0d:dd:44:cd:7b"],
+                {"0a:f7:8d:96:f2:a1": 0, "0a:0d:dd:44:cd:7b": 1},
+                id="no-device-number-info",
+            ),
+            pytest.param(
+                {
+                    "0a:0d:dd:44:cd:7b": {
+                        "mac": "0a:0d:dd:44:cd:7b",
+                    },
+                    "0a:f7:8d:96:f2:a1": {
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                },
+                ["0a:f7:8d:96:f2:a1"],
+                {"0a:f7:8d:96:f2:a1": 0},
+                id="no-device-number-info-subset",
+            ),
+            pytest.param(
+                {
+                    "0a:0d:dd:44:cd:7b": {
+                        "device-number": "0",
+                        "mac": "0a:0d:dd:44:cd:7b",
+                    },
+                    "0a:f7:8d:96:f2:a1": {
+                        "device-number": "1",
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                },
+                ["0a:f7:8d:96:f2:a1", "0a:0d:dd:44:cd:7b"],
+                {"0a:0d:dd:44:cd:7b": 0, "0a:f7:8d:96:f2:a1": 1},
+                id="device-numbers",
+            ),
+            pytest.param(
+                {
+                    "0a:0d:dd:44:cd:7b": {
+                        "network-card": "0",
+                        "device-number": "0",
+                        "mac": "0a:0d:dd:44:cd:7b",
+                    },
+                    "0a:f7:8d:96:f2:a1": {
+                        "network-card": "1",
+                        "device-number": "1",
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                    "0a:f7:8d:96:f2:a2": {
+                        "network-card": "2",
+                        "device-number": "1",
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                },
+                [
+                    "0a:f7:8d:96:f2:a1",
+                    "0a:0d:dd:44:cd:7b",
+                    "0a:f7:8d:96:f2:a2",
+                ],
+                {
+                    "0a:0d:dd:44:cd:7b": 0,
+                    "0a:f7:8d:96:f2:a1": 1,
+                    "0a:f7:8d:96:f2:a2": 2,
+                },
+                id="network-cardes",
+            ),
+            pytest.param(
+                {
+                    "0a:0d:dd:44:cd:7b": {
+                        "network-card": "0",
+                        "device-number": "0",
+                        "mac": "0a:0d:dd:44:cd:7b",
+                    },
+                    "0a:f7:8d:96:f2:a1": {
+                        "network-card": "1",
+                        "device-number": "1",
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                    "0a:f7:8d:96:f2:a2": {
+                        "device-number": "1",
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                },
+                [
+                    "0a:f7:8d:96:f2:a1",
+                    "0a:0d:dd:44:cd:7b",
+                    "0a:f7:8d:96:f2:a2",
+                ],
+                {
+                    "0a:0d:dd:44:cd:7b": 0,
+                    "0a:f7:8d:96:f2:a1": 1,
+                    "0a:f7:8d:96:f2:a2": 2,
+                },
+                id="network-card-partially-missing",
+            ),
+            pytest.param(
+                {
+                    "0a:0d:dd:44:cd:7b": {
+                        "mac": "0a:0d:dd:44:cd:7b",
+                    },
+                    "0a:f7:8d:96:f2:a1": {
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                },
+                ["0a:f7:8d:96:f2:a9"],
+                {},
+                id="macs-not-in-md",
+            ),
+        ],
+    )
+    def test_build_nic_order(self, macs_metadata, macs, expected):
+        assert expected == ec2._build_nic_order(macs_metadata, macs)
+
+
 class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
     def setUp(self):
         super(TestConvertEc2MetadataNetworkConfig, self).setUp()
