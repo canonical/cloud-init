@@ -12,7 +12,7 @@ import copy
 import logging
 import os
 import time
-from typing import List
+from typing import Dict, List
 
 from cloudinit import dmi, net, sources
 from cloudinit import url_helper as uhelp
@@ -885,6 +885,63 @@ def _collect_platform_data():
     return data
 
 
+def _build_nic_order(
+    macs_metadata: Dict[str, Dict], macs: List[str]
+) -> Dict[str, int]:
+    """
+    Builds a dictionary containing macs as keys nad nic orders as values,
+    taking into account `network-card` and `device-number` if present.
+
+    Note that the first NIC will be the primary NIC as it will be the one with
+    [network-card] == 0 and device-number == 0 if present.
+
+    @param macs_metadata: dictionary with mac address as key and contents like:
+    {"device-number": "0", "interface-id": "...", "local-ipv4s": ...}
+    @macs: list of macs to consider
+
+    @return: Dictionary with macs as keys and nic orders as values.
+    """
+    nic_order: Dict[str, int] = {}
+    if len(macs) == 0 or len(macs_metadata) == 0:
+        return nic_order
+
+    valid_macs_metadata = filter(
+        # filter out nics without metadata (not a physical nic)
+        lambda mmd: mmd[1] is not None,
+        # filter by macs
+        map(lambda mac: (mac, macs_metadata.get(mac)), macs),
+    )
+
+    def _get_key_as_int_or(dikt, key, alt_value):
+        value = dikt.get(key, None)
+        if value is not None:
+            return int(value)
+        return alt_value
+
+    # Sort by (network_card, device_index) as some instances could have
+    # multiple network cards with repeated device indexes.
+    #
+    # On platforms where network-card and device-number are not present,
+    # as AliYun, the order will be by mac, as before the introduction of this
+    # function.
+    return {
+        mac: i
+        for i, (mac, _mac_metadata) in enumerate(
+            sorted(
+                valid_macs_metadata,
+                key=lambda mmd: (
+                    _get_key_as_int_or(
+                        mmd[1], "network-card", float("infinity")
+                    ),
+                    _get_key_as_int_or(
+                        mmd[1], "device-number", float("infinity")
+                    ),
+                ),
+            )
+        )
+    }
+
+
 def convert_ec2_metadata_network_config(
     network_md,
     distro,
@@ -933,13 +990,16 @@ def convert_ec2_metadata_network_config(
         return netcfg
     # Apply network config for all nics and any secondary IPv4/v6 addresses
     is_netplan = distro.network_activator == activators.NetplanActivator
-    nic_idx = 0
-    for mac, nic_name in sorted(macs_to_nics.items()):
+    macs = sorted(macs_to_nics.keys())
+    nic_order = _build_nic_order(macs_metadata, macs)
+    for mac in macs:
+        nic_name = macs_to_nics[mac]
         nic_metadata = macs_metadata.get(mac)
         if not nic_metadata:
             continue  # Not a physical nic represented in metadata
-        nic_idx = int(nic_metadata.get("device-number", nic_idx))
-        # nic_idx + 1 to start route_metric at 100
+        nic_idx = nic_order[mac]
+        is_primary_nic = nic_idx == 0
+        # nic_idx + 1 to start route_metric at 100 (nic_idx is 0-indexed)
         dhcp_override = {"route-metric": (nic_idx + 1) * 100}
         dev_config = {
             "dhcp4": True,
@@ -958,7 +1018,11 @@ def convert_ec2_metadata_network_config(
         # If device-number is not present (AliYun or other ec2-like platforms),
         # do not configure source-routing as we cannot determine which is the
         # primary NIC.
-        if is_netplan and nic_metadata.get("device-number") and nic_idx > 0:
+        if (
+            is_netplan
+            and nic_metadata.get("device-number")
+            and not is_primary_nic
+        ):
             dhcp_override["use-routes"] = True
             table = 100 + nic_idx
             dev_config["routes"] = []
@@ -1016,7 +1080,7 @@ def convert_ec2_metadata_network_config(
             if (
                 is_netplan
                 and nic_metadata.get("device-number")
-                and nic_idx > 0
+                and not is_primary_nic
             ):
                 table = 100 + nic_idx
                 subnet_prefix_routes = nic_metadata["subnet-ipv6-cidr-block"]
@@ -1048,10 +1112,6 @@ def convert_ec2_metadata_network_config(
             dev_config.pop("addresses")  # Since we found none configured
 
         netcfg["ethernets"][nic_name] = dev_config
-
-        # Advance nic_idx on platforms without device-number
-        if not nic_metadata.get("device-number"):
-            nic_idx += 1
     # Remove route-metric dhcp overrides and routes / routing-policy if only
     # one nic configured
     if len(netcfg["ethernets"]) == 1:
