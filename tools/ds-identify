@@ -1623,7 +1623,7 @@ dscheck_WSL() {
     # See https://youtu.be/lwhMThePdIo?t=2431&si=JKTHx39TyRgPbzkZ and
     # https://learn.microsoft.com/en-us/windows/wsl/wsl-config#what-is-drvfs
     # for more information.
-    mountpoints=$(grep '^[^[:space:]]* [^[:space:]]* 9p [^[:space:]]*aname=drvfs;.*' "/proc/mounts" | cut -f2 -d' ')
+    mountpoints=$(grep '^[^[:space:]]* [^[:space:]]* 9p [^[:space:]]*aname=drvfs;.*' "${PATH_ROOT}/proc/mounts" | cut -f2 -d' ')
 
     if [ -z "$mountpoints" ]; then
         debug 1 "WSL datasource requires access to Windows drives mount points"
