@@ -1049,11 +1049,9 @@ class TestQuerySystemctl:
         m_sleep = mocker.patch(f"{M_PATH}sleep")
         m_subp = mocker.patch(
             f"{M_PATH}subp.subp",
-            side_effect=[
-                subp.ProcessExecutionError("Message recipient disconnected"),
-                subp.ProcessExecutionError("Message recipient disconnected"),
-                subp.ProcessExecutionError("Message recipient disconnected"),
-            ],
+            side_effect=subp.ProcessExecutionError(
+                "Message recipient disconnected"
+            ),
         )
 
         assert (
