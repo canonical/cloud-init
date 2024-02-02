@@ -1892,6 +1892,14 @@ class TestMain:
                 "Skipping network-config schema validation. No network schema"
                 " for version: 2",
             ),
+            (
+                "network-config",
+                (
+                    b"network:\n version: 1\n config:\n  - type: physical\n"
+                    b"    name: eth0\n    subnets:\n      - type: dhcp\n"
+                ),
+                "Valid schema",
+            ),
         ),
     )
     def test_main_validates_config_file(

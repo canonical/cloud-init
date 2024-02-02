@@ -1119,11 +1119,13 @@ def validate_cloudconfig_file(
         if not cloudconfig.get("network", cloudconfig):
             print("Skipping network-config schema validation on empty config.")
             return False
-        if netplan_validate_network_schema(
-            network_config=cloudconfig, strict=True, annotate=annotate
-        ):
-            return True  # schema validation performed by netplan
-        if network_schema_version(cloudconfig) != 1:
+        network_version = network_schema_version(cloudconfig)
+        if network_version == 2:
+            if netplan_validate_network_schema(
+                network_config=cloudconfig, strict=True, annotate=annotate
+            ):
+                return True  # schema validation performed by netplan
+        if network_version != 1:
             # Validation requires JSON schema definition in
             # cloudinit/config/schemas/schema-network-config-v1.json
             print(
