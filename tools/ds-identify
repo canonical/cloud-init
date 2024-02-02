@@ -1586,12 +1586,34 @@ dscheck_VMware() {
     return "${DS_NOT_FOUND}"
 }
 
+WSL_cloudinit_dir_in() {
+    for m in "$@"; do
+        cmdexe="$m/Windows/System23/cmd.exe"
+        if [ -x "$cmdexe" ]; then
+            cloudinitdir=$(/init "$cmdexe" /c echo %USERPROFILE% 2>/dev/null)
+            if [ -n "$cloudinitdir" ]; then
+                wslpath -au "$cloudinitdir"
+                return $?
+            fi
+        fi
+    done
+
+    return 1
+}
+
+WSL_instance_name() {
+    instance_name=$(wslpath -am /)
+    basename "$instance_name"
+}
+
 dscheck_WSL() {
     if [ "${DI_UNAME_KERNEL_NAME}" != "Linux" ]; then
+        debug 1 "Kernel is not Linux"
         return "${DS_NOT_FOUND}"
     fi
 
     if [ "${DI_VIRT}" != "wsl" ]; then
+        debug 1 "Virtualization is not WSL, but rather ${DI_VIRT}"
         return "${DS_NOT_FOUND}"
     fi
 
@@ -1601,12 +1623,39 @@ dscheck_WSL() {
     # See https://youtu.be/lwhMThePdIo?t=2431&si=JKTHx39TyRgPbzkZ and
     # https://learn.microsoft.com/en-us/windows/wsl/wsl-config#what-is-drvfs
     # for more information.
-    if [ "$(grep -c '^[^[:space:]]* [^[:space:]]* 9p [^[:space:]]*aname=drvfs;.*' "${PATH_ROOT}/proc/mounts")" = 0 ]; then
+    mountpoints=$(grep '^[^[:space:]]* [^[:space:]]* 9p [^[:space:]]*aname=drvfs;.*' "/proc/mounts" | cut -f2 -d' ')
+
+    if [ -z "$mountpoints" ]; then
         debug 1 "WSL datasource requires access to Windows drives mount points"
         return "${DS_NOT_FOUND}"
     fi
 
-    return "${DS_FOUND}"
+    # We know we are under WSL and have acess to the host filesystem,
+    # so let's find the .cloud-init directory
+    cloudinitdir="$(WSL_cloudinit_dir_in "$mountpoints")"
+    if [ -z "$cloudinitdir" ]; then
+        debug 1 "%USERPROFILE/.cloud-init/ directory not found"
+        return "${DS_NOT_FOUND}"
+    fi
+
+    # and the applicable userdata file. Notice the ordering in the for-loop
+    # must match our expected precedence, so the file we find is what the
+    # datasource must process.
+    instance_name="$(WSL_instance_name)"
+    distro_id=$(grep "^ID=" "${PATH_ROOT}/etc/os-release" | cut -d'=' -f2 )
+    version_id=$(grep "^VERSION_ID=" "${PATH_ROOT}/etc/os-release" | cut -d'=' -f2 )
+
+    for userdatafile in "$instance_name.user-data" "$distro_id-$version_id" "$distro_id-all.user-data" "default.user-data"; do
+        candidate="$cloudinitdir/$userdatafile"
+        if [ -f "$candidate" ]; then
+            debug 1 "Found applicable user data file for this instance at: $candidate"
+            return ${DS_FOUND}
+        fi
+    done
+
+    debug 1 "Didn't find any applicable user data file for instance named $instance_name in $cloudinitdir"
+
+    return "${DS_NOT_FOUND}"
 }
 
 collect_info() {

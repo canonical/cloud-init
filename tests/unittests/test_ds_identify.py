@@ -1084,9 +1084,17 @@ class TestWSL(DsIdentifyBase):
         """Simple negative test for WSL due other virt."""
         self._test_ds_not_found("Not-WSL")
 
-    def test_almost_found(self):
-        """Simple negative test by lack of host filesystem mount points."""
+    def test_no_fs_mounts(self):
+        """Negative test by lack of host filesystem mount points."""
         self._test_ds_not_found("WSL-no-host-mounts")
+
+    def test_no_cloudinitdir(self):
+        """Negative test by lack of host filesystem mount points."""
+        self._test_ds_not_found("WSL-no-cloudinit-dir")
+
+    def test_no_userdata(self):
+        """Negative test by lack of host filesystem mount points."""
+        self._test_ds_not_found("WSL-no-userdata")
 
 
 def blkid_out(disks=None):
@@ -2128,11 +2136,16 @@ VALID_CFG = {
             ),
         },
     },
-    "WSL-supported": {
+    "WSL-no-cloudinit-dir": {
         "ds": "WSL",
         "mocks": [
             MOCK_VIRT_IS_WSL,
             MOCK_UNAME_IS_WSL,
+            {
+                "name": "WSL_cloudinit_dir_in",
+                "ret": 1,
+                "out": "",
+            }
         ],
         "files": {
             "proc/mounts": (
@@ -2142,6 +2155,72 @@ VALID_CFG = {
                 "gid=0;symlinkroot=/mnt/...\n"
                 "snapfuse /snap/core22/1033 fuse.snapfuse ro,nodev,user_id=0,"
                 "group_id=0,allow_other 0 0"
+            ),
+        },
+    },
+    "WSL-no-userdata": {
+        "ds": "WSL",
+        "mocks": [
+            MOCK_VIRT_IS_WSL,
+            MOCK_UNAME_IS_WSL,
+            {
+                "name": "WSL_cloudinit_dir_in",
+                "ret": 0,
+                "out": "",
+            }
+        ],
+        "files": {
+            "proc/mounts": (
+                "/dev/sdd / ext4 rw,errors=remount-ro,data=ordered 0 0\n"
+                "cgroup2 /sys/fs/cgroup cgroup2 rw,nosuid,nodev,noexec0 0\n"
+                "C:\\134 /mnt/c 9p rw,dirsync,aname=drvfs;path=C:\\;uid=0;"
+                "gid=0;symlinkroot=/mnt/...\n"
+                "snapfuse /snap/core22/1033 fuse.snapfuse ro,nodev,user_id=0,"
+                "group_id=0,allow_other 0 0"
+            ),
+            "etc/os-release": (
+                'PRETTY_NAME="Ubuntu Noble Numbat (development branch)"\n'
+                'NAME="Ubuntu"\n'
+                'VERSION_ID="24.04"\n'
+                'VERSION="24.04 (Noble Numbat)"\n'
+                'VERSION_CODENAME=noble\n'
+                'ID=ubuntu\n'
+                'ID_LIKE=debian\n'
+                'UBUNTU_CODENAME=noble\n'
+                'LOGO=ubuntu-logo\n'
+            ),
+        },
+    },
+    "WSL-supported": {
+        "ds": "WSL",
+        "mocks": [
+            MOCK_VIRT_IS_WSL,
+            MOCK_UNAME_IS_WSL,
+            {
+                "name": "WSL_cloudinit_dir_in",
+                "ret": 0,
+                "out": "",
+            }
+        ],
+        "files": {
+            "proc/mounts": (
+                "/dev/sdd / ext4 rw,errors=remount-ro,data=ordered 0 0\n"
+                "cgroup2 /sys/fs/cgroup cgroup2 rw,nosuid,nodev,noexec0 0\n"
+                "C:\\134 /mnt/c 9p rw,dirsync,aname=drvfs;path=C:\\;uid=0;"
+                "gid=0;symlinkroot=/mnt/...\n"
+                "snapfuse /snap/core22/1033 fuse.snapfuse ro,nodev,user_id=0,"
+                "group_id=0,allow_other 0 0"
+            ),
+            "etc/os-release": (
+                'PRETTY_NAME="Ubuntu Noble Numbat (development branch)"\n'
+                'NAME="Ubuntu"\n'
+                'VERSION_ID="24.04"\n'
+                'VERSION="24.04 (Noble Numbat)"\n'
+                'VERSION_CODENAME=noble\n'
+                'ID=ubuntu\n'
+                'ID_LIKE=debian\n'
+                'UBUNTU_CODENAME=noble\n'
+                'LOGO=ubuntu-logo\n'
             ),
         },
     },
