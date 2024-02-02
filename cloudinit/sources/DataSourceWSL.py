@@ -131,7 +131,7 @@ def machine_id():
         LOG.debug("%s file not found", MACHINE_ID_FILE)
         return None
 
-    return util.load_file(MACHINE_ID_FILE, decode=True)
+    return util.load_binary_file(MACHINE_ID_FILE)
 
 
 def candidate_user_data_file_names(instance_name) -> List[str]:
@@ -209,7 +209,11 @@ class DataSourceWSL(sources.DataSource):
 
         try:
             file = self.find_user_data_file()
-            self.userdata_raw = cast(str, util.load_file(file, decode=True))
+            if file is None:
+                return False
+            self.userdata_raw = cast(
+                str, util.load_binary_file(file.as_posix())
+            )
             return True
         except IOError as err:
             LOG.error("Could not find any user data file: %s", str(err))
