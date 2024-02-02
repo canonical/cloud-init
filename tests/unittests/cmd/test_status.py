@@ -15,7 +15,6 @@ from cloudinit.cmd import status
 from cloudinit.cmd.status import (
     UXAppStatus,
     _get_error_or_running_from_systemd,
-    _get_error_or_running_from_systemd_with_retry,
 )
 from cloudinit.subp import SubpResult
 from cloudinit.util import ensure_file
@@ -65,7 +64,7 @@ class TestStatus:
         ),
     )
     @mock.patch(
-        f"{M_PATH}_get_error_or_running_from_systemd_with_retry",
+        f"{M_PATH}_get_error_or_running_from_systemd",
         return_value=None,
     )
     def test_get_status_details_ds_none(
@@ -188,6 +187,7 @@ class TestStatus:
         failure_msg: str,
         expected_reason: Union[str, Callable],
         config: Config,
+        mocker,
     ):
         if ensured_file is not None:
             ensure_file(ensured_file(config))
@@ -201,15 +201,10 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                 stderr=None,
             ),
         ):
-            code, reason = wrap_and_call(
-                M_NAME,
-                {
-                    "uses_systemd": uses_systemd,
-                    "get_cmdline": get_cmdline,
-                },
-                status.get_bootstatus,
-                config.disable_file,
-                config.paths,
+            mocker.patch(f"{M_PATH}uses_systemd", return_value=uses_systemd)
+            mocker.patch(f"{M_PATH}get_cmdline", return_value=get_cmdline)
+            code, reason = status.get_bootstatus(
+                config.disable_file, config.paths, False
             )
         assert code == expected_bootstatus, failure_msg
         if isinstance(expected_reason, str):
@@ -713,7 +708,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
     )
     @mock.patch(M_PATH + "read_cfg_paths")
     @mock.patch(
-        f"{M_PATH}_get_error_or_running_from_systemd_with_retry",
+        f"{M_PATH}_get_error_or_running_from_systemd",
         return_value=None,
     )
     def test_status_output(
@@ -757,7 +752,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
 
     @mock.patch(M_PATH + "read_cfg_paths")
     @mock.patch(
-        f"{M_PATH}_get_error_or_running_from_systemd_with_retry",
+        f"{M_PATH}_get_error_or_running_from_systemd",
         return_value=None,
     )
     def test_status_wait_blocks_until_done(
@@ -811,7 +806,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
 
     @mock.patch(M_PATH + "read_cfg_paths")
     @mock.patch(
-        f"{M_PATH}_get_error_or_running_from_systemd_with_retry",
+        f"{M_PATH}_get_error_or_running_from_systemd",
         return_value=None,
     )
     def test_status_wait_blocks_until_error(
@@ -867,7 +862,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
 
     @mock.patch(M_PATH + "read_cfg_paths")
     @mock.patch(
-        f"{M_PATH}_get_error_or_running_from_systemd_with_retry",
+        f"{M_PATH}_get_error_or_running_from_systemd",
         return_value=None,
     )
     def test_status_main(
@@ -948,7 +943,10 @@ class TestGetErrorOrRunningFromSystemd:
                 stderr=None,
             ),
         ):
-            assert _get_error_or_running_from_systemd() == status
+            assert (
+                _get_error_or_running_from_systemd(UXAppStatus.RUNNING, False)
+                == status
+            )
 
     def test_exception_while_running(self, mocker, capsys):
         m_subp = mocker.patch(
@@ -959,9 +957,7 @@ class TestGetErrorOrRunningFromSystemd:
             ),
         )
         assert (
-            _get_error_or_running_from_systemd_with_retry(
-                UXAppStatus.RUNNING, wait=True
-            )
+            _get_error_or_running_from_systemd(UXAppStatus.RUNNING, wait=True)
             is None
         )
         assert 1 == m_subp.call_count
@@ -987,9 +983,7 @@ class TestGetErrorOrRunningFromSystemd:
             ],
         )
         assert (
-            _get_error_or_running_from_systemd_with_retry(
-                UXAppStatus.ERROR, wait=True
-            )
+            _get_error_or_running_from_systemd(UXAppStatus.ERROR, wait=True)
             is UXAppStatus.RUNNING
         )
         assert 3 == m_subp.call_count
@@ -1005,9 +999,7 @@ class TestGetErrorOrRunningFromSystemd:
         )
         mocker.patch("time.time", side_effect=[1, 2, 50])
         assert (
-            _get_error_or_running_from_systemd_with_retry(
-                UXAppStatus.ERROR, wait=False
-            )
+            _get_error_or_running_from_systemd(UXAppStatus.ERROR, wait=False)
             is None
         )
         assert 1 == m_subp.call_count
@@ -1015,3 +1007,62 @@ class TestGetErrorOrRunningFromSystemd:
             "Failed to get status from systemd. "
             "Cloud-init status may be inaccurate."
         ) in capsys.readouterr().err
+
+
+class TestQuerySystemctl:
+    def test_query_systemctl(self, mocker):
+        m_subp = mocker.patch(
+            f"{M_PATH}subp.subp",
+            return_value=SubpResult(stdout="hello", stderr=None),
+        )
+        assert status.query_systemctl(["some", "args"], wait=False) == "hello"
+        m_subp.assert_called_once_with(["systemctl", "some", "args"])
+
+    def test_query_systemctl_with_exception(self, mocker, capsys):
+        m_subp = mocker.patch(
+            f"{M_PATH}subp.subp",
+            side_effect=subp.ProcessExecutionError(
+                "Message recipient disconnected", stderr="oh noes!"
+            ),
+        )
+        assert status.query_systemctl(["some", "args"], wait=False) == ""
+        m_subp.assert_called_once_with(["systemctl", "some", "args"])
+        assert "Error from systemctl: oh noes!" in capsys.readouterr().err
+
+    def test_query_systemctl_wait_with_exception(self, mocker):
+        m_sleep = mocker.patch(f"{M_PATH}sleep")
+        m_subp = mocker.patch(
+            f"{M_PATH}subp.subp",
+            side_effect=[
+                subp.ProcessExecutionError("Message recipient disconnected"),
+                subp.ProcessExecutionError("Message recipient disconnected"),
+                subp.ProcessExecutionError("Message recipient disconnected"),
+                SubpResult(stdout="hello", stderr=None),
+            ],
+        )
+
+        assert status.query_systemctl(["some", "args"], wait=True) == "hello"
+        assert m_subp.call_count == 4
+        assert m_sleep.call_count == 3
+
+    def test_query_systemctl_wait_with_exception_status(self, mocker):
+        m_sleep = mocker.patch(f"{M_PATH}sleep")
+        m_subp = mocker.patch(
+            f"{M_PATH}subp.subp",
+            side_effect=[
+                subp.ProcessExecutionError("Message recipient disconnected"),
+                subp.ProcessExecutionError("Message recipient disconnected"),
+                subp.ProcessExecutionError("Message recipient disconnected"),
+            ],
+        )
+
+        assert (
+            status.query_systemctl(
+                ["some", "args"],
+                wait=True,
+                existing_status=UXAppStatus.RUNNING,
+            )
+            == ""
+        )
+        assert m_subp.call_count == 1
+        assert m_sleep.call_count == 0
