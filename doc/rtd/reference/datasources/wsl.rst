@@ -88,6 +88,7 @@ Only the first match is loaded, no config merging is done, even in the presence
 of errors. That avoids unexpected behavior due surprising merge scenarios.
 Also, notice that the file name casing is irrelevant since both the Windows
 file names as well as the WSL distro names are case insensitive by default.
+If none are found, cloud-init remains disabled.
 
 .. note::
    Some users may have configured case sensitivity for file names on Windows.
