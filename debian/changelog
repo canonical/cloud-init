@@ -1,3 +1,10 @@
+cloud-init (24.1~5g1f6eddd5-0ubuntu1) UNRELEASED; urgency=medium
+
+  * Upstream snapshot based on upstream/main at 1f6eddd5.
+    - Bugs fixed in this snapshot: (LP: #2046483)
+
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 02 Feb 2024 14:39:48 -0700
+
 cloud-init (24.1~4gd9677655-0ubuntu1) noble; urgency=medium
 
   * d/cloud-init.maintscript: remove /etc/cloud/clean.d/README 
