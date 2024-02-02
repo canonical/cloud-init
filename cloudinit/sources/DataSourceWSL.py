@@ -8,7 +8,7 @@
 import logging
 import os
 from pathlib import PurePath
-from typing import List, Optional, cast
+from typing import List, cast
 
 from cloudinit import sources, subp, util
 
@@ -156,7 +156,7 @@ def candidate_user_data_file_names(instance_name) -> List[str]:
 class DataSourceWSL(sources.DataSource):
     dsname = "WSL"
 
-    def find_user_data_file(self) -> Optional[PurePath]:
+    def find_user_data_file(self) -> PurePath:
         """
         Finds the most precendent of the candidate files that may contain
         user-data, if any, or None otherwise.
@@ -164,8 +164,7 @@ class DataSourceWSL(sources.DataSource):
         profile_dir = win_user_profile_dir()
         seed_dir = os.path.join(profile_dir, ".cloud-init")
         if not os.path.isdir(seed_dir):
-            LOG.error("%s directory doesn't exist.", seed_dir)
-            return None
+            raise FileNotFoundError("%s directory doesn't exist." % seed_dir)
 
         # Notice that by default file name casing is irrelevant here. Windows
         # filenames are case insensitive. Even though accessed through Linux,
@@ -177,8 +176,7 @@ class DataSourceWSL(sources.DataSource):
             ef.name.casefold(): ef.path for ef in os.scandir(seed_dir)
         }
         if not existing_files:
-            LOG.error("%s directory is empty", seed_dir)
-            return None
+            raise IOError("%s directory is empty" % seed_dir)
 
         folded_names = [
             f.casefold()
@@ -188,10 +186,9 @@ class DataSourceWSL(sources.DataSource):
             if filename in existing_files.keys():
                 return PurePath(existing_files[filename])
 
-        LOG.error(
-            "%s doesn't contain any of the expected user-data files", seed_dir
+        raise IOError(
+            "%s doesn't contain any of the expected user-data files" % seed_dir
         )
-        return None
 
     def _get_data(self) -> bool:
         self.vendordata_raw = None
@@ -209,8 +206,6 @@ class DataSourceWSL(sources.DataSource):
 
         try:
             file = self.find_user_data_file()
-            if file is None:
-                return False
             self.userdata_raw = cast(
                 str, util.load_binary_file(file.as_posix())
             )
