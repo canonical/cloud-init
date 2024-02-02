@@ -65,10 +65,10 @@ order specified below:
    of the subsequent alternatives. Example: ``sid-mlkit.user-data`` matches an
    instance named ``Sid-MLKit``.
 
-2. ``%USERPROFILE%\.cloud-init\<ID>-<VERSION_CODENAME>.user-data`` for the
+2. ``%USERPROFILE%\.cloud-init\<ID>-<VERSION_ID>.user-data`` for the
    distro specific configuration, matched by the distro ID and VERSION_CODENAME
    entries as specified in ``/etc/os-release``. Example:
-   ``ubuntu-jammy.userdata`` will affect any instance created from an Ubuntu
+   ``ubuntu-22.04.user-data`` will affect any instance created from an Ubuntu
    22.04 Jammy Jellyfish image, if a more specific configuration file does not
    match.
 

@@ -134,7 +134,7 @@ class TestWSLHelperFunctions(CiTestCase):
         self.assertListEqual(
             [
                 "%s.user-data" % INSTANCE_NAME,
-                "ubuntu-noble.user-data",
+                "ubuntu-24.04.user-data",
                 "ubuntu-all.user-data",
                 "config.user-data",
             ],
@@ -266,7 +266,7 @@ class TestWSLDataSource(CiTestCase):
         # This is the most specific: should win over the other user-data files.
         # Also, notice the file name casing: should be irrelevant.
         userdata_file = os.path.join(
-            self.tmp, ".cloud-init", "ubuntu-Noble.user-data"
+            self.tmp, ".cloud-init", "ubuntu-24.04.user-data"
         )
         util.write_file(
             userdata_file, "#cloud-config\nwrite_files:\n- path: /etc/wsl.conf"

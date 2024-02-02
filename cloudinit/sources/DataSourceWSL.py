@@ -139,13 +139,13 @@ def candidate_user_data_file_names(instance_name) -> List[str]:
     Return a list of candidate file names that may contain user-data
     in some supported format, ordered by precedence.
     """
-    distribution_id, _, release_codename = util.get_linux_distro()
+    distribution_id, version_id, _ = util.get_linux_distro()
 
     return [
         # WSL instance specific:
         "%s.user-data" % instance_name,
         # release codename specific
-        "%s-%s.user-data" % (distribution_id, release_codename),
+        "%s-%s.user-data" % (distribution_id, version_id),
         # distribution specific (Alpine, Arch, Fedora, openSUSE, Ubuntu...)
         "%s-all.user-data" % distribution_id,
         # generic, valid for all WSL distros and instances.
