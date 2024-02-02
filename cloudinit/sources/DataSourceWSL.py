@@ -118,7 +118,7 @@ def win_user_profile_dir() -> PurePath:
             "No output from cmd.exe to show the user profile dir."
         )
 
-    return win_path_2_wsl(home.rstrip())
+    return win_path_2_wsl(home)
 
 
 def machine_id():
