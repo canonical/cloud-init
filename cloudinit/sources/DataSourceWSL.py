@@ -156,13 +156,6 @@ def candidate_user_data_file_names(instance_name) -> List[str]:
 class DataSourceWSL(sources.DataSource):
     dsname = "WSL"
 
-    def __init__(self, sys_cfg, distro, paths):
-        sources.DataSource.__init__(self, sys_cfg, distro, paths)
-        self._network_config = sources.UNSET
-        self.dsmode = sources.DSMODE_LOCAL
-        self.distro = distro
-        self.instance_name = instance_name()
-
     def find_user_data_file(self) -> Optional[PurePath]:
         """
         Finds the most precendent of the candidate files that may contain
@@ -202,6 +195,7 @@ class DataSourceWSL(sources.DataSource):
 
     def _get_data(self) -> bool:
         self.vendordata_raw = None
+        self.instance_name = instance_name()
 
         self.metadata = dict()
         m_id = machine_id()
