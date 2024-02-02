@@ -127,11 +127,11 @@ def machine_id():
     """
     from cloudinit.settings import MACHINE_ID_FILE
 
-    if util.wait_for_files([MACHINE_ID_FILE], 2.0):
-        LOG.debug("%s file not found", MACHINE_ID_FILE)
+    try:
+        return util.load_binary_file(MACHINE_ID_FILE)
+    except OSError as err:
+        LOG.error(err)
         return None
-
-    return util.load_binary_file(MACHINE_ID_FILE)
 
 
 def candidate_user_data_file_names(instance_name) -> List[str]:
