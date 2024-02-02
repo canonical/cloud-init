@@ -126,7 +126,7 @@ class Distro(distros.Distro):
 
     def _read_hostname(self, filename, default=None):
         if filename and filename.endswith("/previous-hostname"):
-            return util.load_file(filename).strip()
+            return util.load_text_file(filename).strip()
 
         _ret, out, _err = self.exec_cmd(["hostname", "-f"])
         return out.strip() if out else default

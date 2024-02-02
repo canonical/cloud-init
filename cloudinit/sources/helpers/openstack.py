@@ -364,7 +364,11 @@ class ConfigDriveReader(BaseReader):
         return os.path.join(*components)
 
     def _path_read(self, path, decode=False):
-        return util.load_file(path, decode=decode)
+        return (
+            util.load_text_file(path)
+            if decode
+            else util.load_binary_file(path)
+        )
 
     def _fetch_available_versions(self):
         if self._versions is None:

@@ -156,7 +156,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     for (n, path) in pubkeys.items():
         try:
-            all_keys[n] = util.load_file(path)
+            all_keys[n] = util.load_text_file(path)
         except Exception:
             util.logexc(
                 LOG, "%s: failed to open, can not phone home that data!", path

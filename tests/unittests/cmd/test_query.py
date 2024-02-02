@@ -166,7 +166,7 @@ class TestQuery:
             vendor_data="vd",
             varname=None,
         )
-        with mock.patch(M_PATH + "util.load_file") as m_load:
+        with mock.patch(M_PATH + "util.load_binary_file") as m_load:
             m_load.side_effect = OSError(errno.EACCES, "Not allowed")
             assert 1 == query.handle_args("anyname", args)
         msg = "No read permission on '%s'. Try sudo" % noread_fn

@@ -42,6 +42,7 @@ class TestRandomSeed(TestCase):
     def tearDown(self):
         apply_patches([i for i in reversed(self.unapply)])
         util.del_file(self._seed_file)
+        super().tearDown()
 
     def apply_patches(self, patches):
         ret = apply_patches(patches)
@@ -72,7 +73,7 @@ class TestRandomSeed(TestCase):
             }
         }
         cc_seed_random.handle("test", cfg, get_cloud("ubuntu"), [])
-        contents = util.load_file(self._seed_file)
+        contents = util.load_text_file(self._seed_file)
         self.assertEqual("tiny-tim-was-here", contents)
 
     def test_append_random_unknown_encoding(self):
@@ -103,7 +104,7 @@ class TestRandomSeed(TestCase):
             }
         }
         cc_seed_random.handle("test", cfg, get_cloud("ubuntu"), [])
-        contents = util.load_file(self._seed_file)
+        contents = util.load_text_file(self._seed_file)
         self.assertEqual("tiny-toe", contents)
 
     def test_append_random_gz(self):
@@ -116,7 +117,7 @@ class TestRandomSeed(TestCase):
             }
         }
         cc_seed_random.handle("test", cfg, get_cloud("ubuntu"), [])
-        contents = util.load_file(self._seed_file)
+        contents = util.load_text_file(self._seed_file)
         self.assertEqual("big-toe", contents)
 
     def test_append_random_base64(self):
@@ -129,7 +130,7 @@ class TestRandomSeed(TestCase):
             }
         }
         cc_seed_random.handle("test", cfg, get_cloud("ubuntu"), [])
-        contents = util.load_file(self._seed_file)
+        contents = util.load_text_file(self._seed_file)
         self.assertEqual("bubbles", contents)
 
     def test_append_random_b64(self):
@@ -142,7 +143,7 @@ class TestRandomSeed(TestCase):
             }
         }
         cc_seed_random.handle("test", cfg, get_cloud("ubuntu"), [])
-        contents = util.load_file(self._seed_file)
+        contents = util.load_text_file(self._seed_file)
         self.assertEqual("kit-kat", contents)
 
     def test_append_random_metadata(self):
@@ -154,7 +155,7 @@ class TestRandomSeed(TestCase):
         }
         c = get_cloud("ubuntu", metadata={"random_seed": "-so-was-josh"})
         cc_seed_random.handle("test", cfg, c, [])
-        contents = util.load_file(self._seed_file)
+        contents = util.load_text_file(self._seed_file)
         self.assertEqual("tiny-tim-was-here-so-was-josh", contents)
 
     def test_seed_command_provided_and_available(self):

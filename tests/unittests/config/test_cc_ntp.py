@@ -150,7 +150,7 @@ class TestNtp(FilesystemMockingTestCase):
             )
         self.assertEqual(
             "servers []\npools ['10.0.0.1', '10.0.0.2']\n",
-            util.load_file(confpath),
+            util.load_text_file(confpath),
         )
 
     def test_write_ntp_config_template_defaults_pools_w_empty_lists(self):
@@ -174,7 +174,8 @@ class TestNtp(FilesystemMockingTestCase):
                 template=None,
             )
         self.assertEqual(
-            "servers []\npools {0}\n".format(pools), util.load_file(confpath)
+            "servers []\npools {0}\n".format(pools),
+            util.load_text_file(confpath),
         )
 
     def test_defaults_pools_empty_lists_sles(self):
@@ -199,7 +200,7 @@ class TestNtp(FilesystemMockingTestCase):
             self.assertIn("opensuse", pool)
         self.assertEqual(
             "servers []\npools {0}\n".format(default_pools),
-            util.load_file(confpath),
+            util.load_text_file(confpath),
         )
         self.assertIn(
             "Adding distro default ntp pool servers: {0}".format(
@@ -225,7 +226,7 @@ class TestNtp(FilesystemMockingTestCase):
         )
         self.assertEqual(
             "[Time]\nNTP=%s %s \n" % (" ".join(servers), " ".join(pools)),
-            util.load_file(confpath),
+            util.load_text_file(confpath),
         )
 
     def test_distro_ntp_client_configs(self):
@@ -313,7 +314,7 @@ class TestNtp(FilesystemMockingTestCase):
                     path=confpath,
                     template_fn=template_fn,
                 )
-                content = util.load_file(confpath)
+                content = util.load_text_file(confpath)
                 if client in ["ntp", "chrony"]:
                     content_lines = content.splitlines()
                     expected_servers = self._get_expected_servers(
@@ -388,13 +389,13 @@ class TestNtp(FilesystemMockingTestCase):
                     servers = cc_ntp.generate_server_names(mycloud.distro.name)
                     self.assertEqual(
                         "servers {0}\npools []\n".format(servers),
-                        util.load_file(confpath),
+                        util.load_text_file(confpath),
                     )
                 else:
                     pools = cc_ntp.generate_server_names(mycloud.distro.name)
                     self.assertEqual(
                         "servers []\npools {0}\n".format(pools),
-                        util.load_file(confpath),
+                        util.load_text_file(confpath),
                     )
             self.assertNotIn(
                 "Invalid cloud-config provided:", self.logs.getvalue()
@@ -417,7 +418,7 @@ class TestNtp(FilesystemMockingTestCase):
             cc_ntp.handle("cc_ntp", cfg, mycloud, [])
             self.assertEqual(
                 "[Time]\nNTP=192.168.2.1 192.168.2.2 0.mypool.org \n",
-                util.load_file(confpath),
+                util.load_text_file(confpath),
             )
 
     @mock.patch("cloudinit.config.cc_ntp.select_ntp_client")
@@ -506,7 +507,7 @@ class TestNtp(FilesystemMockingTestCase):
                     expected_service_call, capture=True, rcs=None
                 )
 
-            self.assertEqual(expected_content, util.load_file(confpath))
+            self.assertEqual(expected_content, util.load_text_file(confpath))
 
     @mock.patch("cloudinit.util.system_info")
     def test_opensuse_picks_chrony(self, m_sysinfo):
@@ -674,7 +675,7 @@ class TestNtp(FilesystemMockingTestCase):
                 cc_ntp.handle("notimportant", cfg, mycloud, None)
             self.assertEqual(
                 "servers []\npools ['mypool.org']\n%s" % custom,
-                util.load_file(confpath),
+                util.load_text_file(confpath),
             )
 
     @mock.patch("cloudinit.config.cc_ntp.supplemental_schema_validation")
@@ -714,7 +715,7 @@ class TestNtp(FilesystemMockingTestCase):
                 cc_ntp.handle("notimportant", {"ntp": cfg}, mycloud, None)
             self.assertEqual(
                 "servers []\npools ['mypool.org']\n%s" % custom,
-                util.load_file(confpath),
+                util.load_text_file(confpath),
             )
         m_schema.assert_called_with(expected_merged_cfg)
 

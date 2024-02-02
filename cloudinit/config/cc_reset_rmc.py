@@ -98,7 +98,7 @@ def reconfigure_rsct_subsystems():
 
 def get_node_id():
     try:
-        fp = util.load_file(NODE_ID_FILE)
+        fp = util.load_text_file(NODE_ID_FILE)
         node_id = fp.split("\n")[0]
         return node_id
     except Exception:

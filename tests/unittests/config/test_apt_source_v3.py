@@ -97,7 +97,7 @@ class TestAptSourceConfig:
             os.path.isfile(filename) is True
         ), f"Missing expected file {filename}"
 
-        contents = util.load_file(filename)
+        contents = util.load_text_file(filename)
         assert re.search(
             r"%s %s %s %s\n"
             % (
@@ -151,7 +151,7 @@ class TestAptSourceConfig:
         self._apt_src_basic(self.aptlistfile, cfg, tmpdir)
 
         # extra verify on two extra files of this test
-        contents = util.load_file(self.aptlistfile2)
+        contents = util.load_text_file(self.aptlistfile2)
         assert re.search(
             r"%s %s %s %s\n"
             % (
@@ -163,7 +163,7 @@ class TestAptSourceConfig:
             contents,
             flags=re.IGNORECASE,
         ), f"Unexpected APT format of {self.aptlistfile2}: contents"
-        contents = util.load_file(self.aptlistfile3)
+        contents = util.load_text_file(self.aptlistfile3)
         assert re.search(
             r"%s %s %s %s\n"
             % (
@@ -190,7 +190,7 @@ class TestAptSourceConfig:
 
         assert os.path.isfile(filename) is True, f"Unexpected file {filename}"
 
-        contents = util.load_file(filename)
+        contents = util.load_text_file(filename)
         assert re.search(
             r"%s %s %s %s\n"
             % ("deb", params["MIRROR"], params["RELEASE"], "multiverse"),
@@ -223,14 +223,14 @@ class TestAptSourceConfig:
 
         # extra verify on two extra files of this test
         params = self._get_default_params()
-        contents = util.load_file(self.aptlistfile2)
+        contents = util.load_text_file(self.aptlistfile2)
         assert re.search(
             r"%s %s %s %s\n"
             % ("deb", params["MIRROR"], params["RELEASE"], "main"),
             contents,
             flags=re.IGNORECASE,
         ), f"Unexpected APT format {self.aptlistfile2}: {contents}"
-        contents = util.load_file(self.aptlistfile3)
+        contents = util.load_text_file(self.aptlistfile3)
         assert re.search(
             r"%s %s %s %s\n"
             % ("deb", params["MIRROR"], params["RELEASE"], "universe"),
@@ -276,7 +276,7 @@ class TestAptSourceConfig:
 
         assert os.path.isfile(filename) is True
 
-        contents = util.load_file(filename)
+        contents = util.load_text_file(filename)
         assert re.search(
             r"%s %s %s %s\n"
             % (
@@ -340,7 +340,7 @@ class TestAptSourceConfig:
         }
 
         self._apt_src_keyid(self.aptlistfile, cfg, 3, tmpdir)
-        contents = util.load_file(self.aptlistfile2)
+        contents = util.load_text_file(self.aptlistfile2)
         assert re.search(
             r"%s %s %s %s\n"
             % (
@@ -352,7 +352,7 @@ class TestAptSourceConfig:
             contents,
             flags=re.IGNORECASE,
         )
-        contents = util.load_file(self.aptlistfile3)
+        contents = util.load_text_file(self.aptlistfile3)
         assert re.search(
             r"%s %s %s %s\n"
             % (
@@ -397,7 +397,7 @@ class TestAptSourceConfig:
             ),
         )
         mockobj.assert_has_calls(calls, any_order=True)
-        contents = util.load_file(self.aptlistfile)
+        contents = util.load_text_file(self.aptlistfile)
         assert re.search(
             r"%s %s %s %s\n"
             % (

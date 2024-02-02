@@ -18,6 +18,8 @@ from cloudinit.net import (
 )
 from cloudinit.net.network_state import NET_CONFIG_TO_V2, NetworkState
 
+CLOUDINIT_NETPLAN_FILE = "/etc/netplan/50-cloud-init.yaml"
+
 KNOWN_SNAPD_CONFIG = b"""\
 # This is the initial network config.
 # It can be overwritten by cloud-init or console-conf.
@@ -210,7 +212,7 @@ def _clean_default(target=None):
     tpath = subp.target_path(target, "etc/netplan/00-snapd-config.yaml")
     if not os.path.isfile(tpath):
         return
-    content = util.load_file(tpath, decode=False)
+    content = util.load_binary_file(tpath)
     if content != KNOWN_SNAPD_CONFIG:
         return
 
@@ -242,9 +244,7 @@ class Renderer(renderer.Renderer):
     def __init__(self, config=None):
         if not config:
             config = {}
-        self.netplan_path = config.get(
-            "netplan_path", "etc/netplan/50-cloud-init.yaml"
-        )
+        self.netplan_path = config.get("netplan_path", CLOUDINIT_NETPLAN_FILE)
         self.netplan_header = config.get("netplan_header", None)
         self._postcmds = config.get("postcmds", False)
         self.clean_default = config.get("clean_default", True)

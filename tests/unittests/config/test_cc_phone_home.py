@@ -18,7 +18,7 @@ phone_home = partial(handle, name="test", cloud=get_cloud(), args=[])
 
 @pytest.fixture(autouse=True)
 def common_mocks(mocker):
-    mocker.patch("cloudinit.util.load_file", side_effect=count())
+    mocker.patch("cloudinit.util.load_text_file", side_effect=count())
 
 
 @mock.patch("cloudinit.url_helper.readurl")

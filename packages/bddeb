@@ -127,6 +127,9 @@ def write_debian_folder(root, templ_data, cloud_util_deps):
         if templ_data["debian_release"] == "bionic":
             # Bionic doesn't support debhelper-compat > 11
             build_deps += ",debhelper-compat (= 11)"
+        elif templ_data["debian_release"] == "focal":
+            # Focal doesn't support debhelper-compat > 12
+            build_deps += ",debhelper-compat (= 12)"
         else:
             build_deps += f",{debhelper_matches[-1]}"
     templater.render_to_file(

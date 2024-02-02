@@ -238,7 +238,7 @@ class DsIdentifyBase(CiTestCase):
         cfg = None
         cfg_out = os.path.join(rootd, runpath, "cloud-init/cloud.cfg")
         if os.path.exists(cfg_out):
-            contents = util.load_file(cfg_out)
+            contents = util.load_text_file(cfg_out)
             try:
                 cfg = safeyaml.load(contents)
             except Exception as e:
@@ -330,9 +330,9 @@ class TestDsIdentify(DsIdentifyBase):
         stricter identifiers). Since the MAAS datasource is at the begining of
         the list, this is particularly troublesome and more concerning than
         NoCloud false positives, for example.
+        """
         config = "LXD-kvm-not-MAAS-1"
         self._test_ds_found(config)
-        """
 
     def test_maas_not_detected_2(self):
         """Don't incorrectly identify maas

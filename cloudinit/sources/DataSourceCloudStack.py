@@ -15,6 +15,7 @@
 import logging
 import os
 import time
+from contextlib import suppress
 from socket import gaierror, getaddrinfo, inet_ntoa
 from struct import pack
 
@@ -110,17 +111,32 @@ class DataSourceCloudStack(sources.DataSource):
             "Falling back to ISC dhclient"
         )
 
-        lease_file = dhcp.IscDhclient.get_latest_lease(
-            self.distro.dhclient_lease_directory,
-            self.distro.dhclient_lease_file_regex,
-        )
-        if not lease_file:
-            LOG.debug("Dhclient lease file wasn't found")
-            return None
+        # some distros might use isc-dhclient for network setup via their
+        # network manager. If this happens, the lease is more recent than the
+        # ephemeral lease, so use it first.
+        with suppress(dhcp.NoDHCPLeaseMissingDhclientError):
+            domain_name = dhcp.IscDhclient().get_key_from_latest_lease(
+                self.distro, "domain-name"
+            )
+            if domain_name:
+                return domain_name
 
-        latest_lease = dhcp.IscDhclient.parse_dhcp_lease_file(lease_file)[-1]
-        domainname = latest_lease.get("domain-name", None)
-        return domainname if domainname else None
+        LOG.debug(
+            "Could not obtain FQDN from ISC dhclient leases. "
+            "Falling back to %s",
+            self.distro.dhcp_client.client_name,
+        )
+
+        # If no distro leases were found, check the ephemeral lease that
+        # cloud-init set up.
+        with suppress(FileNotFoundError):
+            latest_lease = self.distro.dhcp_client.get_newest_lease(
+                self.distro.fallback_interface
+            )
+            domain_name = latest_lease.get("domain-name") or None
+            return domain_name
+        LOG.debug("No dhcp leases found")
+        return None
 
     def get_hostname(
         self,
@@ -253,7 +269,7 @@ def get_data_server():
 
 def get_default_gateway():
     # Returns the default gateway ip address in the dotted format.
-    lines = util.load_file("/proc/net/route").splitlines()
+    lines = util.load_text_file("/proc/net/route").splitlines()
     for line in lines:
         items = line.split("\t")
         if items[1] == "00000000":
@@ -287,18 +303,25 @@ def get_vr_address(distro):
         return latest_address
 
     # Try dhcp lease files next
-    # get_latest_lease() needs a Distro object to know which directory
+    # get_key_from_latest_lease() needs a Distro object to know which directory
     # stores lease files
-    lease_file = dhcp.IscDhclient.get_latest_lease(
-        distro.dhclient_lease_directory, distro.dhclient_lease_file_regex
-    )
-
-    if lease_file:
-        latest_address = dhcp.IscDhclient.parse_dhcp_server_from_lease_file(
-            lease_file
+    with suppress(dhcp.NoDHCPLeaseMissingDhclientError):
+        latest_address = dhcp.IscDhclient().get_key_from_latest_lease(
+            distro, "dhcp-server-identifier"
         )
         if latest_address:
+            LOG.debug("Found SERVER_ADDRESS '%s' via dhclient", latest_address)
             return latest_address
+
+    with suppress(FileNotFoundError):
+        latest_lease = distro.dhcp_client.get_newest_lease(distro)
+        if latest_lease:
+            LOG.debug(
+                "Found SERVER_ADDRESS '%s' via ephemeral %s lease ",
+                latest_lease,
+                distro.dhcp_client.client_name,
+            )
+            return latest_lease
 
     # No virtual router found, fallback to default gateway
     LOG.debug("No DHCP found, using default gateway")

@@ -9,7 +9,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 import cloudinit.net as net
 from cloudinit.net.dhcp import (
-    IscDhclient,
+    Dhcpcd,
     NoDHCPLeaseError,
     maybe_perform_dhcp_discovery,
 )
@@ -285,12 +285,11 @@ class EphemeralDHCPv4:
         """
         if self.lease:
             return self.lease
-        leases = maybe_perform_dhcp_discovery(
+        self.lease = maybe_perform_dhcp_discovery(
             self.distro, self.iface, self.dhcp_log_func
         )
-        if not leases:
+        if not self.lease:
             raise NoDHCPLeaseError()
-        self.lease = leases[-1]
         LOG.debug(
             "Received dhcp lease on %s for %s/%s",
             self.lease["interface"],
@@ -305,6 +304,7 @@ class EphemeralDHCPv4:
             "static_routes": [
                 "rfc3442-classless-static-routes",
                 "classless-static-routes",
+                "static_routes",
             ],
             "router": "routers",
         }
@@ -314,12 +314,17 @@ class EphemeralDHCPv4:
                 kwargs["prefix_or_mask"], kwargs["ip"]
             )
         if kwargs["static_routes"]:
-            kwargs["static_routes"] = IscDhclient.parse_static_routes(
+            kwargs[
+                "static_routes"
+            ] = self.distro.dhcp_client.parse_static_routes(
                 kwargs["static_routes"]
             )
         if self.connectivity_url_data:
             kwargs["connectivity_url_data"] = self.connectivity_url_data
-        ephipv4 = EphemeralIPv4Network(self.distro, **kwargs)
+        if isinstance(self.distro.dhcp_client, Dhcpcd):
+            ephipv4 = DhcpcdEphemeralIPv4Network(self.distro, **kwargs)
+        else:
+            ephipv4 = EphemeralIPv4Network(self.distro, **kwargs)
         ephipv4.__enter__()
         self._ephipv4 = ephipv4
         return self.lease
@@ -341,6 +346,16 @@ class EphemeralDHCPv4:
         for different_names in lease_option_names:
             if not result.get(internal_mapping):
                 result[internal_mapping] = self.lease.get(different_names)
+
+
+class DhcpcdEphemeralIPv4Network(EphemeralIPv4Network):
+    """dhcpcd sets up its own ephemeral network and routes"""
+
+    def __enter__(self):
+        return
+
+    def __exit__(self, excp_type, excp_value, excp_traceback):
+        return
 
 
 class EphemeralIPNetwork:

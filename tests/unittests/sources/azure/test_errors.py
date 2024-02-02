@@ -3,6 +3,7 @@
 import base64
 import datetime
 from unittest import mock
+from xml.etree import ElementTree
 
 import pytest
 import requests
@@ -25,12 +26,13 @@ def fake_utcnow():
         yield timestamp
 
 
-@pytest.fixture()
-def fake_vm_id():
-    vm_id = "fake-vm-id"
-    with mock.patch.object(errors.identity, "query_vm_id", autospec=True) as m:
-        m.return_value = vm_id
-        yield vm_id
+@pytest.fixture(autouse=True)
+def fake_vm_id(mocker):
+    vm_id = "foo"
+    mocker.patch(
+        "cloudinit.sources.azure.identity.query_vm_id", return_value=vm_id
+    )
+    yield vm_id
 
 
 def quote_csv_value(value: str) -> str:
@@ -122,9 +124,6 @@ def test_reportable_errors(
 
 
 def test_dhcp_lease(mocker):
-    mocker.patch(
-        "cloudinit.sources.azure.identity.query_vm_id", return_value="foo"
-    )
     error = errors.ReportableErrorDhcpLease(duration=5.6, interface="foo")
 
     assert error.reason == "failure to obtain DHCP lease"
@@ -133,9 +132,6 @@ def test_dhcp_lease(mocker):
 
 
 def test_dhcp_interface_not_found(mocker):
-    mocker.patch(
-        "cloudinit.sources.azure.identity.query_vm_id", return_value="foo"
-    )
     error = errors.ReportableErrorDhcpInterfaceNotFound(duration=5.6)
 
     assert error.reason == "failure to find DHCP interface"
@@ -186,10 +182,7 @@ def test_dhcp_interface_not_found(mocker):
         ),
     ],
 )
-def test_imds_url_error(exception, reason, mocker):
-    mocker.patch(
-        "cloudinit.sources.azure.identity.query_vm_id", return_value="foo"
-    )
+def test_imds_url_error(exception, reason):
     duration = 123.4
     fake_url = "fake://url"
 
@@ -204,11 +197,7 @@ def test_imds_url_error(exception, reason, mocker):
     assert error.supporting_data["url"] == fake_url
 
 
-def test_imds_metadata_parsing_exception(mocker):
-    mocker.patch(
-        "cloudinit.sources.azure.identity.query_vm_id", return_value="foo"
-    )
-
+def test_imds_metadata_parsing_exception():
     exception = ValueError("foobar")
 
     error = errors.ReportableErrorImdsMetadataParsingException(
@@ -219,11 +208,25 @@ def test_imds_metadata_parsing_exception(mocker):
     assert error.supporting_data["exception"] == repr(exception)
 
 
-def test_unhandled_exception(mocker):
-    mocker.patch(
-        "cloudinit.sources.azure.identity.query_vm_id", return_value="foo"
+def test_ovf_parsing_exception():
+    error = None
+    try:
+        ElementTree.fromstring("<badxml")
+    except ElementTree.ParseError as exception:
+        error = errors.ReportableErrorOvfParsingException(exception=exception)
+
+    assert (
+        error.reason == "error parsing ovf-env.xml: "
+        "unclosed token: line 1, column 0"
     )
 
+
+def test_ovf_invalid_metadata_exception():
+    error = errors.ReportableErrorOvfInvalidMetadata(message="foobar")
+    assert error.reason == "unexpected metadata parsing ovf-env.xml: foobar"
+
+
+def test_unhandled_exception():
     source_error = None
     try:
         raise ValueError("my value error")
@@ -244,11 +247,7 @@ def test_unhandled_exception(mocker):
     assert f"|{quoted_value}|" in error.as_encoded_report()
 
 
-def test_imds_invalid_metadata(mocker):
-    mocker.patch(
-        "cloudinit.sources.azure.identity.query_vm_id", return_value="foo"
-    )
-
+def test_imds_invalid_metadata():
     key = "compute"
     value = "Running"
     error = errors.ReportableErrorImdsInvalidMetadata(key=key, value=value)

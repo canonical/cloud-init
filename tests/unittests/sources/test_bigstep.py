@@ -22,7 +22,7 @@ METADATA_BODY = json.dumps(
 
 class TestBigstep:
     @pytest.mark.parametrize("custom_paths", [False, True])
-    @mock.patch(M_PATH + "util.load_file", return_value=IMDS_URL)
+    @mock.patch(M_PATH + "util.load_text_file", return_value=IMDS_URL)
     @responses.activate
     def test_get_data_honor_cloud_dir(self, m_load_file, custom_paths, tmpdir):
         responses.add(responses.GET, IMDS_URL, body=METADATA_BODY)

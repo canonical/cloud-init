@@ -152,6 +152,7 @@ class CiTestCase(TestCase):
             handler.setFormatter(formatter)
             self.old_handlers = self.logger.handlers
             self.logger.handlers = [handler]
+            self.old_level = logging.root.level
         if self.allowed_subp is True:
             subp.subp = _real_subp
         else:
@@ -193,7 +194,7 @@ class CiTestCase(TestCase):
         if self.with_logs:
             # Remove the handler we setup
             logging.getLogger().handlers = self.old_handlers
-            logging.getLogger().setLevel(logging.NOTSET)
+            logging.getLogger().setLevel(self.old_level)
         subp.subp = _real_subp
         super(CiTestCase, self).tearDown()
 
@@ -284,7 +285,8 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
             util: [
                 ("write_file", 1),
                 ("append_file", 1),
-                ("load_file", 1),
+                ("load_binary_file", 1),
+                ("load_text_file", 1),
                 ("ensure_dir", 1),
                 ("chmod", 1),
                 ("delete_dir_contents", 1),
@@ -480,7 +482,7 @@ def dir2dict(startdir, prefix=None):
         for fname in files:
             fpath = os.path.join(root, fname)
             key = fpath[len(prefix) :]
-            flist[key] = util.load_file(fpath)
+            flist[key] = util.load_text_file(fpath)
     return flist
 
 

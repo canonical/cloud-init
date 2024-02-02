@@ -11,15 +11,13 @@ import zlib
 from contextlib import contextmanager
 from datetime import datetime
 from time import sleep, time
-from typing import TYPE_CHECKING, Callable, List, Optional, TypeVar, Union
+from typing import Callable, List, Optional, TypeVar, Union
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape
 
 from cloudinit import distros, subp, temp_utils, url_helper, util, version
 from cloudinit.reporting import events
-
-if TYPE_CHECKING:
-    from cloudinit.sources.azure import errors
+from cloudinit.sources.azure import errors
 
 LOG = logging.getLogger(__name__)
 
@@ -721,10 +719,10 @@ class WALinuxAgentShim:
             self.openssl_manager.clean_up()
 
     @azure_ds_telemetry_reporter
-    def eject_iso(self, iso_dev) -> None:
+    def eject_iso(self, iso_dev, distro: distros.Distro) -> None:
+        LOG.debug("Ejecting the provisioning iso")
         try:
-            LOG.debug("Ejecting the provisioning iso")
-            subp.subp(["eject", iso_dev])
+            distro.eject_media(iso_dev)
         except Exception as e:
             report_diagnostic_event(
                 "Failed ejecting the provisioning iso: %s" % e,
@@ -733,7 +731,7 @@ class WALinuxAgentShim:
 
     @azure_ds_telemetry_reporter
     def register_with_azure_and_fetch_data(
-        self, pubkey_info=None, iso_dev=None
+        self, distro: distros.Distro, pubkey_info=None, iso_dev=None
     ) -> Optional[List[str]]:
         """Gets the VM's GoalState from Azure, uses the GoalState information
         to report ready/send the ready signal/provisioning complete signal to
@@ -764,7 +762,7 @@ class WALinuxAgentShim:
         )
 
         if iso_dev is not None:
-            self.eject_iso(iso_dev)
+            self.eject_iso(iso_dev, distro=distro)
 
         health_reporter.send_ready_signal()
         return ssh_keys
@@ -942,13 +940,14 @@ class WALinuxAgentShim:
 @azure_ds_telemetry_reporter
 def get_metadata_from_fabric(
     endpoint: str,
+    distro: distros.Distro,
     pubkey_info: Optional[List[str]] = None,
     iso_dev: Optional[str] = None,
 ):
     shim = WALinuxAgentShim(endpoint=endpoint)
     try:
         return shim.register_with_azure_and_fetch_data(
-            pubkey_info=pubkey_info, iso_dev=iso_dev
+            distro=distro, pubkey_info=pubkey_info, iso_dev=iso_dev
         )
     finally:
         shim.clean_up()
@@ -971,10 +970,6 @@ def dhcp_log_cb(out, err):
     report_diagnostic_event(
         "dhclient error stream: %s" % err, logger_func=LOG.debug
     )
-
-
-class BrokenAzureDataSource(Exception):
-    pass
 
 
 class NonAzureDataSource(Exception):
@@ -1016,13 +1011,13 @@ class OvfEnvXml:
         """Parser for ovf-env.xml data.
 
         :raises NonAzureDataSource: if XML is not in Azure's format.
-        :raises BrokenAzureDataSource: if XML is unparseable or invalid.
+        :raises errors.ReportableErrorOvfParsingException: if XML is
+                unparseable or invalid.
         """
         try:
             root = ElementTree.fromstring(ovf_env_xml)
         except ElementTree.ParseError as e:
-            error_str = "Invalid ovf-env.xml: %s" % e
-            raise BrokenAzureDataSource(error_str) from e
+            raise errors.ReportableErrorOvfParsingException(exception=e) from e
 
         # If there's no provisioning section, it's not Azure ovf-env.xml.
         if not root.find("./wa:ProvisioningSection", cls.NAMESPACES):
@@ -1047,14 +1042,14 @@ class OvfEnvXml:
             "./%s:%s" % (namespace, name), OvfEnvXml.NAMESPACES
         )
         if len(matches) == 0:
-            msg = "No ovf-env.xml configuration for %r" % name
+            msg = "missing configuration for %r" % name
             LOG.debug(msg)
             if required:
-                raise BrokenAzureDataSource(msg)
+                raise errors.ReportableErrorOvfInvalidMetadata(msg)
             return None
         elif len(matches) > 1:
-            raise BrokenAzureDataSource(
-                "Multiple configuration matches in ovf-exml.xml for %r (%d)"
+            raise errors.ReportableErrorOvfInvalidMetadata(
+                "multiple configuration matches for %r (%d)"
                 % (name, len(matches))
             )
 
@@ -1071,14 +1066,14 @@ class OvfEnvXml:
     ):
         matches = node.findall("./wa:" + name, OvfEnvXml.NAMESPACES)
         if len(matches) == 0:
-            msg = "No ovf-env.xml configuration for %r" % name
+            msg = "missing configuration for %r" % name
             LOG.debug(msg)
             if required:
-                raise BrokenAzureDataSource(msg)
+                raise errors.ReportableErrorOvfInvalidMetadata(msg)
             return default
         elif len(matches) > 1:
-            raise BrokenAzureDataSource(
-                "Multiple configuration matches in ovf-exml.xml for %r (%d)"
+            raise errors.ReportableErrorOvfInvalidMetadata(
+                "multiple configuration matches for %r (%d)"
                 % (name, len(matches))
             )
 

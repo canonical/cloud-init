@@ -45,9 +45,9 @@ class TestWriteFilesDeferred(FilesystemMockingTestCase):
         }
         cc = self.tmp_cloud("ubuntu")
         handle("cc_write_files_deferred", config, cc, [])
-        self.assertEqual(util.load_file("/tmp/deferred.file"), expected)
+        self.assertEqual(util.load_text_file("/tmp/deferred.file"), expected)
         with self.assertRaises(FileNotFoundError):
-            util.load_file("/tmp/not_deferred.file")
+            util.load_text_file("/tmp/not_deferred.file")
 
 
 class TestWriteFilesDeferredSchema:

@@ -124,10 +124,10 @@ class DataSourceGCE(sources.DataSource):
                 except NoDHCPLeaseError:
                     continue
                 if ret["success"]:
-                    self._fallback_interface = candidate_nic
+                    self.distro.fallback_interface = candidate_nic
                     LOG.debug("Primary NIC found: %s.", candidate_nic)
                     break
-            if self._fallback_interface is None:
+            if self.distro.fallback_interface is None:
                 LOG.warning(
                     "Did not find a fallback interface on %s.", self.cloud_name
                 )

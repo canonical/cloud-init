@@ -55,7 +55,7 @@ class TestLocale(FilesystemMockingTestCase):
                     locale_configfile,
                 )
 
-                contents = util.load_file(cc.distro.locale_gen_fn)
+                contents = util.load_text_file(cc.distro.locale_gen_fn)
                 self.assertIn("%s UTF-8" % locale, contents)
                 m_subp.assert_called_with(
                     ["localectl", "set-locale", locale], capture=False
@@ -72,7 +72,7 @@ class TestLocale(FilesystemMockingTestCase):
             locale_conf = cc.distro.systemd_locale_conf_fn
         else:
             locale_conf = cc.distro.locale_conf_fn
-        contents = util.load_file(locale_conf, decode=False)
+        contents = util.load_binary_file(locale_conf)
         n_cfg = ConfigObj(BytesIO(contents))
         if cc.distro.uses_systemd():
             self.assertEqual({"LANG": cfg["locale"]}, dict(n_cfg))
@@ -91,7 +91,7 @@ class TestLocale(FilesystemMockingTestCase):
             locale_conf = cc.distro.locale_conf_fn
             keyname = "RC_LANG"
 
-        contents = util.load_file(locale_conf, decode=False)
+        contents = util.load_binary_file(locale_conf)
         n_cfg = ConfigObj(BytesIO(contents))
         self.assertEqual({keyname: "en_US.UTF-8"}, dict(n_cfg))
 

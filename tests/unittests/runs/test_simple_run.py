@@ -77,7 +77,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
         initer.apply_network_config(False)
         self.assertEqual(
             f"{atomic_helper.json_dumps(netcfg)}\n",
-            util.load_file("/var/lib/cloud/instance/network-config.json"),
+            util.load_text_file("/var/lib/cloud/instance/network-config.json"),
         )
 
     def test_none_ds_runs_modules_which_do_not_define_distros(self):
@@ -100,7 +100,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
         self.assertTrue(len(failures) == 0)
         self.assertTrue(os.path.exists("/etc/blah.ini"))
         self.assertIn("write_files", which_ran)
-        contents = util.load_file("/etc/blah.ini")
+        contents = util.load_text_file("/etc/blah.ini")
         self.assertEqual(contents, "blah")
         self.assertNotIn(
             "Skipping modules ['write_files'] because they are not verified on"

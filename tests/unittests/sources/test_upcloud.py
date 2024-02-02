@@ -226,15 +226,13 @@ class TestUpCloudNetworkSetup(CiTestCase):
         mock_readmd.return_value = UC_METADATA.copy()
 
         m_fallback_nic.return_value = "eth1"
-        m_dhcp.return_value = [
-            {
-                "interface": "eth1",
-                "fixed-address": "10.6.3.27",
-                "routers": "10.6.0.1",
-                "subnet-mask": "22",
-                "broadcast-address": "10.6.3.255",
-            }
-        ]
+        m_dhcp.return_value = {
+            "interface": "eth1",
+            "fixed-address": "10.6.3.27",
+            "routers": "10.6.0.1",
+            "subnet-mask": "22",
+            "broadcast-address": "10.6.3.255",
+        }
 
         ds = self.get_ds()
 
