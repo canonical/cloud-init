@@ -149,7 +149,7 @@ def candidate_user_data_file_names(instance_name) -> List[str]:
         # distribution specific (Alpine, Arch, Fedora, openSUSE, Ubuntu...)
         "%s-all.user-data" % distribution_id,
         # generic, valid for all WSL distros and instances.
-        "config.user-data",
+        "default.user-data",
     ]
 
 

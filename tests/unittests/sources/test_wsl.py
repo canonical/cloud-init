@@ -136,7 +136,7 @@ class TestWSLHelperFunctions(CiTestCase):
                 "%s.user-data" % INSTANCE_NAME,
                 "ubuntu-24.04.user-data",
                 "ubuntu-all.user-data",
-                "config.user-data",
+                "default.user-data",
             ],
             wsl.candidate_user_data_file_names(INSTANCE_NAME),
         )
@@ -278,7 +278,7 @@ class TestWSLDataSource(CiTestCase):
         util.write_file(distro_file, "#!/bin/sh\n\necho Hello World\n")
 
         generic_file = os.path.join(
-            self.tmp, ".cloud-init", "config.user-data"
+            self.tmp, ".cloud-init", "default.user-data"
         )
         util.write_file(generic_file, "#cloud-config\npackages:\n- g++-13\n")
 

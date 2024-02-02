@@ -78,7 +78,7 @@ order specified below:
    affect any instance created from any Debian GNU/Linux image, regardless of
    which release, if a more specific configuration file does not match.
 
-4. ``%USERPROFILE%\.cloud-init\config.user-data`` for the configuration
+4. ``%USERPROFILE%\.cloud-init\default.user-data`` for the configuration
    affecting all instances, regardless of which distro and release version, if
    a more specific configuration file does not match. That could be used, for
    example, to automatically create a user with the same name across all WSL
