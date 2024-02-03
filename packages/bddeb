@@ -109,7 +109,7 @@ def write_debian_folder(root, templ_data, cloud_util_deps):
     # We consolidate all deps as Build-Depends as our package build runs all
     # tests so we need all runtime dependencies anyway.
     # NOTE: python package was moved to the front after debuild -S would fail
-    # with 'Please add apropriate interpreter' errors (as in debian bug 861132)
+    # with 'Please add appropriate interpreter' errors (as in debian bug 861132)
     requires.extend(["python3"] + reqs + test_reqs)
     if templ_data["debian_release"] in (
         "buster",

@@ -53,7 +53,7 @@ class Distro(distros.Distro):
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
         # This will be used to restrict certain
-        # calls from repeatly happening (when they
+        # calls from repeatedly happening (when they
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
         self.osfamily = "redhat"

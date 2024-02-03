@@ -253,7 +253,7 @@ class IscDhclient(DhcpClient):
         @param interface: an interface string - not used in this class, but
             required for function signature compatibility with other classes
             that require a distro object
-        @raises: InvalidDHCPLeaseFileError on empty or unparseable leasefile
+        @raises: InvalidDHCPLeaseFileError on empty or unparsable leasefile
             content.
         """
         with suppress(FileNotFoundError):
@@ -735,7 +735,7 @@ class Dhcpcd(DhcpClient):
         """Return a dict of dhcp options.
 
         @param interface: which interface to dump the lease from
-        @raises: InvalidDHCPLeaseFileError on empty or unparseable leasefile
+        @raises: InvalidDHCPLeaseFileError on empty or unparsable leasefile
             content.
         """
         try:
@@ -877,7 +877,7 @@ class Udhcpc(DhcpClient):
         @param interface: an interface name - not used in this class, but
             required for function signature compatibility with other classes
             that require a distro object
-        @raises: InvalidDHCPLeaseFileError on empty or unparseable leasefile
+        @raises: InvalidDHCPLeaseFileError on empty or unparsable leasefile
             content.
         """
         return util.load_json(util.load_text_file(self.lease_file))

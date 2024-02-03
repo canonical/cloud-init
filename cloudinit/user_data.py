@@ -52,7 +52,7 @@ DECOMP_TYPES = [
 ATTACHMENT_FIELD = "Number-Attachments"
 
 # Only the following content types can have there launch index examined
-# in there payload, evey other content type can still provide a header
+# in there payload, every other content type can still provide a header
 EXAMINE_FOR_LAUNCH_INDEX = ["text/cloud-config"]
 
 

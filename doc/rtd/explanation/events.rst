@@ -92,4 +92,4 @@ On every boot, apply network configuration found in the datasource.
        when: ['boot']
 
 .. _Cloud-init: https://launchpad.net/cloud-init
-.. _tracked in Github #3890: https://github.com/canonical/cloud-init/issues/3890
+.. _tracked in GitHub #3890: https://github.com/canonical/cloud-init/issues/3890

@@ -232,7 +232,7 @@ represents the data collected by ``cloudinit.util.system_info``.
 
 This is a cloud-init configuration key present in :file:`/etc/cloud/cloud.cfg`
 which describes cloud-init's configured `default_user`, `distro`, `network`
-renderes, and `paths` that cloud-init will use. Not to be confused with the
+renders, and `paths` that cloud-init will use. Not to be confused with the
 underlying host ``sys_info`` key above.
 
 ``v1``

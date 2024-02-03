@@ -116,7 +116,7 @@ class EphemeralIPv4Network:
             cmd()
 
     def _bringup_device(self):
-        """Perform the ip comands to fully setup the device."""
+        """Perform the ip commands to fully setup the device."""
         cidr = "{0}/{1}".format(self.ip, self.prefix)
         LOG.debug(
             "Attempting setup of ephemeral network on %s with %s brd %s",

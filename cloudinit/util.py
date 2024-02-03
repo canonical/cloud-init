@@ -941,7 +941,7 @@ def del_dir(path):
 
 
 # read_optional_seed
-# returns boolean indicating success or failure (presense of files)
+# returns boolean indicating success or failure (presence of files)
 # if files are present, populates 'fill' dictionary with 'user-data' and
 # 'meta-data' entries
 def read_optional_seed(fill, base="", ext="", timeout=5):
@@ -1683,7 +1683,7 @@ def chownbyname(fname, user=None, group=None):
     chownbyid(fname, uid, gid)
 
 
-# Always returns well formated values
+# Always returns well formatted values
 # cfg is expected to have an entry 'output' in it, which is a dictionary
 # that includes entries for 'init', 'config', 'final' or 'all'
 #   init: /var/log/cloud.out

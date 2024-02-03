@@ -151,7 +151,7 @@ SchemaProblems = List[SchemaProblem]
 
 
 class SchemaType(Enum):
-    """Supported schema types are etiher cloud-config or network-config.
+    """Supported schema types are either cloud-config or network-config.
 
     Vendordata and Vendordata2 format adheres to cloud-config schema type.
     Cloud Metadata is unique schema to each cloud platform and likely will not
@@ -638,7 +638,7 @@ def netplan_validate_network_schema(
     parser = Parser()
     errors = []
     try:
-        # Parse all netplan *.yaml files.load_yaml_heirarchy looks for nested
+        # Parse all netplan *.yaml files.load_yaml_hierarchy looks for nested
         # etc/netplan subdir under "/".
         parser.load_yaml_hierarchy(parse_dir)
     except NetplanParserException as e:
@@ -922,7 +922,7 @@ def annotated_cloudconfig_file(
     """Return contents of the cloud-config file annotated with schema errors.
 
     @param cloudconfig: YAML-loaded dict from the original_content or empty
-        dict if unparseable.
+        dict if unparsable.
     @param original_content: The contents of a cloud-config file
     @param schemamarks: Dict with schema marks.
     @param schema_errors: Instance of `SchemaProblems`.
@@ -942,7 +942,7 @@ def process_merged_cloud_config_part_problems(
 
     When merging multiple cloud-config parts cloud-init logs an error and
     ignores any user-data parts which are declared as #cloud-config but
-    cannot be processed. the hanlder.cloud_config module also leaves comments
+    cannot be processed. the handler.cloud_config module also leaves comments
     in the final merged config for every invalid part file which begin with
     MERGED_CONFIG_SCHEMA_ERROR_PREFIX to aid in triage.
     """
@@ -1570,7 +1570,7 @@ def get_schema(schema_type: SchemaType = SchemaType.CLOUD_CONFIG) -> dict:
         full_schema = json.loads(load_text_file(schema_file))
     except (IOError, OSError):
         LOG.warning(
-            "Skipping %s schema valiation. No JSON schema file found %s.",
+            "Skipping %s schema validation. No JSON schema file found %s.",
             schema_type.value,
             schema_file,
         )
@@ -1669,7 +1669,7 @@ def _assert_exclusive_args(args):
 def get_config_paths_from_args(
     args,
 ) -> Tuple[str, List[InstanceDataPart]]:
-    """Return appropiate instance-data.json and instance data parts
+    """Return appropriate instance-data.json and instance data parts
 
     Based on commandline args, and user permissions, determine the
     appropriate instance-data.json to source for jinja templates and
@@ -1696,7 +1696,7 @@ def get_config_paths_from_args(
           user-data.
           In the case of invalid raw user-data header, prefer
           raw_fallback_path_key so actionable sensible warnings can be
-          reported ot the user about the raw unparseable user-data.
+          reported to the user about the raw unparsable user-data.
         """
         primary_datapath = paths.get_ipath(primary_path_key) or ""
         with suppress(FileNotFoundError):

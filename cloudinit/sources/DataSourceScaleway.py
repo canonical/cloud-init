@@ -78,7 +78,7 @@ def query_data_api_once(api_address, timeout, requests_session):
             api_address,
             data=None,
             timeout=timeout,
-            # It's the caller's responsability to recall this function in case
+            # It's the caller's responsibility to recall this function in case
             # of exception. Don't let url_helper.readurl() retry by itself.
             retries=0,
             session=requests_session,

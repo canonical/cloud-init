@@ -53,7 +53,7 @@ from cloudinit.net import activators, dhcp, renderers
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.net.renderer import Renderer
 
-# Used when a cloud-config module can be run on all cloud-init distibutions.
+# Used when a cloud-config module can be run on all cloud-init distributions.
 # The value 'all' is surfaced in module documentation for distro support.
 ALL_DISTROS = "all"
 
@@ -274,7 +274,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """access the distro's preferred dhcp client
 
         if no client has been selected yet select one - uses
-        self.dhcp_client_priority, which may be overriden in each distro's
+        self.dhcp_client_priority, which may be overridden in each distro's
         object to eliminate checking for clients which will not be provided
         by the distro
         """
@@ -637,7 +637,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
         Add a user to the system using standard GNU tools
 
-        This should be overriden on distros where useradd is not desirable or
+        This should be overridden on distros where useradd is not desirable or
         not available.
         """
         # XXX need to make add_user idempotent somehow as we
@@ -701,7 +701,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             # that came in as a string like: groups: group1, group2
             groups = [g.strip() for g in groups]
 
-            # kwargs.items loop below wants a comma delimeted string
+            # kwargs.items loop below wants a comma delimited string
             # that can go right through to the command.
             kwargs["groups"] = ",".join(groups)
 
@@ -1347,7 +1347,7 @@ def _apply_hostname_transformations_to_url(url: str, transformations: list):
 
     :return:
         A string whose value is ``url`` with the hostname ``transformations``
-        applied, or ``None`` if ``url`` is unparseable.
+        applied, or ``None`` if ``url`` is unparsable.
     """
     try:
         parts = urllib.parse.urlsplit(url)
