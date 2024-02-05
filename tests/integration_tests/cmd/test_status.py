@@ -4,6 +4,7 @@ import json
 import pytest
 
 from tests.integration_tests.clouds import IntegrationCloud
+from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, JAMMY
@@ -17,6 +18,12 @@ def _remove_nocloud_dir_and_reboot(client: IntegrationInstance):
     old_boot_id = client.instance.get_boot_id()
     client.execute("cloud-init clean --logs --reboot")
     client.instance._wait_for_execute(old_boot_id=old_boot_id)
+
+
+@retry(tries=5, delay=1)
+def retry_read_from_file(client: IntegrationInstance, path: str):
+    """Retry read_from_file expecting it shortly"""
+    return client.read_from_file(path)
 
 
 @pytest.mark.skipif(not IS_UBUNTU, reason="Only ever tested on Ubuntu")
@@ -82,3 +89,73 @@ def test_status_json_errors(client):
     assert "Invalid cloud-config provided" in json.loads(status_json)[
         "recoverable_errors"
     ].get("WARNING").pop(0)
+
+
+EARLY_BOOT_WAIT_USER_DATA = """\
+#cloud-config
+runcmd: [systemctl enable before-cloud-init-local.service]
+write_files:
+- path: /waitoncloudinit.sh
+  permissions: '0755'
+  content: |
+    #!/bin/sh
+    if [ -f /var/lib/cloud/data/status.json ]; then
+        MARKER_FILE="/$1.start-hasstatusjson"
+    else
+        MARKER_FILE="/$1.start-nostatusjson"
+    fi
+    cloud-init status --wait --long > $1
+    date +%s.%N > $MARKER_FILE
+- path: /lib/systemd/system/before-cloud-init-local.service
+  permissions: '0644'
+  content: |
+    [Unit]
+    Description=BEFORE cloud-init local
+    DefaultDependencies=no
+    Before=cloud-init-local.service
+    Before=shutdown.target
+    Before=sysinit.target
+    Conflicts=shutdown.target
+    RequiresMountsFor=/var/lib/cloud
+
+    [Service]
+    Type=simple
+    ExecStart=/waitoncloudinit.sh /before-local
+    RemainAfterExit=yes
+    TimeoutSec=0
+
+    # Output needs to appear in instance console output
+    StandardOutput=journal+console
+
+    [Install]
+    WantedBy=cloud-init.target
+"""  # noqa: E501
+
+
+@pytest.mark.user_data(EARLY_BOOT_WAIT_USER_DATA)
+@pytest.mark.lxd_use_exec
+@pytest.mark.skipif(
+    PLATFORM not in ("lxd_container", "lxd_vm"),
+    reason="Requires use of lxd exec",
+)
+def test_status_block_through_all_boot_status(client):
+    """Assert early boot cloud-init status --wait does not exit early."""
+    client.execute("cloud-init clean --logs --reboot")
+    wait_for_cloud_init(client).stdout.strip()
+    client.execute("cloud-init status --wait")
+
+    # Assert that before-cloud-init-local.service started before
+    # cloud-init-local.service could create status.json
+    client.execute("test -f /before-local.start-hasstatusjson").failed
+
+    early_unit_timestamp = retry_read_from_file(
+        client, "/before-local.start-nostatusjson"
+    )
+    # Assert the file created at the end of
+    # before-cloud-init-local.service is newer than the last log entry in
+    # /var/log/cloud-init.log
+    events = json.loads(client.execute("cloud-init analyze dump").stdout)
+    final_cloud_init_event = events[-1]["timestamp"]
+    assert final_cloud_init_event < float(
+        early_unit_timestamp
+    ), "Systemd unit didn't block on cloud-init status --wait"
