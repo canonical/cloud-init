@@ -136,6 +136,7 @@ class TestConfig(TestCase):
     def tearDown(self):
         self.tmpfile.close()
         os.remove(self.tmppath)
+        super().tearDown()
 
     @mock.patch.object(os.path, "isfile", return_value=False)
     def test_no_resizers_auto_is_fine(self, m_isfile):

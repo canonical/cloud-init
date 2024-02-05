@@ -88,7 +88,7 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
             )
 
         # Upgrade
-        instance.install_new_cloud_init(source, take_snapshot=False)
+        instance.install_new_cloud_init(source)
 
         # 'cloud-init init' helps us understand if our pickling upgrade paths
         # have broken across re-constitution of a cached datasource. Some
@@ -185,9 +185,7 @@ def test_subsequent_boot_of_upgraded_package(session_cloud: IntegrationCloud):
     launch_kwargs = {"image_id": session_cloud.initial_image_id}
 
     with session_cloud.launch(launch_kwargs=launch_kwargs) as instance:
-        instance.install_new_cloud_init(
-            source, take_snapshot=False, clean=False
-        )
+        instance.install_new_cloud_init(source, clean=False)
         instance.restart()
         log = instance.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)

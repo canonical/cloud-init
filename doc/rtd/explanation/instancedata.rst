@@ -462,7 +462,6 @@ EC2 instance:
      "chef",
      "mcollective",
      "salt_minion",
-     "rightscale_userdata",
      "scripts_vendor",
      "scripts_per_once",
      "scripts_per_boot",

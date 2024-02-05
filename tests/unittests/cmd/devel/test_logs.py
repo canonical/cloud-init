@@ -11,7 +11,7 @@ import pytest
 from cloudinit.cmd.devel import logs
 from cloudinit.cmd.devel.logs import ApportFile
 from cloudinit.subp import SubpResult, subp
-from cloudinit.util import ensure_dir, load_file, write_file
+from cloudinit.util import ensure_dir, load_text_file, write_file
 from tests.unittests.helpers import mock
 
 M_PATH = "cloudinit.cmd.devel.logs."
@@ -40,8 +40,12 @@ class TestCollectLogs:
         m_getuid.return_value = 100
         log1 = tmpdir.join("cloud-init.log")
         write_file(log1, "cloud-init-log")
+        log1_rotated = tmpdir.join("cloud-init.log.1.gz")
+        write_file(log1_rotated, "cloud-init-log-rotated")
         log2 = tmpdir.join("cloud-init-output.log")
         write_file(log2, "cloud-init-output-log")
+        log2_rotated = tmpdir.join("cloud-init-output.log.1.gz")
+        write_file(log2_rotated, "cloud-init-output-log-rotated")
         run_dir = tmpdir.join("run")
         write_file(run_dir.join("results.json"), "results")
         write_file(
@@ -51,6 +55,12 @@ class TestCollectLogs:
             "sensitive",
         )
         output_tarfile = str(tmpdir.join("logs.tgz"))
+
+        mocker.patch(M_PATH + "Init", autospec=True)
+        mocker.patch(
+            M_PATH + "get_config_logfiles",
+            return_value=[log1, log1_rotated, log2, log2_rotated],
+        )
 
         date = datetime.utcnow().date().strftime("%Y-%m-%d")
         date_logdir = "cloud-init-logs-{0}".format(date)
@@ -98,7 +108,6 @@ class TestCollectLogs:
             M_PATH + "subprocess.call", side_effect=fake_subprocess_call
         )
         mocker.patch(M_PATH + "sys.stderr", fake_stderr)
-        mocker.patch(M_PATH + "CLOUDINIT_LOGS", [log1, log2])
         mocker.patch(M_PATH + "CLOUDINIT_RUN_DIR", run_dir)
         mocker.patch(M_PATH + "INSTALLER_APPORT_FILES", [])
         mocker.patch(M_PATH + "INSTALLER_APPORT_SENSITIVE_FILES", [])
@@ -116,23 +125,31 @@ class TestCollectLogs:
         ), (
             "Unexpected file found: %s" % INSTANCE_JSON_SENSITIVE_FILE
         )
-        assert "0.7fake\n" == load_file(
+        assert "0.7fake\n" == load_text_file(
             os.path.join(out_logdir, "dpkg-version")
         )
-        assert version_out == load_file(os.path.join(out_logdir, "version"))
-        assert "cloud-init-log" == load_file(
+        assert version_out == load_text_file(
+            os.path.join(out_logdir, "version")
+        )
+        assert "cloud-init-log" == load_text_file(
             os.path.join(out_logdir, "cloud-init.log")
         )
-        assert "cloud-init-output-log" == load_file(
+        assert "cloud-init-log-rotated" == load_text_file(
+            os.path.join(out_logdir, "cloud-init.log.1.gz")
+        )
+        assert "cloud-init-output-log" == load_text_file(
             os.path.join(out_logdir, "cloud-init-output.log")
         )
-        assert "dmesg-out\n" == load_file(
+        assert "cloud-init-output-log-rotated" == load_text_file(
+            os.path.join(out_logdir, "cloud-init-output.log.1.gz")
+        )
+        assert "dmesg-out\n" == load_text_file(
             os.path.join(out_logdir, "dmesg.txt")
         )
-        assert "journal-out\n" == load_file(
+        assert "journal-out\n" == load_text_file(
             os.path.join(out_logdir, "journal.txt")
         )
-        assert "results" == load_file(
+        assert "results" == load_text_file(
             os.path.join(out_logdir, "run", "cloud-init", "results.json")
         )
         fake_stderr.write.assert_any_call("Wrote %s\n" % output_tarfile)
@@ -155,6 +172,12 @@ class TestCollectLogs:
             "sensitive",
         )
         output_tarfile = str(tmpdir.join("logs.tgz"))
+
+        mocker.patch(M_PATH + "Init", autospec=True)
+        mocker.patch(
+            M_PATH + "get_config_logfiles",
+            return_value=[log1, log2],
+        )
 
         date = datetime.utcnow().date().strftime("%Y-%m-%d")
         date_logdir = "cloud-init-logs-{0}".format(date)
@@ -200,7 +223,6 @@ class TestCollectLogs:
             M_PATH + "subprocess.call", side_effect=fake_subprocess_call
         )
         mocker.patch(M_PATH + "sys.stderr", fake_stderr)
-        mocker.patch(M_PATH + "CLOUDINIT_LOGS", [log1, log2])
         mocker.patch(M_PATH + "CLOUDINIT_RUN_DIR", run_dir)
         mocker.patch(M_PATH + "INSTALLER_APPORT_FILES", [])
         mocker.patch(M_PATH + "INSTALLER_APPORT_SENSITIVE_FILES", [])
@@ -209,10 +231,10 @@ class TestCollectLogs:
         # unpack the tarfile and check file contents
         subp(["tar", "zxvf", output_tarfile, "-C", str(tmpdir)])
         out_logdir = tmpdir.join(date_logdir)
-        assert "user-data" == load_file(
+        assert "user-data" == load_text_file(
             os.path.join(out_logdir, "user-data.txt")
         )
-        assert "sensitive" == load_file(
+        assert "sensitive" == load_text_file(
             os.path.join(
                 out_logdir,
                 "run",
@@ -263,7 +285,7 @@ class TestCollectLogs:
         )
 
         assert expected_return_value == return_output
-        assert expected_file_contents == load_file(output_file)
+        assert expected_file_contents == load_text_file(output_file)
 
     @pytest.mark.parametrize(
         "cmd, expected_file_contents",
@@ -285,7 +307,7 @@ class TestCollectLogs:
             verbosity=1,
         )
 
-        assert expected_file_contents == load_file(output_file)
+        assert expected_file_contents == load_text_file(output_file)
 
 
 class TestCollectInstallerLogs:

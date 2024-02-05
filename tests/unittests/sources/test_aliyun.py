@@ -198,15 +198,13 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
     ):
         m_is_aliyun.return_value = True
         m_fallback_nic.return_value = "eth9"
-        m_dhcp.return_value = [
-            {
-                "interface": "eth9",
-                "fixed-address": "192.168.2.9",
-                "routers": "192.168.2.1",
-                "subnet-mask": "255.255.255.0",
-                "broadcast-address": "192.168.2.255",
-            }
-        ]
+        m_dhcp.return_value = {
+            "interface": "eth9",
+            "fixed-address": "192.168.2.9",
+            "routers": "192.168.2.1",
+            "subnet-mask": "255.255.255.0",
+            "broadcast-address": "192.168.2.255",
+        }
         m_is_bsd.return_value = False
         cfg = {"datasource": {"AliYun": {"timeout": "1", "max_wait": "1"}}}
         distro = mock.MagicMock()

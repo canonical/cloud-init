@@ -659,7 +659,7 @@ def generate_sources_list(cfg, release, mirrors, cloud):
         if not template_fn:
             LOG.warning("No template found, not rendering %s", aptsrc_file)
             return
-        tmpl = util.load_file(template_fn)
+        tmpl = util.load_text_file(template_fn)
 
     rendered = templater.render_string(tmpl, params)
     if tmpl:

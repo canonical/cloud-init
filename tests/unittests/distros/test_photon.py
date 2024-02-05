@@ -29,7 +29,7 @@ class TestPhoton(CiTestCase):
         hostname = "myhostname"
         hostfile = self.tmp_path("previous-hostname")
         self.distro._write_hostname(hostname, hostfile)
-        self.assertEqual(hostname, util.load_file(hostfile))
+        self.assertEqual(hostname, util.load_text_file(hostfile))
 
         ret = self.distro._read_hostname(hostfile)
         self.assertEqual(ret, hostname)

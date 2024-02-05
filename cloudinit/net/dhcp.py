@@ -13,14 +13,12 @@ import signal
 import time
 from contextlib import suppress
 from io import StringIO
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import configobj
 
 from cloudinit import subp, temp_utils, util
 from cloudinit.net import (
-    find_fallback_nic,
-    get_devicelist,
     get_ib_interface_hwaddr,
     get_interface_mac,
     is_ib_interface,
@@ -85,28 +83,6 @@ class NoDHCPLeaseMissingDhclientError(NoDHCPLeaseError):
     """Raised when unable to find dhclient."""
 
 
-class NoDHCPLeaseMissingUdhcpcError(NoDHCPLeaseError):
-    """Raised when unable to find udhcpc client."""
-
-
-def select_dhcp_client(distro):
-    """distros set priority list, select based on this order which to use
-
-    If the priority dhcp client isn't found, fall back to lower in list.
-    """
-    for client in distro.dhcp_client_priority:
-        try:
-            dhcp_client = client()
-            LOG.debug("DHCP client selected: %s", client.client_name)
-            return dhcp_client
-        except (
-            NoDHCPLeaseMissingDhclientError,
-            NoDHCPLeaseMissingUdhcpcError,
-        ):
-            LOG.warning("DHCP client not found: %s", client.client_name)
-    raise NoDHCPLeaseMissingDhclientError()
-
-
 def maybe_perform_dhcp_discovery(distro, nic=None, dhcp_log_func=None):
     """Perform dhcp discovery if nic valid and dhclient command exists.
 
@@ -120,18 +96,8 @@ def maybe_perform_dhcp_discovery(distro, nic=None, dhcp_log_func=None):
         from the dhclient discovery if run, otherwise an empty list is
         returned.
     """
-    if nic is None:
-        nic = find_fallback_nic()
-        if nic is None:
-            LOG.debug("Skip dhcp_discovery: Unable to find fallback nic.")
-            raise NoDHCPLeaseInterfaceError()
-    elif nic not in get_devicelist():
-        LOG.debug(
-            "Skip dhcp_discovery: nic %s not found in get_devicelist.", nic
-        )
-        raise NoDHCPLeaseInterfaceError()
-    client = select_dhcp_client(distro)
-    return client.dhcp_discovery(nic, dhcp_log_func, distro)
+    interface = nic or distro.fallback_interface
+    return distro.dhcp_client.dhcp_discovery(interface, dhcp_log_func, distro)
 
 
 def networkd_parse_lease(content):
@@ -159,7 +125,7 @@ def networkd_load_leases(leases_d=None):
         return ret
     for lfile in os.listdir(leases_d):
         ret[lfile] = networkd_parse_lease(
-            util.load_file(os.path.join(leases_d, lfile))
+            util.load_text_file(os.path.join(leases_d, lfile))
         )
     return ret
 
@@ -176,6 +142,12 @@ def networkd_get_option_from_leases(keyname, leases_d=None):
 
 class DhcpClient(abc.ABC):
     client_name = ""
+    timeout = 10
+
+    def __init__(self):
+        self.dhcp_client_path = subp.which(self.client_name)
+        if not self.dhcp_client_path:
+            raise NoDHCPLeaseMissingDhclientError()
 
     @classmethod
     def kill_dhcp_client(cls):
@@ -198,67 +170,115 @@ class DhcpClient(abc.ABC):
     def stop_service(cls, dhcp_interface: str, distro):
         distro.manage_service("stop", cls.client_name, rcs=[0, 1])
 
+    @abc.abstractmethod
+    def get_newest_lease(self, interface: str) -> Dict[str, Any]:
+        """Get the most recent lease from the ephemeral phase as a dict.
+
+        Return a dict of dhcp options. The dict contains key value
+        pairs from the most recent lease.
+        """
+        return {}
+
+    @staticmethod
+    @abc.abstractmethod
+    def parse_static_routes(routes: str) -> List[Tuple[str, str]]:
+        """
+        parse classless static routes from string
+
+        The tuple is composed of the network_address (including net length) and
+        gateway for a parsed static route.
+
+        @param routes: string containing classless static routes
+        @returns: list of tuple(str, str) for all valid parsed routes until the
+                  first parsing error.
+        """
+        return []
+
+    @abc.abstractmethod
+    def dhcp_discovery(
+        self,
+        interface: str,
+        dhcp_log_func: Optional[Callable] = None,
+        distro=None,
+    ) -> Dict[str, Any]:
+        """Run dhcp client on the interface without scripts or filesystem
+        artifacts.
+
+        @param interface: Name of the network interface on which to send a
+            dhcp request
+        @param dhcp_log_func: A callable accepting the client output and
+            error streams.
+        @param distro: a distro object for network interface manipulation
+        @return: dict of lease options representing the most recent dhcp lease
+            parsed from the dhclient.lease file
+        """
+        return {}
+
 
 class IscDhclient(DhcpClient):
     client_name = "dhclient"
 
     def __init__(self):
-        self.dhclient_path = subp.which("dhclient")
-        if not self.dhclient_path:
-            LOG.debug(
-                "Skip dhclient configuration: No dhclient command found."
-            )
-            raise NoDHCPLeaseMissingDhclientError()
+        super().__init__()
+        self.lease_file = "/run/dhclient.lease"
 
     @staticmethod
-    def parse_dhcp_lease_file(lease_file: str) -> List[Dict[str, Any]]:
-        """Parse the given dhcp lease file returning all leases as dicts.
+    def parse_leases(lease_content: str) -> List[Dict[str, Any]]:
+        """parse the content of a lease file
 
-        Return a list of dicts of dhcp options. Each dict contains key value
-        pairs a specific lease in order from oldest to newest.
-
-        @raises: InvalidDHCPLeaseFileError on empty of unparseable leasefile
-            content.
+        @param lease_content: a string containing the contents of an
+            isc-dhclient lease
+        @return: a list of leases, most recent last
         """
         lease_regex = re.compile(r"lease {(?P<lease>.*?)}\n", re.DOTALL)
-        dhcp_leases = []
-        lease_content = util.load_file(lease_file)
+        dhcp_leases: List[Dict] = []
         if len(lease_content) == 0:
-            raise InvalidDHCPLeaseFileError(
-                "Cannot parse empty dhcp lease file {0}".format(lease_file)
-            )
+            return []
         for lease in lease_regex.findall(lease_content):
             lease_options = []
             for line in lease.split(";"):
                 # Strip newlines, double-quotes and option prefix
                 line = line.strip().replace('"', "").replace("option ", "")
-                if not line:
-                    continue
-                lease_options.append(line.split(" ", 1))
+                if line:
+                    lease_options.append(line.split(" ", 1))
             dhcp_leases.append(dict(lease_options))
-        if not dhcp_leases:
-            raise InvalidDHCPLeaseFileError(
-                "Cannot parse dhcp lease file {0}. No leases found".format(
-                    lease_file
-                )
-            )
         return dhcp_leases
+
+    def get_newest_lease(self, interface: str) -> Dict[str, Any]:
+        """Get the most recent lease from the ephemeral phase as a dict.
+
+        Return a dict of dhcp options. The dict contains key value
+        pairs from the most recent lease.
+
+        @param interface: an interface string - not used in this class, but
+            required for function signature compatibility with other classes
+            that require a distro object
+        @raises: InvalidDHCPLeaseFileError on empty or unparseable leasefile
+            content.
+        """
+        with suppress(FileNotFoundError):
+            content = util.load_text_file(self.lease_file)
+            if content:
+                dhcp_leases = self.parse_leases(content)
+                if dhcp_leases:
+                    return dhcp_leases[-1]
+        return {}
 
     def dhcp_discovery(
         self,
-        interface,
-        dhcp_log_func=None,
+        interface: str,
+        dhcp_log_func: Optional[Callable] = None,
         distro=None,
-    ):
+    ) -> Dict[str, Any]:
         """Run dhclient on the interface without scripts/filesystem artifacts.
 
-        @param dhclient_cmd_path: Full path to the dhclient used.
-        @param interface: Name of the network interface on which to dhclient.
+        @param interface: Name of the network interface on which to send a
+            dhcp request
         @param dhcp_log_func: A callable accepting the dhclient output and
             error streams.
-
-        @return: A list of dicts of representing the dhcp leases parsed from
-            the dhclient.lease file or empty list.
+        @param distro: a distro object for network interface manipulation
+        @return: dict of lease options representing the most recent dhcp lease
+            parsed from the dhclient.lease file
         """
         LOG.debug("Performing a dhcp discovery on %s", interface)
 
@@ -266,14 +286,16 @@ class IscDhclient(DhcpClient):
         # side-effects in # /etc/resolv.conf any any other vendor specific
         # scripts in /etc/dhcp/dhclient*hooks.d.
         pid_file = "/run/dhclient.pid"
-        lease_file = "/run/dhclient.lease"
         config_file = None
+        sleep_time = 0.01
+        sleep_cycles = int(self.timeout / sleep_time)
+        maxwait = int(self.timeout / 2)
 
         # this function waits for these files to exist, clean previous runs
         # to avoid false positive in wait_for_files
         with suppress(FileNotFoundError):
             os.remove(pid_file)
-            os.remove(lease_file)
+            os.remove(self.lease_file)
 
         # ISC dhclient needs the interface up to send initial discovery packets
         # Generally dhclient relies on dhclient-script PREINIT action to bring
@@ -300,8 +322,8 @@ class IscDhclient(DhcpClient):
         try:
             out, err = subp.subp(
                 distro.build_dhclient_cmd(
-                    self.dhclient_path,
-                    lease_file,
+                    self.dhcp_client_path,
+                    self.lease_file,
                     pid_file,
                     interface,
                     config_file,
@@ -324,31 +346,43 @@ class IscDhclient(DhcpClient):
         # kill the correct process, thus freeing cleandir to be deleted back
         # up the callstack.
         missing = util.wait_for_files(
-            [pid_file, lease_file], maxwait=5, naplen=0.01
+            [pid_file, self.lease_file], maxwait=maxwait, naplen=0.01
         )
         if missing:
             LOG.warning(
                 "dhclient did not produce expected files: %s",
                 ", ".join(os.path.basename(f) for f in missing),
             )
-            return []
+            return {}
 
         ppid = "unknown"
         daemonized = False
-        for _ in range(1000):
-            pid_content = util.load_file(pid_file).strip()
+        pid_content = None
+        debug_msg = ""
+        for _ in range(sleep_cycles):
             try:
+                pid_content = util.load_text_file(pid_file).strip()
                 pid = int(pid_content)
+            except FileNotFoundError:
+                debug_msg = (
+                    f"No PID file found at {pid_file}, "
+                    "dhclient is still running"
+                )
             except ValueError:
-                pass
+                debug_msg = (
+                    f"PID file contained [{pid_content}], "
+                    "dhclient is still running"
+                )
             else:
-                ppid = util.get_proc_ppid(pid)
+                ppid = distro.get_proc_ppid(pid)
                 if ppid == 1:
                     LOG.debug("killing dhclient with pid=%s", pid)
                     os.kill(pid, signal.SIGKILL)
                     daemonized = True
                     break
-            time.sleep(0.01)
+            time.sleep(sleep_time)
+        else:
+            LOG.debug(debug_msg)
 
         if not daemonized:
             LOG.error(
@@ -360,10 +394,13 @@ class IscDhclient(DhcpClient):
             )
         if dhcp_log_func is not None:
             dhcp_log_func(out, err)
-        return self.parse_dhcp_lease_file(lease_file)
+        lease = self.get_newest_lease(interface)
+        if lease:
+            return lease
+        raise InvalidDHCPLeaseFileError()
 
     @staticmethod
-    def parse_static_routes(rfc3442):
+    def parse_static_routes(routes: str) -> List[Tuple[str, str]]:
         """
         parse rfc3442 format and return a list containing tuple of strings.
 
@@ -373,7 +410,7 @@ class IscDhclient(DhcpClient):
 
         @param rfc3442: string in rfc3442 format (isc or dhcpd)
         @returns: list of tuple(str, str) for all valid parsed routes until the
-                  first parsing error.
+            first parsing error.
 
         e.g.:
 
@@ -395,9 +432,9 @@ class IscDhclient(DhcpClient):
            /etc/dhcp/dhclient-exit-hooks.d/rfc3442-classless-routes
         """
         # raw strings from dhcp lease may end in semi-colon
-        rfc3442 = rfc3442.rstrip(";")
+        rfc3442 = routes.rstrip(";")
         tokens = [tok for tok in re.split(r"[, .]", rfc3442) if tok]
-        static_routes = []
+        static_routes: List[Tuple[str, str]] = []
 
         def _trunc_error(cidr, required, remain):
             msg = (
@@ -470,12 +507,22 @@ class IscDhclient(DhcpClient):
         return static_routes
 
     @staticmethod
-    def get_latest_lease(lease_dir, lease_file_regex):
+    def get_newest_lease_file_from_distro(distro) -> Optional[str]:
+        """Get the latest lease file from a distro-managed dhclient
+
+        Doesn't consider the ephemeral timeframe lease.
+
+        @param distro: used for distro-specific lease location and filename
+        @return: The most recent lease file, or None
+        """
         latest_file = None
 
         # Try primary dir/regex, then the fallback ones
         for directory, regex in (
-            (lease_dir, lease_file_regex),
+            (
+                distro.dhclient_lease_directory,
+                distro.dhclient_lease_file_regex,
+            ),
             (DHCLIENT_FALLBACK_LEASE_DIR, DHCLIENT_FALLBACK_LEASE_REGEX),
         ):
             if not directory:
@@ -487,7 +534,7 @@ class IscDhclient(DhcpClient):
             except FileNotFoundError:
                 continue
 
-            latest_mtime = -1
+            latest_mtime = -1.0
             for fname in lease_files:
                 if not re.search(regex, fname):
                     continue
@@ -503,62 +550,274 @@ class IscDhclient(DhcpClient):
                 return latest_file
         return None
 
-    @staticmethod
-    def parse_dhcp_server_from_lease_file(lease_file) -> Optional[str]:
-        """Parse a lease file for the dhcp server address
+    def get_key_from_latest_lease(self, distro, key: str):
+        """Get a key from the latest lease from distro-managed dhclient
 
-        @param lease_file: Name of a file to be parsed
-        @return: An address if found, or None
+        Doesn't consider the ephemeral timeframe lease.
+
+        @param lease_dir: distro-specific lease to check
+        @param lease_file_regex: distro-specific regex to match lease name
+        @return: The most recent lease file, or None
         """
-        latest_address = None
-        with suppress(FileNotFoundError), open(lease_file, "r") as file:
-            for line in file:
-                if "dhcp-server-identifier" in line:
-                    words = line.strip(" ;\r\n").split(" ")
-                    if len(words) > 2:
-                        dhcptok = words[2]
-                        LOG.debug("Found DHCP identifier %s", dhcptok)
-                        latest_address = dhcptok
-        return latest_address
+        lease_file = self.get_newest_lease_file_from_distro(distro)
+        if lease_file:
+            content = util.load_text_file(lease_file)
+            if content:
+                for lease in reversed(self.parse_leases(content)):
+                    server = lease.get(key)
+                    if server:
+                        return server
 
 
-class Dhcpcd:
+class Dhcpcd(DhcpClient):
     client_name = "dhcpcd"
 
-    def __init__(self):
-        raise NoDHCPLeaseMissingDhclientError("Dhcpcd not yet implemented")
+    def dhcp_discovery(
+        self,
+        interface: str,
+        dhcp_log_func: Optional[Callable] = None,
+        distro=None,
+    ) -> Dict[str, Any]:
+        """Run dhcpcd on the interface without scripts/filesystem artifacts.
+
+        @param interface: Name of the network interface on which to send a
+            dhcp request
+        @param dhcp_log_func: A callable accepting the client output and
+            error streams.
+        @param distro: a distro object for network interface manipulation
+        @return: dict of lease options representing the most recent dhcp lease
+            parsed from the dhclient.lease file
+        """
+        LOG.debug("Performing a dhcp discovery on %s", interface)
+        sleep_time = 0.01
+        sleep_cycles = int(self.timeout / sleep_time)
+
+        # dhcpcd needs the interface up to send initial discovery packets
+        # Generally dhclient relies on dhclient-script PREINIT action to bring
+        # the link up before attempting discovery. Since we are using
+        # -sf /bin/true, we need to do that "link up" ourselves first.
+        distro.net_ops.link_up(interface)
+        try:
+            # Currently dhcpcd doesn't have a workable --oneshot lease parsing
+            # story. All non-daemon lease parsing options on dhcpcd appear
+            # broken:
+            #
+            #   https://github.com/NetworkConfiguration/dhcpcd/issues/285
+            #   https://github.com/NetworkConfiguration/dhcpcd/issues/286
+            #   https://github.com/NetworkConfiguration/dhcpcd/issues/287
+            #
+            # Until fixed, we allow dhcpcd to spawn background processes so
+            # that we can use --dumplease, but when any option above is fixed,
+            # it would be safer to avoid spawning processes using --oneshot
+            command = [
+                self.dhcp_client_path,  # pyright: ignore
+                "--ipv4only",  # only attempt configuring ipv4
+                "--waitip",  # wait for ipv4 to be configured
+                "--persistent",  # don't deconfigure when dhcpcd exits
+                "--noarp",  # don't be slow
+                "--script=/bin/true",  # disable hooks
+                interface,
+            ]
+            out, err = subp.subp(
+                command,
+                timeout=self.timeout,
+            )
+            if dhcp_log_func is not None:
+                dhcp_log_func(out, err)
+            lease = self.get_newest_lease(interface)
+            # Attempt cleanup and leave breadcrumbs if it fails, but return
+            # the lease regardless of failure to clean up dhcpcd.
+            if lease:
+                # Note: the pid file location depends on the arguments passed
+                # it can be discovered with the -P flag
+                pid_file = subp.subp([*command, "-P"]).stdout.strip()
+                pid_content = None
+                gid = False
+                debug_msg = ""
+                for _ in range(sleep_cycles):
+                    try:
+                        pid_content = util.load_text_file(pid_file).strip()
+                        pid = int(pid_content)
+                        gid = distro.get_proc_pgid(pid)
+                        if gid:
+                            LOG.debug(
+                                "killing dhcpcd with pid=%s gid=%s", pid, gid
+                            )
+                            os.killpg(gid, signal.SIGKILL)
+                            break
+                    except ProcessLookupError:
+                        LOG.debug(
+                            "Process group id [%s] has already exited, "
+                            "nothing to kill",
+                            gid,
+                        )
+                        break
+                    except FileNotFoundError:
+                        debug_msg = (
+                            f"No PID file found at {pid_file}, "
+                            "dhcpcd is still running"
+                        )
+                    except ValueError:
+                        debug_msg = (
+                            f"PID file contained [{pid_content}], "
+                            "dhcpcd is still running"
+                        )
+                    else:
+                        return lease
+                    time.sleep(sleep_time)
+                else:
+                    LOG.debug(debug_msg)
+                return lease
+            raise NoDHCPLeaseError("No lease found")
+
+        except subp.ProcessExecutionError as error:
+            LOG.debug(
+                "dhclient exited with code: %s stderr: %r stdout: %r",
+                error.exit_code,
+                error.stderr,
+                error.stdout,
+            )
+            raise NoDHCPLeaseError from error
+
+    @staticmethod
+    def parse_dhcpcd_lease(lease_dump: str, interface: str) -> Dict:
+        """parse the output of dhcpcd --dump
+
+        map names to the datastructure we create from dhclient
+
+        example dhcpcd output:
+
+        broadcast_address='192.168.15.255'
+        dhcp_lease_time='3600'
+        dhcp_message_type='5'
+        dhcp_server_identifier='192.168.0.1'
+        domain_name='us-east-2.compute.internal'
+        domain_name_servers='192.168.0.2'
+        host_name='ip-192-168-0-212'
+        interface_mtu='9001'
+        ip_address='192.168.0.212'
+        network_number='192.168.0.0'
+        routers='192.168.0.1'
+        subnet_cidr='20'
+        subnet_mask='255.255.240.0'
+        """
+
+        # create a dict from dhcpcd dump output - remove single quotes
+        lease = dict(
+            [
+                a.split("=")
+                for a in lease_dump.strip().replace("'", "").split("\n")
+            ]
+        )
+
+        # this is expected by cloud-init's code
+        lease["interface"] = interface
+
+        # transform underscores to hyphens
+        lease = {key.replace("_", "-"): value for key, value in lease.items()}
+
+        # - isc-dhclient uses the key name "fixed-address" in place of
+        #   "ip-address", and in the codebase some code assumes that we can use
+        #   isc-dhclient's option names. Map accordingly
+        # - ephemeral.py we use an internal key name "static_routes" to map
+        #   what I think is some RHEL customization to the isc-dhclient
+        #   code, so we need to match this key for use there.
+        name_map = {
+            "ip-address": "fixed-address",
+            "classless-static-routes": "static_routes",
+        }
+        for source, destination in name_map.items():
+            if source in lease:
+                lease[destination] = lease.pop(source)
+        return lease
+
+    def get_newest_lease(self, interface: str) -> Dict[str, Any]:
+        """Return a dict of dhcp options.
+
+        @param interface: which interface to dump the lease from
+        @raises: InvalidDHCPLeaseFileError on empty or unparseable leasefile
+            content.
+        """
+        try:
+            return self.parse_dhcpcd_lease(
+                subp.subp(
+                    [
+                        self.dhcp_client_path,
+                        "--dumplease",
+                        "--ipv4only",
+                        interface,
+                    ],
+                ).stdout,
+                interface,
+            )
+
+        except subp.ProcessExecutionError as error:
+            LOG.debug(
+                "dhcpcd exited with code: %s stderr: %r stdout: %r",
+                error.exit_code,
+                error.stderr,
+                error.stdout,
+            )
+            raise NoDHCPLeaseError from error
+
+    @staticmethod
+    def parse_static_routes(routes: str) -> List[Tuple[str, str]]:
+        """
+        classless static routes as returned from dhcpcd --dumplease and return
+        a list containing tuple of strings.
+
+        The tuple is composed of the network_address (including net length) and
+        gateway for a parsed static route.
+
+        @param routes: string containing classless static routes
+        @returns: list of tuple(str, str) for all valid parsed routes until the
+                  first parsing error.
+
+        e.g.:
+
+        sr=parse_static_routes(
+            "0.0.0.0/0 10.0.0.1 168.63.129.16/32 10.0.0.1"
+        )
+        sr=[
+            ("0.0.0.0/0", "10.0.0.1"),
+            ("169.63.129.16/32", "10.0.0.1"),
+        ]
+        """
+        static_routes = routes.split()
+        if static_routes:
+            # format: dest1/mask gw1 ... destn/mask gwn
+            return [i for i in zip(static_routes[::2], static_routes[1::2])]
+        LOG.warning("Malformed classless static routes: [%s]", routes)
+        return []
 
 
 class Udhcpc(DhcpClient):
     client_name = "udhcpc"
 
     def __init__(self):
-        self.udhcpc_path = subp.which("udhcpc")
-        if not self.udhcpc_path:
-            LOG.debug("Skip udhcpc configuration: No udhcpc command found.")
-            raise NoDHCPLeaseMissingUdhcpcError()
+        super().__init__()
+        self.lease_file = None
 
     def dhcp_discovery(
         self,
-        interface,
-        dhcp_log_func=None,
+        interface: str,
+        dhcp_log_func: Optional[Callable] = None,
         distro=None,
-    ):
+    ) -> Dict[str, Any]:
         """Run udhcpc on the interface without scripts or filesystem artifacts.
 
         @param interface: Name of the network interface on which to run udhcpc.
         @param dhcp_log_func: A callable accepting the udhcpc output and
             error streams.
-
         @return: A list of dicts of representing the dhcp leases parsed from
             the udhcpc lease file.
         """
         LOG.debug("Performing a dhcp discovery on %s", interface)
 
         tmp_dir = temp_utils.get_tmp_ancestor(needs_exe=True)
-        lease_file = os.path.join(tmp_dir, interface + ".lease.json")
+        self.lease_file = os.path.join(tmp_dir, interface + ".lease.json")
         with suppress(FileNotFoundError):
-            os.remove(lease_file)
+            os.remove(self.lease_file)
 
         # udhcpc needs the interface up to send initial discovery packets
         distro.net_ops.link_up(interface)
@@ -567,7 +826,7 @@ class Udhcpc(DhcpClient):
         util.write_file(udhcpc_script, UDHCPC_SCRIPT, 0o755)
 
         cmd = [
-            self.udhcpc_path,
+            self.dhcp_client_path,
             "-O",
             "staticroutes",
             "-i",
@@ -593,7 +852,7 @@ class Udhcpc(DhcpClient):
             )
         try:
             out, err = subp.subp(
-                cmd, update_env={"LEASE_FILE": lease_file}, capture=True
+                cmd, update_env={"LEASE_FILE": self.lease_file}, capture=True
             )
         except subp.ProcessExecutionError as error:
             LOG.debug(
@@ -607,11 +866,29 @@ class Udhcpc(DhcpClient):
         if dhcp_log_func is not None:
             dhcp_log_func(out, err)
 
-        lease_json = util.load_json(util.load_file(lease_file))
-        static_routes = lease_json["static_routes"].split()
+        return self.get_newest_lease(interface)
+
+    def get_newest_lease(self, interface: str) -> Dict[str, Any]:
+        """Get the most recent lease from the ephemeral phase as a dict.
+
+        Return a dict of dhcp options. The dict contains key value
+        pairs from the most recent lease.
+
+        @param interface: an interface name - not used in this class, but
+            required for function signature compatibility with other classes
+            that require a distro object
+        @raises: InvalidDHCPLeaseFileError on empty or unparseable leasefile
+            content.
+        """
+        return util.load_json(util.load_text_file(self.lease_file))
+
+    @staticmethod
+    def parse_static_routes(routes: str) -> List[Tuple[str, str]]:
+        static_routes = routes.split()
         if static_routes:
             # format: dest1/mask gw1 ... destn/mask gwn
-            lease_json["static_routes"] = [
-                i for i in zip(static_routes[::2], static_routes[1::2])
-            ]
-        return [lease_json]
+            return [i for i in zip(static_routes[::2], static_routes[1::2])]
+        return []
+
+
+ALL_DHCP_CLIENTS = [IscDhclient, Dhcpcd, Udhcpc]

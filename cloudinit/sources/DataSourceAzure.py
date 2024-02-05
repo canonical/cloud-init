@@ -33,7 +33,6 @@ from cloudinit.sources.azure import errors, identity, imds, kvp
 from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (
     DEFAULT_WIRESERVER_ENDPOINT,
-    BrokenAzureDataSource,
     NonAzureDataSource,
     OvfEnvXml,
     azure_ds_reporter,
@@ -44,8 +43,8 @@ from cloudinit.sources.helpers.azure import (
     get_ip_from_lease_value,
     get_metadata_from_fabric,
     get_system_info,
-    push_log_to_kvp,
     report_diagnostic_event,
+    report_dmesg_to_kvp,
     report_failure_to_fabric,
 )
 from cloudinit.url_helper import UrlError
@@ -313,7 +312,6 @@ DEF_PASSWD_REDACTION = "REDACTED"
 
 
 class DataSourceAzure(sources.DataSource):
-
     dsname = "Azure"
     default_update_events = {
         EventScope.NETWORK: {
@@ -616,10 +614,6 @@ class DataSourceAzure(sources.DataSource):
                     "%s was not mountable" % src, logger_func=LOG.debug
                 )
                 continue
-            except BrokenAzureDataSource as exc:
-                msg = "BrokenAzureDataSource: %s" % exc
-                report_diagnostic_event(msg, logger_func=LOG.error)
-                raise sources.InvalidMetaDataException(msg)
         else:
             msg = (
                 "Unable to find provisioning media, falling back to IMDS "
@@ -992,7 +986,7 @@ class DataSourceAzure(sources.DataSource):
         )
         system_uuid = identity.query_system_uuid()
         if os.path.exists(prev_iid_path):
-            previous = util.load_file(prev_iid_path).strip()
+            previous = util.load_text_file(prev_iid_path).strip()
             swapped_id = identity.byte_swap_system_uuid(system_uuid)
 
             # Older kernels than 4.15 will have UPPERCASE product_uuid.
@@ -1185,7 +1179,7 @@ class DataSourceAzure(sources.DataSource):
             logger_func=LOG.info,
         )
         sleep(31536000)
-        raise BrokenAzureDataSource("Shutdown failure for PPS disk.")
+        raise errors.ReportableErrorOsDiskPpsFailure()
 
     @azure_ds_telemetry_reporter
     def _wait_for_pps_running_reuse(self) -> None:
@@ -1306,6 +1300,7 @@ class DataSourceAzure(sources.DataSource):
             f"Azure datasource failure occurred: {error.as_encoded_report()}",
             logger_func=LOG.error,
         )
+        report_dmesg_to_kvp()
         reported = kvp.report_failure_to_host(error)
         if host_only:
             return reported
@@ -1365,11 +1360,13 @@ class DataSourceAzure(sources.DataSource):
 
         :returns: List of SSH keys, if requested.
         """
+        report_dmesg_to_kvp()
         kvp.report_success_to_host()
 
         try:
             data = get_metadata_from_fabric(
                 endpoint=self._wireserver_endpoint,
+                distro=self.distro,
                 iso_dev=self._iso_dev,
                 pubkey_info=pubkey_info,
             )
@@ -1473,7 +1470,7 @@ class DataSourceAzure(sources.DataSource):
                 preserve_ntfs=self.ds_cfg.get(DS_CFG_KEY_PRESERVE_NTFS, False),
             )
         finally:
-            push_log_to_kvp(self.sys_cfg["def_log_file"])
+            report_dmesg_to_kvp()
         return
 
     @property
@@ -1822,7 +1819,7 @@ def write_files(datadir, files, dirmode=None):
     if not files:
         files = {}
     util.ensure_dir(datadir, dirmode)
-    for (name, content) in files.items():
+    for name, content in files.items():
         fname = os.path.join(datadir, name)
         if "ovf-env.xml" in name:
             content = _redact_password(content, fname)
@@ -1836,7 +1833,7 @@ def read_azure_ovf(contents):
     :return: Tuple of metadata, configuration, userdata dicts.
 
     :raises NonAzureDataSource: if XML is not in Azure's format.
-    :raises BrokenAzureDataSource: if XML is unparseable or invalid.
+    :raises errors.ReportableError: if XML is unparseable or invalid.
     """
     ovf_env = OvfEnvXml.parse_text(contents)
     md: Dict[str, Any] = {}
@@ -1903,12 +1900,12 @@ def _get_random_seed(source=PLATFORM_ENTROPY_SOURCE):
     # now update ds_cfg to reflect contents pass in config
     if source is None:
         return None
-    seed = util.load_file(source, quiet=True, decode=False)
+    seed = util.load_binary_file(source, quiet=True)
 
-    # The seed generally contains non-Unicode characters. load_file puts
+    # The seed generally contains non-Unicode characters. load_binary_file puts
     # them into bytes (in python 3).
-    # bytes is a non-serializable type, and the handler load_file
-    # uses applies b64 encoding *again* to handle it. The simplest solution
+    # bytes is a non-serializable type, and the handler
+    # used applies b64 encoding *again* to handle it. The simplest solution
     # is to just b64encode the data and then decode it to a serializable
     # string. Same number of bits of entropy, just with 25% more zeroes.
     # There's no need to undo this base64-encoding when the random seed is

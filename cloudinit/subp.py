@@ -155,6 +155,7 @@ def subp(
     decode="replace",
     update_env=None,
     cwd=None,
+    timeout=None,
 ) -> SubpResult:
     """Run a subprocess.
 
@@ -181,6 +182,8 @@ def subp(
         this will not affect the current processes os.environ.
     :param cwd:
         change the working directory to cwd before executing the command.
+    :param timeout: maximum time for the subprocess to run, passed directly to
+        the timeout parameter of Popen.communicate()
 
     :return
         if not capturing, return is (None, None)
@@ -252,7 +255,7 @@ def subp(
             shell=shell,
             cwd=cwd,
         )
-        out, err = sp.communicate(data)
+        out, err = sp.communicate(data, timeout=timeout)
         total = time.time() - before
         if total > 0.1:
             LOG.debug("command %s took %.3ss to run", args, total)

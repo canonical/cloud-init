@@ -67,17 +67,19 @@ def override_kernel_cmdline(ds_str: str, c: IntegrationInstance):
 @pytest.mark.skipif(PLATFORM != "lxd_vm", reason="Modifies grub config")
 @pytest.mark.lxd_use_exec
 @pytest.mark.parametrize(
-    "ds_str, configured",
+    "ds_str, configured, cmdline_configured",
     (
         (
             "ds=nocloud;s=http://my-url/;h=hostname",
             "DataSourceNoCloud [seed=None][dsmode=net]",
+            True,
         ),
-        ("ci.ds=openstack", "DataSourceOpenStack"),
+        ("ci.ds=openstack", "DataSourceOpenStack", True),
+        ("bonding.max_bonds=0", "DataSourceLXD", False),
     ),
 )
 def test_lxd_datasource_kernel_override(
-    ds_str, configured, client: IntegrationInstance
+    ds_str, configured, cmdline_configured, client: IntegrationInstance
 ):
     """This test is twofold: it tests kernel commandline override, which also
     validates OpenStack Ironic requirements. OpenStack Ironic does not
@@ -90,10 +92,19 @@ def test_lxd_datasource_kernel_override(
     """
 
     override_kernel_cmdline(ds_str, client)
-    assert (
-        "Machine is configured by the kernel commandline to run on single "
-        f"datasource {configured}"
-    ) in client.execute("cat /var/log/cloud-init.log")
+    if cmdline_configured:
+        assert (
+            "Machine is configured by the kernel commandline to run on single "
+            f"datasource {configured}"
+        ) in client.execute("cat /var/log/cloud-init.log")
+    else:
+        # verify that no plat
+        log = client.execute("cat /var/log/cloud-init.log")
+        assert (f"Detected platform: {configured}") in log
+        assert (
+            "Machine is configured by the kernel "
+            "commandline to run on single "
+        ) not in log
 
 
 GH_REPO_PATH = "https://raw.githubusercontent.com/canonical/cloud-init/main/"
@@ -131,9 +142,7 @@ def test_lxd_datasource_kernel_override_nocloud_net(
         client.instance.execute_via_ssh = False  # pyright: ignore
         assert wait_for_cloud_init(client, num_retries=60).ok
         if source.installs_new_version():
-            client.install_new_cloud_init(
-                source, take_snapshot=False, clean=False
-            )
+            client.install_new_cloud_init(source, clean=False)
         override_kernel_cmdline(ds_str, client)
 
         logs = client.execute("cat /var/log/cloud-init.log")

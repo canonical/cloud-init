@@ -141,3 +141,11 @@ class BSD(distros.Distro):
     def chpasswd(self, plist_in: list, hashed: bool):
         for name, password in plist_in:
             self.set_passwd(name, password, hashed=hashed)
+
+    @staticmethod
+    def get_proc_ppid(pid):
+        """
+        Return the parent pid of a process by checking ps
+        """
+        ppid, _ = subp.subp(["ps", "-oppid=", "-p", str(pid)])
+        return int(ppid.strip())

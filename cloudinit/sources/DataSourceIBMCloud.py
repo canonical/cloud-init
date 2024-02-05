@@ -192,7 +192,7 @@ def _read_system_uuid():
     uuid_path = "/sys/hypervisor/uuid"
     if not os.path.isfile(uuid_path):
         return None
-    return util.load_file(uuid_path).strip().lower()
+    return util.load_text_file(uuid_path).strip().lower()
 
 
 def _is_xen():
@@ -361,7 +361,7 @@ def metadata_from_dir(source_dir):
         fpath = os.path.join(source_dir, path)
         raw = None
         try:
-            raw = util.load_file(fpath, decode=False)
+            raw = util.load_binary_file(fpath)
         except IOError as e:
             LOG.debug("Failed reading path '%s': %s", fpath, e)
 

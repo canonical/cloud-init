@@ -32,6 +32,7 @@ MOD_PREFIX = "cc_"
 # modules.
 REMOVED_MODULES = [
     "cc_migrator",  # Removed in 24.1
+    "cc_rightscale_userdata",  # Removed in 24.1
 ]
 
 

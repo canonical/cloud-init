@@ -6,6 +6,7 @@ import os
 import stat
 
 from cloudinit import importer, util
+from cloudinit.distros import ubuntu
 from cloudinit.event import EventScope, EventType
 from cloudinit.helpers import Paths
 from cloudinit.sources import (
@@ -73,7 +74,7 @@ class TestDataSource(CiTestCase):
     def setUp(self):
         super(TestDataSource, self).setUp()
         self.sys_cfg = {"datasource": {"_undef": {"key1": False}}}
-        self.distro = "distrotest"  # generally should be a Distro object
+        self.distro = ubuntu.Distro("somedistro", {}, {})
         self.paths = Paths({})
         self.datasource = DataSource(self.sys_cfg, self.distro, self.paths)
 
@@ -201,28 +202,28 @@ class TestDataSource(CiTestCase):
         for log in expected_logs:
             self.assertIn(log, logs)
 
-    @mock.patch("cloudinit.sources.net.find_fallback_nic")
+    @mock.patch("cloudinit.distros.net.find_fallback_nic")
     def test_fallback_interface_is_discovered(self, m_get_fallback_nic):
         """The fallback_interface is discovered via find_fallback_nic."""
         m_get_fallback_nic.return_value = "nic9"
-        self.assertEqual("nic9", self.datasource.fallback_interface)
+        self.assertEqual("nic9", self.datasource.distro.fallback_interface)
 
     @mock.patch("cloudinit.sources.net.find_fallback_nic")
     def test_fallback_interface_logs_undiscovered(self, m_get_fallback_nic):
         """Log a warning when fallback_interface can not discover the nic."""
-        self.datasource._cloud_name = "MySupahCloud"
         m_get_fallback_nic.return_value = None  # Couldn't discover nic
-        self.assertIsNone(self.datasource.fallback_interface)
+        self.assertIsNone(self.datasource.distro.fallback_interface)
         self.assertEqual(
-            "WARNING: Did not find a fallback interface on MySupahCloud.\n",
+            "WARNING: Did not find a fallback interface on distro: "
+            "somedistro.\n",
             self.logs.getvalue(),
         )
 
     @mock.patch("cloudinit.sources.net.find_fallback_nic")
     def test_wb_fallback_interface_is_cached(self, m_get_fallback_nic):
         """The fallback_interface is cached and won't be rediscovered."""
-        self.datasource._fallback_interface = "nic10"
-        self.assertEqual("nic10", self.datasource.fallback_interface)
+        self.datasource.distro.fallback_interface = "nic10"
+        self.assertEqual("nic10", self.datasource.distro.fallback_interface)
         m_get_fallback_nic.assert_not_called()
 
     def test__get_data_unimplemented(self):
@@ -395,7 +396,7 @@ class TestDataSource(CiTestCase):
             ):
                 datasource.get_data()
         json_file = Paths({"run_dir": tmp}).get_runpath("instance_data")
-        content = util.load_file(json_file)
+        content = util.load_text_file(json_file)
         expected = {
             "base64_encoded_keys": [],
             "merged_cfg": REDACT_SENSITIVE_VALUE,
@@ -500,7 +501,7 @@ class TestDataSource(CiTestCase):
         with mock.patch("cloudinit.util.system_info", return_value=sys_info):
             datasource.get_data()
         json_file = Paths({"run_dir": tmp}).get_runpath("instance_data")
-        redacted = util.load_json(util.load_file(json_file))
+        redacted = util.load_json(util.load_text_file(json_file))
         expected = {
             "base64_encoded_keys": [],
             "merged_cfg": REDACT_SENSITIVE_VALUE,
@@ -618,7 +619,7 @@ class TestDataSource(CiTestCase):
         sensitive_json_file = Paths({"run_dir": tmp}).get_runpath(
             "instance_data_sensitive"
         )
-        content = util.load_file(sensitive_json_file)
+        content = util.load_text_file(sensitive_json_file)
         expected = {
             "base64_encoded_keys": [],
             "merged_cfg": {
@@ -699,7 +700,7 @@ class TestDataSource(CiTestCase):
         )
         datasource.get_data()
         json_file = paths.get_runpath("instance_data")
-        content = util.load_file(json_file)
+        content = util.load_text_file(json_file)
         expected_metadata = {
             "key1": "val1",
             "key2": {
@@ -726,11 +727,11 @@ class TestDataSource(CiTestCase):
         datasource.ec2_metadata = UNSET
         datasource.get_data()
         json_file = paths.get_runpath("instance_data")
-        instance_data = util.load_json(util.load_file(json_file))
+        instance_data = util.load_json(util.load_text_file(json_file))
         self.assertNotIn("ec2_metadata", instance_data["ds"])
         datasource.ec2_metadata = {"ec2stuff": "is good"}
         datasource.persist_instance_data()
-        instance_data = util.load_json(util.load_file(json_file))
+        instance_data = util.load_json(util.load_text_file(json_file))
         self.assertEqual(
             {"ec2stuff": "is good"}, instance_data["ds"]["ec2_metadata"]
         )
@@ -756,7 +757,7 @@ class TestDataSource(CiTestCase):
             "cloudinit.sources.canonical_cloud_id", return_value="my-cloud"
         ):
             datasource.get_data()
-            self.assertEqual("my-cloud\n", util.load_file(cloud_id_link))
+            self.assertEqual("my-cloud\n", util.load_text_file(cloud_id_link))
             # A symlink with the generic /run/cloud-init/cloud-id
             # link is present
             self.assertTrue(util.is_link(cloud_id_link))
@@ -768,12 +769,12 @@ class TestDataSource(CiTestCase):
             "cloudinit.sources.canonical_cloud_id", return_value="my-cloud2"
         ):
             datasource.persist_instance_data()
-        self.assertEqual("my-cloud2\n", util.load_file(cloud_id2_file))
+        self.assertEqual("my-cloud2\n", util.load_text_file(cloud_id2_file))
         # Previous cloud-id-<cloud-type> file removed
         self.assertFalse(os.path.exists(cloud_id_file))
         # Generic link persisted which contains canonical-cloud-id as content
         self.assertTrue(util.is_link(cloud_id_link))
-        self.assertEqual("my-cloud2\n", util.load_file(cloud_id_link))
+        self.assertEqual("my-cloud2\n", util.load_text_file(cloud_id_link))
 
     def test_persist_instance_data_writes_network_json_when_set(self):
         """When network_data.json class attribute is set, persist to json."""
@@ -788,11 +789,11 @@ class TestDataSource(CiTestCase):
         )
         datasource.get_data()
         json_file = paths.get_runpath("instance_data")
-        instance_data = util.load_json(util.load_file(json_file))
+        instance_data = util.load_json(util.load_text_file(json_file))
         self.assertNotIn("network_json", instance_data["ds"])
         datasource.network_json = {"network_json": "is good"}
         datasource.persist_instance_data()
-        instance_data = util.load_json(util.load_file(json_file))
+        instance_data = util.load_json(util.load_text_file(json_file))
         self.assertEqual(
             {"network_json": "is good"}, instance_data["ds"]["network_json"]
         )
@@ -837,7 +838,7 @@ class TestDataSource(CiTestCase):
         )
         self.assertTrue(datasource.get_data())
         json_file = paths.get_runpath("instance_data")
-        content = util.load_file(json_file)
+        content = util.load_text_file(json_file)
         instance_json = util.load_json(content)
         self.assertCountEqual(
             ["ds/meta_data/key2/key2.1"], instance_json["base64_encoded_keys"]

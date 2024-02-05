@@ -41,7 +41,7 @@ class DataSourceBigstep(sources.DataSource):
             self.paths.cloud_dir, "data", "seed", "bigstep", "url"
         )
         try:
-            content = util.load_file(url_file)
+            content = util.load_text_file(url_file)
         except IOError as e:
             # If the file doesn't exist, then the server probably isn't a
             # Bigstep instance; otherwise, another problem exists which needs

@@ -33,6 +33,10 @@ class Distro(distros.Distro):
     renderer_configs = {
         "eni": {"eni_path": network_conf_fn, "eni_header": NETWORK_FILE_HEADER}
     }
+    # Alpine stores dhclient leases at following location:
+    # /var/lib/dhcp/dhclient.leases
+    dhclient_lease_directory = "/var/lib/dhcp"
+    dhclient_lease_file_regex = r"dhclient\.leases"
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
@@ -100,7 +104,7 @@ class Distro(distros.Distro):
         return (self.hostname_conf_fn, sys_hostname)
 
     def _read_hostname_conf(self, filename):
-        conf = HostnameConf(util.load_file(filename))
+        conf = HostnameConf(util.load_text_file(filename))
         conf.parse()
         return conf
 

@@ -217,7 +217,7 @@ def get_previous_iid(paths):
     # hasn't declared itself found.
     fname = os.path.join(paths.get_cpath("data"), "instance-id")
     try:
-        return util.load_file(fname).rstrip("\n")
+        return util.load_text_file(fname).rstrip("\n")
     except IOError:
         return None
 

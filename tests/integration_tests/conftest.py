@@ -3,11 +3,13 @@ import datetime
 import functools
 import logging
 import os
+import shutil
+import subprocess
 import sys
 from contextlib import contextmanager
 from pathlib import Path
 from tarfile import TarFile
-from typing import Dict, Generator, Iterator, Type
+from typing import Dict, Generator, Iterator, List, Type
 
 import pytest
 from pycloudlib.lxd.instance import LXDInstance
@@ -115,11 +117,21 @@ def setup_image(session_cloud: IntegrationCloud, request):
     So we can launch instances / run tests with the correct image
     """
     source = get_validated_source(session_cloud)
-    if not source.installs_new_version():
+    if not (
+        source.installs_new_version() or integration_settings.INCLUDE_COVERAGE
+    ):
         return
-    log.info("Setting up environment for %s", session_cloud.datasource)
+    log.info("Setting up source image")
     client = session_cloud.launch()
-    client.install_new_cloud_init(source)
+    if source.installs_new_version():
+        log.info("Installing cloud-init from %s", source.name)
+        client.install_new_cloud_init(source)
+    if integration_settings.INCLUDE_COVERAGE:
+        log.info("Installing coverage")
+        client.install_coverage()
+    # All done customizing the image, so snapshot it and make it global
+    snapshot_id = client.snapshot()
+    client.cloud.snapshot_id = snapshot_id
     # Even if we're keeping instances, we don't want to keep this
     # one around as it was just for image creation
     client.destroy()
@@ -131,51 +143,11 @@ def setup_image(session_cloud: IntegrationCloud, request):
     request.addfinalizer(session_cloud.delete_snapshot)
 
 
-def _collect_logs(
-    instance: IntegrationInstance, node_id: str, test_failed: bool
-):
-    """Collect logs from remote instance.
-
-    Args:
-        instance: The current IntegrationInstance to collect logs from
-        node_id: The pytest representation of this test, E.g.:
-            tests/integration_tests/test_example.py::TestExample.test_example
-        test_failed: If test failed or not
-    """
-    if any(
-        [
-            integration_settings.COLLECT_LOGS == "NEVER",
-            integration_settings.COLLECT_LOGS == "ON_ERROR"
-            and not test_failed,
-        ]
-    ):
-        return
+def _collect_logs(instance: IntegrationInstance, log_dir: Path):
     instance.execute(
         "cloud-init collect-logs -u -t /var/tmp/cloud-init.tar.gz"
     )
-    node_id_path = Path(
-        node_id.replace(
-            ".py", ""
-        )  # Having a directory with '.py' would be weird
-        .replace("::", os.path.sep)  # Turn classes/tests into paths
-        .replace("[", "-")  # For parametrized names
-        .replace("]", "")  # For parameterized names
-    )
-    log_dir = (
-        Path(integration_settings.LOCAL_LOG_PATH)
-        / session_start_time
-        / node_id_path
-    )
     log.info("Writing logs to %s", log_dir)
-
-    if not log_dir.exists():
-        log_dir.mkdir(parents=True)
-
-    # Add a symlink to the latest log output directory
-    last_symlink = Path(integration_settings.LOCAL_LOG_PATH) / "last"
-    if os.path.islink(last_symlink):
-        os.unlink(last_symlink)
-    os.symlink(log_dir.parent, last_symlink)
 
     tarball_path = log_dir / "cloud-init.tar.gz"
     try:
@@ -187,6 +159,66 @@ def _collect_logs(
     tarball = TarFile.open(str(tarball_path))
     tarball.extractall(path=str(log_dir))
     tarball_path.unlink()
+
+
+def _collect_coverage(instance: IntegrationInstance, log_dir: Path):
+    log.info("Writing coverage report to %s", log_dir)
+    try:
+        instance.pull_file("/.coverage", log_dir / ".coverage")
+    except Exception as e:
+        log.error("Failed to pull coverage for: %s", e)
+
+
+def _setup_artifact_paths(node_id: str):
+    parent_dir = Path(integration_settings.LOCAL_LOG_PATH, session_start_time)
+
+    node_id_path = Path(
+        node_id.replace(
+            ".py", ""
+        )  # Having a directory with '.py' would be weird
+        .replace("::", os.path.sep)  # Turn classes/tests into paths
+        .replace("[", "-")  # For parametrized names
+        .replace("]", "")  # For parameterized names
+    )
+    log_dir = parent_dir / node_id_path
+
+    # Create log dir if not exists
+    if not log_dir.exists():
+        log_dir.mkdir(parents=True)
+
+    # Add a symlink to the latest log output directory
+    last_symlink = Path(integration_settings.LOCAL_LOG_PATH) / "last"
+    if os.path.islink(last_symlink):
+        os.unlink(last_symlink)
+    os.symlink(parent_dir, last_symlink)
+    return log_dir
+
+
+def _collect_artifacts(
+    instance: IntegrationInstance, node_id: str, test_failed: bool
+):
+    """Collect artifacts from remote instance.
+
+    Args:
+        instance: The current IntegrationInstance to collect artifacts from
+        node_id: The pytest representation of this test, E.g.:
+            tests/integration_tests/test_example.py::TestExample.test_example
+        test_failed: If test failed or not
+    """
+    should_collect_logs = integration_settings.COLLECT_LOGS == "ALWAYS" or (
+        integration_settings.COLLECT_LOGS == "ON_ERROR" and test_failed
+    )
+    should_collect_coverage = integration_settings.INCLUDE_COVERAGE
+    if not (should_collect_logs or should_collect_coverage):
+        return
+
+    log_dir = _setup_artifact_paths(node_id)
+
+    if should_collect_logs:
+        _collect_logs(instance, log_dir)
+
+    if should_collect_coverage:
+        _collect_coverage(instance, log_dir)
 
 
 @contextmanager
@@ -237,7 +269,7 @@ def _client(
         previous_failures = request.session.testsfailed
         yield instance
         test_failed = request.session.testsfailed - previous_failures > 0
-        _collect_logs(instance, request.node.nodeid, test_failed)
+        _collect_artifacts(instance, request.node.nodeid, test_failed)
 
 
 @pytest.fixture
@@ -308,3 +340,52 @@ def pytest_configure(config):
         # If log_cli_level is available in this version of pytest and not set
         # to anything, set it to INFO.
         config.option.log_cli_level = "INFO"
+
+
+def _copy_coverage_files(parent_dir: Path) -> List[Path]:
+    combined_files = []
+    for dirpath in parent_dir.rglob("*"):
+        if (dirpath / ".coverage").exists():
+            # Construct the new filename
+            relative_dir = dirpath.relative_to(parent_dir)
+            new_filename = ".coverage." + str(relative_dir).replace(
+                os.sep, "-"
+            )
+            new_filepath = parent_dir / new_filename
+
+            # Copy the file
+            shutil.copy(dirpath / ".coverage", new_filepath)
+            combined_files.append(new_filepath)
+    return combined_files
+
+
+def _generate_coverage_report() -> None:
+    log.info("Generating coverage report")
+    parent_dir = Path(integration_settings.LOCAL_LOG_PATH, session_start_time)
+    coverage_files = _copy_coverage_files(parent_dir)
+    subprocess.run(
+        ["coverage", "combine"] + [str(f) for f in coverage_files],
+        check=True,
+        cwd=str(parent_dir),
+        stdout=subprocess.DEVNULL,
+    )
+    html_dir = parent_dir / "html"
+    html_dir.mkdir()
+    subprocess.run(
+        [
+            "coverage",
+            "html",
+            f"--data-file={parent_dir / '.coverage'}",
+            f"--directory={html_dir}",
+            "--ignore-errors",
+        ],
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    log.info("Coverage report generated")
+
+
+def pytest_sessionfinish(session, exitstatus) -> None:
+    if not integration_settings.INCLUDE_COVERAGE:
+        return
+    _generate_coverage_report()

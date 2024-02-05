@@ -78,7 +78,6 @@ Example output:
         00.00100s (modules-final/config-scripts_vendor)
         00.00100s (modules-final/config-scripts_per_once)
         00.00100s (modules-final/config-salt_minion)
-        00.00100s (modules-final/config-rightscale_userdata)
         00.00100s (modules-final/config-phone_home)
         00.00100s (modules-final/config-package_update_upgrade_install)
         00.00100s (modules-final/config-fan)
