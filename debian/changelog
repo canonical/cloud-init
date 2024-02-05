@@ -3,8 +3,12 @@ cloud-init (24.1~5g1f6eddd5-0ubuntu2) UNRELEASED; urgency=medium
   * d/p/do-not-block-user-login.patch:
     - Remove patch, snapd no longer blocks ssh
   * d/s/: Move apport hook to main branch
+  * d/cloud-init.postinst: change priority of hotplug rules.
+    Avoids LP: #1946003 on upgraded systems. References:
+    [0] https://github.com/canonical/cloud-init/pull/4799
+    [1] commit/b519d861aff8b44a0610c176cb34adcbe28df144
 
- -- Brett Holman <brett.holman@canonical.com>  Tue, 13 Feb 2024 13:19:53 -0500
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Thu, 15 Feb 2024 15:58:28 +0100
 
 cloud-init (24.1~5g1f6eddd5-0ubuntu1) noble; urgency=medium
 
@@ -15,7 +19,7 @@ cloud-init (24.1~5g1f6eddd5-0ubuntu1) noble; urgency=medium
 
 cloud-init (24.1~4gd9677655-0ubuntu1) noble; urgency=medium
 
-  * d/cloud-init.maintscript: remove /etc/cloud/clean.d/README 
+  * d/cloud-init.maintscript: remove /etc/cloud/clean.d/README
   * d/cloud-init.logrotate: add logrotate config for cloud-init
   * Upstream snapshot based on upstream/main at d9677655.
     - Bugs fixed in this snapshot: (LP: #2051147)
