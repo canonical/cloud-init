@@ -112,12 +112,17 @@ benefit to the user. Supplying vendor data could be relevant to WSL itself, if
 the subsystem was aware of cloud-init and intended to leverage it, which is not
 the case to the best of our knowledge at the time of this writing.
 
-Similarly, metadata such as hostname is not directly applicable to WSL
-instances, the subsystem sets it automatically.
-Internally, the WSL datasource sets the ``metadata.instance-id``, to
-fulfill cloud-init's internal contracts. While that could be used to make
-cloud-init "reset" a WSL instance, users find equally easy to just unregister
-and register a new instance from the Windows shell.
+Most of what ``metadata`` is intended for is not applicable under WSL, such as
+setting a hostname. Yet, the knowledge of ``metadata.instance-id`` is vital for
+cloud-init. So, this datasource provides a default value but also supports
+optionally sourcing metadata from a per-instance specific configuration file:
+``%USERPROFILE%\.cloud-init\<InstanceName>.meta-data``. If that file exists, it
+could contain a JSON dictionary optionally providing a value for instance ID
+such as: ``'{"instance-id": "x-y-z"}'``. Advanced users looking to share
+snapshots or relaunch a snapshot where cloud-init is re-triggered, must run
+``sudo cloud-init clean --logs`` on the instance before snapshot/export, or
+create the appropriate ``.meta-data`` file containing ``'{"instance-id":
+"some-new-instance-id"}'``.
 
 Unsupported or restricted modules and features
 ===============================================
