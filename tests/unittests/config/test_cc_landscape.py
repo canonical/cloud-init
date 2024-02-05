@@ -131,7 +131,6 @@ class TestLandscape:
             ["landscape-client"]
         )
         assert expected_calls == m_subp.call_args_list
-        assert "RUN=1\n" == default_fn.read()
 
     def test_handler_writes_merged_client_config_file_with_defaults(
         self, m_subp, tmpdir
@@ -226,10 +225,7 @@ class TestLandscape:
         assert expected_calls == m_subp.call_args_list
 
     @mock.patch(f"{MPATH}.merge_together")
-    @mock.patch("cloudinit.util.write_file")
-    def test_handler_client_failed_registering(
-        self, m_subp, m_merge_together, m_write_file
-    ):
+    def test_handler_client_failed_registering(self, m_subp, m_merge_together):
         """landscape-client could not be registered"""
         mycloud = get_cloud("ubuntu")
         mycloud.distro = mock.MagicMock()
@@ -246,9 +242,8 @@ class TestLandscape:
             cc_landscape.handle("notimportant", cfg, mycloud, None)
 
     @mock.patch(f"{MPATH}.merge_together")
-    @mock.patch("cloudinit.util.write_file")
     def test_handler_client_is_already_registered(
-        self, m_subp, m_merge_together, m_write_file, caplog
+        self, m_subp, m_merge_together, caplog
     ):
         """landscape-client is already registered"""
         mycloud = get_cloud("ubuntu")
