@@ -5,6 +5,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """ Datasource to support the Windows Subsystem for Linux platform. """
 
+import json
 import logging
 import os
 from pathlib import PurePath
@@ -156,6 +157,35 @@ def candidate_user_data_file_names(instance_name) -> List[str]:
         # generic, valid for all WSL distros and instances.
         "default.user-data",
     ]
+
+
+DEFAULT_INSTANCE_ID = "datasource-wsl"
+
+
+def load_metadata_iid(cloudinitdir: PurePath, instance_name: str) -> str:
+    """
+    Returns the relevant metadata loaded from cloudinit dir based on the
+    instance name
+    """
+    raw = dict()
+    try:
+        raw = json.loads(
+            util.load_binary_file(
+                os.path.join(
+                    cloudinitdir.as_posix(), "%s.meta-data" % instance_name
+                )
+            )
+        )
+
+    except IOError as err:
+        LOG.debug(
+            "Failed to load metadata file from %s for instance %s: %s",
+            cloudinitdir.as_posix(),
+            instance_name,
+            err
+        )
+
+    return raw.get("instance-id", DEFAULT_INSTANCE_ID)
 
 
 class DataSourceWSL(sources.DataSource):
