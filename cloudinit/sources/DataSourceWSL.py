@@ -235,24 +235,20 @@ class DataSourceWSL(sources.DataSource):
 
     def _get_data(self) -> bool:
         self.vendordata_raw = None
+        self.metadata = dict()
+        seed_dir = cloud_init_data_dir()
         self.instance_name = instance_name()
 
-        self.metadata = dict()
-        m_id = machine_id()
-        if m_id is None:
-            LOG.debug("Instance ID will be the WSL instance name only")
-            self.metadata["instance-id"] = self.instance_name
-        else:
-            self.metadata["instance-id"] = "{}-{}".format(
-                self.instance_name, m_id
-            )
-
         try:
-            file = self.find_user_data_file()
+            self.metadata["instance-id"] = load_metadata_iid(
+                seed_dir, self.instance_name
+            )
+            file = self.find_user_data_file(seed_dir)
             self.userdata_raw = cast(
                 str, util.load_binary_file(file.as_posix())
             )
             return True
+
         except IOError as err:
             LOG.error("Could not find any user data file: %s", str(err))
             self.userdata_raw = ""
