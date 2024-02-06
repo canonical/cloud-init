@@ -59,6 +59,7 @@ from cloudinit import (
     mergers,
     net,
     safeyaml,
+    settings,
     subp,
     temp_utils,
     type_utils,
@@ -3287,3 +3288,22 @@ def deprecate_call(
         return decorator
 
     return wrapper
+
+
+def read_hotplug_enabled_file() -> dict:
+    content: dict = {"scopes": []}
+    try:
+        with open(settings.HOTPLUG_ENABLED_FILE, "r") as f:
+            content = json.load(f)
+    except FileNotFoundError:
+        pass
+    except json.JSONDecodeError as e:
+        LOG.warning(
+            "Ignoring contents of %s because it is not decodable. Error: %s",
+            settings.HOTPLUG_ENABLED_FILE,
+            e,
+        )
+    else:
+        if "scopes" not in content:
+            content["scopes"] = []
+    return content

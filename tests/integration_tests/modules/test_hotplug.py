@@ -114,13 +114,13 @@ def test_hotplug_add_remove(client: IntegrationInstance):
 
 
 @pytest.mark.skipif(
-    PLATFORM != "ec2",
-    reason=(
-        f"Test was written for {PLATFORM} but can likely run on "
-        "other platforms."
-    ),
+    PLATFORM not in ["lxd_container", "lxd_vm", "ec2", "openstack", "azure"],
+    reason=(f"HOTPLUG is not supported in {PLATFORM}."),
 )
-def test_hotplug_enable_cmd(client: IntegrationInstance):
+def _test_hotplug_enabled_by_cmd(client: IntegrationInstance):
+    assert "disabled" == client.execute(
+        "cloud-init devel hotplug-hook -s net query"
+    )
     ret = client.execute("cloud-init devel hotplug-hook -s net enable")
     assert ret.ok, ret.stderr
     log = client.read_from_file("/var/log/cloud-init.log")
@@ -137,15 +137,29 @@ def test_hotplug_enable_cmd(client: IntegrationInstance):
         "hotplug-hook called with the following arguments: "
         "{hotplug_action: query" in log
     )
-
-    ips_before = _get_ip_addr(client)
     assert client.execute(
         "test -f /etc/udev/rules.d/10-cloud-init-hook-hotplug.rules"
     ).ok
 
+
+def test_hotplug_enable_cmd(client: IntegrationInstance):
+    _test_hotplug_enabled_by_cmd(client)
+
+
+@pytest.mark.skipif(
+    PLATFORM != "ec2",
+    reason=(
+        f"Test was written for {PLATFORM} but can likely run on "
+        "other platforms."
+    ),
+)
+def test_hotplug_enable_cmd_ec2(client: IntegrationInstance):
+    _test_hotplug_enabled_by_cmd(client)
+    ips_before = _get_ip_addr(client)
+
     # Add new NIC
     added_ip = client.instance.add_network_interface()
-    _wait_till_hotplug_complete(client, expected_runs=3)
+    _wait_till_hotplug_complete(client, expected_runs=4)
     ips_after_add = _get_ip_addr(client)
     new_addition = [ip for ip in ips_after_add if ip.ip4 == added_ip][0]
 
@@ -160,7 +174,7 @@ def test_hotplug_enable_cmd(client: IntegrationInstance):
 
     # Remove new NIC
     client.instance.remove_network_interface(added_ip)
-    _wait_till_hotplug_complete(client, expected_runs=4)
+    _wait_till_hotplug_complete(client, expected_runs=5)
     ips_after_remove = _get_ip_addr(client)
     assert len(ips_after_remove) == len(ips_before)
     assert added_ip not in [ip.ip4 for ip in ips_after_remove]

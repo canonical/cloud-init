@@ -4,12 +4,13 @@
 """Handle reconfiguration on hotplug events."""
 import abc
 import argparse
+import json
 import logging
 import os
 import sys
 import time
 
-from cloudinit import log, reporting, stages, util
+from cloudinit import log, reporting, settings, stages, util
 from cloudinit.config.cc_install_hotplug import install_hotplug
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import read_sys_net_safe
@@ -247,11 +248,29 @@ def enable_hotplug(hotplug_init: Init, subsystem):
     datasource = hotplug_init.fetch(existing="trust")
     if not datasource:
         return
-    if not datasource.get_supported_events([EventType.HOTPLUG]):
+    scope = SUBSYSTEM_PROPERTIES_MAP[subsystem][1]
+    hotplug_supported = EventType.HOTPLUG in (
+        datasource.get_supported_events([EventType.HOTPLUG]).get(scope, set())
+    )
+    if not hotplug_supported:
         LOG.debug("hotplug not supported for event of type %s", subsystem)
         return
+    hotplug_enabled_file = util.read_hotplug_enabled_file()
+    if scope.value in hotplug_enabled_file["scopes"]:
+        LOG.debug(
+            "Not installing hotplug for event of type %s."
+            " Reason: Already done.",
+            subsystem,
+        )
+        return
 
-    util.ensure_file(stages.HOTPLUG_ENABLED_FILE, preserve_mode=True)
+    hotplug_enabled_file["scopes"].append(scope.value)
+    util.write_file(
+        settings.HOTPLUG_ENABLED_FILE,
+        json.dumps(hotplug_enabled_file),
+        omode="w",
+        mode="640",
+    )
     LOG.debug("Installing hotplug.")
     install_hotplug(
         datasource, network_hotplug_enabled=True, cfg=hotplug_init.cfg
@@ -304,6 +323,12 @@ def handle_args(name, args):
                     udevaction=args.udevaction,
                 )
             else:
+                if os.getuid() != 0:
+                    sys.stderr.write(
+                        "Root is required. Try prepending your command with"
+                        " sudo.\n"
+                    )
+                    sys.exit(1)
                 enable_hotplug(
                     hotplug_init=hotplug_init, subsystem=args.subsystem
                 )

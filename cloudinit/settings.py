@@ -15,6 +15,7 @@ CFG_ENV_NAME = "CLOUD_CFG"
 CLOUD_CONFIG = "/etc/cloud/cloud.cfg"
 
 CLEAN_RUNPARTS_DIR = "/etc/cloud/clean.d"
+HOTPLUG_ENABLED_FILE = "/etc/cloud/hotplug.enabled"
 
 RUN_CLOUD_CONFIG = "/run/cloud-init/cloud.cfg"
 

@@ -40,6 +40,7 @@ from cloudinit.net import cmdline
 from cloudinit.reporting import events
 from cloudinit.settings import (
     CLOUD_CONFIG,
+    HOTPLUG_ENABLED_FILE,
     PER_ALWAYS,
     PER_INSTANCE,
     PER_ONCE,
@@ -58,8 +59,6 @@ COMBINED_CLOUD_CONFIG_DOC = (
     " vendordata and userdata. The combined_cloud_config represents"
     " the aggregated desired configuration acted upon by cloud-init."
 )
-
-HOTPLUG_ENABLED_FILE = "/etc/cloud/hotplug.enabled"
 
 
 def update_event_enabled(
@@ -93,11 +92,24 @@ def update_event_enabled(
             copy.deepcopy(default_events),
         ]
     )
-    if os.path.exists(HOTPLUG_ENABLED_FILE):
-        LOG.debug("%s detected.", HOTPLUG_ENABLED_FILE)
-        if not allowed.get(EventScope.NETWORK):
-            allowed[EventScope.NETWORK] = set()
-        allowed[EventScope.NETWORK].add(EventType.HOTPLUG)
+
+    # Add supplemental hotplug event if supported and present in
+    # settings.HOTPLUG_ENABLED_FILE
+    if EventType.HOTPLUG in datasource.supported_update_events.get(
+        scope, set()
+    ):
+        hotplug_enabled_file = util.read_hotplug_enabled_file()
+        if scope.value in hotplug_enabled_file["scopes"]:
+            LOG.debug(
+                "Adding event: scope=%s EventType=%s found in %s",
+                scope,
+                EventType.HOTPLUG,
+                HOTPLUG_ENABLED_FILE,
+            )
+            if not allowed.get(scope):
+                allowed[scope] = set()
+            allowed[scope].add(EventType.HOTPLUG)
+
     LOG.debug("Allowed events: %s", allowed)
 
     scopes: Iterable[EventScope] = [scope]
@@ -342,7 +354,6 @@ class Init:
             description="attempting to read from cache [%s]" % existing,
             parent=self.reporter,
         ) as myrep:
-
             ds, desc = self._restore_from_checked_cache(existing)
             myrep.description = desc
             self.ds_restored = bool(ds)
@@ -634,7 +645,7 @@ class Init:
             if not path or not os.path.isdir(path):
                 return
             potential_handlers = util.get_modules_from_dir(path)
-            for (fname, mod_name) in potential_handlers.items():
+            for fname, mod_name in potential_handlers.items():
                 try:
                     mod_locs, looked_locs = importer.find_module(
                         mod_name, [""], ["list_types", "handle_part"]
@@ -682,7 +693,7 @@ class Init:
 
         def init_handlers():
             # Init the handlers first
-            for (_ctype, mod) in c_handlers.items():
+            for _ctype, mod in c_handlers.items():
                 if mod in c_handlers.initialized:
                     # Avoid initiating the same module twice (if said module
                     # is registered to more than one content-type).
@@ -709,7 +720,7 @@ class Init:
 
         def finalize_handlers():
             # Give callbacks opportunity to finalize
-            for (_ctype, mod) in c_handlers.items():
+            for _ctype, mod in c_handlers.items():
                 if mod not in c_handlers.initialized:
                     # Said module was never inited in the first place, so lets
                     # not attempt to finalize those that never got called.
