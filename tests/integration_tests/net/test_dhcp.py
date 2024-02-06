@@ -46,12 +46,20 @@ class TestDHCP:
         CURRENT_RELEASE < NOBLE,
         reason="earlier Ubuntu releases have a package named dhcpcd5",
     )
-    def test_noble_and_newer_force_dhcp(self, client):
+    @pytest.mark.parametrize(
+        "dhcp_client, package",
+        [
+            ("dhcpcd", "dhcpcd-base"),
+            ("udhcpc", "udhcpc"),
+        ],
+    )
+    def test_noble_and_newer_force_client(self, client, dhcp_client, package):
         """force noble to use dhcpcd and test that it worked"""
+        client.execute(f"apt install -yq {package}")
         client.execute(
             "sed -i 's|"
             "dhcp_client_priority.*$"
-            "|dhcp_client_priority: [dhcpcd, dhclient, udhcpc]"
+            f"|dhcp_client_priority: [{dhcp_client}]"
             "|' /etc/cloud/cloud.cfg"
         )
         client.execute("cloud-init clean --logs")
@@ -60,7 +68,7 @@ class TestDHCP:
         for line in log.split("\n"):
             if "DHCP client selected" in line:
                 assert (
-                    "DHCP client selected: dhcpcd" in line
+                    f"DHCP client selected: {dhcp_client}" in line
                 ), f"Selected incorrect dhcp client: {line}"
                 break
         else:
