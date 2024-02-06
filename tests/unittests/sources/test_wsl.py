@@ -214,13 +214,13 @@ class TestWSLDataSource(CiTestCase):
 
     @mock.patch("cloudinit.util.lsb_release")
     @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
-    @mock.patch("cloudinit.sources.DataSourceWSL.win_user_profile_dir")
-    def test_get_data_cc(self, m_prof_dir, m_iname, m_gld):
+    @mock.patch("cloudinit.sources.DataSourceWSL.cloud_init_data_dir")
+    def test_get_data_cc(self, m_seed_dir, m_iname, m_gld):
         m_gld.return_value = SAMPLE_LINUX_DISTRO
         m_iname.return_value = INSTANCE_NAME
-        m_prof_dir.return_value = self.tmp
+        m_seed_dir.return_value = PurePath(self.tmp)
         userdata_file = os.path.join(
-            self.tmp, ".cloud-init", "%s.user-data" % INSTANCE_NAME
+            self.tmp, "%s.user-data" % INSTANCE_NAME
         )
         util.write_file(
             userdata_file, "#cloud-config\nwrite_files:\n- path: /etc/wsl.conf"
@@ -244,13 +244,13 @@ class TestWSLDataSource(CiTestCase):
 
     @mock.patch("cloudinit.util.lsb_release")
     @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
-    @mock.patch("cloudinit.sources.DataSourceWSL.win_user_profile_dir")
-    def test_get_data_sh(self, m_prof_dir, m_iname, m_gld):
+    @mock.patch("cloudinit.sources.DataSourceWSL.cloud_init_data_dir")
+    def test_get_data_sh(self, m_seed_dir, m_iname, m_gld):
         m_gld.return_value = SAMPLE_LINUX_DISTRO
         m_iname.return_value = INSTANCE_NAME
-        m_prof_dir.return_value = self.tmp
+        m_seed_dir.return_value = PurePath(self.tmp)
         userdata_file = os.path.join(
-            self.tmp, ".cloud-init", "%s.user-data" % INSTANCE_NAME
+            self.tmp, "%s.user-data" % INSTANCE_NAME
         )
         COMMAND = "echo Hello cloud-init on WSL!"
         util.write_file(userdata_file, "#!/bin/sh\n%s\n" % COMMAND)
@@ -275,15 +275,15 @@ class TestWSLDataSource(CiTestCase):
 
     @mock.patch("cloudinit.util.get_linux_distro")
     @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
-    @mock.patch("cloudinit.sources.DataSourceWSL.win_user_profile_dir")
-    def test_data_precedence(self, m_prof_dir, m_iname, m_gld):
+    @mock.patch("cloudinit.sources.DataSourceWSL.cloud_init_data_dir")
+    def test_data_precedence(self, m_seed_dir, m_iname, m_gld):
         m_gld.return_value = SAMPLE_LINUX_DISTRO
         m_iname.return_value = INSTANCE_NAME
-        m_prof_dir.return_value = self.tmp
+        m_seed_dir.return_value = PurePath(self.tmp)
         # This is the most specific: should win over the other user-data files.
         # Also, notice the file name casing: should be irrelevant.
         userdata_file = os.path.join(
-            self.tmp, ".cloud-init", "ubuntu-24.04.user-data"
+            self.tmp, "ubuntu-24.04.user-data"
         )
         util.write_file(
             userdata_file, "#cloud-config\nwrite_files:\n- path: /etc/wsl.conf"
