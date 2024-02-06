@@ -34,9 +34,7 @@ def test_azure_eject(session_cloud: IntegrationCloud):
     ) as instance:
         source = get_validated_source(session_cloud)
         if source.installs_new_version():
-            instance.install_new_cloud_init(
-                source, take_snapshot=False, clean=True
-            )
+            instance.install_new_cloud_init(source, clean=True)
             snapshot_id = instance.snapshot()
             try:
                 with session_cloud.launch(
