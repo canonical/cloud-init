@@ -20,7 +20,7 @@ def retry(*, tries: int = 30, delay: int = 1):
             last_error = None
             for _ in range(tries):
                 try:
-                    func(*args, **kwargs)
+                    retval = func(*args, **kwargs)
                     break
                 except Exception as e:
                     last_error = e
@@ -28,6 +28,7 @@ def retry(*, tries: int = 30, delay: int = 1):
             else:
                 if last_error:
                     raise last_error
+            return retval
 
         return wrapper
 
