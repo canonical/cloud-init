@@ -705,15 +705,27 @@ class Dhcpcd(DhcpClient):
 
     @staticmethod
     def parse_unknown_options_from_packet(
-        data: bytes, number: int
+        data: bytes, dhcp_option_number: int
     ) -> Optional[bytes]:
         """get a specific option from a binary lease file
+
+        This is required until upstream dhcpcd supports unknown option 245
+        upstream bug: https://github.com/NetworkConfiguration/dhcpcd/issues/282
 
         @param data: Binary lease data
         @param number: Option number to return
         @return: the option (bytes) or None
         """
-        # comes right after the magic cookie
+        # DHCP is basically an extension to bootp. The relevent standards that
+        # describe the packet format include:
+        #
+        # RFC 951 (Section 3)
+        # RFC 2132 (Section 2)
+        #
+        # Per RFC 951, the "vendor-specific area" of the dhcp packet starts at
+        # byte 236. An arbitrary constant, known as the magic cookie, takes 4
+        # bytes. Vendor-specific options come next, so we start the search at
+        # byte 240.
         INDEX = 240
 
         def iter_options(data: bytes, index: int):
@@ -731,7 +743,7 @@ class Dhcpcd(DhcpClient):
                 index = 2 + length + index
 
         for code, option in iter_options(data, INDEX):
-            if code == number:
+            if code == dhcp_option_number:
                 return option
         return None
 
