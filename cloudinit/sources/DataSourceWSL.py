@@ -161,12 +161,11 @@ def candidate_user_data_file_names(instance_name) -> List[str]:
 class DataSourceWSL(sources.DataSource):
     dsname = "WSL"
 
-    def find_user_data_file(self) -> PurePath:
+    def find_user_data_file(self, seed_dir: PurePath) -> PurePath:
         """
         Finds the most precendent of the candidate files that may contain
         user-data, if any, or None otherwise.
         """
-        seed_dir = cloud_init_data_dir()
 
         # Notice that by default file name casing is irrelevant here. Windows
         # filenames are case insensitive. Even though accessed through Linux,
