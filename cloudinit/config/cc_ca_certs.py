@@ -45,6 +45,13 @@ DISTRO_OVERRIDES = {
         "ca_cert_config": None,
         "ca_cert_update_cmd": ["update-ca-certificates"],
     },
+    "photon": {
+        "ca_cert_path": "/etc/ssl/certs/",
+        "ca_cert_local_path": "/etc/pki/tls/certs/",
+        "ca_cert_filename": "cloud-init-ca-cert-{cert_index}.crt",
+        "ca_cert_config": None,
+        "ca_cert_update_cmd": ["rehash_ca_certificates.sh"],
+    },
 }
 
 for distro in (
@@ -84,6 +91,7 @@ distros = [
     "sle-micro",
     "sles",
     "ubuntu",
+    "photon",
 ]
 
 meta: MetaSchema = {
@@ -165,7 +173,7 @@ def disable_default_ca_certs(distro_name, distro_cfg):
     @param distro_name: String providing the distro class name.
     @param distro_cfg: A hash providing _distro_ca_certs_configs function.
     """
-    if distro_name == "rhel":
+    if distro_name in ["rhel", "photon"]:
         remove_default_ca_certs(distro_cfg)
     elif distro_name in ["alpine", "debian", "ubuntu"]:
         disable_system_ca_certs(distro_cfg)
@@ -197,7 +205,7 @@ def disable_system_ca_certs(distro_cfg):
     added_header = False
 
     if os.stat(ca_cert_cfg_fn).st_size:
-        orig = util.load_file(ca_cert_cfg_fn)
+        orig = util.load_text_file(ca_cert_cfg_fn)
         out_lines = []
         for line in orig.splitlines():
             if line == header_comment:

@@ -19,7 +19,7 @@ from requests.exceptions import ConnectionError
 from urllib3.connection import HTTPConnection
 from urllib3.poolmanager import PoolManager
 
-from cloudinit import dmi, net, sources, url_helper, util
+from cloudinit import dmi, sources, url_helper, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralDHCPv4, EphemeralIPv6Network
@@ -171,7 +171,6 @@ class DataSourceScaleway(sources.DataSource):
         self.retries = int(self.ds_cfg.get("retries", DEF_MD_RETRIES))
         self.timeout = int(self.ds_cfg.get("timeout", DEF_MD_TIMEOUT))
         self.max_wait = int(self.ds_cfg.get("max_wait", DEF_MD_MAX_WAIT))
-        self._fallback_interface = None
         self._network_config = sources.UNSET
         self.metadata_urls = DS_BASE_URLS
         self.userdata_url = None
@@ -267,9 +266,6 @@ class DataSourceScaleway(sources.DataSource):
 
     def _get_data(self):
 
-        if self._fallback_interface is None:
-            self._fallback_interface = net.find_fallback_nic()
-
         # The DataSource uses EventType.BOOT so we are called more than once.
         # Try to crawl metadata on IPv4 first and set has_ipv4 to False if we
         # timeout so we do not try to crawl on IPv4 more than once.
@@ -280,7 +276,7 @@ class DataSourceScaleway(sources.DataSource):
                 # it will only reach timeout on VMs with only IPv6 addresses.
                 with EphemeralDHCPv4(
                     self.distro,
-                    self._fallback_interface,
+                    self.distro.fallback_interface,
                 ) as ipv4:
                     util.log_time(
                         logfunc=LOG.debug,
@@ -311,7 +307,7 @@ class DataSourceScaleway(sources.DataSource):
             try:
                 with EphemeralIPv6Network(
                     self.distro,
-                    self._fallback_interface,
+                    self.distro.fallback_interface,
                 ):
                     util.log_time(
                         logfunc=LOG.debug,
@@ -346,9 +342,6 @@ class DataSourceScaleway(sources.DataSource):
         if self._network_config != sources.UNSET:
             return self._network_config
 
-        if self._fallback_interface is None:
-            self._fallback_interface = net.find_fallback_nic()
-
         if self.metadata["private_ip"] is None:
             # New method of network configuration
 
@@ -377,13 +370,13 @@ class DataSourceScaleway(sources.DataSource):
                             ip_cfg["routes"] += [route]
                         else:
                             ip_cfg["routes"] = [route]
-            netcfg[self._fallback_interface] = ip_cfg
+            netcfg[self.distro.fallback_interface] = ip_cfg
             self._network_config = {"version": 2, "ethernets": netcfg}
         else:
             # Kept for backward compatibility
             netcfg = {
                 "type": "physical",
-                "name": "%s" % self._fallback_interface,
+                "name": "%s" % self.distro.fallback_interface,
             }
             subnets = [{"type": "dhcp4"}]
             if self.metadata["ipv6"]:

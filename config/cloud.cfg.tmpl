@@ -111,7 +111,6 @@ disable_vmware_customization: false
 
 # The modules that run in the 'init' stage
 cloud_init_modules:
-  - migrator
 {% if variant not in ["netbsd"] %}
   - seed_random
 {% endif %}
@@ -204,7 +203,6 @@ cloud_final_modules:
   - mcollective
   - salt_minion
   - reset_rmc
-  - rightscale_userdata
   - scripts_vendor
   - scripts_per_once
   - scripts_per_boot
@@ -303,6 +301,7 @@ system_info:
 {% elif variant in ["ubuntu", "unknown"] %}
 {# SRU_BLOCKER: do not ship network renderers on Xenial, Bionic or Eoan #}
   network:
+    dhcp_client_priority: [dhclient, dhcpcd, udhcpc]
     renderers: ['netplan', 'eni', 'sysconfig']
     activators: ['netplan', 'eni', 'network-manager', 'networkd']
 {% elif is_rhel %}
@@ -327,6 +326,9 @@ system_info:
   paths:
     cloud_dir: /var/lib/cloud/
     templates_dir: /etc/cloud/templates/
+{% elif is_bsd %}
+  paths:
+    run_dir: /var/run/
 {% endif %}
 {% if variant == "debian" %}
   package_mirrors:

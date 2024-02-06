@@ -13,7 +13,7 @@ from typing import Optional
 import pytest
 from yaml.serializer import Serializer
 
-from cloudinit import distros, log, net
+from cloudinit import distros, net
 from cloudinit import safeyaml as yaml
 from cloudinit import subp, temp_utils, util
 from cloudinit.net import (
@@ -646,6 +646,7 @@ method=manual
 may-fail=false
 address1=172.19.1.34/22
 route1=0.0.0.0/0,172.19.3.254
+dns=172.19.0.12;
 
 """.lstrip(),
             ),
@@ -1280,8 +1281,6 @@ NETWORK_CONFIGS = {
             """\
             auto lo
             iface lo inet loopback
-                dns-nameservers 8.8.8.8 8.8.4.4
-                dns-search wark.maas
 
             iface eth1 inet manual
 
@@ -1477,11 +1476,11 @@ NETWORK_CONFIGS = {
 
                 [ipv4]
                 method=auto
-                may-fail=false
+                may-fail=true
 
                 [ipv6]
                 method=auto
-                may-fail=false
+                may-fail=true
 
                 """
             ),
@@ -1650,11 +1649,11 @@ NETWORK_CONFIGS = {
 
                 [ipv6]
                 method=auto
-                may-fail=false
+                may-fail=true
 
                 [ipv4]
                 method=auto
-                may-fail=false
+                may-fail=true
 
                 """
             ),
@@ -2797,6 +2796,8 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 [ipv4]
                 method=auto
                 may-fail=false
+                dns=8.8.8.8;4.4.4.4;8.8.4.4;
+                dns-search=barley.maas;wark.maas;foobar.maas;
 
                 """
             ),
@@ -2822,6 +2823,8 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 method=manual
                 may-fail=false
                 address1=192.168.200.7/24
+                dns=8.8.8.8;4.4.4.4;8.8.4.4;
+                dns-search=barley.maas;wark.maas;foobar.maas;
 
                 """
             ),
@@ -2846,6 +2849,8 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 [ipv4]
                 method=auto
                 may-fail=false
+                dns=8.8.8.8;4.4.4.4;8.8.4.4;
+                dns-search=barley.maas;wark.maas;foobar.maas;
 
                 """
             ),
@@ -2930,12 +2935,15 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 method=manual
                 may-fail=false
                 address1=192.168.14.2/24
+                dns=8.8.8.8;4.4.4.4;8.8.4.4;
+                dns-search=barley.maas;wark.maas;foobar.maas;
 
                 [ipv6]
                 method=manual
                 may-fail=false
                 address1=2001:1::1/64
                 route1=::/0,2001:4800:78ff:1b::1
+                dns-search=barley.maas;wark.maas;foobar.maas;
 
                 """
             ),
@@ -2962,9 +2970,9 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 may-fail=false
                 address1=192.168.0.2/24
                 gateway=192.168.0.1
+                address2=192.168.2.10/24
                 dns=192.168.0.10;10.23.23.134;
                 dns-search=barley.maas;sacchromyces.maas;brettanomyces.maas;
-                address2=192.168.2.10/24
 
                 """
             ),
@@ -2990,6 +2998,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 [ipv6]
                 method=auto
                 may-fail=false
+                dns-search=barley.maas;wark.maas;foobar.maas;
 
                 """
             ),
@@ -4131,6 +4140,170 @@ iface bond0 inet6 static
             ),
         },
     },
+    "v1-dns": {
+        "expected_networkd": textwrap.dedent(
+            """\
+            [Address]
+            Address=192.168.1.20/16
+
+            [Match]
+            MACAddress=11:22:33:44:55:66
+            Name=interface0
+
+            [Network]
+            DHCP=no
+            DNS=1.1.1.1 3.3.3.3
+            Domains=aaaa cccc
+
+            [Route]
+            Gateway=192.168.1.1
+        """
+        ),
+        "expected_eni": textwrap.dedent(
+            """\
+            # This file is generated from information provided by the datasource.  Changes
+            # to it will not persist across an instance reboot.  To disable cloud-init's
+            # network configuration capabilities, write a file
+            # /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
+            # network: {config: disabled}
+            auto lo
+            iface lo inet loopback
+                dns-nameservers 2.2.2.2
+                dns-search bbbb
+
+            iface lo inet6 loopback
+                dns-nameservers FEDC::1
+                dns-search bbbb
+
+            auto interface0
+            iface interface0 inet static
+                address 192.168.1.20/16
+                dns-nameservers 1.1.1.1 3.3.3.3
+                dns-search aaaa cccc
+                gateway 192.168.1.1
+        """  # noqa: E501
+        ),
+        "expected_netplan": textwrap.dedent(
+            """\
+            # This file is generated from information provided by the datasource.  Changes
+            # to it will not persist across an instance reboot.  To disable cloud-init's
+            # network configuration capabilities, write a file
+            # /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
+            # network: {config: disabled}
+            network:
+                version: 2
+                ethernets:
+                    interface0:
+                        addresses:
+                        - 192.168.1.20/16
+                        match:
+                            macaddress: 11:22:33:44:55:66
+                        nameservers:
+                            addresses:
+                            - 1.1.1.1
+                            - 3.3.3.3
+                            search:
+                            - aaaa
+                            - cccc
+                        routes:
+                        -   to: default
+                            via: 192.168.1.1
+                        set-name: interface0
+        """  # noqa: E501
+        ),
+        "expected_sysconfig_opensuse": {
+            "ifcfg-interface0": textwrap.dedent(
+                """\
+                # Created by cloud-init automatically, do not edit.
+                #
+                BOOTPROTO=static
+                IPADDR=192.168.1.20
+                LLADDR=11:22:33:44:55:66
+                NETMASK=255.255.0.0
+                STARTMODE=auto
+            """
+            )
+        },
+        "expected_sysconfig_rhel": {
+            "ifcfg-eth0": textwrap.dedent(
+                """\
+                # Created by cloud-init automatically, do not edit.
+                #
+                BOOTPROTO=none
+                DEFROUTE=yes
+                DEVICE=interface0
+                DNS1=1.1.1.1
+                DNS2=3.3.3.3
+                DOMAIN=aaaa cccc
+                GATEWAY=192.168.1.1
+                HWADDR=11:22:33:44:55:66
+                IPADDR=192.168.1.20
+                NETMASK=255.255.0.0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no
+            """
+            ),
+        },
+        "expected_network_manager": {
+            "cloud-init-interface0.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init interface0
+                uuid=8b6862ed-dbd6-5830-93f7-a91451c13828
+                autoconnect-priority=120
+                type=ethernet
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [ethernet]
+                mac-address=11:22:33:44:55:66
+
+                [ipv4]
+                method=manual
+                may-fail=false
+                address1=192.168.1.20/16
+                gateway=192.168.1.1
+                dns=3.3.3.3;1.1.1.1;
+                dns-search=cccc;aaaa;
+
+            """
+            )
+        },
+        "yaml": textwrap.dedent(
+            """\
+            version: 1
+            config:
+            - type: physical
+              name: interface0
+              mac_address: "11:22:33:44:55:66"
+              subnets:
+              - type: static
+                address: 192.168.1.20/16
+                gateway: 192.168.1.1
+                dns_nameservers:
+                - 3.3.3.3
+                dns_search:
+                - cccc
+            - type: nameserver
+              interface: interface0
+              address:
+              - 1.1.1.1
+              search:
+              - aaaa
+            - type: nameserver
+              address:
+              - 2.2.2.2
+              - FEDC::1
+              search:
+              - bbbb
+        """
+        ),
+    },
     "v2-dev-name-via-mac-lookup": {
         "expected_sysconfig_rhel": {
             "ifcfg-eth0": textwrap.dedent(
@@ -4151,6 +4324,320 @@ iface bond0 inet6 static
               nic0:
                 match:
                   macaddress: 'cf:d6:af:48:e8:80'
+            """
+        ),
+    },
+    "v2-mixed-routes": {
+        "expected_network_manager": {
+            "cloud-init-eth0.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init eth0
+                uuid=1dd9a779-d327-56e1-8454-c65e2556c12c
+                autoconnect-priority=120
+                type=ethernet
+                interface-name=eth0
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [ethernet]
+                mtu=500
+
+                [ipv4]
+                method=auto
+                may-fail=true
+                route1=169.254.42.42/32,62.210.0.1
+                route1_options=mtu=400
+                route2=169.254.42.43/32,62.210.0.2
+                route2_options=mtu=200
+                address1=192.168.1.20/16
+                dns=8.8.8.8;
+                dns-search=lab;home;
+
+                [ipv6]
+                route1=::/0,fe80::dc00:ff:fe20:186
+                route1_options=mtu=300
+                route2=fe80::dc00:ff:fe20:188/64,fe80::dc00:ff:fe20:187
+                route2_options=mtu=100
+                method=auto
+                may-fail=true
+                address1=2001:bc8:1210:232:dc00:ff:fe20:185/64
+                dns=FEDC::1;
+                dns-search=lab;home;
+
+            """
+            )
+        },
+        "yaml": textwrap.dedent(
+            """\
+            version: 2
+            ethernets:
+              eth0:
+                dhcp4: true
+                dhcp6: true
+                mtu: 500
+                nameservers:
+                  search: [lab, home]
+                  addresses: [8.8.8.8, "FEDC::1"]
+                routes:
+                  - to: 169.254.42.42/32
+                    via: 62.210.0.1
+                    mtu: 400
+                  - via: fe80::dc00:ff:fe20:186
+                    to: ::/0
+                    mtu: 300
+                  - to: 169.254.42.43/32
+                    via: 62.210.0.2
+                    mtu: 200
+                  - via: fe80::dc00:ff:fe20:187
+                    to: fe80::dc00:ff:fe20:188
+                    mtu: 100
+                addresses:
+                  - 192.168.1.20/16
+                  - 2001:bc8:1210:232:dc00:ff:fe20:185/64
+        """
+        ),
+    },
+    "v2-dns": {
+        "expected_networkd": textwrap.dedent(
+            """\
+            [Address]
+            Address=192.168.1.20/16
+
+            [Address]
+            Address=2001:bc8:1210:232:dc00:ff:fe20:185/64
+
+            [Match]
+            Name=eth0
+
+            [Network]
+            DHCP=no
+            DNS=8.8.8.8 FEDC::1
+            Domains=lab home
+        """
+        ),
+        "expected_eni": textwrap.dedent(
+            """\
+            # This file is generated from information provided by the datasource.  Changes
+            # to it will not persist across an instance reboot.  To disable cloud-init's
+            # network configuration capabilities, write a file
+            # /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
+            # network: {config: disabled}
+            auto lo
+            iface lo inet loopback
+
+            auto eth0
+            iface eth0 inet static
+                address 192.168.1.20/16
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+
+            # control-alias eth0
+            iface eth0 inet6 static
+                address 2001:bc8:1210:232:dc00:ff:fe20:185/64
+                dns-nameservers FEDC::1
+                dns-search lab home
+        """  # noqa: E501
+        ),
+        "expected_sysconfig_opensuse": {
+            "ifcfg-eth0": textwrap.dedent(
+                """\
+                # Created by cloud-init automatically, do not edit.
+                #
+                BOOTPROTO=static
+                IPADDR=192.168.1.20
+                IPADDR6=2001:bc8:1210:232:dc00:ff:fe20:185/64
+                NETMASK=255.255.0.0
+                STARTMODE=auto
+            """
+            )
+        },
+        "expected_sysconfig_rhel": {
+            "ifcfg-eth0": textwrap.dedent(
+                """\
+                # Created by cloud-init automatically, do not edit.
+                #
+                BOOTPROTO=none
+                DEVICE=eth0
+                DNS1=8.8.8.8
+                DNS2=FEDC::1
+                DOMAIN="lab home"
+                IPADDR=192.168.1.20
+                IPV6ADDR=2001:bc8:1210:232:dc00:ff:fe20:185/64
+                IPV6INIT=yes
+                IPV6_AUTOCONF=no
+                IPV6_FORCE_ACCEPT_RA=no
+                NETMASK=255.255.0.0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no
+            """
+            )
+        },
+        "expected_network_manager": {
+            "cloud-init-eth0.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init eth0
+                uuid=1dd9a779-d327-56e1-8454-c65e2556c12c
+                autoconnect-priority=120
+                type=ethernet
+                interface-name=eth0
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [ethernet]
+
+                [ipv4]
+                method=manual
+                may-fail=false
+                address1=192.168.1.20/16
+                dns=8.8.8.8;
+                dns-search=lab;home;
+
+                [ipv6]
+                method=manual
+                may-fail=false
+                address1=2001:bc8:1210:232:dc00:ff:fe20:185/64
+                dns=FEDC::1;
+                dns-search=lab;home;
+
+            """
+            )
+        },
+        "yaml": textwrap.dedent(
+            """\
+            version: 2
+            ethernets:
+              eth0:
+                nameservers:
+                  search: [lab, home]
+                  addresses: [8.8.8.8, "FEDC::1"]
+                addresses:
+                - 192.168.1.20/16
+                - 2001:bc8:1210:232:dc00:ff:fe20:185/64
+        """
+        ),
+    },
+    "v2-dns-no-if-ips": {
+        "expected_network_manager": {
+            "cloud-init-eth0.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init eth0
+                uuid=1dd9a779-d327-56e1-8454-c65e2556c12c
+                autoconnect-priority=120
+                type=ethernet
+                interface-name=eth0
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [ethernet]
+
+                [ipv4]
+                method=auto
+                may-fail=true
+                dns=8.8.8.8;
+                dns-search=lab;home;
+
+                [ipv6]
+                method=auto
+                may-fail=true
+                dns=FEDC::1;
+                dns-search=lab;home;
+
+            """
+            )
+        },
+        "yaml": textwrap.dedent(
+            """\
+            version: 2
+            ethernets:
+              eth0:
+                dhcp4: true
+                dhcp6: true
+                nameservers:
+                  search: [lab, home]
+                  addresses: [8.8.8.8, "FEDC::1"]
+        """
+        ),
+    },
+    "v2-dns-no-dhcp": {
+        "expected_network_manager": {
+            "cloud-init-eth0.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init eth0
+                uuid=1dd9a779-d327-56e1-8454-c65e2556c12c
+                autoconnect-priority=120
+                type=ethernet
+                interface-name=eth0
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [ethernet]
+
+            """
+            )
+        },
+        "yaml": textwrap.dedent(
+            """\
+            version: 2
+            ethernets:
+              eth0:
+                nameservers:
+                  search: [lab, home]
+                  addresses: [8.8.8.8, "FEDC::1"]
+        """
+        ),
+    },
+    "v2-route-no-gateway": {
+        "expected_network_manager": {
+            "cloud-init-eth0.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init eth0
+                uuid=1dd9a779-d327-56e1-8454-c65e2556c12c
+                autoconnect-priority=120
+                type=ethernet
+                interface-name=eth0
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [ethernet]
+
+                [ipv4]
+                method=auto
+                may-fail=false
+                route1=0.0.0.0/0
+
+                """
+            )
+        },
+        "yaml": textwrap.dedent(
+            """\
+            version: 2
+            ethernets:
+              eth0:
+                dhcp4: true
+                routes:
+                - to: "0.0.0.0/0"
             """
         ),
     },
@@ -4339,6 +4826,7 @@ class TestGenerateFallbackConfig(CiTestCase):
             "ethernets": {
                 "eth0": {
                     "dhcp4": True,
+                    "dhcp6": True,
                     "set-name": "eth0",
                     "match": {
                         "macaddress": "00:11:22:33:44:55",
@@ -4423,6 +4911,9 @@ iface lo inet loopback
 
 auto eth0
 iface eth0 inet dhcp
+
+# control-alias eth0
+iface eth0 inet6 dhcp
 """
         self.assertEqual(expected.lstrip(), contents.lstrip())
 
@@ -4512,6 +5003,9 @@ iface lo inet loopback
 
 auto eth1
 iface eth1 inet dhcp
+
+# control-alias eth1
+iface eth1 inet6 dhcp
 """
         self.assertEqual(expected.lstrip(), contents.lstrip())
 
@@ -4735,7 +5229,9 @@ class TestRhelSysConfigRendering(CiTestCase):
 #
 BOOTPROTO=dhcp
 DEVICE=eth1000
+DHCPV6C=yes
 HWADDR=07-1c-c6-75-a4-be
+IPV6INIT=yes
 NM_CONTROLLED=no
 ONBOOT=yes
 TYPE=Ethernet
@@ -5228,6 +5724,20 @@ USERCTL=no
 
         self.assertEqual([], dhcp_found)
 
+    @pytest.mark.xfail(reason="sysconfig should render interface-level DNS")
+    def test_v1_dns(self):
+        entry = NETWORK_CONFIGS["v1-dns"]
+        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+        # TODO: verify resolv.conf
+
+    def test_v2_dns(self):
+        entry = NETWORK_CONFIGS["v2-dns"]
+        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+
     def test_netplan_dhcp_false_no_dhcp_in_sysconfig(self):
         """netplan cfg with dhcp[46]: False should not have bootproto=dhcp"""
 
@@ -5503,7 +6013,6 @@ USERCTL=no
                 """  # noqa: E501
             ),
         }
-        log.setup_logging()
 
         found = self._render_and_read(network_config=v2_data)
         self._compare_files_to_expected(expected, found)
@@ -5646,7 +6155,8 @@ class TestOpenSuseSysConfigRendering(CiTestCase):
             expected_content = """
 # Created by cloud-init automatically, do not edit.
 #
-BOOTPROTO=dhcp4
+BOOTPROTO=dhcp
+DHCLIENT6_MODE=managed
 LLADDR=07-1c-c6-75-a4-be
 STARTMODE=auto
 """.lstrip()
@@ -5918,6 +6428,19 @@ STARTMODE=auto
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
+    def test_v1_dns(self):
+        entry = NETWORK_CONFIGS["v1-dns"]
+        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+        # TODO: verify resolv.conf
+
+    def test_v2_dns(self):
+        entry = NETWORK_CONFIGS["v2-dns"]
+        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+
 
 @mock.patch(
     "cloudinit.net.is_openvswitch_internal_interface",
@@ -6032,7 +6555,11 @@ class TestNetworkManagerRendering(CiTestCase):
 
                 [ipv4]
                 method=auto
-                may-fail=false
+                may-fail=true
+
+                [ipv6]
+                method=auto
+                may-fail=true
 
                 """
                 ),
@@ -6253,6 +6780,48 @@ class TestNetworkManagerRendering(CiTestCase):
             entry[self.expected_name], self.expected_conf_d, found
         )
 
+    def test_v1_dns(self):
+        entry = NETWORK_CONFIGS["v1-dns"]
+        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        self._compare_files_to_expected(
+            entry[self.expected_name], self.expected_conf_d, found
+        )
+
+    def test_v2_mixed_routes(self):
+        entry = NETWORK_CONFIGS["v2-mixed-routes"]
+        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        self._compare_files_to_expected(
+            entry[self.expected_name], self.expected_conf_d, found
+        )
+
+    def test_v2_dns(self):
+        entry = NETWORK_CONFIGS["v2-dns"]
+        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        self._compare_files_to_expected(
+            entry[self.expected_name], self.expected_conf_d, found
+        )
+
+    def test_v2_dns_no_ips(self):
+        entry = NETWORK_CONFIGS["v2-dns-no-if-ips"]
+        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        self._compare_files_to_expected(
+            entry[self.expected_name], self.expected_conf_d, found
+        )
+
+    def test_v2_dns_no_dhcp(self):
+        entry = NETWORK_CONFIGS["v2-dns-no-dhcp"]
+        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        self._compare_files_to_expected(
+            entry[self.expected_name], self.expected_conf_d, found
+        )
+
+    def test_v2_route_no_gateway(self):
+        entry = NETWORK_CONFIGS["v2-route-no-gateway"]
+        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        self._compare_files_to_expected(
+            entry[self.expected_name], self.expected_conf_d, found
+        )
+
 
 @mock.patch(
     "cloudinit.net.is_openvswitch_internal_interface",
@@ -6298,6 +6867,9 @@ iface lo inet loopback
 
 auto eth1000
 iface eth1000 inet dhcp
+
+# control-alias eth1000
+iface eth1000 inet6 dhcp
 """
         self.assertEqual(expected.lstrip(), contents.lstrip())
 
@@ -6357,6 +6929,7 @@ class TestNetplanNetRendering:
                   ethernets:
                     eth1000:
                       dhcp4: true
+                      dhcp6: true
                       match:
                         macaddress: 07-1c-c6-75-a4-be
                       set-name: eth1000
@@ -7418,6 +7991,17 @@ class TestNetplanRoundTrip(CiTestCase):
             files["/etc/netplan/50-cloud-init.yaml"].splitlines(),
         )
 
+    @pytest.mark.xfail(
+        reason="netplan should render interface-level nameservers"
+    )
+    def testsimple_render_v1_dns(self):
+        entry = NETWORK_CONFIGS["v1-dns"]
+        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        self.assertEqual(
+            entry["expected_netplan"].splitlines(),
+            files["/etc/netplan/50-cloud-init.yaml"].splitlines(),
+        )
+
     def test_render_output_has_yaml_no_aliases(self):
         entry = {
             "yaml": V1_NAMESERVER_ALIAS,
@@ -7792,6 +8376,24 @@ class TestEniRoundTrip(CiTestCase):
             files["/etc/network/interfaces"].splitlines(),
         )
 
+    @pytest.mark.xfail(reason="GH-4219")
+    def test_v1_dns(self):
+        entry = NETWORK_CONFIGS["v1-dns"]
+        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        self.assertEqual(
+            entry["expected_eni"].splitlines(),
+            files["/etc/network/interfaces"].splitlines(),
+        )
+
+    @pytest.mark.xfail(reason="GH-4219")
+    def test_v2_dns(self):
+        entry = NETWORK_CONFIGS["v2-dns"]
+        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        self.assertEqual(
+            entry["expected_eni"].splitlines(),
+            files["/etc/network/interfaces"].splitlines(),
+        )
+
 
 class TestNetworkdNetRendering(CiTestCase):
     def create_conf_dict(self, contents):
@@ -7856,7 +8458,7 @@ class TestNetworkdNetRendering(CiTestCase):
             Name=eth1000
             MACAddress=07-1c-c6-75-a4-be
             [Network]
-            DHCP=ipv4"""
+            DHCP=yes"""
         ).rstrip(" ")
 
         expected = self.create_conf_dict(expected.splitlines())
@@ -8052,6 +8654,35 @@ class TestNetworkdRoundTrip(CiTestCase):
 
         expected = entry["expected_networkd"].splitlines()
         expected = self.create_conf_dict(expected)
+
+        self.compare_dicts(actual, expected)
+
+    @pytest.mark.xfail(
+        reason="DNS and Domains getting rendered on multiple lines"
+    )
+    @mock.patch("cloudinit.net.util.chownbyname", return_value=True)
+    def test_v1_dns(self, m_chown):
+        nwk_fn = "/etc/systemd/network/10-cloud-init-eth0.network"
+        entry = NETWORK_CONFIGS["v1-dns"]
+        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+
+        actual = self.create_conf_dict(files[nwk_fn].splitlines())
+        expected = self.create_conf_dict(
+            entry["expected_networkd"].splitlines()
+        )
+
+        self.compare_dicts(actual, expected)
+
+    @mock.patch("cloudinit.net.util.chownbyname", return_value=True)
+    def test_v2_dns(self, m_chown):
+        nwk_fn = "/etc/systemd/network/10-cloud-init-eth0.network"
+        entry = NETWORK_CONFIGS["v2-dns"]
+        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+
+        actual = self.create_conf_dict(files[nwk_fn].splitlines())
+        expected = self.create_conf_dict(
+            entry["expected_networkd"].splitlines()
+        )
 
         self.compare_dicts(actual, expected)
 

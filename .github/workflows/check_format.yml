@@ -87,10 +87,12 @@ jobs:
       - name: "Install dependencies"
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox lintian
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox
       - name: "Spellcheck"
         run: |
-          make check_spelling
+          tox
+        env:
+          TOXENV: doc-spelling
       - name: "Build docs"
         env:
           TOXENV: doc

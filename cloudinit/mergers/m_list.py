@@ -76,6 +76,6 @@ class Merger:
         # Ok now we are replacing same indexes
         merged_list.extend(value)
         common_len = min(len(merged_list), len(merge_with))
-        for i in range(0, common_len):
+        for i in range(common_len):
             merged_list[i] = merge_same_index(merged_list[i], merge_with[i])
         return merged_list

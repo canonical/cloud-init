@@ -55,5 +55,5 @@ class TestMergeRun(helpers.FilesystemMockingTestCase):
         self.assertTrue(len(failures) == 0)
         self.assertTrue(os.path.exists("/etc/blah.ini"))
         self.assertIn("write_files", which_ran)
-        contents = util.load_file("/etc/blah.ini")
+        contents = util.load_text_file("/etc/blah.ini")
         self.assertEqual(contents, "blah")

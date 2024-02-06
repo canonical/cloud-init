@@ -397,7 +397,7 @@ def handle_swapcfg(swapcfg):
             )
             return fname
         try:
-            for line in util.load_file("/proc/swaps").splitlines():
+            for line in util.load_text_file("/proc/swaps").splitlines():
                 if line.startswith(fname + " "):
                     LOG.debug("swap file %s already in use", fname)
                     return fname
@@ -450,7 +450,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     fstab_removed = []
 
     if os.path.exists(FSTAB_PATH):
-        for line in util.load_file(FSTAB_PATH).splitlines():
+        for line in util.load_text_file(FSTAB_PATH).splitlines():
             if MNT_COMMENT in line:
                 fstab_removed.append(line)
                 continue
@@ -573,14 +573,14 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     needswap = False
     need_mount_all = False
     dirs = []
-    for line in actlist:
+    for entry in actlist:
         # write 'comment' in the fs_mntops, entry,  claiming this
-        line[3] = "%s,%s" % (line[3], MNT_COMMENT)
-        if line[2] == "swap":
+        entry[3] = "%s,%s" % (entry[3], MNT_COMMENT)
+        if entry[2] == "swap":
             needswap = True
-        if line[1].startswith("/"):
-            dirs.append(line[1])
-        cc_lines.append("\t".join(line))
+        if entry[1].startswith("/"):
+            dirs.append(entry[1])
+        cc_lines.append("\t".join(entry))
 
     mount_points = [
         v["mountpoint"] for k, v in util.mounts().items() if "mountpoint" in v

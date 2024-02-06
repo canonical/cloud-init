@@ -10,8 +10,9 @@ Contribute to our docs
     Style guide <style_docs.rst>
     Directory layout <docs_layout.rst>
 
-The documentation for cloud-init is hosted in GitHub and rendered on
-`Read the Docs`_. It is mostly written in reStructuredText.
+The documentation for cloud-init is hosted in the
+`cloud-init GitHub repository`_ and rendered on `Read the Docs`_. It is mostly
+written in reStructuredText.
 
 The process for contributing to the docs is largely the same as for code,
 except that for cosmetic changes to the documentation (spelling, grammar, etc)
@@ -65,6 +66,7 @@ reviewer.
 
 .. LINKS
 .. include:: ../links.txt
+.. _cloud-init GitHub repository: https://github.com/canonical/cloud-init/tree/main/doc/rtd
 .. _Read the Docs: https://readthedocs.com/
 .. _tools/.github-cla-signers: https://github.com/canonical/cloud-init/blob/main/tools/.github-cla-signers
 .. _tagging s-makin: https://github.com/s-makin

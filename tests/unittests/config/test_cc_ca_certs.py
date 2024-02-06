@@ -8,9 +8,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import distros, helpers
-from cloudinit import log as logger
-from cloudinit import subp, util
+from cloudinit import distros, helpers, subp, util
 from cloudinit.config import cc_ca_certs
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -327,7 +325,7 @@ class TestRemoveDefaultCaCerts(TestCase):
                 )
                 mock_load = mocks.enter_context(
                     mock.patch.object(
-                        util, "load_file", return_value=ca_certs_content
+                        util, "load_text_file", return_value=ca_certs_content
                     )
                 )
                 mock_subp = mocks.enter_context(
@@ -339,7 +337,7 @@ class TestRemoveDefaultCaCerts(TestCase):
 
                 cc_ca_certs.disable_default_ca_certs(distro_name, conf)
 
-                if distro_name == "rhel":
+                if distro_name in ["rhel", "photon"]:
                     mock_delete.assert_has_calls(
                         [
                             mock.call(conf["ca_cert_path"]),
@@ -435,7 +433,6 @@ class TestCACertsSchema:
     @mock.patch.object(cc_ca_certs, "update_ca_certs")
     def test_deprecate_key_warnings(self, update_ca_certs, caplog):
         """Assert warnings are logged for deprecated keys."""
-        logger.setup_logging()
         cloud = get_cloud("ubuntu")
         cc_ca_certs.handle(
             "IGNORE", {"ca-certs": {"remove-defaults": False}}, cloud, []

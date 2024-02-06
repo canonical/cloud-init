@@ -50,9 +50,9 @@ class RunCustomScript:
         util.copy(self.scriptpath, CustomScriptConstant.CUSTOM_SCRIPT)
 
         # Strip any CR characters from the decoded script
-        content = util.load_file(CustomScriptConstant.CUSTOM_SCRIPT).replace(
-            "\r", ""
-        )
+        content = util.load_text_file(
+            CustomScriptConstant.CUSTOM_SCRIPT
+        ).replace("\r", "")
         util.write_file(
             CustomScriptConstant.CUSTOM_SCRIPT, content, mode=0o544
         )

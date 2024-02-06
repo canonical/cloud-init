@@ -19,7 +19,7 @@ from cloudinit.distros import ALL_DISTROS
 from cloudinit.log import flush_loggers
 from cloudinit.settings import PER_INSTANCE
 
-REBOOT_FILE = "/var/run/reboot-required"
+REBOOT_FILES = ("/var/run/reboot-required", "/run/reboot-needed")
 REBOOT_CMD = ["/sbin/reboot"]
 
 MODULE_DESCRIPTION = """\
@@ -127,11 +127,14 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # kernel and openssl (possibly some other packages)
     # write a file /var/run/reboot-required after upgrading.
     # if that file exists and configured, then just stop right now and reboot
-    reboot_fn_exists = os.path.isfile(REBOOT_FILE)
+    for reboot_marker in REBOOT_FILES:
+        reboot_fn_exists = os.path.isfile(reboot_marker)
+        if reboot_fn_exists:
+            break
     if (upgrade or pkglist) and reboot_if_required and reboot_fn_exists:
         try:
             LOG.warning(
-                "Rebooting after upgrade or install per %s", REBOOT_FILE
+                "Rebooting after upgrade or install per %s", reboot_marker
             )
             # Flush the above warning + anything else out...
             flush_loggers(LOG)

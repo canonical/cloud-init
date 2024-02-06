@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import log, safeyaml, util
+from cloudinit import safeyaml, util
 from cloudinit.net import network_state
 from cloudinit.net.netplan import Renderer as NetplanRenderer
 from cloudinit.net.renderers import NAME_TO_RENDERER
@@ -214,8 +214,6 @@ class TestNetworkStateParseConfigV2:
         In netplan targets we perform a passthrough and the warning is not
         needed.
         """
-        log.setup_logging()
-
         util.deprecate._log = set()  # type: ignore
         ncfg = safeyaml.load(
             cfg.format(
@@ -258,7 +256,10 @@ class TestNetworkStateParseNameservers:
         # If an interface was specified, DNS should be part of the interface
         for iface in config.iter_interfaces():
             if iface["name"] == "eth1":
-                assert iface["dns"]["addresses"] == ["192.168.1.1", "8.8.8.8"]
+                assert iface["dns"]["nameservers"] == [
+                    "192.168.1.1",
+                    "8.8.8.8",
+                ]
                 assert iface["dns"]["search"] == ["spam.local"]
             else:
                 assert "dns" not in iface
@@ -287,15 +288,11 @@ class TestNetworkStateParseNameservers:
                     "search": ["foo.local", "bar.local"],
                 }
 
-        # Ensure DNS defined on interface also exists globally (since there
-        # is no global DNS definitions in v2)
-        assert ["4.4.4.4", "8.8.8.8"] == sorted(config.dns_nameservers)
-        assert [
-            "bar.local",
-            "eggs.local",
-            "foo.local",
-            "spam.local",
-        ] == sorted(config.dns_searchdomains)
+        # Ensure DNS defined on interface does not exist globally
+        for server in ["4.4.4.4", "8.8.8.8"]:
+            assert server not in config.dns_nameservers
+        for search in ["bar.local", "eggs.local", "foo.local", "spam.local"]:
+            assert search not in config.dns_searchdomains
 
 
 class TestNetworkStateHelperFunctions(CiTestCase):

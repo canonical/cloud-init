@@ -104,7 +104,7 @@ class ReadUrlRetryHandler:
             report_diagnostic_event(
                 "Polling IMDS failed attempt %d with exception: %r"
                 % (self._request_count, exception),
-                logger_func=LOG.info,
+                logger_func=LOG.warning,
             )
         return retry
 
@@ -160,7 +160,7 @@ def _fetch_metadata(
     metadata = _fetch_url(url, retry_handler=retry_handler)
 
     try:
-        return util.load_json(metadata)
+        return util.load_json(metadata.decode("utf-8"))
     except ValueError as error:
         report_diagnostic_event(
             "Failed to parse metadata from IMDS: %s" % error,

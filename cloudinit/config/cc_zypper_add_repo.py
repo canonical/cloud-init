@@ -172,7 +172,7 @@ def _write_zypp_config(zypper_config):
     if not zypper_config:
         return
     zypp_config = "/etc/zypp/zypp.conf"
-    zypp_conf_content = util.load_file(zypp_config)
+    zypp_conf_content = util.load_text_file(zypp_config)
     new_settings = ["# Added via cloud.cfg"]
     for setting, value in zypper_config.items():
         if setting == "configdir":

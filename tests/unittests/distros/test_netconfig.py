@@ -1012,43 +1012,6 @@ class TestNetCfgDistroArch(TestNetCfgDistroBase):
     def netplan_path(self):
         return "/etc/netplan/50-cloud-init.yaml"
 
-    def test_apply_network_config_v1_without_netplan(self):
-        # Note that this is in fact an invalid netctl config:
-        #  "Address=None/None"
-        # But this is what the renderer has been writing out for a long time,
-        # and the test's purpose is to assert that the netctl renderer is
-        # still being used in absence of netplan, not the correctness of the
-        # rendered netctl config.
-        expected_cfgs = {
-            self.netctl_path("eth0"): dedent(
-                """\
-                Address=192.168.1.5/255.255.255.0
-                Connection=ethernet
-                DNS=()
-                Gateway=192.168.1.254
-                IP=static
-                Interface=eth0
-                """
-            ),
-            self.netctl_path("eth1"): dedent(
-                """\
-                Address=None/None
-                Connection=ethernet
-                DNS=()
-                Gateway=
-                IP=dhcp
-                Interface=eth1
-                """
-            ),
-        }
-
-        self._apply_and_verify(
-            self.distro.apply_network_config,
-            V1_NET_CFG,
-            expected_cfgs=expected_cfgs.copy(),
-            with_netplan=False,
-        )
-
     def test_apply_network_config_v1_with_netplan(self):
         expected_cfgs = {
             self.netplan_path(): dedent(

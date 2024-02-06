@@ -441,6 +441,10 @@ class TestInit:
                 assert not self.tmpdir.join(path).exists()
 
     @mock.patch("cloudinit.distros.ubuntu.Distro")
+    @mock.patch.dict(
+        sources.DataSource.default_update_events,
+        {EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}},
+    )
     def test_apply_network_on_same_instance_id(self, m_ubuntu, caplog):
         """Only call distro.networking.apply_network_config_names on same
         instance id."""
@@ -608,8 +612,9 @@ class TestInit_InitializeFilesystem:
             yield init
 
     @mock.patch(M_PATH + "util.ensure_file")
+    @mock.patch(f"{M_PATH}Init._read_cfg")
     def test_ensure_file_not_called_if_no_log_file_configured(
-        self, m_ensure_file, init
+        self, m_read_cfg, m_ensure_file, init
     ):
         """If no log file is configured, we should not ensure its existence."""
         init._cfg = {}

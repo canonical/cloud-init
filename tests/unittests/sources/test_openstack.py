@@ -338,16 +338,14 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         ds_os_local = ds.DataSourceOpenStackLocal(
             settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )
-        ds_os_local._fallback_interface = "eth9"  # Monkey patch for dhcp
-        m_dhcp.return_value = [
-            {
-                "interface": "eth9",
-                "fixed-address": "192.168.2.9",
-                "routers": "192.168.2.1",
-                "subnet-mask": "255.255.255.0",
-                "broadcast-address": "192.168.2.255",
-            }
-        ]
+        distro.fallback_interface = "eth9"  # Monkey patch for dhcp
+        m_dhcp.return_value = {
+            "interface": "eth9",
+            "fixed-address": "192.168.2.9",
+            "routers": "192.168.2.1",
+            "subnet-mask": "255.255.255.0",
+            "broadcast-address": "192.168.2.255",
+        }
 
         self.assertIsNone(ds_os_local.version)
         with test_helpers.mock.patch.object(

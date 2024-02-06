@@ -91,8 +91,7 @@ class Apt(PackageManager):
         )
 
         self.apt_get_upgrade_subcommand = apt_get_upgrade_subcommand
-        self.environment = os.environ.copy()
-        self.environment["DEBIAN_FRONTEND"] = "noninteractive"
+        self.environment = {"DEBIAN_FRONTEND": "noninteractive"}
 
     @classmethod
     def from_config(cls, runner: helpers.Runners, cfg: Mapping) -> "Apt":
@@ -162,7 +161,7 @@ class Apt(PackageManager):
             short_cmd=command,
             subp_kwargs={
                 "args": full_command,
-                "env": self.environment,
+                "update_env": self.environment,
                 "capture": False,
             },
         )

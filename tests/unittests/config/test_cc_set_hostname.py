@@ -46,7 +46,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         cc = cloud.Cloud(ds, paths, {}, distro, None)
         self.patchUtils(self.tmp)
         cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
-        contents = util.load_file("/etc/hostname")
+        contents = util.load_text_file("/etc/hostname")
         self.assertEqual("blah.yahoo.com", contents.strip())
 
     @mock.patch("cloudinit.distros.Distro.uses_systemd", return_value=False)
@@ -62,7 +62,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         cc = cloud.Cloud(ds, paths, {}, distro, None)
         self.patchUtils(self.tmp)
         cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
-        contents = util.load_file("/etc/sysconfig/network", decode=False)
+        contents = util.load_binary_file("/etc/sysconfig/network")
         n_cfg = ConfigObj(BytesIO(contents))
         self.assertEqual({"HOSTNAME": "blah"}, dict(n_cfg))
 
@@ -75,7 +75,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         cc = cloud.Cloud(ds, paths, {}, distro, None)
         self.patchUtils(self.tmp)
         cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
-        contents = util.load_file("/etc/sysconfig/network", decode=False)
+        contents = util.load_binary_file("/etc/sysconfig/network")
         n_cfg = ConfigObj(BytesIO(contents))
         self.assertEqual({"HOSTNAME": "blah.blah.blah.yahoo.com"}, dict(n_cfg))
 
@@ -90,7 +90,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         cc = cloud.Cloud(ds, paths, {}, distro, None)
         self.patchUtils(self.tmp)
         cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
-        contents = util.load_file("/etc/hostname")
+        contents = util.load_text_file("/etc/hostname")
         self.assertEqual("blah", contents.strip())
 
     @mock.patch("cloudinit.distros.Distro.uses_systemd", return_value=False)
@@ -104,7 +104,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         cc = cloud.Cloud(ds, paths, {}, distro, None)
         self.patchUtils(self.tmp)
         cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
-        contents = util.load_file(distro.hostname_conf_fn)
+        contents = util.load_text_file(distro.hostname_conf_fn)
         self.assertEqual("blah", contents.strip())
 
     @mock.patch("cloudinit.distros.photon.subp.subp")
@@ -166,7 +166,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         cc_set_hostname.handle(
             "cc_set_hostname", {"hostname": "hostname1.me.com"}, cc, []
         )
-        contents = util.load_file("/etc/hostname")
+        contents = util.load_text_file("/etc/hostname")
         self.assertEqual("hostname1", contents.strip())
         cc_set_hostname.handle(
             "cc_set_hostname", {"hostname": "hostname1.me.com"}, cc, []
@@ -178,7 +178,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         cc_set_hostname.handle(
             "cc_set_hostname", {"hostname": "hostname2.me.com"}, cc, []
         )
-        contents = util.load_file("/etc/hostname")
+        contents = util.load_text_file("/etc/hostname")
         self.assertEqual("hostname2", contents.strip())
         self.assertIn(
             "Non-persistently setting the system hostname to hostname2",
@@ -199,7 +199,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
 
         util.write_file("/etc/hostname", "")
         cc_set_hostname.handle("cc_set_hostname", {}, cc, [])
-        contents = util.load_file("/etc/hostname")
+        contents = util.load_text_file("/etc/hostname")
         self.assertEqual("", contents.strip())
 
     @mock.patch("cloudinit.util.get_hostname", return_value="localhost")
@@ -218,7 +218,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         cc_set_hostname.handle(
             "cc_set_hostname", {"hostname": "localhost"}, cc, []
         )
-        contents = util.load_file("/etc/hostname")
+        contents = util.load_text_file("/etc/hostname")
         self.assertEqual("localhost", contents.strip())
 
     def test_error_on_distro_set_hostname_errors(self):
@@ -256,7 +256,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         prev_fn = Path(cc.get_cpath("data")) / "set-hostname"
         prev_fn.touch()
         cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
-        contents = util.load_file("/etc/hostname")
+        contents = util.load_text_file("/etc/hostname")
         self.assertEqual("blah", contents.strip())
 
     def test_create_hostname_file_false(self):
@@ -272,7 +272,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
         with self.assertRaises(FileNotFoundError):
-            util.load_file("/etc/hostname")
+            util.load_text_file("/etc/hostname")
 
     def test_create_hostname_file_false_arch(self):
         cfg = {
@@ -287,7 +287,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
         with self.assertRaises(FileNotFoundError):
-            util.load_file("/etc/hostname")
+            util.load_text_file("/etc/hostname")
 
     def test_create_hostname_file_false_alpine(self):
         cfg = {
@@ -302,7 +302,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
         with self.assertRaises(FileNotFoundError):
-            util.load_file("/etc/hostname")
+            util.load_text_file("/etc/hostname")
 
     def test_create_hostname_file_false_gentoo(self):
         cfg = {
@@ -317,7 +317,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
         with self.assertRaises(FileNotFoundError):
-            util.load_file("/etc/hostname")
+            util.load_text_file("/etc/hostname")
 
     def test_create_hostname_file_false_photon(self):
         cfg = {
@@ -332,7 +332,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
         with self.assertRaises(FileNotFoundError):
-            util.load_file("/etc/hostname")
+            util.load_text_file("/etc/hostname")
 
     def test_create_hostname_file_false_rhel(self):
         cfg = {
@@ -347,4 +347,4 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         cc_set_hostname.handle("cc_set_hostname", cfg, cc, [])
         with self.assertRaises(FileNotFoundError):
-            util.load_file("/etc/hostname")
+            util.load_text_file("/etc/hostname")

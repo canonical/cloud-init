@@ -68,7 +68,6 @@ DI_DISABLED="disabled"
 DI_DEBUG_LEVEL="${DEBUG_LEVEL:-1}"
 
 PATH_ROOT=${PATH_ROOT:-""}
-PATH_RUN=${PATH_RUN:-"${PATH_ROOT}/run"}
 PATH_SYS_CLASS_DMI_ID=${PATH_SYS_CLASS_DMI_ID:-${PATH_ROOT}/sys/class/dmi/id}
 PATH_SYS_HYPERVISOR=${PATH_SYS_HYPERVISOR:-${PATH_ROOT}/sys/hypervisor}
 PATH_SYS_CLASS_BLOCK=${PATH_SYS_CLASS_BLOCK:-${PATH_ROOT}/sys/class/block}
@@ -82,11 +81,17 @@ PATH_PROC_UPTIME=${PATH_PROC_UPTIME:-${PATH_ROOT}/proc/uptime}
 PATH_ETC_CLOUD="${PATH_ETC_CLOUD:-${PATH_ROOT}/etc/cloud}"
 PATH_ETC_CI_CFG="${PATH_ETC_CI_CFG:-${PATH_ETC_CLOUD}/cloud.cfg}"
 PATH_ETC_CI_CFG_D="${PATH_ETC_CI_CFG_D:-${PATH_ETC_CI_CFG}.d}"
-PATH_RUN_CI="${PATH_RUN_CI:-${PATH_RUN}/cloud-init}"
-PATH_RUN_CI_CFG=${PATH_RUN_CI_CFG:-${PATH_RUN_CI}/cloud.cfg}
-PATH_RUN_DI_RESULT=${PATH_RUN_DI_RESULT:-${PATH_RUN_CI}/.ds-identify.result}
 
-DI_LOG="${DI_LOG:-${PATH_RUN_CI}/ds-identify.log}"
+# Declare global here, so they can be overwritten from the outside.
+# if not overwritten from the outside, we'll populate them with system default
+# paths, once we have determined the system we're running on.
+# This is done in set_run_path(), which must run after read_uname_info().
+PATH_RUN="${PATH_RUN:-}"
+PATH_RUN_CI="${PATH_RUN_CI:-}"
+PATH_RUN_CI_CFG="${PATH_RUN_CI_CFG:-}"
+PATH_RUN_DI_RESULT="${PATH_RUN_DI_RESULT:-}"
+
+DI_LOG="${DI_LOG:-}"
 _DI_LOGGED=""
 
 # set DI_MAIN='noop' in environment to source this file with no main called.
@@ -110,11 +115,8 @@ DI_VIRT=""
 DI_PID_1_PRODUCT_NAME=""
 
 DI_UNAME_KERNEL_NAME=""
-DI_UNAME_KERNEL_RELEASE=""
 DI_UNAME_KERNEL_VERSION=""
 DI_UNAME_MACHINE=""
-DI_UNAME_NODENAME=""
-DI_UNAME_OPERATING_SYSTEM=""
 DI_UNAME_CMD_OUT=""
 
 DS_FOUND=0
@@ -127,7 +129,7 @@ DI_DSNAME=""
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean Vultr AliYun Ec2 GCE OpenNebula OpenStack \
 OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud VMware \
-LXD NWCS Akamai"
+LXD NWCS Akamai WSL"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -156,6 +158,8 @@ debug() {
     local lvl="$1"
     shift
     [ "$lvl" -gt "${DI_DEBUG_LEVEL}" ] && return
+
+    [ "$DI_LOG" = "" ] && DI_LOG="stderr"
 
     if [ "$_DI_LOGGED" != "$DI_LOG" ]; then
         # first time here, open file descriptor for append
@@ -213,6 +217,27 @@ get_kenv_field() {
     _RET="$val"
 }
 
+get_sysctl_field() {
+    local sys_field="$1" sysctl_field="" val=""
+    command -v sysctl >/dev/null 2>&1 || {
+        warn "No sysctl program. Cannot read $sys_field."
+        return 1
+    }
+    case "$sys_field" in
+        chassis_vendor) sysctl_field='hw.vendor';;
+        chassis_serial) sysctl_field='hw.type';;
+        chassis_version) sysctl_field='hw.uuid';;
+        sys_vendor) sysctl_field='hw.vendor';;
+        product_name) sysctl_field='hw.product';;
+        product_serial) sysctl_field='hw.uuid';;
+        product_uuid) sysctl_field='hw.uuid';;
+        *) error "Unknown field $sys_field. Cannot call sysctl."
+           return 1;;
+    esac
+    val=$(sysctl -nq "$sysctl_field" 2>/dev/null) || return 1
+    _RET="$val"
+}
+
 dmi_decode() {
     local sys_field="$1" dmi_field="" val=""
     command -v dmidecode >/dev/null 2>&1 || {
@@ -235,8 +260,11 @@ dmi_decode() {
 get_dmi_field() {
     _RET="$UNAVAILABLE"
 
-    if [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" ]; then
+    if [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" -o "$DI_UNAME_KERNEL_NAME" = "Dragonfly" ]; then
         get_kenv_field "$1" || _RET="$ERROR"
+        return $?
+    elif [ "$DI_UNAME_KERNEL_NAME" = "OpenBSD" ]; then
+        get_sysctl_field "$1" || _RET="$ERROR"
         return $?
     fi
 
@@ -393,7 +421,7 @@ read_fs_info() {
     # - DI_ISO9660_DEVS
     # - DI_FS_UUIDS
 
-    if [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" ]; then
+    if [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" -o "$DI_UNAME_KERNEL_NAME" = "Dragonfly" ]; then
         read_fs_info_freebsd
         return $?
     else
@@ -414,7 +442,19 @@ detect_virt() {
         if [ $r -eq 0 ] || { [ $r -ne 0 ] && [ "$out" = "none" ]; }; then
             virt="$out"
         fi
-    elif [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" ]; then
+    elif command -v virt-what >/dev/null 2>&1; then
+        # Map virt-what's names to those systemd-detect-virt that
+        # don't match up.
+        out=$(virt-what 2>&1 | head -n 1) && {
+            case "$out" in
+                ibm_systemz-zvm)    virt="zvm" ;;
+                hyperv)             virt="microsoft" ;;
+                virtualbox)         virt="oracle" ;;
+                xen-domU)           virt="xen" ;;
+                *)                  virt="$out"
+            esac
+        }
+    elif [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" -o "$DI_UNAME_KERNEL_NAME" = "Dragonfly" ]; then
         # Map FreeBSD's vm_guest names to those systemd-detect-virt that
         # don't match up. See
         # https://github.com/freebsd/freebsd/blob/master/sys/kern/subr_param.c#L144-L160
@@ -524,33 +564,27 @@ read_uname_info() {
     # uname is tricky to parse as it outputs always in a given order
     # independent of option order. kernel-version is known to have spaces.
     # 1   -s kernel-name
-    # 2   -n nodename
-    # 3   -r kernel-release
-    # 4.. -v kernel-version(whitespace)
-    # N-2 -m machine
-    # N-1 -o operating-system
+    # 2.. -v kernel-version(whitespace)
+    # N-1 -m machine
     cached "${DI_UNAME_CMD_OUT}" && return
     local out="${1:-}" ret=0 buf=""
     if [ -z "$out" ]; then
-        out=$(uname -snrvmo) || {
+        out=$(uname -svm) || {
             ret=$?
-            error "failed reading uname with 'uname -snrvmo'"
+            error "failed reading uname with 'uname -svm'"
             return $ret
         }
     fi
     # shellcheck disable=2086
     set -- $out
     DI_UNAME_KERNEL_NAME="$1"
-    DI_UNAME_NODENAME="$2"
-    DI_UNAME_KERNEL_RELEASE="$3"
-    shift 3
-    while [ $# -gt 2 ]; do
+    shift
+    while [ $# -gt 1 ]; do
         buf="$buf $1"
         shift
     done
     DI_UNAME_KERNEL_VERSION="${buf# }"
     DI_UNAME_MACHINE="$1"
-    DI_UNAME_OPERATING_SYSTEM="$2"
     DI_UNAME_CMD_OUT="$out"
     return 0
 }
@@ -725,11 +759,15 @@ probe_floppy() {
     [ -b "$fpath" ] ||
         { STATE_FLOPPY_PROBED=1; return 1; }
 
-    modprobe --use-blacklist floppy >/dev/null 2>&1 ||
+    # Use "-b" option as Busybox modprobe doesn't support long-option
+    modprobe -b floppy >/dev/null 2>&1 ||
         { STATE_FLOPPY_PROBED=1; return 1; }
 
-    udevadm settle "--exit-if-exists=$fpath" ||
-        { STATE_FLOPPY_PROBED=1; return 1; }
+    # Some Linux distros/non-Linux OSes may not have udev
+    if command -v udevadm; then
+        udevadm settle "--exit-if-exists=$fpath" ||
+            { STATE_FLOPPY_PROBED=1; return 1; }
+    fi
 
     [ -b "$fpath" ]
     STATE_FLOPPY_PROBED=$?
@@ -777,24 +815,21 @@ check_config() {
     if [ "$1" = "$files" -a ! -f "$1" ]; then
         return 1
     fi
-    local line="" ret="" found=0 found_fn="" oifs="$IFS" out=""
-    out=$(grep "$key\"\?:" "$@" 2>/dev/null)
-    IFS=${CR}
-    for line in $out; do
-        # drop '# comment'
-        line=${line%%#*}
-        # if more than one file was 'grep'ed, then grep will output filename:
-        # but if only one file, line will not be prefixed.
-        if [ $# -eq 1 ]; then
-            found_fn="$1"
-        else
-            found_fn="${line%%:*}"
-            line=${line#*:}
-        fi
-        ret=${line#*: };
-        found=$((found+1))
+    local fname="" line="" ret="" found=0 found_fn=""
+    # shellcheck disable=2094
+    for fname in "$@"; do
+        [ -f "$fname" ] || continue
+        while read line; do
+            line=${line%%#*}
+            case "$line" in
+                $key:\ *|"${key}":)
+                    ret=${line#*:};
+                    ret=${ret# };
+                    found=$((found+1))
+                    found_fn="$fname";;
+            esac
+        done <"$fname"
     done
-    IFS="$oifs"
     if [ $found -ne 0 ]; then
         _RET="$ret"
         _RET_fname="$found_fn"
@@ -1069,7 +1104,8 @@ is_cdrom_ovf() {
     fi
 
     local idstr="http://schemas.dmtf.org/ovf/environment/1"
-    grep --quiet --ignore-case "$idstr" "${PATH_ROOT}$dev"
+    # POSIX grep only supports short-options, long-options are GNU-specific
+    grep -q -i "$idstr" "${PATH_ROOT}$dev"
 }
 
 has_ovf_cdrom() {
@@ -1550,6 +1586,29 @@ dscheck_VMware() {
     return "${DS_NOT_FOUND}"
 }
 
+dscheck_WSL() {
+    if [ "${DI_UNAME_KERNEL_NAME}" != "Linux" ]; then
+        return "${DS_NOT_FOUND}"
+    fi
+
+    if [ "${DI_VIRT}" != "wsl" ]; then
+        return "${DS_NOT_FOUND}"
+    fi
+
+    # The datasource needs to find the cloud-config files in the Windows host
+    # filesystem, which is exposed as 9p mount points, one per disk drive (partition).
+    # If none is found, the datasource cannot proceed.
+    # See https://youtu.be/lwhMThePdIo?t=2431&si=JKTHx39TyRgPbzkZ and
+    # https://learn.microsoft.com/en-us/windows/wsl/wsl-config#what-is-drvfs
+    # for more information.
+    if [ "$(grep -c '^[^[:space:]]* [^[:space:]]* 9p [^[:space:]]*aname=drvfs;.*' "${PATH_ROOT}/proc/mounts")" = 0 ]; then
+        debug 1 "WSL datasource requires access to Windows drives mount points"
+        return "${DS_NOT_FOUND}"
+    fi
+
+    return "${DS_FOUND}"
+}
+
 collect_info() {
     read_pid1_product_name
     read_config
@@ -1564,6 +1623,7 @@ collect_info() {
 }
 
 print_info() {
+    read_uname_info
     collect_info
     _print_info
 }
@@ -1573,8 +1633,7 @@ _print_info() {
     vars="DMI_PRODUCT_NAME DMI_SYS_VENDOR DMI_PRODUCT_SERIAL"
     vars="$vars DMI_PRODUCT_UUID PID_1_PRODUCT_NAME DMI_CHASSIS_ASSET_TAG"
     vars="$vars DMI_BOARD_NAME FS_LABELS ISO9660_DEVS KERNEL_CMDLINE VIRT"
-    vars="$vars UNAME_KERNEL_NAME UNAME_KERNEL_RELEASE UNAME_KERNEL_VERSION"
-    vars="$vars UNAME_MACHINE UNAME_NODENAME UNAME_OPERATING_SYSTEM"
+    vars="$vars UNAME_KERNEL_NAME UNAME_KERNEL_VERSION UNAME_MACHINE"
     vars="$vars DSNAME DSLIST"
     vars="$vars MODE ON_FOUND ON_MAYBE ON_NOTFOUND"
     for v in ${vars}; do
@@ -1821,12 +1880,25 @@ read_uptime() {
     return
 }
 
+set_run_path() {
+    if [ "$DI_UNAME_KERNEL_NAME" != "Linux" ]; then
+        PATH_RUN=${PATH_RUN:-"${PATH_ROOT}/var/run"}
+    else
+        PATH_RUN=${PATH_RUN:-"${PATH_ROOT}/run"}
+    fi
+
+    PATH_RUN_CI="${PATH_RUN_CI:-${PATH_RUN}/cloud-init}"
+    PATH_RUN_CI_CFG=${PATH_RUN_CI_CFG:-${PATH_RUN_CI}/cloud.cfg}
+    PATH_RUN_DI_RESULT=${PATH_RUN_DI_RESULT:-${PATH_RUN_CI}/.ds-identify.result}
+
+    DI_LOG="${DI_LOG:-${PATH_RUN_CI}/ds-identify.log}"
+}
+
 _main() {
     local dscheck_fn="" ret_dis=1 ret_en=0
 
     read_uptime
     debug 1 "[up ${_RET}s]" "ds-identify $*"
-    read_uname_info
     read_virt
     read_kernel_cmdline
     if is_disabled; then
@@ -1949,11 +2021,14 @@ _main() {
 main() {
     local ret=""
     ensure_sane_path
+    read_uname_info
+    set_run_path
+
     [ -d "$PATH_RUN_CI" ] || mkdir -p "$PATH_RUN_CI"
     if [ "${1:+$1}" != "--force" ] && [ -f "$PATH_RUN_CI_CFG" ] &&
         [ -f "$PATH_RUN_DI_RESULT" ]; then
         if read ret < "$PATH_RUN_DI_RESULT"; then
-            if [ "$ret" = "0" ] || [ "$ret" = "1" ]; then
+            if [ "$ret" = "0" ] || [ "$ret" = "1" ] || [ "$ret" = "2" ]; then
                 debug 2 "used cached result $ret. pass --force to re-run."
                 return "$ret";
             fi
