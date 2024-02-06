@@ -127,19 +127,6 @@ def cloud_init_data_dir() -> PurePath:
     return PurePath(seed_dir)
 
 
-def machine_id():
-    """
-    Returns the local machine ID value from /etc/machine-id.
-    """
-    from cloudinit.settings import MACHINE_ID_FILE
-
-    try:
-        return util.load_binary_file(MACHINE_ID_FILE)
-    except OSError as err:
-        LOG.error(err)
-        return None
-
-
 def candidate_user_data_file_names(instance_name) -> List[str]:
     """
     Return a list of candidate file names that may contain user-data
