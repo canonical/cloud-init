@@ -17,7 +17,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 +NETPLAN_CONFIG_ROOT_READ_ONLY = False
  """
  If ``NETPLAN_CONFIG_ROOT_READ_ONLY`` is True, then netplan configuration will
- be written as a single root readon-only file /etc/netplan/50-cloud-init.yaml.
+ be written as a single root read-only file /etc/netplan/50-cloud-init.yaml.
 --- a/tests/unittests/distros/test_netconfig.py
 +++ b/tests/unittests/distros/test_netconfig.py
 @@ -608,32 +608,41 @@ class TestNetCfgDistroUbuntuNetplan(Test
@@ -97,7 +97,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
          self.assertIn("Passthrough netplan v2 config", self.logs.getvalue())
          self.assertIn(
              "Selected renderer 'netplan' from priority list: ['netplan']",
-@@ -1072,12 +1084,16 @@ class TestNetCfgDistroArch(TestNetCfgDis
+@@ -1035,12 +1047,16 @@ class TestNetCfgDistroArch(TestNetCfgDis
          with mock.patch(
              "cloudinit.net.netplan.get_devicelist", return_value=[]
          ):
