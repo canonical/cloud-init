@@ -2336,6 +2336,20 @@ class TestNetworkSchema:
                 "",
                 id="bond_with_all_known_properties",
             ),
+            pytest.param(
+                {
+                    "network": {
+                        "version": 1,
+                        "config": [
+                            {"type": "physical", "name": "eth0", "mtu": None},
+                            {"type": "nameserver", "address": "8.8.8.8"},
+                        ],
+                    }
+                },
+                does_not_raise(),
+                "",
+                id="GH-4710_mtu_none_and_str_address",
+            ),
         ),
     )
     def test_network_schema(self, src_config, expectation, log, caplog):

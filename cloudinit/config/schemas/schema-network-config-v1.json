@@ -25,7 +25,10 @@
           "description": "The lowercase MAC address of the physical device."
         },
         "mtu": {
-          "type": "integer",
+          "type": [
+            "integer",
+            "null"
+          ],
           "description": "The MTU size in bytes. The ``mtu`` key represents a device's Maximum Transmission Unit, which is the largest size packet or frame, specified in octets (eight-bit bytes), that can be sent in a packet- or frame-based network. Specifying ``mtu`` is optional. Values too small or too large for a device may be ignored by that device."
         },
         "subnets": {
@@ -385,8 +388,7 @@
       "additionalProperties": false,
       "required": [
         "type",
-        "address",
-        "search"
+        "address"
       ],
       "properties": {
         "type": {
@@ -397,7 +399,10 @@
         },
         "address": {
           "description": "List of IPv4 or IPv6 address of nameservers.",
-          "type": "array",
+          "type": [
+            "array",
+            "string"
+          ],
           "items": {
             "type": "string"
           }
