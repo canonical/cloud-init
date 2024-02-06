@@ -993,6 +993,8 @@ class OvfEnvXml:
         public_keys: Optional[List[dict]] = None,
         preprovisioned_vm: bool = False,
         preprovisioned_vm_type: Optional[str] = None,
+        provision_guest_proxy_agent: bool = False,
+
     ) -> None:
         self.username = username
         self.password = password
@@ -1002,6 +1004,7 @@ class OvfEnvXml:
         self.public_keys: List[dict] = public_keys or []
         self.preprovisioned_vm = preprovisioned_vm
         self.preprovisioned_vm_type = preprovisioned_vm_type
+        self.provision_guest_proxy_agent = provision_guest_proxy_agent
 
     def __eq__(self, other) -> bool:
         return self.__dict__ == other.__dict__
@@ -1143,6 +1146,12 @@ class OvfEnvXml:
         self.preprovisioned_vm_type = self._parse_property(
             platform_settings,
             "PreprovisionedVMType",
+            required=False,
+        )
+        self.provision_guest_proxy_agent = self._parse_property(
+            platform_settings,
+            "ProvisionGuestProxyAgent",
+            default=False,
             required=False,
         )
 
