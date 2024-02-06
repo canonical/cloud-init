@@ -100,7 +100,7 @@ def cmd_executable() -> PurePath:
     )
 
 
-def win_user_profile_dir() -> PurePath:
+def cloud_init_data_dir() -> PurePath:
     """
     Returns the Windows user profile directory translated as a Linux path
     accessible inside the current WSL instance.
@@ -118,7 +118,12 @@ def win_user_profile_dir() -> PurePath:
             "No output from cmd.exe to show the user profile dir."
         )
 
-    return win_path_2_wsl(home)
+    win_profile_dir = win_path_2_wsl(home)
+    seed_dir = os.path.join(win_profile_dir, ".cloud-init")
+    if not os.path.isdir(seed_dir):
+        raise FileNotFoundError("%s directory doesn't exist." % seed_dir)
+
+    return PurePath(seed_dir)
 
 
 def machine_id():
@@ -161,10 +166,7 @@ class DataSourceWSL(sources.DataSource):
         Finds the most precendent of the candidate files that may contain
         user-data, if any, or None otherwise.
         """
-        profile_dir = win_user_profile_dir()
-        seed_dir = os.path.join(profile_dir, ".cloud-init")
-        if not os.path.isdir(seed_dir):
-            raise FileNotFoundError("%s directory doesn't exist." % seed_dir)
+        seed_dir = cloud_init_data_dir()
 
         # Notice that by default file name casing is irrelevant here. Windows
         # filenames are case insensitive. Even though accessed through Linux,
