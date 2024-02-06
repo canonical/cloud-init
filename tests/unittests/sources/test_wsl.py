@@ -7,6 +7,7 @@
 import os
 from copy import deepcopy
 from email.mime.multipart import MIMEMultipart
+from pathlib import PurePath
 from typing import cast
 
 from cloudinit import helpers, util
@@ -168,20 +169,15 @@ class TestWSLDataSource(CiTestCase):
             {"cloud_dir": self.tmp, "run_dir": self.tmp}
         )
 
-    @mock.patch("cloudinit.util.wait_for_files")
-    @mock.patch("cloudinit.util.load_binary_file")
     @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
-    @mock.patch("cloudinit.sources.DataSourceWSL.win_user_profile_dir")
-    def test_metadata_id(self, m_prof_dir, m_iname, m_load_file, m_wait_file):
+    @mock.patch("cloudinit.sources.DataSourceWSL.cloud_init_data_dir")
+    def test_metadata_id_default(self, m_seed_dir, m_iname):
         """
         Validates that instance-id is properly set, indepedent of the existence
         of user-data.
         """
-        m_wait_file.return_value = set()
-        NICE_MACHINE_ID = "A-Nice-Machine-ID_by_systemd"
-        m_load_file.return_value = NICE_MACHINE_ID
         m_iname.return_value = INSTANCE_NAME
-        m_prof_dir.return_value = self.tmp
+        m_seed_dir.return_value = PurePath(self.tmp)
 
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
@@ -190,10 +186,31 @@ class TestWSLDataSource(CiTestCase):
         )
         ds.get_data()
 
-        self.assertEqual(
-            ds.get_instance_id(),
-            "%s-%s" % (INSTANCE_NAME, NICE_MACHINE_ID),
+        self.assertEqual(ds.get_instance_id(), wsl.DEFAULT_INSTANCE_ID)
+
+    @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
+    @mock.patch("cloudinit.sources.DataSourceWSL.cloud_init_data_dir")
+    def test_metadata_id(self, m_seed_dir, m_iname):
+        """
+        Validates that instance-id is properly set, indepedent of the existence
+        of user-data.
+        """
+        m_iname.return_value = INSTANCE_NAME
+        m_seed_dir.return_value = PurePath(self.tmp)
+        SAMPLE_ID = "Nice-ID"
+        util.write_file(
+            os.path.join(self.tmp, "%s.meta-data" % INSTANCE_NAME),
+            '{"instance-id":"%s"}' % SAMPLE_ID,
         )
+
+        ds = wsl.DataSourceWSL(
+            sys_cfg=SAMPLE_CFG,
+            distro=None,
+            paths=self.paths,
+        )
+        ds.get_data()
+
+        self.assertEqual(ds.get_instance_id(), SAMPLE_ID)
 
     @mock.patch("cloudinit.util.lsb_release")
     @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
