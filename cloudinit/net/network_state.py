@@ -840,7 +840,7 @@ class NetworkStateInterpreter:
             # We accept both spellings (as netplan does).  LP: #1756701
             # Normalize internally to the new spelling:
             params = item_params.get("parameters", {})
-            grat_value = params.pop("gratuitous-arp", None)
+            grat_value = params.pop("gratuitious-arp", None)
             if grat_value:
                 params["gratuitous-arp"] = grat_value
 
