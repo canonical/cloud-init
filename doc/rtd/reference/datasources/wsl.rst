@@ -33,15 +33,14 @@ Requirements
    run automatically if systemd is enabled via the ``/etc/wsl.conf``. The
    Ubuntu applications distributed via Microsoft Store enable systemd in the
    first boot, so no action is required if the user sets up a new instance by
-   using them. Users of other distros may find surprising that cloud-init
-   doesn't run automatically by default. At the time of this writing only
+   using them. Users of other distros may find it surprising that cloud-init
+   doesn't run automatically by default. At the time of this writing, only
    systemd distros are supported by the WSL datasource, although there is
-   nothing hard coded in the implementation code that requires it, so it's
-   possible that non-systemd distros find ways to run cloud-init and make it
-   just work.
+   nothing hard coded in the implementation code that requires it, so
+   non-systemd distros may find ways to run cloud-init and make it just work.
 
 Notice that requirements 1 and 2 are met by default, i.e. WSL grants those
-features enabled, being the user allowed to opt out, if so desired.
+features enabled, being the user allowed to opt-out if so desired.
 For more information about how to configure WSL,
 `check the official documentation <https://learn.microsoft.com/windows/wsl/wsl-config#configuration-settings-for-wslconf>`_.
 
@@ -49,13 +48,13 @@ User data Configuration
 ========================
 
 The WSL datasource relies exclusively on the Windows filesystem as the provider
-for user data. Access to those files is provided by WSL itself, unless disabled
+of user data. Access to those files is provided by WSL itself unless disabled
 by the user, thus the datasource doesn't require any special component running
 on the Windows host to provide such data.
 
 User data can be supplied in any
 :ref:`format supported by cloud-init<user_data_formats>`, such as YAML
-cloud-config files or shell scripts. At runtime the WSL datasource looks for
+cloud-config files or shell scripts. At runtime, the WSL datasource looks for
 user data in the following locations inside the Windows host filesystem, in the
 order specified below:
 
@@ -66,13 +65,13 @@ order specified below:
    instance named ``Sid-MLKit``.
 
 2. ``%USERPROFILE%\.cloud-init\<ID>-<VERSION_ID>.user-data`` for the
-   distro specific configuration, matched by the distro ID and VERSION_CODENAME
+   distro-specific configuration, matched by the distro ID and VERSION_CODENAME
    entries as specified in ``/etc/os-release``. Example:
    ``ubuntu-22.04.user-data`` will affect any instance created from an Ubuntu
-   22.04 Jammy Jellyfish image, if a more specific configuration file does not
+   22.04 Jammy Jellyfish image if a more specific configuration file does not
    match.
 
-3. ``%USERPROFILE%\.cloud-init\<ID>-all.user-data`` for the distro specific
+3. ``%USERPROFILE%\.cloud-init\<ID>-all.user-data`` for the distro-specific
    configuration, matched by the distro ID entry in ``/etc/os-release``,
    regardless of the release version. Example: ``debian-all.user-data`` will
    affect any instance created from any Debian GNU/Linux image, regardless of
@@ -84,15 +83,15 @@ order specified below:
    example, to automatically create a user with the same name across all WSL
    instances a user may have.
 
-Only the first match is loaded, no config merging is done, even in the presence
-of errors. That avoids unexpected behavior due surprising merge scenarios.
-Also, notice that the file name casing is irrelevant since both the Windows
-file names as well as the WSL distro names are case insensitive by default.
-If none are found, cloud-init remains disabled.
+Only the first match is loaded, and no config merging is done, even in the
+presence of errors. That avoids unexpected behaviour due to surprising merge
+scenarios. Also, notice that the file name casing is irrelevant since both the
+Windows file names, as well as the WSL distro names, are case-insensitive by
+default. If none are found, cloud-init remains disabled.
 
 .. note::
    Some users may have configured case sensitivity for file names on Windows.
-   Note that user data files will still be matched case insensitively. If there
+   Note that user data files will still be matched case-insensitively. If there
    are both `InstanceName.user-data` and `instancename.user-data`, which one
    will be chosen is arbitrary and should not be relied on. Thus it's
    recommended to avoid that scenario to prevent confusion.
@@ -129,12 +128,12 @@ Unsupported or restricted modules and features
 
 Certain features of cloud-init and its modules either require further
 customization in the code to better fit the WSL platform or cannot be supported
-at all due constraints of that platform. When writing user-data config files,
-please check the following restrictions:
+at all due to the constraints of that platform. When writing user-data config
+files, please check the following restrictions:
 
 * File paths in an include file must be Linux absolute paths.
 
-  Users may get surprised with that requirement since the user data files are
+  Users may be surprised with that requirement since the user data files are
   inside the Windows file system. But remember that cloud-init is still running
   inside a Linux instance, and the files referenced in the include user data
   file will be read by cloud-init, thus they must be represented with paths
@@ -164,14 +163,13 @@ include file.
 
 * Set Hostname.
 
-  WSL automatically assigns the instances hostname and any attempt to change it
-  will take effect only until the next boot, when WSL takes over again.
-  The user can set the desired hostname via ``/etc/wsl.conf``, if really
-  necessary.
+  WSL automatically assigns the instance hostname and any attempt to change it
+  will take effect only until the next boot when WSL takes over again.
+  The user can set the desired hostname via ``/etc/wsl.conf``, if necessary.
 
 * Default user.
 
-  While creating users through cloud-init work as in any other platform, WSL
+  While creating users through cloud-init works as in any other platform, WSL
   has the concept of the *default user*, which is the user logged in by
   default. So, to create the default user with cloud-init, one must supply user
   data to the :ref:`Users and Groups module <mod-users_groups>` and write the
