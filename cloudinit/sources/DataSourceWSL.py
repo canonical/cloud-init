@@ -169,7 +169,7 @@ def load_metadata_iid(cloudinitdir: PurePath, instance_name: str) -> str:
             "Failed to load metadata file from %s for instance %s: %s",
             cloudinitdir.as_posix(),
             instance_name,
-            err
+            err,
         )
 
     return raw.get("instance-id", DEFAULT_INSTANCE_ID)
@@ -214,8 +214,9 @@ class DataSourceWSL(sources.DataSource):
             return None
 
         try:
-            return current == load_metadata_iid(cloud_init_data_dir(),
-                                                self.instance_name)
+            return current == load_metadata_iid(
+                cloud_init_data_dir(), self.instance_name
+            )
         except IOError as err:
             LOG.error("Could not load updated instance ID: %s", err)
             return None

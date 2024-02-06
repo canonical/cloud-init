@@ -219,9 +219,7 @@ class TestWSLDataSource(CiTestCase):
         m_gld.return_value = SAMPLE_LINUX_DISTRO
         m_iname.return_value = INSTANCE_NAME
         m_seed_dir.return_value = PurePath(self.tmp)
-        userdata_file = os.path.join(
-            self.tmp, "%s.user-data" % INSTANCE_NAME
-        )
+        userdata_file = os.path.join(self.tmp, "%s.user-data" % INSTANCE_NAME)
         util.write_file(
             userdata_file, "#cloud-config\nwrite_files:\n- path: /etc/wsl.conf"
         )
@@ -249,9 +247,7 @@ class TestWSLDataSource(CiTestCase):
         m_gld.return_value = SAMPLE_LINUX_DISTRO
         m_iname.return_value = INSTANCE_NAME
         m_seed_dir.return_value = PurePath(self.tmp)
-        userdata_file = os.path.join(
-            self.tmp, "%s.user-data" % INSTANCE_NAME
-        )
+        userdata_file = os.path.join(self.tmp, "%s.user-data" % INSTANCE_NAME)
         COMMAND = "echo Hello cloud-init on WSL!"
         util.write_file(userdata_file, "#!/bin/sh\n%s\n" % COMMAND)
 
@@ -282,9 +278,7 @@ class TestWSLDataSource(CiTestCase):
         m_seed_dir.return_value = PurePath(self.tmp)
         # This is the most specific: should win over the other user-data files.
         # Also, notice the file name casing: should be irrelevant.
-        userdata_file = os.path.join(
-            self.tmp, "ubuntu-24.04.user-data"
-        )
+        userdata_file = os.path.join(self.tmp, "ubuntu-24.04.user-data")
         util.write_file(
             userdata_file, "#cloud-config\nwrite_files:\n- path: /etc/wsl.conf"
         )
