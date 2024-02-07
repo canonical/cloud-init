@@ -3,7 +3,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
-import os
 
 import cloudinit.distros.netbsd
 from cloudinit import subp, util
@@ -16,7 +15,7 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
     init_cmd = ["rcctl"]
 
     def _read_hostname(self, filename, default=None):
-        return util.load_file(self.hostname_conf_fn)
+        return util.load_text_file(self.hostname_conf_fn)
 
     def _write_hostname(self, hostname, filename):
         content = hostname + "\n"
@@ -58,5 +57,4 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
 
     def _get_pkg_cmd_environ(self):
         """Return env vars used in OpenBSD package_command operations"""
-        e = os.environ.copy()
-        return e
+        return {}

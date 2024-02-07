@@ -19,7 +19,7 @@ from abc import ABC, abstractmethod
 from contextlib import suppress
 from pathlib import Path
 from textwrap import dedent
-from typing import Tuple
+from typing import Optional, Tuple
 
 from cloudinit import subp, temp_utils, util
 from cloudinit.cloud import Cloud
@@ -167,11 +167,10 @@ class Resizer(ABC):
 
 class ResizeGrowPart(Resizer):
     def available(self, devices: list):
-        myenv = os.environ.copy()
-        myenv["LANG"] = "C"
-
         try:
-            (out, _err) = subp.subp(["growpart", "--help"], env=myenv)
+            out = subp.subp(
+                ["growpart", "--help"], update_env={"LANG": "C"}
+            ).stdout
             if re.search(r"--update\s+", out):
                 return True
 
@@ -180,8 +179,6 @@ class ResizeGrowPart(Resizer):
         return False
 
     def resize(self, diskdev, partnum, partdev):
-        myenv = os.environ.copy()
-        myenv["LANG"] = "C"
         before = get_size(partdev)
 
         # growpart uses tmp dir to store intermediate states
@@ -189,12 +186,13 @@ class ResizeGrowPart(Resizer):
         tmp_dir = self._distro.get_tmp_exec_path()
         with temp_utils.tempdir(dir=tmp_dir, needs_exe=True) as tmpd:
             growpart_tmp = os.path.join(tmpd, "growpart")
+            my_env = {"LANG": "C", "TMPDIR": growpart_tmp}
             if not os.path.exists(growpart_tmp):
                 os.mkdir(growpart_tmp, 0o700)
-            myenv["TMPDIR"] = growpart_tmp
             try:
                 subp.subp(
-                    ["growpart", "--dry-run", diskdev, partnum], env=myenv
+                    ["growpart", "--dry-run", diskdev, partnum],
+                    update_env=my_env,
                 )
             except subp.ProcessExecutionError as e:
                 if e.exit_code != 1:
@@ -208,7 +206,7 @@ class ResizeGrowPart(Resizer):
                 return (before, before)
 
             try:
-                subp.subp(["growpart", diskdev, partnum], env=myenv)
+                subp.subp(["growpart", diskdev, partnum], update_env=my_env)
             except subp.ProcessExecutionError as e:
                 util.logexc(LOG, "Failed: growpart %s %s", diskdev, partnum)
                 raise ResizeFailedException(e) from e
@@ -246,11 +244,10 @@ class ResizeGrowFS(Resizer):
 
 class ResizeGpart(Resizer):
     def available(self, devices: list):
-        myenv = os.environ.copy()
-        myenv["LANG"] = "C"
-
         try:
-            (_out, err) = subp.subp(["gpart", "help"], env=myenv, rcs=[0, 1])
+            err = subp.subp(
+                ["gpart", "help"], update_env={"LANG": "C"}, rcs=[0, 1]
+            ).stderr
             if re.search(r"gpart recover ", err):
                 return True
 
@@ -283,12 +280,16 @@ class ResizeGpart(Resizer):
         return (before, get_size(partdev))
 
 
-def get_size(filename):
-    fd = os.open(filename, os.O_RDONLY)
+def get_size(filename) -> Optional[int]:
+    fd = None
     try:
+        fd = os.open(filename, os.O_RDONLY)
         return os.lseek(fd, 0, os.SEEK_END)
+    except FileNotFoundError:
+        return None
     finally:
-        os.close(fd)
+        if fd:
+            os.close(fd)
 
 
 def device_part_info(devpath):
@@ -319,14 +320,14 @@ def device_part_info(devpath):
     if not os.path.exists(ptpath):
         raise TypeError("%s not a partition" % devpath)
 
-    ptnum = util.load_file(ptpath).rstrip()
+    ptnum = util.load_text_file(ptpath).rstrip()
 
     # for a partition, real syspath is something like:
     # /sys/devices/pci0000:00/0000:00:04.0/virtio1/block/vda/vda1
     rsyspath = os.path.realpath(syspath)
     disksyspath = os.path.dirname(rsyspath)
 
-    diskmajmin = util.load_file(os.path.join(disksyspath, "dev")).rstrip()
+    diskmajmin = util.load_text_file(os.path.join(disksyspath, "dev")).rstrip()
     diskdevpath = os.path.realpath("/dev/block/%s" % diskmajmin)
 
     # diskdevpath has something like 253:0
@@ -571,13 +572,22 @@ def resize_devices(resizer, devices):
             continue
 
         try:
-            (old, new) = resizer.resize(disk, ptnum, blockdev)
+            old, new = resizer.resize(disk, ptnum, blockdev)
             if old == new:
                 info.append(
                     (
                         devent,
                         RESIZE.NOCHANGE,
                         "no change necessary (%s, %s)" % (disk, ptnum),
+                    )
+                )
+            elif new is None or old is None:
+                info.append(
+                    (
+                        devent,
+                        RESIZE.CHANGED,
+                        "changed (%s, %s) size, new size is unknown"
+                        % (disk, ptnum),
                     )
                 )
             else:

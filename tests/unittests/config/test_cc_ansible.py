@@ -1,6 +1,6 @@
+import os
 import re
 from copy import deepcopy
-from os import environ
 from textwrap import dedent
 from unittest import mock
 from unittest.mock import MagicMock
@@ -298,7 +298,6 @@ class TestAnsible:
             M_PATH + "AnsiblePullDistro.is_installed",
             return_value=False,
         )
-        mocker.patch.dict(M_PATH + "os.environ", clear=True)
         if exception:
             with raises(exception):
                 cc_ansible.handle("", cfg, get_cloud(), None)
@@ -385,21 +384,20 @@ class TestAnsible:
         """verify expected ansible invocation from userdata config"""
         pull_type = cfg["ansible"]["install_method"]
         distro = get_cloud().distro
-        with mock.patch.dict(M_PATH + "os.environ", clear=True):
-            ansible_pull = (
-                cc_ansible.AnsiblePullPip(distro, "ansible")
-                if pull_type == "pip"
-                else cc_ansible.AnsiblePullDistro(distro)
-            )
+        ansible_pull = (
+            cc_ansible.AnsiblePullPip(distro, "ansible")
+            if pull_type == "pip"
+            else cc_ansible.AnsiblePullDistro(distro)
+        )
         cc_ansible.run_ansible_pull(
             ansible_pull, deepcopy(cfg["ansible"]["pull"])
         )
 
         if pull_type != "pip":
             assert m_subp2.call_args[0][0] == expected
-            assert m_subp2.call_args[1]["env"].get("HOME") == environ.get(
+            assert m_subp2.call_args[1]["update_env"].get(
                 "HOME"
-            )
+            ) == os.environ.get("HOME", "/root")
 
     @mock.patch(M_PATH + "validate_config")
     def test_do_not_run(self, m_validate):
@@ -435,5 +433,5 @@ class TestAnsible:
         if isinstance(m_subp.call_args.kwargs, dict):
             assert (
                 "/etc/ansible/ansible.cfg"
-                == m_subp.call_args.kwargs["env"]["ansible_config"]
+                == m_subp.call_args.kwargs["update_env"]["ansible_config"]
             )

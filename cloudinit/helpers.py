@@ -104,23 +104,7 @@ class FileSemaphores:
         sem_file = self._get_path(cname, freq)
         # This isn't really a good atomic check
         # but it suffices for where and when cloudinit runs
-        if os.path.exists(sem_file):
-            return True
-
-        # this case could happen if the migrator module hadn't run yet
-        # but the item had run before we did canon_sem_name.
-        if cname != name and os.path.exists(self._get_path(name, freq)):
-            LOG.warning(
-                "%s has run without canonicalized name [%s].\n"
-                "likely the migrator has not yet run. "
-                "It will run next boot.\n"
-                "run manually with: cloud-init single --name=migrator",
-                name,
-                cname,
-            )
-            return True
-
-        return False
+        return os.path.exists(sem_file)
 
     def _get_path(self, name, freq):
         sem_path = self.sem_path

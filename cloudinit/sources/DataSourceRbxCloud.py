@@ -24,7 +24,7 @@ ETC_HOSTS = "/etc/hosts"
 
 
 def get_manage_etc_hosts():
-    hosts = util.load_file(ETC_HOSTS, quiet=True)
+    hosts = util.load_text_file(ETC_HOSTS, quiet=True)
     if hosts:
         LOG.debug("/etc/hosts exists - setting manage_etc_hosts to False")
         return False
@@ -153,11 +153,9 @@ def read_user_data_callback(mount_dir):
     @returns: A dict containing userdata, metadata and cfg based on metadata.
     """
     meta_data = util.load_json(
-        text=util.load_file(
-            fname=os.path.join(mount_dir, "cloud.json"), decode=False
-        )
+        text=util.load_binary_file(fname=os.path.join(mount_dir, "cloud.json"))
     )
-    user_data = util.load_file(
+    user_data = util.load_text_file(
         fname=os.path.join(mount_dir, "user.data"), quiet=True
     )
     if "vm" not in meta_data or "netadp" not in meta_data:

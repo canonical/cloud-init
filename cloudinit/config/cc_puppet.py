@@ -287,7 +287,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # ... and then update the puppet configuration
     if "conf" in puppet_cfg:
         # Add all sections from the conf object to puppet.conf
-        contents = util.load_file(p_constants.conf_path)
+        contents = util.load_text_file(p_constants.conf_path)
         # Create object for reading puppet.conf values
         puppet_config = helpers.DefaultingConfigParser()
         # Read puppet.conf values from original file in order to be able to

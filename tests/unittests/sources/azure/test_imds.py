@@ -236,7 +236,7 @@ class TestFetchMetadataWithApiFallback:
             ),
             (
                 LOG_PATH,
-                logging.INFO,
+                logging.WARNING,
                 StringMatch("Polling IMDS failed attempt 1 with.*400.*"),
             ),
             (
@@ -314,7 +314,7 @@ class TestFetchMetadataWithApiFallback:
             ),
             (
                 LOG_PATH,
-                logging.INFO,
+                logging.WARNING,
                 StringMatch(
                     "Polling IMDS failed attempt 1 with exception: "
                     f"{error_regex}"
@@ -377,7 +377,7 @@ class TestFetchMetadataWithApiFallback:
             ),
             (
                 LOG_PATH,
-                logging.INFO,
+                logging.WARNING,
                 StringMatch(
                     "Polling IMDS failed attempt 1 with exception:.*400.*"
                 ),
@@ -401,7 +401,7 @@ class TestFetchMetadataWithApiFallback:
             ),
             (
                 LOG_PATH,
-                logging.INFO,
+                logging.WARNING,
                 StringMatch(
                     "Polling IMDS failed attempt 1 with exception:.*429.*"
                 ),
@@ -479,7 +479,7 @@ class TestFetchMetadataWithApiFallback:
         assert logs == [
             (
                 LOG_PATH,
-                logging.INFO,
+                logging.WARNING,
                 StringMatch(
                     f"Polling IMDS failed attempt {i} with exception:"
                     f"{error_regex}"
@@ -535,7 +535,7 @@ class TestFetchMetadataWithApiFallback:
             ),
             (
                 LOG_PATH,
-                logging.INFO,
+                logging.WARNING,
                 StringMatch(
                     "Polling IMDS failed attempt 1 with exception:"
                     f".*{error_regex}"
@@ -722,7 +722,7 @@ class TestFetchReprovisionData:
         backoff_logs = [
             (
                 LOG_PATH,
-                logging.INFO,
+                logging.WARNING,
                 f"Polling IMDS failed attempt {i} with exception: "
                 f"{wrapped_error!r}",
             )
@@ -789,7 +789,7 @@ class TestFetchReprovisionData:
         backoff_logs = [
             (
                 LOG_PATH,
-                logging.INFO,
+                logging.WARNING,
                 f"Polling IMDS failed attempt {i} with exception: "
                 f"{wrapped_error!r}",
             )
@@ -799,7 +799,7 @@ class TestFetchReprovisionData:
         assert caplog.record_tuples == backoff_logs + [
             (
                 LOG_PATH,
-                logging.INFO,
+                logging.WARNING,
                 f"Polling IMDS failed attempt {failures+1} with exception: "
                 f"{exc_info.value!r}",
             ),
@@ -835,7 +835,7 @@ class TestFetchReprovisionData:
         assert caplog.record_tuples == [
             (
                 LOG_PATH,
-                logging.INFO,
+                logging.WARNING,
                 "Polling IMDS failed attempt 1 with exception: "
                 f"{exc_info.value!r}",
             ),

@@ -36,7 +36,16 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.viewcode",
+    "sphinxcontrib.spelling",
 ]
+
+
+# Spelling settings for sphinxcontrib.spelling
+# https://docs.ubuntu.com/styleguide/en/
+spelling_warning = True
+
+# Uses case-independent spelling matches from doc/rtd/spelling_word_list.txt
+spelling_filters = ["spelling.WordListFilter"]
 
 # The suffix of source filenames.
 source_suffix = ".rst"
@@ -122,12 +131,17 @@ autosectionlabel_maxdepth = 2
 linkcheck_ignore = [
     r"http://\[fd00:ec2::254.*",
     r"http://instance-data.*",
+    r"https://www.scaleway.com/en/developers/api/instance.*",
     r"https://powersj.io.*",
     r"http://169.254.169.254.*",
     r"http://10.10.0.1.*",
 ]
 
 linkcheck_anchors_ignore_for_url = (
+    # Ignore github anchors in rst or md files
+    r"https://github.com/.*\.rst",
+    r"https://github.com/.*\.md",
+    # Ignore github line number anchors in cloud-init and ubuntu-pro-client
     r"https://github.com/canonical/cloud-init.*",
     r"https://github.com/canonical/ubuntu-pro-client.*",
 )

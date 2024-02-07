@@ -102,7 +102,7 @@ def enable_nics(nics):
     enableNicsWaitCount = 5
     enableNicsWaitSeconds = 1
 
-    for attempt in range(0, enableNicsWaitRetries):
+    for attempt in range(enableNicsWaitRetries):
         logger.debug("Trying to connect interfaces, attempt %d", attempt)
         (out, _err) = set_customization_status(
             GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
@@ -117,7 +117,7 @@ def enable_nics(nics):
             logger.warning("NICS connection status query is not supported")
             return
 
-        for count in range(0, enableNicsWaitCount):
+        for count in range(enableNicsWaitCount):
             (out, _err) = set_customization_status(
                 GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
                 GuestCustEventEnum.GUESTCUST_EVENT_QUERY_NICS,
@@ -251,7 +251,7 @@ def get_data_from_imc_raw_data_cust_cfg(cust_cfg):
             )
             return (None, None, None)
         try:
-            md = util.load_file(md_path)
+            md = util.load_text_file(md_path)
         except Exception as e:
             set_cust_error_status(
                 "Error loading cloud-init meta data file",
@@ -284,7 +284,7 @@ def get_data_from_imc_raw_data_cust_cfg(cust_cfg):
                 )
                 return (None, None, None)
             try:
-                ud = util.load_file(ud_path).replace("\r", "")
+                ud = util.load_text_file(ud_path).replace("\r", "")
             except Exception as e:
                 set_cust_error_status(
                     "Error loading cloud-init userdata file",

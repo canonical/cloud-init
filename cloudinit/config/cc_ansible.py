@@ -70,12 +70,12 @@ class AnsiblePull(abc.ABC):
         self.cmd_pull = ["ansible-pull"]
         self.cmd_version = ["ansible-pull", "--version"]
         self.distro = distro
-        self.env = os.environ
+        self.env = {}
         self.run_user: Optional[str] = None
 
         # some ansible modules directly reference os.environ["HOME"]
         # and cloud-init might not have that set, default: /root
-        self.env["HOME"] = self.env.get("HOME", "/root")
+        self.env["HOME"] = os.environ.get("HOME", "/root")
 
     def get_version(self) -> Optional[Version]:
         stdout, _ = self.do_as(self.cmd_version)
@@ -100,7 +100,7 @@ class AnsiblePull(abc.ABC):
         return self.distro.do_as(command, self.run_user, **kwargs)
 
     def subp(self, command, **kwargs):
-        return subp(command, env=self.env, **kwargs)
+        return subp(command, update_env=self.env, **kwargs)
 
     @abc.abstractmethod
     def is_installed(self):

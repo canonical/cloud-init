@@ -7,6 +7,7 @@ import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import CURRENT_RELEASE
 
 VALID_USER_DATA = """\
 #cloud-config
@@ -44,10 +45,13 @@ def test_valid_userdata(client: IntegrationInstance):
     assert result.ok
     assert "Valid schema user-data" in result.stdout.strip()
     result = client.execute("cloud-init status --long")
-    if not result.ok:
-        raise AssertionError(
-            f"Unexpected error from cloud-init status: {result}"
-        )
+    # Ubuntu Noble will exit 2 for status due to cloud-init's warning about
+    # disabling /etc/apt/sources.list in favor of deb822 sources
+    return_code = 2 if CURRENT_RELEASE.series == "noble" else 0
+    assert return_code == result.return_code, (
+        f"Unexpected exit {result.return_code} from cloud-init status:"
+        f" {result}"
+    )
 
 
 @pytest.mark.skipif(
@@ -67,8 +71,12 @@ def test_invalid_userdata(client: IntegrationInstance):
         " #cloud-boothook, #cloud-config" in result.stderr
     )
     result = client.execute("cloud-init status --long")
+    if CURRENT_RELEASE.series in ("focal", "jammy", "lunar", "mantic"):
+        return_code = 0  # Stable releases don't change exit code behavior
+    else:
+        return_code = 2  # 23.4 and later will exit 2 on warnings
     assert (
-        2 == result.return_code
+        return_code == result.return_code
     ), f"Unexpected exit code {result.return_code}"
 
 
@@ -79,8 +87,12 @@ def test_invalid_userdata_schema(client: IntegrationInstance):
     PR #1175
     """
     result = client.execute("cloud-init status --long")
+    if CURRENT_RELEASE.series in ("focal", "jammy", "lunar", "mantic"):
+        return_code = 0  # Stable releases don't change exit code behavior
+    else:
+        return_code = 2  # 23.4 and later will exit 2 on warnings
     assert (
-        2 == result.return_code
+        return_code == result.return_code
     ), f"Unexpected exit code {result.return_code}"
     log = client.read_from_file("/var/log/cloud-init.log")
     warning = (

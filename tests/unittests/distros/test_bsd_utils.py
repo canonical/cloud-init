@@ -18,7 +18,7 @@ class TestBsdUtils(CiTestCase):
         self.addCleanup(patches.close)
 
         self.load_file = patches.enter_context(
-            mock.patch.object(bsd_utils.util, "load_file")
+            mock.patch.object(bsd_utils.util, "load_text_file")
         )
 
         self.write_file = patches.enter_context(

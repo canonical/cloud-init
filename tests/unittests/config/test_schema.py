@@ -23,6 +23,7 @@ from cloudinit.config.schema import (
     VERSIONED_USERDATA_SCHEMA_FILE,
     MetaSchema,
     SchemaProblem,
+    SchemaType,
     SchemaValidationError,
     annotated_cloudconfig_file,
     get_jsonschema_validator,
@@ -32,6 +33,7 @@ from cloudinit.config.schema import (
     handle_schema_args,
     load_doc,
     main,
+    netplan_validate_network_schema,
     validate_cloudconfig_file,
     validate_cloudconfig_metaschema,
     validate_cloudconfig_schema,
@@ -40,12 +42,13 @@ from cloudinit.distros import OSFAMILIES
 from cloudinit.safeyaml import load, load_with_marks
 from cloudinit.settings import FREQUENCIES
 from cloudinit.sources import DataSourceNotFoundException
-from cloudinit.util import load_file, write_file
+from cloudinit.templater import JinjaSyntaxParsingException
+from cloudinit.util import load_text_file, write_file
+from tests.helpers import cloud_init_project_dir
 from tests.hypothesis import given
 from tests.hypothesis_jsonschema import from_schema
 from tests.unittests.helpers import (
     CiTestCase,
-    cloud_init_project_dir,
     does_not_raise,
     mock,
     skipUnlessHypothesisJsonSchema,
@@ -135,7 +138,7 @@ class TestVersionedSchemas:
                 r"https:\/\/raw.githubusercontent.com\/canonical\/"
                 r"cloud-init\/main\/cloudinit\/config\/schemas\/",
                 f"file://{schema_dir}/",
-                load_file(version_schemafile),
+                load_text_file(version_schemafile),
             )
         )
         if error_msg:
@@ -245,7 +248,6 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_locale"},
             {"$ref": "#/$defs/cc_lxd"},
             {"$ref": "#/$defs/cc_mcollective"},
-            {"$ref": "#/$defs/cc_migrator"},
             {"$ref": "#/$defs/cc_mounts"},
             {"$ref": "#/$defs/cc_ntp"},
             {"$ref": "#/$defs/cc_package_update_upgrade_install"},
@@ -329,10 +331,95 @@ class SchemaValidationErrorTest(CiTestCase):
         self.assertTrue(isinstance(exception, ValueError))
 
 
+class FakeNetplanParserException(Exception):
+    def __init__(self, filename, line, column, message):
+        self.filename = filename
+        self.line = line
+        self.column = column
+        self.message = message
+
+
+class TestNetplanValidateNetworkSchema:
+    """Tests for netplan_validate_network_schema.
+
+    Heavily mocked because github.com/canonical/netplan project does not
+    have a pyproject.toml or setup.py or pypi release that allows us to
+    define tox unittest dependencies.
+    """
+
+    @pytest.mark.parametrize(
+        "config,expected_log",
+        (
+            ({}, ""),
+            ({"version": 1}, ""),
+            (
+                {"version": 2},
+                "Skipping netplan schema validation. No netplan available",
+            ),
+            (
+                {"network": {"version": 2}},
+                "Skipping netplan schema validation. No netplan available",
+            ),
+        ),
+    )
+    def test_network_config_schema_validation_false_when_skipped(
+        self, config, expected_log, caplog
+    ):
+        """netplan_validate_network_schema returns false when skipped."""
+        with mock.patch.dict("sys.modules"):
+            sys.modules.pop("netplan", None)
+            assert False is netplan_validate_network_schema(config)
+        assert expected_log in caplog.text
+
+    @pytest.mark.parametrize(
+        "error,error_log",
+        (
+            (None, ""),
+            (
+                FakeNetplanParserException(
+                    "net.yaml",
+                    line=1,
+                    column=12,
+                    message="incorrect YAML value: yes for dhcp value",
+                ),
+                r"Invalid network-config provided:.*format-l1.c12: Invalid"
+                " netplan schema. incorrect YAML value: yes for dhcp value",
+            ),
+        ),
+    )
+    def test_network_config_schema_validation(
+        self, error, error_log, caplog, tmpdir
+    ):
+
+        fake_tmpdir = tmpdir.join("mkdtmp")
+
+        class FakeParser:
+            def load_yaml_hierarchy(self, parse_dir):
+                # Since we mocked mkdtemp to tmpdir, assert we pass tmpdir
+                assert parse_dir == fake_tmpdir
+                if error:
+                    raise error
+
+        # Mock expected imports
+        with mock.patch.dict(
+            "sys.modules",
+            netplan=mock.MagicMock(
+                NetplanParserException=FakeNetplanParserException,
+                Parser=FakeParser,
+            ),
+        ):
+            with mock.patch(
+                "cloudinit.config.schema.mkdtemp",
+                return_value=fake_tmpdir.strpath,
+            ):
+                with caplog.at_level(logging.WARNING):
+                    assert netplan_validate_network_schema({"version": 2})
+            if error_log:
+                assert re.match(error_log, caplog.records[0].msg, re.DOTALL)
+
+
 class TestValidateCloudConfigSchema:
     """Tests for validate_cloudconfig_schema."""
-
-    with_logs = True
 
     @pytest.mark.parametrize(
         "schema, call_count",
@@ -355,7 +442,7 @@ class TestValidateCloudConfigSchema:
     def test_validateconfig_schema_non_strict_emits_warnings(self, caplog):
         """When strict is False validate_cloudconfig_schema emits warnings."""
         schema = {"properties": {"p1": {"type": "string"}}}
-        validate_cloudconfig_schema({"p1": -1}, schema, strict=False)
+        validate_cloudconfig_schema({"p1": -1}, schema=schema, strict=False)
         [(module, log_level, log_msg)] = caplog.record_tuples
         assert "cloudinit.config.schema" == module
         assert logging.WARNING == log_level
@@ -373,7 +460,7 @@ class TestValidateCloudConfigSchema:
         }
         validate_cloudconfig_schema(
             {"hashed-password": "secret"},
-            schema,
+            schema=schema,
             strict=False,
             log_details=False,
         )
@@ -402,7 +489,7 @@ class TestValidateCloudConfigSchema:
         """When strict is True validate_cloudconfig_schema raises errors."""
         schema = {"properties": {"p1": {"type": "string"}}}
         with pytest.raises(SchemaValidationError) as context_mgr:
-            validate_cloudconfig_schema({"p1": -1}, schema, strict=True)
+            validate_cloudconfig_schema({"p1": -1}, schema=schema, strict=True)
         assert (
             "Cloud config schema errors: p1: -1 is not of type 'string'"
             == (str(context_mgr.value))
@@ -413,7 +500,9 @@ class TestValidateCloudConfigSchema:
         """With strict True, validate_cloudconfig_schema errors on format."""
         schema = {"properties": {"p1": {"type": "string", "format": "email"}}}
         with pytest.raises(SchemaValidationError) as context_mgr:
-            validate_cloudconfig_schema({"p1": "-1"}, schema, strict=True)
+            validate_cloudconfig_schema(
+                {"p1": "-1"}, schema=schema, strict=True
+            )
         assert "Cloud config schema errors: p1: '-1' is not a 'email'" == (
             str(context_mgr.value)
         )
@@ -424,7 +513,10 @@ class TestValidateCloudConfigSchema:
         schema = {"properties": {"p1": {"type": "string", "format": "email"}}}
         with pytest.raises(SchemaValidationError) as context_mgr:
             validate_cloudconfig_schema(
-                {"p1": "-1"}, schema, strict=True, strict_metaschema=True
+                {"p1": "-1"},
+                schema=schema,
+                strict=True,
+                strict_metaschema=True,
             )
         assert "Cloud config schema errors: p1: '-1' is not a 'email'" == str(
             context_mgr.value
@@ -441,7 +533,7 @@ class TestValidateCloudConfigSchema:
         """
         schema = {"properties": {"p1": {"types": "string", "format": "email"}}}
         validate_cloudconfig_schema(
-            {"p1": "-1"}, schema, strict_metaschema=True
+            {"p1": "-1"}, schema=schema, strict_metaschema=True
         )
         assert (
             "Meta-schema validation failed, attempting to validate config"
@@ -656,7 +748,7 @@ class TestValidateCloudConfigSchema:
     ):
         validate_cloudconfig_schema(
             config,
-            schema,
+            schema=schema,
             strict_metaschema=True,
             log_deprecations=log_deprecations,
         )
@@ -713,7 +805,7 @@ class TestCloudConfigExamples:
                 ]
             )
             schema["properties"].update(supplemental_props)
-        validate_cloudconfig_schema(config_load, schema, strict=True)
+        validate_cloudconfig_schema(config_load, schema=schema, strict=True)
 
 
 @pytest.mark.usefixtures("fake_filesystem")
@@ -825,6 +917,41 @@ class TestValidateCloudConfigFile:
             f"Empty 'cloud-config' found at {cloud_config_file}."
             " Nothing to validate" in out
         )
+
+    @pytest.mark.parametrize("annotate", (True, False))
+    def test_validateconfig_file_raises_jinja_syntax_error(
+        self, annotate, tmpdir, mocker, capsys
+    ):
+        """ """
+        # will throw error because of space between last two }'s
+        invalid_jinja_template = "## template: jinja\na:b\nc:{{ d } }"
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch(
+            "cloudinit.util.load_text_file",
+            return_value=invalid_jinja_template,
+        )
+        mocker.patch(
+            "cloudinit.handlers.jinja_template.load_text_file",
+            return_value='{"c": "d"}',
+        )
+        config_file = tmpdir.join("my.yaml")
+        config_file.write(invalid_jinja_template)
+        with pytest.raises(SystemExit) as context_manager:
+            validate_cloudconfig_file(config_file.strpath, {}, annotate)
+        assert 1 == context_manager.value.code
+
+        _out, err = capsys.readouterr()
+        expected = (
+            "Error:\n"
+            "Failed to render templated user-data. "
+            + JinjaSyntaxParsingException.format_error_message(
+                syntax_error="unexpected '}'",
+                line_number=3,
+                line_content="c:{{ d } }",
+            )
+            + "\n"
+        )
+        assert expected == err
 
 
 class TestSchemaDocMarkdown:
@@ -1751,15 +1878,158 @@ class TestMain:
         assert "\nNTP\n---\n" in out
         assert "\nRuncmd\n------\n" in out
 
-    def test_main_validates_config_file(self, _read_cfg_paths, tmpdir, capsys):
+    @pytest.mark.parametrize(
+        "schema_type,content,expected",
+        (
+            (None, b"#cloud-config\nntp:", "Valid schema"),
+            ("cloud-config", b"#cloud-config\nntp:", "Valid schema"),
+            (
+                "network-config",
+                (
+                    b"network: {'version': 2, 'ethernets':"
+                    b" {'eth0': {'dhcp': true}}}"
+                ),
+                "Skipping network-config schema validation. No network schema"
+                " for version: 2",
+            ),
+            (
+                "network-config",
+                (
+                    b"network:\n version: 1\n config:\n  - type: physical\n"
+                    b"    name: eth0\n    subnets:\n      - type: dhcp\n"
+                ),
+                "Valid schema",
+            ),
+        ),
+    )
+    def test_main_validates_config_file(
+        self,
+        _read_cfg_paths,
+        schema_type,
+        content,
+        expected,
+        tmpdir,
+        capsys,
+        caplog,
+    ):
         """When --config-file parameter is provided, main validates schema."""
         myyaml = tmpdir.join("my.yaml")
         myargs = ["mycmd", "--config-file", myyaml.strpath]
-        myyaml.write(b"#cloud-config\nntp:")  # shortest ntp schema
+        if schema_type:
+            myargs += ["--schema-type", schema_type]
+        myyaml.write(content)  # shortest ntp schema
         with mock.patch("sys.argv", myargs):
-            assert 0 == main(), "Expected 0 exit code"
+            # Always assert we have no netplan module which triggers
+            # schema skip of network-config version: 2 until cloud-init
+            # grows internal schema-network-config-v2.json.
+            with mock.patch.dict("sys.modules", netplan=ImportError()):
+                assert 0 == main(), "Expected 0 exit code"
         out, _err = capsys.readouterr()
-        assert f"Valid schema {myyaml}\n" == out
+        assert expected in out
+
+    @pytest.mark.parametrize(
+        "update_path_content_by_key, expected_keys",
+        (
+            pytest.param(
+                {},
+                {
+                    "ud_key": "cloud_config",
+                    "vd_key": "vendor_cloud_config",
+                    "vd2_key": "vendor2_cloud_config",
+                    "net_key": "network_config",
+                },
+                id="prefer_processed_data_when_present_and_non_empty",
+            ),
+            pytest.param(
+                {
+                    "cloud_config": "",
+                    "vendor_cloud_config": "",
+                    "vendor2_cloud_config": "",
+                },
+                {
+                    "ud_key": "userdata_raw",
+                    "vd_key": "vendordata_raw",
+                    "vd2_key": "vendordata2_raw",
+                    "net_key": "network_config",
+                },
+                id="prefer_raw_data_when_processed_is_empty",
+            ),
+            pytest.param(
+                {"cloud_config": "", "userdata_raw": ""},
+                {
+                    "ud_key": "cloud_config",
+                    "vd_key": "vendor_cloud_config",
+                    "vd2_key": "vendor2_cloud_config",
+                    "net_key": "network_config",
+                },
+                id="prefer_processed_vd_file_path_when_raw_and_processed_empty",
+            ),
+        ),
+    )
+    @mock.patch(M_PATH + "read_cfg_paths")
+    @mock.patch(M_PATH + "os.getuid", return_value=0)
+    def test_main_processed_data_preference_over_raw_data(
+        self,
+        _read_cfg_paths,
+        _getuid,
+        read_cfg_paths,
+        update_path_content_by_key,
+        expected_keys,
+        paths,
+        capsys,
+    ):
+        """"""
+        paths.get_ipath = paths.get_ipath_cur
+        read_cfg_paths.return_value = paths
+        path_content_by_key = {
+            "cloud_config": "#cloud-config\n{}",
+            "vendor_cloud_config": "#cloud-config\n{}",
+            "vendor2_cloud_config": "#cloud-config\n{}",
+            "vendordata_raw": "#cloud-config\n{}",
+            "vendordata2_raw": "#cloud-config\n{}",
+            "network_config": "{version: 1, config: []}",
+            "userdata_raw": "#cloud-config\n{}",
+        }
+        expected_paths = dict(
+            (key, paths.get_ipath_cur(expected_keys[key]))
+            for key in expected_keys
+        )
+        path_content_by_key.update(update_path_content_by_key)
+        for path_key, path_content in path_content_by_key.items():
+            write_file(paths.get_ipath_cur(path_key), path_content)
+        data_types = "user-data, vendor-data, vendor2-data, network-config"
+        ud_msg = "  Valid schema user-data"
+        if (
+            not path_content_by_key["cloud_config"]
+            and not path_content_by_key["userdata_raw"]
+        ):
+            ud_msg = (
+                f"Empty 'cloud-config' found at {expected_paths['ud_key']}."
+                " Nothing to validate."
+            )
+
+        expected = dedent(
+            f"""\
+        Found cloud-config data types: {data_types}
+
+        1. user-data at {expected_paths["ud_key"]}:
+        {ud_msg}
+
+        2. vendor-data at {expected_paths['vd_key']}:
+          Valid schema vendor-data
+
+        3. vendor2-data at {expected_paths['vd2_key']}:
+          Valid schema vendor2-data
+
+        4. network-config at {expected_paths['net_key']}:
+          Valid schema network-config
+        """
+        )
+        myargs = ["mycmd", "--system"]
+        with mock.patch("sys.argv", myargs):
+            main()
+        out, _err = capsys.readouterr()
+        assert expected == out
 
     @pytest.mark.parametrize(
         "net_config,net_output,error_raised",
@@ -1779,7 +2049,7 @@ class TestMain:
                 id="netv2_validation_is_skipped",
             ),
             pytest.param(
-                "network:\n",
+                "network: {}\n",
                 "Skipping network-config schema validation on empty config.",
                 does_not_raise(),
                 id="empty_net_validation_is_skipped",
@@ -1790,6 +2060,14 @@ class TestMain:
                 "  Invalid network-config {network_file}",
                 pytest.raises(SystemExit),
                 id="netv1_schema_errors_handled",
+            ),
+            pytest.param(
+                "network:\n version: 1\n config:\n  - type: physical\n"
+                "    name: eth01234567890123\n    subnets:\n"
+                "      - type: dhcp\n",
+                "  Invalid network-config {network_file}",
+                pytest.raises(SystemExit),
+                id="netv1_schema_error_on_nic_name_length",
             ),
         ),
     )
@@ -1820,8 +2098,12 @@ class TestMain:
         write_file(network_file, net_config)
         myargs = ["mycmd", "--system"]
         with error_raised:
-            with mock.patch("sys.argv", myargs):
-                main()
+            # Always assert we have no netplan module which triggers
+            # schema skip of network-config version: 2 until cloud-init
+            # grows internal schema-network-config-v2.json.
+            with mock.patch.dict("sys.modules", netplan=ImportError()):
+                with mock.patch("sys.argv", myargs):
+                    main()
         out, _err = capsys.readouterr()
 
         net_output = net_output.format(network_file=network_file)
@@ -1880,7 +2162,7 @@ def _get_meta_doc_examples(file_glob="cloud-config*.txt"):
 
 class TestSchemaDocExamples:
     schema = get_schema()
-    net_schema = get_schema(schema_type="network-config")
+    net_schema = get_schema(schema_type=SchemaType.NETWORK_CONFIG)
 
     @pytest.mark.parametrize("example_path", _get_meta_doc_examples())
     @skipUnlessJsonSchema()
@@ -1953,18 +2235,16 @@ VALID_BOND_CONFIG = {
 
 @skipUnlessJsonSchema()
 class TestNetworkSchema:
-    net_schema = get_schema(schema_type="network-config")
+    net_schema = get_schema(schema_type=SchemaType.NETWORK_CONFIG)
 
     @pytest.mark.parametrize(
-        "src_config, expectation",
+        "src_config, expectation, log",
         (
             pytest.param(
                 {"network": {"config": [], "version": 2}},
-                pytest.raises(
-                    SchemaValidationError,
-                    match=re.escape("network.version: 2 is not one of [1]"),
-                ),
-                id="net_v2_invalid",
+                does_not_raise(),
+                "Skipping netplan schema validation. No netplan available",
+                id="net_v2_skipped",
             ),
             pytest.param(
                 {"network": {"version": 1}},
@@ -1972,11 +2252,13 @@ class TestNetworkSchema:
                     SchemaValidationError,
                     match=re.escape("'config' is a required property"),
                 ),
+                "",
                 id="config_key_required",
             ),
             pytest.param(
                 {"network": {"version": 1, "config": []}},
                 does_not_raise(),
+                "",
                 id="config_key_required",
             ),
             pytest.param(
@@ -1993,6 +2275,7 @@ class TestNetworkSchema:
                         " not valid under any of the given schemas"
                     ),
                 ),
+                "",
                 id="unknown_config_type_item",
             ),
             pytest.param(
@@ -2001,6 +2284,7 @@ class TestNetworkSchema:
                     SchemaValidationError,
                     match=r"network.config.0: 'name' is a required property.*",
                 ),
+                "",
                 id="physical_requires_name_property",
             ),
             pytest.param(
@@ -2011,6 +2295,7 @@ class TestNetworkSchema:
                     }
                 },
                 does_not_raise(),
+                "",
                 id="physical_with_name_succeeds",
             ),
             pytest.param(
@@ -2026,6 +2311,7 @@ class TestNetworkSchema:
                     SchemaValidationError,
                     match=r"Additional properties are not allowed.*",
                 ),
+                "",
                 id="physical_no_additional_properties",
             ),
             pytest.param(
@@ -2036,6 +2322,7 @@ class TestNetworkSchema:
                     }
                 },
                 does_not_raise(),
+                "",
                 id="physical_with_all_known_properties",
             ),
             pytest.param(
@@ -2046,18 +2333,35 @@ class TestNetworkSchema:
                     }
                 },
                 does_not_raise(),
+                "",
                 id="bond_with_all_known_properties",
+            ),
+            pytest.param(
+                {
+                    "network": {
+                        "version": 1,
+                        "config": [
+                            {"type": "physical", "name": "eth0", "mtu": None},
+                            {"type": "nameserver", "address": "8.8.8.8"},
+                        ],
+                    }
+                },
+                does_not_raise(),
+                "",
+                id="GH-4710_mtu_none_and_str_address",
             ),
         ),
     )
-    def test_network_schema(self, src_config, expectation):
+    def test_network_schema(self, src_config, expectation, log, caplog):
         with expectation:
             validate_cloudconfig_schema(
                 config=src_config,
                 schema=self.net_schema,
-                schema_type="netork-config",
+                schema_type=SchemaType.NETWORK_CONFIG,
                 strict=True,
             )
+        if log:
+            assert log in caplog.text
 
 
 class TestStrictMetaschema:
@@ -2323,9 +2627,9 @@ apt_reboot_if_required: Default: ``false``. Deprecated in version 22.2.\
 
                     """  # noqa: E501
                 ),
-                "",
-                does_not_raise(),
-                id="root_annotate_unique_errors_no_exception",
+                """Error: Invalid schema: user-data\n\n""",
+                pytest.raises(SystemExit),
+                id="root_annotate_errors_with_exception",
             ),
             pytest.param(
                 0,
@@ -2414,7 +2718,7 @@ apt_reboot_if_required: Default: ``false``. Deprecated in version 22.2.\
                 False,
                 dedent(
                     """\
-                    Invalid UNKNOWN_CONFIG_HEADER {cfg_file}
+                    Invalid user-data {cfg_file}
                     """  # noqa: E501
                 ),
                 dedent(
@@ -2422,7 +2726,7 @@ apt_reboot_if_required: Default: ``false``. Deprecated in version 22.2.\
                     Error: Cloud config schema errors: format-l1.c1: Unrecognized user-data header in {cfg_file}: "#bogus-config".
                     Expected first line to be one of: #!, ## template: jinja, #cloud-boothook, #cloud-config, #cloud-config-archive, #cloud-config-jsonp, #include, #include-once, #part-handler
 
-                    Error: Invalid schema: UNKNOWN_CONFIG_HEADER
+                    Error: Invalid schema: user-data
 
                     """  # noqa: E501
                 ),

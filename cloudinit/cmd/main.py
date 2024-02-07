@@ -488,7 +488,7 @@ def main_init(name, args):
     cloud_cfg_path = init.paths.get_ipath_cur("cloud_config")
     if os.path.exists(cloud_cfg_path) and os.stat(cloud_cfg_path).st_size != 0:
         validate_cloudconfig_schema(
-            config=load(util.load_file(cloud_cfg_path)),
+            config=load(util.load_text_file(cloud_cfg_path)),
             strict=False,
             log_details=False,
             log_deprecations=True,
@@ -746,7 +746,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
             util.del_file(f)
     else:
         try:
-            status = json.loads(util.load_file(status_path))
+            status = json.loads(util.load_text_file(status_path))
         except Exception:
             pass
 
@@ -870,14 +870,6 @@ def main(sysv_args=None):
         help="Show program's version number and exit.",
     )
     parser.add_argument(
-        "--file",
-        "-f",
-        action="append",
-        dest="files",
-        help="Use additional yaml configuration files.",
-        type=argparse.FileType("rb"),
-    )
-    parser.add_argument(
         "--debug",
         "-d",
         action="store_true",
@@ -910,6 +902,14 @@ def main(sysv_args=None):
         help="Start in local mode (default: %(default)s).",
         default=False,
     )
+    parser_init.add_argument(
+        "--file",
+        "-f",
+        action="append",
+        dest="files",
+        help="Use additional yaml configuration files.",
+        type=argparse.FileType("rb"),
+    )
     # This is used so that we can know which action is selected +
     # the functor to use to run this subcommand
     parser_init.set_defaults(action=("init", main_init))
@@ -925,6 +925,14 @@ def main(sysv_args=None):
         help="Module configuration name to use (default: %(default)s).",
         default="config",
         choices=("init", "config", "final"),
+    )
+    parser_mod.add_argument(
+        "--file",
+        "-f",
+        action="append",
+        dest="files",
+        help="Use additional yaml configuration files.",
+        type=argparse.FileType("rb"),
     )
     parser_mod.set_defaults(action=("modules", main_modules))
 
@@ -957,6 +965,14 @@ def main(sysv_args=None):
         nargs="*",
         metavar="argument",
         help="Any additional arguments to pass to this module.",
+    )
+    parser_single.add_argument(
+        "--file",
+        "-f",
+        action="append",
+        dest="files",
+        help="Use additional yaml configuration files.",
+        type=argparse.FileType("rb"),
     )
     parser_single.set_defaults(action=("single", main_single))
 
@@ -996,7 +1012,10 @@ def main(sysv_args=None):
 
     if sysv_args:
         # Only load subparsers if subcommand is specified to avoid load cost
-        subcommand = sysv_args[0]
+        subcommand = next(
+            (posarg for posarg in sysv_args if not posarg.startswith("-")),
+            None,
+        )
         if subcommand == "analyze":
             from cloudinit.analyze import get_parser as analyze_parser
 

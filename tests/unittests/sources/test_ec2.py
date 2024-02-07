@@ -12,6 +12,7 @@ import responses
 from cloudinit import helpers
 from cloudinit.sources import DataSourceEc2 as ec2
 from tests.unittests import helpers as test_helpers
+from tests.unittests.util import MockDistro
 
 DYNAMIC_METADATA = {
     "instance-identity": {
@@ -342,9 +343,11 @@ class TestEc2(test_helpers.ResponsesTestCase):
         p.start()
         self.addCleanup(p.stop)
 
-    def _setup_ds(self, sys_cfg, platform_data, md, md_version=None):
+    def _setup_ds(
+        self, sys_cfg, platform_data, md, md_version=None, distro=None
+    ):
         self.uris = []
-        distro = mock.MagicMock()
+        distro = distro or mock.MagicMock()
         distro.get_tmp_exec_path = self.tmp_dir
         paths = helpers.Paths({"run_dir": self.tmp})
         if sys_cfg is None:
@@ -577,7 +580,7 @@ class TestEc2(test_helpers.ResponsesTestCase):
         )
         mac1 = "06:17:04:d7:26:09"  # Defined in DEFAULT_METADATA
         get_interface_mac_path = M_PATH_NET + "get_interfaces_by_mac"
-        ds.fallback_nic = "eth9"
+        ds.distro.fallback_nic = "eth9"
         with mock.patch(get_interface_mac_path) as m_get_interfaces_by_mac:
             m_get_interfaces_by_mac.return_value = {mac1: "eth9"}
             nc = ds.network_config  # Will re-crawl network metadata
@@ -846,7 +849,7 @@ class TestEc2(test_helpers.ResponsesTestCase):
 
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv6Network")
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
-    @mock.patch("cloudinit.net.find_fallback_nic")
+    @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
     def test_ec2_local_performs_dhcp_on_non_bsd(
@@ -861,20 +864,19 @@ class TestEc2(test_helpers.ResponsesTestCase):
 
         m_fallback_nic.return_value = "eth9"
         m_is_bsd.return_value = False
-        m_dhcp.return_value = [
-            {
-                "interface": "eth9",
-                "fixed-address": "192.168.2.9",
-                "routers": "192.168.2.1",
-                "subnet-mask": "255.255.255.0",
-                "broadcast-address": "192.168.2.255",
-            }
-        ]
+        m_dhcp.return_value = {
+            "interface": "eth9",
+            "fixed-address": "192.168.2.9",
+            "routers": "192.168.2.1",
+            "subnet-mask": "255.255.255.0",
+            "broadcast-address": "192.168.2.255",
+        }
         self.datasource = ec2.DataSourceEc2Local
         ds = self._setup_ds(
             platform_data=self.valid_platform_data,
             sys_cfg={"datasource": {"Ec2": {"strict_id": False}}},
             md={"md": DEFAULT_METADATA},
+            distro=MockDistro("", {}, {}),
         )
 
         ret = ds.get_data()

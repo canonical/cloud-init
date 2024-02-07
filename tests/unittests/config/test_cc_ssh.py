@@ -20,15 +20,11 @@ from tests.unittests.util import get_cloud
 LOG = logging.getLogger(__name__)
 
 MODPATH = "cloudinit.config.cc_ssh."
-KEY_NAMES_NO_DSA = [
-    name for name in cc_ssh.GENERATE_KEY_NAMES if name not in "dsa"
-]
 
 
 @pytest.fixture(scope="function")
 def publish_hostkey_test_setup(tmpdir):
     test_hostkeys = {
-        "dsa": ("ssh-dss", "AAAAB3NzaC1kc3MAAACB"),
         "ecdsa": ("ecdsa-sha2-nistp256", "AAAAE2VjZ"),
         "ed25519": ("ssh-ed25519", "AAAAC3NzaC1lZDI"),
         "rsa": ("ssh-rsa", "AAAAB3NzaC1yc2EAAA"),
@@ -128,12 +124,11 @@ class TestHandleSsh:
         if not m_fips():
             expected_calls = [
                 mock.call("/etc/ssh/ssh_host_rsa_key"),
-                mock.call("/etc/ssh/ssh_host_dsa_key"),
                 mock.call("/etc/ssh/ssh_host_ecdsa_key"),
                 mock.call("/etc/ssh/ssh_host_ed25519_key"),
             ]
         else:
-            # Enabled fips doesn't generate dsa or ed25519
+            # Enabled fips doesn't generate ed25519
             expected_calls = [
                 mock.call("/etc/ssh/ssh_host_rsa_key"),
                 mock.call("/etc/ssh/ssh_host_ecdsa_key"),
@@ -228,10 +223,10 @@ class TestHandleSsh:
     @pytest.mark.parametrize(
         "cfg, expected_key_types",
         [
-            pytest.param({}, KEY_NAMES_NO_DSA, id="default"),
+            pytest.param({}, cc_ssh.GENERATE_KEY_NAMES, id="default"),
             pytest.param(
                 {"ssh_publish_hostkeys": {"enabled": True}},
-                KEY_NAMES_NO_DSA,
+                cc_ssh.GENERATE_KEY_NAMES,
                 id="config_enable",
             ),
             pytest.param(
@@ -490,10 +485,6 @@ class TestSshSchema:
         "config, error_msg",
         (
             ({"ssh_authorized_keys": ["key1", "key2"]}, None),
-            (
-                {"ssh_keys": {"dsa_private": "key1", "rsa_public": "key2"}},
-                None,
-            ),
             (
                 {"ssh_keys": {"rsa_a": "key"}},
                 "'rsa_a' does not match any of the regexes",

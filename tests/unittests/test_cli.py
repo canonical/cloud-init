@@ -2,12 +2,13 @@
 
 import contextlib
 import io
+import logging
 import os
 from collections import namedtuple
 
 import pytest
 
-from cloudinit import helpers, log
+from cloudinit import helpers
 from cloudinit.cmd import main as cli
 from tests.unittests import helpers as test_helpers
 
@@ -29,7 +30,6 @@ class TestCLI:
         if not sysv_args:
             sysv_args = ["cloud-init"]
         try:
-            log.setup_logging()
             return cli.main(sysv_args=sysv_args)
         except SystemExit as e:
             return e.code
@@ -171,6 +171,45 @@ class TestCLI:
         ]
         for subcommand in expected_subcommands:
             assert subcommand in err
+
+    @pytest.mark.parametrize(
+        "subcommand,log_to_stderr,mocks",
+        (
+            ("init", False, [mock.patch("cloudinit.cmd.main.status_wrapper")]),
+            (
+                "modules",
+                False,
+                [mock.patch("cloudinit.cmd.main.status_wrapper")],
+            ),
+            (
+                "schema",
+                True,
+                [
+                    mock.patch(
+                        "cloudinit.stages.Init._read_cfg", return_value={}
+                    ),
+                    mock.patch("cloudinit.config.schema.handle_schema_args"),
+                ],
+            ),
+        ),
+    )
+    @mock.patch("cloudinit.cmd.main.setup_basic_logging")
+    def test_subcommands_log_to_stderr_via_setup_basic_logging(
+        self, setup_basic_logging, subcommand, log_to_stderr, mocks
+    ):
+        """setup_basic_logging is called for modules to use stderr
+
+        Subcommands with exception of 'init'  and 'modules' use
+        setup_basic_logging to direct logged errors to stderr.
+        """
+        with contextlib.ExitStack() as mockstack:
+            for mymock in mocks:
+                mockstack.enter_context(mymock)
+            self._call_main(["cloud-init", subcommand])
+        if log_to_stderr:
+            setup_basic_logging.assert_called_once_with(logging.WARNING)
+        else:
+            setup_basic_logging.assert_not_called()
 
     @pytest.mark.parametrize("subcommand", ["init", "modules"])
     @mock.patch("cloudinit.cmd.main.status_wrapper")

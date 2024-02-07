@@ -86,7 +86,7 @@ class TestConfig(t_help.FilesystemMockingTestCase):
 
         self.patchUtils(self.tmp)
         cc_mcollective.configure(cfg["mcollective"]["conf"])
-        contents = util.load_file(cc_mcollective.SERVER_CFG, decode=False)
+        contents = util.load_binary_file(cc_mcollective.SERVER_CFG)
         contents = configobj.ConfigObj(BytesIO(contents))
         self.assertEqual(expected, dict(contents))
 
@@ -97,7 +97,7 @@ class TestConfig(t_help.FilesystemMockingTestCase):
         self.assertTrue(os.path.exists(self.server_cfg))
         self.assertTrue(os.path.exists(self.server_cfg + ".old"))
         self.assertEqual(
-            util.load_file(self.server_cfg + ".old"), STOCK_CONFIG
+            util.load_text_file(self.server_cfg + ".old"), STOCK_CONFIG
         )
 
     def test_existing_updated(self):
@@ -136,9 +136,11 @@ class TestConfig(t_help.FilesystemMockingTestCase):
         self.assertEqual(found["securityprovider"], "ssl")
 
         self.assertEqual(
-            util.load_file(self.pricert_file), cfg["private-cert"]
+            util.load_text_file(self.pricert_file), cfg["private-cert"]
         )
-        self.assertEqual(util.load_file(self.pubcert_file), cfg["public-cert"])
+        self.assertEqual(
+            util.load_text_file(self.pubcert_file), cfg["public-cert"]
+        )
 
 
 class TestHandler(t_help.TestCase):
@@ -147,7 +149,7 @@ class TestHandler(t_help.TestCase):
     def test_mcollective_install(self, mock_util, mock_subp):
         cc = get_cloud()
         cc.distro = t_help.mock.MagicMock()
-        mock_util.load_file.return_value = b""
+        mock_util.load_binary_file.return_value = b""
         mycfg = {"mcollective": {"conf": {"loglevel": "debug"}}}
         cc_mcollective.handle("cc_mcollective", mycfg, cc, [])
         self.assertTrue(cc.distro.install_packages.called)

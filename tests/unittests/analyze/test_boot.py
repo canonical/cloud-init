@@ -28,17 +28,12 @@ class TestDistroChecker(CiTestCase):
 
 
 class TestSystemCtlReader:
-    @pytest.mark.parametrize(
-        "args",
-        [
-            pytest.param(["dummyProperty"], id="invalid_property"),
-            pytest.param(
-                ["dummyProperty", "dummyParameter"], id="invalid_parameter"
-            ),
-        ],
-    )
-    def test_systemctl_invalid(self, args):
-        reader = SystemctlReader(*args)
+    def test_systemctl_invalid(self, mocker):
+        mocker.patch(
+            "cloudinit.analyze.show.subp.subp",
+            return_value=("", "something_invalid"),
+        )
+        reader = SystemctlReader("dont", "care")
         with pytest.raises(RuntimeError):
             reader.parse_epoch_as_float()
 

@@ -29,7 +29,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         cc_zypper_add_repo._write_repos(cfg["repos"], "/etc/zypp/repos.d")
         self.assertRaises(
-            IOError, util.load_file, "/etc/zypp/repos.d/foo.repo"
+            IOError, util.load_text_file, "/etc/zypp/repos.d/foo.repo"
         )
 
     def test_write_repos(self):
@@ -60,7 +60,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         }
         root_d = self.tmp_dir()
         cc_zypper_add_repo._write_repos(cfg["repos"], root_d)
-        contents = util.load_file("%s/testing-foo.repo" % root_d)
+        contents = util.load_text_file("%s/testing-foo.repo" % root_d)
         parser = configparser.ConfigParser()
         parser.read_string(contents)
         expected = {
@@ -87,7 +87,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         self.reRoot(root_d)
         cc_zypper_add_repo._write_zypp_config(cfg["config"])
         cfg_out = os.path.join(root_d, self.zypp_conf)
-        contents = util.load_file(cfg_out)
+        contents = util.load_text_file(cfg_out)
         expected = [
             "# Zypp config",
             "# Added via cloud.cfg",
@@ -113,7 +113,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         self.reRoot(root_d)
         cc_zypper_add_repo._write_zypp_config(cfg["config"])
         cfg_out = os.path.join(root_d, self.zypp_conf)
-        contents = util.load_file(cfg_out)
+        contents = util.load_text_file(cfg_out)
         expected = [
             "# Zypp config",
             "# Added via cloud.cfg",
@@ -136,7 +136,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         self.reRoot(root_d)
         cc_zypper_add_repo._write_zypp_config(cfg.get("config", {}))
         cfg_out = os.path.join(root_d, self.zypp_conf)
-        contents = util.load_file(cfg_out)
+        contents = util.load_text_file(cfg_out)
         self.assertEqual(contents, "# No data")
 
     def test_empty_config_value_no_new_data(self):
@@ -149,7 +149,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         self.reRoot(root_d)
         cc_zypper_add_repo._write_zypp_config(cfg.get("config", {}))
         cfg_out = os.path.join(root_d, self.zypp_conf)
-        contents = util.load_file(cfg_out)
+        contents = util.load_text_file(cfg_out)
         self.assertEqual(contents, "# No data")
 
     def test_handler_full_setup(self):
@@ -164,7 +164,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         self.reRoot(root_d)
         cc_zypper_add_repo.handle("zypper_add_repo", cfg, None, [])
         cfg_out = os.path.join(root_d, self.zypp_conf)
-        contents = util.load_file(cfg_out)
+        contents = util.load_text_file(cfg_out)
         expected = [
             "# Zypp config",
             "# Added via cloud.cfg",
@@ -191,7 +191,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         self.reRoot(root_d)
         cc_zypper_add_repo._write_zypp_config(cfg.get("config", {}))
         cfg_out = os.path.join(root_d, self.zypp_conf)
-        contents = util.load_file(cfg_out)
+        contents = util.load_text_file(cfg_out)
         self.assertEqual(contents, "# No data")
 
     def test_no_repo_data(self):

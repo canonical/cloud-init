@@ -175,7 +175,7 @@ def get_ovf_env(dirname):
         full_fn = os.path.join(dirname, fname)
         if os.path.isfile(full_fn):
             try:
-                contents = util.load_file(full_fn)
+                contents = util.load_text_file(full_fn)
                 return (fname, contents)
             except Exception:
                 util.logexc(LOG, "Failed loading ovf file %s", full_fn)
