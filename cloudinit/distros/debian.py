@@ -15,6 +15,7 @@ from cloudinit import distros, subp, util
 from cloudinit.distros.package_management.apt import Apt
 from cloudinit.distros.package_management.package_manager import PackageManager
 from cloudinit.distros.parsers.hostname import HostnameConf
+from cloudinit.net.netplan import CLOUDINIT_NETPLAN_FILE
 
 LOG = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class Distro(distros.Distro):
     hostname_conf_fn = "/etc/hostname"
     network_conf_fn = {
         "eni": "/etc/network/interfaces.d/50-cloud-init",
-        "netplan": "/etc/netplan/50-cloud-init.yaml",
+        "netplan": CLOUDINIT_NETPLAN_FILE,
     }
     renderer_configs = {
         "eni": {
@@ -47,6 +48,10 @@ class Distro(distros.Distro):
             "postcmds": True,
         },
     }
+    # Debian stores dhclient leases at following location:
+    # /var/lib/dhcp/dhclient.<iface_name>.leases
+    dhclient_lease_directory = "/var/lib/dhcp"
+    dhclient_lease_file_regex = r"dhclient\.\w+\.leases"
 
     def __init__(self, name, cfg, paths):
         super().__init__(name, cfg, paths)
@@ -136,6 +141,9 @@ class Distro(distros.Distro):
             if create_hostname_file:
                 pass
             else:
+                LOG.info(
+                    "create_hostname_file is False; hostname file not created"
+                )
                 return
         if not conf:
             conf = HostnameConf("")
@@ -147,7 +155,7 @@ class Distro(distros.Distro):
         return (self.hostname_conf_fn, sys_hostname)
 
     def _read_hostname_conf(self, filename):
-        conf = HostnameConf(util.load_file(filename))
+        conf = HostnameConf(util.load_text_file(filename))
         conf.parse()
         return conf
 
@@ -230,7 +238,7 @@ def _maybe_remove_legacy_eth0(path="/etc/network/interfaces.d/eth0.cfg"):
 
     bmsg = "Dynamic networking config may not apply."
     try:
-        contents = util.load_file(path)
+        contents = util.load_text_file(path)
         known_contents = ["auto eth0", "iface eth0 inet dhcp"]
         lines = [
             f.strip() for f in contents.splitlines() if not f.startswith("#")
@@ -253,7 +261,7 @@ def read_system_locale(sys_path=LOCALE_CONF_FN, keyname="LANG"):
         raise ValueError("Invalid path: %s" % sys_path)
 
     if os.path.exists(sys_path):
-        locale_content = util.load_file(sys_path)
+        locale_content = util.load_text_file(sys_path)
         sys_defaults = util.load_shell_content(locale_content)
         sys_val = sys_defaults.get(keyname, "")
 

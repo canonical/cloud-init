@@ -102,6 +102,33 @@ class IfUpDownActivator(NetworkActivator):
         return _alter_interface(cmd, device_name)
 
 
+class IfConfigActivator(NetworkActivator):
+    @staticmethod
+    def available(target=None) -> bool:
+        """Return true if ifconfig can be used on this system."""
+        expected = "ifconfig"
+        search = ["/sbin"]
+        return subp.which(expected, search=search, target=target)
+
+    @staticmethod
+    def bring_up_interface(device_name: str) -> bool:
+        """Bring up interface using ifconfig <dev> up.
+
+        Return True is successful, otherwise return False
+        """
+        cmd = ["ifconfig", device_name, "up"]
+        return _alter_interface(cmd, device_name)
+
+    @staticmethod
+    def bring_down_interface(device_name: str) -> bool:
+        """Bring up interface using ifconfig <dev> down.
+
+        Return True is successful, otherwise return False
+        """
+        cmd = ["ifconfig", device_name, "down"]
+        return _alter_interface(cmd, device_name)
+
+
 class NetworkManagerActivator(NetworkActivator):
     @staticmethod
     def available(target=None) -> bool:
@@ -117,6 +144,13 @@ class NetworkManagerActivator(NetworkActivator):
         from cloudinit.net.network_manager import conn_filename
 
         filename = conn_filename(device_name)
+        if filename is None:
+            LOG.warning(
+                "Unable to find an interface config file. "
+                "Unable to bring up interface."
+            )
+            return False
+
         cmd = ["nmcli", "connection", "load", filename]
         if _alter_interface(cmd, device_name):
             cmd = ["nmcli", "connection", "up", "filename", filename]
@@ -220,6 +254,7 @@ DEFAULT_PRIORITY = [
     "netplan",
     "network-manager",
     "networkd",
+    "ifconfig",
 ]
 
 NAME_TO_ACTIVATOR: Dict[str, Type[NetworkActivator]] = {
@@ -227,6 +262,7 @@ NAME_TO_ACTIVATOR: Dict[str, Type[NetworkActivator]] = {
     "netplan": NetplanActivator,
     "network-manager": NetworkManagerActivator,
     "networkd": NetworkdActivator,
+    "ifconfig": IfConfigActivator,
 }
 
 

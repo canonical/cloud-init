@@ -285,7 +285,7 @@ def readurl(
     # Handle retrying ourselves since the built-in support
     # doesn't handle sleeping between tries...
     # Infinitely retry if infinite is True
-    for i in count() if infinite else range(0, manual_tries):
+    for i in count() if infinite else range(manual_tries):
         req_args["headers"] = headers_cb(url)
         filtered_req_args = {}
         for (k, v) in req_args.items():

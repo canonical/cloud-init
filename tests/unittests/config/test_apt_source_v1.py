@@ -119,7 +119,7 @@ class TestAptSourceConfig:
 
         assert os.path.isfile(filename)
 
-        contents = util.load_file(filename)
+        contents = util.load_text_file(filename)
         assert re.search(
             r"%s %s %s %s\n"
             % (
@@ -166,7 +166,7 @@ class TestAptSourceConfig:
         self.apt_src_basic(apt_lists[0], cfg)
 
         # extra verify on two extra files of this test
-        contents = util.load_file(apt_lists[1])
+        contents = util.load_text_file(apt_lists[1])
         assert re.search(
             r"%s %s %s %s\n"
             % (
@@ -178,7 +178,7 @@ class TestAptSourceConfig:
             contents,
             flags=re.IGNORECASE,
         )
-        contents = util.load_file(apt_lists[2])
+        contents = util.load_text_file(apt_lists[2])
         assert re.search(
             r"%s %s %s %s\n"
             % (
@@ -270,7 +270,7 @@ class TestAptSourceConfig:
 
         assert os.path.isfile(filename)
 
-        contents = util.load_file(filename)
+        contents = util.load_text_file(filename)
         assert re.search(
             r"%s %s %s %s\n"
             % ("deb", params["MIRROR"], params["RELEASE"], "multiverse"),
@@ -295,7 +295,7 @@ class TestAptSourceConfig:
 
         # extra verify on two extra files of this test
         params = self._get_default_params()
-        contents = util.load_file(apt_lists[1])
+        contents = util.load_text_file(apt_lists[1])
         assert re.search(
             r"%s %s %s %s\n"
             % ("deb", params["MIRROR"], params["RELEASE"], "main"),
@@ -303,7 +303,7 @@ class TestAptSourceConfig:
             flags=re.IGNORECASE,
         )
 
-        contents = util.load_file(apt_lists[2])
+        contents = util.load_text_file(apt_lists[2])
         assert re.search(
             r"%s %s %s %s\n"
             % ("deb", params["MIRROR"], params["RELEASE"], "universe"),
@@ -362,13 +362,13 @@ class TestAptSourceConfig:
         sources = cfg["apt"]["sources"]
         for src in sources:
             print(sources[src])
-            calls.append(call(sources[src], cloud, None))
+            calls.append(call(sources[src], cloud))
 
         mockobj.assert_has_calls(calls, any_order=True)
 
         assert os.path.isfile(filename)
 
-        contents = util.load_file(filename)
+        contents = util.load_text_file(filename)
         assert re.search(
             r"%s %s %s %s\n"
             % (
@@ -429,7 +429,7 @@ class TestAptSourceConfig:
         }
 
         self.apt_src_keyid(apt_lists[0], [cfg1, cfg2, cfg3], 3)
-        contents = util.load_file(apt_lists[1])
+        contents = util.load_text_file(apt_lists[1])
         assert re.search(
             r"%s %s %s %s\n"
             % (
@@ -441,7 +441,7 @@ class TestAptSourceConfig:
             contents,
             flags=re.IGNORECASE,
         )
-        contents = util.load_file(apt_lists[2])
+        contents = util.load_text_file(apt_lists[2])
         assert re.search(
             r"%s %s %s %s\n"
             % (
@@ -485,13 +485,13 @@ class TestAptSourceConfig:
         calls = []
         for src in sources:
             print(sources[src])
-            calls.append(call(sources[src], cloud, None))
+            calls.append(call(sources[src], cloud))
 
         mockobj.assert_has_calls(calls, any_order=True)
 
         assert os.path.isfile(filename)
 
-        contents = util.load_file(filename)
+        contents = util.load_text_file(filename)
         assert re.search(
             r"%s %s %s %s\n"
             % (
@@ -665,7 +665,6 @@ class TestAptSourceConfig:
                     "--no-update",
                     "ppa:smoser/cloud-init-test",
                 ],
-                target=None,
             ),
             mock.call(
                 [
@@ -678,7 +677,6 @@ class TestAptSourceConfig:
                     "gpg-agent",
                 ],
                 capture=True,
-                target=None,
                 rcs=[0, 1],
             ),
         ]
@@ -712,7 +710,6 @@ class TestAptSourceConfig:
                     "--no-update",
                     "ppa:smoser/cloud-init-test",
                 ],
-                target=None,
             ),
             call(
                 [
@@ -720,7 +717,6 @@ class TestAptSourceConfig:
                     "--no-update",
                     "ppa:smoser/cloud-init-test2",
                 ],
-                target=None,
             ),
             call(
                 [
@@ -728,7 +724,6 @@ class TestAptSourceConfig:
                     "--no-update",
                     "ppa:smoser/cloud-init-test3",
                 ],
-                target=None,
             ),
         ]
         mockobj.assert_has_calls(calls, any_order=True)

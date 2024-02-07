@@ -22,7 +22,7 @@ class TestPackageCommand:
         expected_call = {
             "args": ["eatmydata"] + list(APT_GET_COMMAND) + ["update"],
             "capture": False,
-            "env": {"DEBIAN_FRONTEND": "noninteractive"},
+            "update_env": {"DEBIAN_FRONTEND": "noninteractive"},
         }
         assert m_subp.call_args == mock.call(**expected_call)
 

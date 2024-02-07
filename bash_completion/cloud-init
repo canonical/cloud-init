@@ -11,7 +11,7 @@ _cloudinit_complete()
     prev_word="${COMP_WORDS[COMP_CWORD-1]}"
 
     subcmds="analyze clean collect-logs devel features init modules query schema single status"
-    base_params="--help --file --version --debug --force"
+    base_params="--help --version --debug --force"
     case ${COMP_CWORD} in
         1)
             COMPREPLY=($(compgen -W "$base_params $subcmds" -- $cur_word))
@@ -34,10 +34,10 @@ _cloudinit_complete()
                     COMPREPLY=($(compgen -W "--help" -- $cur_word))
                     ;;
                 init)
-                    COMPREPLY=($(compgen -W "--help --local" -- $cur_word))
+                    COMPREPLY=($(compgen -W "--help --local --file" -- $cur_word))
                     ;;
                 modules)
-                    COMPREPLY=($(compgen -W "--help --mode" -- $cur_word))
+                    COMPREPLY=($(compgen -W "--help --mode --file" -- $cur_word))
                     ;;
 
                 query)
@@ -46,7 +46,7 @@ _cloudinit_complete()
                     COMPREPLY=($(compgen -W "--help --config-file --docs --annotate --system" -- $cur_word))
                     ;;
                 single)
-                    COMPREPLY=($(compgen -W "--help --name --frequency --report" -- $cur_word))
+                    COMPREPLY=($(compgen -W "--help --name --frequency --report --file" -- $cur_word))
                     ;;
                 status)
                     COMPREPLY=($(compgen -W "--help --long --wait" -- $cur_word))

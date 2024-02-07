@@ -12,6 +12,7 @@ import sys
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers.jinja_template import (
     JinjaLoadError,
+    JinjaSyntaxParsingException,
     NotJinjaError,
     render_jinja_payload_from_file,
 )
@@ -97,6 +98,13 @@ def render_template(user_data_path, instance_data_path=None, debug=False):
     except (JinjaLoadError, NotJinjaError) as e:
         LOG.error(
             "Cannot render from instance data due to exception: %s", repr(e)
+        )
+        return 1
+    except JinjaSyntaxParsingException as e:
+        LOG.error(
+            "Failed to render templated user-data file '%s'. %s",
+            user_data_path,
+            str(e),
         )
         return 1
     if not rendered_payload:

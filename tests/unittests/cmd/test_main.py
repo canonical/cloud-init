@@ -10,7 +10,7 @@ import pytest
 
 from cloudinit import safeyaml
 from cloudinit.cmd import main
-from cloudinit.util import ensure_dir, load_file, write_file
+from cloudinit.util import ensure_dir, load_text_file, write_file
 from tests.unittests.helpers import FilesystemMockingTestCase, wrap_and_call
 
 MyArgs = namedtuple("MyArgs", "debug files force local reporter subcommand")
@@ -82,12 +82,12 @@ class TestMain(FilesystemMockingTestCase):
         self.assertEqual(
             "iid-datasource-none\n",
             os.path.join(
-                load_file(os.path.join(self.new_root, instance_id_path))
+                load_text_file(os.path.join(self.new_root, instance_id_path))
             ),
         )
         # modules are run (including write_files)
         self.assertEqual(
-            "blah", load_file(os.path.join(self.new_root, "etc/blah.ini"))
+            "blah", load_text_file(os.path.join(self.new_root, "etc/blah.ini"))
         )
         expected_logs = [
             "network config is disabled by fallback",  # apply_network_config
@@ -152,12 +152,12 @@ class TestMain(FilesystemMockingTestCase):
         self.assertEqual(
             "iid-datasource-none\n",
             os.path.join(
-                load_file(os.path.join(self.new_root, instance_id_path))
+                load_text_file(os.path.join(self.new_root, instance_id_path))
             ),
         )
         # modules are run (including write_files)
         self.assertEqual(
-            "blah", load_file(os.path.join(self.new_root, "etc/blah.ini"))
+            "blah", load_text_file(os.path.join(self.new_root, "etc/blah.ini"))
         )
         expected_logs = [
             "network config is disabled by fallback",  # apply_network_config
@@ -165,6 +165,19 @@ class TestMain(FilesystemMockingTestCase):
         ]
         for log in expected_logs:
             self.assertIn(log, self.stderr.getvalue())
+
+    @mock.patch("cloudinit.cmd.clean.get_parser")
+    @mock.patch("cloudinit.cmd.clean.handle_clean_args")
+    @mock.patch("cloudinit.log.configure_root_logger")
+    def test_main_sys_argv(
+        self,
+        _m_configure_root_logger,
+        _m_handle_clean_args,
+        m_clean_get_parser,
+    ):
+        with mock.patch("sys.argv", ["cloudinit", "--debug", "clean"]):
+            main.main()
+        m_clean_get_parser.assert_called_once()
 
 
 class TestShouldBringUpInterfaces:

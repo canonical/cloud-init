@@ -17,6 +17,7 @@ import stat
 import string
 import urllib.parse
 from collections import defaultdict
+from contextlib import suppress
 from io import StringIO
 from typing import (
     Any,
@@ -48,7 +49,7 @@ from cloudinit.distros.package_management.package_manager import PackageManager
 from cloudinit.distros.package_management.utils import known_package_managers
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
-from cloudinit.net import activators, dhcp, eni, network_state, renderers
+from cloudinit.net import activators, dhcp, renderers
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.net.renderer import Renderer
 
@@ -147,21 +148,26 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     resolve_conf_fn = "/etc/resolv.conf"
 
     osfamily: str
-    dhcp_client_priority = [dhcp.IscDhclient, dhcp.Dhcpcd, dhcp.Udhcpc]
+    # Directory where the distro stores their DHCP leases.
+    # The children classes should override this with their dhcp leases
+    # directory
+    dhclient_lease_directory: Optional[str] = None
+    # A regex to match DHCP lease file(s)
+    # The children classes should override this with a regex matching
+    # their lease file name format
+    dhclient_lease_file_regex: Optional[str] = None
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
         self._cfg = cfg
         self.name = name
         self.networking: Networking = self.networking_cls()
-        self.dhcp_client_priority = [
-            dhcp.IscDhclient,
-            dhcp.Dhcpcd,
-            dhcp.Udhcpc,
-        ]
+        self.dhcp_client_priority = dhcp.ALL_DHCP_CLIENTS
         self.net_ops = iproute2.Iproute2
         self._runner = helpers.Runners(paths)
         self.package_managers: List[PackageManager] = []
+        self._dhcp_client = None
+        self._fallback_interface = None
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         """Perform deserialization fixes for Distro."""
@@ -174,6 +180,10 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             # either because it isn't present at all, or because it will be
             # missing expected instance state otherwise.
             self.networking = self.networking_cls()
+        if not hasattr(self, "_dhcp_client"):
+            self._dhcp_client = None
+        if not hasattr(self, "_fallback_interface"):
+            self._fallback_interface = None
 
     def _validate_entry(self, entry):
         if isinstance(entry, str):
@@ -259,12 +269,65 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if uninstalled:
             raise PackageInstallerError(error_message % uninstalled)
 
-    def _write_network(self, settings):
-        """Deprecated. Remove if/when arch and gentoo support renderers."""
-        raise NotImplementedError(
-            "Legacy function '_write_network' was called in distro '%s'.\n"
-            "_write_network_config needs implementation.\n" % self.name
+    @property
+    def dhcp_client(self) -> dhcp.DhcpClient:
+        """access the distro's preferred dhcp client
+
+        if no client has been selected yet select one - uses
+        self.dhcp_client_priority, which may be overriden in each distro's
+        object to eliminate checking for clients which will not be provided
+        by the distro
+        """
+        if self._dhcp_client:
+            return self._dhcp_client
+
+        # no client has been selected yet, so pick one
+        #
+        # set the default priority list to the distro-defined priority list
+        dhcp_client_priority = self.dhcp_client_priority
+
+        # if the configuration includes a network.dhcp_client_priority list
+        # then attempt to use it
+        config_priority = util.get_cfg_by_path(
+            self._cfg, ("network", "dhcp_client_priority"), []
         )
+
+        if config_priority:
+            # user or image builder configured a custom dhcp client priority
+            # list
+            found_clients = []
+            LOG.debug(
+                "Using configured dhcp client priority list: %s",
+                config_priority,
+            )
+            for client_configured in config_priority:
+                for client_class in dhcp.ALL_DHCP_CLIENTS:
+                    if client_configured == client_class.client_name:
+                        found_clients.append(client_class)
+                        break
+                else:
+                    LOG.warning(
+                        "Configured dhcp client %s is not supported, skipping",
+                        client_configured,
+                    )
+            # If dhcp_client_priority is defined in the configuration, but none
+            # of the defined clients are supported by cloud-init, then we don't
+            # override the distro default. If at least one client in the
+            # configured list exists, then we use that for our list of clients
+            # to check.
+            if found_clients:
+                dhcp_client_priority = found_clients
+
+        # iterate through our priority list and use the first client that is
+        # installed on the system
+        for client in dhcp_client_priority:
+            try:
+                self._dhcp_client = client()
+                LOG.debug("DHCP client selected: %s", client.client_name)
+                return self._dhcp_client
+            except (dhcp.NoDHCPLeaseMissingDhclientError,):
+                LOG.debug("DHCP client not found: %s", client.client_name)
+        raise dhcp.NoDHCPLeaseMissingDhclientError()
 
     @property
     def network_activator(self) -> Optional[Type[activators.NetworkActivator]]:
@@ -352,41 +415,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             data_source=data_source, mirror_info=arch_info
         )
 
-    def apply_network(self, settings, bring_up=True):
-        """Deprecated. Remove if/when arch and gentoo support renderers."""
-        # this applies network where 'settings' is interfaces(5) style
-        # it is obsolete compared to apply_network_config
-        # Write it out
-
-        # pylint: disable=assignment-from-no-return
-        # We have implementations in arch and gentoo still
-        dev_names = self._write_network(settings)
-        # pylint: enable=assignment-from-no-return
-        # Now try to bring them up
-        if bring_up:
-            return self._bring_up_interfaces(dev_names)
-        return False
-
-    def _apply_network_from_network_config(self, netconfig, bring_up=True):
-        """Deprecated. Remove if/when arch and gentoo support renderers."""
-        distro = self.__class__
-        LOG.warning(
-            "apply_network_config is not currently implemented "
-            "for distribution '%s'.  Attempting to use apply_network",
-            distro,
-        )
-        header = "\n".join(
-            [
-                "# Converted from network_config for distro %s" % distro,
-                "# Implementation of _write_network_config is needed.",
-            ]
-        )
-        ns = network_state.parse_net_config_data(netconfig)
-        contents = eni.network_state_to_eni(
-            ns, header=header, render_hwaddress=True
-        )
-        return self.apply_network(contents, bring_up=bring_up)
-
     def generate_fallback_config(self):
         return net.generate_fallback_config()
 
@@ -399,16 +427,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         Returns True if any devices failed to come up, otherwise False.
         """
-        # This method is preferred to apply_network which only takes
-        # a much less complete network config format (interfaces(5)).
-        try:
-            renderer = self._get_renderer()
-        except NotImplementedError:
-            # backwards compat until all distros have apply_network_config
-            return self._apply_network_from_network_config(
-                netconfig, bring_up=bring_up
-            )
-
+        renderer = self._get_renderer()
         network_state = parse_net_config_data(netconfig, renderer=renderer)
         self._write_network_state(network_state, renderer)
 
@@ -563,7 +582,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def update_etc_hosts(self, hostname, fqdn):
         header = ""
         if os.path.exists(self.hosts_fn):
-            eh = hosts.HostsConf(util.load_file(self.hosts_fn))
+            eh = hosts.HostsConf(util.load_text_file(self.hosts_fn))
         else:
             eh = hosts.HostsConf("")
             header = util.make_header(base="added")
@@ -610,20 +629,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             self._preferred_ntp_clients = list(PREFERRED_NTP_CLIENTS)
 
         return self._preferred_ntp_clients
-
-    def _bring_up_interface(self, device_name):
-        """Deprecated. Remove if/when arch and gentoo support renderers."""
-        raise NotImplementedError
-
-    def _bring_up_interfaces(self, device_names):
-        """Deprecated. Remove if/when arch and gentoo support renderers."""
-        am_failed = 0
-        for d in device_names:
-            if not self._bring_up_interface(d):
-                am_failed += 1
-        if am_failed == 0:
-            return True
-        return False
 
     def get_default_user(self):
         return self.get_option("default_user")
@@ -983,7 +988,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 util.logexc(LOG, "Failed to write doas file %s", doas_file)
                 raise e
         else:
-            if content not in util.load_file(doas_file):
+            if content not in util.load_text_file(doas_file):
                 try:
                     util.append_file(doas_file, content)
                 except IOError as e:
@@ -998,7 +1003,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         sudoers_contents = ""
         base_exists = False
         if os.path.exists(sudo_base):
-            sudoers_contents = util.load_file(sudo_base)
+            sudoers_contents = util.load_text_file(sudo_base)
             base_exists = True
         found_include = False
         for line in sudoers_contents.splitlines():
@@ -1073,7 +1078,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 util.logexc(LOG, "Failed to write sudoers file %s", sudo_file)
                 raise e
         else:
-            if content not in util.load_file(sudo_file):
+            if content not in util.load_text_file(sudo_file):
                 try:
                     util.append_file(sudo_file, content)
                 except IOError as e:
@@ -1239,6 +1244,90 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             "-sf",
             "/bin/true",
         ] + (["-cf", config_file, interface] if config_file else [interface])
+
+    @property
+    def fallback_interface(self):
+        """Determine the network interface used during local network config."""
+        if self._fallback_interface is None:
+            self._fallback_interface = net.find_fallback_nic()
+            if not self._fallback_interface:
+                LOG.warning(
+                    "Did not find a fallback interface on distro: %s.",
+                    self.name,
+                )
+        return self._fallback_interface
+
+    @fallback_interface.setter
+    def fallback_interface(self, value):
+        self._fallback_interface = value
+
+    @staticmethod
+    def get_proc_ppid(pid: int) -> Optional[int]:
+        """Return the parent pid of a process by parsing /proc/$pid/stat"""
+        match = Distro._get_proc_stat_by_index(pid, 4)
+        if match is not None:
+            with suppress(ValueError):
+                return int(match)
+            LOG.warning("/proc/%s/stat has an invalid ppid [%s]", pid, match)
+        return None
+
+    @staticmethod
+    def get_proc_pgid(pid: int) -> Optional[int]:
+        """Return the parent pid of a process by parsing /proc/$pid/stat"""
+        match = Distro._get_proc_stat_by_index(pid, 5)
+        if match is not None:
+            with suppress(ValueError):
+                return int(match)
+            LOG.warning("/proc/%s/stat has an invalid pgid [%s]", pid, match)
+        return None
+
+    @staticmethod
+    def _get_proc_stat_by_index(pid: int, field: int) -> Optional[int]:
+        """
+        parse /proc/$pid/stat for a specific field as numbered in man:proc(5)
+
+        param pid: integer to query /proc/$pid/stat for
+        param field: field number within /proc/$pid/stat to return
+        """
+        try:
+            content: str = util.load_text_file(
+                "/proc/%s/stat" % pid, quiet=True
+            ).strip()  # pyright: ignore
+            match = re.search(
+                r"^(\d+) (\(.+\)) ([RSDZTtWXxKPI]) (\d+) (\d+)", content
+            )
+            if not match:
+                LOG.warning(
+                    "/proc/%s/stat has an invalid contents [%s]", pid, content
+                )
+                return None
+            return int(match.group(field))
+        except IOError as e:
+            LOG.warning("Failed to load /proc/%s/stat. %s", pid, e)
+        except IndexError:
+            LOG.warning(
+                "Unable to match field %s of process pid=%s (%s) (%s)",
+                field,
+                pid,
+                content,  # pyright: ignore
+                match,  # pyright: ignore
+            )
+        return None
+
+    @staticmethod
+    def eject_media(device: str) -> None:
+        cmd = None
+        if subp.which("eject"):
+            cmd = ["eject", device]
+        elif subp.which("/lib/udev/cdrom_id"):
+            cmd = ["/lib/udev/cdrom_id", "--eject-media", device]
+        else:
+            raise subp.ProcessExecutionError(
+                cmd="eject_media_cmd",
+                description="eject command not found",
+                reason="neither eject nor /lib/udev/cdrom_id are found",
+            )
+        subp.subp(cmd)
 
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):

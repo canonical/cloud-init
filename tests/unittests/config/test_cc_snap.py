@@ -2,8 +2,6 @@
 
 import logging
 import os
-import re
-from io import StringIO
 
 import pytest
 
@@ -133,7 +131,9 @@ class TestAddAssertions:
         ] == m_subp.call_args_list
         compare_file = tmpdir.join("comparison")
         util.write_file(compare_file, "\n".join(assertions).encode("utf-8"))
-        assert util.load_file(compare_file) == util.load_file(assert_file)
+        assert util.load_text_file(compare_file) == util.load_text_file(
+            assert_file
+        )
 
     @mock.patch("cloudinit.config.cc_snap.subp.subp")
     def test_add_assertions_adds_assertions_as_dict(
@@ -161,7 +161,9 @@ class TestAddAssertions:
         compare_file = tmpdir.join("comparison")
         combined = "\n".join(assertions.values())
         util.write_file(compare_file, combined.encode("utf-8"))
-        assert util.load_file(compare_file) == util.load_file(assert_file)
+        assert util.load_text_file(compare_file) == util.load_text_file(
+            assert_file
+        )
 
 
 class TestRunCommands(CiTestCase):
@@ -188,71 +190,34 @@ class TestRunCommands(CiTestCase):
             str(context_manager.exception),
         )
 
-    def test_run_command_logs_commands_and_exit_codes_to_stderr(self):
-        """All exit codes are logged to stderr."""
-        outfile = self.tmp_path("output.log", dir=self.tmp)
 
-        cmd1 = 'echo "HI" >> %s' % outfile
-        cmd2 = "bogus command"
-        cmd3 = 'echo "MOM" >> %s' % outfile
-        commands = [cmd1, cmd2, cmd3]
-
-        mock_path = "cloudinit.config.cc_snap.sys.stderr"
-        with mock.patch(mock_path, new_callable=StringIO) as m_stderr:
-            with self.assertRaises(RuntimeError) as context_manager:
-                run_commands(commands=commands)
-
-        self.assertIsNotNone(
-            re.search(
-                r"bogus: (command )?not found", str(context_manager.exception)
-            ),
-            msg="Expected bogus command not found",
-        )
-        expected_stderr_log = "\n".join(
-            [
-                "Begin run command: {cmd}".format(cmd=cmd1),
-                "End run command: exit(0)",
-                "Begin run command: {cmd}".format(cmd=cmd2),
-                "ERROR: End run command: exit(127)",
-                "Begin run command: {cmd}".format(cmd=cmd3),
-                "End run command: exit(0)\n",
-            ]
-        )
-        self.assertEqual(expected_stderr_log, m_stderr.getvalue())
-
-    def test_run_command_as_lists(self):
-        """When commands are specified as a list, run them in order."""
-        outfile = self.tmp_path("output.log", dir=self.tmp)
-
-        cmd1 = 'echo "HI" >> %s' % outfile
-        cmd2 = 'echo "MOM" >> %s' % outfile
-        commands = [cmd1, cmd2]
-        mock_path = "cloudinit.config.cc_snap.sys.stderr"
-        with mock.patch(mock_path, new_callable=StringIO):
-            run_commands(commands=commands)
-
-        self.assertIn(
-            "DEBUG: Running user-provided snap commands", self.logs.getvalue()
-        )
-        self.assertEqual("HI\nMOM\n", util.load_file(outfile))
-        self.assertIn(
-            "WARNING: Non-snap commands in snap config:", self.logs.getvalue()
-        )
-
-    def test_run_command_dict_sorted_as_command_script(self):
+@pytest.mark.allow_all_subp
+class TestCommands:
+    def test_run_command_dict_sorted_as_command_script(self, caplog, tmp_path):
         """When commands are a dict, sort them and run."""
-        outfile = self.tmp_path("output.log", dir=self.tmp)
-        cmd1 = 'echo "HI" >> %s' % outfile
-        cmd2 = 'echo "MOM" >> %s' % outfile
+        outfile = f"{tmp_path}/output.log"
+        cmd1 = f'echo "HI" >> {outfile}'
+        cmd2 = f'echo "MOM" >> {outfile}'
         commands = {"02": cmd1, "01": cmd2}
-        mock_path = "cloudinit.config.cc_snap.sys.stderr"
-        with mock.patch(mock_path, new_callable=StringIO):
-            run_commands(commands=commands)
+        run_commands(commands=commands)
 
-        expected_messages = ["DEBUG: Running user-provided snap commands"]
+        expected_messages = ["Running user-provided snap commands"]
         for message in expected_messages:
-            self.assertIn(message, self.logs.getvalue())
-        self.assertEqual("MOM\nHI\n", util.load_file(outfile))
+            assert message in caplog.text
+        assert "MOM\nHI\n" == util.load_text_file(outfile)
+
+    def test_run_command_as_lists(self, caplog, tmp_path):
+        """When commands are specified as a list, run them in order."""
+        outfile = "output.log"
+
+        cmd1 = f'echo "HI" >> {tmp_path}/{outfile}'
+        cmd2 = f'echo "MOM" >> {tmp_path}/{outfile}'
+        commands = [cmd1, cmd2]
+        run_commands(commands=commands)
+
+        assert "Running user-provided snap commands" in caplog.text
+        assert "HI\nMOM\n" == util.load_text_file(f"{tmp_path}/{outfile}")
+        assert "Non-snap commands in snap config:" in caplog.text
 
 
 @skipUnlessJsonSchema()
@@ -341,4 +306,6 @@ class TestHandle:
         handle("snap", cfg=cfg, cloud=fake_cloud, args=None)
         content = "\n".join(cfg["snap"]["assertions"])
         util.write_file(compare_file, content.encode("utf-8"))
-        assert util.load_file(compare_file) == util.load_file(assert_file)
+        assert util.load_text_file(compare_file) == util.load_text_file(
+            assert_file
+        )

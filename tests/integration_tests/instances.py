@@ -3,13 +3,17 @@ import logging
 import os
 import uuid
 from enum import Enum
+from pathlib import Path
 from tempfile import NamedTemporaryFile
+from typing import Union
 
 from pycloudlib.instance import BaseInstance
 from pycloudlib.result import Result
 
+from tests.helpers import cloud_init_project_dir
 from tests.integration_tests import integration_settings
 from tests.integration_tests.decorators import retry
+from tests.integration_tests.util import ASSETS_DIR
 
 try:
     from typing import TYPE_CHECKING
@@ -78,13 +82,21 @@ class IntegrationInstance:
             raise RuntimeError("Root user cannot run unprivileged")
         return self.instance.execute(command, use_sudo=use_sudo)
 
-    def pull_file(self, remote_path, local_path):
+    def pull_file(
+        self,
+        remote_path: Union[str, os.PathLike],
+        local_path: Union[str, os.PathLike],
+    ):
         # First copy to a temporary directory because of permissions issues
         tmp_path = _get_tmp_path()
         self.instance.execute("cp {} {}".format(str(remote_path), tmp_path))
         self.instance.pull_file(tmp_path, str(local_path))
 
-    def push_file(self, local_path, remote_path):
+    def push_file(
+        self,
+        local_path: Union[str, os.PathLike],
+        remote_path: Union[str, os.PathLike],
+    ):
         # First push to a temporary directory because of permissions issues
         tmp_path = _get_tmp_path()
         self.instance.push_file(str(local_path), tmp_path)
@@ -124,10 +136,35 @@ class IntegrationInstance:
         log.info("Created new image: %s", image_id)
         return image_id
 
+    def install_coverage(self):
+        # Determine coverage version from integration-requirements.txt
+        integration_requirements = Path(
+            cloud_init_project_dir("integration-requirements.txt")
+        ).read_text()
+        coverage_version = ""
+        for line in integration_requirements.splitlines():
+            if line.startswith("coverage=="):
+                coverage_version = line.split("==")[1]
+                break
+        else:
+            raise RuntimeError(
+                "Could not find coverage in integration-requirements.txt"
+            )
+
+        # Update and install coverage from pip
+        # We use pip because the versions between distros are incompatible
+        self._apt_update()
+        self.execute("apt-get install -qy python3-pip")
+        self.execute(f"pip3 install coverage=={coverage_version}")
+        self.push_file(
+            local_path=ASSETS_DIR / "enable_coverage.py",
+            remote_path="/var/tmp/enable_coverage.py",
+        )
+        assert self.execute("python3 /var/tmp/enable_coverage.py").ok
+
     def install_new_cloud_init(
         self,
         source: CloudInitSource,
-        take_snapshot=True,
         clean=True,
     ):
         if source == CloudInitSource.DEB_PACKAGE:
@@ -148,15 +185,7 @@ class IntegrationInstance:
         log.info("Installed cloud-init version: %s", version)
         if clean:
             self.instance.clean()
-        if take_snapshot:
-            snapshot_id = self.snapshot()
-            self.cloud.snapshot_id = snapshot_id
 
-    # assert with retry because we can compete with apt already running in the
-    # background and get: E: Could not get lock /var/lib/apt/lists/lock - open
-    # (11: Resource temporarily unavailable)
-
-    @retry(tries=30, delay=1)
     def install_proposed_image(self):
         log.info("Installing proposed image")
         assert self.execute(
@@ -164,18 +193,17 @@ class IntegrationInstance:
             '$(lsb_release -sc)-proposed main" >> '
             "/etc/apt/sources.list.d/proposed.list"
         ).ok
-        assert self.execute("apt-get update -q").ok
+        self._apt_update()
         assert self.execute(
             "apt-get install -qy cloud-init -t=$(lsb_release -sc)-proposed"
         ).ok
 
-    @retry(tries=30, delay=1)
     def install_ppa(self):
         log.info("Installing PPA")
         assert self.execute(
             "add-apt-repository {} -y".format(self.settings.CLOUD_INIT_SOURCE)
         ).ok
-        assert self.execute("apt-get update -q").ok
+        self._apt_update()
         assert self.execute("apt-get install -qy cloud-init").ok
 
     @retry(tries=30, delay=1)
@@ -188,14 +216,39 @@ class IntegrationInstance:
             local_path=integration_settings.CLOUD_INIT_SOURCE,
             remote_path=remote_path,
         )
-        assert self.execute("apt-get install -qy python3-passlib").ok
         assert self.execute("dpkg -i {path}".format(path=remote_path)).ok
 
     @retry(tries=30, delay=1)
     def upgrade_cloud_init(self):
         log.info("Upgrading cloud-init to latest version in archive")
-        assert self.execute("apt-get update -q").ok
+        self._apt_update()
         assert self.execute("apt-get install -qy cloud-init").ok
+
+    def _apt_update(self):
+        """Run an apt update.
+
+        `cloud-init single` allows us to ensure apt update is only run once
+        for this instance. It could be done with an lru_cache too, but
+        dogfooding is fun."""
+        self.write_to_file(
+            "/tmp/update-ci.yaml", "#cloud-config\npackage_update: true"
+        )
+        response = self.execute(
+            "cloud-init single --name package_update_upgrade_install "
+            "--frequency instance --file /tmp/update-ci.yaml"
+        )
+        if not response.ok:
+            if response.stderr.startswith("usage:"):
+                # https://github.com/canonical/cloud-init/pull/4559 hasn't
+                # landed yet, so we need to use the old syntax
+                response = self.execute(
+                    "cloud-init --file /tmp/update-ci.yaml single --name "
+                    "package_update_upgrade_install --frequency instance "
+                )
+            if response.stderr:
+                raise RuntimeError(
+                    f"Failed to update packages: {response.stderr}"
+                )
 
     def ip(self) -> str:
         if self._ip:

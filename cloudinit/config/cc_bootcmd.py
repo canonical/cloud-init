@@ -10,7 +10,6 @@
 """Bootcmd: run arbitrary commands early in the boot process."""
 
 import logging
-import os
 from textwrap import dedent
 
 from cloudinit import subp, temp_utils, util
@@ -83,12 +82,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             raise
 
         try:
-            env = os.environ.copy()
             iid = cloud.get_instance_id()
-            if iid:
-                env["INSTANCE_ID"] = str(iid)
-            cmd = ["/bin/sh", tmpf.name]
-            subp.subp(cmd, env=env, capture=False)
+            env = {"INSTANCE_ID": str(iid)} if iid else {}
+            subp.subp(["/bin/sh", tmpf.name], update_env=env, capture=False)
         except Exception:
             util.logexc(LOG, "Failed to run bootcmd module %s", name)
             raise

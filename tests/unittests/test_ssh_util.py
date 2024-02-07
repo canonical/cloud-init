@@ -58,18 +58,6 @@ def mock_getpwnam(users, username):
 # the testdata for OpenSSH, and their private keys are available
 # https://github.com/openssh/openssh-portable/tree/master/regress/unittests/sshkey/testdata
 VALID_CONTENT = {
-    "dsa": (
-        "AAAAB3NzaC1kc3MAAACBAIrjOQSlSea19bExXBMBKBvcLhBoVvNBjCppNzllipF"
-        "W4jgIOMcNanULRrZGjkOKat6MWJNetSbV1E6IOFDQ16rQgsh/OvYU9XhzM8seLa"
-        "A21VszZuhIV7/2DE3vxu7B54zVzueG1O1Deq6goQCRGWBUnqO2yluJiG4HzrnDa"
-        "jzRAAAAFQDMPO96qXd4F5A+5b2f2MO7SpVomQAAAIBpC3K2zIbDLqBBs1fn7rsv"
-        "KcJvwihdlVjG7UXsDB76P2GNqVG+IlYPpJZ8TO/B/fzTMtrdXp9pSm9OY1+BgN4"
-        "REsZ2WNcvfgY33aWaEM+ieCcQigvxrNAF2FTVcbUIIxAn6SmHuQSWrLSfdHc8H7"
-        "hsrgeUPPdzjBD/cv2ZmqwZ1AAAAIAplIsScrJut5wJMgyK1JG0Kbw9JYQpLe95P"
-        "obB069g8+mYR8U0fysmTEdR44mMu0VNU5E5OhTYoTGfXrVrkR134LqFM2zpVVbE"
-        "JNDnIqDHxTkc6LY2vu8Y2pQ3/bVnllZZOda2oD5HQ7ovygQa6CH+fbaZHbdDUX/"
-        "5z7u2rVAlDw=="
-    ),
     "ecdsa": (
         "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBITrGBB3cgJ"
         "J7fPxvtMW9H3oRisNpJ3OAslxZeyP7I0A9BPAW0RQIwHVtVnM7zrp4nI+JLZov/"
@@ -179,35 +167,6 @@ VALID_CONTENT = {
     "sk-ssh-ed25519@openssh.com": (
         "AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAICFo/k5LU8863u66YC9"
         "eUO2170QduohPURkQnbLa/dczAAAABHNzaDo="
-    ),
-    "ssh-dss-cert-v01@openssh.com": (
-        "AAAAHHNzaC1kc3MtY2VydC12MDFAb3BlbnNzaC5jb20AAAAgdTlbNU9Hn9Qng3F"
-        "HxwH971bxCIoq1ern/QWFFDWXgmYAAACBAPqS600VGwdPAQC/p3f0uGyrLVql0c"
-        "Fn1zYd/JGvtabKnIYjLaYprje/NcjwI3CZFJiz4Dp3S8kLs+X5/1DMn/Tg1Y4D4"
-        "yLB+6vCtHcJF7rVBFhvw/KZwc7G54ez3khyOtsg82fzpyOc8/mq+/+C5TMKO7DD"
-        "jMF0k5emWKCsa3ZfAAAAFQCjA/+dKkMu4/CWjJPtfl7YNaStNQAAAIEA7uX1BVV"
-        "tJKjLmWrpw62+l/xSXA5rr7MHBuWjiCYV3VHBfXJaQDyRDtGuEJKDwdzqYgacpG"
-        "ApGWL/cuBtJ9nShsUl6GRG0Ra03g+Hx9VR5LviJBsjAVB4qVgciU1NGga0Bt2Le"
-        "cd1X4EGQRBzVXeuOpiqGM6jP/I2yDMs0Pboet0AAACBAOdXpyfmobEBaOqZAuvg"
-        "j1P0uhjG2P31Ufurv22FWPBU3A9qrkxbOXwE0LwvjCvrsQV/lrYhJz/tiys40Ve"
-        "ahulWZE5SAHMXGIf95LiLSgaXMjko7joot+LK84ltLymwZ4QMnYjnZSSclf1Uuy"
-        "QMcUtb34+I0u9Ycnyhp2mSFsQtAAAAAAAAAAYAAAACAAAABmp1bGl1cwAAABIAA"
-        "AAFaG9zdDEAAAAFaG9zdDIAAAAANowB8AAAAABNHmBwAAAAAAAAAAAAAAAAAAAA"
-        "MwAAAAtzc2gtZWQyNTUxOQAAACBThupGO0X+FLQhbz8CoKPwc7V3JNsQuGtlsgN"
-        "+F7SMGQAAAFMAAAALc3NoLWVkMjU1MTkAAABAh/z1LIdNL1b66tQ8t9DY9BTB3B"
-        "QKpTKmc7ezyFKLwl96yaIniZwD9Ticdbe/8i/Li3uCFE3EAt8NAIv9zff8Bg=="
-    ),
-    "ssh-dss": (
-        "AAAAB3NzaC1kc3MAAACBAPqS600VGwdPAQC/p3f0uGyrLVql0cFn1zYd/JGvtab"
-        "KnIYjLaYprje/NcjwI3CZFJiz4Dp3S8kLs+X5/1DMn/Tg1Y4D4yLB+6vCtHcJF7"
-        "rVBFhvw/KZwc7G54ez3khyOtsg82fzpyOc8/mq+/+C5TMKO7DDjMF0k5emWKCsa"
-        "3ZfAAAAFQCjA/+dKkMu4/CWjJPtfl7YNaStNQAAAIEA7uX1BVVtJKjLmWrpw62+"
-        "l/xSXA5rr7MHBuWjiCYV3VHBfXJaQDyRDtGuEJKDwdzqYgacpGApGWL/cuBtJ9n"
-        "ShsUl6GRG0Ra03g+Hx9VR5LviJBsjAVB4qVgciU1NGga0Bt2Lecd1X4EGQRBzVX"
-        "euOpiqGM6jP/I2yDMs0Pboet0AAACBAOdXpyfmobEBaOqZAuvgj1P0uhjG2P31U"
-        "furv22FWPBU3A9qrkxbOXwE0LwvjCvrsQV/lrYhJz/tiys40VeahulWZE5SAHMX"
-        "GIf95LiLSgaXMjko7joot+LK84ltLymwZ4QMnYjnZSSclf1UuyQMcUtb34+I0u9"
-        "Ycnyhp2mSFsQt"
     ),
     "ssh-ed25519-cert-v01@openssh.com": (
         "AAAAIHNzaC1lZDI1NTE5LWNlcnQtdjAxQG9wZW5zc2guY29tAAAAIIxzuxl4z3u"
@@ -398,7 +357,7 @@ class TestUpdateAuthorizedKeys:
         """new entries with the same base64 should replace old."""
         orig_entries = [
             " ".join(("rsa", VALID_CONTENT["rsa"], "orig_comment1")),
-            " ".join(("dsa", VALID_CONTENT["dsa"], "orig_comment2")),
+            " ".join(("ecdsa", VALID_CONTENT["ecdsa"], "orig_comment2")),
         ]
 
         expected = "\n".join([new_entries[0], orig_entries[1]]) + "\n"
@@ -412,7 +371,7 @@ class TestUpdateAuthorizedKeys:
         assert expected == found
 
 
-@mock.patch(M_PATH + "util.load_file")
+@mock.patch(M_PATH + "util.load_text_file")
 @mock.patch(M_PATH + "os.path.isfile")
 class TestParseSSHConfig:
     @pytest.mark.parametrize(
@@ -579,7 +538,7 @@ class TestUpdateSshConfig:
         util.write_file(mycfg, self.cfgdata)
         ret = ssh_util.update_ssh_config({"MyKey": "NEW_VAL"}, mycfg)
         assert True is ret
-        found = util.load_file(mycfg)
+        found = util.load_text_file(mycfg)
         assert self.cfgdata.replace("ORIG_VAL", "NEW_VAL") == found
         # assert there is a newline at end of file (LP: #1677205)
         assert "\n" == found[-1]
@@ -590,7 +549,7 @@ class TestUpdateSshConfig:
         with patch("cloudinit.ssh_util.util.write_file") as m_write_file:
             ret = ssh_util.update_ssh_config({"MyKey": "ORIG_VAL"}, mycfg)
         assert False is ret
-        assert self.cfgdata == util.load_file(mycfg)
+        assert self.cfgdata == util.load_text_file(mycfg)
         m_write_file.assert_not_called()
 
     def test_without_include(self, tmpdir):
@@ -598,7 +557,7 @@ class TestUpdateSshConfig:
         cfg = "X Y"
         util.write_file(mycfg, cfg)
         assert ssh_util.update_ssh_config({"key": "value"}, mycfg)
-        assert "X Y\nkey value\n" == util.load_file(mycfg)
+        assert "X Y\nkey value\n" == util.load_text_file(mycfg)
         expected_conf_file = f"{mycfg}.d/50-cloud-init.conf"
         assert not os.path.isfile(expected_conf_file)
 
@@ -613,14 +572,14 @@ class TestUpdateSshConfig:
         expected_conf_file = f"{mycfg}.d/50-cloud-init.conf"
         assert os.path.isfile(expected_conf_file)
         assert 0o600 == stat.S_IMODE(os.stat(expected_conf_file).st_mode)
-        assert "key value\n" == util.load_file(expected_conf_file)
+        assert "key value\n" == util.load_text_file(expected_conf_file)
 
     def test_with_commented_include(self, tmpdir):
         mycfg = tmpdir.join("sshd_config")
         cfg = f"# Include {mycfg}.d/*.conf"
         util.write_file(mycfg, cfg)
         assert ssh_util.update_ssh_config({"key": "value"}, mycfg)
-        assert f"{cfg}\nkey value\n" == util.load_file(mycfg)
+        assert f"{cfg}\nkey value\n" == util.load_text_file(mycfg)
         expected_conf_file = f"{mycfg}.d/50-cloud-init.conf"
         assert not os.path.isfile(expected_conf_file)
 
@@ -629,7 +588,7 @@ class TestUpdateSshConfig:
         cfg = f"Include other_{mycfg}.d/*.conf"
         util.write_file(mycfg, cfg)
         assert ssh_util.update_ssh_config({"key": "value"}, mycfg)
-        assert f"{cfg}\nkey value\n" == util.load_file(mycfg)
+        assert f"{cfg}\nkey value\n" == util.load_text_file(mycfg)
         expected_conf_file = f"{mycfg}.d/50-cloud-init.conf"
         assert not os.path.isfile(expected_conf_file)
         assert not os.path.isfile(f"other_{mycfg}.d/50-cloud-init.conf")
@@ -646,7 +605,7 @@ class TestAppendSshConfig:
         ssh_util.append_ssh_config(
             [("MyKey", "NEW_VAL"), ("MyKey", "NEW_VAL_2")], mycfg
         )
-        found = util.load_file(mycfg)
+        found = util.load_text_file(mycfg)
         expected_cfg = dedent(
             """\
             #Option val
@@ -852,9 +811,9 @@ class TestMultipleSshAuthorizedKeysFile:
             home, "authorized_keys", "rsa", keys
         )
 
-        # /tmp/home/bobby/.ssh/user_keys = dsa
+        # /tmp/home/bobby/.ssh/user_keys = ed25519
         user_keys = self.create_user_authorized_file(
-            home, "user_keys", "dsa", keys
+            home, "user_keys", "ed25519", keys
         )
 
         # /tmp/sshd_config
@@ -920,9 +879,9 @@ class TestMultipleSshAuthorizedKeysFile:
             home, "authorized_keys", "rsa", keys
         )
 
-        # /tmp/home/bobby/.ssh/user_keys = dsa
+        # /tmp/home/bobby/.ssh/user_keys = ed25519
         user_keys = self.create_user_authorized_file(
-            home, "user_keys", "dsa", keys
+            home, "user_keys", "ed25519", keys
         )
 
         authorized_keys_global = self.create_global_authorized_file(
@@ -1153,9 +1112,9 @@ class TestMultipleSshAuthorizedKeysFile:
         self.create_user_authorized_file(
             home_bobby, "authorized_keys2", "rsa", keys
         )
-        # /tmp/home/bobby/.ssh/user_keys3 = dsa
+        # /tmp/home/bobby/.ssh/user_keys3 = ed25519
         user_keys = self.create_user_authorized_file(
-            home_bobby, "user_keys3", "dsa", keys
+            home_bobby, "user_keys3", "ed25519", keys
         )
 
         # /tmp/home/suzie/.ssh/authorized_keys2 = rsa
@@ -1233,9 +1192,9 @@ class TestMultipleSshAuthorizedKeysFile:
         authorized_keys = self.create_user_authorized_file(
             home_bobby, "authorized_keys2", "rsa", keys
         )
-        # /tmp/home/bobby/.ssh/user_keys3 = dsa
+        # /tmp/home/bobby/.ssh/user_keys3 = ecdsa
         user_keys = self.create_user_authorized_file(
-            home_bobby, "user_keys3", "dsa", keys
+            home_bobby, "user_keys3", "ecdsa", keys
         )
 
         # /tmp/home/badguy/home/bobby = ""
@@ -1326,10 +1285,10 @@ class TestMultipleSshAuthorizedKeysFile:
         authorized_keys = self.create_user_authorized_file(
             home_bobby, "authorized_keys", "rsa", keys
         )
-        # /tmp/etc/ssh/userkeys/bobby = dsa
+        # /tmp/etc/ssh/userkeys/bobby = ecdsa
         # assume here that we can bypass userkeys, despite permissions
         self.create_global_authorized_file(
-            "etc/ssh/userkeys/bobby", "dsa", keys, tmpdir
+            "etc/ssh/userkeys/bobby", "ecdsa", keys, tmpdir
         )
 
         # /tmp/home/badguy/.ssh/authorized_keys = ssh-xmss@openssh.com
@@ -1419,10 +1378,10 @@ class TestMultipleSshAuthorizedKeysFile:
         self.create_user_authorized_file(
             home_bobby, "authorized_keys", "rsa", keys
         )
-        # /tmp/etc/ssh/userkeys/bobby = dsa
+        # /tmp/etc/ssh/userkeys/bobby = ed25519
         # assume here that we can bypass userkeys, despite permissions
         authorized_keys = self.create_global_authorized_file(
-            "etc/ssh/userkeys/bobby", "dsa", keys, tmpdir
+            "etc/ssh/userkeys/bobby", "ed25519", keys, tmpdir
         )
 
         # /tmp/home/badguy/.ssh/authorized_keys = ssh-xmss@openssh.com

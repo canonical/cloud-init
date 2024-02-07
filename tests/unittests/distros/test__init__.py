@@ -8,6 +8,8 @@ from unittest import mock
 import pytest
 
 from cloudinit import distros, util
+from cloudinit.distros.ubuntu import Distro
+from cloudinit.net.dhcp import Dhcpcd, IscDhclient, Udhcpc
 from tests.unittests import helpers
 
 M_PATH = "cloudinit.distros."
@@ -67,7 +69,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         self.patchOS(self.tmp)
         self.patchUtils(self.tmp)
         d.write_doas_rules(user, rules)
-        contents = util.load_file(d.doas_fn)
+        contents = util.load_text_file(d.doas_fn)
         return contents, cls, d
 
     def _write_load_sudoers(self, _user, rules):
@@ -78,7 +80,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         self.patchOS(self.tmp)
         self.patchUtils(self.tmp)
         d.write_sudo_rules("harlowja", rules)
-        contents = util.load_file(d.ci_sudoers_fn)
+        contents = util.load_text_file(d.ci_sudoers_fn)
         return contents, cls, d
 
     def _count_in(self, lines_look_for, text_content):
@@ -119,7 +121,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         d = self._write_load_doas("harlowja", rules)[2]
         # write to doas.conf again - should not create duplicate rules
         d.write_doas_rules("harlowja", rules)
-        contents = util.load_file(d.doas_fn)
+        contents = util.load_text_file(d.doas_fn)
         expected = [
             "permit nopass harlowja cmd ls",
             "permit nopass harlowja cmd pwd",
@@ -193,7 +195,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         d = self._write_load_sudoers("harlowja", rules)[2]
         # write to sudoers again - should not create duplicate rules
         d.write_sudo_rules("harlowja", rules)
-        contents = util.load_file(d.ci_sudoers_fn)
+        contents = util.load_text_file(d.ci_sudoers_fn)
         expected = [
             "harlowja ALL=(ALL:ALL) ALL",
             "harlowja B-ALL=(ALL:ALL) ALL",
@@ -213,7 +215,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         self.patchOS(self.tmp)
         self.patchUtils(self.tmp)
         d.ensure_sudo_dir("/b")
-        contents = util.load_file("/etc/sudoers")
+        contents = util.load_text_file("/etc/sudoers")
         self.assertIn("includedir /b", contents)
         self.assertTrue(os.path.isdir("/b"))
 
@@ -224,7 +226,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         util.write_file("/etc/sudoers", "josh, josh\n")
         d.ensure_sudo_dir("/b")
-        contents = util.load_file("/etc/sudoers")
+        contents = util.load_text_file("/etc/sudoers")
         self.assertIn("includedir /b", contents)
         self.assertTrue(os.path.isdir("/b"))
         self.assertIn("josh", contents)
@@ -238,7 +240,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         for char in ["#", "@"]:
             util.write_file("/etc/sudoers", "{}includedir /b".format(char))
             d.ensure_sudo_dir("/b")
-            contents = util.load_file("/etc/sudoers")
+            contents = util.load_text_file("/etc/sudoers")
             self.assertIn("includedir /b", contents)
             self.assertTrue(os.path.isdir("/b"))
             self.assertEqual(1, contents.count("includedir /b"))
@@ -501,3 +503,72 @@ class TestDistro:
             assert "/tmp" == tmp_path
         else:
             assert "/usr_lib_exec/cloud-init/clouddir" == tmp_path
+
+
+@pytest.mark.parametrize(
+    "chosen_client, config, which_override",
+    [
+        pytest.param(
+            IscDhclient,
+            {"network": {"dhcp_client_priority": ["dhclient"]}},
+            None,
+            id="single_client_is_found_from_config_dhclient",
+        ),
+        pytest.param(
+            Udhcpc,
+            {"network": {"dhcp_client_priority": ["udhcpc"]}},
+            None,
+            id="single_client_is_found_from_config_udhcpc",
+        ),
+        pytest.param(
+            Dhcpcd,
+            {"network": {"dhcp_client_priority": ["dhcpcd"]}},
+            None,
+            id="single_client_is_found_from_config_dhcpcd",
+        ),
+        pytest.param(
+            Dhcpcd,
+            {"network": {"dhcp_client_priority": ["dhcpcd", "dhclient"]}},
+            None,
+            id="first_client_is_found_from_config_dhcpcd",
+        ),
+        pytest.param(
+            Udhcpc,
+            {
+                "network": {
+                    "dhcp_client_priority": ["udhcpc", "dhcpcd", "dhclient"]
+                }
+            },
+            None,
+            id="first_client_is_found_from_config_udhcpc",
+        ),
+        pytest.param(
+            IscDhclient,
+            {"network": {"dhcp_client_priority": []}},
+            None,
+            id="first_client_is_found_no_config_dhclient",
+        ),
+        pytest.param(
+            Dhcpcd,
+            {
+                "network": {
+                    "dhcp_client_priority": ["udhcpc", "dhcpcd", "dhclient"]
+                }
+            },
+            [False, False, True, True],
+            id="second_client_is_found_from_config_dhcpcd",
+        ),
+    ],
+)
+class TestDHCP:
+    @mock.patch("cloudinit.net.dhcp.subp.which")
+    def test_dhcp_configuration(
+        self, m_which, chosen_client, config, which_override
+    ):
+        """check that, when a user provides a configuration at
+        network.dhcp_client_priority, the correct client is chosen
+        """
+        m_which.side_effect = which_override
+        distro = Distro("", {}, {})
+        distro._cfg = config
+        assert isinstance(distro.dhcp_client, chosen_client)

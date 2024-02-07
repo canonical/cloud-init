@@ -62,7 +62,7 @@ only non-hashed passwords were expired.
 NETPLAN_CONFIG_ROOT_READ_ONLY = True
 """
 If ``NETPLAN_CONFIG_ROOT_READ_ONLY`` is True, then netplan configuration will
-be written as a single root readon-only file /etc/netplan/50-cloud-init.yaml.
+be written as a single root read-only file /etc/netplan/50-cloud-init.yaml.
 This prevents wifi passwords in network v2 configuration from being
 world-readable. Prior to 23.1, netplan configuration is world-readable.
 

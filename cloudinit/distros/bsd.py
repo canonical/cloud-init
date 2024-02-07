@@ -130,7 +130,7 @@ class BSD(distros.Distro):
         cmd.extend(pkglist)
 
         # Allow the output of this to flow outwards (ie not be captured)
-        subp.subp(cmd, env=self._get_pkg_cmd_environ(), capture=False)
+        subp.subp(cmd, update_env=self._get_pkg_cmd_environ(), capture=False)
 
     def set_timezone(self, tz):
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
@@ -141,3 +141,11 @@ class BSD(distros.Distro):
     def chpasswd(self, plist_in: list, hashed: bool):
         for name, password in plist_in:
             self.set_passwd(name, password, hashed=hashed)
+
+    @staticmethod
+    def get_proc_ppid(pid):
+        """
+        Return the parent pid of a process by checking ps
+        """
+        ppid, _ = subp.subp(["ps", "-oppid=", "-p", str(pid)])
+        return int(ppid.strip())

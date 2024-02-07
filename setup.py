@@ -132,6 +132,11 @@ INITSYS_FILES = {
         for f in glob("sysvinit/netbsd/*")
         if is_f(f)
     ],
+    "sysvinit_openbsd": lambda: [
+        render_tmpl(f, mode=0o755)
+        for f in glob("sysvinit/openbsd/*")
+        if is_f(f)
+    ],
     "sysvinit_deb": lambda: [f for f in glob("sysvinit/debian/*") if is_f(f)],
     "sysvinit_openrc": lambda: [
         f for f in glob("sysvinit/gentoo/*") if is_f(f)
@@ -156,6 +161,7 @@ INITSYS_ROOTS = {
     "sysvinit": "etc/rc.d/init.d",
     "sysvinit_freebsd": "usr/local/etc/rc.d",
     "sysvinit_netbsd": "usr/local/etc/rc.d",
+    "sysvinit_openbsd": "etc/rc.d",
     "sysvinit_deb": "etc/init.d",
     "sysvinit_openrc": "etc/init.d",
     "systemd": pkg_config_read("systemd", "systemdsystemunitdir"),
@@ -172,7 +178,7 @@ USR = "usr"
 ETC = "etc"
 USR_LIB_EXEC = "usr/lib"
 LIB = "lib"
-if os.uname()[0] in ["FreeBSD", "DragonFly"]:
+if os.uname()[0] in ["FreeBSD", "DragonFly", "OpenBSD"]:
     USR = "usr/local"
     USR_LIB_EXEC = "usr/local/lib"
 elif os.path.isfile("/etc/redhat-release"):

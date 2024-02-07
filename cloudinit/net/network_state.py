@@ -336,7 +336,7 @@ class NetworkStateInterpreter:
             if iface:
                 nameservers, search = dns
                 iface["dns"] = {
-                    "addresses": nameservers,
+                    "nameservers": nameservers,
                     "search": search,
                 }
 
@@ -812,7 +812,6 @@ class NetworkStateInterpreter:
                     name_cmd.update({"search": search})
                 if len(dns) > 0:
                     name_cmd.update({"address": dns})
-                self.handle_nameserver(name_cmd)
 
                 mac_address: Optional[str] = dev_cfg.get("match", {}).get(
                     "macaddress"
@@ -926,6 +925,7 @@ class NetworkStateInterpreter:
                         "destination": route.get("to"),
                         "gateway": route.get("via"),
                         "metric": route.get("metric"),
+                        "mtu": route.get("mtu"),
                     }
                 )
             )

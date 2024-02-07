@@ -107,7 +107,7 @@ class TestConfig(FilesystemMockingTestCase):
             )
         )
 
-        self.assertEqual(expected_content, util.load_file(REPO_FILE))
+        self.assertEqual(expected_content, util.load_text_file(REPO_FILE))
 
     def test_main_and_community_repos(self):
         """
@@ -142,7 +142,7 @@ class TestConfig(FilesystemMockingTestCase):
             )
         )
 
-        self.assertEqual(expected_content, util.load_file(REPO_FILE))
+        self.assertEqual(expected_content, util.load_text_file(REPO_FILE))
 
     def test_main_community_testing_repos(self):
         """
@@ -182,7 +182,7 @@ class TestConfig(FilesystemMockingTestCase):
             )
         )
 
-        self.assertEqual(expected_content, util.load_file(REPO_FILE))
+        self.assertEqual(expected_content, util.load_text_file(REPO_FILE))
 
     def test_edge_main_community_testing_repos(self):
         """
@@ -219,7 +219,7 @@ class TestConfig(FilesystemMockingTestCase):
             )
         )
 
-        self.assertEqual(expected_content, util.load_file(REPO_FILE))
+        self.assertEqual(expected_content, util.load_text_file(REPO_FILE))
 
     def test_main_community_testing_local_repos(self):
         """
@@ -266,7 +266,7 @@ class TestConfig(FilesystemMockingTestCase):
             )
         )
 
-        self.assertEqual(expected_content, util.load_file(REPO_FILE))
+        self.assertEqual(expected_content, util.load_text_file(REPO_FILE))
 
     def test_edge_main_community_testing_local_repos(self):
         """
@@ -310,7 +310,7 @@ class TestConfig(FilesystemMockingTestCase):
             )
         )
 
-        self.assertEqual(expected_content, util.load_file(REPO_FILE))
+        self.assertEqual(expected_content, util.load_text_file(REPO_FILE))
 
 
 class TestApkConfigureSchema:

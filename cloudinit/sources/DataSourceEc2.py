@@ -131,7 +131,7 @@ class DataSourceEc2(sources.DataSource):
             try:
                 with EphemeralIPNetwork(
                     self.distro,
-                    self.fallback_interface,
+                    self.distro.fallback_interface,
                     ipv4=True,
                     ipv6=True,
                 ) as netw:
@@ -500,7 +500,7 @@ class DataSourceEc2(sources.DataSource):
                 func=self.get_data,
             )
 
-        iface = self.fallback_interface
+        iface = self.distro.fallback_interface
         net_md = self.metadata.get("network")
         if isinstance(net_md, dict):
             # SRU_BLOCKER: xenial, bionic and eoan should default
@@ -531,19 +531,6 @@ class DataSourceEc2(sources.DataSource):
         self._network_config = result
 
         return self._network_config
-
-    @property
-    def fallback_interface(self):
-        if self._fallback_interface is None:
-            # fallback_nic was used at one point, so restored objects may
-            # have an attribute there. respect that if found.
-            _legacy_fbnic = getattr(self, "fallback_nic", None)
-            if _legacy_fbnic:
-                self._fallback_interface = _legacy_fbnic
-                self.fallback_nic = None
-            else:
-                return super(DataSourceEc2, self).fallback_interface
-        return self._fallback_interface
 
     def crawl_metadata(self):
         """Crawl metadata service when available.
@@ -853,7 +840,7 @@ def _collect_platform_data():
     """
     data = {}
     try:
-        uuid = util.load_file("/sys/hypervisor/uuid").strip()
+        uuid = util.load_text_file("/sys/hypervisor/uuid").strip()
         data["uuid_source"] = "hypervisor"
     except Exception:
         uuid = dmi.read_dmi_data("system-uuid")
