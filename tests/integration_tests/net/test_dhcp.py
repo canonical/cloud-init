@@ -79,4 +79,9 @@ class TestDHCP:
         ), "cloud-init leaked a dhcp daemon that is still running"
         if not "ec2" == PLATFORM:
             assert "Received dhcp lease on " in log, "EphemeralDHCPv4 failed"
+        if "azure" == PLATFORM:
+            assert (
+                "Obtained DHCP lease on interface" in log
+            ), "Failed to get unknown option 245"
+            assert "'unknown-245'" in log, "Failed to get unknown option 245"
         verify_clean_log(log)

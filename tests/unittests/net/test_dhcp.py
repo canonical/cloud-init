@@ -2,6 +2,7 @@
 
 import os
 import signal
+import socket
 from textwrap import dedent
 
 import pytest
@@ -22,7 +23,7 @@ from cloudinit.net.dhcp import (
     networkd_load_leases,
 )
 from cloudinit.net.ephemeral import EphemeralDHCPv4
-from cloudinit.util import ensure_file, subp, write_file
+from cloudinit.util import ensure_file, load_binary_file, subp, write_file
 from tests.unittests.helpers import (
     CiTestCase,
     ResponsesTestCase,
@@ -1201,7 +1202,7 @@ class TestISCDHClient(CiTestCase):
 
 
 class TestDhcpcd:
-    def test_parse_lease(self):
+    def test_parse_lease_dump(self):
         lease = dedent(
             """
             broadcast_address='192.168.15.255'
@@ -1219,12 +1220,30 @@ class TestDhcpcd:
             subnet_mask='255.255.240.0'
             """
         )
-        parsed_lease = Dhcpcd.parse_dhcpcd_lease(lease, "eth0")
+        with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
+            parsed_lease = Dhcpcd.parse_dhcpcd_lease(lease, "eth0")
         assert "eth0" == parsed_lease["interface"]
         assert "192.168.15.255" == parsed_lease["broadcast-address"]
         assert "192.168.0.212" == parsed_lease["fixed-address"]
         assert "255.255.240.0" == parsed_lease["subnet-mask"]
         assert "192.168.0.1" == parsed_lease["routers"]
+
+    @pytest.mark.parametrize(
+        "lease_file, option_245",
+        (
+            pytest.param("enp24s0.lease", None, id="no option 245"),
+            pytest.param(
+                "eth0.lease",
+                socket.inet_aton("168.63.129.16"),
+                id="a valid option 245",
+            ),
+        ),
+    )
+    def test_parse_raw_lease(self, lease_file, option_245):
+        lease = load_binary_file(f"tests/data/net/dhcp/{lease_file}")
+        assert option_245 == Dhcpcd.parse_unknown_options_from_packet(
+            lease, 245
+        )
 
     def test_parse_classless_static_routes(self):
         lease = dedent(
@@ -1247,7 +1266,8 @@ class TestDhcpcd:
             subnet_mask='255.255.255.0'
             """
         )
-        parsed_lease = Dhcpcd.parse_dhcpcd_lease(lease, "eth0")
+        with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
+            parsed_lease = Dhcpcd.parse_dhcpcd_lease(lease, "eth0")
         assert [
             ("0.0.0.0/0", "10.0.0.1"),
             ("168.63.129.16/32", "10.0.0.1"),

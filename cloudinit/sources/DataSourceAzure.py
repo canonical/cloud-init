@@ -40,7 +40,6 @@ from cloudinit.sources.helpers.azure import (
     build_minimal_ovf,
     dhcp_log_cb,
     get_boot_telemetry,
-    get_ip_from_lease_value,
     get_metadata_from_fabric,
     get_system_info,
     report_diagnostic_event,
@@ -499,9 +498,7 @@ class DataSourceAzure(sources.DataSource):
 
             # Update wireserver IP from DHCP options.
             if "unknown-245" in lease:
-                self._wireserver_endpoint = get_ip_from_lease_value(
-                    lease["unknown-245"]
-                )
+                self._wireserver_endpoint = lease["unknown-245"]
 
             driver = device_driver(iface)
             ephipv4 = self._ephemeral_dhcp_ctx._ephipv4

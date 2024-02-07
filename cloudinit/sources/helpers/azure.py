@@ -4,8 +4,6 @@ import json
 import logging
 import os
 import re
-import socket
-import struct
 import textwrap
 import zlib
 from contextlib import contextmanager
@@ -221,20 +219,6 @@ def cd(newdir):
         yield
     finally:
         os.chdir(prevdir)
-
-
-def get_ip_from_lease_value(fallback_lease_value):
-    unescaped_value = fallback_lease_value.replace("\\", "")
-    if len(unescaped_value) > 4:
-        hex_string = ""
-        for hex_pair in unescaped_value.split(":"):
-            if len(hex_pair) == 1:
-                hex_pair = "0" + hex_pair
-            hex_string += hex_pair
-        packed_bytes = struct.pack(">L", int(hex_string.replace(":", ""), 16))
-    else:
-        packed_bytes = unescaped_value.encode("utf-8")
-    return socket.inet_ntoa(packed_bytes)
 
 
 @azure_ds_telemetry_reporter
