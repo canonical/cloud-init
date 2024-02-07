@@ -7,6 +7,7 @@
 import datetime
 import json
 import os
+import sys
 import time
 
 from cloudinit import subp, util
@@ -370,6 +371,9 @@ def load_events_infile(infile):
     :return: json version of logfile, raw file
     """
     data = infile.read()
+    if not data:
+        sys.stderr.write("Empty file %s\n" % infile.name)
+        sys.exit(1)
     try:
         return json.loads(data), data
     except ValueError:
