@@ -10,6 +10,8 @@ import logging
 import os
 import re
 import signal
+import socket
+import struct
 import time
 from contextlib import suppress
 from io import StringIO
@@ -241,8 +243,30 @@ class IscDhclient(DhcpClient):
                 line = line.strip().replace('"', "").replace("option ", "")
                 if line:
                     lease_options.append(line.split(" ", 1))
-            dhcp_leases.append(dict(lease_options))
+            options = dict(lease_options)
+            opt_245 = options.get("unknown-245")
+            if opt_245:
+                options["unknown-245"] = IscDhclient.get_ip_from_lease_value(
+                    opt_245
+                )
+            dhcp_leases.append(options)
         return dhcp_leases
+
+    @staticmethod
+    def get_ip_from_lease_value(fallback_lease_value):
+        unescaped_value = fallback_lease_value.replace("\\", "")
+        if len(unescaped_value) > 4:
+            hex_string = ""
+            for hex_pair in unescaped_value.split(":"):
+                if len(hex_pair) == 1:
+                    hex_pair = "0" + hex_pair
+                hex_string += hex_pair
+            packed_bytes = struct.pack(
+                ">L", int(hex_string.replace(":", ""), 16)
+            )
+        else:
+            packed_bytes = unescaped_value.encode("utf-8")
+        return socket.inet_ntoa(packed_bytes)
 
     def get_newest_lease(self, interface: str) -> Dict[str, Any]:
         """Get the most recent lease from the ephemeral phase as a dict.
@@ -680,6 +704,50 @@ class Dhcpcd(DhcpClient):
             raise NoDHCPLeaseError from error
 
     @staticmethod
+    def parse_unknown_options_from_packet(
+        data: bytes, dhcp_option_number: int
+    ) -> Optional[bytes]:
+        """get a specific option from a binary lease file
+
+        This is required until upstream dhcpcd supports unknown option 245
+        upstream bug: https://github.com/NetworkConfiguration/dhcpcd/issues/282
+
+        @param data: Binary lease data
+        @param number: Option number to return
+        @return: the option (bytes) or None
+        """
+        # DHCP is basically an extension to bootp. The relevent standards that
+        # describe the packet format include:
+        #
+        # RFC 951 (Section 3)
+        # RFC 2132 (Section 2)
+        #
+        # Per RFC 951, the "vendor-specific area" of the dhcp packet starts at
+        # byte 236. An arbitrary constant, known as the magic cookie, takes 4
+        # bytes. Vendor-specific options come next, so we start the search at
+        # byte 240.
+        INDEX = 240
+
+        def iter_options(data: bytes, index: int):
+            """options are variable length, and consist of the following format
+
+            option number: 1 byte
+            option length: 1 byte
+            option data: variable length (see length field)
+            """
+            while len(data) >= index + 2:
+                code = data[index]
+                length = data[1 + index]
+                option = data[2 + index : 2 + index + length]
+                yield code, option
+                index = 2 + length + index
+
+        for code, option in iter_options(data, INDEX):
+            if code == dhcp_option_number:
+                return option
+        return None
+
+    @staticmethod
     def parse_dhcpcd_lease(lease_dump: str, interface: str) -> Dict:
         """parse the output of dhcpcd --dump
 
@@ -729,6 +797,12 @@ class Dhcpcd(DhcpClient):
         for source, destination in name_map.items():
             if source in lease:
                 lease[destination] = lease.pop(source)
+        dhcp_message = util.load_binary_file(
+            f"/var/lib/dhcpcd/{interface}.lease"
+        )
+        opt_245 = Dhcpcd.parse_unknown_options_from_packet(dhcp_message, 245)
+        if opt_245:
+            lease["unknown-245"] = socket.inet_ntoa(opt_245)
         return lease
 
     def get_newest_lease(self, interface: str) -> Dict[str, Any]:
