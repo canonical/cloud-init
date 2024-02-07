@@ -104,6 +104,13 @@ class DataSourceEc2(sources.DataSource):
         }
     }
 
+    default_update_events = {
+        EventScope.NETWORK: {
+            EventType.BOOT_NEW_INSTANCE,
+            EventType.HOTPLUG,
+        }
+    }
+
     extra_hotplug_udev_rules = _EXTRA_HOTPLUG_UDEV_RULES
 
     def __init__(self, sys_cfg, distro, paths):
