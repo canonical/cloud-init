@@ -775,7 +775,7 @@ def write_boot_content(
     @param shebang: if no file magic, set shebang
     @param mode: file mode
 
-    Becuase of the way that Cloud-init executes scripts (no shell),
+    Because of the way that Cloud-init executes scripts (no shell),
     a script will fail to execute if does not have a magic bit (shebang) set
     for the file. If shebang=True, then the script will be checked for a magic
     bit and to the SmartOS default of assuming that bash.

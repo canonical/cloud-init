@@ -505,7 +505,7 @@ class SubscriptionManager:
 
 def _sub_man_cli(cmd, logstring_val=False):
     """
-    Uses the prefered cloud-init subprocess def of subp.subp
+    Uses the preferred cloud-init subprocess def of subp.subp
     and runs subscription-manager.  Breaking this to a
     separate function for later use in mocking and unittests
     """

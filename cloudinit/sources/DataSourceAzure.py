@@ -1830,7 +1830,7 @@ def read_azure_ovf(contents):
     :return: Tuple of metadata, configuration, userdata dicts.
 
     :raises NonAzureDataSource: if XML is not in Azure's format.
-    :raises errors.ReportableError: if XML is unparseable or invalid.
+    :raises errors.ReportableError: if XML is unparsable or invalid.
     """
     ovf_env = OvfEnvXml.parse_text(contents)
     md: Dict[str, Any] = {}
@@ -1947,7 +1947,7 @@ def generate_network_config_from_instance_network_metadata(
 ) -> dict:
     """Convert imds network metadata dictionary to network v2 configuration.
 
-    :param: network_metadata: Dict of "network" key from instance metdata.
+    :param: network_metadata: Dict of "network" key from instance metadata.
 
     :return: Dictionary containing network version 2 standard configuration.
     """

@@ -6,7 +6,7 @@ jobs=4
 
 [MESSAGES CONTROL]
 
-# Errors and warings with some filtered:
+# Errors and warnings with some filtered:
 # W0201(attribute-defined-outside-init)
 # W0212(protected-access)
 # W0221(arguments-differ)

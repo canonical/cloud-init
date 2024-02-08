@@ -154,7 +154,7 @@ class DataSourceGCE(sources.DataSource):
 
     @property
     def launch_index(self):
-        # GCE does not provide lauch_index property.
+        # GCE does not provide launch_index property.
         return None
 
     def get_instance_id(self):
@@ -222,7 +222,7 @@ def _has_expired(public_key):
     except ValueError:
         return False
 
-    # Do not expire keys if there is no expriation timestamp.
+    # Do not expire keys if there is no expiration timestamp.
     if "expireOn" not in json_obj:
         return False
 

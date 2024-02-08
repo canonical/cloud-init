@@ -58,7 +58,7 @@ class JinjaSyntaxParsingException(TemplateSyntaxError):
         self.source = error.source
 
     def __str__(self):
-        """Avoid jinja2.TemplateSyntaxErrror multi-line __str__ format."""
+        """Avoid jinja2.TemplateSyntaxError multi-line __str__ format."""
         return self.format_error_message(
             syntax_error=self.message,
             line_number=self.lineno,
@@ -71,7 +71,7 @@ class JinjaSyntaxParsingException(TemplateSyntaxError):
         line_number: str,
         line_content: str = "",
     ) -> str:
-        """Avoid jinja2.TemplateSyntaxErrror multi-line __str__ format."""
+        """Avoid jinja2.TemplateSyntaxError multi-line __str__ format."""
         line_content = f": {line_content}" if line_content else ""
         return JinjaSyntaxParsingException.message_template.format(
             syntax_error=syntax_error,

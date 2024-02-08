@@ -58,8 +58,8 @@ Thanks to all our presenters; Mina Galic (FreeBSD) and Dermot Bradley
 Catherine Redfield, Alberto Contreras, Sally Makin, John Chittum, Daniel
 Bungert and Chad Smith. You really helped to make this event a success.
 
-Presentation take-aways
------------------------
+Presentation takeaways
+----------------------
 
 * **Integration-testing tour/demo**: James showed how Canonical uses our
   integration tests and pycloudlib during SRU verification, and demonstrated
