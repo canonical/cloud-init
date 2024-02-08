@@ -712,7 +712,7 @@ has_fs_with_label() {
 
 nocase_equal() {
     # nocase_equal(a, b)
-    # return 0 if case insenstive comparision a.lower() == b.lower()
+    # return 0 if case insensitive comparison a.lower() == b.lower()
     # different lengths
     [ "${#1}" = "${#2}" ] || return 1
     # case sensitive equal
@@ -1167,7 +1167,7 @@ dscheck_Azure() {
 }
 
 dscheck_Bigstep() {
-    # bigstep is activated by presense of seed file 'url'
+    # bigstep is activated by presence of seed file 'url'
     [ -f "${PATH_VAR_LIB_CLOUD}/data/seed/bigstep/url" ] &&
         return ${DS_FOUND}
     return ${DS_NOT_FOUND}
@@ -1254,7 +1254,7 @@ ec2_identify_platform() {
     local uuid="${DI_DMI_PRODUCT_UUID}"
     case "$uuid:$serial" in
         [Ee][Cc]2*:[Ee][Cc]2*)
-            # both start with ec2, now check for case insenstive equal
+            # both start with ec2, now check for case insensitive equal
             nocase_equal "$uuid" "$serial" &&
                 { _RET="AWS"; return 0; };;
     esac

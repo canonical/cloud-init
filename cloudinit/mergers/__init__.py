@@ -110,7 +110,7 @@ def string_extract_mergers(merge_how):
             continue
         match = NAME_MTCH.match(m_name)
         if not match:
-            msg = "Matcher identifer '%s' is not in the right format" % (
+            msg = "Matcher identifier '%s' is not in the right format" % (
                 m_name
             )
             raise ValueError(msg)

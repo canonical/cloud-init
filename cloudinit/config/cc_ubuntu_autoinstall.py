@@ -32,7 +32,7 @@ meta: MetaSchema = {
         next generation desktop installer, via `ubuntu-desktop-install` snap.
         When "autoinstall" directives are provided in either
         ``#cloud-config`` user-data or ``/etc/cloud/cloud.cfg.d`` validate
-        minimal autoinstall schema adherance and emit a warning if the
+        minimal autoinstall schema adherence and emit a warning if the
         live-installer is not present.
 
         The live-installer will use autoinstall directives to seed answers to
