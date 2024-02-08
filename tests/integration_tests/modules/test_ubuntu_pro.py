@@ -50,7 +50,7 @@ ubuntu_pro:
 
 PRO_DAEMON_DISABLED = """\
 #cloud-config
-# Disable UA daemon (only needed in GCE)
+# Disable Pro daemon (only needed in GCE)
 ubuntu_pro:
   features:
     disable_auto_attach: true
@@ -200,7 +200,7 @@ def maybe_install_cloud_init(session_cloud: IntegrationCloud):
 
         if session_cloud.settings.PLATFORM == "gce":
             LOG.info(
-                "Restore `ubuntu-pro.service` original status for next"
+                "Restore `ubuntu-advantage.service` original status for next"
                 " boot"
             )
             assert client.execute(
