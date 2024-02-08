@@ -111,22 +111,22 @@
           "items": {
             "type": "string"
           },
-          "description": "Optional list of ubuntu-advantage services to enable. Any of: cc-eal, cis, esm-infra, fips, fips-updates, livepatch. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled. In Ubuntu Pro instances, if this list is given, then only those services will be enabled, ignoring contract defaults. Passing beta services here will cause an error."
+          "description": "Optional list of Ubuntu Pro services to enable. Any of: cc-eal, cis, esm-infra, fips, fips-updates, livepatch. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled. In Ubuntu Pro instances, if this list is given, then only those services will be enabled, ignoring contract defaults. Passing beta services here will cause an error."
         },
         "enable_beta": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "Optional list of ubuntu-advantage beta services to enable. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled. In Ubuntu Pro instances, if this list is given, then only those services will be enabled, ignoring contract defaults."
+          "description": "Optional list of Ubuntu Pro beta services to enable. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled. In Ubuntu Pro instances, if this list is given, then only those services will be enabled, ignoring contract defaults."
         },
         "token": {
           "type": "string",
-          "description": "Contract token obtained from https://ubuntu.com/advantage to attach. Required for non-Pro instances."
+          "description": "Contract token obtained from https://ubuntu.com/pro to attach. Required for non-Pro instances."
         },
         "features": {
           "type": "object",
-          "description": "Ubuntu Advantage features.",
+          "description": "Ubuntu Pro features.",
           "additionalProperties": false,
           "properties": {
             "disable_auto_attach": {
@@ -138,7 +138,7 @@
         },
         "config": {
           "type": "object",
-          "description": "Configuration settings or override Ubuntu Advantage config.",
+          "description": "Configuration settings or override Ubuntu Pro config.",
           "additionalProperties": true,
           "properties": {
             "http_proxy": {
@@ -147,7 +147,7 @@
                 "null"
               ],
               "format": "uri",
-              "description": "Ubuntu Advantage HTTP Proxy URL or null to unset."
+              "description": "Ubuntu Pro HTTP Proxy URL or null to unset."
             },
             "https_proxy": {
               "type": [
@@ -155,7 +155,7 @@
                 "null"
               ],
               "format": "uri",
-              "description": "Ubuntu Advantage HTTPS Proxy URL or null to unset."
+              "description": "Ubuntu Pro HTTPS Proxy URL or null to unset."
             },
             "global_apt_http_proxy": {
               "type": [
@@ -179,7 +179,7 @@
                 "null"
               ],
               "format": "uri",
-              "description": "HTTP Proxy URL used only for Ubuntu Advantage APT repositories or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
+              "description": "HTTP Proxy URL used only for Ubuntu Pro APT repositories or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
             },
             "ua_apt_https_proxy": {
               "type": [
@@ -187,7 +187,7 @@
                 "null"
               ],
               "format": "uri",
-              "description": "HTTPS Proxy URL used only for Ubuntu Advantage APT repositories or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
+              "description": "HTTPS Proxy URL used only for Ubuntu Pro APT repositories or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
             }
           }
         }
@@ -3065,20 +3065,6 @@
         }
       }
     },
-    "cc_ubuntu_advantage": {
-      "type": "object",
-      "properties": {
-        "ubuntu_pro": {
-          "$ref": "#/$defs/ubuntu_pro.properties"
-        },
-        "ubuntu_advantage": {
-          "$ref": "#/$defs/ubuntu_pro.properties",
-          "deprecated": true,
-          "deprecated_version": "24.1",
-          "deprecated_description": "Use ``ubuntu_pro`` instead."
-        }
-      }
-    },
     "cc_ubuntu_drivers": {
       "type": "object",
       "properties": {
@@ -3104,6 +3090,20 @@
               }
             }
           }
+        }
+      }
+    },
+    "cc_ubuntu_pro": {
+      "type": "object",
+      "properties": {
+        "ubuntu_pro": {
+          "$ref": "#/$defs/ubuntu_pro.properties"
+        },
+        "ubuntu_advantage": {
+          "$ref": "#/$defs/ubuntu_pro.properties",
+          "deprecated": true,
+          "deprecated_version": "24.1",
+          "deprecated_description": "Use ``ubuntu_pro`` instead."
         }
       }
     },
@@ -3751,10 +3751,10 @@
       "$ref": "#/$defs/cc_timezone"
     },
     {
-      "$ref": "#/$defs/cc_ubuntu_advantage"
+      "$ref": "#/$defs/cc_ubuntu_drivers"
     },
     {
-      "$ref": "#/$defs/cc_ubuntu_drivers"
+      "$ref": "#/$defs/cc_ubuntu_pro"
     },
     {
       "$ref": "#/$defs/cc_update_etc_hosts"
