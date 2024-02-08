@@ -84,6 +84,7 @@
         "ubuntu_autoinstall",
         "ubuntu-drivers",
         "ubuntu_drivers",
+        "ubuntu_pro",
         "update-etc-hosts",
         "update_etc_hosts",
         "update-hostname",
@@ -100,6 +101,97 @@
         "zypper-add-repo",
         "zypper_add_repo"
       ]
+    },
+    "ubuntu_pro.properties": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enable": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional list of ubuntu-advantage services to enable. Any of: cc-eal, cis, esm-infra, fips, fips-updates, livepatch. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled. In Ubuntu Pro instances, if this list is given, then only those services will be enabled, ignoring contract defaults. Passing beta services here will cause an error."
+        },
+        "enable_beta": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional list of ubuntu-advantage beta services to enable. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled. In Ubuntu Pro instances, if this list is given, then only those services will be enabled, ignoring contract defaults."
+        },
+        "token": {
+          "type": "string",
+          "description": "Contract token obtained from https://ubuntu.com/advantage to attach. Required for non-Pro instances."
+        },
+        "features": {
+          "type": "object",
+          "description": "Ubuntu Advantage features.",
+          "additionalProperties": false,
+          "properties": {
+            "disable_auto_attach": {
+              "type": "boolean",
+              "description": "Optional boolean for controlling if ua-auto-attach.service (in Ubuntu Pro instances) will be attempted each boot. Default: ``false``",
+              "default": false
+            }
+          }
+        },
+        "config": {
+          "type": "object",
+          "description": "Configuration settings or override Ubuntu Advantage config.",
+          "additionalProperties": true,
+          "properties": {
+            "http_proxy": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uri",
+              "description": "Ubuntu Advantage HTTP Proxy URL or null to unset."
+            },
+            "https_proxy": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uri",
+              "description": "Ubuntu Advantage HTTPS Proxy URL or null to unset."
+            },
+            "global_apt_http_proxy": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uri",
+              "description": "HTTP Proxy URL used for all APT repositories on a system or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
+            },
+            "global_apt_https_proxy": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uri",
+              "description": "HTTPS Proxy URL used for all APT repositories on a system or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
+            },
+            "ua_apt_http_proxy": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uri",
+              "description": "HTTP Proxy URL used only for Ubuntu Advantage APT repositories or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
+            },
+            "ua_apt_https_proxy": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uri",
+              "description": "HTTPS Proxy URL used only for Ubuntu Advantage APT repositories or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
+            }
+          }
+        }
+      }
     },
     "users_groups.groups_by_groupname": {
       "additionalProperties": false,
@@ -2976,96 +3068,14 @@
     "cc_ubuntu_advantage": {
       "type": "object",
       "properties": {
+        "ubuntu_pro": {
+          "$ref": "#/$defs/ubuntu_pro.properties"
+        },
         "ubuntu_advantage": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "enable": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "description": "Optional list of ubuntu-advantage services to enable. Any of: cc-eal, cis, esm-infra, fips, fips-updates, livepatch. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled. In Ubuntu Pro instances, if this list is given, then only those services will be enabled, ignoring contract defaults. Passing beta services here will cause an error."
-            },
-            "enable_beta": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "description": "Optional list of ubuntu-advantage beta services to enable. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled. In Ubuntu Pro instances, if this list is given, then only those services will be enabled, ignoring contract defaults."
-            },
-            "token": {
-              "type": "string",
-              "description": "Contract token obtained from https://ubuntu.com/advantage to attach. Required for non-Pro instances."
-            },
-            "features": {
-              "type": "object",
-              "description": "Ubuntu Advantage features.",
-              "additionalProperties": false,
-              "properties": {
-                "disable_auto_attach": {
-                  "type": "boolean",
-                  "description": "Optional boolean for controlling if ua-auto-attach.service (in Ubuntu Pro instances) will be attempted each boot. Default: ``false``",
-                  "default": false
-                }
-              }
-            },
-            "config": {
-              "type": "object",
-              "description": "Configuration settings or override Ubuntu Advantage config.",
-              "additionalProperties": true,
-              "properties": {
-                "http_proxy": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
-                  "format": "uri",
-                  "description": "Ubuntu Advantage HTTP Proxy URL or null to unset."
-                },
-                "https_proxy": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
-                  "format": "uri",
-                  "description": "Ubuntu Advantage HTTPS Proxy URL or null to unset."
-                },
-                "global_apt_http_proxy": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
-                  "format": "uri",
-                  "description": "HTTP Proxy URL used for all APT repositories on a system or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
-                },
-                "global_apt_https_proxy": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
-                  "format": "uri",
-                  "description": "HTTPS Proxy URL used for all APT repositories on a system or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
-                },
-                "ua_apt_http_proxy": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
-                  "format": "uri",
-                  "description": "HTTP Proxy URL used only for Ubuntu Advantage APT repositories or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
-                },
-                "ua_apt_https_proxy": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
-                  "format": "uri",
-                  "description": "HTTPS Proxy URL used only for Ubuntu Advantage APT repositories or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
-                }
-              }
-            }
-          }
+          "$ref": "#/$defs/ubuntu_pro.properties",
+          "deprecated": true,
+          "deprecated_version": "24.1",
+          "deprecated_description": "Use ``ubuntu_pro`` instead."
         }
       }
     },
@@ -3861,6 +3871,7 @@
     "swap": {},
     "timezone": {},
     "ubuntu_advantage": {},
+    "ubuntu_pro": {},
     "updates": {},
     "user": {},
     "users": {},
