@@ -18,7 +18,7 @@ locale_warn() {
     $_local w1 w2 w3 w4 remain
 
     # if shell is zsh, act like sh only for this function (-L).
-    # The behavior change will not permenently affect user's shell.
+    # The behavior change will not permanently affect user's shell.
     [ "${ZSH_NAME+zsh}" = "zsh" ] && emulate -L sh
 
     # locale is expected to output either:

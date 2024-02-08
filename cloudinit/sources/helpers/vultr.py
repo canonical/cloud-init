@@ -20,7 +20,7 @@ LOG = logging.getLogger(__name__)
 def get_metadata(
     distro, url, timeout, retries, sec_between, agent, tmp_dir=None
 ):
-    # Bring up interface (and try untill one works)
+    # Bring up interface (and try until one works)
     exception = RuntimeError("Failed to DHCP")
 
     # Seek iface with DHCP

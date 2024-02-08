@@ -552,7 +552,7 @@ def convert_net_json(network_json=None, known_macs=None):
     There are additional fields that are populated in the network_data.json
     from OpenStack that are not relevant to network_config yaml, so we
     enumerate a dictionary of valid keys for network_yaml and apply filtering
-    to drop these superflous keys from the network_config yaml.
+    to drop these superfluous keys from the network_config yaml.
     """
     if network_json is None:
         return None

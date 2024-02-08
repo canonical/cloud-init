@@ -146,7 +146,7 @@ def reset_logging():
 
 def setup_backup_logging():
     """In the event that internal logging exception occurs and logging is not
-    possible for some reason, make a desparate final attempt to log to stderr
+    possible for some reason, make a desperate final attempt to log to stderr
     which may ease debugging.
     """
     fallback_handler = logging.StreamHandler(sys.stderr)

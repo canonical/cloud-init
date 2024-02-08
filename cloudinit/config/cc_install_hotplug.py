@@ -25,7 +25,7 @@ meta: MetaSchema = {
 
         When hotplug is enabled, newly added network devices will be added
         to the system by cloud-init. After udev detects the event,
-        cloud-init will referesh the instance metadata from the datasource,
+        cloud-init will refresh the instance metadata from the datasource,
         detect the device in the updated metadata, then apply the updated
         network configuration.
 
