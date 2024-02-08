@@ -5,6 +5,7 @@ import re
 import sys
 from collections import namedtuple
 
+import jsonschema
 import pytest
 
 from cloudinit import subp
@@ -75,7 +76,7 @@ class TestConfigureUA:
             "Invalid token SomeToken"
         )
         match = (
-            "Failure attaching Ubuntu Advantage:\nUnexpected error while"
+            "Failure attaching Ubuntu Pro:\nUnexpected error while"
             " running command.\nCommand: -\nExit code: -\nReason: -\n"
             "Stdout: Invalid token REDACTED\nStderr: -"
         )
@@ -99,7 +100,7 @@ class TestConfigureUA:
                     (
                         MPATH,
                         logging.DEBUG,
-                        "Attaching to Ubuntu Advantage. pro attach REDACTED",
+                        "Attaching to Ubuntu Pro. pro attach REDACTED",
                     )
                 ],
                 id="with_token",
@@ -118,7 +119,7 @@ class TestConfigureUA:
                     (
                         MPATH,
                         logging.DEBUG,
-                        "Attaching to Ubuntu Advantage. pro attach REDACTED",
+                        "Attaching to Ubuntu Pro. pro attach REDACTED",
                     )
                 ],
                 id="with_empty_services",
@@ -154,7 +155,7 @@ class TestConfigureUA:
                     (
                         MPATH,
                         logging.DEBUG,
-                        "Attaching to Ubuntu Advantage. pro attach"
+                        "Attaching to Ubuntu Pro. pro attach"
                         " --no-auto-enable REDACTED",
                     )
                 ],
@@ -191,13 +192,13 @@ class TestConfigureUA:
                     (
                         MPATH,
                         logging.DEBUG,
-                        "Attaching to Ubuntu Advantage. pro attach"
+                        "Attaching to Ubuntu Pro. pro attach"
                         " --no-auto-enable REDACTED",
                     ),
                     (
                         MPATH,
                         logging.WARNING,
-                        "ubuntu_advantage: enable should be a list, not a "
+                        "ubuntu_pro: enable should be a list, not a "
                         "string; treating as a single enable",
                     ),
                 ],
@@ -217,12 +218,12 @@ class TestConfigureUA:
                     (
                         MPATH,
                         logging.DEBUG,
-                        "Attaching to Ubuntu Advantage. pro attach REDACTED",
+                        "Attaching to Ubuntu Pro. pro attach REDACTED",
                     ),
                     (
                         MPATH,
                         logging.WARNING,
-                        "ubuntu_advantage: enable should be a list, not a"
+                        "ubuntu_pro: enable should be a list, not a"
                         " dict; skipping enabling services",
                     ),
                 ],
@@ -254,7 +255,7 @@ class TestConfigureUA:
         assert (
             MPATH,
             logging.DEBUG,
-            "Attaching to Ubuntu Advantage. pro attach REDACTED",
+            "Attaching to Ubuntu Pro. pro attach REDACTED",
         ) in caplog.record_tuples
 
     def test_configure_ua_attach_on_service_enabled(
@@ -350,9 +351,7 @@ class TestConfigureUA:
 
         with pytest.raises(
             RuntimeError,
-            match=re.escape(
-                "Failure enabling Ubuntu Advantage service(s): esm, cc"
-            ),
+            match=re.escape("Failure enabling Ubuntu Pro service(s): esm, cc"),
         ):
             configure_ua(
                 token="SomeToken", enable=["esm", "cc", "fips", "asdf"]
@@ -425,35 +424,52 @@ class TestConfigureUA:
             configure_ua(token="SomeToken", enable=["esm"])
 
 
-class TestUbuntuAdvantageSchema:
+JSONSCHEMA_SKIP_REASON = (
+    "deprecation unraised as jsonschema ver can't merge $defs and inline keys"
+)
+
+
+class TestUbuntuProSchema:
     @pytest.mark.parametrize(
-        "config, expectation",
+        "config, expectation, skip_reason",
         [
-            ({"ubuntu_advantage": {}}, does_not_raise()),
-            # Strict keys
+            pytest.param({"ubuntu_pro": {}}, does_not_raise(), ""),
             pytest.param(
-                {"ubuntu_advantage": {"token": "win", "invalidkey": ""}},
+                {"ubuntu_advantage": {}},
                 pytest.raises(
                     SchemaValidationError,
                     match=re.escape(
-                        "ubuntu_advantage: Additional properties are not"
+                        "ubuntu_advantage:  Deprecated in version 24.1."
+                        " Use ``ubuntu_pro`` instead"
+                    ),
+                ),
+                JSONSCHEMA_SKIP_REASON
+                if getattr(jsonschema, "__version__", None) == "2.6.0"
+                else "",
+                id="deprecation_of_ubuntu_advantage_skip_old_json",
+            ),
+            # Strict keys
+            pytest.param(
+                {"ubuntu_pro": {"token": "win", "invalidkey": ""}},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=re.escape(
+                        "ubuntu_pro: Additional properties are not"
                         " allowed ('invalidkey"
                     ),
                 ),
+                "",
                 id="additional_properties",
             ),
             pytest.param(
-                {
-                    "ubuntu_advantage": {
-                        "features": {"disable_auto_attach": True}
-                    }
-                },
+                {"ubuntu_pro": {"features": {"disable_auto_attach": True}}},
                 does_not_raise(),
+                "",
                 id="disable_auto_attach",
             ),
             pytest.param(
                 {
-                    "ubuntu_advantage": {
+                    "ubuntu_pro": {
                         "features": {"disable_auto_attach": False},
                         "enable": ["fips"],
                         "enable_beta": ["realtime-kernel"],
@@ -461,22 +477,24 @@ class TestUbuntuAdvantageSchema:
                     }
                 },
                 does_not_raise(),
+                "",
                 id="pro_custom_services",
             ),
             pytest.param(
                 {
-                    "ubuntu_advantage": {
+                    "ubuntu_pro": {
                         "enable": ["fips"],
                         "enable_beta": ["realtime-kernel"],
                         "token": "<token>",
                     }
                 },
                 does_not_raise(),
+                "",
                 id="non_pro_beta_services",
             ),
             pytest.param(
                 {
-                    "ubuntu_advantage": {
+                    "ubuntu_pro": {
                         "features": {"asdf": False},
                         "enable": ["fips"],
                         "enable_beta": ["realtime-kernel"],
@@ -486,15 +504,16 @@ class TestUbuntuAdvantageSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=re.escape(
-                        "ubuntu_advantage.features: Additional properties are"
+                        "ubuntu_pro.features: Additional properties are"
                         " not allowed ('asdf'"
                     ),
                 ),
+                "",
                 id="pro_additional_features",
             ),
             pytest.param(
                 {
-                    "ubuntu_advantage": {
+                    "ubuntu_pro": {
                         "enable": ["fips"],
                         "token": "<token>",
                         "config": {
@@ -508,11 +527,12 @@ class TestUbuntuAdvantageSchema:
                     }
                 },
                 does_not_raise(),
+                "",
                 id="ua_config_valid_set",
             ),
             pytest.param(
                 {
-                    "ubuntu_advantage": {
+                    "ubuntu_pro": {
                         "enable": ["fips"],
                         "token": "<token>",
                         "config": {
@@ -526,11 +546,12 @@ class TestUbuntuAdvantageSchema:
                     }
                 },
                 does_not_raise(),
+                "",
                 id="ua_config_valid_unset",
             ),
             pytest.param(
                 {
-                    "ubuntu_advantage": {
+                    "ubuntu_pro": {
                         "enable": ["fips"],
                         "token": "<token>",
                         "config": ["http_proxy=http://some-proxy:8088"],
@@ -539,15 +560,16 @@ class TestUbuntuAdvantageSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=re.escape(
-                        "errors: ubuntu_advantage.config:"
+                        "errors: ubuntu_pro.config:"
                         " ['http_proxy=http://some-proxy:8088']"
                     ),
                 ),
+                "",
                 id="ua_config_invalid_type",
             ),
             pytest.param(
                 {
-                    "ubuntu_advantage": {
+                    "ubuntu_pro": {
                         "enable": ["fips"],
                         "token": "<token>",
                         "config": {
@@ -559,17 +581,18 @@ class TestUbuntuAdvantageSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match=re.escape(
-                        "errors: ubuntu_advantage.config.http_proxy: 8888"
+                        "errors: ubuntu_pro.config.http_proxy: 8888"
                         " is not of type 'string', 'null',"
-                        " ubuntu_advantage.config.https_proxy:"
+                        " ubuntu_pro.config.https_proxy:"
                         " ['http://some-proxy:8088']"
                     ),
                 ),
-                id="ua_config_invalid_type",
+                "",
+                id="ua_config_invalid_proxy_type",
             ),
             pytest.param(
                 {
-                    "ubuntu_advantage": {
+                    "ubuntu_pro": {
                         "enable": ["fips"],
                         "token": "<token>",
                         "config": {
@@ -579,12 +602,15 @@ class TestUbuntuAdvantageSchema:
                     }
                 },
                 does_not_raise(),
+                "",
                 id="ua_config_unknown_props_allowed",
             ),
         ],
     )
     @skipUnlessJsonSchema()
-    def test_schema_validation(self, config, expectation, caplog):
+    def test_schema_validation(self, config, expectation, skip_reason, caplog):
+        if skip_reason:
+            pytest.skip(skip_reason)
         with expectation:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
 
@@ -608,23 +634,22 @@ class TestUbuntuAdvantageSchema:
                 pytest.raises(
                     RuntimeError,
                     match=(
-                        "'ubuntu_advantage.features' should be a dict,"
-                        " not a list"
+                        "'ubuntu_pro.features' should be a dict, not a list"
                     ),
                 ),
-                ["'ubuntu_advantage.features' should be a dict, not a list\n"],
+                ["'ubuntu_pro.features' should be a dict, not a list\n"],
             ),
             (
                 {"features": {"disable_auto_attach": [0, 1]}},
                 pytest.raises(
                     RuntimeError,
                     match=(
-                        "'ubuntu_advantage.features.disable_auto_attach'"
+                        "'ubuntu_pro.features.disable_auto_attach'"
                         " should be a bool, not a list"
                     ),
                 ),
                 [
-                    "'ubuntu_advantage.features.disable_auto_attach' should be"
+                    "'ubuntu_pro.features.disable_auto_attach' should be"
                     " a bool, not a list\n"
                 ],
             ),
@@ -664,7 +689,7 @@ class TestHandle:
                     (
                         MPATH,
                         logging.DEBUG,
-                        "Skipping module named nomatter, no 'ubuntu_advantage'"
+                        "Skipping module named nomatter, no 'ubuntu_pro'"
                         " configuration found",
                     )
                 ],
@@ -673,9 +698,9 @@ class TestHandle:
                 [],
                 id="no_config",
             ),
-            # If ubuntu_advantage is provided, try installing ua-tools package.
+            # If ubuntu_pro is provided, try installing ua-tools package.
             pytest.param(
-                {"ubuntu_advantage": {"token": "valid"}},
+                {"ubuntu_pro": {"token": "valid"}},
                 cloud,
                 [],
                 [mock.call(cloud)],
@@ -683,10 +708,10 @@ class TestHandle:
                 None,
                 id="tries_to_install_ubuntu_advantage_tools",
             ),
-            # If ubuntu_advantage config provided, configure it.
+            # If ubuntu_pro config provided, configure it.
             pytest.param(
                 {
-                    "ubuntu_advantage": {
+                    "ubuntu_pro": {
                         "token": "valid",
                         "config": {"http_proxy": "http://proxy.org"},
                     }
@@ -698,9 +723,9 @@ class TestHandle:
                 None,
                 id="set_ua_config",
             ),
-            # All ubuntu_advantage config keys are passed to configure_ua.
+            # All ubuntu_pro config keys are passed to configure_ua.
             pytest.param(
-                {"ubuntu_advantage": {"token": "token", "enable": ["esm"]}},
+                {"ubuntu_pro": {"token": "token", "enable": ["esm"]}},
                 cloud,
                 [],
                 [mock.call(cloud)],
@@ -716,20 +741,20 @@ class TestHandle:
                     (
                         MPATH,
                         logging.WARNING,
-                        'Deprecated configuration key "ubuntu-advantage"'
-                        " provided. Expected underscore delimited "
-                        '"ubuntu_advantage"; will attempt to continue.',
-                    )
+                        "Deprecated configuration key(s) provided:"
+                        ' ubuntu-advantage. Expected "ubuntu_pro"; will'
+                        " attempt to continue.",
+                    ),
                 ],
                 None,
                 [mock.call(None)],
                 [mock.call(token="token", enable=["esm"])],
-                id="warns_on_deprecated_ubuntu_advantage_key_w_config",
+                id="warns_on_deprecated_ubuntu_pro_key_w_config",
             ),
             # Warning with beta services during attach
             pytest.param(
                 {
-                    "ubuntu_advantage": {
+                    "ubuntu_pro": {
                         "token": "token",
                         "enable": ["esm"],
                         "enable_beta": ["realtime-kernel"],
@@ -740,7 +765,7 @@ class TestHandle:
                     (
                         MPATH,
                         logging.DEBUG,
-                        "Ignoring `ubuntu_advantage.enable_beta` services in"
+                        "Ignoring `ubuntu_pro.enable_beta` services in"
                         " UA attach: realtime-kernel",
                     )
                 ],
@@ -749,21 +774,27 @@ class TestHandle:
                 [mock.call(token="token", enable=["esm"])],
                 id="warns_on_enable_beta_in_attach",
             ),
-            # ubuntu_advantage should be preferred over ubuntu-advantage
+            # ubuntu_pro should be preferred over ubuntu-advantage
             pytest.param(
                 {
                     "ubuntu-advantage": {"token": "nope", "enable": ["wrong"]},
-                    "ubuntu_advantage": {"token": "token", "enable": ["esm"]},
+                    "ubuntu_pro": {"token": "token", "enable": ["esm"]},
                 },
                 None,
                 [
                     (
                         MPATH,
                         logging.WARNING,
-                        'Deprecated configuration key "ubuntu-advantage"'
-                        " provided. Expected underscore delimited "
-                        '"ubuntu_advantage"; will attempt to continue.',
-                    )
+                        "Deprecated configuration key(s) provided:"
+                        ' ubuntu-advantage. Expected "ubuntu_pro"; will'
+                        " attempt to continue.",
+                    ),
+                    (
+                        MPATH,
+                        logging.WARNING,
+                        "Ignoring deprecated key ubuntu-advantage and"
+                        " preferring ubuntu_pro config",
+                    ),
                 ],
                 None,
                 [mock.call(None)],
@@ -823,11 +854,7 @@ class TestHandle:
         [
             # When auto_attach successes, no call to configure_ua.
             pytest.param(
-                {
-                    "ubuntu_advantage": {
-                        "features": {"disable_auto_attach": False}
-                    }
-                },
+                {"ubuntu_pro": {"features": {"disable_auto_attach": False}}},
                 cloud,
                 [],
                 None,  # auto_attach successes
@@ -842,11 +869,7 @@ class TestHandle:
             # When auto_attach fails in a Pro instance, no call to
             # configure_ua.
             pytest.param(
-                {
-                    "ubuntu_advantage": {
-                        "features": {"disable_auto_attach": False}
-                    }
-                },
+                {"ubuntu_pro": {"features": {"disable_auto_attach": False}}},
                 cloud,
                 [],
                 RuntimeError("Auto attach error"),
@@ -861,7 +884,7 @@ class TestHandle:
             # In a non-Pro instance with token, fallback to normal attach.
             pytest.param(
                 {
-                    "ubuntu_advantage": {
+                    "ubuntu_pro": {
                         "features": {"disable_auto_attach": False},
                         "token": "token",
                     }
@@ -884,7 +907,7 @@ class TestHandle:
             ),
             # In a non-Pro instance with enable, fallback to normal attach.
             pytest.param(
-                {"ubuntu_advantage": {"enable": ["esm"]}},
+                {"ubuntu_pro": {"enable": ["esm"]}},
                 cloud,
                 [],
                 None,
@@ -941,14 +964,14 @@ class TestHandle:
         [
             (
                 {
-                    "ubuntu_advantage": {
+                    "ubuntu_pro": {
                         "features": {"disable_auto_attach": False},
                     }
                 }
             ),
             (
                 {
-                    "ubuntu_advantage": {
+                    "ubuntu_pro": {
                         "features": {"disable_auto_attach": True},
                     }
                 }
@@ -986,7 +1009,7 @@ class TestHandle:
                 id="key_dashed",
             ),
             pytest.param(
-                {"ubuntu_advantage": {"commands": "nogo"}},
+                {"ubuntu_pro": {"commands": "nogo"}},
                 dict(cloud=None, args=None),
                 (
                     'Deprecated configuration "ubuntu-advantage: commands" '
@@ -1008,13 +1031,13 @@ class TestHandle:
         "cfg, match",
         [
             pytest.param(
-                {"ubuntu_advantage": [0, 1]},
-                "'ubuntu_advantage' should be a dict, not a list",
+                {"ubuntu_pro": [0, 1]},
+                "'ubuntu_pro' should be a dict, not a list",
                 id="on_non_dict_config",
             ),
             pytest.param(
-                {"ubuntu_advantage": {"features": [0, 1]}},
-                "'ubuntu_advantage.features' should be a dict, not a list",
+                {"ubuntu_pro": {"features": [0, 1]}},
+                "'ubuntu_pro.features' should be a dict, not a list",
                 id="on_non_dict_ua_section",
             ),
         ],
@@ -1032,7 +1055,7 @@ class TestHandle:
     def test_ua_config_error_invalid_url(self, m_subp, caplog):
         """Errors from pro config command are raised."""
         cfg = {
-            "ubuntu_advantage": {
+            "ubuntu_pro": {
                 "token": "SomeToken",
                 "config": {"http_proxy": "not-a-valid-url"},
             }
@@ -1043,7 +1066,7 @@ class TestHandle:
         with pytest.raises(
             ValueError,
             match=re.escape(
-                "Invalid ubuntu_advantage configuration:\nExpected URL scheme"
+                "Invalid ubuntu_pro configuration:\nExpected URL scheme"
                 " http/https for ua:config:http_proxy"
             ),
         ):
@@ -1060,12 +1083,11 @@ class TestHandle:
     def test_fallback_to_attach_no_token(
         self, m_subp, m_should_auto_attach, caplog
     ):
-        cfg = {"ubuntu_advantage": {"enable": ["esm"]}}
+        cfg = {"ubuntu_pro": {"enable": ["esm"]}}
         with pytest.raises(
             RuntimeError,
             match=re.escape(
-                "`ubuntu_advantage.token` required in non-Pro Ubuntu"
-                " instances."
+                "`ubuntu_pro.token` required in non-Pro Ubuntu instances."
             ),
         ):
             handle(
@@ -1076,8 +1098,7 @@ class TestHandle:
             )
         assert [] == m_subp.call_args_list
         assert (
-            "`ubuntu_advantage.token` required in non-Pro Ubuntu"
-            " instances.\n"
+            "`ubuntu_pro.token` required in non-Pro Ubuntu instances.\n"
         ) in caplog.text
 
 
@@ -1163,10 +1184,7 @@ class TestAttach:
     def test_attach_without_token_raises_error(self, m_configure_ua):
         with pytest.raises(
             RuntimeError,
-            match=(
-                "`ubuntu_advantage.token` required in non-Pro Ubuntu"
-                " instances."
-            ),
+            match=("`ubuntu_pro.token` required in non-Pro Ubuntu instances."),
         ):
             _attach({"enable": ["esm"]})
         assert [] == m_configure_ua.call_args_list
@@ -1331,7 +1349,7 @@ class TestSetUAConfig:
             "https_proxy": 3.14,
         }
         match = re.escape(
-            "Invalid ubuntu_advantage configuration:\n"
+            "Invalid ubuntu_pro configuration:\n"
             "Expected URL scheme http/https for"
             " ua:config:global_apt_http_proxy\n"
             "Expected a URL for ua:config:http_proxy\n"
@@ -1354,7 +1372,7 @@ class TestSetUAConfig:
         ] == m_subp.call_args_list
         assert "qwer" not in caplog.text
         assert (
-            "Not validating unknown ubuntu_advantage.config.asdf property\n"
+            "Not validating unknown ubuntu_pro.config.asdf property\n"
             in caplog.text
         )
 
@@ -1363,7 +1381,7 @@ class TestSetUAConfig:
         with pytest.raises(
             RuntimeError,
             match=(
-                "ubuntu_advantage: config should be a dict, not"
+                "ubuntu_pro: config should be a dict, not"
                 " a list; skipping enabling config parameters"
             ),
         ):
@@ -1382,7 +1400,7 @@ class TestSetUAConfig:
         with pytest.raises(
             RuntimeError,
             match=re.escape(
-                "Failure enabling/disabling Ubuntu Advantage config(s):"
+                "Failure enabling/disabling Ubuntu Pro config(s):"
                 ' "https_proxy"'
             ),
         ):
@@ -1401,7 +1419,7 @@ class TestSetUAConfig:
         with pytest.raises(
             RuntimeError,
             match=re.escape(
-                "Failure enabling/disabling Ubuntu Advantage config(s): "
+                "Failure enabling/disabling Ubuntu Pro config(s): "
                 '"https_proxy"'
             ),
         ):
