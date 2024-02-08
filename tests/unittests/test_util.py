@@ -3224,3 +3224,31 @@ class TestMaybeB64Decode:
     )
     def test_happy_path(self, in_data, expected):
         assert expected == util.maybe_b64decode(in_data)
+
+
+@pytest.mark.usefixtures("fake_filesystem")
+class TestReadHotplugEnabledFile:
+    def test_file_not_found(self):
+        assert {"scopes": []} == util.read_hotplug_enabled_file()
+
+    def test_json_decode_error(self, caplog, tmpdir):
+        target_file = (
+            tmpdir.mkdir("var")
+            .mkdir("lib")
+            .mkdir("cloud")
+            .join("hotplug.enabled")
+        )
+        target_file.write("asdfasdfa")
+        assert {"scopes": []} == util.read_hotplug_enabled_file()
+        assert "not decodable" in caplog.text
+
+    @pytest.mark.parametrize("content", ['{"scopes": ["network"]}'])
+    def test_file_present(self, content, caplog, tmpdir):
+        target_file = (
+            tmpdir.mkdir("var")
+            .mkdir("lib")
+            .mkdir("cloud")
+            .join("hotplug.enabled")
+        )
+        target_file.write(content)
+        assert {"scopes": ["network"]} == util.read_hotplug_enabled_file()

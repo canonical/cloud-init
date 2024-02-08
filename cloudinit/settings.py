@@ -15,7 +15,6 @@ CFG_ENV_NAME = "CLOUD_CFG"
 CLOUD_CONFIG = "/etc/cloud/cloud.cfg"
 
 CLEAN_RUNPARTS_DIR = "/etc/cloud/clean.d"
-HOTPLUG_ENABLED_FILE = "/etc/cloud/hotplug.enabled"
 
 RUN_CLOUD_CONFIG = "/run/cloud-init/cloud.cfg"
 
@@ -75,3 +74,5 @@ PER_ONCE = "once"
 
 # Used to sanity check incoming handlers/modules frequencies
 FREQUENCIES = [PER_INSTANCE, PER_ALWAYS, PER_ONCE]
+
+HOTPLUG_ENABLED_FILE = "/var/lib/cloud/hotplug.enabled"

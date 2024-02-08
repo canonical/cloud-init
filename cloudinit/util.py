@@ -3293,10 +3293,9 @@ def deprecate_call(
 def read_hotplug_enabled_file() -> dict:
     content: dict = {"scopes": []}
     try:
-        with open(settings.HOTPLUG_ENABLED_FILE, "r") as f:
-            content = json.load(f)
-    except FileNotFoundError:
-        pass
+        content = json.loads(
+            load_text_file(settings.HOTPLUG_ENABLED_FILE, quiet=True)
+        )
     except json.JSONDecodeError as e:
         LOG.warning(
             "Ignoring contents of %s because it is not decodable. Error: %s",
