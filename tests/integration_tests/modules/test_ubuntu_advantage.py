@@ -21,13 +21,13 @@ from tests.integration_tests.releases import (
 )
 from tests.integration_tests.util import verify_clean_log
 
-LOG = logging.getLogger("integration_testing.test_ubuntu_advantage")
+LOG = logging.getLogger("integration_testing.test_ubuntu_pro")
 
 CLOUD_INIT_UA_TOKEN = os.environ.get("CLOUD_INIT_UA_TOKEN")
 
 ATTACH_FALLBACK = """\
 #cloud-config
-ubuntu_advantage:
+ubuntu_pro:
   features:
     disable_auto_attach: true
   token: {token}
@@ -35,7 +35,7 @@ ubuntu_advantage:
 
 ATTACH = """\
 #cloud-config
-ubuntu_advantage:
+ubuntu_pro:
   token: {token}
   enable:
   - esm-infra
@@ -43,7 +43,7 @@ ubuntu_advantage:
 
 PRO_AUTO_ATTACH_DISABLED = """\
 #cloud-config
-ubuntu_advantage:
+ubuntu_pro:
   features:
     disable_auto_attach: true
 """
@@ -51,7 +51,7 @@ ubuntu_advantage:
 PRO_DAEMON_DISABLED = """\
 #cloud-config
 # Disable UA daemon (only needed in GCE)
-ubuntu_advantage:
+ubuntu_pro:
   features:
     disable_auto_attach: true
 bootcmd:
@@ -60,7 +60,7 @@ bootcmd:
 
 AUTO_ATTACH_CUSTOM_SERVICES = """\
 #cloud-config
-ubuntu_advantage:
+ubuntu_pro:
   enable:
   - esm-infra
 """
@@ -186,10 +186,10 @@ def maybe_install_cloud_init(session_cloud: IntegrationCloud):
         # TODO: Re-enable this check after cloud images contain
         # cloud-init 23.4.
         # Explanation: We have to include something under
-        # user-data.ubuntu_advantage to skip the automatic auto-attach
+        # user-data.ubuntu_pro to skip the automatic auto-attach
         # (driven by ua-auto-attach.service and/or ubuntu-advantage.service)
         # while customizing the instance but in cloud-init < 23.4,
-        # user-data.ubuntu_advantage requires a token key.
+        # user-data.ubuntu_pro requires a token key.
 
         # log = client.read_from_file("/var/log/cloud-init.log")
         # verify_clean_log(log)
@@ -200,7 +200,7 @@ def maybe_install_cloud_init(session_cloud: IntegrationCloud):
 
         if session_cloud.settings.PLATFORM == "gce":
             LOG.info(
-                "Restore `ubuntu-advantage.service` original status for next"
+                "Restore `ubuntu-pro.service` original status for next"
                 " boot"
             )
             assert client.execute(
