@@ -129,7 +129,7 @@ class DataSourceVMware(sources.DataSource):
             For CloudinitPrep customization, Network config Version 2 data
             is parsed from the customization specification.
 
-        envvar and guestinfo tranports:
+        envvar and guestinfo transports:
             Network Config Version 2 data is supported as long as the Linux
             distro's cloud-init package is new enough to parse the data.
             The metadata key "network.encoding" may be used to indicate the

@@ -179,7 +179,7 @@ def _parse_deb_config_data(ifaces, contents, src_dir, src_path):
     """Parses the file contents, placing result into ifaces.
 
     '_source_path' is added to every dictionary entry to define which file
-    the configration information came from.
+    the configuration information came from.
 
     :param ifaces: interface dictionary
     :param contents: contents of interfaces file

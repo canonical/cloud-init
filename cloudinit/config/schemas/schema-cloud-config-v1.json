@@ -418,7 +418,7 @@
         ]
       }
     },
-    "merge_defintion": {
+    "merge_definition": {
       "oneOf": [
         {
           "type": "string"
@@ -481,10 +481,10 @@
           "description": "The launch index for the specified cloud-config."
         },
         "merge_how": {
-          "$ref": "#/$defs/merge_defintion"
+          "$ref": "#/$defs/merge_definition"
         },
         "merge_type": {
-          "$ref": "#/$defs/merge_defintion"
+          "$ref": "#/$defs/merge_definition"
         }
       }
     },
@@ -1739,7 +1739,7 @@
                 },
                 "ipv4_dhcp_leases": {
                   "type": "integer",
-                  "description": "Number of DHCP leases to allocate within the range. Automatically calculated based on `ipv4_dhcp_first` and `ipv4_dchp_last` when unset."
+                  "description": "Number of DHCP leases to allocate within the range. Automatically calculated based on `ipv4_dhcp_first` and `ipv4_dhcp_last` when unset."
                 },
                 "ipv4_nat": {
                   "type": "boolean",

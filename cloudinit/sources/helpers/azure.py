@@ -996,7 +996,7 @@ class OvfEnvXml:
 
         :raises NonAzureDataSource: if XML is not in Azure's format.
         :raises errors.ReportableErrorOvfParsingException: if XML is
-                unparseable or invalid.
+                unparsable or invalid.
         """
         try:
             root = ElementTree.fromstring(ovf_env_xml)

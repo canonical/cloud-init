@@ -584,7 +584,7 @@ def get_apt_cfg() -> Dict[str, str]:
 
     Prefer python apt_pkg if present.
     Fallback to apt-config dump command if present out output parsed
-    Fallback to DEFAULT_APT_CFG if apt-config commmand absent or
+    Fallback to DEFAULT_APT_CFG if apt-config command absent or
     output unparsable.
     """
     try:

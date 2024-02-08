@@ -687,7 +687,7 @@ class Init:
             # Walk the user data
             part_data = {
                 "handlers": c_handlers,
-                # Any new handlers that are encountered get writen here
+                # Any new handlers that are encountered get written here
                 "handlerdir": idir,
                 "data": data,
                 # The default frequency if handlers don't have one

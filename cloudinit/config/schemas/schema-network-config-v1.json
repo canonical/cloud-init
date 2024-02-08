@@ -73,7 +73,7 @@
           "description": "The MTU size in bytes. This ``mtu`` key represents a device's Maximum Transmission Unit, which is the largest size packet or frame, specified in octets (eight-bit bytes), that can be sent in a packet- or frame-based network. Specifying ``mtu`` is optional. Values too small or too large for a device may be ignored by that device."
         },
         "params": {
-          "desciption": "The ``params`` key in a bond holds a dictionary of bonding parameters. This dictionary may be empty. For more details on what the various bonding parameters mean please read the [Linux Kernel Bonding.txt](https://www.kernel.org/doc/Documentation/networking/bonding.txt).",
+          "description": "The ``params`` key in a bond holds a dictionary of bonding parameters. This dictionary may be empty. For more details on what the various bonding parameters mean please read the [Linux Kernel Bonding.txt](https://www.kernel.org/doc/Documentation/networking/bonding.txt).",
           "additionalProperties": false,
           "properties": {
             "bond-active_slave": {

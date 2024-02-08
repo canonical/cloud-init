@@ -56,7 +56,7 @@ class Distro(distros.Distro):
     def __init__(self, name, cfg, paths):
         super().__init__(name, cfg, paths)
         # This will be used to restrict certain
-        # calls from repeatly happening (when they
+        # calls from repeatedly happening (when they
         # should only happen say once per instance...)
         self.osfamily = "debian"
         self.default_locale = "C.UTF-8"
