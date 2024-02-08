@@ -994,7 +994,6 @@ class OvfEnvXml:
         preprovisioned_vm: bool = False,
         preprovisioned_vm_type: Optional[str] = None,
         provision_guest_proxy_agent: bool = False,
-
     ) -> None:
         self.username = username
         self.password = password

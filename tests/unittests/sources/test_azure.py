@@ -1440,6 +1440,7 @@ scbus-1 on xpt0 bus 0
         expected_cfg = {
             "PreprovisionedVMType": None,
             "PreprovisionedVm": False,
+            "ProvisionGuestProxyAgent": False,
             "system_info": {"default_user": {"name": "myuser"}},
         }
         expected_metadata = {
