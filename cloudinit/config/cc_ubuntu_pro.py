@@ -15,14 +15,14 @@ from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
-UA_URL = "https://ubuntu.com/pro"
+PRO_URL = "https://ubuntu.com/pro"
 
 distros = ["ubuntu"]
 
 DEPRECATED_KEYS = set(["ubuntu-advantage", "ubuntu_advantage"])
 
 meta: MetaSchema = {
-    "id": "cc_ubuntu_advantage",
+    "id": "cc_ubuntu_pro",
     "name": "Ubuntu Pro",
     "title": "Configure Ubuntu Pro support services",
     "description": dedent(
@@ -52,11 +52,11 @@ meta: MetaSchema = {
         dedent(
             """\
         # Attach the machine to an Ubuntu Pro support contract with a
-        # UA contract token obtained from %s.
+        # Pro contract token obtained from %s.
         ubuntu_pro:
           token: <ubuntu_pro_token>
     """
-            % UA_URL
+            % PRO_URL
         ),
         dedent(
             """\
@@ -138,9 +138,9 @@ LOG = logging.getLogger(__name__)
 REDACTED = "REDACTED"
 ERROR_MSG_SHOULD_AUTO_ATTACH = (
     "Unable to determine if this is an Ubuntu Pro instance."
-    " Fallback to normal UA attach."
+    " Fallback to normal Pro attach."
 )
-KNOWN_UA_CONFIG_PROPS = (
+KNOWN_PRO_CONFIG_PROPS = (
     "http_proxy",
     "https_proxy",
     "global_apt_http_proxy",
@@ -150,12 +150,12 @@ KNOWN_UA_CONFIG_PROPS = (
 )
 
 
-def validate_schema_features(ua_section: dict):
-    if "features" not in ua_section:
+def validate_schema_features(pro_section: dict):
+    if "features" not in pro_section:
         return
 
     # Validate ubuntu_pro.features type
-    features = ua_section["features"]
+    features = pro_section["features"]
     if not isinstance(features, dict):
         msg = (
             f"'ubuntu_pro.features' should be a dict, not a"
@@ -177,7 +177,7 @@ def validate_schema_features(ua_section: dict):
         raise RuntimeError(msg)
 
 
-def supplemental_schema_validation(ua_config: dict):
+def supplemental_schema_validation(pro_config: dict):
     """Validate user-provided ua:config option values.
 
     This function supplements flexible jsonschema validation with specific
@@ -186,13 +186,13 @@ def supplemental_schema_validation(ua_config: dict):
     Note: It does not log/raise config values as they could be urls containing
     sensitive auth info.
 
-    @param ua_config: Dictionary of config value under 'ubuntu_pro'.
+    @param pro_config: Dictionary of config value under 'ubuntu_pro'.
 
     @raises: ValueError describing invalid values provided.
     """
     errors = []
-    for key, value in sorted(ua_config.items()):
-        if key not in KNOWN_UA_CONFIG_PROPS:
+    for key, value in sorted(pro_config.items()):
+        if key not in KNOWN_PRO_CONFIG_PROPS:
             LOG.warning(
                 "Not validating unknown ubuntu_pro.config.%s property",
                 key,
@@ -216,27 +216,27 @@ def supplemental_schema_validation(ua_config: dict):
         )
 
 
-def set_ua_config(ua_config: Any = None):
-    if ua_config is None:
+def set_pro_config(pro_config: Any = None):
+    if pro_config is None:
         return
-    if not isinstance(ua_config, dict):
+    if not isinstance(pro_config, dict):
         raise RuntimeError(
             f"ubuntu_pro: config should be a dict, not"
-            f" a {type(ua_config).__name__};"
+            f" a {type(pro_config).__name__};"
             " skipping enabling config parameters"
         )
-    supplemental_schema_validation(ua_config)
+    supplemental_schema_validation(pro_config)
 
     enable_errors = []
-    for key, value in sorted(ua_config.items()):
+    for key, value in sorted(pro_config.items()):
         redacted_key_value = None
         subp_kwargs: dict = {}
         if value is None:
-            LOG.debug("Disabling UA config for %s", key)
+            LOG.debug("Disabling Pro config for %s", key)
             config_cmd = ["pro", "config", "unset", key]
         else:
             redacted_key_value = f"{key}=REDACTED"
-            LOG.debug("Enabling UA config %s", redacted_key_value)
+            LOG.debug("Enabling Pro config %s", redacted_key_value)
             if re.search(r"\s", value):
                 key_value = f"{key}={re.escape(value)}"
             else:
@@ -260,7 +260,7 @@ def set_ua_config(ua_config: Any = None):
         )
 
 
-def configure_ua(token, enable=None):
+def configure_pro(token, enable=None):
     """Call ua commandline client to attach and/or enable services."""
     if enable is None:
         enable = []
@@ -308,9 +308,11 @@ def configure_ua(token, enable=None):
     try:
         enable_resp = json.loads(enable_stdout)
     except json.JSONDecodeError as e:
-        raise RuntimeError(f"UA response was not json: {enable_stdout}") from e
+        raise RuntimeError(
+            f"Pro response was not json: {enable_stdout}"
+        ) from e
 
-    # At this point we were able to load the json response from UA. This
+    # At this point we were able to load the json response from Pro. This
     # response contains a list of errors under the key 'errors'. E.g.
     #
     #   {
@@ -374,9 +376,9 @@ def maybe_install_ua_tools(cloud: Cloud):
         raise
 
 
-def _should_auto_attach(ua_section: dict) -> bool:
+def _should_auto_attach(pro_section: dict) -> bool:
     disable_auto_attach = bool(
-        ua_section.get("features", {}).get("disable_auto_attach", False)
+        pro_section.get("features", {}).get("disable_auto_attach", False)
     )
     if disable_auto_attach:
         return False
@@ -402,22 +404,22 @@ def _should_auto_attach(ua_section: dict) -> bool:
     return result.should_auto_attach
 
 
-def _attach(ua_section: dict):
-    token = ua_section.get("token")
+def _attach(pro_section: dict):
+    token = pro_section.get("token")
     if not token:
         msg = "`ubuntu_pro.token` required in non-Pro Ubuntu instances."
         LOG.error(msg)
         raise RuntimeError(msg)
-    enable_beta = ua_section.get("enable_beta")
+    enable_beta = pro_section.get("enable_beta")
     if enable_beta:
         LOG.debug(
-            "Ignoring `ubuntu_pro.enable_beta` services in UA attach: %s",
+            "Ignoring `ubuntu_pro.enable_beta` services in Pro attach: %s",
             ", ".join(enable_beta),
         )
-    configure_ua(token=token, enable=ua_section.get("enable"))
+    configure_pro(token=token, enable=pro_section.get("enable"))
 
 
-def _auto_attach(ua_section: dict):
+def _auto_attach(pro_section: dict):
 
     # pylint: disable=import-error
     from uaclient.api.exceptions import AlreadyAttachedError, UserFacingError
@@ -428,8 +430,8 @@ def _auto_attach(ua_section: dict):
 
     # pylint: enable=import-error
 
-    enable = ua_section.get("enable")
-    enable_beta = ua_section.get("enable_beta")
+    enable = pro_section.get("enable")
+    enable_beta = pro_section.get("enable_beta")
     options = FullAutoAttachOptions(
         enable=enable,
         enable_beta=enable_beta,
@@ -456,7 +458,7 @@ def _auto_attach(ua_section: dict):
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
-    ua_section = None
+    pro_section = None
     deprecated = list(DEPRECATED_KEYS.intersection(cfg))
     if deprecated:
         if len(deprecated) > 1:
@@ -469,7 +471,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             ' Expected "ubuntu_pro"; will attempt to continue.',
             ", ".join(deprecated),
         )
-        ua_section = cfg[deprecated[0]]
+        pro_section = cfg[deprecated[0]]
     if "ubuntu_pro" in cfg:
         # Prefer ubuntu_pro over any deprecated keys when both exist
         if deprecated:
@@ -477,21 +479,21 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 "Ignoring deprecated key %s and preferring ubuntu_pro config",
                 deprecated[0],
             )
-        ua_section = cfg["ubuntu_pro"]
-    if ua_section is None:
+        pro_section = cfg["ubuntu_pro"]
+    if pro_section is None:
         LOG.debug(
             "Skipping module named %s, no 'ubuntu_pro' configuration found",
             name,
         )
         return
-    elif not isinstance(ua_section, dict):
+    elif not isinstance(pro_section, dict):
         msg = (
             f"'ubuntu_pro' should be a dict, not a"
-            f" {type(ua_section).__name__}"
+            f" {type(pro_section).__name__}"
         )
         LOG.error(msg)
         raise RuntimeError(msg)
-    if "commands" in ua_section:
+    if "commands" in pro_section:
         msg = (
             'Deprecated configuration "ubuntu-advantage: commands" provided.'
             ' Expected "token"'
@@ -500,15 +502,15 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         raise RuntimeError(msg)
 
     maybe_install_ua_tools(cloud)
-    set_ua_config(ua_section.get("config"))
+    set_pro_config(pro_section.get("config"))
 
-    # ua-auto-attach.service had noop-ed as ua_section is not empty
-    validate_schema_features(ua_section)
+    # ua-auto-attach.service had noop-ed as pro_section is not empty
+    validate_schema_features(pro_section)
     LOG.debug(
         "To discover more log info, please check /var/log/ubuntu-advantage.log"
     )
-    if _should_auto_attach(ua_section):
-        _auto_attach(ua_section)
+    if _should_auto_attach(pro_section):
+        _auto_attach(pro_section)
 
     # If ua-auto-attach.service did noop, we did not auto-attach and more keys
     # than `features` are given under `ubuntu_pro`, then try to attach.
@@ -516,9 +518,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     #
     # 1) Previous attach behavior on non-pro instances.
     # 2) Previous attach behavior on instances where ubuntu-advantage-tools
-    #    is < v28.0 (UA apis for should_auto-attach and auto-attach are not
+    #    is < v28.0 (Pro apis for should_auto-attach and auto-attach are not
     #    available.
     # 3) The user wants to disable auto-attach and attach by giving:
     #    `{"ubuntu_pro": "features": {"disable_auto_attach": True}}`
-    elif not ua_section.keys() <= {"features"}:
-        _attach(ua_section)
+    elif not pro_section.keys() <= {"features"}:
+        _attach(pro_section)
