@@ -13,7 +13,7 @@ import os
 import sys
 from copy import deepcopy
 from time import gmtime, sleep, strftime
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 from cloudinit import safeyaml, subp
 from cloudinit.cmd.devel import read_cfg_paths
@@ -24,35 +24,27 @@ from cloudinit.util import get_cmdline, load_json, load_text_file
 CLOUDINIT_DISABLED_FILE = "/etc/cloud/cloud-init.disabled"
 
 
-# customer visible status messages
 @enum.unique
-class UXAppStatus(enum.Enum):
+class RunningStatus(enum.Enum):
     """Enum representing user-visible cloud-init application status."""
 
-    NOT_RUN = "not run"
+    NOT_STARTED = "not started"
     RUNNING = "running"
     DONE = "done"
-    ERROR = "error"
-    DEGRADED_DONE = "degraded done"
-    DEGRADED_RUNNING = "degraded running"
     DISABLED = "disabled"
 
 
-# Extend states when degraded
-UXAppStatusDegradedMap = {
-    UXAppStatus.RUNNING: UXAppStatus.DEGRADED_RUNNING,
-    UXAppStatus.DONE: UXAppStatus.DEGRADED_DONE,
-}
+@enum.unique
+class ConditionStatus(enum.Enum):
+    """Enum representing user-visible cloud-init condition status."""
 
-# Map extended states back to simplified states
-UXAppStatusDegradedMapCompat = {
-    UXAppStatus.DEGRADED_RUNNING: UXAppStatus.RUNNING,
-    UXAppStatus.DEGRADED_DONE: UXAppStatus.DONE,
-}
+    ERROR = "error"  # cloud-init exited abnormally
+    DEGRADED = "degraded"  # we have warnings
+    PEACHY = "healthy"  # internal names can be fun, right?
 
 
 @enum.unique
-class UXAppBootStatusCode(enum.Enum):
+class EnabledStatus(enum.Enum):
     """Enum representing user-visible cloud-init boot status codes."""
 
     DISABLED_BY_GENERATOR = "disabled-by-generator"
@@ -67,17 +59,18 @@ class UXAppBootStatusCode(enum.Enum):
 
 DISABLED_BOOT_CODES = frozenset(
     [
-        UXAppBootStatusCode.DISABLED_BY_GENERATOR,
-        UXAppBootStatusCode.DISABLED_BY_KERNEL_CMDLINE,
-        UXAppBootStatusCode.DISABLED_BY_MARKER_FILE,
-        UXAppBootStatusCode.DISABLED_BY_ENV_VARIABLE,
+        EnabledStatus.DISABLED_BY_GENERATOR,
+        EnabledStatus.DISABLED_BY_KERNEL_CMDLINE,
+        EnabledStatus.DISABLED_BY_MARKER_FILE,
+        EnabledStatus.DISABLED_BY_ENV_VARIABLE,
     ]
 )
 
 
 class StatusDetails(NamedTuple):
-    status: UXAppStatus
-    boot_status_code: UXAppBootStatusCode
+    running_status: RunningStatus
+    condition_status: ConditionStatus
+    boot_status_code: EnabledStatus
     description: str
     errors: List[str]
     recoverable_errors: Dict[str, List[str]]
@@ -89,26 +82,21 @@ class StatusDetails(NamedTuple):
 TABULAR_LONG_TMPL = """\
 extended_status: {extended_status}
 boot_status_code: {boot_code}
-{last_update}detail:
-{description}"""
+{last_update}detail: {description}
+errors:{errors}
+recoverable_errors:{recoverable_errors}"""
 
 
 def query_systemctl(
     systemctl_args: List[str],
     *,
     wait: bool,
-    existing_status: Optional[UXAppStatus] = None,
 ) -> str:
     """Query systemd with retries and return output."""
     while True:
         try:
             return subp.subp(["systemctl", *systemctl_args]).stdout.strip()
         except subp.ProcessExecutionError as e:
-            if existing_status and existing_status in (
-                UXAppStatus.DEGRADED_RUNNING,
-                UXAppStatus.RUNNING,
-            ):
-                return ""
             last_exception = e
             if wait:
                 sleep(0.25)
@@ -163,82 +151,80 @@ def get_parser(parser=None):
     return parser
 
 
-def handle_status_args(name, args) -> int:
-    """Handle calls to 'cloud-init status' as a subcommand."""
-    # Read configured paths
-    paths = read_cfg_paths()
-    details = get_status_details(paths, args.wait)
-    if args.wait:
-        while details.status in (
-            UXAppStatus.NOT_RUN,
-            UXAppStatus.RUNNING,
-            UXAppStatus.DEGRADED_RUNNING,
-        ):
-            if args.format == "tabular":
-                sys.stdout.write(".")
-                sys.stdout.flush()
-            details = get_status_details(paths, args.wait)
-            sleep(0.25)
-    details_dict: Dict[str, Union[None, str, List[str], Dict[str, Any]]] = {
+def translate_status(
+    running: RunningStatus, condition: ConditionStatus
+) -> Tuple[str, str]:
+    """Translate running and condition status to human readable strings.
+
+    Returns (status, extended_status).
+    Much of this is for backwards compatibility
+    """
+    # If we're done and have errors, we're in an error state
+    if condition == ConditionStatus.ERROR:
+        return ("error", f"{condition.value} - {running.value}")
+    # Handle the "degraded done" and "degraded running" states
+    elif condition == ConditionStatus.DEGRADED and running in [
+        RunningStatus.DONE,
+        RunningStatus.RUNNING,
+    ]:
+        return (running.value, f"{condition.value} {running.value}")
+    return running.value, running.value
+
+
+def print_status(args, details: StatusDetails):
+    """Print status out to the CLI."""
+    status, extended_status = translate_status(
+        details.running_status, details.condition_status
+    )
+    details_dict: Dict[str, Any] = {
         "datasource": details.datasource,
         "boot_status_code": details.boot_status_code.value,
-        "status": UXAppStatusDegradedMapCompat.get(
-            details.status, details.status
-        ).value,
-        "extended_status": details.status.value,
+        "status": status,
+        "extended_status": extended_status,
         "detail": details.description,
         "errors": details.errors,
         "recoverable_errors": details.recoverable_errors,
         "last_update": details.last_update,
         **details.v1,
     }
-
     if args.format == "tabular":
         prefix = "\n" if args.wait else ""
 
         # For backwards compatibility, don't report degraded status here,
         # extended_status key reports the complete status (includes degraded)
-        state = UXAppStatusDegradedMapCompat.get(
-            details.status, details.status
-        ).value
+        state = details_dict["status"]
         print(f"{prefix}status: {state}")
         if args.long:
-            if details.last_update:
-                last_update = f"last_update: {details.last_update}\n"
+            if details_dict.get("last_update"):
+                last_update = f"last_update: {details_dict['last_update']}\n"
             else:
                 last_update = ""
+            errors_output = (
+                "\n\t- " + "\n\t- ".join(details_dict["errors"])
+                if details_dict["errors"]
+                else " []"
+            )
+            recoverable_errors_output = (
+                "\n"
+                + "\n".join(
+                    [
+                        f"{k}:\n\t- "
+                        + "\n\t- ".join([i.replace("\n", " ") for i in v])
+                        for k, v in details_dict["recoverable_errors"].items()
+                    ]
+                )
+                if details_dict["recoverable_errors"]
+                else " {}"
+            )
             print(
                 TABULAR_LONG_TMPL.format(
-                    extended_status=details.status.value,
+                    extended_status=details_dict["extended_status"],
                     prefix=prefix,
-                    boot_code=details.boot_status_code.value,
-                    description=details.description,
+                    boot_code=details_dict["boot_status_code"],
+                    description=details_dict["detail"],
                     last_update=last_update,
-                )
-                + (
-                    "\nerrors:"
-                    + (
-                        "\n\t- " + "\n\t- ".join(details.errors)
-                        if details.errors
-                        else f" {details.errors}"
-                    )
-                )
-                + (
-                    "\nrecoverable_errors:"
-                    + (
-                        "\n"
-                        + "\n".join(
-                            [
-                                f"{k}:\n\t- "
-                                + "\n\t- ".join(
-                                    [i.replace("\n", " ") for i in v]
-                                )
-                                for k, v in details.recoverable_errors.items()
-                            ]
-                        )
-                        if details.recoverable_errors
-                        else f" {details.recoverable_errors}"
-                    )
+                    errors=errors_output,
+                    recoverable_errors=recoverable_errors_output,
                 )
             )
     elif args.format == "json":
@@ -250,56 +236,74 @@ def handle_status_args(name, args) -> int:
     elif args.format == "yaml":
         print(safeyaml.dumps(details_dict))
 
+
+def handle_status_args(name, args) -> int:
+    """Handle calls to 'cloud-init status' as a subcommand."""
+    # Read configured paths
+    paths = read_cfg_paths()
+    details = get_status_details(paths, args.wait)
+    if args.wait:
+        while details.running_status in (
+            RunningStatus.NOT_STARTED,
+            RunningStatus.RUNNING,
+        ):
+            if args.format == "tabular":
+                sys.stdout.write(".")
+                sys.stdout.flush()
+            details = get_status_details(paths, args.wait)
+            sleep(0.25)
+
+    print_status(args, details)
+
     # Hard error
-    if details.status == UXAppStatus.ERROR:
+    if details.condition_status == ConditionStatus.ERROR:
         return 1
     # Recoverable error
-    elif details.status in UXAppStatusDegradedMap.values():
+    elif details.condition_status == ConditionStatus.DEGRADED:
         return 2
     return 0
 
 
-def get_bootstatus(
-    disable_file, paths, wait
-) -> Tuple[UXAppBootStatusCode, str]:
+def get_bootstatus(disable_file, paths, wait) -> Tuple[EnabledStatus, str]:
     """Report whether cloud-init current boot status
 
     @param disable_file: The path to the cloud-init disable file.
     @param paths: An initialized cloudinit.helpers.Paths object.
+    @param wait: If user has indicated to wait for cloud-init to complete.
     @returns: A tuple containing (code, reason) about cloud-init's status and
     why.
     """
     cmdline_parts = get_cmdline().split()
     if not uses_systemd():
-        bootstatus_code = UXAppBootStatusCode.ENABLED_BY_SYSVINIT
+        bootstatus_code = EnabledStatus.ENABLED_BY_SYSVINIT
         reason = "Cloud-init enabled on sysvinit"
     elif "cloud-init=enabled" in cmdline_parts:
-        bootstatus_code = UXAppBootStatusCode.ENABLED_BY_KERNEL_CMDLINE
+        bootstatus_code = EnabledStatus.ENABLED_BY_KERNEL_CMDLINE
         reason = "Cloud-init enabled by kernel command line cloud-init=enabled"
     elif os.path.exists(disable_file):
-        bootstatus_code = UXAppBootStatusCode.DISABLED_BY_MARKER_FILE
+        bootstatus_code = EnabledStatus.DISABLED_BY_MARKER_FILE
         reason = "Cloud-init disabled by {0}".format(disable_file)
     elif "cloud-init=disabled" in cmdline_parts:
-        bootstatus_code = UXAppBootStatusCode.DISABLED_BY_KERNEL_CMDLINE
+        bootstatus_code = EnabledStatus.DISABLED_BY_KERNEL_CMDLINE
         reason = "Cloud-init disabled by kernel parameter cloud-init=disabled"
     elif "cloud-init=disabled" in os.environ.get("KERNEL_CMDLINE", "") or (
         uses_systemd()
         and "cloud-init=disabled"
         in query_systemctl(["show-environment"], wait=wait)
     ):
-        bootstatus_code = UXAppBootStatusCode.DISABLED_BY_ENV_VARIABLE
+        bootstatus_code = EnabledStatus.DISABLED_BY_ENV_VARIABLE
         reason = (
             "Cloud-init disabled by environment variable "
             "KERNEL_CMDLINE=cloud-init=disabled"
         )
     elif os.path.exists(os.path.join(paths.run_dir, "disabled")):
-        bootstatus_code = UXAppBootStatusCode.DISABLED_BY_GENERATOR
+        bootstatus_code = EnabledStatus.DISABLED_BY_GENERATOR
         reason = "Cloud-init disabled by cloud-init-generator"
     elif os.path.exists(os.path.join(paths.run_dir, "enabled")):
-        bootstatus_code = UXAppBootStatusCode.ENABLED_BY_GENERATOR
+        bootstatus_code = EnabledStatus.ENABLED_BY_GENERATOR
         reason = "Cloud-init enabled by systemd cloud-init-generator"
     else:
-        bootstatus_code = UXAppBootStatusCode.UNKNOWN
+        bootstatus_code = EnabledStatus.UNKNOWN
         reason = "Systemd generator may not have run yet."
     return (bootstatus_code, reason)
 
@@ -311,18 +315,8 @@ def is_cloud_init_enabled() -> bool:
     )
 
 
-def _get_error_or_running_from_systemd(
-    existing_status: UXAppStatus, wait: bool
-) -> Optional[UXAppStatus]:
-    """Get if systemd is in error or running state.
-
-    Using systemd, we can get more fine-grained status of the
-    individual unit. Determine if we're still
-    running or if there's an error we haven't otherwise detected.
-
-    If we don't detect error or running, return None as we don't want to
-    report any other particular status based on systemd.
-    """
+def systemd_failed(wait: bool) -> bool:
+    """Return if systemd units report a cloud-init error."""
     for service in [
         "cloud-final.service",
         "cloud-config.service",
@@ -336,11 +330,10 @@ def _get_error_or_running_from_systemd(
                 service,
             ],
             wait=wait,
-            existing_status=existing_status,
         )
         if not stdout:
-            # Systemd isn't ready
-            return None
+            # Systemd isn't ready, assume the same state
+            return False
         states = dict(
             [[x.strip() for x in r.split("=")] for r in stdout.splitlines()]
         )
@@ -349,8 +342,8 @@ def _get_error_or_running_from_systemd(
             or states["UnitFileState"] == "static"
         ):
             # Individual services should not get disabled
-            return UXAppStatus.ERROR
-        if states["ActiveState"] == "active":
+            return True
+        elif states["ActiveState"] == "active":
             if states["SubState"] == "exited":
                 # Service exited normally, nothing interesting from systemd
                 continue
@@ -360,69 +353,92 @@ def _get_error_or_running_from_systemd(
                 # running. MainPID being set back to 0 means control of the
                 # service/unit has exited in this case and
                 # "the process is no longer around".
-                continue
-        if states["ActiveState"] == "failed" or states["SubState"] == "failed":
-            # We have an error
-            return UXAppStatus.ERROR
+                return False
+        elif (
+            states["ActiveState"] == "failed" or states["SubState"] == "failed"
+        ):
+            return True
         # If we made it here, our unit is enabled and it hasn't exited
         # normally or exited with failure, so it is still running.
-        return UXAppStatus.RUNNING
+        return False
     # All services exited normally or aren't enabled, so don't report
     # any particular status based on systemd.
-    return None
+    return False
 
 
-def get_status_details(
-    paths: Optional[Paths] = None, wait: bool = False
-) -> StatusDetails:
-    """Return a dict with status, details and errors.
+def is_running(status_file, result_file) -> bool:
+    """Return True if cloud-init is running."""
+    return os.path.exists(status_file) and not os.path.exists(result_file)
 
-    @param paths: An initialized cloudinit.helpers.paths object.
 
-    Values are obtained from parsing paths.run_dir/status.json.
+def get_running_status(
+    status_file, result_file, boot_status_code, latest_event
+) -> RunningStatus:
+    """Return the running status of cloud-init."""
+    if is_running(status_file, result_file):
+        return RunningStatus.RUNNING
+    elif boot_status_code in DISABLED_BOOT_CODES:
+        return RunningStatus.DISABLED
+    else:
+        return (
+            RunningStatus.DONE
+            if latest_event > 0
+            else RunningStatus.NOT_STARTED
+        )
+
+
+def get_datasource(status_v1) -> str:
+    """Get the datasource from status.json.
+
+    Return a lowercased non-prefixed version. So "DataSourceEc2" becomes "ec2"
     """
-    paths = paths or read_cfg_paths()
+    datasource = status_v1.get("datasource", "")
+    if datasource:
+        ds, _, _ = datasource.partition(" ")
+        datasource = ds.lower().replace("datasource", "")
+    return datasource
 
-    status = UXAppStatus.NOT_RUN
-    errors = []
-    datasource: Optional[str] = ""
-    status_v1 = {}
 
-    status_file = os.path.join(paths.run_dir, "status.json")
-    result_file = os.path.join(paths.run_dir, "result.json")
+def get_description(status_v1, boot_description):
+    """Return a description of the current status.
 
-    boot_status_code, description = get_bootstatus(
-        CLOUDINIT_DISABLED_FILE, paths, wait
-    )
-    if boot_status_code in DISABLED_BOOT_CODES:
-        status = UXAppStatus.DISABLED
-    if os.path.exists(status_file):
-        if not os.path.exists(result_file):
-            status = UXAppStatus.RUNNING
-        status_v1 = load_json(load_text_file(status_file)).get("v1", {})
+    If we have a datasource, return that. If we're running in a particular
+    stage, return that. Otherwise, return the boot_description.
+    """
+    datasource = status_v1.get("datasource")
+    if datasource:
+        return datasource
+    elif status_v1.get("stage"):
+        return f"Running in stage: {status_v1['stage']}"
+    else:
+        return boot_description
+
+
+def get_latest_event(status_v1):
+    """Return the latest event time from status_v1."""
     latest_event = 0
+    for stage_info in status_v1.values():
+        if isinstance(stage_info, dict):
+            latest_event = max(
+                latest_event,
+                stage_info.get("start") or 0,
+                stage_info.get("finished") or 0,
+            )
+    return latest_event
+
+
+def get_errors(status_v1) -> Tuple[List, Dict]:
+    """Return a list of errors and recoverable_errors from status_v1."""
+    errors = []
     recoverable_errors = {}
-    for key, value in sorted(status_v1.items()):
-        if key == "stage":
-            if value:
-                status = UXAppStatus.RUNNING
-                description = "Running in stage: {0}".format(value)
-        elif key == "datasource":
-            if value is None:
-                # If ds not yet written in status.json, then keep previous
-                # description
-                datasource = value
-                continue
-            description = value
-            ds, _, _ = value.partition(" ")
-            datasource = ds.lower().replace("datasource", "")
-        elif isinstance(value, dict):
-            errors.extend(value.get("errors", []))
-            start = value.get("start") or 0
-            finished = value.get("finished") or 0
+    for _key, stage_info in sorted(status_v1.items()):
+        if isinstance(stage_info, dict):
+            errors.extend(stage_info.get("errors", []))
 
             # Aggregate recoverable_errors from all stages
-            current_recoverable_errors = value.get("recoverable_errors", {})
+            current_recoverable_errors = stage_info.get(
+                "recoverable_errors", {}
+            )
             for err_type in current_recoverable_errors.keys():
                 if err_type not in recoverable_errors:
                     recoverable_errors[err_type] = deepcopy(
@@ -432,36 +448,70 @@ def get_status_details(
                     recoverable_errors[err_type].extend(
                         current_recoverable_errors[err_type]
                     )
-            if finished == 0 and start != 0:
-                status = UXAppStatus.RUNNING
-            event_time = max(start, finished)
-            if event_time > latest_event:
-                latest_event = event_time
-    if errors:
-        status = UXAppStatus.ERROR
-    elif status == UXAppStatus.NOT_RUN and latest_event > 0:
-        status = UXAppStatus.DONE
-    if uses_systemd() and status not in (
-        UXAppStatus.NOT_RUN,
-        UXAppStatus.DISABLED,
-    ):
-        systemd_status = _get_error_or_running_from_systemd(status, wait=wait)
-        if systemd_status:
-            status = systemd_status
+    return errors, recoverable_errors
 
+
+def get_status_details(
+    paths: Optional[Paths] = None, wait: bool = False
+) -> StatusDetails:
+    """Return a dict with status, details and errors.
+
+    @param paths: An initialized cloudinit.helpers.paths object.
+    @param wait: If user has indicated to wait for cloud-init to complete.
+
+    Values are obtained from parsing paths.run_dir/status.json.
+    """
+    condition_status = ConditionStatus.PEACHY
+    paths = paths or read_cfg_paths()
+    status_file = os.path.join(paths.run_dir, "status.json")
+    result_file = os.path.join(paths.run_dir, "result.json")
+    boot_status_code, boot_description = get_bootstatus(
+        CLOUDINIT_DISABLED_FILE, paths, wait
+    )
+    status_v1 = {}
+    if os.path.exists(status_file):
+        status_v1 = load_json(load_text_file(status_file)).get("v1", {})
+
+    datasource = get_datasource(status_v1)
+    description = get_description(status_v1, boot_description)
+
+    latest_event = get_latest_event(status_v1)
     last_update = (
         strftime("%a, %d %b %Y %H:%M:%S %z", gmtime(latest_event))
         if latest_event
         else ""
     )
 
-    if recoverable_errors:
-        status = UXAppStatusDegradedMap.get(status, status)
+    errors, recoverable_errors = get_errors(status_v1)
+    if errors:
+        condition_status = ConditionStatus.ERROR
+    elif recoverable_errors:
+        condition_status = ConditionStatus.DEGRADED
+
+    running_status = get_running_status(
+        status_file, result_file, boot_status_code, latest_event
+    )
+
+    if (
+        running_status == RunningStatus.RUNNING
+        and uses_systemd()
+        and systemd_failed(wait=wait)
+    ):
+        running_status = RunningStatus.DONE
+        condition_status = ConditionStatus.ERROR
+        description = "Failed due to systemd unit failure"
+        errors.append(
+            "Failed due to sysetmd unit failure. Ensure all cloud-init "
+            "services are enabled, and check 'systemctl' or 'journalctl' "
+            "for more information."
+        )
 
     # this key is a duplicate
     status_v1.pop("datasource", None)
+
     return StatusDetails(
-        status,
+        running_status,
+        condition_status,
         boot_status_code,
         description,
         errors,
