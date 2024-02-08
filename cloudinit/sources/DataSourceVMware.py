@@ -774,34 +774,44 @@ def get_default_ip_addrs():
     addresses associated with the device used by the default route for a given
     address.
     """
+
+    # Get ipv4 and ipv6 interfaces associated with default routes
+    ipv4_if = None
+    ipv6_if = None
+    routes = netinfo.route_info()
+    for route in routes["ipv4"]:
+        if route["destination"] == "0.0.0.0":
+            ipv4_if = route["iface"]
+    for route in routes["ipv6"]:
+        if route["destination"] == "::/0":
+            ipv6_if = route["iface"]
+
+    # Get ip address associated with default interface
     ipv4 = None
     ipv6 = None
-    routes = netinfo.route_info()
-    for route in routes:
-        if "G" in route["flags"]:
-            if ipv4 and ipv4 != route["gateway"]:
-                LOG.debug(
-                    "multiple ipv4 gateways: %s, %s", ipv4, route["gateway"]
-                )
-            ipv4 = route["gateway"]
-        elif "UG" in route["flags"]:
-            if ipv6 and ipv6 != route["gateway"]:
-                LOG.debug(
-                    "multiple ipv6 gateways: %s, %s", ipv6, route["gateway"]
-                )
-            ipv6 = route["gateway"]
-
-    # If there is an IPv4 gateway and an IPv6 gateway, return immediately to
-    # avoid extra work
-    if ipv4 and ipv6:
-        return ipv4, ipv4
-
     netdev = netinfo.netdev_info()
+    if ipv4_if in netdev:
+        addrs = netdev[ipv4_if]["ipv4"]
+        if len(addrs) > 1:
+            LOG.debug(
+                "device %s has more than one ipv4 address: %s", ipv4_if, addrs
+            )
+        elif len(addrs) == 1 and "ip" in addrs[0]:
+            ipv4 = addrs[0]["ip"]
+    if ipv6_if in netdev:
+        addrs = netdev[ipv6_if]["ipv6"]
+        if len(addrs) > 1:
+            LOG.debug(
+                "device %s has more than one ipv6 address: %s", ipv6_if, addrs
+            )
+        elif len(addrs) == 1 and "ip" in addrs[0]:
+            ipv6 = addrs[0]["ip"]
+
     # If there is a default IPv4 address but not IPv6, then see if there is a
     # single IPv6 address associated with the same device associated with the
     # default IPv4 address.
     if ipv4 is not None and ipv6 is None:
-        for dev_name in netdev.keys():
+        for dev_name in netdev:
             for addr in netdev[dev_name]["ipv4"]:
                 if addr["ip"] == ipv4 and len(netdev[dev_name]["ipv6"]) == 1:
                     ipv6 = netdev[dev_name]["ipv6"][0]["ip"]
@@ -811,10 +821,10 @@ def get_default_ip_addrs():
     # single IPv4 address associated with the same device associated with the
     # default IPv6 address.
     if ipv4 is None and ipv6 is not None:
-        for dev_name in netdev.keys():
+        for dev_name in netdev:
             for addr in netdev[dev_name]["ipv6"]:
                 if addr["ip"] == ipv6 and len(netdev[dev_name]["ipv4"]) == 1:
-                    ipv4 = netdev[dev_name]["ipv6"][0]["ip"]
+                    ipv4 = netdev[dev_name]["ipv4"][0]["ip"]
                     break
 
     return ipv4, ipv6
