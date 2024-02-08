@@ -1,6 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""ubuntu_advantage: Configure Ubuntu Advantage support services"""
+"""ubuntu_pro: Configure Ubuntu Pro support services"""
 
 import json
 import logging
@@ -15,25 +15,27 @@ from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
-UA_URL = "https://ubuntu.com/advantage"
+UA_URL = "https://ubuntu.com/pro"
 
 distros = ["ubuntu"]
 
+DEPRECATED_KEYS = set(["ubuntu-advantage", "ubuntu_advantage"])
+
 meta: MetaSchema = {
     "id": "cc_ubuntu_advantage",
-    "name": "Ubuntu Advantage",
-    "title": "Configure Ubuntu Advantage support services",
+    "name": "Ubuntu Pro",
+    "title": "Configure Ubuntu Pro support services",
     "description": dedent(
         """\
-        Attach machine to an existing Ubuntu Advantage support contract and
+        Attach machine to an existing Ubuntu Pro support contract and
         enable or disable support services such as Livepatch, ESM,
-        FIPS and FIPS Updates. When attaching a machine to Ubuntu Advantage,
+        FIPS and FIPS Updates. When attaching a machine to Ubuntu Pro,
         one can also specify services to enable. When the 'enable'
         list is present, only named services will be activated. Whereas
         if the 'enable' list is not present, the contract's default
         services will be enabled.
 
-        On Pro instances, when ``ubuntu_advantage`` config is provided to
+        On Pro instances, when ``ubuntu_pro`` config is provided to
         cloud-init, Pro's auto-attach feature will be disabled and cloud-init
         will perform the Pro auto-attach ignoring the ``token`` key.
         The ``enable`` and ``enable_beta`` values will strictly determine what
@@ -49,21 +51,21 @@ meta: MetaSchema = {
     "examples": [
         dedent(
             """\
-        # Attach the machine to an Ubuntu Advantage support contract with a
+        # Attach the machine to an Ubuntu Pro support contract with a
         # UA contract token obtained from %s.
-        ubuntu_advantage:
-          token: <ua_contract_token>
+        ubuntu_pro:
+          token: <ubuntu_pro_token>
     """
             % UA_URL
         ),
         dedent(
             """\
-        # Attach the machine to an Ubuntu Advantage support contract enabling
+        # Attach the machine to an Ubuntu Pro support contract enabling
         # only fips and esm services. Services will only be enabled if
         # the environment supports said service. Otherwise warnings will
         # be logged for incompatible services specified.
-        ubuntu_advantage:
-          token: <ua_contract_token>
+        ubuntu_pro:
+          token: <ubuntu_pro_token>
           enable:
           - fips
           - esm
@@ -71,13 +73,13 @@ meta: MetaSchema = {
         ),
         dedent(
             """\
-        # Attach the machine to an Ubuntu Advantage support contract and enable
+        # Attach the machine to an Ubuntu Pro support contract and enable
         # the FIPS service.  Perform a reboot once cloud-init has
         # completed.
         power_state:
           mode: reboot
-        ubuntu_advantage:
-          token: <ua_contract_token>
+        ubuntu_pro:
+          token: <ubuntu_pro_token>
           enable:
           - fips
         """
@@ -85,9 +87,9 @@ meta: MetaSchema = {
         dedent(
             """\
         # Set a http(s) proxy before attaching the machine to an
-        # Ubuntu Advantage support contract and enabling the FIPS service.
-        ubuntu_advantage:
-          token: <ua_contract_token>
+        # Ubuntu Pro support contract and enabling the FIPS service.
+        ubuntu_pro:
+          token: <ubuntu_pro_token>
           config:
             http_proxy: 'http://some-proxy:8088'
             https_proxy: 'https://some-proxy:8088'
@@ -102,7 +104,7 @@ meta: MetaSchema = {
         dedent(
             """\
         # On Ubuntu PRO instances, auto-attach but enable no PRO services.
-        ubuntu_advantage:
+        ubuntu_pro:
           enable: []
           enable_beta: []
         """
@@ -110,7 +112,7 @@ meta: MetaSchema = {
         dedent(
             """\
         # Enable esm and beta realtime-kernel services in Ubuntu Pro instances.
-        ubuntu_advantage:
+        ubuntu_pro:
           enable:
           - esm
           enable_beta:
@@ -120,14 +122,14 @@ meta: MetaSchema = {
         dedent(
             """\
         # Disable auto-attach in Ubuntu Pro instances.
-        ubuntu_advantage:
+        ubuntu_pro:
           features:
             disable_auto_attach: True
         """
         ),
     ],
     "frequency": PER_INSTANCE,
-    "activate_by_schema_keys": ["ubuntu_advantage", "ubuntu-advantage"],
+    "activate_by_schema_keys": ["ubuntu_pro"] + list(DEPRECATED_KEYS),
 }
 
 __doc__ = get_meta_doc(meta)
@@ -152,23 +154,23 @@ def validate_schema_features(ua_section: dict):
     if "features" not in ua_section:
         return
 
-    # Validate ubuntu_advantage.features type
+    # Validate ubuntu_pro.features type
     features = ua_section["features"]
     if not isinstance(features, dict):
         msg = (
-            f"'ubuntu_advantage.features' should be a dict, not a"
+            f"'ubuntu_pro.features' should be a dict, not a"
             f" {type(features).__name__}"
         )
         LOG.error(msg)
         raise RuntimeError(msg)
 
-    # Validate ubuntu_advantage.features.disable_auto_attach
+    # Validate ubuntu_pro.features.disable_auto_attach
     if "disable_auto_attach" not in features:
         return
     disable_auto_attach = features["disable_auto_attach"]
     if not isinstance(disable_auto_attach, bool):
         msg = (
-            f"'ubuntu_advantage.features.disable_auto_attach' should be a bool"
+            f"'ubuntu_pro.features.disable_auto_attach' should be a bool"
             f", not a {type(disable_auto_attach).__name__}"
         )
         LOG.error(msg)
@@ -184,7 +186,7 @@ def supplemental_schema_validation(ua_config: dict):
     Note: It does not log/raise config values as they could be urls containing
     sensitive auth info.
 
-    @param ua_config: Dictionary of config value under 'ubuntu_advantage'.
+    @param ua_config: Dictionary of config value under 'ubuntu_pro'.
 
     @raises: ValueError describing invalid values provided.
     """
@@ -192,7 +194,7 @@ def supplemental_schema_validation(ua_config: dict):
     for key, value in sorted(ua_config.items()):
         if key not in KNOWN_UA_CONFIG_PROPS:
             LOG.warning(
-                "Not validating unknown ubuntu_advantage.config.%s property",
+                "Not validating unknown ubuntu_pro.config.%s property",
                 key,
             )
             continue
@@ -210,9 +212,7 @@ def supplemental_schema_validation(ua_config: dict):
 
     if errors:
         raise ValueError(
-            "Invalid ubuntu_advantage configuration:\n{}".format(
-                "\n".join(errors)
-            )
+            "Invalid ubuntu_pro configuration:\n{}".format("\n".join(errors))
         )
 
 
@@ -221,7 +221,7 @@ def set_ua_config(ua_config: Any = None):
         return
     if not isinstance(ua_config, dict):
         raise RuntimeError(
-            f"ubuntu_advantage: config should be a dict, not"
+            f"ubuntu_pro: config should be a dict, not"
             f" a {type(ua_config).__name__};"
             " skipping enabling config parameters"
         )
@@ -254,7 +254,7 @@ def set_ua_config(ua_config: Any = None):
         for param, error in enable_errors:
             LOG.warning('Failure enabling/disabling "%s":\n%s', param, error)
         raise RuntimeError(
-            "Failure enabling/disabling Ubuntu Advantage config(s): {}".format(
+            "Failure enabling/disabling Ubuntu Pro config(s): {}".format(
                 ", ".join('"{}"'.format(param) for param, _ in enable_errors)
             )
         )
@@ -266,13 +266,13 @@ def configure_ua(token, enable=None):
         enable = []
     elif isinstance(enable, str):
         LOG.warning(
-            "ubuntu_advantage: enable should be a list, not"
+            "ubuntu_pro: enable should be a list, not"
             " a string; treating as a single enable"
         )
         enable = [enable]
     elif not isinstance(enable, list):
         LOG.warning(
-            "ubuntu_advantage: enable should be a list, not"
+            "ubuntu_pro: enable should be a list, not"
             " a %s; skipping enabling services",
             type(enable).__name__,
         )
@@ -284,13 +284,13 @@ def configure_ua(token, enable=None):
     else:
         attach_cmd = ["pro", "attach", token]
     redacted_cmd = attach_cmd[:-1] + [REDACTED]
-    LOG.debug("Attaching to Ubuntu Advantage. %s", " ".join(redacted_cmd))
+    LOG.debug("Attaching to Ubuntu Pro. %s", " ".join(redacted_cmd))
     try:
         # Allow `ua attach` to fail in already attached machines
         subp.subp(attach_cmd, rcs={0, 2}, logstring=redacted_cmd)
     except subp.ProcessExecutionError as e:
         err = str(e).replace(token, REDACTED)
-        msg = f"Failure attaching Ubuntu Advantage:\n{err}"
+        msg = f"Failure attaching Ubuntu Pro:\n{err}"
         util.logexc(LOG, msg)
         raise RuntimeError(msg) from e
 
@@ -353,7 +353,7 @@ def configure_ua(token, enable=None):
             util.logexc(LOG, msg)
 
         raise RuntimeError(
-            "Failure enabling Ubuntu Advantage service(s): "
+            "Failure enabling Ubuntu Pro service(s): "
             + ", ".join(error_services)
         )
 
@@ -405,14 +405,13 @@ def _should_auto_attach(ua_section: dict) -> bool:
 def _attach(ua_section: dict):
     token = ua_section.get("token")
     if not token:
-        msg = "`ubuntu_advantage.token` required in non-Pro Ubuntu instances."
+        msg = "`ubuntu_pro.token` required in non-Pro Ubuntu instances."
         LOG.error(msg)
         raise RuntimeError(msg)
     enable_beta = ua_section.get("enable_beta")
     if enable_beta:
         LOG.debug(
-            "Ignoring `ubuntu_advantage.enable_beta` services in UA attach:"
-            " %s",
+            "Ignoring `ubuntu_pro.enable_beta` services in UA attach: %s",
             ", ".join(enable_beta),
         )
     configure_ua(token=token, enable=ua_section.get("enable"))
@@ -448,7 +447,7 @@ def _auto_attach(ua_section: dict):
             LOG.warning(
                 "The instance is already attached to Pro. Leaving enabled"
                 " services untouched. Ignoring config directives"
-                " ubuntu_advantage: enable and enable_beta"
+                " ubuntu_pro: enable and enable_beta"
             )
     except UserFacingError as ex:
         msg = f"Error during `full_auto_attach`: {ex.msg}"
@@ -458,25 +457,36 @@ def _auto_attach(ua_section: dict):
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     ua_section = None
-    if "ubuntu-advantage" in cfg:
+    deprecated = list(DEPRECATED_KEYS.intersection(cfg))
+    if deprecated:
+        if len(deprecated) > 1:
+            raise RuntimeError(
+                "Unable to configure Ubuntu Pro. Multiple deprecated config"
+                " keys provided: %s" % ", ".join(deprecated)
+            )
         LOG.warning(
-            'Deprecated configuration key "ubuntu-advantage" provided.'
-            ' Expected underscore delimited "ubuntu_advantage"; will'
-            " attempt to continue."
+            "Deprecated configuration key(s) provided: %s."
+            ' Expected "ubuntu_pro"; will attempt to continue.',
+            ", ".join(deprecated),
         )
-        ua_section = cfg["ubuntu-advantage"]
-    if "ubuntu_advantage" in cfg:
-        ua_section = cfg["ubuntu_advantage"]
+        ua_section = cfg[deprecated[0]]
+    if "ubuntu_pro" in cfg:
+        # Prefer ubuntu_pro over any deprecated keys when both exist
+        if deprecated:
+            LOG.warning(
+                "Ignoring deprecated key %s and preferring ubuntu_pro config",
+                deprecated[0],
+            )
+        ua_section = cfg["ubuntu_pro"]
     if ua_section is None:
         LOG.debug(
-            "Skipping module named %s,"
-            " no 'ubuntu_advantage' configuration found",
+            "Skipping module named %s, no 'ubuntu_pro' configuration found",
             name,
         )
         return
     elif not isinstance(ua_section, dict):
         msg = (
-            f"'ubuntu_advantage' should be a dict, not a"
+            f"'ubuntu_pro' should be a dict, not a"
             f" {type(ua_section).__name__}"
         )
         LOG.error(msg)
@@ -501,7 +511,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         _auto_attach(ua_section)
 
     # If ua-auto-attach.service did noop, we did not auto-attach and more keys
-    # than `features` are given under `ubuntu_advantage`, then try to attach.
+    # than `features` are given under `ubuntu_pro`, then try to attach.
     # This supports the cases:
     #
     # 1) Previous attach behavior on non-pro instances.
@@ -509,6 +519,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     #    is < v28.0 (UA apis for should_auto-attach and auto-attach are not
     #    available.
     # 3) The user wants to disable auto-attach and attach by giving:
-    #    `{"ubuntu_advantage": "features": {"disable_auto_attach": True}}`
+    #    `{"ubuntu_pro": "features": {"disable_auto_attach": True}}`
     elif not ua_section.keys() <= {"features"}:
         _attach(ua_section)
