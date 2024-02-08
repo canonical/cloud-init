@@ -79,8 +79,8 @@ date. A 5 year timeline may also be expected for changed keys.
 .. automodule:: cloudinit.config.cc_ssh_authkey_fingerprints
 .. automodule:: cloudinit.config.cc_ssh_import_id
 .. automodule:: cloudinit.config.cc_timezone
-.. automodule:: cloudinit.config.cc_ubuntu_advantage
 .. automodule:: cloudinit.config.cc_ubuntu_drivers
+.. automodule:: cloudinit.config.cc_ubuntu_pro
 .. automodule:: cloudinit.config.cc_update_etc_hosts
 .. automodule:: cloudinit.config.cc_update_hostname
 

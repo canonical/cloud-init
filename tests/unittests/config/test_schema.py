@@ -270,8 +270,8 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_ssh_import_id"},
             {"$ref": "#/$defs/cc_ssh"},
             {"$ref": "#/$defs/cc_timezone"},
-            {"$ref": "#/$defs/cc_ubuntu_advantage"},
             {"$ref": "#/$defs/cc_ubuntu_drivers"},
+            {"$ref": "#/$defs/cc_ubuntu_pro"},
             {"$ref": "#/$defs/cc_update_etc_hosts"},
             {"$ref": "#/$defs/cc_update_hostname"},
             {"$ref": "#/$defs/cc_users_groups"},
@@ -790,7 +790,7 @@ class TestCloudConfigExamples:
         # Some module examples reference keys defined in multiple schemas
         supplemental_schemas = {
             "cc_landscape": ["cc_apt_configure"],
-            "cc_ubuntu_advantage": ["cc_power_state_change"],
+            "cc_ubuntu_pro": ["cc_power_state_change"],
             "cc_update_hostname": ["cc_set_hostname"],
             "cc_users_groups": ["cc_ssh_import_id"],
             "cc_disk_setup": ["cc_mounts"],
