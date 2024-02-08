@@ -299,7 +299,7 @@ class DataSourceEc2(sources.DataSource):
                 connect_synchronously=False,
             )
         except uhelp.UrlError:
-            # We use the raised exception to interupt the retry loop.
+            # We use the raised exception to interrupt the retry loop.
             # Nothing else to do here.
             pass
 

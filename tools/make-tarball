@@ -60,7 +60,7 @@ if [ -z "$output" ]; then
 fi
 
 # when building an archiving from HEAD, ensure that there aren't any
-# uncomitted changes in the working directory (because these would not
+# uncommitted changes in the working directory (because these would not
 # end up in the archive).
 if [ "$rev" = HEAD ] && ! git diff-index --quiet HEAD --; then
     if [ -z "$SKIP_UNCOMITTED_CHANGES_CHECK" ]; then

@@ -240,7 +240,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
         if install_type == "packages":
             to_install: List[Union[str, List[str]]]
-            if package_name is None:  # conf has no package_nam
+            if package_name is None:  # conf has no package_name
                 for puppet_name in PUPPET_PACKAGE_NAMES:
                     with suppress(PackageInstallerError):
                         to_install = (

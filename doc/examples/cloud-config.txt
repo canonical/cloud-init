@@ -264,7 +264,7 @@ resize_rootfs: True
 #
 #  * fqdn:
 #      this option will be used wherever 'fqdn' is needed.
-#      simply substitue it in the description above.
+#      simply substitute it in the description above.
 #      default: fqdn as returned by the metadata service.  on EC2 'hostname'
 #               is used, so this is like: ip-10-244-170-199.ec2.internal
 #
