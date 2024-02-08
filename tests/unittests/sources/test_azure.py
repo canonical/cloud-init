@@ -456,6 +456,11 @@ def construct_ovf_env(
             "<ns1:PreprovisionedVMType>%s</ns1:PreprovisionedVMType>"
             % preprovisioned_vm_type
         )
+    if provision_guest_proxy_agent is not None:
+        content.append(
+            "<ns1:ProvisionGuestProxyAgent>%s</ns1:ProvisionGuestProxyAgent>"
+            % provision_guest_proxy_agent
+        )
     content += [
         "</ns1:PlatformSettings>",
         "</ns1:PlatformSettingsSection>",
