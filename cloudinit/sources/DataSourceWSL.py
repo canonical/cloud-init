@@ -5,7 +5,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """ Datasource to support the Windows Subsystem for Linux platform. """
 
-import json
 import logging
 import os
 from pathlib import PurePath
@@ -159,27 +158,17 @@ def load_instance_metadata(cloudinitdir: PurePath, instance_name: str) -> dict:
         cloudinitdir.as_posix(), "%s.meta-data" % instance_name
     )
     try:
-        metadata = json.loads(util.load_binary_file(metadata_path))
-
+        metadata = util.load_yaml(util.load_binary_file(metadata_path))
     except FileNotFoundError:
         LOG.debug(
             "No instance metadata found at %s. Using default instance-id.",
             metadata_path,
         )
-    except json.JSONDecodeError as err:
-        LOG.error(
-            "Unable to setup WSL datasource."
-            " Invalid JSON format found at %s: %s.",
-            metadata_path,
-            err,
-        )
-        raise err
-
-    if "instance-id" not in metadata:
+    if not metadata or "instance-id" not in metadata:
         # Parsed metadata file invalid
         msg = (
             f" Metadata at {metadata_path} does not contain instance-id key."
-            f"Instead received: {metadata}"
+            f" Instead received: {metadata}"
         )
         LOG.error(msg)
         raise ValueError(msg)

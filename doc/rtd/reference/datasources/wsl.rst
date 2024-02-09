@@ -108,12 +108,12 @@ setting a hostname. Yet, the knowledge of ``metadata.instance-id`` is vital for
 cloud-init. So, this datasource provides a default value but also supports
 optionally sourcing metadata from a per-instance specific configuration file:
 ``%USERPROFILE%\.cloud-init\<InstanceName>.meta-data``. If that file exists, it
-could contain a JSON dictionary optionally providing a value for instance ID
-such as: ``'{"instance-id": "x-y-z"}'``. Advanced users looking to share
+is a YAML-formatted file minimally providing a value for instance ID
+such as: ``instance-id: x-y-z``. Advanced users looking to share
 snapshots or relaunch a snapshot where cloud-init is re-triggered, must run
 ``sudo cloud-init clean --logs`` on the instance before snapshot/export, or
-create the appropriate ``.meta-data`` file containing ``'{"instance-id":
-"some-new-instance-id"}'``.
+create the appropriate ``.meta-data`` file containing ``instance-id:
+some-new-instance-id``.
 
 Unsupported or restricted modules and features
 ===============================================
