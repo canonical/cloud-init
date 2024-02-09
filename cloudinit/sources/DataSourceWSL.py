@@ -229,7 +229,7 @@ class DataSourceWSL(sources.DataSource):
 
         try:
             metadata = load_instance_metadata(
-                 cloud_init_data_dir(), self.instance_name
+                cloud_init_data_dir(), self.instance_name
             )
             return current == metadata.get("instance-id")
 
