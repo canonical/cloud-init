@@ -10,14 +10,6 @@ through MS Store) or by importing a tarball containing a root filesystem. This
 page assumes the reader is familiar with WSL. To learn more about that, please
 visit the `Microsoft documentation <https://learn.microsoft.com/windows/wsl/about>`_.
 
-While in principle the :ref:`NoCloud datasource<datasource_nocloud>` could be
-used to deliver custom user data to initialize a WSL instance, having a
-datasource specific for WSL, aware of the unique features and constraints
-offered by that platform enables flexible ways to pass user data to cloud-init,
-such as using the same configuration data for all instances or per instance, as
-well as means of avoid possible race conditions specific to the WSL platform
-that the NoCloud datasource is not designed to handle.
-
 Requirements
 ==============
 
