@@ -25,7 +25,7 @@ from cloudinit.util import (
     write_file,
 )
 
-ETC_MACHINE_ID = settings.MACHINE_ID_FILE
+ETC_MACHINE_ID = "/etc/machine-id"
 GEN_NET_CONFIG_FILES = [
     CLOUDINIT_NETPLAN_FILE,
     "/etc/NetworkManager/conf.d/99-cloud-init.conf",

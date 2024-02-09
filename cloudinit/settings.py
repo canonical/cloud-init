@@ -75,6 +75,3 @@ PER_ONCE = "once"
 
 # Used to sanity check incoming handlers/modules frequencies
 FREQUENCIES = [PER_INSTANCE, PER_ALWAYS, PER_ONCE]
-
-# Machine's unique ID usually assigned by the init system during first boot.
-MACHINE_ID_FILE = "/etc/machine-id"
