@@ -387,6 +387,7 @@ def construct_ovf_env(
     disable_ssh_password_auth=None,
     preprovisioned_vm=None,
     preprovisioned_vm_type=None,
+    provision_guest_proxy_agent=None,
 ):
     content = [
         '<?xml version="1.0" encoding="utf-8"?>',
@@ -456,6 +457,11 @@ def construct_ovf_env(
         content.append(
             "<ns1:PreprovisionedVMType>%s</ns1:PreprovisionedVMType>"
             % preprovisioned_vm_type
+        )
+    if provision_guest_proxy_agent is not None:
+        content.append(
+            "<ns1:ProvisionGuestProxyAgent>%s</ns1:ProvisionGuestProxyAgent>"
+            % provision_guest_proxy_agent
         )
     content += [
         "</ns1:PlatformSettings>",
@@ -1442,6 +1448,7 @@ scbus-1 on xpt0 bus 0
         expected_cfg = {
             "PreprovisionedVMType": None,
             "PreprovisionedVm": False,
+            "ProvisionGuestProxyAgent": False,
             "system_info": {"default_user": {"name": "myuser"}},
         }
         expected_metadata = {
@@ -2818,6 +2825,14 @@ class TestPreprovisioningReadAzureOvfFlag(CiTestCase):
         cfg = ret[2]
         self.assertTrue(cfg["PreprovisionedVm"])
         self.assertEqual("Savable", cfg["PreprovisionedVMType"])
+
+    def test_read_azure_ovf_with_proxy_guest_agent(self):
+        """The read_azure_ovf method should set ProvisionGuestProxyAgent
+        cfg flag to True."""
+        content = construct_ovf_env(provision_guest_proxy_agent=True)
+        ret = dsaz.read_azure_ovf(content)
+        cfg = ret[2]
+        self.assertTrue(cfg["ProvisionGuestProxyAgent"])
 
 
 @pytest.mark.parametrize(
