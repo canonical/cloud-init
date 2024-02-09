@@ -225,7 +225,7 @@ class TestLandscape:
         assert expected_calls == m_subp.call_args_list
 
     @mock.patch(f"{MPATH}.merge_together")
-    def test_handler_client_failed_registering(self, m_subp, m_merge_together):
+    def test_handler_client_failed_registering(self, m_merge_together, m_subp):
         """landscape-client could not be registered"""
         mycloud = get_cloud("ubuntu")
         mycloud.distro = mock.MagicMock()
@@ -243,7 +243,7 @@ class TestLandscape:
 
     @mock.patch(f"{MPATH}.merge_together")
     def test_handler_client_is_already_registered(
-        self, m_subp, m_merge_together, caplog
+        self, m_merge_together, m_subp, caplog
     ):
         """landscape-client is already registered"""
         mycloud = get_cloud("ubuntu")
