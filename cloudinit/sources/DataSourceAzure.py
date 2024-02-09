@@ -1870,6 +1870,12 @@ def read_azure_ovf(contents):
         "PreprovisionedVMType: %s" % ovf_env.preprovisioned_vm_type,
         logger_func=LOG.info,
     )
+
+    cfg["ProvisionGuestProxyAgent"] = ovf_env.provision_guest_proxy_agent
+    report_diagnostic_event(
+        "ProvisionGuestProxyAgent: %s" % ovf_env.provision_guest_proxy_agent,
+        logger_func=LOG.info,
+    )
     return (md, ud, cfg)
 
 
