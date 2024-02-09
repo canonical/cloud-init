@@ -242,12 +242,11 @@ class DataSourceWSL(sources.DataSource):
 
     def _get_data(self) -> bool:
         self.vendordata_raw = None
-        self.metadata = dict()
         seed_dir = cloud_init_data_dir()
         self.instance_name = instance_name()
 
         try:
-            self.metadata["instance-id"] = load_metadata_iid(
+            self.metadata = load_instance_metadata(
                 seed_dir, self.instance_name
             )
             file = self.find_user_data_file(seed_dir)
@@ -256,9 +255,8 @@ class DataSourceWSL(sources.DataSource):
             )
             return True
 
-        except IOError as err:
-            LOG.error("Could not find any user data file: %s", str(err))
-            self.userdata_raw = ""
+        except (ValueError, IOError) as err:
+            LOG.error("Unable to setup WSL datasource: %s", str(err))
             return False
 
 
