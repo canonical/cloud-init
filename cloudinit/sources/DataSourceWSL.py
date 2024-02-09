@@ -146,33 +146,45 @@ def candidate_user_data_file_names(instance_name) -> List[str]:
     ]
 
 
-DEFAULT_INSTANCE_ID = "datasource-wsl"
+DEFAULT_INSTANCE_ID = "iid-datasource-wsl"
 
 
-def load_metadata_iid(cloudinitdir: PurePath, instance_name: str) -> str:
+def load_instance_metadata(cloudinitdir: PurePath, instance_name: str) -> dict:
     """
     Returns the relevant metadata loaded from cloudinit dir based on the
     instance name
     """
-    raw = dict()
+    metadata = {"instance-id": DEFAULT_INSTANCE_ID}
+    metadata_path = os.path.join(
+        cloudinitdir.as_posix(), "%s.meta-data" % instance_name
+    )
     try:
-        raw = json.loads(
-            util.load_binary_file(
-                os.path.join(
-                    cloudinitdir.as_posix(), "%s.meta-data" % instance_name
-                )
-            )
-        )
+        metadata = json.loads(util.load_binary_file(metadata_path))
 
-    except IOError as err:
+    except FileNotFoundError:
         LOG.debug(
-            "Failed to load metadata file from %s for instance %s: %s",
-            cloudinitdir.as_posix(),
-            instance_name,
+            "No instance metadata found at %s. Using default instance-id.",
+            metadata_path,
+        )
+    except json.JSONDecodeError as err:
+        LOG.error(
+            "Unable to setup WSL datasource."
+            " Invalid JSON format found at %s: %s.",
+            metadata_path,
             err,
         )
+        raise err
 
-    return raw.get("instance-id", DEFAULT_INSTANCE_ID)
+    if "instance-id" not in metadata:
+        # Parsed metadata file invalid
+        msg = (
+            f" Metadata at {metadata_path} does not contain instance-id key."
+            f"Instead received: {metadata}"
+        )
+        LOG.error(msg)
+        raise ValueError(msg)
+
+    return metadata
 
 
 class DataSourceWSL(sources.DataSource):
