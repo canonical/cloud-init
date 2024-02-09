@@ -220,18 +220,25 @@ class DataSourceWSL(sources.DataSource):
             "%s doesn't contain any of the expected user-data files" % seed_dir
         )
 
-    def check_instance_id(self, sys_cfg):
+    def check_instance_id(self, sys_cfg) -> bool:
+        # quickly (local check only) if self.metadata['instance_id']
+        # is still valid.
         current = self.get_instance_id()
         if not current:
-            return None
+            return False
 
         try:
-            return current == load_metadata_iid(
-                cloud_init_data_dir(), self.instance_name
+            metadata = load_instance_metadata(
+                 cloud_init_data_dir(), self.instance_name
             )
-        except IOError as err:
-            LOG.error("Could not load updated instance ID: %s", err)
-            return None
+            return current == metadata.get("instance-id")
+
+        except (IOError, ValueError) as err:
+            LOG.warning(
+                "Unable to check_instance_id from metadata file: %s",
+                str(err),
+            )
+            return False
 
     def _get_data(self) -> bool:
         self.vendordata_raw = None
