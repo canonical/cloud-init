@@ -105,14 +105,12 @@ class BaseTest:
         verify_clean_log(log)
 
 
-
 @pytest.mark.skipif(
     PLATFORM != "lxd_vm",
     reason="Test requires a VM to load additional kernel modules in LXD",
 )
 class TestKernelModules(BaseTest):
     pass
-
 
 
 @pytest.mark.skipif(
