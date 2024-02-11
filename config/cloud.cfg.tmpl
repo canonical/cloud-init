@@ -136,8 +136,8 @@ cloud_init_modules:
   - rsyslog
   - users_groups
   - ssh
- {% if variant in ["ubuntu", "debian"] %}
- - kernel_modules
+{% if variant in ["ubuntu", "debian"] %}
+  - kernel_modules
 {% endif %}
 
 # The modules that run in the 'config' stage
@@ -190,11 +190,12 @@ cloud_config_modules:
 
 # The modules that run in the 'final' stage
 cloud_final_modules:
- - package-update-upgrade-install
+ - package_update_upgrade_install
 {% if variant in ["ubuntu", "unknown", "debian"] %}
  - fan
  - landscape
  - lxd
+{% if variant in ["ubuntu", "debian"] %}
  - kernel_modules
 {% endif %}
 {% if variant in ["ubuntu", "unknown"] %}
