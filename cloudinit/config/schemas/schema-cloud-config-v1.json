@@ -3893,6 +3893,7 @@
     "grub_dpkg": {},
     "hostname": {},
     "keyboard": {},
+    "kernel_modules": {},
     "landscape": {},
     "launch-index": {},
     "locale": {},
