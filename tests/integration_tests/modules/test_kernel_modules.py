@@ -4,6 +4,8 @@ from pycloudlib.lxd.instance import LXDInstance
 
 from cloudinit.subp import subp
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import IS_UBUNTU
 from tests.integration_tests.util import verify_clean_log
 
 ASCII_TEXT = "ASCII text"
@@ -28,7 +30,7 @@ kernel_modules:
     load: true
     persist:
       softdep:
-        pre: ["nf_conntrack" "nf_tables"]
+        pre: ["nf_conntrack", "nf_tables"]
 """
 
 KERNEL_MODULES_LXD = "lockd,zfs,wireguard"
@@ -44,7 +46,9 @@ def load_kernel_modules_lxd(instance: LXDInstance):
 
 @pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
-@pytest.mark.ubuntu
+@pytest.mark.skipif(
+    not IS_UBUNTU, reason="kernel_module support currently limited to Ubuntu"
+)
 class BaseTest:
     @pytest.mark.parametrize(
         "cmd,expected_out",
@@ -101,12 +105,20 @@ class BaseTest:
         verify_clean_log(log)
 
 
-@pytest.mark.no_container
+
+@pytest.mark.skipif(
+    PLATFORM != "lxd_vm",
+    reason="Test requires a VM to load additional kernel modules in LXD",
+)
 class TestKernelModules(BaseTest):
     pass
 
 
-@pytest.mark.lxd_container
+
+@pytest.mark.skipif(
+    PLATFORM != "lxd_container",
+    reason="Uses lxd command-line to set kernel-module config prior to launch",
+)
 @pytest.mark.lxd_setup.with_args(load_kernel_modules_lxd)
 class TestKernelModulesWithoutKmod(BaseTest):
     pass

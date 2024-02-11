@@ -48,7 +48,7 @@ class TestKernelModules:
             "Expected a string for kernel_modules:persist:install. Found 123.",
             "Expected a boolean for kernel_modules:persist:blacklist. "
             "Found no-bool.",
-            "Expected an array for kernel_modules:persist:softdep:pre. "
+            "Expected a list for kernel_modules:persist:softdep:pre. "
             "Found not-an-array.",
         ]
         with pytest.raises(ValueError) as context_mgr:
