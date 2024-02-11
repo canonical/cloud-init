@@ -7,6 +7,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+from typing import List, Mapping
 
 from cloudinit import distros, helpers, subp, util
 from cloudinit.distros import PackageList
@@ -20,12 +21,12 @@ class Distro(distros.Distro):
     locale_gen_fn = "/etc/locale.gen"
     hostname_conf_fn = "/etc/conf.d/hostname"
     init_cmd = ["rc-service"]  # init scripts
-    kernel_module_cmd_map = {
+    kernel_module_cmd_map: Mapping[str, List[str]] = {
         "list": ["lsmod"],
         "load": ["modprobe"],
         "unload": ["modprobe", "-r"],
     }
-    update_initramfs = ["update-initramfs", "-u", "-k", "all"]
+    update_initramfs: List[str] = ["update-initramfs", "-u", "-k", "all"]
     default_locale = "en_US.UTF-8"
 
     # C.UTF8 makes sense to generate, but is not selected
