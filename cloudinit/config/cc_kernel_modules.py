@@ -3,7 +3,6 @@
 """Kernel Modules"""
 import logging
 import re
-from array import array
 from textwrap import dedent
 from typing import List
 
@@ -50,7 +49,7 @@ meta: MetaSchema = {
         load: true
         persist:
           softdep:
-            pre: ["nf_conntrack" "nf_tables"]
+            pre: ["nf_conntrack", "nf_tables"]
     """
         ),
     ],
@@ -113,9 +112,9 @@ def persist_schema_validation(persist: dict) -> List[str]:
                         " Should be one of: pre, post"
                     )
                 else:
-                    if not isinstance(sdvalues, array):
+                    if not isinstance(sdvalues, list):
                         errors.append(
-                            "Expected an array for"
+                            "Expected a list for"
                             f" kernel_modules:persist:softdep:{sdkey}."
                             f" Found {sdvalues}."
                         )
