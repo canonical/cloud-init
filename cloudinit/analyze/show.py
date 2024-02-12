@@ -371,7 +371,7 @@ def load_events_infile(infile):
     :return: json version of logfile, raw file
     """
     data = infile.read()
-    if not data:
+    if not data.strip():
         sys.stderr.write("Empty file %s\n" % infile.name)
         sys.exit(1)
     try:
