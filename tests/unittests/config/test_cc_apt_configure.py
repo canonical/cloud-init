@@ -9,7 +9,7 @@ from unittest import mock
 import pytest
 
 from cloudinit import features
-from cloudinit.config import cc_apt_configure
+from cloudinit.config import cc_apt_configure as cc_apt
 from cloudinit.config.schema import (
     SchemaValidationError,
     get_schema,
@@ -257,16 +257,16 @@ class TestEnsureDependencies:
         install_packages = mocker.patch.object(
             mycloud.distro, "install_packages"
         )
-        matcher = re.compile(cc_apt_configure.ADD_APT_REPO_MATCH).search
+        matcher = re.compile(cc_apt.ADD_APT_REPO_MATCH).search
 
         def fake_which(cmd):
             if cmd in already_installed:
                 return "foundit"
             return None
 
-        which = mocker.patch.object(cc_apt_configure.shutil, "which")
+        which = mocker.patch.object(cc_apt.shutil, "which")
         which.side_effect = fake_which
-        cc_apt_configure._ensure_dependencies(cfg, matcher, mycloud)
+        cc_apt._ensure_dependencies(cfg, matcher, mycloud)
         if expected_install:
             install_packages.assert_called_once_with(expected_install)
         else:
@@ -274,20 +274,51 @@ class TestEnsureDependencies:
 
 
 class TestAptConfigure:
+    @pytest.mark.parametrize(
+        "src_content,distro_name,expected_content",
+        (
+            pytest.param(
+                "content",
+                "ubuntu",
+                cc_apt.UBUNTU_DEFAULT_APT_SOURCES_LIST,
+                id="ubuntu_replace_invalid_apt_source_list_with_default",
+            ),
+            pytest.param(
+                "content",
+                "debian",
+                None,
+                id="debian_remove_invalid_apt_source_list",
+            ),
+            pytest.param(
+                cc_apt.UBUNTU_DEFAULT_APT_SOURCES_LIST,
+                "ubuntu",
+                cc_apt.UBUNTU_DEFAULT_APT_SOURCES_LIST,
+                id="ubuntu_no_warning_when_existig_sources_list_content_allowed",
+            ),
+        ),
+    )
     @mock.patch(M_PATH + "get_apt_cfg")
-    def test_remove_source(self, m_get_apt_cfg, caplog, tmpdir):
+    def test_remove_source(
+        self,
+        m_get_apt_cfg,
+        src_content,
+        distro_name,
+        expected_content,
+        caplog,
+        tmpdir,
+    ):
         m_get_apt_cfg.return_value = {
             "sourcelist": f"{tmpdir}/etc/apt/sources.list",
             "sourceparts": f"{tmpdir}/etc/apt/sources.list.d/",
         }
-        cloud = get_cloud("ubuntu")
+        cloud = get_cloud(distro_name)
         features.APT_DEB822_SOURCE_LIST_FILE = True
         sources_file = tmpdir.join("/etc/apt/sources.list")
         deb822_sources_file = tmpdir.join(
-            "/etc/apt/sources.list.d/ubuntu.sources"
+            f"/etc/apt/sources.list.d/{distro_name}.sources"
         )
         Path(sources_file).parent.mkdir(parents=True, exist_ok=True)
-        sources_file.write("content")
+        sources_file.write(src_content)
 
         cfg = {
             "sources_list": """\
@@ -297,6 +328,20 @@ Suites: {{codename}} {{codename}}-updates {{codename}}-backports
 Components: main restricted universe multiverse
 Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg"""
         }
-        cc_apt_configure.generate_sources_list(cfg, "noble", {}, cloud)
-        assert not sources_file.exists()
+        cc_apt.generate_sources_list(cfg, "noble", {}, cloud)
+        if expected_content is None:
+            assert not sources_file.exists()
+            assert f"Removing {sources_file} to favor deb822" in caplog.text
+        else:
+            if src_content != expected_content:
+                assert (
+                    f"Replacing {sources_file} to favor deb822" in caplog.text
+                )
+
+            assert (
+                cc_apt.UBUNTU_DEFAULT_APT_SOURCES_LIST == sources_file.read()
+            )
+            assert (
+                f"Removing {sources_file} to favor deb822" not in caplog.text
+            )
         assert deb822_sources_file.exists()
