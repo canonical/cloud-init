@@ -102,6 +102,7 @@ class Ifconfig:
         """
         ifindex = 0
         ifs_by_mac = defaultdict(list)
+        dev = None
         for line in text.splitlines():
             if len(line) == 0:
                 continue
@@ -118,6 +119,11 @@ class Ifconfig:
                 dev = Ifstate(curif)
                 dev.index = ifindex
                 self._ifs_by_name[curif] = dev
+
+            if not dev:
+                # This shouldn't happen with normal ifconfig output, but
+                # if it does, ensure we don't Traceback
+                continue
 
             toks = line.lower().strip().split()
 
