@@ -1,5 +1,7 @@
-import pytest
 from collections import namedtuple
+
+import pytest
+
 from cloudinit.analyze import analyze_show
 
 
@@ -13,6 +15,7 @@ def mock_io(tmp_path):
 
 class TestAnalyzeShow:
     """Test analyze_show (and/or helpers) in cloudinit/analyze/__init__.py"""
+
     def test_empty_logfile(self, mock_io, capsys):
         """Test analyze_show with an empty logfile"""
         mock_io.infile.write_text("")
