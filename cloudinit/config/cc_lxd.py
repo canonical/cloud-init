@@ -432,7 +432,7 @@ def bridge_to_cmd(bridge_cfg):
             % (bridge_cfg.get("ipv6_address"), bridge_cfg.get("ipv6_netmask"))
         )
 
-        if bridge_cfg.get("ipv6_nat", "false") == "true":
+        if bridge_cfg.get("ipv6_nat") == "true":
             cmd_create.append("ipv6.nat=true")
 
     else:
