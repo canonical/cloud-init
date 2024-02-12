@@ -1421,6 +1421,7 @@ def find_devs_with_netbsd(
     devlist = []
     label = None
     _type = None
+    mscdlabel_out = ""
     if criteria:
         if criteria.startswith("LABEL="):
             label = criteria.lstrip("LABEL=")
