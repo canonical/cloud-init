@@ -78,7 +78,7 @@ def _get_user_data_file() -> str:
 
 def attach_cloud_init_logs(report, ui=None):
     """Attach cloud-init logs and tarfile from 'cloud-init collect-logs'."""
-    attach_root_command_outputs(
+    attach_root_command_outputs(  # pyright: ignore
         report,
         {
             "cloud-init-log-warnings": (
@@ -87,10 +87,12 @@ def attach_cloud_init_logs(report, ui=None):
             "cloud-init-output.log.txt": "cat /var/log/cloud-init-output.log",
         },
     )
-    root_command_output(
+    root_command_output(  # pyright: ignore
         ["cloud-init", "collect-logs", "-t", "/tmp/cloud-init-logs.tgz"]
     )
-    attach_file(report, "/tmp/cloud-init-logs.tgz", "logs.tgz")
+    attach_file(  # pyright: ignore
+        report, "/tmp/cloud-init-logs.tgz", "logs.tgz"
+    )
 
 
 def attach_hwinfo(report, ui=None):
@@ -160,7 +162,7 @@ def attach_installer_files(report, ui=None):
 def attach_ubuntu_pro_info(report, ui=None):
     """Attach ubuntu pro logs and tag if keys present in user-data."""
     realpath = os.path.realpath("/var/log/ubuntu-advantage.log")
-    attach_file_if_exists(report, realpath)
+    attach_file_if_exists(report, realpath)  # pyright: ignore
     if os.path.exists(realpath):
         report.setdefault("Tags", "")
         if report["Tags"]:
@@ -183,10 +185,12 @@ def attach_user_data(report, ui=None):
             raise StopIteration  # User cancelled
         if response:
             realpath = os.path.realpath(user_data_file)
-            attach_file(report, realpath, "user_data.txt")
+            attach_file(report, realpath, "user_data.txt")  # pyright: ignore
             for apport_file in INSTALLER_APPORT_SENSITIVE_FILES:
                 realpath = os.path.realpath(apport_file.path)
-                attach_file_if_exists(report, realpath, apport_file.label)
+                attach_file_if_exists(  # pyright: ignore
+                    report, realpath, apport_file.label
+                )
 
 
 def add_bug_tags(report):
@@ -210,7 +214,7 @@ def add_bug_tags(report):
 
 
 def add_info(report, ui):
-    """This is an entry point to run cloud-init's apport functionality.
+    """This is an entry point to run cloud-init's package-specific hook
 
     Distros which want apport support will have a cloud-init package-hook at
     /usr/share/apport/package-hooks/cloud-init.py which defines an add_info
@@ -284,7 +288,7 @@ def add_datasource_specific_info(report, platform: str, ds_data) -> None:
         report[platform.capitalize() + key.capitalize()] = value
 
 
-def general_add_info(report, ui) -> None:
+def general_add_info(report, _) -> None:
     """Entry point for Apport.
 
     This hook runs for every apport report
