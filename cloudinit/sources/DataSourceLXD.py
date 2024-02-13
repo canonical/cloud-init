@@ -166,7 +166,7 @@ class DataSourceLXD(sources.DataSource):
     dsname = "LXD"
 
     _network_config: Union[Dict, str] = sources.UNSET
-    _crawled_metadata: Union[Dict, str] = sources.UNSET
+    _crawled_metadata: Optional[Union[Dict, str]] = sources.UNSET
 
     sensitive_metadata_keys: Tuple[
         str, ...
