@@ -1,5 +1,6 @@
 cloud-init (23.4.1-0ubuntu1~22.04.3) UNRELEASED; urgency=medium
 
+  * d/apport-general-hook.py: Move apport hook to main branch
   * d/cloud-init.maintscript: remove /etc/cloud/clean.d/README
   * d/cloud-init.logrotate: add logrotate config for cloud-init
   * refresh patches:
@@ -8,7 +9,7 @@ cloud-init (23.4.1-0ubuntu1~22.04.3) UNRELEASED; urgency=medium
     - d/p/status-retain-recoverable-error-exit-code.patch
   * Upstream snapshot based on upstream/main at 33148a07.
 
- -- James Falcon <james.falcon@canonical.com>  Wed, 07 Feb 2024 13:39:29 -0600
+ -- Brett Holman <brett.holman@canonical.com>  Tue, 13 Feb 2024 13:19:53 -0500
 
 cloud-init (23.4.1-0ubuntu1~22.04.2) jammy; urgency=medium
 
