@@ -114,7 +114,6 @@ class DataSourceOracle(sources.DataSource):
 
     dsname = "Oracle"
     system_uuid = None
-    vendordata_pure = None
     network_config_sources: Tuple[sources.NetworkConfigSource, ...] = (
         sources.NetworkConfigSource.CMD_LINE,
         sources.NetworkConfigSource.SYSTEM_CFG,
