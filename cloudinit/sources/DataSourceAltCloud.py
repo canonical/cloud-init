@@ -77,6 +77,12 @@ class DataSourceAltCloud(sources.DataSource):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.seed = None
         self.supported_seed_starts = ("/", "file://")
+        self.source = sources.METADATA_UNKNOWN
+
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        super()._unpickle(ci_pkl_version)
+        if not hasattr(self, "source"):
+            self.source = sources.METADATA_UNKNOWN
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -167,8 +173,6 @@ class DataSourceAltCloud(sources.DataSource):
     def _get_subplatform(self):
         """Return the subplatform metadata details."""
         cloud_type = self.get_cloud_type()
-        if not hasattr(self, "source"):
-            self.source = sources.METADATA_UNKNOWN
         if cloud_type == "RHEV":
             self.source = "/dev/fd0"
         return "%s (%s)" % (cloud_type.lower(), self.source)

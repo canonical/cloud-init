@@ -904,9 +904,8 @@ class TestDataSource(CiTestCase):
     def test_clear_cached_attrs_skips_non_attr_class_attributes(self):
         """Skip any cached_attr_defaults which aren't class attributes."""
         self.datasource._dirty_cache = True
-        self.datasource.clear_cached_attrs()
-        for attr in ("ec2_metadata", "network_json"):
-            self.assertFalse(hasattr(self.datasource, attr))
+        self.datasource.clear_cached_attrs(attr_defaults=(("some", "value"),))
+        self.assertFalse(hasattr(self.datasource, "some"))
 
     def test_clear_cached_attrs_of_custom_attrs(self):
         """Custom attr_values can be passed to clear_cached_attrs."""

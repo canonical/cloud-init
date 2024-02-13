@@ -209,9 +209,6 @@ class DataSourceNoCloud(sources.DataSource):
 
     @property
     def platform_type(self):
-        # Handle upgrade path of pickled ds
-        if not hasattr(self, "_platform_type"):
-            self._platform_type = None
         if not self._platform_type:
             self._platform_type = "lxd" if util.is_lxd() else "nocloud"
         return self._platform_type
