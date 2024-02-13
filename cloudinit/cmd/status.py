@@ -304,6 +304,13 @@ def get_bootstatus(
     return (bootstatus_code, reason)
 
 
+def is_cloud_init_enabled() -> bool:
+    return (
+        get_status_details(read_cfg_paths()).boot_status_code
+        not in DISABLED_BOOT_CODES
+    )
+
+
 def _get_error_or_running_from_systemd(
     existing_status: UXAppStatus, wait: bool
 ) -> Optional[UXAppStatus]:
