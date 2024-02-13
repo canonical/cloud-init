@@ -32,6 +32,8 @@ class DataSourceNoCloud(sources.DataSource):
         ]
         self.seed_dir = None
         self.supported_seed_starts = ("/", "file://")
+        self._network_config = None
+        self._network_eni = None
 
     def __str__(self):
         root = sources.DataSource.__str__(self)

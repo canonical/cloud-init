@@ -112,6 +112,7 @@ class SocketHTTPConnection(HTTPConnection):
     def __init__(self, socket_path):
         super().__init__("localhost")
         self.socket_path = socket_path
+        self.sock = None
 
     def connect(self):
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
