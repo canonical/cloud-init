@@ -315,8 +315,6 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         self.assertEqual(EC2_META, ds_os.ec2_metadata)
         self.assertEqual(USER_DATA, ds_os.userdata_raw)
         self.assertEqual(2, len(ds_os.files))
-        self.assertEqual(VENDOR_DATA, ds_os.vendordata_pure)
-        self.assertEqual(VENDOR_DATA2, ds_os.vendordata2_pure)
         self.assertIsNone(ds_os.vendordata_raw)
         m_dhcp.assert_not_called()
 
@@ -362,8 +360,6 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         self.assertEqual(EC2_META, ds_os_local.ec2_metadata)
         self.assertEqual(USER_DATA, ds_os_local.userdata_raw)
         self.assertEqual(2, len(ds_os_local.files))
-        self.assertEqual(VENDOR_DATA, ds_os_local.vendordata_pure)
-        self.assertEqual(VENDOR_DATA2, ds_os_local.vendordata2_pure)
         self.assertIsNone(ds_os_local.vendordata_raw)
         m_dhcp.assert_called_with(distro, "eth9", None)
 

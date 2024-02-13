@@ -104,7 +104,6 @@ class DataSourceMAAS(sources.DataSource):
         ud, md, vd = data
         self.userdata_raw = ud
         self.metadata = md
-        self.vendordata_pure = vd
         if vd:
             try:
                 self.vendordata_raw = sources.convert_vendordata(vd)
