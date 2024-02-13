@@ -11,6 +11,8 @@ from pathlib import PurePath
 from typing import List, cast
 
 from cloudinit import sources, subp, util
+from cloudinit.distros import Distro
+from cloudinit.helpers import Paths
 
 LOG = logging.getLogger(__name__)
 
@@ -180,6 +182,10 @@ def load_instance_metadata(cloudinitdir: PurePath, instance_name: str) -> dict:
 class DataSourceWSL(sources.DataSource):
     dsname = "WSL"
 
+    def __init__(self, sys_cfg, distro: Distro, paths: Paths, ud_proc=None):
+        super().__init__(sys_cfg, distro, paths, ud_proc)
+        self.instance_name = instance_name()
+
     def find_user_data_file(self, seed_dir: PurePath) -> PurePath:
         """
         Finds the most precendent of the candidate files that may contain
@@ -233,7 +239,6 @@ class DataSourceWSL(sources.DataSource):
     def _get_data(self) -> bool:
         self.vendordata_raw = None
         seed_dir = cloud_init_data_dir()
-        self.instance_name = instance_name()
 
         try:
             self.metadata = load_instance_metadata(
