@@ -142,7 +142,6 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         self.files.update(results.get("files", {}))
 
         vd = results.get("vendordata")
-        self.vendordata_pure = vd
         try:
             self.vendordata_raw = sources.convert_vendordata(vd)
         except ValueError as e:
@@ -150,7 +149,6 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
             self.vendordata_raw = None
 
         vd2 = results.get("vendordata2")
-        self.vendordata2_pure = vd2
         try:
             self.vendordata2_raw = sources.convert_vendordata(vd2)
         except ValueError as e:

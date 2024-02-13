@@ -147,7 +147,6 @@ class DataSourceIBMCloud(sources.DataSource):
         self.userdata_raw = results.get("userdata")
         self.network_json = results.get("networkdata")
         vd = results.get("vendordata")
-        self.vendordata_pure = vd
         self.system_uuid = results["system-uuid"]
         try:
             self.vendordata_raw = sources.convert_vendordata(vd)
