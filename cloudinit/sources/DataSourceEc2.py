@@ -202,9 +202,6 @@ class DataSourceEc2(sources.DataSource):
 
     @property
     def platform(self):
-        # Handle upgrade path of pickled ds
-        if not hasattr(self, "_platform_type"):
-            self._platform_type = DataSourceEc2.dsname.lower()
         if not self._platform_type:
             self._platform_type = DataSourceEc2.dsname.lower()
         return self._platform_type
