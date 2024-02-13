@@ -90,7 +90,9 @@ VMW_IPV6_NETDEV_ADDR = {
 }
 
 
-def generate_test_netdev_data(ipv4=[], ipv6=[]):
+def generate_test_netdev_data(ipv4=None, ipv6=None):
+    ipv4 = ipv4 or []
+    ipv6 = ipv6 or []
     return {
         "eth0": {
             "hwaddr": "00:16:3e:16:db:54",

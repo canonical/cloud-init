@@ -737,9 +737,11 @@ def get_default_ip_addrs():
     for route in routes["ipv4"]:
         if route["destination"] == "0.0.0.0":
             ipv4_if = route["iface"]
+            break
     for route in routes["ipv6"]:
         if route["destination"] == "::/0":
             ipv6_if = route["iface"]
+            break
 
     # Get ip address associated with default interface
     ipv4 = None
