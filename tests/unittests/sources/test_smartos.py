@@ -5,6 +5,8 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+# pylint: disable=attribute-defined-outside-init
+
 """This is a testcase for the SmartOS datasource.
 
 It replicates a serial console and acts like the SmartOS console does in
