@@ -7,6 +7,7 @@
 import json
 import logging
 import os
+from typing import Dict
 
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.cmd.devel.logs import (
@@ -229,8 +230,7 @@ def add_info(report, ui):
     return True
 
 
-
-def _get_azure_data(ds_data) -> dict[str, str]:
+def _get_azure_data(ds_data) -> Dict[str, str]:
     compute = ds_data.get("meta_data", {}).get("imds", {}).get("compute")
     if not compute:
         return {}
@@ -247,7 +247,7 @@ def _get_azure_data(ds_data) -> dict[str, str]:
     return azure_data
 
 
-def _get_ec2_data(ds_data) -> dict[str, str]:
+def _get_ec2_data(ds_data) -> Dict[str, str]:
     document = (
         ds_data.get("dynamic", {}).get("instance-identity", {}).get("document")
     )
