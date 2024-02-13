@@ -55,13 +55,13 @@ class TestDHCP:
     )
     def test_noble_and_newer_force_client(self, client, dhcp_client, package):
         """force noble to use dhcpcd and test that it worked"""
-        client.execute(f"apt install -yq {package}")
-        client.execute(
+        assert client.execute(f"apt update && apt install -yq {package}").ok
+        assert client.execute(
             "sed -i 's|"
             "dhcp_client_priority.*$"
             f"|dhcp_client_priority: [{dhcp_client}]"
             "|' /etc/cloud/cloud.cfg"
-        )
+        ).ok
         client.execute("cloud-init clean --logs")
         client.restart()
         log = client.read_from_file("/var/log/cloud-init.log")
