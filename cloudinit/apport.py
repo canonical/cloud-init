@@ -14,6 +14,7 @@ from cloudinit.cmd.devel.logs import (
     INSTALLER_APPORT_FILES,
     INSTALLER_APPORT_SENSITIVE_FILES,
 )
+from cloudinit.cmd.status import is_cloud_init_enabled
 
 try:
     from apport.hookutils import (
@@ -297,6 +298,8 @@ def general_add_info(report, _) -> None:
     /run/cloud/instance-data.json that will be helpful for debugging.
     """
     try:
+        if not is_cloud_init_enabled():
+            return
         with open("/run/cloud-init/instance-data.json", "r") as fopen:
             instance_data = json.load(fopen)
     except FileNotFoundError:
