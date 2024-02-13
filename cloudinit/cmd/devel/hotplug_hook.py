@@ -243,26 +243,27 @@ def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction):
         raise last_exception
 
 
-def enable_hotplug(hotplug_init: Init, subsystem):
-    LOG.debug("Fetching datasource")
+def enable_hotplug(hotplug_init: Init, subsystem) -> bool:
     datasource = hotplug_init.fetch(existing="trust")
     if not datasource:
-        return
+        return False
     scope = SUBSYSTEM_PROPERTIES_MAP[subsystem][1]
     hotplug_supported = EventType.HOTPLUG in (
         datasource.get_supported_events([EventType.HOTPLUG]).get(scope, set())
     )
     if not hotplug_supported:
-        LOG.debug("hotplug not supported for event of type %s", subsystem)
-        return
+        print(
+            f"hotplug not supported for event of {subsystem}", file=sys.stderr
+        )
+        return False
     hotplug_enabled_file = util.read_hotplug_enabled_file()
     if scope.value in hotplug_enabled_file["scopes"]:
-        LOG.debug(
-            "Not installing hotplug for event of type %s."
+        print(
+            f"Not installing hotplug for event of type {subsystem}."
             " Reason: Already done.",
-            subsystem,
+            file=sys.stderr,
         )
-        return
+        return True
 
     hotplug_enabled_file["scopes"].append(scope.value)
     util.write_file(
@@ -271,10 +272,10 @@ def enable_hotplug(hotplug_init: Init, subsystem):
         omode="w",
         mode="640",
     )
-    LOG.debug("Installing hotplug.")
     install_hotplug(
         datasource, network_hotplug_enabled=True, cfg=hotplug_init.cfg
     )
+    return True
 
 
 def handle_args(name, args):
@@ -329,8 +330,13 @@ def handle_args(name, args):
                         " sudo.\n"
                     )
                     sys.exit(1)
-                enable_hotplug(
+                if not enable_hotplug(
                     hotplug_init=hotplug_init, subsystem=args.subsystem
+                ):
+                    sys.exit(1)
+                print(
+                    f"Enabled cloud-init hotplug for "
+                    f"subsystem={args.subsystem}"
                 )
 
         except Exception:

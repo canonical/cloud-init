@@ -99,7 +99,7 @@ def update_event_enabled(
         scope, set()
     ):
         hotplug_enabled_file = util.read_hotplug_enabled_file()
-        if scope.value in hotplug_enabled_file.get("scopes", []):
+        if scope.value in hotplug_enabled_file["scopes"]:
             LOG.debug(
                 "Adding event: scope=%s EventType=%s found in %s",
                 scope,

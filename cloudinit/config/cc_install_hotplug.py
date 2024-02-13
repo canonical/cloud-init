@@ -116,6 +116,7 @@ def install_hotplug(
     libexecdir = "/usr/libexec/cloud-init"
     if not os.path.exists(libexecdir):
         libexecdir = "/usr/lib/cloud-init"
+    LOG.info("Installing hotplug.")
     util.write_file(
         filename=HOTPLUG_UDEV_PATH,
         content=HOTPLUG_UDEV_RULES_TEMPLATE.format(
