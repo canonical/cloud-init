@@ -16,51 +16,6 @@ multiple transports types, including:
     * EnvVars
     * GuestInfo
     * IMC (Guest Customization)
-
-Netifaces (https://github.com/al45tair/netifaces)
-
-    Please note this module relies on the netifaces project to introspect the
-    runtime, network configuration of the host on which this datasource is
-    running. This is in contrast to the rest of cloud-init which uses the
-    cloudinit/netinfo module.
-
-    The reasons for using netifaces include:
-
-        * Netifaces is built in C and is more portable across multiple systems
-          and more deterministic than shell exec'ing local network commands and
-          parsing their output.
-
-        * Netifaces provides a stable way to determine the view of the host's
-          network after DHCP has brought the network online. Unlike most other
-          datasources, this datasource still provides support for JINJA queries
-          based on networking information even when the network is based on a
-          DHCP lease. While this does not tie this datasource directly to
-          netifaces, it does mean the ability to consistently obtain the
-          correct information is paramount.
-
-        * It is currently possible to execute this datasource on macOS
-          (which many developers use today) to print the output of the
-          get_host_info function. This function calls netifaces to obtain
-          the same runtime network configuration that the datasource would
-          persist to the local system's instance data.
-
-          However, the netinfo module fails on macOS. The result is either a
-          hung operation that requires a SIGINT to return control to the user,
-          or, if brew is used to install iproute2mac, the ip commands are used
-          but produce output the netinfo module is unable to parse.
-
-          While macOS is not a target of cloud-init, this feature is quite
-          useful when working on this datasource.
-
-          For more information about this behavior, please see the following
-          PR comment, https://bit.ly/3fG7OVh.
-
-    The authors of this datasource are not opposed to moving away from
-    netifaces. The goal may be to eventually do just that. This proviso was
-    added to the top of this module as a way to remind future-us and others
-    why netifaces was used in the first place in order to either smooth the
-    transition away from netifaces or embrace it further up the cloud-init
-    stack.
 """
 
 import collections
