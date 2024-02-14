@@ -99,16 +99,22 @@ def read_ftps(url: str, timeout: Optional[float] = None) -> "FtpResponse":
         try:
             LOG.debug("Attempting to connect to %s over tls.", url)
             ftp_tls = ftplib.FTP_TLS(
-                host=url_parts.hostname,
-                user=url_parts.username or "",
-                passwd=url_parts.password or "",
-                timeout=timeout or 0.0,  # Python docs are wrong about types
                 context=create_default_context(),
             )
-            ftp_tls.login()
+            ftp_tls.connect(
+                host=url_parts.hostname,
+                port=url_parts.port or 21,
+                timeout=timeout or 0.0,  # Python docs are wrong about types
+            )
+            ftp_tls.login(
+                user=url_parts.username or "",
+                passwd=url_parts.password or "",
+            )
             ftp_tls.prot_p()
             ftp_tls.retrbinary(f"RETR {url_parts.path}", callback=buffer.write)
-            return FtpResponse(url_parts.path, contents=buffer)
+            response = FtpResponse(url_parts.path, contents=buffer)
+            ftp_tls.close()
+            return response
         except ftplib.all_errors as e:
             if "ftps" == url_parts.scheme:
                 raise UrlError(
@@ -128,15 +134,21 @@ def read_ftps(url: str, timeout: Optional[float] = None) -> "FtpResponse":
                 url_parts.hostname,
             )
             LOG.debug("Attempting to connect to %s over tls.", url)
-            ftp = ftplib.FTP(
+
+            ftp = ftplib.FTP()
+            ftp.connect(
                 host=url_parts.hostname,
-                user=url_parts.username or "",
-                passwd=url_parts.password or "",
+                port=url_parts.port or 21,
                 timeout=timeout or 0.0,  # Python docs are wrong about types
             )
-            ftp.login()
+            ftp.login(
+                user=url_parts.username or "",
+                passwd=url_parts.password or "",
+            )
             ftp.retrbinary(f"RETR {url_parts.path}", callback=buffer.write)
-            return FtpResponse(url_parts.path, contents=buffer)
+            response = FtpResponse(url_parts.path, contents=buffer)
+            ftp.close()
+            return response
         except ftplib.all_errors as e:
             raise UrlError(
                 cause=(
