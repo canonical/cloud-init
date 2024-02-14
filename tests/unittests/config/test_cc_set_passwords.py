@@ -12,7 +12,11 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import does_not_raise, skipUnlessJsonSchema
+from tests.unittests.helpers import (
+    SCHEMA_EMPTY_ERROR,
+    does_not_raise,
+    skipUnlessJsonSchema,
+)
 from tests.unittests.util import get_cloud
 
 MODPATH = "cloudinit.config.cc_set_passwords."
@@ -718,7 +722,8 @@ class TestSetPasswordsSchema:
             (
                 {"chpasswd": {"list": []}},
                 pytest.raises(
-                    SchemaValidationError, match=r"\[\] is too short"
+                    SchemaValidationError,
+                    match=rf"\[\] {SCHEMA_EMPTY_ERROR}",
                 ),
             ),
         ],
