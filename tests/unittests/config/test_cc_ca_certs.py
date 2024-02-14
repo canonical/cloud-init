@@ -15,7 +15,11 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import TestCase, skipUnlessJsonSchema
+from tests.unittests.helpers import (
+    SCHEMA_EMPTY_ERROR,
+    TestCase,
+    skipUnlessJsonSchema,
+)
 from tests.unittests.util import get_cloud
 
 
@@ -396,7 +400,7 @@ class TestCACertsSchema:
             ),
             (
                 {"ca_certs": {}},
-                re.escape("ca_certs: {} does not have enough properties"),
+                re.escape("ca_certs: {} ") + SCHEMA_EMPTY_ERROR,
             ),
             (
                 {"ca_certs": {"boguskey": 1}},
@@ -415,7 +419,7 @@ class TestCACertsSchema:
             ),
             (
                 {"ca_certs": {"trusted": []}},
-                re.escape("ca_certs.trusted: [] is too short"),
+                re.escape("ca_certs.trusted: [] ") + SCHEMA_EMPTY_ERROR,
             ),
         ),
     )

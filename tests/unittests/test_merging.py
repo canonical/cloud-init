@@ -270,7 +270,7 @@ class TestMergingSchema:
         [
             ({"merge_how": "list()+dict()+str()"}, None),
             ({"merge_type": "list()+dict()+str()"}, None),
-            ({"merge_how": []}, "\\[\\] is too short"),
+            ({"merge_how": []}, f"\\[\\] {helpers.SCHEMA_EMPTY_ERROR}"),
             (
                 {"merge_how": {"name": "list", "settings": ["append"]}},
                 "is not of type",

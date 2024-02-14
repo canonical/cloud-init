@@ -12,7 +12,12 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
+from tests.unittests.helpers import (
+    SCHEMA_EMPTY_ERROR,
+    CiTestCase,
+    mock,
+    skipUnlessJsonSchema,
+)
 from tests.unittests.util import get_cloud
 
 M_PATH = "cloudinit.config.cc_snap."
@@ -253,15 +258,18 @@ class TestSnapSchema:
                 {"snap": {"commands": ["ls"], "invalid-key": ""}},
                 "Additional properties are not allowed",
             ),
-            ({"snap": {}}, "{} does not have enough properties"),
+            ({"snap": {}}, f"{{}} {SCHEMA_EMPTY_ERROR}"),
             (
                 {"snap": {"commands": "broken"}},
                 "'broken' is not of type 'object', 'array'",
             ),
-            ({"snap": {"commands": []}}, r"snap.commands: \[\] is too short"),
+            (
+                {"snap": {"commands": []}},
+                rf"snap.commands: \[\] {SCHEMA_EMPTY_ERROR}",
+            ),
             (
                 {"snap": {"commands": {}}},
-                r"snap.commands: {} does not have enough properties",
+                rf"snap.commands: {{}} {SCHEMA_EMPTY_ERROR}",
             ),
             ({"snap": {"commands": [123]}}, ""),
             ({"snap": {"commands": {"01": 123}}}, ""),
@@ -276,10 +284,10 @@ class TestSnapSchema:
                 {"snap": {"assertions": "broken"}},
                 "'broken' is not of type 'object', 'array'",
             ),
-            ({"snap": {"assertions": []}}, r"\[\] is too short"),
+            ({"snap": {"assertions": []}}, rf"\[\] {SCHEMA_EMPTY_ERROR}"),
             (
                 {"snap": {"assertions": {}}},
-                r"\{} does not have enough properties",
+                rf"\{{}} {SCHEMA_EMPTY_ERROR}",
             ),
         ],
     )

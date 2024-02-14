@@ -393,7 +393,7 @@ class TestLXDSchema:
             # Require bridge.mode
             ({"lxd": {"bridge": {}}}, "bridge: 'mode' is a required property"),
             # Require init or bridge keys
-            ({"lxd": {}}, "lxd: {} does not have enough properties"),
+            ({"lxd": {}}, f"lxd: {{}} {t_help.SCHEMA_EMPTY_ERROR}"),
             # Require some non-empty preseed config of type string
             ({"lxd": {"preseed": {}}}, "not of type 'string'"),
             ({"lxd": {"preseed": ""}}, None),
