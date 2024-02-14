@@ -86,8 +86,8 @@ This list of URLs will be searched for an EC2 metadata service. The first
 entry that successfully returns a 200 response for
 ``<url>/<version>/meta-data/instance-id`` will be selected.
 
-Default: ['http://169.254.169.254', 'http://[fd00:ec2::254]',
-'http://instance-data:8773'].
+Default: [``'http://169.254.169.254'``, ``'http://[fd00:ec2::254]'``,
+``'http://instance-data.:8773'``].
 
 ``max_wait``
 ------------
