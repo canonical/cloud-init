@@ -1,12 +1,16 @@
 """NoCloud datasource integration tests."""
+import os
 from textwrap import dedent
 
 import pytest
-from pycloudlib.lxd.instance import LXDInstance
 
 from cloudinit.subp import subp
+from pycloudlib.lxd.instance import LXDInstance
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.test_kernel_commandline_match import (
+    override_kernel_cmdline,
+)
 
 VENDOR_DATA = """\
 #cloud-config
@@ -189,3 +193,86 @@ class TestSmbios:
         assert "'nocloud-net' datasource name is deprecated" in client.execute(
             "cloud-init status --format json"
         )
+
+@pytest.mark.skipif(PLATFORM != "lxd_vm", reason="Modifies grub config")
+@pytest.mark.lxd_use_exec
+def test_nocloud_ftp(client: IntegrationInstance):
+    # creating an ftp service to run prior
+    # to cloud-config is bonkers, lets
+    # hope that users don't see this kind of
+    # test code as an example to follow
+
+    client.execute("apt update && apt install python3-pyftpdlib")
+
+    client.write_to_file(
+        "/server.py",
+        dedent(
+            """\
+            #!/usr/bin/python3
+            from pyftpdlib.authorizers import DummyAuthorizer
+            from pyftpdlib.handlers import FTPHandler, TLS_FTPHandler
+            from pyftpdlib.servers import FTPServe
+            from pyftpdlib.filesystems import UnixFilesystem
+
+            # yeah, it's not secure but that's not the point
+            authorizer = DummyAuthorizer
+
+            # Define a read-only anonymous user
+            authorizer.add_anonymous("/home/anonymous")
+
+            # Instantiate FTP handler class
+            handler = FTPHandler
+            handler.authorizer = authorizer
+            handler.abstracted_fs = UnixFilesystem
+            server = FTPServer(("localhost", 2121), handler)
+
+            # start the ftp server
+            server.run_forever()
+            """
+        ),
+    )
+    client.execute("chmod +x /server.py")
+    client.write_to_file(
+        "/lib/systemd/system/local-ftp.service",
+        dedent(
+            """\
+            [Unit]
+            Description=run a local ftp server against
+            Wants=cloud-init-local.service
+            After=systemd-networkd-wait-online.service
+            After=networking.service
+            Before=cloud-init.service
+
+            [Service]
+            Type=oneshot
+            ExecStart=/server.py
+            """
+        )
+    )
+    client.execute("systemctl enable local-ftp.service")
+
+    client.execute("mkdir /home/anonymous/")
+    client.write_to_file(
+        "/home/anonymous/user-data",
+        dedent(
+            """
+            #cloud-config
+
+            hostname: ftp-bootstrapper
+            """
+        )
+    )
+    client.write_to_file(
+        "/home/anonymous/meta-data",
+        dedent(
+            """
+            instance-id: ftp-instance
+            """
+        )
+    )
+    client.write_to_file("/home/anonymous/vendor-data", "")
+
+    # set the kernel commandline, reboot with it
+    override_kernel_cmdline(
+        "ci.ds=nocloud;seedfrom=ftp://0.0.0.0:2121", client
+    )
