@@ -18,6 +18,7 @@ from cloudinit.config.schema import (
     validate_cloudconfig_schema,
 )
 from tests.unittests.helpers import (
+    SCHEMA_EMPTY_ERROR,
     FilesystemMockingTestCase,
     mock,
     skipUnlessJsonSchema,
@@ -355,7 +356,7 @@ class TestApkConfigureSchema:
             (
                 {"apk_repos": {"alpine_repo": {}}},
                 "apk_repos.alpine_repo: 'version' is a required property,"
-                " apk_repos.alpine_repo: {} does not have enough properties",
+                f" apk_repos.alpine_repo: {{}} {SCHEMA_EMPTY_ERROR}",
             ),
             (
                 {"apk_repos": {"alpine_repo": True}},
@@ -368,7 +369,7 @@ class TestApkConfigureSchema:
             ),
             (
                 {"apk_repos": {}},
-                "apk_repos: {} does not have enough properties",
+                f"apk_repos: {{}} {SCHEMA_EMPTY_ERROR}",
             ),
             (
                 {"apk_repos": {"local_repo_base_url": None}},
