@@ -15,7 +15,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import skipUnlessJsonSchema
+from tests.unittests.helpers import SCHEMA_EMPTY_ERROR, skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 M_PATH = "cloudinit.config.cc_apt_configure."
@@ -39,7 +39,7 @@ class TestAPTConfigureSchema:
                     " ('boguskey' was unexpected)"
                 ),
             ),
-            ({"apt": {}}, "apt: {} does not have enough properties"),
+            ({"apt": {}}, f"apt: {{}} {SCHEMA_EMPTY_ERROR}"),
             (
                 {"apt": {"preserve_sources_list": 1}},
                 "apt.preserve_sources_list: 1 is not of type 'boolean'",
@@ -50,7 +50,7 @@ class TestAPTConfigureSchema:
             ),
             (
                 {"apt": {"disable_suites": []}},
-                re.escape("apt.disable_suites: [] is too short"),
+                re.escape("apt.disable_suites: [] ") + SCHEMA_EMPTY_ERROR,
             ),
             (
                 {"apt": {"disable_suites": [1]}},
@@ -70,7 +70,7 @@ class TestAPTConfigureSchema:
             ),
             (
                 {"apt": {"primary": []}},
-                re.escape("apt.primary: [] is too short"),
+                re.escape("apt.primary: [] ") + SCHEMA_EMPTY_ERROR,
             ),
             (
                 {"apt": {"primary": ["nonobj"]}},
@@ -107,7 +107,7 @@ class TestAPTConfigureSchema:
             ),
             (
                 {"apt": {"primary": [{"arches": ["amd64"], "search": []}]}},
-                re.escape("apt.primary.0.search: [] is too short"),
+                re.escape("apt.primary.0.search: [] ") + SCHEMA_EMPTY_ERROR,
             ),
             (
                 {
@@ -139,7 +139,7 @@ class TestAPTConfigureSchema:
             ),
             (
                 {"apt": {"debconf_selections": {}}},
-                "apt.debconf_selections: {} does not have enough properties",
+                f"apt.debconf_selections: {{}} {SCHEMA_EMPTY_ERROR}",
             ),
             (
                 {"apt": {"sources_list": True}},
@@ -175,7 +175,7 @@ class TestAPTConfigureSchema:
             ),
             (
                 {"apt": {"sources": {"opaquekey": {}}}},
-                "apt.sources.opaquekey: {} does not have enough properties",
+                f"apt.sources.opaquekey: {{}} {SCHEMA_EMPTY_ERROR}",
             ),
             (
                 {"apt": {"sources": {"opaquekey": {"boguskey": True}}}},

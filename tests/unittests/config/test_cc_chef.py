@@ -16,6 +16,7 @@ from cloudinit.config.schema import (
 )
 from tests.helpers import cloud_init_project_dir
 from tests.unittests.helpers import (
+    SCHEMA_EMPTY_ERROR,
     FilesystemMockingTestCase,
     ResponsesTestCase,
     mock,
@@ -306,7 +307,7 @@ class TestBootCMDSchema:
             ),
             (
                 {"chef": {}},
-                re.escape(" chef: {} does not have enough properties"),
+                re.escape(" chef: {} ") + SCHEMA_EMPTY_ERROR,
             ),
             (
                 {"chef": {"boguskey": True}},
@@ -321,7 +322,7 @@ class TestBootCMDSchema:
             ),
             (
                 {"chef": {"directories": []}},
-                re.escape("chef.directories: [] is too short"),
+                re.escape("chef.directories: [] ") + SCHEMA_EMPTY_ERROR,
             ),
             (
                 {"chef": {"directories": [1]}},
