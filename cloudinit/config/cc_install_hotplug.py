@@ -106,8 +106,8 @@ def install_hotplug(
         return
 
     extra_rules = (
-        cloud.datasource.extra_hotplug_udev_rules
-        if cloud.datasource.extra_hotplug_udev_rules is not None
+        datasource.extra_hotplug_udev_rules
+        if datasource.extra_hotplug_udev_rules is not None
         else ""
     )
     if extra_rules:

@@ -23,6 +23,13 @@ updates:
     when: ['hotplug']
 """
 
+USER_DATA_HOTPLUG_DISABLED = """\
+#cloud-config
+updates:
+  network:
+    when: ['boot-new-instance']
+"""
+
 ip_addr = namedtuple("ip_addr", "interface state ip4 ip6")
 
 
@@ -138,10 +145,11 @@ def _test_hotplug_enabled_by_cmd(client: IntegrationInstance):
         "{hotplug_action: query" in log
     )
     assert client.execute(
-        "test -f /etc/udev/rules.d/10-cloud-init-hook-hotplug.rules"
+        "test -f /etc/udev/rules.d/90-cloud-init-hook-hotplug.rules"
     ).ok
 
 
+@pytest.mark.user_data(USER_DATA_HOTPLUG_DISABLED)
 def test_hotplug_enable_cmd(client: IntegrationInstance):
     _test_hotplug_enabled_by_cmd(client)
 
@@ -153,6 +161,7 @@ def test_hotplug_enable_cmd(client: IntegrationInstance):
         "other platforms."
     ),
 )
+@pytest.mark.user_data(USER_DATA_HOTPLUG_DISABLED)
 def test_hotplug_enable_cmd_ec2(client: IntegrationInstance):
     _test_hotplug_enabled_by_cmd(client)
     ips_before = _get_ip_addr(client)
