@@ -178,7 +178,7 @@ class TestWSLHelperFunctions:
     def test_load_instance_metadata(
         self, md_content, raises, errors, warnings, md_expected, tmpdir, caplog
     ):
-        """meta-data file is optional. Errors are raised on ivalid content."""
+        """meta-data file is optional. Errors are raised on invalid content."""
         if md_content is not None:
             tmpdir.join("myinstance.meta-data").write(md_content)
         with caplog.at_level(logging.WARNING):
