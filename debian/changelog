@@ -6,10 +6,11 @@ cloud-init (23.4.1-0ubuntu1~22.04.3) UNRELEASED; urgency=medium
   * Drop d/p/retain-netplan-world-readable.patch:
     - Limit perms to 600 of /etc/netplan/50-cloud-init.yaml instead of 644
       (LP: #2053157)
+  * d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
+    - Retain systemd ordering cloud-config.service After=snapd.seeded.service
   * refresh patches:
     - d/p/status-do-not-remove-duplicated-data.patch
     - d/p/status-retain-recoverable-error-exit-code.patch
-  * Upstream snapshot based on upstream/main at 33148a07.
 
  -- Brett Holman <brett.holman@canonical.com>  Tue, 13 Feb 2024 13:19:53 -0500
 
