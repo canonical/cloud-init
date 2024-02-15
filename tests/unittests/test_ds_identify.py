@@ -1108,7 +1108,7 @@ class TestWSL(DsIdentifyBase):
             {
                 "name": "WSL_cloudinit_dir_in",
                 "ret": 1,
-                "out": "",
+                "RET": "",
             },
         )
         return self._check_via_dict(data, RC_NOT_FOUND)
@@ -1121,7 +1121,7 @@ class TestWSL(DsIdentifyBase):
             {
                 "name": "WSL_cloudinit_dir_in",
                 "ret": 0,
-                "out": cloudinitdir,
+                "RET": cloudinitdir,
             },
         )
         return self._check_via_dict(data, RC_NOT_FOUND)
@@ -1135,7 +1135,7 @@ class TestWSL(DsIdentifyBase):
             {
                 "name": "WSL_cloudinit_dir_in",
                 "ret": 0,
-                "out": cloudinitdir,
+                "RET": cloudinitdir,
             },
         )
         userdata_files = [
@@ -1151,7 +1151,8 @@ class TestWSL(DsIdentifyBase):
                 ),
             ),
             os.path.join(
-                cloudinitdir, MOCK_WSL_INSTANCE_DATA["name"] + "-all.user-data"
+                cloudinitdir,
+                MOCK_WSL_INSTANCE_DATA["distro"] + "-all.user-data",
             ),
             os.path.join(cloudinitdir, "default.user-data"),
         ]
@@ -1167,7 +1168,7 @@ class TestWSL(DsIdentifyBase):
             # Delete one by one
             Path(filename).unlink()
 
-        # Until ther is none, making the datasource no longer viable.
+        # Until there is none, making the datasource no longer viable.
         return self._check_via_dict(data, RC_NOT_FOUND)
 
 
@@ -2218,7 +2219,7 @@ VALID_CFG = {
             {
                 "name": "WSL_instance_name",
                 "ret": 0,
-                "out": MOCK_WSL_INSTANCE_DATA["name"],
+                "RET": MOCK_WSL_INSTANCE_DATA["name"],
             },
         ],
         "files": {

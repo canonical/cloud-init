@@ -1587,12 +1587,13 @@ dscheck_VMware() {
 }
 
 WSL_cloudinit_dir_in() {
+    _RET=""
     for m in "$@"; do
         cmdexe="$m/Windows/System23/cmd.exe"
         if command -v "$cmdexe" > /dev/null 2>&1; then
             cloudinitdir=$(/init "$cmdexe" /c echo %USERPROFILE% 2>/dev/null)
             if [ -n "$cloudinitdir" ]; then
-                wslpath -au "$cloudinitdir"
+                val=$(wslpath -au "$cloudinitdir") && _RET="$val"
                 return $?
             fi
         fi
@@ -1603,7 +1604,8 @@ WSL_cloudinit_dir_in() {
 
 WSL_instance_name() {
     instance_name=$(wslpath -am /)
-    basename "$instance_name"
+    val=$(basename "$instance_name")
+    _RET="${val}"
 }
 
 dscheck_WSL() {
@@ -1630,7 +1632,8 @@ dscheck_WSL() {
 
     # We know we are under WSL and have acess to the host filesystem,
     # so let's find the .cloud-init directory
-    cloudinitdir="$(WSL_cloudinit_dir_in "$mountpoints")"
+    WSL_cloudinit_dir_in "$mountpoints"
+    cloudinitdir="${_RET}"
     if [ -z "$cloudinitdir" ]; then
         debug 1 "%USERPROFILE/.cloud-init/ directory not found"
         return "${DS_NOT_FOUND}"
@@ -1639,7 +1642,8 @@ dscheck_WSL() {
     # and the applicable userdata file. Notice the ordering in the for-loop
     # must match our expected precedence, so the file we find is what the
     # datasource must process.
-    instance_name="$(WSL_instance_name)"
+    WSL_instance_name
+    instance_name="${_RET}"
     distro_id=$(grep "^ID=" "${PATH_ROOT}/etc/os-release" | cut -d'=' -f2 )
     version_id=$(grep "^VERSION_ID=" "${PATH_ROOT}/etc/os-release" | cut -d'=' -f2 )
 
