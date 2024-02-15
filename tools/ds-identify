@@ -1589,7 +1589,7 @@ dscheck_VMware() {
 WSL_cloudinit_dir_in() {
     for m in "$@"; do
         cmdexe="$m/Windows/System23/cmd.exe"
-        if [ -x "$cmdexe" ]; then
+        if command -v "$cmdexe" > /dev/null 2>&1; then
             cloudinitdir=$(/init "$cmdexe" /c echo %USERPROFILE% 2>/dev/null)
             if [ -n "$cloudinitdir" ]; then
                 wslpath -au "$cloudinitdir"
