@@ -361,8 +361,10 @@ change_cloud_init_output_log_permissions() {
 
 rename_hook_hotplug_udev_rule() {
     # Avoids LP: #1946003 see commit: b519d861aff8b44a0610c176cb34adcbe28df144
-    mv -f /etc/udev/rules.d/10-cloud-init-hook-hotplug.rules \
-        /etc/udev/rules.d/90-cloud-init-hook-hotplug.rules
+    if [ -f /etc/udev/rules.d/10-cloud-init-hook-hotplug.rules ]; then
+        mv -f /etc/udev/rules.d/10-cloud-init-hook-hotplug.rules \
+            /etc/udev/rules.d/90-cloud-init-hook-hotplug.rules
+    fi
 }
 
 if [ "$1" = "configure" ]; then
