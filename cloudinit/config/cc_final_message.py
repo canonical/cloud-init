@@ -59,7 +59,7 @@ meta: MetaSchema = {
 LOG = logging.getLogger(__name__)
 __doc__ = get_meta_doc(meta)
 
-# Jinja formated default message
+# Jinja formatted default message
 FINAL_MESSAGE_DEF = (
     "## template: jinja\n"
     "Cloud-init v. {{version}} finished at {{timestamp}}."

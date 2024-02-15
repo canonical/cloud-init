@@ -20,11 +20,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import configobj
 
 from cloudinit import subp, temp_utils, util
-from cloudinit.net import (
-    get_ib_interface_hwaddr,
-    get_interface_mac,
-    is_ib_interface,
-)
+from cloudinit.net import get_interface_mac, is_ib_interface
 
 LOG = logging.getLogger(__name__)
 
@@ -277,7 +273,7 @@ class IscDhclient(DhcpClient):
         @param interface: an interface string - not used in this class, but
             required for function signature compatibility with other classes
             that require a distro object
-        @raises: InvalidDHCPLeaseFileError on empty or unparseable leasefile
+        @raises: InvalidDHCPLeaseFileError on empty or unparsable leasefile
             content.
         """
         with suppress(FileNotFoundError):
@@ -615,6 +611,7 @@ class Dhcpcd(DhcpClient):
         LOG.debug("Performing a dhcp discovery on %s", interface)
         sleep_time = 0.01
         sleep_cycles = int(self.timeout / sleep_time)
+        infiniband_argument = []
 
         # dhcpcd needs the interface up to send initial discovery packets
         # Generally dhclient relies on dhclient-script PREINIT action to bring
@@ -633,6 +630,8 @@ class Dhcpcd(DhcpClient):
             # Until fixed, we allow dhcpcd to spawn background processes so
             # that we can use --dumplease, but when any option above is fixed,
             # it would be safer to avoid spawning processes using --oneshot
+            if is_ib_interface(interface):
+                infiniband_argument = ["--clientid"]
             command = [
                 self.dhcp_client_path,  # pyright: ignore
                 "--ipv4only",  # only attempt configuring ipv4
@@ -640,6 +639,7 @@ class Dhcpcd(DhcpClient):
                 "--persistent",  # don't deconfigure when dhcpcd exits
                 "--noarp",  # don't be slow
                 "--script=/bin/true",  # disable hooks
+                *infiniband_argument,
                 interface,
             ]
             out, err = subp.subp(
@@ -809,7 +809,7 @@ class Dhcpcd(DhcpClient):
         """Return a dict of dhcp options.
 
         @param interface: which interface to dump the lease from
-        @raises: InvalidDHCPLeaseFileError on empty or unparseable leasefile
+        @raises: InvalidDHCPLeaseFileError on empty or unparsable leasefile
             content.
         """
         try:
@@ -918,11 +918,13 @@ class Udhcpc(DhcpClient):
         # INFINIBAND or not. If yes, we are generating the the client-id to be
         # used with the udhcpc
         if is_ib_interface(interface):
-            dhcp_client_identifier = get_ib_interface_hwaddr(
-                interface, ethernet_format=True
-            )
             cmd.extend(
-                ["-x", "0x3d:%s" % dhcp_client_identifier.replace(":", "")]
+                [
+                    "-x",
+                    "0x3d:20{}".format(
+                        get_interface_mac(interface)[36:].replace(":", "")
+                    ),
+                ]
             )
         try:
             out, err = subp.subp(
@@ -951,7 +953,7 @@ class Udhcpc(DhcpClient):
         @param interface: an interface name - not used in this class, but
             required for function signature compatibility with other classes
             that require a distro object
-        @raises: InvalidDHCPLeaseFileError on empty or unparseable leasefile
+        @raises: InvalidDHCPLeaseFileError on empty or unparsable leasefile
             content.
         """
         return util.load_json(util.load_text_file(self.lease_file))

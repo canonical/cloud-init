@@ -29,7 +29,7 @@ meta: MetaSchema = {
     "title": "Resize filesystem",
     "description": dedent(
         """\
-        Resize a filesystem to use all avaliable space on partition. This
+        Resize a filesystem to use all available space on partition. This
         module is useful along with ``cc_growpart`` and will ensure that if the
         root partition has been resized the root filesystem will be resized
         along with it. By default, ``cc_resizefs`` will resize the root

@@ -73,6 +73,10 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
         # Old Ubuntu cloud-images contain /etc/apt/sources.list
         "WARNING]: Removing /etc/apt/sources.list to favor deb822 source"
         " format",
+        # https://bugs.launchpad.net/ubuntu/+source/netplan.io/+bug/2041727
+        "WARNING]: Running ['netplan', 'apply'] resulted in stderr output: "
+        "WARNING:root:Cannot call Open vSwitch: ovsdb-server.service is not "
+        "running.",
     ]
     traceback_texts = []
     if "install canonical-livepatch" in log:

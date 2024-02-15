@@ -670,7 +670,7 @@ def purge_disk_ptable(device):
 
 def purge_disk(device):
     """
-    Remove parition table entries
+    Remove partition table entries
     """
 
     # wipe any file systems first
@@ -791,7 +791,7 @@ def mkpart(device, definition):
 
             The following are supported values in the dict:
                 overwrite: Should the partition table be created regardless
-                            of any pre-exisiting data?
+                            of any pre-existing data?
                 layout: the layout of the partition table
                 table_type: Which partition table to use, defaults to MBR
                 device: the device to work on.
@@ -940,12 +940,12 @@ def mkfs(fs_cfg):
                 LOG.warning("Destroying filesystem on %s", device)
 
         else:
-            LOG.debug("Device %s is cleared for formating", device)
+            LOG.debug("Device %s is cleared for formatting", device)
 
     elif partition and str(partition).lower() in ("auto", "any"):
         # For auto devices, we match if the filesystem does exist
         odevice = device
-        LOG.debug("Identifying device to create %s filesytem on", label)
+        LOG.debug("Identifying device to create %s filesystem on", label)
 
         # 'any' means pick the first match on the device with matching fs_type
         label_match = True
@@ -962,7 +962,7 @@ def mkfs(fs_cfg):
         LOG.debug("Automatic device for %s identified as %s", odevice, device)
 
         if reuse:
-            LOG.debug("Found filesystem match, skipping formating.")
+            LOG.debug("Found filesystem match, skipping formatting.")
             return
 
         if not reuse and fs_replace and device:

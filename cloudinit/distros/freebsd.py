@@ -226,3 +226,7 @@ class Distro(cloudinit.distros.bsd.BSD):
         return [path, "-l", lease_file, "-p", pid_file] + (
             ["-c", config_file, interface] if config_file else [interface]
         )
+
+    @staticmethod
+    def eject_media(device: str) -> None:
+        subp.subp(["camcontrol", "eject", device])
