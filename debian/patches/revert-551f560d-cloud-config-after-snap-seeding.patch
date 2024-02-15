@@ -1,0 +1,338 @@
+Description: Retain systemd ordering cloud-config.service After=snapd.seeded
+ Revert of upstream commit 551f560d which drops After=snapd.seeded.service
+ from cloud-config.service configuration. Stable releases want to retain
+ this behavior.
+Author: chad.smith@canonical.com
+Origin: backport
+Last-Update: 2024-02-14
+--- a/cloudinit/cloud.py
++++ b/cloudinit/cloud.py
+@@ -57,17 +57,6 @@ class Cloud:
+         return copy.deepcopy(self._cfg)
+ 
+     def run(self, name, functor, args, freq=None, clear_on_fail=False):
+-        """Run a function gated by a named semaphore for a desired frequency.
+-
+-        The typical case for this method would be to limit running of the
+-        provided func to a single well-defined frequency:
+-            PER_INSTANCE, PER_BOOT or PER_ONCE
+-
+-        The semaphore provides a gate that persists across cloud-init
+-        boot stage boundaries so multiple modules can share this state
+-        even if they happen to be run in different boot stages or across
+-        reboots.
+-        """
+         return self._runners.run(name, functor, args, freq, clear_on_fail)
+ 
+     def get_template_filename(self, name):
+--- a/cloudinit/config/cc_lxd.py
++++ b/cloudinit/config/cc_lxd.py
+@@ -210,7 +210,6 @@ def handle(name: str, cfg: Config, cloud
+             f" '{type(lxd_cfg).__name__}'"
+         )
+ 
+-    util.wait_for_snap_seeded(cloud)
+     # Grab the configuration
+     init_cfg = lxd_cfg.get("init", {})
+     preseed_str = lxd_cfg.get("preseed", "")
+--- a/cloudinit/config/cc_snap.py
++++ b/cloudinit/config/cc_snap.py
+@@ -191,7 +191,7 @@ def handle(name: str, cfg: Config, cloud
+             "Skipping module named %s, no 'snap' key in configuration", name
+         )
+         return
+-    util.wait_for_snap_seeded(cloud)
++
+     add_assertions(
+         cfgin.get("assertions", []),
+         os.path.join(cloud.paths.get_ipath_cur(), "snapd.assertions"),
+--- a/cloudinit/config/cc_ubuntu_autoinstall.py
++++ b/cloudinit/config/cc_ubuntu_autoinstall.py
+@@ -6,7 +6,6 @@ import logging
+ import re
+ from textwrap import dedent
+ 
+-from cloudinit import util
+ from cloudinit.cloud import Cloud
+ from cloudinit.config import Config
+ from cloudinit.config.schema import (
+@@ -84,7 +83,6 @@ def handle(name: str, cfg: Config, cloud
+         )
+         return
+ 
+-    util.wait_for_snap_seeded(cloud)
+     snap_list, _ = subp(["snap", "list"])
+     installer_present = None
+     for snap_name in LIVE_INSTALLER_SNAPS:
+--- a/cloudinit/util.py
++++ b/cloudinit/util.py
+@@ -65,7 +65,7 @@ from cloudinit import (
+     url_helper,
+     version,
+ )
+-from cloudinit.settings import CFG_BUILTIN, PER_ONCE
++from cloudinit.settings import CFG_BUILTIN
+ 
+ _DNS_REDIRECT_IP = None
+ LOG = logging.getLogger(__name__)
+@@ -3095,18 +3095,6 @@ def wait_for_files(flist, maxwait, naple
+     return need
+ 
+ 
+-def wait_for_snap_seeded(cloud):
+-    """Helper to wait on completion of snap seeding."""
+-
+-    def callback():
+-        if not subp.which("snap"):
+-            LOG.debug("Skipping snap wait, no snap command present")
+-            return
+-        subp.subp(["snap", "wait", "system", "seed.loaded"])
+-
+-    cloud.run("snap-seeded", callback, [], freq=PER_ONCE)
+-
+-
+ def mount_is_read_write(mount_point):
+     """Check whether the given mount point is mounted rw"""
+     result = get_mount_info(mount_point, get_mnt_opts=True)
+--- a/systemd/cloud-config.service.tmpl
++++ b/systemd/cloud-config.service.tmpl
+@@ -2,6 +2,7 @@
+ [Unit]
+ Description=Apply the settings specified in cloud-config
+ After=network-online.target cloud-config.target
++After=snapd.seeded.service
+ Before=systemd-user-sessions.service
+ Wants=network-online.target cloud-config.target
+ ConditionPathExists=!/etc/cloud/cloud-init.disabled
+--- a/tests/integration_tests/modules/test_frequency_override.py
++++ b/tests/integration_tests/modules/test_frequency_override.py
+@@ -1,7 +1,6 @@
+ import pytest
+ 
+ from tests.integration_tests.instances import IntegrationInstance
+-from tests.integration_tests.releases import CURRENT_RELEASE
+ 
+ USER_DATA = """\
+ #cloud-config
+@@ -18,17 +17,6 @@ def test_frequency_override(client: Inte
+         in client.read_from_file("/var/log/cloud-init.log")
+     )
+     assert client.read_from_file("/var/tmp/hi").strip().count("hi") == 1
+-    if CURRENT_RELEASE.os == "ubuntu":
+-        if CURRENT_RELEASE.series in ("focal", "jammy", "lunar", "mantic"):
+-            # Stable series will block on snapd.seeded.service and create a
+-            # semaphore file
+-            assert client.execute("test -f /var/lib/cloud/snap-seeded.once").ok
+-        else:
+-            # Newer series will not block on snapd.seeded.service nor create a
+-            # semaphore file
+-            assert not client.execute(
+-                "test -f /var/lib/cloud/snap-seeded.once"
+-            ).ok
+ 
+     # Change frequency of scripts_user to always
+     config = client.read_from_file("/etc/cloud/cloud.cfg")
+--- a/tests/unittests/config/test_cc_lxd.py
++++ b/tests/unittests/config/test_cc_lxd.py
+@@ -11,8 +11,6 @@ from cloudinit.config.schema import (
+     get_schema,
+     validate_cloudconfig_schema,
+ )
+-from cloudinit.helpers import Paths
+-from cloudinit.util import del_file
+ from tests.unittests import helpers as t_help
+ from tests.unittests.util import get_cloud
+ 
+@@ -46,9 +44,7 @@ class TestLxd(t_help.CiTestCase):
+     )
+     def test_lxd_init(self, maybe_clean, which, subp, exists, system_info):
+         system_info.return_value = {"uname": [0, 1, "mykernel"]}
+-        tmpdir = self.tmp_dir()
+-        sem_file = f"{tmpdir}/sem/snap_seeded.once"
+-        cc = get_cloud(mocked_distro=True, paths=Paths({"cloud_dir": tmpdir}))
++        cc = get_cloud(mocked_distro=True)
+         install = cc.distro.install_packages
+ 
+         for backend, cmd, package in BACKEND_DEF:
+@@ -88,23 +84,21 @@ class TestLxd(t_help.CiTestCase):
+             if backend == "lvm":
+                 self.assertEqual(
+                     [
+-                        mock.call(sem_file),
+                         mock.call(
+                             "/lib/modules/mykernel/"
+                             "kernel/drivers/md/dm-thin-pool.ko"
+-                        ),
++                        )
+                     ],
+                     exists.call_args_list,
+                 )
+             else:
+-                self.assertEqual([mock.call(sem_file)], exists.call_args_list)
+-            del_file(sem_file)
++                self.assertEqual([], exists.call_args_list)
+ 
+     @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
+     @mock.patch("cloudinit.config.cc_lxd.subp")
+     @mock.patch("cloudinit.config.cc_lxd.subp.which", return_value=False)
+     def test_lxd_install(self, m_which, mock_subp, m_maybe_clean):
+-        cc = get_cloud(paths=Paths({"cloud_dir": self.tmp_dir()}))
++        cc = get_cloud()
+         cc.distro = mock.MagicMock()
+         mock_subp.which.return_value = None
+         cc_lxd.handle("cc_lxd", LXD_INIT_CFG, cc, [])
+@@ -118,7 +112,7 @@ class TestLxd(t_help.CiTestCase):
+     @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
+     @mock.patch("cloudinit.config.cc_lxd.subp")
+     def test_no_init_does_nothing(self, mock_subp, m_maybe_clean):
+-        cc = get_cloud(paths=Paths({"cloud_dir": self.tmp_dir()}))
++        cc = get_cloud()
+         cc.distro = mock.MagicMock()
+         cc_lxd.handle("cc_lxd", {"lxd": {}}, cc, [])
+         self.assertFalse(cc.distro.install_packages.called)
+@@ -128,17 +122,16 @@ class TestLxd(t_help.CiTestCase):
+     @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
+     @mock.patch("cloudinit.config.cc_lxd.subp")
+     def test_no_lxd_does_nothing(self, mock_subp, m_maybe_clean):
+-        cc = get_cloud(paths=Paths({"cloud_dir": self.tmp_dir()}))
++        cc = get_cloud()
+         cc.distro = mock.MagicMock()
+         cc_lxd.handle("cc_lxd", {"package_update": True}, cc, [])
+         self.assertFalse(cc.distro.install_packages.called)
+         self.assertFalse(mock_subp.subp.called)
+         self.assertFalse(m_maybe_clean.called)
+ 
+-    @mock.patch("cloudinit.config.cc_lxd.util.wait_for_snap_seeded")
+     @mock.patch("cloudinit.config.cc_lxd.subp")
+-    def test_lxd_preseed(self, mock_subp, wait_for_snap_seeded):
+-        cc = get_cloud(paths=Paths({"cloud_dir": self.tmp_dir()}))
++    def test_lxd_preseed(self, mock_subp):
++        cc = get_cloud()
+         cc.distro = mock.MagicMock()
+         cc_lxd.handle(
+             "cc_lxd",
+@@ -153,7 +146,6 @@ class TestLxd(t_help.CiTestCase):
+             ],
+             mock_subp.subp.call_args_list,
+         )
+-        wait_for_snap_seeded.assert_called_once_with(cc)
+ 
+     def test_lxd_debconf_new_full(self):
+         data = {
+--- a/tests/unittests/config/test_cc_snap.py
++++ b/tests/unittests/config/test_cc_snap.py
+@@ -301,11 +301,8 @@ class TestSnapSchema:
+ 
+ 
+ class TestHandle:
+-    @mock.patch("cloudinit.util.wait_for_snap_seeded")
+     @mock.patch("cloudinit.config.cc_snap.subp.subp")
+-    def test_handle_adds_assertions(
+-        self, m_subp, wait_for_snap_seeded, fake_cloud, tmpdir
+-    ):
++    def test_handle_adds_assertions(self, m_subp, fake_cloud, tmpdir):
+         """Any configured snap assertions are provided to add_assertions."""
+         assert_file = os.path.join(
+             fake_cloud.paths.get_ipath_cur(), "snapd.assertions"
+@@ -320,4 +317,3 @@ class TestHandle:
+         assert util.load_text_file(compare_file) == util.load_text_file(
+             assert_file
+         )
+-        wait_for_snap_seeded.assert_called_once_with(fake_cloud)
+--- a/tests/unittests/config/test_cc_ubuntu_autoinstall.py
++++ b/tests/unittests/config/test_cc_ubuntu_autoinstall.py
+@@ -11,7 +11,6 @@ from cloudinit.config.schema import (
+     get_schema,
+     validate_cloudconfig_schema,
+ )
+-from cloudinit.helpers import Paths
+ from tests.unittests.helpers import skipUnlessJsonSchema
+ from tests.unittests.util import get_cloud
+ 
+@@ -65,20 +64,18 @@ class TestvalidateConfigSchema:
+             cc_ubuntu_autoinstall.validate_config_schema(src_cfg)
+ 
+ 
+-@mock.patch(MODPATH + "util.wait_for_snap_seeded")
+ @mock.patch(MODPATH + "subp")
+ class TestHandleAutoinstall:
+     """Test cc_ubuntu_autoinstall handling of config."""
+ 
+     @pytest.mark.parametrize(
+-        "cfg,snap_list,subp_calls,logs,snap_wait_called",
++        "cfg,snap_list,subp_calls,logs",
+         [
+             pytest.param(
+                 {},
+                 SAMPLE_SNAP_LIST_OUTPUT,
+                 [],
+                 ["Skipping module named name, no 'autoinstall' key"],
+-                False,
+                 id="skip_no_cfg",
+             ),
+             pytest.param(
+@@ -90,7 +87,6 @@ class TestHandleAutoinstall:
+                     " installer snap packages to be present: subiquity,"
+                     " ubuntu-desktop-installer"
+                 ],
+-                True,
+                 id="valid_autoinstall_schema_checks_snaps",
+             ),
+             pytest.param(
+@@ -101,7 +97,6 @@ class TestHandleAutoinstall:
+                     "Valid autoinstall schema. Config will be processed by"
+                     " subiquity"
+                 ],
+-                True,
+                 id="valid_autoinstall_schema_sees_subiquity",
+             ),
+             pytest.param(
+@@ -112,33 +107,19 @@ class TestHandleAutoinstall:
+                     "Valid autoinstall schema. Config will be processed by"
+                     " ubuntu-desktop-installer"
+                 ],
+-                True,
+                 id="valid_autoinstall_schema_sees_desktop_installer",
+             ),
+         ],
+     )
+     def test_handle_autoinstall_cfg(
+-        self,
+-        subp,
+-        wait_for_snap_seeded,
+-        cfg,
+-        snap_list,
+-        subp_calls,
+-        logs,
+-        snap_wait_called,
+-        caplog,
+-        tmpdir,
++        self, subp, cfg, snap_list, subp_calls, logs, caplog
+     ):
+         subp.return_value = snap_list, ""
+-        cloud = get_cloud(distro="ubuntu", paths=Paths({"cloud_dir": tmpdir}))
++        cloud = get_cloud(distro="ubuntu")
+         cc_ubuntu_autoinstall.handle("name", cfg, cloud, None)
+         assert subp_calls == subp.call_args_list
+         for log in logs:
+             assert log in caplog.text
+-        if snap_wait_called:
+-            wait_for_snap_seeded.assert_called_once_with(cloud)
+-        else:
+-            wait_for_snap_seeded.assert_not_called()
+ 
+ 
+ class TestAutoInstallSchema:
+--- a/tests/unittests/util.py
++++ b/tests/unittests/util.py
+@@ -33,9 +33,7 @@ def get_cloud(
+         myds.metadata.update(metadata)
+     if paths:
+         paths.datasource = myds
+-    return cloud.Cloud(
+-        myds, paths, sys_cfg, mydist, runners=helpers.Runners(paths)
+-    )
++    return cloud.Cloud(myds, paths, sys_cfg, mydist, None)
+ 
+ 
+ def abstract_to_concrete(abclass):
