@@ -24,6 +24,18 @@ ip_addr = namedtuple("ip_addr", "interface state ip4 ip6")
 
 def _wait_till_hotplug_complete(client, expected_runs=1):
     for _ in range(60):
+        if client.execute("command -v systemctl").ok:
+            if "failed" == client.execute(
+                "systemctl is-active cloud-init-hotplugd.service"
+            ):
+                r = client.execute(
+                    "systemctl status cloud-init-hotplugd.service"
+                )
+                if not r.ok:
+                    raise AssertionError(
+                        "cloud-init-hotplugd.service failed: {r.stdout}"
+                    )
+
         log = client.read_from_file("/var/log/cloud-init.log")
         if log.count("Exiting hotplug handler") == expected_runs:
             return log
