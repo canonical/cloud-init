@@ -9,7 +9,11 @@ from cloudinit.subp import subp
 from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
-from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL
+from tests.integration_tests.releases import (
+    CURRENT_RELEASE,
+    FOCAL,
+    UBUNTU_STABLE,
+)
 from tests.integration_tests.util import verify_clean_log
 
 USER_DATA = """\
@@ -222,6 +226,10 @@ def test_multi_nic_hotplug(setup_image, session_cloud: IntegrationCloud):
 
 
 @pytest.mark.skipif(PLATFORM != "ec2", reason="test is ec2 specific")
+@pytest.mark.skipif(
+    CURRENT_RELEASE not in UBUNTU_STABLE,
+    reason="Docker repo does not contain pkgs for non stable releases.",
+)
 @pytest.mark.user_data(USER_DATA)
 def test_no_hotplug_triggered_by_docker(client: IntegrationInstance):
     # Install docker

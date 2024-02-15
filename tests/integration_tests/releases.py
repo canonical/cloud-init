@@ -98,5 +98,7 @@ LUNAR = Release("ubuntu", "lunar", "23.04")
 MANTIC = Release("ubuntu", "mantic", "23.10")
 NOBLE = Release("ubuntu", "noble", "24.04")
 
+UBUNTU_STABLE = (FOCAL, JAMMY, MANTIC)
+
 CURRENT_RELEASE = Release.from_os_image()
 IS_UBUNTU = CURRENT_RELEASE.os == "ubuntu"
