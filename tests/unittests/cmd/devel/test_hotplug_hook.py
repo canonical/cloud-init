@@ -279,7 +279,7 @@ class TestEnableHotplug:
                 settings.HOTPLUG_ENABLED_FILE,
                 '{"scopes": ["network"]}',
                 omode="w",
-                mode="640",
+                mode=0o640,
             )
         ] == m_write_file.call_args_list
         assert [

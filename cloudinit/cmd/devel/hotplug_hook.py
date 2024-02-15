@@ -270,7 +270,7 @@ def enable_hotplug(hotplug_init: Init, subsystem) -> bool:
         settings.HOTPLUG_ENABLED_FILE,
         json.dumps(hotplug_enabled_file),
         omode="w",
-        mode="640",
+        mode=0o640,
     )
     install_hotplug(
         datasource, network_hotplug_enabled=True, cfg=hotplug_init.cfg

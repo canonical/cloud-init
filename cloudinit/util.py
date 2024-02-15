@@ -3297,7 +3297,7 @@ def read_hotplug_enabled_file() -> dict:
             load_text_file(settings.HOTPLUG_ENABLED_FILE, quiet=False)
         )
     except FileNotFoundError:
-        pass
+        LOG.debug("File not found: %s", settings.HOTPLUG_ENABLED_FILE)
     except json.JSONDecodeError as e:
         LOG.warning(
             "Ignoring contents of %s because it is not decodable. Error: %s",
