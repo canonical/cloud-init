@@ -81,7 +81,7 @@ Example output:
         00.00100s (modules-final/config-phone_home)
         00.00100s (modules-final/config-package_update_upgrade_install)
         00.00100s (modules-final/config-fan)
-        00.00100s (modules-config/config-ubuntu_advantage)
+        00.00100s (modules-config/config-ubuntu_pro)
         00.00100s (modules-config/config-ssh_import_id)
         00.00100s (modules-config/config-snap)
         00.00100s (modules-config/config-set_passwords)

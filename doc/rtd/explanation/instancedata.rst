@@ -445,7 +445,7 @@ EC2 instance:
      "grub_dpkg",
      "apt_pipelining",
      "apt_configure",
-     "ubuntu_advantage",
+     "ubuntu_pro",
      "ntp",
      "timezone",
      "disable_ec2_metadata",
