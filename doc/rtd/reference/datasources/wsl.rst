@@ -97,7 +97,7 @@ if the Windows host is shared by multiple users.
 Vendor and metadata
 ===================
 
-The current implementation doesn't allow supplying vendor data and metadata.
+The current implementation doesn't allow supplying vendor data.
 The reasoning is that vendor data adds layering, thus complexity, for no real
 benefit to the user. Supplying vendor data could be relevant to WSL itself, if
 the subsystem was aware of cloud-init and intended to leverage it, which is not
