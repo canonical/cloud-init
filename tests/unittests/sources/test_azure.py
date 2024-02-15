@@ -207,7 +207,9 @@ def mock_net_dhcp_maybe_perform_dhcp_discovery():
     with mock.patch(
         "cloudinit.net.ephemeral.maybe_perform_dhcp_discovery",
         return_value={
-            "unknown-245": "0a:0b:0c:0d",
+            "unknown-245": dhcp.IscDhclient.get_ip_from_lease_value(
+                "0a:0b:0c:0d"
+            ),
             "interface": "ethBoot0",
             "fixed-address": "192.168.2.9",
             "routers": "192.168.2.1",
@@ -385,6 +387,7 @@ def construct_ovf_env(
     disable_ssh_password_auth=None,
     preprovisioned_vm=None,
     preprovisioned_vm_type=None,
+    provision_guest_proxy_agent=None,
 ):
     content = [
         '<?xml version="1.0" encoding="utf-8"?>',
@@ -454,6 +457,11 @@ def construct_ovf_env(
         content.append(
             "<ns1:PreprovisionedVMType>%s</ns1:PreprovisionedVMType>"
             % preprovisioned_vm_type
+        )
+    if provision_guest_proxy_agent is not None:
+        content.append(
+            "<ns1:ProvisionGuestProxyAgent>%s</ns1:ProvisionGuestProxyAgent>"
+            % provision_guest_proxy_agent
         )
     content += [
         "</ns1:PlatformSettings>",
@@ -1440,6 +1448,7 @@ scbus-1 on xpt0 bus 0
         expected_cfg = {
             "PreprovisionedVMType": None,
             "PreprovisionedVm": False,
+            "ProvisionGuestProxyAgent": False,
             "system_info": {"default_user": {"name": "myuser"}},
         }
         expected_metadata = {
@@ -2007,7 +2016,7 @@ scbus-1 on xpt0 bus 0
             # mock crawl metadata failure to cause report failure
             m_crawl_metadata.side_effect = Exception
 
-            test_lease_dhcp_option_245 = "01:02:03:04"
+            test_lease_dhcp_option_245 = "1.2.3.4"
             test_lease = {
                 "unknown-245": test_lease_dhcp_option_245,
                 "interface": "eth0",
@@ -2817,6 +2826,14 @@ class TestPreprovisioningReadAzureOvfFlag(CiTestCase):
         self.assertTrue(cfg["PreprovisionedVm"])
         self.assertEqual("Savable", cfg["PreprovisionedVMType"])
 
+    def test_read_azure_ovf_with_proxy_guest_agent(self):
+        """The read_azure_ovf method should set ProvisionGuestProxyAgent
+        cfg flag to True."""
+        content = construct_ovf_env(provision_guest_proxy_agent=True)
+        ret = dsaz.read_azure_ovf(content)
+        cfg = ret[2]
+        self.assertTrue(cfg["ProvisionGuestProxyAgent"])
+
 
 @pytest.mark.parametrize(
     "ovf_cfg,imds_md,pps_type",
@@ -3300,7 +3317,9 @@ class TestEphemeralNetworking:
     ):
         lease = {
             "interface": "fakeEth0",
-            "unknown-245": "10:ff:fe:fd",
+            "unknown-245": dhcp.IscDhclient.get_ip_from_lease_value(
+                "10:ff:fe:fd"
+            ),
         }
         mock_ephemeral_dhcp_v4.return_value.obtain_lease.side_effect = [lease]
 

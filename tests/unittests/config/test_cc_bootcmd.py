@@ -11,7 +11,12 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
+from tests.unittests.helpers import (
+    SCHEMA_EMPTY_ERROR,
+    CiTestCase,
+    mock,
+    skipUnlessJsonSchema,
+)
 from tests.unittests.util import get_cloud
 
 
@@ -128,12 +133,14 @@ class TestBootCMDSchema:
                 "Cloud config schema errors: bootcmd: 1 is not of type"
                 " 'array'",
             ),
-            ({"bootcmd": []}, re.escape("bootcmd: [] is too short")),
             (
                 {"bootcmd": []},
-                re.escape(
-                    "Cloud config schema errors: bootcmd: [] is too short"
-                ),
+                re.escape("bootcmd: [] ") + SCHEMA_EMPTY_ERROR,
+            ),
+            (
+                {"bootcmd": []},
+                re.escape("Cloud config schema errors: bootcmd: [] ")
+                + SCHEMA_EMPTY_ERROR,
             ),
             (
                 {

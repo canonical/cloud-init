@@ -74,7 +74,7 @@ meta: MetaSchema = {
         ),
         dedent(
             """\
-        # Provide gziped binary content
+        # Provide gzipped binary content
         write_files:
         - encoding: gzip
           content: !!binary |
@@ -146,7 +146,7 @@ def canonicalize_extraction(encoding_type):
     # Yaml already encodes binary data as base64 if it is given to the
     # yaml file as binary, so those will be automatically decoded for you.
     # But the above b64 is just for people that are more 'comfortable'
-    # specifing it manually (which might be a possibility)
+    # specifying it manually (which might be a possibility)
     if encoding_type in ["b64", "base64"]:
         return ["application/base64"]
     if encoding_type == TEXT_PLAIN_ENC:

@@ -2,6 +2,7 @@
 
 import os
 import signal
+import socket
 from textwrap import dedent
 
 import pytest
@@ -22,7 +23,8 @@ from cloudinit.net.dhcp import (
     networkd_load_leases,
 )
 from cloudinit.net.ephemeral import EphemeralDHCPv4
-from cloudinit.util import ensure_file, subp, write_file
+from cloudinit.subp import SubpResult
+from cloudinit.util import ensure_file, load_binary_file, subp, write_file
 from tests.unittests.helpers import (
     CiTestCase,
     ResponsesTestCase,
@@ -34,6 +36,7 @@ from tests.unittests.util import MockDistro
 PID_F = "/run/dhclient.pid"
 LEASE_F = "/run/dhclient.lease"
 DHCLIENT = "/sbin/dhclient"
+ib_address_prefix = "00:00:00:00:00:00:00:00:00:00:00:00"
 
 
 @pytest.mark.parametrize(
@@ -373,7 +376,6 @@ class TestDHCPParseStaticRoutes(CiTestCase):
 
 class TestDHCPDiscoveryClean(CiTestCase):
     with_logs = True
-    ib_address_prefix = "00:00:00:00:00:00:00:00:00:00:00:00"
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic", return_value="eth9")
     @mock.patch("cloudinit.net.dhcp.os.remove")
@@ -993,7 +995,10 @@ class TestUDHCPCDiscoveryClean(CiTestCase):
         )
 
     @mock.patch("cloudinit.net.dhcp.is_ib_interface", return_value=True)
-    @mock.patch("cloudinit.net.dhcp.get_ib_interface_hwaddr")
+    @mock.patch(
+        "cloudinit.net.dhcp.get_interface_mac",
+        return_value="%s:AA:AA:AA:00:00:AA:AA:AA" % ib_address_prefix,
+    )
     @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/udhcpc")
     @mock.patch("cloudinit.net.dhcp.os.remove")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
@@ -1020,7 +1025,6 @@ class TestUDHCPCDiscoveryClean(CiTestCase):
             "routers": "192.168.2.1",
             "static_routes": "10.240.0.1/32 0.0.0.0 0.0.0.0/0 10.240.0.1",
         }
-        m_get_ib_interface_hwaddr.return_value = "00:21:28:00:01:cf:4b:01"
         self.assertEqual(
             {
                 "fixed-address": "192.168.2.74",
@@ -1051,7 +1055,7 @@ class TestUDHCPCDiscoveryClean(CiTestCase):
                         "-f",
                         "-v",
                         "-x",
-                        "0x3d:0021280001cf4b01",
+                        "0x3d:20AAAAAA0000AAAAAA",
                     ],
                     update_env={
                         "LEASE_FILE": "/var/tmp/cloud-init/ib0.lease.json"
@@ -1201,7 +1205,7 @@ class TestISCDHClient(CiTestCase):
 
 
 class TestDhcpcd:
-    def test_parse_lease(self):
+    def test_parse_lease_dump(self):
         lease = dedent(
             """
             broadcast_address='192.168.15.255'
@@ -1219,12 +1223,30 @@ class TestDhcpcd:
             subnet_mask='255.255.240.0'
             """
         )
-        parsed_lease = Dhcpcd.parse_dhcpcd_lease(lease, "eth0")
+        with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
+            parsed_lease = Dhcpcd.parse_dhcpcd_lease(lease, "eth0")
         assert "eth0" == parsed_lease["interface"]
         assert "192.168.15.255" == parsed_lease["broadcast-address"]
         assert "192.168.0.212" == parsed_lease["fixed-address"]
         assert "255.255.240.0" == parsed_lease["subnet-mask"]
         assert "192.168.0.1" == parsed_lease["routers"]
+
+    @pytest.mark.parametrize(
+        "lease_file, option_245",
+        (
+            pytest.param("enp24s0.lease", None, id="no option 245"),
+            pytest.param(
+                "eth0.lease",
+                socket.inet_aton("168.63.129.16"),
+                id="a valid option 245",
+            ),
+        ),
+    )
+    def test_parse_raw_lease(self, lease_file, option_245):
+        lease = load_binary_file(f"tests/data/net/dhcp/{lease_file}")
+        assert option_245 == Dhcpcd.parse_unknown_options_from_packet(
+            lease, 245
+        )
 
     def test_parse_classless_static_routes(self):
         lease = dedent(
@@ -1247,9 +1269,52 @@ class TestDhcpcd:
             subnet_mask='255.255.255.0'
             """
         )
-        parsed_lease = Dhcpcd.parse_dhcpcd_lease(lease, "eth0")
+        with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
+            parsed_lease = Dhcpcd.parse_dhcpcd_lease(lease, "eth0")
         assert [
             ("0.0.0.0/0", "10.0.0.1"),
             ("168.63.129.16/32", "10.0.0.1"),
             ("169.254.169.254/32", "10.0.0.1"),
         ] == Dhcpcd.parse_static_routes(parsed_lease["static_routes"])
+
+    @mock.patch("cloudinit.net.dhcp.is_ib_interface", return_value=True)
+    @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhcpcd")
+    @mock.patch("cloudinit.net.dhcp.os.killpg")
+    @mock.patch("cloudinit.net.dhcp.subp.subp")
+    @mock.patch("cloudinit.util.load_json")
+    @mock.patch("cloudinit.util.load_binary_file")
+    @mock.patch("cloudinit.util.write_file")
+    def test_dhcpcd_discovery_ib(
+        self,
+        m_write_file,
+        m_load_file,
+        m_loadjson,
+        m_subp,
+        m_remove,
+        m_which,
+        m_is_ib_interface,
+    ):
+        """dhcp_discovery runs udcpc and parse the dhcp leases."""
+        m_subp.return_value = SubpResult("a=b", "")
+        Dhcpcd().dhcp_discovery("ib0", distro=MockDistro())
+        # Interface was brought up before dhclient called
+        m_subp.assert_has_calls(
+            [
+                mock.call(
+                    ["ip", "link", "set", "dev", "ib0", "up"],
+                ),
+                mock.call(
+                    [
+                        "/sbin/dhcpcd",
+                        "--ipv4only",
+                        "--waitip",
+                        "--persistent",
+                        "--noarp",
+                        "--script=/bin/true",
+                        "--clientid",
+                        "ib0",
+                    ],
+                    timeout=Dhcpcd.timeout,
+                ),
+            ]
+        )

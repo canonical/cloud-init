@@ -296,6 +296,9 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     # in the updated metadata
     skip_hotplug_detect = False
 
+    # Extra udev rules for cc_install_hotplug
+    extra_hotplug_udev_rules: Optional[str] = None
+
     _ci_pkl_version = 1
 
     def __init__(self, sys_cfg, distro: Distro, paths: Paths, ud_proc=None):
@@ -344,6 +347,8 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
                     e,
                 )
                 raise DatasourceUnpickleUserDataError() from e
+        if not hasattr(self, "extra_hotplug_udev_rules"):
+            self.extra_hotplug_udev_rules = None
 
     def __str__(self):
         return type_utils.obj_name(self)
@@ -524,7 +529,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         cloud_id = instance_data["v1"].get("cloud_id", "none")
         cloud_id_file = os.path.join(self.paths.run_dir, "cloud-id")
         util.write_file(f"{cloud_id_file}-{cloud_id}", f"{cloud_id}\n")
-        # cloud-id not found, then no previous cloud-id fle
+        # cloud-id not found, then no previous cloud-id file
         prev_cloud_id_file = None
         new_cloud_id_file = f"{cloud_id_file}-{cloud_id}"
         # cloud-id found, then the prev cloud-id file is source of symlink
@@ -720,7 +725,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def get_vendordata2_raw(self):
         return self.vendordata2_raw
 
-    # the data sources' config_obj is a cloud-config formated
+    # the data sources' config_obj is a cloud-config formatted
     # object that came to it from ways other than cloud-config
     # because cloud-config content would be handled elsewhere
     def get_config_obj(self):

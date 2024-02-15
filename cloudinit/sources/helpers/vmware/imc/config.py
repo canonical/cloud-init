@@ -88,7 +88,7 @@ class Config:
 
     @property
     def reset_password(self):
-        """Retreives if the root password needs to be reset."""
+        """Retrieves if the root password needs to be reset."""
         resetPass = self._configFile.get(Config.RESETPASS, "no")
         resetPass = resetPass.lower()
         if resetPass not in ("yes", "no"):

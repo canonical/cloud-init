@@ -3,6 +3,7 @@ import logging
 import os
 
 import pytest
+import yaml
 
 from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.conftest import get_validated_source
@@ -137,7 +138,18 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
                 assert post_json["v1"]["datasource"].startswith(
                     "DataSourceAzure"
                 )
-        assert pre_network == post_network
+        if PLATFORM in ["gce", "qemu"]:
+            # GCE regenerates network config per boot AND
+            # GCE uses fallback config AND
+            # #4474 changed fallback configuration.
+            # Once the baseline includes #4474, this can be removed
+            pre_network = yaml.load(pre_network, Loader=yaml.Loader)
+            post_network = yaml.load(post_network, Loader=yaml.Loader)
+            for values in post_network["network"]["ethernets"].values():
+                values.pop("dhcp6")
+            assert yaml.dump(pre_network) == yaml.dump(post_network)
+        else:
+            assert pre_network == post_network
 
         # Calculate and log all the boot numbers
         pre_analyze_totals = [

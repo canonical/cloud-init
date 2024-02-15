@@ -1,0 +1,23 @@
+#!/sbin/openrc-run
+
+description="cloud-init hotplug daemon"
+
+command="/usr/lib/cloud-init/cloud-init-hotplugd"
+pidfile="/run/$RC_SVCNAME.pid"
+
+depend() {
+  after cloud-final
+}
+
+start() {
+  if grep -q 'cloud-init=disabled' /proc/cmdline; then
+    ewarn "$RC_SVCNAME is disabled via /proc/cmdline."
+  elif test -e /etc/cloud/cloud-init.disabled; then
+    ewarn "$RC_SVCNAME is disabled via cloud-init.disabled file"
+  else
+    ebegin "$description"
+    start-stop-daemon --start --background --exec $command \
+      --make-pidfile --pidfile $pidfile
+    eend $?
+  fi
+}

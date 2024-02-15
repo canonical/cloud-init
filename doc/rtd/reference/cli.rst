@@ -85,7 +85,7 @@ re-run all stages as it did on first boot.
 
    Cloud-init provides the directory :file:`/etc/cloud/clean.d/` for third party
    applications which need additional configuration artifact cleanup from
-   the fileystem when the `clean` command is invoked.
+   the filesystem when the `clean` command is invoked.
 
    The :command:`clean` operation is typically performed by image creators
    when preparing a golden image for clone and redeployment. The clean command

@@ -6,6 +6,7 @@ import logging
 import re
 from textwrap import dedent
 
+from cloudinit import util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import (
@@ -32,7 +33,7 @@ meta: MetaSchema = {
         next generation desktop installer, via `ubuntu-desktop-install` snap.
         When "autoinstall" directives are provided in either
         ``#cloud-config`` user-data or ``/etc/cloud/cloud.cfg.d`` validate
-        minimal autoinstall schema adherance and emit a warning if the
+        minimal autoinstall schema adherence and emit a warning if the
         live-installer is not present.
 
         The live-installer will use autoinstall directives to seed answers to
@@ -83,6 +84,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         )
         return
 
+    util.wait_for_snap_seeded(cloud)
     snap_list, _ = subp(["snap", "list"])
     installer_present = None
     for snap_name in LIVE_INSTALLER_SNAPS:

@@ -49,7 +49,7 @@ lxd:
     domain: lxd
 
 
-# The simplist working configuration is
+# The simplest working configuration is
 # lxd:
 #  init:
 #   storage_backend: dir

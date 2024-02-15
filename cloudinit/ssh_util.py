@@ -661,7 +661,7 @@ def get_opensshd_version():
 
 
 def get_opensshd_upstream_version():
-    """Get the upstream version of the OpenSSH sshd dameon on the system.
+    """Get the upstream version of the OpenSSH sshd daemon on the system.
 
     This will NOT include the portable number, so if the Ubuntu version looks
     like `1.2p1 Ubuntu-1ubuntu0.1`, then this function would return

@@ -10,6 +10,7 @@ import requests
 import responses
 
 from cloudinit import helpers
+from cloudinit.net import activators
 from cloudinit.sources import DataSourceEc2 as ec2
 from tests.unittests import helpers as test_helpers
 from tests.unittests.util import MockDistro
@@ -211,6 +212,7 @@ SECONDARY_IP_METADATA_2018_09_24 = {
     "services": {"domain": "amazonaws.com", "partition": "aws"},
 }
 
+M_PATH = "cloudinit.sources.DataSourceEc2."
 M_PATH_NET = "cloudinit.sources.DataSourceEc2.net."
 
 TAGS_METADATA_2021_03_23: dict = {
@@ -482,6 +484,10 @@ class TestEc2(test_helpers.ResponsesTestCase):
         with mock.patch(patch_path) as m_get_interfaces_by_mac:
             with mock.patch(find_fallback_path) as m_find_fallback:
                 with mock.patch(get_interface_mac_path) as m_get_mac:
+                    dhcp_client = ds.distro.dhcp_client
+                    dhcp_client.dhcp_discovery.return_value = {
+                        "routers": "172.31.1.0"
+                    }
                     m_get_interfaces_by_mac.return_value = {mac1: "eth9"}
                     m_find_fallback.return_value = "eth9"
                     m_get_mac.return_value = mac1
@@ -908,7 +914,6 @@ class TestEc2(test_helpers.ResponsesTestCase):
 
 
 class TestGetSecondaryAddresses(test_helpers.CiTestCase):
-
     mac = "06:17:04:d7:26:ff"
     with_logs = True
 
@@ -953,6 +958,144 @@ class TestGetSecondaryAddresses(test_helpers.CiTestCase):
             self.assertIn(log, logs)
 
 
+class TestBuildNicOrder:
+    @pytest.mark.parametrize(
+        ["macs_metadata", "macs", "expected"],
+        [
+            pytest.param({}, [], {}, id="all_empty"),
+            pytest.param(
+                {}, ["0a:f7:8d:96:f2:a1"], {}, id="empty_macs_metadata"
+            ),
+            pytest.param(
+                {
+                    "0a:0d:dd:44:cd:7b": {
+                        "device-number": "0",
+                        "mac": "0a:0d:dd:44:cd:7b",
+                    }
+                },
+                [],
+                {},
+                id="empty_macs",
+            ),
+            pytest.param(
+                {
+                    "0a:0d:dd:44:cd:7b": {
+                        "mac": "0a:0d:dd:44:cd:7b",
+                    },
+                    "0a:f7:8d:96:f2:a1": {
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                },
+                ["0a:f7:8d:96:f2:a1", "0a:0d:dd:44:cd:7b"],
+                {"0a:f7:8d:96:f2:a1": 0, "0a:0d:dd:44:cd:7b": 1},
+                id="no-device-number-info",
+            ),
+            pytest.param(
+                {
+                    "0a:0d:dd:44:cd:7b": {
+                        "mac": "0a:0d:dd:44:cd:7b",
+                    },
+                    "0a:f7:8d:96:f2:a1": {
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                },
+                ["0a:f7:8d:96:f2:a1"],
+                {"0a:f7:8d:96:f2:a1": 0},
+                id="no-device-number-info-subset",
+            ),
+            pytest.param(
+                {
+                    "0a:0d:dd:44:cd:7b": {
+                        "device-number": "0",
+                        "mac": "0a:0d:dd:44:cd:7b",
+                    },
+                    "0a:f7:8d:96:f2:a1": {
+                        "device-number": "1",
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                },
+                ["0a:f7:8d:96:f2:a1", "0a:0d:dd:44:cd:7b"],
+                {"0a:0d:dd:44:cd:7b": 0, "0a:f7:8d:96:f2:a1": 1},
+                id="device-numbers",
+            ),
+            pytest.param(
+                {
+                    "0a:0d:dd:44:cd:7b": {
+                        "network-card": "0",
+                        "device-number": "0",
+                        "mac": "0a:0d:dd:44:cd:7b",
+                    },
+                    "0a:f7:8d:96:f2:a1": {
+                        "network-card": "1",
+                        "device-number": "1",
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                    "0a:f7:8d:96:f2:a2": {
+                        "network-card": "2",
+                        "device-number": "1",
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                },
+                [
+                    "0a:f7:8d:96:f2:a1",
+                    "0a:0d:dd:44:cd:7b",
+                    "0a:f7:8d:96:f2:a2",
+                ],
+                {
+                    "0a:0d:dd:44:cd:7b": 0,
+                    "0a:f7:8d:96:f2:a1": 1,
+                    "0a:f7:8d:96:f2:a2": 2,
+                },
+                id="network-cardes",
+            ),
+            pytest.param(
+                {
+                    "0a:0d:dd:44:cd:7b": {
+                        "network-card": "0",
+                        "device-number": "0",
+                        "mac": "0a:0d:dd:44:cd:7b",
+                    },
+                    "0a:f7:8d:96:f2:a1": {
+                        "network-card": "1",
+                        "device-number": "1",
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                    "0a:f7:8d:96:f2:a2": {
+                        "device-number": "1",
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                },
+                [
+                    "0a:f7:8d:96:f2:a1",
+                    "0a:0d:dd:44:cd:7b",
+                    "0a:f7:8d:96:f2:a2",
+                ],
+                {
+                    "0a:0d:dd:44:cd:7b": 0,
+                    "0a:f7:8d:96:f2:a1": 1,
+                    "0a:f7:8d:96:f2:a2": 2,
+                },
+                id="network-card-partially-missing",
+            ),
+            pytest.param(
+                {
+                    "0a:0d:dd:44:cd:7b": {
+                        "mac": "0a:0d:dd:44:cd:7b",
+                    },
+                    "0a:f7:8d:96:f2:a1": {
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                },
+                ["0a:f7:8d:96:f2:a9"],
+                {},
+                id="macs-not-in-md",
+            ),
+        ],
+    )
+    def test_build_nic_order(self, macs_metadata, macs, expected):
+        assert expected == ec2._build_nic_order(macs_metadata, macs)
+
+
 class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
     def setUp(self):
         super(TestConvertEc2MetadataNetworkConfig, self).setUp()
@@ -982,10 +1125,11 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
                 }
             },
         }
+        distro = mock.Mock()
         self.assertEqual(
             expected,
             ec2.convert_ec2_metadata_network_config(
-                self.network_metadata, macs_to_nics
+                self.network_metadata, distro, macs_to_nics
             ),
         )
 
@@ -1007,10 +1151,11 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
                 }
             },
         }
+        distro = mock.Mock()
         self.assertEqual(
             expected,
             ec2.convert_ec2_metadata_network_config(
-                network_metadata_ipv6, macs_to_nics
+                network_metadata_ipv6, distro, macs_to_nics
             ),
         )
 
@@ -1032,10 +1177,11 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
                 }
             },
         }
+        distro = mock.Mock()
         self.assertEqual(
             expected,
             ec2.convert_ec2_metadata_network_config(
-                network_metadata_ipv6, macs_to_nics
+                network_metadata_ipv6, distro, macs_to_nics
             ),
         )
 
@@ -1058,10 +1204,11 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
                 }
             },
         }
+        distro = mock.Mock()
         self.assertEqual(
             expected,
             ec2.convert_ec2_metadata_network_config(
-                network_metadata_ipv6, macs_to_nics, fallback_nic="eth9"
+                network_metadata_ipv6, distro, macs_to_nics
             ),
         )
 
@@ -1084,15 +1231,18 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
                 }
             },
         }
+        distro = mock.Mock()
         self.assertEqual(
             expected,
             ec2.convert_ec2_metadata_network_config(
-                network_metadata_both, macs_to_nics
+                network_metadata_both, distro, macs_to_nics
             ),
         )
 
     def test_convert_ec2_metadata_network_config_handles_multiple_nics(self):
-        """DHCP route-metric increases on secondary NICs for IPv4 and IPv6."""
+        """DHCP route-metric increases on secondary NICs for IPv4 and IPv6.
+        Source-routing configured for secondary NICs (routing-policy and extra
+        routing table)."""
         mac2 = "06:17:04:d7:26:08"
         macs_to_nics = {self.mac1: "eth9", mac2: "eth10"}
         network_metadata_both = copy.deepcopy(self.network_metadata)
@@ -1117,15 +1267,33 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
                     "match": {"macaddress": mac2},
                     "set-name": "eth10",
                     "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 200},
+                    "dhcp4-overrides": {
+                        "route-metric": 200,
+                        "use-routes": True,
+                    },
                     "dhcp6": False,
+                    "routes": [
+                        # via DHCP gateway
+                        {"to": "0.0.0.0/0", "via": "172.31.1.0", "table": 101},
+                        # to NIC2_MD["subnet-ipv4-cidr-block"]
+                        {"to": "172.31.32.0/20", "table": 101},
+                    ],
+                    "routing-policy": [
+                        # NIC2_MD["local-ipv4s"]
+                        {"from": "172.31.47.221", "table": 101}
+                    ],
                 },
             },
+        }
+        distro = mock.Mock()
+        distro.network_activator = activators.NetplanActivator
+        distro.dhcp_client.dhcp_discovery.return_value = {
+            "routers": "172.31.1.0"
         }
         self.assertEqual(
             expected,
             ec2.convert_ec2_metadata_network_config(
-                network_metadata_both, macs_to_nics
+                network_metadata_both, distro, macs_to_nics
             ),
         )
 
@@ -1146,10 +1314,11 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
                 }
             },
         }
+        distro = mock.Mock()
         self.assertEqual(
             expected,
             ec2.convert_ec2_metadata_network_config(
-                network_metadata_both, macs_to_nics
+                network_metadata_both, distro, macs_to_nics
             ),
         )
 
@@ -1167,11 +1336,14 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
             },
         }
         patch_path = M_PATH_NET + "get_interfaces_by_mac"
+        distro = mock.Mock()
         with mock.patch(patch_path) as m_get_interfaces_by_mac:
             m_get_interfaces_by_mac.return_value = {self.mac1: "eth9"}
             self.assertEqual(
                 expected,
-                ec2.convert_ec2_metadata_network_config(self.network_metadata),
+                ec2.convert_ec2_metadata_network_config(
+                    self.network_metadata, distro
+                ),
             )
 
 

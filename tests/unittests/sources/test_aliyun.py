@@ -291,6 +291,7 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
                     }
                 }
             },
+            mock.Mock(),
             macs_to_nics={
                 "06:17:04:d7:26:09": "eth0",
                 "06:17:04:d7:26:08": "eth1",
@@ -302,6 +303,14 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
 
         # route-metric numbers should be 100 apart
         assert 100 == abs(met0 - met1)
+
+        # No policy routing
+        assert not {"routing-policy", "routes"}.intersection(
+            netcfg["ethernets"]["eth0"].keys()
+        )
+        assert not {"routing-policy", "routes"}.intersection(
+            netcfg["ethernets"]["eth1"].keys()
+        )
 
 
 class TestIsAliYun(test_helpers.CiTestCase):

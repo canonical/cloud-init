@@ -1,6 +1,7 @@
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.releases import CURRENT_RELEASE
 
 USER_DATA = """\
 #cloud-config
@@ -17,6 +18,17 @@ def test_frequency_override(client: IntegrationInstance):
         in client.read_from_file("/var/log/cloud-init.log")
     )
     assert client.read_from_file("/var/tmp/hi").strip().count("hi") == 1
+    if CURRENT_RELEASE.os == "ubuntu":
+        if CURRENT_RELEASE.series in ("focal", "jammy", "lunar", "mantic"):
+            # Stable series will block on snapd.seeded.service and create a
+            # semaphore file
+            assert client.execute("test -f /var/lib/cloud/snap-seeded.once").ok
+        else:
+            # Newer series will not block on snapd.seeded.service nor create a
+            # semaphore file
+            assert not client.execute(
+                "test -f /var/lib/cloud/snap-seeded.once"
+            ).ok
 
     # Change frequency of scripts_user to always
     config = client.read_from_file("/etc/cloud/cloud.cfg")
