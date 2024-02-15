@@ -3,6 +3,8 @@ cloud-init (23.4.1-0ubuntu1~23.10.3) UNRELEASED; urgency=medium
   * d/apport-general-hook.py: Move apport hook to main branch
   * d/cloud-init.maintscript: remove /etc/cloud/clean.d/README 
   * d/cloud-init.logrotate: add logrotate config for cloud-init
+  * d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
+    - Retain systemd ordering cloud-config.service After=snapd.seeded.service
   * refresh patches:
     - d/p/status-do-not-remove-duplicated-data.patch
     - d/p/status-retain-recoverable-error-exit-code.patch
