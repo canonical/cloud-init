@@ -66,6 +66,7 @@ VERSIONED_USERDATA_SCHEMA_FILE = "versions.schema.cloud-config.json"
 # 3. Add the new version definition to versions.schema.cloud-config.json
 USERDATA_SCHEMA_FILE = "schema-cloud-config-v1.json"
 NETWORK_CONFIG_V1_SCHEMA_FILE = "schema-network-config-v1.json"
+NETWORK_CONFIG_V2_SCHEMA_FILE = "schema-network-config-v2.json"
 
 _YAML_MAP = {True: "true", False: "false", None: "null"}
 SCHEMA_DOC_TMPL = """
@@ -160,6 +161,8 @@ class SchemaType(Enum):
 
     CLOUD_CONFIG = "cloud-config"
     NETWORK_CONFIG = "network-config"
+    NETWORK_CONFIG_V1 = "network-config-v1"
+    NETWORK_CONFIG_V2 = "network-config-v2"
 
 
 # Placeholders for versioned schema and schema file locations.
@@ -169,7 +172,13 @@ SCHEMA_FILES_BY_TYPE = {
         "latest": USERDATA_SCHEMA_FILE,
     },
     SchemaType.NETWORK_CONFIG: {
+        "latest": NETWORK_CONFIG_V2_SCHEMA_FILE,
+    },
+    SchemaType.NETWORK_CONFIG_V1: {
         "latest": NETWORK_CONFIG_V1_SCHEMA_FILE,
+    },
+    SchemaType.NETWORK_CONFIG_V2: {
+        "latest": NETWORK_CONFIG_V2_SCHEMA_FILE,
     },
 }
 
@@ -699,7 +708,8 @@ def validate_cloudconfig_schema(
        for the cloud config module (config.cc_*). If None, validate against
        global schema.
     @param schema_type: Optional SchemaType.
-       One of: SchemaType.CLOUD_CONFIG or  SchemaType.NETWORK_CONFIG.
+       One of: SchemaType.CLOUD_CONFIG or SchemaType.NETWORK_CONFIG_V1 or
+            SchemaType.NETWORK_CONFIG_V2
        Default: SchemaType.CLOUD_CONFIG
     @param strict: Boolean, when True raise SchemaValidationErrors instead of
        logging warnings.
@@ -714,18 +724,22 @@ def validate_cloudconfig_schema(
         against the provided schema.
     @raises: RuntimeError when provided config sourced from YAML is not a dict.
     @raises: ValueError on invalid schema_type not in CLOUD_CONFIG or
-        NETWORK_CONFIG
+        NETWORK_CONFIG_V1 or NETWORK_CONFIG_V2
     """
     if schema_type == SchemaType.NETWORK_CONFIG:
-        if network_schema_version(config) == 2:
-            if netplan_validate_network_schema(
-                network_config=config, strict=strict, log_details=log_details
-            ):
-                # Schema was validated by netplan
-                return True
-            # network-config schema version 2 but no netplan.
-            # TODO(add JSON schema definition for network version 2)
-            return False
+        network_version = network_schema_version(config)
+        if network_version == 2:
+            schema_type = SchemaType.NETWORK_CONFIG_V2
+        elif network_version == 1:
+            schema_type = SchemaType.NETWORK_CONFIG_V1
+        schema = get_schema(schema_type)
+
+    if schema_type == SchemaType.NETWORK_CONFIG_V2:
+        if netplan_validate_network_schema(
+            network_config=config, strict=strict, log_details=log_details
+        ):
+            # Schema was validated by netplan
+            return True
 
     if schema is None:
         schema = get_schema(schema_type)
@@ -1121,22 +1135,22 @@ def validate_cloudconfig_file(
             return False
         network_version = network_schema_version(cloudconfig)
         if network_version == 2:
+            schema_type = SchemaType.NETWORK_CONFIG_V2
             if netplan_validate_network_schema(
                 network_config=cloudconfig, strict=True, annotate=annotate
             ):
                 return True  # schema validation performed by netplan
-        if network_version != 1:
-            # Validation requires JSON schema definition in
-            # cloudinit/config/schemas/schema-network-config-v1.json
-            print(
-                "Skipping network-config schema validation."
-                " No network schema for version:"
-                f" {network_schema_version(cloudconfig)}"
-            )
-            return False
+        elif network_version == 1:
+            schema_type = SchemaType.NETWORK_CONFIG_V1
+            # refresh schema since NETWORK_CONFIG defaults to V2
+            schema = get_schema(schema_type)
     try:
         if not validate_cloudconfig_schema(
-            cloudconfig, schema=schema, strict=True, log_deprecations=False
+            cloudconfig,
+            schema=schema,
+            schema_type=schema_type,
+            strict=True,
+            log_deprecations=False,
         ):
             print(
                 f"Skipping {schema_type.value} schema validation."

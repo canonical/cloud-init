@@ -1890,8 +1890,7 @@ class TestMain:
                     b"network: {'version': 2, 'ethernets':"
                     b" {'eth0': {'dhcp': true}}}"
                 ),
-                "Skipping network-config schema validation. No network schema"
-                " for version: 2",
+                "Valid schema",
             ),
             (
                 "network-config",
@@ -2043,11 +2042,11 @@ class TestMain:
                 id="netv1_schema_validated",
             ),
             pytest.param(
-                "network:\n version: 2\n ethernets:\n  eth0:\n   dhcp4:true\n",
-                "Skipping network-config schema validation."
-                " No network schema for version: 2",
+                "network:\n version: 2\n ethernets:\n  eth0:\n"
+                "   dhcp4: true\n",
+                "  Valid schema network-config",
                 does_not_raise(),
-                id="netv2_validation_is_skipped",
+                id="netv2_schema_validated",
             ),
             pytest.param(
                 "network: {}\n",
@@ -2163,7 +2162,8 @@ def _get_meta_doc_examples(file_glob="cloud-config*.txt"):
 
 class TestSchemaDocExamples:
     schema = get_schema()
-    net_schema = get_schema(schema_type=SchemaType.NETWORK_CONFIG)
+    net_schema_v1 = get_schema(schema_type=SchemaType.NETWORK_CONFIG_V1)
+    net_schema_v2 = get_schema(schema_type=SchemaType.NETWORK_CONFIG_V2)
 
     @pytest.mark.parametrize("example_path", _get_meta_doc_examples())
     @skipUnlessJsonSchema()
@@ -2178,7 +2178,21 @@ class TestSchemaDocExamples:
     def test_network_config_schema_v1_doc_examples(self, example_path):
         validate_cloudconfig_schema(
             config=yaml.safe_load(open(example_path)),
-            schema=self.net_schema,
+            schema=self.net_schema_v1,
+            schema_type=SchemaType.NETWORK_CONFIG_V1,
+            strict=True,
+        )
+
+    @pytest.mark.parametrize(
+        "example_path",
+        _get_meta_doc_examples(file_glob="network-config-v2*yaml"),
+    )
+    @skipUnlessJsonSchema()
+    def test_network_config_schema_v2_doc_examples(self, example_path):
+        validate_cloudconfig_schema(
+            config=load(open(example_path)),
+            schema=self.net_schema_v2,
+            schema_type=SchemaType.NETWORK_CONFIG_V2,
             strict=True,
         )
 
@@ -2239,16 +2253,98 @@ class TestNetworkSchema:
     net_schema = get_schema(schema_type=SchemaType.NETWORK_CONFIG)
 
     @pytest.mark.parametrize(
-        "src_config, expectation, log",
+        "src_config, schema_type_version, expectation, log",
         (
             pytest.param(
                 {"network": {"config": [], "version": 2}},
+                SchemaType.NETWORK_CONFIG_V2,
+                pytest.raises(
+                    SchemaValidationError,
+                    match=re.escape(
+                        "Additional properties are not allowed ('config' was "
+                        "unexpected)"
+                    ),
+                ),
+                "",
+                id="net_v2_invalid_config",
+            ),
+            pytest.param(
+                {
+                    "network": {
+                        "version": 2,
+                        "ethernets": {"eno1": {"dhcp4": True}},
+                    }
+                },
+                SchemaType.NETWORK_CONFIG_V2,
                 does_not_raise(),
-                "Skipping netplan schema validation. No netplan available",
-                id="net_v2_skipped",
+                "",
+                id="net_v2_simple_example",
+            ),
+            pytest.param(
+                {
+                    "network": {
+                        "version": 2,
+                        "ethernets": {
+                            "id0": {
+                                "match": {
+                                    "macaddress": "00:11:22:33:44:55",
+                                },
+                                "wakeonlan": True,
+                                "dhcp4": True,
+                                "addresses": [
+                                    "192.168.14.2/24",
+                                    "2001:1::1/64",
+                                ],
+                                "gateway4": "192.168.14.1",
+                                "gateway6": "2001:1::2",
+                                "nameservers": {
+                                    "search": ["foo.local", "bar.local"],
+                                    "addresses": ["8.8.8.8"],
+                                },
+                                "routes": [
+                                    {
+                                        "to": "192.0.2.0/24",
+                                        "via": "11.0.0.1",
+                                        "metric": 3,
+                                    },
+                                ],
+                            },
+                            "lom": {
+                                "match": {"driver": "ixgbe"},
+                                "set-name": "lom1",
+                                "dhcp6": True,
+                            },
+                            "switchports": {
+                                "match": {"name": "enp2*"},
+                                "mtu": 1280,
+                            },
+                        },
+                        "bonds": {
+                            "bond0": {"interfaces": ["id0", "lom"]},
+                        },
+                        "bridges": {
+                            "br0": {
+                                "interfaces": ["wlp1s0", "switchports"],
+                                "dhcp4": True,
+                            },
+                        },
+                        "vlans": {
+                            "en-intra": {
+                                "id": 1,
+                                "link": "id0",
+                                "dhcp4": "yes",
+                            },
+                        },
+                    }
+                },
+                SchemaType.NETWORK_CONFIG_V2,
+                does_not_raise(),
+                "",
+                id="net_v2_complex_example",
             ),
             pytest.param(
                 {"network": {"version": 1}},
+                SchemaType.NETWORK_CONFIG_V1,
                 pytest.raises(
                     SchemaValidationError,
                     match=re.escape("'config' is a required property"),
@@ -2258,6 +2354,7 @@ class TestNetworkSchema:
             ),
             pytest.param(
                 {"network": {"version": 1, "config": []}},
+                SchemaType.NETWORK_CONFIG_V1,
                 does_not_raise(),
                 "",
                 id="config_key_required",
@@ -2269,6 +2366,7 @@ class TestNetworkSchema:
                         "config": [{"name": "me", "type": "typo"}],
                     }
                 },
+                SchemaType.NETWORK_CONFIG_V1,
                 pytest.raises(
                     SchemaValidationError,
                     match=(
@@ -2281,6 +2379,7 @@ class TestNetworkSchema:
             ),
             pytest.param(
                 {"network": {"version": 1, "config": [{"type": "physical"}]}},
+                SchemaType.NETWORK_CONFIG_V1,
                 pytest.raises(
                     SchemaValidationError,
                     match=r"network.config.0: 'name' is a required property.*",
@@ -2295,6 +2394,7 @@ class TestNetworkSchema:
                         "config": [{"type": "physical", "name": "a"}],
                     }
                 },
+                SchemaType.NETWORK_CONFIG_V1,
                 does_not_raise(),
                 "",
                 id="physical_with_name_succeeds",
@@ -2308,6 +2408,7 @@ class TestNetworkSchema:
                         ],
                     }
                 },
+                SchemaType.NETWORK_CONFIG_V1,
                 pytest.raises(
                     SchemaValidationError,
                     match=r"Additional properties are not allowed.*",
@@ -2322,6 +2423,7 @@ class TestNetworkSchema:
                         "config": [VALID_PHYSICAL_CONFIG],
                     }
                 },
+                SchemaType.NETWORK_CONFIG_V1,
                 does_not_raise(),
                 "",
                 id="physical_with_all_known_properties",
@@ -2333,6 +2435,7 @@ class TestNetworkSchema:
                         "config": [VALID_BOND_CONFIG],
                     }
                 },
+                SchemaType.NETWORK_CONFIG_V1,
                 does_not_raise(),
                 "",
                 id="bond_with_all_known_properties",
@@ -2347,18 +2450,22 @@ class TestNetworkSchema:
                         ],
                     }
                 },
+                SchemaType.NETWORK_CONFIG_V1,
                 does_not_raise(),
                 "",
                 id="GH-4710_mtu_none_and_str_address",
             ),
         ),
     )
-    def test_network_schema(self, src_config, expectation, log, caplog):
+    def test_network_schema(
+        self, src_config, schema_type_version, expectation, log, caplog
+    ):
+        net_schema = get_schema(schema_type=schema_type_version)
         with expectation:
             validate_cloudconfig_schema(
                 config=src_config,
-                schema=self.net_schema,
-                schema_type=SchemaType.NETWORK_CONFIG,
+                schema=net_schema,
+                schema_type=schema_type_version,
                 strict=True,
             )
         if log:
