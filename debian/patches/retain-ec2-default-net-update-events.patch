@@ -1,0 +1,23 @@
+Description: Retain ec2 default net update events
+ Reverts 4dbb08f5f0cc4f41cf9dd1474f0600a11510a3c9 to not change behavior
+ on stable releases.
+Author: Alberto Contreras <alberto.contreras@canonical.com>
+Last-Update: 2024-02-15
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/cloudinit/sources/DataSourceEc2.py
++++ b/cloudinit/sources/DataSourceEc2.py
+@@ -104,13 +104,6 @@
+         }
+     }
+ 
+-    default_update_events = {
+-        EventScope.NETWORK: {
+-            EventType.BOOT_NEW_INSTANCE,
+-            EventType.HOTPLUG,
+-        }
+-    }
+-
+     extra_hotplug_udev_rules = _EXTRA_HOTPLUG_UDEV_RULES
+ 
+     def __init__(self, sys_cfg, distro, paths):
