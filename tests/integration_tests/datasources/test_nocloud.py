@@ -202,7 +202,7 @@ def test_nocloud_ftp(client: IntegrationInstance):
     # hope that users don't see this kind of
     # test code as an example to follow
 
-    client.execute("apt update && apt install python3-pyftpdlib")
+    client.execute("apt update && apt install -yq python3-pyftpdlib")
 
     client.write_to_file(
         "/server.py",
@@ -211,11 +211,11 @@ def test_nocloud_ftp(client: IntegrationInstance):
             #!/usr/bin/python3
             from pyftpdlib.authorizers import DummyAuthorizer
             from pyftpdlib.handlers import FTPHandler, TLS_FTPHandler
-            from pyftpdlib.servers import FTPServe
+            from pyftpdlib.servers import FTPServer
             from pyftpdlib.filesystems import UnixFilesystem
 
             # yeah, it's not secure but that's not the point
-            authorizer = DummyAuthorizer
+            authorizer = DummyAuthorizer()
 
             # Define a read-only anonymous user
             authorizer.add_anonymous("/home/anonymous")
@@ -227,7 +227,7 @@ def test_nocloud_ftp(client: IntegrationInstance):
             server = FTPServer(("localhost", 2121), handler)
 
             # start the ftp server
-            server.run_forever()
+            server.serve_forever()
             """
         ),
     )
@@ -239,16 +239,24 @@ def test_nocloud_ftp(client: IntegrationInstance):
             [Unit]
             Description=run a local ftp server against
             Wants=cloud-init-local.service
+            DefaultDependencies=no
+
+            # we want the network up for network operations
+            # and NoCloud operates in network timeframe
             After=systemd-networkd-wait-online.service
             After=networking.service
             Before=cloud-init.service
 
             [Service]
-            Type=oneshot
+            Type=exec
             ExecStart=/server.py
+
+            [Install]
+            WantedBy=cloud-init.target
             """
         )
     )
+    client.execute("chmod 644 /lib/systemd/system/local-ftp.service")
     client.execute("systemctl enable local-ftp.service")
 
     client.execute("mkdir /home/anonymous/")
@@ -274,5 +282,5 @@ def test_nocloud_ftp(client: IntegrationInstance):
 
     # set the kernel commandline, reboot with it
     override_kernel_cmdline(
-        "ci.ds=nocloud;seedfrom=ftp://0.0.0.0:2121", client
+        "ds=nocloud;seedfrom=ftp://0.0.0.0:2121", client
     )
