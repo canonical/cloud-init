@@ -226,7 +226,7 @@ def maybe_install_wireguard_packages(cloud: Cloud):
     if subp.which("wg"):
         return
 
-    # Install DKMS when Kernel Verison lower 5.6
+    # Install DKMS when Kernel Version lower 5.6
     if util.kernel_version() < MIN_KERNEL_VERSION:
         packages.append("wireguard")
 

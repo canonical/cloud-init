@@ -11,6 +11,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
+from cloudinit.helpers import Paths
 from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
@@ -64,18 +65,20 @@ class TestvalidateConfigSchema:
             cc_ubuntu_autoinstall.validate_config_schema(src_cfg)
 
 
+@mock.patch(MODPATH + "util.wait_for_snap_seeded")
 @mock.patch(MODPATH + "subp")
 class TestHandleAutoinstall:
     """Test cc_ubuntu_autoinstall handling of config."""
 
     @pytest.mark.parametrize(
-        "cfg,snap_list,subp_calls,logs",
+        "cfg,snap_list,subp_calls,logs,snap_wait_called",
         [
             pytest.param(
                 {},
                 SAMPLE_SNAP_LIST_OUTPUT,
                 [],
                 ["Skipping module named name, no 'autoinstall' key"],
+                False,
                 id="skip_no_cfg",
             ),
             pytest.param(
@@ -87,6 +90,7 @@ class TestHandleAutoinstall:
                     " installer snap packages to be present: subiquity,"
                     " ubuntu-desktop-installer"
                 ],
+                True,
                 id="valid_autoinstall_schema_checks_snaps",
             ),
             pytest.param(
@@ -97,6 +101,7 @@ class TestHandleAutoinstall:
                     "Valid autoinstall schema. Config will be processed by"
                     " subiquity"
                 ],
+                True,
                 id="valid_autoinstall_schema_sees_subiquity",
             ),
             pytest.param(
@@ -107,19 +112,33 @@ class TestHandleAutoinstall:
                     "Valid autoinstall schema. Config will be processed by"
                     " ubuntu-desktop-installer"
                 ],
+                True,
                 id="valid_autoinstall_schema_sees_desktop_installer",
             ),
         ],
     )
     def test_handle_autoinstall_cfg(
-        self, subp, cfg, snap_list, subp_calls, logs, caplog
+        self,
+        subp,
+        wait_for_snap_seeded,
+        cfg,
+        snap_list,
+        subp_calls,
+        logs,
+        snap_wait_called,
+        caplog,
+        tmpdir,
     ):
         subp.return_value = snap_list, ""
-        cloud = get_cloud(distro="ubuntu")
+        cloud = get_cloud(distro="ubuntu", paths=Paths({"cloud_dir": tmpdir}))
         cc_ubuntu_autoinstall.handle("name", cfg, cloud, None)
         assert subp_calls == subp.call_args_list
         for log in logs:
             assert log in caplog.text
+        if snap_wait_called:
+            wait_for_snap_seeded.assert_called_once_with(cloud)
+        else:
+            wait_for_snap_seeded.assert_not_called()
 
 
 class TestAutoInstallSchema:

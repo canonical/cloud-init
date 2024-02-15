@@ -65,6 +65,7 @@ meta: MetaSchema = {
         fqdn: external.fqdn.me
         hostname: myhost
         prefer_fqdn_over_hostname: true
+        create_hostname_file: true
         """
         ),
         dedent(
@@ -72,6 +73,14 @@ meta: MetaSchema = {
         # Set hostname to "external" instead of "external.fqdn.me" when
         # cloud metadata provides the ``local-hostname``: "external.fqdn.me".
         prefer_fqdn_over_hostname: false
+        """
+        ),
+        dedent(
+            """\
+        # On a machine without an ``/etc/hostname`` file, don't create it
+        # In most clouds, this will result in a DHCP-configured hostname
+        # provided by the cloud
+        create_hostname_file: false
         """
         ),
     ],

@@ -33,7 +33,9 @@ def get_cloud(
         myds.metadata.update(metadata)
     if paths:
         paths.datasource = myds
-    return cloud.Cloud(myds, paths, sys_cfg, mydist, None)
+    return cloud.Cloud(
+        myds, paths, sys_cfg, mydist, runners=helpers.Runners(paths)
+    )
 
 
 def abstract_to_concrete(abclass):
@@ -90,6 +92,10 @@ class MockDistro(distros.Distro):
     @staticmethod
     def get_proc_ppid(_):
         return 1
+
+    @staticmethod
+    def get_proc_pgid(_):
+        return 99999
 
     def get_primary_arch(self):
         return "i386"

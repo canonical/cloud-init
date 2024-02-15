@@ -50,7 +50,7 @@ INCLUSION_TYPES_MAP = {
     "## template: jinja": "text/jinja2",
     # Note: for the next 3 entries, the prefix doesn't matter because these
     # are for types that can only be used as part of a MIME message. However,
-    # including these entries supresses warnings during `cloudinit devel
+    # including these entries suppresses warnings during `cloudinit devel
     # make-mime`, which otherwise would require `--force`.
     "text/x-shellscript-per-boot": "text/x-shellscript-per-boot",
     "text/x-shellscript-per-instance": "text/x-shellscript-per-instance",
@@ -93,7 +93,7 @@ def run_part(mod, data, filename, payload, frequency, headers):
         or (frequency == PER_INSTANCE and mod_freq == PER_INSTANCE)
     ):
         return
-    # Sanity checks on version (should be an int convertable)
+    # Sanity checks on version (should be an int convertible)
     try:
         mod_ver = mod.handler_version
         mod_ver = int(mod_ver)

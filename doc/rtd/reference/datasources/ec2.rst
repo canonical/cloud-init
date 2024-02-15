@@ -150,4 +150,11 @@ Notes
    For example: the primary NIC will have a DHCP route-metric of 100,
    the next NIC will have 200.
 
+ * For EC2 instances with multiple NICs, policy-based routing will be
+   configured on secondary NICs / secondary IPs to ensure outgoing packets
+   are routed via the correct interface.
+   This network configuration is only applied on distros using Netplan and
+   at first boot only but it can be configured to be applied on every boot
+   and when NICs are hotplugged, see :ref:`events`.
+
 .. _EC2 tags user guide: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#work-with-tags-in-IMDS

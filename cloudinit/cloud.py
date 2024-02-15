@@ -57,6 +57,17 @@ class Cloud:
         return copy.deepcopy(self._cfg)
 
     def run(self, name, functor, args, freq=None, clear_on_fail=False):
+        """Run a function gated by a named semaphore for a desired frequency.
+
+        The typical case for this method would be to limit running of the
+        provided func to a single well-defined frequency:
+            PER_INSTANCE, PER_BOOT or PER_ONCE
+
+        The semaphore provides a gate that persists across cloud-init
+        boot stage boundaries so multiple modules can share this state
+        even if they happen to be run in different boot stages or across
+        reboots.
+        """
         return self._runners.run(name, functor, args, freq, clear_on_fail)
 
     def get_template_filename(self, name):

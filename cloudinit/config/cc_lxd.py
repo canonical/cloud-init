@@ -210,6 +210,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             f" '{type(lxd_cfg).__name__}'"
         )
 
+    util.wait_for_snap_seeded(cloud)
     # Grab the configuration
     init_cfg = lxd_cfg.get("init", {})
     preseed_str = lxd_cfg.get("preseed", "")
@@ -432,7 +433,7 @@ def bridge_to_cmd(bridge_cfg):
             % (bridge_cfg.get("ipv6_address"), bridge_cfg.get("ipv6_netmask"))
         )
 
-        if bridge_cfg.get("ipv6_nat", "false") == "true":
+        if bridge_cfg.get("ipv6_nat") == "true":
             cmd_create.append("ipv6.nat=true")
 
     else:

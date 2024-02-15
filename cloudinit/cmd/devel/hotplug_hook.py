@@ -160,14 +160,14 @@ class NetHandler(UeventHandler):
         return len(found) > 0
 
 
-SUBSYSTEM_PROPERTES_MAP = {
+SUBSYSTEM_PROPERTIES_MAP = {
     "net": (NetHandler, EventScope.NETWORK),
 }
 
 
 def is_enabled(hotplug_init, subsystem):
     try:
-        scope = SUBSYSTEM_PROPERTES_MAP[subsystem][1]
+        scope = SUBSYSTEM_PROPERTIES_MAP[subsystem][1]
     except KeyError as e:
         raise RuntimeError(
             "hotplug-hook: cannot handle events for subsystem: {}".format(
@@ -201,7 +201,7 @@ def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction):
     datasource = initialize_datasource(hotplug_init, subsystem)
     if not datasource:
         return
-    handler_cls = SUBSYSTEM_PROPERTES_MAP[subsystem][0]
+    handler_cls = SUBSYSTEM_PROPERTIES_MAP[subsystem][0]
     LOG.debug("Creating %s event handler", subsystem)
     event_handler: UeventHandler = handler_cls(
         datasource=datasource,

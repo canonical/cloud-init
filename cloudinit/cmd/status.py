@@ -196,7 +196,7 @@ def handle_status_args(name, args) -> int:
     if args.format == "tabular":
         prefix = "\n" if args.wait else ""
 
-        # For backwards compatability, don't report degraded status here,
+        # For backwards compatibility, don't report degraded status here,
         # extended_status key reports the complete status (includes degraded)
         state = UXAppStatusDegradedMapCompat.get(
             details.status, details.status
@@ -304,6 +304,13 @@ def get_bootstatus(
     return (bootstatus_code, reason)
 
 
+def is_cloud_init_enabled() -> bool:
+    return (
+        get_status_details(read_cfg_paths()).boot_status_code
+        not in DISABLED_BOOT_CODES
+    )
+
+
 def _get_error_or_running_from_systemd(
     existing_status: UXAppStatus, wait: bool
 ) -> Optional[UXAppStatus]:
@@ -349,7 +356,7 @@ def _get_error_or_running_from_systemd(
                 continue
             elif states["SubState"] == "running" and states["MainPID"] == "0":
                 # Service is active, substate still reports running due to
-                # daemon or backgroud process spawned by CGroup/slice still
+                # daemon or background process spawned by CGroup/slice still
                 # running. MainPID being set back to 0 means control of the
                 # service/unit has exited in this case and
                 # "the process is no longer around".
