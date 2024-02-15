@@ -288,7 +288,9 @@ def load_cmdline_data(fill, cmdline=None):
 
         seedfrom = fill.get("seedfrom")
         if seedfrom:
-            if seedfrom.startswith(("http://", "https://")):
+            if seedfrom.startswith(
+                ("http://", "https://", "ftp://", "ftps://")
+            ):
                 fill["dsmode"] = sources.DSMODE_NETWORK
             elif seedfrom.startswith(("file://", "/")):
                 fill["dsmode"] = sources.DSMODE_LOCAL

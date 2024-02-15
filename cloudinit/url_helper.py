@@ -96,63 +96,80 @@ def read_ftps(url: str, timeout: Optional[float] = None) -> "FtpResponse":
             cause="Invalid url provided", code=NOT_FOUND, headers=None, url=url
         )
     with io.BytesIO() as buffer:
+        port = url_parts.port or 21
+        user = url_parts.username or "anonymous"
         try:
-            LOG.debug("Attempting to connect to %s over tls.", url)
             ftp_tls = ftplib.FTP_TLS(
                 context=create_default_context(),
             )
+            LOG.debug(
+                "Attempting to connect to %s via port [%s] over tls.",
+                url, port
+            )
             ftp_tls.connect(
                 host=url_parts.hostname,
-                port=url_parts.port or 21,
+                port=port,
                 timeout=timeout or 0.0,  # Python docs are wrong about types
             )
+            LOG.debug("Attempting to login with user [%s]", user)
             ftp_tls.login(
-                user=url_parts.username or "",
+                user=user,
                 passwd=url_parts.password or "",
             )
+            LOG.debug("Creating a secure connection", user)
             ftp_tls.prot_p()
+            LOG.debug("Reading file: %s", url_parts.path)
             ftp_tls.retrbinary(f"RETR {url_parts.path}", callback=buffer.write)
             response = FtpResponse(url_parts.path, contents=buffer)
+            LOG.debug("Closing connection", url_parts.path)
             ftp_tls.close()
             return response
         except ftplib.all_errors as e:
+            code = get_return_code_from_exception(e),
             if "ftps" == url_parts.scheme:
                 raise UrlError(
                     cause=(
                         "Connecting to ftp server over tls "
-                        "failed for url [%s]"
+                        f"failed for url {url} [{code}]"
                     ),
-                    code=get_return_code_from_exception(e),
+                    code=code,
                     headers=None,
                     url=url,
                 ) from e
+            LOG.info(
+                "Connecting to ftp server over tls "
+                "failed for url %s [%s]", url, code
+            )
         try:
             LOG.debug(
                 "Couldn't connect to %s over tls. Strict mode not "
-                "required (using protocol 'ftp://' not 'ftps://'), so falling"
-                "back to ftp",
+                "required (using protocol 'ftp://' not 'ftps://'), so falling "
+                "back to ftp. Use 'ftps://' to prevent unencrypted ftp.",
                 url_parts.hostname,
             )
-            LOG.debug("Attempting to connect to %s over tls.", url)
 
             ftp = ftplib.FTP()
+            LOG.debug("Attempting to connect to %s via port %s.", url, port)
             ftp.connect(
                 host=url_parts.hostname,
-                port=url_parts.port or 21,
+                port=port,
                 timeout=timeout or 0.0,  # Python docs are wrong about types
             )
+            LOG.debug("Attempting to login with user [%s]", user)
             ftp.login(
-                user=url_parts.username or "",
+                user=user,
                 passwd=url_parts.password or "",
             )
+            LOG.debug("Reading file: %s", url_parts.path)
             ftp.retrbinary(f"RETR {url_parts.path}", callback=buffer.write)
             response = FtpResponse(url_parts.path, contents=buffer)
+            LOG.debug("Closing connection", url_parts.path)
             ftp.close()
             return response
         except ftplib.all_errors as e:
             raise UrlError(
                 cause=(
-                    "Connecting to ftp server over tls failed for url [%s]"
+                    f"Connecting to ftp server failed for url {url} [{code}]"
                 ),
                 code=get_return_code_from_exception(e),
                 headers=None,
