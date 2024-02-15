@@ -1,17 +1,24 @@
 cloud-init (23.4.1-0ubuntu1~23.10.3) UNRELEASED; urgency=medium
 
   * d/apport-general-hook.py: Move apport hook to main branch
-  * d/cloud-init.maintscript: remove /etc/cloud/clean.d/README 
+  * d/cloud-init.maintscript: remove /etc/cloud/clean.d/README
   * d/cloud-init.logrotate: add logrotate config for cloud-init
   * d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
     - Retain systemd ordering cloud-config.service After=snapd.seeded.service
+  * d/p/retain-ec2-default-net-update-events.patch:
+    Reverts 4dbb08f5f0cc4f41cf9dd1474f0600a11510a3c9 to not change behavior
+    on stable releases.
+  * d/cloud-init.postinst: change priority of hotplug rules.
+    Avoids LP: #1946003 on upgraded systems. References:
+    [0] https://github.com/canonical/cloud-init/pull/4799
+    [1] commit/b519d861aff8b44a0610c176cb34adcbe28df144
   * refresh patches:
     - d/p/status-do-not-remove-duplicated-data.patch
     - d/p/status-retain-recoverable-error-exit-code.patch
   * Upstream snapshot based on upstream/main at 33148a07.
   * Upstream snapshot based on upstream/main at c948e418.
 
- -- Chad Smith <chad.smith@canonical.com>  Wed, 14 Feb 2024 17:34:34 -0700
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Thu, 15 Feb 2024 16:19:48 +0100
 
 cloud-init (23.4.1-0ubuntu1~23.10.2) mantic; urgency=medium
 
