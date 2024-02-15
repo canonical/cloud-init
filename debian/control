@@ -32,7 +32,7 @@ Rules-Requires-Root: no
 Package: cloud-init
 Architecture: all
 Depends: cloud-guest-utils | cloud-utils,
-         isc-dhcp-client,
+         dhcpcd-base,
          iproute2,
          netplan.io,
          procps,
