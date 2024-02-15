@@ -1608,12 +1608,10 @@ WSL_instance_name() {
 
 dscheck_WSL() {
     if [ "${DI_UNAME_KERNEL_NAME}" != "Linux" ]; then
-        debug 1 "Kernel is not Linux"
         return "${DS_NOT_FOUND}"
     fi
 
     if [ "${DI_VIRT}" != "wsl" ]; then
-        debug 1 "Virtualization is not WSL, but rather ${DI_VIRT}"
         return "${DS_NOT_FOUND}"
     fi
 
