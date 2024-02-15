@@ -8,12 +8,19 @@ cloud-init (23.4.1-0ubuntu1~22.04.3) UNRELEASED; urgency=medium
       (LP: #2053157)
   * d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
     - Retain systemd ordering cloud-config.service After=snapd.seeded.service
-  * refresh patches:
+  * d/p/retain-ec2-default-net-update-events.patch:
+    Reverts 4dbb08f5f0cc4f41cf9dd1474f0600a11510a3c9 to not change behavior
+    on stable releases.
+  * d/cloud-init.postinst: change priority of hotplug rules.
+    Avoids LP: #1946003 on upgraded systems. References:
+    [0] https://github.com/canonical/cloud-init/pull/4799
+    [1] commit/b519d861aff8b44a0610c176cb34adcbe28df144
+ * refresh patches:
     - d/p/status-do-not-remove-duplicated-data.patch
     - d/p/status-retain-recoverable-error-exit-code.patch
   * Upstream snapshot based on upstream/main at c948e418.
 
- -- Chad Smith <chad.smith@canonical.com>  Wed, 14 Feb 2024 18:00:25 -0700
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Thu, 15 Feb 2024 17:35:58 +0100
 
 cloud-init (23.4.1-0ubuntu1~22.04.2) jammy; urgency=medium
 
