@@ -567,7 +567,6 @@ read_dmi_product_serial() {
     DI_DMI_PRODUCT_SERIAL="$_RET"
 }
 
-# shellcheck disable=2034
 read_uname_info() {
     # run uname, and parse output.
     # uname is tricky to parse as it outputs always in a given order
@@ -728,9 +727,12 @@ nocase_equal() {
     [ "$1" = "$2" ] && return 0
 
     local delim="-delim-"
-    # shellcheck disable=2018,2019
-    out=$(echo "$1${delim}$2" | tr A-Z a-z)
-    [ "${out#*"${delim}"}" = "${out%"${delim}"*}" ]
+    out=$(echo "$1${delim}$2" | tr '[:upper:]' '[:lower:]')
+    # delim is known not to be a pattern, and some editors currently struggle
+    # with parsing the quoted output required to satisfy SC2295
+    # shellcheck disable=2295
+    # https://github.com/tree-sitter/tree-sitter-bash/issues/254
+    [ "${out#*${delim}}" = "${out%${delim}*}" ]
 }
 
 check_seed_dir() {
