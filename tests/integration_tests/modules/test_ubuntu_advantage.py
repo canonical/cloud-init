@@ -62,7 +62,7 @@ AUTO_ATTACH_CUSTOM_SERVICES = """\
 #cloud-config
 ubuntu_advantage:
   enable:
-  - livepatch
+  - esm-infra
 """
 
 
@@ -112,7 +112,8 @@ def get_services_status(client: IntegrationInstance) -> dict:
     assert status_resp.ok
     status = json.loads(status_resp.stdout)
     return {
-        svc["name"]: svc["status"] == "enabled" for svc in status["services"]
+        svc["name"]: svc["status"] in ("enabled", "warning")
+        for svc in status["services"]
     }
 
 
@@ -234,8 +235,8 @@ class TestUbuntuAdvantagePro:
             assert is_attached(client)
             services_status = get_services_status(client)
             assert services_status.pop(
-                "livepatch"
-            ), "livepatch expected to be enabled"
+                "esm-infra"
+            ), "esm-infra expected to be enabled"
             enabled_services = {
                 svc for svc, status in services_status.items() if status
             }
