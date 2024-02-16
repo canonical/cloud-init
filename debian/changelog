@@ -1,4 +1,4 @@
-cloud-init (24.1~6ga4140119-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (24.1~6ga4140119-0ubuntu1) noble; urgency=medium
 
   * d/control: Replace isc-dhcp-client with dhcpcd-base
   * d/p/do-not-block-user-login.patch:
@@ -10,7 +10,7 @@ cloud-init (24.1~6ga4140119-0ubuntu1) UNRELEASED; urgency=medium
     [1] commit/b519d861aff8b44a0610c176cb34adcbe28df144
   * Upstream snapshot based on upstream/main at a4140119.
 
- -- Brett Holman <brett.holman@canonical.com>  Fri, 16 Feb 2024 08:17:53 -0500
+ -- Brett Holman <brett.holman@canonical.com>  Fri, 16 Feb 2024 08:18:39 -0500
 
 cloud-init (24.1~5g1f6eddd5-0ubuntu1) noble; urgency=medium
 
