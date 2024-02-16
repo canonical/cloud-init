@@ -4,7 +4,7 @@ WSL
 ***
 
 The Windows Subsystem for Linux (WSL) somewhat resembles a container
-hypervisor, a Windows user may have as many Linux distro instances as they
+hypervisor. A Windows user may have as many Linux distro instances as they
 wish, either created by the distro-launcher workflow (for the distros delivered
 through MS Store) or by importing a tarball containing a root filesystem. This
 page assumes the reader is familiar with WSL. To learn more about that, please
@@ -28,7 +28,7 @@ Requirements
    using them. Users of other distros may find it surprising that cloud-init
    doesn't run automatically by default. At the time of this writing, only
    systemd distros are supported by the WSL datasource, although there is
-   nothing hard coded in the implementation code that requires it, so
+   nothing hard-coded in the implementation code that requires it, so
    non-systemd distros may find ways to run cloud-init and make it just work.
 
 Notice that requirements 1 and 2 are met by default, i.e. WSL grants those
@@ -36,7 +36,7 @@ features enabled, being the user allowed to opt-out if so desired.
 For more information about how to configure WSL,
 `check the official documentation <https://learn.microsoft.com/windows/wsl/wsl-config#configuration-settings-for-wslconf>`_.
 
-User data Configuration
+User data configuration
 ========================
 
 The WSL datasource relies exclusively on the Windows filesystem as the provider
@@ -88,9 +88,9 @@ default. If none are found, cloud-init remains disabled.
    will be chosen is arbitrary and should not be relied on. Thus it's
    recommended to avoid that scenario to prevent confusion.
 
-Since WSL instances are scoped by Windows user, having the user data files
+Since WSL instances are scoped by the Windows user, having the user data files
 inside the ``%USERPROFILE%`` directory (typically ``C:\Users\<USERNAME>``)
-ensures that WSL instances initialization won't be subject to naming conflicts
+ensures that WSL instance initialization won't be subject to naming conflicts
 if the Windows host is shared by multiple users.
 
 
@@ -153,7 +153,7 @@ include file.
   ``/etc/wsl.conf``. Those options don't fit well with the networking model
   cloud-init expects or understands.
 
-* Set Hostname.
+* Set hostname.
 
   WSL automatically assigns the instance hostname and any attempt to change it
   will take effect only until the next boot when WSL takes over again.
@@ -192,12 +192,12 @@ include file.
   host, and fstab processing during boot is subject to configuration via
   ``/etc/wsl.conf``, so users should expect limited functionality.
 
-* Grub Dpkg.
+* GRUB dpkg.
 
   WSL controls the boot process, meaning that attempts to install and configure
-  Grub as any other bootloader won't be effective.
+  GRUB as any other bootloader won't be effective.
 
-* Resolv Conf and Update Etc Hosts.
+* Resolv conf and update etc/ hosts.
 
   WSL automatically generates those files by default, unless configured to
   behave otherwise in ``/etc/wsl.conf``. Overwriting may work, but only
