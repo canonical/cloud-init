@@ -5,6 +5,13 @@ cloud-init (23.4.1-0ubuntu1~20.04.3) UNRELEASED; urgency=medium
   * d/cloud-init.logrotate: add logrotate config for cloud-init
   * d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
     - Retain systemd ordering cloud-config.service After=snapd.seeded.service
+  * d/p/retain-ec2-default-net-update-events.patch:
+    Reverts 4dbb08f5f0cc4f41cf9dd1474f0600a11510a3c9 to not change behavior
+    on stable releases.
+  * d/cloud-init.postinst: change priority of hotplug rules.
+    Avoids LP: #1946003 on upgraded systems. References:
+    [0] https://github.com/canonical/cloud-init/pull/4799
+    [1] commit/b519d861aff8b44a0610c176cb34adcbe28df144
   * refresh patches:
     - d/p/netplan99-cannot-use-default.patch
     - d/p/retain-netplan-world-readable.patch
@@ -13,7 +20,7 @@ cloud-init (23.4.1-0ubuntu1~20.04.3) UNRELEASED; urgency=medium
   * Upstream snapshot based on upstream/main at c948e418.
   * Upstream snapshot based on upstream/main at a4140119.
 
- -- Chad Smith <chad.smith@canonical.com>  Thu, 15 Feb 2024 20:12:30 -0700
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Fri, 16 Feb 2024 12:35:50 +0100
 
 cloud-init (23.4.1-0ubuntu1~20.04.2) focal; urgency=medium
 
