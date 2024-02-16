@@ -46,6 +46,14 @@ except ImportError:
     HAS_APT_PKG = False
 
 
+# Used by tests to verify the error message when a jsonschema structure
+# is empty but should not be.
+# Version 4.20.0 of jsonschema changed the error messages for empty structures.
+SCHEMA_EMPTY_ERROR = (
+    "(is too short|should be non-empty|does not have enough properties)"
+)
+
+
 # Makes the old path start
 # with new base instead of whatever
 # it previously had

@@ -4,8 +4,6 @@ import json
 import logging
 import os
 import re
-import socket
-import struct
 import textwrap
 import zlib
 from contextlib import contextmanager
@@ -221,20 +219,6 @@ def cd(newdir):
         yield
     finally:
         os.chdir(prevdir)
-
-
-def get_ip_from_lease_value(fallback_lease_value):
-    unescaped_value = fallback_lease_value.replace("\\", "")
-    if len(unescaped_value) > 4:
-        hex_string = ""
-        for hex_pair in unescaped_value.split(":"):
-            if len(hex_pair) == 1:
-                hex_pair = "0" + hex_pair
-            hex_string += hex_pair
-        packed_bytes = struct.pack(">L", int(hex_string.replace(":", ""), 16))
-    else:
-        packed_bytes = unescaped_value.encode("utf-8")
-    return socket.inet_ntoa(packed_bytes)
 
 
 @azure_ds_telemetry_reporter
@@ -993,6 +977,7 @@ class OvfEnvXml:
         public_keys: Optional[List[dict]] = None,
         preprovisioned_vm: bool = False,
         preprovisioned_vm_type: Optional[str] = None,
+        provision_guest_proxy_agent: bool = False,
     ) -> None:
         self.username = username
         self.password = password
@@ -1002,6 +987,7 @@ class OvfEnvXml:
         self.public_keys: List[dict] = public_keys or []
         self.preprovisioned_vm = preprovisioned_vm
         self.preprovisioned_vm_type = preprovisioned_vm_type
+        self.provision_guest_proxy_agent = provision_guest_proxy_agent
 
     def __eq__(self, other) -> bool:
         return self.__dict__ == other.__dict__
@@ -1012,7 +998,7 @@ class OvfEnvXml:
 
         :raises NonAzureDataSource: if XML is not in Azure's format.
         :raises errors.ReportableErrorOvfParsingException: if XML is
-                unparseable or invalid.
+                unparsable or invalid.
         """
         try:
             root = ElementTree.fromstring(ovf_env_xml)
@@ -1143,6 +1129,12 @@ class OvfEnvXml:
         self.preprovisioned_vm_type = self._parse_property(
             platform_settings,
             "PreprovisionedVMType",
+            required=False,
+        )
+        self.provision_guest_proxy_agent = self._parse_property(
+            platform_settings,
+            "ProvisionGuestProxyAgent",
+            default=False,
             required=False,
         )
 

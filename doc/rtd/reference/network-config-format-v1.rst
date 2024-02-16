@@ -252,8 +252,8 @@ Users can specify a ``nameserver`` type. Nameserver dictionaries include
 the following keys:
 
 - ``address``: List of IPv4 or IPv6 address of nameservers.
-- ``search``: List of hostnames to include in the :file:`resolv.conf` search
-  path.
+- ``search``: Optional. List of hostnames to include in the :file:`resolv.conf`
+  search path.
 - ``interface``: Optional. Ties the nameserver definition to the specified
   interface. The value specified here must match the ``name`` of an interface
   defined in this config. If unspecified, this nameserver will be considered

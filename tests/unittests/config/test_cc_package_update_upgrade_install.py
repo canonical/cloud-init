@@ -16,7 +16,11 @@ from cloudinit.config.schema import (
 )
 from cloudinit.distros import PackageInstallerError
 from cloudinit.subp import SubpResult
-from tests.unittests.helpers import does_not_raise, skipUnlessJsonSchema
+from tests.unittests.helpers import (
+    SCHEMA_EMPTY_ERROR,
+    does_not_raise,
+    skipUnlessJsonSchema,
+)
 from tests.unittests.util import get_cloud
 
 M_PATH = "cloudinit.config.cc_package_update_upgrade_install."
@@ -284,7 +288,7 @@ class TestPackageUpdateUpgradeSchema:
             # packages list with three entries (2 required)
             ({"packages": ["p1", ["p2", "p3", "p4"]]}, ""),
             # empty packages list
-            ({"packages": []}, "is too short"),
+            ({"packages": []}, SCHEMA_EMPTY_ERROR),
             (
                 {"apt_update": False},
                 (

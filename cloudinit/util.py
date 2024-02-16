@@ -65,7 +65,7 @@ from cloudinit import (
     url_helper,
     version,
 )
-from cloudinit.settings import CFG_BUILTIN
+from cloudinit.settings import CFG_BUILTIN, PER_ONCE
 
 _DNS_REDIRECT_IP = None
 LOG = logging.getLogger(__name__)
@@ -941,7 +941,7 @@ def del_dir(path):
 
 
 # read_optional_seed
-# returns boolean indicating success or failure (presense of files)
+# returns boolean indicating success or failure (presence of files)
 # if files are present, populates 'fill' dictionary with 'user-data' and
 # 'meta-data' entries
 def read_optional_seed(fill, base="", ext="", timeout=5):
@@ -1421,6 +1421,7 @@ def find_devs_with_netbsd(
     devlist = []
     label = None
     _type = None
+    mscdlabel_out = ""
     if criteria:
         if criteria.startswith("LABEL="):
             label = criteria.lstrip("LABEL=")
@@ -1683,7 +1684,7 @@ def chownbyname(fname, user=None, group=None):
     chownbyid(fname, uid, gid)
 
 
-# Always returns well formated values
+# Always returns well formatted values
 # cfg is expected to have an entry 'output' in it, which is a dictionary
 # that includes entries for 'init', 'config', 'final' or 'all'
 #   init: /var/log/cloud.out
@@ -3092,6 +3093,18 @@ def wait_for_files(flist, maxwait, naplen=0.5, log_pre=""):
         "%sStill missing files after %s seconds: %s", log_pre, maxwait, need
     )
     return need
+
+
+def wait_for_snap_seeded(cloud):
+    """Helper to wait on completion of snap seeding."""
+
+    def callback():
+        if not subp.which("snap"):
+            LOG.debug("Skipping snap wait, no snap command present")
+            return
+        subp.subp(["snap", "wait", "system", "seed.loaded"])
+
+    cloud.run("snap-seeded", callback, [], freq=PER_ONCE)
 
 
 def mount_is_read_write(mount_point):

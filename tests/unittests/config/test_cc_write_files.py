@@ -18,6 +18,7 @@ from cloudinit.config.schema import (
     validate_cloudconfig_schema,
 )
 from tests.unittests.helpers import (
+    SCHEMA_EMPTY_ERROR,
     CiTestCase,
     FilesystemMockingTestCase,
     skipUnlessJsonSchema,
@@ -222,7 +223,10 @@ class TestWriteFilesSchema:
         [
             # Top-level write_files type validation
             ({"write_files": 1}, "write_files: 1 is not of type 'array'"),
-            ({"write_files": []}, re.escape("write_files: [] is too short")),
+            (
+                {"write_files": []},
+                re.escape("write_files: [] ") + SCHEMA_EMPTY_ERROR,
+            ),
             (
                 {"write_files": [{}]},
                 "write_files.0: 'path' is a required property",

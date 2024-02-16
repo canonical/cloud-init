@@ -13,7 +13,7 @@ class CloudInitPickleMixin:
     use it.  Versioning is done at the class level.
 
     The current version of a class's pickle should be set in the class variable
-    ``_ci_pkl_version``, as an int.  If not overriden, it will default to 0.
+    ``_ci_pkl_version``, as an int.  If not overridden, it will default to 0.
 
     On unpickle, the object's state will be restored and then
     ``self._unpickle`` is called with the version of the stored pickle as the

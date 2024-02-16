@@ -141,7 +141,7 @@ class TestAddYumRepoSchema:
             ),
             (
                 {"yum_repos": {}},
-                re.escape("yum_repos: {} does not have enough properties"),
+                re.escape("yum_repos: {} ") + helpers.SCHEMA_EMPTY_ERROR,
             ),
             # baseurl required
             (

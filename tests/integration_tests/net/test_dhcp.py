@@ -46,21 +46,29 @@ class TestDHCP:
         CURRENT_RELEASE < NOBLE,
         reason="earlier Ubuntu releases have a package named dhcpcd5",
     )
-    def test_noble_and_newer_force_dhcp(self, client):
+    @pytest.mark.parametrize(
+        "dhcp_client, package",
+        [
+            ("dhcpcd", "dhcpcd-base"),
+            ("udhcpc", "udhcpc"),
+        ],
+    )
+    def test_noble_and_newer_force_client(self, client, dhcp_client, package):
         """force noble to use dhcpcd and test that it worked"""
-        client.execute(
+        assert client.execute(f"apt update && apt install -yq {package}").ok
+        assert client.execute(
             "sed -i 's|"
             "dhcp_client_priority.*$"
-            "|dhcp_client_priority: [dhcpcd, dhclient, udhcpc]"
+            f"|dhcp_client_priority: [{dhcp_client}]"
             "|' /etc/cloud/cloud.cfg"
-        )
+        ).ok
         client.execute("cloud-init clean --logs")
         client.restart()
         log = client.read_from_file("/var/log/cloud-init.log")
         for line in log.split("\n"):
             if "DHCP client selected" in line:
                 assert (
-                    "DHCP client selected: dhcpcd" in line
+                    f"DHCP client selected: {dhcp_client}" in line
                 ), f"Selected incorrect dhcp client: {line}"
                 break
         else:
@@ -71,4 +79,9 @@ class TestDHCP:
         ), "cloud-init leaked a dhcp daemon that is still running"
         if not "ec2" == PLATFORM:
             assert "Received dhcp lease on " in log, "EphemeralDHCPv4 failed"
+        if "azure" == PLATFORM:
+            assert (
+                "Obtained DHCP lease on interface" in log
+            ), "Failed to get unknown option 245"
+            assert "'unknown-245'" in log, "Failed to get unknown option 245"
         verify_clean_log(log)

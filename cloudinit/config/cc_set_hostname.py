@@ -60,8 +60,17 @@ meta: MetaSchema = {
         dedent(
             """\
             hostname: myhost
+            create_hostname_file: true
             fqdn: myhost.example.com
             prefer_fqdn_over_hostname: true
+            """
+        ),
+        dedent(
+            """\
+            # On a machine without an ``/etc/hostname`` file, don't create it
+            # In most clouds, this will result in a DHCP-configured hostname
+            # provided by the cloud
+            create_hostname_file: false
             """
         ),
     ],
