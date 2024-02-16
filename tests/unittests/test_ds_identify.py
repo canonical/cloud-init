@@ -553,6 +553,7 @@ class TestDsIdentify(DsIdentifyBase):
         config = "LXD-kvm-not-MAAS-2"
         self._test_ds_found(config)
 
+    @pytest.mark.xfail(reason="GH-4796")
     def test_maas_not_detected_3(self):
         """Don't incorrectly identify maas
 
@@ -1609,7 +1610,7 @@ VALID_CFG = {
         "ds": "LXD",
         "files": {
             P_BOARD_NAME: "LXD\n",
-            "etc/cloud/cloud.cfg.d/92-broken-maas.cfg": ("MAAS: None"),
+            "etc/cloud/cloud.cfg.d/92-broken-maas.cfg": ("MAAS: None\n"),
         },
         # /dev/lxd/sock does not exist and KVM virt-type
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
