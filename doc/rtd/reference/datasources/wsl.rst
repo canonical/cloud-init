@@ -32,7 +32,8 @@ Requirements
    non-systemd distros may find ways to run cloud-init and make it just work.
 
 Notice that requirements 1 and 2 are met by default, i.e. WSL grants those
-features enabled, being the user allowed to opt-out if so desired.
+features enabled. Users can disable those features, though. That would prevent
+the datasource from working.
 For more information about how to configure WSL,
 `check the official documentation <https://learn.microsoft.com/windows/wsl/wsl-config#configuration-settings-for-wslconf>`_.
 
