@@ -1812,7 +1812,7 @@ VALID_CFG = {
             # NoCloud without checking
             "etc/cloud/cloud.cfg": dedent(
                 """\
-                datasource_list: [ Azure, Openstack, NoCloud, None ]
+                datasource_list: [ Azure, OpenStack, NoCloud, None ]
                 datasource:
                   NoCloud:
                     user-data: |
