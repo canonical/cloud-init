@@ -512,6 +512,21 @@ class TestDsIdentify(DsIdentifyBase):
         config = "LXD-kvm-not-MAAS-3"
         self._test_ds_found(config)
 
+    def test_flow_sequence_control(self):
+        """ensure that an invalid key in the flow_sequence tests produces no
+        datasource list match
+
+        control test: this test serves as a control test for test_flow_sequence
+        """
+        data = copy.deepcopy(VALID_CFG["flow_sequence-control"])
+        self._check_via_dict(data, RC_NOT_FOUND)
+
+    def test_flow_sequence(self):
+        """correctly identify flow sequences"""
+        for i in range(1, 10):
+            data = copy.deepcopy(VALID_CFG[f"flow_sequence-{i}"])
+            self._check_via_dict(data, RC_FOUND, dslist=[data.get("ds")])
+
     def test_azure_invalid_configuration(self):
         """Don't detect incorrect config when invalid datasource_list provided
 
@@ -625,6 +640,13 @@ class TestDsIdentify(DsIdentifyBase):
         self.assertEqual(
             ret.cfg.get("datasource_list"), ["ConfigDrive", "None"]
         )
+
+    @pytest.mark.xfail(
+        reason=("not supported: yaml parser implemented in POSIX shell")
+    )
+    def test_multiline_yaml(self):
+        """Multi-line yaml is unsupported"""
+        self._test_ds_found("LXD-kvm-not-azure")
 
     def test_ibmcloud_template_userdata_in_provisioning(self):
         """Template provisioned with user-data during provisioning stage.
@@ -1394,6 +1416,136 @@ VALID_CFG = {
         "files": {
             P_BOARD_NAME: "LXD\n",
             "etc/cloud/cloud.cfg.d/92-broken-maas.cfg": ("MAAS: None"),
+        },
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+    },
+    "flow_sequence-control": {
+        "ds": "None",
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+        "files": {
+            "etc/cloud/cloud.cfg": dedent(
+                """\
+                "datasource-list":  [ None    ]   \n
+                """
+            )
+        },
+    },
+    # no quotes, whitespace between all chars and at the end of line
+    "flow_sequence-1": {
+        "ds": "None",
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+        "files": {
+            "etc/cloud/cloud.cfg": dedent(
+                """\
+                datasource_list :  [ None    ]   \n
+                """
+            )
+        },
+    },
+    # double quotes
+    "flow_sequence-2": {
+        "ds": "None",
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+        "files": {
+            "etc/cloud/cloud.cfg": dedent(
+                """\
+                "datasource_list": [None]
+                """
+            )
+        },
+    },
+    # single quotes
+    "flow_sequence-3": {
+        "ds": "None",
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+        "files": {
+            "etc/cloud/cloud.cfg": dedent(
+                """\
+                'datasource_list': [None]
+                """
+            )
+        },
+    },
+    # no newlines
+    "flow_sequence-4": {
+        "ds": "None",
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+        "files": {
+            "etc/cloud/cloud.cfg": dedent("datasource_list:  [ None     ]")
+        },
+    },
+    # double quoted key, single quoted list member
+    "flow_sequence-5": {
+        "ds": "None",
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+        "files": {
+            "etc/cloud/cloud.cfg": dedent(
+                "\"datasource_list\": [    'None' ]  "
+            )
+        },
+    },
+    # single quotes, whitespace before colon
+    "flow_sequence-6": {
+        "ds": "None",
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+        "files": {
+            "etc/cloud/cloud.cfg": dedent("'datasource_list' : [    None  ]  ")
+        },
+    },
+    "flow_sequence-7": {
+        "ds": "None",
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+        "files": {
+            "etc/cloud/cloud.cfg": dedent(
+                '"datasource_list"     : [    None  ]  '
+            )
+        },
+    },
+    # tabs as part of whitespace between all chars
+    "flow_sequence-8": {
+        "ds": "None",
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+        "files": {
+            "etc/cloud/cloud.cfg": dedent(
+                '"datasource_list"   \t\t  : \t\t[\t   \tNone \t \t ] \t\t '
+            )
+        },
+    },
+    # no quotes, no whitespace
+    "flow_sequence-9": {
+        "ds": "None",
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+        "files": {"etc/cloud/cloud.cfg": dedent("datasource_list: [None]")},
+    },
+    "LXD-kvm-not-azure": {
+        "ds": "Azure",
+        "files": {
+            P_BOARD_NAME: "LXD\n",
+            "etc/cloud/cloud.cfg.d/92-broken-azure.cfg": (
+                "datasource_list:\n - Azure"
+            ),
         },
         # /dev/lxd/sock does not exist and KVM virt-type
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
