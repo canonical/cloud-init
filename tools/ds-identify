@@ -621,7 +621,7 @@ parse_yaml_array() {
 
 read_datasource_list() {
     cached "$DI_DSLIST" && return
-    local dslist=""
+    local dslist="" key="datasource_list"
     # if DI_DSNAME is set directly, then avoid parsing config.
     if [ -n "${DI_DSNAME}" ]; then
         dslist="${DI_DSNAME}"
@@ -639,14 +639,14 @@ read_datasource_list() {
             dslist=${_RET}
             ;;
     esac
-    if [ -z "$dslist" ] && check_config datasource_list; then
+    if [ -z "$dslist" ] && check_config "$key" && get_single_line_flow_sequence "$key" "$_RET"; then
         debug 1 "$_RET_fname set datasource_list: $_RET"
         parse_yaml_array "$_RET"
         dslist=${_RET}
     fi
     if [ -z "$dslist" ]; then
         dslist=${DI_DSLIST_DEFAULT}
-        debug 1 "no datasource_list found, using default: $dslist"
+        warn "no datasource_list found, using default: $dslist"
     fi
     DI_DSLIST=$dslist
     return 0
@@ -825,7 +825,25 @@ check_config() {
         return 1
     fi
     local line="" ret="" found=0 found_fn="" oifs="$IFS" out=""
-    out=$(grep "$key\"\?:" "$@" 2>/dev/null)
+    # check for a yaml key/value pair on a single line
+    #
+    # note that:
+    # - keys may be single or double quoted
+    # - spaces and tabs may exist between key and colon
+    #
+    # the following are all valid under the yaml spec (as of 1.2.2):
+    #
+    # key: string
+    # key: "quoted string"
+    # key: 1
+    # key: [ some_value ]
+    # key : [ "some value" ]
+    # key\t:\t[\tsome_value\t]\t
+    # 
+    # The syntax warned about is not valid posix shell, and we are not
+    # attempting to access an index of arrays. Silence it.
+    # shellcheck disable=1087
+    out=$(grep "$key[\"\']*[[:space:]]*:" "$@" 2>/dev/null)
     IFS=${CR}
     for line in $out; do
         # drop '# comment'
@@ -834,9 +852,15 @@ check_config() {
         # but if only one file, line will not be prefixed.
         if [ $# -eq 1 ]; then
             found_fn="$1"
+            if [ "${#line}" -eq 0 ]; then
+                continue
+            fi
         else
             found_fn="${line%%:*}"
-            line=${line#*:}
+            line=${line#"$found_fn:"}
+            if [ "${#line}" -eq 0 ]; then
+                continue
+            fi
         fi
         ret=${line#*: };
         found=$((found+1))
@@ -847,6 +871,65 @@ check_config() {
         _RET_fname="$found_fn"
         return 0
     fi
+    return 1
+}
+
+get_value() {
+    # get_value(key, value)
+    # for a key / value pair, check that the value is non-empty and
+    # return the value if it exists
+    #
+    # This function is intended to be run on the output of check_config
+    # when the value for a key needs to be in the output.
+    #
+    # `check_config` returns true when no value is in the line, but this
+    # is insufficient when a value is required, as in the case of
+    # parsing 'datasource_list:'
+    local key="$1" value="$2" found=0 ret=""
+
+    # remove everything before final ':'
+    ret="${value##*:}"
+
+    # remove preceding and trailing whitespace
+    trim "$ret"
+
+    # check value length
+    if [ "${#_RET}" -ne 0 ]; then
+        return 0
+    fi
+    debug 1 "key $key didn't have a valid value"
+    return 1
+}
+
+get_single_line_flow_sequence() {
+    # get_single_line_flow_sequence(key, value)
+    # for a key / value pair, check that the value contains a single
+    # line flow sequence[1] with a value
+    #
+    # return 0 if a single line flow sequence is found, otherwise 1
+    # does not modify _RET
+    #
+    # [1] https://yaml.org/spec/1.2.2/#741-flow-sequences
+    local ret="" tmp=""
+    get_value "$1" "$2" || return 1
+    ret="$_RET"
+    tmp="$_RET"
+
+    # remove smallest ] suffix
+    tmp="${tmp%]}"
+
+    # remove smallest [ prefix
+    tmp="${tmp#[}"
+
+    # remove preceding and trailing whitespace
+    trim "$tmp"
+    _RET="$ret"
+
+    # check value length
+    if [ "${#_RET}" -ne 0 ]; then
+        return 0
+    fi
+    debug 1 "key $key didn't have a valid single line flow sequence"
     return 1
 }
 
@@ -1005,7 +1088,7 @@ vmware_guest_customization() {
     # (disable_vmware_customization=true). If it is set to false, then
     # user has requested customization.
     local key="disable_vmware_customization"
-    if check_config "$key"; then
+    if check_config "$key" && get_value "$key" "$_RET"; then
         debug 2 "${_RET_fname} set $key to $_RET"
         case "$_RET" in
             0|false|False) return 0;;
@@ -1773,9 +1856,11 @@ found() {
 }
 
 trim() {
-    # shellcheck disable=2048,2086
-    set -- $*
-    _RET="$*"
+    # trim all whitespace from the string, assign output to _RET
+    local tmp="" cur="$*"
+    until tmp="${cur#[[:space:]]}"; [ "$tmp" = "$cur" ]; do cur="$tmp"; done
+    until tmp="${cur%[[:space:]]}"; [ "$tmp" = "$cur" ]; do cur="$tmp"; done
+    _RET="$tmp"
 }
 
 unquote() {
