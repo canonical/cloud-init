@@ -612,7 +612,7 @@ parse_yaml_array() {
 
 read_datasource_list() {
     cached "$DI_DSLIST" && return
-    local dslist=""
+    local dslist="" key="datasource_list"
     # if DI_DSNAME is set directly, then avoid parsing config.
     if [ -n "${DI_DSNAME}" ]; then
         dslist="${DI_DSNAME}"
@@ -630,14 +630,14 @@ read_datasource_list() {
             dslist=${_RET}
             ;;
     esac
-    if [ -z "$dslist" ] && check_config datasource_list; then
+    if [ -z "$dslist" ] && check_config "$key" && get_value "$key" "$_RET"; then
         debug 1 "$_RET_fname set datasource_list: $_RET"
         parse_yaml_array "$_RET"
         dslist=${_RET}
     fi
     if [ -z "$dslist" ]; then
         dslist=${DI_DSLIST_DEFAULT}
-        debug 1 "no datasource_list found, using default: $dslist"
+        warn "no datasource_list found, using default: $dslist"
     fi
     DI_DSLIST=$dslist
     return 0
@@ -825,9 +825,15 @@ check_config() {
         # but if only one file, line will not be prefixed.
         if [ $# -eq 1 ]; then
             found_fn="$1"
+            if [ "${#line}" -eq 0 ]; then
+                continue
+            fi
         else
             found_fn="${line%%:*}"
-            line=${line#*:}
+            line=${line#"$found_fn:"}
+            if [ "${#line}" -eq 0 ]; then
+                continue
+            fi
         fi
         ret=${line#*: };
         found=$((found+1))
@@ -838,6 +844,25 @@ check_config() {
         _RET_fname="$found_fn"
         return 0
     fi
+    return 1
+}
+
+get_value() {
+    # remove values preceeding ":" in a string
+    #
+    # This function is intended to be run on the output of check_config
+    # when the value for a key needs to be in the output.
+    #
+    # `check_config` returns true when no value is in the line, but this
+    # is insufficient when a value is required, as in the case of
+    # parsing 'datasource_list:'
+    local key="$1" line="$2" found=0 ret=""
+    ret="${line##*:}"
+    if [ "${#ret}" -ne 0 ]; then
+        _RET="$ret"
+        return 0
+    fi
+    debug 1 "key $key didn't have a valid value"
     return 1
 }
 
@@ -996,7 +1021,7 @@ vmware_guest_customization() {
     # (disable_vmware_customization=true). If it is set to false, then
     # user has requested customization.
     local key="disable_vmware_customization"
-    if check_config "$key"; then
+    if check_config "$key" && get_value "$key" "$_RET"; then
         debug 2 "${_RET_fname} set $key to $_RET"
         case "$_RET" in
             0|false|False) return 0;;
