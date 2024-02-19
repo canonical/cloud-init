@@ -62,6 +62,10 @@ class TestConfig(FilesystemMockingTestCase):
         self.args = []
         temp_utils._TMPDIR = self.new_root
 
+    def tearDown(self):
+        super().tearDown()
+        temp_utils._TMPDIR = None
+
     @mock.patch(CC_APK + "._write_repositories_file")
     def test_no_repo_settings(self, m_write_repos):
         """
