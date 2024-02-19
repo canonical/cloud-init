@@ -10,7 +10,7 @@ import textwrap
 
 import pytest
 
-from cloudinit import cloud, helpers, util
+from cloudinit import cloud, helpers, temp_utils, util
 from cloudinit.config import cc_apk_configure
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -60,6 +60,7 @@ class TestConfig(FilesystemMockingTestCase):
         self.name = "apk_configure"
         self.cloud = cloud.Cloud(None, self.paths, None, None, None)
         self.args = []
+        temp_utils._TMPDIR = self.new_root
 
     @mock.patch(CC_APK + "._write_repositories_file")
     def test_no_repo_settings(self, m_write_repos):
