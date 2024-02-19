@@ -139,7 +139,7 @@ INITSYS_FILES = {
     ],
     "sysvinit_deb": lambda: [f for f in glob("sysvinit/debian/*") if is_f(f)],
     "sysvinit_openrc": lambda: [
-        f for f in glob("sysvinit/gentoo/*") if is_f(f)
+        f for f in glob("sysvinit/openrc/*") if is_f(f)
     ],
     "sysvinit_openrc.dep": lambda: ["tools/cloud-init-hotplugd"],
     "systemd": lambda: [
