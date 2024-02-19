@@ -967,4 +967,4 @@ class Udhcpc(DhcpClient):
         return []
 
 
-ALL_DHCP_CLIENTS = [IscDhclient, Dhcpcd, Udhcpc]
+ALL_DHCP_CLIENTS = [Dhcpcd, IscDhclient, Udhcpc]
