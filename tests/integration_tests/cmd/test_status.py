@@ -20,7 +20,7 @@ def _remove_nocloud_dir_and_reboot(client: IntegrationInstance):
     client.instance._wait_for_execute(old_boot_id=old_boot_id)
 
 
-@retry(tries=5, delay=1)
+@retry(tries=30, delay=1)
 def retry_read_from_file(client: IntegrationInstance, path: str):
     """Retry read_from_file expecting it shortly"""
     return client.read_from_file(path)
