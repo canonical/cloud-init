@@ -118,16 +118,18 @@ MOCK_WSL_INSTANCE_DATA = {
     "name": "Noble-MLKit",
     "distro": "ubuntu",
     "version": "24.04",
-    "os_release": (
-        'PRETTY_NAME="Ubuntu Noble Numbat (development branch)"\n'
-        'NAME="Ubuntu"\n'
-        'VERSION_ID="24.04"\n'
-        'VERSION="24.04 (Noble Numbat)"\n'
-        "VERSION_CODENAME=noble\n"
-        "ID=ubuntu\n"
-        "ID_LIKE=debian\n"
-        "UBUNTU_CODENAME=noble\n"
-        "LOGO=ubuntu-logo\n"
+    "os_release": dedent(
+        """\
+        PRETTY_NAME="Ubuntu Noble Numbat (development branch)"
+        NAME="Ubuntu"
+        VERSION_ID="24.04"
+        VERSION="24.04 (Noble Numbat)"
+        VERSION_CODENAME=noble
+        ID=ubuntu
+        ID_LIKE=debian
+        UBUNTU_CODENAME=noble
+        LOGO=ubuntu-logo
+        """
     ),
 }
 
