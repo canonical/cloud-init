@@ -1588,6 +1588,7 @@ dscheck_VMware() {
 
 WSL_cloudinit_dir_in() {
     _RET=""
+    local cmdexe="" cloudinitdir="" val=""
     for m in "$@"; do
         cmdexe="$m/Windows/System23/cmd.exe"
         if command -v "$cmdexe" > /dev/null 2>&1; then
@@ -1603,12 +1604,14 @@ WSL_cloudinit_dir_in() {
 }
 
 WSL_instance_name() {
+    local val="" instance_name=""
     instance_name=$(wslpath -am /)
     val=$(basename "$instance_name")
     _RET="${val}"
 }
 
 dscheck_WSL() {
+    local mountpoints="" cloudinitdir="" candidate="" instance_name=""
     if [ "${DI_UNAME_KERNEL_NAME}" != "Linux" ]; then
         return "${DS_NOT_FOUND}"
     fi
