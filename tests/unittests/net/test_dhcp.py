@@ -381,7 +381,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
     @mock.patch("cloudinit.net.dhcp.os.remove")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
     @mock.patch("cloudinit.net.dhcp.subp.which")
-    def test_dhclient_exits_with_error(
+    def test_dhcpcd_exits_with_error(
         self, m_which, m_subp, m_remove, m_fallback
     ):
         """Log and do nothing when nic is absent and no fallback is found."""
@@ -394,7 +394,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
             maybe_perform_dhcp_discovery(Distro("fake but not", {}, None))
 
         self.assertIn(
-            "DHCP client selected: dhclient",
+            "DHCP client selected: dhcpcd",
             self.logs.getvalue(),
         )
 

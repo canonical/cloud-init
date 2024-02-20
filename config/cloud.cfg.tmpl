@@ -163,7 +163,7 @@ cloud_config_modules:
   - apt_pipelining
   - apt_configure
 {% if variant == "ubuntu" %}
-  - ubuntu_advantage
+  - ubuntu_pro
 {% endif %}
 {% elif variant in ["fedora", "mariner", "openeuler", "openmandriva",
                     "photon"] or is_rhel %}
@@ -301,7 +301,7 @@ system_info:
 {% elif variant in ["ubuntu", "unknown"] %}
 {# SRU_BLOCKER: do not ship network renderers on Xenial, Bionic or Eoan #}
   network:
-    dhcp_client_priority: [dhclient, dhcpcd, udhcpc]
+    dhcp_client_priority: [dhcpcd, dhclient, udhcpc]
     renderers: ['netplan', 'eni', 'sysconfig']
     activators: ['netplan', 'eni', 'network-manager', 'networkd']
 {% elif is_rhel %}
