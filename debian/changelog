@@ -14,13 +14,10 @@ cloud-init (23.4.1-0ubuntu1~20.04.3) UNRELEASED; urgency=medium
     [1] commit/b519d861aff8b44a0610c176cb34adcbe28df144
   * refresh patches:
     - d/p/netplan99-cannot-use-default.patch
+    - d/p/retain-ec2-default-net-update-events.patch
     - d/p/retain-netplan-world-readable.patch
     - d/p/status-do-not-remove-duplicated-data.patch
     - d/p/status-retain-recoverable-error-exit-code.patch
-  * Upstream snapshot based on upstream/main at c948e418.
-  * Upstream snapshot based on upstream/main at a4140119.
-  * refresh patches:
-    - d/p/retain-ec2-default-net-update-events.patch
   * Upstream snapshot based on 6d61b63 at 6d61b63f.
 
  -- Brett Holman <brett.holman@canonical.com>  Tue, 20 Feb 2024 12:43:37 -0700
