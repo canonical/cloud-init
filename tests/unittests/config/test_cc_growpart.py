@@ -27,6 +27,7 @@ from tests.unittests.helpers import (
     does_not_raise,
     skipUnlessJsonSchema,
 )
+from tests.unittests.util import MockDistro
 
 # growpart:
 #   mode: auto  # off, on, auto, 'growpart'
@@ -317,15 +318,14 @@ class TestConfig(TestCase):
             factory.assert_called_once_with(
                 "auto", distro=self.distro, devices=["/"]
             )
-            rsdevs.assert_called_once_with(myresizer, ["/"], self.distro.name)
+            rsdevs.assert_called_once_with(myresizer, ["/"], self.distro)
 
 
 class TestResize(unittest.TestCase):
     def setUp(self):
-        super(TestResize, self).setUp()
+        super().setUp()
         self.name = "growpart"
-        self.distro = mock.Mock()
-        self.distro.name = "ubuntu"
+        self.distro = MockDistro()
         self.log = logging.getLogger("TestResize")
 
     def test_simple_devices(self):
@@ -371,7 +371,7 @@ class TestResize(unittest.TestCase):
             os.stat = mystat
 
             resized = cc_growpart.resize_devices(
-                myresizer(), devs + enoent, self.distro.name
+                myresizer(), devs + enoent, self.distro
             )
 
             def find(name, res):
@@ -503,15 +503,14 @@ class TestEncrypted:
         mocker.patch("pathlib.Path.exists", return_value=True)
         self.m_unlink = mocker.patch("pathlib.Path.unlink", autospec=True)
 
-        self.distro = mock.Mock()
-        self.distro.name = "ubuntu"
+        self.distro = MockDistro
 
         self.resizer = mock.Mock()
         self.resizer.resize = mock.Mock(return_value=(1024, 1024))
 
     def test_resize_when_encrypted(self, common_mocks, caplog):
         info = cc_growpart.resize_devices(
-            self.resizer, ["/fake_encrypted"], self.distro.name
+            self.resizer, ["/fake_encrypted"], self.distro
         )
         assert len(info) == 2
         assert info[0][0] == "/dev/vdx1"
@@ -531,7 +530,7 @@ class TestEncrypted:
 
     def test_resize_when_unencrypted(self, common_mocks):
         info = cc_growpart.resize_devices(
-            self.resizer, ["/"], self.distro.name
+            self.resizer, ["/"], self.distro
         )
         assert len(info) == 1
         assert info[0][0] == "/"
@@ -546,7 +545,7 @@ class TestEncrypted:
             return_value=None,
         )
         info = cc_growpart.resize_devices(
-            self.resizer, ["/fake_encrypted"], self.distro.name
+            self.resizer, ["/fake_encrypted"], self.distro
         )
 
         assert len(info) == 1
@@ -564,7 +563,7 @@ class TestEncrypted:
             side_effect=_subp_side_effect,
         )
         info = cc_growpart.resize_devices(
-            self.resizer, ["/fake_encrypted"], self.distro.name
+            self.resizer, ["/fake_encrypted"], self.distro
         )
         assert len(info) == 1
         assert info[0][0] == "/fake_encrypted"
@@ -585,7 +584,7 @@ class TestEncrypted:
             side_effect=_subp_side_effect,
         )
         info = cc_growpart.resize_devices(
-            self.resizer, ["/fake_encrypted"], self.distro.name
+            self.resizer, ["/fake_encrypted"], self.distro
         )
         assert len(info) == 1
         assert info[0][0] == "/fake_encrypted"
@@ -600,7 +599,7 @@ class TestEncrypted:
         # on a system with an encrypted root partition
         mocker.patch("pathlib.Path.open", side_effect=FileNotFoundError())
         info = cc_growpart.resize_devices(
-            self.resizer, ["/fake_encrypted"], self.distro.name
+            self.resizer, ["/fake_encrypted"], self.distro
         )
         assert len(info) == 2
         assert info[0][0] == "/dev/vdx1"
@@ -629,7 +628,7 @@ class TestEncrypted:
         )
 
         info = cc_growpart.resize_devices(
-            self.resizer, ["/fake_encrypted"], self.distro.name
+            self.resizer, ["/fake_encrypted"], self.distro
         )
         assert len(info) == 2
         assert info[0][0] == "/dev/vdx1"
@@ -649,7 +648,7 @@ class TestEncrypted:
     def test_resize_skipped(self, common_mocks, mocker, caplog):
         mocker.patch("pathlib.Path.exists", return_value=False)
         info = cc_growpart.resize_devices(
-            self.resizer, ["/fake_encrypted"], self.distro.name
+            self.resizer, ["/fake_encrypted"], self.distro
         )
         assert len(info) == 2
         assert info[1] == (
