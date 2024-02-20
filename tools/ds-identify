@@ -1597,6 +1597,9 @@ WSL_cloudinit_dir_in() {
             # held by the environment variable %USERPROFILE%.
             cloudinitdir=$(/init "$cmdexe" /c echo %USERPROFILE% 2>/dev/null)
             if [ -n "$cloudinitdir" ]; then
+                # wslpath is a program supplied by WSL itself that translates Windows and Linux paths,
+                # respecting the mountpoints where the Windows drives are mounted.
+                # (in fact it's a symlink to /init).
                 val=$(wslpath -au "$cloudinitdir") && _RET="$val"
                 return $?
             fi
