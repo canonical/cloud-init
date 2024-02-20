@@ -1,5 +1,7 @@
 #!/sbin/openrc-run
 
+description="cloud-init config stage"
+
 depend() {
   after cloud-init-local
   after cloud-init
@@ -13,7 +15,8 @@ start() {
   elif test -e /etc/cloud/cloud-init.disabled; then
     ewarn "$RC_SVCNAME is disabled via cloud-init.disabled file"
   else
+    ebegin "cloud-init config"
     cloud-init modules --mode config
+    eend $?
   fi
-  eend 0
 }
