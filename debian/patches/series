@@ -1,3 +1,4 @@
+keep-dhclient-as-priority-client.patch
 revert-551f560d-cloud-config-after-snap-seeding.patch
 do-not-block-user-login.patch
 status-do-not-remove-duplicated-data.patch
