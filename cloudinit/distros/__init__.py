@@ -1339,6 +1339,25 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         subp.subp(cmd)
 
 
+    @staticmethod
+    def get_mapped_device(blockdev: str) -> Optional[str]:
+        """Returns underlying block device for a mapped device.
+
+        If it is mapped, blockdev will usually take the form of
+        /dev/mapper/some_name
+
+        If blockdev is a symlink pointing to a /dev/dm-* device, return
+        the device pointed to. Otherwise, return None.
+        """
+        realpath = os.path.realpath(blockdev)
+        if realpath.startswith("/dev/dm-"):
+            LOG.debug(
+                "%s is a mapped device pointing to %s", blockdev, realpath
+            )
+            return realpath
+        return None
+
+
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
     """
     Apply transformations to a URL's hostname, return transformed URL.

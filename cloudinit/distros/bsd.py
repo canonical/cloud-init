@@ -149,3 +149,7 @@ class BSD(distros.Distro):
         """
         ppid, _ = subp.subp(["ps", "-oppid=", "-p", str(pid)])
         return int(ppid.strip())
+
+    @staticmethod
+    def get_mapped_device(blockdev: str) -> Optional[str]:
+        return None
