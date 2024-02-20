@@ -543,10 +543,10 @@ class TestDistro:
             id="first_client_is_found_from_config_udhcpc",
         ),
         pytest.param(
-            IscDhclient,
+            Dhcpcd,
             {"network": {"dhcp_client_priority": []}},
             None,
-            id="first_client_is_found_no_config_dhclient",
+            id="first_client_is_found_no_config_dhcpcd",
         ),
         pytest.param(
             Dhcpcd,
