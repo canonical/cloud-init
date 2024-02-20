@@ -1592,6 +1592,9 @@ WSL_cloudinit_dir_in() {
     for m in "$@"; do
         cmdexe="$m/Windows/System23/cmd.exe"
         if command -v "$cmdexe" > /dev/null 2>&1; then
+            # Here WSL's proprietary `/init` is used to start the Windows cmd.exe
+            # to output the Windows user profile directory path, which is
+            # held by the environment variable %USERPROFILE%.
             cloudinitdir=$(/init "$cmdexe" /c echo %USERPROFILE% 2>/dev/null)
             if [ -n "$cloudinitdir" ]; then
                 val=$(wslpath -au "$cloudinitdir") && _RET="$val"
