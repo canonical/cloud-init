@@ -1,5 +1,6 @@
 cloud-init (24.1~7g94f58e81-0ubuntu1) UNRELEASED; urgency=medium
 
+  * d/cloud-init.templates: enable WSL datasource by default.
   * Upstream snapshot based on upstream/main at 94f58e81.
 
  -- Chad Smith <chad.smith@canonical.com>  Tue, 20 Feb 2024 09:21:01 -0700
