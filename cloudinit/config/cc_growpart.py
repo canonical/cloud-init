@@ -358,7 +358,7 @@ def devent2dev(devent):
     return dev
 
 
-def get_mapped_device(blockdev):
+def get_mapped_device(blockdev, distro_name):
     """Returns underlying block device for a mapped device.
 
     If it is mapped, blockdev will usually take the form of
@@ -368,6 +368,32 @@ def get_mapped_device(blockdev):
     the device pointed to. Otherwise, return None.
     """
     realpath = os.path.realpath(blockdev)
+
+    if distro_name == "alpine":
+        if blockdev.startswith("/dev/mapper"):
+            # For Alpine systems a /dev/mapper/ entry is *not* a
+            # symlink to the related /dev/dm-X block device,
+            # rather it is a  block device itself.
+
+            # Get the major/minor of the /dev/mapper block device
+            major = os.major(os.stat(blockdev).st_rdev)
+            minor = os.minor(os.stat(blockdev).st_rdev)
+
+            # Find the /dev/dm-X device with the same major/minor
+            with os.scandir("/dev/") as it:
+                for deventry in it:
+                    if deventry.name.startswith("dm-"):
+                        res = os.lstat(deventry.path)
+                        if stat.S_ISBLK(res.st_mode):
+                            if (
+                                os.major(os.stat(deventry.path).st_rdev)
+                                == major
+                                and os.minor(os.stat(deventry.path).st_rdev)
+                                == minor
+                            ):
+                                realpath = os.path.realpath(deventry.path)
+                                break
+
     if realpath.startswith("/dev/dm-"):
         LOG.debug("%s is a mapped device pointing to %s", blockdev, realpath)
         return realpath
@@ -473,7 +499,7 @@ def resize_encrypted(blockdev, partition) -> Tuple[str, str]:
     )
 
 
-def resize_devices(resizer, devices):
+def resize_devices(resizer, devices, distro_name):
     # returns a tuple of tuples containing (entry-in-devices, action, message)
     devices = copy.copy(devices)
     info = []
@@ -516,7 +542,7 @@ def resize_devices(resizer, devices):
             )
             continue
 
-        underlying_blockdev = get_mapped_device(blockdev)
+        underlying_blockdev = get_mapped_device(blockdev, distro_name)
         if underlying_blockdev:
             try:
                 # We need to resize the underlying partition first
@@ -659,7 +685,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         logfunc=LOG.debug,
         msg="resize_devices",
         func=resize_devices,
-        args=(resizer, devices),
+        args=(resizer, devices, cloud.distro.name),
     )
     for entry, action, msg in resized:
         if action == RESIZE.CHANGED:
