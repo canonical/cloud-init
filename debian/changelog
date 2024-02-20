@@ -3,6 +3,8 @@ cloud-init (23.4.1-0ubuntu1~23.10.3) UNRELEASED; urgency=medium
   * d/apport-general-hook.py: Move apport hook to main branch
   * d/cloud-init.maintscript: remove /etc/cloud/clean.d/README
   * d/cloud-init.logrotate: add logrotate config for cloud-init
+  * d/p/keep-dhclient-as-priority-client.patch:
+    - keep dhclient as default client
   * d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
     - Retain systemd ordering cloud-config.service After=snapd.seeded.service
   * d/p/retain-ec2-default-net-update-events.patch:
@@ -15,11 +17,7 @@ cloud-init (23.4.1-0ubuntu1~23.10.3) UNRELEASED; urgency=medium
   * refresh patches:
     - d/p/status-do-not-remove-duplicated-data.patch
     - d/p/status-retain-recoverable-error-exit-code.patch
-  * Upstream snapshot based on upstream/main at 33148a07.
-  * Upstream snapshot based on upstream/main at c948e418.
-  * refresh patches:
     - d/p/retain-ec2-default-net-update-events.patch
-  * Upstream snapshot based on upstream/main at a4140119.
   * Upstream snapshot based on upstream/main at 6d61b63f.
 
  -- Brett Holman <brett.holman@canonical.com>  Tue, 20 Feb 2024 02:11:35 -0700
