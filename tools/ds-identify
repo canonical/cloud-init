@@ -1609,7 +1609,7 @@ WSL_cloudinit_dir_in() {
 WSL_instance_name() {
     local val="" instance_name=""
     instance_name=$(wslpath -am /)
-    val=$(basename "$instance_name")
+    val="${instance_name##*/}"
     _RET="${val}"
 }
 
