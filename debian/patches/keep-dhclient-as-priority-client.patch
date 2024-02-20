@@ -1,0 +1,15 @@
+Description: Keep dhclient as default client
+Author: Brett Holman <brett.holman@canonical.com>
+Last-Update: 2024-02-20
+
+--- ci-a.orig/config/cloud.cfg.tmpl
++++ ci-a/config/cloud.cfg.tmpl
+@@ -301,7 +301,7 @@ system_info:
+ {% elif variant in ["ubuntu", "unknown"] %}
+ {# SRU_BLOCKER: do not ship network renderers on Xenial, Bionic or Eoan #}
+   network:
+-    dhcp_client_priority: [dhcpcd, dhclient, udhcpc]
++    dhcp_client_priority: [dhclient, dhcpcd, udhcpc]
+     renderers: ['netplan', 'eni', 'sysconfig']
+     activators: ['netplan', 'eni', 'network-manager', 'networkd']
+ {% elif is_rhel %}
