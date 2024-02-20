@@ -268,17 +268,23 @@ class TestCloudStackHostname(CiTestCase):
             )
         )
 
+        lease = {
+            "interface": "eth0",
+            "fixed-address": "192.168.0.1",
+            "subnet-mask": "255.255.255.0",
+            "routers": "192.168.0.1",
+            "renew": "4 2017/07/27 18:02:30",
+            "expire": "5 2017/07/28 07:08:15",
+        }
         self.patches.enter_context(
             mock.patch(
                 DHCP_MOD_PATH + ".IscDhclient.get_newest_lease",
-                return_value={
-                    "interface": "eth0",
-                    "fixed-address": "192.168.0.1",
-                    "subnet-mask": "255.255.255.0",
-                    "routers": "192.168.0.1",
-                    "renew": "4 2017/07/27 18:02:30",
-                    "expire": "5 2017/07/28 07:08:15",
-                },
+                return_value=lease,
+            )
+        )
+        self.patches.enter_context(
+            mock.patch(
+                DHCP_MOD_PATH + ".Dhcpcd.get_newest_lease", return_value=lease
             )
         )
 
