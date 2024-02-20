@@ -6,7 +6,7 @@ from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.conftest import get_validated_source
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
-from tests.integration_tests.util import wait_for_cloud_init
+from tests.integration_tests.util import lxd_has_nocloud, wait_for_cloud_init
 
 log = logging.getLogger("integration_testing")
 
@@ -75,7 +75,7 @@ def override_kernel_cmdline(ds_str: str, c: IntegrationInstance):
             True,
         ),
         ("ci.ds=openstack", "DataSourceOpenStack", True),
-        ("bonding.max_bonds=0", "DataSourceLXD", False),
+        ("bonding.max_bonds=0", "lxd_or_nocloud", False),
     ),
 )
 def test_lxd_datasource_kernel_override(
@@ -91,6 +91,10 @@ def test_lxd_datasource_kernel_override(
     kernel commandline in Python code is required.
     """
 
+    if configured == "lxd_or_nocloud":
+        configured = (
+            "DataSourceNoCloud" if lxd_has_nocloud(client) else "DataSourceLXD"
+        )
     override_kernel_cmdline(ds_str, client)
     if cmdline_configured:
         assert (
