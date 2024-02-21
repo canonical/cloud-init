@@ -6,62 +6,13 @@ from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.conftest import get_validated_source
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
-from tests.integration_tests.util import lxd_has_nocloud, wait_for_cloud_init
+from tests.integration_tests.util import (
+    override_kernel_cmdline,
+    restart_cloud_init,
+    wait_for_cloud_init,
+)
 
 log = logging.getLogger("integration_testing")
-
-
-def restart_cloud_init(c):
-    client = c
-    client.instance.shutdown(wait=False)
-    try:
-        client.instance.wait_for_state("STOPPED", num_retries=20)
-    except RuntimeError as e:
-        log.warning(
-            "Retrying shutdown due to timeout on initial shutdown request %s",
-            str(e),
-        )
-        client.instance.shutdown()
-
-    client.instance.execute_via_ssh = False
-    client.instance.start()
-    client.execute("cloud-init status --wait")
-
-
-def override_kernel_cmdline(ds_str: str, c: IntegrationInstance):
-    """
-    Configure grub's kernel command line to tell cloud-init to use OpenStack
-    - even though LXD should naturally be detected.
-
-    This runs on LXD, but forces cloud-init to attempt to run OpenStack.
-    This will inevitably fail on LXD, but we only care that it tried - on
-    Ironic, for example, it will succeed.
-    """
-    client = c
-
-    # The final output in /etc/default/grub should be:
-    #
-    # GRUB_CMDLINE_LINUX="'ds=nocloud;s=http://my-url/'"
-    #
-    # That ensures that the kernel commandline passed into
-    # /boot/efi/EFI/ubuntu/grub.cfg will be properly single-quoted
-    #
-    # Example:
-    #
-    # linux /boot/vmlinuz-5.15.0-1030-kvm ro 'ds=nocloud;s=http://my-url/'
-    #
-    # Not doing this will result in a semicolon-delimited ds argument
-    # terminating the kernel arguments prematurely.
-    client.execute('printf "GRUB_CMDLINE_LINUX=\\"" >> /etc/default/grub')
-    client.execute('printf "\'" >> /etc/default/grub')
-    client.execute(f"printf '{ds_str}' >> /etc/default/grub")
-    client.execute('printf "\'\\"" >> /etc/default/grub')
-
-    # We should probably include non-systemd distros at some point. This should
-    # most likely be as simple as updating the output path for grub-mkconfig
-    client.execute("grub-mkconfig -o /boot/efi/EFI/ubuntu/grub.cfg")
-    client.execute("cloud-init clean --logs")
-    restart_cloud_init(client)
 
 
 @pytest.mark.skipif(PLATFORM != "lxd_vm", reason="Modifies grub config")
