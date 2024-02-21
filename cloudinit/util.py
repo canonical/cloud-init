@@ -950,13 +950,14 @@ def del_dir(path):
     shutil.rmtree(path)
 
 
-# read_optional_seed
-# returns boolean indicating success or failure (presence of files)
-# if files are present, populates 'fill' dictionary with 'user-data' and
-# 'meta-data' entries
 def read_optional_seed(fill, base="", ext="", timeout=5):
+    """
+    returns boolean indicating success or failure (presense of files)
+    if files are present, populates 'fill' dictionary with 'user-data' and
+    'meta-data' entries
+    """
     try:
-        (md, ud, vd) = read_seeded(base, ext, timeout)
+        md, ud, vd = read_seeded(base=base, ext=ext, timeout=timeout)
         fill["user-data"] = ud
         fill["vendor-data"] = vd
         fill["meta-data"] = md

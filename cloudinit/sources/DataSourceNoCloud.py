@@ -421,3 +421,14 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
+
+
+if __name__ == "__main__":
+    from sys import argv
+
+    logging.basicConfig(level=logging.DEBUG)
+    seedfrom = argv[1]
+    md_seed, ud, vd = util.read_seeded(seedfrom)
+    print(f"seeded: {md_seed}")
+    print(f"ud: {ud}")
+    print(f"vd: {vd}")
