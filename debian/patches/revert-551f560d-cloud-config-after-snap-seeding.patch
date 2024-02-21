@@ -66,7 +66,7 @@ Last-Update: 2024-02-14
      for snap_name in LIVE_INSTALLER_SNAPS:
 --- a/cloudinit/util.py
 +++ b/cloudinit/util.py
-@@ -65,7 +65,7 @@ from cloudinit import (
+@@ -66,7 +66,7 @@ from cloudinit import (
      url_helper,
      version,
  )
@@ -75,7 +75,7 @@ Last-Update: 2024-02-14
  
  _DNS_REDIRECT_IP = None
  LOG = logging.getLogger(__name__)
-@@ -3095,18 +3095,6 @@ def wait_for_files(flist, maxwait, naple
+@@ -3096,18 +3096,6 @@ def wait_for_files(flist, maxwait, naple
      return need
  
  
