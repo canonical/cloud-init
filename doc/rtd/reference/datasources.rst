@@ -65,5 +65,6 @@ The following is a list of documentation for each supported datasource:
    datasources/upcloud.rst
    datasources/vmware.rst
    datasources/vultr.rst
+   datasources/wsl.rst
    datasources/zstack.rst
 

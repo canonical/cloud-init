@@ -125,7 +125,7 @@ class TestCaCerts:
             "snap",
             "timezone",
             "ubuntu_autoinstall",
-            "ubuntu_advantage",
+            "ubuntu_pro",
             "ubuntu_drivers",
             "update_etc_hosts",
             "wireguard",

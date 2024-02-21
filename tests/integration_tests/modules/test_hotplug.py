@@ -23,6 +23,13 @@ updates:
     when: ['hotplug']
 """
 
+USER_DATA_HOTPLUG_DISABLED = """\
+#cloud-config
+updates:
+  network:
+    when: ['boot-new-instance']
+"""
+
 ip_addr = namedtuple("ip_addr", "interface state ip4 ip6")
 
 
@@ -111,6 +118,79 @@ def test_hotplug_add_remove(client: IntegrationInstance):
     assert "enabled" == client.execute(
         "cloud-init devel hotplug-hook -s net query"
     )
+
+
+@pytest.mark.skipif(
+    PLATFORM not in ["lxd_container", "lxd_vm", "ec2", "openstack", "azure"],
+    reason=(f"HOTPLUG is not supported in {PLATFORM}."),
+)
+def _test_hotplug_enabled_by_cmd(client: IntegrationInstance):
+    assert "disabled" == client.execute(
+        "cloud-init devel hotplug-hook -s net query"
+    )
+    ret = client.execute("cloud-init devel hotplug-hook -s net enable")
+    assert ret.ok, ret.stderr
+    log = client.read_from_file("/var/log/cloud-init.log")
+    assert (
+        "hotplug-hook called with the following arguments: "
+        "{hotplug_action: enable" in log
+    )
+
+    assert "enabled" == client.execute(
+        "cloud-init devel hotplug-hook -s net query"
+    )
+    log = client.read_from_file("/var/log/cloud-init.log")
+    assert (
+        "hotplug-hook called with the following arguments: "
+        "{hotplug_action: query" in log
+    )
+    assert client.execute(
+        "test -f /etc/udev/rules.d/90-cloud-init-hook-hotplug.rules"
+    ).ok
+
+
+@pytest.mark.user_data(USER_DATA_HOTPLUG_DISABLED)
+def test_hotplug_enable_cmd(client: IntegrationInstance):
+    _test_hotplug_enabled_by_cmd(client)
+
+
+@pytest.mark.skipif(
+    PLATFORM != "ec2",
+    reason=(
+        f"Test was written for {PLATFORM} but can likely run on "
+        "other platforms."
+    ),
+)
+@pytest.mark.user_data(USER_DATA_HOTPLUG_DISABLED)
+def test_hotplug_enable_cmd_ec2(client: IntegrationInstance):
+    _test_hotplug_enabled_by_cmd(client)
+    ips_before = _get_ip_addr(client)
+
+    # Add new NIC
+    added_ip = client.instance.add_network_interface()
+    _wait_till_hotplug_complete(client, expected_runs=4)
+    ips_after_add = _get_ip_addr(client)
+    new_addition = [ip for ip in ips_after_add if ip.ip4 == added_ip][0]
+
+    assert len(ips_after_add) == len(ips_before) + 1
+    assert added_ip not in [ip.ip4 for ip in ips_before]
+    assert added_ip in [ip.ip4 for ip in ips_after_add]
+    assert new_addition.state == "UP"
+
+    netplan_cfg = client.read_from_file("/etc/netplan/50-cloud-init.yaml")
+    config = yaml.safe_load(netplan_cfg)
+    assert new_addition.interface in config["network"]["ethernets"]
+
+    # Remove new NIC
+    client.instance.remove_network_interface(added_ip)
+    _wait_till_hotplug_complete(client, expected_runs=5)
+    ips_after_remove = _get_ip_addr(client)
+    assert len(ips_after_remove) == len(ips_before)
+    assert added_ip not in [ip.ip4 for ip in ips_after_remove]
+
+    netplan_cfg = client.read_from_file("/etc/netplan/50-cloud-init.yaml")
+    config = yaml.safe_load(netplan_cfg)
+    assert new_addition.interface not in config["network"]["ethernets"]
 
 
 @pytest.mark.skipif(

@@ -80,6 +80,10 @@ class TestDHCP:
         if not "ec2" == PLATFORM:
             assert "Received dhcp lease on " in log, "EphemeralDHCPv4 failed"
         if "azure" == PLATFORM:
+            if "udhcpc" == client:
+                pytest.xfail(
+                    "udhcpc implementation doesn't support azure, see GH-4765"
+                )
             assert (
                 "Obtained DHCP lease on interface" in log
             ), "Failed to get unknown option 245"
