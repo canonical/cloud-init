@@ -11,6 +11,7 @@ from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.event import EventScope, EventType
 from cloudinit.settings import PER_INSTANCE
+from cloudinit.sources import DataSource
 
 meta: MetaSchema = {
     "id": "cc_install_hotplug",
@@ -71,20 +72,18 @@ LABEL="cloudinit_end"
 """
 
 
-def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
-    network_hotplug_enabled = (
-        "updates" in cfg
-        and "network" in cfg["updates"]
-        and "when" in cfg["updates"]["network"]
-        and "hotplug" in cfg["updates"]["network"]["when"]
-    )
+def install_hotplug(
+    datasource: DataSource,
+    cfg: Config,
+    network_hotplug_enabled: bool,
+):
     hotplug_supported = EventType.HOTPLUG in (
-        cloud.datasource.get_supported_events([EventType.HOTPLUG]).get(
+        datasource.get_supported_events([EventType.HOTPLUG]).get(
             EventScope.NETWORK, set()
         )
     )
     hotplug_enabled = stages.update_event_enabled(
-        datasource=cloud.datasource,
+        datasource=datasource,
         cfg=cfg,
         event_source_type=EventType.HOTPLUG,
         scope=EventScope.NETWORK,
@@ -107,8 +106,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         return
 
     extra_rules = (
-        cloud.datasource.extra_hotplug_udev_rules
-        if cloud.datasource.extra_hotplug_udev_rules is not None
+        datasource.extra_hotplug_udev_rules
+        if datasource.extra_hotplug_udev_rules is not None
         else ""
     )
     if extra_rules:
@@ -117,6 +116,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     libexecdir = "/usr/libexec/cloud-init"
     if not os.path.exists(libexecdir):
         libexecdir = "/usr/lib/cloud-init"
+    LOG.info("Installing hotplug.")
     util.write_file(
         filename=HOTPLUG_UDEV_PATH,
         content=HOTPLUG_UDEV_RULES_TEMPLATE.format(
@@ -124,3 +124,13 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         ),
     )
     subp.subp(["udevadm", "control", "--reload-rules"])
+
+
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
+    network_hotplug_enabled = (
+        "updates" in cfg
+        and "network" in cfg["updates"]
+        and "when" in cfg["updates"]["network"]
+        and "hotplug" in cfg["updates"]["network"]["when"]
+    )
+    install_hotplug(cloud.datasource, cfg, network_hotplug_enabled)

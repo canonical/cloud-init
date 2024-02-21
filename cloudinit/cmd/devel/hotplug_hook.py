@@ -4,12 +4,14 @@
 """Handle reconfiguration on hotplug events."""
 import abc
 import argparse
+import json
 import logging
 import os
 import sys
 import time
 
-from cloudinit import log, reporting, stages
+from cloudinit import log, reporting, settings, stages, util
+from cloudinit.config.cc_install_hotplug import install_hotplug
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import read_sys_net_safe
 from cloudinit.net.network_state import parse_net_config_data
@@ -66,6 +68,10 @@ def get_parser(parser=None):
         required=True,
         help="Specify action to take.",
         choices=["add", "remove"],
+    )
+
+    subparsers.add_parser(
+        "enable", help="Enable hotplug for a given subsystem."
     )
 
     return parser
@@ -237,6 +243,41 @@ def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction):
         raise last_exception
 
 
+def enable_hotplug(hotplug_init: Init, subsystem) -> bool:
+    datasource = hotplug_init.fetch(existing="trust")
+    if not datasource:
+        return False
+    scope = SUBSYSTEM_PROPERTIES_MAP[subsystem][1]
+    hotplug_supported = EventType.HOTPLUG in (
+        datasource.get_supported_events([EventType.HOTPLUG]).get(scope, set())
+    )
+    if not hotplug_supported:
+        print(
+            f"hotplug not supported for event of {subsystem}", file=sys.stderr
+        )
+        return False
+    hotplug_enabled_file = util.read_hotplug_enabled_file()
+    if scope.value in hotplug_enabled_file["scopes"]:
+        print(
+            f"Not installing hotplug for event of type {subsystem}."
+            " Reason: Already done.",
+            file=sys.stderr,
+        )
+        return True
+
+    hotplug_enabled_file["scopes"].append(scope.value)
+    util.write_file(
+        settings.HOTPLUG_ENABLED_FILE,
+        json.dumps(hotplug_enabled_file),
+        omode="w",
+        mode=0o640,
+    )
+    install_hotplug(
+        datasource, network_hotplug_enabled=True, cfg=hotplug_init.cfg
+    )
+    return True
+
+
 def handle_args(name, args):
     # Note that if an exception happens between now and when logging is
     # setup, we'll only see it in the journal
@@ -275,13 +316,29 @@ def handle_args(name, args):
                     )
                     sys.exit(1)
                 print("enabled" if datasource else "disabled")
-            else:
+            elif args.hotplug_action == "handle":
                 handle_hotplug(
                     hotplug_init=hotplug_init,
                     devpath=args.devpath,
                     subsystem=args.subsystem,
                     udevaction=args.udevaction,
                 )
+            else:
+                if os.getuid() != 0:
+                    sys.stderr.write(
+                        "Root is required. Try prepending your command with"
+                        " sudo.\n"
+                    )
+                    sys.exit(1)
+                if not enable_hotplug(
+                    hotplug_init=hotplug_init, subsystem=args.subsystem
+                ):
+                    sys.exit(1)
+                print(
+                    f"Enabled cloud-init hotplug for "
+                    f"subsystem={args.subsystem}"
+                )
+
         except Exception:
             LOG.exception("Received fatal exception handling hotplug!")
             raise

@@ -9,12 +9,46 @@ import pytest
 
 from cloudinit import sources, stages
 from cloudinit.event import EventScope, EventType
-from cloudinit.sources import NetworkConfigSource
+from cloudinit.sources import DataSource, NetworkConfigSource
 from cloudinit.util import sym_link, write_file
 from tests.unittests.helpers import mock
 from tests.unittests.util import TEST_INSTANCE_ID, FakeDataSource
 
 M_PATH = "cloudinit.stages."
+
+
+class TestUpdateEventEnabled:
+    @pytest.mark.parametrize(
+        "cfg",
+        [
+            {},
+            {"updates": {}},
+            {"updates": {"when": ["boot"]}},
+            {"updates": {"when": ["hotplug"]}},
+            {"updates": {"when": ["boot", "hotplug"]}},
+        ],
+    )
+    @pytest.mark.parametrize(
+        ["enabled_file_content", "enabled"],
+        [
+            ({"scopes": ["network"]}, True),
+            ({"scopes": []}, False),
+        ],
+    )
+    @mock.patch(M_PATH + "util.read_hotplug_enabled_file")
+    def test_hotplug_added_by_file(
+        self, m_read_hotplug_enabled_file, cfg, enabled_file_content, enabled
+    ):
+        m_datasource = mock.MagicMock(spec=DataSource)
+        m_datasource.default_update_events = {}
+        m_datasource.supported_update_events = {
+            EventScope.NETWORK: [EventType.HOTPLUG]
+        }
+        m_read_hotplug_enabled_file.return_value = enabled_file_content
+        cfg = {}
+        assert enabled is stages.update_event_enabled(
+            m_datasource, cfg, EventType.HOTPLUG, EventScope.NETWORK
+        )
 
 
 class TestInit:

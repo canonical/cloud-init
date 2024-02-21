@@ -75,3 +75,5 @@ PER_ONCE = "once"
 
 # Used to sanity check incoming handlers/modules frequencies
 FREQUENCIES = [PER_INSTANCE, PER_ALWAYS, PER_ONCE]
+
+HOTPLUG_ENABLED_FILE = "/var/lib/cloud/hotplug.enabled"
