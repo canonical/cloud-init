@@ -18,9 +18,11 @@ cloud-init (23.4.1-0ubuntu1~20.04.3) UNRELEASED; urgency=medium
     - d/p/retain-netplan-world-readable.patch
     - d/p/status-do-not-remove-duplicated-data.patch
     - d/p/status-retain-recoverable-error-exit-code.patch
-  * Upstream snapshot based on 6d61b63 at 6d61b63f.
+    - d/p/keep-dhclient-as-priority-client.patch
+    - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
+  * Upstream snapshot based on upstream/main at 05eac8ba.
 
- -- Brett Holman <brett.holman@canonical.com>  Tue, 20 Feb 2024 12:43:37 -0700
+ -- James Falcon <james.falcon@canonical.com>  Wed, 21 Feb 2024 09:04:13 -0600
 
 cloud-init (23.4.1-0ubuntu1~20.04.2) focal; urgency=medium
 
