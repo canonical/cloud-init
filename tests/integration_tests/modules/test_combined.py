@@ -15,12 +15,11 @@ from pathlib import Path
 import pytest
 
 import cloudinit.config
-from cloudinit.features import get_features
 from cloudinit.util import is_true
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
-from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, NOBLE
+from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
 from tests.integration_tests.util import (
     get_feature_flag_value,
     get_inactive_modules,
@@ -323,15 +322,12 @@ class TestCombined:
             "/run/cloud-init/combined-cloud-config.json"
         )
         data = json.loads(combined_json)
-        expected_features = get_features()
-        is_devel_pkg = (
-            "bddeb" in client.execute("cloud-init -v").split()[-1]
-            or client.settings.CLOUD_INIT_SOURCE == "IN_PLACE"
+        expected_features = json.loads(
+            client.execute(
+                "python3 -c 'import json; from cloudinit import features; "
+                "print(json.dumps(features.get_features()))'"
+            )
         )
-        if not is_devel_pkg and CURRENT_RELEASE < NOBLE:
-            expected_features["NETPLAN_CONFIG_ROOT_READ_ONLY"] = False
-            expected_features["APT_DEB822_SOURCE_LIST_FILE"] = False
-            expected_features["EXPIRE_APPLIES_TO_HASHED_USERS"] = False
         assert data["features"] == expected_features
         assert data["system_info"]["default_user"]["name"] == "ubuntu"
 

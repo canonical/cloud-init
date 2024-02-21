@@ -49,6 +49,7 @@ CFG_BUILTIN = {
         "VMware",
         "NWCS",
         "Akamai",
+        "WSL",
         # At the end to act as a 'catch' when none of the above work...
         "None",
     ],
@@ -74,3 +75,5 @@ PER_ONCE = "once"
 
 # Used to sanity check incoming handlers/modules frequencies
 FREQUENCIES = [PER_INSTANCE, PER_ALWAYS, PER_ONCE]
+
+HOTPLUG_ENABLED_FILE = "/var/lib/cloud/hotplug.enabled"
