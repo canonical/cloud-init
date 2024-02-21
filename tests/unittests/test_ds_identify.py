@@ -3,6 +3,7 @@
 import copy
 import os
 from collections import namedtuple
+from pathlib import Path
 from textwrap import dedent
 from uuid import uuid4
 
@@ -113,6 +114,24 @@ MOCK_UNAME_IS_PPC64 = {"name": "uname", "out": UNAME_PPC64EL, "ret": 0}
 MOCK_UNAME_IS_FREEBSD = {"name": "uname", "out": UNAME_FREEBSD, "ret": 0}
 MOCK_UNAME_IS_OPENBSD = {"name": "uname", "out": UNAME_OPENBSD, "ret": 0}
 MOCK_UNAME_IS_WSL = {"name": "uname", "out": UNAME_WSL, "ret": 0}
+MOCK_WSL_INSTANCE_DATA = {
+    "name": "Noble-MLKit",
+    "distro": "ubuntu",
+    "version": "24.04",
+    "os_release": dedent(
+        """\
+        PRETTY_NAME="Ubuntu Noble Numbat (development branch)"
+        NAME="Ubuntu"
+        VERSION_ID="24.04"
+        VERSION="24.04 (Noble Numbat)"
+        VERSION_CODENAME=noble
+        ID=ubuntu
+        ID_LIKE=debian
+        UBUNTU_CODENAME=noble
+        LOGO=ubuntu-logo
+        """
+    ),
+}
 
 shell_true = 0
 shell_false = 1
@@ -1076,17 +1095,83 @@ class TestOracle(DsIdentifyBase):
 
 
 class TestWSL(DsIdentifyBase):
-    def test_found(self):
-        """Simple positive test of WSL."""
-        self._test_ds_found("WSL-supported")
-
-    def test_not_found(self):
+    def test_not_found_virt(self):
         """Simple negative test for WSL due other virt."""
         self._test_ds_not_found("Not-WSL")
 
-    def test_almost_found(self):
-        """Simple negative test by lack of host filesystem mount points."""
+    def test_no_fs_mounts(self):
+        """Negative test by lack of host filesystem mount points."""
         self._test_ds_not_found("WSL-no-host-mounts")
+
+    def test_no_cloudinitdir(self):
+        """Negative test by not finding %USERPROFILE%/.cloud-init."""
+        data = copy.deepcopy(VALID_CFG["WSL-supported"])
+        data["mocks"].append(
+            {
+                "name": "WSL_cloudinit_dir_in",
+                "ret": 1,
+                "RET": "",
+            },
+        )
+        return self._check_via_dict(data, RC_NOT_FOUND)
+
+    def test_empty_cloudinitdir(self):
+        """Negative test by lack of host filesystem mount points."""
+        data = copy.deepcopy(VALID_CFG["WSL-supported"])
+        cloudinitdir = self.tmp_dir()
+        data["mocks"].append(
+            {
+                "name": "WSL_cloudinit_dir_in",
+                "ret": 0,
+                "RET": cloudinitdir,
+            },
+        )
+        return self._check_via_dict(data, RC_NOT_FOUND)
+
+    def test_found_via_userdata(self):
+        """Asserts that WSL datasource is found if there is applicable
+        userdata files inside cloudinitdir."""
+        data = copy.deepcopy(VALID_CFG["WSL-supported"])
+        cloudinitdir = self.tmp_dir()
+        data["mocks"].append(
+            {
+                "name": "WSL_cloudinit_dir_in",
+                "ret": 0,
+                "RET": cloudinitdir,
+            },
+        )
+        userdata_files = [
+            os.path.join(
+                cloudinitdir, MOCK_WSL_INSTANCE_DATA["name"] + ".user-data"
+            ),
+            os.path.join(
+                cloudinitdir,
+                "%s-%s.user-data"
+                % (
+                    MOCK_WSL_INSTANCE_DATA["distro"],
+                    MOCK_WSL_INSTANCE_DATA["version"],
+                ),
+            ),
+            os.path.join(
+                cloudinitdir,
+                MOCK_WSL_INSTANCE_DATA["distro"] + "-all.user-data",
+            ),
+            os.path.join(cloudinitdir, "default.user-data"),
+        ]
+
+        # Ensures all applicable user data files exist.
+        for filename in userdata_files:
+            Path(filename).touch()
+
+        for filename in userdata_files:
+            self._check_via_dict(
+                data, RC_FOUND, dslist=[data.get("ds"), DS_NONE]
+            )
+            # Delete one by one
+            Path(filename).unlink()
+
+        # Until there is none, making the datasource no longer viable.
+        return self._check_via_dict(data, RC_NOT_FOUND)
 
 
 def blkid_out(disks=None):
@@ -2133,6 +2218,11 @@ VALID_CFG = {
         "mocks": [
             MOCK_VIRT_IS_WSL,
             MOCK_UNAME_IS_WSL,
+            {
+                "name": "WSL_instance_name",
+                "ret": 0,
+                "RET": MOCK_WSL_INSTANCE_DATA["name"],
+            },
         ],
         "files": {
             "proc/mounts": (
@@ -2143,6 +2233,7 @@ VALID_CFG = {
                 "snapfuse /snap/core22/1033 fuse.snapfuse ro,nodev,user_id=0,"
                 "group_id=0,allow_other 0 0"
             ),
+            "etc/os-release": MOCK_WSL_INSTANCE_DATA["os_release"],
         },
     },
 }

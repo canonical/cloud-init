@@ -160,10 +160,29 @@ content with any :file:`instance-data.json` variables present.
 :command:`hotplug-hook`
 -----------------------
 
-Respond to newly added system devices by retrieving updated system metadata
-and bringing up/down the corresponding device. This command is intended to be
+Hotplug related subcommands. This command is intended to be
 called via a ``systemd`` service and is not considered user-accessible except
 for debugging purposes.
+
+
+:command:`query`
+^^^^^^^^^^^^^^^^
+
+Query if hotplug is enabled for a given subsystem.
+
+:command:`handle`
+^^^^^^^^^^^^^^^^^
+
+Respond to newly added system devices by retrieving updated system metadata
+and bringing up/down the corresponding device.
+
+:command:`enable`
+^^^^^^^^^^^^^^^^^
+
+Enable hotplug for a given subsystem. This is a last resort command for
+administrators to enable hotplug in running instances. The recommended
+method is configuring :ref:`events`, if not enabled by default in the active
+datasource.
 
 .. _cli_features:
 
