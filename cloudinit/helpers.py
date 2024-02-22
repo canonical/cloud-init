@@ -373,6 +373,8 @@ class Paths(persistence.CloudInitPickleMixin):
             self.lookups[
                 "combined_cloud_config"
             ] = "combined-cloud-config.json"
+        if "hotplug.enabled" not in self.lookups:
+            self.lookups["hotplug.enabled"] = "hotplug.enabled"
 
     # get_ipath_cur: get the current instance path for an item
     def get_ipath_cur(self, name=None):
