@@ -347,6 +347,7 @@ class Paths(persistence.CloudInitPickleMixin):
             "vendor_cloud_config": "vendor-cloud-config.txt",
             "vendor_scripts": "scripts/vendor",
             "warnings": "warnings",
+            "hotplug.enabled": "hotplug.enabled",
         }
         # Set when a datasource becomes active
         self.datasource = ds
