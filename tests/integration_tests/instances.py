@@ -221,7 +221,7 @@ class IntegrationInstance:
         self.execute("apt update")
         # Use apt install instead of dpkg -i to pull in any changed pkg deps
         assert self.execute(
-            "apt install {path} --yes".format(path=remote_path)
+            f"apt install {remote_path} --yes --allow-downgrades"
         ).ok
 
     @retry(tries=30, delay=1)
