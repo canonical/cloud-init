@@ -8,7 +8,12 @@ import yaml
 from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.conftest import get_validated_source
 from tests.integration_tests.integration_settings import PLATFORM
-from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL, IS_UBUNTU
+from tests.integration_tests.releases import (
+    CURRENT_RELEASE,
+    FOCAL,
+    IS_UBUNTU,
+    NOBLE,
+)
 from tests.integration_tests.util import verify_clean_log
 
 LOG = logging.getLogger("integration_testing.test_upgrade")
@@ -138,7 +143,7 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
                 assert post_json["v1"]["datasource"].startswith(
                     "DataSourceAzure"
                 )
-        if PLATFORM in ["gce", "qemu"]:
+        if PLATFORM in ["gce", "qemu"] and CURRENT_RELEASE < NOBLE:
             # GCE regenerates network config per boot AND
             # GCE uses fallback config AND
             # #4474 changed fallback configuration.
