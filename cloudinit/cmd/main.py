@@ -126,12 +126,12 @@ def run_module_section(mods: Modules, action_name, section):
         )
         sys.stderr.write("%s\n" % (msg))
         LOG.debug(msg)
-        return []
+        return 1
     else:
         LOG.debug(
             "Ran %s modules with %s failures", len(which_ran), len(failures)
         )
-        return failures
+        return failures if failures else 0
 
 
 def apply_reporting_cfg(cfg):
@@ -786,7 +786,10 @@ def status_wrapper(name, args, data_d=None, link_d=None):
         else:
             errors = ret
 
-        v1[mode]["errors"] = [str(e) for e in errors]
+        if isinstance(errors, list):
+            v1[mode]["errors"] = [str(e) for e in errors]
+        else:
+            v1[mode]["errors"] = []
 
     except Exception as e:
         util.logexc(LOG, "failed stage %s", mode)

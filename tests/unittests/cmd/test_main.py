@@ -76,7 +76,7 @@ class TestMain(FilesystemMockingTestCase):
             "init",
             cmdargs,
         )
-        self.assertEqual([], item2)
+        self.assertEqual(0, item2)
         # Instancify is called
         instance_id_path = "var/lib/cloud/data/instance-id"
         self.assertEqual(
@@ -146,7 +146,7 @@ class TestMain(FilesystemMockingTestCase):
             "init",
             cmdargs,
         )
-        self.assertEqual([], item2)
+        self.assertEqual(0, item2)
         # Instancify is called
         instance_id_path = "var/lib/cloud/data/instance-id"
         self.assertEqual(
