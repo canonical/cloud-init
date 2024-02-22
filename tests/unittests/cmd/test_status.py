@@ -145,7 +145,7 @@ class TestStatus:
         assert details.condition_status == status.ConditionStatus.ERROR
         assert details.description == "Failed due to systemd unit failure"
         assert details.errors == [
-            "Failed due to sysetmd unit failure. Ensure all cloud-init "
+            "Failed due to systemd unit failure. Ensure all cloud-init "
             "services are enabled, and check 'systemctl' or 'journalctl' "
             "for more information."
         ]
@@ -1003,8 +1003,10 @@ class TestSystemdFailed:
         m_subp = mocker.patch(
             f"{M_PATH}subp.subp",
             side_effect=subp.ProcessExecutionError(
-                "Message recipient disconnected from message bus without"
-                " replying"
+                stderr=(
+                    "Message recipient disconnected from message bus without "
+                    "replying"
+                ),
             ),
         )
         mocker.patch("time.time", side_effect=[1, 2, 50])
@@ -1012,7 +1014,9 @@ class TestSystemdFailed:
         assert 1 == m_subp.call_count
         assert (
             "Failed to get status from systemd. "
-            "Cloud-init status may be inaccurate."
+            "Cloud-init status may be inaccurate. "
+            "Error from systemctl: Message recipient disconnected from "
+            "message bus without replying"
         ) in capsys.readouterr().err
 
 
@@ -1032,9 +1036,9 @@ class TestQuerySystemctl:
                 "Message recipient disconnected", stderr="oh noes!"
             ),
         )
-        assert status.query_systemctl(["some", "args"], wait=False) == ""
+        with pytest.raises(subp.ProcessExecutionError):
+            status.query_systemctl(["some", "args"], wait=False)
         m_subp.assert_called_once_with(["systemctl", "some", "args"])
-        assert "Error from systemctl: oh noes!" in capsys.readouterr().err
 
     def test_query_systemctl_wait_with_exception(self, mocker):
         m_sleep = mocker.patch(f"{M_PATH}sleep")

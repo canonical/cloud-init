@@ -96,19 +96,10 @@ def query_systemctl(
     while True:
         try:
             return subp.subp(["systemctl", *systemctl_args]).stdout.strip()
-        except subp.ProcessExecutionError as e:
-            last_exception = e
-            if wait:
-                sleep(0.25)
-            else:
-                break
-    print(
-        "Failed to get status from systemd. "
-        "Cloud-init status may be inaccurate. ",
-        f"Error from systemctl: {last_exception.stderr}",
-        file=sys.stderr,
-    )
-    return ""
+        except subp.ProcessExecutionError:
+            if not wait:
+                raise
+            sleep(0.25)
 
 
 def get_parser(parser=None):
@@ -161,13 +152,13 @@ def translate_status(
     """
     # If we're done and have errors, we're in an error state
     if condition == ConditionStatus.ERROR:
-        return ("error", f"{condition.value} - {running.value}")
+        return "error", f"{condition.value} - {running.value}"
     # Handle the "degraded done" and "degraded running" states
     elif condition == ConditionStatus.DEGRADED and running in [
         RunningStatus.DONE,
         RunningStatus.RUNNING,
     ]:
-        return (running.value, f"{condition.value} {running.value}")
+        return running.value, f"{condition.value} {running.value}"
     return running.value, running.value
 
 
@@ -264,6 +255,15 @@ def handle_status_args(name, args) -> int:
     return 0
 
 
+def _disabled_via_environment(wait) -> bool:
+    """Return whether cloud-init is disabled via environment variable."""
+    try:
+        env = query_systemctl(["show-environment"], wait=wait)
+    except subp.ProcessExecutionError:
+        env = ""
+    return "cloud-init=disabled" in env
+
+
 def get_bootstatus(disable_file, paths, wait) -> Tuple[EnabledStatus, str]:
     """Report whether cloud-init current boot status
 
@@ -287,9 +287,7 @@ def get_bootstatus(disable_file, paths, wait) -> Tuple[EnabledStatus, str]:
         bootstatus_code = EnabledStatus.DISABLED_BY_KERNEL_CMDLINE
         reason = "Cloud-init disabled by kernel parameter cloud-init=disabled"
     elif "cloud-init=disabled" in os.environ.get("KERNEL_CMDLINE", "") or (
-        uses_systemd()
-        and "cloud-init=disabled"
-        in query_systemctl(["show-environment"], wait=wait)
+        uses_systemd() and _disabled_via_environment(wait=wait)
     ):
         bootstatus_code = EnabledStatus.DISABLED_BY_ENV_VARIABLE
         reason = (
@@ -323,16 +321,23 @@ def systemd_failed(wait: bool) -> bool:
         "cloud-init.service",
         "cloud-init-local.service",
     ]:
-        stdout = query_systemctl(
-            [
-                "show",
-                "--property=ActiveState,UnitFileState,SubState,MainPID",
-                service,
-            ],
-            wait=wait,
-        )
-        if not stdout:
+        try:
+            stdout = query_systemctl(
+                [
+                    "show",
+                    "--property=ActiveState,UnitFileState,SubState,MainPID",
+                    service,
+                ],
+                wait=wait,
+            )
+        except subp.ProcessExecutionError as e:
             # Systemd isn't ready, assume the same state
+            print(
+                "Failed to get status from systemd. "
+                "Cloud-init status may be inaccurate. "
+                f"Error from systemctl: {e.stderr}",
+                file=sys.stderr,
+            )
             return False
         states = dict(
             [[x.strip() for x in r.split("=")] for r in stdout.splitlines()]
@@ -375,16 +380,14 @@ def get_running_status(
     status_file, result_file, boot_status_code, latest_event
 ) -> RunningStatus:
     """Return the running status of cloud-init."""
-    if is_running(status_file, result_file):
-        return RunningStatus.RUNNING
-    elif boot_status_code in DISABLED_BOOT_CODES:
+    if boot_status_code in DISABLED_BOOT_CODES:
         return RunningStatus.DISABLED
+    elif is_running(status_file, result_file):
+        return RunningStatus.RUNNING
+    elif latest_event > 0:
+        return RunningStatus.DONE
     else:
-        return (
-            RunningStatus.DONE
-            if latest_event > 0
-            else RunningStatus.NOT_STARTED
-        )
+        return RunningStatus.NOT_STARTED
 
 
 def get_datasource(status_v1) -> str:
@@ -501,7 +504,7 @@ def get_status_details(
         condition_status = ConditionStatus.ERROR
         description = "Failed due to systemd unit failure"
         errors.append(
-            "Failed due to sysetmd unit failure. Ensure all cloud-init "
+            "Failed due to systemd unit failure. Ensure all cloud-init "
             "services are enabled, and check 'systemctl' or 'journalctl' "
             "for more information."
         )

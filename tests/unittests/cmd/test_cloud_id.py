@@ -33,7 +33,7 @@ STATUS_DETAILS_DISABLED = status.StatusDetails(
     "",
     {},
 )
-STATUS_DETAILS_NOT_RUN = status.StatusDetails(
+STATUS_DETAILS_NOT_STARTED = status.StatusDetails(
     status.RunningStatus.NOT_STARTED,
     status.ConditionStatus.PEACHY,
     status.EnabledStatus.UNKNOWN,
@@ -226,7 +226,7 @@ class TestCloudId:
         "details, exit_code",
         (
             (STATUS_DETAILS_DISABLED, 2),
-            (STATUS_DETAILS_NOT_RUN, 3),
+            (STATUS_DETAILS_NOT_STARTED, 3),
             (STATUS_DETAILS_RUNNING, 0),
             (STATUS_DETAILS_RUNNING_DS_NONE, 0),
         ),
