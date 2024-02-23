@@ -3231,6 +3231,9 @@ class MockPath:
         self.target_file = target_file
 
     def get_cpath(self, *args):
+        assert args == (
+            "hotplug.enabled",
+        ), f"Invalid get_cpath argument {args}"
         return self.target_file
 
 
