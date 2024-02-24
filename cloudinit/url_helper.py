@@ -142,9 +142,7 @@ def read_ftps(url: str, timeout: float = 5.0, **kwargs: dict) -> "FtpResponse":
             LOG.debug("Creating a secure connection")
             ftp_tls.prot_p()
             LOG.debug("Reading file: %s", url_parts.path)
-            ftp_tls.retrbinary(
-                f"RETR {url_parts.path}", callback=buffer.write
-            )
+            ftp_tls.retrbinary(f"RETR {url_parts.path}", callback=buffer.write)
             response = FtpResponse(url_parts.path, contents=buffer)
             LOG.debug("Closing connection")
             ftp_tls.close()
@@ -153,14 +151,15 @@ def read_ftps(url: str, timeout: float = 5.0, **kwargs: dict) -> "FtpResponse":
             try:
                 ftp = ftplib.FTP()
                 LOG.debug(
-                    "Attempting to connect to %s via port %s.", url, port)
+                    "Attempting to connect to %s via port %s.", url, port
+                )
                 ftp.connect(
                     host=url_parts.hostname,
                     port=port,
                     timeout=timeout or 5.0,  # uses float internally
                 )
             except ftplib.all_errors as e:
-                code=ftp_get_return_code_from_exception(e),
+                code = (ftp_get_return_code_from_exception(e),)
                 raise UrlError(
                     cause=(
                         "Reading file from ftp server"
