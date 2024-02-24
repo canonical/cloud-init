@@ -159,7 +159,7 @@ def read_ftps(url: str, timeout: float = 5.0, **kwargs: dict) -> "FtpResponse":
                     timeout=timeout or 5.0,  # uses float internally
                 )
             except ftplib.all_errors as e:
-                code = (ftp_get_return_code_from_exception(e),)
+                code = ftp_get_return_code_from_exception(e)
                 raise UrlError(
                     cause=(
                         "Reading file from ftp server"
