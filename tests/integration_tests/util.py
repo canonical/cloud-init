@@ -89,8 +89,6 @@ def verify_clean_boot(
     require_errors: Optional[list] = None,
     fail_when_expected_not_found: optional list of expected errors
     """
-    unexpected_warnings = []
-    unexpected_errors = []
     ignore_errors = ignore_errors or []
     ignore_warnings = ignore_warnings or []
     require_errors = require_errors or []
