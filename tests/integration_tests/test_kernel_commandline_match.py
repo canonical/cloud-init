@@ -7,6 +7,7 @@ from tests.integration_tests.conftest import get_validated_source
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.util import (
+    lxd_has_nocloud,
     override_kernel_cmdline,
     restart_cloud_init,
     wait_for_cloud_init,
