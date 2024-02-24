@@ -12,8 +12,9 @@ from tests.unittests.helpers import mock
 M_PATH = "cloudinit.cmd.cloud_id."
 
 STATUS_DETAILS_DONE = status.StatusDetails(
-    status.UXAppStatus.DONE,
-    status.UXAppBootStatusCode.UNKNOWN,
+    status.RunningStatus.DONE,
+    status.ConditionStatus.PEACHY,
+    status.EnabledStatus.UNKNOWN,
     "DataSourceNoCloud somedetail",
     [],
     {},
@@ -22,8 +23,9 @@ STATUS_DETAILS_DONE = status.StatusDetails(
     {},
 )
 STATUS_DETAILS_DISABLED = status.StatusDetails(
-    status.UXAppStatus.DISABLED,
-    status.UXAppBootStatusCode.DISABLED_BY_GENERATOR,
+    status.RunningStatus.DISABLED,
+    status.ConditionStatus.PEACHY,
+    status.EnabledStatus.DISABLED_BY_GENERATOR,
     "DataSourceNoCloud somedetail",
     [],
     {},
@@ -31,9 +33,10 @@ STATUS_DETAILS_DISABLED = status.StatusDetails(
     "",
     {},
 )
-STATUS_DETAILS_NOT_RUN = status.StatusDetails(
-    status.UXAppStatus.NOT_RUN,
-    status.UXAppBootStatusCode.UNKNOWN,
+STATUS_DETAILS_NOT_STARTED = status.StatusDetails(
+    status.RunningStatus.NOT_STARTED,
+    status.ConditionStatus.PEACHY,
+    status.EnabledStatus.UNKNOWN,
     "",
     [],
     {},
@@ -42,8 +45,9 @@ STATUS_DETAILS_NOT_RUN = status.StatusDetails(
     {},
 )
 STATUS_DETAILS_RUNNING = status.StatusDetails(
-    status.UXAppStatus.RUNNING,
-    status.UXAppBootStatusCode.UNKNOWN,
+    status.RunningStatus.RUNNING,
+    status.ConditionStatus.PEACHY,
+    status.EnabledStatus.UNKNOWN,
     "",
     [],
     {},
@@ -54,8 +58,9 @@ STATUS_DETAILS_RUNNING = status.StatusDetails(
 
 
 STATUS_DETAILS_RUNNING_DS_NONE = status.StatusDetails(
-    status.UXAppStatus.RUNNING,
-    status.UXAppBootStatusCode.UNKNOWN,
+    status.RunningStatus.RUNNING,
+    status.ConditionStatus.PEACHY,
+    status.EnabledStatus.UNKNOWN,
     "",
     [],
     {},
@@ -221,19 +226,24 @@ class TestCloudId:
         "details, exit_code",
         (
             (STATUS_DETAILS_DISABLED, 2),
-            (STATUS_DETAILS_NOT_RUN, 3),
+            (STATUS_DETAILS_NOT_STARTED, 3),
             (STATUS_DETAILS_RUNNING, 0),
             (STATUS_DETAILS_RUNNING_DS_NONE, 0),
         ),
     )
     @mock.patch(M_PATH + "get_status_details")
     def test_cloud_id_unique_exit_codes_for_status(
-        self, get_status_details, details, exit_code, tmpdir, capsys
+        self,
+        get_status_details,
+        details: status.StatusDetails,
+        exit_code,
+        tmpdir,
+        capsys,
     ):
         """cloud-id returns unique exit codes for status."""
         get_status_details.return_value = details
         instance_data = tmpdir.join("instance-data.json")
-        if details.status == cloud_id.UXAppStatus.RUNNING:
+        if details.running_status == cloud_id.RunningStatus.RUNNING:
             instance_data.write("{}")
         cmd = ["cloud-id", "--instance-data", instance_data.strpath, "--json"]
         with mock.patch("sys.argv", cmd):
