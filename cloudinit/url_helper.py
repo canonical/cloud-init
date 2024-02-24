@@ -123,21 +123,6 @@ def read_ftps(url: str, timeout: float = 5.0, **kwargs: dict) -> "FtpResponse":
                     port=port,
                     timeout=timeout or 5.0,  # uses float internally
                 )
-                LOG.debug("Attempting to login with user [%s]", user)
-                ftp_tls.login(
-                    user=user,
-                    passwd=url_parts.password or "",
-                )
-                LOG.debug("Creating a secure connection")
-                ftp_tls.prot_p()
-                LOG.debug("Reading file: %s", url_parts.path)
-                ftp_tls.retrbinary(
-                    f"RETR {url_parts.path}", callback=buffer.write
-                )
-                response = FtpResponse(url_parts.path, contents=buffer)
-                LOG.debug("Closing connection")
-                ftp_tls.close()
-                return response
             except ftplib.all_errors as e:
                 code = ftp_get_return_code_from_exception(e)
                 raise UrlError(
@@ -149,6 +134,21 @@ def read_ftps(url: str, timeout: float = 5.0, **kwargs: dict) -> "FtpResponse":
                     headers=None,
                     url=url,
                 ) from e
+            LOG.debug("Attempting to login with user [%s]", user)
+            ftp_tls.login(
+                user=user,
+                passwd=url_parts.password or "",
+            )
+            LOG.debug("Creating a secure connection")
+            ftp_tls.prot_p()
+            LOG.debug("Reading file: %s", url_parts.path)
+            ftp_tls.retrbinary(
+                f"RETR {url_parts.path}", callback=buffer.write
+            )
+            response = FtpResponse(url_parts.path, contents=buffer)
+            LOG.debug("Closing connection")
+            ftp_tls.close()
+            return response
         else:
             try:
                 ftp = ftplib.FTP()
@@ -159,17 +159,6 @@ def read_ftps(url: str, timeout: float = 5.0, **kwargs: dict) -> "FtpResponse":
                     port=port,
                     timeout=timeout or 5.0,  # uses float internally
                 )
-                LOG.debug("Attempting to login with user [%s]", user)
-                ftp.login(
-                    user=user,
-                    passwd=url_parts.password or "",
-                )
-                LOG.debug("Reading file: %s", url_parts.path)
-                ftp.retrbinary(f"RETR {url_parts.path}", callback=buffer.write)
-                response = FtpResponse(url_parts.path, contents=buffer)
-                LOG.debug("Closing connection")
-                ftp.close()
-                return response
             except ftplib.all_errors as e:
                 code=ftp_get_return_code_from_exception(e),
                 raise UrlError(
@@ -181,6 +170,17 @@ def read_ftps(url: str, timeout: float = 5.0, **kwargs: dict) -> "FtpResponse":
                     headers=None,
                     url=url,
                 ) from e
+            LOG.debug("Attempting to login with user [%s]", user)
+            ftp.login(
+                user=user,
+                passwd=url_parts.password or "",
+            )
+            LOG.debug("Reading file: %s", url_parts.path)
+            ftp.retrbinary(f"RETR {url_parts.path}", callback=buffer.write)
+            response = FtpResponse(url_parts.path, contents=buffer)
+            LOG.debug("Closing connection")
+            ftp.close()
+            return response
 
 
 def _read_file(path: str, **kwargs) -> "FileResponse":

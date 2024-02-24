@@ -46,7 +46,7 @@ def verify_ordered_items_in_text(to_verify: list, text: str):
 
 
 def format_found(header: str, items: list) -> str:
-    """Helper function to format assertion message """
+    """Helper function to format assertion message"""
 
     # do nothing, allows this formatter to be "stackable"
     if not items:
