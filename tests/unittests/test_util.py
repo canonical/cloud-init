@@ -3226,10 +3226,21 @@ class TestMaybeB64Decode:
         assert expected == util.maybe_b64decode(in_data)
 
 
+class MockPath:
+    def __init__(self, target_file="/does/not/exist"):
+        self.target_file = target_file
+
+    def get_cpath(self, *args):
+        assert args == (
+            "hotplug.enabled",
+        ), f"Invalid get_cpath argument {args}"
+        return self.target_file
+
+
 @pytest.mark.usefixtures("fake_filesystem")
 class TestReadHotplugEnabledFile:
     def test_file_not_found(self, caplog):
-        assert {"scopes": []} == util.read_hotplug_enabled_file()
+        assert {"scopes": []} == util.read_hotplug_enabled_file(MockPath())
         assert "enabled because it is not decodable" not in caplog.text
 
     def test_json_decode_error(self, caplog, tmpdir):
@@ -3240,7 +3251,9 @@ class TestReadHotplugEnabledFile:
             .join("hotplug.enabled")
         )
         target_file.write("asdfasdfa")
-        assert {"scopes": []} == util.read_hotplug_enabled_file()
+        assert {"scopes": []} == util.read_hotplug_enabled_file(
+            MockPath(target_file.strpath)
+        )
         assert "not decodable" in caplog.text
 
     @pytest.mark.parametrize("content", ['{"scopes": ["network"]}'])
@@ -3252,4 +3265,6 @@ class TestReadHotplugEnabledFile:
             .join("hotplug.enabled")
         )
         target_file.write(content)
-        assert {"scopes": ["network"]} == util.read_hotplug_enabled_file()
+        assert {"scopes": ["network"]} == util.read_hotplug_enabled_file(
+            MockPath(target_file.strpath)
+        )

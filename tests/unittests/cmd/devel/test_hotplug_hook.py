@@ -267,13 +267,16 @@ class TestEnableHotplug:
         mocks.m_init.datasource.get_supported_events.return_value = {
             EventScope.NETWORK: {EventType.HOTPLUG}
         }
+        mocks.m_init.paths.get_cpath.return_value = (
+            "/var/lib/cloud/hotplug.enabled"
+        )
 
         enable_hotplug(mocks.m_init, "net")
 
         assert [
             call([EventType.HOTPLUG])
         ] == mocks.m_init.datasource.get_supported_events.call_args_list
-        assert [call()] == m_read_hotplug_enabled_file.call_args_list
+        m_read_hotplug_enabled_file.assert_called_once()
         assert [
             call(
                 settings.HOTPLUG_ENABLED_FILE,
@@ -335,11 +338,14 @@ class TestEnableHotplug:
         mocks.m_init.datasource.get_supported_events.return_value = {
             EventScope.NETWORK: {EventType.HOTPLUG}
         }
+        mocks.m_init.paths.get_cpath.return_value = (
+            "/var/lib/cloud/hotplug.enabled"
+        )
         enable_hotplug(mocks.m_init, "net")
 
         assert [
             call([EventType.HOTPLUG])
         ] == mocks.m_init.datasource.get_supported_events.call_args_list
-        assert [call()] == m_read_hotplug_enabled_file.call_args_list
+        m_read_hotplug_enabled_file.assert_called_once()
         assert [] == m_write_file.call_args_list
         assert [] == m_install_hotplug.call_args_list
