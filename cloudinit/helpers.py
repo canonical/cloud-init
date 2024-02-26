@@ -347,6 +347,7 @@ class Paths(persistence.CloudInitPickleMixin):
             "vendor_cloud_config": "vendor-cloud-config.txt",
             "vendor_scripts": "scripts/vendor",
             "warnings": "warnings",
+            "hotplug.enabled": "hotplug.enabled",
         }
         # Set when a datasource becomes active
         self.datasource = ds
@@ -372,6 +373,8 @@ class Paths(persistence.CloudInitPickleMixin):
             self.lookups[
                 "combined_cloud_config"
             ] = "combined-cloud-config.json"
+        if "hotplug.enabled" not in self.lookups:
+            self.lookups["hotplug.enabled"] = "hotplug.enabled"
 
     # get_ipath_cur: get the current instance path for an item
     def get_ipath_cur(self, name=None):
