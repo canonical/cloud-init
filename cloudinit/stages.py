@@ -40,7 +40,6 @@ from cloudinit.net import cmdline
 from cloudinit.reporting import events
 from cloudinit.settings import (
     CLOUD_CONFIG,
-    HOTPLUG_ENABLED_FILE,
     PER_ALWAYS,
     PER_INSTANCE,
     PER_ONCE,
@@ -94,17 +93,17 @@ def update_event_enabled(
     )
 
     # Add supplemental hotplug event if supported and present in
-    # settings.HOTPLUG_ENABLED_FILE
+    # hotplug.enabled file
     if EventType.HOTPLUG in datasource.supported_update_events.get(
         scope, set()
     ):
-        hotplug_enabled_file = util.read_hotplug_enabled_file()
+        hotplug_enabled_file = util.read_hotplug_enabled_file(datasource.paths)
         if scope.value in hotplug_enabled_file["scopes"]:
             LOG.debug(
                 "Adding event: scope=%s EventType=%s found in %s",
                 scope,
                 EventType.HOTPLUG,
-                HOTPLUG_ENABLED_FILE,
+                datasource.paths.get_cpath("hotplug.enabled"),
             )
             if not allowed.get(scope):
                 allowed[scope] = set()
