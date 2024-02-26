@@ -41,6 +41,7 @@ from errno import ENOENT
 from functools import lru_cache, total_ordering
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Callable,
     Deque,
     Dict,
@@ -67,6 +68,10 @@ from cloudinit import (
     version,
 )
 from cloudinit.settings import CFG_BUILTIN, PER_ONCE
+
+if TYPE_CHECKING:
+    # Avoid circular import
+    from cloudinit.helpers import Paths
 
 _DNS_REDIRECT_IP = None
 LOG = logging.getLogger(__name__)
@@ -3290,14 +3295,14 @@ def deprecate_call(
     return wrapper
 
 
-def read_hotplug_enabled_file() -> dict:
+def read_hotplug_enabled_file(paths: "Paths") -> dict:
     content: dict = {"scopes": []}
     try:
         content = json.loads(
-            load_text_file(settings.HOTPLUG_ENABLED_FILE, quiet=False)
+            load_text_file(paths.get_cpath("hotplug.enabled"), quiet=False)
         )
     except FileNotFoundError:
-        LOG.debug("File not found: %s", settings.HOTPLUG_ENABLED_FILE)
+        LOG.debug("File not found: %s", paths.get_cpath("hotplug.enabled"))
     except json.JSONDecodeError as e:
         LOG.warning(
             "Ignoring contents of %s because it is not decodable. Error: %s",
