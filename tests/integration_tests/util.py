@@ -184,7 +184,7 @@ def wait_for_cloud_init(client: "IntegrationInstance", num_retries: int = 30):
             if (
                 result
                 and result.ok
-                and ("running" not in result or "not run" not in result)
+                and ("running" not in result or "not started" not in result)
             ):
                 return result
         except Exception as e:

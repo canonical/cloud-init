@@ -1,3 +1,8 @@
+23.4.4
+ - fix(nocloud): smbios datasource definition
+ - tests: Check that smbios seed works
+ - fix(source): fix argument boundaries when parsing cmdline (#4825)
+
 23.4.3
  - fix: Handle systemctl when dbus not ready (#4842)
    (LP: #2046483)

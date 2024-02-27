@@ -112,6 +112,7 @@ write_files:
     [Unit]
     Description=BEFORE cloud-init local
     DefaultDependencies=no
+    After=systemd-remount-fs.service
     Before=cloud-init-local.service
     Before=shutdown.target
     Before=sysinit.target
