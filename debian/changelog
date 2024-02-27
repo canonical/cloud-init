@@ -1,6 +1,9 @@
 cloud-init (24.1~7gd8b6ac2b-0ubuntu1) UNRELEASED; urgency=medium
 
   * d/cloud-init.templates: enable WSL datasource by default.
+  * Restore upstream ChangeLog without any merges.
+    We have been merging an upstream ChangeLog spelling difference
+    downstream for no good reason.
   * Upstream snapshot based on upstream/main at d8b6ac2b.
     - Bugs fixed in this snapshot: (LP: #2055081)
 
