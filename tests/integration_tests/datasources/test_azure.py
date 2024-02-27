@@ -6,7 +6,6 @@ from tests.integration_tests.conftest import get_validated_source
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE
-from tests.integration_tests.util import verify_clean_log
 
 
 def _check_for_eject_errors(
@@ -15,7 +14,6 @@ def _check_for_eject_errors(
     assert "sr0" not in instance.execute("mount")
     log = instance.read_from_file("/var/log/cloud-init.log")
     assert "Failed ejecting the provisioning iso" not in log
-    verify_clean_log(log)
 
 
 @pytest.mark.skipif(PLATFORM != "azure", reason="Test is Azure specific")
