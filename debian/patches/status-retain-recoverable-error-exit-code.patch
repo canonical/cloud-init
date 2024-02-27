@@ -6,10 +6,10 @@ Last-Update: 2024-01-08
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/cloudinit/cmd/status.py
 +++ b/cloudinit/cmd/status.py
-@@ -257,7 +257,7 @@ def handle_status_args(name, args) -> in
+@@ -254,7 +254,7 @@ def handle_status_args(name, args) -> in
          return 1
      # Recoverable error
-     elif details.status in UXAppStatusDegradedMap.values():
+     elif details.condition_status == ConditionStatus.DEGRADED:
 -        return 2
 +        return 0
      return 0
@@ -17,7 +17,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  
 --- a/tests/unittests/cmd/test_status.py
 +++ b/tests/unittests/cmd/test_status.py
-@@ -703,7 +703,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
+@@ -720,7 +720,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
                  },
                  None,
                  MyArgs(long=False, wait=False, format="json"),
