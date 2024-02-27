@@ -10,7 +10,7 @@ import os
 import sys
 import time
 
-from cloudinit import log, reporting, settings, stages, util
+from cloudinit import log, reporting, stages, util
 from cloudinit.config.cc_install_hotplug import install_hotplug
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import read_sys_net_safe
@@ -256,7 +256,7 @@ def enable_hotplug(hotplug_init: Init, subsystem) -> bool:
             f"hotplug not supported for event of {subsystem}", file=sys.stderr
         )
         return False
-    hotplug_enabled_file = util.read_hotplug_enabled_file()
+    hotplug_enabled_file = util.read_hotplug_enabled_file(hotplug_init.paths)
     if scope.value in hotplug_enabled_file["scopes"]:
         print(
             f"Not installing hotplug for event of type {subsystem}."
@@ -267,7 +267,7 @@ def enable_hotplug(hotplug_init: Init, subsystem) -> bool:
 
     hotplug_enabled_file["scopes"].append(scope.value)
     util.write_file(
-        settings.HOTPLUG_ENABLED_FILE,
+        hotplug_init.paths.get_cpath("hotplug.enabled"),
         json.dumps(hotplug_enabled_file),
         omode="w",
         mode=0o640,

@@ -43,6 +43,14 @@ ubuntu_pro:
 
 PRO_AUTO_ATTACH_DISABLED = """\
 #cloud-config
+# ubuntu_advantage config kept as duplication until the release of this
+# commit in proclient (ubuntu-advantage-tools v. 32):
+# https://github.com/canonical/ubuntu-pro-client/commit/7bb69e3ad
+# Without a top-level ubuntu_advantage key Pro will automatically attach
+# instead of defer to cloud-init for all attach operations.
+ubuntu_advantage:
+  features:
+    disable_auto_attach: true
 ubuntu_pro:
   features:
     disable_auto_attach: true
@@ -51,6 +59,10 @@ ubuntu_pro:
 PRO_DAEMON_DISABLED = """\
 #cloud-config
 # Disable Pro daemon (only needed in GCE)
+# Drop ubuntu_advantage key once ubuntu-advantage-tools v. 32 is SRU'd
+ubuntu_advantage:
+  features:
+    disable_auto_attach: true
 ubuntu_pro:
   features:
     disable_auto_attach: true
@@ -60,6 +72,10 @@ bootcmd:
 
 AUTO_ATTACH_CUSTOM_SERVICES = """\
 #cloud-config
+# Drop ubuntu_advantage key once ubuntu-advantage-tools v. 32 is SRU'd
+ubuntu_advantage:
+  enable:
+  - esm-infra
 ubuntu_pro:
   enable:
   - esm-infra
