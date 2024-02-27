@@ -150,7 +150,7 @@ RESIZE_FS_PRECHECK_CMDS = {"ufs": _can_skip_resize_ufs}
 
 def get_device_info_from_zpool(zpool) -> Optional[str]:
     # zpool has 10 second timeout waiting for /dev/zfs LP: #1760173
-    container = util.is_container()
+    log_warn = LOG.debug if util.is_container() else LOG.warn
     if not os.path.exists("/dev/zfs"):
         LOG.debug("Cannot get zpool info, no /dev/zfs")
         return None
@@ -164,12 +164,7 @@ def get_device_info_from_zpool(zpool) -> Optional[str]:
             )
             return None
     except subp.ProcessExecutionError as err:
-        if container:
-            LOG.info(
-                "Unable to get zpool status of %s: %s in container", zpool, err
-            )
-            return None
-        LOG.warning("Unable to get zpool status of %s: %s", zpool, err)
+        log_warn("Unable to get zpool status of %s: %s", zpool, err)
         return None
     r = r".*(ONLINE).*"
     for line in zpoolstatus.split("\n"):
@@ -177,10 +172,9 @@ def get_device_info_from_zpool(zpool) -> Optional[str]:
             disk = line.split()[0]
             LOG.debug('found zpool "%s" on disk %s', zpool, disk)
             return disk
-    if container:
-        LOG.info("No zpool found: %s: %s", zpool, err)
-    else:
-        LOG.warning("No zpool found %s: %s", zpool, err)
+    log_warn(
+        "No zpool found: [%s]: out: [%s] err: %s", zpool, zpoolstatus, err
+    )
     return None
 
 
