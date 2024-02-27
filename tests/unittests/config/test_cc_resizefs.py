@@ -13,6 +13,7 @@ from cloudinit.config.cc_resizefs import (
     _resize_xfs,
     _resize_zfs,
     can_skip_resize,
+    get_device_info_from_zpool,
     handle,
     maybe_get_writable_device_path,
 )
@@ -21,16 +22,18 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from cloudinit.subp import ProcessExecutionError
+from cloudinit.subp import ProcessExecutionError, subp
 from tests.unittests.helpers import (
     CiTestCase,
     mock,
+    readResource,
     skipUnlessJsonSchema,
     util,
     wrap_and_call,
 )
 
 LOG = logging.getLogger(__name__)
+M_PATH = "cloudinit.config.cc_resizefs."
 
 
 class TestResizefs(CiTestCase):
@@ -180,7 +183,7 @@ class TestResizefs(CiTestCase):
 
     @mock.patch("cloudinit.util.is_container", return_value=False)
     @mock.patch("cloudinit.util.parse_mount")
-    @mock.patch("cloudinit.util.get_device_info_from_zpool")
+    @mock.patch("cloudinit.config.cc_resizefs.get_device_info_from_zpool")
     @mock.patch("cloudinit.util.get_mount_info")
     def test_handle_zfs_root(
         self, mount_info, zpool_info, parse_mount, is_container
@@ -204,7 +207,7 @@ class TestResizefs(CiTestCase):
 
     @mock.patch("cloudinit.util.is_container", return_value=False)
     @mock.patch("cloudinit.util.get_mount_info")
-    @mock.patch("cloudinit.util.get_device_info_from_zpool")
+    @mock.patch("cloudinit.config.cc_resizefs.get_device_info_from_zpool")
     @mock.patch("cloudinit.util.parse_mount")
     def test_handle_modern_zfsroot(
         self, mount_info, zpool_info, parse_mount, is_container
@@ -517,3 +520,47 @@ class TestResizefsSchema:
         else:
             with pytest.raises(SchemaValidationError, match=error_msg):
                 validate_cloudconfig_schema(config, get_schema(), strict=True)
+
+
+class TestZpool:
+    @mock.patch(M_PATH + "os")
+    @mock.patch("cloudinit.subp.subp")
+    def test_get_device_info_from_zpool(self, zpool_output, m_os):
+        # mock /dev/zfs exists
+        m_os.path.exists.return_value = True
+        # mock subp command from util.get_mount_info_fs_on_zpool
+        zpool_output.return_value = (
+            readResource("zpool_status_simple.txt"),
+            "",
+        )
+        ret = get_device_info_from_zpool("vmzroot")
+        assert "gpt/system" == ret
+        m_os.path.exists.assert_called_with("/dev/zfs")
+
+    @mock.patch(M_PATH + "os")
+    def test_get_device_info_from_zpool_no_dev_zfs(self, m_os):
+        # mock /dev/zfs missing
+        m_os.path.exists.return_value = False
+        assert not get_device_info_from_zpool("vmzroot")
+
+    @mock.patch(M_PATH + "os")
+    @mock.patch("cloudinit.subp.subp")
+    def test_get_device_info_from_zpool_handles_no_zpool(self, m_sub, m_os):
+        """Handle case where there is no zpool command"""
+        # mock /dev/zfs exists
+        m_os.path.exists.return_value = True
+        m_sub.side_effect = ProcessExecutionError("No zpool cmd")
+        assert not get_device_info_from_zpool("vmzroot")
+
+    @mock.patch(M_PATH + "os")
+    @mock.patch("cloudinit.subp.subp")
+    def test_get_device_info_from_zpool_on_error(self, zpool_output, m_os):
+        # mock /dev/zfs exists
+        m_os.path.exists.return_value = True
+
+        # mock subp command from get_mount_info_fs_on_zpool
+        zpool_output.return_value = (
+            readResource("zpool_status_simple.txt"),
+            "error",
+        )
+        assert not get_device_info_from_zpool("vmzroot")
