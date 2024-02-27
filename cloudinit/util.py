@@ -2670,6 +2670,11 @@ def get_device_info_from_zpool(zpool):
     if not os.path.exists("/dev/zfs"):
         LOG.debug("Cannot get zpool info, no /dev/zfs")
         return None
+    if not subp.which("zpool"):
+        # lxd containers may have /dev/zfs but not necessarily the zpool
+        # command available (LP: #2055219)
+        LOG.debug("Cannot get zpool info, no zpool command available")
+        return None
     try:
         (zpoolstatus, err) = subp.subp(["zpool", "status", zpool])
     except subp.ProcessExecutionError as err:
