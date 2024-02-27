@@ -22,7 +22,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from cloudinit.subp import ProcessExecutionError, subp
+from cloudinit.subp import ProcessExecutionError
 from tests.unittests.helpers import (
     CiTestCase,
     mock,
