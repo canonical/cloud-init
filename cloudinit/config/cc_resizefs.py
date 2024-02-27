@@ -158,7 +158,7 @@ def get_device_info_from_zpool(zpool) -> Optional[str]:
         zpoolstatus, err = subp.subp(["zpool", "status", zpool])
         if err:
             LOG.info(
-                "zpool status returned: [%s] for zpool",
+                "zpool status returned error: [%s] for zpool [%s]",
                 err,
                 zpool,
             )

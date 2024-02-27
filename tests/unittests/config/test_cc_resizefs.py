@@ -538,7 +538,8 @@ class TestZpool:
         m_os.path.exists.assert_called_with("/dev/zfs")
 
     @mock.patch(M_PATH + "os")
-    def test_get_device_info_from_zpool_no_dev_zfs(self, m_os):
+    @mock.patch("cloudinit.subp.subp", return_value=("", ""))
+    def test_get_device_info_from_zpool_no_dev_zfs(self, m_os, m_subp):
         # mock /dev/zfs missing
         m_os.path.exists.return_value = False
         assert not get_device_info_from_zpool("vmzroot")
