@@ -36,24 +36,59 @@ subcommand under the ``extended_status`` key.
 
     $ cloud-init status --format json
     {
-      "boot_status_code": "enabled-by-generator",
-      "datasource": "",
-      "detail": "Cloud-init enabled by systemd cloud-init-generator",
-      "errors": [],
-      "extended_status": "degraded done",
-      "last_update": "",
-      "recoverable_errors": {},
-      "status": "done"
+        "boot_status_code": "enabled-by-generator",
+        "datasource": "lxd",
+        "detail": "DataSourceLXD",
+        "errors": [],
+        "extended_status": "degraded done",
+        "init": {
+            "errors": [],
+            "finished": 1708550839.1837437,
+            "recoverable_errors": {},
+            "start": 1708550838.6881146
+        },
+        "init-local": {
+            "errors": [],
+            "finished": 1708550838.0196638,
+            "recoverable_errors": {},
+            "start": 1708550837.7719762
+        },
+        "last_update": "Wed, 21 Feb 2024 21:27:24 +0000",
+        "modules-config": {
+            "errors": [],
+            "finished": 1708550843.8297973,
+            "recoverable_errors": {
+            "WARNING": [
+                "Removing /etc/apt/sources.list to favor deb822 source format"
+            ]
+            },
+            "start": 1708550843.7163966
+        },
+        "modules-final": {
+            "errors": [],
+            "finished": 1708550844.0884337,
+            "recoverable_errors": {},
+            "start": 1708550844.029698
+        },
+        "recoverable_errors": {
+            "WARNING": [
+            "Removing /etc/apt/sources.list to favor deb822 source format"
+            ]
+        },
+        "stage": null,
+        "status": "done"
     }
+
 
 See the list of all possible reported statuses:
 
 .. code-block:: shell-session
 
-    "not running"
+    "not started"
     "running"
     "done"
-    "error"
+    "error - done"
+    "error - running"
     "degraded done"
     "degraded running"
     "disabled"
