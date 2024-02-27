@@ -150,7 +150,7 @@ RESIZE_FS_PRECHECK_CMDS = {"ufs": _can_skip_resize_ufs}
 
 def get_device_info_from_zpool(zpool) -> Optional[str]:
     # zpool has 10 second timeout waiting for /dev/zfs LP: #1760173
-    log_warn = LOG.debug if util.is_container() else LOG.warn
+    log_warn = LOG.debug if util.is_container() else LOG.warning
     if not os.path.exists("/dev/zfs"):
         LOG.debug("Cannot get zpool info, no /dev/zfs")
         return None
