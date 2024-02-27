@@ -1184,10 +1184,13 @@ def parse_cmdline() -> str:
     """Check if command line argument for this datasource was passed
     Passing by command line overrides runtime datasource detection
     """
-    cmdline = util.get_cmdline()
-    ds_parse_0 = re.search(r"ds=([^\s;]+)", cmdline)
-    ds_parse_1 = re.search(r"ci\.ds=([^\s;]+)", cmdline)
-    ds_parse_2 = re.search(r"ci\.datasource=([^\s;]+)", cmdline)
+    return parse_cmdline_or_dmi(util.get_cmdline())
+
+
+def parse_cmdline_or_dmi(input: str) -> str:
+    ds_parse_0 = re.search(r"(?:^|\s)ds=([^\s;]+)", input)
+    ds_parse_1 = re.search(r"(?:^|\s)ci\.ds=([^\s;]+)", input)
+    ds_parse_2 = re.search(r"(?:^|\s)ci\.datasource=([^\s;]+)", input)
     ds = ds_parse_0 or ds_parse_1 or ds_parse_2
     deprecated = ds_parse_1 or ds_parse_2
     if deprecated:
