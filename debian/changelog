@@ -1,4 +1,4 @@
-cloud-init (24.1~7gd8b6ac2b-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (24.1~7gd8b6ac2b-0ubuntu1) noble; urgency=medium
 
   * d/cloud-init.templates: enable WSL datasource by default.
   * Restore upstream ChangeLog without any merges.
@@ -7,7 +7,7 @@ cloud-init (24.1~7gd8b6ac2b-0ubuntu1) UNRELEASED; urgency=medium
   * Upstream snapshot based on upstream/main at d8b6ac2b.
     - Bugs fixed in this snapshot: (LP: #2055081)
 
- -- James Falcon <james.falcon@canonical.com>  Tue, 27 Feb 2024 10:37:00 -0600
+ -- James Falcon <james.falcon@canonical.com>  Tue, 27 Feb 2024 10:45:28 -0600
 
 cloud-init (24.1~6ga4140119-0ubuntu1) noble; urgency=medium
 
