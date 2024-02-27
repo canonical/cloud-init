@@ -7,18 +7,19 @@ Last-Update: 2023-10-31
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/cloudinit/cmd/status.py
 +++ b/cloudinit/cmd/status.py
-@@ -192,6 +192,8 @@ def handle_status_args(name, args) -> in
+@@ -178,6 +178,9 @@ def print_status(args, details: StatusDe
          "last_update": details.last_update,
          **details.v1,
      }
 +    details_dict["schemas"] = {"1": deepcopy(details_dict)}
 +    details_dict["_schema_version"] = "1"
- 
++
      if args.format == "tabular":
          prefix = "\n" if args.wait else ""
+ 
 --- a/tests/unittests/cmd/test_status.py
 +++ b/tests/unittests/cmd/test_status.py
-@@ -482,6 +482,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
+@@ -501,6 +501,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
                  dedent(
                      """\
                     ---
@@ -26,7 +27,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                     boot_status_code: enabled-by-kernel-cmdline
                     datasource: ''
                     detail: 'Running in stage: init'
-@@ -495,6 +496,23 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
+@@ -514,6 +515,23 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
                         start: 123.45
                     last_update: Thu, 01 Jan 1970 00:02:04 +0000
                     recoverable_errors: {}
@@ -50,7 +51,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                     stage: init
                     status: running
                     ...
-@@ -527,6 +545,25 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
+@@ -546,6 +564,25 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
                      "init-local": {"finished": 123.46, "start": 123.45},
                      "last_update": "Thu, 01 Jan 1970 00:02:04 +0000",
                      "recoverable_errors": {},
@@ -76,7 +77,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                      "stage": "init",
                  },
                  id="running_json_format",
-@@ -558,6 +595,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
+@@ -577,6 +614,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
                  MyArgs(long=False, wait=False, format="json"),
                  1,
                  {
@@ -84,7 +85,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                      "boot_status_code": "enabled-by-kernel-cmdline",
                      "datasource": "nocloud",
                      "detail": (
-@@ -579,6 +617,32 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
+@@ -598,6 +636,30 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
                      },
                      "last_update": "Thu, 01 Jan 1970 00:02:05 +0000",
                      "recoverable_errors": {},
@@ -95,7 +96,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 +                            "detail": "DataSourceNoCloud "
 +                            "[seed=/var/.../seed/nocloud-net][dsmode=net]",
 +                            "errors": ["error1", "error2", "error3"],
-+                            "extended_status": "error",
++                            "extended_status": "error - running",
 +                            "init": {
 +                                "errors": ["error1"],
 +                                "finished": 125.678,
@@ -112,12 +113,10 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 +                            "status": "error",
 +                        }
 +                    },
-+                    "last_update": "Thu, 01 Jan 1970 00:02:05 +0000",
-+                    "recoverable_errors": {},
                      "stage": None,
                  },
                  id="running_json_format_with_errors",
-@@ -641,6 +705,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
+@@ -660,6 +722,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
                  MyArgs(long=False, wait=False, format="json"),
                  2,
                  {
@@ -125,7 +124,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                      "boot_status_code": "enabled-by-kernel-cmdline",
                      "datasource": "nocloud",
                      "detail": (
-@@ -700,6 +765,89 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
+@@ -719,6 +782,89 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
                              "don't try to open the hatch or we'll all be soup"
                          ],
                      },
