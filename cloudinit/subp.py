@@ -144,7 +144,7 @@ class ProcessExecutionError(IOError):
         return text.rstrip(b"\n").replace(b"\n", b"\n" + b" " * indent_level)
 
 
-def is_invalid_command(args: Union[List[str], List[bytes]]):
+def raise_on_invalid_command(args: Union[List[str], List[bytes]]):
     """check argument types to ensure that subp() can run the argument
 
     Throw a user-friendly exception which explains the issue.
@@ -155,9 +155,9 @@ def is_invalid_command(args: Union[List[str], List[bytes]]):
     for component in args:
         # if already bytes, or implements encode(), then it should be safe
         if not (isinstance(component, bytes) or hasattr(component, "encode")):
-            LOG.warning("Running invalid command %s", args)
+            LOG.warning("Running invalid command: %s", args)
             raise ProcessExecutionError(
-                cmd=args, reason=f"Running invalid command {args}"
+                cmd=args, reason=f"Running invalid command: {args}"
             )
 
 
@@ -258,7 +258,7 @@ def subp(
     elif isinstance(args, str):
         bytes_args = args.encode("utf-8")
     else:
-        is_invalid_command(args)
+        raise_on_invalid_command(args)
         bytes_args = [
             x if isinstance(x, bytes) else x.encode("utf-8") for x in args
         ]
