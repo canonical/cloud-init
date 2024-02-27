@@ -328,7 +328,7 @@ class TestFTP:
             dedent(
                 """\
                 [Unit]
-                Description=run a local ftp server against
+                Description=TESTING USE ONLY ftp server
                 Wants=cloud-init-local.service
                 DefaultDependencies=no
 
