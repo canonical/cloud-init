@@ -239,6 +239,14 @@ class TestSubp(CiTestCase):
         self.assertTrue(isinstance(cm.exception.stdout, str))
         self.assertTrue(isinstance(cm.exception.stderr, str))
 
+    def test_exception_invalid_command(self):
+        args = [None, "first", "arg", "missing"]
+        with self.assertRaises(
+            subp.ProcessExecutionError, msg="Running invalid command"
+        ):
+            with self.allow_subp(args):
+                subp.subp(args)
+
     def test_bunch_of_slashes_in_path(self):
         self.assertEqual(
             "/target/my/path/", subp.target_path("/target/", "//my/path/")
