@@ -71,7 +71,7 @@ Physical devices (e.g., ethernet, wifi)
 These can dynamically come and go between reboots and even during runtime
 (hotplugging). In the generic case, they can be selected by ``match:``
 rules on desired properties, such as name/name pattern, MAC address,
-driver, or device paths. In general these will match any number of
+or driver. In general these will match any number of
 devices (unless they refer to properties which are unique such as the full
 path or MAC address), so without further knowledge about the hardware,
 these will always be considered as a group.
