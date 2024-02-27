@@ -130,10 +130,16 @@ class TestStatus:
         f"{M_PATH}systemd_failed",
         return_value=True,
     )
+    @mock.patch(
+        f"{M_PATH}uses_systemd",
+        return_value=True,
+    )
     def test_get_status_systemd_failure(
         self,
+        m_uses_systemd,
         m_systemd_status,
         m_boot_status,
+        m_is_running,
         m_p_exists,
         m_load_json,
         tmpdir,
