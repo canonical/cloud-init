@@ -332,6 +332,20 @@ class DataSourceOracle(sources.DataSource):
                 self._network_config["ethernets"][name] = interface_config
 
 
+class DataSourceOracleVirtualized(sources.DataSource):
+    """dhcp fails in init-local timeframe unless paravirtualized
+
+    dhclient was previously broken in a way that caused local timeframe to
+    raise an exception. With dhcpcd, this exception doesn't get raised.
+    This means that we need to manually exit unless the instance is a container
+    """
+
+    def _get_data(self):
+        if not util.is_container():
+            return super()._get_data()
+        return False
+
+
 def _read_system_uuid() -> Optional[str]:
     sys_uuid = dmi.read_dmi_data("system-uuid")
     return None if sys_uuid is None else sys_uuid.lower()
@@ -382,7 +396,8 @@ def read_opc_metadata(*, fetch_vnics_data: bool = False) -> OpcMetadata:
 
 # Used to match classes to dependencies
 datasources = [
-    (DataSourceOracle, (sources.DEP_FILESYSTEM,)),
+    (DataSourceOracleVirtualized, (sources.DEP_FILESYSTEM,)),
+    (DataSourceOracle, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 ]
 
 
