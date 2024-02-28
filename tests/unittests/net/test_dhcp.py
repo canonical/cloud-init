@@ -1318,3 +1318,10 @@ class TestDhcpcd:
                 ),
             ]
         )
+
+
+class TestMaybePerformDhcpDiscovery:
+    def test_none_and_missing_fallback(self):
+        with pytest.raises(NoDHCPLeaseInterfaceError):
+            distro = mock.Mock(fallback_interface=None)
+            maybe_perform_dhcp_discovery(distro, None)
