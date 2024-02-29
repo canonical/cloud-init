@@ -672,6 +672,8 @@ class TestAptSourceConfig:
                     "-o",
                     "ppid,pid",
                     "-C",
+                    "keyboxd",
+                    "-C",
                     "dirmngr",
                     "-C",
                     "gpg-agent",
