@@ -5,6 +5,7 @@ import io
 import ipaddress
 import logging
 import os
+import shutil
 import textwrap
 from typing import Optional, cast
 
@@ -17,6 +18,7 @@ from cloudinit.net import (
     subnet_is_ipv6,
 )
 from cloudinit.net.network_state import NET_CONFIG_TO_V2, NetworkState
+from cloudinit.temp_utils import mkdtemp
 
 CLOUDINIT_NETPLAN_FILE = "/etc/netplan/50-cloud-init.yaml"
 
@@ -235,6 +237,61 @@ def _clean_default(target=None):
         os.unlink(f)
 
 
+def netplan_api_write_yaml_file(net_config_content: str) -> bool:
+    """Use netplan.State._write_yaml_file to write netplan config
+
+    Where netplan python API exists, prefer to use of the private
+    _write_yaml_file to ensure proper permissions and file locations
+    are chosen by the netplan python bindings in the environment.
+
+    By calling the netplan API, allow netplan versions to change behavior
+    related to file permissions and treatment of sensitive configuration
+    under the API call to _write_yaml_file.
+
+    In future netplan releases, security-sensitive config may be written to
+    separate file or directory paths than world-readable configuration parts.
+    """
+    try:
+        from netplan.parser import Parser
+        from netplan.state import State
+    except ImportError:
+        LOG.debug(
+            "No netplan python module. Fallback to write %s",
+            CLOUDINIT_NETPLAN_FILE,
+        )
+        return False
+    cfg_dir = mkdtemp()
+    try:
+        with open(os.path.join(cfg_dir, "ci-net-cfg.yaml"), "wb+") as f:
+            f.write(util.encode_text(net_config_content))
+            f.flush()
+            f.seek(0, io.SEEK_SET)
+            parser = Parser()
+            parser.load_yaml(f)
+            state_output_file = State()
+            state_output_file.import_parser_results(parser)
+
+            # Write our desired basename 50-cloud-init.yaml, allow netplan to
+            # determine default root-dir /etc/netplan and/or specialized
+            # filenames or read permissions based on whether this config
+            # contains secrets.
+            state_output_file._write_yaml_file(
+                os.path.basename(CLOUDINIT_NETPLAN_FILE)
+            )
+    except Exception as e:
+        LOG.warning(
+            "Unable to render network config using netplan python module."
+            " Fallback to write %s. %s",
+            CLOUDINIT_NETPLAN_FILE,
+            e,
+        )
+        return False
+    if os.path.exists(cfg_dir):
+        shutil.rmtree(cfg_dir)
+    LOG.debug("Rendered netplan config using netplan python API")
+    return True
+
+
 class Renderer(renderer.Renderer):
     """Renders network information in a /etc/netplan/network.yaml format."""
 
@@ -287,22 +344,24 @@ class Renderer(renderer.Renderer):
             header += "\n"
         content = header + content
 
-        # determine if existing config files have the same content
         same_content = False
-        if os.path.exists(fpnplan):
-            hashed_content = util.hash_buffer(io.BytesIO(content.encode()))
-            with open(fpnplan, "rb") as f:
-                hashed_original_content = util.hash_buffer(f)
-            if hashed_content == hashed_original_content:
-                same_content = True
+        if not netplan_api_write_yaml_file(content):
+            # No netplan api, fallback to write config  directly.
+            # Determine if existing config files have the same content
+            if os.path.exists(fpnplan):
+                hashed_content = util.hash_buffer(io.BytesIO(content.encode()))
+                with open(fpnplan, "rb") as f:
+                    hashed_original_content = util.hash_buffer(f)
+                if hashed_content == hashed_original_content:
+                    same_content = True
 
-        mode = 0o600 if features.NETPLAN_CONFIG_ROOT_READ_ONLY else 0o644
-        if not same_content and os.path.exists(fpnplan):
-            current_mode = util.get_permissions(fpnplan)
-            if current_mode & mode == current_mode:
-                # preserve mode if existing perms are more strict than default
-                mode = current_mode
-        util.write_file(fpnplan, content, mode=mode)
+            mode = 0o600 if features.NETPLAN_CONFIG_ROOT_READ_ONLY else 0o644
+            if not same_content and os.path.exists(fpnplan):
+                current_mode = util.get_permissions(fpnplan)
+                if current_mode & mode == current_mode:
+                    # preserve mode if existing perms are more strict
+                    mode = current_mode
+            util.write_file(fpnplan, content, mode=mode)
 
         if self.clean_default:
             _clean_default(target=target)

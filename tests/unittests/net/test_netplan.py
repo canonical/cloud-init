@@ -39,3 +39,14 @@ class TestNetplanRenderer:
         assert renderer_mocks["_netplan_generate"].call_args_list == [
             mock.call(run=True, same_content=write_config)
         ]
+
+
+class TestNetplanAPIWriteYAMLFile:
+    def test_no_netplan_python_api(self, caplog):
+        """Skip when no netplan available."""
+        with mock.patch("builtins.__import__", side_effect=ImportError):
+            netplan.netplan_api_write_yaml_file("network: {version: 2}")
+        assert (
+            "No netplan python module. Fallback to write"
+            f" {netplan.CLOUDINIT_NETPLAN_FILE}" in caplog.text
+        )
