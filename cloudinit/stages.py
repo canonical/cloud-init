@@ -38,7 +38,13 @@ from cloudinit.handlers.shell_script_by_frequency import (
 )
 from cloudinit.net import cmdline
 from cloudinit.reporting import events
-from cloudinit.settings import CLOUD_CONFIG, PER_ALWAYS, PER_INSTANCE, PER_ONCE
+from cloudinit.settings import (
+    CLOUD_CONFIG,
+    DEFAULT_RUN_DIR,
+    PER_ALWAYS,
+    PER_INSTANCE,
+    PER_ONCE,
+)
 from cloudinit.sources import NetworkConfigSource
 
 LOG = logging.getLogger(__name__)
@@ -272,14 +278,20 @@ class Init:
         """read and merge our configuration"""
         # No config is passed to Paths() here because we don't yet have a
         # config to pass. We must bootstrap a config to identify
-        # distro-specific rund_dir locations. Once we have the run_dir
+        # distro-specific run_dir locations. Once we have the run_dir
         # we re-read our config with a valid Paths() object. This code has to
         # assume the location of /etc/cloud/cloud.cfg && /etc/cloud/cloud.cfg.d
-        bootstrapped_config = self._read_bootstrap_cfg(extra_fns, {})
 
-        # Now that we know run_dir, lets re-read the config to get a valid
-        # configuration
-        return self._read_bootstrap_cfg(extra_fns, bootstrapped_config)
+        inital_config = self._read_bootstrap_cfg(extra_fns, {})
+        paths = inital_config.get("system_info", {}).get("paths", {})
+
+        # run_dir hasn't changed so we can safely return the config
+        if DEFAULT_RUN_DIR == paths.get("run_dir"):
+            return inital_config
+
+        # run_dir has changed so re-read the config to get a valid one
+        # using the new location of run_dir
+        return self._read_bootstrap_cfg(extra_fns, paths)
 
     def _read_bootstrap_cfg(self, extra_fns, bootstrapped_config: dict):
         no_cfg_paths = helpers.Paths(bootstrapped_config, self.datasource)
@@ -519,7 +531,7 @@ class Init:
         return ret
 
     def fetch(self, existing="check"):
-        """optionally load datasource from cache, otherwise discovery
+        """optionally load datasource from cache, otherwise discover
         datasource
         """
         return self._get_data_source(existing=existing)
@@ -1101,7 +1113,7 @@ class Init:
 
 
 def read_runtime_config(run_dir: str):
-    return util.read_conf(run_dir)
+    return util.read_conf(os.path.join(run_dir, "cloud.cfg"))
 
 
 def fetch_base_config(run_dir: str, *, instance_data_file=None) -> dict:
