@@ -35,6 +35,7 @@ from cloudinit.handlers import INCLUSION_TYPES_MAP, type_from_starts_with
 from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceNotFoundException
 from cloudinit.util import error, get_modules_from_dir, load_file
+from pathlib import  Path
 
 try:
     from jsonschema import ValidationError as _ValidationError
@@ -1429,7 +1430,7 @@ def load_doc(requested_modules: list) -> str:
 
 
 def get_schema_dir() -> str:
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "schemas")
+    return os.path.join(Path(__file__).parent.parent.parent, "schemas")
 
 
 def get_schema(schema_type: SchemaType = SchemaType.CLOUD_CONFIG) -> dict:
