@@ -1,4 +1,4 @@
-cloud-init (24.1-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (24.1-0ubuntu1) noble; urgency=medium
 
   * Upstream snapshot based on 24.1.
     List of changes from upstream can be found at
