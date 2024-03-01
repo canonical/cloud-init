@@ -1,3 +1,11 @@
+cloud-init (24.1-0ubuntu1) UNRELEASED; urgency=medium
+
+  * Upstream snapshot based on 24.1.
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/24.1/ChangeLog
+
+ -- Brett Holman <brett.holman@canonical.com>  Thu, 29 Feb 2024 19:57:05 -0700
+
 cloud-init (24.1~7g54599148-0ubuntu1) noble; urgency=medium
 
   * d/cloud-init.templates: enable WSL datasource by default.
