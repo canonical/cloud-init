@@ -575,7 +575,7 @@ def wait_for_url(
         time_taken = int(time.time() - start_time)
         max_wait_str = "%ss" % max_wait if max_wait else "unlimited"
         status_msg = "Calling '%s' failed [%s/%s]: %s" % (
-            url,
+            url or getattr(url_exc, "url", "url ? None"),
             time_taken,
             max_wait_str,
             reason,

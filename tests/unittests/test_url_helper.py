@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+import re
 from functools import partial
 from threading import Event
 from time import process_time
@@ -530,7 +531,7 @@ class TestUrlHelper:
         assert response.encode() == response_contents
 
     @responses.activate
-    def test_timeout(self):
+    def test_timeout(self, caplog):
         """If no endpoint responds in time, expect no response"""
 
         self.event.clear()
@@ -540,7 +541,7 @@ class TestUrlHelper:
                 responses.GET,
                 address,
                 callback=(
-                    self.response_wait
+                    requests.ConnectTimeout
                     if "sleep" in address
                     else self.response_nowait
                 ),
@@ -558,3 +559,6 @@ class TestUrlHelper:
         self.event.set()
         assert not url
         assert not response_contents
+        assert re.search(
+            r"open 'https:\/\/sleep1\/'.*Timed out", caplog.text, re.DOTALL
+        )
