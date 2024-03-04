@@ -695,29 +695,13 @@ class TestEc2(test_helpers.ResponsesTestCase):
             m_readurl.side_effect = (
                 conn_error,
                 conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
                 mock_success,
             )
             with mock.patch("cloudinit.url_helper.time.sleep"):
                 self.assertTrue(ds.wait_for_metadata_service())
 
         # Just one /latest/api/token request
-        self.assertEqual(19, len(m_readurl.call_args_list))
+        self.assertEqual(3, len(m_readurl.call_args_list))
         for readurl_call in m_readurl.call_args_list:
             self.assertIn("latest/api/token", readurl_call[0][0])
 
