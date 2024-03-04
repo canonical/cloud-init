@@ -359,20 +359,36 @@ class Init:
             LOG.debug(myrep.description)
 
         if not ds:
-            util.del_file(self.paths.instance_link)
-            (cfg_list, pkg_list) = self._get_datasources()
-            # Deep copy so that user-data handlers can not modify
-            # (which will affect user-data handlers down the line...)
-            (ds, dsname) = sources.find_source(
-                self.cfg,
-                self.distro,
-                self.paths,
-                copy.deepcopy(self.ds_deps),
-                cfg_list,
-                pkg_list,
-                self.reporter,
-            )
-            LOG.info("Loaded datasource %s - %s", dsname, ds)
+            try:
+                (cfg_list, pkg_list) = self._get_datasources()
+                # Deep copy so that user-data handlers can not modify
+                # (which will affect user-data handlers down the line...)
+                (ds, dsname) = sources.find_source(
+                    self.cfg,
+                    self.distro,
+                    self.paths,
+                    copy.deepcopy(self.ds_deps),
+                    cfg_list,
+                    pkg_list,
+                    self.reporter,
+                )
+                util.del_file(self.paths.instance_link)
+                LOG.info("Loaded datasource %s - %s", dsname, ds)
+            except sources.DataSourceNotFoundException as e:
+                if existing != "check":
+                    raise e
+                ds = self._restore_from_cache()
+                if (
+                    ds
+                    and hasattr(ds, "check_fallback")
+                    and ds.check_fallback()
+                ):
+                    LOG.info(
+                        "Restored fallback datasource from checked cache: %s",
+                        ds,
+                    )
+                else:
+                    raise e
         self.datasource = ds
         # Ensure we adjust our path members datasource
         # now that we have one (thus allowing ipath to be used)

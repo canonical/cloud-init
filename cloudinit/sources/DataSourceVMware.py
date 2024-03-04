@@ -291,6 +291,18 @@ class DataSourceVMware(sources.DataSource):
             self.metadata["instance-id"] = str(id_file.read()).rstrip().lower()
             return self.metadata["instance-id"]
 
+    def check_fallback(self):
+        if (
+            self.data_access_method
+            and self.data_access_method == DATA_ACCESS_METHOD_IMC
+            and is_vmware_platform()
+        ):
+            LOG.debug(
+                "Cache fallback is allowed for : %s", self._get_subplatform()
+            )
+            return True
+        return False
+
     def get_public_ssh_keys(self):
         for key_name in (
             "public-keys-data",

@@ -925,6 +925,10 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # quickly (local check only) if self.instance_id is still
         return False
 
+    def check_fallback(self):
+        # quickly (local check only) if fallback is allowed
+        return False
+
     @staticmethod
     def _determine_dsmode(candidates, default=None, valid=None):
         # return the first candidate that is non None, warn if not valid
