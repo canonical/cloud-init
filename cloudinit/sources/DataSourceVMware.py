@@ -197,7 +197,7 @@ class DataSourceVMware(sources.DataSource):
                 break
 
         if not self.data_access_method:
-            LOG.error("failed to find a valid data access method")
+            LOG.debug("failed to find a valid data access method")
             return False
 
         LOG.info("using data access method %s", self._get_subplatform())
