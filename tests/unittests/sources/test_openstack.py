@@ -136,7 +136,7 @@ def _register_uris(version, ec2_files, ec2_meta, os_files, *, responses_mock):
 
     responses_mock.add_callback(
         responses.GET,
-        re.compile(r"http://169.254.169.254/.*"),
+        re.compile(r"http://(169.254.169.254|\[fe80::a9fe:a9fe\])/.*"),
         callback=get_request_callback,
     )
 
@@ -388,10 +388,10 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             found = ds_os.get_data()
         self.assertFalse(found)
         self.assertIsNone(ds_os.version)
-        self.assertIn(
-            "InvalidMetaDataException: Broken metadata address"
-            " http://169.254.169.25",
+        self.assertRegex(
             self.logs.getvalue(),
+            r"InvalidMetaDataException: Broken metadata address"
+            r" http://(169.254.169.254|\[fe80::a9fe:a9fe\])",
         )
 
     def test_no_datasource(self):
