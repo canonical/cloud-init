@@ -28,7 +28,6 @@ module = [
     "debconf",
     "httplib",
     "jsonpatch",
-    "netifaces",
     "paramiko.*",
     "pip.*",
     "pycloudlib.*",
