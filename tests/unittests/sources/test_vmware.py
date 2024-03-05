@@ -63,6 +63,45 @@ runcmd:
 - echo "Hello, world."
 """
 
+VMW_IPV4_ROUTEINFO = {
+    "destination": "0.0.0.0",
+    "flags": "G",
+    "gateway": "10.85.130.1",
+    "genmask": "0.0.0.0",
+    "iface": "eth0",
+    "metric": "50",
+}
+VMW_IPV4_NETDEV_ADDR = {
+    "bcast": "10.85.130.255",
+    "ip": "10.85.130.116",
+    "mask": "255.255.255.0",
+    "scope": "global",
+}
+VMW_IPV6_ROUTEINFO = {
+    "destination": "::/0",
+    "flags": "UG",
+    "gateway": "2001:67c:1562:8007::1",
+    "iface": "eth0",
+    "metric": "50",
+}
+VMW_IPV6_NETDEV_ADDR = {
+    "ip": "fd42:baa2:3dd:17a:216:3eff:fe16:db54/64",
+    "scope6": "global",
+}
+
+
+def generate_test_netdev_data(ipv4=None, ipv6=None):
+    ipv4 = ipv4 or []
+    ipv6 = ipv6 or []
+    return {
+        "eth0": {
+            "hwaddr": "00:16:3e:16:db:54",
+            "ipv4": ipv4,
+            "ipv6": ipv6,
+            "up": True,
+        },
+    }
+
 
 @pytest.fixture(autouse=True)
 def common_patches():
@@ -74,8 +113,8 @@ def common_patches():
             is_FreeBSD=mock.Mock(return_value=False),
         ),
         mock.patch(
-            "cloudinit.sources.DataSourceVMware.netifaces.interfaces",
-            return_value=[],
+            "cloudinit.netinfo.netdev_info",
+            return_value={},
         ),
         mock.patch(
             "cloudinit.sources.DataSourceVMware.getfqdn",
@@ -151,6 +190,124 @@ class TestDataSourceVMware(CiTestCase):
         self.assertTrue(
             host_info[DataSourceVMware.LOCAL_IPV6] == "2001:db8::::::8888"
         )
+
+    # TODO migrate this entire test suite to pytest then parameterize
+    @mock.patch("cloudinit.netinfo.route_info")
+    @mock.patch("cloudinit.netinfo.netdev_info")
+    def test_get_default_ip_addrs_ipv4only(
+        self,
+        m_netdev_info,
+        m_route_info,
+    ):
+        """Test get_default_ip_addrs use cases"""
+        m_route_info.return_value = {
+            "ipv4": [VMW_IPV4_ROUTEINFO],
+            "ipv6": [],
+        }
+        m_netdev_info.return_value = generate_test_netdev_data(
+            ipv4=[VMW_IPV4_NETDEV_ADDR]
+        )
+        ipv4, ipv6 = DataSourceVMware.get_default_ip_addrs()
+        self.assertEqual(ipv4, "10.85.130.116")
+        self.assertEqual(ipv6, None)
+
+    @mock.patch("cloudinit.netinfo.route_info")
+    @mock.patch("cloudinit.netinfo.netdev_info")
+    def test_get_default_ip_addrs_ipv6only(
+        self,
+        m_netdev_info,
+        m_route_info,
+    ):
+        m_route_info.return_value = {
+            "ipv4": [],
+            "ipv6": [VMW_IPV6_ROUTEINFO],
+        }
+        m_netdev_info.return_value = generate_test_netdev_data(
+            ipv6=[VMW_IPV6_NETDEV_ADDR]
+        )
+        ipv4, ipv6 = DataSourceVMware.get_default_ip_addrs()
+        self.assertEqual(ipv4, None)
+        self.assertEqual(ipv6, "fd42:baa2:3dd:17a:216:3eff:fe16:db54/64")
+
+    @mock.patch("cloudinit.netinfo.route_info")
+    @mock.patch("cloudinit.netinfo.netdev_info")
+    def test_get_default_ip_addrs_dualstack(
+        self,
+        m_netdev_info,
+        m_route_info,
+    ):
+        m_route_info.return_value = {
+            "ipv4": [VMW_IPV4_ROUTEINFO],
+            "ipv6": [VMW_IPV6_ROUTEINFO],
+        }
+        m_netdev_info.return_value = generate_test_netdev_data(
+            ipv4=[VMW_IPV4_NETDEV_ADDR],
+            ipv6=[VMW_IPV6_NETDEV_ADDR],
+        )
+        ipv4, ipv6 = DataSourceVMware.get_default_ip_addrs()
+        self.assertEqual(ipv4, "10.85.130.116")
+        self.assertEqual(ipv6, "fd42:baa2:3dd:17a:216:3eff:fe16:db54/64")
+
+    @mock.patch("cloudinit.netinfo.route_info")
+    @mock.patch("cloudinit.netinfo.netdev_info")
+    def test_get_default_ip_addrs_multiaddr(
+        self,
+        m_netdev_info,
+        m_route_info,
+    ):
+        m_route_info.return_value = {
+            "ipv4": [VMW_IPV4_ROUTEINFO],
+            "ipv6": [],
+        }
+        m_netdev_info.return_value = generate_test_netdev_data(
+            ipv4=[
+                VMW_IPV4_NETDEV_ADDR,
+                {
+                    "bcast": "10.85.131.255",
+                    "ip": "10.85.131.117",
+                    "mask": "255.255.255.0",
+                    "scope": "global",
+                },
+            ],
+            ipv6=[
+                VMW_IPV6_NETDEV_ADDR,
+                {
+                    "ip": "fe80::216:3eff:fe16:db54/64",
+                    "scope6": "link",
+                },
+            ],
+        )
+        ipv4, ipv6 = DataSourceVMware.get_default_ip_addrs()
+        self.assertEqual(ipv4, None)
+        self.assertEqual(ipv6, None)
+
+    @mock.patch("cloudinit.netinfo.route_info")
+    @mock.patch("cloudinit.netinfo.netdev_info")
+    def test_get_default_ip_addrs_nodefault(
+        self,
+        m_netdev_info,
+        m_route_info,
+    ):
+        m_route_info.return_value = {
+            "ipv4": [
+                {
+                    "destination": "185.125.188.0",
+                    "flags": "G",
+                    "gateway": "10.85.130.1",
+                    "genmask": "0.0.0.255",
+                    "iface": "eth0",
+                    "metric": "50",
+                },
+            ],
+            "ipv6": [],
+        }
+        m_netdev_info.return_value = generate_test_netdev_data(
+            ipv4=[VMW_IPV4_NETDEV_ADDR],
+            ipv6=[VMW_IPV6_NETDEV_ADDR],
+        )
+        ipv4, ipv6 = DataSourceVMware.get_default_ip_addrs()
+        self.assertEqual(ipv4, None)
+        self.assertEqual(ipv6, None)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.get_host_info")
     def test_wait_on_network(self, m_fn):
