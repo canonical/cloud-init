@@ -203,6 +203,8 @@ def test_subsequent_boot_of_upgraded_package(session_cloud: IntegrationCloud):
 
     with session_cloud.launch(launch_kwargs=launch_kwargs) as instance:
         instance.install_new_cloud_init(source, clean=False)
+        # Ensure we aren't looking at any prior warnings/errors from prior boot
+        instance.execute("rm /var/log/cloud-init.log")
         instance.restart()
         log = instance.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)

@@ -95,6 +95,10 @@ def maybe_perform_dhcp_discovery(distro, nic=None, dhcp_log_func=None):
         returned.
     """
     interface = nic or distro.fallback_interface
+    if interface is None:
+        LOG.debug("Skip dhcp_discovery: Unable to find fallback nic.")
+        raise NoDHCPLeaseInterfaceError()
+
     return distro.dhcp_client.dhcp_discovery(interface, dhcp_log_func, distro)
 
 
