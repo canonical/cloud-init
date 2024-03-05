@@ -60,6 +60,7 @@ def fake_filesystem(mocker, tmpdir):
             func = getattr(mod, f)
             trap_func = retarget_many_wrapper(str(tmpdir), nargs, func)
             mocker.patch.object(mod, f, trap_func)
+    yield str(tmpdir)
 
 
 @pytest.fixture(autouse=True)
