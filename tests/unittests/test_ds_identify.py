@@ -3,11 +3,11 @@
 import copy
 import os
 from collections import namedtuple
+from logging import getLogger
 from pathlib import Path
+from tempfile import mkdtemp
 from textwrap import dedent
 from uuid import uuid4
-from logging import getLogger
-from tempfile import mkdtemp
 
 import pytest
 
@@ -115,12 +115,24 @@ MOCK_VIRT_IS_KVM_ENV = {"name": "detect_virt_env", "RET": "vm:kvm", "ret": 0}
 # passed `hv_passthrough` which causes systemd < v.251 to misinterpret CPU
 # as "qemu" instead of "kvm"
 MOCK_VIRT_IS_KVM_QEMU = {"name": "detect_virt", "RET": "qemu", "ret": 0}
-MOCK_VIRT_IS_KVM_QEMU_ENV = {"name": "detect_virt_env", "RET": "vm:qemu", "ret": 0}
+MOCK_VIRT_IS_KVM_QEMU_ENV = {
+    "name": "detect_virt_env",
+    "RET": "vm:qemu",
+    "ret": 0,
+}
 MOCK_VIRT_IS_VMWARE = {"name": "detect_virt", "RET": "vmware", "ret": 0}
-MOCK_VIRT_IS_VMWARE_ENV = {"name": "detect_virt_env", "RET": "vm:vmware", "ret": 0}
+MOCK_VIRT_IS_VMWARE_ENV = {
+    "name": "detect_virt_env",
+    "RET": "vm:vmware",
+    "ret": 0,
+}
 # currenty' SmartOS hypervisor "bhyve" is unknown by systemd-detect-virt.
 MOCK_VIRT_IS_VM_OTHER = {"name": "detect_virt", "RET": "vm-other", "ret": 0}
-MOCK_VIRT_IS_VM_OTHER_ENV = {"name": "detect_virt_env", "RET": "vm:vm-other", "ret": 0}
+MOCK_VIRT_IS_VM_OTHER_ENV = {
+    "name": "detect_virt_env",
+    "RET": "vm:vm-other",
+    "ret": 0,
+}
 MOCK_VIRT_IS_XEN = {"name": "detect_virt", "RET": "xen", "ret": 0}
 MOCK_VIRT_IS_XEN_ENV = {"name": "detect_virt_env", "RET": "vm:xen", "ret": 0}
 MOCK_VIRT_IS_WSL = {"name": "detect_virt", "RET": "wsl", "ret": 0}
@@ -210,9 +222,10 @@ class DsIdentifyBase(CiTestCase):
             # Don't mock when SYSTEMD_VIRTUALIZATION would be set to a value.
             # When no virtualization is detected, the call path would currently
             # fall back to calling systemd-detect-virt, which we currently mock
-            # out at the function call to `detectdir = _virt()`. Continue mocking
-            # that code path. One day when systemd 250 is no longer supported
-            # we can simplify this code and not mock `detect_virt()` at all.
+            # out at the function call to `detectdir = _virt()`. Continue
+            # mocking that code path. One day when systemd 250 is no longer
+            # supported we can simplify this code and not mock `detect_virt()`
+            # at all.
             if "detect_virt_env" == data["name"] and "none" != data["RET"]:
                 return ""
             ddata.update(data)
@@ -483,7 +496,10 @@ class TestDsIdentify(DsIdentifyBase):
         self._test_ds_found("GCE")
 
     def test_gce_by_product_name_env(self):
-        """GCE identifies itself with product_name. Uses SYSTEMD_VIRTUALIZATION"""
+        """GCE identifies itself with product_name.
+
+        Uses SYSTEMD_VIRTUALIZATION
+        """
         self._test_ds_found("GCE_ENV")
 
     def test_gce_by_serial(self):
@@ -1444,12 +1460,19 @@ VALID_CFG = {
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM_QEMU],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
     },
-    "LXD-kvm-qemu-kernel-gt-5.10-env": {  # LXD host > 5.10 kvm launch virt==qemu
+    # LXD host > 5.10 kvm launch virt==qemu
+    "LXD-kvm-qemu-kernel-gt-5.10-env": {
         "ds": "LXD",
         "files": {P_BOARD_NAME: "LXD\n"},
         # /dev/lxd/sock does not exist and KVM virt-type
-        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM_QEMU_ENV],
-        "no_mocks": ["dscheck_LXD", "detect_virt"],  # Don't default mock dscheck_LXD
+        "mocks": [
+            {"name": "is_socket_file", "ret": 1},
+            MOCK_VIRT_IS_KVM_QEMU_ENV,
+        ],
+        "no_mocks": [
+            "dscheck_LXD",
+            "detect_virt",
+        ],  # Don't default mock dscheck_LXD
     },
     "LXD": {
         "ds": "LXD",
