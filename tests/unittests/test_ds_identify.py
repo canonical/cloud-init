@@ -317,7 +317,7 @@ class DsIdentifyBase(CiTestCase):
         data = copy.deepcopy(VALID_CFG[name])
 
         return self._check_via_dict(
-            data, RC_FOUND, dslist=[data.pop("ds"), DS_NONE], **data
+            data, RC_FOUND, dslist=[data.pop("ds"), DS_NONE]
         )
 
     def _test_ds_not_found(self, name):
