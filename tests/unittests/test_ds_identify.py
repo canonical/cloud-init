@@ -103,38 +103,22 @@ MOCK_VIRT_IS_CONTAINER_OTHER = {
     "RET": "container-other",
     "ret": 0,
 }
-MOCK_VIRT_IS_CONTAINER_OTHER_ENV = {
-    "name": "detect_virt_env",
-    "RET": "container:container-other",
-    "ret": 0,
-}
+IS_CONTAINER_OTHER_ENV = {"SYSTEMD_VIRTUALIZATION": "vm:kvm"}
 MOCK_NOT_LXD_DATASOURCE = {"name": "dscheck_LXD", "ret": 1}
 MOCK_VIRT_IS_KVM = {"name": "detect_virt", "RET": "kvm", "ret": 0}
-MOCK_VIRT_IS_KVM_ENV = {"name": "detect_virt_env", "RET": "vm:kvm", "ret": 0}
+KVM_ENV = {"SYSTEMD_VIRTUALIZATION": "vm:kvm"}
 # qemu support for LXD is only for host systems > 5.10 kernel as lxd
 # passed `hv_passthrough` which causes systemd < v.251 to misinterpret CPU
 # as "qemu" instead of "kvm"
 MOCK_VIRT_IS_KVM_QEMU = {"name": "detect_virt", "RET": "qemu", "ret": 0}
-MOCK_VIRT_IS_KVM_QEMU_ENV = {
-    "name": "detect_virt_env",
-    "RET": "vm:qemu",
-    "ret": 0,
-}
+IS_KVM_QEMU_ENV = {"SYSTEMD_VIRTUALIZATION": "vm:qemu"}
 MOCK_VIRT_IS_VMWARE = {"name": "detect_virt", "RET": "vmware", "ret": 0}
-MOCK_VIRT_IS_VMWARE_ENV = {
-    "name": "detect_virt_env",
-    "RET": "vm:vmware",
-    "ret": 0,
-}
+IS_VMWARE_ENV = {"SYSTEMD_VIRTUALIZATION": "vm:vmware"}
 # currenty' SmartOS hypervisor "bhyve" is unknown by systemd-detect-virt.
 MOCK_VIRT_IS_VM_OTHER = {"name": "detect_virt", "RET": "vm-other", "ret": 0}
-MOCK_VIRT_IS_VM_OTHER_ENV = {
-    "name": "detect_virt_env",
-    "RET": "vm:vm-other",
-    "ret": 0,
-}
+IS_VM_OTHER = {"SYSTEMD_VIRTUALIZATION": "vm:vm-other"}
 MOCK_VIRT_IS_XEN = {"name": "detect_virt", "RET": "xen", "ret": 0}
-MOCK_VIRT_IS_XEN_ENV = {"name": "detect_virt_env", "RET": "vm:xen", "ret": 0}
+IS_XEN_ENV = {"SYSTEMD_VIRTUALIZATION": "vm:xen"}
 MOCK_VIRT_IS_WSL = {"name": "detect_virt", "RET": "wsl", "ret": 0}
 MOCK_UNAME_IS_PPC64 = {"name": "uname", "out": UNAME_PPC64EL, "ret": 0}
 MOCK_UNAME_IS_FREEBSD = {"name": "uname", "out": UNAME_FREEBSD, "ret": 0}
@@ -172,7 +156,7 @@ class DsIdentifyBase(CiTestCase):
     allowed_subp = ["sh"]
 
     # set to true to write out the mocked ds-identify for inspection
-    debug_mode = False
+    debug_mode = True
 
     def call(
         self,
@@ -185,6 +169,7 @@ class DsIdentifyBase(CiTestCase):
         policy_dmi=DI_DEFAULT_POLICY,
         policy_no_dmi=DI_DEFAULT_POLICY_NO_DMI,
         ec2_strict_id=DI_EC2_STRICT_ID_DEFAULT,
+        env_vars=None,
     ):
         if args is None:
             args = []
@@ -218,16 +203,6 @@ class DsIdentifyBase(CiTestCase):
 
         def write_mock(data):
             ddata = {"out": None, "err": None, "ret": 0, "RET": None}
-
-            # Don't mock when SYSTEMD_VIRTUALIZATION would be set to a value.
-            # When no virtualization is detected, the call path would currently
-            # fall back to calling systemd-detect-virt, which we currently mock
-            # out at the function call to `detectdir = _virt()`. Continue
-            # mocking that code path. One day when systemd 250 is no longer
-            # supported we can simplify this code and not mock `detect_virt()`
-            # at all.
-            if "detect_virt_env" == data["name"] and "none" != data["RET"]:
-                return ""
             ddata.update(data)
             for k in ddata.keys():
                 if ddata[k] is None:
@@ -285,6 +260,9 @@ class DsIdentifyBase(CiTestCase):
         mocked_ds_identify = "\n".join(head + mocklines + endlines) + "\n"
         with open(wrap, "w") as fp:
             fp.write(mocked_ds_identify)
+
+        # debug_mode force this test to write the mocked ds-identify script to
+        # a file for inspection
         if self.debug_mode:
             tempdir = mkdtemp()
             dir = f"{tempdir}/ds-identify"
@@ -292,18 +270,11 @@ class DsIdentifyBase(CiTestCase):
             with open(dir, "w") as fp:
                 fp.write(mocked_ds_identify)
 
-        detect_virt_env = None
-        for mock in [*mocks, *default_mocks]:
-            if "detect_virt_env" == mock["name"]:
-                detect_virt_env = mock["RET"]
-                break
         rc = 0
         try:
             out, err = subp.subp(
                 ["sh", "-c", ". %s" % wrap],
-                update_env={"SYSTEMD_VIRTUALIZATION": detect_virt_env}
-                if detect_virt_env
-                else {},
+                update_env=env_vars if env_vars else {},
                 capture=True,
             )
         except subp.ProcessExecutionError as e:
@@ -330,6 +301,7 @@ class DsIdentifyBase(CiTestCase):
             "mocks",
             "func",
             "args",
+            "env_vars",
             "policy_dmi",
             "policy_no_dmi",
             "files",
@@ -343,8 +315,9 @@ class DsIdentifyBase(CiTestCase):
 
     def _test_ds_found(self, name):
         data = copy.deepcopy(VALID_CFG[name])
+
         return self._check_via_dict(
-            data, RC_FOUND, dslist=[data.get("ds"), DS_NONE]
+            data, RC_FOUND, dslist=[data.pop("ds"), DS_NONE], **data
         )
 
     def _test_ds_not_found(self, name):
@@ -1406,7 +1379,7 @@ VALID_CFG = {
     "GCE_ENV": {
         "ds": "GCE",
         "files": {P_PRODUCT_NAME: "Google Compute Engine\n"},
-        "mocks": [MOCK_VIRT_IS_KVM_ENV],
+        "env_vars": KVM_ENV,
         "no_mocks": ["detect_virt"],
     },
     "GCE-serial": {
@@ -1467,8 +1440,8 @@ VALID_CFG = {
         # /dev/lxd/sock does not exist and KVM virt-type
         "mocks": [
             {"name": "is_socket_file", "ret": 1},
-            MOCK_VIRT_IS_KVM_QEMU_ENV,
         ],
+        "env_vars": IS_KVM_QEMU_ENV,
         "no_mocks": [
             "dscheck_LXD",
             "detect_virt",
@@ -1629,7 +1602,7 @@ VALID_CFG = {
         # SAP CCloud hosts use OpenStack on VMware
         "ds": "OpenStack",
         "files": {P_CHASSIS_ASSET_TAG: "SAP CCloud VM\n"},
-        "mocks": [MOCK_VIRT_IS_VMWARE_ENV],
+        "env_vars": IS_VMWARE_ENV,
         "no_mocks": ["detect_virt"],
     },
     "OpenStack-HuaweiCloud": {
@@ -1993,7 +1966,6 @@ VALID_CFG = {
     "SmartOS-lxbrand-env": {
         "ds": "SmartOS",
         "mocks": [
-            MOCK_VIRT_IS_CONTAINER_OTHER_ENV,
             {
                 "name": "uname",
                 "ret": 0,
@@ -2002,6 +1974,7 @@ VALID_CFG = {
             {"name": "blkid", "ret": 2, "out": ""},
         ],
         "no_mocks": ["detect_virt"],
+        "env_vars": IS_CONTAINER_OTHER_ENV,
         "files": {ds_smartos.METADATA_SOCKFILE: "would be a socket\n"},
     },
     "Ec2-ZStack": {
