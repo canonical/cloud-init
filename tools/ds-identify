@@ -1654,8 +1654,8 @@ dscheck_WSL() {
     WSL_instance_name
     instance_name="${_RET}"
     # shellcheck source=/dev/null
-    . /etc/os-release
-    for userdatafile in "${instance_name}.user-data" "${ID}-${VERSION_ID}" "${ID}-all.user-data" "default.user-data"; do
+    . "${PATH_ROOT}/etc/os-release"
+    for userdatafile in "${instance_name}.user-data" "${ID:-linux}-${VERSION_ID:-}" "${ID:-linux}-all.user-data" "default.user-data"; do
         candidate="$cloudinitdir/$userdatafile"
         if [ -f "$candidate" ]; then
             debug 1 "Found applicable user data file for this instance at: $candidate"
