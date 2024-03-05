@@ -9,6 +9,7 @@ VERBOSITY=0
 KEEP=false
 CONTAINER=""
 WAIT_MAX=30
+LXC=${LXC:-lxc}
 
 error() { echo "$@" 1>&2; }
 fail() { [ $# -eq 0 ] || error "$@"; exit 1; }
@@ -90,7 +91,7 @@ inside_as_cd() {
 inside() {
     local name="$1"
     shift
-    lxc exec "$name" -- "$@"
+    $LXC exec "$name" -- "$@"
 }
 
 inject_cloud_init(){
@@ -373,7 +374,7 @@ start_instance() {
     debug 1 "starting container $name from '$src'"
     launch_flags=()
     [ "$use_vm" == true ] && launch_flags+=(--vm)
-    lxc launch "$src" "$name" "${launch_flags[@]}" || {
+    $LXC launch "$src" "$name" "${launch_flags[@]}" || {
         errorrc "Failed to start container '$name' from '$src'";
         return
     }
@@ -383,7 +384,7 @@ start_instance() {
 
 delete_instance() {
     debug 1 "removing container $1 [--keep to keep]"
-    lxc delete --force "$1"
+    $LXC delete --force "$1"
 }
 
 run_self_inside() {
@@ -549,7 +550,7 @@ main() {
         }
 
         for art in $(inside "$name" sh -c "echo $cdir/*${pkg_ext}"); do
-            lxc file pull "$name/$art" "$artifact_d" || {
+            $LXC file pull "$name/$art" "$artifact_d" || {
                 errorrc "Failed to pull '$name/$art' to ${artifact_d}"
                 errors[${#errors[@]}]="artifact copy: $art"
             }
