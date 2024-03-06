@@ -193,7 +193,7 @@ def _get_ssl_args(url, ssl_details):
 def readurl(
     url,
     data=None,
-    timeout=30,
+    timeout=60,
     retries=0,
     sec_between=1,
     headers=None,
@@ -215,7 +215,7 @@ def readurl(
     :param data: Optional form data to post the URL. Will set request_method
         to 'POST' if present.
     :param timeout: Timeout in seconds to wait for a response. May be a tuple
-        if specifying (connection timeout, read timeout). Default is 30 so that
+        if specifying (connection timeout, read timeout). Default is 60 so that
         we don't hang forever.
     :param retries: Number of times to retry on exception if exception_cb is
         None or exception_cb returns True for the exception caught. Default is
