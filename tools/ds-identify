@@ -1132,7 +1132,7 @@ has_ovf_cdrom() {
 
 is_disabled() {
     if [ -f /etc/cloud/cloud-init.disabled ]; then
-        debug 1 "disabled by marker file /etc/cloud-init.disabled"
+        debug 1 "disabled by marker file /etc/cloud/cloud-init.disabled"
         return 0
     fi
     if [ "${KERNEL_CMDLINE:-}" = "cloud-init=disabled" ]; then
