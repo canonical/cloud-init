@@ -49,6 +49,7 @@ GOOD_MOUNTS = {
     },
 }
 SAMPLE_LINUX_DISTRO = ("ubuntu", "24.04", "noble")
+SAMPLE_LINUX_DISTRO_NO_VERSION_ID = ("debian", "", "trixie")
 
 
 class TestWSLHelperFunctions:
@@ -122,19 +123,37 @@ class TestWSLHelperFunctions:
         with pytest.raises(IOError):
             wsl.cmd_executable()
 
+    @pytest.mark.parametrize(
+        "linux_distro_value,files",
+        (
+            (
+                SAMPLE_LINUX_DISTRO,
+                [
+                    f"{INSTANCE_NAME}.user-data",
+                    "ubuntu-24.04.user-data",
+                    "ubuntu-all.user-data",
+                    "default.user-data",
+                ],
+            ),
+            (
+                SAMPLE_LINUX_DISTRO_NO_VERSION_ID,
+                [
+                    f"{INSTANCE_NAME}.user-data",
+                    "debian-trixie.user-data",
+                    "debian-all.user-data",
+                    "default.user-data",
+                ],
+            ),
+        ),
+    )
     @mock.patch("cloudinit.util.get_linux_distro")
-    def test_candidate_files(self, m_gld):
+    def test_candidate_files(self, m_gld, linux_distro_value, files):
         """
         Validate the file names candidate for holding user-data and their
         order of precedence.
         """
-        m_gld.return_value = SAMPLE_LINUX_DISTRO
-        assert [
-            f"{INSTANCE_NAME}.user-data",
-            "ubuntu-24.04.user-data",
-            "ubuntu-all.user-data",
-            "default.user-data",
-        ] == wsl.candidate_user_data_file_names(INSTANCE_NAME)
+        m_gld.return_value = linux_distro_value
+        assert files == wsl.candidate_user_data_file_names(INSTANCE_NAME)
 
     @pytest.mark.parametrize(
         "md_content,raises,errors,warnings,md_expected",
