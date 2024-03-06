@@ -1148,6 +1148,12 @@ def main(sysv_args=None):
             args=(name, args),
         )
     reporting.flush_events()
+
+    # handle return code for main_modules, as it is not wrapped by
+    # status_wrapped when mode == init
+    if "modules" == name and "init" == args.mode:
+        retval = len(retval)
+
     return retval
 
 
