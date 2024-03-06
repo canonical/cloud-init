@@ -41,6 +41,7 @@ Usage: ${0##*/} [ options ] [images:]image-ref
       -u | --unittest        run unit tests
            --vm              use a VM instead of a container
            --wait-max        max time to wait or a container or VM to be ready
+           --commitish       commit to package and run, default: HEAD
 
     Example:
       * ${0##*/} --package --source-package --unittest centos/6
@@ -112,8 +113,8 @@ inject_cloud_init(){
     esac
 
     # attempt to get branch name.
-    commitish=$(git rev-parse --abbrev-ref HEAD) || {
-        errorrc "Failed git rev-parse --abbrev-ref HEAD"
+    commitish=$(git rev-parse --abbrev-ref "$COMMITISH") || {
+        errorrc "Failed git rev-parse --abbrev-ref $COMMITISH"
         return
     }
     if [ "$commitish" = "HEAD" ]; then
@@ -402,7 +403,7 @@ run_self_inside_as_cd() {
 
 main() {
     local short_opts="a:hknpsuv"
-    local long_opts="artifacts:,dirty,help,keep,name:,package,source-package,unittest,verbose,vm,wait-max:"
+    local long_opts="artifacts:,dirty,help,keep,name:,package,source-package,unittest,verbose,vm,wait-max:,commitish:"
     local getopt_out=""
     getopt_out=$(getopt --name "${0##*/}" \
         --options "${short_opts}" --long "${long_opts}" -- "$@") &&
@@ -428,10 +429,12 @@ main() {
             -v|--verbose) VERBOSITY=$((VERBOSITY+1));;
                --vm) use_vm=true;;
                --wait-max) WAIT_MAX="$next"; shift;;
+               --commitish) COMMITISH="$next"; shift;;
             --) shift; break;;
         esac
         shift;
     done
+    COMMITISH=${COMMITISH:-HEAD}
 
     [ $# -eq 1 ] || { bad_Usage "Expected 1 arg, got $# ($*)"; return; }
     local img_ref_in="$1"
