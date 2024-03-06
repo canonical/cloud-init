@@ -10,7 +10,7 @@
 #  in ec2, the default is <region>.archive.ubuntu.com
 # apt:
 #   primary:
-#     - arches [default]
+#     - arches: [default]
 #       uri:
 #     use the provided mirror
 #       search:

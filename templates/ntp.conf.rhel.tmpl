@@ -31,6 +31,9 @@ pool {{pool}} iburst
 {% for server in servers -%}
 server {{server}} iburst
 {% endfor %}
+{% for peer in peers -%}
+peer {{peer}}
+{% endfor %}
 
 #broadcast 192.168.1.255 autokey	# broadcast server
 #broadcastclient			# broadcast client

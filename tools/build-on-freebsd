@@ -23,7 +23,6 @@ pkgs="
     bash
     e2fsprogs
     $py_prefix-Jinja2
-    $py_prefix-boto
     $py_prefix-configobj
     $py_prefix-jsonpatch
     $py_prefix-jsonpointer

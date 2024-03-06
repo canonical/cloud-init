@@ -6,17 +6,12 @@
 
 import textwrap
 
+import pytest
+
 from cloudinit import templater
-from cloudinit.util import load_file, write_file
+from cloudinit.templater import JinjaSyntaxParsingException
+from cloudinit.util import load_binary_file, write_file
 from tests.unittests import helpers as test_helpers
-
-try:
-    import Cheetah
-
-    HAS_CHEETAH = True
-    c = Cheetah  # make pyflakes and pylint happy, as Cheetah is not used here
-except ImportError:
-    HAS_CHEETAH = False
 
 
 class TestTemplates(test_helpers.CiTestCase):
@@ -51,28 +46,6 @@ class TestTemplates(test_helpers.CiTestCase):
         )
         out_data = templater.basic_render(in_data, {"b": 2})
         self.assertEqual(expected_data.strip(), out_data)
-
-    @test_helpers.skipIf(not HAS_CHEETAH, "cheetah renderer not available")
-    def test_detection(self):
-        blob = "## template:cheetah"
-
-        (template_type, _renderer, contents) = templater.detect_template(blob)
-        self.assertIn("cheetah", template_type)
-        self.assertEqual("", contents.strip())
-
-        blob = "blahblah $blah"
-        (template_type, _renderer, _contents) = templater.detect_template(blob)
-        self.assertIn("cheetah", template_type)
-        self.assertEqual(blob, contents)
-
-        blob = "##template:something-new"
-        self.assertRaises(ValueError, templater.detect_template, blob)
-
-    def test_render_cheetah(self):
-        blob = """## template:cheetah
-$a,$b"""
-        c = templater.render_string(blob, {"a": 1, "b": 2})
-        self.assertEqual("1,2", c)
 
     def test_render_jinja(self):
         blob = """## template:jinja
@@ -153,7 +126,7 @@ $a,$b"""
             content=self.add_header("jinja", self.jinja_utf8).encode("utf-8"),
         )
         templater.render_to_file(tmpl_fn, out_fn, {"name": "bob"})
-        result = load_file(out_fn, decode=False).decode("utf-8")
+        result = load_binary_file(out_fn).decode("utf-8")
         self.assertEqual(result, self.jinja_utf8_rbob)
 
     def test_jinja_nonascii_render_from_file(self):
@@ -184,5 +157,149 @@ $a,$b"""
             self.logs.getvalue(),
         )
 
+    def test_jinja_do_extension_render_to_string(self):
+        """Test jinja render_to_string using do extension."""
+        expected_result = "[1, 2, 3]"
+        jinja_template = (
+            "{% set r = [] %} {% set input = [1,2,3] %} "
+            "{% for i in input %} {% do r.append(i) %} {% endfor %} {{r}}"
+        )
+        self.assertEqual(
+            templater.render_string(
+                self.add_header("jinja", jinja_template), {}
+            ).strip(),
+            expected_result,
+        )
 
-# vi: ts=4 expandtab
+
+class TestJinjaSyntaxParsingException:
+    def test_jinja_syntax_parsing_exception_message(self):
+        """
+        Test that the message of the JinjaSyntaxParsingException is written and
+        formatted as expected, and that the template is filled in correctly.
+        """
+        jinja_template = (
+            "## template: jinja\n"
+            "#cloud-config\n"
+            "runcmd:\n"
+            "{% if 1 == 1 % }\n"
+            '  - echo "1 is equal to 1"\n'
+            "{% endif %}\n"
+        )
+        expected_error_msg = (
+            "Unable to parse Jinja template due to syntax error: "
+            "unexpected '}' on line 4: {% if 1 == 1 % }"
+        )
+        with pytest.raises(JinjaSyntaxParsingException) as excinfo:
+            templater.render_string(jinja_template, {})
+        assert str(excinfo.value) == expected_error_msg
+
+    @pytest.mark.parametrize(
+        "line_no,replace_tuple,syntax_error",
+        (
+            (
+                4,
+                ("%}", "% }"),
+                "unexpected '}'",
+            ),
+            (
+                6,
+                ("%}", "% }"),
+                "expected token 'end of statement block', got '%'",
+            ),
+            (
+                8,
+                ("%}", "% }"),
+                "expected token 'end of statement block', got '%'",
+            ),
+            (
+                4,
+                ("%}", "}}"),
+                "unexpected '}'",
+            ),
+            (
+                6,
+                ("%}", "}}"),
+                "unexpected '}'",
+            ),
+            (
+                8,
+                ("%}", "}}"),
+                "unexpected '}'",
+            ),
+            (
+                4,
+                ("==", "="),
+                "expected token 'end of statement block', got '='",
+            ),
+            (
+                7,
+                ("}}", "} }"),
+                "unexpected '}'",
+            ),
+        ),
+    )
+    def test_functionality_for_various_syntax_errors(
+        self, line_no, replace_tuple, syntax_error
+    ):
+        """
+        Test a variety of jinja syntax errors and make sure the exceptions
+        are raised with the correct syntax error, line number, and line content
+        as expected.
+        """
+        jinja_template = (
+            "## template: jinja\n"
+            "#cloud-config\n"
+            "runcmd:\n"
+            '{% if v1.cloud_name == "unknown" %}\n'
+            '  - echo "Cloud name is unknown"\n'
+            "{% else %}\n"
+            '  - echo "Cloud name is known: {{ v1.cloud_name }}"\n'
+            "{% endif %}\n"
+        )
+        # replace "%}" in line_no with "% }"
+        jinja_template = jinja_template.replace(
+            jinja_template.split("\n")[line_no - 1],
+            jinja_template.split("\n")[line_no - 1].replace(*replace_tuple),
+        )
+
+        with pytest.raises(JinjaSyntaxParsingException) as excinfo:
+            templater.render_string(jinja_template, {})
+        error: JinjaSyntaxParsingException = excinfo.value
+        assert error.lineno == line_no
+        assert error.message == syntax_error
+        assert (
+            error.source.splitlines()[line_no - 2]  # -2 because of header
+            == jinja_template.splitlines()[line_no - 1]
+        )
+
+    def test_format_error_message_with_content_line(self):
+        expected_error_msg = (
+            "Unable to parse Jinja template due to syntax error: "
+            "unexpected '}' on line 4: {% if 1 == 1 % }"
+        )
+        error_msg = JinjaSyntaxParsingException.format_error_message(
+            syntax_error="unexpected '}'",
+            line_number=4,
+            line_content="{% if 1 == 1 % }",
+        )
+        assert error_msg == expected_error_msg
+
+    @pytest.mark.parametrize(
+        "line_content",
+        (
+            "",
+            None,
+        ),
+    )
+    def test_format_error_message_without_content_line(self, line_content):
+        expected_error_msg = (
+            "Unable to parse Jinja template due to syntax error: "
+            "unexpected '}' on line 4"
+        )
+        error_msg = JinjaSyntaxParsingException.format_error_message(
+            syntax_error="unexpected '}'",
+            line_number=4,
+            line_content=line_content,
+        )
+        assert error_msg == expected_error_msg

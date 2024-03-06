@@ -11,17 +11,18 @@
 
 import copy
 
-from cloudinit import util
 from cloudinit.distros import PREFERRED_NTP_CLIENTS, debian
+from cloudinit.distros.package_management.snap import Snap
+from cloudinit.net.netplan import CLOUDINIT_NETPLAN_FILE
 
 
 class Distro(debian.Distro):
     def __init__(self, name, cfg, paths):
-        super(Distro, self).__init__(name, cfg, paths)
+        super().__init__(name, cfg, paths)
         # Ubuntu specific network cfg locations
         self.network_conf_fn = {
             "eni": "/etc/network/interfaces.d/50-cloud-init.cfg",
-            "netplan": "/etc/netplan/50-cloud-init.yaml",
+            "netplan": CLOUDINIT_NETPLAN_FILE,
         }
         self.renderer_configs = {
             "eni": {
@@ -34,20 +35,16 @@ class Distro(debian.Distro):
                 "postcmds": True,
             },
         }
+        self.snap = Snap(self._runner)
+        self.package_managers.append(self.snap)
+
+    def package_command(self, command, args=None, pkgs=None):
+        super().package_command(command, args, pkgs)
+        self.snap.upgrade_packages()
 
     @property
     def preferred_ntp_clients(self):
         """The preferred ntp client is dependent on the version."""
         if not self._preferred_ntp_clients:
-            (_name, _version, codename) = util.system_info()["dist"]
-            # Xenial cloud-init only installed ntp, UbuntuCore has timesyncd.
-            if codename == "xenial" and not util.system_is_snappy():
-                self._preferred_ntp_clients = ["ntp"]
-            else:
-                self._preferred_ntp_clients = copy.deepcopy(
-                    PREFERRED_NTP_CLIENTS
-                )
+            self._preferred_ntp_clients = copy.deepcopy(PREFERRED_NTP_CLIENTS)
         return self._preferred_ntp_clients
-
-
-# vi: ts=4 expandtab

@@ -1,5 +1,5 @@
 #include
-# entries are one url per line. comment lines beginning with '#' are allowed
-# urls are passed to urllib.urlopen, so the format must be supported there
-http://www.ubuntu.com/robots.txt
-http://www.w3schools.com/html/lastpage.htm
+# Entries are one URL per line. Comment lines beginning with '#' are allowed.
+# URLs are passed to urllib.urlopen, so the format must be supported there.
+https://raw.githubusercontent.com/canonical/cloud-init/403f70b930e3ce0f05b9b6f0e1a38d383d058b53/doc/examples/cloud-config-run-cmds.txt
+https://raw.githubusercontent.com/canonical/cloud-init/403f70b930e3ce0f05b9b6f0e1a38d383d058b53/doc/examples/cloud-config-boot-cmds.txt

@@ -6,7 +6,7 @@ import unittest
 
 import pytest
 
-from cloudinit import helpers, util
+from cloudinit import atomic_helper, helpers, util
 from cloudinit.sources import DataSourceOpenNebula as ds
 from tests.unittests.helpers import CiTestCase, mock, populate_dir
 
@@ -67,13 +67,13 @@ class TestOpenNebulaDataSource(CiTestCase):
 
     def tearDown(self):
         ds.switch_user_cmd = self.switch_user_cmd_real
-        super(TestOpenNebulaDataSource, self).tearDown()
+        super().tearDown()
 
     def test_get_data_non_contextdisk(self):
         orig_find_devs_with = util.find_devs_with
         try:
             # dont' try to lookup for CDs
-            util.find_devs_with = lambda n: []
+            util.find_devs_with = lambda n: []  # type: ignore
             dsrc = self.ds(sys_cfg=self.sys_cfg, distro=None, paths=self.paths)
             ret = dsrc.get_data()
             self.assertFalse(ret)
@@ -84,7 +84,7 @@ class TestOpenNebulaDataSource(CiTestCase):
         orig_find_devs_with = util.find_devs_with
         try:
             # dont' try to lookup for CDs
-            util.find_devs_with = lambda n: []
+            util.find_devs_with = lambda n: []  # type: ignore
             populate_dir(self.seed_dir, {"context.sh": INVALID_CONTEXT})
             dsrc = self.ds(sys_cfg=self.sys_cfg, distro=None, paths=self.paths)
             self.assertRaises(ds.BrokenContextDiskDir, dsrc.get_data)
@@ -107,7 +107,7 @@ class TestOpenNebulaDataSource(CiTestCase):
                     ] = invalid_user
 
             # dont' try to lookup for CDs
-            util.find_devs_with = lambda n: []
+            util.find_devs_with = lambda n: []  # type: ignore
             populate_context_dir(self.seed_dir, {"KEY1": "val1"})
             dsrc = self.ds(sys_cfg=sys_cfg, distro=None, paths=self.paths)
             self.assertRaises(ds.BrokenContextDiskDir, dsrc.get_data)
@@ -118,10 +118,12 @@ class TestOpenNebulaDataSource(CiTestCase):
         orig_find_devs_with = util.find_devs_with
         try:
             # dont' try to lookup for CDs
-            util.find_devs_with = lambda n: []
+            util.find_devs_with = lambda n: []  # type: ignore
             populate_context_dir(self.seed_dir, {"KEY1": "val1"})
             dsrc = self.ds(sys_cfg=self.sys_cfg, distro=None, paths=self.paths)
-            ret = dsrc.get_data()
+            with mock.patch(DS_PATH + ".pwd.getpwnam") as getpwnam:
+                ret = dsrc.get_data()
+            self.assertEqual([mock.call("nobody")], getpwnam.call_args_list)
             self.assertTrue(ret)
         finally:
             util.find_devs_with = orig_find_devs_with
@@ -196,7 +198,7 @@ class TestOpenNebulaDataSource(CiTestCase):
             self.assertEqual(USER_DATA, results["userdata"])
 
     def test_user_data_encoding_required_for_decode(self):
-        b64userdata = util.b64e(USER_DATA)
+        b64userdata = atomic_helper.b64e(USER_DATA)
         for k in ("USER_DATA", "USERDATA"):
             my_d = os.path.join(self.tmp, k)
             populate_context_dir(my_d, {k: b64userdata})
@@ -209,7 +211,11 @@ class TestOpenNebulaDataSource(CiTestCase):
         for k in ("USER_DATA", "USERDATA"):
             my_d = os.path.join(self.tmp, k)
             populate_context_dir(
-                my_d, {k: util.b64e(USER_DATA), "USERDATA_ENCODING": "base64"}
+                my_d,
+                {
+                    k: atomic_helper.b64e(USER_DATA),
+                    "USERDATA_ENCODING": "base64",
+                },
             )
             results = ds.read_context_disk_dir(my_d, mock.Mock())
 
@@ -559,26 +565,6 @@ class TestOpenNebulaNetwork(unittest.TestCase):
         net = ds.OpenNebulaNetwork(context, mock.Mock())
         val = net.get_mask("eth0")
         self.assertEqual("255.255.255.0", val)
-
-    def test_get_network(self):
-        """
-        Verify get_network('device') correctly returns IPv4 network address.
-        """
-        context = {"ETH0_NETWORK": "1.2.3.0"}
-        net = ds.OpenNebulaNetwork(context, mock.Mock())
-        val = net.get_network("eth0", MACADDR)
-        self.assertEqual("1.2.3.0", val)
-
-    def test_get_network_emptystring(self):
-        """
-        Verify get_network('device') correctly returns IPv4 network address.
-        It returns network address created by MAC address if ETH0_NETWORK has
-        empty string.
-        """
-        context = {"ETH0_NETWORK": ""}
-        net = ds.OpenNebulaNetwork(context, mock.Mock())
-        val = net.get_network("eth0", MACADDR)
-        self.assertEqual("10.18.1.0", val)
 
     def test_get_field(self):
         """
@@ -1080,6 +1066,3 @@ def populate_context_dir(path, variables):
     for k, v in variables.items():
         data += "%s='%s'\n" % (k.upper(), v.replace(r"'", r"'\''"))
     populate_dir(path, {"context.sh": data})
-
-
-# vi: ts=4 expandtab

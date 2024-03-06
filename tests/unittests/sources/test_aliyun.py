@@ -4,7 +4,7 @@ import functools
 import os
 from unittest import mock
 
-import httpretty
+import responses
 
 from cloudinit import helpers
 from cloudinit.sources import DataSourceAliYun as ay
@@ -49,33 +49,7 @@ DEFAULT_USERDATA = """\
 hostname: localhost"""
 
 
-def register_mock_metaserver(base_url, data):
-    def register_helper(register, base_url, body):
-        if isinstance(body, str):
-            register(base_url, body)
-        elif isinstance(body, list):
-            register(base_url.rstrip("/"), "\n".join(body) + "\n")
-        elif isinstance(body, dict):
-            if not body:
-                register(
-                    base_url.rstrip("/") + "/", "not found", status_code=404
-                )
-            vals = []
-            for k, v in body.items():
-                if isinstance(v, (str, list)):
-                    suffix = k.rstrip("/")
-                else:
-                    suffix = k.rstrip("/") + "/"
-                vals.append(suffix)
-                url = base_url.rstrip("/") + "/" + suffix
-                register_helper(register, url, v)
-            register(base_url, "\n".join(vals) + "\n")
-
-    register = functools.partial(httpretty.register_uri, httpretty.GET)
-    register_helper(register, base_url, data)
-
-
-class TestAliYunDatasource(test_helpers.HttprettyTestCase):
+class TestAliYunDatasource(test_helpers.ResponsesTestCase):
     def setUp(self):
         super(TestAliYunDatasource, self).setUp()
         cfg = {"datasource": {"AliYun": {"timeout": "1", "max_wait": "1"}}}
@@ -124,10 +98,45 @@ class TestAliYunDatasource(test_helpers.HttprettyTestCase):
             "instance-identity",
         )
 
+    @property
+    def token_url(self):
+        return os.path.join(
+            self.metadata_address,
+            "latest",
+            "api",
+            "token",
+        )
+
+    def register_mock_metaserver(self, base_url, data):
+        def register_helper(register, base_url, body):
+            if isinstance(body, str):
+                register(base_url, body)
+            elif isinstance(body, list):
+                register(base_url.rstrip("/"), "\n".join(body) + "\n")
+            elif isinstance(body, dict):
+                if not body:
+                    register(
+                        base_url.rstrip("/") + "/", "not found", status=404
+                    )
+                vals = []
+                for k, v in body.items():
+                    if isinstance(v, (str, list)):
+                        suffix = k.rstrip("/")
+                    else:
+                        suffix = k.rstrip("/") + "/"
+                    vals.append(suffix)
+                    url = base_url.rstrip("/") + "/" + suffix
+                    register_helper(register, url, v)
+                register(base_url, "\n".join(vals) + "\n")
+
+        register = functools.partial(self.responses.add, responses.GET)
+        register_helper(register, base_url, data)
+
     def regist_default_server(self):
-        register_mock_metaserver(self.metadata_url, self.default_metadata)
-        register_mock_metaserver(self.userdata_url, self.default_userdata)
-        register_mock_metaserver(self.identity_url, self.default_identity)
+        self.register_mock_metaserver(self.metadata_url, self.default_metadata)
+        self.register_mock_metaserver(self.userdata_url, self.default_userdata)
+        self.register_mock_metaserver(self.identity_url, self.default_identity)
+        self.responses.add(responses.PUT, self.token_url, "API-TOKEN")
 
     def _test_get_data(self):
         self.assertEqual(self.ds.metadata, self.default_metadata)
@@ -149,12 +158,58 @@ class TestAliYunDatasource(test_helpers.HttprettyTestCase):
 
     def _test_host_name(self):
         self.assertEqual(
-            self.default_metadata["hostname"], self.ds.get_hostname()
+            self.default_metadata["hostname"], self.ds.get_hostname().hostname
         )
 
+    @mock.patch("cloudinit.sources.DataSourceEc2.util.is_resolvable")
     @mock.patch("cloudinit.sources.DataSourceAliYun._is_aliyun")
-    def test_with_mock_server(self, m_is_aliyun):
+    def test_with_mock_server(self, m_is_aliyun, m_resolv):
         m_is_aliyun.return_value = True
+        self.regist_default_server()
+        ret = self.ds.get_data()
+        self.assertEqual(True, ret)
+        self.assertEqual(1, m_is_aliyun.call_count)
+        self._test_get_data()
+        self._test_get_sshkey()
+        self._test_get_iid()
+        self._test_host_name()
+        self.assertEqual("aliyun", self.ds.cloud_name)
+        self.assertEqual("ec2", self.ds.platform)
+        self.assertEqual(
+            "metadata (http://100.100.100.200)", self.ds.subplatform
+        )
+
+    @mock.patch("cloudinit.net.ephemeral.EphemeralIPv6Network")
+    @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
+    @mock.patch("cloudinit.sources.DataSourceEc2.util.is_resolvable")
+    @mock.patch("cloudinit.sources.DataSourceAliYun._is_aliyun")
+    @mock.patch("cloudinit.net.find_fallback_nic")
+    @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
+    @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
+    def test_aliyun_local_with_mock_server(
+        self,
+        m_is_bsd,
+        m_dhcp,
+        m_fallback_nic,
+        m_is_aliyun,
+        m_resolva,
+        m_net4,
+        m_net6,
+    ):
+        m_is_aliyun.return_value = True
+        m_fallback_nic.return_value = "eth9"
+        m_dhcp.return_value = {
+            "interface": "eth9",
+            "fixed-address": "192.168.2.9",
+            "routers": "192.168.2.1",
+            "subnet-mask": "255.255.255.0",
+            "broadcast-address": "192.168.2.255",
+        }
+        m_is_bsd.return_value = False
+        cfg = {"datasource": {"AliYun": {"timeout": "1", "max_wait": "1"}}}
+        distro = mock.MagicMock()
+        paths = helpers.Paths({"run_dir": self.tmp_dir()})
+        self.ds = ay.DataSourceAliYunLocal(cfg, distro, paths)
         self.regist_default_server()
         ret = self.ds.get_data()
         self.assertEqual(True, ret)
@@ -236,6 +291,7 @@ class TestAliYunDatasource(test_helpers.HttprettyTestCase):
                     }
                 }
             },
+            mock.Mock(),
             macs_to_nics={
                 "06:17:04:d7:26:09": "eth0",
                 "06:17:04:d7:26:08": "eth1",
@@ -247,6 +303,14 @@ class TestAliYunDatasource(test_helpers.HttprettyTestCase):
 
         # route-metric numbers should be 100 apart
         assert 100 == abs(met0 - met1)
+
+        # No policy routing
+        assert not {"routing-policy", "routes"}.intersection(
+            netcfg["ethernets"]["eth0"].keys()
+        )
+        assert not {"routing-policy", "routes"}.intersection(
+            netcfg["ethernets"]["eth1"].keys()
+        )
 
 
 class TestIsAliYun(test_helpers.CiTestCase):
@@ -282,6 +346,3 @@ class TestIsAliYun(test_helpers.CiTestCase):
             self.read_dmi_data_expected, m_read_dmi_data.call_args_list
         )
         self.assertEqual(False, ret)
-
-
-# vi: ts=4 expandtab

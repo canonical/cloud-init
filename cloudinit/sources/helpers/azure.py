@@ -4,62 +4,38 @@ import json
 import logging
 import os
 import re
-import socket
-import struct
 import textwrap
-import time
 import zlib
 from contextlib import contextmanager
 from datetime import datetime
-from errno import ENOENT
+from time import sleep, time
+from typing import Callable, List, Optional, TypeVar, Union
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape
 
-from cloudinit import (
-    distros,
-    stages,
-    subp,
-    temp_utils,
-    url_helper,
-    util,
-    version,
-)
-from cloudinit.net import dhcp
+from cloudinit import distros, subp, temp_utils, url_helper, util, version
 from cloudinit.reporting import events
-from cloudinit.settings import CFG_BUILTIN
+from cloudinit.sources.azure import errors
 
 LOG = logging.getLogger(__name__)
 
-# This endpoint matches the format as found in dhcp lease files, since this
-# value is applied if the endpoint can't be found within a lease file
-DEFAULT_WIRESERVER_ENDPOINT = "a8:3f:81:10"
+# Default Wireserver endpoint (if not found in DHCP option 245).
+DEFAULT_WIRESERVER_ENDPOINT = "168.63.129.16"
 
 BOOT_EVENT_TYPE = "boot-telemetry"
 SYSTEMINFO_EVENT_TYPE = "system-info"
 DIAGNOSTIC_EVENT_TYPE = "diagnostic"
 COMPRESSED_EVENT_TYPE = "compressed"
-# Maximum number of bytes of the cloud-init.log file that can be dumped to KVP
-# at once. This number is based on the analysis done on a large sample of
-# cloud-init.log files where the P95 of the file sizes was 537KB and the time
-# consumed to dump 500KB file was (P95:76, P99:233, P99.9:1170) in ms
-MAX_LOG_TO_KVP_LENGTH = 512000
-# File to store the last byte of cloud-init.log that was pushed to KVP. This
-# file will be deleted with every VM reboot.
-LOG_PUSHED_TO_KVP_INDEX_FILE = "/run/cloud-init/log_pushed_to_kvp_index"
 azure_ds_reporter = events.ReportEventStack(
     name="azure-ds",
     description="initialize reporter for azure ds",
     reporting_enabled=True,
 )
 
-DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE = (
-    "The VM encountered an error during deployment. "
-    "Please visit https://aka.ms/linuxprovisioningerror "
-    "for more information on remediation."
-)
+T = TypeVar("T")
 
 
-def azure_ds_telemetry_reporter(func):
+def azure_ds_telemetry_reporter(func: Callable[..., T]) -> Callable[..., T]:
     def impl(*args, **kwargs):
         with events.ReportEventStack(
             name=func.__name__,
@@ -71,34 +47,6 @@ def azure_ds_telemetry_reporter(func):
     return impl
 
 
-def is_byte_swapped(previous_id, current_id):
-    """
-    Azure stores the instance ID with an incorrect byte ordering for the
-    first parts. This corrects the byte order such that it is consistent with
-    that returned by the metadata service.
-    """
-    if previous_id == current_id:
-        return False
-
-    def swap_bytestring(s, width=2):
-        dd = [byte for byte in textwrap.wrap(s, 2)]
-        dd.reverse()
-        return "".join(dd)
-
-    parts = current_id.split("-")
-    swapped_id = "-".join(
-        [
-            swap_bytestring(parts[0]),
-            swap_bytestring(parts[1]),
-            swap_bytestring(parts[2]),
-            parts[3],
-            parts[4],
-        ]
-    )
-
-    return previous_id == swapped_id
-
-
 @azure_ds_telemetry_reporter
 def get_boot_telemetry():
     """Report timestamps related to kernel initialization and systemd
@@ -108,13 +56,13 @@ def get_boot_telemetry():
 
     LOG.debug("Collecting boot telemetry")
     try:
-        kernel_start = float(time.time()) - float(util.uptime())
+        kernel_start = float(time()) - float(util.uptime())
     except ValueError as e:
         raise RuntimeError("Failed to determine kernel start timestamp") from e
 
     try:
         out, _ = subp.subp(
-            ["/bin/systemctl", "show", "-p", "UserspaceTimestampMonotonic"],
+            ["systemctl", "show", "-p", "UserspaceTimestampMonotonic"],
             capture=True,
         )
         tsm = None
@@ -139,7 +87,7 @@ def get_boot_telemetry():
     try:
         out, _ = subp.subp(
             [
-                "/bin/systemctl",
+                "systemctl",
                 "show",
                 "cloud-init-local",
                 "-p",
@@ -214,7 +162,6 @@ def report_diagnostic_event(
     msg: str, *, logger_func=None
 ) -> events.ReportingEvent:
     """Report a diagnostic event"""
-    print(msg)
     if callable(logger_func):
         logger_func(msg)
     evt = events.ReportingEvent(
@@ -251,35 +198,8 @@ def report_compressed_event(event_name, event_content):
 
 
 @azure_ds_telemetry_reporter
-def push_log_to_kvp(file_name=CFG_BUILTIN["def_log_file"]):
-    """Push a portion of cloud-init.log file or the whole file to KVP
-    based on the file size.
-    The first time this function is called after VM boot, It will push the last
-    n bytes of the log file such that n < MAX_LOG_TO_KVP_LENGTH
-    If called again on the same boot, it continues from where it left off.
-    In addition to cloud-init.log, dmesg log will also be collected."""
-
-    start_index = get_last_log_byte_pushed_to_kvp_index()
-
-    LOG.debug("Dumping cloud-init.log file to KVP")
-    try:
-        with open(file_name, "rb") as f:
-            f.seek(0, os.SEEK_END)
-            seek_index = max(f.tell() - MAX_LOG_TO_KVP_LENGTH, start_index)
-            report_diagnostic_event(
-                "Dumping last {0} bytes of cloud-init.log file to KVP starting"
-                " from index: {1}".format(f.tell() - seek_index, seek_index),
-                logger_func=LOG.debug,
-            )
-            f.seek(seek_index, os.SEEK_SET)
-            report_compressed_event("cloud-init.log", f.read())
-            util.write_file(LOG_PUSHED_TO_KVP_INDEX_FILE, str(f.tell()))
-    except Exception as ex:
-        report_diagnostic_event(
-            "Exception when dumping log file: %s" % repr(ex),
-            logger_func=LOG.warning,
-        )
-
+def report_dmesg_to_kvp():
+    """Report dmesg to KVP."""
     LOG.debug("Dumping dmesg log to KVP")
     try:
         out, _ = subp.subp(["dmesg"], decode=False, capture=True)
@@ -289,30 +209,6 @@ def push_log_to_kvp(file_name=CFG_BUILTIN["def_log_file"]):
             "Exception when dumping dmesg log: %s" % repr(ex),
             logger_func=LOG.warning,
         )
-
-
-@azure_ds_telemetry_reporter
-def get_last_log_byte_pushed_to_kvp_index():
-    try:
-        with open(LOG_PUSHED_TO_KVP_INDEX_FILE, "r") as f:
-            return int(f.read())
-    except IOError as e:
-        if e.errno != ENOENT:
-            report_diagnostic_event(
-                "Reading LOG_PUSHED_TO_KVP_INDEX_FILE failed: %s." % repr(e),
-                logger_func=LOG.warning,
-            )
-    except ValueError as e:
-        report_diagnostic_event(
-            "Invalid value in LOG_PUSHED_TO_KVP_INDEX_FILE: %s." % repr(e),
-            logger_func=LOG.warning,
-        )
-    except Exception as e:
-        report_diagnostic_event(
-            "Failed to get the last log byte pushed to KVP: %s." % repr(e),
-            logger_func=LOG.warning,
-        )
-    return 0
 
 
 @contextmanager
@@ -325,65 +221,59 @@ def cd(newdir):
         os.chdir(prevdir)
 
 
-def _get_dhcp_endpoint_option_name():
-    if util.is_FreeBSD():
-        azure_endpoint = "option-245"
-    else:
-        azure_endpoint = "unknown-245"
-    return azure_endpoint
-
-
 @azure_ds_telemetry_reporter
-def http_with_retries(url, **kwargs) -> str:
-    """Wrapper around url_helper.readurl() with custom telemetry logging
-    that url_helper.readurl() does not provide.
+def http_with_retries(
+    url: str,
+    *,
+    headers: dict,
+    data: Optional[bytes] = None,
+    retry_sleep: int = 5,
+    timeout_minutes: int = 20,
+) -> url_helper.UrlResponse:
+    """Readurl wrapper for querying wireserver.
+
+    :param retry_sleep: Time to sleep before retrying.
+    :param timeout_minutes: Retry up to specified number of minutes.
+    :raises UrlError: on error fetching data.
     """
-    exc = None
+    timeout = timeout_minutes * 60 + time()
 
-    max_readurl_attempts = 240
-    default_readurl_timeout = 5
-    sleep_duration_between_retries = 5
-    periodic_logging_attempts = 12
-
-    if "timeout" not in kwargs:
-        kwargs["timeout"] = default_readurl_timeout
-
-    # remove kwargs that cause url_helper.readurl to retry,
-    # since we are already implementing our own retry logic.
-    if kwargs.pop("retries", None):
-        LOG.warning(
-            "Ignoring retries kwarg passed in for "
-            "communication with Azure endpoint."
-        )
-    if kwargs.pop("infinite", None):
-        LOG.warning(
-            "Ignoring infinite kwarg passed in for communication "
-            "with Azure endpoint."
-        )
-
-    for attempt in range(1, max_readurl_attempts + 1):
+    attempt = 0
+    response = None
+    while not response:
+        attempt += 1
         try:
-            ret = url_helper.readurl(url, **kwargs)
-
+            response = url_helper.readurl(
+                url, headers=headers, data=data, timeout=(5, 60)
+            )
+            break
+        except url_helper.UrlError as e:
             report_diagnostic_event(
-                "Successful HTTP request with Azure endpoint %s after "
-                "%d attempts" % (url, attempt),
+                "Failed HTTP request with Azure endpoint %s during "
+                "attempt %d with exception: %s (code=%r headers=%r)"
+                % (url, attempt, e, e.code, e.headers),
                 logger_func=LOG.debug,
             )
+            # Raise exception if we're out of time or network is unreachable.
+            # If network is unreachable:
+            # - retries will not resolve the situation
+            # - for reporting ready for PPS, this generally means VM was put
+            #   to sleep or network interface was unplugged before we see
+            #   the call complete successfully.
+            if (
+                time() + retry_sleep >= timeout
+                or "Network is unreachable" in str(e)
+            ):
+                raise
 
-            return ret
+        sleep(retry_sleep)
 
-        except Exception as e:
-            exc = e
-            if attempt % periodic_logging_attempts == 0:
-                report_diagnostic_event(
-                    "Failed HTTP request with Azure endpoint %s during "
-                    "attempt %d with exception: %s" % (url, attempt, e),
-                    logger_func=LOG.debug,
-                )
-            time.sleep(sleep_duration_between_retries)
-
-    raise exc
+    report_diagnostic_event(
+        "Successful HTTP request with Azure endpoint %s after "
+        "%d attempts" % (url, attempt),
+        logger_func=LOG.debug,
+    )
+    return response
 
 
 def build_minimal_ovf(
@@ -421,7 +311,6 @@ def build_minimal_ovf(
 
 
 class AzureEndpointHttpClient:
-
     headers = {
         "x-ms-agent-name": "WALinuxAgent",
         "x-ms-version": "2012-11-30",
@@ -433,14 +322,16 @@ class AzureEndpointHttpClient:
             "x-ms-guest-agent-public-x509-cert": certificate,
         }
 
-    def get(self, url, secure=False):
+    def get(self, url, secure=False) -> url_helper.UrlResponse:
         headers = self.headers
         if secure:
             headers = self.headers.copy()
             headers.update(self.extra_secure_headers)
         return http_with_retries(url, headers=headers)
 
-    def post(self, url, data=None, extra_headers=None):
+    def post(
+        self, url, data: Optional[bytes] = None, extra_headers=None
+    ) -> url_helper.UrlResponse:
         headers = self.headers
         if extra_headers is not None:
             headers = self.headers.copy()
@@ -455,7 +346,7 @@ class InvalidGoalStateXMLException(Exception):
 class GoalState:
     def __init__(
         self,
-        unparsed_xml: str,
+        unparsed_xml: Union[str, bytes],
         azure_endpoint_client: AzureEndpointHttpClient,
         need_certificate: bool = True,
     ) -> None:
@@ -516,7 +407,6 @@ class GoalState:
 
 
 class OpenSSLManager:
-
     certificate_names = {
         "private_key": "TransportPrivate.pem",
         "certificate": "TransportCert.pem",
@@ -645,7 +535,6 @@ class OpenSSLManager:
 
 
 class GoalStateHealthReporter:
-
     HEALTH_REPORT_XML_TEMPLATE = textwrap.dedent(
         """\
         <?xml version="1.0" encoding="utf-8"?>
@@ -751,7 +640,7 @@ class GoalStateHealthReporter:
         status: str,
         substatus=None,
         description=None,
-    ) -> str:
+    ) -> bytes:
         health_detail = ""
         if substatus is not None:
             health_detail = self.HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE.format(
@@ -769,12 +658,10 @@ class GoalStateHealthReporter:
             health_detail_subsection=health_detail,
         )
 
-        return health_report
+        return health_report.encode("utf-8")
 
     @azure_ds_telemetry_reporter
-    def _post_health_report(self, document: str) -> None:
-        push_log_to_kvp()
-
+    def _post_health_report(self, document: bytes) -> None:
         # Whenever report_diagnostic_event(diagnostic_msg) is invoked in code,
         # the diagnostic messages are written to special files
         # (/var/opt/hyperv/.kvp_pool_*) as Hyper-V KVP messages.
@@ -789,11 +676,11 @@ class GoalStateHealthReporter:
         # KVP messages that are published after the Azure Host receives the
         # signal are ignored and unprocessed, so yield this thread to the
         # Hyper-V KVP Reporting thread so that they are written.
-        # time.sleep(0) is a low-cost and proven method to yield the scheduler
+        # sleep(0) is a low-cost and proven method to yield the scheduler
         # and ensure that events are flushed.
         # See HyperVKvpReportingHandler class, which is a multi-threaded
         # reporting handler that writes to the special KVP files.
-        time.sleep(0)
+        sleep(0)
 
         LOG.debug("Sending health report to Azure fabric.")
         url = "http://{}/machine?comp=health".format(self._endpoint)
@@ -806,206 +693,30 @@ class GoalStateHealthReporter:
 
 
 class WALinuxAgentShim:
-    def __init__(self, fallback_lease_file=None, dhcp_options=None):
-        LOG.debug(
-            "WALinuxAgentShim instantiated, fallback_lease_file=%s",
-            fallback_lease_file,
-        )
-        self.dhcpoptions = dhcp_options
-        self._endpoint = None
-        self.openssl_manager = None
-        self.azure_endpoint_client = None
-        self.lease_file = fallback_lease_file
+    def __init__(self, endpoint: str):
+        self.endpoint = endpoint
+        self.openssl_manager: Optional[OpenSSLManager] = None
+        self.azure_endpoint_client: Optional[AzureEndpointHttpClient] = None
 
     def clean_up(self):
         if self.openssl_manager is not None:
             self.openssl_manager.clean_up()
 
-    @staticmethod
-    def _get_hooks_dir():
-        _paths = stages.Init()
-        return os.path.join(_paths.paths.get_runpath(), "dhclient.hooks")
-
-    @property
-    def endpoint(self):
-        if self._endpoint is None:
-            self._endpoint = self.find_endpoint(
-                self.lease_file, self.dhcpoptions
-            )
-        return self._endpoint
-
-    @staticmethod
-    def get_ip_from_lease_value(fallback_lease_value):
-        unescaped_value = fallback_lease_value.replace("\\", "")
-        if len(unescaped_value) > 4:
-            hex_string = ""
-            for hex_pair in unescaped_value.split(":"):
-                if len(hex_pair) == 1:
-                    hex_pair = "0" + hex_pair
-                hex_string += hex_pair
-            packed_bytes = struct.pack(
-                ">L", int(hex_string.replace(":", ""), 16)
-            )
-        else:
-            packed_bytes = unescaped_value.encode("utf-8")
-        return socket.inet_ntoa(packed_bytes)
-
-    @staticmethod
     @azure_ds_telemetry_reporter
-    def _networkd_get_value_from_leases(leases_d=None):
-        return dhcp.networkd_get_option_from_leases(
-            "OPTION_245", leases_d=leases_d
-        )
-
-    @staticmethod
-    @azure_ds_telemetry_reporter
-    def _get_value_from_leases_file(fallback_lease_file):
-        leases = []
+    def eject_iso(self, iso_dev, distro: distros.Distro) -> None:
+        LOG.debug("Ejecting the provisioning iso")
         try:
-            content = util.load_file(fallback_lease_file)
-        except IOError as ex:
-            LOG.error("Failed to read %s: %s", fallback_lease_file, ex)
-            return None
-
-        LOG.debug("content is %s", content)
-        option_name = _get_dhcp_endpoint_option_name()
-        for line in content.splitlines():
-            if option_name in line:
-                # Example line from Ubuntu
-                # option unknown-245 a8:3f:81:10;
-                leases.append(line.strip(" ").split(" ", 2)[-1].strip(';\n"'))
-        # Return the "most recent" one in the list
-        if len(leases) < 1:
-            return None
-        else:
-            return leases[-1]
-
-    @staticmethod
-    @azure_ds_telemetry_reporter
-    def _load_dhclient_json():
-        dhcp_options = {}
-        hooks_dir = WALinuxAgentShim._get_hooks_dir()
-        if not os.path.exists(hooks_dir):
-            LOG.debug("%s not found.", hooks_dir)
-            return None
-        hook_files = [
-            os.path.join(hooks_dir, x) for x in os.listdir(hooks_dir)
-        ]
-        for hook_file in hook_files:
-            try:
-                name = os.path.basename(hook_file).replace(".json", "")
-                dhcp_options[name] = json.loads(util.load_file((hook_file)))
-            except ValueError as e:
-                raise ValueError(
-                    "{_file} is not valid JSON data".format(_file=hook_file)
-                ) from e
-        return dhcp_options
-
-    @staticmethod
-    @azure_ds_telemetry_reporter
-    def _get_value_from_dhcpoptions(dhcp_options):
-        if dhcp_options is None:
-            return None
-        # the MS endpoint server is given to us as DHPC option 245
-        _value = None
-        for interface in dhcp_options:
-            _value = dhcp_options[interface].get("unknown_245", None)
-            if _value is not None:
-                LOG.debug("Endpoint server found in dhclient options")
-                break
-        return _value
-
-    @staticmethod
-    @azure_ds_telemetry_reporter
-    def find_endpoint(fallback_lease_file=None, dhcp245=None):
-        """Finds and returns the Azure endpoint using various methods.
-
-        The Azure endpoint is searched in the following order:
-        1. Endpoint from dhcp options (dhcp option 245).
-        2. Endpoint from networkd.
-        3. Endpoint from dhclient hook json.
-        4. Endpoint from fallback lease file.
-        5. The default Azure endpoint.
-
-        @param fallback_lease_file: Fallback lease file that will be used
-            during endpoint search.
-        @param dhcp245: dhcp options that will be used during endpoint search.
-        @return: Azure endpoint IP address.
-        """
-        value = None
-
-        if dhcp245 is not None:
-            value = dhcp245
-            LOG.debug("Using Azure Endpoint from dhcp options")
-        if value is None:
-            report_diagnostic_event(
-                "No Azure endpoint from dhcp options. "
-                "Finding Azure endpoint from networkd...",
-                logger_func=LOG.debug,
-            )
-            value = WALinuxAgentShim._networkd_get_value_from_leases()
-        if value is None:
-            # Option-245 stored in /run/cloud-init/dhclient.hooks/<ifc>.json
-            # a dhclient exit hook that calls cloud-init-dhclient-hook
-            report_diagnostic_event(
-                "No Azure endpoint from networkd. "
-                "Finding Azure endpoint from hook json...",
-                logger_func=LOG.debug,
-            )
-            dhcp_options = WALinuxAgentShim._load_dhclient_json()
-            value = WALinuxAgentShim._get_value_from_dhcpoptions(dhcp_options)
-        if value is None:
-            # Fallback and check the leases file if unsuccessful
-            report_diagnostic_event(
-                "No Azure endpoint from dhclient logs. "
-                "Unable to find endpoint in dhclient logs. "
-                "Falling back to check lease files",
-                logger_func=LOG.debug,
-            )
-            if fallback_lease_file is None:
-                report_diagnostic_event(
-                    "No fallback lease file was specified.",
-                    logger_func=LOG.warning,
-                )
-                value = None
-            else:
-                report_diagnostic_event(
-                    "Looking for endpoint in lease file %s"
-                    % fallback_lease_file,
-                    logger_func=LOG.debug,
-                )
-                value = WALinuxAgentShim._get_value_from_leases_file(
-                    fallback_lease_file
-                )
-        if value is None:
-            value = DEFAULT_WIRESERVER_ENDPOINT
-            report_diagnostic_event(
-                "No lease found; using default endpoint: %s" % value,
-                logger_func=LOG.warning,
-            )
-
-        endpoint_ip_address = WALinuxAgentShim.get_ip_from_lease_value(value)
-        report_diagnostic_event(
-            "Azure endpoint found at %s" % endpoint_ip_address,
-            logger_func=LOG.debug,
-        )
-        return endpoint_ip_address
-
-    @azure_ds_telemetry_reporter
-    def eject_iso(self, iso_dev) -> None:
-        try:
-            LOG.debug("Ejecting the provisioning iso")
-            subp.subp(["eject", iso_dev])
+            distro.eject_media(iso_dev)
         except Exception as e:
             report_diagnostic_event(
                 "Failed ejecting the provisioning iso: %s" % e,
-                logger_func=LOG.debug,
+                logger_func=LOG.error,
             )
 
     @azure_ds_telemetry_reporter
     def register_with_azure_and_fetch_data(
-        self, pubkey_info=None, iso_dev=None
-    ) -> dict:
+        self, distro: distros.Distro, pubkey_info=None, iso_dev=None
+    ) -> Optional[List[str]]:
         """Gets the VM's GoalState from Azure, uses the GoalState information
         to report ready/send the ready signal/provisioning complete signal to
         Azure, and then uses pubkey_info to filter and obtain the user's
@@ -1035,10 +746,10 @@ class WALinuxAgentShim:
         )
 
         if iso_dev is not None:
-            self.eject_iso(iso_dev)
+            self.eject_iso(iso_dev, distro=distro)
 
         health_reporter.send_ready_signal()
-        return {"public-keys": ssh_keys}
+        return ssh_keys
 
     @azure_ds_telemetry_reporter
     def register_with_azure_and_report_failure(self, description: str) -> None:
@@ -1071,7 +782,7 @@ class WALinuxAgentShim:
         )
 
     @azure_ds_telemetry_reporter
-    def _get_raw_goal_state_xml_from_azure(self) -> str:
+    def _get_raw_goal_state_xml_from_azure(self) -> bytes:
         """Fetches the GoalState XML from the Azure endpoint and returns
         the XML as a string.
 
@@ -1086,7 +797,7 @@ class WALinuxAgentShim:
                 description="retrieve goalstate",
                 parent=azure_ds_reporter,
             ):
-                response = self.azure_endpoint_client.get(url)
+                response = self.azure_endpoint_client.get(url)  # type: ignore
         except Exception as e:
             report_diagnostic_event(
                 "failed to register with Azure and fetch GoalState XML: %s"
@@ -1099,7 +810,9 @@ class WALinuxAgentShim:
 
     @azure_ds_telemetry_reporter
     def _parse_raw_goal_state_xml(
-        self, unparsed_goal_state_xml: str, need_certificate: bool
+        self,
+        unparsed_goal_state_xml: Union[str, bytes],
+        need_certificate: bool,
     ) -> GoalState:
         """Parses a GoalState XML string and returns a GoalState object.
 
@@ -1110,7 +823,7 @@ class WALinuxAgentShim:
         try:
             goal_state = GoalState(
                 unparsed_goal_state_xml,
-                self.azure_endpoint_client,
+                self.azure_endpoint_client,  # type: ignore
                 need_certificate,
             )
         except Exception as e:
@@ -1159,7 +872,11 @@ class WALinuxAgentShim:
         @return: A list of the VM user's authorized pubkey values.
         """
         ssh_keys = []
-        if goal_state.certificates_xml is not None and pubkey_info is not None:
+        if (
+            goal_state.certificates_xml is not None
+            and pubkey_info is not None
+            and self.openssl_manager is not None
+        ):
             LOG.debug("Certificate XML found; parsing out public keys.")
             keys_by_fingerprint = self.openssl_manager.parse_certificates(
                 goal_state.certificates_xml
@@ -1206,28 +923,24 @@ class WALinuxAgentShim:
 
 @azure_ds_telemetry_reporter
 def get_metadata_from_fabric(
-    fallback_lease_file=None, dhcp_opts=None, pubkey_info=None, iso_dev=None
+    endpoint: str,
+    distro: distros.Distro,
+    pubkey_info: Optional[List[str]] = None,
+    iso_dev: Optional[str] = None,
 ):
-    shim = WALinuxAgentShim(
-        fallback_lease_file=fallback_lease_file, dhcp_options=dhcp_opts
-    )
+    shim = WALinuxAgentShim(endpoint=endpoint)
     try:
         return shim.register_with_azure_and_fetch_data(
-            pubkey_info=pubkey_info, iso_dev=iso_dev
+            distro=distro, pubkey_info=pubkey_info, iso_dev=iso_dev
         )
     finally:
         shim.clean_up()
 
 
 @azure_ds_telemetry_reporter
-def report_failure_to_fabric(
-    fallback_lease_file=None, dhcp_opts=None, description=None
-):
-    shim = WALinuxAgentShim(
-        fallback_lease_file=fallback_lease_file, dhcp_options=dhcp_opts
-    )
-    if not description:
-        description = DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
+def report_failure_to_fabric(endpoint: str, error: "errors.ReportableError"):
+    shim = WALinuxAgentShim(endpoint=endpoint)
+    description = error.as_encoded_report()
     try:
         shim.register_with_azure_and_report_failure(description=description)
     finally:
@@ -1243,4 +956,214 @@ def dhcp_log_cb(out, err):
     )
 
 
-# vi: ts=4 expandtab
+class NonAzureDataSource(Exception):
+    pass
+
+
+class OvfEnvXml:
+    NAMESPACES = {
+        "ovf": "http://schemas.dmtf.org/ovf/environment/1",
+        "wa": "http://schemas.microsoft.com/windowsazure",
+    }
+
+    def __init__(
+        self,
+        *,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        hostname: Optional[str] = None,
+        custom_data: Optional[bytes] = None,
+        disable_ssh_password_auth: Optional[bool] = None,
+        public_keys: Optional[List[dict]] = None,
+        preprovisioned_vm: bool = False,
+        preprovisioned_vm_type: Optional[str] = None,
+        provision_guest_proxy_agent: bool = False,
+    ) -> None:
+        self.username = username
+        self.password = password
+        self.hostname = hostname
+        self.custom_data = custom_data
+        self.disable_ssh_password_auth = disable_ssh_password_auth
+        self.public_keys: List[dict] = public_keys or []
+        self.preprovisioned_vm = preprovisioned_vm
+        self.preprovisioned_vm_type = preprovisioned_vm_type
+        self.provision_guest_proxy_agent = provision_guest_proxy_agent
+
+    def __eq__(self, other) -> bool:
+        return self.__dict__ == other.__dict__
+
+    @classmethod
+    def parse_text(cls, ovf_env_xml: str) -> "OvfEnvXml":
+        """Parser for ovf-env.xml data.
+
+        :raises NonAzureDataSource: if XML is not in Azure's format.
+        :raises errors.ReportableErrorOvfParsingException: if XML is
+                unparsable or invalid.
+        """
+        try:
+            root = ElementTree.fromstring(ovf_env_xml)
+        except ElementTree.ParseError as e:
+            raise errors.ReportableErrorOvfParsingException(exception=e) from e
+
+        # If there's no provisioning section, it's not Azure ovf-env.xml.
+        if not root.find("./wa:ProvisioningSection", cls.NAMESPACES):
+            raise NonAzureDataSource(
+                "Ignoring non-Azure ovf-env.xml: ProvisioningSection not found"
+            )
+
+        instance = OvfEnvXml()
+        instance._parse_linux_configuration_set_section(root)
+        instance._parse_platform_settings_section(root)
+
+        return instance
+
+    def _find(
+        self,
+        node,
+        name: str,
+        required: bool,
+        namespace: str = "wa",
+    ):
+        matches = node.findall(
+            "./%s:%s" % (namespace, name), OvfEnvXml.NAMESPACES
+        )
+        if len(matches) == 0:
+            msg = "missing configuration for %r" % name
+            LOG.debug(msg)
+            if required:
+                raise errors.ReportableErrorOvfInvalidMetadata(msg)
+            return None
+        elif len(matches) > 1:
+            raise errors.ReportableErrorOvfInvalidMetadata(
+                "multiple configuration matches for %r (%d)"
+                % (name, len(matches))
+            )
+
+        return matches[0]
+
+    def _parse_property(
+        self,
+        node,
+        name: str,
+        required: bool,
+        decode_base64: bool = False,
+        parse_bool: bool = False,
+        default=None,
+    ):
+        matches = node.findall("./wa:" + name, OvfEnvXml.NAMESPACES)
+        if len(matches) == 0:
+            msg = "missing configuration for %r" % name
+            LOG.debug(msg)
+            if required:
+                raise errors.ReportableErrorOvfInvalidMetadata(msg)
+            return default
+        elif len(matches) > 1:
+            raise errors.ReportableErrorOvfInvalidMetadata(
+                "multiple configuration matches for %r (%d)"
+                % (name, len(matches))
+            )
+
+        value = matches[0].text
+
+        # Empty string may be None.
+        if value is None:
+            value = default
+
+        if decode_base64 and value is not None:
+            value = base64.b64decode("".join(value.split()))
+
+        if parse_bool:
+            value = util.translate_bool(value)
+
+        return value
+
+    def _parse_linux_configuration_set_section(self, root):
+        provisioning_section = self._find(
+            root, "ProvisioningSection", required=True
+        )
+        config_set = self._find(
+            provisioning_section,
+            "LinuxProvisioningConfigurationSet",
+            required=True,
+        )
+
+        self.custom_data = self._parse_property(
+            config_set,
+            "CustomData",
+            decode_base64=True,
+            required=False,
+        )
+        self.username = self._parse_property(
+            config_set, "UserName", required=True
+        )
+        self.password = self._parse_property(
+            config_set, "UserPassword", required=False
+        )
+        self.hostname = self._parse_property(
+            config_set, "HostName", required=True
+        )
+        self.disable_ssh_password_auth = self._parse_property(
+            config_set,
+            "DisableSshPasswordAuthentication",
+            parse_bool=True,
+            required=False,
+        )
+
+        self._parse_ssh_section(config_set)
+
+    def _parse_platform_settings_section(self, root):
+        platform_settings_section = self._find(
+            root, "PlatformSettingsSection", required=True
+        )
+        platform_settings = self._find(
+            platform_settings_section, "PlatformSettings", required=True
+        )
+
+        self.preprovisioned_vm = self._parse_property(
+            platform_settings,
+            "PreprovisionedVm",
+            parse_bool=True,
+            default=False,
+            required=False,
+        )
+        self.preprovisioned_vm_type = self._parse_property(
+            platform_settings,
+            "PreprovisionedVMType",
+            required=False,
+        )
+        self.provision_guest_proxy_agent = self._parse_property(
+            platform_settings,
+            "ProvisionGuestProxyAgent",
+            default=False,
+            required=False,
+        )
+
+    def _parse_ssh_section(self, config_set):
+        self.public_keys = []
+
+        ssh_section = self._find(config_set, "SSH", required=False)
+        if ssh_section is None:
+            return
+
+        public_keys_section = self._find(
+            ssh_section, "PublicKeys", required=False
+        )
+        if public_keys_section is None:
+            return
+
+        for public_key in public_keys_section.findall(
+            "./wa:PublicKey", OvfEnvXml.NAMESPACES
+        ):
+            fingerprint = self._parse_property(
+                public_key, "Fingerprint", required=False
+            )
+            path = self._parse_property(public_key, "Path", required=False)
+            value = self._parse_property(
+                public_key, "Value", default="", required=False
+            )
+            ssh_key = {
+                "fingerprint": fingerprint,
+                "path": path,
+                "value": value,
+            }
+            self.public_keys.append(ssh_key)

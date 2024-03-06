@@ -1,0 +1,20 @@
+#!/sbin/openrc-run
+
+description="cloud-init final stage"
+
+depend() {
+  after cloud-config
+  provide cloud-final
+}
+
+start() {
+  if grep -q 'cloud-init=disabled' /proc/cmdline; then
+    ewarn "$RC_SVCNAME is disabled via /proc/cmdline."
+  elif test -e /etc/cloud/cloud-init.disabled; then
+    ewarn "$RC_SVCNAME is disabled via cloud-init.disabled file"
+  else
+    ebegin "cloud-init final"
+    cloud-init modules --mode final
+    eend $?
+  fi
+}

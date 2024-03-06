@@ -18,7 +18,7 @@ class CustomScriptNotFound(Exception):
     pass
 
 
-class CustomScriptConstant(object):
+class CustomScriptConstant:
     CUSTOM_TMP_DIR = "/root/.customization"
 
     # The user defined custom script
@@ -29,7 +29,7 @@ class CustomScriptConstant(object):
     POST_CUSTOM_SCRIPT_NAME = "post-customize-guest.sh"
 
 
-class RunCustomScript(object):
+class RunCustomScript:
     def __init__(self, scriptname, directory):
         self.scriptname = scriptname
         self.directory = directory
@@ -50,9 +50,9 @@ class RunCustomScript(object):
         util.copy(self.scriptpath, CustomScriptConstant.CUSTOM_SCRIPT)
 
         # Strip any CR characters from the decoded script
-        content = util.load_file(CustomScriptConstant.CUSTOM_SCRIPT).replace(
-            "\r", ""
-        )
+        content = util.load_text_file(
+            CustomScriptConstant.CUSTOM_SCRIPT
+        ).replace("\r", "")
         util.write_file(
             CustomScriptConstant.CUSTOM_SCRIPT, content, mode=0o544
         )
@@ -93,6 +93,3 @@ class PostCustomScript(RunCustomScript):
         os.chmod(self.ccScriptPath, st.st_mode | stat.S_IEXEC)
         LOG.info("Creating post customization pending marker")
         util.ensure_file(CustomScriptConstant.POST_CUSTOM_PENDING_MARKER)
-
-
-# vi: ts=4 expandtab

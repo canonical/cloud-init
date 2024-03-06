@@ -4,7 +4,6 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import base64
 import datetime
 import json
 import os
@@ -67,20 +66,6 @@ def format_record(msg, event):
     return msg.format(**event)
 
 
-def dump_event_files(event):
-    content = dict((k, v) for k, v in event.items() if k not in ["content"])
-    files = content["files"]
-    saved = []
-    for f in files:
-        fname = f["path"]
-        fn_local = os.path.basename(fname)
-        fcontent = base64.b64decode(f["content"]).decode("ascii")
-        util.write_file(fn_local, fcontent)
-        saved.append(fn_local)
-
-    return saved
-
-
 def event_name(event):
     if event:
         return event.get("name")
@@ -132,14 +117,14 @@ def total_time_record(total_time):
     return "Total Time: %3.5f seconds\n" % total_time
 
 
-class SystemctlReader(object):
+class SystemctlReader:
     """
     Class for dealing with all systemctl subp calls in a consistent manner.
     """
 
     def __init__(self, property, parameter=None):
         self.epoch = None
-        self.args = ["/bin/systemctl", "show"]
+        self.args = [subp.which("systemctl"), "show"]
         if parameter:
             self.args.append(parameter)
         self.args.extend(["-p", property])
@@ -188,7 +173,7 @@ class SystemctlReader(object):
 def dist_check_timestamp():
     """
     Determine which init system a particular linux distro is using.
-    Each init system (systemd, upstart, etc) has a different way of
+    Each init system (systemd, etc) has a different way of
     providing timestamps.
 
     :return: timestamps of kernelboot, kernelendboot, and cloud-initstart
@@ -257,25 +242,21 @@ def gather_timestamps_using_systemd():
         status = SUCCESS_CODE
         # lxc based containers do not set their monotonic zero point to be when
         # the container starts, instead keep using host boot as zero point
-        # time.CLOCK_MONOTONIC_RAW is only available in python 3.3
         if util.is_container():
             # clock.monotonic also uses host boot as zero point
-            if sys.version_info >= (3, 3):
-                base_time = float(time.time()) - float(time.monotonic())
-                # TODO: lxcfs automatically truncates /proc/uptime to seconds
-                # in containers when https://github.com/lxc/lxcfs/issues/292
-                # is fixed, util.uptime() should be used instead of stat on
-                try:
-                    file_stat = os.stat("/proc/1/cmdline")
-                    kernel_start = file_stat.st_atime
-                except OSError as err:
-                    raise RuntimeError(
-                        "Could not determine container boot "
-                        "time from /proc/1/cmdline. ({})".format(err)
-                    ) from err
-                status = CONTAINER_CODE
-            else:
-                status = FAIL_CODE
+            base_time = float(time.time()) - float(time.monotonic())
+            # TODO: lxcfs automatically truncates /proc/uptime to seconds
+            # in containers when https://github.com/lxc/lxcfs/issues/292
+            # is fixed, util.uptime() should be used instead of stat on
+            try:
+                file_stat = os.stat("/proc/1/cmdline")
+                kernel_start = file_stat.st_atime
+            except OSError as err:
+                raise RuntimeError(
+                    "Could not determine container boot "
+                    "time from /proc/1/cmdline. ({})".format(err)
+                ) from err
+            status = CONTAINER_CODE
         kernel_end = base_time + delta_k_end
         cloudinit_sysd = base_time + delta_ci_s
 
@@ -314,11 +295,10 @@ def generate_records(
     start_time = None
     total_time = 0.0
     stage_start_time = {}
-    stages_seen = []
     boot_records = []
 
     unprocessed = []
-    for e in range(0, len(sorted_events)):
+    for e in range(len(sorted_events)):
         event = events[e]
         try:
             next_evt = events[e + 1]
@@ -326,7 +306,7 @@ def generate_records(
             next_evt = None
 
         if event_type(event) == "start":
-            if event.get("name") in stages_seen:
+            if records and event.get("name") == "init-local":
                 records.append(total_time_record(total_time))
                 boot_records.append(records)
                 records = []
@@ -334,7 +314,6 @@ def generate_records(
                 total_time = 0.0
 
             if start_time is None:
-                stages_seen = []
                 start_time = event_datetime(event)
                 stage_start_time[event_parent(event)] = start_time
 
@@ -351,7 +330,6 @@ def generate_records(
                 # This is a parent event
                 records.append("Starting stage: %s" % event.get("name"))
                 unprocessed.append(event)
-                stages_seen.append(event.get("name"))
                 continue
         else:
             prev_evt = unprocessed.pop()
@@ -393,6 +371,9 @@ def load_events_infile(infile):
     :return: json version of logfile, raw file
     """
     data = infile.read()
+    if not data.strip():
+        sys.stderr.write("Empty file %s\n" % infile.name)
+        sys.exit(1)
     try:
         return json.loads(data), data
     except ValueError:

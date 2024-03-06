@@ -10,7 +10,6 @@ graft templates
 graft tests
 graft tools
 graft udev
-graft upstart
 prune build
 prune dist
 prune .tox

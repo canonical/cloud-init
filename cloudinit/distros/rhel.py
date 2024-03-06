@@ -7,21 +7,15 @@
 # Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+import logging
+import os
 
-from cloudinit import distros, helpers
-from cloudinit import log as logging
-from cloudinit import subp, util
-from cloudinit.distros import rhel_util
+from cloudinit import distros, helpers, subp, util
+from cloudinit.distros import PackageList, rhel_util
+from cloudinit.distros.parsers.hostname import HostnameConf
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
-
-
-def _make_sysconfig_bool(val):
-    if val:
-        return "yes"
-    else:
-        return "no"
 
 
 class Distro(distros.Distro):
@@ -35,6 +29,12 @@ class Distro(distros.Distro):
     network_script_tpl = "/etc/sysconfig/network-scripts/ifcfg-%s"
     tz_local_fn = "/etc/localtime"
     usr_lib_exec = "/usr/libexec"
+    # RHEL and derivatives use NetworkManager DHCP client by default.
+    # But if NM is configured with using dhclient ("dhcp=dhclient" statement)
+    # then the following location is used:
+    # /var/lib/NetworkManager/dhclient-<uuid>-<network_interface>.lease
+    dhclient_lease_directory = "/var/lib/NetworkManager"
+    dhclient_lease_file_regex = r"dhclient-[\w-]+\.lease"
     renderer_configs = {
         "sysconfig": {
             "control": "etc/sysconfig/network",
@@ -53,20 +53,33 @@ class Distro(distros.Distro):
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
         # This will be used to restrict certain
-        # calls from repeatly happening (when they
+        # calls from repeatedly happening (when they
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
         self.osfamily = "redhat"
+        self.default_locale = "en_US.UTF-8"
+        self.system_locale = None
         cfg["ssh_svcname"] = "sshd"
 
-    def install_packages(self, pkglist):
+    def install_packages(self, pkglist: PackageList):
         self.package_command("install", pkgs=pkglist)
+
+    def get_locale(self):
+        """Return the default locale if set, else use system locale"""
+
+        # read system locale value
+        if not self.system_locale:
+            self.system_locale = self._read_system_locale()
+
+        # Return system_locale setting if valid, else use default locale
+        return (
+            self.system_locale if self.system_locale else self.default_locale
+        )
 
     def apply_locale(self, locale, out_fn=None):
         if self.uses_systemd():
             if not out_fn:
                 out_fn = self.systemd_locale_conf_fn
-            out_fn = self.systemd_locale_conf_fn
         else:
             if not out_fn:
                 out_fn = self.locale_conf_fn
@@ -75,13 +88,48 @@ class Distro(distros.Distro):
         }
         rhel_util.update_sysconfig_file(out_fn, locale_cfg)
 
+    def _read_system_locale(self, keyname="LANG"):
+        """Read system default locale setting, if present"""
+        if self.uses_systemd():
+            locale_fn = self.systemd_locale_conf_fn
+        else:
+            locale_fn = self.locale_conf_fn
+
+        if not locale_fn:
+            raise ValueError("Invalid path: %s" % locale_fn)
+
+        if os.path.exists(locale_fn):
+            (_exists, contents) = rhel_util.read_sysconfig_file(locale_fn)
+            if keyname in contents:
+                return contents[keyname]
+            else:
+                return None
+
     def _write_hostname(self, hostname, filename):
         # systemd will never update previous-hostname for us, so
         # we need to do it ourselves
         if self.uses_systemd() and filename.endswith("/previous-hostname"):
-            util.write_file(filename, hostname)
+            conf = HostnameConf("")
+            conf.set_hostname(hostname)
+            util.write_file(filename, str(conf), 0o644)
         elif self.uses_systemd():
-            subp.subp(["hostnamectl", "set-hostname", str(hostname)])
+            create_hostname_file = util.get_cfg_option_bool(
+                self._cfg, "create_hostname_file", True
+            )
+            if create_hostname_file:
+                subp.subp(["hostnamectl", "set-hostname", str(hostname)])
+            else:
+                subp.subp(
+                    [
+                        "hostnamectl",
+                        "set-hostname",
+                        "--transient",
+                        str(hostname),
+                    ]
+                )
+                LOG.info(
+                    "create_hostname_file is False; hostname set transiently"
+                )
         else:
             host_cfg = {
                 "HOSTNAME": hostname,
@@ -97,9 +145,10 @@ class Distro(distros.Distro):
 
     def _read_hostname(self, filename, default=None):
         if self.uses_systemd() and filename.endswith("/previous-hostname"):
-            return util.load_file(filename).strip()
+            return util.load_text_file(filename).strip()
         elif self.uses_systemd():
             (out, _err) = subp.subp(["hostname"])
+            out = out.strip()
             if len(out):
                 return out
             else:
@@ -167,6 +216,3 @@ class Distro(distros.Distro):
             ["makecache"],
             freq=PER_INSTANCE,
         )
-
-
-# vi: ts=4 expandtab

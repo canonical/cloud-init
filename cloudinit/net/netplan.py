@@ -1,19 +1,24 @@
 # This file is part of cloud-init.  See LICENSE file ...
 
 import copy
+import io
+import ipaddress
+import logging
 import os
+import textwrap
+from typing import Optional, cast
 
-from cloudinit import log as logging
-from cloudinit import safeyaml, subp, util
-from cloudinit.net import SYS_CLASS_NET, get_devicelist
-
-from . import renderer
-from .network_state import (
+from cloudinit import features, safeyaml, subp, util
+from cloudinit.net import (
     IPV6_DYNAMIC_TYPES,
-    NET_CONFIG_TO_V2,
-    NetworkState,
+    SYS_CLASS_NET,
+    get_devicelist,
+    renderer,
     subnet_is_ipv6,
 )
+from cloudinit.net.network_state import NET_CONFIG_TO_V2, NetworkState
+
+CLOUDINIT_NETPLAN_FILE = "/etc/netplan/50-cloud-init.yaml"
 
 KNOWN_SNAPD_CONFIG = b"""\
 # This is the initial network config.
@@ -42,10 +47,10 @@ def _get_params_dict_by_match(config, match):
     )
 
 
-def _extract_addresses(config, entry, ifname, features=None):
+def _extract_addresses(config: dict, entry: dict, ifname, features=None):
     """This method parse a cloudinit.net.network_state dictionary (config) and
        maps netstate keys/values into a dictionary (entry) to represent
-       netplan yaml.
+       netplan yaml. (config v1 -> netplan)
 
     An example config dictionary might look like:
 
@@ -80,8 +85,10 @@ def _extract_addresses(config, entry, ifname, features=None):
     """
 
     def _listify(obj, token=" "):
-        "Helper to convert strings to list of strings, handle single string"
-        if not obj or type(obj) not in [str]:
+        """
+        Helper to convert strings to list of strings, handle single string
+        """
+        if not obj or not isinstance(obj, str):
             return obj
         if token in obj:
             return obj.split(token)
@@ -111,12 +118,34 @@ def _extract_addresses(config, entry, ifname, features=None):
             addr = "%s" % subnet.get("address")
             if "prefix" in subnet:
                 addr += "/%d" % subnet.get("prefix")
-            if "gateway" in subnet and subnet.get("gateway"):
-                gateway = subnet.get("gateway")
-                if ":" in gateway:
-                    entry.update({"gateway6": gateway})
-                else:
-                    entry.update({"gateway4": gateway})
+            if subnet.get("gateway"):
+                new_route = {
+                    "via": subnet.get("gateway"),
+                    "to": "default",
+                }
+                try:
+                    subnet_gateway = ipaddress.ip_address(subnet["gateway"])
+                    subnet_network = ipaddress.ip_network(addr, strict=False)
+                    # If the gateway is not contained within the subnet's
+                    # network, mark it as on-link so that it can still be
+                    # reached.
+                    if subnet_gateway not in subnet_network:
+                        LOG.debug(
+                            "Gateway %s is not contained within subnet %s,"
+                            " adding on-link flag",
+                            subnet["gateway"],
+                            addr,
+                        )
+                        new_route["on-link"] = True
+                except ValueError as e:
+                    LOG.warning(
+                        "Failed to check whether gateway %s"
+                        " is contained within subnet %s: %s",
+                        subnet["gateway"],
+                        addr,
+                        e,
+                    )
+                routes.append(new_route)
             if "dns_nameservers" in subnet:
                 nameservers += _listify(subnet.get("dns_nameservers", []))
             if "dns_search" in subnet:
@@ -183,7 +212,7 @@ def _clean_default(target=None):
     tpath = subp.target_path(target, "etc/netplan/00-snapd-config.yaml")
     if not os.path.isfile(tpath):
         return
-    content = util.load_file(tpath, decode=False)
+    content = util.load_binary_file(tpath)
     if content != KNOWN_SNAPD_CONFIG:
         return
 
@@ -215,9 +244,7 @@ class Renderer(renderer.Renderer):
     def __init__(self, config=None):
         if not config:
             config = {}
-        self.netplan_path = config.get(
-            "netplan_path", "etc/netplan/50-cloud-init.yaml"
-        )
+        self.netplan_path = config.get("netplan_path", CLOUDINIT_NETPLAN_FILE)
         self.netplan_header = config.get("netplan_header", None)
         self._postcmds = config.get("postcmds", False)
         self.clean_default = config.get("clean_default", True)
@@ -238,30 +265,59 @@ class Renderer(renderer.Renderer):
                 LOG.debug("Failed to list features from netplan info: %s", e)
         return self._features
 
-    def render_network_state(self, network_state, templates=None, target=None):
+    def render_network_state(
+        self,
+        network_state: NetworkState,
+        templates: Optional[dict] = None,
+        target=None,
+    ) -> None:
         # check network state for version
         # if v2, then extract network_state.config
         # else render_v2_from_state
         fpnplan = os.path.join(subp.target_path(target), self.netplan_path)
 
         util.ensure_dir(os.path.dirname(fpnplan))
-        header = self.netplan_header if self.netplan_header else ""
 
         # render from state
         content = self._render_content(network_state)
 
+        # normalize header
+        header = self.netplan_header if self.netplan_header else ""
         if not header.endswith("\n"):
             header += "\n"
-        util.write_file(fpnplan, header + content)
+        content = header + content
+
+        # determine if existing config files have the same content
+        same_content = False
+        if os.path.exists(fpnplan):
+            hashed_content = util.hash_buffer(io.BytesIO(content.encode()))
+            with open(fpnplan, "rb") as f:
+                hashed_original_content = util.hash_buffer(f)
+            if hashed_content == hashed_original_content:
+                same_content = True
+
+        mode = 0o600 if features.NETPLAN_CONFIG_ROOT_READ_ONLY else 0o644
+        if not same_content and os.path.exists(fpnplan):
+            current_mode = util.get_permissions(fpnplan)
+            if current_mode & mode == current_mode:
+                # preserve mode if existing perms are more strict than default
+                mode = current_mode
+        util.write_file(fpnplan, content, mode=mode)
 
         if self.clean_default:
             _clean_default(target=target)
-        self._netplan_generate(run=self._postcmds)
+        self._netplan_generate(run=self._postcmds, same_content=same_content)
         self._net_setup_link(run=self._postcmds)
 
-    def _netplan_generate(self, run=False):
+    def _netplan_generate(self, run: bool = False, same_content: bool = False):
         if not run:
             LOG.debug("netplan generate postcmd disabled")
+            return
+        if same_content:
+            LOG.debug(
+                "skipping call to `netplan generate`."
+                " reason: identical netplan config"
+            )
             return
         subp.subp(self.NETPLAN_GENERATE, capture=True)
 
@@ -274,14 +330,29 @@ class Renderer(renderer.Renderer):
             LOG.debug("netplan net_setup_link postcmd disabled")
             return
         setup_lnk = ["udevadm", "test-builtin", "net_setup_link"]
-        for cmd in [
-            setup_lnk + [SYS_CLASS_NET + iface]
-            for iface in get_devicelist()
-            if os.path.islink(SYS_CLASS_NET + iface)
-        ]:
-            subp.subp(cmd, capture=True)
 
-    def _render_content(self, network_state: NetworkState):
+        # It's possible we can race a udev rename and attempt to run
+        # net_setup_link on a device that no longer exists. When this happens,
+        # we don't know what the device was renamed to, so re-gather the
+        # entire list of devices and try again.
+        last_exception = Exception
+        for _ in range(5):
+            try:
+                for iface in get_devicelist():
+                    if os.path.islink(SYS_CLASS_NET + iface):
+                        subp.subp(
+                            setup_lnk + [SYS_CLASS_NET + iface], capture=True
+                        )
+                break
+            except subp.ProcessExecutionError as e:
+                last_exception = e
+        else:
+            raise RuntimeError(
+                "'udevadm test-builtin net_setup_link' unable to run "
+                "successfully for all devices."
+            ) from last_exception
+
+    def _render_content(self, network_state: NetworkState) -> str:
 
         # if content already in netplan format, pass it back
         if network_state.version == 2:
@@ -293,7 +364,7 @@ class Renderer(renderer.Renderer):
             )
 
         ethernets = {}
-        wifis = {}
+        wifis: dict = {}
         bridges = {}
         bonds = {}
         vlans = {}
@@ -307,11 +378,7 @@ class Renderer(renderer.Renderer):
         for config in network_state.iter_interfaces():
             ifname = config.get("name")
             # filter None (but not False) entries up front
-            ifcfg = dict(
-                (key, value)
-                for (key, value) in config.items()
-                if value is not None
-            )
+            ifcfg = dict(filter(lambda it: it[1] is not None, config.items()))
 
             if_type = ifcfg.get("type")
             if if_type == "physical":
@@ -335,8 +402,11 @@ class Renderer(renderer.Renderer):
                 bond = {}
                 bond_config = {}
                 # extract bond params and drop the bond_ prefix as it's
-                # redundent in v2 yaml format
-                v2_bond_map = NET_CONFIG_TO_V2.get("bond")
+                # redundant in v2 yaml format
+                v2_bond_map = cast(dict, NET_CONFIG_TO_V2.get("bond"))
+                # Previous cast is needed to help mypy to know that the key is
+                # present in `NET_CONFIG_TO_V2`. This could probably be removed
+                # by using `Literal` when supported.
                 for match in ["bond_", "bond-"]:
                     bond_params = _get_params_dict_by_match(ifcfg, match)
                     for (param, value) in bond_params.items():
@@ -348,7 +418,7 @@ class Renderer(renderer.Renderer):
                 if len(bond_config) > 0:
                     bond.update({"parameters": bond_config})
                 if ifcfg.get("mac_address"):
-                    bond["macaddress"] = ifcfg.get("mac_address").lower()
+                    bond["macaddress"] = ifcfg["mac_address"].lower()
                 slave_interfaces = ifcfg.get("bond-slaves")
                 if slave_interfaces == "none":
                     _extract_bond_slaves_by_name(interfaces, bond, ifname)
@@ -357,19 +427,24 @@ class Renderer(renderer.Renderer):
 
             elif if_type == "bridge":
                 # required_keys = ['name', 'bridge_ports']
-                ports = sorted(copy.copy(ifcfg.get("bridge_ports")))
-                bridge = {
+                bridge_ports = ifcfg.get("bridge_ports")
+                # mypy wrong error. `copy(None)` is supported:
+                ports = sorted(copy.copy(bridge_ports))  # type: ignore
+                bridge: dict = {
                     "interfaces": ports,
                 }
                 # extract bridge params and drop the bridge prefix as it's
-                # redundent in v2 yaml format
+                # redundant in v2 yaml format
                 match_prefix = "bridge_"
                 params = _get_params_dict_by_match(ifcfg, match_prefix)
                 br_config = {}
 
                 # v2 yaml uses different names for the keys
                 # and at least one value format change
-                v2_bridge_map = NET_CONFIG_TO_V2.get("bridge")
+                v2_bridge_map = cast(dict, NET_CONFIG_TO_V2.get("bridge"))
+                # Previous cast is needed to help mypy to know that the key is
+                # present in `NET_CONFIG_TO_V2`. This could probably be removed
+                # by using `Literal` when supported.
                 for (param, value) in params.items():
                     newname = v2_bridge_map.get(param)
                     if newname is None:
@@ -386,7 +461,7 @@ class Renderer(renderer.Renderer):
                 if len(br_config) > 0:
                     bridge.update({"parameters": br_config})
                 if ifcfg.get("mac_address"):
-                    bridge["macaddress"] = ifcfg.get("mac_address").lower()
+                    bridge["macaddress"] = ifcfg["mac_address"].lower()
                 _extract_addresses(ifcfg, bridge, ifname, self.features)
                 bridges.update({ifname: bridge})
 
@@ -421,7 +496,7 @@ class Renderer(renderer.Renderer):
                     explicit_end=False,
                     noalias=True,
                 )
-                txt = util.indent(dump, " " * 4)
+                txt = textwrap.indent(dump, " " * 4)
                 return [txt]
             return []
 
@@ -442,23 +517,3 @@ def available(target=None):
         if not subp.which(p, search=search, target=target):
             return False
     return True
-
-
-def network_state_to_netplan(network_state, header=None):
-    # render the provided network state, return a string of equivalent eni
-    netplan_path = "etc/network/50-cloud-init.yaml"
-    renderer = Renderer(
-        {
-            "netplan_path": netplan_path,
-            "netplan_header": header,
-        }
-    )
-    if not header:
-        header = ""
-    if not header.endswith("\n"):
-        header += "\n"
-    contents = renderer._render_content(network_state)
-    return header + contents
-
-
-# vi: ts=4 expandtab

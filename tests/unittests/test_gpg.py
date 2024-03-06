@@ -3,6 +3,7 @@ from unittest import mock
 import pytest
 
 from cloudinit import gpg, subp
+from cloudinit.subp import SubpResult
 from tests.unittests.helpers import CiTestCase
 
 TEST_KEY_HUMAN = """
@@ -64,7 +65,9 @@ class TestGPGCommands:
             "--with-colons",
             "key",
         ]
-        with mock.patch.object(subp, "subp", return_value=("", "")) as m_subp:
+        with mock.patch.object(
+            subp, "subp", return_value=SubpResult("", "")
+        ) as m_subp:
             gpg.list("key")
             assert mock.call(colons, capture=True) == m_subp.call_args
 
@@ -74,7 +77,9 @@ class TestGPGCommands:
 
     def test_gpg_dearmor_args(self):
         """Verify correct command gets called to dearmor keys"""
-        with mock.patch.object(subp, "subp", return_value=("", "")) as m_subp:
+        with mock.patch.object(
+            subp, "subp", return_value=SubpResult("", "")
+        ) as m_subp:
             gpg.dearmor("key")
             test_call = mock.call(
                 ["gpg", "--dearmor"], data="key", decode=False

@@ -15,12 +15,13 @@ import os
 import shlex
 
 from cloudinit import util
-
-from . import get_devicelist, read_sys_net_safe
+from cloudinit.net import get_devicelist, read_sys_net_safe
 
 _OPEN_ISCSI_INTERFACE_FILE = "/run/initramfs/open-iscsi.interface"
 
 KERNEL_CMDLINE_NETWORK_CONFIG_DISABLED = "disabled"
+
+LOG = logging.getLogger(__name__)
 
 
 class InitramfsNetworkConfigSource(metaclass=abc.ABCMeta):
@@ -73,7 +74,7 @@ class KlibcNetworkConfigSource(InitramfsNetworkConfigSource):
         """
         if self._files:
             for item in shlex.split(self._cmdline):
-                if item.startswith("ip=") or item.startswith("ip6="):
+                if item.startswith(("ip=", "ip6=")):
                     return True
             if os.path.exists(_OPEN_ISCSI_INTERFACE_FILE):
                 # iBft can configure networking without ip=
@@ -195,7 +196,7 @@ def config_from_klibc_net_cfg(files=None, mac_addrs=None):
     names = {}
     for cfg_file in files:
         name, entry = _klibc_to_config_entry(
-            util.load_file(cfg_file), mac_addrs=mac_addrs
+            util.load_text_file(cfg_file), mac_addrs=mac_addrs
         )
         if name in names:
             prev = names[name]["entry"]
@@ -259,7 +260,7 @@ def _b64dgz(data):
     try:
         blob = base64.b64decode(data)
     except (TypeError, ValueError):
-        logging.error(
+        LOG.error(
             "Expected base64 encoded kernel commandline parameter"
             " network-config. Ignoring network-config=%s.",
             data,
@@ -284,6 +285,3 @@ def read_kernel_cmdline_config(cmdline=None):
             return util.load_yaml(_b64dgz(data64))
 
     return None
-
-
-# vi: ts=4 expandtab

@@ -9,12 +9,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import contextlib
+import logging
 import os
 from configparser import NoOptionError, NoSectionError, RawConfigParser
 from io import StringIO
 from time import time
 
-from cloudinit import log as logging
 from cloudinit import persistence, type_utils, util
 from cloudinit.settings import CFG_ENV_NAME, PER_ALWAYS, PER_INSTANCE, PER_ONCE
 
@@ -25,11 +25,11 @@ class LockFailure(Exception):
     pass
 
 
-class DummyLock(object):
+class DummyLock:
     pass
 
 
-class DummySemaphores(object):
+class DummySemaphores:
     def __init__(self):
         pass
 
@@ -43,11 +43,8 @@ class DummySemaphores(object):
     def clear(self, _name, _freq):
         return True
 
-    def clear_all(self):
-        pass
 
-
-class FileLock(object):
+class FileLock:
     def __init__(self, fn):
         self.fn = fn
 
@@ -59,7 +56,7 @@ def canon_sem_name(name):
     return name.replace("-", "_")
 
 
-class FileSemaphores(object):
+class FileSemaphores:
     def __init__(self, sem_path):
         self.sem_path = sem_path
 
@@ -82,14 +79,6 @@ class FileSemaphores(object):
             util.logexc(LOG, "Failed deleting semaphore %s", sem_file)
             return False
         return True
-
-    def clear_all(self):
-        try:
-            util.del_dir(self.sem_path)
-        except (IOError, OSError):
-            util.logexc(
-                LOG, "Failed deleting semaphore directory %s", self.sem_path
-            )
 
     def _acquire(self, name, freq):
         # Check again if its been already gotten
@@ -115,23 +104,7 @@ class FileSemaphores(object):
         sem_file = self._get_path(cname, freq)
         # This isn't really a good atomic check
         # but it suffices for where and when cloudinit runs
-        if os.path.exists(sem_file):
-            return True
-
-        # this case could happen if the migrator module hadn't run yet
-        # but the item had run before we did canon_sem_name.
-        if cname != name and os.path.exists(self._get_path(name, freq)):
-            LOG.warning(
-                "%s has run without canonicalized name [%s].\n"
-                "likely the migrator has not yet run. "
-                "It will run next boot.\n"
-                "run manually with: cloud-init single --name=migrator",
-                name,
-                cname,
-            )
-            return True
-
-        return False
+        return os.path.exists(sem_file)
 
     def _get_path(self, name, freq):
         sem_path = self.sem_path
@@ -141,7 +114,7 @@ class FileSemaphores(object):
             return os.path.join(sem_path, "%s.%s" % (name, freq))
 
 
-class Runners(object):
+class Runners:
     def __init__(self, paths):
         self.paths = paths
         self.sems = {}
@@ -186,7 +159,7 @@ class Runners(object):
                 return (True, results)
 
 
-class ConfigMerger(object):
+class ConfigMerger:
     def __init__(
         self,
         paths=None,
@@ -260,7 +233,7 @@ class ConfigMerger(object):
                     )
         return i_cfgs
 
-    def _read_cfg(self):
+    def _read_cfg(self) -> dict:
         # Input config files override
         # env config files which
         # override instance configs
@@ -292,7 +265,7 @@ class ConfigMerger(object):
         return self._cfg
 
 
-class ContentHandlers(object):
+class ContentHandlers:
     def __init__(self):
         self.registered = {}
         self.initialized = []
@@ -330,38 +303,51 @@ class ContentHandlers(object):
 class Paths(persistence.CloudInitPickleMixin):
     _ci_pkl_version = 1
 
-    def __init__(self, path_cfgs, ds=None):
+    def __init__(self, path_cfgs: dict, ds=None):
         self.cfgs = path_cfgs
         # Populate all the initial paths
-        self.cloud_dir = path_cfgs.get("cloud_dir", "/var/lib/cloud")
-        self.run_dir = path_cfgs.get("run_dir", "/run/cloud-init")
-        self.instance_link = os.path.join(self.cloud_dir, "instance")
-        self.boot_finished = os.path.join(self.instance_link, "boot-finished")
-        self.upstart_conf_d = path_cfgs.get("upstart_dir")
-        self.seed_dir = os.path.join(self.cloud_dir, "seed")
+        self.cloud_dir: str = path_cfgs.get("cloud_dir", "/var/lib/cloud")
+        self.run_dir: str = path_cfgs.get("run_dir", "/run/cloud-init")
+        self.instance_link: str = os.path.join(self.cloud_dir, "instance")
+        self.boot_finished: str = os.path.join(
+            self.instance_link, "boot-finished"
+        )
+        self.seed_dir: str = os.path.join(self.cloud_dir, "seed")
         # This one isn't joined, since it should just be read-only
-        template_dir = path_cfgs.get("templates_dir", "/etc/cloud/templates/")
-        self.template_tpl = os.path.join(template_dir, "%s.tmpl")
+        template_dir: str = path_cfgs.get(
+            "templates_dir", "/etc/cloud/templates/"
+        )
+        self.template_tpl: str = os.path.join(template_dir, "%s.tmpl")
         self.lookups = {
-            "handlers": "handlers",
-            "scripts": "scripts",
-            "vendor_scripts": "scripts/vendor",
-            "sem": "sem",
             "boothooks": "boothooks",
-            "userdata_raw": "user-data.txt",
-            "userdata": "user-data.txt.i",
-            "obj_pkl": "obj.pkl",
             "cloud_config": "cloud-config.txt",
-            "vendor_cloud_config": "vendor-cloud-config.txt",
-            "vendor2_cloud_config": "vendor2-cloud-config.txt",
             "data": "data",
-            "vendordata_raw": "vendor-data.txt",
-            "vendordata2_raw": "vendor-data2.txt",
-            "vendordata": "vendor-data.txt.i",
-            "vendordata2": "vendor-data2.txt.i",
+            "handlers": "handlers",
+            # File in which public available instance meta-data is written
+            # security-sensitive key values are redacted from this
+            # world-readable file
+            "instance_data": "instance-data.json",
+            # security-sensitive key values are present in this root-readable
+            # file
+            "instance_data_sensitive": "instance-data-sensitive.json",
+            "combined_cloud_config": "combined-cloud-config.json",
+            "network_config": "network-config.json",
             "instance_id": ".instance-id",
             "manual_clean_marker": "manual-clean",
+            "obj_pkl": "obj.pkl",
+            "scripts": "scripts",
+            "sem": "sem",
+            "userdata": "user-data.txt.i",
+            "userdata_raw": "user-data.txt",
+            "vendordata": "vendor-data.txt.i",
+            "vendordata2": "vendor-data2.txt.i",
+            "vendordata2_raw": "vendor-data2.txt",
+            "vendordata_raw": "vendor-data.txt",
+            "vendor2_cloud_config": "vendor2-cloud-config.txt",
+            "vendor_cloud_config": "vendor-cloud-config.txt",
+            "vendor_scripts": "scripts/vendor",
             "warnings": "warnings",
+            "hotplug.enabled": "hotplug.enabled",
         }
         # Set when a datasource becomes active
         self.datasource = ds
@@ -377,6 +363,18 @@ class Paths(persistence.CloudInitPickleMixin):
             self.run_dir = Paths(
                 path_cfgs=self.cfgs, ds=self.datasource
             ).run_dir
+        if "instance_data" not in self.lookups:
+            self.lookups["instance_data"] = "instance-data.json"
+        if "instance_data_sensitive" not in self.lookups:
+            self.lookups[
+                "instance_data_sensitive"
+            ] = "instance-data-sensitive.json"
+        if "combined_cloud_config" not in self.lookups:
+            self.lookups[
+                "combined_cloud_config"
+            ] = "combined-cloud-config.json"
+        if "hotplug.enabled" not in self.lookups:
+            self.lookups["hotplug.enabled"] = "hotplug.enabled"
 
     # get_ipath_cur: get the current instance path for an item
     def get_ipath_cur(self, name=None):
@@ -416,7 +414,7 @@ class Paths(persistence.CloudInitPickleMixin):
         else:
             return ipath
 
-    def _get_path(self, base, name=None):
+    def _get_path(self, base: str, name=None):
         if name is None:
             return base
         return os.path.join(base, self.lookups[name])
@@ -484,6 +482,3 @@ class DefaultingConfigParser(RawConfigParser):
         if header:
             contents = "\n".join([header, contents, ""])
         return contents
-
-
-# vi: ts=4 expandtab

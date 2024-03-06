@@ -1,0 +1,50 @@
+name: Unit Tests
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+concurrency:
+  group: 'ci-${{ github.workflow }}-${{ github.ref }}'
+  cancel-in-progress: true
+defaults:
+  run:
+    shell: sh -ex {0}
+jobs:
+  unittests:
+    strategy:
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+        toxenv: [py3]
+        experimental: [false]
+        check-latest: [false]
+        continue-on-error: [false]
+        include:
+          - python-version: "3.6"
+            toxenv: lowest-supported
+            continue-on-error: false
+            check-latest: false
+            experimental: false
+          - python-version: "3.13-dev"
+            toxenv: py3
+            check-latest: true
+            experimental: true
+            continue-on-error: true
+    name: unittest / ${{ matrix.toxenv }} / python ${{matrix.python-version}}
+    runs-on: ubuntu-20.04
+    continue-on-error: ${{ matrix.experimental }}
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+        with:
+          # Fetch all tags for tools/read-version
+          fetch-depth: 0
+      - name: Install Python ${{matrix.python-version}}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{matrix.python-version}}
+          check-latest: ${{matrix.check-latest}}
+      - name: Install tox
+        run: pip install tox
+      - name: Run unittest
+        run: tox -e ${{ matrix.toxenv }}

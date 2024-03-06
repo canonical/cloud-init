@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Tests related to cloudinit.stages module."""
+import json
 import os
 import stat
 
@@ -8,48 +9,63 @@ import pytest
 
 from cloudinit import sources, stages
 from cloudinit.event import EventScope, EventType
-from cloudinit.sources import NetworkConfigSource
-from cloudinit.util import write_file
-from tests.unittests.helpers import CiTestCase, mock
+from cloudinit.helpers import Paths
+from cloudinit.sources import DataSource, NetworkConfigSource
+from cloudinit.util import sym_link, write_file
+from tests.unittests.helpers import mock
+from tests.unittests.util import TEST_INSTANCE_ID, FakeDataSource
 
-TEST_INSTANCE_ID = "i-testing"
+M_PATH = "cloudinit.stages."
 
 
-class FakeDataSource(sources.DataSource):
-    def __init__(
-        self, paths=None, userdata=None, vendordata=None, network_config=""
+class TestUpdateEventEnabled:
+    @pytest.mark.parametrize(
+        "cfg",
+        [
+            {},
+            {"updates": {}},
+            {"updates": {"when": ["boot"]}},
+            {"updates": {"when": ["hotplug"]}},
+            {"updates": {"when": ["boot", "hotplug"]}},
+        ],
+    )
+    @pytest.mark.parametrize(
+        ["enabled_file_content", "enabled"],
+        [
+            ({"scopes": ["network"]}, True),
+            ({"scopes": []}, False),
+        ],
+    )
+    @mock.patch(M_PATH + "util.read_hotplug_enabled_file")
+    def test_hotplug_added_by_file(
+        self, m_read_hotplug_enabled_file, cfg, enabled_file_content, enabled
     ):
-        super(FakeDataSource, self).__init__({}, None, paths=paths)
-        self.metadata = {"instance-id": TEST_INSTANCE_ID}
-        self.userdata_raw = userdata
-        self.vendordata_raw = vendordata
-        self._network_config = None
-        if network_config:  # Permit for None value to setup attribute
-            self._network_config = network_config
-
-    @property
-    def network_config(self):
-        return self._network_config
-
-    def _get_data(self):
-        return True
+        m_datasource = mock.MagicMock(spec=DataSource)
+        m_datasource.paths = mock.MagicMock(spec=Paths)
+        m_datasource.default_update_events = {}
+        m_datasource.supported_update_events = {
+            EventScope.NETWORK: [EventType.HOTPLUG]
+        }
+        m_read_hotplug_enabled_file.return_value = enabled_file_content
+        cfg = {}
+        assert enabled is stages.update_event_enabled(
+            m_datasource, cfg, EventType.HOTPLUG, EventScope.NETWORK
+        )
 
 
-class TestInit(CiTestCase):
-    with_logs = True
-    allowed_subp = False
-
-    def setUp(self):
-        super(TestInit, self).setUp()
-        self.tmpdir = self.tmp_dir()
+class TestInit:
+    @pytest.fixture(autouse=True)
+    def setup(self, tmpdir):
+        self.tmpdir = tmpdir
         self.init = stages.Init()
-        # Setup fake Paths for Init to reference
         self.init._cfg = {
             "system_info": {
                 "distro": "ubuntu",
                 "paths": {"cloud_dir": self.tmpdir, "run_dir": self.tmpdir},
             }
         }
+        tmpdir.mkdir("instance-uuid")
+        sym_link(tmpdir.join("instance-uuid"), tmpdir.join("instance"))
         self.init.datasource = FakeDataSource(paths=self.init.paths)
         self._real_is_new_instance = self.init.is_new_instance
         self.init.is_new_instance = mock.Mock(return_value=True)
@@ -60,47 +76,63 @@ class TestInit(CiTestCase):
             self.init.paths.get_cpath("data"), "upgraded-network"
         )
         write_file(disable_file, "")
-        self.assertEqual(
-            (None, disable_file), self.init._find_networking_config()
-        )
+        assert (None, disable_file) == self.init._find_networking_config()
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
+    @pytest.mark.parametrize(
+        "net_config",
+        [
+            {"config": "disabled"},
+            {"network": {"config": "disabled"}},
+        ],
+    )
     def test_wb__find_networking_config_disabled_by_kernel(
-        self, m_cmdline, m_initramfs
+        self, m_cmdline, m_initramfs, net_config, caplog
     ):
         """find_networking_config returns when disabled by kernel cmdline."""
-        m_cmdline.return_value = {"config": "disabled"}
+        m_cmdline.return_value = net_config
         m_initramfs.return_value = {"config": ["fake_initrd"]}
-        self.assertEqual(
-            (None, NetworkConfigSource.cmdline),
-            self.init._find_networking_config(),
-        )
-        self.assertEqual(
-            "DEBUG: network config disabled by cmdline\n", self.logs.getvalue()
-        )
+        assert (
+            None,
+            NetworkConfigSource.CMD_LINE,
+        ) == self.init._find_networking_config()
+        assert caplog.records[0].levelname == "DEBUG"
+        assert "network config disabled by cmdline" in caplog.text
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
+    @pytest.mark.parametrize(
+        "net_config",
+        [
+            {"config": "disabled"},
+            {"network": {"config": "disabled"}},
+        ],
+    )
     def test_wb__find_networking_config_disabled_by_initrd(
-        self, m_cmdline, m_initramfs
+        self, m_cmdline, m_initramfs, net_config, caplog
     ):
         """find_networking_config returns when disabled by kernel cmdline."""
         m_cmdline.return_value = {}
-        m_initramfs.return_value = {"config": "disabled"}
-        self.assertEqual(
-            (None, NetworkConfigSource.initramfs),
-            self.init._find_networking_config(),
-        )
-        self.assertEqual(
-            "DEBUG: network config disabled by initramfs\n",
-            self.logs.getvalue(),
-        )
+        m_initramfs.return_value = net_config
+        assert (
+            None,
+            NetworkConfigSource.INITRAMFS,
+        ) == self.init._find_networking_config()
+        assert caplog.records[0].levelname == "DEBUG"
+        assert "network config disabled by initramfs" in caplog.text
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
+    @pytest.mark.parametrize(
+        "net_config",
+        [
+            {"config": "disabled"},
+            {"network": {"config": "disabled"}},
+        ],
+    )
     def test_wb__find_networking_config_disabled_by_datasrc(
-        self, m_cmdline, m_initramfs
+        self, m_cmdline, m_initramfs, net_config, caplog
     ):
         """find_networking_config returns when disabled by datasource cfg."""
         m_cmdline.return_value = {}  # Kernel doesn't disable networking
@@ -110,41 +142,51 @@ class TestInit(CiTestCase):
             "network": {},
         }  # system config doesn't disable
 
-        self.init.datasource = FakeDataSource(
-            network_config={"config": "disabled"}
-        )
-        self.assertEqual(
-            (None, NetworkConfigSource.ds), self.init._find_networking_config()
-        )
-        self.assertEqual(
-            "DEBUG: network config disabled by ds\n", self.logs.getvalue()
-        )
+        self.init.datasource = FakeDataSource(network_config=net_config)
+        assert (
+            None,
+            NetworkConfigSource.DS,
+        ) == self.init._find_networking_config()
+        assert caplog.records[0].levelname == "DEBUG"
+        assert "network config disabled by ds" in caplog.text
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
+    @pytest.mark.parametrize(
+        "net_config",
+        [
+            {"config": "disabled"},
+            {"network": {"config": "disabled"}},
+        ],
+    )
     def test_wb__find_networking_config_disabled_by_sysconfig(
-        self, m_cmdline, m_initramfs
+        self, m_cmdline, m_initramfs, net_config, caplog
     ):
         """find_networking_config returns when disabled by system config."""
         m_cmdline.return_value = {}  # Kernel doesn't disable networking
         m_initramfs.return_value = {}  # initramfs doesn't disable networking
         self.init._cfg = {
             "system_info": {"paths": {"cloud_dir": self.tmpdir}},
-            "network": {"config": "disabled"},
+            "network": net_config,
         }
-        self.assertEqual(
-            (None, NetworkConfigSource.system_cfg),
-            self.init._find_networking_config(),
-        )
-        self.assertEqual(
-            "DEBUG: network config disabled by system_cfg\n",
-            self.logs.getvalue(),
-        )
+        assert (
+            None,
+            NetworkConfigSource.SYSTEM_CFG,
+        ) == self.init._find_networking_config()
+        assert caplog.records[0].levelname == "DEBUG"
+        assert "network config disabled by system_cfg" in caplog.text
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
+    @pytest.mark.parametrize(
+        "in_config,out_config",
+        [
+            ({"config": {"a": True}}, {"config": {"a": True}}),
+            ({"network": {"config": {"a": True}}}, {"config": {"a": True}}),
+        ],
+    )
     def test__find_networking_config_uses_datasrc_order(
-        self, m_cmdline, m_initramfs
+        self, m_cmdline, m_initramfs, in_config, out_config
     ):
         """find_networking_config should check sources in DS defined order"""
         # cmdline and initramfs, which would normally be preferred over other
@@ -153,74 +195,91 @@ class TestInit(CiTestCase):
         m_cmdline.return_value = {"config": "disabled"}
         m_initramfs.return_value = {"config": "disabled"}
 
-        ds_net_cfg = {"config": {"needle": True}}
-        self.init.datasource = FakeDataSource(network_config=ds_net_cfg)
+        self.init.datasource = FakeDataSource(network_config=in_config)
         self.init.datasource.network_config_sources = [
-            NetworkConfigSource.ds,
-            NetworkConfigSource.system_cfg,
-            NetworkConfigSource.cmdline,
-            NetworkConfigSource.initramfs,
+            NetworkConfigSource.DS,
+            NetworkConfigSource.SYSTEM_CFG,
+            NetworkConfigSource.CMD_LINE,
+            NetworkConfigSource.INITRAMFS,
         ]
 
-        self.assertEqual(
-            (ds_net_cfg, NetworkConfigSource.ds),
-            self.init._find_networking_config(),
-        )
+        assert (
+            out_config,
+            NetworkConfigSource.DS,
+        ) == self.init._find_networking_config()
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
+    @pytest.mark.parametrize(
+        "in_config,out_config",
+        [
+            ({"config": {"a": True}}, {"config": {"a": True}}),
+            ({"network": {"config": {"a": True}}}, {"config": {"a": True}}),
+        ],
+    )
     def test__find_networking_config_warns_if_datasrc_uses_invalid_src(
-        self, m_cmdline, m_initramfs
+        self, m_cmdline, m_initramfs, in_config, out_config, caplog
     ):
         """find_networking_config should check sources in DS defined order"""
-        ds_net_cfg = {"config": {"needle": True}}
-        self.init.datasource = FakeDataSource(network_config=ds_net_cfg)
+        self.init.datasource = FakeDataSource(network_config=in_config)
         self.init.datasource.network_config_sources = [
             "invalid_src",
-            NetworkConfigSource.ds,
+            NetworkConfigSource.DS,
         ]
 
-        self.assertEqual(
-            (ds_net_cfg, NetworkConfigSource.ds),
-            self.init._find_networking_config(),
-        )
-        self.assertIn(
-            "WARNING: data source specifies an invalid network"
-            " cfg_source: invalid_src",
-            self.logs.getvalue(),
+        assert (
+            out_config,
+            NetworkConfigSource.DS,
+        ) == self.init._find_networking_config()
+        assert caplog.records[0].levelname == "WARNING"
+        assert (
+            "data source specifies an invalid network cfg_source: invalid_src"
+            in caplog.text
         )
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
+    @pytest.mark.parametrize(
+        "in_config,out_config",
+        [
+            ({"config": {"a": True}}, {"config": {"a": True}}),
+            ({"network": {"config": {"a": True}}}, {"config": {"a": True}}),
+        ],
+    )
     def test__find_networking_config_warns_if_datasrc_uses_unavailable_src(
-        self, m_cmdline, m_initramfs
+        self, m_cmdline, m_initramfs, in_config, out_config, caplog
     ):
         """find_networking_config should check sources in DS defined order"""
-        ds_net_cfg = {"config": {"needle": True}}
-        self.init.datasource = FakeDataSource(network_config=ds_net_cfg)
+        self.init.datasource = FakeDataSource(network_config=in_config)
         self.init.datasource.network_config_sources = [
-            NetworkConfigSource.fallback,
-            NetworkConfigSource.ds,
+            NetworkConfigSource.FALLBACK,
+            NetworkConfigSource.DS,
         ]
 
-        self.assertEqual(
-            (ds_net_cfg, NetworkConfigSource.ds),
-            self.init._find_networking_config(),
-        )
-        self.assertIn(
-            "WARNING: data source specifies an unavailable network"
-            " cfg_source: fallback",
-            self.logs.getvalue(),
+        assert (
+            out_config,
+            NetworkConfigSource.DS,
+        ) == self.init._find_networking_config()
+        assert caplog.records[0].levelname == "WARNING"
+        assert (
+            "data source specifies an unavailable network cfg_source: fallback"
+            in caplog.text
         )
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
+    @pytest.mark.parametrize(
+        "in_config,out_config",
+        [
+            ({"config": {"a": True}}, {"config": {"a": True}}),
+            ({"network": {"config": {"a": True}}}, {"config": {"a": True}}),
+        ],
+    )
     def test_wb__find_networking_config_returns_kernel(
-        self, m_cmdline, m_initramfs
+        self, m_cmdline, m_initramfs, in_config, out_config
     ):
         """find_networking_config returns kernel cmdline config if present."""
-        expected_cfg = {"config": ["fakekernel"]}
-        m_cmdline.return_value = expected_cfg
+        m_cmdline.return_value = in_config
         m_initramfs.return_value = {"config": ["fake_initrd"]}
         self.init._cfg = {
             "system_info": {"paths": {"cloud_dir": self.tmpdir}},
@@ -229,20 +288,26 @@ class TestInit(CiTestCase):
         self.init.datasource = FakeDataSource(
             network_config={"config": ["fakedatasource"]}
         )
-        self.assertEqual(
-            (expected_cfg, NetworkConfigSource.cmdline),
-            self.init._find_networking_config(),
-        )
+        assert (
+            out_config,
+            NetworkConfigSource.CMD_LINE,
+        ) == self.init._find_networking_config()
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
+    @pytest.mark.parametrize(
+        "in_config,out_config",
+        [
+            ({"config": {"a": True}}, {"config": {"a": True}}),
+            ({"network": {"config": {"a": True}}}, {"config": {"a": True}}),
+        ],
+    )
     def test_wb__find_networking_config_returns_initramfs(
-        self, m_cmdline, m_initramfs
+        self, m_cmdline, m_initramfs, in_config, out_config
     ):
-        """find_networking_config returns kernel cmdline config if present."""
-        expected_cfg = {"config": ["fake_initrd"]}
+        """find_networking_config returns initramfs config if present."""
         m_cmdline.return_value = {}
-        m_initramfs.return_value = expected_cfg
+        m_initramfs.return_value = in_config
         self.init._cfg = {
             "system_info": {"paths": {"cloud_dir": self.tmpdir}},
             "network": {"config": ["fakesys_config"]},
@@ -250,52 +315,63 @@ class TestInit(CiTestCase):
         self.init.datasource = FakeDataSource(
             network_config={"config": ["fakedatasource"]}
         )
-        self.assertEqual(
-            (expected_cfg, NetworkConfigSource.initramfs),
-            self.init._find_networking_config(),
-        )
+        assert (
+            out_config,
+            NetworkConfigSource.INITRAMFS,
+        ) == self.init._find_networking_config()
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
+    @pytest.mark.parametrize(
+        "in_config,out_config",
+        [
+            ({"config": {"a": True}}, {"config": {"a": True}}),
+            ({"network": {"config": {"a": True}}}, {"config": {"a": True}}),
+        ],
+    )
     def test_wb__find_networking_config_returns_system_cfg(
-        self, m_cmdline, m_initramfs
+        self, m_cmdline, m_initramfs, in_config, out_config
     ):
         """find_networking_config returns system config when present."""
         m_cmdline.return_value = {}  # No kernel network config
         m_initramfs.return_value = {}  # no initramfs network config
-        expected_cfg = {"config": ["fakesys_config"]}
         self.init._cfg = {
             "system_info": {"paths": {"cloud_dir": self.tmpdir}},
-            "network": expected_cfg,
+            "network": in_config,
         }
         self.init.datasource = FakeDataSource(
             network_config={"config": ["fakedatasource"]}
         )
-        self.assertEqual(
-            (expected_cfg, NetworkConfigSource.system_cfg),
-            self.init._find_networking_config(),
-        )
+        assert (
+            out_config,
+            NetworkConfigSource.SYSTEM_CFG,
+        ) == self.init._find_networking_config()
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
+    @pytest.mark.parametrize(
+        "in_config,out_config",
+        [
+            ({"config": {"a": True}}, {"config": {"a": True}}),
+            ({"network": {"config": {"a": True}}}, {"config": {"a": True}}),
+        ],
+    )
     def test_wb__find_networking_config_returns_datasrc_cfg(
-        self, m_cmdline, m_initramfs
+        self, m_cmdline, m_initramfs, in_config, out_config
     ):
         """find_networking_config returns datasource net config if present."""
         m_cmdline.return_value = {}  # No kernel network config
         m_initramfs.return_value = {}  # no initramfs network config
-        # No system config for network in setUp
-        expected_cfg = {"config": ["fakedatasource"]}
-        self.init.datasource = FakeDataSource(network_config=expected_cfg)
-        self.assertEqual(
-            (expected_cfg, NetworkConfigSource.ds),
-            self.init._find_networking_config(),
-        )
+        self.init.datasource = FakeDataSource(network_config=in_config)
+        assert (
+            out_config,
+            NetworkConfigSource.DS,
+        ) == self.init._find_networking_config()
 
-    @mock.patch("cloudinit.stages.cmdline.read_initramfs_config")
-    @mock.patch("cloudinit.stages.cmdline.read_kernel_cmdline_config")
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config")
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config")
     def test_wb__find_networking_config_returns_fallback(
-        self, m_cmdline, m_initramfs
+        self, m_cmdline, m_initramfs, caplog
     ):
         """find_networking_config returns fallback config if not defined."""
         m_cmdline.return_value = {}  # Kernel doesn't disable networking
@@ -313,13 +389,33 @@ class TestInit(CiTestCase):
         # Monkey patch distro which gets cached on self.init
         distro = self.init.distro
         distro.generate_fallback_config = fake_generate_fallback
-        self.assertEqual(
-            (fake_cfg, NetworkConfigSource.fallback),
-            self.init._find_networking_config(),
-        )
-        self.assertNotIn("network config disabled", self.logs.getvalue())
+        assert (
+            fake_cfg,
+            NetworkConfigSource.FALLBACK,
+        ) == self.init._find_networking_config()
+        assert "network config disabled" not in caplog.text
 
-    def test_apply_network_config_disabled(self):
+    @mock.patch(M_PATH + "cmdline.read_initramfs_config", return_value={})
+    @mock.patch(M_PATH + "cmdline.read_kernel_cmdline_config", return_value={})
+    def test_warn_on_empty_network(self, m_cmdline, m_initramfs, caplog):
+        """funky whitespace can lead to a network key that is None, which then
+        causes fallback. Test warning log on empty network key.
+        """
+        m_cmdline.return_value = {}  # Kernel doesn't disable networking
+        m_initramfs.return_value = {}  # no initramfs network config
+        # Neither datasource nor system_info disable or provide network
+        self.init._cfg = {
+            "system_info": {"paths": {"cloud_dir": self.tmpdir}},
+            "network": None,
+        }
+        self.init.datasource = FakeDataSource(network_config={"network": None})
+
+        self.init.distro.generate_fallback_config = lambda: {}
+
+        self.init._find_networking_config()
+        assert "Empty network config found" in caplog.text
+
+    def test_apply_network_config_disabled(self, caplog):
         """Log when network is disabled by upgraded-network."""
         disable_file = os.path.join(
             self.init.paths.get_cpath("data"), "upgraded-network"
@@ -331,14 +427,15 @@ class TestInit(CiTestCase):
         self.init._find_networking_config = fake_network_config
 
         self.init.apply_network_config(True)
-        self.assertIn(
-            "INFO: network config is disabled by %s" % disable_file,
-            self.logs.getvalue(),
-        )
+        assert caplog.records[0].levelname == "INFO"
+        assert f"network config is disabled by {disable_file}" in caplog.text
 
+    @pytest.mark.parametrize("instance_dir_present", (True, False))
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
     @mock.patch("cloudinit.distros.ubuntu.Distro")
-    def test_apply_network_on_new_instance(self, m_ubuntu, m_macs):
+    def test_apply_network_on_new_instance(
+        self, m_ubuntu, m_macs, instance_dir_present
+    ):
         """Call distro apply_network_config methods on is_new_instance."""
         net_cfg = {
             "version": 1,
@@ -353,21 +450,40 @@ class TestInit(CiTestCase):
         }
 
         def fake_network_config():
-            return net_cfg, NetworkConfigSource.fallback
+            return net_cfg, NetworkConfigSource.FALLBACK
 
         m_macs.return_value = {"42:42:42:42:42:42": "eth9"}
 
         self.init._find_networking_config = fake_network_config
-
+        if not instance_dir_present:
+            self.tmpdir.join("instance").remove()
+            self.tmpdir.join("instance-uuid").remove()
         self.init.apply_network_config(True)
-        self.init.distro.apply_network_config_names.assert_called_with(net_cfg)
+        networking = self.init.distro.networking
+        networking.apply_network_config_names.assert_called_with(net_cfg)
         self.init.distro.apply_network_config.assert_called_with(
             net_cfg, bring_up=True
         )
+        if instance_dir_present:
+            assert net_cfg == json.loads(
+                self.tmpdir.join("network-config.json").read()
+            )
+            assert os.path.islink(self.tmpdir.join("network-config.json"))
+        else:
+            for path in (
+                "instance/network-config.json",
+                "network-config.json",
+            ):
+                assert not self.tmpdir.join(path).exists()
 
     @mock.patch("cloudinit.distros.ubuntu.Distro")
-    def test_apply_network_on_same_instance_id(self, m_ubuntu):
-        """Only call distro.apply_network_config_names on same instance id."""
+    @mock.patch.dict(
+        sources.DataSource.default_update_events,
+        {EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}},
+    )
+    def test_apply_network_on_same_instance_id(self, m_ubuntu, caplog):
+        """Only call distro.networking.apply_network_config_names on same
+        instance id."""
         self.init.is_new_instance = self._real_is_new_instance
         old_instance_id = os.path.join(
             self.init.paths.get_cpath("data"), "instance-id"
@@ -386,21 +502,19 @@ class TestInit(CiTestCase):
         }
 
         def fake_network_config():
-            return net_cfg, NetworkConfigSource.fallback
+            return net_cfg, NetworkConfigSource.FALLBACK
 
         self.init._find_networking_config = fake_network_config
 
         self.init.apply_network_config(True)
-        self.init.distro.apply_network_config_names.assert_called_with(net_cfg)
+        networking = self.init.distro.networking
+        networking.apply_network_config_names.assert_called_with(net_cfg)
         self.init.distro.apply_network_config.assert_not_called()
         assert (
             "No network config applied. Neither a new instance nor datasource "
-            "network update allowed" in self.logs.getvalue()
+            "network update allowed" in caplog.text
         )
 
-    # CiTestCase doesn't work with pytest.mark.parametrize, and moving this
-    # functionality to a separate class is more cumbersome than it'd be worth
-    # at the moment, so use this as a simple setup
     def _apply_network_setup(self, m_macs):
         old_instance_id = os.path.join(
             self.init.paths.get_cpath("data"), "instance-id"
@@ -419,7 +533,7 @@ class TestInit(CiTestCase):
         }
 
         def fake_network_config():
-            return net_cfg, NetworkConfigSource.fallback
+            return net_cfg, NetworkConfigSource.FALLBACK
 
         m_macs.return_value = {"42:42:42:42:42:42": "eth9"}
 
@@ -428,20 +542,24 @@ class TestInit(CiTestCase):
         self.init.is_new_instance = mock.Mock(return_value=False)
         return net_cfg
 
+    @mock.patch("cloudinit.util._get_cmdline", return_value="")
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
     @mock.patch("cloudinit.distros.ubuntu.Distro")
     @mock.patch.dict(
         sources.DataSource.default_update_events,
         {EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE, EventType.BOOT}},
     )
-    def test_apply_network_allowed_when_default_boot(self, m_ubuntu, m_macs):
+    def test_apply_network_allowed_when_default_boot(
+        self, m_ubuntu, m_macs, m_get_cmdline
+    ):
         """Apply network if datasource permits BOOT event."""
         net_cfg = self._apply_network_setup(m_macs)
 
         self.init.apply_network_config(True)
+        networking = self.init.distro.networking
         assert (
             mock.call(net_cfg)
-            == self.init.distro.apply_network_config_names.call_args_list[-1]
+            == networking.apply_network_config_names.call_args_list[-1]
         )
         assert (
             mock.call(net_cfg, bring_up=True)
@@ -455,7 +573,7 @@ class TestInit(CiTestCase):
         {EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}},
     )
     def test_apply_network_disabled_when_no_default_boot(
-        self, m_ubuntu, m_macs
+        self, m_ubuntu, m_macs, caplog
     ):
         """Don't apply network if datasource has no BOOT event."""
         self._apply_network_setup(m_macs)
@@ -463,9 +581,10 @@ class TestInit(CiTestCase):
         self.init.distro.apply_network_config.assert_not_called()
         assert (
             "No network config applied. Neither a new instance nor datasource "
-            "network update allowed" in self.logs.getvalue()
+            "network update allowed" in caplog.text
         )
 
+    @mock.patch("cloudinit.util._get_cmdline", return_value="")
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
     @mock.patch("cloudinit.distros.ubuntu.Distro")
     @mock.patch.dict(
@@ -473,13 +592,14 @@ class TestInit(CiTestCase):
         {EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}},
     )
     def test_apply_network_allowed_with_userdata_overrides(
-        self, m_ubuntu, m_macs
+        self, m_ubuntu, m_macs, m_get_cmdline
     ):
         """Apply network if userdata overrides default config"""
         net_cfg = self._apply_network_setup(m_macs)
         self.init._cfg = {"updates": {"network": {"when": ["boot"]}}}
         self.init.apply_network_config(True)
-        self.init.distro.apply_network_config_names.assert_called_with(net_cfg)
+        networking = self.init.distro.networking
+        networking.apply_network_config_names.assert_called_with(net_cfg)
         self.init.distro.apply_network_config.assert_called_with(
             net_cfg, bring_up=True
         )
@@ -490,7 +610,9 @@ class TestInit(CiTestCase):
         sources.DataSource.supported_update_events,
         {EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}},
     )
-    def test_apply_network_disabled_when_unsupported(self, m_ubuntu, m_macs):
+    def test_apply_network_disabled_when_unsupported(
+        self, m_ubuntu, m_macs, caplog
+    ):
         """Don't apply network config if unsupported.
 
         Shouldn't work even when specified as userdata
@@ -502,7 +624,7 @@ class TestInit(CiTestCase):
         self.init.distro.apply_network_config.assert_not_called()
         assert (
             "No network config applied. Neither a new instance nor datasource "
-            "network update allowed" in self.logs.getvalue()
+            "network update allowed" in caplog.text
         )
 
 
@@ -519,15 +641,16 @@ class TestInit_InitializeFilesystem:
         As it is replaced with a mock, consumers of this fixture can set
         `init._cfg` if the default empty dict configuration is not appropriate.
         """
-        with mock.patch("cloudinit.stages.util.ensure_dirs"):
+        with mock.patch(M_PATH + "util.ensure_dirs"):
             init = stages.Init()
             init._cfg = {}
             init._paths = paths
             yield init
 
-    @mock.patch("cloudinit.stages.util.ensure_file")
+    @mock.patch(M_PATH + "util.ensure_file")
+    @mock.patch(f"{M_PATH}Init._read_cfg")
     def test_ensure_file_not_called_if_no_log_file_configured(
-        self, m_ensure_file, init
+        self, m_read_cfg, m_ensure_file, init
     ):
         """If no log file is configured, we should not ensure its existence."""
         init._cfg = {}
@@ -547,22 +670,44 @@ class TestInit_InitializeFilesystem:
         # Assert we create it 0o640  by default if it doesn't already exist
         assert 0o640 == stat.S_IMODE(log_file.stat().mode)
 
-    def test_existing_file_permissions_are_not_modified(self, init, tmpdir):
-        """If the log file already exists, we should not modify its permissions
+    @pytest.mark.parametrize(
+        "input, expected",
+        [
+            (0o777, 0o640),
+            (0o640, 0o640),
+            (0o606, 0o600),
+            (0o501, 0o400),
+        ],
+    )
+    def test_existing_file_permissions(self, init, tmpdir, input, expected):
+        """Test file permissions are set as expected.
+
+        CIS Hardening requires file mode 0o640 or stricter. Set the
+        permissions to the subset of 0o640 and the current
+        mode.
 
         See https://bugs.launchpad.net/cloud-init/+bug/1900837.
         """
-        # Use a mode that will never be made the default so this test will
-        # always be valid
-        mode = 0o606
         log_file = tmpdir.join("cloud-init.log")
         log_file.ensure()
-        log_file.chmod(mode)
+        log_file.chmod(input)
         init._cfg = {"def_log_file": str(log_file)}
+        with mock.patch.object(stages.util, "ensure_file") as ensure:
+            init._initialize_filesystem()
+            assert expected == ensure.call_args[0][1]
 
-        init._initialize_filesystem()
 
-        assert mode == stat.S_IMODE(log_file.stat().mode)
-
-
-# vi: ts=4 expandtab
+@pytest.mark.parametrize(
+    "mode_1, mode_2, expected",
+    [
+        (0o777, 0o640, 0o640),
+        (0o640, 0o777, 0o640),
+        (0o640, 0o541, 0o440),
+        (0o111, 0o050, 0o010),
+        (0o631, 0o640, 0o600),
+        (0o661, 0o640, 0o640),
+        (0o453, 0o611, 0o411),
+    ],
+)
+def test_strictest_permissions(mode_1, mode_2, expected):
+    assert expected == stages.Init._get_strictest_mode(mode_1, mode_2)

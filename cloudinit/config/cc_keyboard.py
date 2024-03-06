@@ -6,32 +6,31 @@
 
 """keyboard: set keyboard layout"""
 
+import logging
 from textwrap import dedent
 
 from cloudinit import distros
-from cloudinit import log as logging
-from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
+from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
-frequency = PER_INSTANCE
-
 # FIXME: setting keyboard layout should be supported by all OSes.
-# But currently only implemented for Linux distributions that use systemd.
-osfamilies = ["arch", "debian", "redhat", "suse"]
-distros = distros.Distro.expand_osfamily(osfamilies)
+# But currently only implemented for Linux distributions that use systemd,
+# plus Alpine Linux.
 
 DEFAULT_KEYBOARD_MODEL = "pc105"
 
-meta = {
+supported_distros = distros.Distro.expand_osfamily(
+    ["alpine", "arch", "debian", "redhat", "suse"]
+)
+
+meta: MetaSchema = {
     "id": "cc_keyboard",
     "name": "Keyboard",
     "title": "Set keyboard layout",
-    "description": dedent(
-        """\
-        Handle keyboard configuration.
-        """
-    ),
-    "distros": distros,
+    "description": "Handle keyboard configuration.",
+    "distros": supported_distros,
     "examples": [
         dedent(
             """\
@@ -50,76 +49,39 @@ meta = {
               options: compose:rwin
             """
         ),
+        dedent(
+            """\
+            # For Alpine Linux set specific keyboard layout and variant,
+            # as used by setup-keymap. Model and options are ignored.
+            keyboard:
+              layout: gb
+              variant: gb-extd
+            """
+        ),
     ],
-    "frequency": frequency,
+    "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": ["keyboard"],
 }
 
 
-schema = {
-    "type": "object",
-    "properties": {
-        "keyboard": {
-            "type": "object",
-            "properties": {
-                "layout": {
-                    "type": "string",
-                    "description": dedent(
-                        """\
-                        Required. Keyboard layout. Corresponds to XKBLAYOUT.
-                        """
-                    ),
-                },
-                "model": {
-                    "type": "string",
-                    "default": DEFAULT_KEYBOARD_MODEL,
-                    "description": dedent(
-                        """\
-                        Optional. Keyboard model. Corresponds to XKBMODEL.
-                        """
-                    ),
-                },
-                "variant": {
-                    "type": "string",
-                    "description": dedent(
-                        """\
-                        Optional. Keyboard variant. Corresponds to XKBVARIANT.
-                        """
-                    ),
-                },
-                "options": {
-                    "type": "string",
-                    "description": dedent(
-                        """\
-                        Optional. Keyboard options. Corresponds to XKBOPTIONS.
-                        """
-                    ),
-                },
-            },
-            "required": ["layout"],
-            "additionalProperties": False,
-        }
-    },
-}
-
-__doc__ = get_meta_doc(meta, schema)
+__doc__ = get_meta_doc(meta)
 
 LOG = logging.getLogger(__name__)
 
 
-def handle(name, cfg, cloud, log, args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if "keyboard" not in cfg:
         LOG.debug(
             "Skipping module named %s, no 'keyboard' section found", name
         )
         return
-    validate_cloudconfig_schema(cfg, schema)
     kb_cfg = cfg["keyboard"]
     layout = kb_cfg["layout"]
-    model = kb_cfg.get("model", DEFAULT_KEYBOARD_MODEL)
+    if cloud.distro.name == "alpine":
+        model = kb_cfg.get("model", "")
+    else:
+        model = kb_cfg.get("model", DEFAULT_KEYBOARD_MODEL)
     variant = kb_cfg.get("variant", "")
     options = kb_cfg.get("options", "")
     LOG.debug("Setting keyboard layout to '%s'", layout)
     cloud.distro.set_keymap(layout, model, variant, options)
-
-
-# vi: ts=4 expandtab

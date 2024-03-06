@@ -9,6 +9,8 @@ system.
 
 import pytest
 
+from tests.integration_tests.releases import CURRENT_RELEASE
+
 USER_DATA = """\
 #cloud-config
 disable_root: false
@@ -45,20 +47,6 @@ ssh_keys:
     -----END RSA PRIVATE KEY-----
   rsa_public: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC0/Ho+o3eJISydO2JvIgTLnZOtrxPl+fSvJfKDjoOLY0HB2eOjy2s2/2N6d9X9SGZ4+XnyVeNPjfBXw4IyXoqxhfIF16Azfk022iejgjiYssoUxH31M60OfqJhxo16dWEXdkKP1nac06VOt1zS5yEeooyvEuMJEJSsv3VR/7GKhMX3TVhEz5moLmVP3bIAvvoXio8X4urVC1R819QjDC86nlxwNks/GKPRi/IHO5tjJ72Eke7KNsm/vxHgkdX4vZaHNKhfdb/pavFXN5eoUaofz3hxw5oL/u2epI/pXyUhDp8Tb5wO6slykzcIlGCSd0YeO1TnljvViRx0uSxIy97N root@xenial-lxd
   rsa_certificate: ssh-rsa-cert-v01@openssh.com AAAAHHNzaC1yc2EtY2VydC12MDFAb3BlbnNzaC5jb20AAAAgMpgBP4Phn3L8I7Vqh7lmHKcOfIokEvSEbHDw83Y3JloAAAADAQABAAABAQC0/Ho+o3eJISydO2JvIgTLnZOtrxPl+fSvJfKDjoOLY0HB2eOjy2s2/2N6d9X9SGZ4+XnyVeNPjfBXw4IyXoqxhfIF16Azfk022iejgjiYssoUxH31M60OfqJhxo16dWEXdkKP1nac06VOt1zS5yEeooyvEuMJEJSsv3VR/7GKhMX3TVhEz5moLmVP3bIAvvoXio8X4urVC1R819QjDC86nlxwNks/GKPRi/IHO5tjJ72Eke7KNsm/vxHgkdX4vZaHNKhfdb/pavFXN5eoUaofz3hxw5oL/u2epI/pXyUhDp8Tb5wO6slykzcIlGCSd0YeO1TnljvViRx0uSxIy97NAAAAAAAAAAAAAAACAAAACnhlbmlhbC1seGQAAAAAAAAAAF+vVEIAAAAAYY83bgAAAAAAAAAAAAAAAAAAADMAAAALc3NoLWVkMjU1MTkAAAAgz4SlDwbq53ZrRsnS6ISdwxgFDRpnEX44K8jFmLpI9NAAAABTAAAAC3NzaC1lZDI1NTE5AAAAQMWpiRWKNMFvRX0g6OQOELMqDhtNBpkIN92IyO25qiY2oDSd1NyVme6XnGDFt8CS7z5NufV04doP4aacLOBbQww= root@xenial-lxd
-  dsa_private: |
-    -----BEGIN DSA PRIVATE KEY-----
-    MIIBuwIBAAKBgQD5Fstc23IVSDe6k4DNP8smPKuEWUvHDTOGaXrhOVAfzZ6+jklP
-    55mzvC7jO53PWWC31hq10xBoWdev0WtcNF9Tv+4bAa1263y51Rqo4GI7xx+xic1d
-    mLqqfYijBT9k48J/1tV0cs1Wjs6FP/IJTD/kYVC930JjYQMi722lBnUxsQIVAL7i
-    z3fTGKTvSzvW0wQlwnYpS2QFAoGANp+KdyS9V93HgxGQEN1rlj/TSv/a3EVdCKtE
-    nQf55aPHxDAVDVw5JtRh4pZbbRV4oGRPc9KOdjo5BU28vSM3Lmhkb+UaaDXwHkgI
-    nK193o74DKjADWZxuLyyiKHiMOhxozoxDfjWxs8nz6uqvSW0pr521EwIY6RajbED
-    nZ2a3GkCgYEAyoUomNRB6bmpsIfzt8zdtqLP5umIj2uhr9MVPL8/QdbxmJ72Z7pf
-    Q2z1B7QAdIBGOlqJXtlau7ABhWK29Efe+99ObyTSSdDc6RCDeAwUmBAiPRQhDH2E
-    wExw3doDSCUb28L1B50wBzQ8mC3KXp6C7IkBXWspb16DLHUHFSI8bkICFA5kVUcW
-    nCPOXEQsayANi8+Cb7BH
-    -----END DSA PRIVATE KEY-----
-  dsa_public: ssh-dss AAAAB3NzaC1kc3MAAACBAPkWy1zbchVIN7qTgM0/yyY8q4RZS8cNM4ZpeuE5UB/Nnr6OSU/nmbO8LuM7nc9ZYLfWGrXTEGhZ16/Ra1w0X1O/7hsBrXbrfLnVGqjgYjvHH7GJzV2Yuqp9iKMFP2Tjwn/W1XRyzVaOzoU/8glMP+RhUL3fQmNhAyLvbaUGdTGxAAAAFQC+4s930xik70s71tMEJcJ2KUtkBQAAAIA2n4p3JL1X3ceDEZAQ3WuWP9NK/9rcRV0Iq0SdB/nlo8fEMBUNXDkm1GHillttFXigZE9z0o52OjkFTby9IzcuaGRv5RpoNfAeSAicrX3ejvgMqMANZnG4vLKIoeIw6HGjOjEN+NbGzyfPq6q9JbSmvnbUTAhjpFqNsQOdnZrcaQAAAIEAyoUomNRB6bmpsIfzt8zdtqLP5umIj2uhr9MVPL8/QdbxmJ72Z7pfQ2z1B7QAdIBGOlqJXtlau7ABhWK29Efe+99ObyTSSdDc6RCDeAwUmBAiPRQhDH2EwExw3doDSCUb28L1B50wBzQ8mC3KXp6C7IkBXWspb16DLHUHFSI8bkI= root@xenial-lxd
   ed25519_private: |
     -----BEGIN OPENSSH PRIVATE KEY-----
     b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
@@ -68,6 +56,7 @@ ssh_keys:
     1M6G15dqjQ2XkNVOEnb5AAAAD3Jvb3RAeGVuaWFsLWx4ZAECAwQFBg==
     -----END OPENSSH PRIVATE KEY-----
   ed25519_public: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINudAZSu4vjZpVWzId5pXmZg1M6G15dqjQ2XkNVOEnb5 root@xenial-lxd
+  ed25519_certificate: ssh-ed25519-cert-v01@openssh.com AAAAIHNzaC1lZDI1NTE5LWNlcnQtdjAxQG9wZW5zc2guY29tAAAAIAGbMtat76PmaoqQ7B2lDvhnzE47psvMvmnPhz6f423ZAAAAINudAZSu4vjZpVWzId5pXmZg1M6G15dqjQ2XkNVOEnb5AAAAAAAAAAAAAAACAAAAA2x4ZAAAAAAAAAAAY+0LHAAAAABlzO1rAAAAAAAAAAAAAAAAAAABFwAAAAdzc2gtcnNhAAAAAwEAAQAAAQEAtPx6PqN3iSEsnTtibyIEy52Tra8T5fn0ryXyg46Di2NBwdnjo8trNv9jenfV/UhmePl58lXjT43wV8OCMl6KsYXyBdegM35NNtono4I4mLLKFMR99TOtDn6iYcaNenVhF3ZCj9Z2nNOlTrdc0uchHqKMrxLjCRCUrL91Uf+xioTF901YRM+ZqC5lT92yAL76F4qPF+Lq1QtUfNfUIwwvOp5ccDZLPxij0YvyBzubYye9hJHuyjbJv78R4JHV+L2WhzSoX3W/6WrxVzeXqFGqH894ccOaC/7tnqSP6V8lIQ6fE2+cDurJcpM3CJRgkndGHjtU55Y71YkcdLksSMvezQAAARQAAAAMcnNhLXNoYTItNTEyAAABAC8VDdaBkdt9jRW2Wh7A54rtbWyoafEtA8rud9UHgq3fSLFvWMBBe19/MJZXs+xWkdvSuG49ZeaEWi7ZO3SQaUbmXp2L5CH6TNnok3yo5QL2h01gP6+ydn98cA8lktvZt/+ihSqXpeSAg6S755W0zqlaeT5iyopSmNt4/wLh8FvgXR+TrAEe2EEXcPcLEXrBrPkjoLZ8j/pzLFJHHmlme/JcHPGMB7ksGG9nKr6ZViB3VPshdxP4iqpORv4Ro+UBUaS1AoHe0mZsccr7gKg7Xe6lhqHT2Fwlkk9B1zsWWUTjWU4TeG9FrJCjSAGCHLdHUszhCOsQHOOf9aR2095mbI8= root@xenial-lxd
   ecdsa_private: |
     -----BEGIN EC PRIVATE KEY-----
     MHcCAQEEIDuK+QFc1wmyJY8uDqQVa1qHte30Rk/fdLxGIBkwJAyOoAoGCCqGSM49
@@ -85,16 +74,6 @@ class TestSshKeysProvided:
         "config_path,expected_out",
         (
             (
-                "/etc/ssh/ssh_host_dsa_key.pub",
-                "AAAAB3NzaC1kc3MAAACBAPkWy1zbchVIN7qTgM0/yyY8q4R"
-                "ZS8cNM4ZpeuE5UB/Nnr6OSU/nmbO8LuM",
-            ),
-            (
-                "/etc/ssh/ssh_host_dsa_key",
-                "MIIBuwIBAAKBgQD5Fstc23IVSDe6k4DNP8smPKuEWUvHDTOGaXr"
-                "hOVAfzZ6+jklP",
-            ),
-            (
                 "/etc/ssh/ssh_host_rsa_key.pub",
                 "AAAAB3NzaC1yc2EAAAADAQABAAABAQC0/Ho+o3eJISydO2JvIgT"
                 "LnZOtrxPl+fSvJfKDjoOLY0HB2eOjy2s2/2N6d9X9SGZ4",
@@ -108,10 +87,6 @@ class TestSshKeysProvided:
                 "/etc/ssh/ssh_host_rsa_key-cert.pub",
                 "AAAAHHNzaC1yc2EtY2VydC12MDFAb3BlbnNzaC5jb20AAAAgMpg"
                 "BP4Phn3L8I7Vqh7lmHKcOfIokEvSEbHDw83Y3JloAAAAD",
-            ),
-            (
-                "/etc/ssh/sshd_config",
-                "HostCertificate /etc/ssh/ssh_host_rsa_key-cert.pub",
             ),
             (
                 "/etc/ssh/ssh_host_ecdsa_key.pub",
@@ -138,3 +113,16 @@ class TestSshKeysProvided:
     def test_ssh_provided_keys(self, config_path, expected_out, class_client):
         out = class_client.read_from_file(config_path).strip()
         assert expected_out in out
+
+    def test_sshd_config(self, class_client):
+        expected_certs = (
+            "HostCertificate /etc/ssh/ssh_host_rsa_key-cert.pub",
+            "HostCertificate /etc/ssh/ssh_host_ed25519_key-cert.pub",
+        )
+        if CURRENT_RELEASE.series == "bionic":
+            sshd_config_path = "/etc/ssh/sshd_config"
+        else:
+            sshd_config_path = "/etc/ssh/sshd_config.d/50-cloud-init.conf"
+        sshd_config = class_client.read_from_file(sshd_config_path).strip()
+        for expected_cert in expected_certs:
+            assert expected_cert in sshd_config

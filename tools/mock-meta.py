@@ -179,8 +179,6 @@ def get_ssh_keys():
 
     # Nice helper to add in the 'running' users key (if they have one)
     key_pth = os.path.expanduser("~/.ssh/id_rsa.pub")
-    if not os.path.isfile(key_pth):
-        key_pth = os.path.expanduser("~/.ssh/id_dsa.pub")
 
     if os.path.isfile(key_pth):
         with open(key_pth, "rb") as fh:
@@ -194,7 +192,7 @@ class HTTPServerV6(HTTPServer):
     address_family = socket.AF_INET6
 
 
-class MetaDataHandler(object):
+class MetaDataHandler:
     def __init__(self, opts):
         self.opts = opts
         self.instances = {}
@@ -306,7 +304,7 @@ class MetaDataHandler(object):
             return NOT_IMPL_RESPONSE
 
 
-class UserDataHandler(object):
+class UserDataHandler:
     def __init__(self, opts):
         self.opts = opts
 
@@ -491,5 +489,3 @@ def run_server():
 
 if __name__ == "__main__":
     run_server()
-
-# vi: ts=4 expandtab

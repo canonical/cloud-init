@@ -3,87 +3,71 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import json
+import logging
 from functools import lru_cache
 
-from cloudinit import dmi
-from cloudinit import log as log
-from cloudinit import net, netinfo, subp, url_helper, util
-from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
+from requests import exceptions
+
+from cloudinit import dmi, net, subp, url_helper, util
+from cloudinit.net.dhcp import NoDHCPLeaseError
+from cloudinit.net.ephemeral import EphemeralDHCPv4
 
 # Get LOG
-LOG = log.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 @lru_cache()
-def get_metadata(url, timeout, retries, sec_between, agent):
-    # Bring up interface (and try untill one works)
+def get_metadata(
+    distro, url, timeout, retries, sec_between, agent, tmp_dir=None
+):
+    # Bring up interface (and try until one works)
     exception = RuntimeError("Failed to DHCP")
 
     # Seek iface with DHCP
-    for iface in net.get_interfaces():
-        # Skip dummy, lo interfaces
-        if "dummy" in iface[0]:
-            continue
-        if "lo" == iface[0]:
-            continue
+    for iface in get_interface_list():
         try:
             with EphemeralDHCPv4(
-                iface=iface[0], connectivity_url_data={"url": url}
+                distro,
+                iface=iface,
+                connectivity_url_data={"url": url},
             ):
-                # Set metadata route
-                set_route(iface[0])
-
                 # Fetch the metadata
                 v1 = read_metadata(url, timeout, retries, sec_between, agent)
 
-                return json.loads(v1)
-        except (NoDHCPLeaseError, subp.ProcessExecutionError) as exc:
+                metadata = json.loads(v1)
+                refactor_metadata(metadata)
+                return metadata
+        except (
+            NoDHCPLeaseError,
+            subp.ProcessExecutionError,
+            RuntimeError,
+            exceptions.RequestException,
+        ) as exc:
             LOG.error("DHCP Exception: %s", exc)
             exception = exc
     raise exception
 
 
-# Set route for metadata
-def set_route(iface):
-    # Get routes, confirm entry does not exist
-    routes = netinfo.route_info()
+# Refactor metadata into acceptable format
+def refactor_metadata(metadata):
+    metadata["instance-id"] = metadata["instance-v2-id"]
+    metadata["local-hostname"] = metadata["hostname"]
+    region = metadata["region"]["regioncode"]
+    if "countrycode" in metadata["region"]:
+        region = metadata["region"]["countrycode"]
+    metadata["region"] = region.lower()
 
-    # If no tools exist and empty dict is returned
-    if "ipv4" not in routes:
-        return
 
-    # We only care about IPv4
-    routes = routes["ipv4"]
+# Get interface list, sort, and clean
+def get_interface_list():
+    ifaces = []
+    for iface in net.find_candidate_nics():
+        # Skip dummy
+        if "dummy" in iface:
+            continue
+        ifaces.append(iface)
 
-    # Searchable list
-    dests = []
-
-    # Parse each route into a more searchable format
-    for route in routes:
-        dests.append(route["destination"])
-
-    gw_present = "100.64.0.0" in dests or "100.64.0.0/10" in dests
-    dest_present = "169.254.169.254" in dests
-
-    # If not IPv6 only (No link local)
-    # or the route is already present
-    if not gw_present or dest_present:
-        return
-
-    # Set metadata route
-    if subp.which("ip"):
-        subp.subp(
-            [
-                "ip",
-                "route",
-                "add",
-                "169.254.169.254/32",
-                "dev",
-                iface,
-            ]
-        )
-    elif subp.which("route"):
-        subp.subp(["route", "add", "-net", "169.254.169.254/32", "100.64.0.1"])
+    return ifaces
 
 
 # Read the system information from SMBIOS
@@ -160,24 +144,34 @@ def get_interface_name(mac):
 def generate_network_config(interfaces):
     network = {
         "version": 1,
-        "config": [{"type": "nameserver", "address": ["108.61.10.10"]}],
+        "config": [
+            {
+                "type": "nameserver",
+                "address": ["108.61.10.10", "2001:19f0:300:1704::6"],
+            }
+        ],
     }
 
     # Prepare interface 0, public
     if len(interfaces) > 0:
-        public = generate_public_network_interface(interfaces[0])
+        public = generate_interface(interfaces[0], primary=True)
         network["config"].append(public)
 
     # Prepare additional interfaces, private
     for i in range(1, len(interfaces)):
-        private = generate_private_network_interface(interfaces[i])
+        interface = interfaces[i]
+
+        # Skip interfaces set not to be configured
+        if interface.get("unconfigured"):
+            continue
+
+        private = generate_interface(interface)
         network["config"].append(private)
 
     return network
 
 
-# Input Metadata and generate public network config part
-def generate_public_network_interface(interface):
+def generate_interface(interface, primary=False):
     interface_name = get_interface_name(interface["mac"])
     if not interface_name:
         raise RuntimeError(
@@ -188,13 +182,33 @@ def generate_public_network_interface(interface):
         "name": interface_name,
         "type": "physical",
         "mac_address": interface["mac"],
-        "accept-ra": 1,
-        "subnets": [
-            {"type": "dhcp", "control": "auto"},
-            {"type": "ipv6_slaac", "control": "auto"},
-        ],
     }
 
+    if primary:
+        netcfg["accept-ra"] = 1
+        netcfg["subnets"] = [
+            {"type": "dhcp", "control": "auto"},
+            {"type": "ipv6_slaac", "control": "auto"},
+        ]
+
+    if not primary:
+        netcfg["subnets"] = [
+            {
+                "type": "static",
+                "control": "auto",
+                "address": interface["ipv4"]["address"],
+                "netmask": interface["ipv4"]["netmask"],
+            }
+        ]
+
+    generate_interface_routes(interface, netcfg)
+    generate_interface_additional_addresses(interface, netcfg)
+
+    # Add config to template
+    return netcfg
+
+
+def generate_interface_routes(interface, netcfg):
     # Options that may or may not be used
     if "mtu" in interface:
         netcfg["mtu"] = interface["mtu"]
@@ -205,6 +219,8 @@ def generate_public_network_interface(interface):
     if "routes" in interface:
         netcfg["subnets"][0]["routes"] = interface["routes"]
 
+
+def generate_interface_additional_addresses(interface, netcfg):
     # Check for additional IP's
     additional_count = len(interface["ipv4"]["additional"])
     if "ipv4" in interface and additional_count > 0:
@@ -228,8 +244,8 @@ def generate_public_network_interface(interface):
             add = {
                 "type": "static6",
                 "control": "auto",
-                "address": additional["address"],
-                "netmask": additional["netmask"],
+                "address": "%s/%s"
+                % (additional["network"], additional["prefix"]),
             }
 
             if "routes" in additional:
@@ -237,57 +253,16 @@ def generate_public_network_interface(interface):
 
             netcfg["subnets"].append(add)
 
-    # Add config to template
-    return netcfg
-
-
-# Input Metadata and generate private network config part
-def generate_private_network_interface(interface):
-    interface_name = get_interface_name(interface["mac"])
-    if not interface_name:
-        raise RuntimeError(
-            "Interface: %s could not be found on the system" % interface["mac"]
-        )
-
-    netcfg = {
-        "name": interface_name,
-        "type": "physical",
-        "mac_address": interface["mac"],
-        "subnets": [
-            {
-                "type": "static",
-                "control": "auto",
-                "address": interface["ipv4"]["address"],
-                "netmask": interface["ipv4"]["netmask"],
-            }
-        ],
-    }
-
-    # Options that may or may not be used
-    if "mtu" in interface:
-        netcfg["mtu"] = interface["mtu"]
-
-    if "accept-ra" in interface:
-        netcfg["accept-ra"] = interface["accept-ra"]
-
-    if "routes" in interface:
-        netcfg["subnets"][0]["routes"] = interface["routes"]
-
-    return netcfg
-
 
 # Make required adjustments to the network configs provided
-def add_interface_names(interfaces):
-    for interface in interfaces:
-        interface_name = get_interface_name(interface["mac"])
+def add_interface_names(netcfg):
+    for interface in netcfg["config"]:
+        if interface["type"] != "physical":
+            continue
+        interface_name = get_interface_name(interface["mac_address"])
         if not interface_name:
             raise RuntimeError(
                 "Interface: %s could not be found on the system"
-                % interface["mac"]
+                % interface["mac_address"]
             )
         interface["name"] = interface_name
-
-    return interfaces
-
-
-# vi: ts=4 expandtab

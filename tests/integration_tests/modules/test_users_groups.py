@@ -8,8 +8,9 @@ import re
 
 import pytest
 
-from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, JAMMY
+from tests.integration_tests.util import verify_clean_log
 
 USER_DATA = """\
 #cloud-config
@@ -25,7 +26,7 @@ users:
     gecos: Foo B. Bar
     primary_group: foobar
     groups: users
-    expiredate: 2038-01-19
+    expiredate: '2038-01-19'
     lock_passwd: false
     passwd: $6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYe\
 AHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
@@ -36,8 +37,13 @@ AHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
     lock_passwd: true
   - name: cloudy
     gecos: Magic Cloud App Daemon User
-    inactive: true
+    inactive: '0'
     system: true
+  - name: eric
+    sudo: null
+    uid: 1742
+  - name: archivist
+    uid: 1743
 """
 
 
@@ -50,7 +56,7 @@ class TestUsersGroups:
     confirms that they have been configured correctly in the system under test.
     """
 
-    @pytest.mark.ubuntu
+    @pytest.mark.skipif(not IS_UBUNTU, reason="Test assumes 'ubuntu' user")
     @pytest.mark.parametrize(
         "getent_args,regex",
         [
@@ -75,6 +81,10 @@ class TestUsersGroups:
             ),
             # Test the cloudy user
             (["passwd", "cloudy"], r"cloudy:x:[0-9]{3,4}:"),
+            # Test str uid
+            (["passwd", "eric"], r"eric:x:1742:"),
+            # Test int uid
+            (["passwd", "archivist"], r"archivist:x:1743:"),
         ],
     )
     def test_users_groups(self, regex, getent_args, class_client):
@@ -89,6 +99,8 @@ class TestUsersGroups:
 
     def test_user_root_in_secret(self, class_client):
         """Test root user is in 'secret' group."""
+        log = class_client.read_from_file("/var/log/cloud-init.log")
+        verify_clean_log(log)
         output = class_client.execute("groups root").stdout
         _, groups_str = output.split(":", maxsplit=1)
         groups = groups_str.split()
@@ -96,6 +108,10 @@ class TestUsersGroups:
 
 
 @pytest.mark.user_data(USER_DATA)
+@pytest.mark.skipif(
+    CURRENT_RELEASE < JAMMY,
+    reason="Requires version of sudo not available in older releases",
+)
 def test_sudoers_includedir(client: IntegrationInstance):
     """Ensure we don't add additional #includedir to sudoers.
 
@@ -105,15 +121,11 @@ def test_sudoers_includedir(client: IntegrationInstance):
 
     https://github.com/canonical/cloud-init/pull/783
     """
-    if ImageSpecification.from_os_image().release in [
-        "bionic",
-        "focal",
-    ]:
-        raise pytest.skip(
-            "Test requires version of sudo installed on groovy and later"
-        )
     client.execute("sed -i 's/#include/@include/g' /etc/sudoers")
 
+    sudoers_content_before = client.read_from_file(
+        "/etc/sudoers.d/90-cloud-init-users"
+    ).splitlines()[1:]
     sudoers = client.read_from_file("/etc/sudoers")
     if "@includedir /etc/sudoers.d" not in sudoers:
         client.execute("echo '@includedir /etc/sudoers.d' >> /etc/sudoers")
@@ -123,3 +135,8 @@ def test_sudoers_includedir(client: IntegrationInstance):
 
     assert "#includedir" not in sudoers
     assert sudoers.count("includedir /etc/sudoers.d") == 1
+
+    sudoers_content_after = client.read_from_file(
+        "/etc/sudoers.d/90-cloud-init-users"
+    ).splitlines()[1:]
+    assert sudoers_content_before == sudoers_content_after

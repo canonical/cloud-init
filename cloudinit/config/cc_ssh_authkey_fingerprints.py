@@ -3,34 +3,42 @@
 # Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
-
-"""
-SSH Authkey Fingerprints
-------------------------
-**Summary:** log fingerprints of user SSH keys
-
-Write fingerprints of authorized keys for each user to log. This is enabled by
-default, but can be disabled using ``no_ssh_fingerprints``. The hash type for
-the keys can be specified, but defaults to ``sha256``.
-
-**Internal name:** ``cc_ssh_authkey_fingerprints``
-
-**Module frequency:** per instance
-
-**Supported distros:** all
-
-**Config keys**::
-
-    no_ssh_fingerprints: <true/false>
-    authkey_hash: <hash type>
-"""
+"""SSH AuthKey Fingerprints: Log fingerprints of user SSH keys"""
 
 import base64
 import hashlib
+import logging
 
 from cloudinit import ssh_util, util
-from cloudinit.distros import ug_util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.distros import ALL_DISTROS, ug_util
+from cloudinit.settings import PER_INSTANCE
 from cloudinit.simpletable import SimpleTable
+
+MODULE_DESCRIPTION = """\
+Write fingerprints of authorized keys for each user to log. This is enabled by
+default, but can be disabled using ``no_ssh_fingerprints``. The hash type for
+the keys can be specified, but defaults to ``sha256``.
+"""
+
+meta: MetaSchema = {
+    "id": "cc_ssh_authkey_fingerprints",
+    "name": "SSH AuthKey Fingerprints",
+    "title": "Log fingerprints of user SSH keys",
+    "description": MODULE_DESCRIPTION,
+    "distros": [ALL_DISTROS],
+    "frequency": PER_INSTANCE,
+    "examples": [
+        "no_ssh_fingerprints: true",
+        "authkey_hash: sha512",
+    ],
+    "activate_by_schema_keys": [],
+}
+
+__doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
 def _split_hash(bin_hash):
@@ -108,9 +116,9 @@ def _pprint_key_entries(
         )
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if util.is_true(cfg.get("no_ssh_fingerprints", False)):
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, logging of SSH fingerprints disabled",
             name,
         )
@@ -119,8 +127,13 @@ def handle(name, cfg, cloud, log, _args):
     hash_meth = util.get_cfg_option_str(cfg, "authkey_hash", "sha256")
     (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
     for (user_name, _cfg) in users.items():
+        if _cfg.get("no_create_home") or _cfg.get("system"):
+            LOG.debug(
+                "Skipping printing of ssh fingerprints for user '%s' because "
+                "no home directory is created",
+                user_name,
+            )
+            continue
+
         (key_fn, key_entries) = ssh_util.extract_authorized_keys(user_name)
         _pprint_key_entries(user_name, key_fn, key_entries, hash_meth)
-
-
-# vi: ts=4 expandtab

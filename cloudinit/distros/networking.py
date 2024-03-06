@@ -3,6 +3,7 @@ import logging
 import os
 
 from cloudinit import net, subp, util
+from cloudinit.distros.parsers import ifconfig
 
 LOG = logging.getLogger(__name__)
 
@@ -18,11 +19,8 @@ class Networking(metaclass=abc.ABCMeta):
 
     This is part of an ongoing refactor in the cloud-init codebase, for more
     details see "``cloudinit.net`` -> ``cloudinit.distros.networking``
-    Hierarchy" in HACKING.rst for full details.
+    Hierarchy" in CONTRIBUTING.rst for full details.
     """
-
-    def __init__(self):
-        self.blacklist_drivers = None
 
     def _get_current_rename_info(self) -> dict:
         return net._get_current_rename_info()
@@ -30,8 +28,9 @@ class Networking(metaclass=abc.ABCMeta):
     def _rename_interfaces(self, renames: list, *, current_info=None) -> None:
         return net._rename_interfaces(renames, current_info=current_info)
 
+    @abc.abstractmethod
     def apply_network_config_names(self, netcfg: NetworkConfig) -> None:
-        return net.apply_network_config_names(netcfg)
+        """Read the network config and rename devices accordingly."""
 
     def device_devid(self, devname: DeviceName):
         return net.device_devid(devname)
@@ -42,15 +41,11 @@ class Networking(metaclass=abc.ABCMeta):
     def extract_physdevs(self, netcfg: NetworkConfig) -> list:
         return net.extract_physdevs(netcfg)
 
-    def find_fallback_nic(self, *, blacklist_drivers=None):
-        return net.find_fallback_nic(blacklist_drivers=blacklist_drivers)
+    def find_fallback_nic(self):
+        return net.find_fallback_nic()
 
-    def generate_fallback_config(
-        self, *, blacklist_drivers=None, config_driver: bool = False
-    ):
-        return net.generate_fallback_config(
-            blacklist_drivers=blacklist_drivers, config_driver=config_driver
-        )
+    def generate_fallback_config(self, *, config_driver: bool = False):
+        return net.generate_fallback_config(config_driver=config_driver)
 
     def get_devicelist(self) -> list:
         return net.get_devicelist()
@@ -70,9 +65,7 @@ class Networking(metaclass=abc.ABCMeta):
         return net.get_interfaces()
 
     def get_interfaces_by_mac(self) -> dict:
-        return net.get_interfaces_by_mac(
-            blacklist_drivers=self.blacklist_drivers
-        )
+        return net.get_interfaces_by_mac()
 
     def get_master(self, devname: DeviceName):
         return net.get_master(devname)
@@ -149,7 +142,7 @@ class Networking(metaclass=abc.ABCMeta):
         # the current macs present; we only check MAC as cloud-init
         # has not yet renamed interfaces and the netcfg may include
         # such renames.
-        for _ in range(0, 5):
+        for _ in range(5):
             if expected_macs.issubset(present_macs):
                 LOG.debug("net: all expected physical devices present")
                 return
@@ -183,18 +176,98 @@ class Networking(metaclass=abc.ABCMeta):
 class BSDNetworking(Networking):
     """Implementation of networking functionality shared across BSDs."""
 
+    def __init__(self):
+        self.ifc = ifconfig.Ifconfig()
+        self.ifs = {}
+        self._update_ifs()
+        super().__init__()
+
+    def _update_ifs(self):
+        ifconf = subp.subp(["ifconfig", "-a"])
+        # ``ifconfig -a`` always returns at least ``lo0``.
+        # So this ``if`` is really just to make testing/mocking easier
+        if ifconf[0]:
+            self.ifs = self.ifc.parse(ifconf[0])
+
+    def apply_network_config_names(self, netcfg: NetworkConfig) -> None:
+        LOG.debug("Cannot rename network interface.")
+
     def is_physical(self, devname: DeviceName) -> bool:
-        raise NotImplementedError()
+        return self.ifs[devname].is_physical
+
+    def is_bond(self, devname: DeviceName) -> bool:
+        return self.ifs[devname].is_bond
+
+    def is_bridge(self, devname: DeviceName) -> bool:
+        return self.ifs[devname].is_bridge
+
+    def is_vlan(self, devname: DeviceName) -> bool:
+        return self.ifs[devname].is_vlan
+
+    def is_up(self, devname: DeviceName) -> bool:
+        return self.ifs[devname].up
 
     def settle(self, *, exists=None) -> None:
         """BSD has no equivalent to `udevadm settle`; noop."""
 
     def try_set_link_up(self, devname: DeviceName) -> bool:
-        raise NotImplementedError()
+        """Try setting the link to up explicitly and return if it is up.
+        Not guaranteed to bring the interface up. The caller is expected to
+        add wait times before retrying."""
+        subp.subp(["ifconfig", devname, "up"])
+        return self.is_up(devname)
+
+
+class FreeBSDNetworking(BSDNetworking):
+    def apply_network_config_names(self, netcfg: NetworkConfig) -> None:
+        # This is handled by the freebsd network renderer. It writes in
+        # /etc/rc.conf a line with the following format:
+        #    ifconfig_OLDNAME_name=NEWNAME
+        # FreeBSD network script will rename the interface automatically.
+        pass
+
+    def is_renamed(self, devname: DeviceName) -> bool:
+        if not self.ifs[devname].is_physical:
+            # Only physical devices can be renamed.
+            # cloned devices can be given any arbitrary name, so it makes no
+            # sense on them anyway
+            return False
+
+        # check that `devinfo -p devname` returns the driver chain:
+        # $ devinfo -p em0
+        # => em0 pci0 pcib0 acpi0 nexus0
+        # if it doesn't, we know something's up:
+        # $ devinfo -p eth0
+        # => devinfo: eth0: Not found
+
+        # we could be catching exit codes here and check if they are 0
+        # (success: not renamed) or 1 (failure: renamed), instead of
+        # ripping thru the stack with an exception.
+        # unfortunately, subp doesn't return exit codes.
+        # so we do the next best thing, and compare the output.
+        _, err = subp.subp(["devinfo", "-p", devname], rcs=[0, 1])
+        if err == "devinfo: {}: Not found\n".format(devname):
+            return True
+        return False
 
 
 class LinuxNetworking(Networking):
     """Implementation of networking functionality common to Linux distros."""
+
+    def apply_network_config_names(self, netcfg: NetworkConfig) -> None:
+        """Read the network config and rename devices accordingly.
+
+        Renames are only attempted for interfaces of type 'physical'. It is
+        expected that the network system will create other devices with the
+        correct name in place.
+        """
+
+        try:
+            self._rename_interfaces(self.extract_physdevs(netcfg))
+        except RuntimeError as e:
+            raise RuntimeError(
+                "Failed to apply network config names: %s" % e
+            ) from e
 
     def get_dev_features(self, devname: DeviceName) -> str:
         return net.get_dev_features(devname)

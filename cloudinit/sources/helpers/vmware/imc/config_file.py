@@ -5,14 +5,10 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import configparser
 import logging
 
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
-
-from .config_source import ConfigSource
+from cloudinit.sources.helpers.vmware.imc.config_source import ConfigSource
 
 logger = logging.getLogger(__name__)
 
@@ -73,39 +69,6 @@ class ConfigFile(ConfigSource, dict):
             for (key, value) in config.items(category):
                 self._insertKey(category + "|" + key, value)
 
-    def should_keep_current_value(self, key):
-        """
-        Determines whether a value for a property must be kept.
-
-        If the propery is missing, it is treated as it should be not
-        changed by the engine.
-
-        Keyword arguments:
-        key -- The key to search for.
-        """
-        # helps to distinguish from "empty" value which is used to indicate
-        # "removal"
-        return key not in self
-
-    def should_remove_current_value(self, key):
-        """
-        Determines whether a value for the property must be removed.
-
-        If the specified key is empty, it is treated as it should be
-        removed by the engine.
-
-        Return true if the value can be removed, false otherwise.
-
-        Keyword arguments:
-        key -- The key to search for.
-        """
-        # helps to distinguish from "missing" value which is used to indicate
-        # "keeping unchanged"
-        if key in self:
-            return not bool(self[key])
-        else:
-            return False
-
     def get_count_with_prefix(self, prefix):
         """
         Return the total count of keys that start with the specified prefix.
@@ -114,6 +77,3 @@ class ConfigFile(ConfigSource, dict):
         prefix -- prefix of the key
         """
         return len([key for key in self if key.startswith(prefix)])
-
-
-# vi: ts=4 expandtab

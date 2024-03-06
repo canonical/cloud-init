@@ -7,6 +7,3 @@ import cloudinit.distros.freebsd
 
 class Distro(cloudinit.distros.freebsd.Distro):
     home_dir = "/home"
-
-
-# vi: ts=4 expandtab

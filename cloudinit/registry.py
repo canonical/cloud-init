@@ -5,7 +5,7 @@
 import copy
 
 
-class DictRegistry(object):
+class DictRegistry:
     """A simple registry for a mapping of objects."""
 
     def __init__(self):
@@ -36,6 +36,3 @@ class DictRegistry(object):
         This cannot be used to modify the contents of the registry.
         """
         return copy.copy(self._items)
-
-
-# vi: ts=4 expandtab

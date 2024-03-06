@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # Copyright (C) 2017 Canonical Ltd.
 #
 # This file is part of cloud-init. See LICENSE file for license information.
@@ -7,17 +9,86 @@
 import argparse
 import os
 import shutil
+import subprocess
 import sys
 from datetime import datetime
+from pathlib import Path
+from typing import NamedTuple
 
-from cloudinit.sources import INSTANCE_JSON_SENSITIVE_FILE
+from cloudinit.cmd.devel import read_cfg_paths
+from cloudinit.helpers import Paths
+from cloudinit.stages import Init
 from cloudinit.subp import ProcessExecutionError, subp
 from cloudinit.temp_utils import tempdir
-from cloudinit.util import chdir, copy, ensure_dir, write_file
+from cloudinit.util import (
+    chdir,
+    copy,
+    ensure_dir,
+    get_config_logfiles,
+    write_file,
+)
 
-CLOUDINIT_LOGS = ["/var/log/cloud-init.log", "/var/log/cloud-init-output.log"]
 CLOUDINIT_RUN_DIR = "/run/cloud-init"
-USER_DATA_FILE = "/var/lib/cloud/instance/user-data.txt"  # Optional
+
+
+class ApportFile(NamedTuple):
+    path: str
+    label: str
+
+
+INSTALLER_APPORT_SENSITIVE_FILES = [
+    ApportFile(
+        "/var/log/installer/autoinstall-user-data", "AutoInstallUserData"
+    ),
+    ApportFile("/autoinstall.yaml", "AutoInstallYAML"),
+    ApportFile("/etc/cloud/cloud.cfg.d/99-installer.cfg", "InstallerCloudCfg"),
+]
+
+INSTALLER_APPORT_FILES = [
+    ApportFile("/var/log/installer/ubuntu_desktop_installer.log", "UdiLog"),
+    ApportFile(
+        "/var/log/installer/subiquity-server-debug.log", "SubiquityServerDebug"
+    ),
+    ApportFile(
+        "/var/log/installer/subiquity-client-debug.log", "SubiquityClientDebug"
+    ),
+    ApportFile("/var/log/installer/curtin-install.log", "CurtinLog"),
+    # Legacy single curtin config < 22.1
+    ApportFile(
+        "/var/log/installer/subiquity-curtin-install.conf",
+        "CurtinInstallConfig",
+    ),
+    ApportFile(
+        "/var/log/installer/curtin-install/subiquity-initial.conf",
+        "CurtinConfigInitial",
+    ),
+    ApportFile(
+        "/var/log/installer/curtin-install/subiquity-curthooks.conf",
+        "CurtinConfigCurtHooks",
+    ),
+    ApportFile(
+        "/var/log/installer/curtin-install/subiquity-extract.conf",
+        "CurtinConfigExtract",
+    ),
+    ApportFile(
+        "/var/log/installer/curtin-install/subiquity-partitioning.conf",
+        "CurtinConfigPartitioning",
+    ),
+    # Legacy curtin < 22.1 curtin error tar path
+    ApportFile("/var/log/installer/curtin-error-logs.tar", "CurtinError"),
+    ApportFile("/var/log/installer/curtin-errors.tar", "CurtinError"),
+    ApportFile("/var/log/installer/block/probe-data.json", "ProbeData"),
+]
+
+
+def _get_user_data_file() -> str:
+    paths = read_cfg_paths()
+    return paths.get_ipath_cur("userdata_raw")
+
+
+def _get_cloud_data_path() -> str:
+    paths = read_cfg_paths()
+    return paths.get_cpath("data")
 
 
 def get_parser(parser=None):
@@ -51,6 +122,7 @@ def get_parser(parser=None):
             " Default: cloud-init.tar.gz"
         ),
     )
+    user_data_file = _get_user_data_file()
     parser.add_argument(
         "--include-userdata",
         "-u",
@@ -59,7 +131,7 @@ def get_parser(parser=None):
         dest="userdata",
         help=(
             "Optionally include user-data from {0} which could contain"
-            " sensitive information.".format(USER_DATA_FILE)
+            " sensitive information.".format(user_data_file)
         ),
     )
     return parser
@@ -72,21 +144,35 @@ def _copytree_rundir_ignore_files(curdir, files):
     ]
     if os.getuid() != 0:
         # Ignore root-permissioned files
-        ignored_files.append(INSTANCE_JSON_SENSITIVE_FILE)
+        ignored_files.append(Paths({}).lookups["instance_data_sensitive"])
     return ignored_files
 
 
 def _write_command_output_to_file(cmd, filename, msg, verbosity):
     """Helper which runs a command and writes output or error to filename."""
+    ensure_dir(os.path.dirname(filename))
     try:
-        out, _ = subp(cmd)
+        output = subp(cmd).stdout
     except ProcessExecutionError as e:
         write_file(filename, str(e))
         _debug("collecting %s failed.\n" % msg, 1, verbosity)
     else:
-        write_file(filename, out)
+        write_file(filename, output)
         _debug("collected %s\n" % msg, 1, verbosity)
-        return out
+        return output
+
+
+def _stream_command_output_to_file(cmd, filename, msg, verbosity):
+    """Helper which runs a command and writes output or error to filename."""
+    ensure_dir(os.path.dirname(filename))
+    try:
+        with open(filename, "w") as f:
+            subprocess.call(cmd, stdout=f, stderr=f)
+    except OSError as e:
+        write_file(filename, str(e))
+        _debug("collecting %s failed.\n" % msg, 1, verbosity)
+    else:
+        _debug("collected %s\n" % msg, 1, verbosity)
 
 
 def _debug(msg, level, verbosity):
@@ -102,7 +188,22 @@ def _collect_file(path, out_dir, verbosity):
         _debug("file %s did not exist\n" % path, 2, verbosity)
 
 
-def collect_logs(tarfile, include_userdata, verbosity=0):
+def collect_installer_logs(log_dir, include_userdata, verbosity):
+    """Obtain subiquity logs and config files."""
+    for src_file in INSTALLER_APPORT_FILES:
+        destination_dir = Path(log_dir + src_file.path).parent
+        if not destination_dir.exists():
+            ensure_dir(str(destination_dir))
+        _collect_file(src_file.path, str(destination_dir), verbosity)
+    if include_userdata:
+        for src_file in INSTALLER_APPORT_SENSITIVE_FILES:
+            destination_dir = Path(log_dir + src_file.path).parent
+            if not destination_dir.exists():
+                ensure_dir(str(destination_dir))
+            _collect_file(src_file.path, str(destination_dir), verbosity)
+
+
+def collect_logs(tarfile, include_userdata: bool, verbosity=0):
     """Collect all cloud-init logs and tar them up into the provided tarfile.
 
     @param tarfile: The path of the tar-gzipped file to create.
@@ -114,43 +215,49 @@ def collect_logs(tarfile, include_userdata, verbosity=0):
             " Try sudo cloud-init collect-logs\n"
         )
         return 1
+
+    init = Init(ds_deps=[])
     tarfile = os.path.abspath(tarfile)
-    date = datetime.utcnow().date().strftime("%Y-%m-%d")
-    log_dir = "cloud-init-logs-{0}".format(date)
+    log_dir = datetime.utcnow().date().strftime("cloud-init-logs-%Y-%m-%d")
     with tempdir(dir="/tmp") as tmp_dir:
         log_dir = os.path.join(tmp_dir, log_dir)
         version = _write_command_output_to_file(
-            ["cloud-init", "--version"],
-            os.path.join(log_dir, "version"),
-            "cloud-init --version",
-            verbosity,
+            cmd=["cloud-init", "--version"],
+            filename=os.path.join(log_dir, "version"),
+            msg="cloud-init --version",
+            verbosity=verbosity,
         )
         dpkg_ver = _write_command_output_to_file(
-            ["dpkg-query", "--show", "-f=${Version}\n", "cloud-init"],
-            os.path.join(log_dir, "dpkg-version"),
-            "dpkg version",
-            verbosity,
+            cmd=["dpkg-query", "--show", "-f=${Version}\n", "cloud-init"],
+            filename=os.path.join(log_dir, "dpkg-version"),
+            msg="dpkg version",
+            verbosity=verbosity,
         )
         if not version:
             version = dpkg_ver if dpkg_ver else "not-available"
+        print("version: ", version)
         _debug("collected cloud-init version: %s\n" % version, 1, verbosity)
-        _write_command_output_to_file(
-            ["dmesg"],
-            os.path.join(log_dir, "dmesg.txt"),
-            "dmesg output",
-            verbosity,
+        _stream_command_output_to_file(
+            cmd=["dmesg"],
+            filename=os.path.join(log_dir, "dmesg.txt"),
+            msg="dmesg output",
+            verbosity=verbosity,
         )
-        _write_command_output_to_file(
-            ["journalctl", "--boot=0", "-o", "short-precise"],
-            os.path.join(log_dir, "journal.txt"),
-            "systemd journal of current boot",
-            verbosity,
+        _stream_command_output_to_file(
+            cmd=["journalctl", "--boot=0", "-o", "short-precise"],
+            filename=os.path.join(log_dir, "journal.txt"),
+            msg="systemd journal of current boot",
+            verbosity=verbosity,
         )
 
-        for log in CLOUDINIT_LOGS:
+        init.read_cfg()
+        for log in get_config_logfiles(init.cfg):
             _collect_file(log, log_dir, verbosity)
         if include_userdata:
-            _collect_file(USER_DATA_FILE, log_dir, verbosity)
+            user_data_file = _get_user_data_file()
+            _collect_file(user_data_file, log_dir, verbosity)
+        collect_installer_logs(log_dir, include_userdata, verbosity)
+
         run_dir = os.path.join(log_dir, "run")
         ensure_dir(run_dir)
         if os.path.exists(CLOUDINIT_RUN_DIR):
@@ -170,6 +277,14 @@ def collect_logs(tarfile, include_userdata, verbosity=0):
                 1,
                 verbosity,
             )
+        if os.path.exists(os.path.join(CLOUDINIT_RUN_DIR, "disabled")):
+            # Fallback to grab previous cloud/data
+            cloud_data_dir = Path(_get_cloud_data_path())
+            if cloud_data_dir.exists():
+                shutil.copytree(
+                    str(cloud_data_dir),
+                    Path(log_dir + str(cloud_data_dir)),
+                )
         with chdir(tmp_dir):
             subp(["tar", "czvf", tarfile, log_dir.replace(tmp_dir + "/", "")])
     sys.stderr.write("Wrote %s\n" % tarfile)
@@ -189,5 +304,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-
-# vi: ts=4 expandtab

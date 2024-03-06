@@ -8,15 +8,18 @@
 
 """Locale: set system locale"""
 
+import logging
 from textwrap import dedent
 
 from cloudinit import util
-from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
+from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
-frequency = PER_INSTANCE
 distros = ["all"]
-meta = {
+
+meta: MetaSchema = {
     "id": "cc_locale",
     "name": "Locale",
     "title": "Set system locale",
@@ -41,48 +44,26 @@ meta = {
             """
         ),
     ],
-    "frequency": frequency,
+    "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": [],
 }
 
-schema = {
-    "type": "object",
-    "properties": {
-        "locale": {
-            "type": "string",
-            "description": (
-                "The locale to set as the system's locale (e.g. ar_PS)"
-            ),
-        },
-        "locale_configfile": {
-            "type": "string",
-            "description": (
-                "The file in which to write the locale configuration (defaults"
-                " to the distro's default location)"
-            ),
-        },
-    },
-}
-
-__doc__ = get_meta_doc(meta, schema)  # Supplement python help()
+__doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
-def handle(name, cfg, cloud, log, args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if len(args) != 0:
         locale = args[0]
     else:
         locale = util.get_cfg_option_str(cfg, "locale", cloud.get_locale())
 
     if util.is_false(locale):
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, disabled by config: %s", name, locale
         )
         return
 
-    validate_cloudconfig_schema(cfg, schema)
-
-    log.debug("Setting locale to %s", locale)
+    LOG.debug("Setting locale to %s", locale)
     locale_cfgfile = util.get_cfg_option_str(cfg, "locale_configfile")
     cloud.distro.apply_locale(locale, locale_cfgfile)
-
-
-# vi: ts=4 expandtab

@@ -1,0 +1,248 @@
+/** Fix the font weight (300 for normal, 400 for slightly bold) **/
+/** Should be 100 for all headers, 400 for normal text  **/
+
+h1, h2, h3, h4, h5, h6, .sidebar-tree .current-page>.reference, button, input, optgroup, select, textarea, th.head {
+    font-weight: 300;
+}
+
+.toc-title {
+    font-weight: 400;
+}
+
+div.page, li.scroll-current>.reference, dl.glossary dt, dl.simple dt, dl:not([class]) dt {
+    font-weight: 300;
+    line-height: 1.5;
+    font-size: var(--font-size--normal);
+}
+
+/** Semantic markup styling **/
+strong.command {
+    font-family: var(--font-stack--monospace);
+    font-size: var(--font-size--medium);
+    background: var(--color-inline-code-background);
+    padding: 0.1em 0.2em;
+}
+
+/** Side bars (side-bar tree = left, toc-tree = right) **/
+div.sidebar-tree {
+    font-weight: 200;
+    line-height: 1.5;
+    font-size: var(--font-size--normal);
+}
+
+div.toc-tree {
+    font-weight: 200;
+    font-size: var(--font-size--medium);
+    line-height: 1.5;
+}
+
+.sidebar-tree .toctree-l1>.reference, .toc-tree li.scroll-current>.reference {
+    font-weight: 400;
+}
+
+/** List styling   **/
+ol, ul {
+    margin-bottom: 1.5rem;
+    margin-left: 1rem;
+    margin-top: 0;
+    padding-left: 1rem;
+}
+
+/** Table styling **/
+
+th.head {
+    text-transform: uppercase;
+    font-size: var(--font-size--small);
+}
+
+table.docutils {
+    border: 0;
+    box-shadow: none;
+    width:100%;
+}
+
+table.docutils td, table.docutils th, table.docutils td:last-child, table.docutils th:last-child, table.docutils td:first-child, table.docutils th:first-child {
+    border-right: none;
+    border-left: none;
+}
+
+/* center align table cells with ":-:" */
+td.text-center {
+    text-align: center;
+}
+
+/** No rounded corners **/
+
+.admonition, code.literal, .sphinx-tabs-tab, .sphinx-tabs-panel, .highlight {
+    border-radius: 0;
+}
+
+/** code blocks and literals **/
+code.docutils.literal.notranslate, .highlight pre, pre.literal-block {
+    font-size: var(--font-size--medium);
+    border: none;
+}
+
+
+/** Admonition styling **/
+
+.admonition {
+    font-size: var(--font-size--medium);
+    box-shadow: none;
+}
+
+/** Styling for links **/
+/* unvisited link */
+a:link {
+    color: #06c;
+    text-decoration: none;
+}
+
+/* visited link */
+a:visited {
+    color: #7d42b8;
+    text-decoration: none;
+}
+
+/* mouse over link */
+a:hover {
+    text-decoration: underline;
+}
+
+/* selected link */
+a:active {
+    text-decoration: underline;
+}
+
+a.sidebar-brand.centered {
+    text-decoration: none;
+}
+
+/** Color for the "copy link" symbol next to headings **/
+
+a.headerlink {
+    color: var(--color-brand-primary);
+}
+
+/** Line to the left of the current navigation entry **/
+
+.sidebar-tree li.current-page {
+    border-left: 2px solid var(--color-brand-primary);
+}
+
+/** Some tweaks for issue #16 **/
+
+[role="tablist"] {
+    border-bottom: 1px solid var(--color-sidebar-item-background--hover);
+}
+
+.sphinx-tabs-tab[aria-selected="true"] {
+    border: 0;
+    border-bottom: 2px solid var(--color-brand-primary);
+    background-color: var(--color-sidebar-item-background--current);
+    font-weight:300;
+}
+
+.sphinx-tabs-tab{
+    color: var(--color-brand-primary);
+    font-weight:300;
+}
+
+.sphinx-tabs-panel {
+    border: 0;
+    border-bottom: 1px solid var(--color-sidebar-item-background--hover);
+    background: var(--color-background-primary);
+}
+
+button.sphinx-tabs-tab:hover {
+    background-color: var(--color-sidebar-item-background--hover);
+}
+
+/** Custom classes to fix scrolling in tables by decreasing the
+    font size or breaking certain columns.
+    Specify the classes in the Markdown file with, for example:
+    ```{rst-class} break-col-4 min-width-4-8
+    ```
+**/
+
+table.dec-font-size {
+    font-size: smaller;
+}
+table.break-col-1 td.text-left:first-child {
+    word-break: break-word;
+}
+table.break-col-4 td.text-left:nth-child(4) {
+    word-break: break-word;
+}
+table.min-width-1-15 td.text-left:first-child {
+    min-width: 15em;
+}
+table.min-width-4-8 td.text-left:nth-child(4) {
+    min-width: 8em;
+}
+
+/** Underline for abbreviations **/
+
+abbr[title] {
+    text-decoration: underline solid #cdcdcd;
+}
+
+/** Use the same style for right-details as for left-details **/
+.bottom-of-page .right-details {
+    font-size: var(--font-size--small);
+    display: block;
+}
+
+/** Version switcher */
+button.version_select {
+  color: var(--color-foreground-primary);
+  background-color: var(--color-toc-background);
+  padding: 5px 10px;
+  border: none;
+}
+
+.version_select:hover, .version_select:focus {
+    background-color: var(--color-sidebar-item-background--hover);
+}
+
+.version_dropdown {
+  position: relative;
+  display: inline-block;
+  text-align: right;
+  font-size: var(--sidebar-item-font-size);
+}
+
+.available_versions {
+  display: none;
+  position: absolute;
+  right: 0px;
+  background-color: var(--color-toc-background);
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  z-index: 11;
+}
+
+.available_versions a {
+  color: var(--color-foreground-primary);
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+}
+
+.available_versions a:hover {background-color: var(--color-sidebar-item-background--current)}
+
+.show {display:block;}
+
+/** Fix for nested numbered list - the nested list is lettered **/
+ol.arabic ol.arabic {
+  list-style: lower-alpha;
+}
+
+/** Make expandable sections look like links **/
+details summary {
+    color: var(--color-link);
+}
+
+/** Context links at the bottom of the page **/
+footer, .page-info .context {
+    font-size: var(--font-size--medium);
+}

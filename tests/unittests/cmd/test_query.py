@@ -6,33 +6,37 @@ import json
 import os
 from collections import namedtuple
 from io import BytesIO
+from pathlib import Path
 from textwrap import dedent
 
 import pytest
 
+from cloudinit.atomic_helper import b64e
 from cloudinit.cmd import query
 from cloudinit.helpers import Paths
-from cloudinit.sources import (
-    INSTANCE_JSON_FILE,
-    INSTANCE_JSON_SENSITIVE_FILE,
-    REDACT_SENSITIVE_VALUE,
-)
-from cloudinit.util import b64e, write_file
+from cloudinit.sources import REDACT_SENSITIVE_VALUE
+from cloudinit.templater import JinjaSyntaxParsingException
+from cloudinit.util import write_file
 from tests.unittests.helpers import mock
+
+M_PATH = "cloudinit.cmd.query."
 
 
 def _gzip_data(data):
     with BytesIO() as iobuf:
-        with gzip.GzipFile(mode="wb", fileobj=iobuf) as gzfp:
+        with gzip.GzipFile(mode="wb", fileobj=iobuf, mtime=0) as gzfp:
             gzfp.write(data)
         return iobuf.getvalue()
 
 
-@mock.patch("cloudinit.cmd.query.addLogHandlerCLI", lambda *args: "")
-class TestQuery:
+@pytest.fixture(autouse=True)
+def setup_mocks(mocker):
+    mocker.patch("cloudinit.cmd.query.read_cfg_paths", return_value=Paths({}))
 
-    args = namedtuple(
-        "queryargs",
+
+class TestQuery:
+    Args = namedtuple(
+        "Args",
         "debug dump_all format instance_data list_keys user_data vendor_data"
         " varname",
     )
@@ -70,7 +74,7 @@ class TestQuery:
 
     def test_handle_args_error_on_missing_param(self, caplog, capsys):
         """Error when missing required parameters and print usage."""
-        args = self.args(
+        args = self.Args(
             debug=False,
             dump_all=False,
             format=None,
@@ -80,10 +84,7 @@ class TestQuery:
             vendor_data=None,
             varname=None,
         )
-        with mock.patch(
-            "cloudinit.cmd.query.addLogHandlerCLI", return_value=""
-        ) as m_cli_log:
-            assert 1 == query.handle_args("anyname", args)
+        assert 1 == query.handle_args("anyname", args)
         expected_error = (
             "Expected one of the options: --all, --format, --list-keys"
             " or varname\n"
@@ -91,7 +92,6 @@ class TestQuery:
         assert expected_error in caplog.text
         out, _err = capsys.readouterr()
         assert "usage: query" in out
-        assert 1 == m_cli_log.call_count
 
     @pytest.mark.parametrize(
         "inst_data,varname,expected_error",
@@ -108,13 +108,13 @@ class TestQuery:
             ),
         ),
     )
-    def test_handle_args_error_on_invalid_vaname_paths(
+    def test_handle_args_error_on_invalid_varname_paths(
         self, inst_data, varname, expected_error, caplog, tmpdir
     ):
         """Error when varname is not a valid instance-data variable path."""
         instance_data = tmpdir.join("instance-data")
         instance_data.write(inst_data)
-        args = self.args(
+        args = self.Args(
             debug=False,
             dump_all=False,
             format=None,
@@ -125,20 +125,17 @@ class TestQuery:
             varname=varname,
         )
         paths, _, _, _ = self._setup_paths(tmpdir)
-        with mock.patch("cloudinit.cmd.query.read_cfg_paths") as m_paths:
+        with mock.patch(M_PATH + "read_cfg_paths") as m_paths:
             m_paths.return_value = paths
-            with mock.patch(
-                "cloudinit.cmd.query.addLogHandlerCLI", return_value=""
-            ):
-                with mock.patch("cloudinit.cmd.query.load_userdata") as m_lud:
-                    m_lud.return_value = "ud"
-                    assert 1 == query.handle_args("anyname", args)
+            with mock.patch(M_PATH + "load_userdata") as m_lud:
+                m_lud.return_value = "ud"
+                assert 1 == query.handle_args("anyname", args)
         assert expected_error in caplog.text
 
     def test_handle_args_error_on_missing_instance_data(self, caplog, tmpdir):
         """When instance_data file path does not exist, log an error."""
         absent_fn = tmpdir.join("absent")
-        args = self.args(
+        args = self.Args(
             debug=False,
             dump_all=True,
             format=None,
@@ -159,7 +156,7 @@ class TestQuery:
         """When instance_data file is unreadable, log an error."""
         noread_fn = tmpdir.join("unreadable")
         noread_fn.write("thou shall not pass")
-        args = self.args(
+        args = self.Args(
             debug=False,
             dump_all=True,
             format=None,
@@ -169,15 +166,25 @@ class TestQuery:
             vendor_data="vd",
             varname=None,
         )
-        with mock.patch("cloudinit.cmd.query.util.load_file") as m_load:
+        with mock.patch(M_PATH + "util.load_binary_file") as m_load:
             m_load.side_effect = OSError(errno.EACCES, "Not allowed")
             assert 1 == query.handle_args("anyname", args)
         msg = "No read permission on '%s'. Try sudo" % noread_fn
         assert msg in caplog.text
 
-    def test_handle_args_defaults_instance_data(self, caplog, tmpdir):
-        """When no instance_data argument, default to configured run_dir."""
-        args = self.args(
+    @pytest.mark.parametrize(
+        "exception",
+        [
+            (OSError(errno.EACCES, "Not allowed"),),
+            (OSError(errno.ENOENT, "Not allowed"),),
+            (IOError,),
+        ],
+    )
+    def test_handle_args_error_when_no_read_permission_init_cfg(
+        self, exception, capsys
+    ):
+        """query.handle_status_args exists with 1 and no sys-output."""
+        args = self.Args(
             debug=False,
             dump_all=True,
             format=None,
@@ -187,17 +194,39 @@ class TestQuery:
             vendor_data=None,
             varname=None,
         )
-        paths, run_dir, _, _ = self._setup_paths(tmpdir)
-        with mock.patch("cloudinit.cmd.query.read_cfg_paths") as m_paths:
+        with mock.patch(
+            M_PATH + "read_cfg_paths",
+            side_effect=exception,
+        ) as m_read_cfg_paths:
+            query.handle_args("anyname", args)
+        assert m_read_cfg_paths.call_count == 1
+        out, err = capsys.readouterr()
+        assert not out
+        assert not err
+
+    def test_handle_args_defaults_instance_data(self, caplog, tmpdir):
+        """When no instance_data argument, default to configured run_dir."""
+        args = self.Args(
+            debug=False,
+            dump_all=True,
+            format=None,
+            instance_data=None,
+            list_keys=False,
+            user_data=None,
+            vendor_data=None,
+            varname=None,
+        )
+        paths, _, _, _ = self._setup_paths(tmpdir)
+        with mock.patch(M_PATH + "read_cfg_paths") as m_paths:
             m_paths.return_value = paths
             assert 1 == query.handle_args("anyname", args)
-        json_file = run_dir.join(INSTANCE_JSON_FILE)
-        msg = "Missing instance-data file: %s" % json_file.strpath
+        json_file = paths.get_runpath("instance_data")
+        msg = f"Missing instance-data file: {json_file}"
         assert msg in caplog.text
 
     def test_handle_args_root_fallsback_to_instance_data(self, caplog, tmpdir):
         """When no instance_data argument, root falls back to redacted json."""
-        args = self.args(
+        args = self.Args(
             debug=False,
             dump_all=True,
             format=None,
@@ -207,17 +236,17 @@ class TestQuery:
             vendor_data=None,
             varname=None,
         )
-        paths, run_dir, _, _ = self._setup_paths(tmpdir)
-        with mock.patch("cloudinit.cmd.query.read_cfg_paths") as m_paths:
+        paths, _, _, _ = self._setup_paths(tmpdir)
+        with mock.patch(M_PATH + "read_cfg_paths") as m_paths:
             m_paths.return_value = paths
             with mock.patch("os.getuid") as m_getuid:
                 m_getuid.return_value = 0
                 assert 1 == query.handle_args("anyname", args)
-        json_file = run_dir.join(INSTANCE_JSON_FILE)
-        sensitive_file = run_dir.join(INSTANCE_JSON_SENSITIVE_FILE)
-        msg = "Missing root-readable %s. Using redacted %s instead." % (
-            sensitive_file.strpath,
-            json_file.strpath,
+        json_file = paths.get_runpath("instance_data")
+        sensitive_file = paths.get_runpath("instance_data_sensitive")
+        msg = (
+            f"Missing root-readable {sensitive_file}. "
+            f"Using redacted {json_file} instead."
         )
         assert msg in caplog.text
 
@@ -234,12 +263,12 @@ class TestQuery:
         self, ud_src, ud_expected, vd_src, vd_expected, capsys, tmpdir
     ):
         """Support reading multiple user-data file content types"""
-        paths, run_dir, user_data, vendor_data = self._setup_paths(
+        paths, _, user_data, vendor_data = self._setup_paths(
             tmpdir, ud_val=ud_src, vd_val=vd_src
         )
-        sensitive_file = run_dir.join(INSTANCE_JSON_SENSITIVE_FILE)
-        sensitive_file.write('{"my-var": "it worked"}')
-        args = self.args(
+        sensitive_file = Path(paths.get_runpath("instance_data_sensitive"))
+        sensitive_file.write_text('{"my-var": "it worked"}')
+        args = self.Args(
             debug=False,
             dump_all=True,
             format=None,
@@ -249,7 +278,7 @@ class TestQuery:
             vendor_data=vendor_data.strpath,
             varname=None,
         )
-        with mock.patch("cloudinit.cmd.query.read_cfg_paths") as m_paths:
+        with mock.patch(M_PATH + "read_cfg_paths") as m_paths:
             m_paths.return_value = paths
             with mock.patch("os.getuid") as m_getuid:
                 m_getuid.return_value = 0
@@ -268,16 +297,16 @@ class TestQuery:
         self, capsys, tmpdir
     ):
         """When no instance_data argument, root uses sensitive json."""
-        paths, run_dir, _, _ = self._setup_paths(tmpdir)
-        sensitive_file = run_dir.join(INSTANCE_JSON_SENSITIVE_FILE)
-        sensitive_file.write('{"my-var": "it worked"}')
+        paths, _, _, _ = self._setup_paths(tmpdir)
+        sensitive_file = Path(paths.get_runpath("instance_data_sensitive"))
+        sensitive_file.write_text('{"my-var": "it worked"}')
 
         ud_path = os.path.join(paths.instance_link, "user-data.txt")
         write_file(ud_path, "instance_link_ud")
         vd_path = os.path.join(paths.instance_link, "vendor-data.txt")
         write_file(vd_path, "instance_link_vd")
 
-        args = self.args(
+        args = self.Args(
             debug=False,
             dump_all=True,
             format=None,
@@ -287,12 +316,12 @@ class TestQuery:
             vendor_data=None,
             varname=None,
         )
-        with mock.patch("cloudinit.cmd.query.read_cfg_paths") as m_paths:
+        with mock.patch(M_PATH + "read_cfg_paths") as m_paths:
             m_paths.return_value = paths
             with mock.patch("os.getuid", return_value=0):
                 assert 0 == query.handle_args("anyname", args)
         expected = (
-            '{\n "my-var": "it worked",\n '
+            '{\n "combined_cloud_config": null,\n "my-var": "it worked",\n '
             '"userdata": "instance_link_ud",\n '
             '"vendordata": "instance_link_vd"\n}\n'
         )
@@ -303,12 +332,12 @@ class TestQuery:
         self, capsys, tmpdir
     ):
         """When no instance_data argument, root uses sensitive json."""
-        paths, run_dir, user_data, vendor_data = self._setup_paths(
+        paths, _, user_data, vendor_data = self._setup_paths(
             tmpdir, ud_val="ud", vd_val="vd"
         )
-        sensitive_file = run_dir.join(INSTANCE_JSON_SENSITIVE_FILE)
-        sensitive_file.write('{"my-var": "it worked"}')
-        args = self.args(
+        sensitive_file = Path(paths.get_runpath("instance_data_sensitive"))
+        sensitive_file.write_text('{"my-var": "it worked"}')
+        args = self.Args(
             debug=False,
             dump_all=True,
             format=None,
@@ -318,13 +347,13 @@ class TestQuery:
             vendor_data=vendor_data.strpath,
             varname=None,
         )
-        with mock.patch("cloudinit.cmd.query.read_cfg_paths") as m_paths:
+        with mock.patch(M_PATH + "read_cfg_paths") as m_paths:
             m_paths.return_value = paths
             with mock.patch("os.getuid") as m_getuid:
                 m_getuid.return_value = 0
                 assert 0 == query.handle_args("anyname", args)
         expected = (
-            '{\n "my-var": "it worked",\n '
+            '{\n "combined_cloud_config": null,\n "my-var": "it worked",\n '
             '"userdata": "ud",\n "vendordata": "vd"\n}\n'
         )
         out, _err = capsys.readouterr()
@@ -334,7 +363,7 @@ class TestQuery:
         """When --all is specified query will dump all instance data vars."""
         instance_data = tmpdir.join("instance-data")
         instance_data.write('{"my-var": "it worked"}')
-        args = self.args(
+        args = self.Args(
             debug=False,
             dump_all=True,
             format=None,
@@ -348,7 +377,9 @@ class TestQuery:
             m_getuid.return_value = 100
             assert 0 == query.handle_args("anyname", args)
         expected = (
-            '{\n "my-var": "it worked",\n "userdata": "<%s> file:ud",\n'
+            '{\n "combined_cloud_config": "<redacted for non-root user> file:'
+            '/run/cloud-init/combined-cloud-config.json",\n "my-var":'
+            ' "it worked",\n "userdata": "<%s> file:ud",\n'
             ' "vendordata": "<%s> file:vd"\n}\n'
             % (REDACT_SENSITIVE_VALUE, REDACT_SENSITIVE_VALUE)
         )
@@ -359,7 +390,7 @@ class TestQuery:
         """When the argument varname is passed, report its value."""
         instance_data = tmpdir.join("instance-data")
         instance_data.write('{"my-var": "it worked"}')
-        args = self.args(
+        args = self.Args(
             debug=False,
             dump_all=True,
             format=None,
@@ -398,7 +429,7 @@ class TestQuery:
         """If user_data file is a jinja template render instance-data vars."""
         instance_data = tmpdir.join("instance-data")
         instance_data.write(inst_data)
-        args = self.args(
+        args = self.Args(
             debug=False,
             dump_all=False,
             format=None,
@@ -426,6 +457,7 @@ class TestQuery:
         expected = dedent(
             """\
             {
+             "combined_cloud_config": "<redacted for non-root user> %s",
              "top": "gun",
              "userdata": "<redacted for non-root user> file:ud",
              "v1": {
@@ -439,8 +471,9 @@ class TestQuery:
              "vendordata": "<redacted for non-root user> file:vd"
             }
         """
+            % "file:/run/cloud-init/combined-cloud-config.json"
         )
-        args = self.args(
+        args = self.Args(
             debug=False,
             dump_all=True,
             format=None,
@@ -465,8 +498,11 @@ class TestQuery:
             '{"v1": {"v1_1": "val1.1"}, "v2": {"v2_2": "val2.2"},'
             ' "top": "gun"}'
         )
-        expected = "top\nuserdata\nv1\nv1_1\nv2\nv2_2\nvendordata\n"
-        args = self.args(
+        expected = (
+            "combined_cloud_config\ntop\nuserdata\nv1\nv1_1\nv2\nv2_2\n"
+            "vendordata\n"
+        )
+        args = self.Args(
             debug=False,
             dump_all=False,
             format=None,
@@ -489,10 +525,10 @@ class TestQuery:
         instance_data = tmpdir.join("instance-data")
         instance_data.write(
             '{"v1": {"v1_1": "val1.1", "v1_2": "val1.2"}, "v2":'
-            + ' {"v2_2": "val2.2"}, "top": "gun"}'
+            ' {"v2_2": "val2.2"}, "top": "gun"}'
         )
         expected = "v1_1\nv1_2\n"
-        args = self.args(
+        args = self.Args(
             debug=False,
             dump_all=False,
             format=None,
@@ -515,10 +551,10 @@ class TestQuery:
         instance_data = tmpdir.join("instance-data")
         instance_data.write(
             '{"v1": {"v1_1": "val1.1", "v1_2": "val1.2"}, "v2": '
-            + '{"v2_2": "val2.2"}, "top": "gun"}'
+            '{"v2_2": "val2.2"}, "top": "gun"}'
         )
         expected_error = "--list-keys provided but 'top' is not a dict"
-        args = self.args(
+        args = self.Args(
             debug=False,
             dump_all=False,
             format=None,
@@ -533,5 +569,66 @@ class TestQuery:
             assert 1 == query.handle_args("anyname", args)
         assert expected_error in caplog.text
 
+    @pytest.mark.parametrize(
+        "header_included",
+        [True, False],
+    )
+    def test_handle_args_formats_jinja_successfully(
+        self, caplog, tmpdir, capsys, header_included
+    ):
+        """Test that rendering a jinja template works as expected."""
+        instance_data = tmpdir.join("instance-data")
+        instance_data.write(
+            '{"v1": {"v1_1": "val1.1", "v1_2": "val1.2"}, "v2": '
+            '{"v2_2": "val2.2"}, "top": "gun"}'
+        )
+        header = "## template: jinja\n" if header_included else ""
+        format = header + "v1_1: {{ v1.v1_1 }}"
+        expected = header + "v1_1: val1.1\n"
 
-# vi: ts=4 expandtab
+        args = self.Args(
+            debug=False,
+            dump_all=False,
+            format=format,
+            instance_data=instance_data.strpath,
+            list_keys=False,
+            user_data="ud",
+            vendor_data="vd",
+            varname=None,
+        )
+        with mock.patch("os.getuid") as m_getuid:
+            m_getuid.return_value = 100
+            assert 0 == query.handle_args("anyname", args)
+        out, _err = capsys.readouterr()
+        assert expected == out
+
+    def test_handle_args_invalid_jinja_exception(self, caplog, tmpdir, capsys):
+        """Raise an error when a jinja syntax error is encountered."""
+        instance_data = tmpdir.join("instance-data")
+        instance_data.write(
+            '{"v1": {"v1_1": "val1.1", "v1_2": "val1.2"}, "v2": '
+            '{"v2_2": "val2.2"}, "top": "gun"}'
+        )
+        format = "v1_1: {{ v1.v1_1 } }"
+        expected_error = (
+            "Failed to render templated data. "
+            + JinjaSyntaxParsingException.format_error_message(
+                syntax_error="unexpected '}'",
+                line_number=2,
+                line_content="v1_1: {{ v1.v1_1 } }",
+            )
+        )
+        args = self.Args(
+            debug=False,
+            dump_all=False,
+            format=format,
+            instance_data=instance_data.strpath,
+            list_keys=False,
+            user_data="ud",
+            vendor_data="vd",
+            varname=None,
+        )
+        with mock.patch("os.getuid") as m_getuid:
+            m_getuid.return_value = 100
+            assert 1 == query.handle_args("anyname", args)
+        assert expected_error in caplog.text

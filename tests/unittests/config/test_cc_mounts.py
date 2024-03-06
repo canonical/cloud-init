@@ -1,12 +1,26 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import math
 import os.path
+import re
+from collections import namedtuple
 from unittest import mock
 
 import pytest
+from pytest import approx
 
 from cloudinit.config import cc_mounts
-from cloudinit.config.cc_mounts import create_swapfile
+from cloudinit.config.cc_mounts import (
+    GB,
+    MB,
+    create_swapfile,
+    suggested_swapsize,
+)
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
 from cloudinit.subp import ProcessExecutionError
 from tests.unittests import helpers as test_helpers
 
@@ -50,7 +64,7 @@ class TestSanitizeDevname(test_helpers.FilesystemMockingTestCase):
         self.mock_existence_of_disk(disk_path)
         self.assertEqual(
             disk_path,
-            cc_mounts.sanitize_devname(disk_path, lambda x: None, mock.Mock()),
+            cc_mounts.sanitize_devname(disk_path, lambda x: None),
         )
 
     def test_existent_disk_name_returns_full_path(self):
@@ -59,7 +73,7 @@ class TestSanitizeDevname(test_helpers.FilesystemMockingTestCase):
         self.mock_existence_of_disk(disk_path)
         self.assertEqual(
             disk_path,
-            cc_mounts.sanitize_devname(disk_name, lambda x: None, mock.Mock()),
+            cc_mounts.sanitize_devname(disk_name, lambda x: None),
         )
 
     def test_existent_meta_disk_is_returned(self):
@@ -68,7 +82,8 @@ class TestSanitizeDevname(test_helpers.FilesystemMockingTestCase):
         self.assertEqual(
             actual_disk_path,
             cc_mounts.sanitize_devname(
-                "ephemeral0", lambda x: actual_disk_path, mock.Mock()
+                "ephemeral0",
+                lambda x: actual_disk_path,
             ),
         )
 
@@ -79,7 +94,8 @@ class TestSanitizeDevname(test_helpers.FilesystemMockingTestCase):
         self.assertEqual(
             actual_partition_path,
             cc_mounts.sanitize_devname(
-                "ephemeral0.1", lambda x: disk_name, mock.Mock()
+                "ephemeral0.1",
+                lambda x: disk_name,
             ),
         )
 
@@ -90,7 +106,8 @@ class TestSanitizeDevname(test_helpers.FilesystemMockingTestCase):
         self.assertEqual(
             actual_partition_path,
             cc_mounts.sanitize_devname(
-                "ephemeral0.1", lambda x: disk_name, mock.Mock()
+                "ephemeral0.1",
+                lambda x: disk_name,
             ),
         )
 
@@ -101,7 +118,8 @@ class TestSanitizeDevname(test_helpers.FilesystemMockingTestCase):
         self.assertEqual(
             actual_partition_path,
             cc_mounts.sanitize_devname(
-                "ephemeral0", lambda x: disk_name, mock.Mock()
+                "ephemeral0",
+                lambda x: disk_name,
             ),
         )
 
@@ -112,27 +130,35 @@ class TestSanitizeDevname(test_helpers.FilesystemMockingTestCase):
         self.assertEqual(
             actual_partition_path,
             cc_mounts.sanitize_devname(
-                "ephemeral0.3", lambda x: disk_name, mock.Mock()
+                "ephemeral0.3",
+                lambda x: disk_name,
             ),
         )
 
     def test_transformer_returning_none_returns_none(self):
         self.assertIsNone(
             cc_mounts.sanitize_devname(
-                "ephemeral0", lambda x: None, mock.Mock()
+                "ephemeral0",
+                lambda x: None,
             )
         )
 
     def test_missing_device_returns_none(self):
         self.assertIsNone(
-            cc_mounts.sanitize_devname("/dev/sda", None, mock.Mock())
+            cc_mounts.sanitize_devname(
+                "/dev/sda",
+                None,
+            )
         )
 
     def test_missing_sys_returns_none(self):
         disk_path = "/dev/sda"
         self._makedirs(disk_path)
         self.assertIsNone(
-            cc_mounts.sanitize_devname(disk_path, None, mock.Mock())
+            cc_mounts.sanitize_devname(
+                disk_path,
+                None,
+            )
         )
 
     def test_existent_disk_but_missing_partition_returns_none(self):
@@ -140,14 +166,19 @@ class TestSanitizeDevname(test_helpers.FilesystemMockingTestCase):
         self.mock_existence_of_disk(disk_path)
         self.assertIsNone(
             cc_mounts.sanitize_devname(
-                "ephemeral0.1", lambda x: disk_path, mock.Mock()
+                "ephemeral0.1",
+                lambda x: disk_path,
             )
         )
 
     def test_network_device_returns_network_device(self):
         disk_path = "netdevice:/path"
         self.assertEqual(
-            disk_path, cc_mounts.sanitize_devname(disk_path, None, mock.Mock())
+            disk_path,
+            cc_mounts.sanitize_devname(
+                disk_path,
+                None,
+            ),
         )
 
     def test_device_aliases_remapping(self):
@@ -156,7 +187,7 @@ class TestSanitizeDevname(test_helpers.FilesystemMockingTestCase):
         self.assertEqual(
             disk_path,
             cc_mounts.sanitize_devname(
-                "mydata", lambda x: None, mock.Mock(), {"mydata": disk_path}
+                "mydata", lambda x: None, {"mydata": disk_path}
             ),
         )
 
@@ -225,7 +256,7 @@ class TestSwapFileCreation(test_helpers.FilesystemMockingTestCase):
         m_kernel_version.return_value = (4, 20)
         m_get_mount_info.return_value = ["", "xfs"]
 
-        cc_mounts.handle(None, self.cc, self.mock_cloud, self.mock_log, [])
+        cc_mounts.handle(None, self.cc, self.mock_cloud, [])
         self.m_subp_subp.assert_has_calls(
             [
                 mock.call(
@@ -244,7 +275,7 @@ class TestSwapFileCreation(test_helpers.FilesystemMockingTestCase):
         m_kernel_version.return_value = (3, 18)
         m_get_mount_info.return_value = ["", "xfs"]
 
-        cc_mounts.handle(None, self.cc, self.mock_cloud, self.mock_log, [])
+        cc_mounts.handle(None, self.cc, self.mock_cloud, [])
         self.m_subp_subp.assert_has_calls(
             [
                 mock.call(
@@ -270,17 +301,13 @@ class TestSwapFileCreation(test_helpers.FilesystemMockingTestCase):
         m_kernel_version.return_value = (4, 20)
         m_get_mount_info.return_value = ["", "btrfs"]
 
-        cc_mounts.handle(None, self.cc, self.mock_cloud, self.mock_log, [])
+        cc_mounts.handle(None, self.cc, self.mock_cloud, [])
         self.m_subp_subp.assert_has_calls(
             [
+                mock.call(["truncate", "-s", "0", self.swap_path]),
+                mock.call(["chattr", "+C", self.swap_path]),
                 mock.call(
-                    [
-                        "dd",
-                        "if=/dev/zero",
-                        "of=" + self.swap_path,
-                        "bs=1M",
-                        "count=0",
-                    ],
+                    ["fallocate", "-l", "0M", self.swap_path],
                     capture=True,
                 ),
                 mock.call(["mkswap", self.swap_path]),
@@ -296,7 +323,7 @@ class TestSwapFileCreation(test_helpers.FilesystemMockingTestCase):
         m_kernel_version.return_value = (5, 14)
         m_get_mount_info.return_value = ["", "ext4"]
 
-        cc_mounts.handle(None, self.cc, self.mock_cloud, self.mock_log, [])
+        cc_mounts.handle(None, self.cc, self.mock_cloud, [])
         self.m_subp_subp.assert_has_calls(
             [
                 mock.call(
@@ -309,7 +336,6 @@ class TestSwapFileCreation(test_helpers.FilesystemMockingTestCase):
 
 
 class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
-
     swap_path = "/dev/sdb1"
 
     def setUp(self):
@@ -371,7 +397,7 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
             "%s\tnone\tswap\tsw,comment=cloudconfig\t0\t0\n"
             % (self.swap_path,)
         )
-        cc_mounts.handle(None, {}, self.mock_cloud, self.mock_log, [])
+        cc_mounts.handle(None, {}, self.mock_cloud, [])
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
             self.assertEqual(fstab_expected_content, fstab_new_content)
@@ -386,7 +412,7 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
         with open(cc_mounts.FSTAB_PATH, "w") as fd:
             fd.write(fstab)
         cc = {"swap": ["filename: /swap.img", "size: 512", "maxsize: 512"]}
-        cc_mounts.handle(None, cc, self.mock_cloud, self.mock_log, [])
+        cc_mounts.handle(None, cc, self.mock_cloud, [])
 
     def test_fstab_no_swap_device(self):
         """Ensure that cloud-init adds a discovered swap partition
@@ -401,7 +427,7 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
         with open(cc_mounts.FSTAB_PATH, "w") as fd:
             fd.write(fstab_original_content)
 
-        cc_mounts.handle(None, {}, self.mock_cloud, self.mock_log, [])
+        cc_mounts.handle(None, {}, self.mock_cloud, [])
 
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
@@ -419,7 +445,7 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
         with open(cc_mounts.FSTAB_PATH, "w") as fd:
             fd.write(fstab_original_content)
 
-        cc_mounts.handle(None, {}, self.mock_cloud, self.mock_log, [])
+        cc_mounts.handle(None, {}, self.mock_cloud, [])
 
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
@@ -440,7 +466,7 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
         with open(cc_mounts.FSTAB_PATH, "w") as fd:
             fd.write(fstab_original_content)
 
-        cc_mounts.handle(None, {}, self.mock_cloud, self.mock_log, [])
+        cc_mounts.handle(None, {}, self.mock_cloud, [])
 
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
@@ -460,7 +486,7 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
             self.assertEqual(fstab_expected_content, fstab_new_content)
-        cc_mounts.handle(None, cc, self.mock_cloud, self.mock_log, [])
+        cc_mounts.handle(None, cc, self.mock_cloud, [])
         self.m_subp_subp.assert_has_calls(
             [
                 mock.call(["mount", "-a"]),
@@ -473,13 +499,17 @@ class TestCreateSwapfile:
     @pytest.mark.parametrize("fstype", ("xfs", "btrfs", "ext4", "other"))
     @mock.patch(M_PATH + "util.get_mount_info")
     @mock.patch(M_PATH + "subp.subp")
-    def test_happy_path(self, m_subp, m_get_mount_info, fstype, tmpdir):
+    @mock.patch(M_PATH + "util.kernel_version")
+    def test_happy_path(
+        self, m_kernel_version, m_subp, m_get_mount_info, fstype, tmpdir
+    ):
         swap_file = tmpdir.join("swap-file")
         fname = str(swap_file)
 
         # Some of the calls to subp.subp should create the swap file; this
         # roughly approximates that
         m_subp.side_effect = lambda *args, **kwargs: swap_file.write("")
+        m_kernel_version.return_value = (4, 31)
 
         m_get_mount_info.return_value = (mock.ANY, fstype)
 
@@ -518,5 +548,92 @@ class TestCreateSwapfile:
         msg = "fallocate swap creation failed, will attempt with dd"
         assert msg in caplog.text
 
+    # See https://help.ubuntu.com/community/SwapFaq
+    @pytest.mark.parametrize(
+        "memsize,expected",
+        [
+            (256 * MB, 256 * MB),
+            (512 * MB, 512 * MB),
+            (1 * GB, 1 * GB),
+            (2 * GB, 2 * GB),
+            (4 * GB, 4 * GB),
+            (8 * GB, 4 * GB),
+            (16 * GB, 4 * GB),
+            (32 * GB, 6 * GB),
+            (64 * GB, 8 * GB),
+            (128 * GB, 11 * GB),
+            (256 * GB, 16 * GB),
+            (512 * GB, 23 * GB),
+        ],
+    )
+    def test_suggested_swapsize(self, memsize, expected, mocker):
+        mock_stat = namedtuple("mock_stat", "f_frsize f_bfree")
+        mocker.patch(
+            "os.statvfs",
+            # Don't care about available disk space for the purposes of this
+            # test
+            return_value=mock_stat(math.inf, math.inf),
+        )
+        size = suggested_swapsize(memsize, math.inf, "dontcare")
+        assert expected == approx(size)
 
-# vi: ts=4 expandtab
+
+class TestMountsSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            # We expect to see one mount if provided in user-data.
+            (
+                {"mounts": []},
+                re.escape("mounts: [] ") + test_helpers.SCHEMA_EMPTY_ERROR,
+            ),
+            # Disallow less than 1 item per mount entry
+            (
+                {"mounts": [[]]},
+                re.escape("mounts.0: [] ") + test_helpers.SCHEMA_EMPTY_ERROR,
+            ),
+            # Disallow more than 6 items per mount entry
+            ({"mounts": [["1"] * 7]}, "mounts.0:.* is too long"),
+            # Disallow mount_default_fields will anything other than 6 items
+            (
+                {"mount_default_fields": ["1"] * 5},
+                "mount_default_fields:.* is too short",
+            ),
+            (
+                {"mount_default_fields": ["1"] * 7},
+                "mount_default_fields:.* is too long",
+            ),
+            (
+                {"swap": {"invalidprop": True}},
+                re.escape(
+                    "Additional properties are not allowed ('invalidprop'"
+                ),
+            ),
+            # Swap size/maxsize positive test cases
+            ({"swap": {"size": ".5T", "maxsize": ".5T"}}, None),
+            ({"swap": {"size": "1G", "maxsize": "1G"}}, None),
+            ({"swap": {"size": "200K", "maxsize": "200K"}}, None),
+            ({"swap": {"size": "10485760B", "maxsize": "10485760B"}}, None),
+            # Swap size/maxsize negative test cases
+            ({"swap": {"size": "1.5MB"}}, "swap.size:"),
+            (
+                {"swap": {"maxsize": "1.5MT"}},
+                re.escape("swap.maxsize: '1.5MT' does not match '^([0-9]+)?"),
+            ),
+            (
+                {"swap": {"maxsize": "..5T"}},
+                re.escape("swap.maxsize: '..5T' does not match '^([0-9]+)?"),
+            ),
+            (
+                {"swap": {"size": "K"}},
+                "swap.size: 'K' is not of type 'integer'",
+            ),
+        ],
+    )
+    @test_helpers.skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)

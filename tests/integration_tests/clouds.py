@@ -3,31 +3,41 @@ import datetime
 import logging
 import os.path
 import random
+import re
 import string
 from abc import ABC, abstractmethod
-from typing import Optional, Type
+from copy import deepcopy
+from typing import Type
 from uuid import UUID
 
 from pycloudlib import (
     EC2,
     GCE,
+    IBM,
     OCI,
     Azure,
     LXDContainer,
     LXDVirtualMachine,
     Openstack,
+    Qemu,
 )
-from pycloudlib.cloud import BaseCloud
+from pycloudlib.cloud import BaseCloud, ImageType
+from pycloudlib.ec2.instance import EC2Instance
 from pycloudlib.lxd.cloud import _BaseLXD
-from pycloudlib.lxd.instance import LXDInstance
+from pycloudlib.lxd.instance import BaseInstance, LXDInstance
 
 import cloudinit
 from cloudinit.subp import ProcessExecutionError, subp
 from tests.integration_tests import integration_settings
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.releases import CURRENT_RELEASE
 from tests.integration_tests.util import emit_dots_on_travis
 
 log = logging.getLogger("integration_testing")
+
+DISTRO_TO_USERNAME = {
+    "ubuntu": "ubuntu",
+}
 
 
 def _get_ubuntu_series() -> list:
@@ -43,57 +53,16 @@ def _get_ubuntu_series() -> list:
     return out.splitlines()
 
 
-class ImageSpecification:
-    """A specification of an image to launch for testing.
-
-    If either of ``os`` and ``release`` are not specified, an attempt will be
-    made to infer the correct values for these on instantiation.
-
-    :param image_id:
-        The image identifier used by the rest of the codebase to launch this
-        image.
-    :param os:
-        An optional string describing the operating system this image is for
-        (e.g.  "ubuntu", "rhel", "freebsd").
-    :param release:
-        A optional string describing the operating system release (e.g.
-        "focal", "8"; the exact values here will depend on the OS).
-    """
-
-    def __init__(
-        self,
-        image_id: str,
-        os: Optional[str] = None,
-        release: Optional[str] = None,
-    ):
-        if image_id in _get_ubuntu_series():
-            if os is None:
-                os = "ubuntu"
-            if release is None:
-                release = image_id
-
-        self.image_id = image_id
-        self.os = os
-        self.release = release
-        log.info(
-            "Detected image: image_id=%s os=%s release=%s",
-            self.image_id,
-            self.os,
-            self.release,
-        )
-
-    @classmethod
-    def from_os_image(cls):
-        """Return an ImageSpecification for integration_settings.OS_IMAGE."""
-        parts = integration_settings.OS_IMAGE.split("::", 2)
-        return cls(*parts)
-
-
 class IntegrationCloud(ABC):
     datasource: str
     cloud_instance: BaseCloud
 
-    def __init__(self, settings=integration_settings):
+    def __init__(
+        self,
+        image_type: ImageType = ImageType.GENERIC,
+        settings=integration_settings,
+    ):
+        self._image_type = image_type
         self.settings = settings
         self.cloud_instance: BaseCloud = self._get_cloud_instance()
         self.initial_image_id = self._get_initial_image()
@@ -118,20 +87,30 @@ class IntegrationCloud(ABC):
     def _get_cloud_instance(self):
         raise NotImplementedError
 
-    def _get_initial_image(self):
-        image = ImageSpecification.from_os_image()
-        try:
-            return self.cloud_instance.daily_image(image.image_id)
-        except (ValueError, IndexError):
-            return image.image_id
+    def _get_initial_image(self, **kwargs) -> str:
+        return CURRENT_RELEASE.image_id or self.cloud_instance.daily_image(
+            CURRENT_RELEASE.series, **kwargs
+        )
 
-    def _perform_launch(self, launch_kwargs, **kwargs):
+    def _maybe_wait(self, pycloudlib_instance, wait):
+        if wait:
+            try:
+                pycloudlib_instance.wait()
+            except Exception:
+                pycloudlib_instance.delete()
+                raise
+
+    def _perform_launch(
+        self, *, launch_kwargs, wait=True, **kwargs
+    ) -> BaseInstance:
         pycloudlib_instance = self.cloud_instance.launch(**launch_kwargs)
+        self._maybe_wait(pycloudlib_instance, wait)
         return pycloudlib_instance
 
     def launch(
         self,
         user_data=None,
+        wait=True,
         launch_kwargs=None,
         settings=integration_settings,
         **kwargs,
@@ -144,25 +123,37 @@ class IntegrationCloud(ABC):
                 "Instance id: %s",
                 self.settings.EXISTING_INSTANCE_ID,
             )
-            self.instance = self.cloud_instance.get_instance(
+            pycloudlib_instance = self.cloud_instance.get_instance(
                 self.settings.EXISTING_INSTANCE_ID
             )
-            return self.instance
+            instance = self.get_instance(pycloudlib_instance, settings)
+            return instance
         default_launch_kwargs = {
             "image_id": self.image_id,
             "user_data": user_data,
+            "username": DISTRO_TO_USERNAME[CURRENT_RELEASE.os],
         }
         launch_kwargs = {**default_launch_kwargs, **launch_kwargs}
+        display_launch_kwargs = deepcopy(launch_kwargs)
+        if display_launch_kwargs.get("user_data") is not None:
+            if "token" in display_launch_kwargs.get("user_data"):
+                display_launch_kwargs["user_data"] = re.sub(
+                    r"token: .*", "token: REDACTED", launch_kwargs["user_data"]
+                )
         log.info(
             "Launching instance with launch_kwargs:\n%s",
-            "\n".join("{}={}".format(*item) for item in launch_kwargs.items()),
+            "\n".join(
+                "{}={}".format(*item) for item in display_launch_kwargs.items()
+            ),
         )
 
         with emit_dots_on_travis():
-            pycloudlib_instance = self._perform_launch(launch_kwargs, **kwargs)
+            pycloudlib_instance = self._perform_launch(
+                wait=wait, launch_kwargs=launch_kwargs, **kwargs
+            )
         log.info("Launched instance: %s", pycloudlib_instance)
         instance = self.get_instance(pycloudlib_instance, settings)
-        if launch_kwargs.get("wait", True):
+        if wait:
             # If we aren't waiting, we can't rely on command execution here
             log.info(
                 "cloud-init version: %s",
@@ -173,11 +164,19 @@ class IntegrationCloud(ABC):
                 log.info("image serial: %s", serial.split()[1])
         return instance
 
-    def get_instance(self, cloud_instance, settings=integration_settings):
+    def get_instance(
+        self, cloud_instance, settings=integration_settings
+    ) -> IntegrationInstance:
         return IntegrationInstance(self, cloud_instance, settings)
 
     def destroy(self):
-        pass
+        if self.settings.KEEP_IMAGE or self.settings.KEEP_INSTANCE:
+            log.info(
+                "NOT cleaning cloud instance because KEEP_IMAGE or "
+                "KEEP_INSTANCE is True"
+            )
+        else:
+            self.cloud_instance.clean()
 
     def snapshot(self, instance):
         return self.cloud_instance.snapshot(instance, clean=True)
@@ -204,6 +203,35 @@ class Ec2Cloud(IntegrationCloud):
     def _get_cloud_instance(self):
         return EC2(tag="ec2-integration-test")
 
+    def _get_initial_image(self, **kwargs) -> str:
+        return super()._get_initial_image(
+            image_type=self._image_type, **kwargs
+        )
+
+    def _perform_launch(
+        self, *, launch_kwargs, wait=True, enable_ipv6=True, **kwargs
+    ) -> EC2Instance:
+        """Use a dual-stack VPC for cloud-init integration testing."""
+        if enable_ipv6:
+            if "vpc" not in launch_kwargs:
+                launch_kwargs["vpc"] = self.cloud_instance.get_or_create_vpc(
+                    name="ec2-cloud-init-integration"
+                )
+
+            # Enable IPv6 metadata at http://[fd00:ec2::254]
+            if "Ipv6AddressCount" not in launch_kwargs:
+                launch_kwargs["Ipv6AddressCount"] = 1
+            if "MetadataOptions" not in launch_kwargs:
+                launch_kwargs["MetadataOptions"] = {}
+            if "HttpProtocolIpv6" not in launch_kwargs["MetadataOptions"]:
+                launch_kwargs["MetadataOptions"] = {
+                    "HttpProtocolIpv6": "enabled"
+                }
+
+        pycloudlib_instance = self.cloud_instance.launch(**launch_kwargs)
+        self._maybe_wait(pycloudlib_instance, wait)
+        return pycloudlib_instance
+
 
 class GceCloud(IntegrationCloud):
     datasource = "gce"
@@ -213,6 +241,11 @@ class GceCloud(IntegrationCloud):
             tag="gce-integration-test",
         )
 
+    def _get_initial_image(self, **kwargs) -> str:
+        return super()._get_initial_image(
+            image_type=self._image_type, **kwargs
+        )
+
 
 class AzureCloud(IntegrationCloud):
     datasource = "azure"
@@ -220,6 +253,11 @@ class AzureCloud(IntegrationCloud):
 
     def _get_cloud_instance(self):
         return Azure(tag="azure-integration-test")
+
+    def _get_initial_image(self, **kwargs) -> str:
+        return super()._get_initial_image(
+            image_type=self._image_type, **kwargs
+        )
 
     def destroy(self):
         if self.settings.KEEP_INSTANCE:
@@ -263,7 +301,7 @@ class _LxdIntegrationCloud(IntegrationCloud):
                 "/etc/cloud/templates",
             ),
         ]
-        for (n, (source_path, target_path)) in enumerate(mounts):
+        for n, (source_path, target_path) in enumerate(mounts):
             format_variables = {
                 "name": instance.name,
                 "source_path": os.path.realpath(source_path),
@@ -282,13 +320,17 @@ class _LxdIntegrationCloud(IntegrationCloud):
             ).format(**format_variables)
             subp(command.split())
 
-    def _perform_launch(self, launch_kwargs, **kwargs):
-        launch_kwargs["inst_type"] = launch_kwargs.pop("instance_type", None)
-        wait = launch_kwargs.pop("wait", True)
-        release = launch_kwargs.pop("image_id")
+    def _perform_launch(
+        self, *, launch_kwargs, wait=True, **kwargs
+    ) -> LXDInstance:
+        instance_kwargs = deepcopy(launch_kwargs)
+        instance_kwargs["inst_type"] = instance_kwargs.pop(
+            "instance_type", None
+        )
+        release = instance_kwargs.pop("image_id")
 
         try:
-            profile_list = launch_kwargs["profile_list"]
+            profile_list = instance_kwargs["profile_list"]
         except KeyError:
             profile_list = self._get_or_set_profile_list(release)
 
@@ -297,10 +339,10 @@ class _LxdIntegrationCloud(IntegrationCloud):
             random.choices(string.ascii_lowercase + string.digits, k=8)
         )
         pycloudlib_instance = self.cloud_instance.init(
-            launch_kwargs.pop("name", default_name),
+            instance_kwargs.pop("name", default_name),
             release,
             profile_list=profile_list,
-            **launch_kwargs,
+            **instance_kwargs,
         )
         if self.settings.CLOUD_INIT_SOURCE == "IN_PLACE":
             self._mount_source(pycloudlib_instance)
@@ -342,15 +384,33 @@ class OpenstackCloud(IntegrationCloud):
             tag="openstack-integration-test",
         )
 
-    def _get_initial_image(self):
-        image = ImageSpecification.from_os_image()
+    def _get_initial_image(self, **kwargs):
         try:
-            UUID(image.image_id)
+            UUID(CURRENT_RELEASE.image_id)
         except ValueError as e:
-            raise Exception(
+            raise RuntimeError(
                 "When using Openstack, `OS_IMAGE` MUST be specified with "
                 "a 36-character UUID image ID. Passing in a release name is "
                 "not valid here.\n"
-                "OS image id: {}".format(image.image_id)
+                "OS image id: {}".format(CURRENT_RELEASE.image_id)
             ) from e
-        return image.image_id
+        return CURRENT_RELEASE.image_id
+
+
+class IbmCloud(IntegrationCloud):
+    datasource = "ibm"
+    cloud_instance: IBM
+
+    def _get_cloud_instance(self) -> IBM:
+        # Note: IBM image names starting with `ibm` are reserved.
+        return IBM(
+            tag="integration-test-ibm",
+        )
+
+
+class QemuCloud(IntegrationCloud):
+    datasource = "qemu"
+    cloud_instance = Qemu
+
+    def _get_cloud_instance(self):
+        return Qemu(tag="qemu-integration-test")

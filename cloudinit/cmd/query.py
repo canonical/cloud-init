@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Query standardized instance metadata provided to machine, returning a JSON
@@ -14,25 +16,23 @@ output; if this fails, they are treated as binary.
 """
 
 import argparse
+import logging
 import os
 import sys
 from errno import EACCES
 
-from cloudinit import log, util
-from cloudinit.cmd.devel import addLogHandlerCLI, read_cfg_paths
+from cloudinit import atomic_helper, util
+from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers.jinja_template import (
     convert_jinja_instance_data,
     get_jinja_variable_alias,
     render_jinja_payload,
 )
-from cloudinit.sources import (
-    INSTANCE_JSON_FILE,
-    INSTANCE_JSON_SENSITIVE_FILE,
-    REDACT_SENSITIVE_VALUE,
-)
+from cloudinit.sources import REDACT_SENSITIVE_VALUE
+from cloudinit.templater import JinjaSyntaxParsingException
 
 NAME = "query"
-LOG = log.getLogger(NAME)
+LOG = logging.getLogger(__name__)
 
 
 def get_parser(parser=None):
@@ -57,8 +57,10 @@ def get_parser(parser=None):
         "-i",
         "--instance-data",
         type=str,
-        help="Path to instance-data.json file. Default is /run/cloud-init/%s"
-        % INSTANCE_JSON_FILE,
+        help=(
+            "Path to instance-data.json file. Default is "
+            f"{read_cfg_paths().get_runpath('instance_data')}"
+        ),
     )
     parser.add_argument(
         "-l",
@@ -129,7 +131,7 @@ def load_userdata(ud_file_path):
 
     @returns: String of uncompressed userdata if possible, otherwise bytes.
     """
-    bdata = util.load_file(ud_file_path, decode=False)
+    bdata = util.load_binary_file(ud_file_path)
     try:
         return bdata.decode("utf-8")
     except UnicodeDecodeError:
@@ -148,18 +150,14 @@ def _read_instance_data(instance_data, user_data, vendor_data) -> dict:
     :raise: IOError/OSError on absence of instance-data.json file or invalid
         access perms.
     """
-    paths = None
     uid = os.getuid()
-    if not all([instance_data, user_data, vendor_data]):
-        paths = read_cfg_paths()
+    paths = read_cfg_paths()
     if instance_data:
         instance_data_fn = instance_data
     else:
-        redacted_data_fn = os.path.join(paths.run_dir, INSTANCE_JSON_FILE)
+        redacted_data_fn = paths.get_runpath("instance_data")
         if uid == 0:
-            sensitive_data_fn = os.path.join(
-                paths.run_dir, INSTANCE_JSON_SENSITIVE_FILE
-            )
+            sensitive_data_fn = paths.get_runpath("instance_data_sensitive")
             if os.path.exists(sensitive_data_fn):
                 instance_data_fn = sensitive_data_fn
             else:
@@ -179,9 +177,10 @@ def _read_instance_data(instance_data, user_data, vendor_data) -> dict:
         vendor_data_fn = vendor_data
     else:
         vendor_data_fn = os.path.join(paths.instance_link, "vendor-data.txt")
+    combined_cloud_config_fn = paths.get_runpath("combined_cloud_config")
 
     try:
-        instance_json = util.load_file(instance_data_fn)
+        instance_json = util.load_text_file(instance_data_fn)
     except (IOError, OSError) as e:
         if e.errno == EACCES:
             LOG.error("No read permission on '%s'. Try sudo", instance_data_fn)
@@ -190,6 +189,15 @@ def _read_instance_data(instance_data, user_data, vendor_data) -> dict:
         raise
 
     instance_data = util.load_json(instance_json)
+    try:
+        combined_cloud_config = util.load_json(
+            util.load_text_file(combined_cloud_config_fn)
+        )
+    except (IOError, OSError):
+        # File will not yet be present in init-local stage.
+        # It's created in `init` when vendor-data and user-data are processed.
+        combined_cloud_config = None
+
     if uid != 0:
         instance_data["userdata"] = "<%s> file:%s" % (
             REDACT_SENSITIVE_VALUE,
@@ -199,9 +207,14 @@ def _read_instance_data(instance_data, user_data, vendor_data) -> dict:
             REDACT_SENSITIVE_VALUE,
             vendor_data_fn,
         )
+        instance_data["combined_cloud_config"] = "<%s> file:%s" % (
+            REDACT_SENSITIVE_VALUE,
+            combined_cloud_config_fn,
+        )
     else:
         instance_data["userdata"] = load_userdata(user_data_fn)
         instance_data["vendordata"] = load_userdata(vendor_data_fn)
+        instance_data["combined_cloud_config"] = combined_cloud_config
     return instance_data
 
 
@@ -250,7 +263,6 @@ def _find_instance_data_leaf_by_varname_path(
 
 def handle_args(name, args):
     """Handle calls to 'cloud-init query' as a subcommand."""
-    addLogHandlerCLI(LOG, log.DEBUG if args.debug else log.WARNING)
     if not any([args.list_keys, args.varname, args.format, args.dump_all]):
         LOG.error(
             "Expected one of the options: --all, --format,"
@@ -266,12 +278,19 @@ def handle_args(name, args):
         return 1
     if args.format:
         payload = "## template: jinja\n{fmt}".format(fmt=args.format)
-        rendered_payload = render_jinja_payload(
-            payload=payload,
-            payload_fn="query commandline",
-            instance_data=instance_data,
-            debug=True if args.debug else False,
-        )
+        try:
+            rendered_payload = render_jinja_payload(
+                payload=payload,
+                payload_fn="query commandline",
+                instance_data=instance_data,
+                debug=True if args.debug else False,
+            )
+        except JinjaSyntaxParsingException as e:
+            LOG.error(
+                "Failed to render templated data. %s",
+                str(e),
+            )
+            return 1
         if rendered_payload:
             print(rendered_payload)
             return 0
@@ -304,7 +323,7 @@ def handle_args(name, args):
             return 1
         response = "\n".join(sorted(response.keys()))
     if not isinstance(response, str):
-        response = util.json_dumps(response)
+        response = atomic_helper.json_dumps(response)
     print(response)
     return 0
 
@@ -317,5 +336,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# vi: ts=4 expandtab

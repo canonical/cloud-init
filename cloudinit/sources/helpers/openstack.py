@@ -10,12 +10,12 @@ import abc
 import base64
 import copy
 import functools
+import logging
 import os
 
-from cloudinit import ec2_utils
-from cloudinit import log as logging
 from cloudinit import net, sources, subp, url_helper, util
 from cloudinit.sources import BrokenMetadata
+from cloudinit.sources.helpers import ec2
 
 # See https://docs.openstack.org/user-guide/cli-config-drive.html
 
@@ -82,7 +82,7 @@ class NonReadable(IOError):
     pass
 
 
-class SourceMixin(object):
+class SourceMixin:
     def _ec2_name_to_device(self, name):
         if not self.ec2_metadata:
             return None
@@ -364,7 +364,11 @@ class ConfigDriveReader(BaseReader):
         return os.path.join(*components)
 
     def _path_read(self, path, decode=False):
-        return util.load_file(path, decode=decode)
+        return (
+            util.load_text_file(path)
+            if decode
+            else util.load_binary_file(path)
+        )
 
     def _fetch_available_versions(self):
         if self._versions is None:
@@ -515,7 +519,7 @@ class MetadataReader(BaseReader):
         return url_helper.combine_url(base, *add_ons)
 
     def _read_ec2_metadata(self):
-        return ec2_utils.get_instance_metadata(
+        return ec2.get_instance_metadata(
             ssl_details=self.ssl_details,
             timeout=self.timeout,
             retries=self.retries,
@@ -548,7 +552,7 @@ def convert_net_json(network_json=None, known_macs=None):
     There are additional fields that are populated in the network_data.json
     from OpenStack that are not relevant to network_config yaml, so we
     enumerate a dictionary of valid keys for network_yaml and apply filtering
-    to drop these superflous keys from the network_config yaml.
+    to drop these superfluous keys from the network_config yaml.
     """
     if network_json is None:
         return None
@@ -641,6 +645,14 @@ def convert_net_json(network_json=None, known_macs=None):
                         "address": network.get("ip_address"),
                     }
                 )
+
+            dns_nameservers = [
+                service["address"]
+                for service in network.get("services", [])
+                if service.get("type") == "dns"
+            ]
+            if dns_nameservers:
+                subnet["dns_nameservers"] = dns_nameservers
 
             # Enable accept_ra for stateful and legacy ipv6_dhcp types
             if network["type"] in ["ipv6_dhcpv6-stateful", "ipv6_dhcp"]:
@@ -756,6 +768,3 @@ def convert_net_json(network_json=None, known_macs=None):
         config.append(cfg)
 
     return {"version": 1, "config": config}
-
-
-# vi: ts=4 expandtab

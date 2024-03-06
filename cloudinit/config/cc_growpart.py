@@ -5,29 +5,39 @@
 # Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+"""Growpart: Grow partitions"""
 
-"""
-Growpart
---------
-**Summary:** grow partitions
+import base64
+import copy
+import json
+import logging
+import os
+import os.path
+import re
+import stat
+from abc import ABC, abstractmethod
+from contextlib import suppress
+from pathlib import Path
+from textwrap import dedent
+from typing import Optional, Tuple
 
+from cloudinit import subp, temp_utils, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.distros import ALL_DISTROS, Distro
+from cloudinit.settings import PER_ALWAYS
+
+MODULE_DESCRIPTION = """\
 Growpart resizes partitions to fill the available disk space.
 This is useful for cloud instances with a larger amount of disk space available
 than the pristine image uses, as it allows the instance to automatically make
-use of the extra space.
+use of the extra space. Note that this only works if the partition to be
+resized is the last one on a disk with classic partitioning scheme (MBR, BSD,
+GPT). LVM, Btrfs and ZFS have no such restrictions.
 
 The devices on which to run growpart are specified as a list under the
-``devices`` key. Each entry in the devices list can be either the path to the
-device's mountpoint in the filesystem or a path to the block device in
-``/dev``.
-
-The utility to use for resizing can be selected using the ``mode`` config key.
-If the ``mode`` key is set to ``auto``, then any available utility (either
-``growpart`` or BSD ``gpart``) will be used. If neither utility is available,
-no error will be raised. If ``mode`` is set to ``growpart``, then the
-``growpart`` utility will be used. If this utility is not available on the
-system, this will result in an error. If ``mode`` is set to ``off`` or
-``false``, then ``cc_growpart`` will take no action.
+``devices`` key.
 
 There is some functionality overlap between this module and the ``growroot``
 functionality of ``cloud-initramfs-tools``. However, there are some situations
@@ -40,40 +50,54 @@ it is present. However, this file can be ignored for ``cc_growpart`` by setting
 ``ignore_growroot_disabled`` to ``true``. For more information on
 ``cloud-initramfs-tools`` see: https://launchpad.net/cloud-initramfs-tools
 
+On FreeBSD, there is also the ``growfs`` service, which has a lot of overlap
+with ``cc_growpart`` and ``cc_resizefs``, but only works on the root partition.
+In that configuration, we use it, otherwise, we fall back to ``gpart``.
+
+Note however, that ``growfs`` may insert a swap partition, if none is present,
+unless instructed not to via ``growfs_swap_size=0`` in either ``kenv(1)``, or
+``rc.conf(5)``.
+
 Growpart is enabled by default on the root partition. The default config for
 growpart is::
 
     growpart:
-        mode: auto
-        devices: ["/"]
-        ignore_growroot_disabled: false
-
-**Internal name:** ``cc_growpart``
-
-**Module frequency:** always
-
-**Supported distros:** all
-
-**Config keys**::
-
-    growpart:
-        mode: <auto/growpart/off/false>
-        devices:
-            - "/"
-            - "/dev/vdb1"
-        ignore_growroot_disabled: <true/false>
+      mode: auto
+      devices: ["/"]
+      ignore_growroot_disabled: false
 """
-
-import os
-import os.path
-import re
-import stat
-
-from cloudinit import log as logging
-from cloudinit import subp, temp_utils, util
-from cloudinit.settings import PER_ALWAYS
-
 frequency = PER_ALWAYS
+meta: MetaSchema = {
+    "id": "cc_growpart",
+    "name": "Growpart",
+    "title": "Grow partitions",
+    "description": MODULE_DESCRIPTION,
+    "distros": [ALL_DISTROS],
+    "frequency": frequency,
+    "examples": [
+        dedent(
+            """\
+            growpart:
+              mode: auto
+              devices: ["/"]
+              ignore_growroot_disabled: false
+            """
+        ),
+        dedent(
+            """\
+            growpart:
+              mode: growpart
+              devices:
+                - "/"
+                - "/dev/vdb1"
+              ignore_growroot_disabled: true
+            """
+        ),
+    ],
+    "activate_by_schema_keys": [],
+}
+
+__doc__ = get_meta_doc(meta)
 
 DEFAULT_CONFIG = {
     "mode": "auto",
@@ -81,8 +105,10 @@ DEFAULT_CONFIG = {
     "ignore_growroot_disabled": False,
 }
 
+KEYDATA_PATH = Path("/cc_growpart_keydata")
 
-class RESIZE(object):
+
+class RESIZE:
     SKIPPED = "SKIPPED"
     CHANGED = "CHANGED"
     NOCHANGE = "NOCHANGE"
@@ -92,12 +118,12 @@ class RESIZE(object):
 LOG = logging.getLogger(__name__)
 
 
-def resizer_factory(mode):
+def resizer_factory(mode: str, distro: Distro, devices: list):
     resize_class = None
     if mode == "auto":
-        for (_name, resizer) in RESIZERS:
-            cur = resizer()
-            if cur.available():
+        for _name, resizer in RESIZERS:
+            cur = resizer(distro)
+            if cur.available(devices=devices):
                 resize_class = cur
                 break
 
@@ -106,14 +132,14 @@ def resizer_factory(mode):
 
     else:
         mmap = {}
-        for (k, v) in RESIZERS:
+        for k, v in RESIZERS:
             mmap[k] = v
 
         if mode not in mmap:
             raise TypeError("unknown resize mode %s" % mode)
 
-        mclass = mmap[mode]()
-        if mclass.available():
+        mclass = mmap[mode](distro)
+        if mclass.available(devices=devices):
             resize_class = mclass
 
         if not resize_class:
@@ -126,13 +152,25 @@ class ResizeFailedException(Exception):
     pass
 
 
-class ResizeGrowPart(object):
-    def available(self):
-        myenv = os.environ.copy()
-        myenv["LANG"] = "C"
+class Resizer(ABC):
+    def __init__(self, distro: Distro):
+        self._distro = distro
 
+    @abstractmethod
+    def available(self, devices: list) -> bool:
+        ...
+
+    @abstractmethod
+    def resize(self, diskdev, partnum, partdev):
+        ...
+
+
+class ResizeGrowPart(Resizer):
+    def available(self, devices: list):
         try:
-            (out, _err) = subp.subp(["growpart", "--help"], env=myenv)
+            out = subp.subp(
+                ["growpart", "--help"], update_env={"LANG": "C"}
+            ).stdout
             if re.search(r"--update\s+", out):
                 return True
 
@@ -141,20 +179,20 @@ class ResizeGrowPart(object):
         return False
 
     def resize(self, diskdev, partnum, partdev):
-        myenv = os.environ.copy()
-        myenv["LANG"] = "C"
         before = get_size(partdev)
 
         # growpart uses tmp dir to store intermediate states
         # and may conflict with systemd-tmpfiles-clean
-        with temp_utils.tempdir(needs_exe=True) as tmpd:
+        tmp_dir = self._distro.get_tmp_exec_path()
+        with temp_utils.tempdir(dir=tmp_dir, needs_exe=True) as tmpd:
             growpart_tmp = os.path.join(tmpd, "growpart")
+            my_env = {"LANG": "C", "TMPDIR": growpart_tmp}
             if not os.path.exists(growpart_tmp):
                 os.mkdir(growpart_tmp, 0o700)
-            myenv["TMPDIR"] = growpart_tmp
             try:
                 subp.subp(
-                    ["growpart", "--dry-run", diskdev, partnum], env=myenv
+                    ["growpart", "--dry-run", diskdev, partnum],
+                    update_env=my_env,
                 )
             except subp.ProcessExecutionError as e:
                 if e.exit_code != 1:
@@ -168,7 +206,7 @@ class ResizeGrowPart(object):
                 return (before, before)
 
             try:
-                subp.subp(["growpart", diskdev, partnum], env=myenv)
+                subp.subp(["growpart", diskdev, partnum], update_env=my_env)
             except subp.ProcessExecutionError as e:
                 util.logexc(LOG, "Failed: growpart %s %s", diskdev, partnum)
                 raise ResizeFailedException(e) from e
@@ -176,13 +214,40 @@ class ResizeGrowPart(object):
         return (before, get_size(partdev))
 
 
-class ResizeGpart(object):
-    def available(self):
-        myenv = os.environ.copy()
-        myenv["LANG"] = "C"
+class ResizeGrowFS(Resizer):
+    """
+    Use FreeBSD ``growfs`` service to grow root partition to fill available
+    space, optionally adding a swap partition at the end.
 
+    Note that the service file warns us that it uses ``awk(1)``, and as
+    such requires ``/usr`` to be present. However, cloud-init is installed
+    into ``/usr/local``, so we should be fine.
+
+    We invoke the ``growfs`` with ``service growfs onestart``, so it
+    doesn't need to be enabled in ``rc.conf``.
+    """
+
+    def available(self, devices: list):
+        """growfs only works on the root partition"""
+        return os.path.isfile("/etc/rc.d/growfs") and devices == ["/"]
+
+    def resize(self, diskdev, partnum, partdev):
+        before = get_size(partdev)
         try:
-            (_out, err) = subp.subp(["gpart", "help"], env=myenv, rcs=[0, 1])
+            self._distro.manage_service(action="onestart", service="growfs")
+        except subp.ProcessExecutionError as e:
+            util.logexc(LOG, "Failed: service growfs onestart")
+            raise ResizeFailedException(e) from e
+
+        return (before, get_size(partdev))
+
+
+class ResizeGpart(Resizer):
+    def available(self, devices: list):
+        try:
+            err = subp.subp(
+                ["gpart", "help"], update_env={"LANG": "C"}, rcs=[0, 1]
+            ).stderr
             if re.search(r"gpart recover ", err):
                 return True
 
@@ -215,12 +280,16 @@ class ResizeGpart(object):
         return (before, get_size(partdev))
 
 
-def get_size(filename):
-    fd = os.open(filename, os.O_RDONLY)
+def get_size(filename) -> Optional[int]:
+    fd = None
     try:
+        fd = os.open(filename, os.O_RDONLY)
         return os.lseek(fd, 0, os.SEEK_END)
+    except FileNotFoundError:
+        return None
     finally:
-        os.close(fd)
+        if fd:
+            os.close(fd)
 
 
 def device_part_info(devpath):
@@ -233,16 +302,16 @@ def device_part_info(devpath):
     bname = os.path.basename(rpath)
     syspath = "/sys/class/block/%s" % bname
 
-    # FreeBSD doesn't know of sysfs so just get everything we need from
-    # the device, like /dev/vtbd0p2.
-    if util.is_FreeBSD():
-        freebsd_part = "/dev/" + util.find_freebsd_part(devpath)
-        m = re.search("^(/dev/.+)p([0-9])$", freebsd_part)
-        return (m.group(1), m.group(2))
-    elif util.is_DragonFlyBSD():
-        dragonflybsd_part = "/dev/" + util.find_dragonflybsd_part(devpath)
-        m = re.search("^(/dev/.+)s([0-9])$", dragonflybsd_part)
-        return (m.group(1), m.group(2))
+    if util.is_BSD():
+        # FreeBSD doesn't know of sysfs so just get everything we need from
+        # the device, like /dev/vtbd0p2.
+        fpart = "/dev/" + util.find_freebsd_part(devpath)
+        # Handle both GPT partitions and MBR slices with partitions
+        m = re.search(
+            r"^(?P<dev>/dev/.+)[sp](?P<part_slice>\d+[a-z]*)$", fpart
+        )
+        if m:
+            return m["dev"], m["part_slice"]
 
     if not os.path.exists(syspath):
         raise ValueError("%s had no syspath (%s)" % (devpath, syspath))
@@ -251,14 +320,14 @@ def device_part_info(devpath):
     if not os.path.exists(ptpath):
         raise TypeError("%s not a partition" % devpath)
 
-    ptnum = util.load_file(ptpath).rstrip()
+    ptnum = util.load_text_file(ptpath).rstrip()
 
     # for a partition, real syspath is something like:
     # /sys/devices/pci0000:00/0000:00:04.0/virtio1/block/vda/vda1
     rsyspath = os.path.realpath(syspath)
     disksyspath = os.path.dirname(rsyspath)
 
-    diskmajmin = util.load_file(os.path.join(disksyspath, "dev")).rstrip()
+    diskmajmin = util.load_text_file(os.path.join(disksyspath, "dev")).rstrip()
     diskdevpath = os.path.realpath("/dev/block/%s" % diskmajmin)
 
     # diskdevpath has something like 253:0
@@ -289,10 +358,154 @@ def devent2dev(devent):
     return dev
 
 
-def resize_devices(resizer, devices):
+def get_mapped_device(blockdev, distro_name):
+    """Returns underlying block device for a mapped device.
+
+    If it is mapped, blockdev will usually take the form of
+    /dev/mapper/some_name
+
+    If blockdev is a symlink pointing to a /dev/dm-* device, return
+    the device pointed to. Otherwise, return None.
+    """
+    realpath = os.path.realpath(blockdev)
+
+    if distro_name == "alpine":
+        if blockdev.startswith("/dev/mapper"):
+            # For Alpine systems a /dev/mapper/ entry is *not* a
+            # symlink to the related /dev/dm-X block device,
+            # rather it is a  block device itself.
+
+            # Get the major/minor of the /dev/mapper block device
+            major = os.major(os.stat(blockdev).st_rdev)
+            minor = os.minor(os.stat(blockdev).st_rdev)
+
+            # Find the /dev/dm-X device with the same major/minor
+            with os.scandir("/dev/") as it:
+                for deventry in it:
+                    if deventry.name.startswith("dm-"):
+                        res = os.lstat(deventry.path)
+                        if stat.S_ISBLK(res.st_mode):
+                            if (
+                                os.major(os.stat(deventry.path).st_rdev)
+                                == major
+                                and os.minor(os.stat(deventry.path).st_rdev)
+                                == minor
+                            ):
+                                realpath = os.path.realpath(deventry.path)
+                                break
+
+    if realpath.startswith("/dev/dm-"):
+        LOG.debug("%s is a mapped device pointing to %s", blockdev, realpath)
+        return realpath
+    return None
+
+
+def is_encrypted(blockdev, partition) -> bool:
+    """
+    Check if a device is an encrypted device. blockdev should have
+    a /dev/dm-* path whereas partition is something like /dev/sda1.
+    """
+    if not subp.which("cryptsetup"):
+        LOG.debug("cryptsetup not found. Assuming no encrypted partitions")
+        return False
+    try:
+        subp.subp(["cryptsetup", "status", blockdev])
+    except subp.ProcessExecutionError as e:
+        if e.exit_code == 4:
+            LOG.debug("Determined that %s is not encrypted", blockdev)
+        else:
+            LOG.warning(
+                "Received unexpected exit code %s from "
+                "cryptsetup status. Assuming no encrypted partitions.",
+                e.exit_code,
+            )
+        return False
+    with suppress(subp.ProcessExecutionError):
+        subp.subp(["cryptsetup", "isLuks", partition])
+        LOG.debug("Determined that %s is encrypted", blockdev)
+        return True
+    return False
+
+
+def get_underlying_partition(blockdev):
+    command = ["dmsetup", "deps", "--options=devname", blockdev]
+    dep: str = subp.subp(command)[0]  # pyright: ignore
+    # Returned result should look something like:
+    # 1 dependencies : (vdb1)
+    if not dep.startswith("1 depend"):
+        raise RuntimeError(
+            f"Expecting '1 dependencies' from 'dmsetup'. Received: {dep}"
+        )
+    try:
+        return f'/dev/{dep.split(": (")[1].split(")")[0]}'
+    except IndexError as e:
+        raise RuntimeError(
+            f"Ran `{command}`, but received unexpected stdout: `{dep}`"
+        ) from e
+
+
+def resize_encrypted(blockdev, partition) -> Tuple[str, str]:
+    """Use 'cryptsetup resize' to resize LUKS volume.
+
+    The loaded keyfile is json formatted with 'key' and 'slot' keys.
+    key is base64 encoded. Example:
+    {"key":"XFmCwX2FHIQp0LBWaLEMiHIyfxt1SGm16VvUAVledlY=","slot":5}
+    """
+    if not KEYDATA_PATH.exists():
+        return (RESIZE.SKIPPED, "No encryption keyfile found")
+    try:
+        with KEYDATA_PATH.open() as f:
+            keydata = json.load(f)
+        key = keydata["key"]
+        decoded_key = base64.b64decode(key)
+        slot = keydata["slot"]
+    except Exception as e:
+        raise RuntimeError(
+            "Could not load encryption key. This is expected if "
+            "the volume has been previously resized."
+        ) from e
+
+    try:
+        subp.subp(
+            ["cryptsetup", "--key-file", "-", "resize", blockdev],
+            data=decoded_key,
+        )
+    finally:
+        try:
+            subp.subp(
+                [
+                    "cryptsetup",
+                    "luksKillSlot",
+                    "--batch-mode",
+                    partition,
+                    str(slot),
+                ]
+            )
+        except subp.ProcessExecutionError as e:
+            LOG.warning(
+                "Failed to kill luks slot after resizing encrypted volume: %s",
+                e,
+            )
+        try:
+            KEYDATA_PATH.unlink()
+        except Exception:
+            util.logexc(
+                LOG, "Failed to remove keyfile after resizing encrypted volume"
+            )
+
+    return (
+        RESIZE.CHANGED,
+        f"Successfully resized encrypted volume '{blockdev}'",
+    )
+
+
+def resize_devices(resizer, devices, distro_name):
     # returns a tuple of tuples containing (entry-in-devices, action, message)
+    devices = copy.copy(devices)
     info = []
-    for devent in devices:
+
+    while devices:
+        devent = devices.pop(0)
         try:
             blockdev = devent2dev(devent)
         except ValueError as e:
@@ -329,6 +542,49 @@ def resize_devices(resizer, devices):
             )
             continue
 
+        underlying_blockdev = get_mapped_device(blockdev, distro_name)
+        if underlying_blockdev:
+            try:
+                # We need to resize the underlying partition first
+                partition = get_underlying_partition(blockdev)
+                if is_encrypted(underlying_blockdev, partition):
+                    if partition not in [x[0] for x in info]:
+                        # We shouldn't attempt to resize this mapped partition
+                        # until the underlying partition is resized, so re-add
+                        # our device to the beginning of the list we're
+                        # iterating over, then add our underlying partition
+                        # so it can get processed first
+                        devices.insert(0, devent)
+                        devices.insert(0, partition)
+                        continue
+                    status, message = resize_encrypted(blockdev, partition)
+                    info.append(
+                        (
+                            devent,
+                            status,
+                            message,
+                        )
+                    )
+                else:
+                    info.append(
+                        (
+                            devent,
+                            RESIZE.SKIPPED,
+                            f"Resizing mapped device ({blockdev}) skipped "
+                            "as it is not encrypted.",
+                        )
+                    )
+            except Exception as e:
+                info.append(
+                    (
+                        devent,
+                        RESIZE.FAILED,
+                        f"Resizing encrypted device ({blockdev}) failed: {e}",
+                    )
+                )
+            # At this point, we WON'T resize a non-encrypted mapped device
+            # though we should probably grow the ability to
+            continue
         try:
             (disk, ptnum) = device_part_info(blockdev)
         except (TypeError, ValueError) as e:
@@ -342,13 +598,22 @@ def resize_devices(resizer, devices):
             continue
 
         try:
-            (old, new) = resizer.resize(disk, ptnum, blockdev)
+            old, new = resizer.resize(disk, ptnum, blockdev)
             if old == new:
                 info.append(
                     (
                         devent,
                         RESIZE.NOCHANGE,
                         "no change necessary (%s, %s)" % (disk, ptnum),
+                    )
+                )
+            elif new is None or old is None:
+                info.append(
+                    (
+                        devent,
+                        RESIZE.CHANGED,
+                        "changed (%s, %s) size, new size is unknown"
+                        % (disk, ptnum),
                     )
                 )
             else:
@@ -374,55 +639,63 @@ def resize_devices(resizer, devices):
     return info
 
 
-def handle(_name, cfg, _cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if "growpart" not in cfg:
-        log.debug(
-            "No 'growpart' entry in cfg.  Using default: %s" % DEFAULT_CONFIG
+        LOG.debug(
+            "No 'growpart' entry in cfg.  Using default: %s", DEFAULT_CONFIG
         )
         cfg["growpart"] = DEFAULT_CONFIG
 
     mycfg = cfg.get("growpart")
     if not isinstance(mycfg, dict):
-        log.warning("'growpart' in config was not a dict")
+        LOG.warning("'growpart' in config was not a dict")
         return
 
     mode = mycfg.get("mode", "auto")
     if util.is_false(mode):
-        log.debug("growpart disabled: mode=%s" % mode)
+        if mode != "off":
+            util.deprecate(
+                deprecated="Growpart's 'mode' key with value '{mode}'",
+                deprecated_version="22.2",
+                extra_message="Use 'off' instead.",
+            )
+        LOG.debug("growpart disabled: mode=%s", mode)
         return
 
     if util.is_false(mycfg.get("ignore_growroot_disabled", False)):
         if os.path.isfile("/etc/growroot-disabled"):
-            log.debug("growpart disabled: /etc/growroot-disabled exists")
-            log.debug("use ignore_growroot_disabled to ignore")
+            LOG.debug("growpart disabled: /etc/growroot-disabled exists")
+            LOG.debug("use ignore_growroot_disabled to ignore")
             return
 
     devices = util.get_cfg_option_list(mycfg, "devices", ["/"])
     if not len(devices):
-        log.debug("growpart: empty device list")
+        LOG.debug("growpart: empty device list")
         return
 
     try:
-        resizer = resizer_factory(mode)
+        resizer = resizer_factory(mode, distro=cloud.distro, devices=devices)
     except (ValueError, TypeError) as e:
-        log.debug("growpart unable to find resizer for '%s': %s" % (mode, e))
+        LOG.debug("growpart unable to find resizer for '%s': %s", mode, e)
         if mode != "auto":
             raise e
         return
 
     resized = util.log_time(
-        logfunc=log.debug,
+        logfunc=LOG.debug,
         msg="resize_devices",
         func=resize_devices,
-        args=(resizer, devices),
+        args=(resizer, devices, cloud.distro.name),
     )
-    for (entry, action, msg) in resized:
+    for entry, action, msg in resized:
         if action == RESIZE.CHANGED:
-            log.info("'%s' resized: %s" % (entry, msg))
+            LOG.info("'%s' resized: %s", entry, msg)
         else:
-            log.debug("'%s' %s: %s" % (entry, action, msg))
+            LOG.debug("'%s' %s: %s", entry, action, msg)
 
 
-RESIZERS = (("growpart", ResizeGrowPart), ("gpart", ResizeGpart))
-
-# vi: ts=4 expandtab
+RESIZERS = (
+    ("growpart", ResizeGrowPart),
+    ("growfs", ResizeGrowFS),
+    ("gpart", ResizeGpart),
+)

@@ -1,0 +1,21 @@
+network:
+ version: 1
+ config:
+   # Simple network adapter
+   - type: physical
+     name: interface0
+     mac_address: '00:11:22:33:44:55'
+   # 10G pair
+   - type: physical
+     name: gbe0
+     mac_address: 'cd:11:22:33:44:00'
+   - type: physical
+     name: gbe1
+     mac_address: 'cd:11:22:33:44:02'
+   - type: bond
+     name: bond0
+     bond_interfaces:
+       - gbe0
+       - gbe1
+     params:
+       bond-mode: active-backup

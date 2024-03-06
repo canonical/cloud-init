@@ -5,6 +5,7 @@ import shutil
 import tempfile
 
 from cloudinit import safeyaml, stages, util
+from cloudinit.config.modules import Modules
 from cloudinit.settings import PER_INSTANCE
 from tests.unittests import helpers
 
@@ -20,7 +21,7 @@ class TestMergeRun(helpers.FilesystemMockingTestCase):
         self.replicateTestRoot("simple_ubuntu", new_root)
         cfg = {
             "datasource_list": ["None"],
-            "cloud_init_modules": ["write-files"],
+            "cloud_init_modules": ["write_files"],
             "system_info": {"paths": {"run_dir": new_root}},
         }
         ud = helpers.readResource("user_data.1.txt")
@@ -49,13 +50,10 @@ class TestMergeRun(helpers.FilesystemMockingTestCase):
         self.assertEqual(1, len(mirrors))
         mirror = mirrors[0]
         self.assertEqual(mirror["arches"], ["i386", "amd64", "blah"])
-        mods = stages.Modules(initer)
+        mods = Modules(initer)
         (which_ran, failures) = mods.run_section("cloud_init_modules")
         self.assertTrue(len(failures) == 0)
         self.assertTrue(os.path.exists("/etc/blah.ini"))
-        self.assertIn("write-files", which_ran)
-        contents = util.load_file("/etc/blah.ini")
+        self.assertIn("write_files", which_ran)
+        contents = util.load_text_file("/etc/blah.ini")
         self.assertEqual(contents, "blah")
-
-
-# vi: ts=4 expandtab

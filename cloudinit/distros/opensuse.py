@@ -8,10 +8,16 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
+import os
+
 from cloudinit import distros, helpers, subp, util
+from cloudinit.distros import PackageList
 from cloudinit.distros import rhel_util as rhutil
 from cloudinit.distros.parsers.hostname import HostnameConf
 from cloudinit.settings import PER_INSTANCE
+
+LOG = logging.getLogger(__name__)
 
 
 class Distro(distros.Distro):
@@ -44,6 +50,8 @@ class Distro(distros.Distro):
         distros.Distro.__init__(self, name, cfg, paths)
         self._runner = helpers.Runners(paths)
         self.osfamily = "suse"
+        self.update_method = None
+        self.read_only_root = False
         cfg["ssh_svcname"] = "sshd"
         if self.uses_systemd():
             self.init_cmd = ["systemctl"]
@@ -60,7 +68,7 @@ class Distro(distros.Distro):
             locale_cfg = {"RC_LANG": locale}
         rhutil.update_sysconfig_file(out_fn, locale_cfg)
 
-    def install_packages(self, pkglist):
+    def install_packages(self, pkglist: PackageList):
         self.package_command(
             "install", args="--auto-agree-with-licenses", pkgs=pkglist
         )
@@ -69,12 +77,44 @@ class Distro(distros.Distro):
         if pkgs is None:
             pkgs = []
 
+        self._set_update_method()
+        if self.read_only_root and not self.update_method == "transactional":
+            LOG.error(
+                "Package operation requested but read only root "
+                "without btrfs and transactional-updata"
+            )
+            return
+
         # No user interaction possible, enable non-interactive mode
-        cmd = ["zypper", "--non-interactive"]
+        if self.update_method == "zypper":
+            cmd = ["zypper", "--non-interactive"]
+        else:
+            cmd = [
+                "transactional-update",
+                "--non-interactive",
+                "--drop-if-no-change",
+                "pkg",
+            ]
 
         # Command is the operation, such as install
         if command == "upgrade":
             command = "update"
+        if (
+            not pkgs
+            and self.update_method == "transactional"
+            and command == "update"
+        ):
+            command = "up"
+            cmd = [
+                "transactional-update",
+                "--non-interactive",
+                "--drop-if-no-change",
+            ]
+        # Repo refresh only modifies data in the read-write path,
+        # always uses zypper
+        if command == "refresh":
+            # Repo refresh is a zypper only option, ignore the t-u setting
+            cmd = ["zypper", "--non-interactive"]
         cmd.append(command)
 
         # args are the arguments to the command, not global options
@@ -88,6 +128,11 @@ class Distro(distros.Distro):
 
         # Allow the output of this to flow outwards (ie not be captured)
         subp.subp(cmd, capture=False)
+
+        if self.update_method == "transactional":
+            LOG.info(
+                "To use/activate the installed packages reboot the system"
+            )
 
     def set_timezone(self, tz):
         tz_file = self._find_tz_file(tz)
@@ -115,7 +160,7 @@ class Distro(distros.Distro):
 
     def _read_hostname(self, filename, default=None):
         if self.uses_systemd() and filename.endswith("/previous-hostname"):
-            return util.load_file(filename).strip()
+            return util.load_text_file(filename).strip()
         elif self.uses_systemd():
             (out, _err) = subp.subp(["hostname"])
             if len(out):
@@ -136,7 +181,7 @@ class Distro(distros.Distro):
         return "127.0.1.1"
 
     def _read_hostname_conf(self, filename):
-        conf = HostnameConf(util.load_file(filename))
+        conf = HostnameConf(util.load_text_file(filename))
         conf.parse()
         return conf
 
@@ -147,11 +192,52 @@ class Distro(distros.Distro):
             host_fn = self.hostname_conf_fn
         return (host_fn, self._read_hostname(host_fn))
 
+    def _set_update_method(self):
+        """Decide if we want to use transactional-update or zypper"""
+        if self.update_method is None:
+            result = util.get_mount_info("/")
+            fs_type = ""
+            if result:
+                (devpth, fs_type, mount_point) = result
+                # Check if the file system is read only
+                mounts = util.load_text_file("/proc/mounts").split("\n")
+                for mount in mounts:
+                    if mount.startswith(devpth):
+                        mount_info = mount.split()
+                        if mount_info[1] != mount_point:
+                            continue
+                        self.read_only_root = mount_info[3].startswith("ro")
+                        break
+                if fs_type.lower() == "btrfs" and os.path.exists(
+                    "/usr/sbin/transactional-update"
+                ):
+                    self.update_method = "transactional"
+                else:
+                    self.update_method = "zypper"
+            else:
+                LOG.info(
+                    "Could not determine filesystem type of '/' using zypper"
+                )
+                self.update_method = "zypper"
+
     def _write_hostname(self, hostname, filename):
+        create_hostname_file = util.get_cfg_option_bool(
+            self._cfg, "create_hostname_file", True
+        )
         if self.uses_systemd() and filename.endswith("/previous-hostname"):
             util.write_file(filename, hostname)
         elif self.uses_systemd():
-            subp.subp(["hostnamectl", "set-hostname", str(hostname)])
+            if create_hostname_file:
+                subp.subp(["hostnamectl", "set-hostname", str(hostname)])
+            else:
+                subp.subp(
+                    [
+                        "hostnamectl",
+                        "set-hostname",
+                        "--transient",
+                        str(hostname),
+                    ]
+                )
         else:
             conf = None
             try:
@@ -159,7 +245,14 @@ class Distro(distros.Distro):
                 # so lets see if we can read it first.
                 conf = self._read_hostname_conf(filename)
             except IOError:
-                pass
+                if create_hostname_file:
+                    pass
+                else:
+                    LOG.info(
+                        "create_hostname_file is False; hostname file not"
+                        "created"
+                    )
+                    return
             if not conf:
                 conf = HostnameConf("")
             conf.set_hostname(hostname)
@@ -193,6 +286,3 @@ class Distro(distros.Distro):
                 ]
 
         return self._preferred_ntp_clients
-
-
-# vi: ts=4 expandtab

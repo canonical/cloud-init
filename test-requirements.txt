@@ -1,8 +1,14 @@
 # Needed generally in tests
-httpretty>=0.7.1
-pytest
-pytest-cov
 
-# Only really needed on older versions of python
+# Avoid breaking change in `testpaths` treatment forced
+# test/unittests/conftest.py to be loaded by our integration-tests tox env
+# resulting in an unmet dependency issue:
+# https://github.com/pytest-dev/pytest/issues/11104
+pytest!=7.3.2
+
+pytest-cov
+pytest-mock
 setuptools
 jsonschema
+responses
+passlib

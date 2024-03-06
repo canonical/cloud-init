@@ -9,8 +9,8 @@ import logging
 import os
 import re
 
-from cloudinit import subp, util
-from cloudinit.net.network_state import mask_to_net_prefix
+from cloudinit import net, subp, util
+from cloudinit.net.network_state import ipv4_mask_to_net_prefix
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ def gen_subnet(ip, netmask):
     return ".".join([str(x) for x in result])
 
 
-class NicConfigurator(object):
+class NicConfigurator:
     def __init__(self, nics, use_system_devices=True):
         """
         Initialize the Nic Configurator
@@ -62,7 +62,7 @@ class NicConfigurator(object):
         if not primary_nics:
             return None
         elif len(primary_nics) > 1:
-            raise Exception(
+            raise RuntimeError(
                 "There can only be one primary nic",
                 [nic.mac for nic in primary_nics],
             )
@@ -182,7 +182,7 @@ class NicConfigurator(object):
         """
         route_list = []
 
-        cidr = mask_to_net_prefix(netmask)
+        cidr = ipv4_mask_to_net_prefix(netmask)
 
         for gateway in gateways:
             destination = "%s/%d" % (gen_subnet(gateway, netmask), cidr)
@@ -230,16 +230,6 @@ class NicConfigurator(object):
 
         return (subnet_list, route_list)
 
-    def _genIpv6Route(self, name, nic, addrs):
-        route_list = []
-
-        for addr in addrs:
-            route_list.append(
-                {"type": "route", "gateway": addr.gateway, "metric": 10000}
-            )
-
-        return route_list
-
     def generate(self, configure=False, osfamily=None):
         """Return the config elements that are needed to configure the nics"""
         if configure:
@@ -255,10 +245,7 @@ class NicConfigurator(object):
 
     def clear_dhcp(self):
         logger.info("Clearing DHCP leases")
-
-        # Ignore the return code 1.
-        subp.subp(["pkill", "dhclient"], rcs=[0, 1])
-        subp.subp(["rm", "-f", "/var/lib/dhcp/*"])
+        net.dhcp.IscDhclient.clear_leases()
 
     def configure(self, osfamily=None):
         """
@@ -290,6 +277,3 @@ class NicConfigurator(object):
         util.write_file(interfaceFile, content="\n".join(lines))
 
         self.clear_dhcp()
-
-
-# vi: ts=4 expandtab

@@ -23,8 +23,10 @@ import unittest
 import uuid
 from binascii import crc32
 
+import serial
+
 from cloudinit import helpers as c_helpers
-from cloudinit import serial
+from cloudinit.atomic_helper import b64e
 from cloudinit.event import EventScope, EventType
 from cloudinit.sources import DataSourceSmartOS
 from cloudinit.sources.DataSourceSmartOS import SERIAL_DEVICE, SMARTOS_ENV_KVM
@@ -36,21 +38,13 @@ from cloudinit.sources.DataSourceSmartOS import (
     identify_file,
 )
 from cloudinit.subp import ProcessExecutionError, subp, which
-from cloudinit.util import b64e, write_file
+from cloudinit.util import write_file
 from tests.unittests.helpers import (
     CiTestCase,
     FilesystemMockingTestCase,
     mock,
     skipIf,
 )
-
-try:
-    import serial as _pyserial
-
-    assert _pyserial  # avoid pyflakes error F401: import unused
-    HAS_PYSERIAL = True
-except ImportError:
-    HAS_PYSERIAL = False
 
 DSMOS = "cloudinit.sources.DataSourceSmartOS"
 SDC_NICS = json.loads(
@@ -357,7 +351,7 @@ SUCCESS_LEN = len("0123abcd SUCCESS ")
 NOTFOUND_LEN = len("0123abcd NOTFOUND")
 
 
-class PsuedoJoyentClient(object):
+class PsuedoJoyentClient:
     def __init__(self, data=None):
         if data is None:
             data = MOCK_RETURNS.copy()
@@ -743,7 +737,7 @@ class TestIdentifyFile(CiTestCase):
         )
 
 
-class ShortReader(object):
+class ShortReader:
     """Implements a 'read' interface for bytes provided.
     much like io.BytesIO but the 'endbyte' acts as if EOF.
     When it is reached a short will be returned."""
@@ -1357,7 +1351,6 @@ class TestNetworkConversion(CiTestCase):
     os.access(SERIAL_DEVICE, os.W_OK),
     "Requires write access to " + SERIAL_DEVICE,
 )
-@unittest.skipUnless(HAS_PYSERIAL is True, "pyserial not available")
 class TestSerialConcurrency(CiTestCase):
     """
     This class tests locking on an actual serial port, and as such can only
@@ -1381,7 +1374,7 @@ class TestSerialConcurrency(CiTestCase):
         # os.kill() rather than mdata_proc.terminate() to avoid console spam.
         os.kill(self.mdata_proc.pid, signal.SIGKILL)
         self.mdata_proc.join()
-        super(TestSerialConcurrency, self).tearDown()
+        super().tearDown()
 
     def start_mdata_loop(self):
         """
@@ -1392,7 +1385,7 @@ class TestSerialConcurrency(CiTestCase):
         are testing to be sure that cloud-init and mdata-get respect each
         others locks.
         """
-        rcs = list(range(0, 256))
+        rcs = list(range(256))
         while True:
             subp(["mdata-get", "sdc:routes"], rcs=rcs)
 
@@ -1409,13 +1402,10 @@ class TestSerialConcurrency(CiTestCase):
         # 10 times at roughly the same time as cloud-init fetched each key
         # once.  cloud-init would regularly see failures before making it
         # through all keys once.
-        for _ in range(0, 3):
+        for _ in range(3):
             for key in keys:
                 # We don't care about the return value, just that it doesn't
                 # thrown any exceptions.
                 client.get(key)
 
         self.assertIsNone(self.mdata_proc.exitcode)
-
-
-# vi: ts=4 expandtab

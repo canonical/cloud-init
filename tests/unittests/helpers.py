@@ -12,14 +12,14 @@ import tempfile
 import time
 import unittest
 from contextlib import ExitStack, contextmanager
-from pathlib import Path
+from typing import ClassVar, List, Union
 from unittest import mock
 from unittest.util import strclass
+from urllib.parse import urlsplit, urlunsplit
 
-import httpretty
+import responses
 
-import cloudinit
-from cloudinit import cloud, distros
+from cloudinit import atomic_helper, cloud, distros
 from cloudinit import helpers as ch
 from cloudinit import subp, util
 from cloudinit.config.schema import (
@@ -28,12 +28,30 @@ from cloudinit.config.schema import (
 )
 from cloudinit.sources import DataSourceNone
 from cloudinit.templater import JINJA_AVAILABLE
+from tests.helpers import cloud_init_project_dir
+from tests.hypothesis_jsonschema import HAS_HYPOTHESIS_JSONSCHEMA
 
 _real_subp = subp.subp
 
 # Used for skipping tests
 SkipTest = unittest.SkipTest
 skipIf = unittest.skipIf
+
+
+try:
+    import apt_pkg  # type: ignore # noqa: F401
+
+    HAS_APT_PKG = True
+except ImportError:
+    HAS_APT_PKG = False
+
+
+# Used by tests to verify the error message when a jsonschema structure
+# is empty but should not be.
+# Version 4.20.0 of jsonschema changed the error messages for empty structures.
+SCHEMA_EMPTY_ERROR = (
+    "(is too short|should be non-empty|does not have enough properties)"
+)
 
 
 # Makes the old path start
@@ -58,7 +76,7 @@ def retarget_many_wrapper(new_base, am, old_func):
         nam = am
         if am == -1:
             nam = len(n_args)
-        for i in range(0, nam):
+        for i in range(nam):
             path = args[i]
             # patchOS() wraps various os and os.path functions, however in
             # Python 3 some of these now accept file-descriptors (integers).
@@ -69,6 +87,13 @@ def retarget_many_wrapper(new_base, am, old_func):
         return old_func(*n_args, **kwds)
 
     return wrapper
+
+
+def random_string(length=8):
+    """return a random lowercase string with default length of 8"""
+    return "".join(
+        random.choice(string.ascii_lowercase) for _ in range(length)
+    )
 
 
 class TestCase(unittest.TestCase):
@@ -85,9 +110,7 @@ class TestCase(unittest.TestCase):
         In the future this should really be done with some registry that
         can then be cleaned in a more obvious way.
         """
-        util.PROC_CMDLINE = None
         util._DNS_REDIRECT_IP = None
-        util._LSB_RELEASE = {}
 
     def setUp(self):
         super(TestCase, self).setUp()
@@ -114,7 +137,7 @@ class CiTestCase(TestCase):
     # Subclass overrides for specific test behavior
     # Whether or not a unit test needs logfile setup
     with_logs = False
-    allowed_subp = False
+    allowed_subp: ClassVar[Union[List, bool]] = False
     SUBP_SHELL_TRUE = "shell=true"
 
     @contextmanager
@@ -137,6 +160,7 @@ class CiTestCase(TestCase):
             handler.setFormatter(formatter)
             self.old_handlers = self.logger.handlers
             self.logger.handlers = [handler]
+            self.old_level = logging.root.level
         if self.allowed_subp is True:
             subp.subp = _real_subp
         else:
@@ -166,7 +190,7 @@ class CiTestCase(TestCase):
             )
         if pass_through:
             return _real_subp(*args, **kwargs)
-        raise Exception(
+        raise RuntimeError(
             "called subp. set self.allowed_subp=True to allow\n subp(%s)"
             % ", ".join(
                 [str(repr(a)) for a in args]
@@ -178,7 +202,7 @@ class CiTestCase(TestCase):
         if self.with_logs:
             # Remove the handler we setup
             logging.getLogger().handlers = self.old_handlers
-            logging.getLogger().setLevel(logging.NOTSET)
+            logging.getLogger().setLevel(self.old_level)
         subp.subp = _real_subp
         super(CiTestCase, self).tearDown()
 
@@ -226,10 +250,7 @@ class CiTestCase(TestCase):
 
     @classmethod
     def random_string(cls, length=8):
-        """return a random lowercase string with default length of 8"""
-        return "".join(
-            random.choice(string.ascii_lowercase) for _ in range(length)
-        )
+        return random_string(length)
 
 
 class ResourceUsingTestCase(CiTestCase):
@@ -263,8 +284,8 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
             make_path = rebase_path(real_path[len(real_root) :], target_root)
             util.ensure_dir(make_path)
             for f in filenames:
-                real_path = util.abs_join(real_path, f)
-                make_path = util.abs_join(make_path, f)
+                real_path = os.path.abspath(os.path.join(real_path, f))
+                make_path = os.path.abspath(os.path.join(make_path, f))
                 shutil.copy(real_path, make_path)
 
     def patchUtils(self, new_root):
@@ -272,13 +293,17 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
             util: [
                 ("write_file", 1),
                 ("append_file", 1),
-                ("load_file", 1),
+                ("load_binary_file", 1),
+                ("load_text_file", 1),
                 ("ensure_dir", 1),
                 ("chmod", 1),
                 ("delete_dir_contents", 1),
                 ("del_file", 1),
                 ("sym_link", -1),
                 ("copy", -1),
+            ],
+            atomic_helper: [
+                ("write_json", 1),
             ],
         }
         for (mod, funcs) in patch_funcs.items():
@@ -369,30 +394,49 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
             self.patched_funcs.close()
 
 
-class HttprettyTestCase(CiTestCase):
-    # necessary as http_proxy gets in the way of httpretty
-    # https://github.com/gabrielfalcao/HTTPretty/issues/122
-    # Also make sure that allow_net_connect is set to False.
-    # And make sure reset and enable/disable are done.
+class CiRequestsMock(responses.RequestsMock):
+    def assert_call_count(self, url: str, count: int) -> bool:
+        """Focal and older have a version of responses which does
+        not carry this attribute. This can be removed when focal
+        is no longer supported.
+        """
+        if hasattr(super(), "_ensure_url_default_path"):
+            return super().assert_call_count(url, count)
 
+        def _ensure_url_default_path(url):
+            if isinstance(url, str):
+                url_parts = list(urlsplit(url))
+                if url_parts[2] == "":
+                    url_parts[2] = "/"
+                    url = urlunsplit(url_parts)
+            return url
+
+        call_count = len(
+            [
+                1
+                for call in self.calls
+                if call.request.url == _ensure_url_default_path(url)
+            ]
+        )
+        if call_count == count:
+            return True
+        else:
+            raise AssertionError(
+                f"Expected URL '{url}' to be called {count} times. "
+                f"Called {call_count} times."
+            )
+
+
+class ResponsesTestCase(CiTestCase):
     def setUp(self):
-        self.restore_proxy = os.environ.get("http_proxy")
-        if self.restore_proxy is not None:
-            del os.environ["http_proxy"]
-        super(HttprettyTestCase, self).setUp()
-        httpretty.HTTPretty.allow_net_connect = False
-        httpretty.reset()
-        httpretty.enable()
-        # Stop the logging from HttpPretty so our logs don't get mixed
-        # up with its logs
-        logging.getLogger("httpretty.core").setLevel(logging.CRITICAL)
+        super().setUp()
+        self.responses = CiRequestsMock(assert_all_requests_are_fired=False)
+        self.responses.start()
 
     def tearDown(self):
-        httpretty.disable()
-        httpretty.reset()
-        if self.restore_proxy:
-            os.environ["http_proxy"] = self.restore_proxy
-        super(HttprettyTestCase, self).tearDown()
+        self.responses.stop()
+        self.responses.reset()
+        super().tearDown()
 
 
 class SchemaTestCaseMixin(unittest.TestCase):
@@ -446,7 +490,7 @@ def dir2dict(startdir, prefix=None):
         for fname in files:
             fpath = os.path.join(root, fname)
             key = fpath[len(prefix) :]
-            flist[key] = util.load_file(fpath)
+            flist[key] = util.load_text_file(fpath)
     return flist
 
 
@@ -495,13 +539,34 @@ def readResource(name, mode="r"):
         return fh.read()
 
 
+def skipIfAptPkg():
+    return skipIf(
+        HAS_APT_PKG,
+        "No python-apt dependency present.",
+    )
+
+
 try:
     import jsonschema
 
     assert jsonschema  # avoid pyflakes error F401: import unused
+    _jsonschema_version = tuple(
+        int(part) for part in jsonschema.__version__.split(".")  # type: ignore
+    )
     _missing_jsonschema_dep = False
 except ImportError:
     _missing_jsonschema_dep = True
+    _jsonschema_version = (0, 0, 0)
+
+
+def skipUnlessJsonSchemaVersionGreaterThan(version=(0, 0, 0)):
+    return skipIf(
+        _jsonschema_version <= version,
+        reason=(
+            f"python3-jsonschema {_jsonschema_version} not greater than"
+            f" {version}"
+        ),
+    )
 
 
 def skipUnlessJsonSchema():
@@ -518,6 +583,13 @@ def skipIfJinja():
     return skipIf(JINJA_AVAILABLE, "Jinja dependency present.")
 
 
+def skipUnlessHypothesisJsonSchema():
+    return skipIf(
+        not HAS_HYPOTHESIS_JSONSCHEMA,
+        "No python-hypothesis-jsonschema dependency present.",
+    )
+
+
 # older versions of mock do not have the useful 'assert_not_called'
 if not hasattr(mock.Mock, "assert_not_called"):
 
@@ -530,25 +602,29 @@ if not hasattr(mock.Mock, "assert_not_called"):
             )
             raise AssertionError(msg)
 
-    mock.Mock.assert_not_called = __mock_assert_not_called
+    mock.Mock.assert_not_called = __mock_assert_not_called  # type: ignore
 
 
-def get_top_level_dir() -> Path:
-    """Return the absolute path to the top cloudinit project directory
+@contextmanager
+def does_not_raise():
+    """Context manager to parametrize tests raising and not raising exceptions
 
-    @return Path('<top-cloudinit-dir>')
+    Note: In python-3.7+, this can be substituted by contextlib.nullcontext
+    More info:
+    https://docs.pytest.org/en/6.2.x/example/parametrize.html?highlight=does_not_raise#parametrizing-conditional-raising
+
+    Example:
+    --------
+    >>> @pytest.mark.parametrize(
+    >>>     "example_input,expectation",
+    >>>     [
+    >>>         (1, does_not_raise()),
+    >>>         (0, pytest.raises(ZeroDivisionError)),
+    >>>     ],
+    >>> )
+    >>> def test_division(example_input, expectation):
+    >>>     with expectation:
+    >>>         assert (0 / example_input) is not None
+
     """
-    return Path(cloudinit.__file__).parent.parent.resolve()
-
-
-def cloud_init_project_dir(sub_path: str) -> str:
-    """Get a path within the cloudinit project directory
-
-    @return str of the combined path
-
-    Example: cloud_init_project_dir("my/path") -> "/path/to/cloud-init/my/path"
-    """
-    return str(get_top_level_dir() / sub_path)
-
-
-# vi: ts=4 expandtab
+    yield

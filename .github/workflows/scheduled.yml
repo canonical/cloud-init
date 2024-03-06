@@ -1,0 +1,32 @@
+name: scheduled
+on:
+  schedule:
+    - cron: '3 14 * * *'
+concurrency:
+  group: 'ci-${{ github.workflow }}-${{ github.ref }}'
+  cancel-in-progress: true
+
+jobs:
+  unittests:
+    strategy:
+      matrix:
+        toxenv: [ hypothesis-slow ]
+    name: unittest / ${{ matrix.toxenv }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          # Fetch all tags for tools/read-version
+          fetch-depth: 0
+      - name: Install dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get -qy update
+          sudo apt-get -qy install tox
+      - name: Run fuzztest
+        env:
+          PYTEST_ADDOPTS: -v
+          HYPOTHESIS_PROFILE: ci
+        run: tox -e ${{ matrix.toxenv }}

@@ -9,7 +9,12 @@ from unittest import mock
 
 import pytest
 
-from cloudinit.distros import LDH_ASCII_CHARS, _get_package_mirror_info
+from cloudinit.distros import (
+    LDH_ASCII_CHARS,
+    PackageInstallerError,
+    _get_package_mirror_info,
+)
+from tests.unittests.distros import _get_distro
 
 # In newer versions of Python, these characters will be omitted instead
 # of substituted because of security concerns.
@@ -246,3 +251,91 @@ class TestGetPackageMirrorInfo:
         print(patterns)
         print(expected)
         assert {"primary": expected} == ret
+
+
+class TestInstall:
+    """Tests for cloudinit.distros.Distro.install_packages."""
+
+    @pytest.fixture
+    def m_apt_install(self, mocker):
+        return mocker.patch(
+            "cloudinit.distros.package_management.apt.Apt.install_packages",
+            return_value=[],
+        )
+
+    @pytest.fixture
+    def m_snap_install(self, mocker):
+        return mocker.patch(
+            "cloudinit.distros.package_management.snap.Snap.install_packages",
+            return_value=[],
+        )
+
+    @pytest.fixture
+    def m_subp(self, mocker):
+        return mocker.patch(
+            "cloudinit.distros.bsd.subp.subp", return_value=("", "")
+        )
+
+    def test_invalid_yaml(self, m_apt_install):
+        """Test that an invalid YAML raises an exception."""
+        with pytest.raises(ValueError):
+            _get_distro("debian").install_packages([["invalid"]])
+        m_apt_install.assert_not_called()
+
+    def test_unknown_package_manager(self, m_apt_install, caplog):
+        """Test that an unknown package manager raises an exception."""
+        _get_distro("debian").install_packages(
+            [{"apt": ["pkg1"]}, "pkg2", {"invalid": ["pkg3"]}]
+        )
+        assert (
+            "Cannot install packages under 'invalid' as it is not a supported "
+            "package manager!" in caplog.text
+        )
+        install_args = m_apt_install.call_args_list[0][0][0]
+        assert "pkg1" in install_args
+        assert "pkg2" in install_args
+        assert "pkg3" not in install_args
+
+    def test_non_default_package_manager(self, m_apt_install, m_snap_install):
+        """Test success from package manager not supported by distro."""
+        _get_distro("debian").install_packages(
+            [{"apt": ["pkg1"]}, "pkg2", {"snap": ["pkg3"]}]
+        )
+        apt_install_args = m_apt_install.call_args_list[0][0][0]
+        assert "pkg1" in apt_install_args
+        assert "pkg2" in apt_install_args
+        assert "pkg3" not in apt_install_args
+
+        assert "pkg3" in m_snap_install.call_args_list[0][1]["pkglist"]
+
+    def test_non_default_package_manager_fail(
+        self, m_apt_install, mocker, caplog
+    ):
+        """Test fail from package manager not supported by distro."""
+        m_snap_install = mocker.patch(
+            "cloudinit.distros.package_management.snap.Snap.install_packages",
+            return_value=["pkg3"],
+        )
+        with pytest.raises(
+            PackageInstallerError,
+            match="Failed to install the following packages: \\['pkg3'\\]",
+        ):
+            _get_distro("debian").install_packages(
+                [{"apt": ["pkg1"]}, "pkg2", {"snap": ["pkg3"]}]
+            )
+
+        assert "pkg3" in m_snap_install.call_args_list[0][1]["pkglist"]
+
+    def test_default_and_specific_package_manager(
+        self, m_apt_install, m_snap_install
+    ):
+        """Test success from package manager not supported by distro."""
+        _get_distro("ubuntu").install_packages(
+            ["pkg1", ["pkg3", "ver3"], {"apt": [["pkg2", "ver2"]]}]
+        )
+        apt_install_args = m_apt_install.call_args_list[0][0][0]
+        assert "pkg1" in apt_install_args
+        assert ("pkg2", "ver2") in apt_install_args
+        assert "pkg3" not in apt_install_args
+
+        m_snap_install.assert_not_called()

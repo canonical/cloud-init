@@ -12,7 +12,16 @@ import pytest
 from cloudinit import cloud, distros, helpers, util
 from cloudinit.config import cc_resolv_conf
 from cloudinit.config.cc_resolv_conf import generate_resolv_conf
-from tests.unittests import helpers as t_help
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
+from tests.helpers import cloud_init_project_dir
+from tests.unittests.helpers import (
+    FilesystemMockingTestCase,
+    skipUnlessJsonSchema,
+)
 from tests.unittests.util import MockDistro
 
 LOG = logging.getLogger(__name__)
@@ -24,7 +33,7 @@ EXPECTED_HEADER = """\
 #\n\n"""
 
 
-class TestResolvConf(t_help.FilesystemMockingTestCase):
+class TestResolvConf(FilesystemMockingTestCase):
     with_logs = True
     cfg = {"manage_resolv_conf": True, "resolv_conf": {}}
 
@@ -46,7 +55,7 @@ class TestResolvConf(t_help.FilesystemMockingTestCase):
             distro = self._fetch_distro(distro_name, conf)
             paths = helpers.Paths({"cloud_dir": self.tmp})
             cc = cloud.Cloud(ds, paths, {}, distro, None)
-        cc_resolv_conf.handle("cc_resolv_conf", conf, cc, LOG, [])
+        cc_resolv_conf.handle("cc_resolv_conf", conf, cc, [])
 
     @mock.patch("cloudinit.config.cc_resolv_conf.templater.render_to_file")
     def test_resolv_conf_systemd_resolved(self, m_render_to_file):
@@ -117,7 +126,7 @@ class TestResolvConf(t_help.FilesystemMockingTestCase):
 class TestGenerateResolvConf:
 
     dist = MockDistro()
-    tmpl_fn = t_help.cloud_init_project_dir("templates/resolv.conf.tmpl")
+    tmpl_fn = cloud_init_project_dir("templates/resolv.conf.tmpl")
 
     @mock.patch("cloudinit.config.cc_resolv_conf.templater.render_to_file")
     def test_dist_resolv_conf_fn(self, m_render_to_file):
@@ -194,4 +203,61 @@ class TestGenerateResolvConf:
         ] == m_write_file.call_args_list
 
 
-# vi: ts=4 expandtab
+class TestResolvConfSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            # Valid
+            ({"manage_resolv_conf": False}, None),
+            ({"resolv_conf": {"options": {"any": "thing"}}}, None),
+            # Invalid
+            (
+                {"manage_resolv_conf": "asdf"},
+                "'asdf' is not of type 'boolean'",
+            ),
+            # What may be some common misunderstandings of the template
+            (
+                {"resolv_conf": {"nameserver": ["1.1.1.1"]}},
+                "Additional properties are not allowed",
+            ),
+            (
+                {"resolv_conf": {"nameservers": "1.1.1.1"}},
+                "'1.1.1.1' is not of type 'array'",
+            ),
+            (
+                {"resolv_conf": {"search": ["foo.com"]}},
+                "Additional properties are not allowed",
+            ),
+            (
+                {"resolv_conf": {"searchdomains": "foo.com"}},
+                "'foo.com' is not of type 'array'",
+            ),
+            (
+                {"resolv_conf": {"domain": ["foo.com"]}},
+                r"\['foo.com'\] is not of type 'string'",
+            ),
+            (
+                {"resolv_conf": {"sortlist": "1.2.3.4"}},
+                "'1.2.3.4' is not of type 'array'",
+            ),
+            (
+                {"resolv_conf": {"options": "timeout: 1"}},
+                "'timeout: 1' is not of type 'object'",
+            ),
+            (
+                {"resolv_conf": {"options": "rotate"}},
+                "'rotate' is not of type 'object'",
+            ),
+            (
+                {"resolv_conf": {"options": ["rotate"]}},
+                r"\['rotate'\] is not of type 'object'",
+            ),
+        ],
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)

@@ -1,0 +1,32 @@
+## template:jinja
+# Welcome to the chrony configuration file. See chrony.conf(5) for more
+# information about usable directives.
+
+{% if pools %}# pools
+{% endif %}
+{% for pool in pools -%}
+pool {{pool}} iburst
+{% endfor %}
+{%- if servers %}# servers
+{% endif %}
+{% for server in servers -%}
+server {{server}} iburst
+{% endfor %}
+{% for peer in peers -%}
+peer {{peer}}
+{% endfor %}
+{% for a in allow -%}
+allow {{a}}
+{% endfor %}
+
+# This directive specify the file into which chronyd will store the rate
+# information.
+driftfile /var/lib/chrony/chrony.drift
+
+# This directive enables kernel synchronisation (every 11 minutes) of the
+# real-time clock. Note that it can’t be used along with the 'rtcfile' directive.
+rtcsync
+
+# Step the system clock instead of slewing it if the adjustment is larger than
+# one second, but only in the first three clock updates.
+makestep 1 3

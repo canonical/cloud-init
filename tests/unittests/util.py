@@ -1,9 +1,15 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+from unittest import mock
+
 from cloudinit import cloud, distros, helpers
+from cloudinit.net.dhcp import IscDhclient
+from cloudinit.sources import DataSource, DataSourceHostname
 from cloudinit.sources.DataSourceNone import DataSourceNone
 
 
-def get_cloud(distro=None, paths=None, sys_cfg=None, metadata=None):
+def get_cloud(
+    distro=None, paths=None, sys_cfg=None, metadata=None, mocked_distro=False
+):
     """Obtain a "cloud" that can be used for testing.
 
     Modules take a 'cloud' parameter to call into things that are
@@ -16,13 +22,20 @@ def get_cloud(distro=None, paths=None, sys_cfg=None, metadata=None):
     paths = paths or helpers.Paths({})
     sys_cfg = sys_cfg or {}
     cls = distros.fetch(distro) if distro else MockDistro
-    mydist = cls(distro, sys_cfg, paths)
+    # *BSD calls platform.system to determine osfamilies
+    osfamily = distro.lower() if distro else "ubuntu"
+    with mock.patch("platform.system", return_value=osfamily):
+        mydist = cls(distro, sys_cfg, paths)
+    if mocked_distro:
+        mydist = mock.MagicMock(wraps=mydist)
     myds = DataSourceTesting(sys_cfg, mydist, paths)
     if metadata:
         myds.metadata.update(metadata)
     if paths:
         paths.datasource = myds
-    return cloud.Cloud(myds, paths, sys_cfg, mydist, None)
+    return cloud.Cloud(
+        myds, paths, sys_cfg, mydist, runners=helpers.Runners(paths)
+    )
 
 
 def abstract_to_concrete(abclass):
@@ -37,14 +50,10 @@ def abstract_to_concrete(abclass):
 
 class DataSourceTesting(DataSourceNone):
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
-        return "hostname"
+        return DataSourceHostname("hostname", False)
 
     def persist_instance_data(self):
         return True
-
-    @property
-    def fallback_interface(self):
-        return None
 
     @property
     def cloud_name(self):
@@ -54,11 +63,21 @@ class DataSourceTesting(DataSourceNone):
 class MockDistro(distros.Distro):
     # MockDistro is here to test base Distro class implementations
     def __init__(self, name="testingdistro", cfg=None, paths=None):
+        self._client = None
         if not cfg:
             cfg = {}
         if not paths:
             paths = {}
         super(MockDistro, self).__init__(name, cfg, paths)
+
+    @property
+    def dhcp_client(self):
+        if not self._client:
+            with mock.patch(
+                "cloudinit.net.dhcp.subp.which", return_value=True
+            ):
+                self._client = IscDhclient()
+        return self._client
 
     def install_packages(self, pkglist):
         pass
@@ -66,8 +85,17 @@ class MockDistro(distros.Distro):
     def set_hostname(self, hostname, fqdn=None):
         pass
 
-    def uses_systemd(self):
+    @staticmethod
+    def uses_systemd():
         return True
+
+    @staticmethod
+    def get_proc_ppid(_):
+        return 1
+
+    @staticmethod
+    def get_proc_pgid(_):
+        return 99999
 
     def get_primary_arch(self):
         return "i386"
@@ -75,17 +103,11 @@ class MockDistro(distros.Distro):
     def get_package_mirror_info(self, arch=None, data_source=None):
         pass
 
-    def apply_network(self, settings, bring_up=True):
-        return False
-
     def generate_fallback_config(self):
         return {}
 
     def apply_network_config(self, netconfig, bring_up=False) -> bool:
         return False
-
-    def apply_network_config_names(self, netconfig):
-        pass
 
     def apply_locale(self, locale, out_fn=None):
         pass
@@ -143,3 +165,35 @@ class MockDistro(distros.Distro):
 
     def update_package_sources(self):
         return (True, "yay")
+
+    def do_as(self, command, args=None, **kwargs):
+        return ("stdout", "stderr")
+
+
+TEST_INSTANCE_ID = "i-testing"
+
+
+class FakeDataSource(DataSource):
+    def __init__(
+        self,
+        userdata=None,
+        vendordata=None,
+        vendordata2=None,
+        network_config="",
+        paths=None,
+    ):
+        DataSource.__init__(self, {}, None, paths=paths)
+        self.metadata = {"instance-id": TEST_INSTANCE_ID}
+        self.userdata_raw = userdata
+        self.vendordata_raw = vendordata
+        self.vendordata2_raw = vendordata2
+        self._network_config = None
+        if network_config:  # Permit for None value to setup attribute
+            self._network_config = network_config
+
+    @property
+    def network_config(self):
+        return self._network_config
+
+    def _get_data(self):
+        return True

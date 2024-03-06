@@ -7,20 +7,27 @@
 import copy
 import functools
 import logging
-import socket
-import struct
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from cloudinit import safeyaml, util
+from cloudinit.net import (
+    find_interface_name_from_mac,
+    get_interfaces_by_mac,
+    ipv4_mask_to_net_prefix,
+    ipv6_mask_to_net_prefix,
+    is_ip_network,
+    is_ipv4_network,
+    is_ipv6_address,
+    is_ipv6_network,
+    net_prefix_to_ipv4_mask,
+)
+
+if TYPE_CHECKING:
+    from cloudinit.net.renderer import Renderer
 
 LOG = logging.getLogger(__name__)
 
 NETWORK_STATE_VERSION = 1
-IPV6_DYNAMIC_TYPES = [
-    "dhcp6",
-    "ipv6_slaac",
-    "ipv6_dhcpv6-stateless",
-    "ipv6_dhcpv6-stateful",
-]
 NETWORK_STATE_REQUIRED_KEYS = {
     1: ["version", "config", "network_state"],
 }
@@ -42,7 +49,7 @@ NETWORK_V2_KEY_FILTER = [
     "accept-ra",
 ]
 
-NET_CONFIG_TO_V2 = {
+NET_CONFIG_TO_V2: Dict[str, Dict[str, Any]] = {
     "bond": {
         "bond-ad-select": "ad-select",
         "bond-arp-interval": "arp-interval",
@@ -54,7 +61,7 @@ NET_CONFIG_TO_V2 = {
         "bond-miimon": "mii-monitor-interval",
         "bond-min-links": "min-links",
         "bond-mode": "mode",
-        "bond-num-grat-arp": "gratuitious-arp",
+        "bond-num-grat-arp": "gratuitous-arp",
         "bond-primary": "primary",
         "bond-primary-reselect": "primary-reselect-policy",
         "bond-updelay": "up-delay",
@@ -76,11 +83,15 @@ NET_CONFIG_TO_V2 = {
 }
 
 
-def from_state_file(state_file):
-    state = util.read_conf(state_file)
-    nsi = NetworkStateInterpreter()
-    nsi.load(state)
-    return nsi
+def warn_deprecated_all_devices(dikt: dict) -> None:
+    """Warn about deprecations of v2 properties for all devices"""
+    if "gateway4" in dikt or "gateway6" in dikt:
+        util.deprecate(
+            deprecated="The use of `gateway4` and `gateway6`",
+            deprecated_version="22.4",
+            extra_message="For more info check out: "
+            "https://cloudinit.readthedocs.io/en/latest/topics/network-config-format-v2.html",  # noqa: E501
+        )
 
 
 def diff_keys(expected, actual):
@@ -112,34 +123,17 @@ def ensure_command_keys(required_keys):
     return wrapper
 
 
-class CommandHandlerMeta(type):
-    """Metaclass that dynamically creates a 'command_handlers' attribute.
-
-    This will scan the to-be-created class for methods that start with
-    'handle_' and on finding those will populate a class attribute mapping
-    so that those methods can be quickly located and called.
-    """
-
-    def __new__(cls, name, parents, dct):
-        command_handlers = {}
-        for attr_name, attr in dct.items():
-            if callable(attr) and attr_name.startswith("handle_"):
-                handles_what = attr_name[len("handle_") :]
-                if handles_what:
-                    command_handlers[handles_what] = attr
-        dct["command_handlers"] = command_handlers
-        return super(CommandHandlerMeta, cls).__new__(cls, name, parents, dct)
-
-
-class NetworkState(object):
-    def __init__(self, network_state, version=NETWORK_STATE_VERSION):
+class NetworkState:
+    def __init__(
+        self, network_state: dict, version: int = NETWORK_STATE_VERSION
+    ):
         self._network_state = copy.deepcopy(network_state)
         self._version = version
         self.use_ipv6 = network_state.get("use_ipv6", False)
         self._has_default_route = None
 
     @property
-    def config(self):
+    def config(self) -> dict:
         return self._network_state["config"]
 
     @property
@@ -200,9 +194,22 @@ class NetworkState(object):
             route.get("prefix") == 0 and route.get("network") in default_nets
         )
 
+    @classmethod
+    def to_passthrough(cls, network_state: dict) -> "NetworkState":
+        """Instantiates a `NetworkState` without interpreting its data.
 
-class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
+        That means only `config` and `version` are copied.
 
+        :param network_state: Network state data.
+        :return: Instance of `NetworkState`.
+        """
+        kwargs = {}
+        if "version" in network_state:
+            kwargs["version"] = network_state["version"]
+        return cls({"config": network_state}, **kwargs)
+
+
+class NetworkStateInterpreter:
     initial_network_state = {
         "interfaces": {},
         "routes": [],
@@ -214,16 +221,42 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
         "config": None,
     }
 
-    def __init__(self, version=NETWORK_STATE_VERSION, config=None):
+    def __init__(
+        self,
+        version=NETWORK_STATE_VERSION,
+        config=None,
+        renderer: "Optional[Renderer]" = None,
+    ):
         self._version = version
         self._config = config
         self._network_state = copy.deepcopy(self.initial_network_state)
         self._network_state["config"] = config
         self._parsed = False
-        self._interface_dns_map = {}
+        self._interface_dns_map: dict = {}
+        self._renderer = renderer
+        self.command_handlers = {
+            "bond": self.handle_bond,
+            "bonds": self.handle_bonds,
+            "bridge": self.handle_bridge,
+            "bridges": self.handle_bridges,
+            "ethernets": self.handle_ethernets,
+            "infiniband": self.handle_infiniband,
+            "loopback": self.handle_loopback,
+            "nameserver": self.handle_nameserver,
+            "physical": self.handle_physical,
+            "route": self.handle_route,
+            "vlan": self.handle_vlan,
+            "vlans": self.handle_vlans,
+            "wifis": self.handle_wifis,
+        }
 
     @property
-    def network_state(self):
+    def network_state(self) -> NetworkState:
+        from cloudinit.net.netplan import Renderer as NetplanRenderer
+
+        if self._version == 2 and isinstance(self._renderer, NetplanRenderer):
+            LOG.debug("Passthrough netplan v2 config")
+            return NetworkState.to_passthrough(self._config)
         return NetworkState(self._network_state, version=self._version)
 
     @property
@@ -264,10 +297,6 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
     def as_dict(self):
         return {"version": self._version, "config": self._config}
 
-    def get_network_state(self):
-        ns = self.network_state
-        return ns
-
     def parse_config(self, skip_broken=True):
         if self._version == 1:
             self.parse_config_v1(skip_broken=skip_broken)
@@ -286,7 +315,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                     "No handler found for  command '%s'" % command_type
                 ) from e
             try:
-                handler(self, command)
+                handler(command)
             except InvalidCommand:
                 if not skip_broken:
                     raise
@@ -307,11 +336,17 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
             if iface:
                 nameservers, search = dns
                 iface["dns"] = {
-                    "addresses": nameservers,
+                    "nameservers": nameservers,
                     "search": search,
                 }
 
     def parse_config_v2(self, skip_broken=True):
+        from cloudinit.net.netplan import Renderer as NetplanRenderer
+
+        if isinstance(self._renderer, NetplanRenderer):
+            # Nothing to parse as we are going to perform a Netplan passthrough
+            return
+
         for command_type, command in self._config.items():
             if command_type in ["version", "renderer"]:
                 continue
@@ -322,7 +357,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                     "No handler found for command '%s'" % command_type
                 ) from e
             try:
-                handler(self, command)
+                handler(command)
                 self._v2_common(command)
             except InvalidCommand:
                 if not skip_broken:
@@ -362,7 +397,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
         # automatically set 'use_ipv6' if any addresses are ipv6
         if not self.use_ipv6:
             for subnet in subnets:
-                if subnet.get("type").endswith("6") or is_ipv6_addr(
+                if subnet.get("type").endswith("6") or is_ipv6_address(
                     subnet.get("address")
                 ):
                     self.use_ipv6 = True
@@ -513,7 +548,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
 
         # convert value to boolean
         bridge_stp = iface.get("bridge_stp")
-        if bridge_stp is not None and type(bridge_stp) != bool:
+        if bridge_stp is not None and not isinstance(bridge_stp, bool):
             if bridge_stp in ["on", "1", 1]:
                 bridge_stp = True
             elif bridge_stp in ["off", "0", 0]:
@@ -536,7 +571,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
         search = []
         if "address" in command:
             addrs = command["address"]
-            if not type(addrs) == list:
+            if not isinstance(addrs, list):
                 addrs = [addrs]
             for addr in addrs:
                 nameservers.append(addr)
@@ -604,7 +639,6 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
         self._handle_bond_bridge(command, cmd_type="bond")
 
     def handle_bridges(self, command):
-
         """
         v2_command = {
           br0: {
@@ -635,7 +669,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
           eno1:
             match:
               macaddress: 00:11:22:33:44:55
-              driver: hv_netsvc
+              driver: hv_netvsc
             wakeonlan: true
             dhcp4: true
             dhcp6: false
@@ -667,10 +701,18 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
              ]
         }
         """
+
+        # Get the interfaces by MAC address to update an interface's
+        # device name to the name of the device that matches a provided
+        # MAC address when the set-name directive is not present.
+        #
+        # Please see https://bugs.launchpad.net/cloud-init/+bug/1855945
+        # for more information.
+        ifaces_by_mac = get_interfaces_by_mac()
+
         for eth, cfg in command.items():
             phy_cmd = {
                 "type": "physical",
-                "name": cfg.get("set-name", eth),
             }
             match = cfg.get("match", {})
             mac_address = match.get("macaddress", None)
@@ -682,12 +724,31 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                     str(cfg),
                 )
             phy_cmd["mac_address"] = mac_address
+
+            # Determine the name of the interface by using one of the
+            # following in the order they are listed:
+            #   * set-name
+            #   * interface name looked up by mac
+            #   * value of "eth" key from this loop
+            name = eth
+            set_name = cfg.get("set-name")
+            if set_name:
+                name = set_name
+            elif mac_address and ifaces_by_mac:
+                lcase_mac_address = mac_address.lower()
+                mac = find_interface_name_from_mac(lcase_mac_address)
+                if mac:
+                    name = mac
+            phy_cmd["name"] = name
+
             driver = match.get("driver", None)
             if driver:
                 phy_cmd["params"] = {"driver": driver}
             for key in ["mtu", "match", "wakeonlan", "accept-ra"]:
                 if key in cfg:
                     phy_cmd[key] = cfg[key]
+
+            warn_deprecated_all_devices(cfg)
 
             subnets = self._v2_to_v1_ipcfg(cfg)
             if len(subnets) > 0:
@@ -723,6 +784,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
             }
             if "mtu" in cfg:
                 vlan_cmd["mtu"] = cfg["mtu"]
+            warn_deprecated_all_devices(cfg)
             subnets = self._v2_to_v1_ipcfg(cfg)
             if len(subnets) > 0:
                 vlan_cmd.update({"subnets": subnets})
@@ -735,7 +797,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
             " netplan rendering support."
         )
 
-    def _v2_common(self, cfg):
+    def _v2_common(self, cfg) -> None:
         LOG.debug("v2_common: handling config:\n%s", cfg)
         for iface, dev_cfg in cfg.items():
             if "set-name" in dev_cfg:
@@ -750,7 +812,15 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                     name_cmd.update({"search": search})
                 if len(dns) > 0:
                     name_cmd.update({"address": dns})
-                self.handle_nameserver(name_cmd)
+
+                mac_address: Optional[str] = dev_cfg.get("match", {}).get(
+                    "macaddress"
+                )
+                if mac_address:
+                    real_if_name = find_interface_name_from_mac(mac_address)
+                    if real_if_name:
+                        iface = real_if_name
+
                 self._handle_individual_nameserver(name_cmd, iface)
 
     def _handle_bond_bridge(self, command, cmd_type=None):
@@ -767,13 +837,12 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                 for (key, value) in item_cfg.items()
                 if key not in NETWORK_V2_KEY_FILTER
             )
-            # we accept the fixed spelling, but write the old for compatibility
-            # Xenial does not have an updated netplan which supports the
-            # correct spelling.  LP: #1756701
+            # We accept both spellings (as netplan does).  LP: #1756701
+            # Normalize internally to the new spelling:
             params = item_params.get("parameters", {})
-            grat_value = params.pop("gratuitous-arp", None)
+            grat_value = params.pop("gratuitious-arp", None)
             if grat_value:
-                params["gratuitious-arp"] = grat_value
+                params["gratuitous-arp"] = grat_value
 
             v1_cmd = {
                 "type": cmd_type,
@@ -783,6 +852,8 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
             }
             if "mtu" in item_cfg:
                 v1_cmd["mtu"] = item_cfg["mtu"]
+
+            warn_deprecated_all_devices(item_cfg)
             subnets = self._v2_to_v1_ipcfg(item_cfg)
             if len(subnets) > 0:
                 v1_cmd.update({"subnets": subnets})
@@ -853,6 +924,8 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                     {
                         "destination": route.get("to"),
                         "gateway": route.get("via"),
+                        "metric": route.get("metric"),
+                        "mtu": route.get("mtu"),
                     }
                 )
             )
@@ -905,7 +978,7 @@ def _normalize_net_keys(network, address_keys=()):
 
     @returns: A dict containing normalized prefix and matching addr_key.
     """
-    net = dict((k, v) for k, v in network.items() if v)
+    net = {k: v for k, v in network.items() if v or v == 0}
     addr_key = None
     for key in address_keys:
         if net.get(key):
@@ -919,21 +992,35 @@ def _normalize_net_keys(network, address_keys=()):
         LOG.error(message)
         raise ValueError(message)
 
-    addr = net.get(addr_key)
-    ipv6 = is_ipv6_addr(addr)
+    addr = str(net.get(addr_key))
+    if not is_ip_network(addr):
+        LOG.error("Address %s is not a valid ip network", addr)
+        raise ValueError(f"Address {addr} is not a valid ip address")
+
+    ipv6 = is_ipv6_network(addr)
+    ipv4 = is_ipv4_network(addr)
+
     netmask = net.get("netmask")
     if "/" in addr:
         addr_part, _, maybe_prefix = addr.partition("/")
         net[addr_key] = addr_part
-        try:
-            prefix = int(maybe_prefix)
-        except ValueError:
-            # this supports input of <address>/255.255.255.0
-            prefix = mask_to_net_prefix(maybe_prefix)
-    elif netmask:
-        prefix = mask_to_net_prefix(netmask)
+        if ipv6:
+            # this supports input of ffff:ffff:ffff::
+            prefix = ipv6_mask_to_net_prefix(maybe_prefix)
+        elif ipv4:
+            # this supports input of 255.255.255.0
+            prefix = ipv4_mask_to_net_prefix(maybe_prefix)
+        else:
+            # In theory this never happens, is_ip_network() should catch all
+            # invalid networks
+            LOG.error("Address %s is not a valid ip network", addr)
+            raise ValueError(f"Address {addr} is not a valid ip address")
     elif "prefix" in net:
         prefix = int(net["prefix"])
+    elif netmask and ipv4:
+        prefix = ipv4_mask_to_net_prefix(netmask)
+    elif netmask and ipv6:
+        prefix = ipv6_mask_to_net_prefix(netmask)
     else:
         prefix = 64 if ipv6 else 24
 
@@ -950,7 +1037,7 @@ def _normalize_net_keys(network, address_keys=()):
         # 'netmask' for ipv6.  We need a 'net_prefix_to_ipv6_mask' for that.
         if "netmask" in net:
             del net["netmask"]
-    else:
+    elif ipv4:
         net["netmask"] = net_prefix_to_ipv4_mask(net["prefix"])
 
     return net
@@ -996,143 +1083,11 @@ def _normalize_subnets(subnets):
     return [_normalize_subnet(s) for s in subnets]
 
 
-def is_ipv6_addr(address):
-    if not address:
-        return False
-    return ":" in str(address)
-
-
-def subnet_is_ipv6(subnet):
-    """Common helper for checking network_state subnets for ipv6."""
-    # 'static6', 'dhcp6', 'ipv6_dhcpv6-stateful', 'ipv6_dhcpv6-stateless' or
-    # 'ipv6_slaac'
-    if subnet["type"].endswith("6") or subnet["type"] in IPV6_DYNAMIC_TYPES:
-        # This is a request either static6 type or DHCPv6.
-        return True
-    elif subnet["type"] == "static" and is_ipv6_addr(subnet.get("address")):
-        return True
-    return False
-
-
-def net_prefix_to_ipv4_mask(prefix):
-    """Convert a network prefix to an ipv4 netmask.
-
-    This is the inverse of ipv4_mask_to_net_prefix.
-        24 -> "255.255.255.0"
-    Also supports input as a string."""
-    mask = socket.inet_ntoa(
-        struct.pack(">I", (0xFFFFFFFF << (32 - int(prefix)) & 0xFFFFFFFF))
-    )
-    return mask
-
-
-def ipv4_mask_to_net_prefix(mask):
-    """Convert an ipv4 netmask into a network prefix length.
-
-    If the input is already an integer or a string representation of
-    an integer, then int(mask) will be returned.
-       "255.255.255.0" => 24
-       str(24)         => 24
-       "24"            => 24
-    """
-    if isinstance(mask, int):
-        return mask
-    if isinstance(mask, str):
-        try:
-            return int(mask)
-        except ValueError:
-            pass
-    else:
-        raise TypeError("mask '%s' is not a string or int")
-
-    if "." not in mask:
-        raise ValueError("netmask '%s' does not contain a '.'" % mask)
-
-    toks = mask.split(".")
-    if len(toks) != 4:
-        raise ValueError("netmask '%s' had only %d parts" % (mask, len(toks)))
-
-    return sum([bin(int(x)).count("1") for x in toks])
-
-
-def ipv6_mask_to_net_prefix(mask):
-    """Convert an ipv6 netmask (very uncommon) or prefix (64) to prefix.
-
-    If 'mask' is an integer or string representation of one then
-    int(mask) will be returned.
-    """
-
-    if isinstance(mask, int):
-        return mask
-    if isinstance(mask, str):
-        try:
-            return int(mask)
-        except ValueError:
-            pass
-    else:
-        raise TypeError("mask '%s' is not a string or int")
-
-    if ":" not in mask:
-        raise ValueError("mask '%s' does not have a ':'")
-
-    bitCount = [
-        0,
-        0x8000,
-        0xC000,
-        0xE000,
-        0xF000,
-        0xF800,
-        0xFC00,
-        0xFE00,
-        0xFF00,
-        0xFF80,
-        0xFFC0,
-        0xFFE0,
-        0xFFF0,
-        0xFFF8,
-        0xFFFC,
-        0xFFFE,
-        0xFFFF,
-    ]
-    prefix = 0
-    for word in mask.split(":"):
-        if not word or int(word, 16) == 0:
-            break
-        prefix += bitCount.index(int(word, 16))
-
-    return prefix
-
-
-def mask_to_net_prefix(mask):
-    """Return the network prefix for the netmask provided.
-
-    Supports ipv4 or ipv6 netmasks."""
-    try:
-        # if 'mask' is a prefix that is an integer.
-        # then just return it.
-        return int(mask)
-    except ValueError:
-        pass
-    if is_ipv6_addr(mask):
-        return ipv6_mask_to_net_prefix(mask)
-    else:
-        return ipv4_mask_to_net_prefix(mask)
-
-
-def mask_and_ipv4_to_bcast_addr(mask, ip):
-    """Calculate the broadcast address from the subnet mask and ip addr.
-
-    Supports ipv4 only."""
-    ip_bin = int("".join([bin(int(x) + 256)[3:] for x in ip.split(".")]), 2)
-    mask_dec = ipv4_mask_to_net_prefix(mask)
-    bcast_bin = ip_bin | (2 ** (32 - mask_dec) - 1)
-    bcast_str = ".".join(
-        [str(bcast_bin >> (i << 3) & 0xFF) for i in range(4)[::-1]]
-    )
-    return bcast_str
-
-
-def parse_net_config_data(net_config, skip_broken=True) -> NetworkState:
+def parse_net_config_data(
+    net_config: dict,
+    skip_broken: bool = True,
+    renderer=None,  # type: Optional[Renderer]
+) -> NetworkState:
     """Parses the config, returns NetworkState object
 
     :param net_config: curtin network config dict
@@ -1146,17 +1101,17 @@ def parse_net_config_data(net_config, skip_broken=True) -> NetworkState:
         config = net_config
 
     if version and config is not None:
-        nsi = NetworkStateInterpreter(version=version, config=config)
+        nsi = NetworkStateInterpreter(
+            version=version, config=config, renderer=renderer
+        )
         nsi.parse_config(skip_broken=skip_broken)
-        state = nsi.get_network_state()
+        state = nsi.network_state
 
     if not state:
         raise RuntimeError(
             "No valid network_state object created from network config. "
-            "Did you specify the correct version?"
+            "Did you specify the correct version? Network config:\n"
+            f"{net_config}"
         )
 
     return state
-
-
-# vi: ts=4 expandtab

@@ -3,53 +3,86 @@
 # Author: Brent Baude <bbaude@redhat.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+"""Red Hat Subscription: Register Red Hat Enterprise Linux based system"""
 
-"""
-Red Hat Subscription
---------------------
-**Summary:** register red hat enterprise linux based system
+import logging
+from textwrap import dedent
 
-Register a Red Hat system either by username and password *or* activation and
-org. Following a sucessful registration, you can auto-attach subscriptions, set
-the service level, add subscriptions based on pool id, enable/disable yum
-repositories based on repo id, and alter the rhsm_baseurl and server-hostname
-in ``/etc/rhsm/rhs.conf``. For more details, see the ``Register Red Hat
-Subscription`` example config.
-
-**Internal name:** ``cc_rh_subscription``
-
-**Module frequency:** per instance
-
-**Supported distros:** rhel, fedora
-
-**Config keys**::
-
-    rh_subscription:
-        username: <username>
-        password: <password>
-        activation-key: <activation key>
-        org: <org number>
-        auto-attach: <true/false>
-        service-level: <service level>
-        add-pool: <list of pool ids>
-        enable-repo: <list of yum repo ids>
-        disable-repo: <list of yum repo ids>
-        rhsm-baseurl: <url>
-        server-hostname: <hostname>
-"""
-
-from cloudinit import log as logging
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
-distros = ["fedora", "rhel"]
+MODULE_DESCRIPTION = """\
+Register a Red Hat system either by username and password *or* activation and
+org. Following a successful registration, you can:
+
+ - auto-attach subscriptions
+ - set the service level
+ - add subscriptions based on pool id
+ - enable/disable yum repositories based on repo id
+ - alter the rhsm_baseurl and server-hostname in ``/etc/rhsm/rhs.conf``.
+"""
+
+meta: MetaSchema = {
+    "id": "cc_rh_subscription",
+    "name": "Red Hat Subscription",
+    "title": "Register Red Hat Enterprise Linux based system",
+    "description": MODULE_DESCRIPTION,
+    "distros": ["fedora", "rhel", "openeuler"],
+    "frequency": PER_INSTANCE,
+    "examples": [
+        dedent(
+            """\
+            rh_subscription:
+                username: joe@foo.bar
+                ## Quote your password if it has symbols to be safe
+                password: '1234abcd'
+            """
+        ),
+        dedent(
+            """\
+            rh_subscription:
+                activation-key: foobar
+                org: 12345
+            """
+        ),
+        dedent(
+            """\
+            rh_subscription:
+                activation-key: foobar
+                org: 12345
+                auto-attach: true
+                service-level: self-support
+                add-pool:
+                  - 1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a
+                  - 2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b
+                enable-repo:
+                  - repo-id-to-enable
+                  - other-repo-id-to-enable
+                disable-repo:
+                  - repo-id-to-disable
+                  - other-repo-id-to-disable
+                # Alter the baseurl in /etc/rhsm/rhsm.conf
+                rhsm-baseurl: http://url
+                # Alter the server hostname in /etc/rhsm/rhsm.conf
+                server-hostname: foo.bar.com
+            """
+        ),
+    ],
+    "activate_by_schema_keys": ["rh_subscription"],
+}
+
+__doc__ = get_meta_doc(meta)
 
 
-def handle(name, cfg, _cloud, log, _args):
-    sm = SubscriptionManager(cfg, log=log)
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
+    sm = SubscriptionManager(cfg, log=LOG)
     if not sm.is_configured():
-        log.debug("%s: module not configured.", name)
+        LOG.debug("%s: module not configured.", name)
         return None
 
     if not sm.is_registered():
@@ -104,7 +137,7 @@ class SubscriptionError(Exception):
     pass
 
 
-class SubscriptionManager(object):
+class SubscriptionManager:
     valid_rh_keys = [
         "org",
         "activation-key",
@@ -472,11 +505,8 @@ class SubscriptionManager(object):
 
 def _sub_man_cli(cmd, logstring_val=False):
     """
-    Uses the prefered cloud-init subprocess def of subp.subp
+    Uses the preferred cloud-init subprocess def of subp.subp
     and runs subscription-manager.  Breaking this to a
     separate function for later use in mocking and unittests
     """
     return subp.subp(["subscription-manager"] + cmd, logstring=logstring_val)
-
-
-# vi: ts=4 expandtab

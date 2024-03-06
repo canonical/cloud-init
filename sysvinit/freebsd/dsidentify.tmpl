@@ -1,0 +1,44 @@
+## template:jinja
+#!/bin/sh
+
+# PROVIDE: dsidentify
+{#
+once we are correctly using ``paths.run_dir`` / ``paths.get_runpath()`` in the
+python code-base, we can start thinking about how to bring that into
+``ds-identify`` itself, and then!, then we can depend on (``REQUIRE``)
+``var_run`` instead of ``mountcritlocal`` here.
+#}
+# REQUIRE: mountcritlocal
+# BEFORE:  cloudinitlocal
+
+. /etc/rc.subr
+
+PATH="{{ prefix }}/sbin:{{ prefix }}/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+name="dsidentify"
+command="{{ prefix }}/lib/cloud-init/ds-identify"
+start_cmd="dsidentify_start"
+stop_cmd=":"
+rcvar="cloudinit_enable"
+
+dsidentify_start()
+{
+    if checkyesno cloudinit_dsidentify_enable; then
+        echo "${command} starting"
+        if kenv -q kernel_options | grep -q 'cloud-init=disabled'; then
+            warn "cloud-init is disabled via kernel_options."
+        elif test -e {{ prefix }}/etc/cloud-init.disabled; then
+            warn "cloud-init is disabled via cloud-init.disabled file."
+        else
+            ${command}
+        fi
+    fi
+}
+
+load_rc_config 'cloudinit'
+
+: ${cloudinit_enable="NO"}
+: ${cloudinit_dsidentify_enable="YES"}
+: ${dsidentify_env="PATH_DI_CONFIG={{ prefix }}/etc/cloud/ds-identify.cfg PATH_ETC_CLOUD={{ prefix }}/etc/cloud"}
+
+run_rc_command "$1"

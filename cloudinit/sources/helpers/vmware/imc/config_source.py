@@ -6,8 +6,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 
-class ConfigSource(object):
+class ConfigSource:
     """Specifies a source for the Config Content."""
-
-
-# vi: ts=4 expandtab

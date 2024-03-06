@@ -1,0 +1,124 @@
+name: Lint Tests
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: 'ci-${{ github.workflow }}-${{ github.ref }}'
+  cancel-in-progress: true
+defaults:
+  run:
+    shell: sh -ex {0}
+
+jobs:
+  check_format:
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [ruff, mypy, pylint, black, isort]
+        lint-with:
+          - {tip-versions: false, os: ubuntu-20.04}
+          - {tip-versions: true, os: ubuntu-latest}
+    name: Check ${{ matrix.lint-with.tip-versions && 'tip-' || '' }}${{ matrix.env }}
+    runs-on: ${{ matrix.lint-with.os }}
+    steps:
+      - name: "Checkout #1"
+        uses: actions/checkout@v3.0.0
+
+      - name: "Checkout #2 (for tools/read-version)"
+        run: |
+          git fetch --unshallow
+          git remote add upstream https://git.launchpad.net/cloud-init
+
+      - name: Dependencies
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox
+
+      - name: Print version
+        run: python3 --version
+
+      - name: Test
+        if: ${{ !matrix.lint-with.tip-versions }}
+        env:
+          # matrix env: not to be confused w/environment variables or testenv
+          TOXENV: ${{ matrix.env }}
+        run: tox
+      - name: Test (tip versions)
+        if: matrix.lint-with.tip-versions
+        continue-on-error: true
+        env:
+          TOXENV: tip-${{ matrix.env }}
+        run: tox
+  schema-format:
+    strategy:
+      fail-fast: false
+    name: Check json format
+    runs-on: ubuntu-22.04
+    steps:
+      - name: "Checkout #1"
+        uses: actions/checkout@v3.0.0
+
+      - name: "Test format"
+        run: |
+          tools/check_json_format.sh cloudinit/config/schemas/schema-cloud-config-v1.json
+          tools/check_json_format.sh cloudinit/config/schemas/schema-network-config-v1.json
+          tools/check_json_format.sh cloudinit/config/schemas/versions.schema.cloud-config.json
+
+  doc:
+    strategy:
+      fail-fast: false
+    name: Check docs
+    runs-on: ubuntu-22.04
+    steps:
+      - name: "Checkout #1"
+        uses: actions/checkout@v3.0.0
+
+      - name: "Checkout #2 (for tools/read-version)"
+        run: |
+          git fetch --unshallow
+          git remote add upstream https://git.launchpad.net/cloud-init
+      - name: "Install Python 3.10"
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10.8'
+      - name: "Install dependencies"
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox
+      - name: "Spellcheck"
+        run: |
+          tox
+        env:
+          TOXENV: doc-spelling
+      - name: "Build docs"
+        env:
+          TOXENV: doc
+        run: |
+          tox
+
+  shell-lint:
+    name: Shell Lint
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.0.0
+
+      - name: Install ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt install shellcheck
+
+      - name: Run ShellCheck
+        run: |
+          shellcheck ./tools/ds-identify
+
+  check-cla-signers:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3.0.0
+
+      - name: Check CLA signers file
+        run: tools/check-cla-signers

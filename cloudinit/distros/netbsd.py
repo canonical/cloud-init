@@ -2,13 +2,39 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import crypt
+import functools
+import logging
 import os
 import platform
+from typing import Any
 
 import cloudinit.distros.bsd
-from cloudinit import log as logging
 from cloudinit import subp, util
+
+try:
+    import crypt
+
+    salt = crypt.METHOD_BLOWFISH  # pylint: disable=E1101
+    blowfish_hash: Any = functools.partial(
+        crypt.crypt,
+        salt=crypt.mksalt(salt),
+    )
+except (ImportError, AttributeError):
+    try:
+        from passlib.hash import bcrypt
+
+        blowfish_hash = bcrypt.hash
+    except ImportError:
+
+        def blowfish_hash(_):
+            """Raise when called so that importing this module doesn't throw
+            ImportError when this module is not used. In this case, crypt
+            and passlib are not needed.
+            """
+            raise ImportError(
+                "crypt and passlib not found, missing dependency"
+            )
+
 
 LOG = logging.getLogger(__name__)
 
@@ -89,18 +115,8 @@ class NetBSD(cloudinit.distros.bsd.BSD):
     def set_passwd(self, user, passwd, hashed=False):
         if hashed:
             hashed_pw = passwd
-        elif not hasattr(crypt, "METHOD_BLOWFISH"):
-            # crypt.METHOD_BLOWFISH comes with Python 3.7 which is available
-            # on NetBSD 7 and 8.
-            LOG.error(
-                "Cannot set non-encrypted password for user %s. "
-                "Python >= 3.7 is required.",
-                user,
-            )
-            return
         else:
-            method = crypt.METHOD_BLOWFISH  # pylint: disable=E1101
-            hashed_pw = crypt.crypt(passwd, crypt.mksalt(method))
+            hashed_pw = blowfish_hash(passwd)
 
         try:
             subp.subp(["usermod", "-p", hashed_pw, user])
@@ -108,13 +124,6 @@ class NetBSD(cloudinit.distros.bsd.BSD):
             util.logexc(LOG, "Failed to set password for %s", user)
             raise
         self.unlock_passwd(user)
-
-    def force_passwd_change(self, user):
-        try:
-            subp.subp(["usermod", "-F", user])
-        except Exception:
-            util.logexc(LOG, "Failed to set pw expiration for %s", user)
-            raise
 
     def lock_passwd(self, name):
         try:
@@ -133,21 +142,16 @@ class NetBSD(cloudinit.distros.bsd.BSD):
     def apply_locale(self, locale, out_fn=None):
         LOG.debug("Cannot set the locale.")
 
-    def apply_network_config_names(self, netconfig):
-        LOG.debug("NetBSD cannot rename network interface.")
-
     def _get_pkg_cmd_environ(self):
         """Return env vars used in NetBSD package_command operations"""
         os_release = platform.release()
         os_arch = platform.machine()
-        e = os.environ.copy()
-        e[
-            "PKG_PATH"
-        ] = "http://cdn.netbsd.org/pub/pkgsrc/packages/NetBSD/%s/%s/All" % (
-            os_arch,
-            os_release,
-        )
-        return e
+        return {
+            "PKG_PATH": (
+                f"http://cdn.netbsd.org/pub/pkgsrc/packages/NetBSD"
+                f"/{os_arch}/{os_release}/All"
+            )
+        }
 
     def update_package_sources(self):
         pass
@@ -155,6 +159,3 @@ class NetBSD(cloudinit.distros.bsd.BSD):
 
 class Distro(NetBSD):
     pass
-
-
-# vi: ts=4 expandtab

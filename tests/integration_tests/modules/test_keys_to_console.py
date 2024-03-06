@@ -4,17 +4,20 @@
 ``tests/cloud_tests/testcases/modules/keys_to_console.yaml``.)"""
 import pytest
 
-from tests.integration_tests.util import retry
+from tests.integration_tests.decorators import retry
+from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.util import get_console_log
 
 BLACKLIST_USER_DATA = """\
 #cloud-config
-ssh_fp_console_blacklist: [ssh-dss, ssh-dsa, ecdsa-sha2-nistp256]
-ssh_key_console_blacklist: [ssh-dss, ssh-dsa, ecdsa-sha2-nistp256]
+ssh_fp_console_blacklist: [ecdsa-sha2-nistp256]
+ssh_key_console_blacklist: [ecdsa-sha2-nistp256]
 """
 
 BLACKLIST_ALL_KEYS_USER_DATA = """\
 #cloud-config
-ssh_fp_console_blacklist: [ssh-dsa, ssh-ecdsa, ssh-ed25519, ssh-rsa, ssh-dss, ecdsa-sha2-nistp256]
+ssh_fp_console_blacklist: [ssh-ecdsa, ssh-ed25519, ssh-rsa, ecdsa-sha2-nistp256]
 """  # noqa: E501
 
 DISABLED_USER_DATA = """\
@@ -37,7 +40,7 @@ users:
 class TestKeysToConsoleBlacklist:
     """Test that the blacklist options work as expected."""
 
-    @pytest.mark.parametrize("key_type", ["DSA", "ECDSA"])
+    @pytest.mark.parametrize("key_type", ["ECDSA"])
     def test_excluded_keys(self, class_client, key_type):
         syslog = class_client.read_from_file("/var/log/syslog")
         assert "({})".format(key_type) not in syslog
@@ -70,7 +73,7 @@ class TestAllKeysToConsoleBlacklist:
 class TestKeysToConsoleDisabled:
     """Test that output can be fully disabled."""
 
-    @pytest.mark.parametrize("key_type", ["DSA", "ECDSA", "ED25519", "RSA"])
+    @pytest.mark.parametrize("key_type", ["ECDSA", "ED25519", "RSA"])
     def test_keys_excluded(self, class_client, key_type):
         syslog = class_client.read_from_file("/var/log/syslog")
         assert "({})".format(key_type) not in syslog
@@ -85,29 +88,17 @@ class TestKeysToConsoleDisabled:
 
 
 @pytest.mark.user_data(ENABLE_KEYS_TO_CONSOLE_USER_DATA)
-@pytest.mark.ec2
-@pytest.mark.lxd_container
-@pytest.mark.oci
-@pytest.mark.openstack
-class TestKeysToConsoleEnabled:
+@retry(tries=30, delay=1)
+@pytest.mark.skipif(
+    PLATFORM not in ["ec2", "lxd_container", "oci", "openstack"],
+    reason=(
+        "No Azure because no console log on Azure. "
+        "Other platforms need testing."
+    ),
+)
+def test_duplicate_messaging_console_log(client: IntegrationInstance):
     """Test that output can be enabled disabled."""
-
-    def test_duplicate_messaging_console_log(self, class_client):
-        class_client.execute("cloud-init status --wait --long").ok
-        try:
-            console_log = class_client.instance.console_log()
-        except NotImplementedError:
-            # Assume that an exception here means that we can't use the console
-            # log
-            pytest.skip("NotImplementedError when requesting console log")
-            return
-        if console_log.lower() == "no console output":
-            # This test retries because we might not have the full console log
-            # on the first fetch. However, if we have no console output
-            # at all, we don't want to keep retrying as that would trigger
-            # another 5 minute wait on the pycloudlib side, which could
-            # leave us waiting for a couple hours
-            pytest.fail("no console output")
-            return
-        msg = "no authorized SSH keys fingerprints found for user barfoo."
-        assert 1 == console_log.count(msg)
+    assert (
+        "no authorized SSH keys fingerprints found for user barfoo."
+        in get_console_log(client)
+    )

@@ -4,66 +4,82 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-Power State Change
-------------------
-**Summary:** change power state
-
-This module handles shutdown/reboot after all config modules have been run. By
-default it will take no action, and the system will keep running unless a
-package installation/upgrade requires a system reboot (e.g. installing a new
-kernel) and ``package_reboot_if_required`` is true. The ``power_state`` config
-key accepts a dict of options. If ``mode`` is any value other than
-``poweroff``, ``halt``, or ``reboot``, then no action will be taken.
-
-The system
-can be shutdown before cloud-init has finished using the ``timeout`` option.
-The ``delay`` key specifies a duration to be added onto any shutdown command
-used. Therefore, if a 5 minute delay and a 120 second shutdown are specified,
-the maximum amount of time between cloud-init starting and the system shutting
-down is 7 minutes, and the minimum amount of time is 5 minutes. The ``delay``
-key must have an argument in either the form ``'+5'`` for 5 minutes or ``now``
-for immediate shutdown.
-
-Optionally, a command can be run to determine whether or not
-the system should shut down. The command to be run should be specified in the
-``condition`` key. For command formatting, see the documentation for
-``cc_runcmd``. The specified shutdown behavior will only take place if the
-``condition`` key is omitted or the command specified by the ``condition``
-key returns 0.
-
-.. note::
-    With Alpine Linux any message value specified is ignored as Alpine's halt,
-    poweroff, and reboot commands do not support broadcasting a message.
-
-**Internal name:** ``cc_power_state_change``
-
-**Module frequency:** per instance
-
-**Supported distros:** all
-
-**Config keys**::
-
-    power_state:
-        delay: <now/'+minutes'>
-        mode: <poweroff/halt/reboot>
-        message: <shutdown message>
-        timeout: <seconds>
-        condition: <true/false/command>
-"""
+"""Power State Change: Change power state"""
 
 import errno
+import logging
 import os
 import re
 import subprocess
 import time
+from textwrap import dedent
 
 from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE
 
 EXIT_FAIL = 254
+
+MODULE_DESCRIPTION = """\
+This module handles shutdown/reboot after all config modules have been run. By
+default it will take no action, and the system will keep running unless a
+package installation/upgrade requires a system reboot (e.g. installing a new
+kernel) and ``package_reboot_if_required`` is true.
+
+Using this module ensures that cloud-init is entirely finished with
+modules that would be executed.
+
+An example to distinguish delay from timeout:
+
+If you delay 5 (5 minutes) and have a timeout of
+120 (2 minutes), then the max time until shutdown will be 7 minutes, though
+it could be as soon as 5 minutes. Cloud-init will invoke 'shutdown +5' after
+the process finishes, or when 'timeout' seconds have elapsed.
+
+.. note::
+    With Alpine Linux any message value specified is ignored as Alpine's halt,
+    poweroff, and reboot commands do not support broadcasting a message.
+
+"""
+
+meta: MetaSchema = {
+    "id": "cc_power_state_change",
+    "name": "Power State Change",
+    "title": "Change power state",
+    "description": MODULE_DESCRIPTION,
+    "distros": [ALL_DISTROS],
+    "frequency": PER_INSTANCE,
+    "examples": [
+        dedent(
+            """\
+            power_state:
+                delay: now
+                mode: poweroff
+                message: Powering off
+                timeout: 2
+                condition: true
+            """
+        ),
+        dedent(
+            """\
+            power_state:
+                delay: 30
+                mode: reboot
+                message: Rebooting machine
+                condition: test -f /var/tmp/reboot_me
+            """
+        ),
+    ],
+    "activate_by_schema_keys": ["power_state"],
+}
+
+__doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
 def givecmdline(pid):
@@ -79,15 +95,14 @@ def givecmdline(pid):
             m = re.search(r"\d+ (\w|\.|-)+\s+(/\w.+)", line)
             return m.group(2)
         else:
-            return util.load_file("/proc/%s/cmdline" % pid)
+            return util.load_text_file("/proc/%s/cmdline" % pid)
     except IOError:
         return None
 
 
-def check_condition(cond, log=None):
+def check_condition(cond):
     if isinstance(cond, bool):
-        if log:
-            log.debug("Static Condition: %s" % cond)
+        LOG.debug("Static Condition: %s", cond)
         return cond
 
     pre = "check_condition command (%s): " % cond
@@ -96,56 +111,49 @@ def check_condition(cond, log=None):
         proc.communicate()
         ret = proc.returncode
         if ret == 0:
-            if log:
-                log.debug(pre + "exited 0. condition met.")
+            LOG.debug("%sexited 0. condition met.", pre)
             return True
         elif ret == 1:
-            if log:
-                log.debug(pre + "exited 1. condition not met.")
+            LOG.debug("%sexited 1. condition not met.", pre)
             return False
         else:
-            if log:
-                log.warning(
-                    pre + "unexpected exit %s. " % ret + "do not apply change."
-                )
+            LOG.warning("%sunexpected exit %s. do not apply change.", pre, ret)
             return False
     except Exception as e:
-        if log:
-            log.warning(pre + "Unexpected error: %s" % e)
+        LOG.warning("%sUnexpected error: %s", pre, e)
         return False
 
 
-def handle(_name, cfg, cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     try:
         (args, timeout, condition) = load_power_state(cfg, cloud.distro)
         if args is None:
-            log.debug("no power_state provided. doing nothing")
+            LOG.debug("no power_state provided. doing nothing")
             return
     except Exception as e:
-        log.warning("%s Not performing power state change!" % str(e))
+        LOG.warning("%s Not performing power state change!", str(e))
         return
 
     if condition is False:
-        log.debug("Condition was false. Will not perform state change.")
+        LOG.debug("Condition was false. Will not perform state change.")
         return
 
     mypid = os.getpid()
 
     cmdline = givecmdline(mypid)
     if not cmdline:
-        log.warning("power_state: failed to get cmdline of current process")
+        LOG.warning("power_state: failed to get cmdline of current process")
         return
 
     devnull_fp = open(os.devnull, "w")
 
-    log.debug("After pid %s ends, will execute: %s" % (mypid, " ".join(args)))
+    LOG.debug("After pid %s ends, will execute: %s", mypid, " ".join(args))
 
     util.fork_cb(
         run_after_pid_gone,
         mypid,
         cmdline,
         timeout,
-        log,
         condition,
         execmd,
         [args, devnull_fp],
@@ -210,7 +218,7 @@ def execmd(exe_args, output=None, data_in=None):
     doexit(ret)
 
 
-def run_after_pid_gone(pid, pidcmdline, timeout, log, condition, func, args):
+def run_after_pid_gone(pid, pidcmdline, timeout, condition, func, args):
     # wait until pid, with /proc/pid/cmdline contents of pidcmdline
     # is no longer alive.  After it is gone, or timeout has passed
     # execute func(args)
@@ -218,8 +226,7 @@ def run_after_pid_gone(pid, pidcmdline, timeout, log, condition, func, args):
     end_time = time.time() + timeout
 
     def fatal(msg):
-        if log:
-            log.warning(msg)
+        LOG.warning(msg)
         doexit(EXIT_FAIL)
 
     known_errnos = (errno.ENOENT, errno.ESRCH)
@@ -250,16 +257,12 @@ def run_after_pid_gone(pid, pidcmdline, timeout, log, condition, func, args):
     if not msg:
         fatal("Unexpected error in run_after_pid_gone")
 
-    if log:
-        log.debug(msg)
+    LOG.debug(msg)
 
     try:
-        if not check_condition(condition, log):
+        if not check_condition(condition):
             return
     except Exception as e:
         fatal("Unexpected Exception when checking condition: %s" % e)
 
     func(*args)
-
-
-# vi: ts=4 expandtab

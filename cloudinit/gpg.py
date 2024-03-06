@@ -7,9 +7,9 @@
 
 """gpg.py - Collection of gpg key related functions"""
 
+import logging
 import time
 
-from cloudinit import log as logging
 from cloudinit import subp
 
 LOG = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ def dearmor(key):
 
     note: man gpg(1) makes no mention of an --armour spelling, only --armor
     """
-    return subp.subp(["gpg", "--dearmor"], data=key, decode=False)[0]
+    return subp.subp(["gpg", "--dearmor"], data=key, decode=False).stdout
 
 
 def list(key_file, human_output=False):
@@ -68,7 +68,7 @@ def recv_key(key, keyserver, retries=(1, 1)):
 
     Retries are done by default because keyservers can be unreliable.
     Additionally, there is no way to determine the difference between
-    a non-existant key and a failure.  In both cases gpg (at least 2.2.4)
+    a non-existent key and a failure.  In both cases gpg (at least 2.2.4)
     exits with status 2 and stderr: "keyserver receive failed: No data"
     It is assumed that a key provided to cloud-init exists on the keyserver
     so re-trying makes better sense than failing.
@@ -137,6 +137,3 @@ def getkeybyid(keyid, keyserver="keyserver.ubuntu.com"):
             delete_key(keyid)
 
     return armour
-
-
-# vi: ts=4 expandtab

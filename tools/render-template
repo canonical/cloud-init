@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import argparse
+
+
+def main():
+    _tdir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    sys.path.insert(0, _tdir)
+    from cloudinit import templater, util  # pylint: disable=E0401
+
+    VARIANTS = [
+        "almalinux",
+        "alpine",
+        "amazon",
+        "arch",
+        "benchmark",
+        "centos",
+        "cloudlinux",
+        "debian",
+        "dragonfly",
+        "eurolinux",
+        "fedora",
+        "freebsd",
+        "gentoo",
+        "mariner",
+        "miraclelinux",
+        "netbsd",
+        "openbsd",
+        "openeuler",
+        "OpenCloudOS",
+        "openmandriva",
+        "photon",
+        "rhel",
+        "suse",
+        "rocky",
+        "TencentOS",
+        "ubuntu",
+        "unknown",
+        "virtuozzo",
+    ]
+    parser = argparse.ArgumentParser()
+    platform = util.system_info()
+    parser.add_argument(
+        "--variant",
+        default=platform["variant"],
+        action="store",
+        help="define the variant.",
+        choices=VARIANTS,
+    )
+    parser.add_argument(
+        "--prefix",
+        action="store",
+        default=sys.prefix,
+        help="define the prefix. Default: " + sys.prefix,
+    )
+    parser.add_argument(
+        "--is-yaml",
+        action="store_true",
+        default=False,
+        help=(
+            "Rendered template is not expected to be valid yaml by default."
+            " Add this flag for extra validation."
+        ),
+    )
+    parser.add_argument(
+        "template",
+        nargs="?",
+        action="store",
+        default="./config/cloud.cfg.tmpl",
+        help="Path to the cloud.cfg template",
+    )
+    parser.add_argument(
+        "output",
+        nargs="?",
+        action="store",
+        default="-",
+        help="Output file.  Use '-' to write to stdout",
+    )
+
+    args = parser.parse_args(sys.argv[1:])
+    templater.render_template(
+        args.variant, args.template, args.output, args.is_yaml, prefix=args.prefix
+    )
+
+
+if __name__ == "__main__":
+    main()

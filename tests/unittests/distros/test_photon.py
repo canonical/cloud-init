@@ -1,9 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit import util
+from tests.unittests.distros import _get_distro
 from tests.unittests.helpers import CiTestCase, mock
-
-from . import _get_distro
 
 SYSTEM_INFO = {
     "paths": {
@@ -30,7 +29,7 @@ class TestPhoton(CiTestCase):
         hostname = "myhostname"
         hostfile = self.tmp_path("previous-hostname")
         self.distro._write_hostname(hostname, hostfile)
-        self.assertEqual(hostname, util.load_file(hostfile))
+        self.assertEqual(hostname, util.load_text_file(hostfile))
 
         ret = self.distro._read_hostname(hostfile)
         self.assertEqual(ret, hostname)

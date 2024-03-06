@@ -5,95 +5,30 @@
 import copy
 import errno
 import os
-import shutil
-import tempfile
 from textwrap import dedent
 
 import pytest
 
-from cloudinit import handlers, helpers, subp, util
+from cloudinit import atomic_helper, handlers, helpers, util
+from cloudinit.cmd.devel import read_cfg_paths
+from cloudinit.handlers.boot_hook import BootHookPartHandler
 from cloudinit.handlers.cloud_config import CloudConfigPartHandler
 from cloudinit.handlers.jinja_template import (
+    JinjaLoadError,
     JinjaTemplatePartHandler,
     convert_jinja_instance_data,
     render_jinja_payload,
 )
 from cloudinit.handlers.shell_script import ShellScriptPartHandler
-from cloudinit.handlers.upstart_job import UpstartJobPartHandler
-from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
-from tests.unittests.helpers import (
-    CiTestCase,
-    FilesystemMockingTestCase,
-    mock,
-    skipUnlessJinja,
+from cloudinit.handlers.shell_script_by_frequency import (
+    get_script_folder_by_frequency,
+    path_map,
 )
+from cloudinit.settings import PER_ALWAYS, PER_INSTANCE, PER_ONCE
+from tests.unittests.helpers import CiTestCase, mock, skipUnlessJinja
+from tests.unittests.util import FakeDataSource
 
 INSTANCE_DATA_FILE = "instance-data-sensitive.json"
-
-
-class TestUpstartJobPartHandler(FilesystemMockingTestCase):
-
-    mpath = "cloudinit.handlers.upstart_job."
-
-    def test_upstart_frequency_no_out(self):
-        c_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, c_root)
-        up_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, up_root)
-        paths = helpers.Paths(
-            {
-                "cloud_dir": c_root,
-                "upstart_dir": up_root,
-            }
-        )
-        h = UpstartJobPartHandler(paths)
-        # No files should be written out when
-        # the frequency is ! per-instance
-        h.handle_part("", handlers.CONTENT_START, None, None, None)
-        h.handle_part(
-            "blah",
-            "text/upstart-job",
-            "test.conf",
-            "blah",
-            frequency=PER_ALWAYS,
-        )
-        h.handle_part("", handlers.CONTENT_END, None, None, None)
-        self.assertEqual(0, len(os.listdir(up_root)))
-
-    def test_upstart_frequency_single(self):
-        # files should be written out when frequency is ! per-instance
-        new_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, new_root)
-
-        self.patchOS(new_root)
-        self.patchUtils(new_root)
-        paths = helpers.Paths(
-            {
-                "upstart_dir": "/etc/upstart",
-            }
-        )
-
-        util.ensure_dir("/run")
-        util.ensure_dir("/etc/upstart")
-
-        with mock.patch(self.mpath + "SUITABLE_UPSTART", return_value=True):
-            with mock.patch.object(subp, "subp") as m_subp:
-                h = UpstartJobPartHandler(paths)
-                h.handle_part("", handlers.CONTENT_START, None, None, None)
-                h.handle_part(
-                    "blah",
-                    "text/upstart-job",
-                    "test.conf",
-                    "blah",
-                    frequency=PER_INSTANCE,
-                )
-                h.handle_part("", handlers.CONTENT_END, None, None, None)
-
-        self.assertEqual(len(os.listdir("/etc/upstart")), 1)
-
-        m_subp.assert_called_once_with(
-            ["initctl", "reload-configuration"], capture=False
-        )
 
 
 class TestJinjaTemplatePartHandler(CiTestCase):
@@ -176,7 +111,7 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         # Create required instance data json file
         instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
         instance_data = {"topkey": "echo himom"}
-        util.write_file(instance_json, util.json_dumps(instance_data))
+        util.write_file(instance_json, atomic_helper.json_dumps(instance_data))
         h = JinjaTemplatePartHandler(self.paths, sub_handlers=[script_handler])
         with mock.patch.object(script_handler, "handle_part") as m_part:
             # ctype with leading '!' not in handlers.CONTENT_SIGNALS
@@ -201,7 +136,7 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         # Create required instance-data.json file
         instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
         instance_data = {"topkey": {"sub": "runcmd: [echo hi]"}}
-        util.write_file(instance_json, util.json_dumps(instance_data))
+        util.write_file(instance_json, atomic_helper.json_dumps(instance_data))
         h = JinjaTemplatePartHandler(
             self.paths, sub_handlers=[cloudcfg_handler]
         )
@@ -228,7 +163,7 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         """If instance-data is absent, raise an error from handle_part."""
         script_handler = ShellScriptPartHandler(self.paths)
         h = JinjaTemplatePartHandler(self.paths, sub_handlers=[script_handler])
-        with self.assertRaises(RuntimeError) as context_manager:
+        with self.assertRaises(JinjaLoadError) as context_manager:
             h.handle_part(
                 data="data",
                 ctype="!" + handlers.CONTENT_START,
@@ -252,10 +187,10 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         """If instance-data is unreadable, raise an error from handle_part."""
         script_handler = ShellScriptPartHandler(self.paths)
         instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
-        util.write_file(instance_json, util.json_dumps({}))
+        util.write_file(instance_json, atomic_helper.json_dumps({}))
         h = JinjaTemplatePartHandler(self.paths, sub_handlers=[script_handler])
-        with mock.patch(self.mpath + "load_file") as m_load:
-            with self.assertRaises(RuntimeError) as context_manager:
+        with mock.patch(self.mpath + "load_text_file") as m_load:
+            with self.assertRaises(JinjaLoadError) as context_manager:
                 m_load.side_effect = OSError(errno.EACCES, "Not allowed")
                 h.handle_part(
                     data="data",
@@ -282,7 +217,7 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         script_handler = ShellScriptPartHandler(self.paths)
         instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
         instance_data = {"topkey": {"subkey": "echo himom"}}
-        util.write_file(instance_json, util.json_dumps(instance_data))
+        util.write_file(instance_json, atomic_helper.json_dumps(instance_data))
         h = JinjaTemplatePartHandler(self.paths, sub_handlers=[script_handler])
         h.handle_part(
             data="data",
@@ -304,7 +239,7 @@ class TestJinjaTemplatePartHandler(CiTestCase):
             self.logs.getvalue(),
         )
         self.assertEqual(
-            "#!/bin/bash\necho himom", util.load_file(script_file)
+            "#!/bin/bash\necho himom", util.load_text_file(script_file)
         )
 
     @skipUnlessJinja()
@@ -313,7 +248,7 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         script_handler = ShellScriptPartHandler(self.paths)
         instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
         instance_data = {"topkey": {"subkey": "echo himom"}}
-        util.write_file(instance_json, util.json_dumps(instance_data))
+        util.write_file(instance_json, atomic_helper.json_dumps(instance_data))
         h = JinjaTemplatePartHandler(self.paths, sub_handlers=[script_handler])
         h.handle_part(
             data="data",
@@ -473,4 +408,50 @@ class TestRenderJinjaPayload(CiTestCase):
         self.assertIn(expected_log, self.logs.getvalue())
 
 
-# vi: ts=4 expandtab
+class TestShellScriptByFrequencyHandlers:
+    @pytest.fixture(autouse=True)
+    def common_mocks(self):
+        with mock.patch("cloudinit.stages.Init._read_cfg", return_value={}):
+            yield
+
+    def do_test_frequency(self, frequency):
+        ci_paths = read_cfg_paths()
+        scripts_dir = ci_paths.get_cpath("scripts")
+        testFolder = os.path.join(scripts_dir, path_map[frequency])
+        folder = get_script_folder_by_frequency(frequency, scripts_dir)
+        assert testFolder == folder
+
+    def test_get_script_folder_per_boot(self):
+        self.do_test_frequency(PER_ALWAYS)
+
+    def test_get_script_folder_per_instance(self):
+        self.do_test_frequency(PER_INSTANCE)
+
+    def test_get_script_folder_per_once(self):
+        self.do_test_frequency(PER_ONCE)
+
+
+@pytest.mark.allow_all_subp
+@pytest.mark.usefixtures("fake_filesystem")
+class TestBootHookHandler:
+    def test_handle_part(self, paths, tmpdir, capfd):
+        paths.get_ipath = paths.get_ipath_cur
+        datasource = FakeDataSource(paths=paths)
+        handler = BootHookPartHandler(paths=paths, datasource=datasource)
+        # Setup /dev/null file for supb because no data param present
+        tmpdir.mkdir("/dev/")
+        tmpdir.join("dev/null").write("")
+        assert handler.boothook_dir == f"{tmpdir}/cloud_dir/instance/boothooks"
+        payload = f"#!/bin/sh\necho id:$INSTANCE_ID | tee {tmpdir}/boothook\n"
+        handler.handle_part(
+            data="dontcare",
+            ctype="text/cloud-boothook",
+            filename="part-001",
+            payload=payload,
+            frequency=None,
+        )
+        assert payload == util.load_text_file(
+            f"{handler.boothook_dir}/part-001"
+        )
+        assert "id:i-testing\n" == util.load_text_file(f"{tmpdir}/boothook")
+        assert "id:i-testing\n" == capfd.readouterr().out

@@ -3,8 +3,10 @@
 import copy
 import os
 
-from cloudinit import safeyaml, stages, util
+from cloudinit import atomic_helper, safeyaml, stages, util
+from cloudinit.config.modules import Modules
 from cloudinit.settings import PER_INSTANCE
+from cloudinit.sources import NetworkConfigSource
 from tests.unittests import helpers
 
 
@@ -22,7 +24,10 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             "datasource_list": ["None"],
             "runcmd": ["ls /etc"],  # test ALL_DISTROS
             "spacewalk": {},  # test non-ubuntu distros module definition
-            "system_info": {"paths": {"run_dir": self.new_root}},
+            "system_info": {
+                "paths": {"run_dir": self.new_root},
+                "distro": "ubuntu",
+            },
             "write_files": [
                 {
                     "path": "/etc/blah.ini",
@@ -30,7 +35,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
                     "permissions": 0o755,
                 },
             ],
-            "cloud_init_modules": ["write-files", "spacewalk", "runcmd"],
+            "cloud_init_modules": ["write_files", "spacewalk", "runcmd"],
         }
         cloud_cfg = safeyaml.dumps(self.cfg)
         util.ensure_dir(os.path.join(self.new_root, "etc", "cloud"))
@@ -43,6 +48,15 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
     def test_none_ds_populates_var_lib_cloud(self):
         """Init and run_section default behavior creates appropriate dirs."""
         # Now start verifying whats created
+        netcfg = {
+            "version": 1,
+            "config": [{"type": "physical", "name": "eth9"}],
+        }
+
+        def fake_network_config():
+            return netcfg, NetworkConfigSource.FALLBACK
+
+        self.assertFalse(os.path.exists("/var/lib/cloud"))
         initer = stages.Init()
         initer.read_cfg()
         initer.initialize()
@@ -51,10 +65,20 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             self.assertTrue(os.path.isdir(os.path.join("/var/lib/cloud", d)))
 
         initer.fetch()
+        self.assertFalse(os.path.islink("var/lib/cloud/instance"))
         iid = initer.instancify()
         self.assertEqual(iid, "iid-datasource-none")
         initer.update()
         self.assertTrue(os.path.islink("var/lib/cloud/instance"))
+        initer._find_networking_config = fake_network_config
+        self.assertFalse(
+            os.path.exists("/var/lib/cloud/instance/network-config.json")
+        )
+        initer.apply_network_config(False)
+        self.assertEqual(
+            f"{atomic_helper.json_dumps(netcfg)}\n",
+            util.load_text_file("/var/lib/cloud/instance/network-config.json"),
+        )
 
     def test_none_ds_runs_modules_which_do_not_define_distros(self):
         """Any modules which do not define a distros attribute are run."""
@@ -71,15 +95,15 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             freq=PER_INSTANCE,
         )
 
-        mods = stages.Modules(initer)
+        mods = Modules(initer)
         (which_ran, failures) = mods.run_section("cloud_init_modules")
         self.assertTrue(len(failures) == 0)
         self.assertTrue(os.path.exists("/etc/blah.ini"))
-        self.assertIn("write-files", which_ran)
-        contents = util.load_file("/etc/blah.ini")
+        self.assertIn("write_files", which_ran)
+        contents = util.load_text_file("/etc/blah.ini")
         self.assertEqual(contents, "blah")
         self.assertNotIn(
-            "Skipping modules ['write-files'] because they are not verified on"
+            "Skipping modules ['write_files'] because they are not verified on"
             " distro 'ubuntu'",
             self.logs.getvalue(),
         )
@@ -99,7 +123,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             freq=PER_INSTANCE,
         )
 
-        mods = stages.Modules(initer)
+        mods = Modules(initer)
         (which_ran, failures) = mods.run_section("cloud_init_modules")
         self.assertTrue(len(failures) == 0)
         self.assertIn(
@@ -128,7 +152,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             freq=PER_INSTANCE,
         )
 
-        mods = stages.Modules(initer)
+        mods = Modules(initer)
         (which_ran, failures) = mods.run_section("cloud_init_modules")
         self.assertTrue(len(failures) == 0)
         self.assertIn("runcmd", which_ran)
@@ -163,7 +187,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             freq=PER_INSTANCE,
         )
 
-        mods = stages.Modules(initer)
+        mods = Modules(initer)
         (which_ran, failures) = mods.run_section("cloud_init_modules")
         self.assertTrue(len(failures) == 0)
         self.assertIn("spacewalk", which_ran)
@@ -197,10 +221,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             freq=PER_INSTANCE,
         )
 
-        mods = stages.Modules(initer)
+        mods = Modules(initer)
         (which_ran, failures) = mods.run_section("cloud_init_modules")
         self.assertTrue(len(failures) == 0)
         self.assertEqual([], which_ran)
-
-
-# vi: ts=4 expandtab

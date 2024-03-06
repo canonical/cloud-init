@@ -1,11 +1,11 @@
+import logging
 import platform
+from typing import List, Optional
 
-from cloudinit import distros, helpers
-from cloudinit import log as logging
-from cloudinit import net, subp, util
-from cloudinit.distros import bsd_utils
-
-from .networking import BSDNetworking
+import cloudinit.net.netops.bsd_netops as bsd_netops
+from cloudinit import distros, helpers, net, subp, util
+from cloudinit.distros import PackageList, bsd_utils
+from cloudinit.distros.networking import BSDNetworking
 
 LOG = logging.getLogger(__name__)
 
@@ -14,27 +14,31 @@ class BSD(distros.Distro):
     networking_cls = BSDNetworking
     hostname_conf_fn = "/etc/rc.conf"
     rc_conf_fn = "/etc/rc.conf"
+    default_owner = "root:wheel"
 
     # This differs from the parent Distro class, which has -P for
     # poweroff.
     shutdown_options_map = {"halt": "-H", "poweroff": "-p", "reboot": "-r"}
 
     # Set in BSD distro subclasses
-    group_add_cmd_prefix = []
-    pkg_cmd_install_prefix = []
-    pkg_cmd_remove_prefix = []
+    group_add_cmd_prefix: List[str] = []
+    pkg_cmd_install_prefix: List[str] = []
+    pkg_cmd_remove_prefix: List[str] = []
     # There is no update/upgrade on OpenBSD
-    pkg_cmd_update_prefix = None
-    pkg_cmd_upgrade_prefix = None
+    pkg_cmd_update_prefix: Optional[List[str]] = None
+    pkg_cmd_upgrade_prefix: Optional[List[str]] = None
+    net_ops = bsd_netops.BsdNetOps  # type: ignore
 
     def __init__(self, name, cfg, paths):
         super().__init__(name, cfg, paths)
         # This will be used to restrict certain
-        # calls from repeatly happening (when they
+        # calls from repeatedly happening (when they
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
         cfg["ssh_svcname"] = "sshd"
+        cfg["rsyslog_svcname"] = "rsyslogd"
         self.osfamily = platform.system().lower()
+        self.net_ops = bsd_netops.BsdNetOps
 
     def _read_system_hostname(self):
         sys_hostname = self._read_hostname(self.hostname_conf_fn)
@@ -92,7 +96,7 @@ class BSD(distros.Distro):
             )
         return nconf
 
-    def install_packages(self, pkglist):
+    def install_packages(self, pkglist: PackageList):
         self.update_package_sources()
         self.package_command("install", pkgs=pkglist)
 
@@ -126,7 +130,7 @@ class BSD(distros.Distro):
         cmd.extend(pkglist)
 
         # Allow the output of this to flow outwards (ie not be captured)
-        subp.subp(cmd, env=self._get_pkg_cmd_environ(), capture=False)
+        subp.subp(cmd, update_env=self._get_pkg_cmd_environ(), capture=False)
 
     def set_timezone(self, tz):
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
@@ -134,5 +138,14 @@ class BSD(distros.Distro):
     def apply_locale(self, locale, out_fn=None):
         LOG.debug("Cannot set the locale.")
 
-    def apply_network_config_names(self, netconfig):
-        LOG.debug("Cannot rename network interface.")
+    def chpasswd(self, plist_in: list, hashed: bool):
+        for name, password in plist_in:
+            self.set_passwd(name, password, hashed=hashed)
+
+    @staticmethod
+    def get_proc_ppid(pid):
+        """
+        Return the parent pid of a process by checking ps
+        """
+        ppid, _ = subp.subp(["ps", "-oppid=", "-p", str(pid)])
+        return int(ppid.strip())

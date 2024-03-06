@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+set -eu
+set -o pipefail
+export LC_ALL="C.UTF-8"
+
+CLA_SIGNERS_FILE="tools/.github-cla-signers"
+
+sort -f "${CLA_SIGNERS_FILE}" -o "${CLA_SIGNERS_FILE}"
+
+if [[ -n "$(git status --porcelain -- ${CLA_SIGNERS_FILE})" ]]; then
+    echo "Please make sure that ${CLA_SIGNERS_FILE} is in alphabetical order. Make sure to set LC_ALL=\"${LC_ALL}\""
+    git --no-pager diff "${CLA_SIGNERS_FILE}"
+    exit 1
+fi

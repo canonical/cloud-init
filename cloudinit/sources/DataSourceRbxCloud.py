@@ -10,10 +10,12 @@ This file contains code used to gather the user data passed to an
 instance on rootbox / hyperone cloud platforms
 """
 import errno
+import logging
 import os
 import os.path
+import typing
+from ipaddress import IPv4Address
 
-from cloudinit import log as logging
 from cloudinit import sources, subp, util
 from cloudinit.event import EventScope, EventType
 
@@ -22,7 +24,7 @@ ETC_HOSTS = "/etc/hosts"
 
 
 def get_manage_etc_hosts():
-    hosts = util.load_file(ETC_HOSTS, quiet=True)
+    hosts = util.load_text_file(ETC_HOSTS, quiet=True)
     if hosts:
         LOG.debug("/etc/hosts exists - setting manage_etc_hosts to False")
         return False
@@ -30,18 +32,21 @@ def get_manage_etc_hosts():
     return True
 
 
-def ip2int(addr):
-    parts = addr.split(".")
-    return (
-        (int(parts[0]) << 24)
-        + (int(parts[1]) << 16)
-        + (int(parts[2]) << 8)
-        + int(parts[3])
-    )
+def increment_ip(addr, inc: int) -> str:
+    return str(IPv4Address(int(IPv4Address(addr)) + inc))
 
 
-def int2ip(addr):
-    return ".".join([str(addr >> (i << 3) & 0xFF) for i in range(4)[::-1]])
+def get_three_ips(addr) -> typing.List[str]:
+    """Return a list of 3 IP addresses: [addr, addr + 2, addr + 3]
+
+    @param addr: an object that is passed to IPvAddress
+    @return: list of strings
+    """
+    return [
+        addr,
+        increment_ip(addr, 2),
+        increment_ip(addr, 3),
+    ]
 
 
 def _sub_arp(cmd):
@@ -148,11 +153,9 @@ def read_user_data_callback(mount_dir):
     @returns: A dict containing userdata, metadata and cfg based on metadata.
     """
     meta_data = util.load_json(
-        text=util.load_file(
-            fname=os.path.join(mount_dir, "cloud.json"), decode=False
-        )
+        text=util.load_binary_file(fname=os.path.join(mount_dir, "cloud.json"))
     )
-    user_data = util.load_file(
+    user_data = util.load_text_file(
         fname=os.path.join(mount_dir, "user.data"), quiet=True
     )
     if "vm" not in meta_data or "netadp" not in meta_data:
@@ -178,11 +181,7 @@ def read_user_data_callback(mount_dir):
             {"source": ip["address"], "destination": target}
             for netadp in meta_data["netadp"]
             for ip in netadp["ip"]
-            for target in [
-                netadp["network"]["gateway"],
-                int2ip(ip2int(netadp["network"]["gateway"]) + 2),
-                int2ip(ip2int(netadp["network"]["gateway"]) + 3),
-            ]
+            for target in get_three_ips(netadp["network"]["gateway"])
         ],
         "cfg": {
             "ssh_pwauth": True,

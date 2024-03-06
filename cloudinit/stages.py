@@ -5,15 +5,27 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import json
+import logging
 import os
-import pickle
 import sys
 from collections import namedtuple
-from typing import Dict, Set  # noqa: F401
+from contextlib import suppress
+from typing import Dict, Iterable, List, Optional, Set
 
-from cloudinit import cloud, config, distros, handlers, helpers, importer
-from cloudinit import log as logging
-from cloudinit import net, sources, type_utils, util
+from cloudinit import (
+    atomic_helper,
+    cloud,
+    distros,
+    features,
+    handlers,
+    helpers,
+    importer,
+    net,
+    sources,
+    type_utils,
+    util,
+)
 from cloudinit.event import EventScope, EventType, userdata_to_events
 
 # Default handlers (used if not overridden)
@@ -21,12 +33,14 @@ from cloudinit.handlers.boot_hook import BootHookPartHandler
 from cloudinit.handlers.cloud_config import CloudConfigPartHandler
 from cloudinit.handlers.jinja_template import JinjaTemplatePartHandler
 from cloudinit.handlers.shell_script import ShellScriptPartHandler
-from cloudinit.handlers.upstart_job import UpstartJobPartHandler
+from cloudinit.handlers.shell_script_by_frequency import (
+    ShellScriptByFreqPartHandler,
+)
 from cloudinit.net import cmdline
 from cloudinit.reporting import events
 from cloudinit.settings import (
     CLOUD_CONFIG,
-    FREQUENCIES,
+    PER_ALWAYS,
     PER_INSTANCE,
     PER_ONCE,
     RUN_CLOUD_CONFIG,
@@ -35,15 +49,22 @@ from cloudinit.sources import NetworkConfigSource
 
 LOG = logging.getLogger(__name__)
 
-NULL_DATA_SOURCE = None
 NO_PREVIOUS_INSTANCE_ID = "NO_PREVIOUS_INSTANCE_ID"
+
+
+COMBINED_CLOUD_CONFIG_DOC = (
+    "Aggregated cloud-config created by merging merged_system_cfg"
+    " (/etc/cloud/cloud.cfg and /etc/cloud/cloud.cfg.d), metadata,"
+    " vendordata and userdata. The combined_cloud_config represents"
+    " the aggregated desired configuration acted upon by cloud-init."
+)
 
 
 def update_event_enabled(
     datasource: sources.DataSource,
     cfg: dict,
     event_source_type: EventType,
-    scope: EventScope = None,
+    scope: EventScope,
 ) -> bool:
     """Determine if a particular EventType is enabled.
 
@@ -57,12 +78,12 @@ def update_event_enabled(
     case, we only have the data source's `default_update_events`,
     so an event that should be enabled in userdata may be denied.
     """
-    default_events = (
-        datasource.default_update_events
-    )  # type: Dict[EventScope, Set[EventType]]
-    user_events = userdata_to_events(
+    default_events: Dict[
+        EventScope, Set[EventType]
+    ] = datasource.default_update_events
+    user_events: Dict[EventScope, Set[EventType]] = userdata_to_events(
         cfg.get("updates", {})
-    )  # type: Dict[EventScope, Set[EventType]]
+    )
     # A value in the first will override a value in the second
     allowed = util.mergemanydict(
         [
@@ -70,12 +91,27 @@ def update_event_enabled(
             copy.deepcopy(default_events),
         ]
     )
+
+    # Add supplemental hotplug event if supported and present in
+    # hotplug.enabled file
+    if EventType.HOTPLUG in datasource.supported_update_events.get(
+        scope, set()
+    ):
+        hotplug_enabled_file = util.read_hotplug_enabled_file(datasource.paths)
+        if scope.value in hotplug_enabled_file["scopes"]:
+            LOG.debug(
+                "Adding event: scope=%s EventType=%s found in %s",
+                scope,
+                EventType.HOTPLUG,
+                datasource.paths.get_cpath("hotplug.enabled"),
+            )
+            if not allowed.get(scope):
+                allowed[scope] = set()
+            allowed[scope].add(EventType.HOTPLUG)
+
     LOG.debug("Allowed events: %s", allowed)
 
-    if not scope:
-        scopes = allowed.keys()
-    else:
-        scopes = [scope]
+    scopes: Iterable[EventScope] = [scope]
     scope_values = [s.value for s in scopes]
 
     for evt_scope in scopes:
@@ -93,18 +129,18 @@ def update_event_enabled(
     return False
 
 
-class Init(object):
-    def __init__(self, ds_deps=None, reporter=None):
+class Init:
+    def __init__(self, ds_deps: Optional[List[str]] = None, reporter=None):
         if ds_deps is not None:
             self.ds_deps = ds_deps
         else:
             self.ds_deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
         # Created on first use
-        self._cfg = None
-        self._paths = None
-        self._distro = None
+        self._cfg: Dict = {}
+        self._paths: Optional[helpers.Paths] = None
+        self._distro: Optional[distros.Distro] = None
         # Changed only when a fetch occurs
-        self.datasource = NULL_DATA_SOURCE
+        self.datasource: Optional[sources.DataSource] = None
         self.ds_restored = False
         self._previous_iid = None
 
@@ -116,14 +152,11 @@ class Init(object):
             )
         self.reporter = reporter
 
-    def _reset(self, reset_ds=False):
+    def _reset(self):
         # Recreated on access
-        self._cfg = None
+        self._cfg = {}
         self._paths = None
         self._distro = None
-        if reset_ds:
-            self.datasource = NULL_DATA_SOURCE
-            self.ds_restored = False
 
     @property
     def distro(self):
@@ -137,7 +170,7 @@ class Init(object):
             # If we have an active datasource we need to adjust
             # said datasource and move its distro/system config
             # from whatever it was to a new set...
-            if self.datasource is not NULL_DATA_SOURCE:
+            if self.datasource is not None:
                 self.datasource.distro = self._distro
                 self.datasource.sys_cfg = self.cfg
         return self._distro
@@ -157,8 +190,6 @@ class Init(object):
             ocfg = util.get_cfg_by_path(ocfg, ("system_info",), {})
         elif restriction == "paths":
             ocfg = util.get_cfg_by_path(ocfg, ("system_info", "paths"), {})
-        if not isinstance(ocfg, (dict)):
-            ocfg = {}
         return ocfg
 
     @property
@@ -198,11 +229,25 @@ class Init(object):
     def initialize(self):
         self._initialize_filesystem()
 
+    @staticmethod
+    def _get_strictest_mode(mode_1: int, mode_2: int) -> int:
+        return mode_1 & mode_2
+
     def _initialize_filesystem(self):
+        mode = 0o640
+
         util.ensure_dirs(self._initial_subdirs())
         log_file = util.get_cfg_option_str(self.cfg, "def_log_file")
         if log_file:
-            util.ensure_file(log_file, mode=0o640, preserve_mode=True)
+            # At this point the log file should have already been created
+            # in the setupLogging function of log.py
+            with suppress(OSError):
+                mode = self._get_strictest_mode(
+                    0o640, util.get_permissions(log_file)
+                )
+
+            # set file mode to the strictest of 0o640 and the current mode
+            util.ensure_file(log_file, mode, preserve_mode=False)
             perms = self.cfg.get("syslog_fix_perms")
             if not perms:
                 perms = {}
@@ -226,18 +271,19 @@ class Init(object):
             )
 
     def read_cfg(self, extra_fns=None):
-        # None check so that we don't keep on re-loading if empty
-        if self._cfg is None:
+        if not self._cfg:
             self._cfg = self._read_cfg(extra_fns)
-            # LOG.debug("Loaded 'init' config %s", self._cfg)
 
     def _read_cfg(self, extra_fns):
         no_cfg_paths = helpers.Paths({}, self.datasource)
+        instance_data_file = no_cfg_paths.get_runpath(
+            "instance_data_sensitive"
+        )
         merger = helpers.ConfigMerger(
             paths=no_cfg_paths,
             datasource=self.datasource,
             additional_fns=extra_fns,
-            base_cfg=fetch_base_config(),
+            base_cfg=fetch_base_config(instance_data_file=instance_data_file),
         )
         return merger.cfg
 
@@ -245,10 +291,10 @@ class Init(object):
         # We try to restore from a current link and static path
         # by using the instance link, if purge_cache was called
         # the file wont exist.
-        return _pkl_load(self.paths.get_ipath_cur("obj_pkl"))
+        return sources.pkl_load(self.paths.get_ipath_cur("obj_pkl"))
 
     def _write_to_cache(self):
-        if self.datasource is NULL_DATA_SOURCE:
+        if self.datasource is None:
             return False
         if util.get_cfg_option_bool(self.cfg, "manual_cache_clean", False):
             # The empty file in instance/ dir indicates manual cleaning,
@@ -258,7 +304,9 @@ class Init(object):
                 omode="w",
                 content="",
             )
-        return _pkl_store(self.datasource, self.paths.get_ipath_cur("obj_pkl"))
+        return sources.pkl_store(
+            self.datasource, self.paths.get_ipath_cur("obj_pkl")
+        )
 
     def _get_datasources(self):
         # Any config provided???
@@ -280,7 +328,7 @@ class Init(object):
 
         run_iid_fn = self.paths.get_runpath("instance_id")
         if os.path.exists(run_iid_fn):
-            run_iid = util.load_file(run_iid_fn).strip()
+            run_iid = util.load_text_file(run_iid_fn).strip()
         else:
             run_iid = None
 
@@ -297,7 +345,7 @@ class Init(object):
                 return (None, "cache invalid in datasource: %s" % ds)
 
     def _get_data_source(self, existing) -> sources.DataSource:
-        if self.datasource is not NULL_DATA_SOURCE:
+        if self.datasource is not None:
             return self.datasource
 
         with events.ReportEventStack(
@@ -305,7 +353,6 @@ class Init(object):
             description="attempting to read from cache [%s]" % existing,
             parent=self.reporter,
         ) as myrep:
-
             ds, desc = self._restore_from_checked_cache(existing)
             myrep.description = desc
             self.ds_restored = bool(ds)
@@ -326,7 +373,7 @@ class Init(object):
                 self.reporter,
             )
             LOG.info("Loaded datasource %s - %s", dsname, ds)
-        self.datasource = ds  # type: sources.DataSource
+        self.datasource = ds
         # Ensure we adjust our path members datasource
         # now that we have one (thus allowing ipath to be used)
         self._reset()
@@ -346,6 +393,32 @@ class Init(object):
                 " Has a datasource been fetched??"
             )
         return instance_dir
+
+    def _write_network_config_json(self, netcfg: dict):
+        """Create /var/lib/cloud/instance/network-config.json
+
+        Only attempt once /var/lib/cloud/instance exists which is created
+        by Init.instancify once a datasource is detected.
+        """
+
+        if not os.path.islink(self.paths.instance_link):
+            # Datasource hasn't been detected yet, so we may not
+            # have visibility to datasource applicable network-config
+            return
+        ncfg_instance_path = self.paths.get_ipath_cur("network_config")
+        network_link = self.paths.get_runpath("network_config")
+        if os.path.exists(ncfg_instance_path):
+            # Compare and only write on delta of current network-config
+            if netcfg != util.load_json(
+                util.load_text_file(ncfg_instance_path)
+            ):
+                atomic_helper.write_json(
+                    ncfg_instance_path, netcfg, mode=0o600
+                )
+        else:
+            atomic_helper.write_json(ncfg_instance_path, netcfg, mode=0o600)
+        if not os.path.islink(network_link):
+            util.sym_link(ncfg_instance_path, network_link)
 
     def _reflect_cur_instance(self):
         # Remove the old symlink and attach a new one so
@@ -369,7 +442,7 @@ class Init(object):
         previous_ds = None
         ds_fn = os.path.join(idir, "datasource")
         try:
-            previous_ds = util.load_file(ds_fn).strip()
+            previous_ds = util.load_text_file(ds_fn).strip()
         except Exception:
             pass
         if not previous_ds:
@@ -404,7 +477,7 @@ class Init(object):
         dp = self.paths.get_cpath("data")
         iid_fn = os.path.join(dp, "instance-id")
         try:
-            self._previous_iid = util.load_file(iid_fn).strip()
+            self._previous_iid = util.load_text_file(iid_fn).strip()
         except Exception:
             self._previous_iid = NO_PREVIOUS_INSTANCE_ID
 
@@ -492,7 +565,7 @@ class Init(object):
             )
         # This data may be a list, convert it to a string if so
         if isinstance(data, list):
-            data = util.json_dumps(data)
+            data = atomic_helper.json_dumps(data)
         self._store_rawdata(data, datasource)
 
     def _store_processeddata(self, processed_data, datasource):
@@ -503,7 +576,7 @@ class Init(object):
             self._get_ipath(datasource), str(processed_data), 0o600
         )
 
-    def _default_handlers(self, opts=None):
+    def _default_handlers(self, opts=None) -> List[handlers.Handler]:
         if opts is None:
             opts = {}
 
@@ -519,17 +592,15 @@ class Init(object):
         def_handlers = [
             cloudconfig_handler,
             shellscript_handler,
+            ShellScriptByFreqPartHandler(PER_ALWAYS, **opts),
+            ShellScriptByFreqPartHandler(PER_INSTANCE, **opts),
+            ShellScriptByFreqPartHandler(PER_ONCE, **opts),
             BootHookPartHandler(**opts),
-            UpstartJobPartHandler(**opts),
+            JinjaTemplatePartHandler(
+                **opts, sub_handlers=[cloudconfig_handler, shellscript_handler]
+            ),
         ]
-        opts.update(
-            {"sub_handlers": [cloudconfig_handler, shellscript_handler]}
-        )
-        def_handlers.append(JinjaTemplatePartHandler(**opts))
         return def_handlers
-
-    def _default_userdata_handlers(self):
-        return self._default_handlers()
 
     def _default_vendordata_handlers(self):
         return self._default_handlers(
@@ -572,8 +643,8 @@ class Init(object):
             # Attempts to register any handler modules under the given path.
             if not path or not os.path.isdir(path):
                 return
-            potential_handlers = util.find_modules(path)
-            for (fname, mod_name) in potential_handlers.items():
+            potential_handlers = util.get_modules_from_dir(path)
+            for fname, mod_name in potential_handlers.items():
                 try:
                     mod_locs, looked_locs = importer.find_module(
                         mod_name, [""], ["list_types", "handle_part"]
@@ -621,7 +692,7 @@ class Init(object):
 
         def init_handlers():
             # Init the handlers first
-            for (_ctype, mod) in c_handlers.items():
+            for _ctype, mod in c_handlers.items():
                 if mod in c_handlers.initialized:
                     # Avoid initiating the same module twice (if said module
                     # is registered to more than one content-type).
@@ -633,7 +704,7 @@ class Init(object):
             # Walk the user data
             part_data = {
                 "handlers": c_handlers,
-                # Any new handlers that are encountered get writen here
+                # Any new handlers that are encountered get written here
                 "handlerdir": idir,
                 "data": data,
                 # The default frequency if handlers don't have one
@@ -648,7 +719,7 @@ class Init(object):
 
         def finalize_handlers():
             # Give callbacks opportunity to finalize
-            for (_ctype, mod) in c_handlers.items():
+            for _ctype, mod in c_handlers.items():
                 if mod not in c_handlers.initialized:
                     # Said module was never inited in the first place, so lets
                     # not attempt to finalize those that never got called.
@@ -702,6 +773,48 @@ class Init(object):
         # references to the previous config, distro, paths
         # objects before the load of the userdata happened,
         # this is expected.
+        combined_cloud_cfg = copy.deepcopy(self.cfg)
+        combined_cloud_cfg["_doc"] = COMBINED_CLOUD_CONFIG_DOC
+        # Persist system_info key from /etc/cloud/cloud.cfg in both
+        # combined_cloud_config file and instance-data-sensitive.json's
+        # merged_system_cfg key.
+        combined_cloud_cfg["system_info"] = self._extract_cfg("system")
+        # Add features information to allow for file-based discovery of
+        # feature settings.
+        combined_cloud_cfg["features"] = features.get_features()
+        atomic_helper.write_json(
+            self.paths.get_runpath("combined_cloud_config"),
+            combined_cloud_cfg,
+            mode=0o600,
+        )
+        json_sensitive_file = self.paths.get_runpath("instance_data_sensitive")
+        try:
+            instance_json = util.load_json(
+                util.load_text_file(json_sensitive_file)
+            )
+        except (OSError, IOError) as e:
+            LOG.warning(
+                "Skipping write of system_info/features to %s."
+                " Unable to read file: %s",
+                json_sensitive_file,
+                e,
+            )
+            return
+        except (json.JSONDecodeError, TypeError) as e:
+            LOG.warning(
+                "Skipping write of system_info/features to %s."
+                " Invalid JSON found: %s",
+                json_sensitive_file,
+                e,
+            )
+            return
+        instance_json["system_info"] = combined_cloud_cfg["system_info"]
+        instance_json["features"] = combined_cloud_cfg["features"]
+        atomic_helper.write_json(
+            json_sensitive_file,
+            instance_json,
+            mode=0o600,
+        )
 
     def _consume_vendordata(self, vendor_source, frequency=PER_INSTANCE):
         """
@@ -750,6 +863,14 @@ class Init(object):
             LOG.debug("%s consumption is disabled.", vendor_source)
             return
 
+        if isinstance(enabled, str):
+            util.deprecate(
+                deprecated=f"Use of string '{enabled}' for "
+                "'vendor_data:enabled' field",
+                deprecated_version="23.1",
+                extra_message="Use boolean value instead.",
+            )
+
         LOG.debug(
             "%s will be consumed. disabled_handlers=%s",
             vendor_source,
@@ -787,6 +908,15 @@ class Init(object):
         # Run the handlers
         self._do_handlers(user_data_msg, c_handlers_list, frequency)
 
+    def _get_network_key_contents(self, cfg) -> dict:
+        """
+        Network configuration can be passed as a dict under a "network" key, or
+        optionally at the top level. In both cases, return the config.
+        """
+        if cfg and "network" in cfg:
+            return cfg["network"]
+        return cfg
+
     def _find_networking_config(self):
         disable_file = os.path.join(
             self.paths.get_cpath("data"), "upgraded-network"
@@ -795,15 +925,15 @@ class Init(object):
             return (None, disable_file)
 
         available_cfgs = {
-            NetworkConfigSource.cmdline: cmdline.read_kernel_cmdline_config(),
-            NetworkConfigSource.initramfs: cmdline.read_initramfs_config(),
-            NetworkConfigSource.ds: None,
-            NetworkConfigSource.system_cfg: self.cfg.get("network"),
+            NetworkConfigSource.CMD_LINE: cmdline.read_kernel_cmdline_config(),
+            NetworkConfigSource.INITRAMFS: cmdline.read_initramfs_config(),
+            NetworkConfigSource.DS: None,
+            NetworkConfigSource.SYSTEM_CFG: self.cfg.get("network"),
         }
 
         if self.datasource and hasattr(self.datasource, "network_config"):
             available_cfgs[
-                NetworkConfigSource.ds
+                NetworkConfigSource.DS
             ] = self.datasource.network_config
 
         if self.datasource:
@@ -811,7 +941,7 @@ class Init(object):
         else:
             order = sources.DataSource.network_config_sources
         for cfg_source in order:
-            if not hasattr(NetworkConfigSource, cfg_source):
+            if not isinstance(cfg_source, NetworkConfigSource):
                 LOG.warning(
                     "data source specifies an invalid network cfg_source: %s",
                     cfg_source,
@@ -824,21 +954,23 @@ class Init(object):
                     cfg_source,
                 )
                 continue
-            ncfg = available_cfgs[cfg_source]
+            ncfg = self._get_network_key_contents(available_cfgs[cfg_source])
             if net.is_disabled_cfg(ncfg):
                 LOG.debug("network config disabled by %s", cfg_source)
                 return (None, cfg_source)
             if ncfg:
                 return (ncfg, cfg_source)
+        if not self.cfg.get("network", True):
+            LOG.warning("Empty network config found")
         return (
             self.distro.generate_fallback_config(),
-            NetworkConfigSource.fallback,
+            NetworkConfigSource.FALLBACK,
         )
 
     def _apply_netcfg_names(self, netcfg):
         try:
             LOG.debug("applying net config names for %s", netcfg)
-            self.distro.apply_network_config_names(netcfg)
+            self.distro.networking.apply_network_config_names(netcfg)
         except Exception as e:
             LOG.warning("Failed to rename devices: %s", e)
 
@@ -858,21 +990,23 @@ class Init(object):
         Find the config, determine whether to apply it, apply it via
         the distro, and optionally bring it up
         """
+        from cloudinit.config.schema import (
+            SchemaType,
+            validate_cloudconfig_schema,
+        )
+
         netcfg, src = self._find_networking_config()
         if netcfg is None:
             LOG.info("network config is disabled by %s", src)
             return
 
         def event_enabled_and_metadata_updated(event_type):
-            return (
-                update_event_enabled(
-                    datasource=self.datasource,
-                    cfg=self.cfg,
-                    event_source_type=event_type,
-                    scope=EventScope.NETWORK,
-                )
-                and self.datasource.update_metadata_if_supported([event_type])
-            )
+            return update_event_enabled(
+                datasource=self.datasource,
+                cfg=self.cfg,
+                event_source_type=event_type,
+                scope=EventScope.NETWORK,
+            ) and self.datasource.update_metadata_if_supported([event_type])
 
         def should_run_on_boot_event():
             return (
@@ -881,7 +1015,7 @@ class Init(object):
             )
 
         if (
-            self.datasource is not NULL_DATA_SOURCE
+            self.datasource is not None
             and not self.is_new_instance()
             and not should_run_on_boot_event()
             and not event_enabled_and_metadata_updated(EventType.BOOT_LEGACY)
@@ -896,7 +1030,16 @@ class Init(object):
 
         # refresh netcfg after update
         netcfg, src = self._find_networking_config()
+        self._write_network_config_json(netcfg)
 
+        if netcfg:
+            validate_cloudconfig_schema(
+                config=netcfg,
+                schema_type=SchemaType.NETWORK_CONFIG,
+                strict=False,  # Warnings not raising exceptions
+                log_details=False,  # May have wifi passwords in net cfg
+                log_deprecations=True,
+            )
         # ensure all physical devices in config are present
         self.distro.networking.wait_for_physdevs(netcfg)
 
@@ -933,269 +1076,23 @@ class Init(object):
             return
 
 
-class Modules(object):
-    def __init__(self, init, cfg_files=None, reporter=None):
-        self.init = init
-        self.cfg_files = cfg_files
-        # Created on first use
-        self._cached_cfg = None
-        if reporter is None:
-            reporter = events.ReportEventStack(
-                name="module-reporter",
-                description="module-desc",
-                reporting_enabled=False,
-            )
-        self.reporter = reporter
-
-    @property
-    def cfg(self):
-        # None check to avoid empty case causing re-reading
-        if self._cached_cfg is None:
-            merger = helpers.ConfigMerger(
-                paths=self.init.paths,
-                datasource=self.init.datasource,
-                additional_fns=self.cfg_files,
-                base_cfg=self.init.cfg,
-            )
-            self._cached_cfg = merger.cfg
-            # LOG.debug("Loading 'module' config %s", self._cached_cfg)
-        # Only give out a copy so that others can't modify this...
-        return copy.deepcopy(self._cached_cfg)
-
-    def _read_modules(self, name):
-        module_list = []
-        if name not in self.cfg:
-            return module_list
-        cfg_mods = self.cfg.get(name)
-        if not cfg_mods:
-            return module_list
-        # Create 'module_list', an array of hashes
-        # Where hash['mod'] = module name
-        #       hash['freq'] = frequency
-        #       hash['args'] = arguments
-        for item in cfg_mods:
-            if not item:
-                continue
-            if isinstance(item, str):
-                module_list.append(
-                    {
-                        "mod": item.strip(),
-                    }
-                )
-            elif isinstance(item, (list)):
-                contents = {}
-                # Meant to fall through...
-                if len(item) >= 1:
-                    contents["mod"] = item[0].strip()
-                if len(item) >= 2:
-                    contents["freq"] = item[1].strip()
-                if len(item) >= 3:
-                    contents["args"] = item[2:]
-                if contents:
-                    module_list.append(contents)
-            elif isinstance(item, (dict)):
-                contents = {}
-                valid = False
-                if "name" in item:
-                    contents["mod"] = item["name"].strip()
-                    valid = True
-                if "frequency" in item:
-                    contents["freq"] = item["frequency"].strip()
-                if "args" in item:
-                    contents["args"] = item["args"] or []
-                if contents and valid:
-                    module_list.append(contents)
-            else:
-                raise TypeError(
-                    "Failed to read '%s' item in config, unknown type %s"
-                    % (item, type_utils.obj_name(item))
-                )
-        return module_list
-
-    def _fixup_modules(self, raw_mods):
-        mostly_mods = []
-        for raw_mod in raw_mods:
-            raw_name = raw_mod["mod"]
-            freq = raw_mod.get("freq")
-            run_args = raw_mod.get("args") or []
-            mod_name = config.form_module_name(raw_name)
-            if not mod_name:
-                continue
-            if freq and freq not in FREQUENCIES:
-                LOG.warning(
-                    "Config specified module %s has an unknown frequency %s",
-                    raw_name,
-                    freq,
-                )
-                # Reset it so when ran it will get set to a known value
-                freq = None
-            mod_locs, looked_locs = importer.find_module(
-                mod_name, ["", type_utils.obj_name(config)], ["handle"]
-            )
-            if not mod_locs:
-                LOG.warning(
-                    "Could not find module named %s (searched %s)",
-                    mod_name,
-                    looked_locs,
-                )
-                continue
-            mod = config.fixup_module(importer.import_module(mod_locs[0]))
-            mostly_mods.append([mod, raw_name, freq, run_args])
-        return mostly_mods
-
-    def _run_modules(self, mostly_mods):
-        cc = self.init.cloudify()
-        # Return which ones ran
-        # and which ones failed + the exception of why it failed
-        failures = []
-        which_ran = []
-        for (mod, name, freq, args) in mostly_mods:
-            try:
-                # Try the modules frequency, otherwise fallback to a known one
-                if not freq:
-                    freq = mod.frequency
-                if freq not in FREQUENCIES:
-                    freq = PER_INSTANCE
-                LOG.debug(
-                    "Running module %s (%s) with frequency %s", name, mod, freq
-                )
-
-                # Use the configs logger and not our own
-                # TODO(harlowja): possibly check the module
-                # for having a LOG attr and just give it back
-                # its own logger?
-                func_args = [name, self.cfg, cc, config.LOG, args]
-                # Mark it as having started running
-                which_ran.append(name)
-                # This name will affect the semaphore name created
-                run_name = "config-%s" % (name)
-
-                desc = "running %s with frequency %s" % (run_name, freq)
-                myrep = events.ReportEventStack(
-                    name=run_name, description=desc, parent=self.reporter
-                )
-
-                with myrep:
-                    ran, _r = cc.run(
-                        run_name, mod.handle, func_args, freq=freq
-                    )
-                    if ran:
-                        myrep.message = "%s ran successfully" % run_name
-                    else:
-                        myrep.message = "%s previously ran" % run_name
-
-            except Exception as e:
-                util.logexc(LOG, "Running module %s (%s) failed", name, mod)
-                failures.append((name, e))
-        return (which_ran, failures)
-
-    def run_single(self, mod_name, args=None, freq=None):
-        # Form the users module 'specs'
-        mod_to_be = {
-            "mod": mod_name,
-            "args": args,
-            "freq": freq,
-        }
-        # Now resume doing the normal fixups and running
-        raw_mods = [mod_to_be]
-        mostly_mods = self._fixup_modules(raw_mods)
-        return self._run_modules(mostly_mods)
-
-    def run_section(self, section_name):
-        raw_mods = self._read_modules(section_name)
-        mostly_mods = self._fixup_modules(raw_mods)
-        d_name = self.init.distro.name
-
-        skipped = []
-        forced = []
-        overridden = self.cfg.get("unverified_modules", [])
-        active_mods = []
-        all_distros = set([distros.ALL_DISTROS])
-        for (mod, name, _freq, _args) in mostly_mods:
-            worked_distros = set(mod.distros)  # Minimally [] per fixup_modules
-            worked_distros.update(
-                distros.Distro.expand_osfamily(mod.osfamilies)
-            )
-
-            # Skip only when the following conditions are all met:
-            #  - distros are defined in the module != ALL_DISTROS
-            #  - the current d_name isn't in distros
-            #  - and the module is unverified and not in the unverified_modules
-            #    override list
-            if worked_distros and worked_distros != all_distros:
-                if d_name not in worked_distros:
-                    if name not in overridden:
-                        skipped.append(name)
-                        continue
-                    forced.append(name)
-            active_mods.append([mod, name, _freq, _args])
-
-        if skipped:
-            LOG.info(
-                "Skipping modules '%s' because they are not verified "
-                "on distro '%s'.  To run anyway, add them to "
-                "'unverified_modules' in config.",
-                ",".join(skipped),
-                d_name,
-            )
-        if forced:
-            LOG.info("running unverified_modules: '%s'", ", ".join(forced))
-
-        return self._run_modules(active_mods)
-
-
 def read_runtime_config():
     return util.read_conf(RUN_CLOUD_CONFIG)
 
 
-def fetch_base_config():
+def fetch_base_config(*, instance_data_file=None) -> dict:
     return util.mergemanydict(
         [
-            # builtin config
+            # builtin config, hardcoded in settings.py.
             util.get_builtin_cfg(),
             # Anything in your conf.d or 'default' cloud.cfg location.
-            util.read_conf_with_confd(CLOUD_CONFIG),
-            # runtime config
+            util.read_conf_with_confd(
+                CLOUD_CONFIG, instance_data_file=instance_data_file
+            ),
+            # runtime config. I.e., /run/cloud-init/cloud.cfg
             read_runtime_config(),
             # Kernel/cmdline parameters override system config
             util.read_conf_from_cmdline(),
         ],
         reverse=True,
     )
-
-
-def _pkl_store(obj, fname):
-    try:
-        pk_contents = pickle.dumps(obj)
-    except Exception:
-        util.logexc(LOG, "Failed pickling datasource %s", obj)
-        return False
-    try:
-        util.write_file(fname, pk_contents, omode="wb", mode=0o400)
-    except Exception:
-        util.logexc(LOG, "Failed pickling datasource to %s", fname)
-        return False
-    return True
-
-
-def _pkl_load(fname):
-    pickle_contents = None
-    try:
-        pickle_contents = util.load_file(fname, decode=False)
-    except Exception as e:
-        if os.path.isfile(fname):
-            LOG.warning("failed loading pickle in %s: %s", fname, e)
-
-    # This is allowed so just return nothing successfully loaded...
-    if not pickle_contents:
-        return None
-    try:
-        return pickle.loads(pickle_contents)
-    except sources.DatasourceUnpickleUserDataError:
-        return None
-    except Exception:
-        util.logexc(LOG, "Failed loading pickled blob from %s", fname)
-        return None
-
-
-# vi: ts=4 expandtab

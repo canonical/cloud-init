@@ -1,0 +1,18 @@
+network:
+  version: 1
+  config:
+    - type: physical
+      name: interface0
+      mac_address: '00:11:22:33:44:55'
+      subnets:
+        - type: dhcp
+        - type: static
+          address: 10.184.225.122
+          netmask: 255.255.255.252
+          routes:
+            - gateway: 10.184.225.121
+              netmask: 255.240.0.0
+              destination: 10.176.0.0
+            - gateway: 10.184.225.121
+              netmask: 255.240.0.0
+              destination: 10.208.0.0

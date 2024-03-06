@@ -1,21 +1,25 @@
+#!/usr/bin/env python3
+
 # This file is part of cloud-init. See LICENSE file for license information.
-"""Handle reconfiguration on hotplug events"""
+"""Handle reconfiguration on hotplug events."""
 import abc
 import argparse
+import json
+import logging
 import os
 import sys
 import time
 
-from cloudinit import log, reporting, stages
+from cloudinit import log, reporting, stages, util
+from cloudinit.config.cc_install_hotplug import install_hotplug
 from cloudinit.event import EventScope, EventType
-from cloudinit.net import activators, read_sys_net_safe
+from cloudinit.net import read_sys_net_safe
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.reporting import events
-from cloudinit.sources import DataSource  # noqa: F401
-from cloudinit.sources import DataSourceNotFoundException
+from cloudinit.sources import DataSource, DataSourceNotFoundException
 from cloudinit.stages import Init
 
-LOG = log.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 NAME = "hotplug-hook"
 
 
@@ -45,25 +49,29 @@ def get_parser(parser=None):
     subparsers.required = True
 
     subparsers.add_parser(
-        "query", help="query if hotplug is enabled for given subsystem"
+        "query", help="Query if hotplug is enabled for given subsystem."
     )
 
     parser_handle = subparsers.add_parser(
-        "handle", help="handle the hotplug event"
+        "handle", help="Handle the hotplug event."
     )
     parser_handle.add_argument(
         "-d",
         "--devpath",
         required=True,
         metavar="PATH",
-        help="sysfs path to hotplugged device",
+        help="Sysfs path to hotplugged device",
     )
     parser_handle.add_argument(
         "-u",
         "--udevaction",
         required=True,
-        help="action to take",
+        help="Specify action to take.",
         choices=["add", "remove"],
+    )
+
+    subparsers.add_parser(
+        "enable", help="Enable hotplug for a given subsystem."
     )
 
     return parser
@@ -72,7 +80,7 @@ def get_parser(parser=None):
 class UeventHandler(abc.ABC):
     def __init__(self, id, datasource, devpath, action, success_fn):
         self.id = id
-        self.datasource = datasource  # type: DataSource
+        self.datasource: DataSource = datasource
         self.devpath = devpath
         self.action = action
         self.success_fn = success_fn
@@ -131,7 +139,7 @@ class NetHandler(UeventHandler):
             bring_up=False,
         )
         interface_name = os.path.basename(self.devpath)
-        activator = activators.select_activator()
+        activator = self.datasource.distro.network_activator()
         if self.action == "add":
             if not activator.bring_up_interface(interface_name):
                 raise RuntimeError(
@@ -158,16 +166,16 @@ class NetHandler(UeventHandler):
         return len(found) > 0
 
 
-SUBSYSTEM_PROPERTES_MAP = {
+SUBSYSTEM_PROPERTIES_MAP = {
     "net": (NetHandler, EventScope.NETWORK),
 }
 
 
 def is_enabled(hotplug_init, subsystem):
     try:
-        scope = SUBSYSTEM_PROPERTES_MAP[subsystem][1]
+        scope = SUBSYSTEM_PROPERTIES_MAP[subsystem][1]
     except KeyError as e:
-        raise Exception(
+        raise RuntimeError(
             "hotplug-hook: cannot handle events for subsystem: {}".format(
                 subsystem
             )
@@ -181,7 +189,7 @@ def is_enabled(hotplug_init, subsystem):
     )
 
 
-def initialize_datasource(hotplug_init, subsystem):
+def initialize_datasource(hotplug_init: Init, subsystem: str):
     LOG.debug("Fetching datasource")
     datasource = hotplug_init.fetch(existing="trust")
 
@@ -199,15 +207,16 @@ def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction):
     datasource = initialize_datasource(hotplug_init, subsystem)
     if not datasource:
         return
-    handler_cls = SUBSYSTEM_PROPERTES_MAP[subsystem][0]
+    handler_cls = SUBSYSTEM_PROPERTIES_MAP[subsystem][0]
     LOG.debug("Creating %s event handler", subsystem)
-    event_handler = handler_cls(
+    event_handler: UeventHandler = handler_cls(
         datasource=datasource,
         devpath=devpath,
         action=udevaction,
         success_fn=hotplug_init._write_to_cache,
-    )  # type: UeventHandler
+    )
     wait_times = [1, 3, 5, 10, 30]
+    last_exception = Exception("Bug while processing hotplug event.")
     for attempt, wait in enumerate(wait_times):
         LOG.debug(
             "subsystem=%s update attempt %s/%s",
@@ -218,8 +227,9 @@ def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction):
         try:
             LOG.debug("Refreshing metadata")
             event_handler.update_metadata()
-            LOG.debug("Detecting device in updated metadata")
-            event_handler.detect_hotplugged_device()
+            if not datasource.skip_hotplug_detect:
+                LOG.debug("Detecting device in updated metadata")
+                event_handler.detect_hotplugged_device()
             LOG.debug("Applying config change")
             event_handler.apply()
             LOG.debug("Updating cache")
@@ -230,7 +240,42 @@ def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction):
             time.sleep(wait)
             last_exception = e
     else:
-        raise last_exception  # type: ignore
+        raise last_exception
+
+
+def enable_hotplug(hotplug_init: Init, subsystem) -> bool:
+    datasource = hotplug_init.fetch(existing="trust")
+    if not datasource:
+        return False
+    scope = SUBSYSTEM_PROPERTIES_MAP[subsystem][1]
+    hotplug_supported = EventType.HOTPLUG in (
+        datasource.get_supported_events([EventType.HOTPLUG]).get(scope, set())
+    )
+    if not hotplug_supported:
+        print(
+            f"hotplug not supported for event of {subsystem}", file=sys.stderr
+        )
+        return False
+    hotplug_enabled_file = util.read_hotplug_enabled_file(hotplug_init.paths)
+    if scope.value in hotplug_enabled_file["scopes"]:
+        print(
+            f"Not installing hotplug for event of type {subsystem}."
+            " Reason: Already done.",
+            file=sys.stderr,
+        )
+        return True
+
+    hotplug_enabled_file["scopes"].append(scope.value)
+    util.write_file(
+        hotplug_init.paths.get_cpath("hotplug.enabled"),
+        json.dumps(hotplug_enabled_file),
+        omode="w",
+        mode=0o640,
+    )
+    install_hotplug(
+        datasource, network_hotplug_enabled=True, cfg=hotplug_init.cfg
+    )
+    return True
 
 
 def handle_args(name, args):
@@ -243,7 +288,7 @@ def handle_args(name, args):
     hotplug_init = Init(ds_deps=[], reporter=hotplug_reporter)
     hotplug_init.read_cfg()
 
-    log.setupLogging(hotplug_init.cfg)
+    log.setup_logging(hotplug_init.cfg)
     if "reporting" in hotplug_init.cfg:
         reporting.update_configuration(hotplug_init.cfg.get("reporting"))
     # Logging isn't going to be setup until now
@@ -271,13 +316,29 @@ def handle_args(name, args):
                     )
                     sys.exit(1)
                 print("enabled" if datasource else "disabled")
-            else:
+            elif args.hotplug_action == "handle":
                 handle_hotplug(
                     hotplug_init=hotplug_init,
                     devpath=args.devpath,
                     subsystem=args.subsystem,
                     udevaction=args.udevaction,
                 )
+            else:
+                if os.getuid() != 0:
+                    sys.stderr.write(
+                        "Root is required. Try prepending your command with"
+                        " sudo.\n"
+                    )
+                    sys.exit(1)
+                if not enable_hotplug(
+                    hotplug_init=hotplug_init, subsystem=args.subsystem
+                ):
+                    sys.exit(1)
+                print(
+                    f"Enabled cloud-init hotplug for "
+                    f"subsystem={args.subsystem}"
+                )
+
         except Exception:
             LOG.exception("Received fatal exception handling hotplug!")
             raise

@@ -2,21 +2,82 @@
 
 """Tests for cloud-id command line utility."""
 
-from collections import namedtuple
-
 import pytest
 
-from cloudinit import util
-from cloudinit.cmd import cloud_id
+from cloudinit import atomic_helper
+from cloudinit.cmd import cloud_id, status
+from cloudinit.helpers import Paths
 from tests.unittests.helpers import mock
 
 M_PATH = "cloudinit.cmd.cloud_id."
 
+STATUS_DETAILS_DONE = status.StatusDetails(
+    status.RunningStatus.DONE,
+    status.ConditionStatus.PEACHY,
+    status.EnabledStatus.UNKNOWN,
+    "DataSourceNoCloud somedetail",
+    [],
+    {},
+    "",
+    "nocloud",
+    {},
+)
+STATUS_DETAILS_DISABLED = status.StatusDetails(
+    status.RunningStatus.DISABLED,
+    status.ConditionStatus.PEACHY,
+    status.EnabledStatus.DISABLED_BY_GENERATOR,
+    "DataSourceNoCloud somedetail",
+    [],
+    {},
+    "",
+    "",
+    {},
+)
+STATUS_DETAILS_NOT_STARTED = status.StatusDetails(
+    status.RunningStatus.NOT_STARTED,
+    status.ConditionStatus.PEACHY,
+    status.EnabledStatus.UNKNOWN,
+    "",
+    [],
+    {},
+    "",
+    "",
+    {},
+)
+STATUS_DETAILS_RUNNING = status.StatusDetails(
+    status.RunningStatus.RUNNING,
+    status.ConditionStatus.PEACHY,
+    status.EnabledStatus.UNKNOWN,
+    "",
+    [],
+    {},
+    "",
+    "",
+    {},
+)
+
+
+STATUS_DETAILS_RUNNING_DS_NONE = status.StatusDetails(
+    status.RunningStatus.RUNNING,
+    status.ConditionStatus.PEACHY,
+    status.EnabledStatus.UNKNOWN,
+    "",
+    [],
+    {},
+    "",
+    None,
+    {},
+)
+
+
+@pytest.fixture(autouse=True)
+def setup_mocks(mocker):
+    mocker.patch(
+        "cloudinit.cmd.cloud_id.read_cfg_paths", return_value=Paths({})
+    )
+
 
 class TestCloudId:
-
-    args = namedtuple("cloudidargs", "instance_data json long")
-
     def test_cloud_id_arg_parser_defaults(self):
         """Validate the argument defaults when not provided by the end-user."""
         cmd = ["cloud-id"]
@@ -48,7 +109,7 @@ class TestCloudId:
         self, get_status_details, tmpdir, capsys
     ):
         """Exit error when the provided instance-data.json does not exist."""
-        get_status_details.return_value = cloud_id.UXAppStatus.DONE, "n/a", ""
+        get_status_details.return_value = STATUS_DETAILS_DONE
         instance_data = tmpdir.join("instance-data.json")
         cmd = ["cloud-id", "--instance-data", instance_data.strpath]
         with mock.patch("sys.argv", cmd):
@@ -63,7 +124,7 @@ class TestCloudId:
         self, get_status_details, tmpdir, capsys
     ):
         """Exit error when the provided instance-data.json is not json."""
-        get_status_details.return_value = cloud_id.UXAppStatus.DONE, "n/a", ""
+        get_status_details.return_value = STATUS_DETAILS_DONE
         instance_data = tmpdir.join("instance-data.json")
         cmd = ["cloud-id", "--instance-data", instance_data.strpath]
         instance_data.write("{")
@@ -83,7 +144,7 @@ class TestCloudId:
     ):
         """Report canonical cloud-id from cloud_name in instance-data."""
         instance_data = tmpdir.join("instance-data.json")
-        get_status_details.return_value = cloud_id.UXAppStatus.DONE, "n/a", ""
+        get_status_details.return_value = STATUS_DETAILS_DONE
         instance_data.write(
             '{"v1": {"cloud_name": "mycloud", "region": "somereg"}}',
         )
@@ -100,7 +161,7 @@ class TestCloudId:
         self, get_status_details, tmpdir, capsys
     ):
         """Report long cloud-id format from cloud_name and region."""
-        get_status_details.return_value = cloud_id.UXAppStatus.DONE, "n/a", ""
+        get_status_details.return_value = STATUS_DETAILS_DONE
         instance_data = tmpdir.join("instance-data.json")
         instance_data.write(
             '{"v1": {"cloud_name": "mycloud", "region": "somereg"}}',
@@ -118,7 +179,7 @@ class TestCloudId:
         self, get_status_details, tmpdir, capsys
     ):
         """Report discovered canonical cloud_id when region lookup matches."""
-        get_status_details.return_value = cloud_id.UXAppStatus.DONE, "n/a", ""
+        get_status_details.return_value = STATUS_DETAILS_DONE
         instance_data = tmpdir.join("instance-data.json")
         instance_data.write(
             '{"v1": {"cloud_name": "aws", "region": "cn-north-1",'
@@ -137,13 +198,13 @@ class TestCloudId:
         self, get_status_details, tmpdir, capsys
     ):
         """Report v1 instance-data content with cloud_id when --json set."""
-        get_status_details.return_value = cloud_id.UXAppStatus.DONE, "n/a", ""
+        get_status_details.return_value = STATUS_DETAILS_DONE
         instance_data = tmpdir.join("instance-data.json")
         instance_data.write(
             '{"v1": {"cloud_name": "unknown", "region": "dfw",'
             ' "platform": "openstack", "public_ssh_keys": []}}',
         )
-        expected = util.json_dumps(
+        expected = atomic_helper.json_dumps(
             {
                 "cloud_id": "openstack",
                 "cloud_name": "unknown",
@@ -156,32 +217,36 @@ class TestCloudId:
         with mock.patch("sys.argv", cmd):
             with pytest.raises(SystemExit) as context_manager:
                 cloud_id.main()
-        out, _err = capsys.readouterr()
+        out, err = capsys.readouterr()
+        assert "DEPRECATED: Use: cloud-init query v1\n" == err
         assert 0 == context_manager.value.code
         assert expected + "\n" == out
 
     @pytest.mark.parametrize(
-        "status, exit_code",
+        "details, exit_code",
         (
-            (cloud_id.UXAppStatus.DISABLED, 2),
-            (cloud_id.UXAppStatus.NOT_RUN, 3),
-            (cloud_id.UXAppStatus.RUNNING, 0),
+            (STATUS_DETAILS_DISABLED, 2),
+            (STATUS_DETAILS_NOT_STARTED, 3),
+            (STATUS_DETAILS_RUNNING, 0),
+            (STATUS_DETAILS_RUNNING_DS_NONE, 0),
         ),
     )
     @mock.patch(M_PATH + "get_status_details")
     def test_cloud_id_unique_exit_codes_for_status(
-        self, get_status_details, status, exit_code, tmpdir, capsys
+        self,
+        get_status_details,
+        details: status.StatusDetails,
+        exit_code,
+        tmpdir,
+        capsys,
     ):
         """cloud-id returns unique exit codes for status."""
-        get_status_details.return_value = status, "n/a", ""
+        get_status_details.return_value = details
         instance_data = tmpdir.join("instance-data.json")
-        if status == cloud_id.UXAppStatus.RUNNING:
+        if details.running_status == cloud_id.RunningStatus.RUNNING:
             instance_data.write("{}")
         cmd = ["cloud-id", "--instance-data", instance_data.strpath, "--json"]
         with mock.patch("sys.argv", cmd):
             with pytest.raises(SystemExit) as context_manager:
                 cloud_id.main()
         assert exit_code == context_manager.value.code
-
-
-# vi: ts=4 expandtab

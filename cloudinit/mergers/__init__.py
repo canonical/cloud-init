@@ -15,7 +15,7 @@ MERGER_PREFIX = "m_"
 MERGER_ATTR = "Merger"
 
 
-class UnknownMerger(object):
+class UnknownMerger:
     # Named differently so auto-method finding
     # doesn't pick this up if there is ever a type
     # named "unknown"
@@ -110,7 +110,7 @@ def string_extract_mergers(merge_how):
             continue
         match = NAME_MTCH.match(m_name)
         if not match:
-            msg = "Matcher identifer '%s' is not in the right format" % (
+            msg = "Matcher identifier '%s' is not in the right format" % (
                 m_name
             )
             raise ValueError(msg)
@@ -150,6 +150,3 @@ def construct(parsed_mergers):
     for (attr, opts) in mergers_to_be:
         mergers.append(attr(root, opts))
     return root
-
-
-# vi: ts=4 expandtab

@@ -8,7 +8,8 @@ set -u
 VERBOSITY=0
 KEEP=false
 CONTAINER=""
-DEFAULT_WAIT_MAX=30
+WAIT_MAX=30
+LXC=${LXC:-lxc}
 
 error() { echo "$@" 1>&2; }
 fail() { [ $# -eq 0 ] || error "$@"; exit 1; }
@@ -24,7 +25,7 @@ Usage: ${0##*/} [ options ] [images:]image-ref
     To see images available, run 'lxc image list images:'
     Example input:
        centos/7
-       opensuse/42.3
+       opensuse/15.4
        debian/10
 
     options:
@@ -38,6 +39,8 @@ Usage: ${0##*/} [ options ] [images:]image-ref
       -p | --package         build a binary package (.deb or .rpm)
       -s | --source-package  build source package (debuild -S or srpm)
       -u | --unittest        run unit tests
+           --vm              use a VM instead of a container
+           --wait-max        max time to wait or a container or VM to be ready
 
     Example:
       * ${0##*/} --package --source-package --unittest centos/6
@@ -50,7 +53,7 @@ cleanup() {
         if [ "$KEEP" = "true" ]; then
             error "not deleting container '$CONTAINER' due to --keep"
         else
-            delete_container "$CONTAINER"
+            delete_instance "$CONTAINER"
         fi
     fi
 }
@@ -88,7 +91,7 @@ inside_as_cd() {
 inside() {
     local name="$1"
     shift
-    lxc exec "$name" -- "$@"
+    $LXC exec "$name" -- "$@"
 }
 
 inject_cloud_init(){
@@ -248,8 +251,8 @@ install_packages() {
     get_os_info || return
     case "$OS_NAME" in
         centos|rocky*) yum_install "$@";;
-        opensuse) zypper_install "$@";;
-        debian|ubuntu) apt_install "$@";;
+        opensuse*) zypper_install "$@";;
+        debian|ubuntu) apt_install "$@" -y;;
         *) error "Do not know how to install packages on ${OS_NAME}";
            return 1;;
     esac
@@ -318,7 +321,7 @@ is_done_other() {
 }
 
 wait_inside() {
-    local name="$1" max="${2:-${DEFAULT_WAIT_MAX}}" debug=${3:-0}
+    local name="$1" max="${2:-${WAIT_MAX}}" debug=${3:-0}
     local i=0 check="is_done_other";
     if [ -e /run/systemd ]; then
         check=is_done_systemd
@@ -339,7 +342,13 @@ wait_inside() {
 
 wait_for_boot() {
     local name="$1"
-    local out="" ret="" wtime=$DEFAULT_WAIT_MAX
+    local out="" ret="" wtime=$WAIT_MAX
+    local system_up=false
+    for i in {0..30}; do
+        [ "$i" -gt 1 ] && sleep 5
+        inside "$name" true 2>/dev/null && system_up=true && break
+    done
+    [ $system_up == true ] || { errorrc "exec command inside $name failed."; return; }
     get_os_info_in "$name"
     [ "$OS_NAME" = "debian" ] && wtime=300 &&
         debug 1 "on debian we wait for ${wtime}s"
@@ -360,10 +369,12 @@ wait_for_boot() {
     fi
 }
 
-start_container() {
-    local src="$1" name="$2"
+start_instance() {
+    local src="$1" name="$2" use_vm="$3"
     debug 1 "starting container $name from '$src'"
-    lxc launch "$src" "$name" || {
+    launch_flags=()
+    [ "$use_vm" == true ] && launch_flags+=(--vm)
+    $LXC launch "$src" "$name" "${launch_flags[@]}" || {
         errorrc "Failed to start container '$name' from '$src'";
         return
     }
@@ -371,9 +382,9 @@ start_container() {
     wait_for_boot "$name"
 }
 
-delete_container() {
+delete_instance() {
     debug 1 "removing container $1 [--keep to keep]"
-    lxc delete --force "$1"
+    $LXC delete --force "$1"
 }
 
 run_self_inside() {
@@ -391,7 +402,7 @@ run_self_inside_as_cd() {
 
 main() {
     local short_opts="a:hknpsuv"
-    local long_opts="artifacts:,dirty,help,keep,name:,package,source-package,unittest,verbose"
+    local long_opts="artifacts:,dirty,help,keep,name:,package,source-package,unittest,verbose,vm,wait-max:"
     local getopt_out=""
     getopt_out=$(getopt --name "${0##*/}" \
         --options "${short_opts}" --long "${long_opts}" -- "$@") &&
@@ -401,6 +412,7 @@ main() {
     local cur="" next=""
     local package=false srcpackage=false unittest="" name=""
     local dirty=false artifact_d="."
+    local use_vm=false
 
     while [ $# -ne 0 ]; do
         cur="${1:-}"; next="${2:-}";
@@ -414,6 +426,8 @@ main() {
             -s|--source-package) srcpackage=true;;
             -u|--unittest) unittest=1;;
             -v|--verbose) VERBOSITY=$((VERBOSITY+1));;
+               --vm) use_vm=true;;
+               --wait-max) WAIT_MAX="$next"; shift;;
             --) shift; break;;
         esac
         shift;
@@ -443,7 +457,7 @@ main() {
 
     trap cleanup EXIT
 
-    start_container "$img_ref" "$name" ||
+    start_instance "$img_ref" "$name" "$use_vm" ||
         { errorrc "Failed to start container for $img_ref"; return; }
 
     get_os_info_in "$name" ||
@@ -486,8 +500,8 @@ main() {
 
     local build_pkg="" build_srcpkg="" pkg_ext="" distflag=""
     case "$OS_NAME" in
-        centos|rocky) distflag="--distro=redhat";;
-        opensuse) distflag="--distro=suse";;
+        centos|rocky*) distflag="--distro=redhat";;
+        opensuse*) distflag="--distro=suse";;
     esac
 
     case "$OS_NAME" in
@@ -495,7 +509,7 @@ main() {
             build_pkg="./packages/bddeb -d" 
             build_srcpkg="./packages/bddeb -S -d"
             pkg_ext=".deb";;
-        centos|opensuse|rocky)
+        centos|opensuse*|rocky*)
             build_pkg="./packages/brpm $distflag"
             build_srcpkg="./packages/brpm $distflag --srpm"
             pkg_ext=".rpm";;
@@ -536,7 +550,7 @@ main() {
         }
 
         for art in $(inside "$name" sh -c "echo $cdir/*${pkg_ext}"); do
-            lxc file pull "$name/$art" "$artifact_d" || {
+            $LXC file pull "$name/$art" "$artifact_d" || {
                 errorrc "Failed to pull '$name/$art' to ${artifact_d}"
                 errors[${#errors[@]}]="artifact copy: $art"
             }
@@ -559,5 +573,3 @@ case "${1:-}" in
     prep|os_info|wait_inside|pytest) _n=$1; shift; "$_n" "$@";;
     *) main "$@";;
 esac
-
-# vi: ts=4 expandtab

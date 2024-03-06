@@ -12,22 +12,23 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import os
 import time
+from contextlib import suppress
 from socket import gaierror, getaddrinfo, inet_ntoa
 from struct import pack
 
-from cloudinit import ec2_utils as ec2
-from cloudinit import log as logging
 from cloudinit import sources, subp
 from cloudinit import url_helper as uhelp
 from cloudinit import util
 from cloudinit.net import dhcp
+from cloudinit.sources.helpers import ec2
 
 LOG = logging.getLogger(__name__)
 
 
-class CloudStackPasswordServerClient(object):
+class CloudStackPasswordServerClient:
     """
     Implements password fetching from the CloudStack password server.
 
@@ -87,11 +88,83 @@ class DataSourceCloudStack(sources.DataSource):
         # Cloudstack has its metadata/userdata URLs located at
         # http://<virtual-router-ip>/latest/
         self.api_ver = "latest"
-        self.vr_addr = get_vr_address()
+
+        self.distro = distro
+        self.vr_addr = get_vr_address(self.distro)
         if not self.vr_addr:
             raise RuntimeError("No virtual router found!")
-        self.metadata_address = "http://%s/" % (self.vr_addr,)
+        self.metadata_address = f"http://{self.vr_addr}/"
         self.cfg = {}
+
+    def _get_domainname(self):
+        """
+        Try obtaining a "domain-name" DHCP lease parameter:
+        - From systemd-networkd lease
+        - From dhclient lease
+        """
+        LOG.debug("Try obtaining domain name from networkd leases")
+        domainname = dhcp.networkd_get_option_from_leases("DOMAINNAME")
+        if domainname:
+            return domainname
+        LOG.debug(
+            "Could not obtain FQDN from networkd leases. "
+            "Falling back to ISC dhclient"
+        )
+
+        # some distros might use isc-dhclient for network setup via their
+        # network manager. If this happens, the lease is more recent than the
+        # ephemeral lease, so use it first.
+        with suppress(dhcp.NoDHCPLeaseMissingDhclientError):
+            domain_name = dhcp.IscDhclient().get_key_from_latest_lease(
+                self.distro, "domain-name"
+            )
+            if domain_name:
+                return domain_name
+
+        LOG.debug(
+            "Could not obtain FQDN from ISC dhclient leases. "
+            "Falling back to %s",
+            self.distro.dhcp_client.client_name,
+        )
+
+        # If no distro leases were found, check the ephemeral lease that
+        # cloud-init set up.
+        with suppress(FileNotFoundError):
+            latest_lease = self.distro.dhcp_client.get_newest_lease(
+                self.distro.fallback_interface
+            )
+            domain_name = latest_lease.get("domain-name") or None
+            return domain_name
+        LOG.debug("No dhcp leases found")
+        return None
+
+    def get_hostname(
+        self,
+        fqdn=False,
+        resolve_ip=False,
+        metadata_only=False,
+    ):
+        """
+        Returns instance's hostname / fqdn
+        First probes the parent class method.
+
+        If fqdn is requested, and the parent method didn't return it,
+        then attach the domain-name from DHCP response.
+        """
+        hostname = super().get_hostname(fqdn, resolve_ip, metadata_only)
+        if fqdn and "." not in hostname.hostname:
+            LOG.debug("FQDN requested")
+            domainname = self._get_domainname()
+            if domainname:
+                fqdn = f"{hostname.hostname}.{domainname}"
+                LOG.debug("Obtained the following FQDN: %s", fqdn)
+                return sources.DataSourceHostname(fqdn, hostname.is_default)
+            LOG.debug(
+                "Could not determine domain name for FQDN. "
+                "Fall back to hostname as an FQDN: %s",
+                fqdn,
+            )
+        return hostname
 
     def wait_for_metadata_service(self):
         url_params = self.get_url_params()
@@ -196,7 +269,7 @@ def get_data_server():
 
 def get_default_gateway():
     # Returns the default gateway ip address in the dotted format.
-    lines = util.load_file("/proc/net/route").splitlines()
+    lines = util.load_text_file("/proc/net/route").splitlines()
     for line in lines:
         items = line.split("\t")
         if items[1] == "00000000":
@@ -207,54 +280,7 @@ def get_default_gateway():
     return None
 
 
-def get_dhclient_d():
-    # find lease files directory
-    supported_dirs = [
-        "/var/lib/dhclient",
-        "/var/lib/dhcp",
-        "/var/lib/NetworkManager",
-    ]
-    for d in supported_dirs:
-        if os.path.exists(d) and len(os.listdir(d)) > 0:
-            LOG.debug("Using %s lease directory", d)
-            return d
-    return None
-
-
-def get_latest_lease(lease_d=None):
-    # find latest lease file
-    if lease_d is None:
-        lease_d = get_dhclient_d()
-    if not lease_d:
-        return None
-    lease_files = os.listdir(lease_d)
-    latest_mtime = -1
-    latest_file = None
-
-    # lease files are named inconsistently across distros.
-    # We assume that 'dhclient6' indicates ipv6 and ignore it.
-    # ubuntu:
-    #   dhclient.<iface>.leases, dhclient.leases, dhclient6.leases
-    # centos6:
-    #   dhclient-<iface>.leases, dhclient6.leases
-    # centos7: ('--' is not a typo)
-    #   dhclient--<iface>.lease, dhclient6.leases
-    for fname in lease_files:
-        if fname.startswith("dhclient6"):
-            # avoid files that start with dhclient6 assuming dhcpv6.
-            continue
-        if not (fname.endswith(".lease") or fname.endswith(".leases")):
-            continue
-
-        abs_path = os.path.join(lease_d, fname)
-        mtime = os.path.getmtime(abs_path)
-        if mtime > latest_mtime:
-            latest_mtime = mtime
-            latest_file = abs_path
-    return latest_file
-
-
-def get_vr_address():
+def get_vr_address(distro):
     # Get the address of the virtual router via dhcp leases
     # If no virtual router is detected, fallback on default gateway.
     # See http://docs.cloudstack.apache.org/projects/cloudstack-administration/en/4.8/virtual_machines/user-data.html # noqa
@@ -276,25 +302,30 @@ def get_vr_address():
         )
         return latest_address
 
-    # Try dhcp lease files next...
-    lease_file = get_latest_lease()
-    if not lease_file:
-        LOG.debug("No lease file found, using default gateway")
-        return get_default_gateway()
+    # Try dhcp lease files next
+    # get_key_from_latest_lease() needs a Distro object to know which directory
+    # stores lease files
+    with suppress(dhcp.NoDHCPLeaseMissingDhclientError):
+        latest_address = dhcp.IscDhclient().get_key_from_latest_lease(
+            distro, "dhcp-server-identifier"
+        )
+        if latest_address:
+            LOG.debug("Found SERVER_ADDRESS '%s' via dhclient", latest_address)
+            return latest_address
 
-    with open(lease_file, "r") as fd:
-        for line in fd:
-            if "dhcp-server-identifier" in line:
-                words = line.strip(" ;\r\n").split(" ")
-                if len(words) > 2:
-                    dhcptok = words[2]
-                    LOG.debug("Found DHCP identifier %s", dhcptok)
-                    latest_address = dhcptok
-    if not latest_address:
-        # No virtual router found, fallback on default gateway
-        LOG.debug("No DHCP found, using default gateway")
-        return get_default_gateway()
-    return latest_address
+    with suppress(FileNotFoundError):
+        latest_lease = distro.dhcp_client.get_newest_lease(distro)
+        if latest_lease:
+            LOG.debug(
+                "Found SERVER_ADDRESS '%s' via ephemeral %s lease ",
+                latest_lease,
+                distro.dhcp_client.client_name,
+            )
+            return latest_lease
+
+    # No virtual router found, fallback to default gateway
+    LOG.debug("No DHCP found, using default gateway")
+    return get_default_gateway()
 
 
 # Used to match classes to dependencies
@@ -306,6 +337,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab

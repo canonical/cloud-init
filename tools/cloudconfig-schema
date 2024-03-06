@@ -31,5 +31,3 @@ def call_entry_point(name):
 
 if __name__ == '__main__':
     call_entry_point("cloudinit.config.schema.main")
-
-# vi: ts=4 expandtab syntax=python

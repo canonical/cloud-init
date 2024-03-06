@@ -5,10 +5,12 @@
 # UpCloud server metadata API:
 # https://developers.upcloud.com/1.3/8-servers/#metadata-service
 
-from cloudinit import log as logging
+import logging
+
 from cloudinit import net as cloudnet
 from cloudinit import sources, util
-from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
+from cloudinit.net.dhcp import NoDHCPLeaseError
+from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.sources.helpers import upcloud as uc_helper
 
 LOG = logging.getLogger(__name__)
@@ -70,7 +72,7 @@ class DataSourceUpCloud(sources.DataSource):
                 LOG.debug("Finding a fallback NIC")
                 nic = cloudnet.find_fallback_nic()
                 LOG.debug("Discovering metadata via DHCP interface %s", nic)
-                with EphemeralDHCPv4(nic):
+                with EphemeralDHCPv4(self.distro, nic):
                     md = util.log_time(
                         logfunc=LOG.debug,
                         msg="Reading from metadata service",
@@ -125,7 +127,9 @@ class DataSourceUpCloud(sources.DataSource):
 
         raw_network_config = self.metadata.get("network")
         if not raw_network_config:
-            raise Exception("Unable to get network meta-data from server....")
+            raise RuntimeError(
+                "Unable to get network meta-data from server...."
+            )
 
         self._network_config = uc_helper.convert_network_config(
             raw_network_config,
@@ -157,6 +161,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab

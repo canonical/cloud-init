@@ -14,6 +14,8 @@ CFG_ENV_NAME = "CLOUD_CFG"
 # This is expected to be a yaml formatted file
 CLOUD_CONFIG = "/etc/cloud/cloud.cfg"
 
+CLEAN_RUNPARTS_DIR = "/etc/cloud/clean.d"
+
 RUN_CLOUD_CONFIG = "/run/cloud-init/cloud.cfg"
 
 # What u get if no config is provided
@@ -46,6 +48,9 @@ CFG_BUILTIN = {
         "RbxCloud",
         "UpCloud",
         "VMware",
+        "NWCS",
+        "Akamai",
+        "WSL",
         # At the end to act as a 'catch' when none of the above work...
         "None",
     ],
@@ -72,4 +77,4 @@ PER_ONCE = "once"
 # Used to sanity check incoming handlers/modules frequencies
 FREQUENCIES = [PER_INSTANCE, PER_ALWAYS, PER_ONCE]
 
-# vi: ts=4 expandtab
+HOTPLUG_ENABLED_FILE = "/var/lib/cloud/hotplug.enabled"

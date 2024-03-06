@@ -1,12 +1,20 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import copy
 import os
+import re
 import shutil
 from functools import partial
 from os.path import dirname
 
+import pytest
+
 from cloudinit import helpers, util
 from cloudinit.config import cc_ntp
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
 from tests.unittests.helpers import (
     CiTestCase,
     FilesystemMockingTestCase,
@@ -31,7 +39,6 @@ NTP={% for host in servers|list + pools|list %}{{ host }} {% endfor -%}
 
 
 class TestNtp(FilesystemMockingTestCase):
-
     with_logs = True
 
     def setUp(self):
@@ -143,7 +150,7 @@ class TestNtp(FilesystemMockingTestCase):
             )
         self.assertEqual(
             "servers []\npools ['10.0.0.1', '10.0.0.2']\n",
-            util.load_file(confpath),
+            util.load_text_file(confpath),
         )
 
     def test_write_ntp_config_template_defaults_pools_w_empty_lists(self):
@@ -167,7 +174,8 @@ class TestNtp(FilesystemMockingTestCase):
                 template=None,
             )
         self.assertEqual(
-            "servers []\npools {0}\n".format(pools), util.load_file(confpath)
+            "servers []\npools {0}\n".format(pools),
+            util.load_text_file(confpath),
         )
 
     def test_defaults_pools_empty_lists_sles(self):
@@ -192,7 +200,7 @@ class TestNtp(FilesystemMockingTestCase):
             self.assertIn("opensuse", pool)
         self.assertEqual(
             "servers []\npools {0}\n".format(default_pools),
-            util.load_file(confpath),
+            util.load_text_file(confpath),
         )
         self.assertIn(
             "Adding distro default ntp pool servers: {0}".format(
@@ -218,7 +226,7 @@ class TestNtp(FilesystemMockingTestCase):
         )
         self.assertEqual(
             "[Time]\nNTP=%s %s \n" % (" ".join(servers), " ".join(pools)),
-            util.load_file(confpath),
+            util.load_text_file(confpath),
         )
 
     def test_distro_ntp_client_configs(self):
@@ -306,7 +314,7 @@ class TestNtp(FilesystemMockingTestCase):
                     path=confpath,
                     template_fn=template_fn,
                 )
-                content = util.load_file(confpath)
+                content = util.load_text_file(confpath)
                 if client in ["ntp", "chrony"]:
                     content_lines = content.splitlines()
                     expected_servers = self._get_expected_servers(
@@ -341,15 +349,15 @@ class TestNtp(FilesystemMockingTestCase):
                     )
                     expected_content = (
                         "# cloud-init generated file\n"
-                        + "# See timesyncd.conf(5) for details.\n\n"
-                        + "[Time]\nNTP=%s %s \n"
+                        "# See timesyncd.conf(5) for details.\n\n"
+                        "[Time]\nNTP=%s %s \n"
                         % (expected_servers, expected_pools)
                     )
                     self.assertEqual(expected_content, content)
 
     def test_no_ntpcfg_does_nothing(self):
         """When no ntp section is defined handler logs a warning and noops."""
-        cc_ntp.handle("cc_ntp", {}, None, None, [])
+        cc_ntp.handle("cc_ntp", {}, None, [])
         self.assertEqual(
             "DEBUG: Skipping module named cc_ntp, "
             "not present or disabled by cfg\n",
@@ -364,11 +372,15 @@ class TestNtp(FilesystemMockingTestCase):
         valid_empty_configs = [{"ntp": {}}, {"ntp": None}]
         for valid_empty_config in valid_empty_configs:
             for distro in cc_ntp.distros:
+                # skip the test if the distro is COS. As in COS, the default
+                # config file is installed
+                if distro == "cos":
+                    return
                 mycloud = self._get_cloud(distro)
                 ntpconfig = self._mock_ntp_client_config(distro=distro)
                 confpath = ntpconfig["confpath"]
                 m_select.return_value = ntpconfig
-                cc_ntp.handle("cc_ntp", valid_empty_config, mycloud, None, [])
+                cc_ntp.handle("cc_ntp", valid_empty_config, mycloud, [])
                 if distro == "alpine":
                     # _mock_ntp_client_config call above did not specify a
                     # client value and so it defaults to "ntp" which on
@@ -377,129 +389,16 @@ class TestNtp(FilesystemMockingTestCase):
                     servers = cc_ntp.generate_server_names(mycloud.distro.name)
                     self.assertEqual(
                         "servers {0}\npools []\n".format(servers),
-                        util.load_file(confpath),
+                        util.load_text_file(confpath),
                     )
                 else:
                     pools = cc_ntp.generate_server_names(mycloud.distro.name)
                     self.assertEqual(
                         "servers []\npools {0}\n".format(pools),
-                        util.load_file(confpath),
+                        util.load_text_file(confpath),
                     )
             self.assertNotIn(
                 "Invalid cloud-config provided:", self.logs.getvalue()
-            )
-
-    @skipUnlessJsonSchema()
-    @mock.patch("cloudinit.config.cc_ntp.select_ntp_client")
-    def test_ntp_handler_schema_validation_warns_non_string_item_type(
-        self, m_sel
-    ):
-        """Ntp schema validation warns of non-strings in pools or servers.
-
-        Schema validation is not strict, so ntp config is still be rendered.
-        """
-        invalid_config = {"ntp": {"pools": [123], "servers": ["valid", None]}}
-        for distro in cc_ntp.distros:
-            mycloud = self._get_cloud(distro)
-            ntpconfig = self._mock_ntp_client_config(distro=distro)
-            confpath = ntpconfig["confpath"]
-            m_sel.return_value = ntpconfig
-            cc_ntp.handle("cc_ntp", invalid_config, mycloud, None, [])
-            self.assertIn(
-                "Invalid cloud-config provided:\nntp.pools.0: 123 is not of"
-                " type 'string'\nntp.servers.1: None is not of type 'string'",
-                self.logs.getvalue(),
-            )
-            self.assertEqual(
-                "servers ['valid', None]\npools [123]\n",
-                util.load_file(confpath),
-            )
-
-    @skipUnlessJsonSchema()
-    @mock.patch("cloudinit.config.cc_ntp.select_ntp_client")
-    def test_ntp_handler_schema_validation_warns_of_non_array_type(
-        self, m_select
-    ):
-        """Ntp schema validation warns of non-array pools or servers types.
-
-        Schema validation is not strict, so ntp config is still be rendered.
-        """
-        invalid_config = {"ntp": {"pools": 123, "servers": "non-array"}}
-
-        for distro in cc_ntp.distros:
-            mycloud = self._get_cloud(distro)
-            ntpconfig = self._mock_ntp_client_config(distro=distro)
-            confpath = ntpconfig["confpath"]
-            m_select.return_value = ntpconfig
-            cc_ntp.handle("cc_ntp", invalid_config, mycloud, None, [])
-            self.assertIn(
-                "Invalid cloud-config provided:\nntp.pools: 123 is not of type"
-                " 'array'\nntp.servers: 'non-array' is not of type 'array'",
-                self.logs.getvalue(),
-            )
-            self.assertEqual(
-                "servers non-array\npools 123\n", util.load_file(confpath)
-            )
-
-    @skipUnlessJsonSchema()
-    @mock.patch("cloudinit.config.cc_ntp.select_ntp_client")
-    def test_ntp_handler_schema_validation_warns_invalid_key_present(
-        self, m_select
-    ):
-        """Ntp schema validation warns of invalid keys present in ntp config.
-
-        Schema validation is not strict, so ntp config is still be rendered.
-        """
-        invalid_config = {
-            "ntp": {"invalidkey": 1, "pools": ["0.mycompany.pool.ntp.org"]}
-        }
-        for distro in cc_ntp.distros:
-            if distro != "alpine":
-                mycloud = self._get_cloud(distro)
-                ntpconfig = self._mock_ntp_client_config(distro=distro)
-                confpath = ntpconfig["confpath"]
-                m_select.return_value = ntpconfig
-                cc_ntp.handle("cc_ntp", invalid_config, mycloud, None, [])
-                self.assertIn(
-                    "Invalid cloud-config provided:\nntp: Additional"
-                    " properties are not allowed ('invalidkey' was"
-                    " unexpected)",
-                    self.logs.getvalue(),
-                )
-                self.assertEqual(
-                    "servers []\npools ['0.mycompany.pool.ntp.org']\n",
-                    util.load_file(confpath),
-                )
-
-    @skipUnlessJsonSchema()
-    @mock.patch("cloudinit.config.cc_ntp.select_ntp_client")
-    def test_ntp_handler_schema_validation_warns_of_duplicates(self, m_select):
-        """Ntp schema validation warns of duplicates in servers or pools.
-
-        Schema validation is not strict, so ntp config is still be rendered.
-        """
-        invalid_config = {
-            "ntp": {
-                "pools": ["0.mypool.org", "0.mypool.org"],
-                "servers": ["10.0.0.1", "10.0.0.1"],
-            }
-        }
-        for distro in cc_ntp.distros:
-            mycloud = self._get_cloud(distro)
-            ntpconfig = self._mock_ntp_client_config(distro=distro)
-            confpath = ntpconfig["confpath"]
-            m_select.return_value = ntpconfig
-            cc_ntp.handle("cc_ntp", invalid_config, mycloud, None, [])
-            self.assertIn(
-                "Invalid cloud-config provided:\nntp.pools: ['0.mypool.org',"
-                " '0.mypool.org'] has non-unique elements\nntp.servers: "
-                "['10.0.0.1', '10.0.0.1'] has non-unique elements",
-                self.logs.getvalue(),
-            )
-            self.assertEqual(
-                "servers ['10.0.0.1', '10.0.0.1']\n"
-                "pools ['0.mypool.org', '0.mypool.org']\n",
-                util.load_file(confpath),
             )
 
     @mock.patch("cloudinit.config.cc_ntp.select_ntp_client")
@@ -516,10 +415,10 @@ class TestNtp(FilesystemMockingTestCase):
             )
             confpath = ntpconfig["confpath"]
             m_select.return_value = ntpconfig
-            cc_ntp.handle("cc_ntp", cfg, mycloud, None, [])
+            cc_ntp.handle("cc_ntp", cfg, mycloud, [])
             self.assertEqual(
                 "[Time]\nNTP=192.168.2.1 192.168.2.2 0.mypool.org \n",
-                util.load_file(confpath),
+                util.load_text_file(confpath),
             )
 
     @mock.patch("cloudinit.config.cc_ntp.select_ntp_client")
@@ -528,17 +427,18 @@ class TestNtp(FilesystemMockingTestCase):
         cfg = {"ntp": {"enabled": False}}
         for distro in cc_ntp.distros:
             mycloud = self._get_cloud(distro)
-            cc_ntp.handle("notimportant", cfg, mycloud, None, None)
+            cc_ntp.handle("notimportant", cfg, mycloud, None)
             self.assertEqual(0, m_select.call_count)
 
-    @mock.patch("cloudinit.distros.subp")
-    @mock.patch("cloudinit.config.cc_ntp.subp")
+    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.subp.which", return_value=True)
     @mock.patch("cloudinit.config.cc_ntp.select_ntp_client")
     @mock.patch("cloudinit.distros.Distro.uses_systemd")
-    def test_ntp_the_whole_package(self, m_sysd, m_select, m_subp, m_dsubp):
+    def test_ntp_the_whole_package(self, m_sysd, m_select, m_which, m_subp):
         """Test enabled config renders template, and restarts service"""
         cfg = {"ntp": {"enabled": True}}
         for distro in cc_ntp.distros:
+            m_subp.reset_mock()
             mycloud = self._get_cloud(distro)
             ntpconfig = self._mock_ntp_client_config(distro=distro)
             confpath = ntpconfig["confpath"]
@@ -547,6 +447,8 @@ class TestNtp(FilesystemMockingTestCase):
 
             hosts = cc_ntp.generate_server_names(mycloud.distro.name)
             uses_systemd = True
+            is_FreeBSD = False
+            is_OpenBSD = False
             expected_service_call = [
                 "systemctl",
                 "reload-or-restart",
@@ -554,30 +456,58 @@ class TestNtp(FilesystemMockingTestCase):
             ]
             expected_content = "servers []\npools {0}\n".format(hosts)
 
+            # skip the test if the distro is COS. As in COS, the default
+            # config file is installed
+            if distro == "cos":
+                return
+
             if distro == "alpine":
                 uses_systemd = False
-                expected_service_call = ["rc-service", service_name, "restart"]
+                expected_service_call = [
+                    "rc-service",
+                    "--nocolor",
+                    service_name,
+                    "restart",
+                ]
                 # _mock_ntp_client_config call above did not specify a client
                 # value and so it defaults to "ntp" which on Alpine Linux only
                 # supports servers and not pools.
                 expected_content = "servers {0}\npools []\n".format(hosts)
 
+            if distro == "freebsd":
+                uses_systemd = False
+                is_FreeBSD = True
+                if service_name != "ntpd":
+                    expected_service_call = ["service", "ntpd", "disable"]
+                else:
+                    expected_service_call = [
+                        "service",
+                        service_name,
+                        "restart",
+                    ]
+
+            if distro == "openbsd":
+                uses_systemd = False
+                is_OpenBSD = True
+                expected_service_call = ["rcctl", "restart", service_name]
+
             m_sysd.return_value = uses_systemd
             with mock.patch("cloudinit.config.cc_ntp.util") as m_util:
                 # allow use of util.mergemanydict
                 m_util.mergemanydict.side_effect = util.mergemanydict
-                # default client is present
-                m_subp.which.return_value = True
                 # use the config 'enabled' value
                 m_util.is_false.return_value = util.is_false(
                     cfg["ntp"]["enabled"]
                 )
-                cc_ntp.handle("notimportant", cfg, mycloud, None, None)
-                m_dsubp.subp.assert_called_with(
-                    expected_service_call, capture=True
+                m_util.is_BSD.return_value = is_FreeBSD or is_OpenBSD
+                m_util.is_FreeBSD.return_value = is_FreeBSD
+                m_util.is_OpenBSD.return_value = is_OpenBSD
+                cc_ntp.handle("notimportant", cfg, mycloud, None)
+                m_subp.assert_called_with(
+                    expected_service_call, capture=True, rcs=None
                 )
 
-            self.assertEqual(expected_content, util.load_file(confpath))
+            self.assertEqual(expected_content, util.load_text_file(confpath))
 
     @mock.patch("cloudinit.util.system_info")
     def test_opensuse_picks_chrony(self, m_sysinfo):
@@ -604,15 +534,6 @@ class TestNtp(FilesystemMockingTestCase):
         expected_client = mycloud.distro.preferred_ntp_clients[0]
         self.assertEqual("chrony", expected_client)
 
-    @mock.patch("cloudinit.util.system_info")
-    def test_ubuntu_xenial_picks_ntp(self, m_sysinfo):
-        """Test Ubuntu picks ntp on xenial release"""
-
-        m_sysinfo.return_value = {"dist": ("Ubuntu", "16.04", "xenial")}
-        mycloud = self._get_cloud("ubuntu")
-        expected_client = mycloud.distro.preferred_ntp_clients[0]
-        self.assertEqual("ntp", expected_client)
-
     @mock.patch("cloudinit.config.cc_ntp.subp.which")
     def test_snappy_system_picks_timesyncd(self, m_which):
         """Test snappy systems prefer installed clients"""
@@ -620,9 +541,12 @@ class TestNtp(FilesystemMockingTestCase):
         # we are on ubuntu-core here
         self.m_snappy.return_value = True
 
-        # ubuntu core systems will have timesyncd installed
+        # ubuntu core systems will have timesyncd installed, so simulate that.
+        # First None is for the 'eatmydata' check when initializing apt
+        # when initializing the distro class. The rest represent possible
+        # finds the various npt services
         m_which.side_effect = iter(
-            [None, "/lib/systemd/systemd-timesyncd", None, None, None]
+            [None, None, "/lib/systemd/systemd-timesyncd", None, None, None]
         )
         distro = "ubuntu"
         mycloud = self._get_cloud(distro)
@@ -686,12 +610,12 @@ class TestNtp(FilesystemMockingTestCase):
         cfg = {"ntp": {"ntp_client": client}}
         for distro in cc_ntp.distros:
             # client is not installed
-            m_which.side_effect = iter([None])
+            m_which.return_value = None
             mycloud = self._get_cloud(distro)
             with mock.patch.object(
                 mycloud.distro, "install_packages"
             ) as m_install:
-                cc_ntp.handle("notimportant", cfg, mycloud, None, None)
+                cc_ntp.handle("notimportant", cfg, mycloud, None)
             m_install.assert_called_with([client])
             m_which.assert_called_with(client)
 
@@ -748,10 +672,10 @@ class TestNtp(FilesystemMockingTestCase):
             mycloud = self._get_cloud(distro)
             mock_path = "cloudinit.config.cc_ntp.temp_utils._TMPDIR"
             with mock.patch(mock_path, self.new_root):
-                cc_ntp.handle("notimportant", cfg, mycloud, None, None)
+                cc_ntp.handle("notimportant", cfg, mycloud, None)
             self.assertEqual(
                 "servers []\npools ['mypool.org']\n%s" % custom,
-                util.load_file(confpath),
+                util.load_text_file(confpath),
             )
 
     @mock.patch("cloudinit.config.cc_ntp.supplemental_schema_validation")
@@ -788,12 +712,10 @@ class TestNtp(FilesystemMockingTestCase):
             m_select.return_value = ntpconfig
             mock_path = "cloudinit.config.cc_ntp.temp_utils._TMPDIR"
             with mock.patch(mock_path, self.new_root):
-                cc_ntp.handle(
-                    "notimportant", {"ntp": cfg}, mycloud, None, None
-                )
+                cc_ntp.handle("notimportant", {"ntp": cfg}, mycloud, None)
             self.assertEqual(
                 "servers []\npools ['mypool.org']\n%s" % custom,
-                util.load_file(confpath),
+                util.load_text_file(confpath),
             )
         m_schema.assert_called_with(expected_merged_cfg)
 
@@ -867,4 +789,67 @@ class TestSupplementalSchemaValidation(CiTestCase):
             self.assertIn(error, error_msg)
 
 
-# vi: ts=4 expandtab
+class TestNTPSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        (
+            # Allow empty ntp config
+            ({"ntp": None}, None),
+            (
+                {
+                    "ntp": {
+                        "invalidkey": 1,
+                        "pools": ["0.mycompany.pool.ntp.org"],
+                    }
+                },
+                re.escape(
+                    "ntp: Additional properties are not allowed ('invalidkey'"
+                ),
+            ),
+            (
+                {
+                    "ntp": {
+                        "pools": ["0.mypool.org", "0.mypool.org"],
+                        "servers": ["10.0.0.1", "10.0.0.1"],
+                    }
+                },
+                re.escape(
+                    "ntp.pools: ['0.mypool.org', '0.mypool.org'] has"
+                    " non-unique elements"
+                ),
+            ),
+            (
+                {
+                    "ntp": {
+                        "pools": [123],
+                        "servers": ["www.example.com", None],
+                    }
+                },
+                "ntp.pools.0: 123 is not of type 'string'.*"
+                "ntp.servers.1: None is not of type 'string'",
+            ),
+            (
+                {"ntp": {"pools": 123, "servers": "non-array"}},
+                "ntp.pools: 123 is not of type 'array'.*"
+                "ntp.servers: 'non-array' is not of type 'array'",
+            ),
+            (
+                {
+                    "ntp": {
+                        "peers": [123],
+                        "allow": ["www.example.com", None],
+                    }
+                },
+                "Cloud config schema errors: "
+                "ntp.allow.1: None is not of type 'string',*"
+                ", ntp.peers.0: 123 is not of type 'string'",
+            ),
+        ),
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)

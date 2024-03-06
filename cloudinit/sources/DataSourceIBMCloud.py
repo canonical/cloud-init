@@ -94,10 +94,10 @@ TODO:
 """
 import base64
 import json
+import logging
 import os
 
-from cloudinit import log as logging
-from cloudinit import sources, subp, util
+from cloudinit import atomic_helper, sources, subp, util
 from cloudinit.sources.helpers import openstack
 
 LOG = logging.getLogger(__name__)
@@ -105,7 +105,7 @@ LOG = logging.getLogger(__name__)
 IBM_CONFIG_UUID = "9796-932E"
 
 
-class Platforms(object):
+class Platforms:
     TEMPLATE_LIVE_METADATA = "Template/Live/Metadata"
     TEMPLATE_LIVE_NODATA = "UNABLE TO BE IDENTIFIED."
     TEMPLATE_PROVISIONING_METADATA = "Template/Provisioning/Metadata"
@@ -192,7 +192,7 @@ def _read_system_uuid():
     uuid_path = "/sys/hypervisor/uuid"
     if not os.path.isfile(uuid_path):
         return None
-    return util.load_file(uuid_path).strip().lower()
+    return util.load_text_file(uuid_path).strip().lower()
 
 
 def _is_xen():
@@ -361,7 +361,7 @@ def metadata_from_dir(source_dir):
         fpath = os.path.join(source_dir, path)
         raw = None
         try:
-            raw = util.load_file(fpath, decode=False)
+            raw = util.load_binary_file(fpath)
         except IOError as e:
             LOG.debug("Failed reading path '%s': %s", fpath, e)
 
@@ -423,6 +423,4 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Query IBM Cloud Metadata")
     args = parser.parse_args()
     data = read_md()
-    print(util.json_dumps(data))
-
-# vi: ts=4 expandtab
+    print(atomic_helper.json_dumps(data))

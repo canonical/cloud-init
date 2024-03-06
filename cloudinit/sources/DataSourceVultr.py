@@ -5,11 +5,13 @@
 # Vultr Metadata API:
 # https://www.vultr.com/metadata/
 
-import cloudinit.sources.helpers.vultr as vultr
-from cloudinit import log as log
-from cloudinit import sources, util, version
+import logging
+from typing import Tuple
 
-LOG = log.getLogger(__name__)
+import cloudinit.sources.helpers.vultr as vultr
+from cloudinit import sources, stages, util, version
+
+LOG = logging.getLogger(__name__)
 BUILTIN_DS_CONFIG = {
     "url": "http://169.254.169.254",
     "retries": 30,
@@ -28,6 +30,10 @@ class DataSourceVultr(sources.DataSource):
 
     dsname = "Vultr"
 
+    sensitive_metadata_keys: Tuple[
+        str, ...
+    ] = sources.DataSource.sensitive_metadata_keys + ("startup-script",)
+
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceVultr, self).__init__(sys_cfg, distro, paths)
         self.ds_cfg = util.mergemanydict(
@@ -37,36 +43,25 @@ class DataSourceVultr(sources.DataSource):
             ]
         )
 
+    @staticmethod
+    def ds_detect():
+        return vultr.is_vultr()
+
     # Initiate data and check if Vultr
     def _get_data(self):
-        LOG.debug("Detecting if machine is a Vultr instance")
-        if not vultr.is_vultr():
-            LOG.debug("Machine is not a Vultr instance")
-            return False
 
         LOG.debug("Machine is a Vultr instance")
 
         # Fetch metadata
         self.metadata = self.get_metadata()
-        self.metadata["instance-id"] = self.metadata["instance-v2-id"]
-        self.metadata["local-hostname"] = self.metadata["hostname"]
-        region = self.metadata["region"]["regioncode"]
-        if "countrycode" in self.metadata["region"]:
-            region = self.metadata["region"]["countrycode"]
-        self.metadata["region"] = region.lower()
         self.userdata_raw = self.metadata["user-data"]
 
         # Generate config and process data
         self.get_datasource_data(self.metadata)
 
         # Dump some data so diagnosing failures is manageable
-        LOG.debug("Vultr Vendor Config:")
-        LOG.debug(util.json_dumps(self.metadata["vendor-data"]))
         LOG.debug("SUBID: %s", self.metadata["instance-id"])
         LOG.debug("Hostname: %s", self.metadata["local-hostname"])
-        if self.userdata_raw is not None:
-            LOG.debug("User-Data:")
-            LOG.debug(self.userdata_raw)
 
         return True
 
@@ -76,10 +71,10 @@ class DataSourceVultr(sources.DataSource):
         if "cloud_interfaces" in md:
             # In the future we will just drop pre-configured
             # network configs into the array. They need names though.
-            self.netcfg = vultr.add_interface_names(md["cloud_interfaces"])
+            vultr.add_interface_names(md["cloud_interfaces"])
+            self.netcfg = md["cloud_interfaces"]
         else:
             self.netcfg = vultr.generate_network_config(md["interfaces"])
-
         # Grab vendordata
         self.vendordata_raw = md["vendor-data"]
 
@@ -94,11 +89,13 @@ class DataSourceVultr(sources.DataSource):
     # Get the metadata by flag
     def get_metadata(self):
         return vultr.get_metadata(
+            self.distro,
             self.ds_cfg["url"],
             self.ds_cfg["timeout"],
             self.ds_cfg["retries"],
             self.ds_cfg["wait"],
             self.ds_cfg["user-agent"],
+            tmp_dir=self.distro.get_tmp_exec_path(),
         )
 
     # Compare subid as instance id
@@ -141,7 +138,16 @@ if __name__ == "__main__":
         print("Machine is not a Vultr instance")
         sys.exit(1)
 
+    # It should probably be safe to try to detect distro via stages.Init(),
+    # which will fall back to Ubuntu if no distro config is found.
+    # this distro object is only used for dhcp fallback. Feedback from user(s)
+    # of __main__ would help determine if a better approach exists.
+    #
+    # we don't needReportEventStack, so reporter=True
+    distro = stages.Init(reporter=True).distro
+
     md = vultr.get_metadata(
+        distro,
         BUILTIN_DS_CONFIG["url"],
         BUILTIN_DS_CONFIG["timeout"],
         BUILTIN_DS_CONFIG["retries"],
@@ -150,8 +156,3 @@ if __name__ == "__main__":
     )
     config = md["vendor-data"]
     sysinfo = vultr.get_sysinfo()
-
-    print(util.json_dumps(sysinfo))
-    print(util.json_dumps(config))
-
-# vi: ts=4 expandtab

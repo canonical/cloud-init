@@ -5,6 +5,7 @@ dist
 __pycache__
 .tox
 .coverage
+.coverage.*
 .python-version
 doc/rtd_html
 parts
@@ -21,6 +22,7 @@ stage
 .vscode/
 htmlcov/
 tags
+.hypothesis/
 
 # Ignore packaging artifacts
 cloud-init.dsc

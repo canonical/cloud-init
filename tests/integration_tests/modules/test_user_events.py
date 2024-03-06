@@ -9,6 +9,7 @@ import pytest
 import yaml
 
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
 
 
 def _add_dummy_bridge_to_netplan(client: IntegrationInstance):
@@ -26,12 +27,10 @@ def _add_dummy_bridge_to_netplan(client: IntegrationInstance):
     client.write_to_file("/etc/netplan/50-cloud-init.yaml", dumped_netplan)
 
 
-@pytest.mark.lxd_container
-@pytest.mark.lxd_vm
-@pytest.mark.ec2
-@pytest.mark.gce
-@pytest.mark.oci
-@pytest.mark.openstack
+@pytest.mark.skipif(
+    PLATFORM not in ["lxd_container", "lxd_vm", "ec2", "oci", "openstack"],
+    reason="Default boot events testing is datasource specific",
+)
 def test_boot_event_disabled_by_default(client: IntegrationInstance):
     log = client.read_from_file("/var/log/cloud-init.log")
     if "network config is disabled" in log:
@@ -92,7 +91,13 @@ def _test_network_config_applied_on_reboot(client: IntegrationInstance):
     assert "dummy0" not in client.execute("ls /sys/class/net")
 
 
-@pytest.mark.azure
+@pytest.mark.skipif(
+    PLATFORM not in ("azure", "gce"),
+    reason=(
+        f"{PLATFORM} doesn't support updates every boot event by default "
+        "(or hasn't been testing for it)."
+    ),
+)
 def test_boot_event_enabled_by_default(client: IntegrationInstance):
     _test_network_config_applied_on_reboot(client)
 

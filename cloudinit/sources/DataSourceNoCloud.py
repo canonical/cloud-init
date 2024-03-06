@@ -9,11 +9,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import errno
+import logging
 import os
+from functools import partial
 
-from cloudinit import dmi
-from cloudinit import log as logging
-from cloudinit import sources, util
+from cloudinit import dmi, sources, util
 from cloudinit.net import eni
 
 LOG = logging.getLogger(__name__)
@@ -156,7 +156,7 @@ class DataSourceNoCloud(sources.DataSource):
         # The special argument "seedfrom" indicates we should
         # attempt to seed the userdata / metadata from its value
         # its primarily value is in allowing the user to type less
-        # on the command line, ie: ds=nocloud;s=http://bit.ly/abcdefg
+        # on the command line, ie: ds=nocloud;s=http://bit.ly/abcdefg/
         if "seedfrom" in mydata["meta-data"]:
             seedfrom = mydata["meta-data"]["seedfrom"]
             seedfound = False
@@ -167,6 +167,9 @@ class DataSourceNoCloud(sources.DataSource):
             if not seedfound:
                 LOG.debug("Seed from %s not supported by %s", seedfrom, self)
                 return False
+            # check and replace instances of known dmi.<dmi_keys> such as
+            # chassis-serial-number or baseboard-product-name
+            seedfrom = dmi.sub_dmi_vars(seedfrom)
 
             # This could throw errors, but the user told us to do it
             # so if errors are raised, let them raise
@@ -277,12 +280,23 @@ def load_cmdline_data(fill, cmdline=None):
         ("ds=nocloud-net", sources.DSMODE_NETWORK),
     ]
     for idstr, dsmode in pairs:
-        if parse_cmdline_data(idstr, fill, cmdline):
+        if not parse_cmdline_data(idstr, fill, cmdline):
+            continue
+        if "dsmode" in fill:
             # if dsmode was explicitly in the command line, then
-            # prefer it to the dsmode based on the command line id
-            if "dsmode" not in fill:
-                fill["dsmode"] = dsmode
+            # prefer it to the dsmode based on seedfrom type
             return True
+
+        seedfrom = fill.get("seedfrom")
+        if seedfrom:
+            if seedfrom.startswith(("http://", "https://")):
+                fill["dsmode"] = sources.DSMODE_NETWORK
+            elif seedfrom.startswith(("file://", "/")):
+                fill["dsmode"] = sources.DSMODE_LOCAL
+        else:
+            fill["dsmode"] = dsmode
+
+        return True
     return False
 
 
@@ -331,35 +345,6 @@ def parse_cmdline_data(ds_id, fill, cmdline=None):
     return True
 
 
-def _maybe_remove_top_network(cfg):
-    """If network-config contains top level 'network' key, then remove it.
-
-    Some providers of network configuration may provide a top level
-    'network' key (LP: #1798117) even though it is not necessary.
-
-    Be friendly and remove it if it really seems so.
-
-    Return the original value if no change or the updated value if changed."""
-    nullval = object()
-    network_val = cfg.get("network", nullval)
-    if network_val is nullval:
-        return cfg
-    bmsg = "Top level network key in network-config %s: %s"
-    if not isinstance(network_val, dict):
-        LOG.debug(bmsg, "was not a dict", cfg)
-        return cfg
-    if len(list(cfg.keys())) != 1:
-        LOG.debug(bmsg, "had multiple top level keys", cfg)
-        return cfg
-    if network_val.get("config") == "disabled":
-        LOG.debug(bmsg, "was config/disabled", cfg)
-    elif not all(("config" in network_val, "version" in network_val)):
-        LOG.debug(bmsg, "but missing 'config' or 'version'", cfg)
-        return cfg
-    LOG.debug(bmsg, "fixed by removing shifting network.", cfg)
-    return network_val
-
-
 def _merge_new_seed(cur, seeded):
     ret = cur.copy()
 
@@ -369,9 +354,7 @@ def _merge_new_seed(cur, seeded):
     ret["meta-data"] = util.mergemanydict([cur["meta-data"], newmd])
 
     if seeded.get("network-config"):
-        ret["network-config"] = _maybe_remove_top_network(
-            util.load_yaml(seeded.get("network-config"))
-        )
+        ret["network-config"] = util.load_yaml(seeded.get("network-config"))
 
     if "user-data" in seeded:
         ret["user-data"] = seeded["user-data"]
@@ -385,6 +368,42 @@ class DataSourceNoCloudNet(DataSourceNoCloud):
         DataSourceNoCloud.__init__(self, sys_cfg, distro, paths)
         self.supported_seed_starts = ("http://", "https://")
 
+    def ds_detect(self):
+        """Check dmi and kernel commandline for dsname
+
+        NoCloud historically used "nocloud-net" as its dsname
+        for network timeframe (DEP_NETWORK), which supports http(s) urls.
+        For backwards compatiblity, check for that dsname.
+        """
+        log_deprecated = partial(
+            util.deprecate,
+            deprecated="The 'nocloud-net' datasource name",
+            deprecated_version="24.1",
+            extra_message=(
+                "Use 'nocloud' instead, which uses the seedfrom protocol"
+                "scheme (http// or file://) to decide how to run."
+            ),
+        )
+
+        if "nocloud-net" == sources.parse_cmdline():
+            log_deprecated()
+            return True
+
+        serial = sources.parse_cmdline_or_dmi(
+            dmi.read_dmi_data("system-serial-number") or ""
+        ).lower()
+
+        if serial in (self.dsname.lower(), "nocloud-net"):
+            LOG.debug(
+                "Machine is configured by dmi serial number to run on "
+                "single datasource %s.",
+                self,
+            )
+            if serial == "nocloud-net":
+                log_deprecated()
+            return True
+        return False
+
 
 # Used to match classes to dependencies
 datasources = [
@@ -396,6 +415,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab

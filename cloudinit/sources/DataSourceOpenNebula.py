@@ -14,13 +14,13 @@
 
 import collections
 import functools
+import logging
 import os
 import pwd
 import re
 import string
 
-from cloudinit import log as logging
-from cloudinit import net, sources, subp, util
+from cloudinit import atomic_helper, net, sources, subp, util
 
 LOG = logging.getLogger(__name__)
 
@@ -135,7 +135,7 @@ class BrokenContextDiskDir(Exception):
     pass
 
 
-class OpenNebulaNetwork(object):
+class OpenNebulaNetwork:
     def __init__(self, context, distro, system_nics_by_mac=None):
         self.context = context
         if system_nics_by_mac is None:
@@ -160,9 +160,6 @@ class OpenNebulaNetwork(object):
 
     def mac2ip(self, mac):
         return ".".join([str(int(c, 16)) for c in mac.split(":")[2:]])
-
-    def mac2network(self, mac):
-        return self.mac2ip(mac).rpartition(".")[0] + ".0"
 
     def get_nameservers(self, dev):
         nameservers = {}
@@ -208,9 +205,6 @@ class OpenNebulaNetwork(object):
     def get_mask(self, dev):
         return self.get_field(dev, "mask", "255.255.255.0")
 
-    def get_network(self, dev, mac):
-        return self.get_field(dev, "network", self.mac2network(mac))
-
     def get_field(self, dev, name, default=None):
         """return the field name in context for device dev.
 
@@ -248,7 +242,7 @@ class OpenNebulaNetwork(object):
             # Set IPv4 address
             devconf["addresses"] = []
             mask = self.get_mask(c_dev)
-            prefix = str(net.mask_to_net_prefix(mask))
+            prefix = str(net.ipv4_mask_to_net_prefix(mask))
             devconf["addresses"].append(self.get_ip(c_dev, mac) + "/" + prefix)
 
             # Set IPv6 Global and ULA address
@@ -441,7 +435,7 @@ def read_context_disk_dir(source_dir, distro, asuser=None):
                 ) from e
         try:
             path = os.path.join(source_dir, "context.sh")
-            content = util.load_file(path)
+            content = util.load_text_file(path)
             context = parse_shell_config(content, asuser=asuser)
         except subp.ProcessExecutionError as e:
             raise BrokenContextDiskDir(
@@ -492,7 +486,7 @@ def read_context_disk_dir(source_dir, distro, asuser=None):
         )
         if encoding == "base64":
             try:
-                results["userdata"] = util.b64d(results["userdata"])
+                results["userdata"] = atomic_helper.b64d(results["userdata"])
             except TypeError:
                 LOG.warning("Failed base64 decoding of userdata")
 
@@ -526,6 +520,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab

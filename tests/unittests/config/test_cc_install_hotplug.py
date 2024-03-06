@@ -10,6 +10,7 @@ from cloudinit.config.cc_install_hotplug import (
     handle,
 )
 from cloudinit.event import EventScope, EventType
+from cloudinit.sources.DataSourceEc2 import DataSourceEc2
 
 
 @pytest.fixture()
@@ -51,17 +52,18 @@ class TestInstallHotplug:
         m_cloud.datasource.get_supported_events.return_value = {
             EventScope.NETWORK: {EventType.HOTPLUG}
         }
+        m_cloud.datasource.extra_hotplug_udev_rules = None
 
         if libexec_exists:
             libexecdir = "/usr/libexec/cloud-init"
         else:
             libexecdir = "/usr/lib/cloud-init"
         with mock.patch("os.path.exists", return_value=libexec_exists):
-            handle(None, {}, m_cloud, mock.Mock(), None)
+            handle(None, {}, m_cloud, None)
             mocks.m_write.assert_called_once_with(
                 filename=HOTPLUG_UDEV_PATH,
                 content=HOTPLUG_UDEV_RULES_TEMPLATE.format(
-                    libexecdir=libexecdir
+                    extra_rules="", libexecdir=libexecdir
                 ),
             )
         assert mocks.m_subp.call_args_list == [
@@ -80,7 +82,7 @@ class TestInstallHotplug:
         m_cloud = mock.MagicMock()
         m_cloud.datasource.get_supported_events.return_value = {}
 
-        handle(None, {}, m_cloud, mock.Mock(), None)
+        handle(None, {}, m_cloud, None)
         assert mocks.m_write.call_args_list == []
         assert mocks.m_del.call_args_list == []
         assert mocks.m_subp.call_args_list == []
@@ -92,7 +94,7 @@ class TestInstallHotplug:
             EventScope.NETWORK: {EventType.HOTPLUG}
         }
 
-        handle(None, {}, m_cloud, mock.Mock(), None)
+        handle(None, {}, m_cloud, None)
         assert mocks.m_write.call_args_list == []
         assert mocks.m_del.call_args_list == []
         assert mocks.m_subp.call_args_list == []
@@ -103,7 +105,7 @@ class TestInstallHotplug:
         m_cloud = mock.MagicMock()
         m_cloud.datasource.get_supported_events.return_value = {}
 
-        handle(None, {}, m_cloud, mock.Mock(), None)
+        handle(None, {}, m_cloud, None)
         mocks.m_del.assert_called_with(HOTPLUG_UDEV_PATH)
         assert mocks.m_subp.call_args_list == [
             mock.call(
@@ -123,7 +125,47 @@ class TestInstallHotplug:
             EventScope.NETWORK: {EventType.HOTPLUG}
         }
 
-        handle(None, {}, m_cloud, mock.Mock(), None)
+        handle(None, {}, m_cloud, None)
         assert mocks.m_del.call_args_list == []
         assert mocks.m_write.call_args_list == []
         assert mocks.m_subp.call_args_list == []
+
+    def test_rules_installed_on_ec2(self, mocks):
+        mocks.m_which.return_value = "udevadm"
+        mocks.m_update_enabled.return_value = True
+        m_cloud = mock.MagicMock()
+        m_cloud.datasource.get_supported_events.return_value = {
+            EventScope.NETWORK: {EventType.HOTPLUG}
+        }
+        m_cloud.datasource.extra_hotplug_udev_rules = (
+            DataSourceEc2.extra_hotplug_udev_rules
+        )
+
+        with mock.patch("os.path.exists", return_value=True):
+            handle(None, {}, m_cloud, None)
+
+        udev_rules = """\
+# Installed by cloud-init due to network hotplug userdata
+ACTION!="add|remove", GOTO="cloudinit_end"
+
+ENV{ID_NET_DRIVER}=="vif|ena|ixgbevf", GOTO="cloudinit_hook"
+GOTO="cloudinit_end"
+
+LABEL="cloudinit_hook"
+SUBSYSTEM=="net", RUN+="/usr/libexec/cloud-init/hook-hotplug"
+LABEL="cloudinit_end"
+"""
+        mocks.m_write.assert_called_once_with(
+            filename=HOTPLUG_UDEV_PATH,
+            content=udev_rules,
+        )
+        assert mocks.m_subp.call_args_list == [
+            mock.call(
+                [
+                    "udevadm",
+                    "control",
+                    "--reload-rules",
+                ]
+            )
+        ]
+        assert mocks.m_del.call_args_list == []

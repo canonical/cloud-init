@@ -9,14 +9,15 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import log as logging
+import logging
+
 from cloudinit import type_utils, util
 
 LOG = logging.getLogger(__name__)
 
 
 # Normalizes an input group configuration which can be:
-# Comma seperated string or a list or a dictionary
+# Comma separated string or a list or a dictionary
 #
 # Returns dictionary of group names => members of that group which is the
 # standard form used in the rest of cloud-init
@@ -174,6 +175,11 @@ def normalize_users_groups(cfg, distro):
         # Translate it into a format that will be more useful going forward
         if isinstance(old_user, str):
             old_user = {"name": old_user}
+            util.deprecate(
+                deprecated="'user' of type string",
+                deprecated_version="22.2",
+                extra_message="Use 'users' list instead.",
+            )
         elif not isinstance(old_user, dict):
             LOG.warning(
                 "Format for 'user' key must be a string or dictionary"
@@ -201,9 +207,15 @@ def normalize_users_groups(cfg, distro):
     default_user_config = util.mergemanydict([old_user, distro_user_config])
 
     base_users = cfg.get("users", [])
-    if not isinstance(base_users, (list, dict, str)):
+    if isinstance(base_users, (dict, str)):
+        util.deprecate(
+            deprecated=f"'users' of type {type(base_users)}",
+            deprecated_version="22.2",
+            extra_message="Use 'users' as a list.",
+        )
+    elif not isinstance(base_users, (list)):
         LOG.warning(
-            "Format for 'users' key must be a comma separated string"
+            "Format for 'users' key must be a comma-separated string"
             " or a dictionary or a list but found %s",
             type_utils.obj_name(base_users),
         )
@@ -246,6 +258,3 @@ def extract_default(users, default_name=None, default_config=None):
     config = tmp_users[name]
     config.pop("default", None)
     return (name, config)
-
-
-# vi: ts=4 expandtab

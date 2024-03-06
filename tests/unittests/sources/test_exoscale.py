@@ -4,8 +4,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import os
 
-import httpretty
 import requests
+import responses
 
 from cloudinit import helpers, util
 from cloudinit.sources.DataSourceExoscale import (
@@ -16,7 +16,7 @@ from cloudinit.sources.DataSourceExoscale import (
     get_password,
     read_metadata,
 )
-from tests.unittests.helpers import HttprettyTestCase, mock
+from tests.unittests.helpers import ResponsesTestCase, mock
 
 TEST_PASSWORD_URL = "{}:{}/{}/".format(
     METADATA_URL, PASSWORD_SERVER_PORT, API_VERSION
@@ -27,8 +27,7 @@ TEST_METADATA_URL = "{}/{}/meta-data/".format(METADATA_URL, API_VERSION)
 TEST_USERDATA_URL = "{}/{}/user-data".format(METADATA_URL, API_VERSION)
 
 
-@httpretty.activate
-class TestDatasourceExoscale(HttprettyTestCase):
+class TestDatasourceExoscale(ResponsesTestCase):
     def setUp(self):
         super(TestDatasourceExoscale, self).setUp()
         self.tmp = self.tmp_dir()
@@ -39,23 +38,23 @@ class TestDatasourceExoscale(HttprettyTestCase):
     def test_password_saved(self):
         """The password is not set when it is not found
         in the metadata service."""
-        httpretty.register_uri(
-            httpretty.GET, self.password_url, body="saved_password"
+        self.responses.add(
+            responses.GET, self.password_url, body="saved_password"
         )
         self.assertFalse(get_password())
 
     def test_password_empty(self):
         """No password is set if the metadata service returns
         an empty string."""
-        httpretty.register_uri(httpretty.GET, self.password_url, body="")
+        self.responses.add(responses.GET, self.password_url, body="")
         self.assertFalse(get_password())
 
     def test_password(self):
         """The password is set to what is found in the metadata
         service."""
         expected_password = "p@ssw0rd"
-        httpretty.register_uri(
-            httpretty.GET, self.password_url, body=expected_password
+        self.responses.add(
+            responses.GET, self.password_url, body=expected_password
         )
         password = get_password()
         self.assertEqual(expected_password, password)
@@ -77,33 +76,33 @@ class TestDatasourceExoscale(HttprettyTestCase):
         full test data."""
         path = helpers.Paths({"run_dir": self.tmp})
         ds = DataSourceExoscale({}, None, path)
-        ds._is_platform_viable = lambda: True
+        ds.ds_detect = lambda: True
         expected_password = "p@ssw0rd"
         expected_id = "12345"
         expected_hostname = "myname"
         expected_userdata = "#cloud-config"
-        httpretty.register_uri(
-            httpretty.GET, self.userdata_url, body=expected_userdata
+        self.responses.add(
+            responses.GET, self.userdata_url, body=expected_userdata
         )
-        httpretty.register_uri(
-            httpretty.GET, self.password_url, body=expected_password
+        self.responses.add(
+            responses.GET, self.password_url, body=expected_password
         )
-        httpretty.register_uri(
-            httpretty.GET,
+        self.responses.add(
+            responses.GET,
             self.metadata_url,
             body="instance-id\nlocal-hostname",
         )
-        httpretty.register_uri(
-            httpretty.GET,
+        self.responses.add(
+            responses.GET,
             "{}local-hostname".format(self.metadata_url),
             body=expected_hostname,
         )
-        httpretty.register_uri(
-            httpretty.GET,
+        self.responses.add(
+            responses.GET,
             "{}instance-id".format(self.metadata_url),
             body=expected_id,
         )
-        self.assertTrue(ds._get_data())
+        self.assertTrue(ds._check_and_get_data())
         self.assertEqual(ds.userdata_raw.decode("utf-8"), "#cloud-config")
         self.assertEqual(
             ds.metadata,
@@ -125,33 +124,33 @@ class TestDatasourceExoscale(HttprettyTestCase):
         returned by the password server."""
         path = helpers.Paths({"run_dir": self.tmp})
         ds = DataSourceExoscale({}, None, path)
-        ds._is_platform_viable = lambda: True
+        ds.ds_detect = lambda: True
         expected_answer = "saved_password"
         expected_id = "12345"
         expected_hostname = "myname"
         expected_userdata = "#cloud-config"
-        httpretty.register_uri(
-            httpretty.GET, self.userdata_url, body=expected_userdata
+        self.responses.add(
+            responses.GET, self.userdata_url, body=expected_userdata
         )
-        httpretty.register_uri(
-            httpretty.GET, self.password_url, body=expected_answer
+        self.responses.add(
+            responses.GET, self.password_url, body=expected_answer
         )
-        httpretty.register_uri(
-            httpretty.GET,
+        self.responses.add(
+            responses.GET,
             self.metadata_url,
             body="instance-id\nlocal-hostname",
         )
-        httpretty.register_uri(
-            httpretty.GET,
+        self.responses.add(
+            responses.GET,
             "{}local-hostname".format(self.metadata_url),
             body=expected_hostname,
         )
-        httpretty.register_uri(
-            httpretty.GET,
+        self.responses.add(
+            responses.GET,
             "{}instance-id".format(self.metadata_url),
             body=expected_id,
         )
-        self.assertTrue(ds._get_data())
+        self.assertTrue(ds._check_and_get_data())
         self.assertEqual(ds.userdata_raw.decode("utf-8"), "#cloud-config")
         self.assertEqual(
             ds.metadata,
@@ -164,33 +163,33 @@ class TestDatasourceExoscale(HttprettyTestCase):
         returned by the password server."""
         path = helpers.Paths({"run_dir": self.tmp})
         ds = DataSourceExoscale({}, None, path)
-        ds._is_platform_viable = lambda: True
+        ds.ds_detect = lambda: True
         expected_answer = ""
         expected_id = "12345"
         expected_hostname = "myname"
         expected_userdata = "#cloud-config"
-        httpretty.register_uri(
-            httpretty.GET, self.userdata_url, body=expected_userdata
+        self.responses.add(
+            responses.GET, self.userdata_url, body=expected_userdata
         )
-        httpretty.register_uri(
-            httpretty.GET, self.password_url, body=expected_answer
+        self.responses.add(
+            responses.GET, self.password_url, body=expected_answer
         )
-        httpretty.register_uri(
-            httpretty.GET,
+        self.responses.add(
+            responses.GET,
             self.metadata_url,
             body="instance-id\nlocal-hostname",
         )
-        httpretty.register_uri(
-            httpretty.GET,
+        self.responses.add(
+            responses.GET,
             "{}local-hostname".format(self.metadata_url),
             body=expected_hostname,
         )
-        httpretty.register_uri(
-            httpretty.GET,
+        self.responses.add(
+            responses.GET,
             "{}instance-id".format(self.metadata_url),
             body=expected_id,
         )
-        self.assertTrue(ds._get_data())
+        self.assertTrue(ds._check_and_get_data())
         self.assertEqual(ds.userdata_raw.decode("utf-8"), "#cloud-config")
         self.assertEqual(
             ds.metadata,
@@ -207,21 +206,21 @@ class TestDatasourceExoscale(HttprettyTestCase):
         expected_userdata = "#cloud-config"
 
         m_password.side_effect = requests.Timeout("Fake Connection Timeout")
-        httpretty.register_uri(
-            httpretty.GET, self.userdata_url, body=expected_userdata
+        self.responses.add(
+            responses.GET, self.userdata_url, body=expected_userdata
         )
-        httpretty.register_uri(
-            httpretty.GET,
+        self.responses.add(
+            responses.GET,
             self.metadata_url,
             body="instance-id\nlocal-hostname",
         )
-        httpretty.register_uri(
-            httpretty.GET,
+        self.responses.add(
+            responses.GET,
             "{}local-hostname".format(self.metadata_url),
             body=expected_hostname,
         )
-        httpretty.register_uri(
-            httpretty.GET,
+        self.responses.add(
+            responses.GET,
             "{}instance-id".format(self.metadata_url),
             body=expected_id,
         )
@@ -237,5 +236,5 @@ class TestDatasourceExoscale(HttprettyTestCase):
         """The datasource fails fast when the platform is not viable."""
         path = helpers.Paths({"run_dir": self.tmp})
         ds = DataSourceExoscale({}, None, path)
-        ds._is_platform_viable = lambda: False
-        self.assertFalse(ds._get_data())
+        ds.ds_detect = lambda: False
+        self.assertFalse(ds._check_and_get_data())

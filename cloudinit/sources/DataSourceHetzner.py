@@ -6,11 +6,12 @@
 """Hetzner Cloud API Documentation
    https://docs.hetzner.cloud/"""
 
+import logging
+
 import cloudinit.sources.helpers.hetzner as hc_helper
-from cloudinit import dmi
-from cloudinit import log as logging
-from cloudinit import net as cloudnet
-from cloudinit import sources, util
+from cloudinit import dmi, net, sources, util
+from cloudinit.net.dhcp import NoDHCPLeaseError
+from cloudinit.net.ephemeral import EphemeralDHCPv4
 
 LOG = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ class DataSourceHetzner(sources.DataSource):
         self.retries = self.ds_cfg.get("retries", MD_RETRIES)
         self.timeout = self.ds_cfg.get("timeout", MD_TIMEOUT)
         self.wait_retry = self.ds_cfg.get("wait_retry", MD_WAIT_RETRY)
-        self._network_config = None
+        self._network_config = sources.UNSET
         self.dsmode = sources.DSMODE_NETWORK
 
     def _get_data(self):
@@ -54,22 +55,29 @@ class DataSourceHetzner(sources.DataSource):
         if not on_hetzner:
             return False
 
-        nic = cloudnet.find_fallback_nic()
-        with cloudnet.EphemeralIPv4Network(
-            nic, "169.254.0.1", 16, "169.254.255.255"
-        ):
-            md = hc_helper.read_metadata(
-                self.metadata_address,
-                timeout=self.timeout,
-                sec_between=self.wait_retry,
-                retries=self.retries,
-            )
-            ud = hc_helper.read_userdata(
-                self.userdata_address,
-                timeout=self.timeout,
-                sec_between=self.wait_retry,
-                retries=self.retries,
-            )
+        try:
+            with EphemeralDHCPv4(
+                self.distro,
+                iface=net.find_fallback_nic(),
+                connectivity_url_data={
+                    "url": BASE_URL_V1 + "/metadata/instance-id",
+                },
+            ):
+                md = hc_helper.read_metadata(
+                    self.metadata_address,
+                    timeout=self.timeout,
+                    sec_between=self.wait_retry,
+                    retries=self.retries,
+                )
+                ud = hc_helper.read_userdata(
+                    self.userdata_address,
+                    timeout=self.timeout,
+                    sec_between=self.wait_retry,
+                    retries=self.retries,
+                )
+        except (NoDHCPLeaseError) as e:
+            LOG.error("Bailing, DHCP Exception: %s", e)
+            raise
 
         # Hetzner cloud does not support binary user-data. So here, do a
         # base64 decode of the data if we can. The end result being that a
@@ -78,7 +86,7 @@ class DataSourceHetzner(sources.DataSource):
         # The fallout is that in the event of b64 encoded user-data,
         # /var/lib/cloud-init/cloud-config.txt will not be identical to the
         # user-data provided.  It will be decoded.
-        self.userdata_raw = hc_helper.maybe_b64decode(ud)
+        self.userdata_raw = util.maybe_b64decode(ud)
         self.metadata_full = md
 
         # hostname is name provided by user at launch.  The API enforces it is
@@ -110,12 +118,19 @@ class DataSourceHetzner(sources.DataSource):
         migration.
         """
 
-        if self._network_config:
+        if self._network_config is None:
+            LOG.warning(
+                "Found None as cached _network_config. Resetting to %s",
+                sources.UNSET,
+            )
+            self._network_config = sources.UNSET
+
+        if self._network_config != sources.UNSET:
             return self._network_config
 
         _net_config = self.metadata["network-config"]
         if not _net_config:
-            raise Exception("Unable to get meta-data from server....")
+            raise RuntimeError("Unable to get meta-data from server....")
 
         self._network_config = _net_config
 
@@ -145,6 +160,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab

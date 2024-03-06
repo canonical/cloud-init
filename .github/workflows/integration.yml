@@ -1,0 +1,89 @@
+name: Integration Tests
+
+on:
+  pull_request:
+    branches-ignore:
+      - 'ubuntu/**'
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: 'ci-${{ github.workflow }}-${{ github.ref }}'
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: sh -ex {0}
+
+env:
+  RELEASE: focal
+
+jobs:
+  package-build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v3
+        with:
+          # Fetch all tags for tools/read-version
+          fetch-depth: 0
+      - name: Prepare dependencies
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -y install \
+            debhelper \
+            dh-python \
+            fakeroot \
+            python3-setuptools \
+            sbuild \
+            ubuntu-dev-tools
+          sudo sbuild-adduser $USER
+          cp /usr/share/doc/sbuild/examples/example.sbuildrc /home/$USER/.sbuildrc
+          # Install all build and test dependencies
+          ./tools/read-dependencies -r requirements.txt -r test-requirements.txt -d ubuntu -s -i
+      - name: Build package
+        run: |
+          ./packages/bddeb -S -d --release ${{ env.RELEASE }}
+          sudo -E su $USER -c 'mk-sbuild ${{ env.RELEASE }}'
+          sudo -E su $USER -c 'DEB_BUILD_OPTIONS=nocheck sbuild --nolog --no-run-lintian --no-run-autopkgtest --verbose --dist=${{ env.RELEASE }} --build-dir=${{ runner.temp }} cloud-init_*.dsc'
+      - name: Archive debs as artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: 'cloud-init-${{ env.RELEASE }}-deb'
+          path: '${{ runner.temp }}/cloud-init*.deb'
+          retention-days: 3
+
+  integration-tests:
+    needs: package-build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v3
+        with:
+          # Fetch all tags for tools/read-version
+          fetch-depth: 0
+      - name: Retrieve cloud-init package
+        uses: actions/download-artifact@v3
+        with:
+          name: 'cloud-init-${{ env.RELEASE }}-deb'
+      - name: Verify deb package
+        run: |
+          ls -hal cloud-init*.deb
+      - name: Prepare test tools
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -y update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -y install tox wireguard
+      - name: Initialize LXD
+        run: |
+          ssh-keygen -P "" -q -f ~/.ssh/id_rsa
+          echo "[lxd]" > /home/$USER/.config/pycloudlib.toml
+          sudo adduser $USER lxd
+          # Jammy GH Action runners have docker installed, which edits iptables
+          # in a way that is incompatible with lxd.
+          # https://documentation.ubuntu.com/lxd/en/latest/howto/network_bridge_firewalld/#prevent-connectivity-issues-with-lxd-and-docker
+          sudo iptables -I DOCKER-USER -j ACCEPT
+          sudo lxd init --auto
+      - name: Run integration Tests
+        run: |
+          sg lxd -c 'CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls cloud-init*.deb)" tox -e integration-tests-ci'

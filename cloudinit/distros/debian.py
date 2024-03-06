@@ -7,30 +7,17 @@
 # Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
-import fcntl
+import logging
 import os
-import time
+from typing import List
 
-from cloudinit import distros, helpers
-from cloudinit import log as logging
-from cloudinit import subp, util
+from cloudinit import distros, subp, util
+from cloudinit.distros.package_management.apt import Apt
+from cloudinit.distros.package_management.package_manager import PackageManager
 from cloudinit.distros.parsers.hostname import HostnameConf
-from cloudinit.settings import PER_INSTANCE
+from cloudinit.net.netplan import CLOUDINIT_NETPLAN_FILE
 
 LOG = logging.getLogger(__name__)
-
-APT_LOCK_WAIT_TIMEOUT = 30
-APT_GET_COMMAND = (
-    "apt-get",
-    "--option=Dpkg::Options::=--force-confold",
-    "--option=Dpkg::options::=--force-unsafe-io",
-    "--assume-yes",
-    "--quiet",
-)
-APT_GET_WRAPPER = {
-    "command": "eatmydata",
-    "enabled": "auto",
-}
 
 NETWORK_FILE_HEADER = """\
 # This file is generated from information provided by the datasource.  Changes
@@ -43,25 +30,12 @@ NETWORK_FILE_HEADER = """\
 NETWORK_CONF_FN = "/etc/network/interfaces.d/50-cloud-init"
 LOCALE_CONF_FN = "/etc/default/locale"
 
-# The frontend lock needs to be acquired first followed by the order that
-# apt uses. /var/lib/apt/lists is locked independently of that install chain,
-# and only locked during update, so you can acquire it either order.
-# Also update does not acquire the dpkg frontend lock.
-# More context:
-#   https://github.com/canonical/cloud-init/pull/1034#issuecomment-986971376
-APT_LOCK_FILES = [
-    "/var/lib/dpkg/lock-frontend",
-    "/var/lib/dpkg/lock",
-    "/var/cache/apt/archives/lock",
-    "/var/lib/apt/lists/lock",
-]
-
 
 class Distro(distros.Distro):
     hostname_conf_fn = "/etc/hostname"
     network_conf_fn = {
         "eni": "/etc/network/interfaces.d/50-cloud-init",
-        "netplan": "/etc/netplan/50-cloud-init.yaml",
+        "netplan": CLOUDINIT_NETPLAN_FILE,
     }
     renderer_configs = {
         "eni": {
@@ -74,20 +48,24 @@ class Distro(distros.Distro):
             "postcmds": True,
         },
     }
+    # Debian stores dhclient leases at following location:
+    # /var/lib/dhcp/dhclient.<iface_name>.leases
+    dhclient_lease_directory = "/var/lib/dhcp"
+    dhclient_lease_file_regex = r"dhclient\.\w+\.leases"
 
     def __init__(self, name, cfg, paths):
-        distros.Distro.__init__(self, name, cfg, paths)
+        super().__init__(name, cfg, paths)
         # This will be used to restrict certain
-        # calls from repeatly happening (when they
+        # calls from repeatedly happening (when they
         # should only happen say once per instance...)
-        self._runner = helpers.Runners(paths)
         self.osfamily = "debian"
-        self.default_locale = "en_US.UTF-8"
+        self.default_locale = "C.UTF-8"
         self.system_locale = None
+        self.apt = Apt.from_config(self._runner, cfg)
+        self.package_managers: List[PackageManager] = [self.apt]
 
     def get_locale(self):
         """Return the default locale if set, else use default locale"""
-
         # read system locale value
         if not self.system_locale:
             self.system_locale = read_system_locale()
@@ -110,7 +88,20 @@ class Distro(distros.Distro):
         # Update system locale config with specified locale if needed
         distro_locale = self.get_locale()
         conf_fn_exists = os.path.exists(out_fn)
-        sys_locale_unset = False if self.system_locale else True
+        sys_locale_unset = not self.system_locale
+        if sys_locale_unset:
+            LOG.debug(
+                "System locale not found in %s. "
+                "Assuming system locale is %s based on hardcoded default",
+                LOCALE_CONF_FN,
+                self.default_locale,
+            )
+        else:
+            LOG.debug(
+                "System locale set to %s via %s",
+                self.system_locale,
+                LOCALE_CONF_FN,
+            )
         need_regen = (
             locale.lower() != distro_locale.lower()
             or not conf_fn_exists
@@ -133,13 +124,9 @@ class Distro(distros.Distro):
             # once we've updated the system config, invalidate cache
             self.system_locale = None
 
-    def install_packages(self, pkglist):
-        self.update_package_sources()
-        self.package_command("install", pkgs=pkglist)
-
-    def _write_network_state(self, network_state):
+    def _write_network_state(self, *args, **kwargs):
         _maybe_remove_legacy_eth0()
-        return super()._write_network_state(network_state)
+        return super()._write_network_state(*args, **kwargs)
 
     def _write_hostname(self, hostname, filename):
         conf = None
@@ -148,7 +135,16 @@ class Distro(distros.Distro):
             # so lets see if we can read it first.
             conf = self._read_hostname_conf(filename)
         except IOError:
-            pass
+            create_hostname_file = util.get_cfg_option_bool(
+                self._cfg, "create_hostname_file", True
+            )
+            if create_hostname_file:
+                pass
+            else:
+                LOG.info(
+                    "create_hostname_file is False; hostname file not created"
+                )
+                return
         if not conf:
             conf = HostnameConf("")
         conf.set_hostname(hostname)
@@ -159,7 +155,7 @@ class Distro(distros.Distro):
         return (self.hostname_conf_fn, sys_hostname)
 
     def _read_hostname_conf(self, filename):
-        conf = HostnameConf(util.load_file(filename))
+        conf = HostnameConf(util.load_text_file(filename))
         conf.parse()
         return conf
 
@@ -181,143 +177,49 @@ class Distro(distros.Distro):
     def set_timezone(self, tz):
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
 
-    def _apt_lock_available(self, lock_files=None):
-        """Determines if another process holds any apt locks.
-
-        If all locks are clear, return True else False.
-        """
-        if lock_files is None:
-            lock_files = APT_LOCK_FILES
-        for lock in lock_files:
-            if not os.path.exists(lock):
-                # Only wait for lock files that already exist
-                continue
-            with open(lock, "w") as handle:
-                try:
-                    fcntl.lockf(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                except OSError:
-                    return False
-        return True
-
-    def _wait_for_apt_command(
-        self, short_cmd, subp_kwargs, timeout=APT_LOCK_WAIT_TIMEOUT
-    ):
-        """Wait for apt install to complete.
-
-        short_cmd: Name of command like "upgrade" or "install"
-        subp_kwargs: kwargs to pass to subp
-        """
-        start_time = time.time()
-        LOG.debug("Waiting for apt lock")
-        while time.time() - start_time < timeout:
-            if not self._apt_lock_available():
-                time.sleep(1)
-                continue
-            LOG.debug("apt lock available")
-            try:
-                # Allow the output of this to flow outwards (not be captured)
-                log_msg = "apt-%s [%s]" % (
-                    short_cmd,
-                    " ".join(subp_kwargs["args"]),
-                )
-                return util.log_time(
-                    logfunc=LOG.debug,
-                    msg=log_msg,
-                    func=subp.subp,
-                    kwargs=subp_kwargs,
-                )
-            except subp.ProcessExecutionError:
-                # Even though we have already waited for the apt lock to be
-                # available, it is possible that the lock was acquired by
-                # another process since the check. Since apt doesn't provide
-                # a meaningful error code to check and checking the error
-                # text is fragile and subject to internationalization, we
-                # can instead check the apt lock again. If the apt lock is
-                # still available, given the length of an average apt
-                # transaction, it is extremely unlikely that another process
-                # raced us when we tried to acquire it, so raise the apt
-                # error received. If the lock is unavailable, just keep waiting
-                if self._apt_lock_available():
-                    raise
-                LOG.debug("Another process holds apt lock. Waiting...")
-                time.sleep(1)
-        raise TimeoutError("Could not get apt lock")
-
     def package_command(self, command, args=None, pkgs=None):
-        """Run the given package command.
-
-        On Debian, this will run apt-get (unless APT_GET_COMMAND is set).
-
-        command: The command to run, like "upgrade" or "install"
-        args: Arguments passed to apt itself in addition to
-              any specified in APT_GET_COMMAND
-        pkgs: Apt packages that the command will apply to
-        """
-        if pkgs is None:
-            pkgs = []
-
-        e = os.environ.copy()
-        # See: http://manpages.ubuntu.com/manpages/bionic/man7/debconf.7.html
-        e["DEBIAN_FRONTEND"] = "noninteractive"
-
-        wcfg = self.get_option("apt_get_wrapper", APT_GET_WRAPPER)
-        cmd = _get_wrapper_prefix(
-            wcfg.get("command", APT_GET_WRAPPER["command"]),
-            wcfg.get("enabled", APT_GET_WRAPPER["enabled"]),
-        )
-
-        cmd.extend(list(self.get_option("apt_get_command", APT_GET_COMMAND)))
-
-        if args and isinstance(args, str):
-            cmd.append(args)
-        elif args and isinstance(args, list):
-            cmd.extend(args)
-
-        subcmd = command
-        if command == "upgrade":
-            subcmd = self.get_option(
-                "apt_get_upgrade_subcommand", "dist-upgrade"
-            )
-
-        cmd.append(subcmd)
-
-        pkglist = util.expand_package_list("%s=%s", pkgs)
-        cmd.extend(pkglist)
-
-        self._wait_for_apt_command(
-            short_cmd=command,
-            subp_kwargs={"args": cmd, "env": e, "capture": False},
-        )
-
-    def update_package_sources(self):
-        self._runner.run(
-            "update-sources",
-            self.package_command,
-            ["update"],
-            freq=PER_INSTANCE,
-        )
+        # As of this writing, the only use of `package_command` outside of
+        # distros calling it within their own classes is calling "upgrade"
+        if command != "upgrade":
+            raise RuntimeError(f"Unable to handle {command} command")
+        self.apt.run_package_command("upgrade")
 
     def get_primary_arch(self):
         return util.get_dpkg_architecture()
 
-    def set_keymap(self, layout, model, variant, options):
-        # Let localectl take care of updating /etc/default/keyboard
-        distros.Distro.set_keymap(self, layout, model, variant, options)
-        # Workaround for localectl not applying new settings instantly
+    def set_keymap(self, layout: str, model: str, variant: str, options: str):
+        # localectl is broken on some versions of Debian. See
+        # https://bugs.launchpad.net/ubuntu/+source/systemd/+bug/2030788 and
+        # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1038762
+        #
+        # Instead, write the file directly. According to the keyboard(5) man
+        # page, this file is shared between both X and the console.
+
+        contents = "\n".join(
+            [
+                "# This file was generated by cloud-init",
+                "",
+                f'XKBMODEL="{model}"',
+                f'XKBLAYOUT="{layout}"',
+                f'XKBVARIANT="{variant}"',
+                f'XKBOPTIONS="{options}"',
+                "",
+                'BACKSPACE="guess"',  # This is provided on default installs
+                "",
+            ]
+        )
+        util.write_file(
+            filename="/etc/default/keyboard",
+            content=contents,
+            mode=0o644,
+            omode="w",
+        )
+
+        # Due to
         # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=926037
+        # if localectl can be used in the future, this line may still
+        # be needed
         self.manage_service("restart", "console-setup")
-
-
-def _get_wrapper_prefix(cmd, mode):
-    if isinstance(cmd, str):
-        cmd = [str(cmd)]
-
-    if util.is_true(mode) or (
-        str(mode).lower() == "auto" and cmd[0] and subp.which(cmd[0])
-    ):
-        return cmd
-    else:
-        return []
 
 
 def _maybe_remove_legacy_eth0(path="/etc/network/interfaces.d/eth0.cfg"):
@@ -336,7 +238,7 @@ def _maybe_remove_legacy_eth0(path="/etc/network/interfaces.d/eth0.cfg"):
 
     bmsg = "Dynamic networking config may not apply."
     try:
-        contents = util.load_file(path)
+        contents = util.load_text_file(path)
         known_contents = ["auto eth0", "iface eth0 inet dhcp"]
         lines = [
             f.strip() for f in contents.splitlines() if not f.startswith("#")
@@ -359,7 +261,7 @@ def read_system_locale(sys_path=LOCALE_CONF_FN, keyname="LANG"):
         raise ValueError("Invalid path: %s" % sys_path)
 
     if os.path.exists(sys_path):
-        locale_content = util.load_file(sys_path)
+        locale_content = util.load_text_file(sys_path)
         sys_defaults = util.load_shell_content(locale_content)
         sys_val = sys_defaults.get(keyname, "")
 
@@ -399,6 +301,3 @@ def regenerate_locale(locale, sys_path, keyname="LANG"):
     # finally, trigger regeneration
     LOG.debug("Generating locales for %s", locale)
     subp.subp(["locale-gen", locale], capture=False)
-
-
-# vi: ts=4 expandtab

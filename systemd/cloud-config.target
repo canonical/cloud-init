@@ -1,9 +1,16 @@
-# cloud-init normally emits a "cloud-config" upstart event to inform third
-# parties that cloud-config is available, which does us no good when we're
-# using systemd.  cloud-config.target serves as this synchronization point
-# instead.  Services that would "start on cloud-config" with upstart can
-# instead use "After=cloud-config.target" and "Wants=cloud-config.target"
-# as appropriate.
+# cloud-config.target is the earliest synchronization point in cloud-init's
+# boot stages that indicates the completion of datasource detection (cloud-id)
+# and the presence of any meta-data, vendor-data and user-data.
+
+# Any services started at cloud-config.target will need to be aware that
+# cloud-init configuration modules have not yet completed initial system
+# configuration of cloud-config modules and there may be race conditions with
+# ongoing cloud-init setup, package installs or user-data scripts.
+
+# Services that need to start at this point should use the directives
+# "After=cloud-config.target" and "Wants=cloud-config.target" as appropriate.
+
+# To order services after all cloud-init operations, see cloud-init.target.
 
 [Unit]
 Description=Cloud-config availability

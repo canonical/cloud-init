@@ -1,4 +1,5 @@
-#
+#!/usr/bin/env python3
+
 # Copyright (C) 2012 Canonical Ltd.
 # Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 # Copyright (C) 2012 Yahoo! Inc.
@@ -17,13 +18,9 @@ import os
 import sys
 import time
 import traceback
+import logging
+from typing import Tuple
 
-from cloudinit import patcher
-
-patcher.patch_logging()
-
-from cloudinit.config.schema import validate_cloudconfig_schema
-from cloudinit import log as logging
 from cloudinit import netinfo
 from cloudinit import signal_handler
 from cloudinit import sources
@@ -32,17 +29,23 @@ from cloudinit import url_helper
 from cloudinit import util
 from cloudinit import version
 from cloudinit import warnings
-
 from cloudinit import reporting
-from cloudinit.reporting import events
-
-from cloudinit.settings import PER_INSTANCE, PER_ALWAYS, PER_ONCE, CLOUD_CONFIG
-
 from cloudinit import atomic_helper
-
+from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.config import cc_set_hostname
-from cloudinit import dhclient_hook
-
+from cloudinit.config.modules import Modules
+from cloudinit.config.schema import validate_cloudconfig_schema
+from cloudinit.log import (
+    LogExporter,
+    setup_basic_logging,
+    setup_logging,
+    reset_logging,
+    configure_root_logger,
+    DEPRECATED,
+)
+from cloudinit.reporting import events
+from cloudinit.safeyaml import load
+from cloudinit.settings import PER_INSTANCE, PER_ALWAYS, PER_ONCE, CLOUD_CONFIG
 
 # Welcome message template
 WELCOME_MSG_TPL = (
@@ -61,7 +64,7 @@ FREQ_SHORT_NAMES = {
     "once": PER_ONCE,
 }
 
-LOG = logging.getLogger()
+LOG = logging.getLogger(__name__)
 
 
 # Used for when a logger may not be active
@@ -76,10 +79,17 @@ def print_exc(msg=""):
     sys.stderr.write("\n")
 
 
+def log_ppid():
+    if util.is_Linux():
+        ppid = os.getppid()
+        LOG.info("PID [%s] started cloud-init.", ppid)
+
+
 def welcome(action, msg=None):
     if not msg:
         msg = welcome_format(action)
     util.multi_log("%s\n" % (msg), console=False, stderr=True, log=LOG)
+    log_ppid()
     return msg
 
 
@@ -105,7 +115,7 @@ def extract_fns(args):
     return fn_cfgs
 
 
-def run_module_section(mods, action_name, section):
+def run_module_section(mods: Modules, action_name, section):
     full_section_name = MOD_SECTION_TPL % (section)
     (which_ran, failures) = mods.run_section(full_section_name)
     total_attempted = len(which_ran) + len(failures)
@@ -137,7 +147,7 @@ def parse_cmdline_url(cmdline, names=("cloud-config-url", "url")):
     raise KeyError("No keys (%s) found in string '%s'" % (cmdline, names))
 
 
-def attempt_cmdline_url(path, network=True, cmdline=None):
+def attempt_cmdline_url(path, network=True, cmdline=None) -> Tuple[int, str]:
     """Write data from url referenced in command line to path.
 
     path: a file to write content to if downloaded.
@@ -164,7 +174,7 @@ def attempt_cmdline_url(path, network=True, cmdline=None):
     except KeyError:
         return (logging.DEBUG, "No kernel command line url found.")
 
-    path_is_local = url.startswith("file://") or url.startswith("/")
+    path_is_local = url.startswith(("file://", "/"))
 
     if path_is_local and os.path.exists(path):
         if network:
@@ -184,7 +194,7 @@ def attempt_cmdline_url(path, network=True, cmdline=None):
 
         return (level, m)
 
-    kwargs = {"url": url, "timeout": 10, "retries": 2}
+    kwargs = {"url": url, "timeout": 10, "retries": 2, "stream": True}
     if network or path_is_local:
         level = logging.WARN
         kwargs["sec_between"] = 1
@@ -196,22 +206,49 @@ def attempt_cmdline_url(path, network=True, cmdline=None):
     header = b"#cloud-config"
     try:
         resp = url_helper.read_file_or_url(**kwargs)
+        sniffed_content = b""
         if resp.ok():
-            data = resp.contents
-            if not resp.contents.startswith(header):
+            is_cloud_cfg = True
+            if isinstance(resp, url_helper.UrlResponse):
+                try:
+                    sniffed_content += next(
+                        resp.iter_content(chunk_size=len(header))
+                    )
+                except StopIteration:
+                    pass
+                if not sniffed_content.startswith(header):
+                    is_cloud_cfg = False
+            elif not resp.contents.startswith(header):
+                is_cloud_cfg = False
+            if is_cloud_cfg:
+                if cmdline_name == "url":
+                    return (
+                        DEPRECATED,
+                        str(
+                            util.deprecate(
+                                deprecated="The kernel command line key `url`",
+                                deprecated_version="22.3",
+                                extra_message=" Please use `cloud-config-url` "
+                                "kernel command line parameter instead",
+                                return_log=True,
+                            ),
+                        ),
+                    )
+            else:
                 if cmdline_name == "cloud-config-url":
                     level = logging.WARN
                 else:
                     level = logging.INFO
                 return (
                     level,
-                    "contents of '%s' did not start with %s" % (url, header),
+                    f"contents of '{url}' did not start with {str(header)}",
                 )
         else:
             return (
                 level,
                 "url '%s' returned code %s. Ignoring." % (url, resp.code),
             )
+        data = sniffed_content + resp.contents
 
     except url_helper.UrlError as e:
         return (level, "retrieving url '%s' failed: %s" % (url, e))
@@ -311,11 +348,11 @@ def main_init(name, args):
         LOG.debug(
             "Logging being reset, this logger may no longer be active shortly"
         )
-        logging.resetLogging()
-    logging.setupLogging(init.cfg)
+        reset_logging()
+    setup_logging(init.cfg)
     apply_reporting_cfg(init.cfg)
 
-    # Any log usage prior to setupLogging above did not have local user log
+    # Any log usage prior to setup_logging above did not have local user log
     # config applied.  We send the welcome message now, as stderr/out have
     # been redirected and log now configured.
     welcome(name, msg=w_msg)
@@ -337,31 +374,6 @@ def main_init(name, args):
     if mode == sources.DSMODE_NETWORK:
         existing = "trust"
         sys.stderr.write("%s\n" % (netinfo.debug_info()))
-        LOG.debug(
-            "Checking to see if files that we need already"
-            " exist from a previous run that would allow us"
-            " to stop early."
-        )
-        # no-net is written by upstart cloud-init-nonet when network failed
-        # to come up
-        stop_files = [
-            os.path.join(path_helper.get_cpath("data"), "no-net"),
-        ]
-        existing_files = []
-        for fn in stop_files:
-            if os.path.isfile(fn):
-                existing_files.append(fn)
-
-        if existing_files:
-            LOG.debug(
-                "[%s] Exiting. stop file %s existed", mode, existing_files
-            )
-            return (None, [])
-        else:
-            LOG.debug(
-                "Execution continuing, no previous run detected that"
-                " would allow us to stop early."
-            )
     else:
         existing = "check"
         mcfg = util.get_cfg_option_bool(init.cfg, "manual_cache_clean", False)
@@ -375,8 +387,6 @@ def main_init(name, args):
                 existing = "trust"
 
         init.purge_cache()
-        # Delete the no-net file as well
-        util.del_file(os.path.join(path_helper.get_cpath("data"), "no-net"))
 
     # Stage 5
     bring_up_interfaces = _should_bring_up_interfaces(init, args)
@@ -394,8 +404,7 @@ def main_init(name, args):
     except sources.DataSourceNotFoundException:
         # In the case of 'cloud-init init' without '--local' it is a bit
         # more likely that the user would consider it failure if nothing was
-        # found. When using upstart it will also mentions job failure
-        # in console log if exit code is != 0.
+        # found.
         if mode == sources.DSMODE_LOCAL:
             LOG.debug("No local datasource found")
         else:
@@ -476,15 +485,21 @@ def main_init(name, args):
         return (init.datasource, ["Consuming user data failed!"])
 
     # Validate user-data adheres to schema definition
-    if os.path.exists(init.paths.get_ipath_cur("userdata_raw")):
-        validate_cloudconfig_schema(config=init.cfg, strict=False)
+    cloud_cfg_path = init.paths.get_ipath_cur("cloud_config")
+    if os.path.exists(cloud_cfg_path) and os.stat(cloud_cfg_path).st_size != 0:
+        validate_cloudconfig_schema(
+            config=load(util.load_text_file(cloud_cfg_path)),
+            strict=False,
+            log_details=False,
+            log_deprecations=True,
+        )
     else:
         LOG.debug("Skipping user-data validation. No user-data found.")
 
     apply_reporting_cfg(init.cfg)
 
     # Stage 8 - re-read and apply relevant cloud-config to include user-data
-    mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
+    mods = Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 9
     try:
         outfmt_orig = outfmt
@@ -495,7 +510,7 @@ def main_init(name, args):
             (outfmt, errfmt) = util.fixup_output(mods.cfg, name)
     except Exception:
         util.logexc(LOG, "Failed to re-adjust output redirection!")
-    logging.setupLogging(mods.cfg)
+    setup_logging(mods.cfg)
 
     # give the activated datasource a chance to adjust
     init.activate_datasource()
@@ -587,7 +602,7 @@ def main_modules(action_name, args):
             return [(msg)]
     _maybe_persist_instance_data(init)
     # Stage 3
-    mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
+    mods = Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 4
     try:
         LOG.debug("Closing stdin")
@@ -600,8 +615,8 @@ def main_modules(action_name, args):
         LOG.debug(
             "Logging being reset, this logger may no longer be active shortly"
         )
-        logging.resetLogging()
-    logging.setupLogging(mods.cfg)
+        reset_logging()
+    setup_logging(mods.cfg)
     apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
@@ -642,7 +657,7 @@ def main_single(name, args):
             return 1
     _maybe_persist_instance_data(init)
     # Stage 3
-    mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
+    mods = Modules(init, extract_fns(args), reporter=args.reporter)
     mod_args = args.module_args
     if mod_args:
         LOG.debug("Using passed in arguments %s", mod_args)
@@ -662,8 +677,8 @@ def main_single(name, args):
         LOG.debug(
             "Logging being reset, this logger may no longer be active shortly"
         )
-        logging.resetLogging()
-    logging.setupLogging(mods.cfg)
+        reset_logging()
+    setup_logging(mods.cfg)
     apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
@@ -684,7 +699,8 @@ def main_single(name, args):
 
 def status_wrapper(name, args, data_d=None, link_d=None):
     if data_d is None:
-        data_d = os.path.normpath("/var/lib/cloud/data")
+        paths = read_cfg_paths()
+        data_d = paths.get_cpath("data")
     if link_d is None:
         link_d = os.path.normpath("/run/cloud-init")
 
@@ -692,6 +708,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     status_link = os.path.join(link_d, "status.json")
     result_path = os.path.join(data_d, "result.json")
     result_link = os.path.join(link_d, "result.json")
+    root_logger = logging.getLogger()
 
     util.ensure_dirs(
         (
@@ -715,7 +732,6 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     modes = (
         "init",
         "init-local",
-        "modules-init",
         "modules-config",
         "modules-final",
     )
@@ -730,7 +746,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
             util.del_file(f)
     else:
         try:
-            status = json.loads(util.load_file(status_path))
+            status = json.loads(util.load_text_file(status_path))
         except Exception:
             pass
 
@@ -751,7 +767,11 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     v1 = status["v1"]
     v1["stage"] = mode
     v1[mode]["start"] = time.time()
+    v1[mode]["recoverable_errors"] = next(
+        filter(lambda h: isinstance(h, LogExporter), root_logger.handlers)
+    ).export_logs()
 
+    # Write status.json prior to running init / module code
     atomic_helper.write_json(status_path, status)
     util.sym_link(
         os.path.relpath(status_path, link_d), status_link, force=True
@@ -776,6 +796,10 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     v1[mode]["finished"] = time.time()
     v1["stage"] = None
 
+    # Write status.json after running init / module code
+    v1[mode]["recoverable_errors"] = next(
+        filter(lambda h: isinstance(h, LogExporter), root_logger.handlers)
+    ).export_logs()
     atomic_helper.write_json(status_path, status)
 
     if mode == "modules-final":
@@ -796,29 +820,27 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     return len(v1[mode]["errors"])
 
 
-def _maybe_persist_instance_data(init):
+def _maybe_persist_instance_data(init: stages.Init):
     """Write instance-data.json file if absent and datasource is restored."""
-    if init.ds_restored:
-        instance_data_file = os.path.join(
-            init.paths.run_dir, sources.INSTANCE_JSON_FILE
-        )
+    if init.datasource and init.ds_restored:
+        instance_data_file = init.paths.get_runpath("instance_data")
         if not os.path.exists(instance_data_file):
-            init.datasource.persist_instance_data()
+            init.datasource.persist_instance_data(write_cache=False)
 
 
 def _maybe_set_hostname(init, stage, retry_stage):
-    """Call set-hostname if metadata, vendordata or userdata provides it.
+    """Call set_hostname if metadata, vendordata or userdata provides it.
 
     @param stage: String representing current stage in which we are running.
     @param retry_stage: String represented logs upon error setting hostname.
     """
     cloud = init.cloudify()
-    (hostname, _fqdn) = util.get_hostname_fqdn(
+    (hostname, _fqdn, _) = util.get_hostname_fqdn(
         init.cfg, cloud, metadata_only=True
     )
     if hostname:  # meta-data or user-data hostname content
         try:
-            cc_set_hostname.handle("set-hostname", init.cfg, cloud, LOG, None)
+            cc_set_hostname.handle("set_hostname", init.cfg, cloud, None)
         except cc_set_hostname.SetHostnameError as e:
             LOG.debug(
                 "Failed setting hostname in %s stage. Will"
@@ -834,10 +856,10 @@ def main_features(name, args):
 
 
 def main(sysv_args=None):
+    configure_root_logger()
     if not sysv_args:
         sysv_args = sys.argv
-    parser = argparse.ArgumentParser(prog=sysv_args[0])
-    sysv_args = sysv_args[1:]
+    parser = argparse.ArgumentParser(prog=sysv_args.pop(0))
 
     # Top level args
     parser.add_argument(
@@ -845,28 +867,21 @@ def main(sysv_args=None):
         "-v",
         action="version",
         version="%(prog)s " + (version.version_string()),
-    )
-    parser.add_argument(
-        "--file",
-        "-f",
-        action="append",
-        dest="files",
-        help="additional yaml configuration files to use",
-        type=argparse.FileType("rb"),
+        help="Show program's version number and exit.",
     )
     parser.add_argument(
         "--debug",
         "-d",
         action="store_true",
-        help="show additional pre-action logging (default: %(default)s)",
+        help="Show additional pre-action logging (default: %(default)s).",
         default=False,
     )
     parser.add_argument(
         "--force",
         action="store_true",
         help=(
-            "force running even if no datasource is"
-            " found (use at your own risk)"
+            "Force running even if no datasource is"
+            " found (use at your own risk)."
         ),
         dest="force",
         default=False,
@@ -878,14 +893,22 @@ def main(sysv_args=None):
 
     # Each action and its sub-options (if any)
     parser_init = subparsers.add_parser(
-        "init", help="initializes cloud-init and performs initial modules"
+        "init", help="Initialize cloud-init and perform initial modules."
     )
     parser_init.add_argument(
         "--local",
         "-l",
         action="store_true",
-        help="start in local mode (default: %(default)s)",
+        help="Start in local mode (default: %(default)s).",
         default=False,
+    )
+    parser_init.add_argument(
+        "--file",
+        "-f",
+        action="append",
+        dest="files",
+        help="Use additional yaml configuration files.",
+        type=argparse.FileType("rb"),
     )
     # This is used so that we can know which action is selected +
     # the functor to use to run this subcommand
@@ -893,47 +916,63 @@ def main(sysv_args=None):
 
     # These settings are used for the 'config' and 'final' stages
     parser_mod = subparsers.add_parser(
-        "modules", help="activates modules using a given configuration key"
+        "modules", help="Activate modules using a given configuration key."
     )
     parser_mod.add_argument(
         "--mode",
         "-m",
         action="store",
-        help="module configuration name to use (default: %(default)s)",
+        help="Module configuration name to use (default: %(default)s).",
         default="config",
         choices=("init", "config", "final"),
+    )
+    parser_mod.add_argument(
+        "--file",
+        "-f",
+        action="append",
+        dest="files",
+        help="Use additional yaml configuration files.",
+        type=argparse.FileType("rb"),
     )
     parser_mod.set_defaults(action=("modules", main_modules))
 
     # This subcommand allows you to run a single module
     parser_single = subparsers.add_parser(
-        "single", help="run a single module "
+        "single", help="Run a single module."
     )
     parser_single.add_argument(
         "--name",
         "-n",
         action="store",
-        help="module name to run",
+        help="Module name to run.",
         required=True,
     )
     parser_single.add_argument(
         "--frequency",
         action="store",
-        help="frequency of the module",
+        help="Module frequency for this run.",
         required=False,
         choices=list(FREQ_SHORT_NAMES.keys()),
     )
     parser_single.add_argument(
         "--report",
         action="store_true",
-        help="enable reporting",
+        help="Enable reporting.",
         required=False,
     )
     parser_single.add_argument(
         "module_args",
         nargs="*",
         metavar="argument",
-        help="any additional arguments to pass to this module",
+        help="Any additional arguments to pass to this module.",
+    )
+    parser_single.add_argument(
+        "--file",
+        "-f",
+        action="append",
+        dest="files",
+        help="Use additional yaml configuration files.",
+        type=argparse.FileType("rb"),
     )
     parser_single.set_defaults(action=("single", main_single))
 
@@ -942,24 +981,21 @@ def main(sysv_args=None):
         help="Query standardized instance metadata from the command line.",
     )
 
-    parser_dhclient = subparsers.add_parser(
-        dhclient_hook.NAME, help=dhclient_hook.__doc__
-    )
-    dhclient_hook.get_parser(parser_dhclient)
-
     parser_features = subparsers.add_parser(
-        "features", help="list defined features"
+        "features", help="List defined features."
     )
     parser_features.set_defaults(action=("features", main_features))
 
     parser_analyze = subparsers.add_parser(
-        "analyze", help="Devel tool: Analyze cloud-init logs and data"
+        "analyze", help="Devel tool: Analyze cloud-init logs and data."
     )
 
-    parser_devel = subparsers.add_parser("devel", help="Run development tools")
+    parser_devel = subparsers.add_parser(
+        "devel", help="Run development tools."
+    )
 
     parser_collect_logs = subparsers.add_parser(
-        "collect-logs", help="Collect and tar all cloud-init debug info"
+        "collect-logs", help="Collect and tar all cloud-init debug info."
     )
 
     parser_clean = subparsers.add_parser(
@@ -970,19 +1006,27 @@ def main(sysv_args=None):
         "status", help="Report cloud-init status or wait on completion."
     )
 
+    parser_schema = subparsers.add_parser(
+        "schema", help="Validate cloud-config files using jsonschema."
+    )
+
     if sysv_args:
         # Only load subparsers if subcommand is specified to avoid load cost
-        if sysv_args[0] == "analyze":
-            from cloudinit.analyze.__main__ import get_parser as analyze_parser
+        subcommand = next(
+            (posarg for posarg in sysv_args if not posarg.startswith("-")),
+            None,
+        )
+        if subcommand == "analyze":
+            from cloudinit.analyze import get_parser as analyze_parser
 
             # Construct analyze subcommand parser
             analyze_parser(parser_analyze)
-        elif sysv_args[0] == "devel":
+        elif subcommand == "devel":
             from cloudinit.cmd.devel.parser import get_parser as devel_parser
 
             # Construct devel subcommand parser
             devel_parser(parser_devel)
-        elif sysv_args[0] == "collect-logs":
+        elif subcommand == "collect-logs":
             from cloudinit.cmd.devel.logs import (
                 get_parser as logs_parser,
                 handle_collect_logs_args,
@@ -992,7 +1036,7 @@ def main(sysv_args=None):
             parser_collect_logs.set_defaults(
                 action=("collect-logs", handle_collect_logs_args)
             )
-        elif sysv_args[0] == "clean":
+        elif subcommand == "clean":
             from cloudinit.cmd.clean import (
                 get_parser as clean_parser,
                 handle_clean_args,
@@ -1000,7 +1044,7 @@ def main(sysv_args=None):
 
             clean_parser(parser_clean)
             parser_clean.set_defaults(action=("clean", handle_clean_args))
-        elif sysv_args[0] == "query":
+        elif subcommand == "query":
             from cloudinit.cmd.query import (
                 get_parser as query_parser,
                 handle_args as handle_query_args,
@@ -1008,7 +1052,15 @@ def main(sysv_args=None):
 
             query_parser(parser_query)
             parser_query.set_defaults(action=("render", handle_query_args))
-        elif sysv_args[0] == "status":
+        elif subcommand == "schema":
+            from cloudinit.config.schema import (
+                get_parser as schema_parser,
+                handle_schema_args,
+            )
+
+            schema_parser(parser_schema)
+            parser_schema.set_defaults(action=("schema", handle_schema_args))
+        elif subcommand == "status":
             from cloudinit.cmd.status import (
                 get_parser as status_parser,
                 handle_status_args,
@@ -1022,15 +1074,23 @@ def main(sysv_args=None):
     # Subparsers.required = True and each subparser sets action=(name, functor)
     (name, functor) = args.action
 
-    # Setup basic logging to start (until reinitialized)
-    # iff in debug mode.
-    if args.debug:
-        logging.setupBasicLogging()
+    # Setup basic logging for cloud-init:
+    # - for cloud-init stages if --debug
+    # - for all other subcommands:
+    #   - if --debug is passed, logging.DEBUG
+    #   - if --debug is not passed, logging.WARNING
+    if name not in ("init", "modules"):
+        setup_basic_logging(logging.DEBUG if args.debug else logging.WARNING)
+    elif args.debug:
+        setup_basic_logging()
 
     # Setup signal handlers before running
     signal_handler.attach_handlers()
 
-    if name in ("modules", "init"):
+    # Write boot stage data to write status.json and result.json
+    # Exclude modules --mode=init, since it is not a real boot stage and
+    # should not be written into status.json
+    if "init" == name or ("modules" == name and "init" != args.mode):
         functor = status_wrapper
 
     rname = None
@@ -1071,8 +1131,8 @@ def main(sysv_args=None):
             func=functor,
             args=(name, args),
         )
-        reporting.flush_events()
-        return retval
+    reporting.flush_events()
+    return retval
 
 
 if __name__ == "__main__":
@@ -1081,5 +1141,3 @@ if __name__ == "__main__":
     return_value = main(sys.argv)
     if return_value:
         sys.exit(return_value)
-
-# vi: ts=4 expandtab

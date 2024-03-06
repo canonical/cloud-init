@@ -1,0 +1,22 @@
+#!/sbin/openrc-run
+
+description="cloud-init local stage"
+
+depend() {
+  after localmount
+  before net
+  before cloud-init
+  provide cloud-init-local
+}
+
+start() {
+  if grep -q 'cloud-init=disabled' /proc/cmdline; then
+    ewarn "$RC_SVCNAME is disabled via /proc/cmdline."
+  elif test -e /etc/cloud/cloud-init.disabled; then
+    ewarn "$RC_SVCNAME is disabled via cloud-init.disabled file"
+  else
+    ebegin "cloud-init local"
+    cloud-init init --local
+    eend $?
+  fi
+}

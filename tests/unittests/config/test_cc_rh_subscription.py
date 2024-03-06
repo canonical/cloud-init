@@ -5,9 +5,16 @@
 import copy
 import logging
 
+import pytest
+
 from cloudinit import subp
 from cloudinit.config import cc_rh_subscription
-from tests.unittests.helpers import CiTestCase, mock
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
+from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 SUBMGR = cc_rh_subscription.SubscriptionManager
 SUB_MAN_CLI = "cloudinit.config.cc_rh_subscription._sub_man_cli"
@@ -48,9 +55,7 @@ class GoodTests(CiTestCase):
         Emulates a system that is already registered. Ensure it gets
         a non-ProcessExecution error from is_registered()
         """
-        self.handle(
-            self.name, self.config, self.cloud_init, self.log, self.args
-        )
+        self.handle(self.name, self.config, self.cloud_init, self.args)
         self.assertEqual(m_sman_cli.call_count, 1)
         self.assertIn("System is already registered", self.logs.getvalue())
 
@@ -63,9 +68,7 @@ class GoodTests(CiTestCase):
             " 12345678-abde-abcde-1234-1234567890abc"
         )
         m_sman_cli.side_effect = [subp.ProcessExecutionError, (reg, "bar")]
-        self.handle(
-            self.name, self.config, self.cloud_init, self.log, self.args
-        )
+        self.handle(self.name, self.config, self.cloud_init, self.args)
         self.assertIn(mock.call(["identity"]), m_sman_cli.call_args_list)
         self.assertIn(
             mock.call(
@@ -124,9 +127,7 @@ class GoodTests(CiTestCase):
             ("Repo ID: repo2\nRepo ID: repo3\nRepo ID: repo4", ""),
             ("", ""),
         ]
-        self.handle(
-            self.name, self.config_full, self.cloud_init, self.log, self.args
-        )
+        self.handle(self.name, self.config_full, self.cloud_init, self.args)
         self.assertEqual(m_sman_cli.call_count, 9)
         for call in call_lists:
             self.assertIn(mock.call(call), m_sman_cli.call_args_list)
@@ -142,7 +143,7 @@ class TestBadInput(CiTestCase):
     name = "cc_rh_subscription"
     cloud_init = None
     log = logging.getLogger("bad_tests")
-    args = []
+    args: list = []
     SM = cc_rh_subscription.SubscriptionManager
     reg = (
         "The system has been registered with ID:"
@@ -206,7 +207,6 @@ class TestBadInput(CiTestCase):
             self.name,
             self.config_no_password,
             self.cloud_init,
-            self.log,
             self.args,
         )
         self.assertEqual(m_sman_cli.call_count, 0)
@@ -214,9 +214,7 @@ class TestBadInput(CiTestCase):
     def test_no_org(self, m_sman_cli):
         """Attempt to register without the org key/value."""
         m_sman_cli.side_effect = [subp.ProcessExecutionError]
-        self.handle(
-            self.name, self.config_no_key, self.cloud_init, self.log, self.args
-        )
+        self.handle(self.name, self.config_no_key, self.cloud_init, self.args)
         m_sman_cli.assert_called_with(["identity"])
         self.assertEqual(m_sman_cli.call_count, 1)
         self.assert_logged_warnings(
@@ -238,7 +236,6 @@ class TestBadInput(CiTestCase):
             self.name,
             self.config_service,
             self.cloud_init,
-            self.log,
             self.args,
         )
         self.assertEqual(m_sman_cli.call_count, 1)
@@ -261,7 +258,6 @@ class TestBadInput(CiTestCase):
             self.name,
             self.config_badpool,
             self.cloud_init,
-            self.log,
             self.args,
         )
         self.assertEqual(m_sman_cli.call_count, 2)
@@ -284,7 +280,6 @@ class TestBadInput(CiTestCase):
             self.name,
             self.config_badrepo,
             self.cloud_init,
-            self.log,
             self.args,
         )
         self.assertEqual(m_sman_cli.call_count, 2)
@@ -304,9 +299,7 @@ class TestBadInput(CiTestCase):
             subp.ProcessExecutionError,
             (self.reg, "bar"),
         ]
-        self.handle(
-            self.name, self.config_badkey, self.cloud_init, self.log, self.args
-        )
+        self.handle(self.name, self.config_badkey, self.cloud_init, self.args)
         self.assertEqual(m_sman_cli.call_count, 1)
         self.assert_logged_warnings(
             (
@@ -317,4 +310,32 @@ class TestBadInput(CiTestCase):
         )
 
 
-# vi: ts=4 expandtab
+class TestRhSubscriptionSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            (
+                {"rh_subscription": {"bad": "input"}},
+                "Additional properties are not allowed",
+            ),
+            (
+                {"rh_subscription": {"add-pool": [1]}},
+                "1 is not of type 'string'",
+            ),
+            (
+                {"rh_subscription": {"enable-repo": "name"}},
+                "'name' is not of type 'array'",
+            ),
+            (
+                {"rh_subscription": {"disable-repo": "name"}},
+                "'name' is not of type 'array'",
+            ),
+        ],
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)

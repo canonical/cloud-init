@@ -1,13 +1,11 @@
-#!/usr/bin/env python3
-# vi: ts=4 expandtab
-#
 # Copyright (C) 2021 VMware Inc.
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import distros, helpers
-from cloudinit import log as logging
-from cloudinit import net, subp, util
+import logging
+
+from cloudinit import distros, helpers, net, subp, util
+from cloudinit.distros import PackageList
 from cloudinit.distros import rhel_util as rhutil
 from cloudinit.settings import PER_INSTANCE
 
@@ -33,7 +31,7 @@ class Distro(distros.Distro):
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
         # This will be used to restrict certain
-        # calls from repeatly happening (when they
+        # calls from repeatedly happening (when they
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
         self.osfamily = "photon"
@@ -68,7 +66,7 @@ class Distro(distros.Distro):
         return None
 
     def apply_locale(self, locale, out_fn=None):
-        # This has a dependancy on glibc-i18n, user need to manually install it
+        # This has a dependency on glibc-i18n, user need to manually install it
         # and enable the option in cloud.cfg
         if not out_fn:
             out_fn = self.systemd_locale_conf_fn
@@ -85,7 +83,7 @@ class Distro(distros.Distro):
         cmd = ["systemctl", "restart", "systemd-localed"]
         self.exec_cmd(cmd)
 
-    def install_packages(self, pkglist):
+    def install_packages(self, pkglist: PackageList):
         # self.update_package_sources()
         self.package_command("install", pkgs=pkglist)
 
@@ -93,9 +91,26 @@ class Distro(distros.Distro):
         if filename and filename.endswith("/previous-hostname"):
             util.write_file(filename, hostname)
         else:
-            ret, _out, err = self.exec_cmd(
-                ["hostnamectl", "set-hostname", str(hostname)]
+            ret = None
+            create_hostname_file = util.get_cfg_option_bool(
+                self._cfg, "create_hostname_file", True
             )
+            if create_hostname_file:
+                ret, _out, err = self.exec_cmd(
+                    ["hostnamectl", "set-hostname", str(hostname)]
+                )
+            else:
+                ret, _out, err = self.exec_cmd(
+                    [
+                        "hostnamectl",
+                        "set-hostname",
+                        "--transient",
+                        str(hostname),
+                    ]
+                )
+                LOG.info(
+                    "create_hostname_file is False; hostname set transiently"
+                )
             if ret:
                 LOG.warning(
                     (
@@ -111,7 +126,7 @@ class Distro(distros.Distro):
 
     def _read_hostname(self, filename, default=None):
         if filename and filename.endswith("/previous-hostname"):
-            return util.load_file(filename).strip()
+            return util.load_text_file(filename).strip()
 
         _ret, out, _err = self.exec_cmd(["hostname", "-f"])
         return out.strip() if out else default

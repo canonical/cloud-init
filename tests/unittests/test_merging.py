@@ -7,8 +7,15 @@ import random
 import re
 import string
 
+import pytest
+
 from cloudinit import helpers as c_helpers
 from cloudinit import util
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
 from cloudinit.handlers import CONTENT_END, CONTENT_START, cloud_config
 from tests.unittests import helpers
 
@@ -41,7 +48,7 @@ def _old_mergemanydict(*args):
 
 def _random_str(rand):
     base = ""
-    for _i in range(rand.randint(1, 2 ** 8)):
+    for _i in range(rand.randint(1, 2**8)):
         base += rand.choice(string.ascii_letters + string.digits)
     return base
 
@@ -63,7 +70,7 @@ def _make_dict(current_depth, max_depth, rand):
     if t in [dict, list, tuple]:
         if t in [dict]:
             amount = rand.randint(0, 5)
-            keys = [_random_str(rand) for _i in range(0, amount)]
+            keys = [_random_str(rand) for _i in range(amount)]
             base = {}
             for k in keys:
                 try:
@@ -73,7 +80,7 @@ def _make_dict(current_depth, max_depth, rand):
         elif t in [list, tuple]:
             base = []
             amount = rand.randint(0, 5)
-            for _i in range(0, amount):
+            for _i in range(amount):
                 try:
                     base.append(_make_dict(current_depth + 1, max_depth, rand))
                 except _NoMoreException:
@@ -81,7 +88,7 @@ def _make_dict(current_depth, max_depth, rand):
             if t in [tuple]:
                 base = tuple(base)
     elif t in [int]:
-        base = rand.randint(0, 2 ** 8)
+        base = rand.randint(0, 2**8)
     elif t in [str]:
         base = _random_str(rand)
     return base
@@ -115,8 +122,8 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
         for i in sorted(source_ids.keys()):
             source_file_contents = []
             for fn in sorted(source_ids[i]):
-                source_file_contents.append([fn, util.load_file(fn)])
-            expected = util.load_yaml(util.load_file(expected_files[i]))
+                source_file_contents.append([fn, util.load_text_file(fn)])
+            expected = util.load_yaml(util.load_text_file(expected_files[i]))
             entry = [source_file_contents, [expected, expected_files[i]]]
             tests.append(entry)
         return tests
@@ -257,4 +264,152 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
         self.assertEqual(c, d)
 
 
-# vi: ts=4 expandtab
+class TestMergingSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            ({"merge_how": "list()+dict()+str()"}, None),
+            ({"merge_type": "list()+dict()+str()"}, None),
+            ({"merge_how": []}, f"\\[\\] {helpers.SCHEMA_EMPTY_ERROR}"),
+            (
+                {"merge_how": {"name": "list", "settings": ["append"]}},
+                "is not of type",
+            ),
+            (
+                {"merge_how": [{"name": "list", "settings": "append"}]},
+                "'append' is not of type 'array'",
+            ),
+            (
+                {
+                    "merge_how": [
+                        {
+                            "settings": ["recurse_list"],
+                        }
+                    ]
+                },
+                "'name' is a required property",
+            ),
+            (
+                {
+                    "merge_how": [
+                        {
+                            "name": "list",
+                        }
+                    ]
+                },
+                "'settings' is a required property",
+            ),
+            (
+                {
+                    "merge_how": [
+                        {
+                            "name": "str",
+                            "settings": ["recurse_list"],
+                            "badkey": "append",
+                        }
+                    ]
+                },
+                (
+                    "Additional properties are not allowed "
+                    "\\('badkey' was unexpected\\)"
+                ),
+            ),
+            (
+                {
+                    "merge_how": [
+                        {
+                            "name": "str",
+                            "settings": ["badvalue"],
+                        }
+                    ]
+                },
+                "'badvalue' is not one of",
+            ),
+            (
+                {
+                    "merge_how": [
+                        {
+                            "name": "badvalue",
+                            "settings": ["append"],
+                        }
+                    ]
+                },
+                re.escape("'badvalue' is not one of ['list', 'dict', 'str']"),
+            ),
+            (
+                {
+                    "merge_how": [
+                        {
+                            "name": "str",
+                            "settings": [
+                                "append",
+                                "recurse_dict",
+                                "recurse_list",
+                            ],
+                        },
+                        {
+                            "name": "dict",
+                            "settings": [
+                                "allow_delete",
+                                "no_replace",
+                                "replace",
+                                "recurse_array",
+                            ],
+                        },
+                        {
+                            "name": "list",
+                            "settings": [
+                                "append",
+                                "prepend",
+                                "no_replace",
+                                "replace",
+                                "recurse_str",
+                            ],
+                        },
+                    ]
+                },
+                None,
+            ),
+            (
+                {
+                    "merge_type": [
+                        {
+                            "name": "str",
+                            "settings": [
+                                "append",
+                                "recurse_dict",
+                                "recurse_list",
+                            ],
+                        },
+                        {
+                            "name": "dict",
+                            "settings": [
+                                "allow_delete",
+                                "no_replace",
+                                "replace",
+                                "recurse_array",
+                            ],
+                        },
+                        {
+                            "name": "list",
+                            "settings": [
+                                "append",
+                                "prepend",
+                                "no_replace",
+                                "replace",
+                                "recurse_str",
+                            ],
+                        },
+                    ]
+                },
+                None,
+            ),
+        ],
+    )
+    @helpers.skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)

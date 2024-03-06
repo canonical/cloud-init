@@ -102,7 +102,3 @@ chef:
   # If encrypted data bags are used, the client needs to have a secrets file
   # configured to decrypt them
   encrypted_data_bag_secret: "/etc/chef/encrypted_data_bag_secret"
-
-# Capture all subprocess output into a logfile
-# Useful for troubleshooting cloud-init issues
-output: {all: '| tee -a /var/log/cloud-init-output.log'}

@@ -3,19 +3,15 @@
 # (ie run apt-get update)
 #
 # Default: true
-# Aliases: apt_update
 package_update: false
 
 # Upgrade the instance on first boot
-# (ie run apt-get upgrade)
 #
 # Default: false
-# Aliases: apt_upgrade
 package_upgrade: true
 
 # Reboot after package install/update if necessary
 # Default: false
-# Aliases: apt_reboot_if_required
 package_reboot_if_required: true
 
 # For 'apt' specific config, see cloud-config-apt.txt
@@ -69,7 +65,7 @@ ssh_authorized_keys:
 # Send pre-generated ssh private keys to the server
 # If these are present, they will be written to /etc/ssh and
 # new random keys will not be generated
-#  in addition to 'rsa' and 'dsa' as shown below, 'ecdsa' is also supported
+#  in addition to 'rsa' as shown below, 'ecdsa' is also supported
 ssh_keys:
   rsa_private: |
     -----BEGIN RSA PRIVATE KEY-----
@@ -86,23 +82,6 @@ ssh_keys:
     -----END RSA PRIVATE KEY-----
 
   rsa_public: ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7XdewmZ3h8eIXJD7TRHtVW7aJX1ByifYtlL/HVzJ09nilCl+MSFrpbFnqjxyL8Rr/DSf7QcY/BrGUQbZn2Kc22PemAWthxHO18QJvWPocKJtlsDNi3 smoser@localhost
-
-  dsa_private: |
-    -----BEGIN DSA PRIVATE KEY-----
-    MIIBuwIBAAKBgQDP2HLu7pTExL89USyM0264RCyWX/CMLmukxX0Jdbm29ax8FBJT
-    pLrO8TIXVY5rPAJm1dTHnpuyJhOvU9G7M8tPUABtzSJh4GVSHlwaCfycwcpLv9TX
-    DgWIpSj+6EiHCyaRlB1/CBp9RiaB+10QcFbm+lapuET+/Au6vSDp9IRtlQIVAIMR
-    8KucvUYbOEI+yv+5LW9u3z/BAoGBAI0q6JP+JvJmwZFaeCMMVxXUbqiSko/P1lsa
-    LNNBHZ5/8MOUIm8rB2FC6ziidfueJpqTMqeQmSAlEBCwnwreUnGfRrKoJpyPNENY
-    d15MG6N5J+z81sEcHFeprryZ+D3Ge9VjPq3Tf3NhKKwCDQ0240aPezbnjPeFm4mH
-    bYxxcZ9GAoGAXmLIFSQgiAPu459rCKxT46tHJtM0QfnNiEnQLbFluefZ/yiI4DI3
-    8UzTCOXLhUA7ybmZha+D/csj15Y9/BNFuO7unzVhikCQV9DTeXX46pG4s1o23JKC
-    /QaYWNMZ7kTRv+wWow9MhGiVdML4ZN4XnifuO5krqAybngIy66PMEoQCFEIsKKWv
-    99iziAH0KBMVbxy03Trz
-    -----END DSA PRIVATE KEY-----
-
-  dsa_public: ssh-dss AAAAB3NzaC1kc3MAAACBAM/Ycu7ulMTEvz1RLIzTbrhELJZf8Iwua6TFfQl1ubb1rHwUElOkus7xMhdVjms8AmbV1Meem7ImE69T0bszy09QAG3NImHgZVIeXBoJ/JzByku/1NcOBYilKP7oSIcLJpGUHX8IGn1GJoH7XRBwVub6Vqm4RP78C7q9IOn0hG2VAAAAFQCDEfCrnL1GGzhCPsr/uS1vbt8/wQAAAIEAjSrok/4m8mbBkVp4IwxXFdRuqJKSj8/WWxos00Ednn/ww5QibysHYULrOKJ1+54mmpMyp5CZICUQELCfCt5ScZ9GsqgmnI80Q1h3Xkwbo3kn7PzWwRwcV6muvJn4PcZ71WM+rdN/c2EorAINDTbjRo97NueM94WbiYdtjHFxn0YAAACAXmLIFSQgiAPu459rCKxT46tHJtM0QfnNiEnQLbFluefZ/yiI4DI38UzTCOXLhUA7ybmZha+D/csj15Y9/BNFuO7unzVhikCQV9DTeXX46pG4s1o23JKC/QaYWNMZ7kTRv+wWow9MhGiVdML4ZN4XnifuO5krqAybngIy66PMEoQ= smoser@localhost
-
 
 # remove access to the ec2 metadata service early in boot via null route
 #  the null route can be removed (by root) with:
@@ -135,29 +114,15 @@ runcmd:
 
 # boot commands
 # default: none
-# this is very similar to runcmd above, but commands run very early
+# This is very similar to runcmd above, but commands run very early
 # in the boot process, only slightly after a 'boothook' would run.
-# bootcmd should really only be used for things that could not be
-# done later in the boot process.  bootcmd is very much like
-# boothook, but possibly with more friendly.
-#  * bootcmd will run on every boot
-#  * the INSTANCE_ID variable will be set to the current instance id.
-#  * you can use 'cloud-init-per' command to help only run once
+#  - bootcmd will run on every boot
+#  - INSTANCE_ID variable will be set to the current instance ID
+#  - 'cloud-init-per' command can be used to make bootcmd run exactly once
 bootcmd:
  - echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts
  - [ cloud-init-per, once, mymkfs, mkfs, /dev/vdb ]
 
-# cloud_config_modules:
-# default:
-# cloud_config_modules:
-# - mounts
-# - ssh
-# - apt-update-upgrade
-# - puppet
-# - updates-check
-# - disable-ec2-metadata
-# - runcmd
-#
 # This is an array of arrays or strings.
 # if item is a string, then it is read as a module name
 # if the item is an array it is of the form:
@@ -165,18 +130,17 @@ bootcmd:
 # where 'frequency' is one of:
 #   once-per-instance
 #   always
-# a python file in the CloudConfig/ module directory named 
+# a python file in the CloudConfig/ module directory named
 # cc_<name>.py
 # example:
 cloud_config_modules:
  - mounts
- - ssh-import-id
+ - ssh_import_id
  - ssh
- - grub-dpkg
- - [ apt-update-upgrade, always ]
+ - grub_dpkg
+ - [ apt_update_upgrade, always ]
  - puppet
- - updates-check
- - disable-ec2-metadata
+ - disable_ec2_metadata
  - runcmd
  - byobu
 
@@ -187,7 +151,7 @@ cloud_config_modules:
 # The default is an empty list (ie, trust modules).
 #
 # Example:
-#   unverified_modules: ['apt-update-upgrade']
+#   unverified_modules: ['apt_update_upgrade']
 #   default: []
 
 # ssh_import_id: [ user1, user2 ]
@@ -203,14 +167,14 @@ ssh_import_id: [smoser]
 #
 # Default: none
 #
-debconf_selections:
-  # Force debconf priority to critical.
-  set1: debconf debconf/priority select critical
-
-  # Override default frontend to readline, but allow user to select.
-  set2: |
-    debconf debconf/frontend select readline
-    debconf debconf/frontend seen false
+apt:
+  debconf_selections:
+    # Force debconf priority to critical.
+    set1: debconf debconf/priority select critical
+    # Override default frontend to readline, but allow user to select.
+    set2: |
+      debconf debconf/frontend select readline
+      debconf debconf/frontend seen false
 
 # manage byobu defaults
 # byobu_by_default:
@@ -257,21 +221,6 @@ locale: en_US.UTF-8
 # render template default-locale.tmpl to locale_configfile
 locale_configfile: /etc/default/locale
 
-# add entries to rsyslog configuration
-# The first occurrence of a given filename will truncate. 
-# subsequent entries will append.
-# if value is a scalar, its content is assumed to be 'content', and the
-# default filename is used.
-# if filename is not provided, it will default to 'rsylog_filename'
-# if filename does not start with a '/', it will be put in 'rsyslog_dir'
-# rsyslog_dir default: /etc/rsyslog.d
-# rsyslog_filename default: 20-cloud-config.conf
-rsyslog:
- - ':syslogtag, isequal, "[CLOUDINIT]" /var/log/cloud-foo.log'
- - content: "*.*   @@192.0.2.1:10514"
- - filename: 01-examplecom.conf
-   content: "*.*   @@syslogd.example.com"
-
 # resize_rootfs should the / filesystem be resized on first boot
 # this allows you to launch an instance with a larger disk / partition
 # and have the instance automatically grow / to accomoddate it
@@ -315,13 +264,13 @@ resize_rootfs: True
 #
 #  * fqdn:
 #      this option will be used wherever 'fqdn' is needed.
-#      simply substitue it in the description above.
+#      simply substitute it in the description above.
 #      default: fqdn as returned by the metadata service.  on EC2 'hostname'
 #               is used, so this is like: ip-10-244-170-199.ec2.internal
 #
 # == /etc/hosts management ==
 #
-# The cloud-config variable that covers management of /etc/hosts is 
+# The cloud-config variable that covers management of /etc/hosts is
 # 'manage_etc_hosts'
 #
 # By default, its value is 'false' (boolean False)
@@ -330,29 +279,29 @@ resize_rootfs: True
 #      default: false
 #
 #    false:
-#      cloud-init will not modify /etc/hosts at all.  
+#      cloud-init will not modify /etc/hosts at all.
 #      * Whatever is present at instance boot time will be present after boot.
 #      * User changes will not be overwritten
 #
-#    true or 'template':
-#      on every boot, /etc/hosts will be re-written from 
+#    true:
+#      on every boot, /etc/hosts will be re-written from
 #      /etc/cloud/templates/hosts.tmpl.
 #      The strings '$hostname' and '$fqdn' are replaced in the template
 #      with the appropriate values.
-#      To make modifications persistent across a reboot, you must make 
+#      To make modifications persistent across a reboot, you must make
 #      modificatoins to /etc/cloud/templates/hosts.tmpl
 #
 #    localhost:
 #      This option ensures that an entry is present for fqdn as described in
-#      section 5.1.2 of the debian manual 
+#      section 5.1.2 of the debian manual
 #      http://www.debian.org/doc/manuals/debian-reference/ch05.en.html
 #
-#      cloud-init will generally own the 127.0.1.1 entry, and will update 
+#      cloud-init will generally own the 127.0.1.1 entry, and will update
 #      it to the hostname and fqdn on every boot.  All other entries will
 #      be left as is.  'ping `hostname`' will ping 127.0.1.1
 #
 #      If you want a fqdn entry with aliases other than 'hostname' to resolve
-#      to a localhost interface, you'll need to use something other than 
+#      to a localhost interface, you'll need to use something other than
 #      127.0.1.1.  For example:
 #        127.0.1.2 myhost.fqdn.example.com myhost whatup.example.com
 
@@ -363,25 +312,6 @@ resize_rootfs: True
 # This message is rendered as if it were a template.  If you
 # want jinja, you have to start the line with '## template:jinja\n'
 final_message: "The system is finally up, after $UPTIME seconds"
-
-# configure where output will go
-# 'output' entry is a dict with 'init', 'config', 'final' or 'all'
-# entries.  Each one defines where 
-#  cloud-init, cloud-config, cloud-config-final or all output will go
-# each entry in the dict can be a string, list or dict.
-#  if it is a string, it refers to stdout and stderr
-#  if it is a list, entry 0 is stdout, entry 1 is stderr
-#  if it is a dict, it is expected to have 'output' and 'error' fields
-# default is to write to console only
-# the special entry "&1" for an error means "same location as stdout"
-#  (Note, that '&1' has meaning in yaml, so it must be quoted)
-output:
-  init: "> /var/log/my-cloud-init.log"
-  config: [ ">> /tmp/foo.out", "> /tmp/foo.err" ]
-  final:
-    output: "| tee /tmp/final.stdout | tee /tmp/bar.stdout"
-    error: "&1"
-
 
 # phone_home: if this dictionary is present, then the phone_home
 # cloud-config module will post specified data back to the given
@@ -394,31 +324,11 @@ output:
 #
 phone_home:
   url: http://my.example.com/$INSTANCE_ID/
-  post: [ pub_key_dsa, pub_key_rsa, pub_key_ecdsa, instance_id ]
+  post: [ pub_key_rsa, pub_key_ecdsa, instance_id ]
 
 # timezone: set the timezone for this instance
 # the value of 'timezone' must exist in /usr/share/zoneinfo
 timezone: US/Eastern
-
-# def_log_file and syslog_fix_perms work together
-# if 
-# - logging is set to go to a log file 'L' both with and without syslog
-# - and 'L' does not exist
-# - and syslog is configured to write to 'L'
-# then 'L' will be initially created with root:root ownership (during
-# cloud-init), and then at cloud-config time (when syslog is available)
-# the syslog daemon will be unable to write to the file.
-#
-# to remedy this situation, 'def_log_file' can be set to a filename
-# and syslog_fix_perms to a string containing "<user>:<group>"
-# if syslog_fix_perms is a list, it will iterate through and use the
-# first pair that does not raise error.
-#
-# the default values are '/var/log/cloud-init.log' and 'syslog:adm'
-# the value of 'def_log_file' should match what is configured in logging
-# if either is empty, then no change of ownership will be done
-def_log_file: /var/log/my-logging-file.log
-syslog_fix_perms: syslog:root
 
 # you can set passwords for a user or multiple users
 # this is off by default.
@@ -447,15 +357,20 @@ syslog_fix_perms: syslog:root
 # to set hashed password, here account 'user3' has a password it set to
 # 'cloud-init', hashed with SHA-256:
 # chpasswd:
-#   list: |
-#     user1:password1
-#     user2:RANDOM
-#     user3:$5$eriogqzq$Dg7PxHsKGzziuEGkZgkLvacjuEFeljJ.rLf.hZqKQLA
+#   users:
+#    - name: user1
+#      password: password1
+#      type: text
+#    - user2
+#      type: RANDOM
+#    - user3
+#      password: $5$eriogqzq$Dg7PxHsKGzziuEGkZgkLvacjuEFeljJ.rLf.hZqKQLA
+#      type: hash
 #   expire: True
 # ssh_pwauth: [ True, False, "" or "unchanged" ]
 #
-# Hashed passwords can be generated in multiple ways, example with python3:
-# python3 -c 'import crypt,getpass; print(crypt.crypt(getpass.getpass(), crypt.mksalt(crypt.METHOD_SHA512)))'
+# Hashed passwords can be generated in multiple ways, example with python3 and the passlib module:
+# python3 -c 'import passlib.hash;print(passlib.hash.sha512_crypt.hash("password"))'
 # Newer versions of 'mkpasswd' will also work: mkpasswd -m sha-512 password
 #
 # So, a simple working example to allow login via ssh, and not expire
@@ -463,27 +378,6 @@ syslog_fix_perms: syslog:root
 password: passw0rd
 chpasswd: { expire: False }
 ssh_pwauth: True
-
-# manual cache clean.
-#  By default, the link from /var/lib/cloud/instance to
-#  the specific instance in /var/lib/cloud/instances/ is removed on every
-#  boot.  The cloud-init code then searches for a DataSource on every boot
-#  if your DataSource will not be present on every boot, then you can set
-#  this option to 'True', and maintain (remove) that link before the image
-#  will be booted as a new instance.
-# default is False
-manual_cache_clean: False
-
-# When cloud-init is finished running including having run 
-# cloud_init_modules, then it will run this command.  The default
-# is to emit an upstart signal as shown below.  If the value is a
-# list, it will be passed to Popen.  If it is a string, it will be
-# invoked through 'sh -c'.
-# 
-# default value:
-# cc_ready_cmd: [ initctl, emit, cloud-config, CLOUD_CFG=/var/lib/instance//cloud-config.txt ]
-# example:
-# cc_ready_cmd: [ sh, -c, 'echo HI MOM > /tmp/file' ]
 
 ## configure interaction with ssh server
 # ssh_svcname: ssh
@@ -494,7 +388,7 @@ manual_cache_clean: False
 #    boolean indicating if existing ssh keys should be deleted on a
 #    per-instance basis.  On a public image, this should absolutely be set
 #    to 'True'
-# ssh_genkeytypes: ['rsa', 'dsa', 'ecdsa']
+# ssh_genkeytypes: ['rsa', 'ecdsa']
 #    a list of the ssh key types that should be generated
 #    These are passed to 'ssh-keygen -t'
 

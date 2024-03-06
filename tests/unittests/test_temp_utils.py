@@ -3,12 +3,15 @@
 """Tests for cloudinit.temp_utils"""
 
 import os
+from tempfile import gettempdir
 
 from cloudinit.temp_utils import mkdtemp, mkstemp, tempdir
 from tests.unittests.helpers import CiTestCase, wrap_and_call
 
 
 class TestTempUtils(CiTestCase):
+    prefix = gettempdir()
+
     def test_mkdtemp_default_non_root(self):
         """mkdtemp creates a dir under /tmp for the unprivileged."""
         calls = []
@@ -28,7 +31,7 @@ class TestTempUtils(CiTestCase):
             mkdtemp,
         )
         self.assertEqual("/fake/return/path", retval)
-        self.assertEqual([{"dir": "/tmp"}], calls)
+        self.assertEqual([{"dir": self.prefix}], calls)
 
     def test_mkdtemp_default_non_root_needs_exe(self):
         """mkdtemp creates a dir under /var/tmp/cloud-init when needs_exe."""
@@ -45,6 +48,7 @@ class TestTempUtils(CiTestCase):
                 "tempfile.mkdtemp": {"side_effect": fake_mkdtemp},
                 "_TMPDIR": {"new": None},
                 "os.path.isdir": True,
+                "util.has_mount_opt": True,
             },
             mkdtemp,
             needs_exe=True,
@@ -92,7 +96,7 @@ class TestTempUtils(CiTestCase):
             mkstemp,
         )
         self.assertEqual("/fake/return/path", retval)
-        self.assertEqual([{"dir": "/tmp"}], calls)
+        self.assertEqual([{"dir": self.prefix}], calls)
 
     def test_mkstemp_default_root(self):
         """mkstemp creates a secure tempfile in /run/cloud-init for root."""
@@ -130,6 +134,3 @@ class TestTempUtils(CiTestCase):
             os.rmdir(tdir)
             # Since the directory is already gone, shutil.rmtree would raise
             # OSError, but we suppress that
-
-
-# vi: ts=4 expandtab

@@ -9,15 +9,15 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import logging
 
-from cloudinit import log as logging
 from cloudinit import user_data as ud
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
 
-class Filter(object):
+class Filter:
     def __init__(self, wanted_idx, allow_none=True):
         self.wanted_idx = wanted_idx
         self.allow_none = allow_none
@@ -64,6 +64,3 @@ class Filter(object):
         if self.wanted_idx is None:
             return root_message
         return self._do_filter(root_message)
-
-
-# vi: ts=4 expandtab

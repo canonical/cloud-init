@@ -3,26 +3,37 @@
 import logging
 from collections import namedtuple
 
+import pytest
+
 from cloudinit.config.cc_resizefs import (
+    _resize_bcachefs,
     _resize_btrfs,
     _resize_ext,
     _resize_ufs,
     _resize_xfs,
     _resize_zfs,
     can_skip_resize,
+    get_device_info_from_zpool,
     handle,
     maybe_get_writable_device_path,
+)
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
 )
 from cloudinit.subp import ProcessExecutionError
 from tests.unittests.helpers import (
     CiTestCase,
     mock,
+    readResource,
     skipUnlessJsonSchema,
     util,
     wrap_and_call,
 )
 
 LOG = logging.getLogger(__name__)
+M_PATH = "cloudinit.config.cc_resizefs."
 
 
 class TestResizefs(CiTestCase):
@@ -76,56 +87,42 @@ class TestResizefs(CiTestCase):
     def test_handle_noops_on_disabled(self):
         """The handle function logs when the configuration disables resize."""
         cfg = {"resize_rootfs": False}
-        handle("cc_resizefs", cfg, _cloud=None, log=LOG, args=[])
+        handle("cc_resizefs", cfg, cloud=None, args=[])
         self.assertIn(
             "DEBUG: Skipping module named cc_resizefs, resizing disabled\n",
             self.logs.getvalue(),
         )
 
-    @skipUnlessJsonSchema()
-    def test_handle_schema_validation_logs_invalid_resize_rootfs_value(self):
-        """The handle reports json schema violations as a warning.
-
-        Invalid values for resize_rootfs result in disabling the module.
-        """
-        cfg = {"resize_rootfs": "junk"}
-        handle("cc_resizefs", cfg, _cloud=None, log=LOG, args=[])
-        logs = self.logs.getvalue()
-        self.assertIn(
-            "WARNING: Invalid cloud-config provided:\nresize_rootfs: 'junk' is"
-            " not one of [True, False, 'noblock']",
-            logs,
-        )
-        self.assertIn(
-            "DEBUG: Skipping module named cc_resizefs, resizing disabled\n",
-            logs,
-        )
-
     @mock.patch("cloudinit.config.cc_resizefs.util.get_mount_info")
-    def test_handle_warns_on_unknown_mount_info(self, m_get_mount_info):
+    @mock.patch("cloudinit.config.cc_resizefs.LOG")
+    def test_handle_warns_on_unknown_mount_info(self, m_log, m_get_mount_info):
         """handle warns when get_mount_info sees unknown filesystem for /."""
         m_get_mount_info.return_value = None
         cfg = {"resize_rootfs": True}
-        handle("cc_resizefs", cfg, _cloud=None, log=LOG, args=[])
+        handle("cc_resizefs", cfg, cloud=None, args=[])
         logs = self.logs.getvalue()
         self.assertNotIn(
             "WARNING: Invalid cloud-config provided:\nresize_rootfs:", logs
         )
-        self.assertIn(
-            "WARNING: Could not determine filesystem type of /\n", logs
+        self.assertEqual(
+            ("Could not determine filesystem type of %s", "/"),
+            m_log.warning.call_args[0],
         )
         self.assertEqual(
-            [mock.call("/", LOG)], m_get_mount_info.call_args_list
+            [mock.call("/", m_log)], m_get_mount_info.call_args_list
         )
 
-    def test_handle_warns_on_undiscoverable_root_path_in_commandline(self):
+    @mock.patch("cloudinit.config.cc_resizefs.LOG")
+    def test_handle_warns_on_undiscoverable_root_path_in_commandline(
+        self, m_log
+    ):
         """handle noops when the root path is not found on the commandline."""
         cfg = {"resize_rootfs": True}
         exists_mock_path = "cloudinit.config.cc_resizefs.os.path.exists"
 
         def fake_mount_info(path, log):
             self.assertEqual("/", path)
-            self.assertEqual(LOG, log)
+            self.assertEqual(m_log, log)
             return ("/dev/root", "ext4", "/")
 
         with mock.patch(exists_mock_path) as m_exists:
@@ -140,12 +137,12 @@ class TestResizefs(CiTestCase):
                 handle,
                 "cc_resizefs",
                 cfg,
-                _cloud=None,
-                log=LOG,
+                cloud=None,
                 args=[],
             )
-        logs = self.logs.getvalue()
-        self.assertIn("WARNING: Unable to find device '/dev/root'", logs)
+        self.assertIn(
+            "Unable to find device '/dev/root'", m_log.warning.call_args[0]
+        )
 
     def test_resize_zfs_cmd_return(self):
         zpool = "zroot"
@@ -176,9 +173,17 @@ class TestResizefs(CiTestCase):
             ("growfs", "-y", mount_point), _resize_ufs(mount_point, devpth)
         )
 
+    def test_resize_bcachefs_cmd_return(self):
+        mount_point = "/"
+        devpth = "/dev/sdf3"
+        self.assertEqual(
+            ("bcachefs", "device", "resize", devpth),
+            _resize_bcachefs(mount_point, devpth),
+        )
+
     @mock.patch("cloudinit.util.is_container", return_value=False)
     @mock.patch("cloudinit.util.parse_mount")
-    @mock.patch("cloudinit.util.get_device_info_from_zpool")
+    @mock.patch("cloudinit.config.cc_resizefs.get_device_info_from_zpool")
     @mock.patch("cloudinit.util.get_mount_info")
     def test_handle_zfs_root(
         self, mount_info, zpool_info, parse_mount, is_container
@@ -195,14 +200,14 @@ class TestResizefs(CiTestCase):
         cfg = {"resize_rootfs": True}
 
         with mock.patch("cloudinit.config.cc_resizefs.do_resize") as dresize:
-            handle("cc_resizefs", cfg, _cloud=None, log=LOG, args=[])
-            ret = dresize.call_args[0][0]
+            handle("cc_resizefs", cfg, cloud=None, args=[])
+            ret = dresize.call_args[0]
 
-        self.assertEqual(("zpool", "online", "-e", "vmzroot", disk), ret)
+        self.assertEqual((("zpool", "online", "-e", "vmzroot", disk),), ret)
 
     @mock.patch("cloudinit.util.is_container", return_value=False)
     @mock.patch("cloudinit.util.get_mount_info")
-    @mock.patch("cloudinit.util.get_device_info_from_zpool")
+    @mock.patch("cloudinit.config.cc_resizefs.get_device_info_from_zpool")
     @mock.patch("cloudinit.util.parse_mount")
     def test_handle_modern_zfsroot(
         self, mount_info, zpool_info, parse_mount, is_container
@@ -229,11 +234,10 @@ class TestResizefs(CiTestCase):
         with mock.patch("cloudinit.config.cc_resizefs.do_resize") as dresize:
             with mock.patch("cloudinit.config.cc_resizefs.os.stat") as m_stat:
                 m_stat.side_effect = fake_stat
-                handle("cc_resizefs", cfg, _cloud=None, log=LOG, args=[])
-
+                handle("cc_resizefs", cfg, cloud=None, args=[])
         self.assertEqual(
-            ("zpool", "online", "-e", "zroot", "/dev/" + disk),
-            dresize.call_args[0][0],
+            (("zpool", "online", "-e", "zroot", "/dev/" + disk),),
+            dresize.call_args[0],
         )
 
 
@@ -288,7 +292,6 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
             maybe_get_writable_device_path,
             "overlayroot",
             info,
-            LOG,
         )
         self.assertIsNone(devpath)
         self.assertIn(
@@ -318,7 +321,6 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
                 maybe_get_writable_device_path,
                 "/dev/root",
                 info,
-                LOG,
             )
         self.assertIsNone(devpath)
         logs = self.logs.getvalue()
@@ -333,7 +335,6 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
             maybe_get_writable_device_path,
             "/dev/I/dont/exist",
             info,
-            LOG,
         )
         self.assertIsNone(devpath)
         self.assertIn(
@@ -351,7 +352,6 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
             maybe_get_writable_device_path,
             "/dev/I/dont/exist",
             info,
-            LOG,
         )
         self.assertIsNone(devpath)
         self.assertIn(
@@ -375,7 +375,6 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
                 maybe_get_writable_device_path,
                 "/dev/I/dont/exist",
                 info,
-                LOG,
             )
         self.assertEqual(
             "Something unexpected", str(context_manager.exception)
@@ -393,7 +392,6 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
             maybe_get_writable_device_path,
             fake_devpath,
             info,
-            LOG,
         )
         self.assertIsNone(devpath)
         self.assertIn(
@@ -415,7 +413,6 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
             maybe_get_writable_device_path,
             fake_devpath,
             info,
-            LOG,
         )
         self.assertIsNone(devpath)
         self.assertIn(
@@ -445,7 +442,6 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
             maybe_get_writable_device_path,
             "/dev/root",
             info,
-            LOG,
         )
         self.assertEqual("/dev/disk/by-uuid/my-uuid", devpath)
         self.assertIn(
@@ -456,10 +452,12 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
 
     @mock.patch("cloudinit.util.mount_is_read_write")
     @mock.patch("cloudinit.config.cc_resizefs.os.path.isdir")
-    def test_resize_btrfs_mount_is_ro(self, m_is_dir, m_is_rw):
+    @mock.patch("cloudinit.subp.subp")
+    def test_resize_btrfs_mount_is_ro(self, m_subp, m_is_dir, m_is_rw):
         """Do not resize / directly if it is read-only. (LP: #1734787)."""
         m_is_rw.return_value = False
         m_is_dir.return_value = True
+        m_subp.return_value = ("btrfs-progs v4.19 \n", "")
         self.assertEqual(
             ("btrfs", "filesystem", "resize", "max", "//.snapshots"),
             _resize_btrfs("/", "/dev/sda1"),
@@ -467,12 +465,29 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
 
     @mock.patch("cloudinit.util.mount_is_read_write")
     @mock.patch("cloudinit.config.cc_resizefs.os.path.isdir")
-    def test_resize_btrfs_mount_is_rw(self, m_is_dir, m_is_rw):
+    @mock.patch("cloudinit.subp.subp")
+    def test_resize_btrfs_mount_is_rw(self, m_subp, m_is_dir, m_is_rw):
         """Do not resize / directly if it is read-only. (LP: #1734787)."""
         m_is_rw.return_value = True
         m_is_dir.return_value = True
+        m_subp.return_value = ("btrfs-progs v4.19 \n", "")
         self.assertEqual(
             ("btrfs", "filesystem", "resize", "max", "/"),
+            _resize_btrfs("/", "/dev/sda1"),
+        )
+
+    @mock.patch("cloudinit.util.mount_is_read_write")
+    @mock.patch("cloudinit.config.cc_resizefs.os.path.isdir")
+    @mock.patch("cloudinit.subp.subp")
+    def test_resize_btrfs_mount_is_rw_has_queue(
+        self, m_subp, m_is_dir, m_is_rw
+    ):
+        """Queue the resize request if btrfs >= 5.10"""
+        m_is_rw.return_value = True
+        m_is_dir.return_value = True
+        m_subp.return_value = ("btrfs-progs v5.10 \n", "")
+        self.assertEqual(
+            ("btrfs", "filesystem", "resize", "--enqueue", "max", "/"),
             _resize_btrfs("/", "/dev/sda1"),
         )
 
@@ -483,8 +498,70 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
     ):
         freebsd.return_value = True
         info = "dev=gpt/system mnt_point=/ path=/"
-        devpth = maybe_get_writable_device_path("gpt/system", info, LOG)
+        devpth = maybe_get_writable_device_path("gpt/system", info)
         self.assertEqual("gpt/system", devpth)
 
 
-# vi: ts=4 expandtab
+class TestResizefsSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            ({"resize_rootfs": True}, None),
+            (
+                {"resize_rootfs": "wrong"},
+                r"'wrong' is not one of \[True, False, 'noblock'\]",
+            ),
+        ],
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)
+
+
+class TestZpool:
+    @mock.patch(M_PATH + "os")
+    @mock.patch("cloudinit.subp.subp")
+    def test_get_device_info_from_zpool(self, zpool_output, m_os):
+        # mock /dev/zfs exists
+        m_os.path.exists.return_value = True
+        # mock subp command from util.get_mount_info_fs_on_zpool
+        zpool_output.return_value = (
+            readResource("zpool_status_simple.txt"),
+            "",
+        )
+        ret = get_device_info_from_zpool("vmzroot")
+        assert "gpt/system" == ret
+        m_os.path.exists.assert_called_with("/dev/zfs")
+
+    @mock.patch(M_PATH + "os")
+    @mock.patch("cloudinit.subp.subp", return_value=("", ""))
+    def test_get_device_info_from_zpool_no_dev_zfs(self, m_os, m_subp):
+        # mock /dev/zfs missing
+        m_os.path.exists.return_value = False
+        assert not get_device_info_from_zpool("vmzroot")
+
+    @mock.patch(M_PATH + "os")
+    @mock.patch("cloudinit.subp.subp")
+    def test_get_device_info_from_zpool_handles_no_zpool(self, m_sub, m_os):
+        """Handle case where there is no zpool command"""
+        # mock /dev/zfs exists
+        m_os.path.exists.return_value = True
+        m_sub.side_effect = ProcessExecutionError("No zpool cmd")
+        assert not get_device_info_from_zpool("vmzroot")
+
+    @mock.patch(M_PATH + "os")
+    @mock.patch("cloudinit.subp.subp")
+    def test_get_device_info_from_zpool_on_error(self, zpool_output, m_os):
+        # mock /dev/zfs exists
+        m_os.path.exists.return_value = True
+
+        # mock subp command from get_mount_info_fs_on_zpool
+        zpool_output.return_value = (
+            readResource("zpool_status_simple.txt"),
+            "error",
+        )
+        assert not get_device_info_from_zpool("vmzroot")

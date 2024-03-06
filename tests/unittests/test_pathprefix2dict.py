@@ -41,6 +41,3 @@ class TestPathPrefix2Dict(TestCase):
 
         ret = util.pathprefix2dict(self.tmp, required=["f1"], optional=["f2"])
         self.assertEqual(dirdata, ret)
-
-
-# vi: ts=4 expandtab

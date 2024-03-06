@@ -2,10 +2,17 @@
 
 import sys
 
+import pytest
+
 from cloudinit import distros, helpers
 from cloudinit.config import cc_power_state_change as psc
+from cloudinit.config.schema import (
+    SchemaValidationError,
+    get_schema,
+    validate_cloudconfig_schema,
+)
 from tests.unittests import helpers as t_help
-from tests.unittests.helpers import mock
+from tests.unittests.helpers import mock, skipUnlessJsonSchema
 
 
 class TestLoadPowerState(t_help.TestCase):
@@ -79,12 +86,16 @@ class TestLoadPowerState(t_help.TestCase):
         self.assertEqual(cond, True)
 
     def test_freebsd_poweroff_uses_lowercase_p(self):
-        cls = distros.fetch("freebsd")
-        paths = helpers.Paths({})
-        freebsd = cls("freebsd", {}, paths)
-        cfg = {"power_state": {"mode": "poweroff"}}
-        ret = psc.load_power_state(cfg, freebsd)
-        self.assertIn("-p", ret[0])
+        with mock.patch(
+            "cloudinit.distros.networking.subp.subp",
+            return_value=("", None),
+        ):
+            cls = distros.fetch("freebsd")
+            paths = helpers.Paths({})
+            freebsd = cls("freebsd", {}, paths)
+            cfg = {"power_state": {"mode": "poweroff"}}
+            ret = psc.load_power_state(cfg, freebsd)
+            self.assertIn("-p", ret[0])
 
     def test_alpine_delay(self):
         # alpine takes delay in seconds.
@@ -115,11 +126,9 @@ class TestCheckCondition(t_help.TestCase):
     def test_cmd_exit_one_false(self):
         self.assertEqual(psc.check_condition(self.cmd_with_exit(1)), False)
 
-    def test_cmd_exit_nonzero_warns(self):
-        mocklog = mock.Mock()
-        self.assertEqual(
-            psc.check_condition(self.cmd_with_exit(2), mocklog), False
-        )
+    @mock.patch("cloudinit.config.cc_power_state_change.LOG")
+    def test_cmd_exit_nonzero_warns(self, mocklog):
+        self.assertEqual(psc.check_condition(self.cmd_with_exit(2)), False)
         self.assertEqual(mocklog.warning.call_count, 1)
 
 
@@ -153,7 +162,56 @@ def check_lps_ret(psc_return, mode=None):
 
     if len(errs):
         lines = ["Errors in result: %s" % str(psc_return)] + errs
-        raise Exception("\n".join(lines))
+        raise RuntimeError("\n".join(lines))
 
 
-# vi: ts=4 expandtab
+class TestPowerStateChangeSchema:
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            # Invalid mode
+            (
+                {"power_state": {"mode": "test"}},
+                r"'test' is not one of \['poweroff', 'reboot', 'halt'\]",
+            ),
+            # Delay can be a number, a +number, or "now"
+            (
+                {"power_state": {"mode": "halt", "delay": "5"}},
+                (
+                    "Cloud config schema deprecations: "
+                    "power_state.delay:  Changed in version 22.3. Use "
+                    "of type string for this value is deprecated. Use "
+                    "``now`` or integer type."
+                ),
+            ),
+            ({"power_state": {"mode": "halt", "delay": "now"}}, None),
+            (
+                {"power_state": {"mode": "halt", "delay": "+5"}},
+                (
+                    "Cloud config schema deprecations: "
+                    "power_state.delay:  Changed in version 22.3. Use "
+                    "of type string for this value is deprecated. Use "
+                    "``now`` or integer type."
+                ),
+            ),
+            ({"power_state": {"mode": "halt", "delay": "+"}}, ""),
+            ({"power_state": {"mode": "halt", "delay": "++5"}}, ""),
+            ({"power_state": {"mode": "halt", "delay": "-5"}}, ""),
+            ({"power_state": {"mode": "halt", "delay": "test"}}, ""),
+            # Condition
+            ({"power_state": {"mode": "halt", "condition": False}}, None),
+            ({"power_state": {"mode": "halt", "condition": "ls /tmp"}}, None),
+            (
+                {"power_state": {"mode": "halt", "condition": ["ls", "/tmp"]}},
+                None,
+            ),
+            ({"power_state": {"mode": "halt", "condition": 5}}, ""),
+        ],
+    )
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self, config, error_msg):
+        if error_msg is None:
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, get_schema(), strict=True)

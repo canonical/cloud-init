@@ -1,9 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit import atomic_helper, util
+from tests.unittests.distros import _get_distro
 from tests.unittests.helpers import CiTestCase
-
-from . import _get_distro
 
 
 class TestGentoo(CiTestCase):
@@ -12,7 +11,9 @@ class TestGentoo(CiTestCase):
         hostname = "myhostname"
         hostfile = self.tmp_path("hostfile")
         distro._write_hostname(hostname, hostfile)
-        self.assertEqual('hostname="myhostname"\n', util.load_file(hostfile))
+        self.assertEqual(
+            'hostname="myhostname"\n', util.load_text_file(hostfile)
+        )
 
     def test_write_existing_hostname_with_comments(self):
         distro = _get_distro("gentoo")
@@ -23,5 +24,5 @@ class TestGentoo(CiTestCase):
         distro._write_hostname(hostname, hostfile)
         self.assertEqual(
             '#This is the hostname\nhostname="myhostname"\n',
-            util.load_file(hostfile),
+            util.load_text_file(hostfile),
         )

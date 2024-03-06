@@ -1,6 +1,6 @@
 ## template:jinja
 # Welcome to the chrony configuration file. See chrony.conf(5) for more
-# information about usuable directives.
+# information about usable directives.
 {% if pools %}# pools
 {% endif %}
 {% for pool in pools -%}
@@ -10,6 +10,12 @@ pool {{pool}} iburst
 {% endif %}
 {% for server in servers -%}
 server {{server}} iburst
+{% endfor %}
+{% for peer in peers -%}
+peer {{peer}}
+{% endfor %}
+{% for a in allow -%}
+allow {{a}}
 {% endfor %}
 
 # This directive specify the location of the file containing ID/key pairs for

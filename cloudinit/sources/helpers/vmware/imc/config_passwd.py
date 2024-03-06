@@ -9,12 +9,12 @@
 import logging
 import os
 
-from cloudinit import subp, util
+from cloudinit import atomic_helper, subp
 
 LOG = logging.getLogger(__name__)
 
 
-class PasswordConfigurator(object):
+class PasswordConfigurator:
     """
     Class for changing configurations related to passwords in a VM. Includes
     setting and expiring passwords.
@@ -30,7 +30,7 @@ class PasswordConfigurator(object):
         """
         LOG.info("Starting password configuration")
         if passwd:
-            passwd = util.b64d(passwd)
+            passwd = atomic_helper.b64d(passwd)
         allRootUsers = []
         for line in open("/etc/passwd", "r"):
             if line.split(":")[2] == "0":
@@ -67,6 +67,3 @@ class PasswordConfigurator(object):
                         user,
                         e,
                     )
-
-
-# vi: ts=4 expandtab

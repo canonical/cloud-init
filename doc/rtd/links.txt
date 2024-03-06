@@ -1,0 +1,13 @@
+.. LINKS
+
+.. _CLA: https://ubuntu.com/legal/contributors
+.. _Code of Conduct: https://ubuntu.com/community/code-of-conduct
+.. _Diataxis: https://diataxis.fr/
+.. _GH repo: https://github.com/canonical/cloud-init
+.. _GitHub: https://github.com
+.. _IRC: https://kiwiirc.com/nextclient/irc.libera.chat/cloud-init
+.. _Launchpad: https://launchpad.net
+.. _the docs: https://cloudinit.readthedocs.io/en/latest/
+.. _tox: https://tox.readthedocs.io/en/latest/
+.. _Discourse: https://discourse.ubuntu.com/c/server/cloud-init/54
+.. _Github quickstart: https://docs.github.com/en/get-started/quickstart

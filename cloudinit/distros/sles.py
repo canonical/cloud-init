@@ -9,6 +9,3 @@ from cloudinit.distros import opensuse
 
 class Distro(opensuse.Distro):
     pass
-
-
-# vi: ts=4 expandtab

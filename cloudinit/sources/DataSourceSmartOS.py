@@ -25,14 +25,15 @@ import binascii
 import errno
 import fcntl
 import json
+import logging
 import os
 import random
 import re
 import socket
 
-from cloudinit import dmi
-from cloudinit import log as logging
-from cloudinit import serial, sources, subp, util
+import serial
+
+from cloudinit import atomic_helper, dmi, sources, subp, util
 from cloudinit.event import EventScope, EventType
 
 LOG = logging.getLogger(__name__)
@@ -368,7 +369,7 @@ class JoyentMetadataTimeoutException(JoyentMetadataFetchException):
     pass
 
 
-class JoyentMetadataClient(object):
+class JoyentMetadataClient:
     """
     A client implementing v2 of the Joyent Metadata Protocol Specification.
 
@@ -417,7 +418,7 @@ class JoyentMetadataClient(object):
         if not frame_data.get("payload", None):
             LOG.debug("No value found.")
             return None
-        value = util.b64d(frame_data["payload"])
+        value = atomic_helper.b64d(frame_data["payload"])
         LOG.debug('Value "%s" found.', value)
         return value
 
@@ -523,9 +524,6 @@ class JoyentMetadataClient(object):
             [base64.b64encode(i.encode()) for i in (key, val)]
         ).decode()
         return self.request(rtype="PUT", param=param)
-
-    def delete(self, key):
-        return self.request(rtype="DELETE", param=key)
 
     def close_transport(self):
         if self.fp:
@@ -711,8 +709,7 @@ class JoyentMetadataLegacySerialClient(JoyentMetadataSerialClient):
         if self.is_b64_encoded(key):
             try:
                 val = base64.b64decode(val.encode()).decode()
-            # Bogus input produces different errors in Python 2 and 3
-            except (TypeError, binascii.Error):
+            except binascii.Error:
                 LOG.warning("Failed base64 decoding key '%s': %s", key, val)
 
         if strip:
@@ -778,7 +775,7 @@ def write_boot_content(
     @param shebang: if no file magic, set shebang
     @param mode: file mode
 
-    Becuase of the way that Cloud-init executes scripts (no shell),
+    Because of the way that Cloud-init executes scripts (no shell),
     a script will fail to execute if does not have a magic bit (shebang) set
     for the file. If shebang=True, then the script will be checked for a magic
     bit and to the SmartOS default of assuming that bash.
@@ -1049,10 +1046,8 @@ if __name__ == "__main__":
 
         return data[key]
 
-    data = {}
+    data: dict = {}
     for key in keys:
         load_key(client=jmc, key=key, data=data)
 
     print(json.dumps(data, indent=1, sort_keys=True, separators=(",", ": ")))
-
-# vi: ts=4 expandtab

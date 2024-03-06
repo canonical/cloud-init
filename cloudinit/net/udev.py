@@ -44,6 +44,3 @@ def generate_udev_rule(interface, mac, driver=None):
         ]
     )
     return "%s\n" % rule
-
-
-# vi: ts=4 expandtab syntax=python

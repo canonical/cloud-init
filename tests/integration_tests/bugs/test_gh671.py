@@ -5,11 +5,11 @@ through the Azure API that a change in the default password overwrites
 the old password
 """
 
-import crypt
-
+import passlib.hash
 import pytest
 
 from tests.integration_tests.clouds import IntegrationCloud
+from tests.integration_tests.integration_settings import PLATFORM
 
 OLD_PASSWORD = "DoIM33tTheComplexityRequirements!??"
 NEW_PASSWORD = "DoIM33tTheComplexityRequirementsNow!??"
@@ -17,12 +17,10 @@ NEW_PASSWORD = "DoIM33tTheComplexityRequirementsNow!??"
 
 def _check_password(instance, unhashed_password):
     shadow_password = instance.execute("getent shadow ubuntu").split(":")[1]
-    salt = shadow_password.rsplit("$", 1)[0]
-    hashed_password = crypt.crypt(unhashed_password, salt)
-    assert shadow_password == hashed_password
+    assert passlib.hash.sha512_crypt.verify(unhashed_password, shadow_password)
 
 
-@pytest.mark.azure
+@pytest.mark.skipif(PLATFORM != "azure", reason="Test is Azure specific")
 def test_update_default_password(setup_image, session_cloud: IntegrationCloud):
     os_profile = {
         "os_profile": {

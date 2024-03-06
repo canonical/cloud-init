@@ -1,16 +1,19 @@
 # See https://docs.pytest.org/en/stable/example
 # /parametrize.html#parametrizing-conditional-raising
-from contextlib import ExitStack as does_not_raise
+
+import textwrap
 from unittest import mock
 
 import pytest
 
 from cloudinit import net
+from cloudinit import safeyaml as yaml
 from cloudinit.distros.networking import (
     BSDNetworking,
     LinuxNetworking,
     Networking,
 )
+from tests.unittests.helpers import does_not_raise, readResource
 
 
 @pytest.fixture
@@ -23,6 +26,9 @@ def generic_networking_cls():
     """
 
     class TestNetworking(Networking):
+        def apply_network_config_names(self, *args, **kwargs):
+            raise NotImplementedError
+
         def is_physical(self, *args, **kwargs):
             raise NotImplementedError
 
@@ -41,6 +47,17 @@ def generic_networking_cls():
 
 
 @pytest.fixture
+def bsd_networking_cls(asset="netinfo/freebsd-ifconfig-output"):
+    """Returns a patched BSDNetworking class which already comes pre-loaded
+    with output for ``ifconfig -a``"""
+    ifs_txt = readResource(asset)
+    with mock.patch(
+        "cloudinit.distros.networking.subp.subp", return_value=(ifs_txt, None)
+    ):
+        yield BSDNetworking
+
+
+@pytest.fixture
 def sys_class_net(tmpdir):
     sys_class_net_path = tmpdir.join("sys/class/net")
     sys_class_net_path.ensure_dir()
@@ -52,9 +69,33 @@ def sys_class_net(tmpdir):
 
 
 class TestBSDNetworkingIsPhysical:
-    def test_raises_notimplementederror(self):
-        with pytest.raises(NotImplementedError):
-            BSDNetworking().is_physical("eth0")
+    def test_is_physical(self, bsd_networking_cls):
+        networking = bsd_networking_cls()
+        assert networking.is_physical("vtnet0")
+
+    def test_is_not_physical(self, bsd_networking_cls):
+        networking = bsd_networking_cls()
+        assert not networking.is_physical("re0.33")
+
+
+class TestBSDNetworkingIsVLAN:
+    def test_is_vlan(self, bsd_networking_cls):
+        networking = bsd_networking_cls()
+        assert networking.is_vlan("re0.33")
+
+    def test_is_not_physical(self, bsd_networking_cls):
+        networking = bsd_networking_cls()
+        assert not networking.is_vlan("vtnet0")
+
+
+class TestBSDNetworkingIsBridge:
+    def test_is_vlan(self, bsd_networking_cls):
+        networking = bsd_networking_cls()
+        assert networking.is_bridge("bridge0")
+
+    def test_is_not_physical(self, bsd_networking_cls):
+        networking = bsd_networking_cls()
+        assert not networking.is_bridge("vtnet0")
 
 
 class TestLinuxNetworkingIsPhysical:
@@ -77,10 +118,20 @@ class TestLinuxNetworkingIsPhysical:
         assert LinuxNetworking().is_physical(devname)
 
 
+@mock.patch("cloudinit.distros.networking.BSDNetworking.is_up")
 class TestBSDNetworkingTrySetLinkUp:
-    def test_raises_notimplementederror(self):
-        with pytest.raises(NotImplementedError):
-            BSDNetworking().try_set_link_up("eth0")
+    def test_calls_subp_return_true(self, m_is_up, bsd_networking_cls):
+        devname = "vtnet0"
+        networking = bsd_networking_cls()
+        m_is_up.return_value = True
+
+        with mock.patch("cloudinit.subp.subp") as m_subp:
+            is_success = networking.try_set_link_up(devname)
+            assert (
+                mock.call(["ifconfig", devname, "up"])
+                == m_subp.call_args_list[-1]
+            )
+        assert is_success
 
 
 @mock.patch("cloudinit.net.is_up")
@@ -110,9 +161,9 @@ class TestLinuxNetworkingTrySetLinkUp:
 
 
 class TestBSDNetworkingSettle:
-    def test_settle_doesnt_error(self):
-        # This also implicitly tests that it doesn't use subp.subp
-        BSDNetworking().settle()
+    def test_settle_doesnt_error(self, bsd_networking_cls):
+        networking = bsd_networking_cls()
+        networking.settle()
 
 
 @pytest.mark.usefixtures("sys_class_net")
@@ -229,3 +280,115 @@ class TestNetworkingWaitForPhysDevs:
             5 * len(wait_for_physdevs_netcfg["ethernets"])
             == m_settle.call_count
         )
+
+
+class TestLinuxNetworkingApplyNetworkCfgNames:
+    V1_CONFIG = textwrap.dedent(
+        """\
+        version: 1
+        config:
+            - type: physical
+              name: interface0
+              mac_address: "52:54:00:12:34:00"
+              subnets:
+                  - type: static
+                    address: 10.0.2.15
+                    netmask: 255.255.255.0
+                    gateway: 10.0.2.2
+    """
+    )
+    V2_CONFIG = textwrap.dedent(
+        """\
+      version: 2
+      ethernets:
+          interface0:
+            match:
+              macaddress: "52:54:00:12:34:00"
+            addresses:
+              - 10.0.2.15/24
+            gateway4: 10.0.2.2
+            set-name: interface0
+    """
+    )
+
+    V2_CONFIG_NO_SETNAME = textwrap.dedent(
+        """\
+      version: 2
+      ethernets:
+          interface0:
+            match:
+              macaddress: "52:54:00:12:34:00"
+            addresses:
+              - 10.0.2.15/24
+            gateway4: 10.0.2.2
+    """
+    )
+
+    V2_CONFIG_NO_MAC = textwrap.dedent(
+        """\
+      version: 2
+      ethernets:
+          interface0:
+            match:
+              driver: virtio-net
+            addresses:
+              - 10.0.2.15/24
+            gateway4: 10.0.2.2
+            set-name: interface0
+    """
+    )
+
+    @pytest.mark.parametrize(
+        ["config_attr"],
+        [
+            pytest.param("V1_CONFIG", id="v1"),
+            pytest.param("V2_CONFIG", id="v2"),
+        ],
+    )
+    @mock.patch("cloudinit.net.device_devid")
+    @mock.patch("cloudinit.net.device_driver")
+    def test_apply_renames(
+        self,
+        m_device_driver,
+        m_device_devid,
+        config_attr: str,
+    ):
+        networking = LinuxNetworking()
+        m_device_driver.return_value = "virtio_net"
+        m_device_devid.return_value = "0x15d8"
+        netcfg = yaml.load(getattr(self, config_attr))
+
+        with mock.patch.object(
+            networking, "_rename_interfaces"
+        ) as m_rename_interfaces:
+            networking.apply_network_config_names(netcfg)
+
+        assert (
+            mock.call(
+                [["52:54:00:12:34:00", "interface0", "virtio_net", "0x15d8"]]
+            )
+            == m_rename_interfaces.call_args_list[-1]
+        )
+
+    @pytest.mark.parametrize(
+        ["config_attr"],
+        [
+            pytest.param("V2_CONFIG_NO_SETNAME", id="without_setname"),
+            pytest.param("V2_CONFIG_NO_MAC", id="without_mac"),
+        ],
+    )
+    def test_apply_v2_renames_skips_without_setname_or_mac(
+        self, config_attr: str
+    ):
+        networking = LinuxNetworking()
+        netcfg = yaml.load(getattr(self, config_attr))
+        with mock.patch.object(
+            networking, "_rename_interfaces"
+        ) as m_rename_interfaces:
+            networking.apply_network_config_names(netcfg)
+        m_rename_interfaces.assert_called_with([])
+
+    def test_apply_v2_renames_raises_runtime_error_on_unknown_version(self):
+        networking = LinuxNetworking()
+        with pytest.raises(RuntimeError):
+            networking.apply_network_config_names(yaml.load("version: 3"))

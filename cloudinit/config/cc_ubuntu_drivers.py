@@ -2,19 +2,32 @@
 
 """Ubuntu Drivers: Interact with third party drivers in Ubuntu."""
 
+import logging
 import os
 from textwrap import dedent
 
-from cloudinit import log as logging
+from cloudinit.cloud import Cloud
+from cloudinit.distros import Distro
+
+try:
+    import debconf
+
+    HAS_DEBCONF = True
+except ImportError:
+    debconf = None
+    HAS_DEBCONF = False
+
+
 from cloudinit import subp, temp_utils, type_utils, util
-from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
+from cloudinit.config import Config
+from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
-frequency = PER_INSTANCE
 distros = ["ubuntu"]
-meta = {
+
+meta: MetaSchema = {
     "id": "cc_ubuntu_drivers",
     "name": "Ubuntu Drivers",
     "title": "Interact with third party drivers in Ubuntu.",
@@ -33,56 +46,21 @@ meta = {
         """
         )
     ],
-    "frequency": frequency,
+    "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": ["drivers"],
 }
 
-schema = {
-    "type": "object",
-    "properties": {
-        "drivers": {
-            "type": "object",
-            "additionalProperties": False,
-            "properties": {
-                "nvidia": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "required": ["license-accepted"],
-                    "properties": {
-                        "license-accepted": {
-                            "type": "boolean",
-                            "description": (
-                                "Do you accept the NVIDIA driver license?"
-                            ),
-                        },
-                        "version": {
-                            "type": "string",
-                            "description": (
-                                "The version of the driver to install (e.g."
-                                ' "390", "410"). Defaults to the latest'
-                                " version."
-                            ),
-                        },
-                    },
-                },
-            },
-        },
-    },
-}
+__doc__ = get_meta_doc(meta)
+
 OLD_UBUNTU_DRIVERS_STDERR_NEEDLE = (
     "ubuntu-drivers: error: argument <command>: invalid choice: 'install'"
 )
-
-__doc__ = get_meta_doc(meta, schema)  # Supplement python help()
 
 
 # Use a debconf template to configure a global debconf variable
 # (linux/nvidia/latelink) setting this to "true" allows the
 # 'linux-restricted-modules' deb to accept the NVIDIA EULA and the package
 # will automatically link the drivers to the running kernel.
-
-# EOL_XENIAL: can then drop this script and use python3-debconf which is only
-# available in Bionic and later. Can't use python3-debconf currently as it
-# isn't in Xenial and doesn't yet support X_LOADTEMPLATEFILE debconf command.
 
 NVIDIA_DEBCONF_CONTENT = """\
 Template: linux/nvidia/latelink
@@ -93,16 +71,11 @@ Description: Late-link NVIDIA kernel modules?
  make them available for use.
 """
 
-NVIDIA_DRIVER_LATELINK_DEBCONF_SCRIPT = """\
-#!/bin/sh
-# Allow cloud-init to trigger EULA acceptance via registering a debconf
-# template to set linux/nvidia/latelink true
-. /usr/share/debconf/confmodule
-db_x_loadtemplatefile "$1" cloud-init
-"""
+
+X_LOADTEMPLATEFILE = "X_LOADTEMPLATEFILE"
 
 
-def install_drivers(cfg, pkg_install_func):
+def install_drivers(cfg, pkg_install_func, distro: Distro):
     if not isinstance(cfg, dict):
         raise TypeError(
             "'drivers' config expected dict, found '%s': %s"
@@ -138,17 +111,12 @@ def install_drivers(cfg, pkg_install_func):
     )
 
     # Register and set debconf selection linux/nvidia/latelink = true
-    tdir = temp_utils.mkdtemp(needs_exe=True)
+    tdir = temp_utils.mkdtemp(dir=distro.get_tmp_exec_path(), needs_exe=True)
     debconf_file = os.path.join(tdir, "nvidia.template")
-    debconf_script = os.path.join(tdir, "nvidia-debconf.sh")
     try:
         util.write_file(debconf_file, NVIDIA_DEBCONF_CONTENT)
-        util.write_file(
-            debconf_script,
-            util.encode_text(NVIDIA_DRIVER_LATELINK_DEBCONF_SCRIPT),
-            mode=0o755,
-        )
-        subp.subp([debconf_script, debconf_file])
+        with debconf.DebconfCommunicator("cloud-init") as dc:
+            dc.command(X_LOADTEMPLATEFILE, debconf_file)
     except Exception as e:
         util.logexc(
             LOG, "Failed to register NVIDIA debconf template: %s", str(e)
@@ -171,10 +139,17 @@ def install_drivers(cfg, pkg_install_func):
         raise
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if "drivers" not in cfg:
-        log.debug("Skipping module named %s, no 'drivers' key in config", name)
+        LOG.debug("Skipping module named %s, no 'drivers' key in config", name)
+        return
+    if not HAS_DEBCONF:
+        LOG.warning(
+            "Skipping module named %s, 'python3-debconf' is not installed",
+            name,
+        )
         return
 
-    validate_cloudconfig_schema(cfg, schema)
-    install_drivers(cfg["drivers"], cloud.distro.install_packages)
+    install_drivers(
+        cfg["drivers"], cloud.distro.install_packages, cloud.distro
+    )

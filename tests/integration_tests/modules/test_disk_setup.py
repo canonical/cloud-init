@@ -7,6 +7,8 @@ from pycloudlib.lxd.instance import LXDInstance
 
 from cloudinit.subp import subp
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL, IS_UBUNTU
 from tests.integration_tests.util import verify_clean_log
 
 DISK_PATH = "/tmp/test_disk_setup_{}".format(uuid4())
@@ -52,8 +54,10 @@ mounts:
 
 @pytest.mark.user_data(ALIAS_USERDATA)
 @pytest.mark.lxd_setup.with_args(setup_and_mount_lxd_disk)
-@pytest.mark.ubuntu
-@pytest.mark.lxd_vm
+@pytest.mark.skipif(not IS_UBUNTU, reason="Only ever tested on Ubuntu")
+@pytest.mark.skipif(
+    PLATFORM != "lxd_vm", reason="Test requires additional mounted device"
+)
 class TestDeviceAliases:
     """Test devices aliases work on disk setup/mount"""
 
@@ -70,9 +74,21 @@ class TestDeviceAliases:
         sdb = [x for x in lsblk["blockdevices"] if x["name"] == "sdb"][0]
         assert len(sdb["children"]) == 2
         assert sdb["children"][0]["name"] == "sdb1"
-        assert sdb["children"][0]["mountpoint"] == "/mnt1"
         assert sdb["children"][1]["name"] == "sdb2"
-        assert sdb["children"][1]["mountpoint"] == "/mnt2"
+        if "mountpoint" in sdb["children"][0]:
+            assert sdb["children"][0]["mountpoint"] == "/mnt1"
+            assert sdb["children"][1]["mountpoint"] == "/mnt2"
+        else:
+            assert sdb["children"][0]["mountpoints"] == ["/mnt1"]
+            assert sdb["children"][1]["mountpoints"] == ["/mnt2"]
+        result = client.execute("mount -a")
+        assert result.return_code == 0
+        assert result.stdout.strip() == ""
+        assert result.stderr.strip() == ""
+        result = client.execute("findmnt -J /mnt1")
+        assert result.return_code == 0
+        result = client.execute("findmnt -J /mnt2")
+        assert result.return_code == 0
 
 
 PARTPROBE_USERDATA = """\
@@ -112,8 +128,10 @@ mounts:
 
 @pytest.mark.user_data(PARTPROBE_USERDATA)
 @pytest.mark.lxd_setup.with_args(setup_and_mount_lxd_disk)
-@pytest.mark.ubuntu
-@pytest.mark.lxd_vm
+@pytest.mark.skipif(not IS_UBUNTU, reason="Only ever tested on Ubuntu")
+@pytest.mark.skipif(
+    PLATFORM != "lxd_vm", reason="Test requires additional mounted device"
+)
 class TestPartProbeAvailability:
     """Test disk setup works with partprobe
 
@@ -129,13 +147,18 @@ class TestPartProbeAvailability:
         sdb = [x for x in lsblk["blockdevices"] if x["name"] == "sdb"][0]
         assert len(sdb["children"]) == 2
         assert sdb["children"][0]["name"] == "sdb1"
-        assert sdb["children"][0]["mountpoint"] == "/mnt1"
         assert sdb["children"][1]["name"] == "sdb2"
-        assert sdb["children"][1]["mountpoint"] == "/mnt2"
+        if "mountpoint" in sdb["children"][0]:
+            assert sdb["children"][0]["mountpoint"] == "/mnt1"
+            assert sdb["children"][1]["mountpoint"] == "/mnt2"
+        else:
+            assert sdb["children"][0]["mountpoints"] == ["/mnt1"]
+            assert sdb["children"][1]["mountpoints"] == ["/mnt2"]
 
-    # Not bionic because the LXD agent gets in the way of us
-    # changing the userdata
-    @pytest.mark.not_bionic
+    @pytest.mark.skipif(
+        CURRENT_RELEASE < FOCAL,
+        reason="LXD agent gets in the way of changing userdata",
+    )
     def test_disk_setup_when_mounted(
         self, create_disk, client: IntegrationInstance
     ):
@@ -154,6 +177,13 @@ class TestPartProbeAvailability:
         log = client.read_from_file("/var/log/cloud-init.log")
         self._verify_first_disk_setup(client, log)
 
+        # Ensure NoCloud gets detected on reboot
+        client.execute("mkdir -p /var/lib/cloud/seed/nocloud-net/")
+        client.execute("touch /var/lib/cloud/seed/nocloud-net/meta-data")
+        client.write_to_file(
+            "/etc/cloud/cloud.cfg.d/99_nocloud.cfg",
+            "datasource_list: [ NoCloud ]\n",
+        )
         # Update our userdata and cloud.cfg to mount then perform new disk
         # setup
         client.write_to_file(
@@ -161,7 +191,7 @@ class TestPartProbeAvailability:
             UPDATED_PARTPROBE_USERDATA,
         )
         client.execute(
-            "sed -i 's/write-files/write-files\\n - mounts/' "
+            "sed -i 's/write_files$/write_files\\n  - mounts/' "
             "/etc/cloud/cloud.cfg"
         )
 
@@ -175,7 +205,10 @@ class TestPartProbeAvailability:
         sdb = [x for x in lsblk["blockdevices"] if x["name"] == "sdb"][0]
         assert len(sdb["children"]) == 1
         assert sdb["children"][0]["name"] == "sdb1"
-        assert sdb["children"][0]["mountpoint"] == "/mnt3"
+        if "mountpoint" in sdb["children"][0]:
+            assert sdb["children"][0]["mountpoint"] == "/mnt3"
+        else:
+            assert sdb["children"][0]["mountpoints"] == ["/mnt3"]
 
     def test_disk_setup_no_partprobe(
         self, create_disk, client: IntegrationInstance

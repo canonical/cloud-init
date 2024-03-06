@@ -4,14 +4,15 @@
 
 import datetime
 import json
+import logging
 from base64 import b64decode
-from contextlib import suppress as noop
 
-from cloudinit import dmi
-from cloudinit import log as logging
-from cloudinit import sources, url_helper, util
+from cloudinit import dmi, net, sources, url_helper, util
 from cloudinit.distros import ug_util
-from cloudinit.net.dhcp import EphemeralDHCPv4
+from cloudinit.event import EventScope, EventType
+from cloudinit.net.dhcp import NoDHCPLeaseError
+from cloudinit.net.ephemeral import EphemeralDHCPv4
+from cloudinit.sources import DataSourceHostname
 
 LOG = logging.getLogger(__name__)
 
@@ -24,9 +25,10 @@ GUEST_ATTRIBUTES_URL = (
 )
 HOSTKEY_NAMESPACE = "hostkeys"
 HEADERS = {"Metadata-Flavor": "Google"}
+DEFAULT_PRIMARY_INTERFACE = "ens4"
 
 
-class GoogleMetadataFetcher(object):
+class GoogleMetadataFetcher:
     def __init__(self, metadata_address, num_retries, sec_between_retries):
         self.metadata_address = metadata_address
         self.num_retries = num_retries
@@ -62,6 +64,12 @@ class DataSourceGCE(sources.DataSource):
 
     dsname = "GCE"
     perform_dhcp_setup = False
+    default_update_events = {
+        EventScope.NETWORK: {
+            EventType.BOOT_NEW_INSTANCE,
+            EventType.BOOT,
+        }
+    }
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -80,10 +88,50 @@ class DataSourceGCE(sources.DataSource):
 
     def _get_data(self):
         url_params = self.get_url_params()
-        network_context = noop()
         if self.perform_dhcp_setup:
-            network_context = EphemeralDHCPv4(self.fallback_interface)
-        with network_context:
+            candidate_nics = net.find_candidate_nics()
+            if DEFAULT_PRIMARY_INTERFACE in candidate_nics:
+                candidate_nics.remove(DEFAULT_PRIMARY_INTERFACE)
+                candidate_nics.insert(0, DEFAULT_PRIMARY_INTERFACE)
+            LOG.debug("Looking for the primary NIC in: %s", candidate_nics)
+            assert (
+                len(candidate_nics) >= 1
+            ), "The instance has to have at least one candidate NIC"
+            for candidate_nic in candidate_nics:
+                network_context = EphemeralDHCPv4(
+                    self.distro,
+                    iface=candidate_nic,
+                )
+                try:
+                    with network_context:
+                        try:
+                            ret = util.log_time(
+                                LOG.debug,
+                                "Crawl of GCE metadata service",
+                                read_md,
+                                kwargs={
+                                    "address": self.metadata_address,
+                                    "url_params": url_params,
+                                },
+                            )
+                        except Exception as e:
+                            LOG.debug(
+                                "Error fetching IMD with candidate NIC %s: %s",
+                                candidate_nic,
+                                e,
+                            )
+                            continue
+                except NoDHCPLeaseError:
+                    continue
+                if ret["success"]:
+                    self.distro.fallback_interface = candidate_nic
+                    LOG.debug("Primary NIC found: %s.", candidate_nic)
+                    break
+            if self.distro.fallback_interface is None:
+                LOG.warning(
+                    "Did not find a fallback interface on %s.", self.cloud_name
+                )
+        else:
             ret = util.log_time(
                 LOG.debug,
                 "Crawl of GCE metadata service",
@@ -106,7 +154,7 @@ class DataSourceGCE(sources.DataSource):
 
     @property
     def launch_index(self):
-        # GCE does not provide lauch_index property.
+        # GCE does not provide launch_index property.
         return None
 
     def get_instance_id(self):
@@ -122,7 +170,9 @@ class DataSourceGCE(sources.DataSource):
 
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         # GCE has long FDQN's and has asked for short hostnames.
-        return self.metadata["local-hostname"].split(".")[0]
+        return DataSourceHostname(
+            self.metadata["local-hostname"].split(".")[0], False
+        )
 
     @property
     def availability_zone(self):
@@ -172,7 +222,7 @@ def _has_expired(public_key):
     except ValueError:
         return False
 
-    # Do not expire keys if there is no expriation timestamp.
+    # Do not expire keys if there is no expiration timestamp.
     if "expireOn" not in json_obj:
         return False
 
@@ -348,5 +398,3 @@ if __name__ == "__main__":
             data["user-data-b64"] = b64encode(data["user-data"]).decode()
 
     print(json.dumps(data, indent=1, sort_keys=True, separators=(",", ": ")))
-
-# vi: ts=4 expandtab

@@ -13,12 +13,11 @@ instance on RHEVm and vSphere.
 """
 
 import errno
+import logging
 import os
 import os.path
 
-from cloudinit import dmi
-from cloudinit import log as logging
-from cloudinit import sources, subp, util
+from cloudinit import dmi, sources, subp, util
 
 LOG = logging.getLogger(__name__)
 
@@ -59,10 +58,10 @@ def read_user_data_callback(mount_dir):
 
     # First try deltacloud_user_data_file. On failure try user_data_file.
     try:
-        user_data = util.load_file(deltacloud_user_data_file).strip()
+        user_data = util.load_text_file(deltacloud_user_data_file).strip()
     except IOError:
         try:
-            user_data = util.load_file(user_data_file).strip()
+            user_data = util.load_text_file(user_data_file).strip()
         except IOError:
             util.logexc(LOG, "Failed accessing user data file.")
             return None
@@ -101,7 +100,9 @@ class DataSourceAltCloud(sources.DataSource):
         """
         if os.path.exists(CLOUD_INFO_FILE):
             try:
-                cloud_type = util.load_file(CLOUD_INFO_FILE).strip().upper()
+                cloud_type = (
+                    util.load_text_file(CLOUD_INFO_FILE).strip().upper()
+                )
             except IOError:
                 util.logexc(
                     LOG,
@@ -284,6 +285,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-# vi: ts=4 expandtab

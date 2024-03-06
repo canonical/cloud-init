@@ -5,7 +5,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 
-class Merger(object):
+class Merger:
     def __init__(self, _merger, opts):
         self._append = "append" in opts
 
@@ -26,6 +26,3 @@ class Merger(object):
         if not self._append:
             return merge_with
         return value + merge_with
-
-
-# vi: ts=4 expandtab

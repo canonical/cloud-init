@@ -4,49 +4,69 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-Package Update Upgrade Install
-------------------------------
-**Summary:** update, upgrade, and install packages
+"""Package Update Upgrade Install: update, upgrade, and install packages"""
 
+import logging
+import os
+import time
+from textwrap import dedent
+
+from cloudinit import subp, util
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.distros import ALL_DISTROS
+from cloudinit.log import flush_loggers
+from cloudinit.settings import PER_INSTANCE
+
+REBOOT_FILES = ("/var/run/reboot-required", "/run/reboot-needed")
+REBOOT_CMD = ["/sbin/reboot"]
+
+MODULE_DESCRIPTION = """\
 This module allows packages to be updated, upgraded or installed during boot.
 If any packages are to be installed or an upgrade is to be performed then the
 package cache will be updated first. If a package installation or upgrade
 requires a reboot, then a reboot can be performed if
-``package_reboot_if_required`` is specified. A list of packages to install can
-be provided. Each entry in the list can be either a package name or a list with
-two entries, the first being the package name and the second being the specific
-package version to install.
-
-**Internal name:** ``cc_package_update_upgrade_install``
-
-**Module frequency:** per instance
-
-**Supported distros:** all
-
-**Config keys**::
-
-    packages:
-        - pwgen
-        - pastebinit
-        - [libpython2.7, 2.7.3-0ubuntu3.1]
-    package_update: <true/false>
-    package_upgrade: <true/false>
-    package_reboot_if_required: <true/false>
-
-    apt_update: (alias for package_update)
-    apt_upgrade: (alias for package_upgrade)
-    apt_reboot_if_required: (alias for package_reboot_if_required)
+``package_reboot_if_required`` is specified.
 """
 
-import os
-import time
+meta: MetaSchema = {
+    "id": "cc_package_update_upgrade_install",
+    "name": "Package Update Upgrade Install",
+    "title": "Update, upgrade, and install packages",
+    "description": MODULE_DESCRIPTION,
+    "distros": [ALL_DISTROS],
+    "frequency": PER_INSTANCE,
+    "examples": [
+        dedent(
+            """\
+            packages:
+              - pwgen
+              - pastebinit
+              - [libpython3.8, 3.8.10-0ubuntu1~20.04.2]
+              - snap:
+                - certbot
+                - [juju, --edge]
+                - [lxd, --channel=5.15/stable]
+              - apt:
+                - mg
+            package_update: true
+            package_upgrade: true
+            package_reboot_if_required: true
+            """
+        )
+    ],
+    "activate_by_schema_keys": [
+        "apt_update",
+        "package_update",
+        "apt_upgrade",
+        "package_upgrade",
+        "packages",
+    ],
+}
 
-from cloudinit import log as logging
-from cloudinit import subp, util
-
-REBOOT_FILE = "/var/run/reboot-required"
-REBOOT_CMD = ["/sbin/reboot"]
+__doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
 
 
 def _multi_cfg_bool_get(cfg, *keys):
@@ -56,15 +76,15 @@ def _multi_cfg_bool_get(cfg, *keys):
     return False
 
 
-def _fire_reboot(log, wait_attempts=6, initial_sleep=1, backoff=2):
+def _fire_reboot(wait_attempts=6, initial_sleep=1, backoff=2):
     subp.subp(REBOOT_CMD)
     start = time.time()
     wait_time = initial_sleep
-    for _i in range(0, wait_attempts):
+    for _i in range(wait_attempts):
         time.sleep(wait_time)
         wait_time *= backoff
         elapsed = time.time() - start
-        log.debug("Rebooted, but still running after %s seconds", int(elapsed))
+        LOG.debug("Rebooted, but still running after %s seconds", int(elapsed))
     # If we got here, not good
     elapsed = time.time() - start
     raise RuntimeError(
@@ -72,7 +92,7 @@ def _fire_reboot(log, wait_attempts=6, initial_sleep=1, backoff=2):
     )
 
 
-def handle(_name, cfg, cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # Handle the old style + new config names
     update = _multi_cfg_bool_get(cfg, "apt_update", "package_update")
     upgrade = _multi_cfg_bool_get(cfg, "package_upgrade", "apt_upgrade")
@@ -82,49 +102,49 @@ def handle(_name, cfg, cloud, log, _args):
     pkglist = util.get_cfg_option_list(cfg, "packages", [])
 
     errors = []
-    if update or len(pkglist) or upgrade:
+    if update or upgrade:
         try:
             cloud.distro.update_package_sources()
         except Exception as e:
-            util.logexc(log, "Package update failed")
+            util.logexc(LOG, "Package update failed")
             errors.append(e)
 
     if upgrade:
         try:
             cloud.distro.package_command("upgrade")
         except Exception as e:
-            util.logexc(log, "Package upgrade failed")
+            util.logexc(LOG, "Package upgrade failed")
             errors.append(e)
 
     if len(pkglist):
         try:
             cloud.distro.install_packages(pkglist)
         except Exception as e:
-            util.logexc(log, "Failed to install packages: %s", pkglist)
+            util.logexc(LOG, "Failed to install packages: %s", pkglist)
             errors.append(e)
 
     # TODO(smoser): handle this less violently
     # kernel and openssl (possibly some other packages)
     # write a file /var/run/reboot-required after upgrading.
     # if that file exists and configured, then just stop right now and reboot
-    reboot_fn_exists = os.path.isfile(REBOOT_FILE)
+    for reboot_marker in REBOOT_FILES:
+        reboot_fn_exists = os.path.isfile(reboot_marker)
+        if reboot_fn_exists:
+            break
     if (upgrade or pkglist) and reboot_if_required and reboot_fn_exists:
         try:
-            log.warning(
-                "Rebooting after upgrade or install per %s", REBOOT_FILE
+            LOG.warning(
+                "Rebooting after upgrade or install per %s", reboot_marker
             )
             # Flush the above warning + anything else out...
-            logging.flushLoggers(log)
-            _fire_reboot(log)
+            flush_loggers(LOG)
+            _fire_reboot()
         except Exception as e:
-            util.logexc(log, "Requested reboot did not happen!")
+            util.logexc(LOG, "Requested reboot did not happen!")
             errors.append(e)
 
     if len(errors):
-        log.warning(
+        LOG.warning(
             "%s failed with exceptions, re-raising the last one", len(errors)
         )
         raise errors[-1]
-
-
-# vi: ts=4 expandtab

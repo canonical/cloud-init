@@ -7,43 +7,23 @@
 """Write Files: write arbitrary files"""
 
 import base64
+import logging
 import os
 from textwrap import dedent
 
-from cloudinit import log as logging
 from cloudinit import util
-from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
+from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.settings import PER_INSTANCE
 
-frequency = PER_INSTANCE
-
-DEFAULT_OWNER = "root:root"
 DEFAULT_PERMS = 0o644
 DEFAULT_DEFER = False
-UNKNOWN_ENC = "text/plain"
+TEXT_PLAIN_ENC = "text/plain"
 
 LOG = logging.getLogger(__name__)
 
-distros = ["all"]
-
-# The schema definition for each cloud-config module is a strict contract for
-# describing supported configuration parameters for each cloud-config section.
-# It allows cloud-config to validate and alert users to invalid or ignored
-# configuration options before actually attempting to deploy with said
-# configuration.
-
-supported_encoding_types = [
-    "gz",
-    "gzip",
-    "gz+base64",
-    "gzip+base64",
-    "gz+b64",
-    "gzip+b64",
-    "b64",
-    "base64",
-]
-
-meta = {
+meta: MetaSchema = {
     "id": "cc_write_files",
     "name": "Write Files",
     "title": "write arbitrary files",
@@ -56,17 +36,20 @@ meta = {
         before being written. For empty file creation, content can be omitted.
 
     .. note::
-        if multiline data is provided, care should be taken to ensure that it
-        follows yaml formatting standards. to specify binary data, use the yaml
+        If multiline data is provided, care should be taken to ensure that it
+        follows yaml formatting standards. To specify binary data, use the yaml
         option ``!!binary``
 
     .. note::
         Do not write files under /tmp during boot because of a race with
         systemd-tmpfiles-clean that can cause temp files to get cleaned during
         the early boot process. Use /run/somedir instead to avoid race
-        LP:1707222."""
+        LP:1707222.
+
+    .. warning::
+       Existing files will be overridden."""
     ),
-    "distros": distros,
+    "distros": ["all"],
     "examples": [
         dedent(
             """\
@@ -91,7 +74,7 @@ meta = {
         ),
         dedent(
             """\
-        # Provide gziped binary content
+        # Provide gzipped binary content
         write_files:
         - encoding: gzip
           content: !!binary |
@@ -128,113 +111,14 @@ meta = {
         """
         ),
     ],
-    "frequency": frequency,
+    "frequency": PER_INSTANCE,
+    "activate_by_schema_keys": ["write_files"],
 }
 
-schema = {
-    "type": "object",
-    "properties": {
-        "write_files": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": dedent(
-                            """\
-                            Path of the file to which ``content`` is decoded
-                            and written
-                        """
-                        ),
-                    },
-                    "content": {
-                        "type": "string",
-                        "default": "",
-                        "description": dedent(
-                            """\
-                            Optional content to write to the provided ``path``.
-                            When content is present and encoding is not '%s',
-                            decode the content prior to writing. Default:
-                            **''**
-                        """
-                            % UNKNOWN_ENC
-                        ),
-                    },
-                    "owner": {
-                        "type": "string",
-                        "default": DEFAULT_OWNER,
-                        "description": dedent(
-                            """\
-                            Optional owner:group to chown on the file. Default:
-                            **{owner}**
-                        """.format(
-                                owner=DEFAULT_OWNER
-                            )
-                        ),
-                    },
-                    "permissions": {
-                        "type": "string",
-                        "default": oct(DEFAULT_PERMS).replace("o", ""),
-                        "description": dedent(
-                            """\
-                            Optional file permissions to set on ``path``
-                            represented as an octal string '0###'. Default:
-                            **'{perms}'**
-                        """.format(
-                                perms=oct(DEFAULT_PERMS).replace("o", "")
-                            )
-                        ),
-                    },
-                    "encoding": {
-                        "type": "string",
-                        "default": UNKNOWN_ENC,
-                        "enum": supported_encoding_types,
-                        "description": dedent(
-                            """\
-                            Optional encoding type of the content. Default is
-                            **text/plain** and no content decoding is
-                            performed. Supported encoding types are:
-                            %s."""
-                            % ", ".join(supported_encoding_types)
-                        ),
-                    },
-                    "append": {
-                        "type": "boolean",
-                        "default": False,
-                        "description": dedent(
-                            """\
-                            Whether to append ``content`` to existing file if
-                            ``path`` exists. Default: **false**.
-                        """
-                        ),
-                    },
-                    "defer": {
-                        "type": "boolean",
-                        "default": DEFAULT_DEFER,
-                        "description": dedent(
-                            """\
-                            Defer writing the file until 'final' stage, after
-                            users were created, and packages were installed.
-                            Default: **{defer}**.
-                        """.format(
-                                defer=DEFAULT_DEFER
-                            )
-                        ),
-                    },
-                },
-                "required": ["path"],
-                "additionalProperties": False,
-            },
-        }
-    },
-}
-
-__doc__ = get_meta_doc(meta, schema)  # Supplement python help()
+__doc__ = get_meta_doc(meta)
 
 
-def handle(name, cfg, _cloud, log, _args):
-    validate_cloudconfig_schema(cfg, schema)
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     file_list = cfg.get("write_files", [])
     filtered_files = [
         f
@@ -242,13 +126,13 @@ def handle(name, cfg, _cloud, log, _args):
         if not util.get_cfg_option_bool(f, "defer", DEFAULT_DEFER)
     ]
     if not filtered_files:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s,"
             " no/empty 'write_files' key in configuration",
             name,
         )
         return
-    write_files(name, filtered_files)
+    write_files(name, filtered_files, cloud.distro.default_owner)
 
 
 def canonicalize_extraction(encoding_type):
@@ -262,17 +146,21 @@ def canonicalize_extraction(encoding_type):
     # Yaml already encodes binary data as base64 if it is given to the
     # yaml file as binary, so those will be automatically decoded for you.
     # But the above b64 is just for people that are more 'comfortable'
-    # specifing it manually (which might be a possiblity)
+    # specifying it manually (which might be a possibility)
     if encoding_type in ["b64", "base64"]:
         return ["application/base64"]
+    if encoding_type == TEXT_PLAIN_ENC:
+        return [TEXT_PLAIN_ENC]
     if encoding_type:
         LOG.warning(
-            "Unknown encoding type %s, assuming %s", encoding_type, UNKNOWN_ENC
+            "Unknown encoding type %s, assuming %s",
+            encoding_type,
+            TEXT_PLAIN_ENC,
         )
-    return [UNKNOWN_ENC]
+    return [TEXT_PLAIN_ENC]
 
 
-def write_files(name, files):
+def write_files(name, files, owner: str):
     if not files:
         return
 
@@ -288,10 +176,12 @@ def write_files(name, files):
         path = os.path.abspath(path)
         extractions = canonicalize_extraction(f_info.get("encoding"))
         contents = extract_contents(f_info.get("content", ""), extractions)
-        (u, g) = util.extract_usergroup(f_info.get("owner", DEFAULT_OWNER))
+        (u, g) = util.extract_usergroup(f_info.get("owner", owner))
         perms = decode_perms(f_info.get("permissions"), DEFAULT_PERMS)
         omode = "ab" if util.get_cfg_option_bool(f_info, "append") else "wb"
-        util.write_file(path, contents, omode=omode, mode=perms)
+        util.write_file(
+            path, contents, omode=omode, mode=perms, user=u, group=g
+        )
         util.chownbyname(path, u, g)
 
 
@@ -323,9 +213,6 @@ def extract_contents(contents, extraction_types):
             result = util.decomp_gzip(result, quiet=False, decode=False)
         elif t == "application/base64":
             result = base64.b64decode(result)
-        elif t == UNKNOWN_ENC:
+        elif t == TEXT_PLAIN_ENC:
             pass
     return result
-
-
-# vi: ts=4 expandtab

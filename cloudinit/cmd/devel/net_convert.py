@@ -1,16 +1,27 @@
+#!/usr/bin/env python3
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Debug network config format conversions."""
 import argparse
 import json
+import logging
 import os
 import sys
 
+import yaml
+
 from cloudinit import distros, log, safeyaml
-from cloudinit.net import eni, netplan, network_state, networkd, sysconfig
+from cloudinit.net import (
+    eni,
+    netplan,
+    network_manager,
+    network_state,
+    networkd,
+    sysconfig,
+)
 from cloudinit.sources import DataSourceAzure as azure
-from cloudinit.sources import DataSourceOVF as ovf
 from cloudinit.sources.helpers import openstack
+from cloudinit.sources.helpers.vmware.imc import guestcust_util
 
 NAME = "net-convert"
 
@@ -74,7 +85,7 @@ def get_parser(parser=None):
     parser.add_argument(
         "-O",
         "--output-kind",
-        choices=["eni", "netplan", "networkd", "sysconfig"],
+        choices=["eni", "netplan", "networkd", "sysconfig", "network-manager"],
         required=True,
         help="The network config format to emit",
     )
@@ -89,9 +100,9 @@ def handle_args(name, args):
         os.makedirs(args.directory)
 
     if args.debug:
-        log.setupBasicLogging(level=log.DEBUG)
+        log.setup_basic_logging(level=logging.DEBUG)
     else:
-        log.setupBasicLogging(level=log.WARN)
+        log.setup_basic_logging(level=logging.WARN)
     if args.mac:
         known_macs = {}
         for item in args.mac:
@@ -116,26 +127,26 @@ def handle_args(name, args):
             json.loads(net_data), known_macs=known_macs
         )
     elif args.kind == "azure-imds":
-        pre_ns = azure.parse_network_config(json.loads(net_data))
-    elif args.kind == "vmware-imc":
-        config = ovf.Config(ovf.ConfigFile(args.network_data.name))
-        pre_ns = ovf.get_network_config_from_conf(config, False)
-
-    ns = network_state.parse_net_config_data(pre_ns)
-
-    if args.debug:
-        sys.stderr.write(
-            "\n".join(["", "Internal State", safeyaml.dumps(ns), ""])
+        pre_ns = azure.generate_network_config_from_instance_network_metadata(
+            json.loads(net_data)["network"],
+            apply_network_config_for_secondary_ips=True,
         )
+    elif args.kind == "vmware-imc":
+        config = guestcust_util.Config(
+            guestcust_util.ConfigFile(args.network_data.name)
+        )
+        pre_ns = guestcust_util.get_network_data_from_vmware_cust_cfg(
+            config, False
+        )
+
     distro_cls = distros.fetch(args.distro)
     distro = distro_cls(args.distro, {}, None)
-    config = {}
     if args.output_kind == "eni":
         r_cls = eni.Renderer
         config = distro.renderer_configs.get("eni")
     elif args.output_kind == "netplan":
         r_cls = netplan.Renderer
-        config = distro.renderer_configs.get("netplan")
+        config = distro.renderer_configs.get("netplan", {})
         # don't run netplan generate/apply
         config["postcmds"] = False
         # trim leading slash
@@ -148,10 +159,18 @@ def handle_args(name, args):
     elif args.output_kind == "sysconfig":
         r_cls = sysconfig.Renderer
         config = distro.renderer_configs.get("sysconfig")
+    elif args.output_kind == "network-manager":
+        r_cls = network_manager.Renderer
+        config = distro.renderer_configs.get("network-manager")
     else:
         raise RuntimeError("Invalid output_kind")
 
     r = r_cls(config=config)
+    ns = network_state.parse_net_config_data(pre_ns, renderer=r)
+
+    if args.debug:
+        sys.stderr.write("\n".join(["", "Internal State", yaml.dump(ns), ""]))
+
     sys.stderr.write(
         "".join(
             [
@@ -169,6 +188,3 @@ def handle_args(name, args):
 if __name__ == "__main__":
     args = get_parser().parse_args()
     handle_args(NAME, args)
-
-
-# vi: ts=4 expandtab

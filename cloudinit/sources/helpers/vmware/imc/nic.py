@@ -5,8 +5,12 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from .boot_proto import BootProtoEnum
-from .nic_base import NicBase, StaticIpv4Base, StaticIpv6Base
+from cloudinit.sources.helpers.vmware.imc.boot_proto import BootProtoEnum
+from cloudinit.sources.helpers.vmware.imc.nic_base import (
+    NicBase,
+    StaticIpv4Base,
+    StaticIpv6Base,
+)
 
 
 class Nic(NicBase):
@@ -133,6 +137,3 @@ class StaticIpv6Addr(StaticIpv6Base):
     @property
     def gateway(self):
         return self._nic._get("IPv6GATEWAY|" + str(self._index))
-
-
-# vi: ts=4 expandtab

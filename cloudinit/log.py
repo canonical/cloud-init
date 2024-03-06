@@ -9,6 +9,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import collections.abc
+import copy
 import io
 import logging
 import logging.config
@@ -16,34 +17,17 @@ import logging.handlers
 import os
 import sys
 import time
+from collections import defaultdict
+from contextlib import suppress
+from typing import DefaultDict
 
-# Logging levels for easy access
-CRITICAL = logging.CRITICAL
-FATAL = logging.FATAL
-ERROR = logging.ERROR
-WARNING = logging.WARNING
-WARN = logging.WARN
-INFO = logging.INFO
-DEBUG = logging.DEBUG
-NOTSET = logging.NOTSET
-
-# Default basic format
-DEF_CON_FORMAT = "%(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
-
-# Always format logging timestamps as UTC time
-logging.Formatter.converter = time.gmtime
+DEFAULT_LOG_FORMAT = "%(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
+DEPRECATED = 35
 
 
-def setupBasicLogging(level=DEBUG, formatter=None):
-    if not formatter:
-        formatter = logging.Formatter(DEF_CON_FORMAT)
+def setup_basic_logging(level=logging.DEBUG, formatter=None):
+    formatter = formatter or logging.Formatter(DEFAULT_LOG_FORMAT)
     root = logging.getLogger()
-    for handler in root.handlers:
-        if hasattr(handler, "stream") and hasattr(handler.stream, "name"):
-            if handler.stream.name == "<stderr>":
-                handler.setLevel(level)
-                return
-    # Didn't have an existing stderr handler; create a new handler
     console = logging.StreamHandler(sys.stderr)
     console.setFormatter(formatter)
     console.setLevel(level)
@@ -51,22 +35,34 @@ def setupBasicLogging(level=DEBUG, formatter=None):
     root.setLevel(level)
 
 
-def flushLoggers(root):
+def flush_loggers(root):
     if not root:
         return
     for h in root.handlers:
         if isinstance(h, (logging.StreamHandler)):
-            try:
+            with suppress(IOError):
                 h.flush()
-            except IOError:
-                pass
-    flushLoggers(root.parent)
+    flush_loggers(root.parent)
 
 
-def setupLogging(cfg=None):
+def define_deprecation_logger(lvl=DEPRECATED):
+    logging.addLevelName(lvl, "DEPRECATED")
+
+    def deprecated(self, message, *args, **kwargs):
+        if self.isEnabledFor(lvl):
+            self._log(lvl, message, args, **kwargs)
+
+    logging.Logger.deprecated = deprecated
+
+
+def setup_logging(cfg=None):
     # See if the config provides any logging conf...
     if not cfg:
         cfg = {}
+
+    root_logger = logging.getLogger()
+    exporter = LogExporter()
+    exporter.setLevel(logging.WARN)
 
     log_cfgs = []
     log_cfg = cfg.get("logcfg")
@@ -86,27 +82,32 @@ def setupLogging(cfg=None):
 
     # See if any of them actually load...
     am_tried = 0
+
+    # log_cfg may contain either a filepath to a file containing a logger
+    # configuration, or a string containing a logger configuration
+    # https://docs.python.org/3/library/logging.config.html#logging-config-fileformat
     for log_cfg in log_cfgs:
-        try:
+        # The default configuration includes an attempt at using /dev/log,
+        # followed up by writing to a file. /dev/log will not exist in
+        # very early boot, so an exception on that is expected.
+        with suppress(FileNotFoundError):
             am_tried += 1
-            # Assume its just a string if not a filename
-            if log_cfg.startswith("/") and os.path.isfile(log_cfg):
-                # Leave it as a file and do not make it look like
-                # something that is a file (but is really a buffer that
-                # is acting as a file)
-                pass
-            else:
+
+            # If the value is not a filename, assume that it is a config.
+            if not (log_cfg.startswith("/") and os.path.isfile(log_cfg)):
                 log_cfg = io.StringIO(log_cfg)
-            # Attempt to load its config
+
+            # Attempt to load its config.
             logging.config.fileConfig(log_cfg)
-            # The first one to work wins!
+
+            # Configure warning exporter after loading logging configuration
+            root_logger.addHandler(exporter)
+
+            # Use the first valid configuration.
             return
-        except Exception:
-            # We do not write any logs of this here, because the default
-            # configuration includes an attempt at using /dev/log, followed
-            # up by writing to a file.  /dev/log will not exist in very early
-            # boot, so an exception on that is expected.
-            pass
+
+    # Configure warning exporter for basic logging
+    root_logger.addHandler(exporter)
 
     # If it didn't work, at least setup a basic logger (if desired)
     basic_enabled = cfg.get("log_basic", True)
@@ -116,35 +117,80 @@ def setupLogging(cfg=None):
     )
     if basic_enabled:
         sys.stderr.write("Setting up basic logging...\n")
-        setupBasicLogging()
+        setup_basic_logging()
 
 
-def getLogger(name="cloudinit"):
-    return logging.getLogger(name)
+class LogExporter(logging.StreamHandler):
+    holder: DefaultDict[str, list] = defaultdict(list)
+
+    def emit(self, record: logging.LogRecord):
+        self.holder[record.levelname].append(record.getMessage())
+
+    def export_logs(self):
+        return copy.deepcopy(self.holder)
+
+    def flush(self):
+        pass
 
 
-def _resetLogger(log):
-    """Remove all current handlers, unset log level and add a NullHandler.
-
-    (Adding the NullHandler avoids "No handlers could be found for logger XXX"
-    messages.)
-    """
-    if not log:
-        return
+def reset_logging():
+    """Remove all current handlers and unset log level."""
+    log = logging.getLogger()
     handlers = list(log.handlers)
     for h in handlers:
         h.flush()
         h.close()
         log.removeHandler(h)
-    log.setLevel(NOTSET)
-    log.addHandler(logging.NullHandler())
+    log.setLevel(logging.NOTSET)
 
 
-def resetLogging():
-    _resetLogger(logging.getLogger())
-    _resetLogger(getLogger())
+def setup_backup_logging():
+    """In the event that internal logging exception occurs and logging is not
+    possible for some reason, make a desperate final attempt to log to stderr
+    which may ease debugging.
+    """
+    fallback_handler = logging.StreamHandler(sys.stderr)
+    fallback_handler.handleError = lambda record: None
+    fallback_handler.setFormatter(
+        logging.Formatter(
+            "FALLBACK: %(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
+        )
+    )
+
+    def handleError(self, record):
+        """A closure that emits logs on stderr when other methods fail"""
+        with suppress(IOError):
+            fallback_handler.handle(record)
+            fallback_handler.flush()
+
+    logging.Handler.handleError = handleError
 
 
-resetLogging()
+class CloudInitLogRecord(logging.LogRecord):
+    """reporting the filename as __init__.py isn't very useful in logs
 
-# vi: ts=4 expandtab
+    if the filename is __init__.py, use the parent directory as the filename
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if "__init__.py" == self.filename:
+            self.filename = os.path.basename(os.path.dirname(self.pathname))
+
+
+def configure_root_logger():
+    """Customize the root logger for cloud-init"""
+
+    # Always format logging timestamps as UTC time
+    logging.Formatter.converter = time.gmtime
+    define_deprecation_logger()
+    setup_backup_logging()
+    reset_logging()
+
+    # add handler only to the root logger
+    handler = LogExporter()
+    handler.setLevel(logging.WARN)
+    logging.getLogger().addHandler(handler)
+
+    # LogRecord allows us to report more useful information than __init__.py
+    logging.setLogRecordFactory(CloudInitLogRecord)

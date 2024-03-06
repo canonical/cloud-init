@@ -1,23 +1,46 @@
+#!/usr/bin/env python3
+
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""Generate multi-part mime messages for user-data """
+"""Generate multi-part mime messages for user-data."""
 
 import argparse
+import logging
 import sys
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from cloudinit import log
 from cloudinit.handlers import INCLUSION_TYPES_MAP
 
-from . import addLogHandlerCLI
-
 NAME = "make-mime"
-LOG = log.getLogger(NAME)
+LOG = logging.getLogger(__name__)
 EPILOG = (
     "Example: make-mime -a config.yaml:cloud-config "
     "-a script.sh:x-shellscript > user-data"
 )
+
+
+def create_mime_message(files):
+    sub_messages = []
+    errors = []
+    for i, (fh, filename, format_type) in enumerate(files):
+        contents = fh.read()
+        sub_message = MIMEText(contents, format_type, sys.getdefaultencoding())
+        sub_message.add_header(
+            "Content-Disposition", 'attachment; filename="%s"' % (filename)
+        )
+        content_type = sub_message.get_content_type().lower()
+        if content_type not in get_content_types():
+            msg = ("content type %r for attachment %s may be incorrect!") % (
+                content_type,
+                i + 1,
+            )
+            errors.append(msg)
+        sub_messages.append(sub_message)
+    combined_message = MIMEMultipart()
+    for msg in sub_messages:
+        combined_message.attach(msg)
+    return (combined_message, errors)
 
 
 def file_content_type(text):
@@ -92,34 +115,18 @@ def handle_args(name, args):
 
     @return 0 on success, 1 on failure.
     """
-    addLogHandlerCLI(LOG, log.DEBUG if args.debug else log.WARNING)
     if args.list_types:
         print("\n".join(get_content_types(strip_prefix=True)))
         return 0
 
-    sub_messages = []
-    errors = []
-    for i, (fh, filename, format_type) in enumerate(args.files):
-        contents = fh.read()
-        sub_message = MIMEText(contents, format_type, sys.getdefaultencoding())
-        sub_message.add_header(
-            "Content-Disposition", 'attachment; filename="%s"' % (filename)
-        )
-        content_type = sub_message.get_content_type().lower()
-        if content_type not in get_content_types():
-            level = "WARNING" if args.force else "ERROR"
-            msg = (
-                level + ": content type %r for attachment %s may be incorrect!"
-            ) % (content_type, i + 1)
-            sys.stderr.write(msg + "\n")
-            errors.append(msg)
-        sub_messages.append(sub_message)
-    if len(errors) and not args.force:
+    combined_message, errors = create_mime_message(args.files)
+    if errors:
+        level = "WARNING" if args.force else "ERROR"
+        for error in errors:
+            sys.stderr.write(f"{level}: {error}\n")
         sys.stderr.write("Invalid content-types, override with --force\n")
-        return 1
-    combined_message = MIMEMultipart()
-    for msg in sub_messages:
-        combined_message.attach(msg)
+        if not args.force:
+            return 1
     print(combined_message)
     return 0
 
@@ -131,6 +138,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-
-
-# vi: ts=4 expandtab

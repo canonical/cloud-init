@@ -3,9 +3,17 @@ import logging
 import os
 
 import pytest
+import yaml
 
-from tests.integration_tests.clouds import ImageSpecification, IntegrationCloud
+from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.conftest import get_validated_source
+from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import (
+    CURRENT_RELEASE,
+    FOCAL,
+    IS_UBUNTU,
+    NOBLE,
+)
 from tests.integration_tests.util import verify_clean_log
 
 LOG = logging.getLogger("integration_testing.test_upgrade")
@@ -41,23 +49,20 @@ hostname: SRU-worked
 """
 
 
+# The issues that we see on Bionic VMs don't appear anywhere
+# else, including when calling KVM directly. It likely has to
+# do with the extra lxd-agent setup happening on bionic.
+# Given that we still have Bionic covered on all other platforms,
+# the risk of skipping bionic here seems low enough.
+@pytest.mark.skipif(
+    PLATFORM == "lxd_vm" and CURRENT_RELEASE < FOCAL,
+    reason="Update test doesn't run on Bionic LXD VMs",
+)
 def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
     source = get_validated_source(session_cloud)
     if not source.installs_new_version():
         pytest.skip(UNSUPPORTED_INSTALL_METHOD_MSG.format(source))
         return  # type checking doesn't understand that skip raises
-    if (
-        ImageSpecification.from_os_image().release == "bionic"
-        and session_cloud.settings.PLATFORM == "lxd_vm"
-    ):
-        # The issues that we see on Bionic VMs don't appear anywhere
-        # else, including when calling KVM directly. It likely has to
-        # do with the extra lxd-agent setup happening on bionic.
-        # Given that we still have Bionic covered on all other platforms,
-        # the risk of skipping bionic here seems low enough.
-        pytest.skip("Upgrade test doesn't run on LXD VMs and bionic")
-        return
-
     launch_kwargs = {
         "image_id": session_cloud.initial_image_id,
     }
@@ -89,13 +94,18 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
             )
 
         # Upgrade
-        instance.install_new_cloud_init(source, take_snapshot=False)
+        instance.install_new_cloud_init(source)
 
         # 'cloud-init init' helps us understand if our pickling upgrade paths
         # have broken across re-constitution of a cached datasource. Some
         # platforms invalidate their datasource cache on reboot, so we run
         # it here to ensure we get a dirty run.
-        assert instance.execute("cloud-init init").ok
+        assert instance.execute(
+            "cloud-init init --local; "
+            "cloud-init init; "
+            "cloud-init modules --mode=config; "
+            "cloud-init modules --mode=final"
+        ).ok
 
         # Reboot
         instance.execute("hostname something-else")
@@ -133,18 +143,29 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
                 assert post_json["v1"]["datasource"].startswith(
                     "DataSourceAzure"
                 )
-        assert pre_network == post_network
+        if PLATFORM in ["gce", "qemu"] and CURRENT_RELEASE < NOBLE:
+            # GCE regenerates network config per boot AND
+            # GCE uses fallback config AND
+            # #4474 changed fallback configuration.
+            # Once the baseline includes #4474, this can be removed
+            pre_network = yaml.load(pre_network, Loader=yaml.Loader)
+            post_network = yaml.load(post_network, Loader=yaml.Loader)
+            for values in post_network["network"]["ethernets"].values():
+                values.pop("dhcp6")
+            assert yaml.dump(pre_network) == yaml.dump(post_network)
+        else:
+            assert pre_network == post_network
 
         # Calculate and log all the boot numbers
         pre_analyze_totals = [
             x
             for x in pre_cloud_analyze.splitlines()
-            if x.startswith("Finished stage") or x.startswith("Total Time")
+            if x.startswith(("Finished stage", "Total Time"))
         ]
         post_analyze_totals = [
             x
             for x in post_cloud_analyze.splitlines()
-            if x.startswith("Finished stage") or x.startswith("Total Time")
+            if x.startswith(("Finished stage", "Total Time"))
         ]
 
         # pylint: disable=logging-format-interpolation
@@ -167,11 +188,11 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
 
 
 @pytest.mark.ci
-@pytest.mark.ubuntu
+@pytest.mark.skipif(not IS_UBUNTU, reason="Only ever tested on Ubuntu")
 def test_subsequent_boot_of_upgraded_package(session_cloud: IntegrationCloud):
     source = get_validated_source(session_cloud)
     if not source.installs_new_version():
-        if os.environ.get("TRAVIS"):
+        if os.environ.get("GITHUB_ACTIONS"):
             # If this isn't running on CI, we should know
             pytest.fail(UNSUPPORTED_INSTALL_METHOD_MSG.format(source))
         else:
@@ -181,8 +202,10 @@ def test_subsequent_boot_of_upgraded_package(session_cloud: IntegrationCloud):
     launch_kwargs = {"image_id": session_cloud.initial_image_id}
 
     with session_cloud.launch(launch_kwargs=launch_kwargs) as instance:
-        instance.install_new_cloud_init(
-            source, take_snapshot=False, clean=False
-        )
+        instance.install_new_cloud_init(source, clean=False)
+        # Ensure we aren't looking at any prior warnings/errors from prior boot
+        instance.execute("rm /var/log/cloud-init.log")
         instance.restart()
+        log = instance.read_from_file("/var/log/cloud-init.log")
+        verify_clean_log(log)
         assert instance.execute("cloud-init status --wait --long").ok

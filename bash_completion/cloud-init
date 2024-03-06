@@ -10,8 +10,8 @@ _cloudinit_complete()
     cur_word="${COMP_WORDS[COMP_CWORD]}"
     prev_word="${COMP_WORDS[COMP_CWORD-1]}"
 
-    subcmds="analyze clean collect-logs devel dhclient-hook features init modules query single status"
-    base_params="--help --file --version --debug --force"
+    subcmds="analyze clean collect-logs devel features init modules query schema single status"
+    base_params="--help --version --debug --force"
     case ${COMP_CWORD} in
         1)
             COMPREPLY=($(compgen -W "$base_params $subcmds" -- $cur_word))
@@ -28,25 +28,25 @@ _cloudinit_complete()
                     COMPREPLY=($(compgen -W "--help --tarfile --include-userdata" -- $cur_word))
                     ;;
                 devel)
-                    COMPREPLY=($(compgen -W "--help hotplug-hook schema net-convert" -- $cur_word))
-                    ;;
-                dhclient-hook)
-                    COMPREPLY=($(compgen -W "--help up down" -- $cur_word))
+                    COMPREPLY=($(compgen -W "--help hotplug-hook net-convert" -- $cur_word))
                     ;;
                 features)
                     COMPREPLY=($(compgen -W "--help" -- $cur_word))
                     ;;
                 init)
-                    COMPREPLY=($(compgen -W "--help --local" -- $cur_word))
+                    COMPREPLY=($(compgen -W "--help --local --file" -- $cur_word))
                     ;;
                 modules)
-                    COMPREPLY=($(compgen -W "--help --mode" -- $cur_word))
+                    COMPREPLY=($(compgen -W "--help --mode --file" -- $cur_word))
                     ;;
 
                 query)
                     COMPREPLY=($(compgen -W "--all --help --instance-data --list-keys --user-data --vendor-data --debug" -- $cur_word));;
+                schema)
+                    COMPREPLY=($(compgen -W "--help --config-file --docs --annotate --system" -- $cur_word))
+                    ;;
                 single)
-                    COMPREPLY=($(compgen -W "--help --name --frequency --report" -- $cur_word))
+                    COMPREPLY=($(compgen -W "--help --name --frequency --report --file" -- $cur_word))
                     ;;
                 status)
                     COMPREPLY=($(compgen -W "--help --long --wait" -- $cur_word))
@@ -72,9 +72,6 @@ _cloudinit_complete()
                     ;;
                 render)
                     COMPREPLY=($(compgen -W "--help --instance-data --debug" -- $cur_word));;
-                schema)
-                    COMPREPLY=($(compgen -W "--help --config-file --doc --annotate" -- $cur_word))
-                    ;;
                 show)
                     COMPREPLY=($(compgen -W "--help --format --infile --outfile" -- $cur_word))
                     ;;
@@ -86,5 +83,3 @@ _cloudinit_complete()
     esac
 }
 complete -F _cloudinit_complete cloud-init
-
-# vi: syntax=sh expandtab

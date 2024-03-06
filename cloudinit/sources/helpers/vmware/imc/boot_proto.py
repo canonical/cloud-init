@@ -6,11 +6,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 
-class BootProtoEnum(object):
+class BootProtoEnum:
     """Specifies the NIC Boot Settings."""
 
     DHCP = "dhcp"
     STATIC = "static"
-
-
-# vi: ts=4 expandtab

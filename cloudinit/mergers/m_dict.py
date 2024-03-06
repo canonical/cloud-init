@@ -18,7 +18,7 @@ def _has_any(what, *keys):
     return False
 
 
-class Merger(object):
+class Merger:
     def __init__(self, merger, opts):
         self._merger = merger
         # Affects merging behavior...
@@ -81,6 +81,3 @@ class Merger(object):
         else:
             raise NotImplementedError("Unknown merge type %s" % (self._method))
         return merged
-
-
-# vi: ts=4 expandtab

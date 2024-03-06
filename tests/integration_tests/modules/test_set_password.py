@@ -8,12 +8,13 @@ other tests chpasswd's list being a string.  Both expect the same results, so
 they use a mixin to share their test definitions, because we can (of course)
 only specify one user-data per instance.
 """
-import crypt
 
 import pytest
 import yaml
 
-from tests.integration_tests.util import retry
+from tests.integration_tests.decorators import retry
+from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
+from tests.integration_tests.util import get_console_log
 
 COMMON_USER_DATA = """\
 #cloud-config
@@ -62,6 +63,23 @@ chpasswd:
       dick:RANDOM
       harry:RANDOM
       mikey:$5$xZ$B2YGGEx2AOf4PeW48KC6.QyT1W2B4rZ9Qbltudtha89
+"""
+)
+
+USERS_USER_DATA = (
+    COMMON_USER_DATA
+    + """
+chpasswd:
+  users:
+    - name: tom
+      password: mypassword123!
+      type: text
+    - name: dick
+      type: RANDOM
+    - name: harry
+      type: RANDOM
+    - name: mikey
+      password: $5$xZ$B2YGGEx2AOf4PeW48KC6.QyT1W2B4rZ9Qbltudtha89
 """
 )
 
@@ -139,54 +157,75 @@ class Mixin:
     @retry(tries=30, delay=1)
     def test_random_passwords_emitted_to_serial_console(self, class_client):
         """We should emit passwords to the serial console. (LP: #1918303)"""
-        try:
-            console_log = class_client.instance.console_log()
-        except NotImplementedError:
-            # Assume that an exception here means that we can't use the console
-            # log
-            pytest.skip("NotImplementedError when requesting console log")
-            return
-        if console_log.lower() == "no console output":
-            # This test retries because we might not have the full console log
-            # on the first fetch. However, if we have no console output
-            # at all, we don't want to keep retrying as that would trigger
-            # another 5 minute wait on the pycloudlib side, which could
-            # leave us waiting for a couple hours
-            pytest.fail("no console output")
-            return
+        console_log = get_console_log(class_client)
         assert "dick:" in console_log
         assert "harry:" in console_log
 
     def test_explicit_password_set_correctly(self, class_client):
         """Test that an explicitly-specified password is set correctly."""
+        minor_version = int(
+            class_client.execute(
+                "python3 -c 'import sys;print(sys.version_info[1])'"
+            ).strip()
+        )
+        if minor_version > 12:
+            pytest.xfail("Instance under test doesn't have 'crypt' in stdlib")
         shadow_users, _ = self._fetch_and_parse_etc_shadow(class_client)
 
         fmt_and_salt = shadow_users["tom"].rsplit("$", 1)[0]
-        expected_value = crypt.crypt("mypassword123!", fmt_and_salt)
 
-        assert expected_value == shadow_users["tom"]
+        GEN_CRYPT_CONTENT = (
+            "import crypt\n"
+            f"print(crypt.crypt('mypassword123!', '{fmt_and_salt}'))\n"
+        )
+        class_client.write_to_file("/gen_crypt.py", GEN_CRYPT_CONTENT)
+        result = class_client.execute("python3 /gen_crypt.py")
+        assert result.stdout == shadow_users["tom"]
 
     def test_shadow_expected_users(self, class_client):
         """Test that the right set of users is in /etc/shadow."""
         shadow = class_client.read_from_file("/etc/shadow")
         for user_dict in USERS_DICTS:
             if "name" in user_dict:
-                assert "{}:".format(user_dict["name"]) in shadow
+                assert f'{user_dict["name"]}:' in shadow
 
-    def test_sshd_config(self, class_client):
-        """Test that SSH password auth is enabled."""
-        sshd_config = class_client.read_from_file("/etc/ssh/sshd_config")
+    def test_sshd_config_file(self, class_client):
+        """Test that SSH config is written in the correct file."""
+        if CURRENT_RELEASE.series == "bionic":
+            sshd_file_target = "/etc/ssh/sshd_config"
+        else:
+            sshd_file_target = "/etc/ssh/sshd_config.d/50-cloud-init.conf"
+        assert class_client.execute(f"ls {sshd_file_target}").ok
+        sshd_config = class_client.read_from_file(sshd_file_target)
         # We look for the exact line match, to avoid a commented line matching
         assert "PasswordAuthentication yes" in sshd_config.splitlines()
 
+    @pytest.mark.skipif(not IS_UBUNTU, reason="Use of systemctl")
+    def test_check_ssh_service(self, class_client):
+        """Ensure we check the sshd status because we modified the config"""
+        log = class_client.read_from_file("/var/log/cloud-init.log")
+        assert (
+            "'systemctl', 'show', '--property', 'ActiveState', "
+            "'--value', 'ssh'" in log
+        )
 
-@pytest.mark.ci
+    def test_sshd_config(self, class_client):
+        """Test that SSH password auth is enabled."""
+        sshd_config = class_client.execute("sshd -T").stdout
+        assert "passwordauthentication yes" in sshd_config
+
+
 @pytest.mark.user_data(LIST_USER_DATA)
 class TestPasswordList(Mixin):
     """Launch an instance with LIST_USER_DATA, ensure Mixin tests pass."""
 
 
-@pytest.mark.ci
 @pytest.mark.user_data(STRING_USER_DATA)
 class TestPasswordListString(Mixin):
     """Launch an instance with STRING_USER_DATA, ensure Mixin tests pass."""
+
+
+@pytest.mark.ci
+@pytest.mark.user_data(USERS_USER_DATA)
+class TestPasswordUsersList(Mixin):
+    """Launch an instance with USERS_USER_DATA, ensure Mixin tests pass."""

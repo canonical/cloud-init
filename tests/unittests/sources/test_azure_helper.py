@@ -1,6 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import copy
 import os
 import re
 import unittest
@@ -8,10 +7,18 @@ from textwrap import dedent
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape, unescape
 
+import pytest
+import requests
+
+from cloudinit import url_helper
+from cloudinit.net import dhcp
+from cloudinit.sources.azure import errors
 from cloudinit.sources.helpers import azure as azure_helper
 from cloudinit.sources.helpers.azure import WALinuxAgentShim as wa_shim
-from cloudinit.util import load_file
-from tests.unittests.helpers import CiTestCase, ExitStack, mock, populate_dir
+from cloudinit.util import load_text_file
+from tests.unittests.helpers import CiTestCase, ExitStack, mock
+from tests.unittests.sources.test_azure import construct_ovf_env
+from tests.unittests.util import MockDistro
 
 GOAL_STATE_TEMPLATE = """\
 <?xml version="1.0" encoding="utf-8"?>
@@ -71,6 +78,23 @@ HEALTH_REPORT_XML_TEMPLATE = """\
 </Health>
 """
 
+
+def get_formatted_health_report_xml_bytes(
+    container_id: str,
+    incarnation: int,
+    instance_id: str,
+    health_status: str,
+    health_detail_subsection: str,
+) -> bytes:
+    return HEALTH_REPORT_XML_TEMPLATE.format(
+        container_id=container_id,
+        incarnation=incarnation,
+        instance_id=instance_id,
+        health_status=health_status,
+        health_detail_subsection=health_detail_subsection,
+    ).encode("utf-8")
+
+
 HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE = dedent(
     """\
     <Details>
@@ -81,110 +105,59 @@ HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE = dedent(
 )
 
 HEALTH_REPORT_DESCRIPTION_TRIM_LEN = 512
+MOCKPATH = "cloudinit.sources.helpers.azure."
+
+
+@pytest.fixture(autouse=True)
+def fake_vm_id(mocker):
+    vm_id = "foo"
+    mocker.patch(
+        "cloudinit.sources.azure.identity.query_vm_id", return_value=vm_id
+    )
+    yield vm_id
+
+
+@pytest.fixture
+def mock_readurl():
+    with mock.patch(MOCKPATH + "url_helper.readurl", autospec=True) as m:
+        yield m
+
+
+@pytest.fixture
+def mock_sleep():
+    with mock.patch(MOCKPATH + "sleep", autospec=True) as m:
+        yield m
+
+
+@pytest.fixture
+def mock_time():
+    with mock.patch(MOCKPATH + "time", autospec=True) as m:
+        yield m
 
 
 class SentinelException(Exception):
     pass
 
 
-class TestFindEndpoint(CiTestCase):
-    def setUp(self):
-        super(TestFindEndpoint, self).setUp()
-        patches = ExitStack()
-        self.addCleanup(patches.close)
-
-        self.load_file = patches.enter_context(
-            mock.patch.object(azure_helper.util, "load_file")
-        )
-
-        self.dhcp_options = patches.enter_context(
-            mock.patch.object(wa_shim, "_load_dhclient_json")
-        )
-
-        self.networkd_leases = patches.enter_context(
-            mock.patch.object(wa_shim, "_networkd_get_value_from_leases")
-        )
-        self.networkd_leases.return_value = None
-
-    def test_missing_file(self):
-        """wa_shim find_endpoint uses default endpoint if
-        leasefile not found
-        """
-        self.assertEqual(wa_shim.find_endpoint(), "168.63.129.16")
-
-    def test_missing_special_azure_line(self):
-        """wa_shim find_endpoint uses default endpoint if leasefile is found
-        but does not contain DHCP Option 245 (whose value is the endpoint)
-        """
-        self.load_file.return_value = ""
-        self.dhcp_options.return_value = {"eth0": {"key": "value"}}
-        self.assertEqual(wa_shim.find_endpoint(), "168.63.129.16")
-
-    @staticmethod
-    def _build_lease_content(encoded_address):
-        endpoint = azure_helper._get_dhcp_endpoint_option_name()
-        return "\n".join(
-            [
-                "lease {",
-                ' interface "eth0";',
-                " option {0} {1};".format(endpoint, encoded_address),
-                "}",
-            ]
-        )
-
-    def test_from_dhcp_client(self):
-        self.dhcp_options.return_value = {"eth0": {"unknown_245": "5:4:3:2"}}
-        self.assertEqual("5.4.3.2", wa_shim.find_endpoint(None))
-
-    def test_latest_lease_used(self):
-        encoded_addresses = ["5:4:3:2", "4:3:2:1"]
-        file_content = "\n".join(
-            [
-                self._build_lease_content(encoded_address)
-                for encoded_address in encoded_addresses
-            ]
-        )
-        self.load_file.return_value = file_content
-        self.assertEqual(
-            encoded_addresses[-1].replace(":", "."),
-            wa_shim.find_endpoint("foobar"),
-        )
-
-
-class TestExtractIpAddressFromLeaseValue(CiTestCase):
-    def test_hex_string(self):
-        ip_address, encoded_address = "98.76.54.32", "62:4c:36:20"
-        self.assertEqual(
-            ip_address, wa_shim.get_ip_from_lease_value(encoded_address)
-        )
-
-    def test_hex_string_with_single_character_part(self):
-        ip_address, encoded_address = "4.3.2.1", "4:3:2:1"
-        self.assertEqual(
-            ip_address, wa_shim.get_ip_from_lease_value(encoded_address)
-        )
-
-    def test_packed_string(self):
-        ip_address, encoded_address = "98.76.54.32", "bL6 "
-        self.assertEqual(
-            ip_address, wa_shim.get_ip_from_lease_value(encoded_address)
-        )
-
-    def test_packed_string_with_escaped_quote(self):
-        ip_address, encoded_address = "100.72.34.108", 'dH\\"l'
-        self.assertEqual(
-            ip_address, wa_shim.get_ip_from_lease_value(encoded_address)
-        )
-
-    def test_packed_string_containing_a_colon(self):
-        ip_address, encoded_address = "100.72.58.108", "dH:l"
-        self.assertEqual(
-            ip_address, wa_shim.get_ip_from_lease_value(encoded_address)
+class TestGetIpFromLeaseValue:
+    @pytest.mark.parametrize(
+        "encoded_address,ip_address",
+        [
+            ("62:4c:36:20", "98.76.54.32"),
+            ("4:3:2:1", "4.3.2.1"),
+            ("bL6 ", "98.76.54.32"),
+            ('dH\\"l', "100.72.34.108"),
+            ("dH:l", "100.72.58.108"),
+        ],
+    )
+    def test_get_ip_from_lease_value(self, encoded_address, ip_address):
+        assert (
+            dhcp.IscDhclient.get_ip_from_lease_value(encoded_address)
+            == ip_address
         )
 
 
 class TestGoalStateParsing(CiTestCase):
-
     default_parameters = {
         "incarnation": 1,
         "container_id": "MyContainerId",
@@ -225,28 +198,6 @@ class TestGoalStateParsing(CiTestCase):
         instance_id = "TestInstanceId"
         goal_state = self._get_goal_state(instance_id=instance_id)
         self.assertEqual(instance_id, goal_state.instance_id)
-
-    def test_instance_id_byte_swap(self):
-        """Return true when previous_iid is byteswapped current_iid"""
-        previous_iid = "D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8"
-        current_iid = "544CDFD0-CB4E-4B4A-9954-5BDF3ED5C3B8"
-        self.assertTrue(
-            azure_helper.is_byte_swapped(previous_iid, current_iid)
-        )
-
-    def test_instance_id_no_byte_swap_same_instance_id(self):
-        previous_iid = "D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8"
-        current_iid = "D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8"
-        self.assertFalse(
-            azure_helper.is_byte_swapped(previous_iid, current_iid)
-        )
-
-    def test_instance_id_no_byte_swap_diff_instance_id(self):
-        previous_iid = "D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8"
-        current_iid = "G0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8"
-        self.assertFalse(
-            azure_helper.is_byte_swapped(previous_iid, current_iid)
-        )
 
     def test_certificates_xml_parsed_and_fetched_correctly(self):
         m_azure_endpoint_client = mock.MagicMock()
@@ -302,7 +253,6 @@ class TestGoalStateParsing(CiTestCase):
 
 
 class TestAzureEndpointHttpClient(CiTestCase):
-
     regular_headers = {
         "x-ms-agent-name": "WALinuxAgent",
         "x-ms-version": "2012-11-30",
@@ -409,182 +359,127 @@ class TestAzureEndpointHttpClient(CiTestCase):
         self.assertEqual(1, self.m_http_with_retries.call_count)
 
 
-class TestAzureHelperHttpWithRetries(CiTestCase):
+class TestHttpWithRetries:
+    @pytest.fixture(autouse=True)
+    def setup(self, mock_readurl, mock_sleep, mock_time):
+        self.m_readurl = mock_readurl
+        self.m_sleep = mock_sleep
+        self.m_time = mock_time
+        self.m_time.return_value = 0
 
-    with_logs = True
-
-    max_readurl_attempts = 240
-    default_readurl_timeout = 5
-    sleep_duration_between_retries = 5
-    periodic_logging_attempts = 12
-
-    def setUp(self):
-        super(TestAzureHelperHttpWithRetries, self).setUp()
-        patches = ExitStack()
-        self.addCleanup(patches.close)
-
-        self.m_readurl = patches.enter_context(
-            mock.patch.object(
-                azure_helper.url_helper, "readurl", mock.MagicMock()
-            )
-        )
-        self.m_sleep = patches.enter_context(
-            mock.patch.object(azure_helper.time, "sleep", autospec=True)
-        )
-
-    def test_http_with_retries(self):
-        self.m_readurl.return_value = "TestResp"
-        self.assertEqual(
-            azure_helper.http_with_retries("testurl"),
-            self.m_readurl.return_value,
-        )
-        self.assertEqual(self.m_readurl.call_count, 1)
-
-    def test_http_with_retries_propagates_readurl_exc_and_logs_exc(self):
-        self.m_readurl.side_effect = SentinelException
-
-        self.assertRaises(
-            SentinelException, azure_helper.http_with_retries, "testurl"
-        )
-        self.assertEqual(self.m_readurl.call_count, self.max_readurl_attempts)
-
-        self.assertIsNotNone(
-            re.search(
-                r"Failed HTTP request with Azure endpoint \S* during "
-                r"attempt \d+ with exception: \S*",
-                self.logs.getvalue(),
-            )
-        )
-        self.assertIsNone(
-            re.search(
-                r"Successful HTTP request with Azure endpoint \S* after "
-                r"\d+ attempts",
-                self.logs.getvalue(),
-            )
-        )
-
-    def test_http_with_retries_delayed_success_due_to_temporary_readurl_exc(
-        self,
+    @pytest.mark.parametrize(
+        "times,try_count,retry_sleep,timeout_minutes",
+        [
+            ([0, 0], 1, 5, 0),
+            ([0, 55], 1, 5, 1),
+            ([0, 54, 55], 2, 5, 1),
+            ([0, 15, 30, 45, 60], 4, 5, 1),
+            ([0, 594, 595], 2, 5, 10),
+        ],
+    )
+    def test_timeouts(
+        self, caplog, times, try_count, retry_sleep, timeout_minutes
     ):
-        self.m_readurl.side_effect = [
-            SentinelException
-        ] * self.periodic_logging_attempts + ["TestResp"]
-        self.m_readurl.return_value = "TestResp"
+        error = url_helper.UrlError("retry", code=404)
+        self.m_readurl.side_effect = error
+        self.m_time.side_effect = times
 
-        response = azure_helper.http_with_retries("testurl")
-        self.assertEqual(response, self.m_readurl.return_value)
-        self.assertEqual(
-            self.m_readurl.call_count, self.periodic_logging_attempts + 1
-        )
+        with pytest.raises(url_helper.UrlError) as exc_info:
+            azure_helper.http_with_retries(
+                "testurl",
+                headers={},
+                retry_sleep=retry_sleep,
+                timeout_minutes=timeout_minutes,
+            )
 
-        # Ensure that cloud-init did sleep between each failed request
-        self.assertEqual(
-            self.m_sleep.call_count, self.periodic_logging_attempts
-        )
-        self.m_sleep.assert_called_with(self.sleep_duration_between_retries)
+        assert exc_info.value == error
+        assert self.m_readurl.call_count == try_count
+        for i in range(1, try_count + 1):
+            assert (
+                "cloudinit.sources.helpers.azure",
+                10,
+                "Failed HTTP request with Azure endpoint testurl during "
+                "attempt %d with exception: retry (code=404 headers={})" % i,
+            ) in caplog.record_tuples
+        assert self.m_time.mock_calls == (try_count + 1) * [mock.call()]
+        assert self.m_sleep.mock_calls == (try_count - 1) * [
+            mock.call(retry_sleep)
+        ]
 
-    def test_http_with_retries_long_delay_logs_periodic_failure_msg(self):
-        self.m_readurl.side_effect = [
-            SentinelException
-        ] * self.periodic_logging_attempts + ["TestResp"]
-        self.m_readurl.return_value = "TestResp"
-
-        azure_helper.http_with_retries("testurl")
-
-        self.assertEqual(
-            self.m_readurl.call_count, self.periodic_logging_attempts + 1
-        )
-        self.assertIsNotNone(
-            re.search(
-                r"Failed HTTP request with Azure endpoint \S* during "
-                r"attempt \d+ with exception: \S*",
-                self.logs.getvalue(),
+    def test_network_unreachable(self, caplog):
+        error = url_helper.UrlError(
+            requests.ConnectionError(
+                "Failed to establish a new connection: "
+                "[Errno 101] Network is unreachable"
             )
         )
-        self.assertIsNotNone(
-            re.search(
-                r"Successful HTTP request with Azure endpoint \S* after "
-                r"\d+ attempts",
-                self.logs.getvalue(),
-            )
-        )
+        self.m_readurl.side_effect = error
 
-    def test_http_with_retries_short_delay_does_not_log_periodic_failure_msg(
-        self,
+        with pytest.raises(url_helper.UrlError) as exc_info:
+            azure_helper.http_with_retries(
+                "testurl",
+                headers={},
+            )
+
+        assert exc_info.value == error
+        assert caplog.record_tuples[1] == (
+            "cloudinit.sources.helpers.azure",
+            10,
+            "Failed HTTP request with Azure endpoint testurl during "
+            "attempt 1 with exception: Failed to establish a new "
+            "connection: [Errno 101] Network is unreachable "
+            "(code=None headers={})",
+        )
+        assert len(caplog.record_tuples) == 3
+        assert self.m_time.mock_calls == [mock.call(), mock.call()]
+        assert self.m_sleep.mock_calls == []
+
+    @pytest.mark.parametrize(
+        "times,try_count,retry_sleep,timeout_minutes",
+        [
+            ([0, 0], 1, 5, 0),
+            ([0, 55], 1, 5, 1),
+            ([0, 54, 55], 2, 5, 1),
+            ([0, 15, 30, 45, 60], 4, 5, 1),
+            ([0, 594, 595], 2, 5, 10),
+        ],
+    )
+    def test_success(
+        self, caplog, times, try_count, retry_sleep, timeout_minutes
     ):
-        self.m_readurl.side_effect = [SentinelException] * (
-            self.periodic_logging_attempts - 1
-        ) + ["TestResp"]
-        self.m_readurl.return_value = "TestResp"
+        self.m_readurl.side_effect = (try_count - 1) * [
+            url_helper.UrlError("retry", code=404)
+        ] + ["data"]
+        self.m_time.side_effect = times
 
-        azure_helper.http_with_retries("testurl")
-        self.assertEqual(
-            self.m_readurl.call_count, self.periodic_logging_attempts
+        resp = azure_helper.http_with_retries(
+            "testurl",
+            headers={},
+            retry_sleep=retry_sleep,
+            timeout_minutes=timeout_minutes,
         )
 
-        self.assertIsNone(
-            re.search(
-                r"Failed HTTP request with Azure endpoint \S* during "
-                r"attempt \d+ with exception: \S*",
-                self.logs.getvalue(),
-            )
-        )
-        self.assertIsNotNone(
-            re.search(
-                r"Successful HTTP request with Azure endpoint \S* after "
-                r"\d+ attempts",
-                self.logs.getvalue(),
-            )
-        )
+        assert resp == "data"
+        assert self.m_readurl.call_count == try_count
+        assert self.m_time.mock_calls == (try_count) * [mock.call()]
+        assert self.m_sleep.mock_calls == (try_count - 1) * [
+            mock.call(retry_sleep)
+        ]
 
-    def test_http_with_retries_calls_url_helper_readurl_with_args_kwargs(self):
-        testurl = mock.MagicMock()
-        kwargs = {
-            "headers": mock.MagicMock(),
-            "data": mock.MagicMock(),
-            # timeout kwarg should not be modified or deleted if present
-            "timeout": mock.MagicMock(),
-        }
-        azure_helper.http_with_retries(testurl, **kwargs)
-        self.m_readurl.assert_called_once_with(testurl, **kwargs)
+        for i in range(1, try_count):
+            assert (
+                "cloudinit.sources.helpers.azure",
+                10,
+                "Failed HTTP request with Azure endpoint testurl during "
+                "attempt %d with exception: retry (code=404 headers={})" % i,
+            ) in caplog.record_tuples
 
-    def test_http_with_retries_adds_timeout_kwarg_if_not_present(self):
-        testurl = mock.MagicMock()
-        kwargs = {"headers": mock.MagicMock(), "data": mock.MagicMock()}
-        expected_kwargs = copy.deepcopy(kwargs)
-        expected_kwargs["timeout"] = self.default_readurl_timeout
-
-        azure_helper.http_with_retries(testurl, **kwargs)
-        self.m_readurl.assert_called_once_with(testurl, **expected_kwargs)
-
-    def test_http_with_retries_deletes_retries_kwargs_passed_in(self):
-        """http_with_retries already implements retry logic,
-        so url_helper.readurl should not have retries.
-        http_with_retries should delete kwargs that
-        cause url_helper.readurl to retry.
-        """
-        testurl = mock.MagicMock()
-        kwargs = {
-            "headers": mock.MagicMock(),
-            "data": mock.MagicMock(),
-            "timeout": mock.MagicMock(),
-            "retries": mock.MagicMock(),
-            "infinite": mock.MagicMock(),
-        }
-        expected_kwargs = copy.deepcopy(kwargs)
-        expected_kwargs.pop("retries", None)
-        expected_kwargs.pop("infinite", None)
-
-        azure_helper.http_with_retries(testurl, **kwargs)
-        self.m_readurl.assert_called_once_with(testurl, **expected_kwargs)
-        self.assertIn(
-            "retries kwarg passed in for communication with Azure endpoint.",
-            self.logs.getvalue(),
-        )
-        self.assertIn(
-            "infinite kwarg passed in for communication with Azure endpoint.",
-            self.logs.getvalue(),
-        )
+        assert (
+            "cloudinit.sources.helpers.azure",
+            10,
+            "Successful HTTP request with Azure endpoint testurl after "
+            "%d attempts" % try_count,
+        ) in caplog.record_tuples
 
 
 class TestOpenSSLManager(CiTestCase):
@@ -639,8 +534,8 @@ class TestOpenSSLManagerActions(CiTestCase):
 
     @unittest.skip("todo move to cloud_test")
     def test_pubkey_extract(self):
-        cert = load_file(self._data_file("pubkey_extract_cert"))
-        good_key = load_file(self._data_file("pubkey_extract_ssh_key"))
+        cert = load_text_file(self._data_file("pubkey_extract_cert"))
+        good_key = load_text_file(self._data_file("pubkey_extract_ssh_key"))
         sslmgr = azure_helper.OpenSSLManager()
         key = sslmgr._get_ssh_key_from_cert(cert)
         self.assertEqual(good_key, key)
@@ -657,8 +552,10 @@ class TestOpenSSLManagerActions(CiTestCase):
         from certs are extracted and that fingerprints are converted to
         the form specified in the ovf-env.xml file.
         """
-        cert_contents = load_file(self._data_file("parse_certificates_pem"))
-        fingerprints = load_file(
+        cert_contents = load_text_file(
+            self._data_file("parse_certificates_pem")
+        )
+        fingerprints = load_text_file(
             self._data_file("parse_certificates_fingerprints")
         ).splitlines()
         mock_decrypt_certs.return_value = cert_contents
@@ -671,7 +568,6 @@ class TestOpenSSLManagerActions(CiTestCase):
 
 
 class TestGoalStateHealthReporter(CiTestCase):
-
     maxDiff = None
 
     default_parameters = {
@@ -699,7 +595,7 @@ class TestGoalStateHealthReporter(CiTestCase):
         self.addCleanup(patches.close)
 
         patches.enter_context(
-            mock.patch.object(azure_helper.time, "sleep", mock.MagicMock())
+            mock.patch.object(azure_helper, "sleep", mock.MagicMock())
         )
         self.read_file_or_url = patches.enter_context(
             mock.patch.object(azure_helper.url_helper, "read_file_or_url")
@@ -728,14 +624,11 @@ class TestGoalStateHealthReporter(CiTestCase):
             return element.text
         return None
 
-    def _get_formatted_health_report_xml_string(self, **kwargs):
-        return HEALTH_REPORT_XML_TEMPLATE.format(**kwargs)
-
     def _get_formatted_health_detail_subsection_xml_string(self, **kwargs):
         return HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE.format(**kwargs)
 
     def _get_report_ready_health_document(self):
-        return self._get_formatted_health_report_xml_string(
+        return get_formatted_health_report_xml_bytes(
             incarnation=escape(str(self.default_parameters["incarnation"])),
             container_id=escape(self.default_parameters["container_id"]),
             instance_id=escape(self.default_parameters["instance_id"]),
@@ -753,7 +646,7 @@ class TestGoalStateHealthReporter(CiTestCase):
             )
         )
 
-        return self._get_formatted_health_report_xml_string(
+        return get_formatted_health_report_xml_bytes(
             incarnation=escape(str(self.default_parameters["incarnation"])),
             container_id=escape(self.default_parameters["container_id"]),
             instance_id=escape(self.default_parameters["instance_id"]),
@@ -989,7 +882,7 @@ class TestGoalStateHealthReporter(CiTestCase):
                 health_description=escape(health_description),
             )
         )
-        health_document = self._get_formatted_health_report_xml_string(
+        health_document = get_formatted_health_report_xml_bytes(
             incarnation=escape(incarnation),
             container_id=escape(container_id),
             instance_id=escape(instance_id),
@@ -1101,9 +994,6 @@ class TestWALinuxAgentShim(CiTestCase):
         self.AzureEndpointHttpClient = patches.enter_context(
             mock.patch.object(azure_helper, "AzureEndpointHttpClient")
         )
-        self.find_endpoint = patches.enter_context(
-            mock.patch.object(wa_shim, "find_endpoint")
-        )
         self.GoalState = patches.enter_context(
             mock.patch.object(azure_helper, "GoalState")
         )
@@ -1111,7 +1001,7 @@ class TestWALinuxAgentShim(CiTestCase):
             mock.patch.object(azure_helper, "OpenSSLManager", autospec=True)
         )
         patches.enter_context(
-            mock.patch.object(azure_helper.time, "sleep", mock.MagicMock())
+            mock.patch.object(azure_helper, "sleep", mock.MagicMock())
         )
 
         self.test_incarnation = "TestIncarnation"
@@ -1122,31 +1012,33 @@ class TestWALinuxAgentShim(CiTestCase):
         self.GoalState.return_value.instance_id = self.test_instance_id
 
     def test_eject_iso_is_called(self):
-        shim = wa_shim()
+        mock_distro = MockDistro()
+        shim = wa_shim(endpoint="test_endpoint")
         with mock.patch.object(
             shim, "eject_iso", autospec=True
         ) as m_eject_iso:
-            shim.register_with_azure_and_fetch_data(iso_dev="/dev/sr0")
-            m_eject_iso.assert_called_once_with("/dev/sr0")
+            shim.register_with_azure_and_fetch_data(
+                distro=mock_distro, iso_dev="/dev/sr0"
+            )
+            m_eject_iso.assert_called_once_with("/dev/sr0", distro=mock_distro)
 
     def test_http_client_does_not_use_certificate_for_report_ready(self):
-        shim = wa_shim()
-        shim.register_with_azure_and_fetch_data()
+        shim = wa_shim(endpoint="test_endpoint")
+        shim.register_with_azure_and_fetch_data(distro=None)
         self.assertEqual(
             [mock.call(None)], self.AzureEndpointHttpClient.call_args_list
         )
 
     def test_http_client_does_not_use_certificate_for_report_failure(self):
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_report_failure(description="TestDesc")
         self.assertEqual(
             [mock.call(None)], self.AzureEndpointHttpClient.call_args_list
         )
 
     def test_correct_url_used_for_goalstate_during_report_ready(self):
-        self.find_endpoint.return_value = "test_endpoint"
-        shim = wa_shim()
-        shim.register_with_azure_and_fetch_data()
+        shim = wa_shim(endpoint="test_endpoint")
+        shim.register_with_azure_and_fetch_data(distro=None)
         m_get = self.AzureEndpointHttpClient.return_value.get
         self.assertEqual(
             [mock.call("http://test_endpoint/machine/?comp=goalstate")],
@@ -1164,8 +1056,7 @@ class TestWALinuxAgentShim(CiTestCase):
         )
 
     def test_correct_url_used_for_goalstate_during_report_failure(self):
-        self.find_endpoint.return_value = "test_endpoint"
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_report_failure(description="TestDesc")
         m_get = self.AzureEndpointHttpClient.return_value.get
         self.assertEqual(
@@ -1187,7 +1078,7 @@ class TestWALinuxAgentShim(CiTestCase):
         # if register_with_azure_and_fetch_data() isn't passed some info about
         # the user's public keys, there's no point in even trying to parse the
         # certificates
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         mypk = [
             {"fingerprint": "fp1", "path": "path1"},
             {"fingerprint": "fp3", "path": "path3", "value": ""},
@@ -1199,26 +1090,29 @@ class TestWALinuxAgentShim(CiTestCase):
         }
         sslmgr = self.OpenSSLManager.return_value
         sslmgr.parse_certificates.return_value = certs
-        data = shim.register_with_azure_and_fetch_data(pubkey_info=mypk)
+        data = shim.register_with_azure_and_fetch_data(
+            distro=None, pubkey_info=mypk
+        )
         self.assertEqual(
             [mock.call(self.GoalState.return_value.certificates_xml)],
             sslmgr.parse_certificates.call_args_list,
         )
-        self.assertIn("expected-key", data["public-keys"])
-        self.assertIn("expected-no-value-key", data["public-keys"])
-        self.assertNotIn("should-not-be-found", data["public-keys"])
+        self.assertIn("expected-key", data)
+        self.assertIn("expected-no-value-key", data)
+        self.assertNotIn("should-not-be-found", data)
 
     def test_absent_certificates_produces_empty_public_keys(self):
         mypk = [{"fingerprint": "fp1", "path": "path1"}]
         self.GoalState.return_value.certificates_xml = None
-        shim = wa_shim()
-        data = shim.register_with_azure_and_fetch_data(pubkey_info=mypk)
-        self.assertEqual([], data["public-keys"])
+        shim = wa_shim(endpoint="test_endpoint")
+        data = shim.register_with_azure_and_fetch_data(
+            distro=None, pubkey_info=mypk
+        )
+        self.assertEqual([], data)
 
     def test_correct_url_used_for_report_ready(self):
-        self.find_endpoint.return_value = "test_endpoint"
-        shim = wa_shim()
-        shim.register_with_azure_and_fetch_data()
+        shim = wa_shim(endpoint="test_endpoint")
+        shim.register_with_azure_and_fetch_data(distro=None)
         expected_url = "http://test_endpoint/machine?comp=health"
         self.assertEqual(
             [mock.call(expected_url, data=mock.ANY, extra_headers=mock.ANY)],
@@ -1226,8 +1120,7 @@ class TestWALinuxAgentShim(CiTestCase):
         )
 
     def test_correct_url_used_for_report_failure(self):
-        self.find_endpoint.return_value = "test_endpoint"
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_report_failure(description="TestDesc")
         expected_url = "http://test_endpoint/machine?comp=health"
         self.assertEqual(
@@ -1236,29 +1129,29 @@ class TestWALinuxAgentShim(CiTestCase):
         )
 
     def test_goal_state_values_used_for_report_ready(self):
-        shim = wa_shim()
-        shim.register_with_azure_and_fetch_data()
+        shim = wa_shim(endpoint="test_endpoint")
+        shim.register_with_azure_and_fetch_data(distro=None)
         posted_document = (
             self.AzureEndpointHttpClient.return_value.post.call_args[1]["data"]
         )
-        self.assertIn(self.test_incarnation, posted_document)
-        self.assertIn(self.test_container_id, posted_document)
-        self.assertIn(self.test_instance_id, posted_document)
+        self.assertIn(self.test_incarnation.encode("utf-8"), posted_document)
+        self.assertIn(self.test_container_id.encode("utf-8"), posted_document)
+        self.assertIn(self.test_instance_id.encode("utf-8"), posted_document)
 
     def test_goal_state_values_used_for_report_failure(self):
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_report_failure(description="TestDesc")
         posted_document = (
             self.AzureEndpointHttpClient.return_value.post.call_args[1]["data"]
         )
-        self.assertIn(self.test_incarnation, posted_document)
-        self.assertIn(self.test_container_id, posted_document)
-        self.assertIn(self.test_instance_id, posted_document)
+        self.assertIn(self.test_incarnation.encode("utf-8"), posted_document)
+        self.assertIn(self.test_container_id.encode("utf-8"), posted_document)
+        self.assertIn(self.test_instance_id.encode("utf-8"), posted_document)
 
     def test_xml_elems_in_report_ready_post(self):
-        shim = wa_shim()
-        shim.register_with_azure_and_fetch_data()
-        health_document = HEALTH_REPORT_XML_TEMPLATE.format(
+        shim = wa_shim(endpoint="test_endpoint")
+        shim.register_with_azure_and_fetch_data(distro=None)
+        health_document = get_formatted_health_report_xml_bytes(
             incarnation=escape(self.test_incarnation),
             container_id=escape(self.test_container_id),
             instance_id=escape(self.test_instance_id),
@@ -1271,9 +1164,9 @@ class TestWALinuxAgentShim(CiTestCase):
         self.assertEqual(health_document, posted_document)
 
     def test_xml_elems_in_report_failure_post(self):
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_report_failure(description="TestDesc")
-        health_document = HEALTH_REPORT_XML_TEMPLATE.format(
+        health_document = get_formatted_health_report_xml_bytes(
             incarnation=escape(self.test_incarnation),
             container_id=escape(self.test_container_id),
             instance_id=escape(self.test_instance_id),
@@ -1294,8 +1187,8 @@ class TestWALinuxAgentShim(CiTestCase):
     def test_register_with_azure_and_fetch_data_calls_send_ready_signal(
         self, m_goal_state_health_reporter
     ):
-        shim = wa_shim()
-        shim.register_with_azure_and_fetch_data()
+        shim = wa_shim(endpoint="test_endpoint")
+        shim.register_with_azure_and_fetch_data(distro=None)
         self.assertEqual(
             1,
             m_goal_state_health_reporter.return_value.send_ready_signal.call_count,  # noqa: E501
@@ -1305,7 +1198,7 @@ class TestWALinuxAgentShim(CiTestCase):
     def test_register_with_azure_and_report_failure_calls_send_failure_signal(
         self, m_goal_state_health_reporter
     ):
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_report_failure(description="TestDesc")
         m_goal_state_health_reporter.return_value.send_failure_signal.assert_called_once_with(  # noqa: E501
             description="TestDesc"
@@ -1314,7 +1207,7 @@ class TestWALinuxAgentShim(CiTestCase):
     def test_register_with_azure_and_report_failure_does_not_need_certificates(
         self,
     ):
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         with mock.patch.object(
             shim, "_fetch_goal_state_from_azure", autospec=True
         ) as m_fetch_goal_state_from_azure:
@@ -1324,82 +1217,82 @@ class TestWALinuxAgentShim(CiTestCase):
             )
 
     def test_clean_up_can_be_called_at_any_time(self):
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.clean_up()
 
     def test_openssl_manager_not_instantiated_by_shim_report_status(self):
-        shim = wa_shim()
-        shim.register_with_azure_and_fetch_data()
+        shim = wa_shim(endpoint="test_endpoint")
+        shim.register_with_azure_and_fetch_data(distro=None)
         shim.register_with_azure_and_report_failure(description="TestDesc")
         shim.clean_up()
         self.OpenSSLManager.assert_not_called()
 
     def test_clean_up_after_report_ready(self):
-        shim = wa_shim()
-        shim.register_with_azure_and_fetch_data()
+        shim = wa_shim(endpoint="test_endpoint")
+        shim.register_with_azure_and_fetch_data(distro=None)
         shim.clean_up()
         self.OpenSSLManager.return_value.clean_up.assert_not_called()
 
     def test_clean_up_after_report_failure(self):
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_report_failure(description="TestDesc")
         shim.clean_up()
         self.OpenSSLManager.return_value.clean_up.assert_not_called()
 
     def test_fetch_goalstate_during_report_ready_raises_exc_on_get_exc(self):
         self.AzureEndpointHttpClient.return_value.get.side_effect = (
-            SentinelException
+            url_helper.UrlError("retry", code=404)
         )
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
-            SentinelException, shim.register_with_azure_and_fetch_data
+            url_helper.UrlError, shim.register_with_azure_and_fetch_data, None
         )
 
     def test_fetch_goalstate_during_report_failure_raises_exc_on_get_exc(self):
         self.AzureEndpointHttpClient.return_value.get.side_effect = (
-            SentinelException
+            url_helper.UrlError("retry", code=404)
         )
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
-            SentinelException,
+            url_helper.UrlError,
             shim.register_with_azure_and_report_failure,
             description="TestDesc",
         )
 
     def test_fetch_goalstate_during_report_ready_raises_exc_on_parse_exc(self):
-        self.GoalState.side_effect = SentinelException
-        shim = wa_shim()
+        self.GoalState.side_effect = url_helper.UrlError("retry", code=404)
+        shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
-            SentinelException, shim.register_with_azure_and_fetch_data
+            url_helper.UrlError, shim.register_with_azure_and_fetch_data, None
         )
 
     def test_fetch_goalstate_during_report_failure_raises_exc_on_parse_exc(
         self,
     ):
-        self.GoalState.side_effect = SentinelException
-        shim = wa_shim()
+        self.GoalState.side_effect = url_helper.UrlError("retry", code=404)
+        shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
-            SentinelException,
+            url_helper.UrlError,
             shim.register_with_azure_and_report_failure,
             description="TestDesc",
         )
 
     def test_failure_to_send_report_ready_health_doc_bubbles_up(self):
         self.AzureEndpointHttpClient.return_value.post.side_effect = (
-            SentinelException
+            url_helper.UrlError("retry", code=404)
         )
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
-            SentinelException, shim.register_with_azure_and_fetch_data
+            url_helper.UrlError, shim.register_with_azure_and_fetch_data, None
         )
 
     def test_failure_to_send_report_failure_health_doc_bubbles_up(self):
         self.AzureEndpointHttpClient.return_value.post.side_effect = (
-            SentinelException
+            url_helper.UrlError("retry", code=404)
         )
-        shim = wa_shim()
+        shim = wa_shim(endpoint="test_endpoint")
         self.assertRaises(
-            SentinelException,
+            url_helper.UrlError,
             shim.register_with_azure_and_report_failure,
             description="TestDesc",
         )
@@ -1416,51 +1309,58 @@ class TestGetMetadataGoalStateXMLAndReportReadyToFabric(CiTestCase):
         )
 
     def test_data_from_shim_returned(self):
-        ret = azure_helper.get_metadata_from_fabric()
+        ret = azure_helper.get_metadata_from_fabric(
+            distro=None, endpoint="test_endpoint"
+        )
         self.assertEqual(
             self.m_shim.return_value.register_with_azure_and_fetch_data.return_value,  # noqa: E501
             ret,
         )
 
     def test_success_calls_clean_up(self):
-        azure_helper.get_metadata_from_fabric()
+        azure_helper.get_metadata_from_fabric(
+            distro=None, endpoint="test_endpoint"
+        )
         self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
 
     def test_failure_in_registration_propagates_exc_and_calls_clean_up(self):
-        self.m_shim.return_value.register_with_azure_and_fetch_data.side_effect = (  # noqa: E501
-            SentinelException
+        self.m_shim.return_value.register_with_azure_and_fetch_data.side_effect = url_helper.UrlError(  # noqa: E501
+            "retry", code=404
         )
         self.assertRaises(
-            SentinelException, azure_helper.get_metadata_from_fabric
+            url_helper.UrlError,
+            azure_helper.get_metadata_from_fabric,
+            "test_endpoint",
+            None,
         )
         self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
 
     def test_calls_shim_register_with_azure_and_fetch_data(self):
         m_pubkey_info = mock.MagicMock()
         azure_helper.get_metadata_from_fabric(
-            pubkey_info=m_pubkey_info, iso_dev="/dev/sr0"
+            endpoint="test_endpoint",
+            distro=None,
+            pubkey_info=m_pubkey_info,
+            iso_dev="/dev/sr0",
         )
         self.assertEqual(
             1,
             self.m_shim.return_value.register_with_azure_and_fetch_data.call_count,  # noqa: E501
         )
         self.assertEqual(
-            mock.call(iso_dev="/dev/sr0", pubkey_info=m_pubkey_info),
+            mock.call(
+                distro=None, iso_dev="/dev/sr0", pubkey_info=m_pubkey_info
+            ),
             self.m_shim.return_value.register_with_azure_and_fetch_data.call_args,  # noqa: E501
         )
 
     def test_instantiates_shim_with_kwargs(self):
-        m_fallback_lease_file = mock.MagicMock()
-        m_dhcp_options = mock.MagicMock()
         azure_helper.get_metadata_from_fabric(
-            fallback_lease_file=m_fallback_lease_file, dhcp_opts=m_dhcp_options
+            endpoint="test_endpoint", distro=None
         )
         self.assertEqual(1, self.m_shim.call_count)
         self.assertEqual(
-            mock.call(
-                fallback_lease_file=m_fallback_lease_file,
-                dhcp_options=m_dhcp_options,
-            ),
+            mock.call(endpoint="test_endpoint"),
             self.m_shim.call_args,
         )
 
@@ -1478,7 +1378,10 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
         )
 
     def test_success_calls_clean_up(self):
-        azure_helper.report_failure_to_fabric()
+        error = errors.ReportableError(reason="test")
+        azure_helper.report_failure_to_fabric(
+            endpoint="test_endpoint", error=error
+        )
         self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
 
     def test_failure_in_shim_report_failure_propagates_exc_and_calls_clean_up(
@@ -1488,122 +1391,335 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
             SentinelException
         )
         self.assertRaises(
-            SentinelException, azure_helper.report_failure_to_fabric
+            SentinelException,
+            azure_helper.report_failure_to_fabric,
+            "test_endpoint",
+            errors.ReportableError(reason="test"),
         )
         self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
 
-    def test_report_failure_to_fabric_with_desc_calls_shim_report_failure(
+    def test_report_failure_to_fabric_calls_shim_report_failure(
         self,
     ):
-        azure_helper.report_failure_to_fabric(description="TestDesc")
-        self.m_shim.return_value.register_with_azure_and_report_failure.assert_called_once_with(  # noqa: E501
-            description="TestDesc"
-        )
+        error = errors.ReportableError(reason="test")
 
-    def test_report_failure_to_fabric_with_no_desc_calls_shim_report_failure(
-        self,
-    ):
-        azure_helper.report_failure_to_fabric()
-        # default err message description should be shown to the user
-        # if no description is passed in
-        self.m_shim.return_value.register_with_azure_and_report_failure.assert_called_once_with(  # noqa: E501
-            description=(
-                azure_helper.DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
-            )
+        azure_helper.report_failure_to_fabric(
+            endpoint="test_endpoint",
+            error=error,
         )
-
-    def test_report_failure_to_fabric_empty_desc_calls_shim_report_failure(
-        self,
-    ):
-        azure_helper.report_failure_to_fabric(description="")
         # default err message description should be shown to the user
         # if an empty description is passed in
         self.m_shim.return_value.register_with_azure_and_report_failure.assert_called_once_with(  # noqa: E501
-            description=(
-                azure_helper.DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
-            )
+            description=error.as_encoded_report(),
         )
 
     def test_instantiates_shim_with_kwargs(self):
-        m_fallback_lease_file = mock.MagicMock()
-        m_dhcp_options = mock.MagicMock()
         azure_helper.report_failure_to_fabric(
-            fallback_lease_file=m_fallback_lease_file, dhcp_opts=m_dhcp_options
+            endpoint="test_endpoint",
+            error=errors.ReportableError(reason="test"),
         )
         self.m_shim.assert_called_once_with(
-            fallback_lease_file=m_fallback_lease_file,
-            dhcp_options=m_dhcp_options,
+            endpoint="test_endpoint",
         )
 
 
-class TestExtractIpAddressFromNetworkd(CiTestCase):
-
-    azure_lease = dedent(
-        """\
-    # This is private data. Do not parse.
-    ADDRESS=10.132.0.5
-    NETMASK=255.255.255.255
-    ROUTER=10.132.0.1
-    SERVER_ADDRESS=169.254.169.254
-    NEXT_SERVER=10.132.0.1
-    MTU=1460
-    T1=43200
-    T2=75600
-    LIFETIME=86400
-    DNS=169.254.169.254
-    NTP=169.254.169.254
-    DOMAINNAME=c.ubuntu-foundations.internal
-    DOMAIN_SEARCH_LIST=c.ubuntu-foundations.internal google.internal
-    HOSTNAME=tribaal-test-171002-1349.c.ubuntu-foundations.internal
-    ROUTES=10.132.0.1/32,0.0.0.0 0.0.0.0/0,10.132.0.1
-    CLIENTID=ff405663a200020000ab11332859494d7a8b4c
-    OPTION_245=624c3620
-    """
+class TestOvfEnvXml:
+    @pytest.mark.parametrize(
+        "ovf,expected",
+        [
+            # Defaults for construct_ovf_env() with explicit OvfEnvXml values.
+            (
+                construct_ovf_env(),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    custom_data=None,
+                    disable_ssh_password_auth=None,
+                    public_keys=[],
+                    preprovisioned_vm=False,
+                    preprovisioned_vm_type=None,
+                ),
+            ),
+            # Defaults for construct_ovf_env() with default OvfEnvXml values.
+            (
+                construct_ovf_env(),
+                azure_helper.OvfEnvXml(
+                    username="test-user", hostname="test-host"
+                ),
+            ),
+            # Username.
+            (
+                construct_ovf_env(username="other-user"),
+                azure_helper.OvfEnvXml(
+                    username="other-user", hostname="test-host"
+                ),
+            ),
+            # Password.
+            (
+                construct_ovf_env(password="test-password"),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    password="test-password",
+                ),
+            ),
+            # Hostname.
+            (
+                construct_ovf_env(hostname="other-host"),
+                azure_helper.OvfEnvXml(
+                    username="test-user", hostname="other-host"
+                ),
+            ),
+            # Empty public keys.
+            (
+                construct_ovf_env(public_keys=[]),
+                azure_helper.OvfEnvXml(
+                    username="test-user", hostname="test-host", public_keys=[]
+                ),
+            ),
+            # One public key.
+            (
+                construct_ovf_env(
+                    public_keys=[
+                        {"fingerprint": "fp1", "path": "path1", "value": ""}
+                    ]
+                ),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    public_keys=[
+                        {"fingerprint": "fp1", "path": "path1", "value": ""}
+                    ],
+                ),
+            ),
+            # Two public keys.
+            (
+                construct_ovf_env(
+                    public_keys=[
+                        {"fingerprint": "fp1", "path": "path1", "value": ""},
+                        {
+                            "fingerprint": "fp2",
+                            "path": "path2",
+                            "value": "somevalue",
+                        },
+                    ]
+                ),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    public_keys=[
+                        {"fingerprint": "fp1", "path": "path1", "value": ""},
+                        {
+                            "fingerprint": "fp2",
+                            "path": "path2",
+                            "value": "somevalue",
+                        },
+                    ],
+                ),
+            ),
+            # Custom data.
+            (
+                construct_ovf_env(custom_data="foo"),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    custom_data=b"foo",
+                ),
+            ),
+            # Disable ssh password auth.
+            (
+                construct_ovf_env(disable_ssh_password_auth=True),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    disable_ssh_password_auth=True,
+                ),
+            ),
+            # Preprovisioned vm.
+            (
+                construct_ovf_env(preprovisioned_vm=False),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    preprovisioned_vm=False,
+                ),
+            ),
+            (
+                construct_ovf_env(preprovisioned_vm=True),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    preprovisioned_vm=True,
+                ),
+            ),
+            # Preprovisioned vm type.
+            (
+                construct_ovf_env(preprovisioned_vm_type="testpps"),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    preprovisioned_vm_type="testpps",
+                ),
+            ),
+        ],
     )
+    def test_valid_ovf_scenarios(self, ovf, expected):
+        assert azure_helper.OvfEnvXml.parse_text(ovf) == expected
 
-    def setUp(self):
-        super(TestExtractIpAddressFromNetworkd, self).setUp()
-        self.lease_d = self.tmp_dir()
+    @pytest.mark.parametrize(
+        "ovf,error",
+        [
+            (
+                construct_ovf_env(username=None),
+                "unexpected metadata parsing ovf-env.xml: "
+                "missing configuration for 'UserName'",
+            ),
+            (
+                construct_ovf_env(hostname=None),
+                "unexpected metadata parsing ovf-env.xml: "
+                "missing configuration for 'HostName'",
+            ),
+        ],
+    )
+    def test_missing_required_fields(self, ovf, error):
+        with pytest.raises(
+            errors.ReportableErrorOvfInvalidMetadata
+        ) as exc_info:
+            azure_helper.OvfEnvXml.parse_text(ovf)
 
-    def test_no_valid_leases_is_none(self):
-        """No valid leases should return None."""
-        self.assertIsNone(
-            wa_shim._networkd_get_value_from_leases(self.lease_d)
+        assert str(exc_info.value.reason) == error
+
+    def test_multiple_sections_fails(self):
+        ovf = """\
+            <ns0:Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
+             xmlns:ns0="http://schemas.dmtf.org/ovf/environment/1"
+             xmlns:ns1="http://schemas.microsoft.com/windowsazure"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <ns1:ProvisioningSection>
+            <ns1:Version>1.0</ns1:Version>
+            <ns1:LinuxProvisioningConfigurationSet>
+            <ns1:ConfigurationSetType>
+            LinuxProvisioningConfiguration
+            </ns1:ConfigurationSetType>
+            </ns1:LinuxProvisioningConfigurationSet>
+            </ns1:ProvisioningSection>
+            <ns1:ProvisioningSection>
+            </ns1:ProvisioningSection>
+            </ns0:Environment>"""
+
+        with pytest.raises(
+            errors.ReportableErrorOvfInvalidMetadata
+        ) as exc_info:
+            azure_helper.OvfEnvXml.parse_text(ovf)
+
+        assert (
+            exc_info.value.reason
+            == "unexpected metadata parsing ovf-env.xml: "
+            "multiple configuration matches for 'ProvisioningSection' (2)"
         )
 
-    def test_option_245_is_found_in_single(self):
-        """A single valid lease with 245 option should return it."""
-        populate_dir(self.lease_d, {"9": self.azure_lease})
-        self.assertEqual(
-            "624c3620", wa_shim._networkd_get_value_from_leases(self.lease_d)
+    def test_multiple_properties_fails(self):
+        ovf = """\
+            <ns0:Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
+             xmlns:ns0="http://schemas.dmtf.org/ovf/environment/1"
+             xmlns:ns1="http://schemas.microsoft.com/windowsazure"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <ns1:ProvisioningSection>
+            <ns1:LinuxProvisioningConfigurationSet>
+            <ns1:ConfigurationSetType>
+            LinuxProvisioningConfiguration
+            </ns1:ConfigurationSetType>
+            <ns1:HostName>test-host</ns1:HostName>
+            <ns1:HostName>test-host2</ns1:HostName>
+            <ns1:UserName>test-user</ns1:UserName>
+            </ns1:LinuxProvisioningConfigurationSet>
+            </ns1:ProvisioningSection>
+            <ns1:PlatformSettingsSection>
+            <ns1:Version>1.0</ns1:Version>
+            <ns1:PlatformSettings>
+            </ns1:PlatformSettings>
+            </ns1:PlatformSettingsSection>
+            </ns0:Environment>"""
+
+        with pytest.raises(
+            errors.ReportableErrorOvfInvalidMetadata
+        ) as exc_info:
+            azure_helper.OvfEnvXml.parse_text(ovf)
+
+        assert (
+            exc_info.value.reason
+            == "unexpected metadata parsing ovf-env.xml: "
+            "multiple configuration matches for 'HostName' (2)"
         )
 
-    def test_option_245_not_found_returns_None(self):
-        """A valid lease, but no option 245 should return None."""
-        populate_dir(
-            self.lease_d,
-            {"9": self.azure_lease.replace("OPTION_245", "OPTION_999")},
-        )
-        self.assertIsNone(
-            wa_shim._networkd_get_value_from_leases(self.lease_d)
-        )
+    def test_non_azure_ovf(self):
+        ovf = """\
+            <ns0:Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
+             xmlns:ns0="http://schemas.dmtf.org/ovf/environment/1"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            </ns0:Environment>"""
 
-    def test_multiple_returns_first(self):
-        """Somewhat arbitrarily return the first address when multiple.
+        with pytest.raises(azure_helper.NonAzureDataSource) as exc_info:
+            azure_helper.OvfEnvXml.parse_text(ovf)
 
-        Most important at the moment is that this is consistent behavior
-        rather than changing randomly as in order of a dictionary."""
-        myval = "624c3601"
-        populate_dir(
-            self.lease_d,
-            {
-                "9": self.azure_lease,
-                "2": self.azure_lease.replace("624c3620", myval),
-            },
-        )
-        self.assertEqual(
-            myval, wa_shim._networkd_get_value_from_leases(self.lease_d)
+        assert (
+            str(exc_info.value)
+            == "Ignoring non-Azure ovf-env.xml: ProvisioningSection not found"
         )
 
+    @pytest.mark.parametrize(
+        "ovf,reason",
+        [
+            (
+                "",
+                "error parsing ovf-env.xml: "
+                "no element found: line 1, column 0",
+            ),
+            (
+                "<!!!!>",
+                "error parsing ovf-env.xml: "
+                "not well-formed (invalid token): line 1, column 2",
+            ),
+            (
+                "badxml",
+                "error parsing ovf-env.xml: syntax error: line 1, column 0",
+            ),
+        ],
+    )
+    def test_invalid_xml(self, ovf, reason):
+        with pytest.raises(
+            errors.ReportableErrorOvfParsingException
+        ) as exc_info:
+            azure_helper.OvfEnvXml.parse_text(ovf)
 
-# vi: ts=4 expandtab
+        assert exc_info.value.reason == reason
+
+
+class TestReportDmesgToKvp:
+    @mock.patch.object(
+        azure_helper.subp, "subp", return_value=("dmesg test", "")
+    )
+    @mock.patch.object(azure_helper, "report_compressed_event")
+    def test_report_dmesg_to_kvp(
+        self, mock_report_compressed_event, mock_subp
+    ):
+        azure_helper.report_dmesg_to_kvp()
+
+        assert mock_subp.mock_calls == [
+            mock.call(["dmesg"], decode=False, capture=True)
+        ]
+        assert mock_report_compressed_event.mock_calls == [
+            mock.call("dmesg", "dmesg test")
+        ]
+
+    @mock.patch.object(azure_helper.subp, "subp", side_effect=[Exception()])
+    @mock.patch.object(azure_helper, "report_compressed_event")
+    def test_report_dmesg_to_kvp_dmesg_error(
+        self, mock_report_compressed_event, mock_subp
+    ):
+        azure_helper.report_dmesg_to_kvp()
+
+        assert mock_subp.mock_calls == [
+            mock.call(["dmesg"], decode=False, capture=True)
+        ]
+        assert mock_report_compressed_event.mock_calls == []

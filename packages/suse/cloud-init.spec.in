@@ -114,6 +114,7 @@ version_pys=$(cd "%{buildroot}" && find . -name version.py -type f)
 %doc %{_defaultdocdir}/cloud-init/*
 
 # Configs
+%dir                    %{_sysconfdir}/cloud/clean.d
 %config(noreplace) %{_sysconfdir}/cloud/cloud.cfg
 %dir               %{_sysconfdir}/cloud/cloud.cfg.d
 %config(noreplace) %{_sysconfdir}/cloud/cloud.cfg.d/*.cfg
@@ -124,8 +125,6 @@ version_pys=$(cd "%{buildroot}" && find . -name version.py -type f)
 # Bash completion script
 %{_datadir}/bash-completion/completions/cloud-init
 
-%{_sysconfdir}/dhcp/dhclient-exit-hooks.d/hook-dhclient
-%{_sysconfdir}/NetworkManager/dispatcher.d/hook-network-manager
 %{_sysconfdir}/systemd/system/sshd-keygen@.service.d/disable-sshd-keygen-if-cloud-init-active.conf
 
 # Python code is here...

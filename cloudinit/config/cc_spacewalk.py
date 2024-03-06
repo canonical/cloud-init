@@ -1,10 +1,16 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+"""Spacewalk: Install and configure spacewalk"""
 
-"""
-Spacewalk
----------
-**Summary:** install and configure spacewalk
+import logging
+from textwrap import dedent
 
+from cloudinit import subp
+from cloudinit.cloud import Cloud
+from cloudinit.config import Config
+from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.settings import PER_INSTANCE
+
+MODULE_DESCRIPTION = """\
 This module installs spacewalk and applies basic configuration. If the
 ``spacewalk`` config key is present spacewalk will be installed. The server to
 connect to after installation must be provided in the ``server`` in spacewalk
@@ -12,22 +18,31 @@ configuration. A proxy to connect through and a activation key may optionally
 be specified.
 
 For more information about spacewalk see: https://fedorahosted.org/spacewalk/
-
-**Internal name:** ``cc_spacewalk``
-
-**Module frequency:** per instance
-
-**Supported distros:** redhat, fedora
-
-**Config keys**::
-
-    spacewalk:
-       server: <url>
-       proxy: <proxy host>
-       activation_key: <key>
 """
 
-from cloudinit import subp
+meta: MetaSchema = {
+    "id": "cc_spacewalk",
+    "name": "Spacewalk",
+    "title": "Install and configure spacewalk",
+    "description": MODULE_DESCRIPTION,
+    "distros": ["rhel", "fedora", "openeuler"],
+    "frequency": PER_INSTANCE,
+    "examples": [
+        dedent(
+            """\
+            spacewalk:
+              server: <url>
+              proxy: <proxy host>
+              activation_key: <key>
+            """
+        )
+    ],
+    "activate_by_schema_keys": ["spacewalk"],
+}
+
+__doc__ = get_meta_doc(meta)
+LOG = logging.getLogger(__name__)
+
 
 distros = ["redhat", "fedora"]
 required_packages = ["rhn-setup"]
@@ -53,15 +68,13 @@ def do_register(
     profile_name,
     ca_cert_path=def_ca_cert_path,
     proxy=None,
-    log=None,
     activation_key=None,
 ):
-    if log is not None:
-        log.info(
-            "Registering using `rhnreg_ks` profile '%s' into server '%s'",
-            profile_name,
-            server,
-        )
+    LOG.info(
+        "Registering using `rhnreg_ks` profile '%s' into server '%s'",
+        profile_name,
+        server,
+    )
     cmd = ["rhnreg_ks"]
     cmd.extend(["--serverUrl", "https://%s/XMLRPC" % server])
     cmd.extend(["--profilename", str(profile_name)])
@@ -74,9 +87,9 @@ def do_register(
     subp.subp(cmd, capture=False)
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if "spacewalk" not in cfg:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, no 'spacewalk' key in configuration",
             name,
         )
@@ -89,17 +102,13 @@ def handle(name, cfg, cloud, log, _args):
         if not is_registered():
             do_register(
                 spacewalk_server,
-                cloud.datasource.get_hostname(fqdn=True),
+                cloud.datasource.get_hostname(fqdn=True).hostname,
                 proxy=cfg.get("proxy"),
-                log=log,
                 activation_key=cfg.get("activation_key"),
             )
     else:
-        log.debug(
+        LOG.debug(
             "Skipping module named %s, 'spacewalk/server' key"
             " was not found in configuration",
             name,
         )
-
-
-# vi: ts=4 expandtab

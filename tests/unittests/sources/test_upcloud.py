@@ -4,7 +4,7 @@
 
 import json
 
-from cloudinit import helpers, settings, sources
+from cloudinit import helpers, importer, settings, sources
 from cloudinit.sources.DataSourceUpCloud import (
     DataSourceUpCloud,
     DataSourceUpCloudLocal,
@@ -207,8 +207,10 @@ class TestUpCloudNetworkSetup(CiTestCase):
         self.tmp = self.tmp_dir()
 
     def get_ds(self, get_sysinfo=_mock_dmi):
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path = self.tmp_dir
         ds = DataSourceUpCloudLocal(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
         )
         if get_sysinfo:
             ds._get_sysinfo = get_sysinfo
@@ -216,23 +218,21 @@ class TestUpCloudNetworkSetup(CiTestCase):
 
     @mock.patch("cloudinit.sources.helpers.upcloud.read_metadata")
     @mock.patch("cloudinit.net.find_fallback_nic")
-    @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
-    @mock.patch("cloudinit.net.dhcp.EphemeralIPv4Network")
+    @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
+    @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
     def test_network_configured_metadata(
         self, m_net, m_dhcp, m_fallback_nic, mock_readmd
     ):
         mock_readmd.return_value = UC_METADATA.copy()
 
         m_fallback_nic.return_value = "eth1"
-        m_dhcp.return_value = [
-            {
-                "interface": "eth1",
-                "fixed-address": "10.6.3.27",
-                "routers": "10.6.0.1",
-                "subnet-mask": "22",
-                "broadcast-address": "10.6.3.255",
-            }
-        ]
+        m_dhcp.return_value = {
+            "interface": "eth1",
+            "fixed-address": "10.6.3.27",
+            "routers": "10.6.0.1",
+            "subnet-mask": "22",
+            "broadcast-address": "10.6.3.255",
+        }
 
         ds = self.get_ds()
 
@@ -240,9 +240,10 @@ class TestUpCloudNetworkSetup(CiTestCase):
         self.assertTrue(ret)
 
         self.assertTrue(m_dhcp.called)
-        m_dhcp.assert_called_with("eth1", None)
+        m_dhcp.assert_called_with(ds.distro, "eth1", None)
 
         m_net.assert_called_once_with(
+            ds.distro,
             broadcast="10.6.3.255",
             interface="eth1",
             ip="10.6.3.27",
@@ -319,6 +320,11 @@ class TestUpCloudDatasourceLoading(CiTestCase):
         ds_list = sources.DataSourceUpCloud.get_datasource_list(deps)
         self.assertEqual(ds_list, [DataSourceUpCloud])
 
+    @mock.patch.object(
+        importer,
+        "match_case_insensitive_module_name",
+        lambda name: f"DataSource{name}",
+    )
     def test_list_sources_finds_ds(self):
         found = sources.list_sources(
             ["UpCloud"],
@@ -326,6 +332,3 @@ class TestUpCloudDatasourceLoading(CiTestCase):
             ["cloudinit.sources"],
         )
         self.assertEqual([DataSourceUpCloud], found)
-
-
-# vi: ts=4 expandtab

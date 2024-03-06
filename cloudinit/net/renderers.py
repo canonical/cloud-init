@@ -2,12 +2,13 @@
 
 from typing import List, Tuple, Type
 
-from . import (
+from cloudinit.net import (
     RendererNotFoundError,
     eni,
     freebsd,
     netbsd,
     netplan,
+    network_manager,
     networkd,
     openbsd,
     renderer,
@@ -19,6 +20,7 @@ NAME_TO_RENDERER = {
     "freebsd": freebsd,
     "netbsd": netbsd,
     "netplan": netplan,
+    "network-manager": network_manager,
     "networkd": networkd,
     "openbsd": openbsd,
     "sysconfig": sysconfig,
@@ -28,6 +30,7 @@ DEFAULT_PRIORITY = [
     "eni",
     "sysconfig",
     "netplan",
+    "network-manager",
     "freebsd",
     "netbsd",
     "openbsd",
@@ -74,6 +77,3 @@ def select(priority=None, target=None) -> Tuple[str, Type[renderer.Renderer]]:
             % (tmsg, priority)
         )
     return found[0]
-
-
-# vi: ts=4 expandtab
