@@ -91,19 +91,11 @@ class TestUpgrade:
         },
         "IBMCloud": {"source", "_network_config", "network_json", "platform"},
         "RbxCloud": {"cfg", "gratuitous_arp", "seed"},
-        # TODO(Fix Scaleway, max_wait, userdata_url, metadata_urls, has_ipv4)
-        # introduced 23.1
         "Scaleway": {
             "_network_config",
-            "ephemeral_fixed_address",
-            "has_ipv4",
-            "max_wait",
-            "metadata_urls",
             "metadata_url",
             "retries",
             "timeout",
-            "userdata_url",
-            "vendordata_url",
         },
         "Joyent": {
             "_network_config",
@@ -138,8 +130,6 @@ class TestUpgrade:
             "ssl_details",
             "version",
         },
-        # TODO(Fix Oracle: _network_config_source, _vnics_data introduced 22.2)
-        "Oracle": {"_network_config_source", "_vnics_data"},
         "OVF": {
             "cfg",
             "environment",
