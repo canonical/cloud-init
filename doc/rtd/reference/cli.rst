@@ -242,6 +242,10 @@ to semaphores in :file:`/var/lib/cloud/`.
   See :ref:`boot_stages` for more info.
 * :command:`--file` : Use additional yaml configuration files.
 
+.. warning::
+   `--mode init` is deprecated in 24.1 and scheduled to be removed in 29.1.
+   Use :command:`cloud-init init` instead.
+
 .. _cli_query:
 
 :command:`query`

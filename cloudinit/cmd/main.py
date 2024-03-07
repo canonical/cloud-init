@@ -622,6 +622,13 @@ def main_modules(action_name, args):
     # now that logging is setup and stdout redirected, send welcome
     welcome(name, msg=w_msg)
 
+    if name == "init":
+        util.deprecate(
+            deprecated="`--mode init`",
+            deprecated_version="24.1",
+            extra_message="Use `cloud-init init` instead.",
+        )
+
     # Stage 5
     return run_module_section(mods, name, name)
 
@@ -918,11 +925,20 @@ def main(sysv_args=None):
     parser_mod = subparsers.add_parser(
         "modules", help="Activate modules using a given configuration key."
     )
+    extra_help = util.deprecate(
+        deprecated="`init`",
+        deprecated_version="24.1",
+        extra_message="Use `cloud-init init` instead.",
+        return_log=True,
+    )
     parser_mod.add_argument(
         "--mode",
         "-m",
         action="store",
-        help="Module configuration name to use (default: %(default)s).",
+        help=(
+            f"Module configuration name to use (default: %(default)s)."
+            f" {extra_help}"
+        ),
         default="config",
         choices=("init", "config", "final"),
     )
