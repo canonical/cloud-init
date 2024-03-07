@@ -8,7 +8,7 @@ import subprocess
 import time
 from errno import ENOEXEC
 from io import TextIOWrapper
-from typing import List, Union
+from typing import List, Optional, Union
 
 LOG = logging.getLogger(__name__)
 
@@ -322,7 +322,7 @@ def target_path(target=None, path=None):
     return os.path.join(target, path)
 
 
-def which(program, search=None, target=None):
+def which(program, search=None, target=None) -> Optional[str]:
     target = target_path(target)
 
     if os.path.sep in program and is_exe(target_path(target, program)):
