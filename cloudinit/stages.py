@@ -282,12 +282,12 @@ class Init:
         # we re-read our config with a valid Paths() object. This code has to
         # assume the location of /etc/cloud/cloud.cfg && /etc/cloud/cloud.cfg.d
 
-        inital_config = self._read_bootstrap_cfg(extra_fns, {})
-        paths = inital_config.get("system_info", {}).get("paths", {})
+        initial_config = self._read_bootstrap_cfg(extra_fns, {})
+        paths = initial_config.get("system_info", {}).get("paths", {})
 
         # run_dir hasn't changed so we can safely return the config
-        if DEFAULT_RUN_DIR == paths.get("run_dir"):
-            return inital_config
+        if paths.get("run_dir") in (DEFAULT_RUN_DIR, None):
+            return initial_config
 
         # run_dir has changed so re-read the config to get a valid one
         # using the new location of run_dir

@@ -18,7 +18,7 @@ M_PATH = "cloudinit.cmd.main."
 Tmpdir = namedtuple("Tmpdir", ["tmpdir", "link_d", "data_d"])
 
 
-@pytest.fixture(autouse=False)
+@pytest.fixture()
 def mock_get_user_data_file(mocker, tmpdir):
     yield mocker.patch(
         "cloudinit.cmd.devel.logs._get_user_data_file",
@@ -34,7 +34,7 @@ def disable_setup_logging():
         yield
 
 
-@pytest.fixture(autouse=False)
+@pytest.fixture()
 def mock_status_wrapper(mocker, tmpdir):
     link_d = os.path.join(tmpdir, "link")
     data_d = os.path.join(tmpdir, "data")
