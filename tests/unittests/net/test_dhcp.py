@@ -1302,6 +1302,7 @@ class TestDhcpcd:
         m_remove,
         m_which,
     ):
+        """Verify dhcpcd timeout results in NoDHCPLeaseError exception."""
         m_subp.side_effect = [
             SubpResult("a=b", ""),
             subprocess.TimeoutExpired(
@@ -1311,7 +1312,6 @@ class TestDhcpcd:
         with pytest.raises(NoDHCPLeaseError):
             Dhcpcd().dhcp_discovery("eth0", distro=MockDistro())
 
-        # Interface was brought up before dhclient called
         m_subp.assert_has_calls(
             [
                 mock.call(
