@@ -39,6 +39,18 @@ to configure the non-primary network interface controllers in the system. If
 set to True on an OCI Bare Metal Machine, it will have no effect (though this
 may change in the future).
 
+``max_wait``
+------------
+
+An integer, defaulting to 30. The maximum time in seconds to wait for the
+metadata service to become available. If the metadata service is not
+available within this time, the datasource will fail.
+
+``timeout``
+-----------
+An integer, defaulting to 5. The time in seconds to wait for a response from
+the metadata service before retrying.
+
 Example configuration
 ---------------------
 
@@ -49,5 +61,7 @@ An example configuration with the default values is provided below:
    datasource:
     Oracle:
      configure_secondary_nics: false
+     max_wait: 30
+     timeout: 5
 
 .. _Oracle Compute Infrastructure: https://cloud.oracle.com/
