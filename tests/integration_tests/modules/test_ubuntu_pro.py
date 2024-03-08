@@ -144,6 +144,19 @@ class TestUbuntuAdvantage:
         log = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
         assert is_attached(client)
+        client.execute("pro detach")
+        # Replace ubuntu_pro with previously named ubuntu_advantage
+        client.execute(
+            "sed -i 's/ubuntu_pro$/ubuntu_advantage/' /etc/cloud/cloud.cfg"
+        )
+        client.restart()
+        status_resp = client.execute("cloud-init status --format json")
+        status = json.loads(status_resp.stdout)
+        assert (
+            "Module has been renamed from cc_ubuntu_advantage to cc_ubuntu_pro"
+            in "\n".join(status["recoverable_errors"]["DEPRECATED"])
+        )
+        assert is_attached(client)
 
     @pytest.mark.user_data(ATTACH.format(token=CLOUD_INIT_UA_TOKEN))
     def test_idempotency(self, client: IntegrationInstance):
