@@ -926,8 +926,16 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # quickly (local check only) if self.instance_id is still
         return False
 
-    def check_fallback(self):
-        # quickly (local check only) if fallback is allowed
+    def check_if_fallback_is_allowed(self):
+        """check_if_fallback_is_allowed()
+
+        Check if the cached ds is allowed to be restored after no valid ds is
+        found in local mode.
+        This happenes after restoring the cached ds by checking instance_id
+        and searching valid ds in ds list.
+
+        @return True if a ds allowes fallback, False otherwise.
+        """
         return False
 
     @staticmethod

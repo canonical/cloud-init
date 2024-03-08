@@ -244,7 +244,7 @@ class DataSourceVMware(sources.DataSource):
             self.metadata["instance-id"] = str(id_file.read()).rstrip().lower()
             return self.metadata["instance-id"]
 
-    def check_fallback(self):
+    def check_if_fallback_is_allowed(self):
         if (
             self.data_access_method
             and self.data_access_method == DATA_ACCESS_METHOD_IMC
