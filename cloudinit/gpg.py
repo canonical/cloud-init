@@ -29,13 +29,17 @@ class GPG:
         self._env = {}
 
     def __enter__(self):
-        self.temp_dir = None
-        self.gpg_started = False
-        self._env = {}
         return self
 
     @property
     def env(self):
+        """when this env property gets invoked, set up our temporary
+        directory, and also set gpg_started to tell the cleanup()
+        method whether or not
+
+        why put this here and not in __init__? pytest seems unhappy
+        and it's not obvious how to work around it
+        """
         if self._env:
             return self._env
         self.gpg_started = True
@@ -44,9 +48,15 @@ class GPG:
         return self._env
 
     def __exit__(self, exc_typ, exc_value, traceback):
-        self.kill_gpg()
+        self.cleanup()
 
-    def export_armour(self, key) -> Optional[str]:
+    def cleanup(self):
+        """cleanup the gpg temporary directory and kill gpg"""
+        self.kill_gpg()
+        if self.temp_dir and os.path.isdir(self.temp_dir.name):
+            os.rmdir(self.temp_dir.name)
+
+    def export_armour(self, key: str) -> Optional[str]:
         """Export gpg key, armoured key gets returned"""
         try:
             return subp.subp(
@@ -59,7 +69,7 @@ class GPG:
             LOG.debug('Failed to export armoured key "%s": %s', key, error)
         return None
 
-    def dearmor(self, key) -> str:
+    def dearmor(self, key: str) -> str:
         """Dearmor gpg key, dearmored key gets returned
 
         note: man gpg(1) makes no mention of an --armour spelling, only --armor
@@ -68,7 +78,7 @@ class GPG:
             ["gpg", "--dearmor"], data=key, decode=False, update_env=self.env
         ).stdout
 
-    def list_keys(self, key_file, human_output=False) -> str:
+    def list_keys(self, key_file: str, human_output=False) -> str:
         """List keys from a keyring with fingerprints. Default to a
         stable machine parseable format.
 
@@ -94,7 +104,7 @@ class GPG:
             )
         return stdout
 
-    def recv_key(self, key, keyserver, retries=(1, 1)) -> None:
+    def recv_key(self, key: str, keyserver: str, retries=(1, 1)) -> None:
         """Receive gpg key from the specified keyserver.
 
         Retries are done by default because keyservers can be unreliable.
@@ -225,6 +235,3 @@ class GPG:
                     os.kill(gpg_pid, signal.SIGKILL)
         except subp.ProcessExecutionError as e:
             LOG.warning("Failed to clean up gpg process: %s", e)
-        finally:
-            if self.temp_dir:
-                os.rmdir(self.temp_dir.name)

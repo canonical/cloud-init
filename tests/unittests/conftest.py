@@ -11,15 +11,19 @@ from cloudinit.gpg import GPG
 from tests.hypothesis import HAS_HYPOTHESIS
 from tests.unittests.helpers import retarget_many_wrapper
 
-MockGPG = mock.Mock(spec=GPG)
-MockGPG.configure_mock(**{"getkeybyid.return_value": "fakekey"})
-
 
 @pytest.fixture
 def m_gpg():
+    MockGPG = mock.Mock(spec=GPG)
+    MockGPG.configure_mock(**{"getkeybyid.return_value": "fakekey"})
     gpg = MockGPG()
     gpg.list_keys = mock.Mock(return_value="<mocked: list_keys>")
     gpg.getkeybyid = mock.Mock(return_value="<mocked: getkeybyid>")
+
+    # to make tests for cc_apt_configure behave, we need the mocked GPG
+    # to actually behave like a context manager
+    gpg.__enter__ = GPG.__enter__
+    gpg.__exit__ = GPG.__exit__
     yield gpg
 
 

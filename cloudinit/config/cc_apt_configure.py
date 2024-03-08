@@ -216,8 +216,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """process the config for apt_config. This can be called from
     curthooks if a global apt config was provided or via the "apt"
     standalone command."""
-    gpg_context = GPG()
-    try:
+    with GPG() as gpg_context:
         # feed back converted config, but only work on the subset under 'apt'
         cfg = convert_to_v3_apt_format(cfg)
         apt_cfg = cfg.get("apt", {})
@@ -230,8 +229,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
         apply_debconf_selections(apt_cfg)
         apply_apt(apt_cfg, cloud, gpg_context)
-    finally:
-        gpg_context.kill_gpg()
 
 
 def _should_configure_on_empty_apt():
