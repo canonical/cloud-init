@@ -77,6 +77,11 @@ VMW_IPV4_NETDEV_ADDR = {
     "mask": "255.255.255.0",
     "scope": "global",
 }
+VMW_IPV4_NETIFACES_ADDR = {
+    "broadcast": "10.85.130.255",
+    "netmask": "255.255.255.0",
+    "addr": "10.85.130.116",
+}
 VMW_IPV6_ROUTEINFO = {
     "destination": "::/0",
     "flags": "UG",
@@ -87,6 +92,10 @@ VMW_IPV6_ROUTEINFO = {
 VMW_IPV6_NETDEV_ADDR = {
     "ip": "fd42:baa2:3dd:17a:216:3eff:fe16:db54/64",
     "scope6": "global",
+}
+VMW_IPV6_NETIFACES_ADDR = {
+    "addr": "fd42:baa2:3dd:17a:216:3eff:fe16:db54",
+    "netmask": "ffff:ffff:ffff:ffff::/64",
 }
 
 
@@ -146,6 +155,18 @@ class TestDataSourceVMware(CiTestCase):
         ):
             ret = ds.get_data()
         self.assertFalse(ret)
+
+    def test_convert_to_netifaces_ipv4_format(self):
+        netifaces_format = DataSourceVMware.convert_to_netifaces_ipv4_format(
+            VMW_IPV4_NETDEV_ADDR
+        )
+        self.assertEqual(netifaces_format, VMW_IPV4_NETIFACES_ADDR)
+
+    def test_convert_to_netifaces_ipv6_format(self):
+        netifaces_format = DataSourceVMware.convert_to_netifaces_ipv6_format(
+            VMW_IPV6_NETDEV_ADDR
+        )
+        self.assertEqual(netifaces_format, VMW_IPV6_NETIFACES_ADDR)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.get_default_ip_addrs")
     def test_get_host_info_ipv4(self, m_fn_ipaddr):
