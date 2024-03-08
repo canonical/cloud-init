@@ -38,6 +38,7 @@ class GPG:
     def env(self):
         if self._env:
             return self._env
+        self.gpg_started = True
         self.temp_dir = TemporaryDirectory()
         self._env = {HOME: self.temp_dir.name}
         return self._env
@@ -48,7 +49,6 @@ class GPG:
     def export_armour(self, key) -> Optional[str]:
         """Export gpg key, armoured key gets returned"""
         try:
-            self.gpg_started = True
             return subp.subp(
                 ["gpg", "--export", "--armour", key],
                 capture=True,
@@ -64,7 +64,6 @@ class GPG:
 
         note: man gpg(1) makes no mention of an --armour spelling, only --armor
         """
-        self.gpg_started = True
         return subp.subp(
             ["gpg", "--dearmor"], data=key, decode=False, update_env=self.env
         ).stdout
@@ -76,7 +75,6 @@ class GPG:
         @param key_file: a string containing a filepath to a key
         @param human_output: return output intended for human parsing
         """
-        self.gpg_started = True
         cmd = [
             "gpg",
             "--no-options",
@@ -111,7 +109,6 @@ class GPG:
         @param retries: an iterable of sleep lengths for retries.
                         Use None to indicate no retries."""
         LOG.debug("Importing key '%s' from keyserver '%s'", key, keyserver)
-        self.gpg_started = True
         trynum = 0
         error = None
         sleeps = iter(retries or [])
@@ -155,7 +152,6 @@ class GPG:
     def delete_key(self, key: str) -> None:
         """Delete the specified key from the local gpg ring"""
         try:
-            self.gpg_started = True
             subp.subp(
                 ["gpg", "--batch", "--yes", "--delete-keys", key],
                 capture=True,
@@ -171,7 +167,6 @@ class GPG:
         armour = self.export_armour(keyid)
         if not armour:
             try:
-                self.gpg_started = True
                 self.recv_key(keyid, keyserver=keyserver)
                 armour = self.export_armour(keyid)
             except ValueError:
