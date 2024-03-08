@@ -22,6 +22,7 @@ FS_FUNCS = {
     os: [
         ("listdir", 1),
         ("mkdir", 1),
+        ("rmdir", 1),
         ("lstat", 1),
         ("symlink", 2),
         ("stat", 1),
@@ -55,6 +56,12 @@ FS_FUNCS = {
 @pytest.fixture
 def fake_filesystem(mocker, tmpdir):
     """Mocks fs functions to operate under `tmpdir`"""
+    # This allows fake_filesystem to be used with production code that
+    # creates temporary directories. Functions like TemporaryDirectory()
+    # attempt to create a directory under "/tmp" assuming that it already
+    # exists, but then it fails because of the retargeting that happens here.
+    tmpdir.mkdir("tmp")
+
     for (mod, funcs) in FS_FUNCS.items():
         for f, nargs in funcs:
             func = getattr(mod, f)
