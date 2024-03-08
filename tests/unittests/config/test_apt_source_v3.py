@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 
 """test_handler_apt_source_v3
 Testing various config variations of the apt_source custom config

@@ -123,6 +123,7 @@ DS_FOUND=0
 DS_NOT_FOUND=1
 DS_MAYBE=2
 
+DI_SYSTEMD_VIRTUALIZATION=${SYSTEMD_VIRTUALIZATION:-}
 DI_DSNAME=""
 # this has to match the builtin list in cloud-init, it is what will
 # be searched if there is no setting found in config.
@@ -437,10 +438,17 @@ cached() {
 detect_virt() {
     local virt="${UNAVAILABLE}" r="" out=""
     if [ -d /run/systemd ]; then
-        out=$(systemd-detect-virt 2>&1)
-        r=$?
-        if [ $r -eq 0 ] || { [ $r -ne 0 ] && [ "$out" = "none" ]; }; then
-            virt="$out"
+        if [ -n "$DI_SYSTEMD_VIRTUALIZATION" ]; then
+            virt=${DI_SYSTEMD_VIRTUALIZATION#*:}
+            debug 2 "detected $virt via env variable SYSTEMD_VIRTUALIZATION"
+        else
+            # required for compatibility with systemd version <251
+            out=$(systemd-detect-virt 2>&1)
+            r=$?
+            if [ $r -eq 0 ] || { [ $r -ne 0 ] && [ "$out" = "none" ]; }; then
+                virt="$out"
+            fi
+            debug 2 "detected $virt via ds-identify"
         fi
     elif command -v virt-what >/dev/null 2>&1; then
         # Map virt-what's names to those systemd-detect-virt that
@@ -475,7 +483,7 @@ detect_virt() {
             case "$out" in
                 hv) virt="microsoft" ;;
                 vbox) virt="oracle" ;;
-                generic) "vm-other";;
+                generic) virt="vm-other";;
                 *) virt="$out"
             esac
         }
@@ -1124,7 +1132,7 @@ has_ovf_cdrom() {
 
 is_disabled() {
     if [ -f /etc/cloud/cloud-init.disabled ]; then
-        debug 1 "disabled by marker file /etc/cloud-init.disabled"
+        debug 1 "disabled by marker file /etc/cloud/cloud-init.disabled"
         return 0
     fi
     if [ "${KERNEL_CMDLINE:-}" = "cloud-init=disabled" ]; then
@@ -1654,8 +1662,8 @@ dscheck_WSL() {
     WSL_instance_name
     instance_name="${_RET}"
     # shellcheck source=/dev/null
-    . /etc/os-release
-    for userdatafile in "${instance_name}.user-data" "${ID}-${VERSION_ID}" "${ID}-all.user-data" "default.user-data"; do
+    . "${PATH_ROOT}/etc/os-release"
+    for userdatafile in "${instance_name}.user-data" "${ID:-linux}-${VERSION_ID:-${VERSION_CODENAME}}".user-data "${ID:-linux}-all.user-data" "default.user-data"; do
         candidate="$cloudinitdir/$userdatafile"
         if [ -f "$candidate" ]; then
             debug 1 "Found applicable user data file for this instance at: $candidate"

@@ -16,7 +16,6 @@ pkgs="
    py3-configobj
    py3-jinja2
    py3-jsonschema
-   py3-netifaces
    py3-oauthlib
    py3-requests
    py3-setuptools
