@@ -36,15 +36,17 @@ import sys
 import time
 from base64 import b64decode
 from collections import deque, namedtuple
-from contextlib import suppress
+from contextlib import contextmanager, suppress
 from errno import ENOENT
 from functools import lru_cache, total_ordering
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
+    Any,
     Callable,
     Deque,
     Dict,
+    Generator,
     List,
     Mapping,
     Optional,
@@ -3293,3 +3295,12 @@ def read_hotplug_enabled_file(paths: "Paths") -> dict:
         if "scopes" not in content:
             content["scopes"] = []
     return content
+
+
+@contextmanager
+def nullcontext() -> Generator[None, Any, None]:
+    """Context manager that does nothing.
+
+    Note: In python-3.7+, this can be substituted by contextlib.nullcontext
+    """
+    yield
