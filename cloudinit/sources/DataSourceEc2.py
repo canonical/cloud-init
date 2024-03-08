@@ -116,6 +116,7 @@ class DataSourceEc2(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceEc2, self).__init__(sys_cfg, distro, paths)
         self.metadata_address = None
+        self.identity = None
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         super()._unpickle(ci_pkl_version)
@@ -202,9 +203,6 @@ class DataSourceEc2(sources.DataSource):
 
     @property
     def platform(self):
-        # Handle upgrade path of pickled ds
-        if not hasattr(self, "_platform_type"):
-            self._platform_type = DataSourceEc2.dsname.lower()
         if not self._platform_type:
             self._platform_type = DataSourceEc2.dsname.lower()
         return self._platform_type
