@@ -7,8 +7,8 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Union
 
-from pycloudlib.instance import BaseInstance
 from pycloudlib.gce.instance import GceInstance
+from pycloudlib.instance import BaseInstance
 from pycloudlib.result import Result
 
 from tests.helpers import cloud_init_project_dir
