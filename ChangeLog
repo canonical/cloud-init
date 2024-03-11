@@ -1,3 +1,16 @@
+24.1.1
+ - fix: Include DataSourceCloudStack attribute in unpickle test (#5039)
+ - bug(vmware): initialize new DataSourceVMware attributes at unpickle (#5021)
+ - fix(apt): Don't warn on apt 822 source format (#5028)
+ - fix: Add "broadcast" to network v1 schema (#5034)
+ - pro: honor but warn on custom ubuntu_advantage in /etc/cloud/cloud.cfg (#5030)
+ - net/dhcp: handle timeouts for dhcpcd (#5022)
+ - fix: Make wait_for_url respect explicit arguments
+ - bug(wait_for_url): when exceptions occur url is unset, use url_exc
+ - test: Fix scaleway retry assumptions
+ - fix: Make DataSourceOracle more resilient to early network issues (#5025)
+ - tests: Fix wsl test (#5008)
+
 24.1
  - fix: Don't warn on vendor directory (#4986)
  - apt: kill spawned keyboxd after gpg cmd interaction
