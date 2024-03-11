@@ -48,7 +48,13 @@ class TestUpgrade:
             "seed_dir",
         },
         "CloudSigma": {"cepko", "ssh_public_key"},
-        "CloudStack": {"api_ver", "cfg", "seed_dir", "vr_addr"},
+        "CloudStack": {
+            "api_ver",
+            "cfg",
+            "metadata_address",
+            "seed_dir",
+            "vr_addr",
+        },
         "ConfigDrive": {
             "_network_config",
             "ec2_metadata",
