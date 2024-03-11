@@ -94,8 +94,16 @@ VMW_IPV6_NETDEV_ADDR = {
     "scope6": "global",
 }
 VMW_IPV6_NETIFACES_ADDR = {
-    "addr": "fd42:baa2:3dd:17a:216:3eff:fe16:db54",
     "netmask": "ffff:ffff:ffff:ffff::/64",
+    "addr": "fd42:baa2:3dd:17a:216:3eff:fe16:db54",
+}
+VMW_IPV6_NETDEV_PEER_ADDR = {
+    "ip": "fd42:baa2:3dd:17a:216:3eff:fe16:db54",
+    "scope6": "global",
+}
+VMW_IPV6_NETIFACES_PEER_ADDR = {
+    "netmask": "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff/128",
+    "addr": "fd42:baa2:3dd:17a:216:3eff:fe16:db54",
 }
 
 
@@ -167,6 +175,10 @@ class TestDataSourceVMware(CiTestCase):
             VMW_IPV6_NETDEV_ADDR
         )
         self.assertEqual(netifaces_format, VMW_IPV6_NETIFACES_ADDR)
+        netifaces_format = DataSourceVMware.convert_to_netifaces_ipv6_format(
+            VMW_IPV6_NETDEV_PEER_ADDR
+        )
+        self.assertEqual(netifaces_format, VMW_IPV6_NETIFACES_PEER_ADDR)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.get_default_ip_addrs")
     def test_get_host_info_ipv4(self, m_fn_ipaddr):

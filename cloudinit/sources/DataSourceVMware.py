@@ -821,7 +821,7 @@ def is_valid_ip_addr(val):
     )
 
 
-def convert_to_netifaces_ipv4_format(addr):
+def convert_to_netifaces_ipv4_format(addr: dict) -> dict:
     """
     Takes a cloudinit.netinfo formatted address and converts to netifaces
     format, since this module was originally written with netifaces as the
@@ -840,17 +840,16 @@ def convert_to_netifaces_ipv4_format(addr):
       "scope": "global",
     }
     """
-    addr_in_netifaces_format = {}
-    if "bcast" in addr:
-        addr_in_netifaces_format["broadcast"] = addr["bcast"]
-    if "mask" in addr:
-        addr_in_netifaces_format["netmask"] = addr["mask"]
-    if "ip" in addr:
-        addr_in_netifaces_format["addr"] = addr["ip"]
-    return addr_in_netifaces_format
+    if not addr.get("ip"):
+        return {}
+    return {
+        "broadcast": addr.get("bcast"),
+        "netmask": addr.get("mask"),
+        "addr": addr.get("ip"),
+    }
 
 
-def convert_to_netifaces_ipv6_format(addr):
+def convert_to_netifaces_ipv6_format(addr: dict) -> dict:
     """
     Takes a cloudinit.netinfo formatted address and converts to netifaces
     format, since this module was originally written with netifaces as the
@@ -866,22 +865,13 @@ def convert_to_netifaces_ipv6_format(addr):
       "scope6": "global",
     }
     """
-    addr_in_netifaces_format = {}
-    if "ip" in addr:
-        ipv6_with_netmask = addr["ip"]
-        ipv6_parts = ipv6_with_netmask.split("/")
-        ipv6_address = ipv6_parts[0]
-        prefix_length = int(ipv6_parts[1])
-        if ipv6_address:
-            addr_in_netifaces_format["addr"] = ipv6_address
-        if prefix_length:
-            ipv6_netmask = ipaddress.IPv6Network(
-                f"::/{prefix_length}", strict=False
-            ).netmask
-            addr_in_netifaces_format["netmask"] = (
-                str(ipv6_netmask) + "/" + str(prefix_length)
-            )
-    return addr_in_netifaces_format
+    if not addr.get("ip"):
+        return {}
+    ipv6 = ipaddress.IPv6Interface(addr.get("ip"))
+    return {
+        "netmask": f"{ipv6.netmask}/{ipv6.network.prefixlen}",
+        "addr": str(ipv6.ip),
+    }
 
 
 def get_host_info():
