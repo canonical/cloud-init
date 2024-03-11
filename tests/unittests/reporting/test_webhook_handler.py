@@ -8,7 +8,7 @@ import responses
 
 from cloudinit.reporting import flush_events
 from cloudinit.reporting.events import report_start_event
-from cloudinit.reporting.handlers import WebHookHandler
+from cloudinit.reporting.handlers import WebHookHandler, LOG
 
 
 class TestWebHookHandler:
@@ -78,9 +78,10 @@ class TestWebHookHandler:
         for _ in range(num_failures):
             report_start_event("name", "description")
         flush_events()
-        # Force a context switch. Without this, it's possible that the
-        # expected log message hasn't made it to the log file yet
-        time.sleep(0.01)
+        # Flush the handler module's logger. Without this, it's possible that
+        # the expected log message hasn't made it to the log file yet
+        for handler in LOG.handlers:
+            handler.flush()
 
         # If we've pushed a bunch of messages, any number could have been
         # processed before we get to the flush.
@@ -113,7 +114,8 @@ class TestWebHookHandler:
             with suppress(AssertionError):
                 assert 10 == caplog.text.count("Failed posting event")
                 break
-            time.sleep(0.01)  # Force context switch
+            for handler in LOG.handlers:
+                handler.flush()
         else:
             pytest.fail(
                 "Expected 20 failures, only got "
