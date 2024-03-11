@@ -160,6 +160,32 @@ class DataSourceVMware(sources.DataSource):
             (DATA_ACCESS_METHOD_IMC, self.get_imc_data_fn, True),
         ]
 
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        super()._unpickle(ci_pkl_version)
+        for attr in ("rpctool", "rpctool_fn"):
+            if not hasattr(self, attr):
+                setattr(self, attr, None)
+        if not hasattr(self, "cfg"):
+            setattr(self, "cfg", {})
+        if not hasattr(self, "possible_data_access_method_list"):
+            setattr(
+                self,
+                "possible_data_access_method_list",
+                [
+                    (
+                        DATA_ACCESS_METHOD_ENVVAR,
+                        self.get_envvar_data_fn,
+                        False,
+                    ),
+                    (
+                        DATA_ACCESS_METHOD_GUESTINFO,
+                        self.get_guestinfo_data_fn,
+                        True,
+                    ),
+                    (DATA_ACCESS_METHOD_IMC, self.get_imc_data_fn, True),
+                ],
+            )
+
     def __str__(self):
         root = sources.DataSource.__str__(self)
         return "%s [seed=%s]" % (root, self.data_access_method)
