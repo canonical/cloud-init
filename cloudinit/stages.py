@@ -360,10 +360,10 @@ class Init:
 
         if not ds:
             try:
-                (cfg_list, pkg_list) = self._get_datasources()
+                cfg_list, pkg_list = self._get_datasources()
                 # Deep copy so that user-data handlers can not modify
                 # (which will affect user-data handlers down the line...)
-                (ds, dsname) = sources.find_source(
+                ds, dsname = sources.find_source(
                     self.cfg,
                     self.distro,
                     self.paths,
