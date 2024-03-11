@@ -146,6 +146,17 @@ class DataSourceOracle(sources.DataSource):
         self.url_max_wait = url_params.max_wait_seconds
         self.url_timeout = url_params.timeout_seconds
 
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        super()._unpickle(ci_pkl_version)
+        if not hasattr(self, "_vnics_data"):
+            setattr(self, "_vnics_data", None)
+        if not hasattr(self, "_network_config_source"):
+            setattr(
+                self,
+                "_network_config_source",
+                KlibcOracleNetworkConfigSource(),
+            )
+
     def _has_network_config(self) -> bool:
         return bool(self._network_config.get("config", []))
 
