@@ -8,7 +8,7 @@ import responses
 
 from cloudinit.reporting import flush_events
 from cloudinit.reporting.events import report_start_event
-from cloudinit.reporting.handlers import WebHookHandler, LOG
+from cloudinit.reporting.handlers import LOG, WebHookHandler
 
 
 class TestWebHookHandler:
