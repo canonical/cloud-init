@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 
 import logging
 import re
@@ -471,6 +472,21 @@ class TestUrlHelper:
     fail = "FAIL"
     event = Event()
 
+    @pytest.fixture
+    def retry_mocks(self, mocker):
+        self.mock_time_value = 0
+        m_readurl = mocker.patch(
+            f"{M_PATH}readurl", side_effect=self.readurl_side_effect
+        )
+        m_sleep = mocker.patch(
+            f"{M_PATH}time.sleep", side_effect=self.sleep_side_effect
+        )
+        mocker.patch(f"{M_PATH}time.time", side_effect=self.time_side_effect)
+
+        yield m_readurl, m_sleep
+
+        self.mock_time_value = 0
+
     @classmethod
     def response_wait(cls, _request):
         cls.event.wait(0.1)
@@ -562,3 +578,71 @@ class TestUrlHelper:
         assert re.search(
             r"open 'https:\/\/sleep1\/'.*Timed out", caplog.text, re.DOTALL
         )
+
+    def test_explicit_arguments(self, retry_mocks):
+        """Ensure that explicit arguments are respected"""
+        m_readurl, m_sleep = retry_mocks
+        wait_for_url(
+            urls=["http://localhost/"],
+            max_wait=23,
+            timeout=5,
+            sleep_time=3,
+        )
+
+        assert len(m_readurl.call_args_list) == 3
+        assert len(m_sleep.call_args_list) == 2
+
+        for readurl_call in m_readurl.call_args_list:
+            assert readurl_call[1]["timeout"] == 5
+        for sleep_call in m_sleep.call_args_list:
+            assert sleep_call[0][0] == 3
+
+        # Call 1 starts 0
+        # Call 2 starts at 8-ish after 5 second timeout and 3 second sleep
+        # Call 3 starts at 16-ish for same reasons
+        # The 5 second timeout puts us at 21-ish and now we break
+        # because 21-ish + the sleep time puts us over max wait of 23
+        assert pytest.approx(self.mock_time_value) == 21
+
+    def test_shortened_timeout(self, retry_mocks):
+        """Test that we shorten the last timeout to align with max_wait"""
+        m_readurl, _m_sleep = retry_mocks
+        wait_for_url(
+            urls=["http://localhost/"], max_wait=10, timeout=9, sleep_time=0
+        )
+
+        assert len(m_readurl.call_args_list) == 2
+        assert m_readurl.call_args_list[-1][1]["timeout"] == pytest.approx(1)
+
+    def test_default_sleep_time(self, retry_mocks):
+        """Test default sleep behavior when not specified"""
+        _m_readurl, m_sleep = retry_mocks
+        wait_for_url(
+            urls=["http://localhost/"],
+            max_wait=50,
+            timeout=1,
+        )
+
+        expected_sleep_times = [1] * 5 + [2] * 5 + [3] * 5
+        actual_sleep_times = [
+            m_sleep.call_args_list[i][0][0]
+            for i in range(len(m_sleep.call_args_list))
+        ]
+        assert actual_sleep_times == expected_sleep_times
+
+    # These side effect methods are a way of having a somewhat predictable
+    # output for time.time(). Otherwise, we have to track too many calls
+    # to time.time() and unrelated changes to code being called could cause
+    # these tests to fail.
+    # 0.0000001 is added to simulate additional execution time but keep it
+    # small enough for pytest.approx() to work
+    def sleep_side_effect(self, sleep_time):
+        self.mock_time_value += sleep_time + 0.0000001
+
+    def time_side_effect(self):
+        return self.mock_time_value
+
+    def readurl_side_effect(self, *args, **kwargs):
+        if "timeout" in kwargs:
+            self.mock_time_value += kwargs["timeout"] + 0.0000001
+        raise UrlError("test")
