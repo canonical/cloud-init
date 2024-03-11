@@ -15,6 +15,7 @@ import struct
 import time
 from contextlib import suppress
 from io import StringIO
+from subprocess import TimeoutExpired
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import configobj
@@ -698,9 +699,17 @@ class Dhcpcd(DhcpClient):
                 return lease
             raise NoDHCPLeaseError("No lease found")
 
+        except TimeoutExpired as error:
+            LOG.debug(
+                "dhcpcd timed out after %s seconds: stderr: %r stdout: %r",
+                error.timeout,
+                error.stderr,
+                error.stdout,
+            )
+            raise NoDHCPLeaseError from error
         except subp.ProcessExecutionError as error:
             LOG.debug(
-                "dhclient exited with code: %s stderr: %r stdout: %r",
+                "dhcpcd exited with code: %s stderr: %r stdout: %r",
                 error.exit_code,
                 error.stderr,
                 error.stdout,

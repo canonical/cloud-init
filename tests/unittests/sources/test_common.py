@@ -76,6 +76,7 @@ DEFAULT_NETWORK = [
     MAAS.DataSourceMAAS,
     NoCloud.DataSourceNoCloudNet,
     OpenStack.DataSourceOpenStack,
+    Oracle.DataSourceOracleNet,
     OVF.DataSourceOVFNet,
     UpCloud.DataSourceUpCloud,
     Akamai.DataSourceAkamai,
