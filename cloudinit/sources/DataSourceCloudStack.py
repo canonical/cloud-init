@@ -96,6 +96,11 @@ class DataSourceCloudStack(sources.DataSource):
         self.metadata_address = f"http://{self.vr_addr}/"
         self.cfg = {}
 
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        super()._unpickle(ci_pkl_version)
+        if not getattr(self, "metadata_address"):
+            self.metadata_address = f"http://{self.vr_addr}/"
+
     def _get_domainname(self):
         """
         Try obtaining a "domain-name" DHCP lease parameter:
