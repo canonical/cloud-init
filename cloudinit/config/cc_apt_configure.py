@@ -708,7 +708,7 @@ def generate_sources_list(cfg, release, mirrors, cloud):
         )
         if expected_content:
             if expected_content != util.load_text_file(apt_sources_list):
-                LOG.warning(
+                LOG.info(
                     "Replacing %s to favor deb822 source format",
                     apt_sources_list,
                 )
@@ -716,7 +716,7 @@ def generate_sources_list(cfg, release, mirrors, cloud):
                     apt_sources_list, UBUNTU_DEFAULT_APT_SOURCES_LIST
                 )
         else:
-            LOG.warning(
+            LOG.info(
                 "Removing %s to favor deb822 source format", apt_sources_list
             )
             util.del_file(apt_sources_list)
