@@ -1,4 +1,4 @@
-cloud-init (24.1.1-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (24.1.1-0ubuntu1) noble; urgency=medium
 
   * Upstream snapshot based on 24.1.1.
     List of changes from upstream can be found at
@@ -6,7 +6,7 @@ cloud-init (24.1.1-0ubuntu1) UNRELEASED; urgency=medium
     - Bugs fixed in this snapshot: (LP: #2056439, #2056460, #2055077)
       (LP: #2056194)
 
- -- Brett Holman <brett.holman@canonical.com>  Mon, 11 Mar 2024 21:09:31 -0600
+ -- Brett Holman <brett.holman@canonical.com>  Mon, 11 Mar 2024 21:09:37 -0600
 
 cloud-init (24.1-0ubuntu1) noble; urgency=medium
 
