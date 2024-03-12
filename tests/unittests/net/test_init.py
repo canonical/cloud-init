@@ -43,10 +43,7 @@ class TestSysDevPath:
 
 class TestReadSysNet:
     @pytest.fixture(autouse=True)
-    @pytest.mark.parametrize(
-        "disable_sysfs_net", [False], indirect=["disable_sysfs_net"]
-    )
-    def setup(self, disable_sysfs_net, tmpdir_factory):
+    def setup(self, tmpdir_factory):
         # We mock invididual numbered tmpdirs here because these tests write
         # to the sysfs directory and stale test artifacts break later tests.
         mock_sysfs = f"{tmpdir_factory.mktemp('sysfs', numbered=True)}/"
