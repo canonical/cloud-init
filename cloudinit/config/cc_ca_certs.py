@@ -46,9 +46,9 @@ DISTRO_OVERRIDES = {
         "ca_cert_update_cmd": ["update-ca-certificates"],
     },
     "photon": {
-        "ca_cert_path": "/etc/ssl/certs/",
-        "ca_cert_local_path": "/etc/pki/tls/certs/",
-        "ca_cert_filename": "cloud-init-ca-cert-{cert_index}.crt",
+        "ca_cert_path": "/etc/pki/tls/certs/",
+        "ca_cert_local_path": "/etc/ssl/certs/",
+        "ca_cert_filename": "cloud-init-ca-cert-{cert_index}.pem",
         "ca_cert_config": None,
         "ca_cert_update_cmd": ["rehash_ca_certificates.sh"],
     },
