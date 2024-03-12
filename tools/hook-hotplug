@@ -2,13 +2,32 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 # This script checks if cloud-init has hotplug hooked and if
-# cloud-init has finished; if so invoke cloud-init hotplug-hook
+# init-local and init boot stages have finished; if so invoke cloud-init hotplug-hook
 
-is_finished() {
-    [ -e /run/cloud-init/result.json ]
+has_init_finished() {
+    python3 << EOF
+"""
+Determines if init-local and init boot stages have finished.
+Errors are intentionally not handled, as in that case,
+the exit code will be non 0.
+"""
+
+import json
+import sys
+
+from pathlib import Path
+
+with Path("/run/cloud-init/status.json").open("r") as f:
+    status = json.load(f)
+
+if status["v1"]["init-local"]["finished"] is None or status["v1"]["init"]["finished"] is None:
+    sys.exit(1)
+
+sys.exit(0)
+EOF
 }
 
-if is_finished; then
+if has_init_finished; then
     # open cloud-init's hotplug-hook fifo rw
     exec 3<>/run/cloud-init/hook-hotplug-cmd
     env_params=" \
