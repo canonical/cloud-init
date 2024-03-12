@@ -92,18 +92,8 @@ def fake_filesystem(mocker, tmpdir):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def disable_sysfs_net(request, tmpdir_factory):
-    """Avoid tests which read the undertying host's /syc/class/net.
-
-    To allow unobscured reads of /sys/class/net on the host we can
-    parametrize the fixture with:
-
-    @pytest.mark.parametrize("disable_sysfs_net", [False], indirect=True)
-    """
-    if hasattr(request, "param") and getattr(request, "param") is False:
-        # Test disabled this fixture, perform no mocks.
-        yield
-        return
+def disable_sysfs_net(tmpdir_factory):
+    """Avoid tests which read the underlying host's /syc/class/net."""
     mock_sysfs = f"{tmpdir_factory.mktemp('sysfs')}/"
     with mock.patch(
         "cloudinit.net.get_sys_class_path", return_value=mock_sysfs
