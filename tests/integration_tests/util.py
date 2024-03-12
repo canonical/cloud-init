@@ -45,7 +45,7 @@ def verify_ordered_items_in_text(to_verify: list, text: str):
         index = matched.start()
 
 
-def format_found(header: str, items: list) -> str:
+def _format_found(header: str, items: list) -> str:
     """Helper function to format assertion message"""
 
     # do nothing, allows this formatter to be "stackable"
@@ -154,16 +154,16 @@ def verify_clean_boot(
             message += "Unexpected warnings or errors found"
 
         # errors are probably more important, order them first
-        message += format_found(
+        message += _format_found(
             "Found unexpected errors", list(unexpected_errors)
         )
-        message += format_found(
+        message += _format_found(
             "Required errors not found", list(required_errors_not_found)
         )
-        message += format_found(
+        message += _format_found(
             "Found unexpected warnings", list(unexpected_warnings)
         )
-        message += format_found(
+        message += _format_found(
             "Required warnings not found", list(required_warnings_not_found)
         )
         assert not errors, message

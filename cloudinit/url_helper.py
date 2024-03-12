@@ -143,7 +143,8 @@ def read_ftps(url: str, timeout: float = 5.0, **kwargs: dict) -> "FtpResponse":
             ftp_tls.prot_p()
             LOG.debug("Reading file: %s", url_parts.path)
             ftp_tls.retrbinary(f"RETR {url_parts.path}", callback=buffer.write)
-            response = FtpResponse(url_parts.path, contents=buffer)
+
+            response = FtpResponse(buffer.getvalue())
             LOG.debug("Closing connection")
             ftp_tls.close()
             return response
@@ -176,7 +177,7 @@ def read_ftps(url: str, timeout: float = 5.0, **kwargs: dict) -> "FtpResponse":
             )
             LOG.debug("Reading file: %s", url_parts.path)
             ftp.retrbinary(f"RETR {url_parts.path}", callback=buffer.write)
-            response = FtpResponse(url_parts.path, contents=buffer)
+            response = FtpResponse(contents=buffer.getvalue())
             LOG.debug("Closing connection")
             ftp.close()
             return response
@@ -191,7 +192,7 @@ def _read_file(path: str, **kwargs) -> "FileResponse":
         LOG.warning("Unable to post data to file resource %s", path)
     try:
         contents = util.load_binary_file(path)
-        return FileResponse(path, contents=contents)
+        return FileResponse(contents, path)
     except FileNotFoundError as e:
         raise UrlError(cause=e, code=NOT_FOUND, headers=None, url=path) from e
     except IOError as e:
@@ -226,11 +227,11 @@ def read_file_or_url(
 # read_file_or_url can return this or that object and the
 # 'user' of those objects will not need to know the difference.
 class StringResponse:
-    def __init__(self, contents, code=200):
+    def __init__(self, contents, url, code=200):
         self.code = code
         self.headers = {}
         self.contents = contents
-        self.url = None
+        self.url = url
 
     def ok(self, *args, **kwargs):
         if self.code != 200:
@@ -242,14 +243,13 @@ class StringResponse:
 
 
 class FileResponse(StringResponse):
-    def __init__(self, path, contents, code=200):
-        StringResponse.__init__(self, contents, code=code)
+    def __init__(self, contents: bytes, url: str, code=200):
+        super().__init__(contents, url, code=code)
 
 
 class FtpResponse(StringResponse):
-    def __init__(self, path, contents):
-        super().__init__(self, contents)
-        self.url = path
+    def __init__(self, contents: bytes, url: str):
+        super().__init__(contents, url)
 
 
 class UrlResponse:
@@ -263,10 +263,10 @@ class UrlResponse:
         return self._response.content
 
     @property
-    def url(self):
+    def url(self) -> str:
         return self._response.url
 
-    def ok(self, redirects_ok=False):
+    def ok(self, redirects_ok=False) -> bool:
         upper = 300
         if redirects_ok:
             upper = 400
@@ -276,11 +276,11 @@ class UrlResponse:
             return False
 
     @property
-    def headers(self):
+    def headers(self) -> str:
         return self._response.headers
 
     @property
-    def code(self):
+    def code(self) -> int:
         return self._response.status_code
 
     def __str__(self):
