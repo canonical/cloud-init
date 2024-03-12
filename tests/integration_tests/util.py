@@ -304,10 +304,8 @@ def wait_for_cloud_init(client: "IntegrationInstance", num_retries: int = 30):
     for _ in range(num_retries):
         try:
             result = client.execute("cloud-init status")
-            if (
-                result
-                and result.ok
-                and ("running" not in result or "not started" not in result)
+            if result.return_code in (0, 2) and (
+                "running" not in result or "not started" not in result
             ):
                 return result
         except Exception as e:
