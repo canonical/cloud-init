@@ -28,3 +28,4 @@ How do I...?
    Identify my datasource <identify_datasource.rst>
    Disable cloud-init <disable_cloud_init.rst>
    Test pre-release cloud-init on Ubuntu <ubuntu_test_prerelease.rst>
+   Fix return code 2 from cloud-init status <return_codes.rst>
