@@ -36,9 +36,12 @@ Pain points
 3) Cloud-init's reported status was only capable of telling the user
    whether cloud-init crashed. Cloud-init would report a status of
    "done" in the following cases:
+
    * a user's configuration was invalid
-   * if the operating system or cloud environment experienced some error that prevented cloud-init from configuring the instance
-   * if cloud-init internally experienced an error - all of these previously reported a status of "done".
+   * if the operating system or cloud environment experienced some error that
+     prevented cloud-init from configuring the instance
+   * if cloud-init internally experienced an error - all of these previously
+     reported a status of "done".
 
 .. _return_codes_improvements:
 
