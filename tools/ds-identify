@@ -1597,18 +1597,19 @@ dscheck_VMware() {
 WSL_cloudinit_dir_in() {
     _RET=""
     local cmdexe="" cloudinitdir="" val=""
-    for m in "$@"; do
-        cmdexe="$m/Windows/System23/cmd.exe"
+    for m in $@; do
+        cmdexe="$m/Windows/System32/cmd.exe"
         if command -v "$cmdexe" > /dev/null 2>&1; then
             # Here WSL's proprietary `/init` is used to start the Windows cmd.exe
             # to output the Windows user profile directory path, which is
             # held by the environment variable %USERPROFILE%.
             cloudinitdir=$(/init "$cmdexe" /c echo %USERPROFILE% 2>/dev/null)
+            cloudinitdir="${cloudinitdir%%[[:cntrl:]]}"
             if [ -n "$cloudinitdir" ]; then
                 # wslpath is a program supplied by WSL itself that translates Windows and Linux paths,
                 # respecting the mountpoints where the Windows drives are mounted.
                 # (in fact it's a symlink to /init).
-                val=$(wslpath -au "$cloudinitdir") && _RET="$val"
+                val=$(wslpath -au "$cloudinitdir/.cloud-init/") && _RET="$val"
                 return $?
             fi
         fi
