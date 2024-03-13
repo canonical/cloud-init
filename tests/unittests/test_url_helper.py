@@ -462,7 +462,6 @@ class TestDualStack:
             # [ 0 * N, 1 * N, 2 * N, 3 * N, 4 * N, 5 * N] where N = stagger
             # it appears that without an explicit wait/join we can't assert
             # number of calls
-            # call order is not strict as of Python 3.13
             calls = [
                 call(
                     func=identity_of_first_arg,
