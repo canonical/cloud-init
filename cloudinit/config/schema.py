@@ -1429,8 +1429,12 @@ def load_doc(requested_modules: list) -> str:
     return docs
 
 
-def get_schema_dir() -> str:
-    return os.path.join(Path(__file__).parent.parent.parent, "schemas")
+def get_schema_dir(schema_dir=None) -> str:
+
+     if schema_dir:
+        return os.path.join(schema_dir, "schemas")
+     else:
+        return os.path.join(Path(__file__).parent.parent.parent, "schemas")
 
 
 def get_schema(schema_type: SchemaType = SchemaType.CLOUD_CONFIG) -> dict:

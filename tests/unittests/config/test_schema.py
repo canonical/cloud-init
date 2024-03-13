@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import sys
+import tempfile
 import unittest
 from collections import namedtuple
 from copy import deepcopy
@@ -19,6 +20,7 @@ from typing import List, Optional, Sequence, Set
 
 import pytest
 
+from cloudinit import atomic_helper
 from cloudinit.config.schema import (
     VERSIONED_USERDATA_SCHEMA_FILE,
     MetaSchema,
@@ -127,6 +129,7 @@ class TestVersionedSchemas:
         self, schema, error_msg
     ):
         schema_dir = get_schema_dir()
+
         version_schemafile = os.path.join(
             schema_dir, VERSIONED_USERDATA_SCHEMA_FILE
         )
@@ -135,7 +138,7 @@ class TestVersionedSchemas:
         version_schema = json.loads(
             re.sub(
                 r"https:\/\/raw.githubusercontent.com\/canonical\/"
-                r"cloud-init\/main\/cloudinit\/config\/schemas\/",
+                r"cloud-init\/main\/cloudinit\/schemas\/",
                 f"file://{schema_dir}/",
                 load_file(version_schemafile),
             )
@@ -294,6 +297,47 @@ class TestGetSchema:
         # legacy schema attributes defined within the cc_module.
         assert [] == sorted(legacy_schema_keys)
 
+    def test_new_schema_location(self):
+        schema_dir = get_schema_dir("/usr/share/doc/cloud-init/")
+        schema_file = tempfile.NamedTemporaryFile()
+        schema_file.name = os.path.join(schema_dir+"/",VERSIONED_USERDATA_SCHEMA_FILE)
+
+        assert schema_file.name == "/usr/share/doc/cloud-init/schemas/versions.schema.cloud-config.json"
+
+    def test_load_file_from_new_location(self):
+        schema_dir = get_schema_dir("/usr/share/doc/cloud-init/")
+        schema_file = tempfile.NamedTemporaryFile()
+        schema_file.name = os.path.join(schema_dir+"/", VERSIONED_USERDATA_SCHEMA_FILE)
+
+        data = {
+            "$schema": "http://json-schema.org/draft-04/schema#",
+            "$id":
+                "https://raw.githubusercontent.com/canonical/cloud-init/main/cloudinit/schemas"
+                "/versions.schema.cloud-config.json",
+            "oneOf": [
+                {
+                    "allOf": [
+                        {
+                            "properties": {
+                                "version": {
+                                    "enum": [
+                                        "v1"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "$ref": "https://raw.githubusercontent.com/canonical/cloud-init/main/cloudinit/schemas/schema-cloud-config-v1.json"
+                        }
+                    ]
+                }
+            ]
+        }
+
+        atomic_helper.write_json(schema_file.file.name, data)
+        with open(schema_file.file.name, "r") as fp:
+            found = json.load(fp)
+        assert found == data
 
 class TestLoadDoc:
     docs = get_module_variable("__doc__")
