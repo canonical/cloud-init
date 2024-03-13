@@ -30,22 +30,17 @@ Pain points
 -----------
 
 1) Invalid configurations were historically ignored.
-
 2) Log verbosity is unfriendly to end users that may not know
-  what to look for. Verbose logs means users often ignore real
-  errors.
-
+   what to look for. Verbose logs means users often ignore real
+   errors.
 3) Cloud-init's reported status was only capable of telling the user
-  whether cloud-init crashed. Cloud-init would report a status of
-  "done" in the following cases:
+   whether cloud-init crashed. Cloud-init would report a status of
+   "done" in the following cases:
+   * a user's configuration was invalid
+   * if the operating system or cloud environment experienced some error that prevented cloud-init from configuring the instance
+   * if cloud-init internally experienced an error - all of these previously reported a status of "done".
 
-  * a user's configuration was invalid
-  * if the operating system or cloud environment experienced some
-    error that prevented cloud-init from configuring the instance
-  * if cloud-init internally experienced an error - all of these
-  previously reported a status of "done".
-
-.. _return_codes_improvements
+.. _return_codes_improvements:
 
 Efforts to improve cloud-init
 -----------------------------
@@ -62,7 +57,7 @@ cloud-config. This jsonschema may be used in several different ways:
 Text editor integration
 """""""""""""""""""""""
 
-Thanks to `yamlls<yaml-language-server>`, cloud-init's jsonschema may be
+Thanks to `yaml-language-server`_, cloud-init's jsonschema may be
 used for yaml syntax checking, warnings when invalid keys are used, and
 autocompletion. Several different text editors are capable of this.
 See this `blog post on configuring this for neovim`_, or for VScode one
@@ -147,6 +142,6 @@ See an example of this:
 See :ref:`our explanation of failure states<failure_states>` for more
 information.
 
-_ yamlls: https://github.com/redhat-developer/yaml-language-server
-_ extension: https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml
-_ blog post on configuring this for neovim: https://phoenix-labs.xyz/blog/setup-neovim-cloud-init-completion/
+.. _yaml-language-server: https://github.com/redhat-developer/yaml-language-server
+.. _extension: https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml
+.. _blog post on configuring this for neovim: https://phoenix-labs.xyz/blog/setup-neovim-cloud-init-completion/
