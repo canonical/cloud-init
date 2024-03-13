@@ -6,6 +6,7 @@ import re
 from functools import partial
 from threading import Event
 from time import process_time
+from unittest.mock import ANY, call
 
 import pytest
 import requests
@@ -446,20 +447,61 @@ class TestDualStack:
         """Assert expected call intervals occur"""
         stagger = 0.1
         with mock.patch(M_PATH + "_run_func_with_delay") as delay_func:
+
+            def identity_of_first_arg(x, _):
+                return x
+
             dual_stack(
-                lambda x, _y: x,
+                identity_of_first_arg,
                 ["you", "and", "me", "and", "dog"],
                 stagger_delay=stagger,
                 timeout=1,
             )
 
-            # ensure that stagger delay for each subsequent call is:
+            # ensure that stagger delay for each call is made with args:
             # [ 0 * N, 1 * N, 2 * N, 3 * N, 4 * N, 5 * N] where N = stagger
             # it appears that without an explicit wait/join we can't assert
             # number of calls
-            for delay, call_item in enumerate(delay_func.call_args_list):
-                _, kwargs = call_item
-                assert stagger * delay == kwargs.get("delay")
+            # call order is not strict as of Python 3.13
+            delay_func.assert_has_calls(
+                [
+                    call(
+                        func=identity_of_first_arg,
+                        addr="you",
+                        timeout=1,
+                        event=ANY,
+                        delay=stagger * 0,
+                    ),
+                    call(
+                        func=identity_of_first_arg,
+                        addr="and",
+                        timeout=1,
+                        event=ANY,
+                        delay=stagger * 1,
+                    ),
+                    call(
+                        func=identity_of_first_arg,
+                        addr="me",
+                        timeout=1,
+                        event=ANY,
+                        delay=stagger * 2,
+                    ),
+                    call(
+                        func=identity_of_first_arg,
+                        addr="and",
+                        timeout=1,
+                        event=ANY,
+                        delay=stagger * 3,
+                    ),
+                    call(
+                        func=identity_of_first_arg,
+                        addr="dog",
+                        timeout=1,
+                        event=ANY,
+                        delay=stagger * 4,
+                    ),
+                ]
+            )
 
 
 ADDR1 = "https://addr1/"
