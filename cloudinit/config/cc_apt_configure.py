@@ -286,7 +286,17 @@ def apply_apt(cfg, cloud):
     # GH: 4344 - stop gpg-agent/dirmgr daemons spawned by gpg key imports.
     # Daemons spawned by cloud-config.service on systemd v253 report (running)
     gpg_process_out, _err = subp.subp(
-        ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
+        [
+            "ps",
+            "-o",
+            "ppid,pid",
+            "-C",
+            "keyboxd",
+            "-C",
+            "dirmngr",
+            "-C",
+            "gpg-agent",
+        ],
         capture=True,
         rcs=[0, 1],
     )
@@ -698,7 +708,7 @@ def generate_sources_list(cfg, release, mirrors, cloud):
         )
         if expected_content:
             if expected_content != util.load_text_file(apt_sources_list):
-                LOG.warning(
+                LOG.info(
                     "Replacing %s to favor deb822 source format",
                     apt_sources_list,
                 )
@@ -706,7 +716,7 @@ def generate_sources_list(cfg, release, mirrors, cloud):
                     apt_sources_list, UBUNTU_DEFAULT_APT_SOURCES_LIST
                 )
         else:
-            LOG.warning(
+            LOG.info(
                 "Removing %s to favor deb822 source format", apt_sources_list
             )
             util.del_file(apt_sources_list)

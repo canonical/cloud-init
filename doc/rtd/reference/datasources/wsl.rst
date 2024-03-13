@@ -58,8 +58,10 @@ order specified below:
    instance named ``Sid-MLKit``.
 
 2. ``%USERPROFILE%\.cloud-init\<ID>-<VERSION_ID>.user-data`` for the
-   distro-specific configuration, matched by the distro ID and VERSION_CODENAME
-   entries as specified in ``/etc/os-release``. Example:
+   distro-specific configuration, matched by the distro ID and VERSION_ID
+   entries as specified in ``/etc/os-release``.  If VERSION_ID is not present,
+   then VERSION_CODENAME will be used instead.
+   Example:
    ``ubuntu-22.04.user-data`` will affect any instance created from an Ubuntu
    22.04 Jammy Jellyfish image if a more specific configuration file does not
    match.
