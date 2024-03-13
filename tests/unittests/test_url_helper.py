@@ -500,7 +500,10 @@ class TestDualStack:
                         event=ANY,
                         delay=stagger * 4,
                     ),
-                ]
+                ][: len(delay_func.call_args_list)]
+                # truncate the list to the number of call args
+                # this is non-deterministic because the first future to
+                # complete causes the rest to be canceled.
             )
 
 
