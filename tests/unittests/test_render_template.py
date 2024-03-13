@@ -11,6 +11,7 @@ from tests.helpers import cloud_init_project_dir
 DISTRO_VARIANTS = [
     "amazon",
     "arch",
+    "azurelinux",
     "centos",
     "debian",
     "eurolinux",
