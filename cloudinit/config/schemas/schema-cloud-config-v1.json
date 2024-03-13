@@ -839,6 +839,9 @@
                   "type": "boolean",
                   "default": false
                 },
+                "inventory": {
+                  "type": "string"
+                },
                 "module_name": {
                   "type": "string"
                 },
