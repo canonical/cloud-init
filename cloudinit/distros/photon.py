@@ -31,7 +31,7 @@ class Distro(distros.Distro):
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
         # This will be used to restrict certain
-        # calls from repeatly happening (when they
+        # calls from repeatedly happening (when they
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
         self.osfamily = "photon"
@@ -66,7 +66,7 @@ class Distro(distros.Distro):
         return None
 
     def apply_locale(self, locale, out_fn=None):
-        # This has a dependancy on glibc-i18n, user need to manually install it
+        # This has a dependency on glibc-i18n, user need to manually install it
         # and enable the option in cloud.cfg
         if not out_fn:
             out_fn = self.systemd_locale_conf_fn
@@ -126,7 +126,7 @@ class Distro(distros.Distro):
 
     def _read_hostname(self, filename, default=None):
         if filename and filename.endswith("/previous-hostname"):
-            return util.load_file(filename).strip()
+            return util.load_text_file(filename).strip()
 
         _ret, out, _err = self.exec_cmd(["hostname", "-f"])
         return out.strip() if out else default

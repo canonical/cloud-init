@@ -20,6 +20,14 @@ runcmd:
   - echo 'hi' > /var/tmp/test
 """
 
+FAILING_USER_DATA = """\
+#cloud-config
+bootcmd:
+  - exit 1
+runcmd:
+  - exit 1
+"""
+
 # The '-' in 'hashed-password' fails schema validation
 INVALID_USER_DATA_SCHEMA = """\
 #cloud-config
@@ -36,22 +44,26 @@ users:
 
 
 @pytest.mark.user_data(VALID_USER_DATA)
-def test_valid_userdata(client: IntegrationInstance):
-    """Test `cloud-init schema` with valid userdata.
+class TestValidUserData:
+    def test_schema_status(self, class_client: IntegrationInstance):
+        """Test `cloud-init schema` with valid userdata.
 
-    PR #575
-    """
-    result = client.execute("cloud-init schema --system")
-    assert result.ok
-    assert "Valid schema user-data" in result.stdout.strip()
-    result = client.execute("cloud-init status --long")
-    # Ubuntu Noble will exit 2 for status due to cloud-init's warning about
-    # disabling /etc/apt/sources.list in favor of deb822 sources
-    return_code = 2 if CURRENT_RELEASE.series == "noble" else 0
-    assert return_code == result.return_code, (
-        f"Unexpected exit {result.return_code} from cloud-init status:"
-        f" {result}"
-    )
+        PR #575
+        """
+        result = class_client.execute("cloud-init schema --system")
+        assert result.ok
+        assert "Valid schema user-data" in result.stdout.strip()
+        result = class_client.execute("cloud-init status --long")
+        assert 0 == result.return_code, (
+            f"Unexpected exit {result.return_code} from cloud-init status:"
+            f" {result}"
+        )
+
+    def test_modules_init(self, class_client: IntegrationInstance):
+        for mode in ("init", "config", "final"):
+            result = class_client.execute(f"cloud-init modules --mode {mode}")
+            assert result.ok
+            assert f"'modules:{mode}'" in result.stdout.strip()
 
 
 @pytest.mark.skipif(
@@ -101,3 +113,12 @@ def test_invalid_userdata_schema(client: IntegrationInstance):
     )
     assert warning in log
     assert "asdfasdf" not in log
+
+
+@pytest.mark.user_data(FAILING_USER_DATA)
+def test_failing_userdata_modules_exit_codes(client: IntegrationInstance):
+    """Test failing in modules representd in exit status"""
+    for mode in ("init", "config", "final"):
+        result = client.execute(f"cloud-init modules --mode {mode}")
+        assert result.failed if mode == "init" else result.ok
+        assert f"'modules:{mode}'" in result.stdout.strip()

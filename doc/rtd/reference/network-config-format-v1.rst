@@ -252,8 +252,8 @@ Users can specify a ``nameserver`` type. Nameserver dictionaries include
 the following keys:
 
 - ``address``: List of IPv4 or IPv6 address of nameservers.
-- ``search``: List of hostnames to include in the :file:`resolv.conf` search
-  path.
+- ``search``: Optional. List of hostnames to include in the :file:`resolv.conf`
+  search path.
 - ``interface``: Optional. Ties the nameserver definition to the specified
   interface. The value specified here must match the ``name`` of an interface
   defined in this config. If unspecified, this nameserver will be considered
@@ -296,6 +296,8 @@ Valid keys for ``subnets`` include the following:
   interface will be handled during boot.
 - ``address``: IPv4 or IPv6 address. It may include CIDR netmask notation.
 - ``netmask``: IPv4 subnet mask in dotted format or CIDR notation.
+- ``broadcast`` : IPv4 broadcast address in dotted format. This is
+  only rendered if :file:`/etc/network/interfaces` is used.
 - ``gateway``: IPv4 address of the default gateway for this subnet.
 - ``dns_nameservers``: Specify a list of IPv4 dns server IPs to end up in
   :file:`resolv.conf`.

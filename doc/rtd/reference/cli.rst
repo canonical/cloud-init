@@ -81,6 +81,33 @@ re-run all stages as it did on first boot.
   config files for ssh daemon. Argument `network` removes all generated
   config files for network. `all` removes config files of all types.
 
+.. note::
+
+   Cloud-init provides the directory :file:`/etc/cloud/clean.d/` for third party
+   applications which need additional configuration artifact cleanup from
+   the filesystem when the `clean` command is invoked.
+
+   The :command:`clean` operation is typically performed by image creators
+   when preparing a golden image for clone and redeployment. The clean command
+   removes any cloud-init semaphores, allowing cloud-init to treat the next
+   boot of this image as the "first boot". When the image is next booted
+   cloud-init will performing all initial configuration based on any valid
+   datasource meta-data and user-data.
+
+   Any executable scripts in this subdirectory will be invoked in lexicographical
+   order with run-parts when running the :command:`clean` command.
+
+   Typical format of such scripts would be a ##-<some-app> like the following:
+   :file:`/etc/cloud/clean.d/99-live-installer`
+
+   An example of a script is:
+
+   .. code-block:: bash
+
+      sudo rm -rf /var/lib/installer_imgs/
+      sudo rm -rf /var/log/installer/
+
+
 .. _cli_collect_logs:
 
 :command:`collect-logs`
@@ -133,10 +160,29 @@ content with any :file:`instance-data.json` variables present.
 :command:`hotplug-hook`
 -----------------------
 
-Respond to newly added system devices by retrieving updated system metadata
-and bringing up/down the corresponding device. This command is intended to be
+Hotplug related subcommands. This command is intended to be
 called via a ``systemd`` service and is not considered user-accessible except
 for debugging purposes.
+
+
+:command:`query`
+^^^^^^^^^^^^^^^^
+
+Query if hotplug is enabled for a given subsystem.
+
+:command:`handle`
+^^^^^^^^^^^^^^^^^
+
+Respond to newly added system devices by retrieving updated system metadata
+and bringing up/down the corresponding device.
+
+:command:`enable`
+^^^^^^^^^^^^^^^^^
+
+Enable hotplug for a given subsystem. This is a last resort command for
+administrators to enable hotplug in running instances. The recommended
+method is configuring :ref:`events`, if not enabled by default in the active
+datasource.
 
 .. _cli_features:
 
@@ -195,6 +241,10 @@ to semaphores in :file:`/var/lib/cloud/`.
   ``modules:config`` or ``modules:final`` ``cloud-init`` stages.
   See :ref:`boot_stages` for more info.
 * :command:`--file` : Use additional yaml configuration files.
+
+.. warning::
+   `--mode init` is deprecated in 24.1 and scheduled to be removed in 29.1.
+   Use :command:`cloud-init init` instead.
 
 .. _cli_query:
 

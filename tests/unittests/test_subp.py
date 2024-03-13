@@ -119,7 +119,7 @@ class TestSubp(CiTestCase):
         (out, _err) = subp.subp(cmd.encode("utf-8"), shell=True)
         self.assertEqual("", out)
         self.assertEqual("", _err)
-        self.assertEqual("HI MOM\n", util.load_file(tmp_file))
+        self.assertEqual("HI MOM\n", util.load_text_file(tmp_file))
 
     def test_subp_handles_strings(self):
         """subp can run a string command if shell is True."""
@@ -128,7 +128,7 @@ class TestSubp(CiTestCase):
         (out, _err) = subp.subp(cmd, shell=True)
         self.assertEqual("", out)
         self.assertEqual("", _err)
-        self.assertEqual("HI MOM\n", util.load_file(tmp_file))
+        self.assertEqual("HI MOM\n", util.load_text_file(tmp_file))
 
     def test_subp_handles_utf8(self):
         # The given bytes contain utf-8 accented characters as seen in e.g.
@@ -238,6 +238,14 @@ class TestSubp(CiTestCase):
             subp.subp([BOGUS_COMMAND], decode=True)
         self.assertTrue(isinstance(cm.exception.stdout, str))
         self.assertTrue(isinstance(cm.exception.stderr, str))
+
+    def test_exception_invalid_command(self):
+        args = [None, "first", "arg", "missing"]
+        with self.assertRaises(
+            subp.ProcessExecutionError, msg="Running invalid command"
+        ):
+            with self.allow_subp(args):
+                subp.subp(args)
 
     def test_bunch_of_slashes_in_path(self):
         self.assertEqual(

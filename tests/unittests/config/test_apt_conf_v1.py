@@ -33,7 +33,7 @@ class TestAptProxyConfig(TestCase):
         self.assertTrue(os.path.isfile(self.pfile))
         self.assertFalse(os.path.isfile(self.cfile))
 
-        contents = util.load_file(self.pfile)
+        contents = util.load_text_file(self.pfile)
         self.assertTrue(self._search_apt_config(contents, "http", "myproxy"))
 
     def test_apt_http_proxy_written(self):
@@ -43,7 +43,7 @@ class TestAptProxyConfig(TestCase):
         self.assertTrue(os.path.isfile(self.pfile))
         self.assertFalse(os.path.isfile(self.cfile))
 
-        contents = util.load_file(self.pfile)
+        contents = util.load_text_file(self.pfile)
         self.assertTrue(self._search_apt_config(contents, "http", "myproxy"))
 
     def test_apt_all_proxy_written(self):
@@ -64,7 +64,7 @@ class TestAptProxyConfig(TestCase):
         self.assertTrue(os.path.isfile(self.pfile))
         self.assertFalse(os.path.isfile(self.cfile))
 
-        contents = util.load_file(self.pfile)
+        contents = util.load_text_file(self.pfile)
 
         for ptype, pval in values.items():
             self.assertTrue(self._search_apt_config(contents, ptype, pval))
@@ -81,7 +81,7 @@ class TestAptProxyConfig(TestCase):
             {"proxy": "foo"}, self.pfile, self.cfile
         )
         self.assertTrue(os.path.isfile(self.pfile))
-        contents = util.load_file(self.pfile)
+        contents = util.load_text_file(self.pfile)
         self.assertTrue(self._search_apt_config(contents, "http", "foo"))
 
     def test_config_written(self):
@@ -93,7 +93,7 @@ class TestAptProxyConfig(TestCase):
         self.assertTrue(os.path.isfile(self.cfile))
         self.assertFalse(os.path.isfile(self.pfile))
 
-        self.assertEqual(util.load_file(self.cfile), payload)
+        self.assertEqual(util.load_text_file(self.cfile), payload)
 
     def test_config_replaced(self):
         util.write_file(self.pfile, "content doesnt matter")
@@ -101,7 +101,7 @@ class TestAptProxyConfig(TestCase):
             {"conf": "foo"}, self.pfile, self.cfile
         )
         self.assertTrue(os.path.isfile(self.cfile))
-        self.assertEqual(util.load_file(self.cfile), "foo")
+        self.assertEqual(util.load_text_file(self.cfile), "foo")
 
     def test_config_deleted(self):
         # if no 'conf' is provided, delete any previously written file

@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 
 """ test_handler_apt_configure_sources_list
 Test templating of sources list
@@ -161,7 +162,17 @@ class TestAptSourceConfigSourceList:
         assert 0o644 == stat.S_IMODE(sources_file.stat().mode)
 
         self.subp.assert_called_once_with(
-            ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
+            [
+                "ps",
+                "-o",
+                "ppid,pid",
+                "-C",
+                "keyboxd",
+                "-C",
+                "dirmngr",
+                "-C",
+                "gpg-agent",
+            ],
             capture=True,
             rcs=[0, 1],
         )
@@ -220,7 +231,17 @@ class TestAptSourceConfigSourceList:
         mockresolve.assert_any_call("http://does.not.exist")
         mockresolve.assert_any_call(mirrorcheck)
         self.subp.assert_called_once_with(
-            ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
+            [
+                "ps",
+                "-o",
+                "ppid,pid",
+                "-C",
+                "keyboxd",
+                "-C",
+                "dirmngr",
+                "-C",
+                "gpg-agent",
+            ],
             capture=True,
             rcs=[0, 1],
         )
@@ -282,7 +303,17 @@ class TestAptSourceConfigSourceList:
         assert expected == sources_file.read()
         assert 0o644 == stat.S_IMODE(sources_file.stat().mode)
         self.subp.assert_called_once_with(
-            ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
+            [
+                "ps",
+                "-o",
+                "ppid,pid",
+                "-C",
+                "keyboxd",
+                "-C",
+                "dirmngr",
+                "-C",
+                "gpg-agent",
+            ],
             capture=True,
             rcs=[0, 1],
         )

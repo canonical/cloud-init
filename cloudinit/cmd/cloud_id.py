@@ -9,7 +9,7 @@ import json
 import sys
 
 from cloudinit.cmd.devel import read_cfg_paths
-from cloudinit.cmd.status import UXAppStatus, get_status_details
+from cloudinit.cmd.status import RunningStatus, get_status_details
 from cloudinit.sources import METADATA_UNKNOWN, canonical_cloud_id
 from cloudinit.util import error
 
@@ -66,11 +66,11 @@ def handle_args(name, args):
     @return: 0 on success, 1 on error, 2 on disabled, 3 on cloud-init not run.
     """
     status_details = get_status_details()
-    if status_details.status == UXAppStatus.DISABLED:
-        sys.stdout.write("{0}\n".format(status_details.status.value))
+    if status_details.running_status == RunningStatus.DISABLED:
+        sys.stdout.write("{0}\n".format(status_details.running_status.value))
         return 2
-    elif status_details.status == UXAppStatus.NOT_RUN:
-        sys.stdout.write("{0}\n".format(status_details.status.value))
+    elif status_details.running_status == RunningStatus.NOT_STARTED:
+        sys.stdout.write("{0}\n".format(status_details.running_status.value))
         return 3
 
     try:

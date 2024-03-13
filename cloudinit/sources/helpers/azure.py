@@ -4,24 +4,18 @@ import json
 import logging
 import os
 import re
-import socket
-import struct
 import textwrap
 import zlib
 from contextlib import contextmanager
 from datetime import datetime
-from errno import ENOENT
 from time import sleep, time
-from typing import TYPE_CHECKING, Callable, List, Optional, TypeVar, Union
+from typing import Callable, List, Optional, TypeVar, Union
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape
 
 from cloudinit import distros, subp, temp_utils, url_helper, util, version
 from cloudinit.reporting import events
-from cloudinit.settings import CFG_BUILTIN
-
-if TYPE_CHECKING:
-    from cloudinit.sources.azure import errors
+from cloudinit.sources.azure import errors
 
 LOG = logging.getLogger(__name__)
 
@@ -32,14 +26,6 @@ BOOT_EVENT_TYPE = "boot-telemetry"
 SYSTEMINFO_EVENT_TYPE = "system-info"
 DIAGNOSTIC_EVENT_TYPE = "diagnostic"
 COMPRESSED_EVENT_TYPE = "compressed"
-# Maximum number of bytes of the cloud-init.log file that can be dumped to KVP
-# at once. This number is based on the analysis done on a large sample of
-# cloud-init.log files where the P95 of the file sizes was 537KB and the time
-# consumed to dump 500KB file was (P95:76, P99:233, P99.9:1170) in ms
-MAX_LOG_TO_KVP_LENGTH = 512000
-# File to store the last byte of cloud-init.log that was pushed to KVP. This
-# file will be deleted with every VM reboot.
-LOG_PUSHED_TO_KVP_INDEX_FILE = "/run/cloud-init/log_pushed_to_kvp_index"
 azure_ds_reporter = events.ReportEventStack(
     name="azure-ds",
     description="initialize reporter for azure ds",
@@ -212,35 +198,8 @@ def report_compressed_event(event_name, event_content):
 
 
 @azure_ds_telemetry_reporter
-def push_log_to_kvp(file_name=CFG_BUILTIN["def_log_file"]):
-    """Push a portion of cloud-init.log file or the whole file to KVP
-    based on the file size.
-    The first time this function is called after VM boot, It will push the last
-    n bytes of the log file such that n < MAX_LOG_TO_KVP_LENGTH
-    If called again on the same boot, it continues from where it left off.
-    In addition to cloud-init.log, dmesg log will also be collected."""
-
-    start_index = get_last_log_byte_pushed_to_kvp_index()
-
-    LOG.debug("Dumping cloud-init.log file to KVP")
-    try:
-        with open(file_name, "rb") as f:
-            f.seek(0, os.SEEK_END)
-            seek_index = max(f.tell() - MAX_LOG_TO_KVP_LENGTH, start_index)
-            report_diagnostic_event(
-                "Dumping last {0} bytes of cloud-init.log file to KVP starting"
-                " from index: {1}".format(f.tell() - seek_index, seek_index),
-                logger_func=LOG.debug,
-            )
-            f.seek(seek_index, os.SEEK_SET)
-            report_compressed_event("cloud-init.log", f.read())
-            util.write_file(LOG_PUSHED_TO_KVP_INDEX_FILE, str(f.tell()))
-    except Exception as ex:
-        report_diagnostic_event(
-            "Exception when dumping log file: %s" % repr(ex),
-            logger_func=LOG.warning,
-        )
-
+def report_dmesg_to_kvp():
+    """Report dmesg to KVP."""
     LOG.debug("Dumping dmesg log to KVP")
     try:
         out, _ = subp.subp(["dmesg"], decode=False, capture=True)
@@ -252,30 +211,6 @@ def push_log_to_kvp(file_name=CFG_BUILTIN["def_log_file"]):
         )
 
 
-@azure_ds_telemetry_reporter
-def get_last_log_byte_pushed_to_kvp_index():
-    try:
-        with open(LOG_PUSHED_TO_KVP_INDEX_FILE, "r") as f:
-            return int(f.read())
-    except IOError as e:
-        if e.errno != ENOENT:
-            report_diagnostic_event(
-                "Reading LOG_PUSHED_TO_KVP_INDEX_FILE failed: %s." % repr(e),
-                logger_func=LOG.warning,
-            )
-    except ValueError as e:
-        report_diagnostic_event(
-            "Invalid value in LOG_PUSHED_TO_KVP_INDEX_FILE: %s." % repr(e),
-            logger_func=LOG.warning,
-        )
-    except Exception as e:
-        report_diagnostic_event(
-            "Failed to get the last log byte pushed to KVP: %s." % repr(e),
-            logger_func=LOG.warning,
-        )
-    return 0
-
-
 @contextmanager
 def cd(newdir):
     prevdir = os.getcwd()
@@ -284,20 +219,6 @@ def cd(newdir):
         yield
     finally:
         os.chdir(prevdir)
-
-
-def get_ip_from_lease_value(fallback_lease_value):
-    unescaped_value = fallback_lease_value.replace("\\", "")
-    if len(unescaped_value) > 4:
-        hex_string = ""
-        for hex_pair in unescaped_value.split(":"):
-            if len(hex_pair) == 1:
-                hex_pair = "0" + hex_pair
-            hex_string += hex_pair
-        packed_bytes = struct.pack(">L", int(hex_string.replace(":", ""), 16))
-    else:
-        packed_bytes = unescaped_value.encode("utf-8")
-    return socket.inet_ntoa(packed_bytes)
 
 
 @azure_ds_telemetry_reporter
@@ -390,7 +311,6 @@ def build_minimal_ovf(
 
 
 class AzureEndpointHttpClient:
-
     headers = {
         "x-ms-agent-name": "WALinuxAgent",
         "x-ms-version": "2012-11-30",
@@ -487,7 +407,6 @@ class GoalState:
 
 
 class OpenSSLManager:
-
     certificate_names = {
         "private_key": "TransportPrivate.pem",
         "certificate": "TransportCert.pem",
@@ -616,7 +535,6 @@ class OpenSSLManager:
 
 
 class GoalStateHealthReporter:
-
     HEALTH_REPORT_XML_TEMPLATE = textwrap.dedent(
         """\
         <?xml version="1.0" encoding="utf-8"?>
@@ -744,8 +662,6 @@ class GoalStateHealthReporter:
 
     @azure_ds_telemetry_reporter
     def _post_health_report(self, document: bytes) -> None:
-        push_log_to_kvp()
-
         # Whenever report_diagnostic_event(diagnostic_msg) is invoked in code,
         # the diagnostic messages are written to special files
         # (/var/opt/hyperv/.kvp_pool_*) as Hyper-V KVP messages.
@@ -787,10 +703,10 @@ class WALinuxAgentShim:
             self.openssl_manager.clean_up()
 
     @azure_ds_telemetry_reporter
-    def eject_iso(self, iso_dev) -> None:
+    def eject_iso(self, iso_dev, distro: distros.Distro) -> None:
+        LOG.debug("Ejecting the provisioning iso")
         try:
-            LOG.debug("Ejecting the provisioning iso")
-            subp.subp(["eject", iso_dev])
+            distro.eject_media(iso_dev)
         except Exception as e:
             report_diagnostic_event(
                 "Failed ejecting the provisioning iso: %s" % e,
@@ -799,7 +715,7 @@ class WALinuxAgentShim:
 
     @azure_ds_telemetry_reporter
     def register_with_azure_and_fetch_data(
-        self, pubkey_info=None, iso_dev=None
+        self, distro: distros.Distro, pubkey_info=None, iso_dev=None
     ) -> Optional[List[str]]:
         """Gets the VM's GoalState from Azure, uses the GoalState information
         to report ready/send the ready signal/provisioning complete signal to
@@ -830,7 +746,7 @@ class WALinuxAgentShim:
         )
 
         if iso_dev is not None:
-            self.eject_iso(iso_dev)
+            self.eject_iso(iso_dev, distro=distro)
 
         health_reporter.send_ready_signal()
         return ssh_keys
@@ -1008,13 +924,14 @@ class WALinuxAgentShim:
 @azure_ds_telemetry_reporter
 def get_metadata_from_fabric(
     endpoint: str,
+    distro: distros.Distro,
     pubkey_info: Optional[List[str]] = None,
     iso_dev: Optional[str] = None,
 ):
     shim = WALinuxAgentShim(endpoint=endpoint)
     try:
         return shim.register_with_azure_and_fetch_data(
-            pubkey_info=pubkey_info, iso_dev=iso_dev
+            distro=distro, pubkey_info=pubkey_info, iso_dev=iso_dev
         )
     finally:
         shim.clean_up()
@@ -1039,10 +956,6 @@ def dhcp_log_cb(out, err):
     )
 
 
-class BrokenAzureDataSource(Exception):
-    pass
-
-
 class NonAzureDataSource(Exception):
     pass
 
@@ -1064,6 +977,7 @@ class OvfEnvXml:
         public_keys: Optional[List[dict]] = None,
         preprovisioned_vm: bool = False,
         preprovisioned_vm_type: Optional[str] = None,
+        provision_guest_proxy_agent: bool = False,
     ) -> None:
         self.username = username
         self.password = password
@@ -1073,6 +987,7 @@ class OvfEnvXml:
         self.public_keys: List[dict] = public_keys or []
         self.preprovisioned_vm = preprovisioned_vm
         self.preprovisioned_vm_type = preprovisioned_vm_type
+        self.provision_guest_proxy_agent = provision_guest_proxy_agent
 
     def __eq__(self, other) -> bool:
         return self.__dict__ == other.__dict__
@@ -1082,13 +997,13 @@ class OvfEnvXml:
         """Parser for ovf-env.xml data.
 
         :raises NonAzureDataSource: if XML is not in Azure's format.
-        :raises BrokenAzureDataSource: if XML is unparseable or invalid.
+        :raises errors.ReportableErrorOvfParsingException: if XML is
+                unparsable or invalid.
         """
         try:
             root = ElementTree.fromstring(ovf_env_xml)
         except ElementTree.ParseError as e:
-            error_str = "Invalid ovf-env.xml: %s" % e
-            raise BrokenAzureDataSource(error_str) from e
+            raise errors.ReportableErrorOvfParsingException(exception=e) from e
 
         # If there's no provisioning section, it's not Azure ovf-env.xml.
         if not root.find("./wa:ProvisioningSection", cls.NAMESPACES):
@@ -1113,14 +1028,14 @@ class OvfEnvXml:
             "./%s:%s" % (namespace, name), OvfEnvXml.NAMESPACES
         )
         if len(matches) == 0:
-            msg = "No ovf-env.xml configuration for %r" % name
+            msg = "missing configuration for %r" % name
             LOG.debug(msg)
             if required:
-                raise BrokenAzureDataSource(msg)
+                raise errors.ReportableErrorOvfInvalidMetadata(msg)
             return None
         elif len(matches) > 1:
-            raise BrokenAzureDataSource(
-                "Multiple configuration matches in ovf-exml.xml for %r (%d)"
+            raise errors.ReportableErrorOvfInvalidMetadata(
+                "multiple configuration matches for %r (%d)"
                 % (name, len(matches))
             )
 
@@ -1137,14 +1052,14 @@ class OvfEnvXml:
     ):
         matches = node.findall("./wa:" + name, OvfEnvXml.NAMESPACES)
         if len(matches) == 0:
-            msg = "No ovf-env.xml configuration for %r" % name
+            msg = "missing configuration for %r" % name
             LOG.debug(msg)
             if required:
-                raise BrokenAzureDataSource(msg)
+                raise errors.ReportableErrorOvfInvalidMetadata(msg)
             return default
         elif len(matches) > 1:
-            raise BrokenAzureDataSource(
-                "Multiple configuration matches in ovf-exml.xml for %r (%d)"
+            raise errors.ReportableErrorOvfInvalidMetadata(
+                "multiple configuration matches for %r (%d)"
                 % (name, len(matches))
             )
 
@@ -1214,6 +1129,12 @@ class OvfEnvXml:
         self.preprovisioned_vm_type = self._parse_property(
             platform_settings,
             "PreprovisionedVMType",
+            required=False,
+        )
+        self.provision_guest_proxy_agent = self._parse_property(
+            platform_settings,
+            "ProvisionGuestProxyAgent",
+            default=False,
             required=False,
         )
 

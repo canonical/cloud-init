@@ -293,7 +293,7 @@ class TestCmdlineUrl:
         lvl, msg = main.attempt_cmdline_url(
             fpath, network=True, cmdline=cmdline
         )
-        assert util.load_file(fpath, decode=False) == payload
+        assert util.load_binary_file(fpath) == payload
         assert logging.INFO == lvl
         assert url in msg
 
@@ -310,7 +310,7 @@ class TestCmdlineUrl:
         lvl, msg = main.attempt_cmdline_url(
             fpath, network=True, cmdline=cmdline
         )
-        assert util.load_file(fpath, decode=False) == payload
+        assert util.load_binary_file(fpath) == payload
         assert logging.INFO == lvl
         assert url in msg
 

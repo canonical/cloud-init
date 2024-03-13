@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 
 import copy
 import datetime
@@ -15,13 +16,16 @@ import requests
 from cloudinit import distros, dmi, helpers, subp, url_helper
 from cloudinit.atomic_helper import b64e, json_dumps
 from cloudinit.net import dhcp, ephemeral
-from cloudinit.reporting.handlers import HyperVKvpReportingHandler
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceAzure as dsaz
-from cloudinit.sources import InvalidMetaDataException
 from cloudinit.sources.azure import errors, identity, imds
 from cloudinit.sources.helpers import netlink
-from cloudinit.util import MountFailedError, load_file, load_json, write_file
+from cloudinit.util import (
+    MountFailedError,
+    load_json,
+    load_text_file,
+    write_file,
+)
 from tests.unittests.helpers import (
     CiTestCase,
     ExitStack,
@@ -169,6 +173,16 @@ def mock_imds_fetch_metadata_with_api_fallback():
         yield m
 
 
+@pytest.fixture(autouse=True)
+def mock_report_dmesg_to_kvp():
+    with mock.patch(
+        MOCKPATH + "report_dmesg_to_kvp",
+        return_value=True,
+        autospec=True,
+    ) as m:
+        yield m
+
+
 @pytest.fixture
 def mock_kvp_report_failure_to_host():
     with mock.patch(
@@ -193,15 +207,15 @@ def mock_kvp_report_success_to_host():
 def mock_net_dhcp_maybe_perform_dhcp_discovery():
     with mock.patch(
         "cloudinit.net.ephemeral.maybe_perform_dhcp_discovery",
-        return_value=[
-            {
-                "unknown-245": "0a:0b:0c:0d",
-                "interface": "ethBoot0",
-                "fixed-address": "192.168.2.9",
-                "routers": "192.168.2.1",
-                "subnet-mask": "255.255.255.0",
-            }
-        ],
+        return_value={
+            "unknown-245": dhcp.IscDhclient.get_ip_from_lease_value(
+                "0a:0b:0c:0d"
+            ),
+            "interface": "ethBoot0",
+            "fixed-address": "192.168.2.9",
+            "routers": "192.168.2.1",
+            "subnet-mask": "255.255.255.0",
+        },
         autospec=True,
     ) as m:
         yield m
@@ -300,7 +314,7 @@ def mock_util_find_devs_with():
 @pytest.fixture
 def mock_util_load_file():
     with mock.patch(
-        MOCKPATH + "util.load_file",
+        MOCKPATH + "util.load_binary_file",
         autospec=True,
         return_value=b"",
     ) as m:
@@ -355,17 +369,6 @@ def patched_reported_ready_marker_path(azure_ds, patched_markers_dir_path):
         yield reported_ready_marker
 
 
-@pytest.fixture
-def telemetry_reporter(tmp_path):
-    kvp_file_path = tmp_path / "kvp_pool_file"
-    kvp_file_path.write_bytes(b"")
-    reporter = HyperVKvpReportingHandler(kvp_file_path=str(kvp_file_path))
-
-    dsaz.kvp.instantiated_handler_registry.register_item("telemetry", reporter)
-    yield reporter
-    dsaz.kvp.instantiated_handler_registry.unregister_item("telemetry")
-
-
 def fake_http_error_for_code(status_code: int):
     response_failure = requests.Response()
     response_failure.status_code = status_code
@@ -385,6 +388,7 @@ def construct_ovf_env(
     disable_ssh_password_auth=None,
     preprovisioned_vm=None,
     preprovisioned_vm_type=None,
+    provision_guest_proxy_agent=None,
 ):
     content = [
         '<?xml version="1.0" encoding="utf-8"?>',
@@ -454,6 +458,11 @@ def construct_ovf_env(
         content.append(
             "<ns1:PreprovisionedVMType>%s</ns1:PreprovisionedVMType>"
             % preprovisioned_vm_type
+        )
+    if provision_guest_proxy_agent is not None:
+        content.append(
+            "<ns1:ProvisionGuestProxyAgent>%s</ns1:ProvisionGuestProxyAgent>"
+            % provision_guest_proxy_agent
         )
     content += [
         "</ns1:PlatformSettings>",
@@ -1058,7 +1067,6 @@ class TestAzureDataSource(CiTestCase):
                 mock.MagicMock(),
             )
         )
-        super(TestAzureDataSource, self).setUp()
 
     def apply_patches(self, patches):
         for module, name, new in patches:
@@ -1441,6 +1449,7 @@ scbus-1 on xpt0 bus 0
         expected_cfg = {
             "PreprovisionedVMType": None,
             "PreprovisionedVm": False,
+            "ProvisionGuestProxyAgent": False,
             "system_info": {"default_user": {"name": "myuser"}},
         }
         expected_metadata = {
@@ -1477,13 +1486,12 @@ scbus-1 on xpt0 bus 0
         """crawl_metadata raises an exception on invalid ovf-env.xml."""
         data = {"ovfcontent": "BOGUS", "sys_cfg": {}}
         dsrc = self._get_ds(data)
-        error_msg = (
-            "BrokenAzureDataSource: Invalid ovf-env.xml:"
-            " syntax error: line 1, column 0"
-        )
-        with self.assertRaises(InvalidMetaDataException) as cm:
+        error_msg = "error parsing ovf-env.xml: syntax error: line 1, column 0"
+        with self.assertRaises(
+            errors.ReportableErrorOvfParsingException
+        ) as cm:
             dsrc.crawl_metadata()
-        self.assertEqual(str(cm.exception), error_msg)
+        self.assertEqual(cm.exception.reason, error_msg)
 
     def test_crawl_metadata_call_imds_once_no_reprovision(self):
         """If reprovisioning, report ready at the end"""
@@ -1877,7 +1885,7 @@ scbus-1 on xpt0 bus 0
         ovf_env_path = os.path.join(self.waagent_d, "ovf-env.xml")
 
         # The XML should not be same since the user password is redacted
-        on_disk_ovf = load_file(ovf_env_path)
+        on_disk_ovf = load_text_file(ovf_env_path)
         self.xml_notequals(data["ovfcontent"], on_disk_ovf)
 
         # Make sure that the redacted password on disk is not used by CI
@@ -1900,7 +1908,7 @@ scbus-1 on xpt0 bus 0
         # we expect that the ovf-env.xml file is copied there.
         ovf_env_path = os.path.join(self.waagent_d, "ovf-env.xml")
         self.assertTrue(os.path.exists(ovf_env_path))
-        self.xml_equals(xml, load_file(ovf_env_path))
+        self.xml_equals(xml, load_text_file(ovf_env_path))
 
     def test_ovf_can_include_unicode(self):
         xml = construct_ovf_env()
@@ -2009,7 +2017,7 @@ scbus-1 on xpt0 bus 0
             # mock crawl metadata failure to cause report failure
             m_crawl_metadata.side_effect = Exception
 
-            test_lease_dhcp_option_245 = "01:02:03:04"
+            test_lease_dhcp_option_245 = "1.2.3.4"
             test_lease = {
                 "unknown-245": test_lease_dhcp_option_245,
                 "interface": "eth0",
@@ -2315,11 +2323,13 @@ class TestLoadAzureDsDir(CiTestCase):
         ovf_path = os.path.join(self.source_dir, "ovf-env.xml")
         with open(ovf_path, "wb") as stream:
             stream.write(b"invalid xml")
-        with self.assertRaises(dsaz.BrokenAzureDataSource) as context_manager:
+        with self.assertRaises(
+            errors.ReportableErrorOvfParsingException
+        ) as context_manager:
             dsaz.load_azure_ds_dir(self.source_dir)
         self.assertEqual(
-            "Invalid ovf-env.xml: syntax error: line 1, column 0",
-            str(context_manager.exception),
+            "error parsing ovf-env.xml: syntax error: line 1, column 0",
+            context_manager.exception.reason,
         )
 
 
@@ -2327,7 +2337,9 @@ class TestReadAzureOvf(CiTestCase):
     def test_invalid_xml_raises_non_azure_ds(self):
         invalid_xml = "<foo>" + construct_ovf_env()
         self.assertRaises(
-            dsaz.BrokenAzureDataSource, dsaz.read_azure_ovf, invalid_xml
+            errors.ReportableErrorOvfParsingException,
+            dsaz.read_azure_ovf,
+            invalid_xml,
         )
 
     def test_load_with_pubkeys(self):
@@ -2815,6 +2827,14 @@ class TestPreprovisioningReadAzureOvfFlag(CiTestCase):
         self.assertTrue(cfg["PreprovisionedVm"])
         self.assertEqual("Savable", cfg["PreprovisionedVMType"])
 
+    def test_read_azure_ovf_with_proxy_guest_agent(self):
+        """The read_azure_ovf method should set ProvisionGuestProxyAgent
+        cfg flag to True."""
+        content = construct_ovf_env(provision_guest_proxy_agent=True)
+        ret = dsaz.read_azure_ovf(content)
+        cfg = ret[2]
+        self.assertTrue(cfg["ProvisionGuestProxyAgent"])
+
 
 @pytest.mark.parametrize(
     "ovf_cfg,imds_md,pps_type",
@@ -3298,7 +3318,9 @@ class TestEphemeralNetworking:
     ):
         lease = {
             "interface": "fakeEth0",
-            "unknown-245": "10:ff:fe:fd",
+            "unknown-245": dhcp.IscDhclient.get_ip_from_lease_value(
+                "10:ff:fe:fd"
+            ),
         }
         mock_ephemeral_dhcp_v4.return_value.obtain_lease.side_effect = [lease]
 
@@ -3637,6 +3659,7 @@ class TestProvisioning:
         mock_kvp_report_success_to_host,
         mock_netlink,
         mock_readurl,
+        mock_report_dmesg_to_kvp,
         mock_subp_subp,
         mock_timestamp,
         mock_util_ensure_dir,
@@ -3666,6 +3689,7 @@ class TestProvisioning:
         self.mock_kvp_report_success_to_host = mock_kvp_report_success_to_host
         self.mock_netlink = mock_netlink
         self.mock_readurl = mock_readurl
+        self.mock_report_dmesg_to_kvp = mock_report_dmesg_to_kvp
         self.mock_subp_subp = mock_subp_subp
         self.mock_timestmp = mock_timestamp
         self.mock_util_ensure_dir = mock_util_ensure_dir
@@ -3755,6 +3779,7 @@ class TestProvisioning:
         assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
             mock.call(
                 endpoint="10.11.12.13",
+                distro=self.azure_ds.distro,
                 iso_dev="/dev/sr0",
                 pubkey_info=None,
             )
@@ -3770,6 +3795,9 @@ class TestProvisioning:
         # Verify reports via KVP.
         assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
+
+        # Verify dmesg reported via KVP.
+        assert len(self.mock_report_dmesg_to_kvp.mock_calls) == 1
 
     @pytest.mark.parametrize("pps_type", ["Savable", "Running"])
     def test_stale_pps(self, pps_type):
@@ -3917,11 +3945,13 @@ class TestProvisioning:
         assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
             mock.call(
                 endpoint="10.11.12.13",
+                distro=self.azure_ds.distro,
                 iso_dev="/dev/sr0",
                 pubkey_info=None,
             ),
             mock.call(
                 endpoint="10.11.12.13",
+                distro=self.azure_ds.distro,
                 iso_dev=None,
                 pubkey_info=None,
             ),
@@ -3943,6 +3973,9 @@ class TestProvisioning:
         # Verify reports via KVP.
         assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 2
+
+        # Verify dmesg reported via KVP.
+        assert len(self.mock_report_dmesg_to_kvp.mock_calls) == 2
 
     def test_savable_pps(self):
         imds_md_source = copy.deepcopy(self.imds_md)
@@ -4034,11 +4067,13 @@ class TestProvisioning:
         assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
             mock.call(
                 endpoint="10.11.12.13",
+                distro=self.azure_ds.distro,
                 iso_dev="/dev/sr0",
                 pubkey_info=None,
             ),
             mock.call(
                 endpoint="10.11.12.13",
+                distro=self.azure_ds.distro,
                 iso_dev=None,
                 pubkey_info=None,
             ),
@@ -4061,6 +4096,9 @@ class TestProvisioning:
         # Verify reports via KVP.
         assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 2
+
+        # Verify dmesg reported via KVP.
+        assert len(self.mock_report_dmesg_to_kvp.mock_calls) == 2
 
     @pytest.mark.parametrize(
         "fabric_side_effect",
@@ -4187,11 +4225,13 @@ class TestProvisioning:
         assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
             mock.call(
                 endpoint="10.11.12.13",
+                distro=self.azure_ds.distro,
                 iso_dev="/dev/sr0",
                 pubkey_info=None,
             ),
             mock.call(
                 endpoint="10.11.12.13",
+                distro=self.azure_ds.distro,
                 iso_dev=None,
                 pubkey_info=None,
             ),
@@ -4275,6 +4315,7 @@ class TestProvisioning:
         assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
             mock.call(
                 endpoint="10.11.12.13",
+                distro=self.azure_ds.distro,
                 iso_dev="/dev/sr0",
                 pubkey_info=None,
             ),
@@ -4384,6 +4425,7 @@ class TestProvisioning:
         assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
             mock.call(
                 endpoint="10.11.12.13",
+                distro=self.azure_ds.distro,
                 iso_dev="/dev/sr0",
                 pubkey_info=None,
             )
@@ -4522,13 +4564,14 @@ class TestGetMetadataFromImds:
 
 class TestReportFailure:
     @pytest.mark.parametrize("kvp_enabled", [False, True])
-    def report_host_only_kvp_enabled(
+    def test_report_host_only_kvp_enabled(
         self,
         azure_ds,
         kvp_enabled,
         mock_azure_report_failure_to_fabric,
         mock_kvp_report_failure_to_host,
         mock_kvp_report_success_to_host,
+        mock_report_dmesg_to_kvp,
     ):
         mock_kvp_report_failure_to_host.return_value = kvp_enabled
         error = errors.ReportableError(reason="foo")
@@ -4538,6 +4581,7 @@ class TestReportFailure:
         assert mock_kvp_report_failure_to_host.mock_calls == [mock.call(error)]
         assert mock_kvp_report_success_to_host.mock_calls == []
         assert mock_azure_report_failure_to_fabric.mock_calls == []
+        assert mock_report_dmesg_to_kvp.mock_calls == [mock.call()]
 
 
 class TestValidateIMDSMetadata:

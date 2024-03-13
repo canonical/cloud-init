@@ -126,7 +126,7 @@ isdevopt() {
 qemu_supports_file_locking() {
     # hackily check if qemu has file.locking in -drive params (LP: #1716028)
     if [ -z "$_QEMU_SUPPORTS_FILE_LOCKING" ]; then
-        # The only way we could find to check presense of file.locking is
+        # The only way we could find to check presence of file.locking is
         # qmp (query-qmp-schema).  Simply checking if the virtio-blk driver
         # supports 'share-rw' is expected to be equivalent and simpler.
         isdevopt virtio-blk share-rw &&

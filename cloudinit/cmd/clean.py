@@ -13,6 +13,7 @@ import sys
 
 from cloudinit import settings
 from cloudinit.distros import uses_systemd
+from cloudinit.net.netplan import CLOUDINIT_NETPLAN_FILE
 from cloudinit.stages import Init
 from cloudinit.subp import ProcessExecutionError, runparts, subp
 from cloudinit.util import (
@@ -26,7 +27,7 @@ from cloudinit.util import (
 
 ETC_MACHINE_ID = "/etc/machine-id"
 GEN_NET_CONFIG_FILES = [
-    "/etc/netplan/50-cloud-init.yaml",
+    CLOUDINIT_NETPLAN_FILE,
     "/etc/NetworkManager/conf.d/99-cloud-init.conf",
     "/etc/NetworkManager/conf.d/30-cloud-init-ip6-addr-gen-mode.conf",
     "/etc/NetworkManager/system-connections/cloud-init-*.nmconnection",

@@ -124,10 +124,10 @@ class DataSourceGCE(sources.DataSource):
                 except NoDHCPLeaseError:
                     continue
                 if ret["success"]:
-                    self._fallback_interface = candidate_nic
+                    self.distro.fallback_interface = candidate_nic
                     LOG.debug("Primary NIC found: %s.", candidate_nic)
                     break
-            if self._fallback_interface is None:
+            if self.distro.fallback_interface is None:
                 LOG.warning(
                     "Did not find a fallback interface on %s.", self.cloud_name
                 )
@@ -154,7 +154,7 @@ class DataSourceGCE(sources.DataSource):
 
     @property
     def launch_index(self):
-        # GCE does not provide lauch_index property.
+        # GCE does not provide launch_index property.
         return None
 
     def get_instance_id(self):
@@ -222,7 +222,7 @@ def _has_expired(public_key):
     except ValueError:
         return False
 
-    # Do not expire keys if there is no expriation timestamp.
+    # Do not expire keys if there is no expiration timestamp.
     if "expireOn" not in json_obj:
         return False
 

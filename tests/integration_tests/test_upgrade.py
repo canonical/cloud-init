@@ -3,11 +3,17 @@ import logging
 import os
 
 import pytest
+import yaml
 
 from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.conftest import get_validated_source
 from tests.integration_tests.integration_settings import PLATFORM
-from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL, IS_UBUNTU
+from tests.integration_tests.releases import (
+    CURRENT_RELEASE,
+    FOCAL,
+    IS_UBUNTU,
+    NOBLE,
+)
 from tests.integration_tests.util import verify_clean_log
 
 LOG = logging.getLogger("integration_testing.test_upgrade")
@@ -137,7 +143,18 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
                 assert post_json["v1"]["datasource"].startswith(
                     "DataSourceAzure"
                 )
-        assert pre_network == post_network
+        if PLATFORM in ["gce", "qemu"] and CURRENT_RELEASE < NOBLE:
+            # GCE regenerates network config per boot AND
+            # GCE uses fallback config AND
+            # #4474 changed fallback configuration.
+            # Once the baseline includes #4474, this can be removed
+            pre_network = yaml.load(pre_network, Loader=yaml.Loader)
+            post_network = yaml.load(post_network, Loader=yaml.Loader)
+            for values in post_network["network"]["ethernets"].values():
+                values.pop("dhcp6")
+            assert yaml.dump(pre_network) == yaml.dump(post_network)
+        else:
+            assert pre_network == post_network
 
         # Calculate and log all the boot numbers
         pre_analyze_totals = [
@@ -186,6 +203,8 @@ def test_subsequent_boot_of_upgraded_package(session_cloud: IntegrationCloud):
 
     with session_cloud.launch(launch_kwargs=launch_kwargs) as instance:
         instance.install_new_cloud_init(source, clean=False)
+        # Ensure we aren't looking at any prior warnings/errors from prior boot
+        instance.execute("rm /var/log/cloud-init.log")
         instance.restart()
         log = instance.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)

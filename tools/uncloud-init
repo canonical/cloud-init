@@ -105,7 +105,7 @@ done
 if [ "${ubuntu_pass}" = "R" -o "${ubuntu_pass}" = "random" ]; then
 	ubuntu_pass=$(python -c 'import string, random;
 random.seed(); print "".join(random.sample(string.letters+string.digits, 8))')
-	log "settting ubuntu pass = ${ubuntu_pass}" 
+	log "setting ubuntu pass = ${ubuntu_pass}" 
 	printf "\n===\nubuntu_pass = %s\n===\n" "${ubuntu_pass}" >/dev/ttyS0
 fi
 

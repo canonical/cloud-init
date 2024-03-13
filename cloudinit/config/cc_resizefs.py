@@ -11,8 +11,10 @@
 import errno
 import logging
 import os
+import re
 import stat
 from textwrap import dedent
+from typing import Optional
 
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
@@ -29,7 +31,7 @@ meta: MetaSchema = {
     "title": "Resize filesystem",
     "description": dedent(
         """\
-        Resize a filesystem to use all avaliable space on partition. This
+        Resize a filesystem to use all available space on partition. This
         module is useful along with ``cc_growpart`` and will ensure that if the
         root partition has been resized the root filesystem will be resized
         along with it. By default, ``cc_resizefs`` will resize the root
@@ -146,6 +148,36 @@ RESIZE_FS_PREFIXES_CMDS = [
 RESIZE_FS_PRECHECK_CMDS = {"ufs": _can_skip_resize_ufs}
 
 
+def get_device_info_from_zpool(zpool) -> Optional[str]:
+    # zpool has 10 second timeout waiting for /dev/zfs LP: #1760173
+    log_warn = LOG.debug if util.is_container() else LOG.warning
+    if not os.path.exists("/dev/zfs"):
+        LOG.debug("Cannot get zpool info, no /dev/zfs")
+        return None
+    try:
+        zpoolstatus, err = subp.subp(["zpool", "status", zpool])
+        if err:
+            LOG.info(
+                "zpool status returned error: [%s] for zpool [%s]",
+                err,
+                zpool,
+            )
+            return None
+    except subp.ProcessExecutionError as err:
+        log_warn("Unable to get zpool status of %s: %s", zpool, err)
+        return None
+    r = r".*(ONLINE).*"
+    for line in zpoolstatus.split("\n"):
+        if re.search(r, line) and zpool not in line and "state" not in line:
+            disk = line.split()[0]
+            LOG.debug('found zpool "%s" on disk %s', zpool, disk)
+            return disk
+    log_warn(
+        "No zpool found: [%s]: out: [%s] err: %s", zpool, zpoolstatus, err
+    )
+    return None
+
+
 def can_skip_resize(fs_type, resize_what, devpth):
     fstype_lc = fs_type.lower()
     for i, func in RESIZE_FS_PRECHECK_CMDS.items():
@@ -259,7 +291,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # so the _resize_zfs function gets the right attribute.
     if fs_type == "zfs":
         zpool = devpth.split("/")[0]
-        devpth = util.get_device_info_from_zpool(zpool)
+        devpth = get_device_info_from_zpool(zpool)
         if not devpth:
             return  # could not find device from zpool
         resize_what = zpool

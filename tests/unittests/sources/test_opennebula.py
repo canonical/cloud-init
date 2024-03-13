@@ -67,7 +67,7 @@ class TestOpenNebulaDataSource(CiTestCase):
 
     def tearDown(self):
         ds.switch_user_cmd = self.switch_user_cmd_real
-        super(TestOpenNebulaDataSource, self).tearDown()
+        super().tearDown()
 
     def test_get_data_non_contextdisk(self):
         orig_find_devs_with = util.find_devs_with

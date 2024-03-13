@@ -43,7 +43,7 @@ def update_sysconfig_file(fn, adjustments, allow_empty=False):
 def read_sysconfig_file(fn):
     exists = False
     try:
-        contents = util.load_file(fn).splitlines()
+        contents = util.load_text_file(fn).splitlines()
         exists = True
     except IOError:
         contents = []

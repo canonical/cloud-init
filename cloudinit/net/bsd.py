@@ -166,7 +166,7 @@ class BSDRenderer(renderer.Renderer):
         # fails.
         try:
             resolvconf = ResolvConf(
-                util.load_file(
+                util.load_text_file(
                     subp.target_path(self.target, self.resolv_conf_fn)
                 )
             )

@@ -63,3 +63,9 @@ class TestAtomicHelper(CiTestCase):
     def check_perms(self, path, perms):
         file_stat = os.stat(path)
         self.assertEqual(perms, stat.S_IMODE(file_stat.st_mode))
+
+    def test_write_file_ensure_dirs(self):
+        path = self.tmp_path("ensure_dirs") + "/ensure/dir"
+        contents = b"Hey there\n"
+        atomic_helper.write_file(path, contents)
+        self.check_file(path, contents)

@@ -42,9 +42,9 @@ class TestTimezone(t_help.FilesystemMockingTestCase):
 
         cc_timezone.handle("cc_timezone", cfg, cc, [])
 
-        contents = util.load_file("/etc/sysconfig/clock", decode=False)
+        contents = util.load_binary_file("/etc/sysconfig/clock")
         n_cfg = ConfigObj(BytesIO(contents))
         self.assertEqual({"TIMEZONE": cfg["timezone"]}, dict(n_cfg))
 
-        contents = util.load_file("/etc/localtime")
+        contents = util.load_text_file("/etc/localtime")
         self.assertEqual(dummy_contents, contents.strip())

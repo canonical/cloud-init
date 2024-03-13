@@ -17,7 +17,7 @@ LOG = logging.getLogger(__name__)
 
 
 # Normalizes an input group configuration which can be:
-# Comma seperated string or a list or a dictionary
+# Comma separated string or a list or a dictionary
 #
 # Returns dictionary of group names => members of that group which is the
 # standard form used in the rest of cloud-init

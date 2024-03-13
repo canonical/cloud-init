@@ -2,6 +2,7 @@
 from unittest import mock
 
 from cloudinit import cloud, distros, helpers
+from cloudinit.net.dhcp import IscDhclient
 from cloudinit.sources import DataSource, DataSourceHostname
 from cloudinit.sources.DataSourceNone import DataSourceNone
 
@@ -32,7 +33,9 @@ def get_cloud(
         myds.metadata.update(metadata)
     if paths:
         paths.datasource = myds
-    return cloud.Cloud(myds, paths, sys_cfg, mydist, None)
+    return cloud.Cloud(
+        myds, paths, sys_cfg, mydist, runners=helpers.Runners(paths)
+    )
 
 
 def abstract_to_concrete(abclass):
@@ -53,10 +56,6 @@ class DataSourceTesting(DataSourceNone):
         return True
 
     @property
-    def fallback_interface(self):
-        return None
-
-    @property
     def cloud_name(self):
         return "testing"
 
@@ -64,11 +63,21 @@ class DataSourceTesting(DataSourceNone):
 class MockDistro(distros.Distro):
     # MockDistro is here to test base Distro class implementations
     def __init__(self, name="testingdistro", cfg=None, paths=None):
+        self._client = None
         if not cfg:
             cfg = {}
         if not paths:
             paths = {}
         super(MockDistro, self).__init__(name, cfg, paths)
+
+    @property
+    def dhcp_client(self):
+        if not self._client:
+            with mock.patch(
+                "cloudinit.net.dhcp.subp.which", return_value=True
+            ):
+                self._client = IscDhclient()
+        return self._client
 
     def install_packages(self, pkglist):
         pass
@@ -80,14 +89,19 @@ class MockDistro(distros.Distro):
     def uses_systemd():
         return True
 
+    @staticmethod
+    def get_proc_ppid(_):
+        return 1
+
+    @staticmethod
+    def get_proc_pgid(_):
+        return 99999
+
     def get_primary_arch(self):
         return "i386"
 
     def get_package_mirror_info(self, arch=None, data_source=None):
         pass
-
-    def apply_network(self, settings, bring_up=True):
-        return False
 
     def generate_fallback_config(self):
         return {}

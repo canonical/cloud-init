@@ -33,6 +33,7 @@ from cloudinit.sources import DataSourceSmartOS as SmartOS
 from cloudinit.sources import DataSourceUpCloud as UpCloud
 from cloudinit.sources import DataSourceVMware as VMware
 from cloudinit.sources import DataSourceVultr as Vultr
+from cloudinit.sources import DataSourceWSL as WSL
 from tests.unittests import helpers as test_helpers
 
 DEFAULT_LOCAL = [
@@ -60,6 +61,7 @@ DEFAULT_LOCAL = [
     VMware.DataSourceVMware,
     NWCS.DataSourceNWCS,
     Akamai.DataSourceAkamaiLocal,
+    WSL.DataSourceWSL,
 ]
 
 DEFAULT_NETWORK = [
@@ -74,6 +76,7 @@ DEFAULT_NETWORK = [
     MAAS.DataSourceMAAS,
     NoCloud.DataSourceNoCloudNet,
     OpenStack.DataSourceOpenStack,
+    Oracle.DataSourceOracleNet,
     OVF.DataSourceOVFNet,
     UpCloud.DataSourceUpCloud,
     Akamai.DataSourceAkamai,

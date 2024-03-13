@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Link your Launchpad user to github, proposing branches to LP and Github"""
+"""Link your Launchpad user to GitHub, proposing branches to LP and GitHub"""
 
 from argparse import ArgumentParser
 from subprocess import Popen, PIPE
@@ -175,7 +175,7 @@ def add_lp_and_github_remotes(lp_user, gh_user):
 def create_migration_branch(
     branch_name, upstream, lp_user, gh_user, commit_msg
 ):
-    """Create an LP to Github migration branch and add lp_user->gh_user."""
+    """Create an LP to GitHub migration branch and add lp_user->gh_user."""
     log(
         "Creating a migration branch: {} adding your users".format(
             MIGRATE_BRANCH_NAME

@@ -190,6 +190,7 @@ class DataSourceSmartOS(sources.DataSource):
         self.metadata = {}
         self.network_data = None
         self._network_config = None
+        self.routes_data = None
 
         self.script_base_d = os.path.join(self.paths.get_cpath("scripts"))
 
@@ -775,7 +776,7 @@ def write_boot_content(
     @param shebang: if no file magic, set shebang
     @param mode: file mode
 
-    Becuase of the way that Cloud-init executes scripts (no shell),
+    Because of the way that Cloud-init executes scripts (no shell),
     a script will fail to execute if does not have a magic bit (shebang) set
     for the file. If shebang=True, then the script will be checked for a magic
     bit and to the SmartOS default of assuming that bash.

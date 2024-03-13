@@ -11,7 +11,12 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
+from tests.unittests.helpers import (
+    SCHEMA_EMPTY_ERROR,
+    CiTestCase,
+    mock,
+    skipUnlessJsonSchema,
+)
 from tests.unittests.util import get_cloud
 
 
@@ -92,7 +97,7 @@ class TestBootcmd(CiTestCase):
             with self.allow_subp(["/bin/sh"]):
                 handle("cc_bootcmd", valid_config, cc, [])
         self.assertEqual(
-            my_id + " iid-datasource-none\n", util.load_file(out_file)
+            my_id + " iid-datasource-none\n", util.load_text_file(out_file)
         )
 
     def test_handler_runs_bootcmd_script_with_error(self):
@@ -128,12 +133,14 @@ class TestBootCMDSchema:
                 "Cloud config schema errors: bootcmd: 1 is not of type"
                 " 'array'",
             ),
-            ({"bootcmd": []}, re.escape("bootcmd: [] is too short")),
             (
                 {"bootcmd": []},
-                re.escape(
-                    "Cloud config schema errors: bootcmd: [] is too short"
-                ),
+                re.escape("bootcmd: [] ") + SCHEMA_EMPTY_ERROR,
+            ),
+            (
+                {"bootcmd": []},
+                re.escape("Cloud config schema errors: bootcmd: [] ")
+                + SCHEMA_EMPTY_ERROR,
             ),
             (
                 {

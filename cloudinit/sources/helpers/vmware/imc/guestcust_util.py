@@ -251,7 +251,7 @@ def get_data_from_imc_raw_data_cust_cfg(cust_cfg):
             )
             return (None, None, None)
         try:
-            md = util.load_file(md_path)
+            md = util.load_text_file(md_path)
         except Exception as e:
             set_cust_error_status(
                 "Error loading cloud-init meta data file",
@@ -284,7 +284,7 @@ def get_data_from_imc_raw_data_cust_cfg(cust_cfg):
                 )
                 return (None, None, None)
             try:
-                ud = util.load_file(ud_path).replace("\r", "")
+                ud = util.load_text_file(ud_path).replace("\r", "")
             except Exception as e:
                 set_cust_error_status(
                     "Error loading cloud-init userdata file",

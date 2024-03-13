@@ -13,6 +13,7 @@ import copy
 
 from cloudinit.distros import PREFERRED_NTP_CLIENTS, debian
 from cloudinit.distros.package_management.snap import Snap
+from cloudinit.net.netplan import CLOUDINIT_NETPLAN_FILE
 
 
 class Distro(debian.Distro):
@@ -21,7 +22,7 @@ class Distro(debian.Distro):
         # Ubuntu specific network cfg locations
         self.network_conf_fn = {
             "eni": "/etc/network/interfaces.d/50-cloud-init.cfg",
-            "netplan": "/etc/netplan/50-cloud-init.yaml",
+            "netplan": CLOUDINIT_NETPLAN_FILE,
         }
         self.renderer_configs = {
             "eni": {

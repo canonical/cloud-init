@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 
 """ test_apt_custom_sources_list
 Test templating of custom sources list
@@ -331,7 +332,17 @@ class TestAptSourceConfigSourceList:
         assert expected == sources_file.read()
         assert 0o644 == stat.S_IMODE(sources_file.stat().mode)
         self.subp.assert_called_once_with(
-            ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
+            [
+                "ps",
+                "-o",
+                "ppid,pid",
+                "-C",
+                "keyboxd",
+                "-C",
+                "dirmngr",
+                "-C",
+                "gpg-agent",
+            ],
             capture=True,
             rcs=[0, 1],
         )

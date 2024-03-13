@@ -8,7 +8,7 @@ from collections import namedtuple
 
 import pytest
 
-from cloudinit import helpers, log
+from cloudinit import helpers
 from cloudinit.cmd import main as cli
 from tests.unittests import helpers as test_helpers
 
@@ -30,7 +30,6 @@ class TestCLI:
         if not sysv_args:
             sysv_args = ["cloud-init"]
         try:
-            log.setup_logging()
             return cli.main(sysv_args=sysv_args)
         except SystemExit as e:
             return e.code
