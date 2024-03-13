@@ -180,6 +180,20 @@ class DataSourceScaleway(sources.DataSource):
         if "metadata_urls" in self.ds_cfg.keys():
             self.metadata_urls += self.ds_cfg["metadata_urls"]
 
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        super()._unpickle(ci_pkl_version)
+        attr_defaults = {
+            "ephemeral_fixed_address": None,
+            "has_ipv4": True,
+            "max_wait": DEF_MD_MAX_WAIT,
+            "metadata_urls": DS_BASE_URLS,
+            "userdata_url": None,
+            "vendordata_url": None,
+        }
+        for attr in attr_defaults:
+            if not hasattr(self, attr):
+                setattr(self, attr, attr_defaults[attr])
+
     def _set_metadata_url(self, urls):
         """
         Define metadata_url based upon api-metadata URL availability.

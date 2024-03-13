@@ -131,6 +131,14 @@ MOCK_WSL_INSTANCE_DATA = {
         LOGO=ubuntu-logo
         """
     ),
+    "os_release_no_version_id": dedent(
+        """\
+        PRETTY_NAME="Debian GNU/Linux trixie/sid"
+        NAME="Debian GNU/Linux"
+        VERSION_CODENAME="trixie"
+        ID=debian
+        """
+    ),
 }
 
 shell_true = 0
@@ -1128,9 +1136,26 @@ class TestWSL(DsIdentifyBase):
         )
         return self._check_via_dict(data, RC_NOT_FOUND)
 
+    def test_found_via_userdata_version_codename(self):
+        """WLS datasource detected by VERSION_CODENAME when no VERSION_ID"""
+        data = copy.deepcopy(VALID_CFG["WSL-supported-debian"])
+        cloudinitdir = self.tmp_dir()
+        data["mocks"].append(
+            {
+                "name": "WSL_cloudinit_dir_in",
+                "ret": 0,
+                "RET": cloudinitdir,
+            },
+        )
+        filename = os.path.join(cloudinitdir, "debian-trixie.user-data")
+        Path(filename).touch()
+        self._check_via_dict(data, RC_FOUND, dslist=[data.get("ds"), DS_NONE])
+        Path(filename).unlink()
+
     def test_found_via_userdata(self):
-        """Asserts that WSL datasource is found if there is applicable
-        userdata files inside cloudinitdir."""
+        """
+        WSL datasource is found on applicable userdata files in cloudinitdir.
+        """
         data = copy.deepcopy(VALID_CFG["WSL-supported"])
         cloudinitdir = self.tmp_dir()
         data["mocks"].append(
@@ -1159,11 +1184,8 @@ class TestWSL(DsIdentifyBase):
             os.path.join(cloudinitdir, "default.user-data"),
         ]
 
-        # Ensures all applicable user data files exist.
         for filename in userdata_files:
             Path(filename).touch()
-
-        for filename in userdata_files:
             self._check_via_dict(
                 data, RC_FOUND, dslist=[data.get("ds"), DS_NONE]
             )
@@ -2234,6 +2256,31 @@ VALID_CFG = {
                 "group_id=0,allow_other 0 0"
             ),
             "etc/os-release": MOCK_WSL_INSTANCE_DATA["os_release"],
+        },
+    },
+    "WSL-supported-debian": {
+        "ds": "WSL",
+        "mocks": [
+            MOCK_VIRT_IS_WSL,
+            MOCK_UNAME_IS_WSL,
+            {
+                "name": "WSL_instance_name",
+                "ret": 0,
+                "RET": MOCK_WSL_INSTANCE_DATA["name"],
+            },
+        ],
+        "files": {
+            "proc/mounts": (
+                "/dev/sdd / ext4 rw,errors=remount-ro,data=ordered 0 0\n"
+                "cgroup2 /sys/fs/cgroup cgroup2 rw,nosuid,nodev,noexec0 0\n"
+                "C:\\134 /mnt/c 9p rw,dirsync,aname=drvfs;path=C:\\;uid=0;"
+                "gid=0;symlinkroot=/mnt/...\n"
+                "snapfuse /snap/core22/1033 fuse.snapfuse ro,nodev,user_id=0,"
+                "group_id=0,allow_other 0 0"
+            ),
+            "etc/os-release": MOCK_WSL_INSTANCE_DATA[
+                "os_release_no_version_id"
+            ],
         },
     },
 }

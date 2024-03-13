@@ -3,6 +3,7 @@
 import os
 import signal
 import socket
+import subprocess
 from textwrap import dedent
 
 import pytest
@@ -1167,9 +1168,11 @@ class TestISCDHClient(CiTestCase):
     # otherwise mock a reply with leasefile
     @mock.patch(
         "os.listdir",
-        side_effect=lambda x: []
-        if x == "/var/lib/NetworkManager"
-        else ["some_file", "!@#$-eth0.lease", "some_other_file"],
+        side_effect=lambda x: (
+            []
+            if x == "/var/lib/NetworkManager"
+            else ["some_file", "!@#$-eth0.lease", "some_other_file"]
+        ),
     )
     @mock.patch("os.path.getmtime", return_value=123.45)
     def test_fallback_when_nothing_found(self, *_):
@@ -1318,3 +1321,55 @@ class TestDhcpcd:
                 ),
             ]
         )
+
+    @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhcpcd")
+    @mock.patch("cloudinit.net.dhcp.os.killpg")
+    @mock.patch("cloudinit.net.dhcp.subp.subp")
+    @mock.patch("cloudinit.util.load_json")
+    @mock.patch("cloudinit.util.load_binary_file")
+    @mock.patch("cloudinit.util.write_file")
+    def test_dhcpcd_discovery_timeout(
+        self,
+        m_write_file,
+        m_load_file,
+        m_loadjson,
+        m_subp,
+        m_remove,
+        m_which,
+    ):
+        """Verify dhcpcd timeout results in NoDHCPLeaseError exception."""
+        m_subp.side_effect = [
+            SubpResult("a=b", ""),
+            subprocess.TimeoutExpired(
+                "/sbin/dhcpcd", timeout=6, output="testout", stderr="testerr"
+            ),
+        ]
+        with pytest.raises(NoDHCPLeaseError):
+            Dhcpcd().dhcp_discovery("eth0", distro=MockDistro())
+
+        m_subp.assert_has_calls(
+            [
+                mock.call(
+                    ["ip", "link", "set", "dev", "eth0", "up"],
+                ),
+                mock.call(
+                    [
+                        "/sbin/dhcpcd",
+                        "--ipv4only",
+                        "--waitip",
+                        "--persistent",
+                        "--noarp",
+                        "--script=/bin/true",
+                        "eth0",
+                    ],
+                    timeout=Dhcpcd.timeout,
+                ),
+            ]
+        )
+
+
+class TestMaybePerformDhcpDiscovery:
+    def test_none_and_missing_fallback(self):
+        with pytest.raises(NoDHCPLeaseInterfaceError):
+            distro = mock.Mock(fallback_interface=None)
+            maybe_perform_dhcp_discovery(distro, None)

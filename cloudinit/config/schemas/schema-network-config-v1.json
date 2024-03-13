@@ -503,6 +503,10 @@
           "type": "string",
           "description": "IPv4 subnet mask in dotted format or CIDR notation"
         },
+        "broadcast": {
+          "type": "string",
+          "description": "IPv4 broadcast address in dotted format."
+        },
         "gateway": {
           "type": "string",
           "description": "IPv4 address of the default gateway for this subnet."

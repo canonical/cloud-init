@@ -473,14 +473,14 @@ def dual_stack(
 
 def wait_for_url(
     urls,
-    max_wait=None,
-    timeout=None,
+    max_wait: float = float("inf"),
+    timeout: Optional[float] = None,
     status_cb: Callable = LOG.debug,  # some sources use different log levels
     headers_cb: Optional[Callable] = None,
     headers_redact=None,
-    sleep_time: int = 1,
+    sleep_time: Optional[float] = None,
     exception_cb: Optional[Callable] = None,
-    sleep_time_cb: Optional[Callable[[Any, int], int]] = None,
+    sleep_time_cb: Optional[Callable[[Any, float], float]] = None,
     request_method: str = "",
     connect_synchronously: bool = True,
     async_delay: float = 0.150,
@@ -496,10 +496,15 @@ def wait_for_url(
     headers_cb: call method with single argument of url to get headers
                 for request.
     headers_redact: a list of header names to redact from the log
+    sleep_time: Amount of time to sleep between retries. If this and
+                sleep_time_cb are None, the default sleep time
+                defaults to 1 second and increases by 1 seconds every 5
+                tries. Cannot be specified along with `sleep_time_cb`.
     exception_cb: call method with 2 arguments 'msg' (per status_cb) and
                   'exception', the exception that occurred.
     sleep_time_cb: call method with 2 arguments (response, loop_n) that
-                   generates the next sleep time.
+                   generates the next sleep time. Cannot be specified
+                   along with 'sleep_time`.
     request_method: indicate the type of HTTP request, GET, PUT, or POST
     connect_synchronously: if false, enables executing requests in parallel
     async_delay: delay before parallel metadata requests, see RFC 6555
@@ -520,17 +525,19 @@ def wait_for_url(
     data host (169.254.169.254) may be firewalled off Entirely for a system,
     meaning that the connection will block forever unless a timeout is set.
 
-    A value of None for max_wait will retry indefinitely.
+    The default value for max_wait will retry indefinitely.
     """
 
-    def default_sleep_time(_, loop_number: int) -> int:
-        return int(loop_number / 5) + 1
+    def default_sleep_time(_, loop_number: int) -> float:
+        return sleep_time if sleep_time is not None else loop_number // 5 + 1
 
-    def timeup(max_wait, start_time):
+    def timeup(max_wait: float, start_time: float, sleep_time: float = 0):
         """Check if time is up based on start time and max wait"""
-        if max_wait is None:
+        if max_wait in (float("inf"), None):
             return False
-        return (max_wait <= 0) or (time.time() - start_time > max_wait)
+        return (max_wait <= 0) or (
+            time.time() - start_time + sleep_time > max_wait
+        )
 
     def handle_url_response(response, url):
         """Map requests response code/contents to internal "UrlError" type"""
@@ -575,7 +582,7 @@ def wait_for_url(
         time_taken = int(time.time() - start_time)
         max_wait_str = "%ss" % max_wait if max_wait else "unlimited"
         status_msg = "Calling '%s' failed [%s/%s]: %s" % (
-            url,
+            url or getattr(url_exc, "url", "url ? None"),
             time_taken,
             max_wait_str,
             reason,
@@ -641,6 +648,8 @@ def wait_for_url(
             return out
 
     start_time = time.time()
+    if sleep_time and sleep_time_cb:
+        raise ValueError("sleep_time and sleep_time_cb are mutually exclusive")
 
     # Dual-stack support factored out serial and parallel execution paths to
     # allow the retry loop logic to exist separately from the http calls.
@@ -656,25 +665,30 @@ def wait_for_url(
     loop_n: int = 0
     response = None
     while True:
-        sleep_time = calculate_sleep_time(response, loop_n)
+        current_sleep_time = calculate_sleep_time(response, loop_n)
 
         url = do_read_url(start_time, timeout, exception_cb, status_cb)
         if url:
             address, response = url
             return (address, response.contents)
 
-        if timeup(max_wait, start_time):
+        if timeup(max_wait, start_time, current_sleep_time):
             break
 
         loop_n = loop_n + 1
         LOG.debug(
-            "Please wait %s seconds while we wait to try again", sleep_time
+            "Please wait %s seconds while we wait to try again",
+            current_sleep_time,
         )
-        time.sleep(sleep_time)
+        time.sleep(current_sleep_time)
 
         # shorten timeout to not run way over max_time
-        # timeout=0.0 causes exceptions in urllib, set to None if zero
-        timeout = int((start_time + max_wait) - time.time()) or None
+        current_time = time.time()
+        if timeout and current_time + timeout > start_time + max_wait:
+            timeout = max_wait - (current_time - start_time)
+            if timeout <= 0:
+                # We've already exceeded our max_wait. Time to bail.
+                break
 
     LOG.error("Timed out, no response from urls: %s", urls)
     return False, None
