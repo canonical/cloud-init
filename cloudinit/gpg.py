@@ -13,7 +13,7 @@ import re
 import signal
 import time
 from tempfile import TemporaryDirectory
-from typing import Optional
+from typing import Dict, Optional
 
 from cloudinit import subp
 
@@ -24,15 +24,15 @@ HOME = "GNUPGHOME"
 
 class GPG:
     def __init__(self):
-        self.temp_dir = None
         self.gpg_started = False
         self._env = {}
+        self.temp_dir = TemporaryDirectory()
 
     def __enter__(self):
         return self
 
     @property
-    def env(self):
+    def env(self) -> Dict[str, str]:
         """when this env property gets invoked, set up our temporary
         directory, and also set gpg_started to tell the cleanup()
         method whether or not
@@ -43,14 +43,13 @@ class GPG:
         if self._env:
             return self._env
         self.gpg_started = True
-        self.temp_dir = TemporaryDirectory()
         self._env = {HOME: self.temp_dir.name}
         return self._env
 
     def __exit__(self, exc_typ, exc_value, traceback):
         self.cleanup()
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """cleanup the gpg temporary directory and kill gpg"""
         self.kill_gpg()
         if self.temp_dir and os.path.isdir(self.temp_dir.name):

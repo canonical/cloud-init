@@ -216,18 +216,18 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """process the config for apt_config. This can be called from
     curthooks if a global apt config was provided or via the "apt"
     standalone command."""
+    # feed back converted config, but only work on the subset under 'apt'
+    cfg = convert_to_v3_apt_format(cfg)
+    apt_cfg = cfg.get("apt", {})
+
+    if not isinstance(apt_cfg, dict):
+        raise ValueError(
+            "Expected dictionary for 'apt' config, "
+            "found {config_type}".format(config_type=type(apt_cfg))
+        )
+
+    apply_debconf_selections(apt_cfg)
     with GPG() as gpg_context:
-        # feed back converted config, but only work on the subset under 'apt'
-        cfg = convert_to_v3_apt_format(cfg)
-        apt_cfg = cfg.get("apt", {})
-
-        if not isinstance(apt_cfg, dict):
-            raise ValueError(
-                "Expected dictionary for 'apt' config, "
-                "found {config_type}".format(config_type=type(apt_cfg))
-            )
-
-        apply_debconf_selections(apt_cfg)
         apply_apt(apt_cfg, cloud, gpg_context)
 
 
