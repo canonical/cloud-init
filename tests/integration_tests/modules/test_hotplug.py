@@ -1,6 +1,7 @@
 import time
 from collections import namedtuple
 
+import paramiko
 import pytest
 import yaml
 
@@ -13,7 +14,11 @@ from tests.integration_tests.releases import (
     FOCAL,
     UBUNTU_STABLE,
 )
-from tests.integration_tests.util import verify_clean_log
+from tests.integration_tests.util import (
+    push_and_enable_systemd_unit,
+    verify_clean_log,
+    wait_for_cloud_init,
+)
 
 USER_DATA = """\
 #cloud-config
@@ -374,3 +379,156 @@ def test_no_hotplug_triggered_by_docker(client: IntegrationInstance):
     assert "enabled" == client.execute(
         "cloud-init devel hotplug-hook -s net query"
     )
+
+
+def wait_for_cmd(
+    client: IntegrationInstance, cmd: str, return_code: int
+) -> None:
+    for _ in range(60):
+        try:
+            res = client.execute(cmd)
+        except paramiko.ssh_exception.SSHException:
+            pass
+        else:
+            if res.return_code == return_code:
+                return
+        time.sleep(1)
+    assert False, f"`{cmd}` never exited with {return_code}"
+
+
+def assert_systemctl_status_code(
+    client: IntegrationInstance, service: str, return_code: int
+):
+    result = client.execute(f"systemctl status {service}")
+    assert result.return_code == return_code, (
+        f"status of {service} expected to be {return_code} but was"
+        f" {result.return_code}\nstdout: {result.stdout}\n"
+        f"stderr {result.stderr}"
+    )
+
+
+BLOCK_CLOUD_CONFIG = """\
+[Unit]
+Description=Block cloud-config.service
+After=cloud-config.target
+Before=cloud-config.service
+
+DefaultDependencies=no
+Before=shutdown.target
+Conflicts=shutdown.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/sleep 360
+TimeoutSec=0
+
+# Output needs to appear in instance console output
+StandardOutput=journal+console
+
+[Install]
+WantedBy=cloud-config.service
+"""  # noqa: E501
+
+
+BLOCK_CLOUD_FINAL = """\
+[Unit]
+Description=Block cloud-final.service
+After=cloud-config.target
+Before=cloud-final.service
+
+DefaultDependencies=no
+Before=shutdown.target
+Conflicts=shutdown.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/sleep 360
+TimeoutSec=0
+
+# Output needs to appear in instance console output
+StandardOutput=journal+console
+
+[Install]
+WantedBy=cloud-final.service
+"""  # noqa: E501
+
+
+def _customize_environment(client: IntegrationInstance):
+    push_and_enable_systemd_unit(
+        client, "block-cloud-config.service", BLOCK_CLOUD_CONFIG
+    )
+    push_and_enable_systemd_unit(
+        client, "block-cloud-final.service", BLOCK_CLOUD_FINAL
+    )
+
+    # Disable pam_nologin for 1000(ubuntu) user to allow ssh access early
+    # during boot. Without this we get:
+    #
+    # System is booting up. Unprivileged users are not permitted to log in yet.
+    # Please come back later. For technical details, see pam_nologin(8).
+    #
+    # sshd[xxx]: fatal: Access denied for user ubuntu by PAM account
+    # configuration [preauth]
+    #
+    # See: pam(7), pam_nologin(8), pam_succeed_id(8)
+    contents = client.read_from_file("/etc/pam.d/sshd")
+    contents = (
+        "account [success=1 default=ignore] pam_succeed_if.so quiet uid eq"
+        " 1000\n\n" + contents
+    )
+    client.write_to_file("/etc/pam.d/sshd", contents)
+
+    client.instance.shutdown(wait=True)
+    client.instance.start(wait=False)
+
+
+@pytest.mark.skipif(
+    PLATFORM != "ec2",
+    reason="test is ec2 specific but should work on other platforms with the"
+    " ability to add_network_interface",
+)
+@pytest.mark.user_data(USER_DATA)
+def test_nics_before_config_trigger_hotplug(client: IntegrationInstance):
+    """
+    Test that NICs added/removed after the Network boot stage but before
+    the rest boot stages do trigger cloud-init-hotplugd.
+
+    Note: Do not test first boot, as cc_install_hotplug runs at
+    config-final.service time.
+    """
+    _customize_environment(client)
+
+    # wait until we are between cloud-config.target done and
+    # cloud-config.service
+    wait_for_cmd(client, "systemctl status cloud-config.target", 0)
+    wait_for_cmd(client, "systemctl status block-cloud-config.service", 3)
+
+    # socket active but service not
+    assert_systemctl_status_code(client, "cloud-init-hotplugd.socket", 0)
+    assert_systemctl_status_code(client, "cloud-init-hotplugd.service", 3)
+
+    assert_systemctl_status_code(client, "cloud-config.service", 3)
+    assert_systemctl_status_code(client, "cloud-final.service", 3)
+
+    added_ip_0 = client.instance.add_network_interface()
+
+    assert_systemctl_status_code(client, "cloud-config.service", 3)
+    assert_systemctl_status_code(client, "cloud-final.service", 3)
+
+    # unblock cloud-config.service
+    assert client.execute("systemctl stop block-cloud-config.service").ok
+    wait_for_cmd(client, "systemctl status cloud-config.service", 0)
+    wait_for_cmd(client, "systemctl status block-cloud-final.service", 3)
+    assert_systemctl_status_code(client, "cloud-final.service", 3)
+
+    # hotplug didn't run before cloud-final.service
+    _wait_till_hotplug_complete(client, expected_runs=0)
+
+    # unblock cloud-final.service
+    assert client.execute("systemctl stop block-cloud-final.service").ok
+
+    wait_for_cloud_init(client)
+    _wait_till_hotplug_complete(client, expected_runs=1)
+
+    client.instance.remove_network_interface(added_ip_0)
+    _wait_till_hotplug_complete(client, expected_runs=2)
