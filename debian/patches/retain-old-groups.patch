@@ -7,7 +7,7 @@ Last-Update: 2023-07-24
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/config/cloud.cfg.tmpl
 +++ b/config/cloud.cfg.tmpl
-@@ -17,7 +17,7 @@
+@@ -18,7 +18,7 @@
                    "photon": "wheel",
                    "openmandriva": "wheel, users, systemd-journal",
                    "suse": "cdrom, users",
