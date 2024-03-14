@@ -1,3 +1,11 @@
+cloud-init (24.2~1gf7c1c761-0ubuntu1) UNRELEASED; urgency=medium
+
+  * Upstream snapshot based on upstream/main at f7c1c761.
+    - Bugs fixed in this snapshot: (LP: #2056439, #2056460, #2056194)
+      (LP: #2055077)
+
+ -- James Falcon <james.falcon@canonical.com>  Thu, 14 Mar 2024 10:52:52 -0500
+
 cloud-init (24.1-0ubuntu1) noble; urgency=medium
 
   * Upstream snapshot based on 24.1.
