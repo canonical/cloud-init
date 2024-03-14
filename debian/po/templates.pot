@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cloud-init\n"
 "Report-Msgid-Bugs-To: cloud-init@packages.debian.org\n"
-"POT-Creation-Date: 2023-08-28 13:14-0600\n"
+"POT-Creation-Date: 2024-03-14 13:40-0600\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -183,6 +183,12 @@ msgstr ""
 #. Choices
 #: ../cloud-init.templates:1001
 msgid "Akamai: Akamai and Linode platforms"
+msgstr ""
+
+#. Type: multiselect
+#. Choices
+#: ../cloud-init.templates:1001
+msgid "WSL: Windows Subsystem for Linux"
 msgstr ""
 
 #. Type: multiselect
