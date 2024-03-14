@@ -36,6 +36,10 @@
           "items": {
             "$ref": "#/$defs/config_type_subnet"
           }
+        },
+        "accept-ra": {
+          "type": "boolean",
+          "description": "Whether to accept IPv6 Router Advertisements (RA) on this interface. If unset, it will not be rendered"
         }
       }
     },

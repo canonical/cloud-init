@@ -82,6 +82,13 @@ be sent in a packet- or frame-based network. Specifying ``mtu`` is optional.
    configuration time. It's possible to specify a value too large or to
    small for a device, and may be ignored by the device.
 
+``accept-ra: <boolean>``
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``accept-ra`` key is a boolean value that specifies whether or not to
+accept Router Advertisements (RA) for this interface. Specifying ``accept-ra``
+is optional.
+
 Physical example
 ^^^^^^^^^^^^^^^^
 
