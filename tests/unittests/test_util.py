@@ -400,6 +400,20 @@ OS_RELEASE_MARINER = dedent(
 """
 )
 
+OS_RELEASE_AZURELINUX = dedent(
+    """\
+    NAME="Microsoft Azure Linux"
+    VERSION="3.0.20240206"
+    ID=azurelinux
+    VERSION_ID="3.0"
+    PRETTY_NAME="Microsoft Azure Linux 3.0"
+    ANSI_COLOR="1;34"
+    HOME_URL="https://aka.ms/azurelinux"
+    BUG_REPORT_URL="https://aka.ms/azurelinux"
+    SUPPORT_URL="https://aka.ms/azurelinux"
+"""
+)
+
 
 @pytest.mark.usefixtures("fake_filesystem")
 class TestUtil:
@@ -1249,6 +1263,16 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("mariner", "2.0", ""), dist)
 
+    @mock.patch("cloudinit.util.load_text_file")
+    def test_get_linux_azurelinux_os_release(
+        self, m_os_release, m_path_exists
+    ):
+        """Verify we get the correct name and machine arch on Azure Linux"""
+        m_os_release.return_value = OS_RELEASE_AZURELINUX
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(("azurelinux", "3.0", ""), dist)
+
     @mock.patch(M_PATH + "load_text_file")
     def test_get_linux_openmandriva(self, m_os_release, m_path_exists):
         """Verify we get the correct name and machine arch on OpenMandriva"""
@@ -1310,6 +1334,7 @@ class TestGetVariant:
             ({"system": "Linux", "dist": ("almalinux",)}, "almalinux"),
             ({"system": "linux", "dist": ("alpine",)}, "alpine"),
             ({"system": "linux", "dist": ("arch",)}, "arch"),
+            ({"system": "linux", "dist": ("azurelinux",)}, "azurelinux"),
             ({"system": "linux", "dist": ("centos",)}, "centos"),
             ({"system": "linux", "dist": ("cloudlinux",)}, "cloudlinux"),
             ({"system": "linux", "dist": ("debian",)}, "debian"),
@@ -2176,54 +2201,6 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
 
         expected = ("none", "tmpfs", "/run/lock")
         self.assertEqual(expected, util.parse_mount_info("/run/lock", lines))
-
-    @mock.patch(M_PATH + "os")
-    @mock.patch("cloudinit.subp.subp")
-    def test_get_device_info_from_zpool(self, zpool_output, m_os):
-        # mock /dev/zfs exists
-        m_os.path.exists.return_value = True
-        # mock subp command from util.get_mount_info_fs_on_zpool
-        zpool_output.return_value = (
-            helpers.readResource("zpool_status_simple.txt"),
-            "",
-        )
-        # save function return values and do asserts
-        ret = util.get_device_info_from_zpool("vmzroot")
-        self.assertEqual("gpt/system", ret)
-        self.assertIsNotNone(ret)
-        m_os.path.exists.assert_called_with("/dev/zfs")
-
-    @mock.patch(M_PATH + "os")
-    def test_get_device_info_from_zpool_no_dev_zfs(self, m_os):
-        # mock /dev/zfs missing
-        m_os.path.exists.return_value = False
-        # save function return values and do asserts
-        ret = util.get_device_info_from_zpool("vmzroot")
-        self.assertIsNone(ret)
-
-    @mock.patch(M_PATH + "os")
-    @mock.patch("cloudinit.subp.subp")
-    def test_get_device_info_from_zpool_handles_no_zpool(self, m_sub, m_os):
-        """Handle case where there is no zpool command"""
-        # mock /dev/zfs exists
-        m_os.path.exists.return_value = True
-        m_sub.side_effect = subp.ProcessExecutionError("No zpool cmd")
-        ret = util.get_device_info_from_zpool("vmzroot")
-        self.assertIsNone(ret)
-
-    @mock.patch(M_PATH + "os")
-    @mock.patch("cloudinit.subp.subp")
-    def test_get_device_info_from_zpool_on_error(self, zpool_output, m_os):
-        # mock /dev/zfs exists
-        m_os.path.exists.return_value = True
-        # mock subp command from util.get_mount_info_fs_on_zpool
-        zpool_output.return_value = (
-            helpers.readResource("zpool_status_simple.txt"),
-            "error",
-        )
-        # save function return values and do asserts
-        ret = util.get_device_info_from_zpool("vmzroot")
-        self.assertIsNone(ret)
 
     @mock.patch("cloudinit.subp.subp")
     def test_parse_mount_with_ext(self, mount_out):

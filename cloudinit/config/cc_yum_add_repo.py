@@ -27,6 +27,7 @@ entry, the config entry will be skipped.
 
 distros = [
     "almalinux",
+    "azurelinux",
     "centos",
     "cloudlinux",
     "eurolinux",

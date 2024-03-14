@@ -300,13 +300,12 @@ class TestCLI:
                 ["all"],
                 [
                     "**Supported distros:** all",
-                    "**Supported distros:** almalinux, alpine, centos, "
-                    "cloudlinux, cos, debian, eurolinux, fedora, freebsd, "
-                    "mariner, miraclelinux, "
-                    "openbsd, openeuler, OpenCloudOS, openmandriva, "
-                    "opensuse, opensuse-microos, opensuse-tumbleweed, "
-                    "opensuse-leap, photon, rhel, rocky, sle_hpc, "
-                    "sle-micro, sles, TencentOS, ubuntu, virtuozzo",
+                    "**Supported distros:** almalinux, alpine, azurelinux, "
+                    "centos, cloudlinux, cos, debian, eurolinux, fedora, "
+                    "freebsd, mariner, miraclelinux, openbsd, openeuler, "
+                    "OpenCloudOS, openmandriva, opensuse, opensuse-microos, "
+                    "opensuse-tumbleweed, opensuse-leap, photon, rhel, rocky, "
+                    "sle_hpc, sle-micro, sles, TencentOS, ubuntu, virtuozzo",
                     " **resize_rootfs:** ",
                     "(``true``/``false``/``noblock``)",
                     "runcmd:\n             - [ ls, -l, / ]\n",

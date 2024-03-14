@@ -68,6 +68,7 @@ OSFAMILIES = {
     "redhat": [
         "almalinux",
         "amazon",
+        "azurelinux",
         "centos",
         "cloudlinux",
         "eurolinux",

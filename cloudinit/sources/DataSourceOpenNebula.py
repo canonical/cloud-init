@@ -37,6 +37,7 @@ class DataSourceOpenNebula(sources.DataSource):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.seed = None
         self.seed_dir = os.path.join(paths.seed_dir, "opennebula")
+        self.network = None
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
