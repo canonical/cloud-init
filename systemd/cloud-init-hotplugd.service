@@ -12,6 +12,7 @@
 [Unit]
 Description=cloud-init hotplug hook daemon
 After=cloud-init-hotplugd.socket
+After=cloud-init.target
 Requires=cloud-init-hotplugd.socket
 ConditionPathExists=!/etc/cloud/cloud-init.disabled
 ConditionKernelCommandLine=!cloud-init=disabled
