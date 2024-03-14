@@ -86,7 +86,12 @@ class EphemeralIPv4Network:
                     self.connectivity_url_data["url"],
                 )
                 return
-
+            else:
+                LOG.debug(
+                    "Instance does not have connectivity to %s. Bringing up "
+                    "ephemeral network now.",
+                    self.connectivity_url_data["url"],
+                )
         try:
             self._bringup_device()
 

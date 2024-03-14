@@ -7,6 +7,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Union
 
+from pycloudlib.gce.instance import GceInstance
 from pycloudlib.instance import BaseInstance
 from pycloudlib.result import Result
 
@@ -67,7 +68,10 @@ class IntegrationInstance:
         self._ip = ""
 
     def destroy(self):
-        self.instance.delete()
+        if isinstance(self.instance, GceInstance):
+            self.instance.delete(wait=False)
+        else:
+            self.instance.delete()
 
     def restart(self):
         """Restart this instance (via cloud mechanism) and wait for boot.

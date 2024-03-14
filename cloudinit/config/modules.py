@@ -35,6 +35,10 @@ REMOVED_MODULES = [
     "cc_rightscale_userdata",  # Removed in 24.1
 ]
 
+RENAMED_MODULES = {
+    "cc_ubuntu_advantage": "cc_ubuntu_pro",  # Renamed 24.1
+}
+
 
 class ModuleDetails(NamedTuple):
     module: ModuleType
@@ -190,14 +194,26 @@ class Modules:
             if not mod_name:
                 continue
             if freq and freq not in FREQUENCIES:
-                LOG.warning(
-                    "Config specified module %s has an unknown frequency %s",
-                    raw_name,
-                    freq,
+                util.deprecate(
+                    deprecated=(
+                        f"Config specified module {raw_name} has an unknown"
+                        f" frequency {freq}"
+                    ),
+                    deprecated_version="22.1",
                 )
                 # Misconfigured in /etc/cloud/cloud.cfg. Reset so cc_* module
                 # default meta attribute "frequency" value is used.
                 freq = None
+            if mod_name in RENAMED_MODULES:
+                util.deprecate(
+                    deprecated=(
+                        f"Module has been renamed from {mod_name} to "
+                        f"{RENAMED_MODULES[mod_name][1]}. Update any"
+                        " references in /etc/cloud/cloud.cfg"
+                    ),
+                    deprecated_version="24.1",
+                )
+                mod_name = RENAMED_MODULES[mod_name]
             mod_locs, looked_locs = importer.find_module(
                 mod_name, ["", type_utils.obj_name(config)], ["handle"]
             )

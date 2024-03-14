@@ -317,6 +317,57 @@ def test_multi_nic_hotplug(setup_image, session_cloud: IntegrationCloud):
                 ec2.release_address(AllocationId=allocation["AllocationId"])
 
 
+@pytest.mark.skipif(CURRENT_RELEASE <= FOCAL, reason="See LP: #2055397")
+@pytest.mark.skipif(PLATFORM != "ec2", reason="test is ec2 specific")
+def test_multi_nic_hotplug_vpc(setup_image, session_cloud: IntegrationCloud):
+    """Tests that additional secondary NICs are routable from local
+    networks after the hotplug hook is executed when network updates
+    are configured on the HOTPLUG event."""
+    with session_cloud.launch(
+        user_data=USER_DATA
+    ) as client, session_cloud.launch() as bastion:
+        ips_before = _get_ip_addr(client)
+        primary_priv_ip = ips_before[1].ip4
+
+        secondary_priv_ip = client.instance.add_network_interface()
+
+        _wait_till_hotplug_complete(client)
+        log_content = client.read_from_file("/var/log/cloud-init.log")
+        verify_clean_log(log_content)
+
+        ips_after_add = _get_ip_addr(client)
+
+        netplan_cfg = client.read_from_file("/etc/netplan/50-cloud-init.yaml")
+        config = yaml.safe_load(netplan_cfg)
+        new_addition = [
+            ip for ip in ips_after_add if ip.ip4 == secondary_priv_ip
+        ][0]
+        assert new_addition.interface in config["network"]["ethernets"]
+        new_nic_cfg = config["network"]["ethernets"][new_addition.interface]
+        assert "routing-policy" in new_nic_cfg
+        assert [{"from": secondary_priv_ip, "table": 101}] == new_nic_cfg[
+            "routing-policy"
+        ]
+
+        assert len(ips_after_add) == len(ips_before) + 1
+
+        # pings to primary and secondary NICs work
+        r = bastion.execute(f"ping -c1 {primary_priv_ip}")
+        assert r.ok, r.stdout
+        r = bastion.execute(f"ping -c1 {secondary_priv_ip}")
+        assert r.ok, r.stdout
+
+        # Remove new NIC
+        client.instance.remove_network_interface(secondary_priv_ip)
+        _wait_till_hotplug_complete(client, expected_runs=2)
+
+        # ping to primary NIC works
+        bastion.execute(f"ping -c1 {primary_priv_ip}")
+
+        log_content = client.read_from_file("/var/log/cloud-init.log")
+        verify_clean_log(log_content)
+
+
 @pytest.mark.skipif(PLATFORM != "ec2", reason="test is ec2 specific")
 @pytest.mark.skipif(
     CURRENT_RELEASE not in UBUNTU_STABLE,

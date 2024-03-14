@@ -46,6 +46,7 @@ class DataSourceUpCloud(sources.DataSource):
         self.timeout = self.ds_cfg.get("timeout", MD_TIMEOUT)
         self.wait_retry = self.ds_cfg.get("wait_retry", MD_WAIT_RETRY)
         self._network_config = None
+        self.metadata_full = None
 
     def _get_sysinfo(self):
         return uc_helper.read_sysinfo()
