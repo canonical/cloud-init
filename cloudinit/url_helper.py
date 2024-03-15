@@ -135,10 +135,27 @@ def read_ftps(url: str, timeout: float = 5.0, **kwargs: dict) -> "FtpResponse":
                     url=url,
                 ) from e
             LOG.debug("Attempting to login with user [%s]", user)
-            ftp_tls.login(
-                user=user,
-                passwd=url_parts.password or "",
-            )
+            try:
+                ftp_tls.login(
+                    user=user,
+                    passwd=url_parts.password or "",
+                )
+            except ftplib.error_perm as e:
+                LOG.warning(
+                    "Attempted to connect to an insecure ftp server but used "
+                    "a scheme of ftps://, which is not allowed. Use ftp://"
+                    "to allow connecting to insecure ftp servers."
+                )
+                raise UrlError(
+                    cause=(
+                        "Attempted to connect to an insecure ftp server but "
+                        "used a scheme of ftps://, which is not allowed. Use "
+                        "ftp:// to allow connecting to insecure ftp servers."
+                    ),
+                    code=500,
+                    headers=None,
+                    url=url,
+                ) from e
             LOG.debug("Creating a secure connection")
             ftp_tls.prot_p()
             LOG.debug("Reading file: %s", url_parts.path)
