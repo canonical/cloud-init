@@ -60,7 +60,7 @@ cloud-config. This jsonschema may be used in several different ways:
 Text editor integration
 """""""""""""""""""""""
 
-Thanks to `yaml-language-server`_, cloud-init's jsonschema may be
+Thanks to `yaml-language-server`_, cloud-init's JSON schema may be
 used for YAML syntax checking, warnings when invalid keys are used, and
 autocompletion. Several different text editors are capable of this.
 See this `blog post on configuring this for neovim`_, or for VScode one
