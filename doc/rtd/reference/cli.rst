@@ -404,7 +404,7 @@ module default frequency of ``instance``:
 :command:`status`
 =================
 
-Report `cloud-init's`` current status.
+Report cloud-init's current status.
 
 Exits 1 if ``cloud-init`` crashes, 2 if ``cloud-init`` finishes but experienced
 recoverable errors, and 0 if ``cloud-init`` ran without error.
