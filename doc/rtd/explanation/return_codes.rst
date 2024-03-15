@@ -80,7 +80,7 @@ configuration.
 Return codes
 ^^^^^^^^^^^^
 
-Cloud-init historically used two return codes from the `cloud-init status`
+Cloud-init historically used two return codes from the :code:`cloud-init status`
 subcommand: 0 to indicate success and 1 to indicate failure. These return codes
 lacked nuance. Return code 0 (success) included the in-between when something
 went wrong, but cloud-init was able to finish.
