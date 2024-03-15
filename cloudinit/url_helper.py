@@ -144,7 +144,7 @@ def read_ftps(url: str, timeout: float = 5.0, **kwargs: dict) -> "FtpResponse":
             LOG.debug("Reading file: %s", url_parts.path)
             ftp_tls.retrbinary(f"RETR {url_parts.path}", callback=buffer.write)
 
-            response = FtpResponse(buffer.getvalue())
+            response = FtpResponse(buffer.getvalue(), url)
             LOG.debug("Closing connection")
             ftp_tls.close()
             return response
@@ -177,7 +177,7 @@ def read_ftps(url: str, timeout: float = 5.0, **kwargs: dict) -> "FtpResponse":
             )
             LOG.debug("Reading file: %s", url_parts.path)
             ftp.retrbinary(f"RETR {url_parts.path}", callback=buffer.write)
-            response = FtpResponse(contents=buffer.getvalue())
+            response = FtpResponse(buffer.getvalue(), url)
             LOG.debug("Closing connection")
             ftp.close()
             return response

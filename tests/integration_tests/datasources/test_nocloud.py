@@ -387,7 +387,7 @@ class TestFTP:
         cmdline = "ds=nocloud;seedfrom=ftp://0.0.0.0:2121"
         self._boot_with_cmdline(cmdline, client)
         verify_clean_boot(client, ignore_warnings=self.expected_warnings)
-        assert "ftp-instance" == client.execute("hostname").rstrip()
+        assert "ftp-bootstrapper" == client.execute("hostname").rstrip()
 
     def test_nocloud_ftps_unencrypted_server_fails(
         self, client: IntegrationInstance
@@ -420,7 +420,7 @@ class TestFTP:
         cmdline = "ds=nocloud;seedfrom=ftps://localhost:2121"
         self._boot_with_cmdline(cmdline, client, encrypted=True)
         verify_clean_boot(client, ignore_warnings=self.expected_warnings)
-        assert "ftp-instance" == client.execute("hostname").rstrip()
+        assert "ftp-bootstrapper" == client.execute("hostname").rstrip()
 
     def test_nocloud_ftp_encrypted_server_fails(
         self, client: IntegrationInstance
