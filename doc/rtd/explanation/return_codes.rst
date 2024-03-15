@@ -61,7 +61,7 @@ Text editor integration
 """""""""""""""""""""""
 
 Thanks to `yaml-language-server`_, cloud-init's jsonschema may be
-used for yaml syntax checking, warnings when invalid keys are used, and
+used for YAML syntax checking, warnings when invalid keys are used, and
 autocompletion. Several different text editors are capable of this.
 See this `blog post on configuring this for neovim`_, or for VScode one
 can install the `extension`_ and then a file named ``cloud-config.yaml``
