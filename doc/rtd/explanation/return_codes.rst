@@ -51,8 +51,8 @@ Efforts to improve cloud-init
 Several changes have been introduced to cloud-init to address the pain
 points described above.
 
-Jsonschema
-^^^^^^^^^^
+JSON schema
+^^^^^^^^^^^
 
 Cloud-init has defined a jsonschema which fully documents the user-data
 cloud-config. This jsonschema may be used in several different ways:
