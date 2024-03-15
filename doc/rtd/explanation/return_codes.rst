@@ -55,7 +55,7 @@ JSON schema
 ^^^^^^^^^^^
 
 Cloud-init has defined a JSON schema which fully documents the user-data
-cloud-config. This jsonschema may be used in several different ways:
+cloud-config. This JSON schema may be used in several different ways:
 
 Text editor integration
 """""""""""""""""""""""
