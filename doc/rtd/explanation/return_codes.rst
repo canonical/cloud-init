@@ -54,7 +54,7 @@ points described above.
 JSON schema
 ^^^^^^^^^^^
 
-Cloud-init has defined a jsonschema which fully documents the user-data
+Cloud-init has defined a JSON schema which fully documents the user-data
 cloud-config. This jsonschema may be used in several different ways:
 
 Text editor integration
