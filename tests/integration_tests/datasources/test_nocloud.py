@@ -398,8 +398,6 @@ class TestFTP:
         """
         cmdline = "ds=nocloud;seedfrom=ftps://localhost:2121"
         self._boot_with_cmdline(cmdline, client)
-        log = client.read_from_file("/var/log/cloud-init.log")
-        assert "Reading file from server over tls failed for url" in log
         verify_clean_boot(
             client,
             ignore_warnings=self.expected_warnings,
@@ -407,6 +405,7 @@ class TestFTP:
                 "Getting data from <class 'cloudinit.sources.DataSourc"
                 "eNoCloud.DataSourceNoCloudNet'> failed",
                 "Used fallback datasource",
+                "Reading file from server over tls failed for url",
             ],
         )
 
