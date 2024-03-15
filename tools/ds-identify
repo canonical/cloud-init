@@ -2069,5 +2069,6 @@ case "${DI_MAIN}" in
     # testing only - NOT use for production code, it is NOT supported
     *)
         debug 0 "WARN: side-loading alternate implementation: [${DI_MAIN}]";
+        get_environment
         exec "${DI_MAIN}" "$@";;
 esac
