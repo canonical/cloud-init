@@ -2,6 +2,7 @@ doc8
 furo
 m2r2
 pyyaml
+setuptools
 sphinx==7.1.2
 sphinx-design
 sphinx-copybutton
