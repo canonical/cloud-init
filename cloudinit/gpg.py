@@ -52,7 +52,7 @@ class GPG:
     def cleanup(self) -> None:
         """cleanup the gpg temporary directory and kill gpg"""
         self.kill_gpg()
-        if self.temp_dir:
+        if self.temp_dir and os.path.isdir(self.temp_dir.name):
             self.temp_dir.cleanup()
 
     def export_armour(self, key: str) -> Optional[str]:
