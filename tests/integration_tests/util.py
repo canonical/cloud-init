@@ -217,3 +217,12 @@ def get_feature_flag_value(client: "IntegrationInstance", key):
     if "NameError" in value:
         raise NameError(f"name '{key}' is not defined")
     return value
+
+
+def push_and_enable_systemd_unit(
+    client: "IntegrationInstance", unit_name: str, content: str
+) -> None:
+    service_filename = f"/etc/systemd/system/{unit_name}"
+    client.write_to_file(service_filename, content)
+    client.execute(f"chmod 0644 {service_filename}", use_sudo=True)
+    client.execute(f"systemctl enable {unit_name}", use_sudo=True)
