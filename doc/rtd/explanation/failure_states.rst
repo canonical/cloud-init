@@ -46,6 +46,8 @@ module-level keys: ``init-local``, ``init``, ``modules-config``,
 See :ref:`this more detailed explanation<exported_errors>` for to learn how to
 use cloud-init's exported errors.
 
+.. _error_codes:
+
 Cloud-init error codes
 ----------------------
 
