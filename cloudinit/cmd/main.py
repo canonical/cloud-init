@@ -35,14 +35,7 @@ from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.config import cc_set_hostname
 from cloudinit.config.modules import Modules
 from cloudinit.config.schema import validate_cloudconfig_schema
-from cloudinit.log import (
-    LogExporter,
-    setup_basic_logging,
-    setup_logging,
-    reset_logging,
-    configure_root_logger,
-    DEPRECATED,
-)
+from cloudinit import log
 from cloudinit.reporting import events
 from cloudinit.safeyaml import load
 from cloudinit.settings import PER_INSTANCE, PER_ALWAYS, PER_ONCE, CLOUD_CONFIG
@@ -223,7 +216,7 @@ def attempt_cmdline_url(path, network=True, cmdline=None) -> Tuple[int, str]:
             if is_cloud_cfg:
                 if cmdline_name == "url":
                     return (
-                        DEPRECATED,
+                        log.DEPRECATED,
                         str(
                             util.deprecate(
                                 deprecated="The kernel command line key `url`",
@@ -348,8 +341,8 @@ def main_init(name, args):
         LOG.debug(
             "Logging being reset, this logger may no longer be active shortly"
         )
-        reset_logging()
-    setup_logging(init.cfg)
+        log.reset_logging()
+    log.setup_logging(init.cfg)
     apply_reporting_cfg(init.cfg)
 
     # Any log usage prior to setup_logging above did not have local user log
@@ -510,7 +503,7 @@ def main_init(name, args):
             (outfmt, errfmt) = util.fixup_output(mods.cfg, name)
     except Exception:
         util.logexc(LOG, "Failed to re-adjust output redirection!")
-    setup_logging(mods.cfg)
+    log.setup_logging(mods.cfg)
 
     # give the activated datasource a chance to adjust
     init.activate_datasource()
@@ -615,8 +608,8 @@ def main_modules(action_name, args):
         LOG.debug(
             "Logging being reset, this logger may no longer be active shortly"
         )
-        reset_logging()
-    setup_logging(mods.cfg)
+        log.reset_logging()
+    log.setup_logging(mods.cfg)
     apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
@@ -677,8 +670,8 @@ def main_single(name, args):
         LOG.debug(
             "Logging being reset, this logger may no longer be active shortly"
         )
-        reset_logging()
-    setup_logging(mods.cfg)
+        log.reset_logging()
+    log.setup_logging(mods.cfg)
     apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
@@ -768,7 +761,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     v1["stage"] = mode
     v1[mode]["start"] = time.time()
     v1[mode]["recoverable_errors"] = next(
-        filter(lambda h: isinstance(h, LogExporter), root_logger.handlers)
+        filter(lambda h: isinstance(h, log.LogExporter), root_logger.handlers)
     ).export_logs()
 
     # Write status.json prior to running init / module code
@@ -798,7 +791,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
 
     # Write status.json after running init / module code
     v1[mode]["recoverable_errors"] = next(
-        filter(lambda h: isinstance(h, LogExporter), root_logger.handlers)
+        filter(lambda h: isinstance(h, log.LogExporter), root_logger.handlers)
     ).export_logs()
     atomic_helper.write_json(status_path, status)
 
@@ -856,7 +849,7 @@ def main_features(name, args):
 
 
 def main(sysv_args=None):
-    configure_root_logger()
+    log.configure_root_logger()
     if not sysv_args:
         sysv_args = sys.argv
     parser = argparse.ArgumentParser(prog=sysv_args.pop(0))
@@ -1080,9 +1073,11 @@ def main(sysv_args=None):
     #   - if --debug is passed, logging.DEBUG
     #   - if --debug is not passed, logging.WARNING
     if name not in ("init", "modules"):
-        setup_basic_logging(logging.DEBUG if args.debug else logging.WARNING)
+        log.setup_basic_logging(
+            logging.DEBUG if args.debug else logging.WARNING
+        )
     elif args.debug:
-        setup_basic_logging()
+        log.setup_basic_logging()
 
     # Setup signal handlers before running
     signal_handler.attach_handlers()
