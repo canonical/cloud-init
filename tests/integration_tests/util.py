@@ -348,28 +348,6 @@ def get_feature_flag_value(client: "IntegrationInstance", key):
     return value
 
 
-def restart_cloud_init(c: "IntegrationInstance"):
-    """restart cloud-init on an instance, wait for cloud-init to boot
-
-    c: instance to restart
-    """
-    client = c
-    client.instance.shutdown(wait=False)
-    try:
-        client.instance.wait_for_state("STOPPED", num_retries=20)
-    except RuntimeError as e:
-        log.warning(
-            "Retrying shutdown due to timeout on initial shutdown request %s",
-            str(e),
-        )
-        client.instance.shutdown()
-
-    # required for lxc
-    client.instance.execute_via_ssh = False
-    client.instance.start()
-    client.execute("cloud-init status --wait")
-
-
 def override_kernel_cmdline(ds_str: str, c: "IntegrationInstance"):
     """set the kernel commandline and reboot, return after boot done
 
@@ -405,4 +383,4 @@ def override_kernel_cmdline(ds_str: str, c: "IntegrationInstance"):
     # most likely be as simple as updating the output path for grub-mkconfig
     assert client.execute("grub-mkconfig -o /boot/efi/EFI/ubuntu/grub.cfg").ok
     assert client.execute("cloud-init clean --logs").ok
-    restart_cloud_init(client)
+    client.restart()

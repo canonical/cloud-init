@@ -405,7 +405,9 @@ class TestFTP:
                 "Getting data from <class 'cloudinit.sources.DataSourc"
                 "eNoCloud.DataSourceNoCloudNet'> failed",
                 "Used fallback datasource",
-                "Reading file from server over tls failed for url",
+                "Attempted to connect to an insecure ftp server but used"
+                " a scheme of ftps://, which is not allowed. Use ftp:// "
+                "to allow connecting to insecure ftp servers."
             ],
         )
 
