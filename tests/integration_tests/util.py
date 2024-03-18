@@ -384,3 +384,12 @@ def override_kernel_command_line(ds_str: str, instance: "IntegrationInstance"):
     ).ok
     assert instance.execute("cloud-init clean --logs").ok
     instance.restart()
+
+
+def push_and_enable_systemd_unit(
+    client: "IntegrationInstance", unit_name: str, content: str
+) -> None:
+    service_filename = f"/etc/systemd/system/{unit_name}"
+    client.write_to_file(service_filename, content)
+    client.execute(f"chmod 0644 {service_filename}", use_sudo=True)
+    client.execute(f"systemctl enable {unit_name}", use_sudo=True)
