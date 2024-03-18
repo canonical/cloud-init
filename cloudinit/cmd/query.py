@@ -131,7 +131,7 @@ def load_userdata(ud_file_path):
 
     @returns: String of uncompressed userdata if possible, otherwise bytes.
     """
-    bdata = util.load_file(ud_file_path, decode=False)
+    bdata = util.load_binary_file(ud_file_path)
     try:
         return bdata.decode("utf-8")
     except UnicodeDecodeError:
@@ -180,7 +180,7 @@ def _read_instance_data(instance_data, user_data, vendor_data) -> dict:
     combined_cloud_config_fn = paths.get_runpath("combined_cloud_config")
 
     try:
-        instance_json = util.load_file(instance_data_fn)
+        instance_json = util.load_text_file(instance_data_fn)
     except (IOError, OSError) as e:
         if e.errno == EACCES:
             LOG.error("No read permission on '%s'. Try sudo", instance_data_fn)
@@ -191,7 +191,7 @@ def _read_instance_data(instance_data, user_data, vendor_data) -> dict:
     instance_data = util.load_json(instance_json)
     try:
         combined_cloud_config = util.load_json(
-            util.load_file(combined_cloud_config_fn)
+            util.load_text_file(combined_cloud_config_fn)
         )
     except (IOError, OSError):
         # File will not yet be present in init-local stage.

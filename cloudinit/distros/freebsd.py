@@ -36,6 +36,10 @@ class Distro(cloudinit.distros.bsd.BSD):
     pkg_cmd_upgrade_prefix = ["pkg", "upgrade"]
     prefer_fqdn = True  # See rc.conf(5) in FreeBSD
     home_dir = "/usr/home"
+    # FreeBSD has the following dhclient lease path:
+    # /var/db/dhclient.leases.<iface_name>
+    dhclient_lease_directory = "/var/db"
+    dhclient_lease_file_regex = r"dhclient.leases.\w+"
 
     @classmethod
     def reload_init(cls, rcs=None):
@@ -117,14 +121,10 @@ class Distro(cloudinit.distros.bsd.BSD):
             pw_useradd_cmd.append("-d/nonexistent")
             log_pw_useradd_cmd.append("-d/nonexistent")
         else:
-            pw_useradd_cmd.append(
-                "-d{home_dir}/{name}".format(home_dir=self.home_dir, name=name)
-            )
+            homedir = kwargs.get("homedir", f"{self.home_dir}/{name}")
+            pw_useradd_cmd.append("-d" + homedir)
             pw_useradd_cmd.append("-m")
-            log_pw_useradd_cmd.append(
-                "-d{home_dir}/{name}".format(home_dir=self.home_dir, name=name)
-            )
-
+            log_pw_useradd_cmd.append("-d" + homedir)
             log_pw_useradd_cmd.append("-m")
 
         # Run the command
@@ -173,7 +173,7 @@ class Distro(cloudinit.distros.bsd.BSD):
     def apply_locale(self, locale, out_fn=None):
         # Adjust the locales value to the new value
         newconf = StringIO()
-        for line in util.load_file(self.login_conf_fn).splitlines():
+        for line in util.load_text_file(self.login_conf_fn).splitlines():
             newconf.write(
                 re.sub(r"^default:", r"default:lang=%s:" % locale, line)
             )
@@ -222,3 +222,7 @@ class Distro(cloudinit.distros.bsd.BSD):
         return [path, "-l", lease_file, "-p", pid_file] + (
             ["-c", config_file, interface] if config_file else [interface]
         )
+
+    @staticmethod
+    def eject_media(device: str) -> None:
+        subp.subp(["camcontrol", "eject", device])

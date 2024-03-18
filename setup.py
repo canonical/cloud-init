@@ -139,8 +139,9 @@ INITSYS_FILES = {
     ],
     "sysvinit_deb": lambda: [f for f in glob("sysvinit/debian/*") if is_f(f)],
     "sysvinit_openrc": lambda: [
-        f for f in glob("sysvinit/gentoo/*") if is_f(f)
+        f for f in glob("sysvinit/openrc/*") if is_f(f)
     ],
+    "sysvinit_openrc.dep": lambda: ["tools/cloud-init-hotplugd"],
     "systemd": lambda: [
         render_tmpl(f)
         for f in (
@@ -164,6 +165,7 @@ INITSYS_ROOTS = {
     "sysvinit_openbsd": "etc/rc.d",
     "sysvinit_deb": "etc/init.d",
     "sysvinit_openrc": "etc/init.d",
+    "sysvinit_openrc.dep": "usr/lib/cloud-init",
     "systemd": pkg_config_read("systemd", "systemdsystemunitdir"),
     "systemd.generators": pkg_config_read(
         "systemd", "systemdsystemgeneratordir"

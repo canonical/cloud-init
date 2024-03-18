@@ -202,7 +202,6 @@ resolv
 restructuredtext
 rhel
 rhsm
-rightscale
 rpctool
 rsa
 rsyslog

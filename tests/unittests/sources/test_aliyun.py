@@ -198,15 +198,13 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
     ):
         m_is_aliyun.return_value = True
         m_fallback_nic.return_value = "eth9"
-        m_dhcp.return_value = [
-            {
-                "interface": "eth9",
-                "fixed-address": "192.168.2.9",
-                "routers": "192.168.2.1",
-                "subnet-mask": "255.255.255.0",
-                "broadcast-address": "192.168.2.255",
-            }
-        ]
+        m_dhcp.return_value = {
+            "interface": "eth9",
+            "fixed-address": "192.168.2.9",
+            "routers": "192.168.2.1",
+            "subnet-mask": "255.255.255.0",
+            "broadcast-address": "192.168.2.255",
+        }
         m_is_bsd.return_value = False
         cfg = {"datasource": {"AliYun": {"timeout": "1", "max_wait": "1"}}}
         distro = mock.MagicMock()
@@ -293,6 +291,7 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
                     }
                 }
             },
+            mock.Mock(),
             macs_to_nics={
                 "06:17:04:d7:26:09": "eth0",
                 "06:17:04:d7:26:08": "eth1",
@@ -304,6 +303,14 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
 
         # route-metric numbers should be 100 apart
         assert 100 == abs(met0 - met1)
+
+        # No policy routing
+        assert not {"routing-policy", "routes"}.intersection(
+            netcfg["ethernets"]["eth0"].keys()
+        )
+        assert not {"routing-policy", "routes"}.intersection(
+            netcfg["ethernets"]["eth1"].keys()
+        )
 
 
 class TestIsAliYun(test_helpers.CiTestCase):

@@ -14,14 +14,14 @@ import os
 import pathlib
 import re
 import shutil
-import signal
 from textwrap import dedent, indent
 from typing import Dict, Iterable, List, Mapping
 
-from cloudinit import features, gpg, subp, templater, util
+from cloudinit import features, subp, templater, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.gpg import GPG
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
@@ -184,6 +184,18 @@ PORTS_MIRRORS = {
 PRIMARY_ARCHES = ["amd64", "i386"]
 PORTS_ARCHES = ["s390x", "arm64", "armhf", "powerpc", "ppc64el", "riscv64"]
 
+UBUNTU_DEFAULT_APT_SOURCES_LIST = """\
+# Ubuntu sources have moved to the /etc/apt/sources.list.d/ubuntu.sources
+# file, which uses the deb822 format. Use deb822-formatted .sources files
+# to manage package sources in the /etc/apt/sources.list.d/ directory.
+# See the sources.list(5) manual page for details.
+"""
+
+# List of allowed content in /etc/apt/sources.list when features
+# APT_DEB822_SOURCE_LIST_FILE is set. Otherwise issue warning about
+# invalid non-deb822 configuration.
+DEB822_ALLOWED_APT_SOURCES_LIST = {"ubuntu": UBUNTU_DEFAULT_APT_SOURCES_LIST}
+
 
 def get_default_mirrors(
     arch=None,
@@ -210,13 +222,13 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     if not isinstance(apt_cfg, dict):
         raise ValueError(
-            "Expected dictionary for 'apt' config, found {config_type}".format(
-                config_type=type(apt_cfg)
-            )
+            "Expected dictionary for 'apt' config, "
+            "found {config_type}".format(config_type=type(apt_cfg))
         )
 
     apply_debconf_selections(apt_cfg)
-    apply_apt(apt_cfg, cloud)
+    with GPG() as gpg_context:
+        apply_apt(apt_cfg, cloud, gpg_context)
 
 
 def _should_configure_on_empty_apt():
@@ -228,7 +240,7 @@ def _should_configure_on_empty_apt():
     return True, "Apt is available."
 
 
-def apply_apt(cfg, cloud):
+def apply_apt(cfg, cloud, gpg):
     # cfg is the 'apt' top level dictionary already in 'v3' format.
     if not cfg:
         should_config, msg = _should_configure_on_empty_apt()
@@ -250,7 +262,7 @@ def apply_apt(cfg, cloud):
     _ensure_dependencies(cfg, matcher, cloud)
 
     if util.is_false(cfg.get("preserve_sources_list", False)):
-        add_mirror_keys(cfg, cloud)
+        add_mirror_keys(cfg, cloud, gpg)
         generate_sources_list(cfg, release, mirrors, cloud)
         rename_apt_lists(mirrors, arch)
 
@@ -268,22 +280,10 @@ def apply_apt(cfg, cloud):
         add_apt_sources(
             cfg["sources"],
             cloud,
+            gpg,
             template_params=params,
             aa_repo_match=matcher,
         )
-    # GH: 4344 - stop gpg-agent/dirmgr daemons spawned by gpg key imports.
-    # Daemons spawned by cloud-config.service on systemd v253 report (running)
-    gpg_process_out, _err = subp.subp(
-        ["ps", "-o", "ppid,pid", "-C", "dirmngr", "-C", "gpg-agent"],
-        capture=True,
-        rcs=[0, 1],
-    )
-    gpg_pids = re.findall(r"(?P<ppid>\d+)\s+(?P<pid>\d+)", gpg_process_out)
-    root_gpg_pids = [int(pid[1]) for pid in gpg_pids if pid[0] == "1"]
-    if root_gpg_pids:
-        LOG.debug("Killing gpg-agent and dirmngr pids: %s", root_gpg_pids)
-    for gpg_pid in root_gpg_pids:
-        os.kill(gpg_pid, signal.SIGKILL)
 
 
 def debconf_set_selections(selections):
@@ -536,11 +536,11 @@ def disable_suites(disabled, src, release) -> str:
     return retsrc
 
 
-def add_mirror_keys(cfg, cloud):
+def add_mirror_keys(cfg, cloud, gpg):
     """Adds any keys included in the primary/security mirror clauses"""
     for key in ("primary", "security"):
         for mirror in cfg.get(key, []):
-            add_apt_key(mirror, cloud, file_name=key)
+            add_apt_key(mirror, cloud, gpg, file_name=key)
 
 
 def is_deb822_sources_format(apt_src_content: str) -> bool:
@@ -584,7 +584,7 @@ def get_apt_cfg() -> Dict[str, str]:
 
     Prefer python apt_pkg if present.
     Fallback to apt-config dump command if present out output parsed
-    Fallback to DEFAULT_APT_CFG if apt-config commmand absent or
+    Fallback to DEFAULT_APT_CFG if apt-config command absent or
     output unparsable.
     """
     try:
@@ -659,7 +659,7 @@ def generate_sources_list(cfg, release, mirrors, cloud):
         if not template_fn:
             LOG.warning("No template found, not rendering %s", aptsrc_file)
             return
-        tmpl = util.load_file(template_fn)
+        tmpl = util.load_text_file(template_fn)
 
     rendered = templater.render_string(tmpl, params)
     if tmpl:
@@ -681,13 +681,26 @@ def generate_sources_list(cfg, release, mirrors, cloud):
     disabled = disable_suites(cfg.get("disable_suites"), rendered, release)
     util.write_file(aptsrc_file, disabled, mode=0o644)
     if aptsrc_file == apt_sources_deb822 and os.path.exists(apt_sources_list):
-        LOG.warning(
-            "Removing %s to favor deb822 source format", apt_sources_list
+        expected_content = DEB822_ALLOWED_APT_SOURCES_LIST.get(
+            cloud.distro.name
         )
-        util.del_file(apt_sources_list)
+        if expected_content:
+            if expected_content != util.load_text_file(apt_sources_list):
+                LOG.info(
+                    "Replacing %s to favor deb822 source format",
+                    apt_sources_list,
+                )
+                util.write_file(
+                    apt_sources_list, UBUNTU_DEFAULT_APT_SOURCES_LIST
+                )
+        else:
+            LOG.info(
+                "Removing %s to favor deb822 source format", apt_sources_list
+            )
+            util.del_file(apt_sources_list)
 
 
-def add_apt_key_raw(key, file_name, hardened=False):
+def add_apt_key_raw(key, file_name, gpg, hardened=False):
     """
     actual adding of a key as defined in key argument
     to the system
@@ -695,7 +708,9 @@ def add_apt_key_raw(key, file_name, hardened=False):
     LOG.debug("Adding key:\n'%s'", key)
     try:
         name = pathlib.Path(file_name).stem
-        return apt_key("add", output_file=name, data=key, hardened=hardened)
+        return apt_key(
+            "add", gpg, output_file=name, data=key, hardened=hardened
+        )
     except subp.ProcessExecutionError:
         LOG.exception("failed to add apt GPG Key to apt keyring")
         raise
@@ -735,7 +750,7 @@ def _ensure_dependencies(cfg, aa_repo_match, cloud):
         cloud.distro.install_packages(sorted(missing_packages))
 
 
-def add_apt_key(ent, cloud, hardened=False, file_name=None):
+def add_apt_key(ent, cloud, gpg, hardened=False, file_name=None):
     """
     Add key to the system as defined in ent (if any).
     Supports raw keys or keyid's
@@ -750,7 +765,7 @@ def add_apt_key(ent, cloud, hardened=False, file_name=None):
 
     if "key" in ent:
         return add_apt_key_raw(
-            ent["key"], file_name or ent["filename"], hardened=hardened
+            ent["key"], file_name or ent["filename"], gpg, hardened=hardened
         )
 
 
@@ -758,7 +773,9 @@ def update_packages(cloud):
     cloud.distro.update_package_sources()
 
 
-def add_apt_sources(srcdict, cloud, template_params=None, aa_repo_match=None):
+def add_apt_sources(
+    srcdict, cloud, gpg, template_params=None, aa_repo_match=None
+):
     """
     install keys and repo source .list files defined in 'sources'
 
@@ -799,10 +816,10 @@ def add_apt_sources(srcdict, cloud, template_params=None, aa_repo_match=None):
             ent["filename"] = filename
 
         if "source" in ent and "$KEY_FILE" in ent["source"]:
-            key_file = add_apt_key(ent, cloud, hardened=True)
+            key_file = add_apt_key(ent, cloud, gpg, hardened=True)
             template_params["KEY_FILE"] = key_file
         else:
-            add_apt_key(ent, cloud)
+            add_apt_key(ent, cloud, gpg)
 
         if "source" not in ent:
             continue
@@ -1152,7 +1169,12 @@ def apply_apt_config(cfg, proxy_fname, config_fname):
 
 
 def apt_key(
-    command, output_file=None, data=None, hardened=False, human_output=True
+    command,
+    gpg,
+    output_file=None,
+    data=None,
+    hardened=False,
+    human_output=True,
 ):
     """apt-key replacement
 
@@ -1180,7 +1202,7 @@ def apt_key(
                 key_files.append(APT_TRUSTED_GPG_DIR + file)
         return key_files if key_files else ""
 
-    def apt_key_add():
+    def apt_key_add(gpg_context):
         """apt-key add <file>
 
         returns filepath to new keyring, or '/dev/null' when an error occurs
@@ -1195,7 +1217,7 @@ def apt_key(
                 key_dir = (
                     CLOUD_INIT_GPG_DIR if hardened else APT_TRUSTED_GPG_DIR
                 )
-                stdout = gpg.dearmor(data)
+                stdout = gpg_context.dearmor(data)
                 file_name = "{}{}.gpg".format(key_dir, output_file)
                 util.write_file(file_name, stdout)
             except subp.ProcessExecutionError:
@@ -1208,7 +1230,7 @@ def apt_key(
                 )
         return file_name
 
-    def apt_key_list():
+    def apt_key_list(gpg_context):
         """apt-key list
 
         returns string of all trusted keys (in /etc/apt/trusted.gpg and
@@ -1217,15 +1239,17 @@ def apt_key(
         key_list = []
         for key_file in _get_key_files():
             try:
-                key_list.append(gpg.list(key_file, human_output=human_output))
+                key_list.append(
+                    gpg_context.list_keys(key_file, human_output=human_output)
+                )
             except subp.ProcessExecutionError as error:
                 LOG.warning('Failed to list key "%s": %s', key_file, error)
         return "\n".join(key_list)
 
     if command == "add":
-        return apt_key_add()
+        return apt_key_add(gpg)
     elif command == "finger" or command == "list":
-        return apt_key_list()
+        return apt_key_list(gpg)
     else:
         raise ValueError(
             "apt_key() commands add, list, and finger are currently supported"

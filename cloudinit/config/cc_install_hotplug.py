@@ -11,6 +11,7 @@ from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.event import EventScope, EventType
 from cloudinit.settings import PER_INSTANCE
+from cloudinit.sources import DataSource
 
 meta: MetaSchema = {
     "id": "cc_install_hotplug",
@@ -21,11 +22,11 @@ meta: MetaSchema = {
         This module will install the udev rules to enable hotplug if
         supported by the datasource and enabled in the userdata. The udev
         rules will be installed as
-        ``/etc/udev/rules.d/10-cloud-init-hook-hotplug.rules``.
+        ``/etc/udev/rules.d/90-cloud-init-hook-hotplug.rules``.
 
         When hotplug is enabled, newly added network devices will be added
         to the system by cloud-init. After udev detects the event,
-        cloud-init will referesh the instance metadata from the datasource,
+        cloud-init will refresh the instance metadata from the datasource,
         detect the device in the updated metadata, then apply the updated
         network configuration.
 
@@ -59,30 +60,30 @@ __doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
 
-HOTPLUG_UDEV_PATH = "/etc/udev/rules.d/10-cloud-init-hook-hotplug.rules"
+# 90 to be sorted after 80-net-setup-link.rules which sets ID_NET_DRIVER and
+# some datasources match on drivers
+HOTPLUG_UDEV_PATH = "/etc/udev/rules.d/90-cloud-init-hook-hotplug.rules"
 HOTPLUG_UDEV_RULES_TEMPLATE = """\
 # Installed by cloud-init due to network hotplug userdata
-ACTION!="add|remove", GOTO="cloudinit_end"
+ACTION!="add|remove", GOTO="cloudinit_end"{extra_rules}
 LABEL="cloudinit_hook"
 SUBSYSTEM=="net", RUN+="{libexecdir}/hook-hotplug"
 LABEL="cloudinit_end"
 """
 
 
-def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
-    network_hotplug_enabled = (
-        "updates" in cfg
-        and "network" in cfg["updates"]
-        and "when" in cfg["updates"]["network"]
-        and "hotplug" in cfg["updates"]["network"]["when"]
-    )
+def install_hotplug(
+    datasource: DataSource,
+    cfg: Config,
+    network_hotplug_enabled: bool,
+):
     hotplug_supported = EventType.HOTPLUG in (
-        cloud.datasource.get_supported_events([EventType.HOTPLUG]).get(
+        datasource.get_supported_events([EventType.HOTPLUG]).get(
             EventScope.NETWORK, set()
         )
     )
     hotplug_enabled = stages.update_event_enabled(
-        datasource=cloud.datasource,
+        datasource=datasource,
         cfg=cfg,
         event_source_type=EventType.HOTPLUG,
         scope=EventScope.NETWORK,
@@ -104,12 +105,32 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         LOG.debug("Skipping hotplug install, udevadm not found")
         return
 
+    extra_rules = (
+        datasource.extra_hotplug_udev_rules
+        if datasource.extra_hotplug_udev_rules is not None
+        else ""
+    )
+    if extra_rules:
+        extra_rules = "\n" + extra_rules
     # This may need to turn into a distro property at some point
     libexecdir = "/usr/libexec/cloud-init"
     if not os.path.exists(libexecdir):
         libexecdir = "/usr/lib/cloud-init"
+    LOG.info("Installing hotplug.")
     util.write_file(
         filename=HOTPLUG_UDEV_PATH,
-        content=HOTPLUG_UDEV_RULES_TEMPLATE.format(libexecdir=libexecdir),
+        content=HOTPLUG_UDEV_RULES_TEMPLATE.format(
+            extra_rules=extra_rules, libexecdir=libexecdir
+        ),
     )
     subp.subp(["udevadm", "control", "--reload-rules"])
+
+
+def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
+    network_hotplug_enabled = (
+        "updates" in cfg
+        and "network" in cfg["updates"]
+        and "when" in cfg["updates"]["network"]
+        and "hotplug" in cfg["updates"]["network"]["when"]
+    )
+    install_hotplug(cloud.datasource, cfg, network_hotplug_enabled)

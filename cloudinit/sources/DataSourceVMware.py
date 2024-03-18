@@ -16,51 +16,6 @@ multiple transports types, including:
     * EnvVars
     * GuestInfo
     * IMC (Guest Customization)
-
-Netifaces (https://github.com/al45tair/netifaces)
-
-    Please note this module relies on the netifaces project to introspect the
-    runtime, network configuration of the host on which this datasource is
-    running. This is in contrast to the rest of cloud-init which uses the
-    cloudinit/netinfo module.
-
-    The reasons for using netifaces include:
-
-        * Netifaces is built in C and is more portable across multiple systems
-          and more deterministic than shell exec'ing local network commands and
-          parsing their output.
-
-        * Netifaces provides a stable way to determine the view of the host's
-          network after DHCP has brought the network online. Unlike most other
-          datasources, this datasource still provides support for JINJA queries
-          based on networking information even when the network is based on a
-          DHCP lease. While this does not tie this datasource directly to
-          netifaces, it does mean the ability to consistently obtain the
-          correct information is paramount.
-
-        * It is currently possible to execute this datasource on macOS
-          (which many developers use today) to print the output of the
-          get_host_info function. This function calls netifaces to obtain
-          the same runtime network configuration that the datasource would
-          persist to the local system's instance data.
-
-          However, the netinfo module fails on macOS. The result is either a
-          hung operation that requires a SIGINT to return control to the user,
-          or, if brew is used to install iproute2mac, the ip commands are used
-          but produce output the netinfo module is unable to parse.
-
-          While macOS is not a target of cloud-init, this feature is quite
-          useful when working on this datasource.
-
-          For more information about this behavior, please see the following
-          PR comment, https://bit.ly/3fG7OVh.
-
-    The authors of this datasource are not opposed to moving away from
-    netifaces. The goal may be to eventually do just that. This proviso was
-    added to the top of this module as a way to remind future-us and others
-    why netifaces was used in the first place in order to either smooth the
-    transition away from netifaces or embrace it further up the cloud-init
-    stack.
 """
 
 import collections
@@ -72,9 +27,7 @@ import os
 import socket
 import time
 
-import netifaces
-
-from cloudinit import atomic_helper, dmi, log, net, sources, util
+from cloudinit import atomic_helper, dmi, log, net, netinfo, sources, util
 from cloudinit.sources.helpers.vmware.imc import guestcust_util
 from cloudinit.subp import ProcessExecutionError, subp, which
 
@@ -129,7 +82,7 @@ class DataSourceVMware(sources.DataSource):
             For CloudinitPrep customization, Network config Version 2 data
             is parsed from the customization specification.
 
-        envvar and guestinfo tranports:
+        envvar and guestinfo transports:
             Network Config Version 2 data is supported as long as the Linux
             distro's cloud-init package is new enough to parse the data.
             The metadata key "network.encoding" may be used to indicate the
@@ -159,6 +112,32 @@ class DataSourceVMware(sources.DataSource):
             (DATA_ACCESS_METHOD_GUESTINFO, self.get_guestinfo_data_fn, True),
             (DATA_ACCESS_METHOD_IMC, self.get_imc_data_fn, True),
         ]
+
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        super()._unpickle(ci_pkl_version)
+        for attr in ("rpctool", "rpctool_fn"):
+            if not hasattr(self, attr):
+                setattr(self, attr, None)
+        if not hasattr(self, "cfg"):
+            setattr(self, "cfg", {})
+        if not hasattr(self, "possible_data_access_method_list"):
+            setattr(
+                self,
+                "possible_data_access_method_list",
+                [
+                    (
+                        DATA_ACCESS_METHOD_ENVVAR,
+                        self.get_envvar_data_fn,
+                        False,
+                    ),
+                    (
+                        DATA_ACCESS_METHOD_GUESTINFO,
+                        self.get_guestinfo_data_fn,
+                        True,
+                    ),
+                    (DATA_ACCESS_METHOD_IMC, self.get_imc_data_fn, True),
+                ],
+            )
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -776,89 +755,62 @@ def get_default_ip_addrs():
     addresses associated with the device used by the default route for a given
     address.
     """
-    # TODO(promote and use netifaces in cloudinit.net* modules)
-    gateways = netifaces.gateways()
-    if "default" not in gateways:
-        return None, None
 
-    default_gw = gateways["default"]
-    if (
-        netifaces.AF_INET not in default_gw
-        and netifaces.AF_INET6 not in default_gw
-    ):
-        return None, None
+    # Get ipv4 and ipv6 interfaces associated with default routes
+    ipv4_if = None
+    ipv6_if = None
+    routes = netinfo.route_info()
+    for route in routes["ipv4"]:
+        if route["destination"] == "0.0.0.0":
+            ipv4_if = route["iface"]
+            break
+    for route in routes["ipv6"]:
+        if route["destination"] == "::/0":
+            ipv6_if = route["iface"]
+            break
 
+    # Get ip address associated with default interface
     ipv4 = None
     ipv6 = None
-
-    gw4 = default_gw.get(netifaces.AF_INET)
-    if gw4:
-        _, dev4 = gw4
-        addr4_fams = netifaces.ifaddresses(dev4)
-        if addr4_fams:
-            af_inet4 = addr4_fams.get(netifaces.AF_INET)
-            if af_inet4:
-                if len(af_inet4) > 1:
-                    LOG.debug(
-                        "device %s has more than one ipv4 address: %s",
-                        dev4,
-                        af_inet4,
-                    )
-                elif "addr" in af_inet4[0]:
-                    ipv4 = af_inet4[0]["addr"]
-
-    # Try to get the default IPv6 address by first seeing if there is a default
-    # IPv6 route.
-    gw6 = default_gw.get(netifaces.AF_INET6)
-    if gw6:
-        _, dev6 = gw6
-        addr6_fams = netifaces.ifaddresses(dev6)
-        if addr6_fams:
-            af_inet6 = addr6_fams.get(netifaces.AF_INET6)
-            if af_inet6:
-                if len(af_inet6) > 1:
-                    LOG.debug(
-                        "device %s has more than one ipv6 address: %s",
-                        dev6,
-                        af_inet6,
-                    )
-                elif "addr" in af_inet6[0]:
-                    ipv6 = af_inet6[0]["addr"]
+    netdev = netinfo.netdev_info()
+    if ipv4_if in netdev:
+        addrs = netdev[ipv4_if]["ipv4"]
+        if len(addrs) > 1:
+            LOG.debug(
+                "device %s has more than one ipv4 address: %s", ipv4_if, addrs
+            )
+        elif len(addrs) == 1 and "ip" in addrs[0]:
+            ipv4 = addrs[0]["ip"]
+    if ipv6_if in netdev:
+        addrs = netdev[ipv6_if]["ipv6"]
+        if len(addrs) > 1:
+            LOG.debug(
+                "device %s has more than one ipv6 address: %s", ipv6_if, addrs
+            )
+        elif len(addrs) == 1 and "ip" in addrs[0]:
+            ipv6 = addrs[0]["ip"]
 
     # If there is a default IPv4 address but not IPv6, then see if there is a
     # single IPv6 address associated with the same device associated with the
     # default IPv4 address.
-    if ipv4 and not ipv6:
-        af_inet6 = addr4_fams.get(netifaces.AF_INET6)
-        if af_inet6:
-            if len(af_inet6) > 1:
-                LOG.debug(
-                    "device %s has more than one ipv6 address: %s",
-                    dev4,
-                    af_inet6,
-                )
-            elif "addr" in af_inet6[0]:
-                ipv6 = af_inet6[0]["addr"]
+    if ipv4 is not None and ipv6 is None:
+        for dev_name in netdev:
+            for addr in netdev[dev_name]["ipv4"]:
+                if addr["ip"] == ipv4 and len(netdev[dev_name]["ipv6"]) == 1:
+                    ipv6 = netdev[dev_name]["ipv6"][0]["ip"]
+                    break
 
     # If there is a default IPv6 address but not IPv4, then see if there is a
     # single IPv4 address associated with the same device associated with the
     # default IPv6 address.
-    if not ipv4 and ipv6:
-        af_inet4 = addr6_fams.get(netifaces.AF_INET)
-        if af_inet4:
-            if len(af_inet4) > 1:
-                LOG.debug(
-                    "device %s has more than one ipv4 address: %s",
-                    dev6,
-                    af_inet4,
-                )
-            elif "addr" in af_inet4[0]:
-                ipv4 = af_inet4[0]["addr"]
+    if ipv4 is None and ipv6 is not None:
+        for dev_name in netdev:
+            for addr in netdev[dev_name]["ipv6"]:
+                if addr["ip"] == ipv6 and len(netdev[dev_name]["ipv4"]) == 1:
+                    ipv4 = netdev[dev_name]["ipv4"][0]["ip"]
+                    break
 
     return ipv4, ipv6
-
-
-# patched socket.getfqdn() - see https://bugs.python.org/issue5004
 
 
 def getfqdn(name=""):
@@ -895,11 +847,63 @@ def is_valid_ip_addr(val):
     )
 
 
+def convert_to_netifaces_ipv4_format(addr: dict) -> dict:
+    """
+    Takes a cloudinit.netinfo formatted address and converts to netifaces
+    format, since this module was originally written with netifaces as the
+    network introspection module.
+    netifaces ipv4 format:
+    {
+      "broadcast": "10.15.255.255",
+      "netmask": "255.240.0.0",
+      "addr": "10.0.1.4"
+    }
+    cloudinit.netinfo ipv4 format:
+    {
+      "ip": "10.0.1.4",
+      "mask": "255.240.0.0",
+      "bcast": "10.15.255.255",
+      "scope": "global",
+    }
+    """
+    if not addr.get("ip"):
+        return {}
+    return {
+        "broadcast": addr.get("bcast"),
+        "netmask": addr.get("mask"),
+        "addr": addr.get("ip"),
+    }
+
+
+def convert_to_netifaces_ipv6_format(addr: dict) -> dict:
+    """
+    Takes a cloudinit.netinfo formatted address and converts to netifaces
+    format, since this module was originally written with netifaces as the
+    network introspection module.
+    netifaces ipv6 format:
+    {
+      "netmask": "ffff:ffff:ffff:ffff::/64",
+      "addr": "2001:db8:abcd:1234::1"
+    }
+    cloudinit.netinfo ipv6 format:
+    {
+      "ip": "2001:db8:abcd:1234::1/64",
+      "scope6": "global",
+    }
+    """
+    if not addr.get("ip"):
+        return {}
+    ipv6 = ipaddress.IPv6Interface(addr.get("ip"))
+    return {
+        "netmask": f"{ipv6.netmask}/{ipv6.network.prefixlen}",
+        "addr": str(ipv6.ip),
+    }
+
+
 def get_host_info():
     """
     Returns host information such as the host name and network interfaces.
     """
-    # TODO(look to promote netifices use up in cloud-init netinfo funcs)
     host_info = {
         "network": {
             "interfaces": {
@@ -925,16 +929,16 @@ def get_host_info():
     by_ipv4 = host_info["network"]["interfaces"]["by-ipv4"]
     by_ipv6 = host_info["network"]["interfaces"]["by-ipv6"]
 
-    ifaces = netifaces.interfaces()
+    ifaces = netinfo.netdev_info()
     for dev_name in ifaces:
-        addr_fams = netifaces.ifaddresses(dev_name)
-        af_link = addr_fams.get(netifaces.AF_LINK)
-        af_inet4 = addr_fams.get(netifaces.AF_INET)
-        af_inet6 = addr_fams.get(netifaces.AF_INET6)
+        af_inet4 = []
+        af_inet6 = []
+        for addr in ifaces[dev_name]["ipv4"]:
+            af_inet4.append(convert_to_netifaces_ipv4_format(addr))
+        for addr in ifaces[dev_name]["ipv6"]:
+            af_inet6.append(convert_to_netifaces_ipv6_format(addr))
 
-        mac = None
-        if af_link and "addr" in af_link[0]:
-            mac = af_link[0]["addr"]
+        mac = ifaces[dev_name].get("hwaddr")
 
         # Do not bother recording localhost
         if mac == "00:00:00:00:00:00":

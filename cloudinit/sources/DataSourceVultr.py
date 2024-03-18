@@ -42,6 +42,7 @@ class DataSourceVultr(sources.DataSource):
                 BUILTIN_DS_CONFIG,
             ]
         )
+        self.netcfg = None
 
     @staticmethod
     def ds_detect():

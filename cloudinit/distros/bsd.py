@@ -32,7 +32,7 @@ class BSD(distros.Distro):
     def __init__(self, name, cfg, paths):
         super().__init__(name, cfg, paths)
         # This will be used to restrict certain
-        # calls from repeatly happening (when they
+        # calls from repeatedly happening (when they
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
         cfg["ssh_svcname"] = "sshd"
@@ -141,3 +141,11 @@ class BSD(distros.Distro):
     def chpasswd(self, plist_in: list, hashed: bool):
         for name, password in plist_in:
             self.set_passwd(name, password, hashed=hashed)
+
+    @staticmethod
+    def get_proc_ppid(pid):
+        """
+        Return the parent pid of a process by checking ps
+        """
+        ppid, _ = subp.subp(["ps", "-oppid=", "-p", str(pid)])
+        return int(ppid.strip())

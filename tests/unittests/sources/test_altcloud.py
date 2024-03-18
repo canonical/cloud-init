@@ -92,6 +92,7 @@ class TestGetCloudType(CiTestCase):
         # Reset
         dmi.read_dmi_data = self.dmi_data
         force_arch()
+        super().tearDown()
 
     def test_cloud_info_file_ioerror(self):
         """Return UNKNOWN when /etc/sysconfig/cloud-info exists but errors."""
@@ -230,6 +231,7 @@ class TestGetDataNoCloudInfoFile(CiTestCase):
         dmi.read_dmi_data = self.dmi_data
         # Return back to original arch
         force_arch()
+        super().tearDown()
 
     def test_rhev_no_cloud_file(self):
         """Test No cloud info file module get_data() forcing RHEV."""
@@ -346,6 +348,7 @@ class TestUserDataVsphere(CiTestCase):
             pass
 
         dsac.CLOUD_INFO_FILE = "/etc/sysconfig/cloud-info"
+        super().tearDown()
 
     @mock.patch("cloudinit.sources.DataSourceAltCloud.util.find_devs_with")
     @mock.patch("cloudinit.sources.DataSourceAltCloud.util.mount_cb")
@@ -409,6 +412,7 @@ class TestReadUserDataCallback(CiTestCase):
             shutil.rmtree(self.mount_dir)
         except OSError:
             pass
+        super().tearDown()
 
     def test_callback_both(self):
         """Test read_user_data_callback() with both files."""

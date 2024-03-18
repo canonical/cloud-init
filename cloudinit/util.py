@@ -36,19 +36,23 @@ import sys
 import time
 from base64 import b64decode
 from collections import deque, namedtuple
-from contextlib import suppress
-from errno import EACCES, ENOENT
+from contextlib import contextmanager, suppress
+from errno import ENOENT
 from functools import lru_cache, total_ordering
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
+    Any,
     Callable,
     Deque,
     Dict,
+    Generator,
     List,
     Mapping,
     Optional,
     Sequence,
     TypeVar,
+    Union,
 )
 from urllib import parse
 
@@ -58,13 +62,18 @@ from cloudinit import (
     mergers,
     net,
     safeyaml,
+    settings,
     subp,
     temp_utils,
     type_utils,
     url_helper,
     version,
 )
-from cloudinit.settings import CFG_BUILTIN
+from cloudinit.settings import CFG_BUILTIN, PER_ONCE
+
+if TYPE_CHECKING:
+    # Avoid circular import
+    from cloudinit.helpers import Paths
 
 _DNS_REDIRECT_IP = None
 LOG = logging.getLogger(__name__)
@@ -124,18 +133,14 @@ def lsb_release():
     return data
 
 
-def decode_binary(blob, encoding="utf-8"):
+def decode_binary(blob: Union[str, bytes], encoding="utf-8") -> str:
     # Converts a binary type into a text type using given encoding.
-    if isinstance(blob, str):
-        return blob
-    return blob.decode(encoding)
+    return blob if isinstance(blob, str) else blob.decode(encoding=encoding)
 
 
-def encode_text(text, encoding="utf-8"):
+def encode_text(text: Union[str, bytes], encoding="utf-8") -> bytes:
     # Converts a text string into a binary type using given encoding.
-    if isinstance(text, bytes):
-        return text
-    return text.encode(encoding)
+    return text if isinstance(text, bytes) else text.encode(encoding=encoding)
 
 
 def maybe_b64decode(data: bytes) -> bytes:
@@ -309,12 +314,9 @@ def read_conf(fname, *, instance_data_file=None) -> Dict:
     )
 
     try:
-        config_file = load_file(fname)
-    except IOError as e:
-        if e.errno == ENOENT:
-            return {}
-        else:
-            raise
+        config_file = load_text_file(fname)
+    except FileNotFoundError:
+        return {}
 
     if instance_data_file and os.path.exists(instance_data_file):
         try:
@@ -549,7 +551,7 @@ def _parse_redhat_release(release_file=None):
         release_file = "/etc/redhat-release"
     if not os.path.exists(release_file):
         return {}
-    redhat_release = load_file(release_file)
+    redhat_release = load_text_file(release_file)
     redhat_regex = (
         r"(?P<name>.+) release (?P<version>[\d\.]+) "
         r"\((?P<codename>[^)]+)\)"
@@ -586,7 +588,7 @@ def get_linux_distro():
     os_release = {}
     os_release_rhel = False
     if os.path.exists("/etc/os-release"):
-        os_release = load_shell_content(load_file("/etc/os-release"))
+        os_release = load_shell_content(load_text_file("/etc/os-release"))
     if not os_release:
         os_release_rhel = True
         os_release = _parse_redhat_release()
@@ -649,6 +651,7 @@ def _get_variant(info):
             "almalinux",
             "alpine",
             "arch",
+            "azurelinux",
             "centos",
             "cloudlinux",
             "debian",
@@ -947,7 +950,7 @@ def del_dir(path):
 
 
 # read_optional_seed
-# returns boolean indicating success or failure (presense of files)
+# returns boolean indicating success or failure (presence of files)
 # if files are present, populates 'fill' dictionary with 'user-data' and
 # 'meta-data' entries
 def read_optional_seed(fill, base="", ext="", timeout=5):
@@ -1093,18 +1096,20 @@ def read_conf_d(confd, *, instance_data_file=None) -> dict:
     # Load them all so that they can be merged
     cfgs = []
     for fn in confs:
+        path = os.path.join(confd, fn)
         try:
             cfgs.append(
                 read_conf(
-                    os.path.join(confd, fn),
+                    path,
                     instance_data_file=instance_data_file,
                 )
             )
+        except PermissionError:
+            LOG.warning(
+                "REDACTED config part %s, insufficient permissions", path
+            )
         except OSError as e:
-            if e.errno == EACCES:
-                LOG.warning(
-                    "REDACTED config part %s/%s for non-root user", confd, fn
-                )
+            LOG.warning("Error accessing file %s: [%s]", path, e)
 
     return mergemanydict(cfgs)
 
@@ -1125,9 +1130,12 @@ def read_conf_with_confd(cfgfile, *, instance_data_file=None) -> dict:
     cfg: dict = {}
     try:
         cfg = read_conf(cfgfile, instance_data_file=instance_data_file)
+    except PermissionError:
+        LOG.warning(
+            "REDACTED config part %s, insufficient permissions", cfgfile
+        )
     except OSError as e:
-        if e.errno == EACCES:
-            LOG.warning("REDACTED config part %s for non-root user", cfgfile)
+        LOG.warning("Error accessing file %s: [%s]", cfgfile, e)
     else:
         cfgs.append(cfg)
 
@@ -1267,7 +1275,7 @@ def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
     """
     fqdn = None
     try:
-        for line in load_file(filename).splitlines():
+        for line in load_text_file(filename).splitlines():
             hashpos = line.find("#")
             if hashpos >= 0:
                 line = line[0:hashpos]
@@ -1422,6 +1430,7 @@ def find_devs_with_netbsd(
     devlist = []
     label = None
     _type = None
+    mscdlabel_out = ""
     if criteria:
         if criteria.startswith("LABEL="):
             label = criteria.lstrip("LABEL=")
@@ -1582,30 +1591,39 @@ def uniq_list(in_list):
     return out_list
 
 
-def load_file(fname, read_cb=None, quiet=False, decode=True):
+def load_binary_file(
+    fname: Union[str, os.PathLike],
+    *,
+    read_cb: Optional[Callable[[int], None]] = None,
+    quiet: bool = False,
+) -> bytes:
     LOG.debug("Reading from %s (quiet=%s)", fname, quiet)
     ofh = io.BytesIO()
     try:
         with open(fname, "rb") as ifh:
             pipe_in_out(ifh, ofh, chunk_cb=read_cb)
-    except IOError as e:
+    except FileNotFoundError:
         if not quiet:
-            raise
-        if e.errno != ENOENT:
             raise
     contents = ofh.getvalue()
     LOG.debug("Read %s bytes from %s", len(contents), fname)
-    if decode:
-        return decode_binary(contents)
-    else:
-        return contents
+    return contents
+
+
+def load_text_file(
+    fname: Union[str, os.PathLike],
+    *,
+    read_cb: Optional[Callable[[int], None]] = None,
+    quiet: bool = False,
+) -> str:
+    return decode_binary(load_binary_file(fname, read_cb=read_cb, quiet=quiet))
 
 
 @lru_cache()
 def _get_cmdline():
     if is_container():
         try:
-            contents = load_file("/proc/1/cmdline")
+            contents = load_text_file("/proc/1/cmdline")
             # replace nulls with space and drop trailing null
             cmdline = contents.replace("\x00", " ")[:-1]
         except Exception as e:
@@ -1613,7 +1631,7 @@ def _get_cmdline():
             cmdline = ""
     else:
         try:
-            cmdline = load_file("/proc/cmdline").strip()
+            cmdline = load_text_file("/proc/cmdline").strip()
         except Exception:
             cmdline = ""
 
@@ -1630,7 +1648,7 @@ def get_cmdline():
 def fips_enabled() -> bool:
     fips_proc = "/proc/sys/crypto/fips_enabled"
     try:
-        contents = load_file(fips_proc).strip()
+        contents = load_text_file(fips_proc).strip()
         return contents == "1"
     except (IOError, OSError):
         # for BSD systems and Linux systems where the proc entry is not
@@ -1675,7 +1693,7 @@ def chownbyname(fname, user=None, group=None):
     chownbyid(fname, uid, gid)
 
 
-# Always returns well formated values
+# Always returns well formatted values
 # cfg is expected to have an entry 'output' in it, which is a dictionary
 # that includes entries for 'init', 'config', 'final' or 'all'
 #   init: /var/log/cloud.out
@@ -1748,6 +1766,7 @@ def get_config_logfiles(cfg):
     @param cfg: The cloud-init merged configuration dictionary.
     """
     logs = []
+    rotated_logs = []
     if not cfg or not isinstance(cfg, dict):
         return logs
     default_log = cfg.get("def_log_file")
@@ -1765,7 +1784,16 @@ def get_config_logfiles(cfg):
             logs.append(target)
         elif ["tee", "-a"] == parts[:2]:
             logs.append(parts[2])
-    return list(set(logs))
+
+    # add rotated log files
+    for logfile in logs:
+        for rotated_logfile in glob.glob(f"{logfile}*"):
+            # Check that log file exists and is rotated.
+            # Do not add current one
+            if os.path.isfile(rotated_logfile) and rotated_logfile != logfile:
+                rotated_logs.append(rotated_logfile)
+
+    return list(set(logs + rotated_logs))
 
 
 def logexc(log, msg, *args):
@@ -1902,7 +1930,7 @@ def mounts():
     try:
         # Go through mounts to see what is already mounted
         if os.path.exists("/proc/mounts"):
-            mount_locs = load_file("/proc/mounts").splitlines()
+            mount_locs = load_text_file("/proc/mounts").splitlines()
             method = "proc"
         else:
             out = subp.subp("mount")
@@ -2057,9 +2085,8 @@ def del_file(path):
     LOG.debug("Attempting to remove %s", path)
     try:
         os.unlink(path)
-    except OSError as e:
-        if e.errno != ENOENT:
-            raise e
+    except FileNotFoundError:
+        pass
 
 
 def copy(src, dest):
@@ -2124,7 +2151,7 @@ def uptime():
     try:
         if os.path.exists("/proc/uptime"):
             method = "/proc/uptime"
-            contents = load_file("/proc/uptime")
+            contents = load_text_file("/proc/uptime")
             if contents:
                 uptime_str = contents.split()[0]
         else:
@@ -2418,7 +2445,7 @@ def is_container():
 
     try:
         # Detect Vserver containers
-        lines = load_file("/proc/self/status").splitlines()
+        lines = load_text_file("/proc/self/status").splitlines()
         for line in lines:
             if line.startswith("VxID:"):
                 (_key, val) = line.strip().split(":", 1)
@@ -2446,7 +2473,7 @@ def get_proc_env(pid, encoding="utf-8", errors="replace"):
     fn = os.path.join("/proc", str(pid), "environ")
 
     try:
-        contents = load_file(fn, decode=False)
+        contents = load_binary_file(fn)
     except (IOError, OSError):
         return {}
 
@@ -2591,7 +2618,7 @@ def parse_mount_info(path, mountinfo_lines, log=LOG, get_mnt_opts=False):
 
 def parse_mtab(path):
     """On older kernels there's no /proc/$$/mountinfo, so use mtab."""
-    for line in load_file("/etc/mtab").splitlines():
+    for line in load_text_file("/etc/mtab").splitlines():
         devpth, mount_point, fs_type = line.split()[:3]
         if mount_point == path:
             return devpth, fs_type, mount_point
@@ -2639,26 +2666,6 @@ def get_freebsd_devpth(path):
     ret = result.split()
     label_part = find_freebsd_part(ret[0])
     return "/dev/" + label_part
-
-
-def get_device_info_from_zpool(zpool):
-    # zpool has 10 second timeout waiting for /dev/zfs LP: #1760173
-    if not os.path.exists("/dev/zfs"):
-        LOG.debug("Cannot get zpool info, no /dev/zfs")
-        return None
-    try:
-        (zpoolstatus, err) = subp.subp(["zpool", "status", zpool])
-    except subp.ProcessExecutionError as err:
-        LOG.warning("Unable to get zpool status of %s: %s", zpool, err)
-        return None
-    if len(err):
-        return None
-    r = r".*(ONLINE).*"
-    for line in zpoolstatus.split("\n"):
-        if re.search(r, line) and zpool not in line and "state" not in line:
-            disk = line.split()[0]
-            LOG.debug('found zpool "%s" on disk %s', zpool, disk)
-            return disk
 
 
 def parse_mount(path, get_mnt_opts=False):
@@ -2779,7 +2786,7 @@ def get_mount_info(path, log=LOG, get_mnt_opts=False):
     # input path.
     mountinfo_path = "/proc/%s/mountinfo" % os.getpid()
     if os.path.exists(mountinfo_path):
-        lines = load_file(mountinfo_path).splitlines()
+        lines = load_text_file(mountinfo_path).splitlines()
         return parse_mount_info(path, lines, log, get_mnt_opts)
     elif os.path.exists("/etc/mtab"):
         return parse_mtab(path)
@@ -2861,13 +2868,10 @@ def pathprefix2dict(base, required=None, optional=None, delim=os.path.sep):
     ret = {}
     for f in required + optional:
         try:
-            ret[f] = load_file(base + delim + f, quiet=False, decode=False)
-        except IOError as e:
-            if e.errno != ENOENT:
-                raise
+            ret[f] = load_binary_file(base + delim + f, quiet=False)
+        except FileNotFoundError:
             if f in required:
                 missing.append(f)
-
     if len(missing):
         raise ValueError(
             "Missing required files: {files}".format(files=",".join(missing))
@@ -2886,7 +2890,7 @@ def read_meminfo(meminfo="/proc/meminfo", raw=False):
         "MemAvailable:": "available",
     }
     ret = {}
-    for line in load_file(meminfo).splitlines():
+    for line in load_text_file(meminfo).splitlines():
         try:
             key, value, unit = line.split()
         except ValueError:
@@ -2980,7 +2984,7 @@ def system_is_snappy():
     # this is certainly not a perfect test, but good enough for now.
     orpath = "/etc/os-release"
     try:
-        orinfo = load_shell_content(load_file(orpath, quiet=True))
+        orinfo = load_shell_content(load_text_file(orpath, quiet=True))
         if orinfo.get("ID", "").lower() == "ubuntu-core":
             return True
     except ValueError as e:
@@ -2990,7 +2994,7 @@ def system_is_snappy():
     if "snap_core=" in cmdline:
         return True
 
-    content = load_file("/etc/system-image/channel.ini", quiet=True)
+    content = load_text_file("/etc/system-image/channel.ini", quiet=True)
     if "ubuntu-core" in content.lower():
         return True
     if os.path.isdir("/etc/system-image/config.d/"):
@@ -3080,6 +3084,18 @@ def wait_for_files(flist, maxwait, naplen=0.5, log_pre=""):
     return need
 
 
+def wait_for_snap_seeded(cloud):
+    """Helper to wait on completion of snap seeding."""
+
+    def callback():
+        if not subp.which("snap"):
+            LOG.debug("Skipping snap wait, no snap command present")
+            return
+        subp.subp(["snap", "wait", "system", "seed.loaded"])
+
+    cloud.run("snap-seeded", callback, [], freq=PER_ONCE)
+
+
 def mount_is_read_write(mount_point):
     """Check whether the given mount point is mounted rw"""
     result = get_mount_info(mount_point, get_mnt_opts=True)
@@ -3103,47 +3119,6 @@ def udevadm_settle(exists=None, timeout=None):
         settle_cmd.extend(["--timeout=%s" % timeout])
 
     return subp.subp(settle_cmd)
-
-
-def get_proc_ppid_linux(pid):
-    """
-    Return the parent pid of a process by parsing /proc/$pid/stat.
-    """
-    ppid = 0
-    try:
-        contents = load_file("/proc/%s/stat" % pid, quiet=True)
-        if contents:
-            # see proc.5 for format
-            m = re.search(r"^\d+ \(.+\) [RSDZTtWXxKPI] (\d+)", str(contents))
-            if m:
-                ppid = int(m.group(1))
-            else:
-                LOG.warning(
-                    "Unable to match parent pid of process pid=%s input: %s",
-                    pid,
-                    contents,
-                )
-    except IOError as e:
-        LOG.warning("Failed to load /proc/%s/stat. %s", pid, e)
-    return ppid
-
-
-def get_proc_ppid_ps(pid):
-    """
-    Return the parent pid of a process by checking ps
-    """
-    ppid, _ = subp.subp(["ps", "-oppid=", "-p", str(pid)])
-    return int(ppid.strip())
-
-
-def get_proc_ppid(pid):
-    """
-    Return the parent pid of a process.
-    """
-    if is_Linux():
-        return get_proc_ppid_linux(pid)
-    else:
-        return get_proc_ppid_ps(pid)
 
 
 def error(msg, rc=1, fmt="Error:\n{}", sys_exit=False):
@@ -3301,3 +3276,32 @@ def deprecate_call(
         return decorator
 
     return wrapper
+
+
+def read_hotplug_enabled_file(paths: "Paths") -> dict:
+    content: dict = {"scopes": []}
+    try:
+        content = json.loads(
+            load_text_file(paths.get_cpath("hotplug.enabled"), quiet=False)
+        )
+    except FileNotFoundError:
+        LOG.debug("File not found: %s", paths.get_cpath("hotplug.enabled"))
+    except json.JSONDecodeError as e:
+        LOG.warning(
+            "Ignoring contents of %s because it is not decodable. Error: %s",
+            settings.HOTPLUG_ENABLED_FILE,
+            e,
+        )
+    else:
+        if "scopes" not in content:
+            content["scopes"] = []
+    return content
+
+
+@contextmanager
+def nullcontext() -> Generator[None, Any, None]:
+    """Context manager that does nothing.
+
+    Note: In python-3.7+, this can be substituted by contextlib.nullcontext
+    """
+    yield

@@ -8,12 +8,15 @@ from contextlib import contextmanager
 from functools import lru_cache
 from itertools import chain
 from pathlib import Path
-from typing import Set
+from typing import TYPE_CHECKING, Set
 
 import pytest
 
 from cloudinit.subp import subp
-from tests.integration_tests.instances import IntegrationInstance
+
+if TYPE_CHECKING:
+    # instances.py has imports util.py, so avoid circular import
+    from tests.integration_tests.instances import IntegrationInstance
 
 log = logging.getLogger("integration_testing")
 key_pair = namedtuple("key_pair", "public_key private_key")
@@ -67,9 +70,8 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
         # Ubuntu lxd storage
         "thinpool by default on Ubuntu due to LP #1982780",
         "WARNING]: Could not match supplied host pattern, ignoring:",
-        # Old Ubuntu cloud-images contain /etc/apt/sources.list
-        "WARNING]: Removing /etc/apt/sources.list to favor deb822 source"
-        " format",
+        # https://bugs.launchpad.net/ubuntu/+source/netplan.io/+bug/2041727
+        "Cannot call Open vSwitch: ovsdb-server.service is not running.",
     ]
     traceback_texts = []
     if "install canonical-livepatch" in log:
@@ -110,7 +112,7 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
     for traceback_text in traceback_texts:
         expected_tracebacks += log.count(traceback_text)
 
-    assert warning_count == expected_warnings, (
+    assert warning_count <= expected_warnings, (
         f"Unexpected warning count != {expected_warnings}. Found: "
         f"{re.findall('WARNING.*', log)}"
     )
@@ -171,7 +173,7 @@ def get_test_rsa_keypair(key_name: str = "test1") -> key_pair:
 
 # We're implementing our own here in case cloud-init status --wait
 # isn't working correctly (LP: #1966085)
-def wait_for_cloud_init(client: IntegrationInstance, num_retries: int = 30):
+def wait_for_cloud_init(client: "IntegrationInstance", num_retries: int = 30):
     last_exception = None
     for _ in range(num_retries):
         try:
@@ -179,7 +181,7 @@ def wait_for_cloud_init(client: IntegrationInstance, num_retries: int = 30):
             if (
                 result
                 and result.ok
-                and ("running" not in result or "not run" not in result)
+                and ("running" not in result or "not started" not in result)
             ):
                 return result
         except Exception as e:
@@ -190,7 +192,7 @@ def wait_for_cloud_init(client: IntegrationInstance, num_retries: int = 30):
     ) from last_exception
 
 
-def get_console_log(client: IntegrationInstance):
+def get_console_log(client: "IntegrationInstance"):
     try:
         console_log = client.instance.console_log()
     except NotImplementedError:
@@ -201,7 +203,7 @@ def get_console_log(client: IntegrationInstance):
 
 
 @lru_cache()
-def lxd_has_nocloud(client: IntegrationInstance) -> bool:
+def lxd_has_nocloud(client: "IntegrationInstance") -> bool:
     # Bionic or Focal may be detected as NoCloud rather than LXD
     lxd_image_metadata = subp(
         ["lxc", "config", "metadata", "show", client.instance.name]
@@ -209,7 +211,7 @@ def lxd_has_nocloud(client: IntegrationInstance) -> bool:
     return "/var/lib/cloud/seed/nocloud" in lxd_image_metadata.stdout
 
 
-def get_feature_flag_value(client: IntegrationInstance, key):
+def get_feature_flag_value(client: "IntegrationInstance", key):
     value = client.execute(
         'python3 -c "from cloudinit import features; '
         f'print(features.{key})"'

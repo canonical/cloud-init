@@ -835,7 +835,9 @@ class Renderer(renderer.Renderer):
             return None
         content = resolv_conf.ResolvConf("")
         if existing_dns_path and os.path.isfile(existing_dns_path):
-            content = resolv_conf.ResolvConf(util.load_file(existing_dns_path))
+            content = resolv_conf.ResolvConf(
+                util.load_text_file(existing_dns_path)
+            )
         for nameserver in network_state.dns_nameservers:
             content.add_nameserver(nameserver)
         for searchdomain in network_state.dns_searchdomains:

@@ -142,7 +142,6 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         self.files.update(results.get("files", {}))
 
         vd = results.get("vendordata")
-        self.vendordata_pure = vd
         try:
             self.vendordata_raw = sources.convert_vendordata(vd)
         except ValueError as e:
@@ -150,14 +149,13 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
             self.vendordata_raw = None
 
         vd2 = results.get("vendordata2")
-        self.vendordata2_pure = vd2
         try:
             self.vendordata2_raw = sources.convert_vendordata(vd2)
         except ValueError as e:
             LOG.warning("Invalid content in vendor-data2: %s", e)
             self.vendordata2_raw = None
 
-        # network_config is an /etc/network/interfaces formated file and is
+        # network_config is an /etc/network/interfaces formatted file and is
         # obsolete compared to networkdata (from network_data.json) but both
         # might be present.
         self.network_eni = results.get("network_config")
@@ -217,7 +215,7 @@ def get_previous_iid(paths):
     # hasn't declared itself found.
     fname = os.path.join(paths.get_cpath("data"), "instance-id")
     try:
-        return util.load_file(fname).rstrip("\n")
+        return util.load_text_file(fname).rstrip("\n")
     except IOError:
         return None
 

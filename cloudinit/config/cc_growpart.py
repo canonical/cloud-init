@@ -306,7 +306,7 @@ def device_part_info(devpath):
         # FreeBSD doesn't know of sysfs so just get everything we need from
         # the device, like /dev/vtbd0p2.
         fpart = "/dev/" + util.find_freebsd_part(devpath)
-        # Handle both GPT partions and MBR slices with partitions
+        # Handle both GPT partitions and MBR slices with partitions
         m = re.search(
             r"^(?P<dev>/dev/.+)[sp](?P<part_slice>\d+[a-z]*)$", fpart
         )
@@ -320,14 +320,14 @@ def device_part_info(devpath):
     if not os.path.exists(ptpath):
         raise TypeError("%s not a partition" % devpath)
 
-    ptnum = util.load_file(ptpath).rstrip()
+    ptnum = util.load_text_file(ptpath).rstrip()
 
     # for a partition, real syspath is something like:
     # /sys/devices/pci0000:00/0000:00:04.0/virtio1/block/vda/vda1
     rsyspath = os.path.realpath(syspath)
     disksyspath = os.path.dirname(rsyspath)
 
-    diskmajmin = util.load_file(os.path.join(disksyspath, "dev")).rstrip()
+    diskmajmin = util.load_text_file(os.path.join(disksyspath, "dev")).rstrip()
     diskdevpath = os.path.realpath("/dev/block/%s" % diskmajmin)
 
     # diskdevpath has something like 253:0
@@ -358,7 +358,7 @@ def devent2dev(devent):
     return dev
 
 
-def get_mapped_device(blockdev):
+def get_mapped_device(blockdev, distro_name):
     """Returns underlying block device for a mapped device.
 
     If it is mapped, blockdev will usually take the form of
@@ -368,6 +368,32 @@ def get_mapped_device(blockdev):
     the device pointed to. Otherwise, return None.
     """
     realpath = os.path.realpath(blockdev)
+
+    if distro_name == "alpine":
+        if blockdev.startswith("/dev/mapper"):
+            # For Alpine systems a /dev/mapper/ entry is *not* a
+            # symlink to the related /dev/dm-X block device,
+            # rather it is a  block device itself.
+
+            # Get the major/minor of the /dev/mapper block device
+            major = os.major(os.stat(blockdev).st_rdev)
+            minor = os.minor(os.stat(blockdev).st_rdev)
+
+            # Find the /dev/dm-X device with the same major/minor
+            with os.scandir("/dev/") as it:
+                for deventry in it:
+                    if deventry.name.startswith("dm-"):
+                        res = os.lstat(deventry.path)
+                        if stat.S_ISBLK(res.st_mode):
+                            if (
+                                os.major(os.stat(deventry.path).st_rdev)
+                                == major
+                                and os.minor(os.stat(deventry.path).st_rdev)
+                                == minor
+                            ):
+                                realpath = os.path.realpath(deventry.path)
+                                break
+
     if realpath.startswith("/dev/dm-"):
         LOG.debug("%s is a mapped device pointing to %s", blockdev, realpath)
         return realpath
@@ -473,7 +499,7 @@ def resize_encrypted(blockdev, partition) -> Tuple[str, str]:
     )
 
 
-def resize_devices(resizer, devices):
+def resize_devices(resizer, devices, distro_name):
     # returns a tuple of tuples containing (entry-in-devices, action, message)
     devices = copy.copy(devices)
     info = []
@@ -516,7 +542,7 @@ def resize_devices(resizer, devices):
             )
             continue
 
-        underlying_blockdev = get_mapped_device(blockdev)
+        underlying_blockdev = get_mapped_device(blockdev, distro_name)
         if underlying_blockdev:
             try:
                 # We need to resize the underlying partition first
@@ -659,7 +685,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         logfunc=LOG.debug,
         msg="resize_devices",
         func=resize_devices,
-        args=(resizer, devices),
+        args=(resizer, devices, cloud.distro.name),
     )
     for entry, action, msg in resized:
         if action == RESIZE.CHANGED:

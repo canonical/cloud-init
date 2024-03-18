@@ -5,12 +5,13 @@ import sys
 import pytest
 
 from cloudinit import subp, templater, util
-from tests.unittests.helpers import cloud_init_project_dir
+from tests.helpers import cloud_init_project_dir
 
 # TODO(Look to align with tools.render-template or cloudinit.distos.OSFAMILIES)
 DISTRO_VARIANTS = [
     "amazon",
     "arch",
+    "azurelinux",
     "centos",
     "debian",
     "eurolinux",

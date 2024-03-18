@@ -37,6 +37,7 @@ class DataSourceOpenNebula(sources.DataSource):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.seed = None
         self.seed_dir = os.path.join(paths.seed_dir, "opennebula")
+        self.network = None
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -435,7 +436,7 @@ def read_context_disk_dir(source_dir, distro, asuser=None):
                 ) from e
         try:
             path = os.path.join(source_dir, "context.sh")
-            content = util.load_file(path)
+            content = util.load_text_file(path)
             context = parse_shell_config(content, asuser=asuser)
         except subp.ProcessExecutionError as e:
             raise BrokenContextDiskDir(

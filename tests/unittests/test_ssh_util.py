@@ -371,7 +371,7 @@ class TestUpdateAuthorizedKeys:
         assert expected == found
 
 
-@mock.patch(M_PATH + "util.load_file")
+@mock.patch(M_PATH + "util.load_text_file")
 @mock.patch(M_PATH + "os.path.isfile")
 class TestParseSSHConfig:
     @pytest.mark.parametrize(
@@ -538,7 +538,7 @@ class TestUpdateSshConfig:
         util.write_file(mycfg, self.cfgdata)
         ret = ssh_util.update_ssh_config({"MyKey": "NEW_VAL"}, mycfg)
         assert True is ret
-        found = util.load_file(mycfg)
+        found = util.load_text_file(mycfg)
         assert self.cfgdata.replace("ORIG_VAL", "NEW_VAL") == found
         # assert there is a newline at end of file (LP: #1677205)
         assert "\n" == found[-1]
@@ -549,7 +549,7 @@ class TestUpdateSshConfig:
         with patch("cloudinit.ssh_util.util.write_file") as m_write_file:
             ret = ssh_util.update_ssh_config({"MyKey": "ORIG_VAL"}, mycfg)
         assert False is ret
-        assert self.cfgdata == util.load_file(mycfg)
+        assert self.cfgdata == util.load_text_file(mycfg)
         m_write_file.assert_not_called()
 
     def test_without_include(self, tmpdir):
@@ -557,7 +557,7 @@ class TestUpdateSshConfig:
         cfg = "X Y"
         util.write_file(mycfg, cfg)
         assert ssh_util.update_ssh_config({"key": "value"}, mycfg)
-        assert "X Y\nkey value\n" == util.load_file(mycfg)
+        assert "X Y\nkey value\n" == util.load_text_file(mycfg)
         expected_conf_file = f"{mycfg}.d/50-cloud-init.conf"
         assert not os.path.isfile(expected_conf_file)
 
@@ -572,14 +572,14 @@ class TestUpdateSshConfig:
         expected_conf_file = f"{mycfg}.d/50-cloud-init.conf"
         assert os.path.isfile(expected_conf_file)
         assert 0o600 == stat.S_IMODE(os.stat(expected_conf_file).st_mode)
-        assert "key value\n" == util.load_file(expected_conf_file)
+        assert "key value\n" == util.load_text_file(expected_conf_file)
 
     def test_with_commented_include(self, tmpdir):
         mycfg = tmpdir.join("sshd_config")
         cfg = f"# Include {mycfg}.d/*.conf"
         util.write_file(mycfg, cfg)
         assert ssh_util.update_ssh_config({"key": "value"}, mycfg)
-        assert f"{cfg}\nkey value\n" == util.load_file(mycfg)
+        assert f"{cfg}\nkey value\n" == util.load_text_file(mycfg)
         expected_conf_file = f"{mycfg}.d/50-cloud-init.conf"
         assert not os.path.isfile(expected_conf_file)
 
@@ -588,7 +588,7 @@ class TestUpdateSshConfig:
         cfg = f"Include other_{mycfg}.d/*.conf"
         util.write_file(mycfg, cfg)
         assert ssh_util.update_ssh_config({"key": "value"}, mycfg)
-        assert f"{cfg}\nkey value\n" == util.load_file(mycfg)
+        assert f"{cfg}\nkey value\n" == util.load_text_file(mycfg)
         expected_conf_file = f"{mycfg}.d/50-cloud-init.conf"
         assert not os.path.isfile(expected_conf_file)
         assert not os.path.isfile(f"other_{mycfg}.d/50-cloud-init.conf")
@@ -605,7 +605,7 @@ class TestAppendSshConfig:
         ssh_util.append_ssh_config(
             [("MyKey", "NEW_VAL"), ("MyKey", "NEW_VAL_2")], mycfg
         )
-        found = util.load_file(mycfg)
+        found = util.load_text_file(mycfg)
         expected_cfg = dedent(
             """\
             #Option val

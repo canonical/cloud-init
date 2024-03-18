@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 import re
 import shutil
 import tempfile
@@ -8,16 +9,18 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import distros, helpers
-from cloudinit import log as logger
-from cloudinit import subp, util
+from cloudinit import distros, helpers, subp, util
 from cloudinit.config import cc_ca_certs
 from cloudinit.config.schema import (
     SchemaValidationError,
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import TestCase, skipUnlessJsonSchema
+from tests.unittests.helpers import (
+    SCHEMA_EMPTY_ERROR,
+    TestCase,
+    skipUnlessJsonSchema,
+)
 from tests.unittests.util import get_cloud
 
 
@@ -327,7 +330,7 @@ class TestRemoveDefaultCaCerts(TestCase):
                 )
                 mock_load = mocks.enter_context(
                     mock.patch.object(
-                        util, "load_file", return_value=ca_certs_content
+                        util, "load_text_file", return_value=ca_certs_content
                     )
                 )
                 mock_subp = mocks.enter_context(
@@ -398,7 +401,7 @@ class TestCACertsSchema:
             ),
             (
                 {"ca_certs": {}},
-                re.escape("ca_certs: {} does not have enough properties"),
+                re.escape("ca_certs: {} ") + SCHEMA_EMPTY_ERROR,
             ),
             (
                 {"ca_certs": {"boguskey": 1}},
@@ -417,7 +420,7 @@ class TestCACertsSchema:
             ),
             (
                 {"ca_certs": {"trusted": []}},
-                re.escape("ca_certs.trusted: [] is too short"),
+                re.escape("ca_certs.trusted: [] ") + SCHEMA_EMPTY_ERROR,
             ),
         ),
     )
@@ -435,7 +438,6 @@ class TestCACertsSchema:
     @mock.patch.object(cc_ca_certs, "update_ca_certs")
     def test_deprecate_key_warnings(self, update_ca_certs, caplog):
         """Assert warnings are logged for deprecated keys."""
-        logger.setup_logging()
         cloud = get_cloud("ubuntu")
         cc_ca_certs.handle(
             "IGNORE", {"ca-certs": {"remove-defaults": False}}, cloud, []

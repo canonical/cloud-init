@@ -160,7 +160,7 @@ class Distro(distros.Distro):
 
     def _read_hostname(self, filename, default=None):
         if self.uses_systemd() and filename.endswith("/previous-hostname"):
-            return util.load_file(filename).strip()
+            return util.load_text_file(filename).strip()
         elif self.uses_systemd():
             (out, _err) = subp.subp(["hostname"])
             if len(out):
@@ -181,7 +181,7 @@ class Distro(distros.Distro):
         return "127.0.1.1"
 
     def _read_hostname_conf(self, filename):
-        conf = HostnameConf(util.load_file(filename))
+        conf = HostnameConf(util.load_text_file(filename))
         conf.parse()
         return conf
 
@@ -200,7 +200,7 @@ class Distro(distros.Distro):
             if result:
                 (devpth, fs_type, mount_point) = result
                 # Check if the file system is read only
-                mounts = util.load_file("/proc/mounts").split("\n")
+                mounts = util.load_text_file("/proc/mounts").split("\n")
                 for mount in mounts:
                     if mount.startswith(devpth):
                         mount_info = mount.split()

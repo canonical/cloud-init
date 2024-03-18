@@ -3,20 +3,27 @@
 import copy
 import os
 from collections import namedtuple
+from logging import getLogger
+from pathlib import Path
+from tempfile import mkdtemp
 from textwrap import dedent
 from uuid import uuid4
+
+import pytest
 
 from cloudinit import atomic_helper, safeyaml, subp, util
 from cloudinit.sources import DataSourceIBMCloud as ds_ibm
 from cloudinit.sources import DataSourceOracle as ds_oracle
 from cloudinit.sources import DataSourceSmartOS as ds_smartos
+from tests.helpers import cloud_init_project_dir
 from tests.unittests.helpers import (
     CiTestCase,
-    cloud_init_project_dir,
     dir2dict,
     populate_dir,
     populate_dir_with_ts,
 )
+
+LOG = getLogger(__name__)
 
 UNAME_MYSYS = "Linux #83-Ubuntu SMP Wed Jan 18 14:10:15 UTC 2017 x86_64"
 UNAME_PPC64EL = (
@@ -59,145 +66,6 @@ BLKID_UEFI_UBUNTU = [
 ]
 
 
-DEFAULT_CLOUD_CONFIG = """\
-# The top level settings are used as module
-# and base configuration.
-# A set of users which may be applied and/or used by various modules
-# when a 'default' entry is found it will reference the 'default_user'
-# from the distro configuration specified below
-users:
-   - default
-
-# If this is set, 'root' will not be able to ssh in and they
-# will get a message to login instead as the default $user
-disable_root: true
-
-# This will cause the set+update hostname module to not operate (if true)
-preserve_hostname: false
-
-# If you use datasource_list array, keep array items in a single line.
-# If you use multi line array, ds-identify script won't read array items.
-# Example datasource config
-# datasource:
-#    Ec2:
-#      metadata_urls: [ 'blah.com' ]
-#      timeout: 5 # (defaults to 50 seconds)
-#      max_wait: 10 # (defaults to 120 seconds)
-
-# The modules that run in the 'init' stage
-cloud_init_modules:
- - seed_random
- - bootcmd
- - write-files
- - growpart
- - resizefs
- - disk_setup
- - mounts
- - set_hostname
- - update_hostname
- - update_etc_hosts
- - ca-certs
- - rsyslog
- - users-groups
- - ssh
-
-# The modules that run in the 'config' stage
-cloud_config_modules:
- - wireguard
- - snap
- - ubuntu_autoinstall
- - ssh-import-id
- - keyboard
- - locale
- - set-passwords
- - grub-dpkg
- - apt-pipelining
- - apt-configure
- - ubuntu-advantage
- - ntp
- - timezone
- - disable-ec2-metadata
- - runcmd
- - byobu
-
-# The modules that run in the 'final' stage
-cloud_final_modules:
- - package-update-upgrade-install
- - fan
- - landscape
- - lxd
- - ubuntu-drivers
- - write-files-deferred
- - puppet
- - chef
- - ansible
- - mcollective
- - salt-minion
- - reset_rmc
- - refresh_rmc_and_interface
- - rightscale_userdata
- - scripts-vendor
- - scripts-per-once
- - scripts-per-boot
- - scripts-per-instance
- - scripts-user
- - ssh-authkey-fingerprints
- - keys-to-console
- - install-hotplug
- - phone-home
- - final-message
- - power-state-change
-
-# System and/or distro specific settings
-# (not accessible to handlers/transforms)
-system_info:
-   # This will affect which distro class gets used
-   distro: ubuntu
-   # Default user name + that default users groups (if added/used)
-   default_user:
-     name: ubuntu
-     lock_passwd: True
-     gecos: Ubuntu
-     groups: [adm, audio, cdrom, floppy, lxd, netdev, plugdev, sudo, video]
-     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
-     shell: /bin/bash
-   network:
-     renderers: ['netplan', 'eni', 'sysconfig']
-     activators: ['netplan', 'eni', 'network-manager', 'networkd']
-   # Automatically discover the best ntp_client
-   ntp_client: auto
-   # Other config here will be given to the distro class and/or path classes
-   paths:
-      cloud_dir: /var/lib/cloud/
-      templates_dir: /etc/cloud/templates/
-   package_mirrors:
-     - arches: [i386, amd64]
-       failsafe:
-         primary: http://archive.ubuntu.com/ubuntu
-         security: http://security.ubuntu.com/ubuntu
-       search:
-         primary:
-           - http://%(ec2_region)s.ec2.archive.ubuntu.com/ubuntu/
-           - http://%(availability_zone)s.clouds.archive.ubuntu.com/ubuntu/
-           - http://%(region)s.clouds.archive.ubuntu.com/ubuntu/
-         security: []
-     - arches: [arm64, armel, armhf]
-       failsafe:
-         primary: http://ports.ubuntu.com/ubuntu-ports
-         security: http://ports.ubuntu.com/ubuntu-ports
-       search:
-         primary:
-           - http://%(ec2_region)s.ec2.ports.ubuntu.com/ubuntu-ports/
-           - http://%(availability_zone)s.clouds.ports.ubuntu.com/ubuntu-ports/
-           - http://%(region)s.clouds.ports.ubuntu.com/ubuntu-ports/
-         security: []
-     - arches: [default]
-       failsafe:
-         primary: http://ports.ubuntu.com/ubuntu-ports
-         security: http://ports.ubuntu.com/ubuntu-ports
-   ssh_svcname: ssh
-"""
-
 POLICY_FOUND_ONLY = "search,found=all,maybe=none,notfound=disabled"
 POLICY_FOUND_OR_MAYBE = "search,found=all,maybe=all,notfound=disabled"
 DI_DEFAULT_POLICY = "search,found=all,maybe=all,notfound=disabled"
@@ -235,21 +103,53 @@ MOCK_VIRT_IS_CONTAINER_OTHER = {
     "RET": "container-other",
     "ret": 0,
 }
+IS_CONTAINER_OTHER_ENV = {"SYSTEMD_VIRTUALIZATION": "vm:kvm"}
 MOCK_NOT_LXD_DATASOURCE = {"name": "dscheck_LXD", "ret": 1}
 MOCK_VIRT_IS_KVM = {"name": "detect_virt", "RET": "kvm", "ret": 0}
+KVM_ENV = {"SYSTEMD_VIRTUALIZATION": "vm:kvm"}
 # qemu support for LXD is only for host systems > 5.10 kernel as lxd
 # passed `hv_passthrough` which causes systemd < v.251 to misinterpret CPU
 # as "qemu" instead of "kvm"
 MOCK_VIRT_IS_KVM_QEMU = {"name": "detect_virt", "RET": "qemu", "ret": 0}
+IS_KVM_QEMU_ENV = {"SYSTEMD_VIRTUALIZATION": "vm:qemu"}
 MOCK_VIRT_IS_VMWARE = {"name": "detect_virt", "RET": "vmware", "ret": 0}
+IS_VMWARE_ENV = {"SYSTEMD_VIRTUALIZATION": "vm:vmware"}
 # currenty' SmartOS hypervisor "bhyve" is unknown by systemd-detect-virt.
 MOCK_VIRT_IS_VM_OTHER = {"name": "detect_virt", "RET": "vm-other", "ret": 0}
+IS_VM_OTHER = {"SYSTEMD_VIRTUALIZATION": "vm:vm-other"}
 MOCK_VIRT_IS_XEN = {"name": "detect_virt", "RET": "xen", "ret": 0}
+IS_XEN_ENV = {"SYSTEMD_VIRTUALIZATION": "vm:xen"}
 MOCK_VIRT_IS_WSL = {"name": "detect_virt", "RET": "wsl", "ret": 0}
 MOCK_UNAME_IS_PPC64 = {"name": "uname", "out": UNAME_PPC64EL, "ret": 0}
 MOCK_UNAME_IS_FREEBSD = {"name": "uname", "out": UNAME_FREEBSD, "ret": 0}
 MOCK_UNAME_IS_OPENBSD = {"name": "uname", "out": UNAME_OPENBSD, "ret": 0}
 MOCK_UNAME_IS_WSL = {"name": "uname", "out": UNAME_WSL, "ret": 0}
+MOCK_WSL_INSTANCE_DATA = {
+    "name": "Noble-MLKit",
+    "distro": "ubuntu",
+    "version": "24.04",
+    "os_release": dedent(
+        """\
+        PRETTY_NAME="Ubuntu Noble Numbat (development branch)"
+        NAME="Ubuntu"
+        VERSION_ID="24.04"
+        VERSION="24.04 (Noble Numbat)"
+        VERSION_CODENAME=noble
+        ID=ubuntu
+        ID_LIKE=debian
+        UBUNTU_CODENAME=noble
+        LOGO=ubuntu-logo
+        """
+    ),
+    "os_release_no_version_id": dedent(
+        """\
+        PRETTY_NAME="Debian GNU/Linux trixie/sid"
+        NAME="Debian GNU/Linux"
+        VERSION_CODENAME="trixie"
+        ID=debian
+        """
+    ),
+}
 
 shell_true = 0
 shell_false = 1
@@ -263,6 +163,9 @@ class DsIdentifyBase(CiTestCase):
     dsid_path = cloud_init_project_dir("tools/ds-identify")
     allowed_subp = ["sh"]
 
+    # set to true to write out the mocked ds-identify for inspection
+    debug_mode = True
+
     def call(
         self,
         rootd=None,
@@ -274,6 +177,7 @@ class DsIdentifyBase(CiTestCase):
         policy_dmi=DI_DEFAULT_POLICY,
         policy_no_dmi=DI_DEFAULT_POLICY_NO_DMI,
         ec2_strict_id=DI_EC2_STRICT_ID_DEFAULT,
+        env_vars=None,
     ):
         if args is None:
             args = []
@@ -282,10 +186,6 @@ class DsIdentifyBase(CiTestCase):
 
         if files is None:
             files = {}
-
-        cloudcfg = "etc/cloud/cloud.cfg"
-        if cloudcfg not in files:
-            files[cloudcfg] = DEFAULT_CLOUD_CONFIG
 
         if rootd is None:
             rootd = self.tmp_dir()
@@ -365,12 +265,26 @@ class DsIdentifyBase(CiTestCase):
 
         endlines = [func + " " + " ".join(['"%s"' % s for s in args])]
 
+        mocked_ds_identify = "\n".join(head + mocklines + endlines) + "\n"
         with open(wrap, "w") as fp:
-            fp.write("\n".join(head + mocklines + endlines) + "\n")
+            fp.write(mocked_ds_identify)
+
+        # debug_mode force this test to write the mocked ds-identify script to
+        # a file for inspection
+        if self.debug_mode:
+            tempdir = mkdtemp()
+            dir = f"{tempdir}/ds-identify"
+            LOG.debug("Writing mocked ds-identify to %s for debugging.", dir)
+            with open(dir, "w") as fp:
+                fp.write(mocked_ds_identify)
 
         rc = 0
         try:
-            out, err = subp.subp(["sh", "-c", ". %s" % wrap], capture=True)
+            out, err = subp.subp(
+                ["sh", "-c", ". %s" % wrap],
+                update_env=env_vars if env_vars else {},
+                capture=True,
+            )
         except subp.ProcessExecutionError as e:
             rc = e.exit_code
             out = e.stdout
@@ -379,7 +293,7 @@ class DsIdentifyBase(CiTestCase):
         cfg = None
         cfg_out = os.path.join(rootd, runpath, "cloud-init/cloud.cfg")
         if os.path.exists(cfg_out):
-            contents = util.load_file(cfg_out)
+            contents = util.load_text_file(cfg_out)
             try:
                 cfg = safeyaml.load(contents)
             except Exception as e:
@@ -395,6 +309,7 @@ class DsIdentifyBase(CiTestCase):
             "mocks",
             "func",
             "args",
+            "env_vars",
             "policy_dmi",
             "policy_no_dmi",
             "files",
@@ -408,8 +323,9 @@ class DsIdentifyBase(CiTestCase):
 
     def _test_ds_found(self, name):
         data = copy.deepcopy(VALID_CFG[name])
+
         return self._check_via_dict(
-            data, RC_FOUND, dslist=[data.get("ds"), DS_NONE]
+            data, RC_FOUND, dslist=[data.pop("ds"), DS_NONE]
         )
 
     def _test_ds_not_found(self, name):
@@ -422,7 +338,7 @@ class DsIdentifyBase(CiTestCase):
         try:
             self.assertEqual(rc, ret.rc)
             if dslist is not None:
-                self.assertEqual(dslist, ret.cfg["datasource_list"])
+                self.assertEqual(dslist, ret.cfg.get("datasource_list"))
             good = True
         finally:
             if not good:
@@ -460,6 +376,65 @@ class TestDsIdentify(DsIdentifyBase):
         for var in expected_vars:
             self.assertIn("{0}=".format(var), err)
 
+    @pytest.mark.xfail(reason="GH-4796")
+    def test_maas_not_detected_1(self):
+        """Don't incorrectly identify maas
+
+        In ds-identify the function check_config() attempts to parse yaml keys
+        in bash, but it sometimes introduces false positives. The maas
+        datasource uses check_config() and the existence of a "MAAS" key to
+        identify itself (which is a very poor identifier - clouds should have
+        stricter identifiers). Since the MAAS datasource is at the begining of
+        the list, this is particularly troublesome and more concerning than
+        NoCloud false positives, for example.
+        """
+        config = "LXD-kvm-not-MAAS-1"
+        self._test_ds_found(config)
+
+    def test_maas_not_detected_2(self):
+        """Don't incorrectly identify maas
+
+        The bug reported in 4794 combined with the previously existing bug
+        reported in 4796 made for very loose MAAS false-positives.
+
+        In ds-identify the function check_config() attempts to parse yaml keys
+        in bash, but it sometimes introduces false positives. The maas
+        datasource uses check_config() and the existence of a "MAAS" key to
+        identify itself (which is a very poor identifier - clouds should have
+        stricter identifiers). Since the MAAS datasource is at the begining of
+        the list, this is particularly troublesome and more concerning than
+        NoCloud false positives, for example.
+        """
+        config = "LXD-kvm-not-MAAS-2"
+        self._test_ds_found(config)
+
+    def test_maas_not_detected_3(self):
+        """Don't incorrectly identify maas
+
+        The bug reported in 4794 combined with the previously existing bug
+        reported in 4796 made for very loose MAAS false-positives.
+
+        In ds-identify the function check_config() attempts to parse yaml keys
+        in bash, but it sometimes introduces false positives. The maas
+        datasource uses check_config() and the existence of a "MAAS" key to
+        identify itself (which is a very poor identifier - clouds should have
+        stricter identifiers). Since the MAAS datasource is at the begining of
+        the list, this is particularly troublesome and more concerning than
+        NoCloud false positives, for example.
+        """
+        config = "LXD-kvm-not-MAAS-3"
+        self._test_ds_found(config)
+
+    def test_azure_invalid_configuration(self):
+        """Don't detect incorrect config when invalid datasource_list provided
+
+        If unparsable list is provided we just ignore it. Some users
+        might assume that since the rest of the configuration is yaml that
+        multi-line yaml lists are valid (they aren't). When this happens, just
+        run ds-identify and figure it out for ourselves which platform to run.
+        """
+        self._test_ds_found("Azure-parse-invalid")
+
     def test_azure_dmi_detection_from_chassis_asset_tag(self):
         """Azure datasource is detected from DMI chassis-asset-tag"""
         self._test_ds_found("Azure-dmi-detection")
@@ -473,6 +448,13 @@ class TestDsIdentify(DsIdentifyBase):
     def test_aws_ec2_hvm(self):
         """EC2: hvm instances use dmi serial and uuid starting with 'ec2'."""
         self._test_ds_found("Ec2-hvm")
+
+    def test_aws_ec2_hvm_env(self):
+        """EC2: hvm instances use dmi serial and uuid starting with 'ec2'
+
+        test using SYSTEMD_VIRTUALIZATION, not systemd-detect-virt
+        """
+        self._test_ds_found("Ec2-hvm-env")
 
     def test_aws_ec2_xen(self):
         """EC2: sys/hypervisor/uuid starts with ec2."""
@@ -493,6 +475,13 @@ class TestDsIdentify(DsIdentifyBase):
     def test_gce_by_product_name(self):
         """GCE identifies itself with product_name."""
         self._test_ds_found("GCE")
+
+    def test_gce_by_product_name_env(self):
+        """GCE identifies itself with product_name.
+
+        Uses SYSTEMD_VIRTUALIZATION
+        """
+        self._test_ds_found("GCE_ENV")
 
     def test_gce_by_serial(self):
         """Older gce compute instances must be identified by serial."""
@@ -515,6 +504,20 @@ class TestDsIdentify(DsIdentifyBase):
         CPUID will be represented properly as "kvm"
         """
         self._test_ds_found("LXD-kvm-qemu-kernel-gt-5.10")
+
+    def test_lxd_kvm_jammy_env(self):
+        """LXD KVM on host systems with a kernel > 5.10 need to match "qemu".
+        LXD provides `hv_passthrough` when launching kvm instances when host
+        kernel is > 5.10. This results in systemd being unable to detect the
+        virtualized CPUID="Linux KVM Hv" as type "kvm" and results in
+        systemd-detect-virt returning "qemu" in this case.
+
+        Assert ds-identify can match systemd-detect-virt="qemu" and
+        /sys/class/dmi/id/board_name = LXD.
+        Once systemd 251 is available on a target distro, the virtualized
+        CPUID will be represented properly as "kvm"
+        """
+        self._test_ds_found("LXD-kvm-qemu-kernel-gt-5.10-env")
 
     def test_lxd_containers(self):
         """LXD containers will have /dev/lxd/socket at generator time."""
@@ -716,6 +719,10 @@ class TestDsIdentify(DsIdentifyBase):
         """SAP Converged Cloud identification"""
         self._test_ds_found("OpenStack-SAPCCloud")
 
+    def test_openstack_sap_ccloud_env(self):
+        """SAP Converged Cloud identification"""
+        self._test_ds_found("OpenStack-SAPCCloud-env")
+
     def test_openstack_huawei_cloud(self):
         """Open Huawei Cloud identification."""
         self._test_ds_found("OpenStack-HuaweiCloud")
@@ -883,9 +890,19 @@ class TestDsIdentify(DsIdentifyBase):
         """SmartOS cloud identified on lxbrand container."""
         self._test_ds_found("SmartOS-lxbrand")
 
+    def test_smartos_lxbrand_env(self):
+        """SmartOS cloud identified on lxbrand container."""
+        self._test_ds_found("SmartOS-lxbrand-env")
+
     def test_smartos_lxbrand_requires_socket(self):
         """SmartOS cloud should not be identified if no socket file."""
         mycfg = copy.deepcopy(VALID_CFG["SmartOS-lxbrand"])
+        del mycfg["files"][ds_smartos.METADATA_SOCKFILE]
+        self._check_via_dict(mycfg, rc=RC_NOT_FOUND, policy_dmi="disabled")
+
+    def test_smartos_lxbrand_requires_socket_env(self):
+        """SmartOS cloud should not be identified if no socket file."""
+        mycfg = copy.deepcopy(VALID_CFG["SmartOS-lxbrand-env"])
         del mycfg["files"][ds_smartos.METADATA_SOCKFILE]
         self._check_via_dict(mycfg, rc=RC_NOT_FOUND, policy_dmi="disabled")
 
@@ -1158,17 +1175,97 @@ class TestOracle(DsIdentifyBase):
 
 
 class TestWSL(DsIdentifyBase):
-    def test_found(self):
-        """Simple positive test of WSL."""
-        self._test_ds_found("WSL-supported")
-
-    def test_not_found(self):
+    def test_not_found_virt(self):
         """Simple negative test for WSL due other virt."""
         self._test_ds_not_found("Not-WSL")
 
-    def test_almost_found(self):
-        """Simple negative test by lack of host filesystem mount points."""
+    def test_no_fs_mounts(self):
+        """Negative test by lack of host filesystem mount points."""
         self._test_ds_not_found("WSL-no-host-mounts")
+
+    def test_no_cloudinitdir(self):
+        """Negative test by not finding %USERPROFILE%/.cloud-init."""
+        data = copy.deepcopy(VALID_CFG["WSL-supported"])
+        data["mocks"].append(
+            {
+                "name": "WSL_cloudinit_dir_in",
+                "ret": 1,
+                "RET": "",
+            },
+        )
+        return self._check_via_dict(data, RC_NOT_FOUND)
+
+    def test_empty_cloudinitdir(self):
+        """Negative test by lack of host filesystem mount points."""
+        data = copy.deepcopy(VALID_CFG["WSL-supported"])
+        cloudinitdir = self.tmp_dir()
+        data["mocks"].append(
+            {
+                "name": "WSL_cloudinit_dir_in",
+                "ret": 0,
+                "RET": cloudinitdir,
+            },
+        )
+        return self._check_via_dict(data, RC_NOT_FOUND)
+
+    def test_found_via_userdata_version_codename(self):
+        """WLS datasource detected by VERSION_CODENAME when no VERSION_ID"""
+        data = copy.deepcopy(VALID_CFG["WSL-supported-debian"])
+        cloudinitdir = self.tmp_dir()
+        data["mocks"].append(
+            {
+                "name": "WSL_cloudinit_dir_in",
+                "ret": 0,
+                "RET": cloudinitdir,
+            },
+        )
+        filename = os.path.join(cloudinitdir, "debian-trixie.user-data")
+        Path(filename).touch()
+        self._check_via_dict(data, RC_FOUND, dslist=[data.get("ds"), DS_NONE])
+        Path(filename).unlink()
+
+    def test_found_via_userdata(self):
+        """
+        WSL datasource is found on applicable userdata files in cloudinitdir.
+        """
+        data = copy.deepcopy(VALID_CFG["WSL-supported"])
+        cloudinitdir = self.tmp_dir()
+        data["mocks"].append(
+            {
+                "name": "WSL_cloudinit_dir_in",
+                "ret": 0,
+                "RET": cloudinitdir,
+            },
+        )
+        userdata_files = [
+            os.path.join(
+                cloudinitdir, MOCK_WSL_INSTANCE_DATA["name"] + ".user-data"
+            ),
+            os.path.join(
+                cloudinitdir,
+                "%s-%s.user-data"
+                % (
+                    MOCK_WSL_INSTANCE_DATA["distro"],
+                    MOCK_WSL_INSTANCE_DATA["version"],
+                ),
+            ),
+            os.path.join(
+                cloudinitdir,
+                MOCK_WSL_INSTANCE_DATA["distro"] + "-all.user-data",
+            ),
+            os.path.join(cloudinitdir, "default.user-data"),
+        ]
+
+        for filename in userdata_files:
+            Path(filename).touch()
+            self._check_via_dict(
+                data, RC_FOUND, dslist=[data.get("ds"), DS_NONE]
+            )
+            # Delete one by one
+            Path(filename).unlink()
+
+        # Until there is none, making the datasource no longer viable.
+        return self._check_via_dict(data, RC_NOT_FOUND)
 
 
 def blkid_out(disks=None):
@@ -1256,9 +1353,26 @@ VALID_CFG = {
             os.path.join(P_SEED_DIR, "azure", "ovf-env.xml"): "present\n",
         },
     },
+    "Azure-parse-invalid": {
+        "ds": "Azure",
+        "files": {
+            P_CHASSIS_ASSET_TAG: "7783-7084-3265-9085-8269-3286-77\n",
+            "etc/cloud/cloud.cfg.d/91-azure_datasource.cfg": (
+                "datasource_list:\n   - Azure"
+            ),
+        },
+    },
     "Ec2-hvm": {
         "ds": "Ec2",
         "mocks": [{"name": "detect_virt", "RET": "kvm", "ret": 0}],
+        "files": {
+            P_PRODUCT_SERIAL: "ec23aef5-54be-4843-8d24-8c819f88453e\n",
+            P_PRODUCT_UUID: "EC23AEF5-54BE-4843-8D24-8C819F88453E\n",
+        },
+    },
+    "Ec2-hvm-env": {
+        "ds": "Ec2",
+        "mocks": [{"name": "detect_virt_env", "RET": "vm:kvm", "ret": 0}],
         "files": {
             P_PRODUCT_SERIAL: "ec23aef5-54be-4843-8d24-8c819f88453e\n",
             P_PRODUCT_UUID: "EC23AEF5-54BE-4843-8D24-8C819F88453E\n",
@@ -1284,6 +1398,12 @@ VALID_CFG = {
         "files": {P_PRODUCT_NAME: "Google Compute Engine\n"},
         "mocks": [MOCK_VIRT_IS_KVM],
     },
+    "GCE_ENV": {
+        "ds": "GCE",
+        "files": {P_PRODUCT_NAME: "Google Compute Engine\n"},
+        "env_vars": KVM_ENV,
+        "no_mocks": ["detect_virt"],
+    },
     "GCE-serial": {
         "ds": "GCE",
         "files": {P_PRODUCT_SERIAL: "GoogleCloud-8f2e88f\n"},
@@ -1296,12 +1416,58 @@ VALID_CFG = {
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
     },
+    "LXD-kvm-not-MAAS-1": {
+        "ds": "LXD",
+        "files": {
+            P_BOARD_NAME: "LXD\n",
+            "etc/cloud/cloud.cfg.d/92-broken-maas.cfg": (
+                "datasource:\n MAAS:\n metadata_urls: [ 'blah.com' ]"
+            ),
+        },
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+    },
+    "LXD-kvm-not-MAAS-2": {
+        "ds": "LXD",
+        "files": {
+            P_BOARD_NAME: "LXD\n",
+            "etc/cloud/cloud.cfg.d/92-broken-maas.cfg": ("#MAAS: None"),
+        },
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+    },
+    "LXD-kvm-not-MAAS-3": {
+        "ds": "LXD",
+        "files": {
+            P_BOARD_NAME: "LXD\n",
+            "etc/cloud/cloud.cfg.d/92-broken-maas.cfg": ("MAAS: None"),
+        },
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+    },
     "LXD-kvm-qemu-kernel-gt-5.10": {  # LXD host > 5.10 kvm launch virt==qemu
         "ds": "LXD",
         "files": {P_BOARD_NAME: "LXD\n"},
         # /dev/lxd/sock does not exist and KVM virt-type
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM_QEMU],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+    },
+    # LXD host > 5.10 kvm launch virt==qemu
+    "LXD-kvm-qemu-kernel-gt-5.10-env": {
+        "ds": "LXD",
+        "files": {P_BOARD_NAME: "LXD\n"},
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [
+            {"name": "is_socket_file", "ret": 1},
+        ],
+        "env_vars": IS_KVM_QEMU_ENV,
+        "no_mocks": [
+            "dscheck_LXD",
+            "detect_virt",
+        ],  # Don't default mock dscheck_LXD
     },
     "LXD": {
         "ds": "LXD",
@@ -1338,7 +1504,7 @@ VALID_CFG = {
             # Also include a datasource list of more than just
             # [NoCloud, None], because that would automatically select
             # NoCloud without checking
-            "etc/cloud/cloud.cfg": dedent(
+            "/etc/cloud/cloud.cfg": dedent(
                 """\
                 datasource_list: [ Azure, Openstack, NoCloud, None ]
                 datasource:
@@ -1453,6 +1619,13 @@ VALID_CFG = {
         "ds": "OpenStack",
         "files": {P_CHASSIS_ASSET_TAG: "SAP CCloud VM\n"},
         "mocks": [MOCK_VIRT_IS_VMWARE],
+    },
+    "OpenStack-SAPCCloud-env": {
+        # SAP CCloud hosts use OpenStack on VMware
+        "ds": "OpenStack",
+        "files": {P_CHASSIS_ASSET_TAG: "SAP CCloud VM\n"},
+        "env_vars": IS_VMWARE_ENV,
+        "no_mocks": ["detect_virt"],
     },
     "OpenStack-HuaweiCloud": {
         # Huawei Cloud hosts use OpenStack
@@ -1810,6 +1983,20 @@ VALID_CFG = {
             },
             {"name": "blkid", "ret": 2, "out": ""},
         ],
+        "files": {ds_smartos.METADATA_SOCKFILE: "would be a socket\n"},
+    },
+    "SmartOS-lxbrand-env": {
+        "ds": "SmartOS",
+        "mocks": [
+            {
+                "name": "uname",
+                "ret": 0,
+                "out": ("Linux BrandZ virtual linux x86_64"),
+            },
+            {"name": "blkid", "ret": 2, "out": ""},
+        ],
+        "no_mocks": ["detect_virt"],
+        "env_vars": IS_CONTAINER_OTHER_ENV,
         "files": {ds_smartos.METADATA_SOCKFILE: "would be a socket\n"},
     },
     "Ec2-ZStack": {
@@ -2174,6 +2361,11 @@ VALID_CFG = {
         "mocks": [
             MOCK_VIRT_IS_WSL,
             MOCK_UNAME_IS_WSL,
+            {
+                "name": "WSL_instance_name",
+                "ret": 0,
+                "RET": MOCK_WSL_INSTANCE_DATA["name"],
+            },
         ],
         "files": {
             "proc/mounts": (
@@ -2184,6 +2376,32 @@ VALID_CFG = {
                 "snapfuse /snap/core22/1033 fuse.snapfuse ro,nodev,user_id=0,"
                 "group_id=0,allow_other 0 0"
             ),
+            "etc/os-release": MOCK_WSL_INSTANCE_DATA["os_release"],
+        },
+    },
+    "WSL-supported-debian": {
+        "ds": "WSL",
+        "mocks": [
+            MOCK_VIRT_IS_WSL,
+            MOCK_UNAME_IS_WSL,
+            {
+                "name": "WSL_instance_name",
+                "ret": 0,
+                "RET": MOCK_WSL_INSTANCE_DATA["name"],
+            },
+        ],
+        "files": {
+            "proc/mounts": (
+                "/dev/sdd / ext4 rw,errors=remount-ro,data=ordered 0 0\n"
+                "cgroup2 /sys/fs/cgroup cgroup2 rw,nosuid,nodev,noexec0 0\n"
+                "C:\\134 /mnt/c 9p rw,dirsync,aname=drvfs;path=C:\\;uid=0;"
+                "gid=0;symlinkroot=/mnt/...\n"
+                "snapfuse /snap/core22/1033 fuse.snapfuse ro,nodev,user_id=0,"
+                "group_id=0,allow_other 0 0"
+            ),
+            "etc/os-release": MOCK_WSL_INSTANCE_DATA[
+                "os_release_no_version_id"
+            ],
         },
     },
 }

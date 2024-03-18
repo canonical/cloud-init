@@ -10,7 +10,7 @@ import pytest
 
 from cloudinit import safeyaml
 from cloudinit.cmd import main
-from cloudinit.util import ensure_dir, load_file, write_file
+from cloudinit.util import ensure_dir, load_text_file, write_file
 from tests.unittests.helpers import FilesystemMockingTestCase, wrap_and_call
 
 MyArgs = namedtuple("MyArgs", "debug files force local reporter subcommand")
@@ -82,12 +82,12 @@ class TestMain(FilesystemMockingTestCase):
         self.assertEqual(
             "iid-datasource-none\n",
             os.path.join(
-                load_file(os.path.join(self.new_root, instance_id_path))
+                load_text_file(os.path.join(self.new_root, instance_id_path))
             ),
         )
         # modules are run (including write_files)
         self.assertEqual(
-            "blah", load_file(os.path.join(self.new_root, "etc/blah.ini"))
+            "blah", load_text_file(os.path.join(self.new_root, "etc/blah.ini"))
         )
         expected_logs = [
             "network config is disabled by fallback",  # apply_network_config
@@ -152,12 +152,12 @@ class TestMain(FilesystemMockingTestCase):
         self.assertEqual(
             "iid-datasource-none\n",
             os.path.join(
-                load_file(os.path.join(self.new_root, instance_id_path))
+                load_text_file(os.path.join(self.new_root, instance_id_path))
             ),
         )
         # modules are run (including write_files)
         self.assertEqual(
-            "blah", load_file(os.path.join(self.new_root, "etc/blah.ini"))
+            "blah", load_text_file(os.path.join(self.new_root, "etc/blah.ini"))
         )
         expected_logs = [
             "network config is disabled by fallback",  # apply_network_config

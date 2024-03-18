@@ -320,7 +320,9 @@ On an Ubuntu system, :file:`/etc/cloud/cloud.cfg` should look similar to:
 
     # The modules that run in the 'config' stage
     cloud_config_modules:
+    - wireguard
     - snap
+    - ubuntu_autoinstall
     - ssh_import_id
     - keyboard
     - locale
@@ -328,7 +330,7 @@ On an Ubuntu system, :file:`/etc/cloud/cloud.cfg` should look similar to:
     - grub_dpkg
     - apt_pipelining
     - apt_configure
-    - ubuntu_advantage
+    - ubuntu_pro
     - ntp
     - timezone
     - disable_ec2_metadata
@@ -345,10 +347,10 @@ On an Ubuntu system, :file:`/etc/cloud/cloud.cfg` should look similar to:
     - write_files_deferred
     - puppet
     - chef
+    - ansible
     - mcollective
     - salt_minion
     - reset_rmc
-    - rightscale_userdata
     - scripts_vendor
     - scripts_per_once
     - scripts_per_boot
@@ -377,7 +379,9 @@ On an Ubuntu system, :file:`/etc/cloud/cloud.cfg` should look similar to:
         sudo: ["ALL=(ALL) NOPASSWD:ALL"]
         shell: /bin/bash
       network:
+        dhcp_client_priority: [dhclient, dhcpcd, udhcpc]
         renderers: ['netplan', 'eni', 'sysconfig']
+        activators: ['netplan', 'eni', 'network-manager', 'networkd']
       # Automatically discover the best ntp_client
       ntp_client: auto
       # Other config here will be given to the distro class and/or path classes

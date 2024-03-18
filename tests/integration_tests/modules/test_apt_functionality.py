@@ -5,9 +5,9 @@ from textwrap import dedent
 
 import pytest
 
-from cloudinit import gpg
 from cloudinit.config import cc_apt_configure
 from cloudinit.util import is_true
+from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
@@ -18,6 +18,7 @@ from tests.integration_tests.util import (
 
 DEB822_SOURCES_FILE = "/etc/apt/sources.list.d/ubuntu.sources"
 ORIG_SOURCES_FILE = "/etc/apt/sources.list"
+GET_TEMPDIR = "python3 -c 'import tempfile;print(tempfile.mkdtemp());'"
 
 USER_DATA = """\
 #cloud-config
@@ -135,15 +136,26 @@ class TestApt:
         """Return all keys in /etc/apt/trusted.gpg.d/ and /etc/apt/trusted.gpg
         in human readable format. Mimics the output of apt-key finger
         """
-        list_cmd = " ".join(gpg.GPG_LIST) + " "
+        class_client.execute("mkdir /root/tmpdir && chmod &00 /root/tmpdir")
+        GPG_LIST = [
+            "gpg",
+            "--no-options",
+            "--with-fingerprint",
+            "--homedir /root/tmpdir",
+            "--no-default-keyring",
+            "--list-keys",
+            "--keyring",
+        ]
+
+        list_cmd = " ".join(GPG_LIST) + " "
         keys = class_client.execute(list_cmd + cc_apt_configure.APT_LOCAL_KEYS)
-        print(keys)
         files = class_client.execute(
             "ls " + cc_apt_configure.APT_TRUSTED_GPG_DIR
         )
         for file in files.split():
             path = cc_apt_configure.APT_TRUSTED_GPG_DIR + file
             keys += class_client.execute(list_cmd + path) or ""
+        class_client.execute("gpgconf --homedir /root/tmpdir --kill all")
         return keys
 
     def test_sources_list(self, class_client: IntegrationInstance):
@@ -202,8 +214,10 @@ class TestApt:
         )
         assert path_contents == source
 
+        temp = class_client.execute(GET_TEMPDIR)
         key = class_client.execute(
-            "gpg --no-default-keyring --with-fingerprint --list-keys "
+            f"gpg --no-options --homedir {temp} --no-default-keyring "
+            "--with-fingerprint --list-keys "
             "--keyring /etc/apt/cloud-init.gpg.d/test_signed_by.gpg"
         )
 
@@ -347,9 +361,11 @@ class TestDefaults:
             get_feature_flag_value(class_client, "APT_DEB822_SOURCE_LIST_FILE")
         )
         if feature_deb822:
-            assert class_client.execute(
-                f"test -f {ORIG_SOURCES_FILE}"
-            ).failed, f"Found unexpected {ORIG_SOURCES_FILE}"
+
+            assert (
+                cc_apt_configure.UBUNTU_DEFAULT_APT_SOURCES_LIST.strip()
+                == class_client.read_from_file(ORIG_SOURCES_FILE)
+            )
 
 
 DEFAULT_DATA_WITH_URI = _DEFAULT_DATA.format(
@@ -433,8 +449,6 @@ def test_apt_proxy(client: IntegrationInstance):
 
 INSTALL_ANY_MISSING_RECOMMENDED_DEPENDENCIES = """\
 #cloud-config
-bootcmd:
-    - apt-get remove gpg -y
 apt:
   sources:
     test_keyserver:
@@ -453,10 +467,24 @@ RE_GPG_SW_PROPERTIES_INSTALLED = (
     r" (gnupg software-properties-common|software-properties-common gnupg)"
 )
 
+REMOVE_GPG_USERDATA = """
+#cloud-config
+runcmd:
+  - DEBIAN_FRONTEND=noninteractive apt-get remove gpg -y
+"""
+
 
 @pytest.mark.skipif(not IS_UBUNTU, reason="Apt usage")
-@pytest.mark.user_data(INSTALL_ANY_MISSING_RECOMMENDED_DEPENDENCIES)
-def test_install_missing_deps(client: IntegrationInstance):
-    log = client.read_from_file("/var/log/cloud-init.log")
-    verify_clean_log(log)
-    assert re.search(RE_GPG_SW_PROPERTIES_INSTALLED, log)
+def test_install_missing_deps(setup_image, session_cloud: IntegrationCloud):
+    # Two stage install: First stage:  remove gpg noninteractively from image
+    instance1 = session_cloud.launch(user_data=REMOVE_GPG_USERDATA)
+    snapshot_id = instance1.snapshot()
+    instance1.destroy()
+    # Second stage: provide active apt user-data which will install missing gpg
+    with session_cloud.launch(
+        user_data=INSTALL_ANY_MISSING_RECOMMENDED_DEPENDENCIES,
+        launch_kwargs={"image_id": snapshot_id},
+    ) as minimal_client:
+        log = minimal_client.read_from_file("/var/log/cloud-init.log")
+        verify_clean_log(log)
+        assert re.search(RE_GPG_SW_PROPERTIES_INSTALLED, log)

@@ -51,8 +51,8 @@ DECOMP_TYPES = [
 # Msg header used to track attachments
 ATTACHMENT_FIELD = "Number-Attachments"
 
-# Only the following content types can have there launch index examined
-# in there payload, evey other content type can still provide a header
+# Only the following content types can have their launch index examined
+# in their payload, every other content type can still provide a header
 EXAMINE_FOR_LAUNCH_INDEX = ["text/cloud-config"]
 
 
@@ -231,7 +231,7 @@ class UserDataProcessor:
             if include_once_on:
                 include_once_fn = self._get_include_once_filename(include_url)
             if include_once_on and os.path.isfile(include_once_fn):
-                content = util.load_file(include_once_fn)
+                content = util.load_text_file(include_once_fn)
             else:
                 try:
                     resp = read_file_or_url(

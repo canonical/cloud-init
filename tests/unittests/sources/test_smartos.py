@@ -5,6 +5,8 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+# pylint: disable=attribute-defined-outside-init
+
 """This is a testcase for the SmartOS datasource.
 
 It replicates a serial console and acts like the SmartOS console does in
@@ -1374,7 +1376,7 @@ class TestSerialConcurrency(CiTestCase):
         # os.kill() rather than mdata_proc.terminate() to avoid console spam.
         os.kill(self.mdata_proc.pid, signal.SIGKILL)
         self.mdata_proc.join()
-        super(TestSerialConcurrency, self).tearDown()
+        super().tearDown()
 
     def start_mdata_loop(self):
         """

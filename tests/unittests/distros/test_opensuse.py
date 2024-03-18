@@ -14,7 +14,7 @@ class TestPackageCommands:
         return_value=("/dev/sda1", "xfs", "/"),
     )
     @mock.patch(
-        "cloudinit.distros.opensuse.util.load_file",
+        "cloudinit.distros.opensuse.util.load_text_file",
         return_value="foo\n/dev/sda1 / xfs rw,bar\n",
     )
     @mock.patch(
@@ -33,7 +33,7 @@ class TestPackageCommands:
         return_value=("/dev/sda1", "xfs", "/"),
     )
     @mock.patch(
-        "cloudinit.distros.opensuse.util.load_file",
+        "cloudinit.distros.opensuse.util.load_text_file",
         return_value="foo\n/dev/sda1 / xfs rw,bar\n",
     )
     @mock.patch(
@@ -58,7 +58,7 @@ class TestPackageCommands:
         return_value=("/dev/sda1", "xfs", "/"),
     )
     @mock.patch(
-        "cloudinit.distros.opensuse.util.load_file",
+        "cloudinit.distros.opensuse.util.load_text_file",
         return_value="foo\n/dev/sda1 / xfs rw,bar\n",
     )
     @mock.patch(
@@ -77,7 +77,7 @@ class TestPackageCommands:
         return_value=("/dev/sda1", "xfs", "/"),
     )
     @mock.patch(
-        "cloudinit.distros.opensuse.util.load_file",
+        "cloudinit.distros.opensuse.util.load_text_file",
         return_value="foo\n/dev/sda1 / xfs rw,bar\n",
     )
     @mock.patch(
@@ -102,7 +102,7 @@ class TestPackageCommands:
         return_value=("/dev/sda1", "xfs", "/"),
     )
     @mock.patch(
-        "cloudinit.distros.opensuse.util.load_file",
+        "cloudinit.distros.opensuse.util.load_text_file",
         return_value="foo\n/dev/sda1 / xfs rw,bar\n",
     )
     @mock.patch(
@@ -128,7 +128,7 @@ class TestPackageCommands:
         return_value=("/dev/sda1", "btrfs", "/"),
     )
     @mock.patch(
-        "cloudinit.distros.opensuse.util.load_file",
+        "cloudinit.distros.opensuse.util.load_text_file",
         return_value="foo\n/dev/sda1 / btrfs rw,bar\n",
     )
     @mock.patch("cloudinit.distros.opensuse.os.path.exists", return_value=True)
@@ -150,7 +150,7 @@ class TestPackageCommands:
         return_value=("/dev/sda1", "btrfs", "/"),
     )
     @mock.patch(
-        "cloudinit.distros.opensuse.util.load_file",
+        "cloudinit.distros.opensuse.util.load_text_file",
         return_value="foo\n/dev/sda1 / btrfs rw,bar\n",
     )
     @mock.patch("cloudinit.distros.opensuse.os.path.exists", return_value=True)
@@ -175,7 +175,7 @@ class TestPackageCommands:
         return_value=("/dev/sda1", "btrfs", "/"),
     )
     @mock.patch(
-        "cloudinit.distros.opensuse.util.load_file",
+        "cloudinit.distros.opensuse.util.load_text_file",
         return_value="foo\n/dev/sda1 / btrf rw,bar\n",
     )
     @mock.patch("cloudinit.distros.opensuse.os.path.exists", return_value=True)
@@ -197,7 +197,7 @@ class TestPackageCommands:
         return_value=("/dev/sda1", "btrfs", "/"),
     )
     @mock.patch(
-        "cloudinit.distros.opensuse.util.load_file",
+        "cloudinit.distros.opensuse.util.load_text_file",
         return_value="foo\n/dev/sda1 / btrfs rw,bar\n",
     )
     @mock.patch("cloudinit.distros.opensuse.os.path.exists", return_value=True)
@@ -222,7 +222,7 @@ class TestPackageCommands:
         return_value=("/dev/sda1", "btrfs", "/"),
     )
     @mock.patch(
-        "cloudinit.distros.opensuse.util.load_file",
+        "cloudinit.distros.opensuse.util.load_text_file",
         return_value="foo\n/dev/sda1 / btrfs rw,bar\n",
     )
     @mock.patch("cloudinit.distros.opensuse.os.path.exists", return_value=True)
@@ -248,7 +248,7 @@ class TestPackageCommands:
         return_value=("/dev/sda1", "btrfs", "/"),
     )
     @mock.patch(
-        "cloudinit.distros.opensuse.util.load_file",
+        "cloudinit.distros.opensuse.util.load_text_file",
         return_value="foo\n/dev/sda1 / btrfs ro,bar\n",
     )
     @mock.patch(
@@ -270,7 +270,7 @@ class TestPackageCommands:
         return_value=("/dev/sda1", "btrfs", "/"),
     )
     @mock.patch(
-        "cloudinit.distros.opensuse.util.load_file",
+        "cloudinit.distros.opensuse.util.load_text_file",
         return_value="foo\n/dev/sda1 / btrfs rw,bar\n",
     )
     @mock.patch(
@@ -293,7 +293,7 @@ class TestPackageCommands:
         return_value=("/dev/sda1", "xfs", "/"),
     )
     @mock.patch(
-        "cloudinit.distros.opensuse.util.load_file",
+        "cloudinit.distros.opensuse.util.load_text_file",
         return_value="foo\n/dev/sda1 / xfs ro,bar\n",
     )
     @mock.patch("cloudinit.distros.opensuse.os.path.exists", return_value=True)
@@ -314,7 +314,7 @@ class TestPackageCommands:
         return_value=("/dev/sda1", "btrfs", "/"),
     )
     @mock.patch(
-        "cloudinit.distros.opensuse.util.load_file",
+        "cloudinit.distros.opensuse.util.load_text_file",
         return_value="foo\n/dev/sda1 / btrfs ro,bar\n",
     )
     @mock.patch("cloudinit.distros.opensuse.os.path.exists", return_value=True)

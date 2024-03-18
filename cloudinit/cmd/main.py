@@ -488,7 +488,7 @@ def main_init(name, args):
     cloud_cfg_path = init.paths.get_ipath_cur("cloud_config")
     if os.path.exists(cloud_cfg_path) and os.stat(cloud_cfg_path).st_size != 0:
         validate_cloudconfig_schema(
-            config=load(util.load_file(cloud_cfg_path)),
+            config=load(util.load_text_file(cloud_cfg_path)),
             strict=False,
             log_details=False,
             log_deprecations=True,
@@ -622,6 +622,13 @@ def main_modules(action_name, args):
     # now that logging is setup and stdout redirected, send welcome
     welcome(name, msg=w_msg)
 
+    if name == "init":
+        util.deprecate(
+            deprecated="`--mode init`",
+            deprecated_version="24.1",
+            extra_message="Use `cloud-init init` instead.",
+        )
+
     # Stage 5
     return run_module_section(mods, name, name)
 
@@ -746,7 +753,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
             util.del_file(f)
     else:
         try:
-            status = json.loads(util.load_file(status_path))
+            status = json.loads(util.load_text_file(status_path))
         except Exception:
             pass
 
@@ -918,11 +925,20 @@ def main(sysv_args=None):
     parser_mod = subparsers.add_parser(
         "modules", help="Activate modules using a given configuration key."
     )
+    extra_help = util.deprecate(
+        deprecated="`init`",
+        deprecated_version="24.1",
+        extra_message="Use `cloud-init init` instead.",
+        return_log=True,
+    )
     parser_mod.add_argument(
         "--mode",
         "-m",
         action="store",
-        help="Module configuration name to use (default: %(default)s).",
+        help=(
+            f"Module configuration name to use (default: %(default)s)."
+            f" {extra_help}"
+        ),
         default="config",
         choices=("init", "config", "final"),
     )
@@ -1132,6 +1148,12 @@ def main(sysv_args=None):
             args=(name, args),
         )
     reporting.flush_events()
+
+    # handle return code for main_modules, as it is not wrapped by
+    # status_wrapped when mode == init
+    if "modules" == name and "init" == args.mode:
+        retval = len(retval)
+
     return retval
 
 

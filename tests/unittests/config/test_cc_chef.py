@@ -14,10 +14,11 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
+from tests.helpers import cloud_init_project_dir
 from tests.unittests.helpers import (
+    SCHEMA_EMPTY_ERROR,
     FilesystemMockingTestCase,
     ResponsesTestCase,
-    cloud_init_project_dir,
     mock,
     skipIf,
     skipUnlessJsonSchema,
@@ -155,7 +156,7 @@ class TestChef(FilesystemMockingTestCase):
         Chef::Log::Formatter.show_time = true
         encrypted_data_bag_secret  "/etc/chef/encrypted_data_bag_secret"
         """
-        tpl_file = util.load_file(CLIENT_TEMPL)
+        tpl_file = util.load_text_file(CLIENT_TEMPL)
         self.patchUtils(self.tmp)
         self.patchOS(self.tmp)
 
@@ -175,7 +176,7 @@ class TestChef(FilesystemMockingTestCase):
         cc_chef.handle("chef", cfg, get_cloud(), [])
         for d in cc_chef.CHEF_DIRS:
             self.assertTrue(os.path.isdir(d))
-        c = util.load_file(cc_chef.CHEF_RB_PATH)
+        c = util.load_text_file(cc_chef.CHEF_RB_PATH)
 
         # the content of these keys is not expected to be rendered to tmpl
         unrendered_keys = ("validation_cert",)
@@ -190,7 +191,7 @@ class TestChef(FilesystemMockingTestCase):
             val = cfg["chef"].get(k, v)
             if isinstance(val, str):
                 self.assertIn(val, c)
-        c = util.load_file(cc_chef.CHEF_FB_PATH)
+        c = util.load_text_file(cc_chef.CHEF_FB_PATH)
         self.assertEqual({}, json.loads(c))
 
     def test_firstboot_json(self):
@@ -208,7 +209,7 @@ class TestChef(FilesystemMockingTestCase):
             },
         }
         cc_chef.handle("chef", cfg, get_cloud(), [])
-        c = util.load_file(cc_chef.CHEF_FB_PATH)
+        c = util.load_text_file(cc_chef.CHEF_FB_PATH)
         self.assertEqual(
             {
                 "run_list": ["a", "b", "c"],
@@ -221,7 +222,7 @@ class TestChef(FilesystemMockingTestCase):
         not os.path.isfile(CLIENT_TEMPL), CLIENT_TEMPL + " is not available"
     )
     def test_template_deletes(self):
-        tpl_file = util.load_file(CLIENT_TEMPL)
+        tpl_file = util.load_text_file(CLIENT_TEMPL)
         self.patchUtils(self.tmp)
         self.patchOS(self.tmp)
 
@@ -235,7 +236,7 @@ class TestChef(FilesystemMockingTestCase):
             },
         }
         cc_chef.handle("chef", cfg, get_cloud(), [])
-        c = util.load_file(cc_chef.CHEF_RB_PATH)
+        c = util.load_text_file(cc_chef.CHEF_RB_PATH)
         self.assertNotIn("json_attribs", c)
         self.assertNotIn("Formatter.show_time", c)
 
@@ -244,7 +245,7 @@ class TestChef(FilesystemMockingTestCase):
     )
     def test_validation_cert_and_validation_key(self):
         # test validation_cert content is written to validation_key path
-        tpl_file = util.load_file(CLIENT_TEMPL)
+        tpl_file = util.load_text_file(CLIENT_TEMPL)
         self.patchUtils(self.tmp)
         self.patchOS(self.tmp)
 
@@ -260,14 +261,14 @@ class TestChef(FilesystemMockingTestCase):
             },
         }
         cc_chef.handle("chef", cfg, get_cloud(), [])
-        content = util.load_file(cc_chef.CHEF_RB_PATH)
+        content = util.load_text_file(cc_chef.CHEF_RB_PATH)
         self.assertIn(v_path, content)
-        util.load_file(v_path)
-        self.assertEqual(v_cert, util.load_file(v_path))
+        util.load_text_file(v_path)
+        self.assertEqual(v_cert, util.load_text_file(v_path))
 
     def test_validation_cert_with_system(self):
         # test validation_cert content is not written over system file
-        tpl_file = util.load_file(CLIENT_TEMPL)
+        tpl_file = util.load_text_file(CLIENT_TEMPL)
         self.patchUtils(self.tmp)
         self.patchOS(self.tmp)
 
@@ -285,10 +286,10 @@ class TestChef(FilesystemMockingTestCase):
         util.write_file("/etc/cloud/templates/chef_client.rb.tmpl", tpl_file)
         util.write_file(v_path, expected_cert)
         cc_chef.handle("chef", cfg, get_cloud(), [])
-        content = util.load_file(cc_chef.CHEF_RB_PATH)
+        content = util.load_text_file(cc_chef.CHEF_RB_PATH)
         self.assertIn(v_path, content)
-        util.load_file(v_path)
-        self.assertEqual(expected_cert, util.load_file(v_path))
+        util.load_text_file(v_path)
+        self.assertEqual(expected_cert, util.load_text_file(v_path))
 
 
 @skipUnlessJsonSchema()
@@ -306,7 +307,7 @@ class TestBootCMDSchema:
             ),
             (
                 {"chef": {}},
-                re.escape(" chef: {} does not have enough properties"),
+                re.escape(" chef: {} ") + SCHEMA_EMPTY_ERROR,
             ),
             (
                 {"chef": {"boguskey": True}},
@@ -321,7 +322,7 @@ class TestBootCMDSchema:
             ),
             (
                 {"chef": {"directories": []}},
-                re.escape("chef.directories: [] is too short"),
+                re.escape("chef.directories: [] ") + SCHEMA_EMPTY_ERROR,
             ),
             (
                 {"chef": {"directories": [1]}},

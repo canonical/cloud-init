@@ -85,7 +85,6 @@ Example output:
     -- Boot Record 11 --
          00.01300s (modules-final/config-scripts-per-boot)
          00.00400s (modules-final/config-final-message)
-         00.00100s (modules-final/config-rightscale_userdata)
          ...
 
 :command:`analyze boot`

@@ -48,6 +48,7 @@ class DataSourceHetzner(sources.DataSource):
         self.wait_retry = self.ds_cfg.get("wait_retry", MD_WAIT_RETRY)
         self._network_config = sources.UNSET
         self.dsmode = sources.DSMODE_NETWORK
+        self.metadata_full = None
 
     def _get_data(self):
         (on_hetzner, serial) = get_hcloud_data()

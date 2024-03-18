@@ -190,7 +190,7 @@ def parse_authorized_keys(fnames):
     for fname in fnames:
         try:
             if os.path.isfile(fname):
-                lines = util.load_file(fname).splitlines()
+                lines = util.load_text_file(fname).splitlines()
                 for line in lines:
                     contents.append(parser.parse(line))
         except (IOError, OSError):
@@ -501,7 +501,7 @@ class SshdConfigLine:
 def parse_ssh_config(fname) -> List[SshdConfigLine]:
     if not os.path.isfile(fname):
         return []
-    return parse_ssh_config_lines(util.load_file(fname).splitlines())
+    return parse_ssh_config_lines(util.load_text_file(fname).splitlines())
 
 
 def parse_ssh_config_lines(lines) -> List[SshdConfigLine]:
@@ -661,7 +661,7 @@ def get_opensshd_version():
 
 
 def get_opensshd_upstream_version():
-    """Get the upstream version of the OpenSSH sshd dameon on the system.
+    """Get the upstream version of the OpenSSH sshd daemon on the system.
 
     This will NOT include the portable number, so if the Ubuntu version looks
     like `1.2p1 Ubuntu-1ubuntu0.1`, then this function would return

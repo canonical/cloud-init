@@ -123,6 +123,7 @@ DS_FOUND=0
 DS_NOT_FOUND=1
 DS_MAYBE=2
 
+DI_SYSTEMD_VIRTUALIZATION=${SYSTEMD_VIRTUALIZATION:-}
 DI_DSNAME=""
 # this has to match the builtin list in cloud-init, it is what will
 # be searched if there is no setting found in config.
@@ -437,11 +438,30 @@ cached() {
 detect_virt() {
     local virt="${UNAVAILABLE}" r="" out=""
     if [ -d /run/systemd ]; then
-        out=$(systemd-detect-virt 2>&1)
-        r=$?
-        if [ $r -eq 0 ] || { [ $r -ne 0 ] && [ "$out" = "none" ]; }; then
-            virt="$out"
+        if [ -n "$DI_SYSTEMD_VIRTUALIZATION" ]; then
+            virt=${DI_SYSTEMD_VIRTUALIZATION#*:}
+            debug 2 "detected $virt via env variable SYSTEMD_VIRTUALIZATION"
+        else
+            # required for compatibility with systemd version <251
+            out=$(systemd-detect-virt 2>&1)
+            r=$?
+            if [ $r -eq 0 ] || { [ $r -ne 0 ] && [ "$out" = "none" ]; }; then
+                virt="$out"
+            fi
+            debug 2 "detected $virt via ds-identify"
         fi
+    elif command -v virt-what >/dev/null 2>&1; then
+        # Map virt-what's names to those systemd-detect-virt that
+        # don't match up.
+        out=$(virt-what 2>&1 | head -n 1) && {
+            case "$out" in
+                ibm_systemz-zvm)    virt="zvm" ;;
+                hyperv)             virt="microsoft" ;;
+                virtualbox)         virt="oracle" ;;
+                xen-domU)           virt="xen" ;;
+                *)                  virt="$out"
+            esac
+        }
     elif [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" -o "$DI_UNAME_KERNEL_NAME" = "Dragonfly" ]; then
         # Map FreeBSD's vm_guest names to those systemd-detect-virt that
         # don't match up. See
@@ -463,7 +483,7 @@ detect_virt() {
             case "$out" in
                 hv) virt="microsoft" ;;
                 vbox) virt="oracle" ;;
-                generic) "vm-other";;
+                generic) virt="vm-other";;
                 *) virt="$out"
             esac
         }
@@ -700,7 +720,7 @@ has_fs_with_label() {
 
 nocase_equal() {
     # nocase_equal(a, b)
-    # return 0 if case insenstive comparision a.lower() == b.lower()
+    # return 0 if case insensitive comparison a.lower() == b.lower()
     # different lengths
     [ "${#1}" = "${#2}" ] || return 1
     # case sensitive equal
@@ -747,11 +767,15 @@ probe_floppy() {
     [ -b "$fpath" ] ||
         { STATE_FLOPPY_PROBED=1; return 1; }
 
-    modprobe --use-blacklist floppy >/dev/null 2>&1 ||
+    # Use "-b" option as Busybox modprobe doesn't support long-option
+    modprobe -b floppy >/dev/null 2>&1 ||
         { STATE_FLOPPY_PROBED=1; return 1; }
 
-    udevadm settle "--exit-if-exists=$fpath" ||
-        { STATE_FLOPPY_PROBED=1; return 1; }
+    # Some Linux distros/non-Linux OSes may not have udev
+    if command -v udevadm; then
+        udevadm settle "--exit-if-exists=$fpath" ||
+            { STATE_FLOPPY_PROBED=1; return 1; }
+    fi
 
     [ -b "$fpath" ]
     STATE_FLOPPY_PROBED=$?
@@ -799,24 +823,21 @@ check_config() {
     if [ "$1" = "$files" -a ! -f "$1" ]; then
         return 1
     fi
-    local line="" ret="" found=0 found_fn="" oifs="$IFS" out=""
-    out=$(grep "$key\"\?:" "$@" 2>/dev/null)
-    IFS=${CR}
-    for line in $out; do
-        # drop '# comment'
-        line=${line%%#*}
-        # if more than one file was 'grep'ed, then grep will output filename:
-        # but if only one file, line will not be prefixed.
-        if [ $# -eq 1 ]; then
-            found_fn="$1"
-        else
-            found_fn="${line%%:*}"
-            line=${line#*:}
-        fi
-        ret=${line#*: };
-        found=$((found+1))
+    local fname="" line="" ret="" found=0 found_fn=""
+    # shellcheck disable=2094
+    for fname in "$@"; do
+        [ -f "$fname" ] || continue
+        while read line; do
+            line=${line%%#*}
+            case "$line" in
+                $key:\ *|"${key}":)
+                    ret=${line#*:};
+                    ret=${ret# };
+                    found=$((found+1))
+                    found_fn="$fname";;
+            esac
+        done <"$fname"
     done
-    IFS="$oifs"
     if [ $found -ne 0 ]; then
         _RET="$ret"
         _RET_fname="$found_fn"
@@ -1091,7 +1112,8 @@ is_cdrom_ovf() {
     fi
 
     local idstr="http://schemas.dmtf.org/ovf/environment/1"
-    grep --quiet --ignore-case "$idstr" "${PATH_ROOT}$dev"
+    # POSIX grep only supports short-options, long-options are GNU-specific
+    grep -q -i "$idstr" "${PATH_ROOT}$dev"
 }
 
 has_ovf_cdrom() {
@@ -1110,7 +1132,7 @@ has_ovf_cdrom() {
 
 is_disabled() {
     if [ -f /etc/cloud/cloud-init.disabled ]; then
-        debug 1 "disabled by marker file /etc/cloud-init.disabled"
+        debug 1 "disabled by marker file /etc/cloud/cloud-init.disabled"
         return 0
     fi
     if [ "${KERNEL_CMDLINE:-}" = "cloud-init=disabled" ]; then
@@ -1153,7 +1175,7 @@ dscheck_Azure() {
 }
 
 dscheck_Bigstep() {
-    # bigstep is activated by presense of seed file 'url'
+    # bigstep is activated by presence of seed file 'url'
     [ -f "${PATH_VAR_LIB_CLOUD}/data/seed/bigstep/url" ] &&
         return ${DS_FOUND}
     return ${DS_NOT_FOUND}
@@ -1240,7 +1262,7 @@ ec2_identify_platform() {
     local uuid="${DI_DMI_PRODUCT_UUID}"
     case "$uuid:$serial" in
         [Ee][Cc]2*:[Ee][Cc]2*)
-            # both start with ec2, now check for case insenstive equal
+            # both start with ec2, now check for case insensitive equal
             nocase_equal "$uuid" "$serial" &&
                 { _RET="AWS"; return 0; };;
     esac
@@ -1572,7 +1594,38 @@ dscheck_VMware() {
     return "${DS_NOT_FOUND}"
 }
 
+WSL_cloudinit_dir_in() {
+    _RET=""
+    local cmdexe="" cloudinitdir="" val=""
+    for m in "$@"; do
+        cmdexe="$m/Windows/System23/cmd.exe"
+        if command -v "$cmdexe" > /dev/null 2>&1; then
+            # Here WSL's proprietary `/init` is used to start the Windows cmd.exe
+            # to output the Windows user profile directory path, which is
+            # held by the environment variable %USERPROFILE%.
+            cloudinitdir=$(/init "$cmdexe" /c echo %USERPROFILE% 2>/dev/null)
+            if [ -n "$cloudinitdir" ]; then
+                # wslpath is a program supplied by WSL itself that translates Windows and Linux paths,
+                # respecting the mountpoints where the Windows drives are mounted.
+                # (in fact it's a symlink to /init).
+                val=$(wslpath -au "$cloudinitdir") && _RET="$val"
+                return $?
+            fi
+        fi
+    done
+
+    return 1
+}
+
+WSL_instance_name() {
+    local val="" instance_name=""
+    instance_name=$(wslpath -am /)
+    val="${instance_name##*/}"
+    _RET="${val}"
+}
+
 dscheck_WSL() {
+    local mountpoints="" cloudinitdir="" candidate="" instance_name=""
     if [ "${DI_UNAME_KERNEL_NAME}" != "Linux" ]; then
         return "${DS_NOT_FOUND}"
     fi
@@ -1587,12 +1640,40 @@ dscheck_WSL() {
     # See https://youtu.be/lwhMThePdIo?t=2431&si=JKTHx39TyRgPbzkZ and
     # https://learn.microsoft.com/en-us/windows/wsl/wsl-config#what-is-drvfs
     # for more information.
-    if [ "$(grep -c '^[^[:space:]]* [^[:space:]]* 9p [^[:space:]]*aname=drvfs;.*' "${PATH_ROOT}/proc/mounts")" = 0 ]; then
+    mountpoints=$(grep '^[^[:space:]]* [^[:space:]]* 9p [^[:space:]]*aname=drvfs;.*' "${PATH_ROOT}/proc/mounts" | cut -f2 -d' ')
+
+    if [ -z "$mountpoints" ]; then
         debug 1 "WSL datasource requires access to Windows drives mount points"
         return "${DS_NOT_FOUND}"
     fi
 
-    return "${DS_FOUND}"
+    # We know we are under WSL and have acess to the host filesystem,
+    # so let's find the .cloud-init directory
+    WSL_cloudinit_dir_in "$mountpoints"
+    cloudinitdir="${_RET}"
+    if [ -z "$cloudinitdir" ]; then
+        debug 1 "%USERPROFILE/.cloud-init/ directory not found"
+        return "${DS_NOT_FOUND}"
+    fi
+
+    # and the applicable userdata file. Notice the ordering in the for-loop
+    # must match our expected precedence, so the file we find is what the
+    # datasource must process.
+    WSL_instance_name
+    instance_name="${_RET}"
+    # shellcheck source=/dev/null
+    . "${PATH_ROOT}/etc/os-release"
+    for userdatafile in "${instance_name}.user-data" "${ID:-linux}-${VERSION_ID:-${VERSION_CODENAME}}".user-data "${ID:-linux}-all.user-data" "default.user-data"; do
+        candidate="$cloudinitdir/$userdatafile"
+        if [ -f "$candidate" ]; then
+            debug 1 "Found applicable user data file for this instance at: $candidate"
+            return ${DS_FOUND}
+        fi
+    done
+
+    debug 1 "Didn't find any applicable user data file for instance named $instance_name in $cloudinitdir"
+
+    return "${DS_NOT_FOUND}"
 }
 
 collect_info() {

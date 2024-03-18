@@ -17,6 +17,7 @@
         },
         "name": {
           "type": "string",
+          "maxLength": 15,
           "description": "Desired device name should be less than 15 characters. Any characters exceeding 15 will be truncated. This is a limitation of the Linux kernel network-device structure."
         },
         "mac_address": {
@@ -24,7 +25,10 @@
           "description": "The lowercase MAC address of the physical device."
         },
         "mtu": {
-          "type": "integer",
+          "type": [
+            "integer",
+            "null"
+          ],
           "description": "The MTU size in bytes. The ``mtu`` key represents a device's Maximum Transmission Unit, which is the largest size packet or frame, specified in octets (eight-bit bytes), that can be sent in a packet- or frame-based network. Specifying ``mtu`` is optional. Values too small or too large for a device may be ignored by that device."
         },
         "subnets": {
@@ -69,7 +73,7 @@
           "description": "The MTU size in bytes. This ``mtu`` key represents a device's Maximum Transmission Unit, which is the largest size packet or frame, specified in octets (eight-bit bytes), that can be sent in a packet- or frame-based network. Specifying ``mtu`` is optional. Values too small or too large for a device may be ignored by that device."
         },
         "params": {
-          "desciption": "The ``params`` key in a bond holds a dictionary of bonding parameters. This dictionary may be empty. For more details on what the various bonding parameters mean please read the [Linux Kernel Bonding.txt](https://www.kernel.org/doc/Documentation/networking/bonding.txt).",
+          "description": "The ``params`` key in a bond holds a dictionary of bonding parameters. This dictionary may be empty. For more details on what the various bonding parameters mean please read the [Linux Kernel Bonding.txt](https://www.kernel.org/doc/Documentation/networking/bonding.txt).",
           "additionalProperties": false,
           "properties": {
             "bond-active_slave": {
@@ -384,8 +388,7 @@
       "additionalProperties": false,
       "required": [
         "type",
-        "address",
-        "search"
+        "address"
       ],
       "properties": {
         "type": {
@@ -396,7 +399,10 @@
         },
         "address": {
           "description": "List of IPv4 or IPv6 address of nameservers.",
-          "type": "array",
+          "type": [
+            "array",
+            "string"
+          ],
           "items": {
             "type": "string"
           }
@@ -496,6 +502,10 @@
         "netmask": {
           "type": "string",
           "description": "IPv4 subnet mask in dotted format or CIDR notation"
+        },
+        "broadcast": {
+          "type": "string",
+          "description": "IPv4 broadcast address in dotted format."
         },
         "gateway": {
           "type": "string",

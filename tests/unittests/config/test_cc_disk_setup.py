@@ -33,7 +33,7 @@ class TestIsDiskUsed(TestCase):
         )
 
     def tearDown(self):
-        super(TestIsDiskUsed, self).tearDown()
+        super().tearDown()
         self.patches.close()
 
     def test_multiple_child_nodes_returns_true(self):
@@ -65,7 +65,7 @@ class TestGetMbrHddSize(TestCase):
         )
 
     def tearDown(self):
-        super(TestGetMbrHddSize, self).tearDown()
+        super().tearDown()
         self.patches.close()
 
     def _configure_subp_mock(self, hdd_size_in_bytes, sector_size_in_bytes):

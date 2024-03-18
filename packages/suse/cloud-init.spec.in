@@ -115,7 +115,6 @@ version_pys=$(cd "%{buildroot}" && find . -name version.py -type f)
 
 # Configs
 %dir                    %{_sysconfdir}/cloud/clean.d
-%config(noreplace)      %{_sysconfdir}/cloud/clean.d/README
 %config(noreplace) %{_sysconfdir}/cloud/cloud.cfg
 %dir               %{_sysconfdir}/cloud/cloud.cfg.d
 %config(noreplace) %{_sysconfdir}/cloud/cloud.cfg.d/*.cfg

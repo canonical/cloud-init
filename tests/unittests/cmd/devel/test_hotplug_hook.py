@@ -4,13 +4,16 @@ from unittest.mock import call
 
 import pytest
 
-from cloudinit.cmd.devel.hotplug_hook import handle_hotplug
+from cloudinit import settings
+from cloudinit.cmd.devel.hotplug_hook import enable_hotplug, handle_hotplug
 from cloudinit.distros import Distro
-from cloudinit.event import EventType
+from cloudinit.event import EventScope, EventType
 from cloudinit.net.activators import NetworkActivator
 from cloudinit.net.network_state import NetworkState
 from cloudinit.sources import DataSource
 from cloudinit.stages import Init
+
+M_PATH = "cloudinit.cmd.devel.hotplug_hook."
 
 hotplug_args = namedtuple("hotplug_args", "udevaction, subsystem, devpath")
 FAKE_MAC = "11:22:33:44:55:66"
@@ -244,3 +247,105 @@ class TestHotplug:
             call(10),
             call(30),
         ]
+
+
+@pytest.mark.usefixtures("fake_filesystem")
+class TestEnableHotplug:
+    @mock.patch(M_PATH + "util.write_file")
+    @mock.patch(
+        M_PATH + "util.read_hotplug_enabled_file",
+        return_value={"scopes": []},
+    )
+    @mock.patch(M_PATH + "install_hotplug")
+    def test_enabling(
+        self,
+        m_install_hotplug,
+        m_read_hotplug_enabled_file,
+        m_write_file,
+        mocks,
+    ):
+        mocks.m_init.datasource.get_supported_events.return_value = {
+            EventScope.NETWORK: {EventType.HOTPLUG}
+        }
+        mocks.m_init.paths.get_cpath.return_value = (
+            "/var/lib/cloud/hotplug.enabled"
+        )
+
+        enable_hotplug(mocks.m_init, "net")
+
+        assert [
+            call([EventType.HOTPLUG])
+        ] == mocks.m_init.datasource.get_supported_events.call_args_list
+        m_read_hotplug_enabled_file.assert_called_once()
+        assert [
+            call(
+                settings.HOTPLUG_ENABLED_FILE,
+                '{"scopes": ["network"]}',
+                omode="w",
+                mode=0o640,
+            )
+        ] == m_write_file.call_args_list
+        assert [
+            call(
+                mocks.m_init.datasource,
+                network_hotplug_enabled=True,
+                cfg=mocks.m_init.cfg,
+            )
+        ] == m_install_hotplug.call_args_list
+
+    @pytest.mark.parametrize(
+        ["supported_events"], [({},), ({EventScope.NETWORK: {}},)]
+    )
+    @mock.patch(M_PATH + "util.write_file")
+    @mock.patch(
+        M_PATH + "util.read_hotplug_enabled_file",
+        return_value={"scopes": []},
+    )
+    @mock.patch(M_PATH + "install_hotplug")
+    def test_hotplug_not_supported_in_ds(
+        self,
+        m_install_hotplug,
+        m_read_hotplug_enabled_file,
+        m_write_file,
+        supported_events,
+        mocks,
+    ):
+        mocks.m_init.datasource.get_supported_events.return_value = (
+            supported_events
+        )
+        enable_hotplug(mocks.m_init, "net")
+
+        assert [
+            call([EventType.HOTPLUG])
+        ] == mocks.m_init.datasource.get_supported_events.call_args_list
+        assert [] == m_read_hotplug_enabled_file.call_args_list
+        assert [] == m_write_file.call_args_list
+        assert [] == m_install_hotplug.call_args_list
+
+    @mock.patch(M_PATH + "util.write_file")
+    @mock.patch(
+        M_PATH + "util.read_hotplug_enabled_file",
+        return_value={"scopes": [EventScope.NETWORK.value]},
+    )
+    @mock.patch(M_PATH + "install_hotplug")
+    def test_hotplug_already_enabled_in_file(
+        self,
+        m_install_hotplug,
+        m_read_hotplug_enabled_file,
+        m_write_file,
+        mocks,
+    ):
+        mocks.m_init.datasource.get_supported_events.return_value = {
+            EventScope.NETWORK: {EventType.HOTPLUG}
+        }
+        mocks.m_init.paths.get_cpath.return_value = (
+            "/var/lib/cloud/hotplug.enabled"
+        )
+        enable_hotplug(mocks.m_init, "net")
+
+        assert [
+            call([EventType.HOTPLUG])
+        ] == mocks.m_init.datasource.get_supported_events.call_args_list
+        m_read_hotplug_enabled_file.assert_called_once()
+        assert [] == m_write_file.call_args_list
+        assert [] == m_install_hotplug.call_args_list

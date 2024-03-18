@@ -8,7 +8,7 @@ import subprocess
 import time
 from errno import ENOEXEC
 from io import TextIOWrapper
-from typing import List, Union
+from typing import List, Optional, Union
 
 LOG = logging.getLogger(__name__)
 
@@ -144,6 +144,23 @@ class ProcessExecutionError(IOError):
         return text.rstrip(b"\n").replace(b"\n", b"\n" + b" " * indent_level)
 
 
+def raise_on_invalid_command(args: Union[List[str], List[bytes]]):
+    """check argument types to ensure that subp() can run the argument
+
+    Throw a user-friendly exception which explains the issue.
+
+    args: list of arguments passed to subp()
+    raises: ProcessExecutionError with information explaining the issue
+    """
+    for component in args:
+        # if already bytes, or implements encode(), then it should be safe
+        if not (isinstance(component, bytes) or hasattr(component, "encode")):
+            LOG.warning("Running invalid command: %s", args)
+            raise ProcessExecutionError(
+                cmd=args, reason=f"Running invalid command: {args}"
+            )
+
+
 def subp(
     args: Union[str, bytes, List[str], List[bytes]],
     *,
@@ -155,6 +172,7 @@ def subp(
     decode="replace",
     update_env=None,
     cwd=None,
+    timeout=None,
 ) -> SubpResult:
     """Run a subprocess.
 
@@ -181,6 +199,8 @@ def subp(
         this will not affect the current processes os.environ.
     :param cwd:
         change the working directory to cwd before executing the command.
+    :param timeout: maximum time for the subprocess to run, passed directly to
+        the timeout parameter of Popen.communicate()
 
     :return
         if not capturing, return is (None, None)
@@ -238,6 +258,7 @@ def subp(
     elif isinstance(args, str):
         bytes_args = args.encode("utf-8")
     else:
+        raise_on_invalid_command(args)
         bytes_args = [
             x if isinstance(x, bytes) else x.encode("utf-8") for x in args
         ]
@@ -252,7 +273,7 @@ def subp(
             shell=shell,
             cwd=cwd,
         )
-        out, err = sp.communicate(data)
+        out, err = sp.communicate(data, timeout=timeout)
         total = time.time() - before
         if total > 0.1:
             LOG.debug("command %s took %.3ss to run", args, total)
@@ -301,7 +322,7 @@ def target_path(target=None, path=None):
     return os.path.join(target, path)
 
 
-def which(program, search=None, target=None):
+def which(program, search=None, target=None) -> Optional[str]:
     target = target_path(target)
 
     if os.path.sep in program and is_exe(target_path(target, program)):
@@ -358,13 +379,15 @@ def runparts(dirp, skip_no_exist=True, exe_prefix=None):
             except ProcessExecutionError as e:
                 LOG.debug(e)
                 failed.append(exe_name)
-        else:
+        elif os.path.isfile(exe_path):
             LOG.warning(
                 "skipping %s as its not executable "
                 "or the underlying file system is mounted without "
                 "executable permissions.",
                 exe_path,
             )
+        else:
+            LOG.debug("Not executing special file [%s]", exe_path)
 
     if failed and attempted:
         raise RuntimeError(

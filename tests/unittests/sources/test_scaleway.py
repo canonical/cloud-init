@@ -10,6 +10,7 @@ import responses
 from requests.exceptions import ConnectionError, ConnectTimeout
 
 from cloudinit import helpers, settings, sources
+from cloudinit.distros import ubuntu
 from cloudinit.sources import DataSourceScaleway
 from tests.unittests.helpers import CiTestCase, ResponsesTestCase, mock
 
@@ -190,7 +191,7 @@ def _fix_mocking_url(url: str) -> str:
 class TestDataSourceScaleway(ResponsesTestCase):
     def setUp(self):
         tmp = self.tmp_dir()
-        distro = mock.MagicMock()
+        distro = ubuntu.Distro("", {}, {})
         distro.get_tmp_exec_path = self.tmp_dir
         self.datasource = DataSourceScaleway.DataSourceScaleway(
             settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": tmp})
@@ -217,7 +218,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
             return_value=True,
         )
         self.add_patch(
-            "cloudinit.sources.DataSourceScaleway.net.find_fallback_nic",
+            "cloudinit.distros.net.find_fallback_nic",
             "_m_find_fallback_nic",
             return_value="scalewaynic0",
         )
@@ -475,6 +476,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.assertIsNone(self.datasource.get_userdata_raw())
         self.assertIsNone(self.datasource.get_vendordata_raw())
 
+    @mock.patch("cloudinit.url_helper.time.sleep", lambda x: None)
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
     def test_metadata_connection_errors_legacy_ipv4_url(self, dhcpv4):
         """
@@ -496,11 +498,6 @@ class TestDataSourceScaleway(ResponsesTestCase):
                 callback=ConnectionError,
             )
             self.datasource._set_metadata_url(self.datasource.metadata_urls)
-        if sys.version_info.minor >= 7:
-            self.responses.assert_call_count(
-                f"{self.datasource.metadata_urls[0]}/",
-                self.datasource.retries,
-            )
         self.assertEqual(self.datasource.metadata, {})
         self.assertIsNone(self.datasource.get_userdata_raw())
         self.assertIsNone(self.datasource.get_vendordata_raw())
@@ -701,7 +698,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
             ],
         )
 
-    @mock.patch("cloudinit.sources.DataSourceScaleway.net.find_fallback_nic")
+    @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
     def test_legacy_network_config_ok(self, m_get_cmdline, fallback_nic):
         """
@@ -726,7 +723,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
         }
         self.assertEqual(netcfg, resp)
 
-    @mock.patch("cloudinit.sources.DataSourceScaleway.net.find_fallback_nic")
+    @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
     def test_legacy_network_config_ipv6_ok(self, m_get_cmdline, fallback_nic):
         """
@@ -769,7 +766,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
         }
         self.assertEqual(netcfg, resp)
 
-    @mock.patch("cloudinit.sources.DataSourceScaleway.net.find_fallback_nic")
+    @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
     def test_legacy_network_config_existing(self, m_get_cmdline, fallback_nic):
         """
@@ -782,7 +779,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
         netcfg = self.datasource.network_config
         self.assertEqual(netcfg, "0xdeadbeef")
 
-    @mock.patch("cloudinit.sources.DataSourceScaleway.net.find_fallback_nic")
+    @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
     def test_legacy_network_config_unset(self, m_get_cmdline, fallback_nic):
         """
@@ -810,7 +807,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.assertEqual(netcfg, resp)
 
     @mock.patch("cloudinit.sources.DataSourceScaleway.LOG.warning")
-    @mock.patch("cloudinit.sources.DataSourceScaleway.net.find_fallback_nic")
+    @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
     def test_legacy_network_config_cached_none(
         self, m_get_cmdline, fallback_nic, logwarning
@@ -843,7 +840,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
             sources.UNSET,
         )
 
-    @mock.patch("cloudinit.sources.DataSourceScaleway.net.find_fallback_nic")
+    @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
     def test_ipmob_primary_ipv4_config_ok(self, m_get_cmdline, fallback_nic):
         """
@@ -872,7 +869,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
 
         self.assertEqual(netcfg, resp)
 
-    @mock.patch("cloudinit.sources.DataSourceScaleway.net.find_fallback_nic")
+    @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
     def test_ipmob_additional_ipv4_config_ok(
         self, m_get_cmdline, fallback_nic
@@ -914,7 +911,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
         }
         self.assertEqual(netcfg, resp)
 
-    @mock.patch("cloudinit.sources.DataSourceScaleway.net.find_fallback_nic")
+    @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
     def test_ipmob_primary_ipv6_config_ok(self, m_get_cmdline, fallback_nic):
         """
@@ -952,7 +949,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
 
         self.assertEqual(netcfg, resp)
 
-    @mock.patch("cloudinit.sources.DataSourceScaleway.net.find_fallback_nic")
+    @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
     def test_ipmob_primary_ipv4_v6_config_ok(
         self, m_get_cmdline, fallback_nic

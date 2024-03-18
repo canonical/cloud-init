@@ -17,7 +17,7 @@ defaults:
     shell: sh -ex {0}
 
 env:
-  RELEASE: bionic
+  RELEASE: focal
 
 jobs:
   package-build:

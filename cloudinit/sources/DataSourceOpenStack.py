@@ -153,7 +153,9 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         if self.perform_dhcp_setup:  # Setup networking in init-local stage.
             try:
 
-                with EphemeralDHCPv4(self.distro, self.fallback_interface):
+                with EphemeralDHCPv4(
+                    self.distro, self.distro.fallback_interface
+                ):
                     results = util.log_time(
                         logfunc=LOG.debug,
                         msg="Crawl of metadata service",
@@ -182,7 +184,6 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         self.files.update(results.get("files", {}))
 
         vd = results.get("vendordata")
-        self.vendordata_pure = vd
         try:
             self.vendordata_raw = sources.convert_vendordata(vd)
         except ValueError as e:
@@ -190,7 +191,6 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             self.vendordata_raw = None
 
         vd2 = results.get("vendordata2")
-        self.vendordata2_pure = vd2
         try:
             self.vendordata2_raw = sources.convert_vendordata(vd2)
         except ValueError as e:

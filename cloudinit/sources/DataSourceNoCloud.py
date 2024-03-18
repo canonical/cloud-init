@@ -11,6 +11,7 @@
 import errno
 import logging
 import os
+from functools import partial
 
 from cloudinit import dmi, sources, util
 from cloudinit.net import eni
@@ -31,6 +32,8 @@ class DataSourceNoCloud(sources.DataSource):
         ]
         self.seed_dir = None
         self.supported_seed_starts = ("/", "file://")
+        self._network_config = None
+        self._network_eni = None
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -208,9 +211,6 @@ class DataSourceNoCloud(sources.DataSource):
 
     @property
     def platform_type(self):
-        # Handle upgrade path of pickled ds
-        if not hasattr(self, "_platform_type"):
-            self._platform_type = None
         if not self._platform_type:
             self._platform_type = "lxd" if util.is_lxd() else "nocloud"
         return self._platform_type
@@ -368,12 +368,40 @@ class DataSourceNoCloudNet(DataSourceNoCloud):
         self.supported_seed_starts = ("http://", "https://")
 
     def ds_detect(self):
-        """NoCloud requires "nocloud-net" as the way to specify
-        seeding from an http(s) address. This diverges from all other
-        datasources in that it does a kernel commandline match on something
-        other than the datasource dsname for only DEP_NETWORK.
+        """Check dmi and kernel commandline for dsname
+
+        NoCloud historically used "nocloud-net" as its dsname
+        for network timeframe (DEP_NETWORK), which supports http(s) urls.
+        For backwards compatiblity, check for that dsname.
         """
-        return "nocloud-net" == sources.parse_cmdline()
+        log_deprecated = partial(
+            util.deprecate,
+            deprecated="The 'nocloud-net' datasource name",
+            deprecated_version="24.1",
+            extra_message=(
+                "Use 'nocloud' instead, which uses the seedfrom protocol"
+                "scheme (http// or file://) to decide how to run."
+            ),
+        )
+
+        if "nocloud-net" == sources.parse_cmdline():
+            log_deprecated()
+            return True
+
+        serial = sources.parse_cmdline_or_dmi(
+            dmi.read_dmi_data("system-serial-number") or ""
+        ).lower()
+
+        if serial in (self.dsname.lower(), "nocloud-net"):
+            LOG.debug(
+                "Machine is configured by dmi serial number to run on "
+                "single datasource %s.",
+                self,
+            )
+            if serial == "nocloud-net":
+                log_deprecated()
+            return True
+        return False
 
 
 # Used to match classes to dependencies

@@ -92,6 +92,7 @@ distros = [
     "sles",
     "ubuntu",
     "photon",
+    "photon",
 ]
 
 meta: MetaSchema = {
@@ -174,6 +175,7 @@ def disable_default_ca_certs(distro_name, distro_cfg):
     @param distro_cfg: A hash providing _distro_ca_certs_configs function.
     """
     if distro_name in ["rhel", "photon"]:
+    if distro_name in ["rhel", "photon"]:
         remove_default_ca_certs(distro_cfg)
     elif distro_name in ["alpine", "debian", "ubuntu"]:
         disable_system_ca_certs(distro_cfg)
@@ -205,7 +207,7 @@ def disable_system_ca_certs(distro_cfg):
     added_header = False
 
     if os.stat(ca_cert_cfg_fn).st_size:
-        orig = util.load_file(ca_cert_cfg_fn)
+        orig = util.load_text_file(ca_cert_cfg_fn)
         out_lines = []
         for line in orig.splitlines():
             if line == header_comment:

@@ -81,6 +81,33 @@ re-run all stages as it did on first boot.
   config files for ssh daemon. Argument `network` removes all generated
   config files for network. `all` removes config files of all types.
 
+.. note::
+
+   Cloud-init provides the directory :file:`/etc/cloud/clean.d/` for third party
+   applications which need additional configuration artifact cleanup from
+   the filesystem when the `clean` command is invoked.
+
+   The :command:`clean` operation is typically performed by image creators
+   when preparing a golden image for clone and redeployment. The clean command
+   removes any cloud-init semaphores, allowing cloud-init to treat the next
+   boot of this image as the "first boot". When the image is next booted
+   cloud-init will performing all initial configuration based on any valid
+   datasource meta-data and user-data.
+
+   Any executable scripts in this subdirectory will be invoked in lexicographical
+   order with run-parts when running the :command:`clean` command.
+
+   Typical format of such scripts would be a ##-<some-app> like the following:
+   :file:`/etc/cloud/clean.d/99-live-installer`
+
+   An example of a script is:
+
+   .. code-block:: bash
+
+      sudo rm -rf /var/lib/installer_imgs/
+      sudo rm -rf /var/log/installer/
+
+
 .. _cli_collect_logs:
 
 :command:`collect-logs`
@@ -133,10 +160,29 @@ content with any :file:`instance-data.json` variables present.
 :command:`hotplug-hook`
 -----------------------
 
-Respond to newly added system devices by retrieving updated system metadata
-and bringing up/down the corresponding device. This command is intended to be
+Hotplug related subcommands. This command is intended to be
 called via a ``systemd`` service and is not considered user-accessible except
 for debugging purposes.
+
+
+:command:`query`
+^^^^^^^^^^^^^^^^
+
+Query if hotplug is enabled for a given subsystem.
+
+:command:`handle`
+^^^^^^^^^^^^^^^^^
+
+Respond to newly added system devices by retrieving updated system metadata
+and bringing up/down the corresponding device.
+
+:command:`enable`
+^^^^^^^^^^^^^^^^^
+
+Enable hotplug for a given subsystem. This is a last resort command for
+administrators to enable hotplug in running instances. The recommended
+method is configuring :ref:`events`, if not enabled by default in the active
+datasource.
 
 .. _cli_features:
 
@@ -195,6 +241,10 @@ to semaphores in :file:`/var/lib/cloud/`.
   ``modules:config`` or ``modules:final`` ``cloud-init`` stages.
   See :ref:`boot_stages` for more info.
 * :command:`--file` : Use additional yaml configuration files.
+
+.. warning::
+   `--mode init` is deprecated in 24.1 and scheduled to be removed in 29.1.
+   Use :command:`cloud-init init` instead.
 
 .. _cli_query:
 
@@ -333,12 +383,12 @@ Attempt to run a single, named, cloud config module.
 
 * :command:`--name`: The cloud-config module name to run.
 * :command:`--frequency`: Module frequency for this run.
-  One of (``always``|``once-per-instance``|``once``).
+  One of (``always``|``instance``|``once``).
 * :command:`--report`: Enable reporting.
 * :command:`--file` : Use additional yaml configuration files.
 
 The following example re-runs the ``cc_set_hostname`` module ignoring the
-module default frequency of ``once-per-instance``:
+module default frequency of ``instance``:
 
 .. code-block:: shell-session
 
@@ -354,12 +404,14 @@ module default frequency of ``once-per-instance``:
 :command:`status`
 =================
 
-Report whether ``cloud-init`` is running, done, disabled or errored. Exits
-non-zero if an error is detected in ``cloud-init``.
+Report cloud-init's current status.
+
+Exits 1 if ``cloud-init`` crashes, 2 if ``cloud-init`` finishes but experienced
+recoverable errors, and 0 if ``cloud-init`` ran without error.
 
 * :command:`--long`: Detailed status information.
 * :command:`--wait`: Block until ``cloud-init`` completes.
-* :command:`--format [yaml|json|tabular]`: Machine-readable JSON or YAML
+* :command:`--format [yaml|json]`: Machine-readable JSON or YAML
   detailed output.
 
 The :command:`status` command can be used simply as follows:
@@ -369,7 +421,8 @@ The :command:`status` command can be used simply as follows:
    $ cloud-init status
 
 Which shows whether ``cloud-init`` is currently running, done, disabled, or in
-error, as in this example output:
+error. Note that the ``extended_status`` key in ``--long`` or ``--format json``
+contains more accurate and complete status information. Example output:
 
 .. code-block::
 
@@ -386,19 +439,24 @@ Example output when ``cloud-init`` is running:
 .. code-block::
 
    status: running
-   time: Fri, 26 Jan 2018 21:39:43 +0000
-   detail:
-   Running in stage: init-local
+   extended_status: running
+   boot_status_code: enabled-by-generator
+   last_update: Wed, 13 Mar 2024 18:46:26 +0000
+   detail: DataSourceLXD
+   errors: []
+   recoverable_errors: {}
 
 Example output when ``cloud-init`` is done:
 
 .. code-block::
 
    status: done
+   extended_status: done
    boot_status_code: enabled-by-generator
-   last_update: Tue, 16 Aug 2022 19:12:58 +0000
-   detail:
-   DataSourceNoCloud [seed=/var/lib/cloud/seed/nocloud-net][dsmode=net]
+   last_update: Wed, 13 Mar 2024 18:46:26 +0000
+   detail: DataSourceLXD
+   errors: []
+   recoverable_errors: {}
 
 The detailed output can be shown in machine-readable JSON or YAML with the
 :command:`format` option, for example:
@@ -411,13 +469,40 @@ Which would produce the following example output:
 
 .. code-block::
 
-   {
-    "boot_status_code": "enabled-by-generator",
-    "datasource": "nocloud",
-    "detail": "DataSourceNoCloud [seed=/var/lib/cloud/seed/nocloud-net][dsmode=net]",
-    "errors": [],
-    "last_update": "Tue, 16 Aug 2022 19:12:58 +0000",
-    "status": "done"
-   }
+    {
+      "boot_status_code": "enabled-by-generator",
+      "datasource": "lxd",
+      "detail": "DataSourceLXD",
+      "errors": [],
+      "extended_status": "done",
+      "init": {
+        "errors": [],
+        "finished": 1710355584.3603137,
+        "recoverable_errors": {},
+        "start": 1710355584.2216876
+      },
+      "init-local": {
+        "errors": [],
+        "finished": 1710355582.279756,
+        "recoverable_errors": {},
+        "start": 1710355582.2255273
+      },
+      "last_update": "Wed, 13 Mar 2024 18:46:26 +0000",
+      "modules-config": {
+        "errors": [],
+        "finished": 1710355585.5042186,
+        "recoverable_errors": {},
+        "start": 1710355585.334438
+      },
+      "modules-final": {
+        "errors": [],
+        "finished": 1710355586.9038777,
+        "recoverable_errors": {},
+        "start": 1710355586.8076844
+      },
+      "recoverable_errors": {},
+      "stage": null,
+      "status": "done"
+    }
 
 .. _More details on machine-id: https://www.freedesktop.org/software/systemd/man/machine-id.html

@@ -82,7 +82,9 @@ class TestConsumeUserData:
         init_tmp.fetch()
         with mock.patch.object(init_tmp, "_reset"):
             init_tmp.consume_data()
-        cc_contents = util.load_file(init_tmp.paths.get_ipath("cloud_config"))
+        cc_contents = util.load_text_file(
+            init_tmp.paths.get_ipath("cloud_config")
+        )
         cc = util.load_yaml(cc_contents)
         assert len(cc) == 2
         assert cc["baz"] == "qux"
@@ -215,7 +217,9 @@ c: d
         init_tmp.fetch()
         with mock.patch.object(init_tmp, "_reset"):
             init_tmp.consume_data()
-        cc_contents = util.load_file(init_tmp.paths.get_ipath("cloud_config"))
+        cc_contents = util.load_text_file(
+            init_tmp.paths.get_ipath("cloud_config")
+        )
         cc = util.load_yaml(cc_contents)
         assert len(cc) == 1
         assert cc["a"] == "c"
@@ -248,7 +252,9 @@ c: d
         init_tmp.fetch()
         with mock.patch.object(init_tmp, "_reset"):
             init_tmp.consume_data()
-        cc_contents = util.load_file(init_tmp.paths.get_ipath("cloud_config"))
+        cc_contents = util.load_text_file(
+            init_tmp.paths.get_ipath("cloud_config")
+        )
         cc = util.load_yaml(cc_contents)
         assert len(cc) == 1
         assert cc["a"] == "c"
@@ -392,7 +398,7 @@ p: 1
         cloud_cfg.handle_part(
             None, handlers.CONTENT_END, None, None, None, None
         )
-        contents = util.load_file(paths.get_ipath("cloud_config"))
+        contents = util.load_text_file(paths.get_ipath("cloud_config"))
         contents = util.load_yaml(contents)
         assert contents["run"], ["b", "c", "stuff", "morestuff"]
         assert contents["a"] == "be"
@@ -441,7 +447,9 @@ c: 4
         init_tmp.fetch()
         with mock.patch.object(init_tmp, "_reset"):
             init_tmp.consume_data()
-        contents = util.load_file(init_tmp.paths.get_ipath("cloud_config"))
+        contents = util.load_text_file(
+            init_tmp.paths.get_ipath("cloud_config")
+        )
         contents = util.load_yaml(contents)
         assert isinstance(contents, dict) is True
         assert len(contents) == 3
@@ -519,7 +527,7 @@ c: 4
         }
 
         loaded_json = util.load_json(
-            util.load_file(
+            util.load_text_file(
                 init_tmp.paths.get_runpath("instance_data_sensitive")
             )
         )
@@ -527,7 +535,9 @@ c: 4
 
         expected["_doc"] = stages.COMBINED_CLOUD_CONFIG_DOC
         assert expected == util.load_json(
-            util.load_file(init_tmp.paths.get_runpath("combined_cloud_config"))
+            util.load_text_file(
+                init_tmp.paths.get_runpath("combined_cloud_config")
+            )
         )
 
     def test_mime_text_x_shellscript(self, init_tmp, caplog):
@@ -685,7 +695,9 @@ class TestConsumeUserDataHttp:
         with mock.patch.object(init_tmp, "_reset") as _reset:
             init_tmp.consume_data()
             assert _reset.call_count == 1
-        cc_contents = util.load_file(init_tmp.paths.get_ipath("cloud_config"))
+        cc_contents = util.load_text_file(
+            init_tmp.paths.get_ipath("cloud_config")
+        )
         cc = util.load_yaml(cc_contents)
         assert cc.get("included") is True
 
@@ -711,7 +723,7 @@ class TestConsumeUserDataHttp:
                 assert _reset.call_count == 1
 
         with pytest.raises(FileNotFoundError):
-            util.load_file(init_tmp.paths.get_ipath("cloud_config"))
+            util.load_text_file(init_tmp.paths.get_ipath("cloud_config"))
 
     @responses.activate
     @mock.patch("cloudinit.url_helper.time.sleep")
@@ -750,7 +762,9 @@ class TestConsumeUserDataHttp:
             "403 Client Error: Forbidden for url: %s" % bad_url in caplog.text
         )
 
-        cc_contents = util.load_file(init_tmp.paths.get_ipath("cloud_config"))
+        cc_contents = util.load_text_file(
+            init_tmp.paths.get_ipath("cloud_config")
+        )
         cc = util.load_yaml(cc_contents)
         assert cc.get("bad") is None
         assert cc.get("included") is True

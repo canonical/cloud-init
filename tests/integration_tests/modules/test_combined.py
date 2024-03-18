@@ -15,7 +15,6 @@ from pathlib import Path
 import pytest
 
 import cloudinit.config
-from cloudinit.features import get_features
 from cloudinit.util import is_true
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
@@ -323,7 +322,13 @@ class TestCombined:
             "/run/cloud-init/combined-cloud-config.json"
         )
         data = json.loads(combined_json)
-        assert data["features"] == get_features()
+        expected_features = json.loads(
+            client.execute(
+                "python3 -c 'import json; from cloudinit import features; "
+                "print(json.dumps(features.get_features()))'"
+            )
+        )
+        assert data["features"] == expected_features
         assert data["system_info"]["default_user"]["name"] == "ubuntu"
 
     @pytest.mark.skipif(

@@ -14,6 +14,7 @@ from cloudinit.config.schema import (
     validate_cloudconfig_schema,
 )
 from tests.unittests.helpers import (
+    SCHEMA_EMPTY_ERROR,
     FilesystemMockingTestCase,
     skipUnlessJsonSchema,
 )
@@ -75,7 +76,9 @@ class TestRuncmd(FilesystemMockingTestCase):
             self.new_root,
             "var/lib/cloud/instances/iid-datasource-none/scripts/runcmd",
         )
-        self.assertEqual("#!/bin/sh\n'ls' '/'\n", util.load_file(runcmd_file))
+        self.assertEqual(
+            "#!/bin/sh\n'ls' '/'\n", util.load_text_file(runcmd_file)
+        )
         file_stat = os.stat(runcmd_file)
         self.assertEqual(0o700, stat.S_IMODE(file_stat.st_mode))
 
@@ -90,7 +93,7 @@ class TestRunCmdSchema:
             ({"runcmd": ["echo bye", "echo bye"]}, None),
             # Invalid schemas
             ({"runcmd": 1}, "1 is not of type 'array'"),
-            ({"runcmd": []}, r"runcmd: \[\] is too short"),
+            ({"runcmd": []}, rf"runcmd: \[\] {SCHEMA_EMPTY_ERROR}"),
             (
                 {
                     "runcmd": [
