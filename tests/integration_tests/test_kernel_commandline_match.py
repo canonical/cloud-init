@@ -9,7 +9,6 @@ from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.util import (
     lxd_has_nocloud,
     override_kernel_cmdline,
-    restart_cloud_init,
     wait_for_cloud_init,
 )
 
@@ -130,7 +129,7 @@ def test_lxd_disable_cloud_init_file(client: IntegrationInstance):
 
     client.execute("touch /etc/cloud/cloud-init.disabled")
     client.execute("cloud-init --clean")
-    restart_cloud_init(client)
+    client.restart()
     assert "Active: inactive (dead)" in client.execute(
         "systemctl status cloud-init"
     )
@@ -144,7 +143,7 @@ def test_lxd_disable_cloud_init_env(client: IntegrationInstance):
     client.execute(f'echo "{env}" >> /etc/systemd/system.conf')
 
     client.execute("cloud-init --clean")
-    restart_cloud_init(client)
+    client.restart()
     assert "Active: inactive (dead)" in client.execute(
         "systemctl status cloud-init"
     )

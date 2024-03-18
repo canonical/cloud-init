@@ -143,7 +143,7 @@ def read_ftps(url: str, timeout: float = 5.0, **kwargs: dict) -> "FtpResponse":
             except ftplib.error_perm as e:
                 LOG.warning(
                     "Attempted to connect to an insecure ftp server but used "
-                    "a scheme of ftps://, which is not allowed. Use ftp://"
+                    "a scheme of ftps://, which is not allowed. Use ftp:// "
                     "to allow connecting to insecure ftp servers."
                 )
                 raise UrlError(
@@ -293,7 +293,7 @@ class UrlResponse:
             return False
 
     @property
-    def headers(self) -> str:
+    def headers(self):
         return self._response.headers
 
     @property
