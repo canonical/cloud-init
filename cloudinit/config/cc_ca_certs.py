@@ -92,7 +92,6 @@ distros = [
     "sles",
     "ubuntu",
     "photon",
-    "photon",
 ]
 
 meta: MetaSchema = {
@@ -174,7 +173,6 @@ def disable_default_ca_certs(distro_name, distro_cfg):
     @param distro_name: String providing the distro class name.
     @param distro_cfg: A hash providing _distro_ca_certs_configs function.
     """
-    if distro_name in ["rhel", "photon"]:
     if distro_name in ["rhel", "photon"]:
         remove_default_ca_certs(distro_cfg)
     elif distro_name in ["alpine", "debian", "ubuntu"]:
