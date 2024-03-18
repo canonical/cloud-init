@@ -1,6 +1,7 @@
 import builtins
 import glob
 import os
+import shutil
 from pathlib import Path
 from unittest import mock
 
@@ -66,6 +67,9 @@ FS_FUNCS = {
     atomic_helper: [
         ("write_file", 1),
         ("write_json", 1),
+    ],
+    shutil: [
+        ("rmtree", 1),
     ],
 }
 
