@@ -9,6 +9,7 @@ import logging
 import os
 from pathlib import PurePath
 from typing import List, cast
+import yaml
 
 from cloudinit import sources, subp, util
 from cloudinit.distros import Distro
@@ -128,6 +129,28 @@ def cloud_init_data_dir() -> PurePath:
     return PurePath(seed_dir)
 
 
+def ubuntu_pro_data_dir() -> PurePath | None:
+    """
+    Get the path to the Ubuntu Pro cloud-init directory, or None if not found.
+    """
+    cmd = cmd_executable()
+
+    home, _ = subp.subp(["/init", cmd.as_posix(), "/C", "echo %USERPROFILE%"])
+    home = home.rstrip()
+    if not home:
+        raise subp.ProcessExecutionError(
+            "No output from cmd.exe to show the user profile dir."
+        )
+
+    win_profile_dir = win_path_2_wsl(home)
+    pro_dir = os.path.join(win_profile_dir, ".ubuntupro/.cloud-init")
+    if not os.path.isdir(pro_dir):
+        LOG.debug("Pro cloud-init dir %s was not found", pro_dir)
+        return None
+
+    return PurePath(pro_dir)
+
+
 def candidate_user_data_file_names(instance_name) -> List[str]:
     """
     Return a list of candidate file names that may contain user-data
@@ -146,6 +169,20 @@ def candidate_user_data_file_names(instance_name) -> List[str]:
         # generic, valid for all WSL distros and instances.
         "default.user-data",
     ]
+
+
+def landscape_file_name(instance_name) -> str:
+    """
+    Return the Landscape configuration name.
+    """
+    return "%s.user-data" % instance_name
+
+
+def agent_file_name() -> str:
+    """
+    Return the Pro agent configuration name.
+    """
+    return "agent.yaml"
 
 
 DEFAULT_INSTANCE_ID = "iid-datasource-wsl"
@@ -177,6 +214,47 @@ def load_instance_metadata(cloudinitdir: PurePath, instance_name: str) -> dict:
         raise ValueError(msg)
 
     return metadata
+
+
+def load_landscape_data(instance_name: str) -> dict:
+    """
+    Load Landscape config data into a dict, returning an empty dict if nothing
+    is found.
+    """
+    data_dir = ubuntu_pro_data_dir()
+    if data_dir is None:
+        return {}
+
+    data_path = os.path.join(
+        data_dir.as_posix(), landscape_file_name(instance_name)
+    )
+
+    try:
+        landscape_data = util.load_yaml(util.load_binary_file(data_path))
+        return landscape_data
+    except FileNotFoundError:
+        LOG.debug("No Landscape data found at %s, ignoring.", data_path)
+
+    return {}
+
+
+def load_agent_data() -> dict:
+    """
+    Load agent.yaml data into a dict, returning an empty dict if nothing is found.
+    """
+    data_dir = ubuntu_pro_data_dir()
+    if data_dir is None:
+        return {}
+
+    data_path = os.path.join(data_dir.as_posix(), agent_file_name())
+
+    try:
+        agent_data = util.load_yaml(util.load_binary_file(data_path))
+        return agent_data
+    except FileNotFoundError:
+        LOG.debug("No Pro agent data found at %s, ignoring.", data_path)
+
+    return {}
 
 
 class DataSourceWSL(sources.DataSource):
@@ -239,15 +317,41 @@ class DataSourceWSL(sources.DataSource):
     def _get_data(self) -> bool:
         self.vendordata_raw = None
         seed_dir = cloud_init_data_dir()
+        user_data = {}
 
         try:
             self.metadata = load_instance_metadata(
                 seed_dir, self.instance_name
             )
             file = self.find_user_data_file(seed_dir)
-            self.userdata_raw = cast(
-                str, util.load_binary_file(file.as_posix())
-            )
+            if os.path.exists(file.as_posix()):
+                user_data = util.load_yaml(
+                    util.load_binary_file(file.as_posix())
+                )
+
+        except (ValueError, IOError) as err:
+            LOG.error("Unable to load user data: %s", str(err))
+
+        try:
+            agent_data = load_agent_data()
+            landscape_data = load_landscape_data(self.instance_name)
+
+            if landscape_data:
+                user_data = landscape_data
+
+            if not user_data:
+                raise ValueError
+
+            merged = {}
+            # We only care about overriding modules entirely, so we can just
+            # iterate over the top level keys and write over them if the agent
+            # provides them instead
+            for key in user_data:
+                merged[key] = user_data[key]
+            for key in agent_data:
+                merged[key] = agent_data[key]
+            LOG.debug("Merged data: %s", merged)
+            self.userdata_raw = yaml.dump(merged)
             return True
 
         except (ValueError, IOError) as err:

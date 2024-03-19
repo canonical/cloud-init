@@ -1618,6 +1618,31 @@ WSL_cloudinit_dir_in() {
     return 1
 }
 
+WSL_profile_dir() {
+    # Determine where a suitable user profile home is located
+    _RET=""
+    local cmdexe="" profiledir="" val=""
+    for m in $@; do
+        cmdexe="$m/Windows/System32/cmd.exe"
+        if command -v "$cmdexe" > /dev/null 2>&1; then
+            # Here WSL's proprietary `/init` is used to start the Windows cmd.exe
+            # to output the Windows user profile directory path, which is
+            # held by the environment variable %USERPROFILE%.
+            profiledir=$(/init "$cmdexe" /c echo %USERPROFILE% 2>/dev/null)
+            profiledir="${profiledir%%[[:cntrl:]]}"
+            if [ -n "$profiledir" ]; then
+                # wslpath is a program supplied by WSL itself that translates Windows and Linux paths,
+                # respecting the mountpoints where the Windows drives are mounted.
+                # (in fact it's a symlink to /init).
+                val=$(wslpath -au "$profiledir") && _RET="$val"
+                return $?
+            fi
+        fi
+    done
+
+    return 1
+}
+
 WSL_instance_name() {
     local val="" instance_name=""
     instance_name=$(wslpath -am /)
@@ -1649,25 +1674,42 @@ dscheck_WSL() {
     fi
 
     # We know we are under WSL and have acess to the host filesystem,
-    # so let's find the .cloud-init directory
-    WSL_cloudinit_dir_in "$mountpoints"
-    cloudinitdir="${_RET}"
-    if [ -z "$cloudinitdir" ]; then
-        debug 1 "%USERPROFILE/.cloud-init/ directory not found"
+    # so let's find the user's home directory
+    WSL_profile_dir "$mountpoints"
+    profile_dir="${_RET}"
+    if [ -z "$profile_dir" ]; then
+        debug 1 "%USERPROFILE% directory not found"
         return "${DS_NOT_FOUND}"
     fi
 
-    # and the applicable userdata file. Notice the ordering in the for-loop
-    # must match our expected precedence, so the file we find is what the
-    # datasource must process.
+    # Then we can check for any .cloud-init folders for the user
+    if [ ! -d "$profile_dir/.cloud-init/" ] && [ ! -d "$profile_dir/.ubuntupro/.cloud-init/" ]; then
+        debug 1 "No .cloud-init directories found"
+        return "${DS_NOT_FOUND}"
+    fi
+
     WSL_instance_name
     instance_name="${_RET}"
     # shellcheck source=/dev/null
     . "${PATH_ROOT}/etc/os-release"
+
+    # and the applicable userdata file. Notice the ordering in the for-loop
+    # must match our expected precedence, so the file we find is what the
+    # datasource must process.
+    cloudinitdir="$profile_dir/.cloud-init"
     for userdatafile in "${instance_name}.user-data" "${ID:-linux}-${VERSION_ID:-${VERSION_CODENAME}}".user-data "${ID:-linux}-all.user-data" "default.user-data"; do
         candidate="$cloudinitdir/$userdatafile"
         if [ -f "$candidate" ]; then
             debug 1 "Found applicable user data file for this instance at: $candidate"
+            return ${DS_FOUND}
+        fi
+    done
+
+    cloudinitdir="$profile_dir/.ubuntupro/.cloud-init"
+    for userdatafile in "${instance_name}.user-data" "agent.yaml"; do
+        candidate="$cloudinitdir/$userdatafile"
+        if [ -f "$candidate" ]; then
+            debug 1 "Found applicable pro data file for this instance at: $candidate"
             return ${DS_FOUND}
         fi
     done
