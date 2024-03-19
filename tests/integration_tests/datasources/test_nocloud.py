@@ -11,6 +11,7 @@ from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL
 from tests.integration_tests.util import (
     override_kernel_cmdline,
     verify_clean_boot,
+    verify_clean_log,
 )
 
 VENDOR_DATA = """\
@@ -388,6 +389,7 @@ class TestFTP:
         self._boot_with_cmdline(cmdline, client)
         verify_clean_boot(client, ignore_warnings=self.expected_warnings)
         assert "ftp-bootstrapper" == client.execute("hostname").rstrip()
+        verify_clean_log(client.execute("cat /var/log/cloud-init.log").stdout)
 
     def test_nocloud_ftps_unencrypted_server_fails(
         self, client: IntegrationInstance
@@ -422,6 +424,7 @@ class TestFTP:
         self._boot_with_cmdline(cmdline, client, encrypted=True)
         verify_clean_boot(client, ignore_warnings=self.expected_warnings)
         assert "ftp-bootstrapper" == client.execute("hostname").rstrip()
+        verify_clean_log(client.execute("cat /var/log/cloud-init.log").stdout)
 
     def test_nocloud_ftp_encrypted_server_fails(
         self, client: IntegrationInstance
