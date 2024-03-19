@@ -303,7 +303,7 @@ class TestNetCfgDistroBase(FilesystemMockingTestCase):
 
     def _get_distro(self, dname, renderers=None, activators=None):
         cls = distros.fetch(dname)
-        cfg = settings.CFG_BUILTIN
+        cfg = copy.deepcopy(settings.CFG_BUILTIN)
         cfg["system_info"]["distro"] = dname
         system_info_network_cfg = {}
         if renderers:

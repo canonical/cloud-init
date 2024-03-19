@@ -90,6 +90,18 @@ may-fail=false
 """
 
 
+@pytest.fixture
+def mock_setup_logging():
+    """Mock setup_basic_logging to avoid changing log level.
+
+    net_convert.handle_args() can call setup_basic_logging() with a
+    WARNING level, which would be a side-effect for future tests.
+    It's behavior isn't checked in these tests, so mock it out.
+    """
+    with mock.patch(f"{M_PATH}log.setup_basic_logging"):
+        yield
+
+
 class TestNetConvert:
 
     missing_required_args = itertools.combinations(
@@ -155,7 +167,13 @@ class TestNetConvert:
         ),
     )
     def test_convert_output_kind_artifacts(
-        self, output_kind, outfile_content, debug, capsys, tmpdir
+        self,
+        output_kind,
+        outfile_content,
+        debug,
+        capsys,
+        tmpdir,
+        mock_setup_logging,
     ):
         """Assert proper output-kind artifacts are written."""
         network_data = tmpdir.join("network_data")
@@ -186,7 +204,9 @@ class TestNetConvert:
                 ] == chown.call_args_list
 
     @pytest.mark.parametrize("debug", (False, True))
-    def test_convert_netplan_passthrough(self, debug, tmpdir):
+    def test_convert_netplan_passthrough(
+        self, debug, tmpdir, mock_setup_logging
+    ):
         """Assert that if the network config's version is 2 and the renderer is
         Netplan, then the config is passed through as-is.
         """

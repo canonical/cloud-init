@@ -298,6 +298,7 @@ class TestAptConfigure:
         ),
     )
     @mock.patch(M_PATH + "get_apt_cfg")
+    @mock.patch.object(features, "APT_DEB822_SOURCE_LIST_FILE", True)
     def test_remove_source(
         self,
         m_get_apt_cfg,
@@ -312,7 +313,6 @@ class TestAptConfigure:
             "sourceparts": f"{tmpdir}/etc/apt/sources.list.d/",
         }
         cloud = get_cloud(distro_name)
-        features.APT_DEB822_SOURCE_LIST_FILE = True
         sources_file = tmpdir.join("/etc/apt/sources.list")
         deb822_sources_file = tmpdir.join(
             f"/etc/apt/sources.list.d/{distro_name}.sources"
