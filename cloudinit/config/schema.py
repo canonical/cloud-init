@@ -42,7 +42,7 @@ from cloudinit.util import (
     load_text_file,
     write_file,
 )
-
+from pathlib import Path
 try:
     from jsonschema import ValidationError as _ValidationError
 
