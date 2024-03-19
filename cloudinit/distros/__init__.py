@@ -247,6 +247,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             )
 
             to_try = manager_packages | generic_packages
+            # Remove any failed we will try for this package manager
             total_failed.difference_update(to_try)
             if not manager.available():
                 LOG.debug("Package manager '%s' not available", manager.name)
