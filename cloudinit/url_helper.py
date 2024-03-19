@@ -227,7 +227,10 @@ def read_file_or_url(
     parameters. See: call-signature of readurl in this module for param docs.
     """
     url = url.lstrip()
-    parsed = urlparse(url)
+    try:
+        parsed = urlparse(url)
+    except ValueError as e:
+        raise UrlError(cause=e, url=url) from e
     scheme = parsed.scheme
     if scheme == "file" or (url and "/" == url[0]):
         return _read_file(parsed.path, **kwargs)
