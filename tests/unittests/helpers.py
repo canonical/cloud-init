@@ -161,6 +161,7 @@ class CiTestCase(TestCase):
             self.old_handlers = self.logger.handlers
             self.logger.handlers = [handler]
             self.old_level = logging.root.level
+            self.logger.level = logging.DEBUG
         if self.allowed_subp is True:
             subp.subp = _real_subp
         else:

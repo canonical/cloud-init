@@ -110,10 +110,19 @@ def dhclient_exists():
 log.configure_root_logger()
 
 
-@pytest.fixture(autouse=True)
-def disable_root_logger_setup(request):
-    with mock.patch("cloudinit.cmd.main.configure_root_logger", autospec=True):
+@pytest.fixture(autouse=True, scope="session")
+def disable_root_logger_setup():
+    with mock.patch("cloudinit.log.configure_root_logger", autospec=True):
         yield
+
+
+@pytest.fixture
+def clear_deprecation_log():
+    """Clear any deprecation warnings before and after running tests."""
+    # Since deprecations are de-duped, the existance (or non-existance) of
+    # a deprecation warning in a previous test can cause the next test to
+    # fail.
+    util.deprecate._log = set()
 
 
 PYTEST_VERSION_TUPLE = tuple(map(int, pytest.__version__.split(".")))

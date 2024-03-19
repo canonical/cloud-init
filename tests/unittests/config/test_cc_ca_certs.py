@@ -379,6 +379,7 @@ class TestRemoveDefaultCaCerts(TestCase):
                 cc_ca_certs.disable_default_ca_certs(distro_name, conf)
 
 
+@pytest.mark.usefixtures("clear_deprecation_log")
 class TestCACertsSchema:
     """Directly test schema rather than through handle."""
 
