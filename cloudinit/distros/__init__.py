@@ -239,21 +239,31 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         # First install packages using package manager(s)
         # supported by the distro
-        uninstalled = []
+        uninstalled = set()
         for manager in self.package_managers:
-            to_try = (
-                packages_by_manager.get(manager.__class__, set())
-                | generic_packages
+
+            manager_packages = packages_by_manager.get(
+                manager.__class__, set()
             )
+
+            to_try = manager_packages | generic_packages
+            uninstalled.difference_update(to_try)
+            if not manager.available():
+                LOG.debug("Package manager '%s' not available", manager.name)
+                uninstalled.update(to_try)
+                continue
             if not to_try:
                 continue
-            uninstalled = manager.install_packages(to_try)
-            failed = {
-                pkg for pkg in uninstalled if pkg not in generic_packages
+            failed = manager.install_packages(to_try)
+            uninstalled.update(failed)
+            unexpected_failed = {
+                pkg for pkg in failed if pkg not in generic_packages
             }
-            if failed:
+            if unexpected_failed:
                 LOG.info(error_message, failed)
-            generic_packages = set(uninstalled)
+            # Ensure we don't attempt to install packages specific to
+            # one particular package manager using another package manager
+            generic_packages = set(failed) - manager_packages
 
         # Now attempt any specified package managers not explicitly supported
         # by distro
@@ -261,7 +271,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if manager_type.name in [p.name for p in self.package_managers]:
                 # We already installed/attempted these; don't try again
                 continue
-            uninstalled.extend(
+            uninstalled.update(
                 manager_type.from_config(
                     self._runner, self._cfg
                 ).install_packages(pkglist=packages)

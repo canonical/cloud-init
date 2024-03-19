@@ -14,6 +14,9 @@ LOG = logging.getLogger(__name__)
 class Snap(PackageManager):
     name = "snap"
 
+    def available(self) -> bool:
+        return bool(subp.which("snap"))
+
     def update_package_sources(self):
         pass
 
