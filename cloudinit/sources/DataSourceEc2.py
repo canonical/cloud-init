@@ -1030,7 +1030,8 @@ def convert_ec2_metadata_network_config(
         ):
             dhcp_override["use-routes"] = True
             table = 100 + nic_idx
-            dev_config["routes"] = []
+            if not dev_config.get("routes"):
+                dev_config["routes"] = []
             try:
                 lease = distro.dhcp_client.dhcp_discovery(
                     nic_name, distro=distro
@@ -1067,7 +1068,8 @@ def convert_ec2_metadata_network_config(
                     },
                 )
 
-            dev_config["routing-policy"] = []
+            if not dev_config.get("routing-policy"):
+                dev_config["routing-policy"] = []
             # Packets coming from any IPv4 associated with the current NIC
             # will be routed using `table` routing table
             ipv4s = nic_metadata["local-ipv4s"]
@@ -1088,7 +1090,9 @@ def convert_ec2_metadata_network_config(
                 and not is_primary_nic
             ):
                 table = 100 + nic_idx
-                subnet_prefix_routes = nic_metadata["subnet-ipv6-cidr-block"]
+                if not dev_config.get("routes"):
+                    dev_config["routes"] = []
+                subnet_prefix_routes = nic_metadata["subnet-ipv6-cidr-blocks"]
                 subnet_prefix_routes = (
                     [subnet_prefix_routes]
                     if isinstance(subnet_prefix_routes, str)
@@ -1102,7 +1106,8 @@ def convert_ec2_metadata_network_config(
                         },
                     )
 
-                dev_config["routing-policy"] = []
+                if not dev_config.get("routing-policy"):
+                    dev_config["routing-policy"] = []
                 ipv6s = nic_metadata["ipv6s"]
                 ipv6s = [ipv6s] if isinstance(ipv6s, str) else ipv6s
                 for ipv6 in ipv6s:
