@@ -18,6 +18,10 @@ class PackageManager(ABC):
         return cls(runner)
 
     @abstractmethod
+    def available(self) -> bool:
+        """Return if package manager is installed on system."""
+
+    @abstractmethod
     def update_package_sources(self):
         ...
 
