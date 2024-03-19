@@ -74,6 +74,7 @@ PATH_SYS_CLASS_BLOCK=${PATH_SYS_CLASS_BLOCK:-${PATH_ROOT}/sys/class/block}
 PATH_DEV_DISK="${PATH_DEV_DISK:-${PATH_ROOT}/dev/disk}"
 PATH_VAR_LIB_CLOUD="${PATH_VAR_LIB_CLOUD:-${PATH_ROOT}/var/lib/cloud}"
 PATH_DI_CONFIG="${PATH_DI_CONFIG:-${PATH_ROOT}/etc/cloud/ds-identify.cfg}"
+PATH_DI_ENV="${PATH_DI_ENV:-${PATH_ROOT}/usr/libexec/ds-identify-env}"
 PATH_PROC_CMDLINE="${PATH_PROC_CMDLINE:-${PATH_ROOT}/proc/cmdline}"
 PATH_PROC_1_CMDLINE="${PATH_PROC_1_CMDLINE:-${PATH_ROOT}/proc/1/cmdline}"
 PATH_PROC_1_ENVIRON="${PATH_PROC_1_ENVIRON:-${PATH_ROOT}/proc/1/environ}"
@@ -1961,6 +1962,16 @@ set_run_path() {
     DI_LOG="${DI_LOG:-${PATH_RUN_CI}/ds-identify.log}"
 }
 
+# set ds-identify internal variables by providing an env file
+# testing only - NOT use for production code, it is NOT supported
+get_environment() {
+    if [ -f "$PATH_DI_ENV" ]; then
+        debug 0 "WARN: loading environment file [${PATH_DI_ENV}]";
+        # shellcheck source=/dev/null
+        . "$PATH_DI_ENV"
+    fi
+}
+
 _main() {
     local dscheck_fn="" ret_dis=1 ret_en=0
 
@@ -2087,6 +2098,7 @@ _main() {
 
 main() {
     local ret=""
+    get_environment
     ensure_sane_path
     read_uname_info
     set_run_path
@@ -2116,7 +2128,14 @@ noop() {
     :
 }
 
+get_environment
 case "${DI_MAIN}" in
+    # builtin DI_MAIN implementations
     main|print_info|noop) "${DI_MAIN}" "$@";;
-    *) error "unexpected value for DI_MAIN"; exit 1;;
+
+    # side-load an alternate implementation
+    # testing only - NOT use for production code, it is NOT supported
+    *)
+        debug 0 "WARN: side-loading alternate implementation: [${DI_MAIN}]";
+        exec "${DI_MAIN}" "$@";;
 esac
