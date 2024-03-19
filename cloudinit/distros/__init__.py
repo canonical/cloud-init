@@ -239,7 +239,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         # First install packages using package manager(s)
         # supported by the distro
-        total_failed = set()
+        total_failed: Set[str] = set()
         for manager in self.package_managers:
 
             manager_packages = packages_by_manager.get(
