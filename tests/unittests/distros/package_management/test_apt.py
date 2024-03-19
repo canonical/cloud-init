@@ -94,14 +94,15 @@ class TestPackageCommand:
         mocker.patch(f"{M_PATH}update_package_sources")
         mocker.patch(
             f"{M_PATH}get_all_packages",
-            return_value=["pkg1", "pkg2", "pkg3", "pkg4"],
+            return_value=["cloud-init", "pkg2", "pkg3", "pkg4"],
         )
         m_install = mocker.patch(f"{M_PATH}run_package_command")
 
         apt = Apt(runner=mock.Mock())
         apt.install_packages(
-            ["pkg1", "pkg2-", "pkg3/jammy-updates", "pkg4=1.2"]
+            ["cloud-init", "pkg2-", "pkg3/jammy-updates", "pkg4=1.2"]
         )
         m_install.assert_called_with(
-            "install", pkgs=["pkg1", "pkg2-", "pkg3/jammy-updates", "pkg4=1.2"]
+            "install",
+            pkgs=["cloud-init", "pkg2-", "pkg3/jammy-updates", "pkg4=1.2"],
         )

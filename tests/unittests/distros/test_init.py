@@ -388,7 +388,7 @@ class TestInstall:
         assert "Package manager 'snap' not available" in caplog.text
 
     @pytest.mark.parametrize(
-        "distro,pkg_list,apt_available,apt_failed,snap_failed,uninstalled",
+        "distro,pkg_list,apt_available,apt_failed,snap_failed,total_failed",
         [
             pytest.param(
                 "debian",
@@ -428,22 +428,22 @@ class TestInstall:
             ),
         ],
     )
-    def test_uninstalled(
+    def test_failed(
         self,
         distro,
         pkg_list,
         apt_available,
         apt_failed,
         snap_failed,
-        uninstalled,
+        total_failed,
         mocker,
         m_apt_install,
         m_snap_install,
     ):
-        """Test that uninstalled packages are properly tracked.
+        """Test that failed packages are properly tracked.
 
-        We need to ensure that the uninstalled packages are properly tracked:
-            1. When package install fails
+        We need to ensure that the failed packages are properly tracked:
+            1. When package install fails normally
             2. When package manager is not available
             3. When package manager is not explicitly supported by the distro
 
@@ -465,5 +465,5 @@ class TestInstall:
             _get_distro(distro).install_packages(pkg_list)
         message = exc.value.args[0]
         assert "Failed to install the following packages" in message
-        for pkg in uninstalled:
+        for pkg in total_failed:
             assert pkg in message

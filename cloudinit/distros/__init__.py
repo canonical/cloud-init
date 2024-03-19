@@ -239,7 +239,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         # First install packages using package manager(s)
         # supported by the distro
-        uninstalled = set()
+        total_failed = set()
         for manager in self.package_managers:
 
             manager_packages = packages_by_manager.get(
@@ -247,15 +247,15 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             )
 
             to_try = manager_packages | generic_packages
-            uninstalled.difference_update(to_try)
+            total_failed.difference_update(to_try)
             if not manager.available():
                 LOG.debug("Package manager '%s' not available", manager.name)
-                uninstalled.update(to_try)
+                total_failed.update(to_try)
                 continue
             if not to_try:
                 continue
             failed = manager.install_packages(to_try)
-            uninstalled.update(failed)
+            total_failed.update(failed)
             unexpected_failed = {
                 pkg for pkg in failed if pkg not in generic_packages
             }
@@ -271,14 +271,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if manager_type.name in [p.name for p in self.package_managers]:
                 # We already installed/attempted these; don't try again
                 continue
-            uninstalled.update(
+            total_failed.update(
                 manager_type.from_config(
                     self._runner, self._cfg
                 ).install_packages(pkglist=packages)
             )
 
-        if uninstalled:
-            raise PackageInstallerError(error_message % uninstalled)
+        if total_failed:
+            raise PackageInstallerError(error_message % total_failed)
 
     @property
     def dhcp_client(self) -> dhcp.DhcpClient:

@@ -135,7 +135,8 @@ class Apt(PackageManager):
         return [
             pkg
             for pkg in pkglist
-            if re.split("/|=|-", pkg)[0] not in self.get_all_packages()
+            if re.split("/|=", pkg)[0].rstrip("-")
+            not in self.get_all_packages()
         ]
 
     def install_packages(self, pkglist: Iterable) -> UninstalledPackages:
