@@ -196,6 +196,7 @@ class TestSmbios:
             "cloud-init status --format json"
         )
 
+
 @pytest.mark.skipif(PLATFORM != "lxd_vm", reason="Modifies grub config")
 @pytest.mark.lxd_use_exec
 class TestFTP:
@@ -409,7 +410,7 @@ class TestFTP:
                 "Used fallback datasource",
                 "Attempted to connect to an insecure ftp server but used"
                 " a scheme of ftps://, which is not allowed. Use ftp:// "
-                "to allow connecting to insecure ftp servers."
+                "to allow connecting to insecure ftp servers.",
             ],
         )
 
