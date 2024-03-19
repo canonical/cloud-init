@@ -256,10 +256,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 continue
             failed = manager.install_packages(to_try)
             total_failed.update(failed)
-            unexpected_failed = {
-                pkg for pkg in failed if pkg not in generic_packages
-            }
-            if unexpected_failed:
+            if failed:
                 LOG.info(error_message, failed)
             # Ensure we don't attempt to install packages specific to
             # one particular package manager using another package manager
