@@ -25,6 +25,14 @@ def mock_get_user_data_file(mocker, tmpdir):
     )
 
 
+@pytest.fixture(autouse=True, scope="module")
+def disable_setup_logging():
+    # setup_basic_logging can change the logging level to WARNING, so
+    # ensure it is always mocked
+    with mock.patch(f"{M_PATH}log.setup_basic_logging", autospec=True):
+        yield
+
+
 class TestCLI:
     def _call_main(self, sysv_args=None):
         if not sysv_args:
@@ -193,7 +201,7 @@ class TestCLI:
             ),
         ),
     )
-    @mock.patch("cloudinit.cmd.main.setup_basic_logging")
+    @mock.patch("cloudinit.cmd.main.log.setup_basic_logging")
     def test_subcommands_log_to_stderr_via_setup_basic_logging(
         self, setup_basic_logging, subcommand, log_to_stderr, mocks
     ):
