@@ -138,7 +138,9 @@ class TestAptKey:
             "list", m_gpg
         )
 
-    def test_apt_key_list_fail_bad_key_file(self, m_gpg):
+    @mock.patch.object(cc_apt_configure.os, "listdir", return_value=())
+    @mock.patch.object(cc_apt_configure.os.path, "isfile", return_value=False)
+    def test_apt_key_list_fail_bad_key_file(self, m_listdir, m_gpg):
         """Ensure bad gpg key doesn't throw exeption."""
         m_gpg.list_keys = mock.Mock(side_effect=subp.ProcessExecutionError)
         assert not cc_apt_configure.apt_key("list", m_gpg)
