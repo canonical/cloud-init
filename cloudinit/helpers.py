@@ -15,7 +15,7 @@ from configparser import NoOptionError, NoSectionError, RawConfigParser
 from io import StringIO
 from time import time
 
-from cloudinit import persistence, type_utils, util
+from cloudinit import persistence, settings, type_utils, util
 from cloudinit.settings import CFG_ENV_NAME, PER_ALWAYS, PER_INSTANCE, PER_ONCE
 
 LOG = logging.getLogger(__name__)
@@ -307,7 +307,7 @@ class Paths(persistence.CloudInitPickleMixin):
         self.cfgs = path_cfgs
         # Populate all the initial paths
         self.cloud_dir: str = path_cfgs.get("cloud_dir", "/var/lib/cloud")
-        self.run_dir: str = path_cfgs.get("run_dir", "/run/cloud-init")
+        self.run_dir: str = path_cfgs.get("run_dir", settings.DEFAULT_RUN_DIR)
         self.instance_link: str = os.path.join(self.cloud_dir, "instance")
         self.boot_finished: str = os.path.join(
             self.instance_link, "boot-finished"

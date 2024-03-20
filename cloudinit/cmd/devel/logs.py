@@ -16,7 +16,6 @@ from pathlib import Path
 from typing import NamedTuple
 
 from cloudinit.cmd.devel import read_cfg_paths
-from cloudinit.helpers import Paths
 from cloudinit.stages import Init
 from cloudinit.subp import ProcessExecutionError, subp
 from cloudinit.temp_utils import tempdir
@@ -28,7 +27,8 @@ from cloudinit.util import (
     write_file,
 )
 
-CLOUDINIT_RUN_DIR = "/run/cloud-init"
+PATHS = read_cfg_paths()
+CLOUDINIT_RUN_DIR = PATHS.run_dir
 
 
 class ApportFile(NamedTuple):
@@ -144,7 +144,7 @@ def _copytree_rundir_ignore_files(curdir, files):
     ]
     if os.getuid() != 0:
         # Ignore root-permissioned files
-        ignored_files.append(Paths({}).lookups["instance_data_sensitive"])
+        ignored_files.append(PATHS.lookups["instance_data_sensitive"])
     return ignored_files
 
 

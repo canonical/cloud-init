@@ -6,7 +6,7 @@
 ``cloudinitlocal`` purposefully does not depend on ``dsidentify``.
 That makes it easy for image builders to disable ``dsidentify``.
 #}
-# REQUIRE: ldconfig mountcritlocal
+# REQUIRE: ldconfig cleanvar
 # BEFORE:  NETWORKING cloudinit cloudconfig cloudfinal
 
 . /etc/rc.subr

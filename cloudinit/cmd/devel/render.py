@@ -18,6 +18,7 @@ from cloudinit.handlers.jinja_template import (
 )
 
 NAME = "render"
+CLOUDINIT_RUN_DIR = read_cfg_paths().run_dir
 
 LOG = logging.getLogger(__name__)
 
@@ -40,8 +41,8 @@ def get_parser(parser=None):
         "--instance-data",
         type=str,
         help=(
-            "Optional path to instance-data.json file. Defaults to"
-            " /run/cloud-init/instance-data.json"
+            "Optional path to instance-data.json file. "
+            f"Defaults to {CLOUDINIT_RUN_DIR}"
         ),
     )
     parser.add_argument(
