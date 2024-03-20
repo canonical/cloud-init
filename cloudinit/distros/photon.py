@@ -3,6 +3,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+from typing import List, Mapping
 
 from cloudinit import distros, helpers, net, subp, util
 from cloudinit.distros import PackageList
@@ -17,6 +18,10 @@ class Distro(distros.Distro):
     network_conf_dir = "/etc/systemd/network/"
     systemd_locale_conf_fn = "/etc/locale.conf"
     resolve_conf_fn = "/etc/systemd/resolved.conf"
+    kernel_module_cmd_map: Mapping[str, List[str]] = {
+        "list": ["lsmod"],  # TODO(sort load and unload for kernel modules)
+    }
+    update_initramfs_cmd: List[str] = []
 
     renderer_configs = {
         "networkd": {
