@@ -120,7 +120,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         try:
             cloud.distro.install_packages(pkglist)
         except Exception as e:
-            util.logexc(LOG, "Failed to install packages: %s", pkglist)
+            util.logexc(
+                LOG, "Failure when attempting to install packages: %s", pkglist
+            )
             errors.append(e)
 
     # TODO(smoser): handle this less violently
