@@ -8,7 +8,7 @@ import os
 import re
 from typing import Mapping, Optional
 
-from cloudinit import subp, util
+from cloudinit import helpers, subp, util
 from cloudinit.distros.parsers import networkmanager_conf, resolv_conf
 from cloudinit.net import (
     IPV6_DYNAMIC_TYPES,
@@ -18,6 +18,7 @@ from cloudinit.net import (
     subnet_is_ipv6,
 )
 from cloudinit.net.network_state import NetworkState
+from cloudinit.settings import PER_ONCE
 
 LOG = logging.getLogger(__name__)
 KNOWN_DISTROS = [
@@ -1021,6 +1022,16 @@ class Renderer(renderer.Renderer):
         if self.netrules_path:
             netrules_content = self._render_persistent_net(network_state)
             netrules_path = subp.target_path(target, self.netrules_path)
+            if os.path.exists(netrules_path):
+                # There should be a more elegant way to get the path
+                lock = helpers.FileSemaphores('/run/cloud-init/sem')
+                lock.lock("apply_network_config", PER_ONCE)
+                LOG.info(
+                    "Generated udev rules %s already exists, skipping"
+                    "further network setup processing.",
+                    netrules_path
+                )
+                return
             util.write_file(
                 netrules_path,
                 content=netrules_content,
