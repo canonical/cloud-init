@@ -48,25 +48,17 @@ Last-Update: 2024-02-14
          os.path.join(cloud.paths.get_ipath_cur(), "snapd.assertions"),
 --- a/cloudinit/config/cc_ubuntu_autoinstall.py
 +++ b/cloudinit/config/cc_ubuntu_autoinstall.py
-@@ -6,7 +6,6 @@ import logging
- import re
- from textwrap import dedent
- 
--from cloudinit import util
- from cloudinit.cloud import Cloud
- from cloudinit.config import Config
- from cloudinit.config.schema import (
-@@ -84,7 +83,6 @@ def handle(name: str, cfg: Config, cloud
+@@ -83,7 +83,6 @@ def handle(name: str, cfg: Config, cloud
          )
          return
  
 -    util.wait_for_snap_seeded(cloud)
-     snap_list, _ = subp(["snap", "list"])
+     snap_list, _ = subp.subp(["snap", "list"])
      installer_present = None
      for snap_name in LIVE_INSTALLER_SNAPS:
 --- a/cloudinit/util.py
 +++ b/cloudinit/util.py
-@@ -67,7 +67,7 @@ from cloudinit import (
+@@ -69,7 +69,7 @@ from cloudinit import (
      url_helper,
      version,
  )
@@ -75,7 +67,7 @@ Last-Update: 2024-02-14
  
  if TYPE_CHECKING:
      # Avoid circular import
-@@ -3101,18 +3101,6 @@ def wait_for_files(flist, maxwait, naple
+@@ -3084,18 +3084,6 @@ def wait_for_files(flist, maxwait, naple
      return need
  
  
@@ -254,7 +246,7 @@ Last-Update: 2024-02-14
  
  
 -@mock.patch(MODPATH + "util.wait_for_snap_seeded")
- @mock.patch(MODPATH + "subp")
+ @mock.patch(MODPATH + "subp.subp")
  class TestHandleAutoinstall:
      """Test cc_ubuntu_autoinstall handling of config."""
  
