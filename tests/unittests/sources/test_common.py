@@ -62,6 +62,7 @@ DEFAULT_LOCAL = [
     VMware.DataSourceVMware,
     NWCS.DataSourceNWCS,
     Akamai.DataSourceAkamaiLocal,
+    CloudCIX.DataSourceCloudCIX,
     WSL.DataSourceWSL,
 ]
 
@@ -69,7 +70,6 @@ DEFAULT_NETWORK = [
     AliYun.DataSourceAliYun,
     AltCloud.DataSourceAltCloud,
     Bigstep.DataSourceBigstep,
-    CloudCIX.DataSourceCloudCIX,
     CloudStack.DataSourceCloudStack,
     DSNone.DataSourceNone,
     Ec2.DataSourceEc2,

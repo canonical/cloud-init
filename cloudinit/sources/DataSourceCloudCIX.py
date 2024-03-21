@@ -1,15 +1,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import base64
 import json
 import logging
 from typing import Optional
-from requests.exceptions import ConnectionError
-from cloudinit import atomic_helper, dmi, helpers
-from cloudinit import net, sources, url_helper, util
-from cloudinit.sources.helpers import ec2
+
+from cloudinit import dmi, net, sources, url_helper, util
 from cloudinit.net.dhcp import NoDHCPLeaseError
-from cloudinit.net.ephemeral import EphemeralDHCPv4, EphemeralIPNetwork
+from cloudinit.net.ephemeral import EphemeralIPNetwork
 
 LOG = logging.getLogger(__name__)
 
@@ -29,8 +26,6 @@ CLOUDCIX_DMI_NAME = "CloudCIX"
 class DataSourceCloudCIX(sources.DataSource):
 
     dsname = "CloudCIX"
-
-    _metadata_url: str
 
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceCloudCIX, self).__init__(sys_cfg, distro, paths)
@@ -63,7 +58,7 @@ class DataSourceCloudCIX(sources.DataSource):
             ):
                 crawled_data = util.log_time(
                     logfunc=LOG.debug,
-                    msg=f"Crawl of metadata service",
+                    msg="Crawl of metadata service",
                     func=self.crawl_metadata_service,
                 )
         except NoDHCPLeaseError as e:
@@ -84,7 +79,7 @@ class DataSourceCloudCIX(sources.DataSource):
         md_url = self.determine_md_url()
         if md_url is None:
             raise sources.InvalidMetaDataException(
-                f"Could not reach determine MetaData url"
+                "Could not reach determine MetaData url"
             )
 
         data = read_metadata(md_url, self.get_url_params())
@@ -129,7 +124,7 @@ class DataSourceCloudCIX(sources.DataSource):
 
     @staticmethod
     def ds_detect():
-        product_name = dmi.read_dmi_data("system-product")
+        product_name = dmi.read_dmi_data("system-product-name")
         return product_name == CLOUDCIX_DMI_NAME
 
     @property
@@ -153,9 +148,6 @@ class DataSourceCloudCIX(sources.DataSource):
                     "Metadata mac address %s not found.", iface["mac_address"]
                 )
                 continue
-            interfaces["name"] = iface
-
-        for name, iface in interfaces.items():
             netcfg["ethernets"][name] = {
                 "set-name": name,
                 "match": {
@@ -171,7 +163,7 @@ def read_metadata(base_url, url_params):
     md = {}
     leaf_key_format_callback = (
         ("metadata", "meta-data", util.load_json),
-        ("userdata", "user-data", util.maybe_64decode),
+        ("userdata", "user-data", util.maybe_b64decode),
     )
 
     for url_leaf, new_key, format_callback in leaf_key_format_callback:

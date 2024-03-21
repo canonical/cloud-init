@@ -35,7 +35,6 @@ CFG_BUILTIN = {
         "AliYun",
         "Vultr",
         "Ec2",
-        "CloudCIX",
         "CloudSigma",
         "CloudStack",
         "SmartOS",
@@ -51,6 +50,7 @@ CFG_BUILTIN = {
         "NWCS",
         "Akamai",
         "WSL",
+        "CloudCIX",
         # At the end to act as a 'catch' when none of the above work...
         "None",
     ],

@@ -1,11 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import json
 
-from cloudinit import distros, helpers, sources, url_helper as uh
-from cloudinit.sources import (
-    DataSourceCloudCIX as ds_mod,
-    InvalidMetaDataException,
-)
+from cloudinit import distros, helpers, sources
+from cloudinit import url_helper as uh
+from cloudinit.sources import DataSourceCloudCIX as ds_mod
+from cloudinit.sources import InvalidMetaDataException
 from tests.unittests.helpers import CiTestCase, mock
 
 METADATA = {
