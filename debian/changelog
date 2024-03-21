@@ -1,4 +1,4 @@
-cloud-init (24.1.2-0ubuntu1~23.10.1) UNRELEASED; urgency=medium
+cloud-init (24.1.2-0ubuntu1~23.10.1) mantic; urgency=medium
 
   * refresh patches:
     - d/p/retain-ec2-default-net-update-events.patch
@@ -6,7 +6,7 @@ cloud-init (24.1.2-0ubuntu1~23.10.1) UNRELEASED; urgency=medium
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/24.1.2/ChangeLog
 
- -- Chad Smith <chad.smith@canonical.com>  Thu, 21 Mar 2024 09:22:58 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 21 Mar 2024 09:23:18 -0600
 
 cloud-init (24.1.1-0ubuntu1~23.10.1) mantic; urgency=medium
 
