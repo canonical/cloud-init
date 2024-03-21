@@ -476,6 +476,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.assertIsNone(self.datasource.get_userdata_raw())
         self.assertIsNone(self.datasource.get_vendordata_raw())
 
+    @mock.patch("cloudinit.url_helper.time.sleep", lambda x: None)
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
     def test_metadata_connection_errors_legacy_ipv4_url(self, dhcpv4):
         """
@@ -497,11 +498,6 @@ class TestDataSourceScaleway(ResponsesTestCase):
                 callback=ConnectionError,
             )
             self.datasource._set_metadata_url(self.datasource.metadata_urls)
-        if sys.version_info.minor >= 7:
-            self.responses.assert_call_count(
-                f"{self.datasource.metadata_urls[0]}/",
-                self.datasource.retries,
-            )
         self.assertEqual(self.datasource.metadata, {})
         self.assertIsNone(self.datasource.get_userdata_raw())
         self.assertIsNone(self.datasource.get_vendordata_raw())

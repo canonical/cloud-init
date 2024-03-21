@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from configparser import ConfigParser
 from string import Template
 from unittest import mock
 
@@ -243,6 +244,24 @@ Destination=fe80::1/128
 
 """
 
+V1_CONFIG_ACCEPT_RA_YAML = """\
+network:
+  version: 1
+  config:
+    - type: physical
+      name: eth0
+      mac_address: "00:11:22:33:44:55"
+"""
+
+V2_CONFIG_ACCEPT_RA_YAML = """\
+network:
+  version: 2
+  ethernets:
+    eth0:
+      match:
+        macaddress: "00:11:22:33:44:55"
+"""
+
 
 class TestNetworkdRenderState:
     def _parse_network_state_from_config(self, config):
@@ -364,3 +383,77 @@ class TestNetworkdRenderState:
             rendered_content = renderer._render_content(ns)
 
         assert rendered_content["eth0"] == V2_CONFIG_MULTI_SUBNETS_RENDERED
+
+    @pytest.mark.parametrize("version", ["v1", "v2"])
+    @pytest.mark.parametrize(
+        "address", ["4", "6", "10.0.0.10/24", "2001:db8::1/64"]
+    )
+    @pytest.mark.parametrize("accept_ra", [True, False, None])
+    def test_networkd_render_accept_ra(self, version, address, accept_ra):
+        with mock.patch("cloudinit.net.get_interfaces_by_mac"):
+            # network-config v1 inputs
+            if version == "v1":
+                config = safeyaml.load(V1_CONFIG_ACCEPT_RA_YAML)
+                if address == "4" or address == "6":
+                    config["network"]["config"][0]["subnets"] = [
+                        {"type": f"dhcp{address}"}
+                    ]
+                else:
+                    config["network"]["config"][0]["subnets"] = [
+                        {"type": "static", "address": address}
+                    ]
+                if accept_ra is not None:
+                    config["network"]["config"][0]["accept-ra"] = accept_ra
+            # network-config v2 inputs
+            elif version == "v2":
+                config = safeyaml.load(V2_CONFIG_ACCEPT_RA_YAML)
+                if address == "4" or address == "6":
+                    config["network"]["ethernets"]["eth0"][
+                        f"dhcp{address}"
+                    ] = True
+                else:
+                    config["network"]["ethernets"]["eth0"]["addresses"] = [
+                        address
+                    ]
+                if isinstance(accept_ra, bool):
+                    config["network"]["ethernets"]["eth0"][
+                        "accept-ra"
+                    ] = accept_ra
+            else:
+                raise ValueError(f"Unknown network-config version: {version}")
+            config = safeyaml.dumps(config)
+
+            # render
+            ns = self._parse_network_state_from_config(config)
+            renderer = networkd.Renderer()
+            rendered_content = renderer._render_content(ns)
+
+        # dump the input/output for debugging test failures
+        print(config)
+        print(rendered_content["eth0"])
+
+        # validate the rendered content
+        c = ConfigParser()
+        c.read_string(rendered_content["eth0"])
+
+        if address in ["4", "6"]:
+            expected_dhcp = f"ipv{address}"
+            expected_address = None
+        else:
+            expected_dhcp = False
+            expected_address = address
+        try:
+            got_dhcp = c.getboolean("Network", "DHCP")
+        except ValueError:
+            got_dhcp = c.get("Network", "DHCP", fallback=None)
+        got_address = c.get("Address", "Address", fallback=None)
+        got_accept_ra = c.getboolean("Network", "IPv6AcceptRA", fallback=None)
+        assert (
+            got_dhcp == expected_dhcp
+        ), f"DHCP={got_dhcp}, expected {expected_dhcp}"
+        assert (
+            got_address == expected_address
+        ), f"Address={got_address}, expected {expected_address}"
+        assert (
+            got_accept_ra == accept_ra
+        ), f"IPv6AcceptRA={got_accept_ra}, expected {accept_ra}"

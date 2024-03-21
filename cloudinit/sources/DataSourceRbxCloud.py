@@ -220,6 +220,8 @@ class DataSourceRbxCloud(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.seed = None
+        self.gratuitous_arp = None
+        self.cfg = None
 
     def __str__(self):
         root = sources.DataSource.__str__(self)

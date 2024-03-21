@@ -66,7 +66,7 @@ class TestvalidateConfigSchema:
 
 
 @mock.patch(MODPATH + "util.wait_for_snap_seeded")
-@mock.patch(MODPATH + "subp")
+@mock.patch(MODPATH + "subp.subp")
 class TestHandleAutoinstall:
     """Test cc_ubuntu_autoinstall handling of config."""
 

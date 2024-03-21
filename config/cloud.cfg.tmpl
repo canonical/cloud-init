@@ -4,14 +4,15 @@
 {% set is_bsd = variant in ["dragonfly", "freebsd", "netbsd", "openbsd"] %}
 {% set is_rhel = variant in ["almalinux", "centos", "cloudlinux", "eurolinux",
                              "miraclelinux", "rhel", "rocky", "virtuozzo"] %}
-{% set gecos = ({"amazon": "EC2 Default User", "centos": "Cloud User",
-                 "debian": "Debian", "dragonfly": "DragonFly",
-                 "freebsd": "FreeBSD", "mariner": "MarinerOS",
-                 "rhel": "Cloud User", "netbsd": "NetBSD",
-                 "openbsd": "openBSD", "openmandriva": "OpenMandriva admin",
-                 "photon": "PhotonOS", "ubuntu": "Ubuntu",
-                 "unknown": "Ubuntu"}) %}
+{% set gecos = ({"amazon": "EC2 Default User", "azurelinux": "Azure Linux",
+                 "centos": "Cloud User", "debian": "Debian",
+                 "dragonfly": "DragonFly", "freebsd": "FreeBSD",
+                 "mariner": "MarinerOS", "rhel": "Cloud User",
+                 "netbsd": "NetBSD", "openbsd": "openBSD",
+                 "openmandriva": "OpenMandriva admin", "photon": "PhotonOS",
+                 "ubuntu": "Ubuntu", "unknown": "Ubuntu"}) %}
 {% set groups = ({"alpine": "adm, wheel", "arch": "wheel, users",
+                  "azurelinux": "wheel",
                   "debian": "adm, audio, cdrom, dialout, dip, floppy, netdev, plugdev, sudo, video",
                   "gentoo": "users, wheel", "mariner": "wheel",
                   "photon": "wheel",
@@ -165,8 +166,8 @@ cloud_config_modules:
 {% if variant == "ubuntu" %}
   - ubuntu_pro
 {% endif %}
-{% elif variant in ["fedora", "mariner", "openeuler", "openmandriva",
-                    "photon"] or is_rhel %}
+{% elif variant in ["azurelinux", "fedora", "mariner", "openeuler",
+                    "openmandriva", "photon"] or is_rhel %}
 {% if is_rhel %}
   - rh_subscription
 {% endif %}
@@ -219,10 +220,10 @@ cloud_final_modules:
 # (not accessible to handlers/transforms)
 system_info:
   # This will affect which distro class gets used
-{% if variant in ["alpine", "amazon", "arch", "debian", "fedora", "freebsd",
-                  "gentoo", "mariner", "netbsd", "openbsd", "OpenCloudOS",
-                  "openeuler", "openmandriva", "photon", "suse", "TencentOS",
-                  "ubuntu"] or is_rhel %}
+{% if variant in ["alpine", "amazon", "arch", "azurelinux", "debian", "fedora",
+                  "freebsd", "gentoo", "mariner", "netbsd", "openbsd",
+                  "OpenCloudOS", "openeuler", "openmandriva", "photon", "suse",
+                  "TencentOS", "ubuntu"] or is_rhel %}
   distro: {{ variant }}
 {% elif variant == "dragonfly" %}
   distro: dragonflybsd
@@ -237,9 +238,10 @@ system_info:
 {% else %}
     name: {{ variant }}
 {% endif %}
-{% if variant in ["alpine", "amazon", "arch", "debian", "fedora", "gentoo",
-                  "mariner", "OpenCloudOS", "openeuler", "openmandriva",
-                  "photon", "suse", "TencentOS", "ubuntu", "unknown"]
+{% if variant in ["alpine", "amazon", "arch", "azurelinux", "debian", "fedora",
+                  "gentoo", "mariner", "OpenCloudOS", "openeuler",
+                  "openmandriva", "photon", "suse", "TencentOS", "ubuntu",
+                  "unknown"]
                  or is_bsd or is_rhel %}
     lock_passwd: True
 {% endif %}
@@ -292,7 +294,7 @@ system_info:
 {% elif variant in ["freebsd", "netbsd", "openbsd"] %}
   network:
     renderers: ['{{ variant }}']
-{% elif variant in ["mariner", "photon"] %}
+{% elif variant in ["azurelinux", "mariner", "photon"] %}
   network:
     renderers: ['networkd']
 {% elif variant == "openmandriva" %}
@@ -318,9 +320,10 @@ system_info:
   # Automatically discover the best ntp_client
   ntp_client: auto
 {% endif %}
-{% if variant in ["alpine", "amazon", "arch", "debian", "fedora", "gentoo",
-                  "mariner", "OpenCloudOS", "openeuler", "openmandriva",
-                  "photon", "suse", "TencentOS", "ubuntu", "unknown"]
+{% if variant in ["alpine", "amazon", "arch", "azurelinux", "debian", "fedora",
+                  "gentoo", "mariner", "OpenCloudOS", "openeuler",
+                  "openmandriva", "photon", "suse", "TencentOS", "ubuntu",
+                  "unknown"]
                   or is_rhel %}
   # Other config here will be given to the distro class and/or path classes
   paths:
@@ -365,8 +368,9 @@ system_info:
 {% endif %}
 {% if variant in ["debian", "ubuntu", "unknown"] %}
   ssh_svcname: ssh
-{% elif variant in ["alpine", "amazon", "arch", "fedora", "gentoo",
-                    "mariner", "OpenCloudOS", "openeuler", "openmandriva",
-                    "photon", "suse", "TencentOS"] or is_rhel %}
+{% elif variant in ["alpine", "amazon", "arch", "azurelinux", "fedora",
+                    "gentoo", "mariner", "OpenCloudOS", "openeuler",
+                    "openmandriva", "photon", "suse", "TencentOS"]
+                   or is_rhel %}
   ssh_svcname: sshd
 {% endif %}

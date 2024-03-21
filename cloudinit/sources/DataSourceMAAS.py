@@ -104,7 +104,6 @@ class DataSourceMAAS(sources.DataSource):
         ud, md, vd = data
         self.userdata_raw = ud
         self.metadata = md
-        self.vendordata_pure = vd
         if vd:
             try:
                 self.vendordata_raw = sources.convert_vendordata(vd)
@@ -320,7 +319,7 @@ class MAASSeedDirMalformed(Exception):
 
 # Used to match classes to dependencies
 datasources = [
-    (DataSourceMAAS, (sources.DEP_FILESYSTEM,)),
+    (DataSourceMAASLocal, (sources.DEP_FILESYSTEM,)),
     (DataSourceMAAS, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 ]
 

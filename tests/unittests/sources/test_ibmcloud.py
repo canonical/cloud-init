@@ -416,7 +416,6 @@ class TestDataSourceIBMCloud(test_helpers.CiTestCase):
         self.assertEqual({}, self.ds.metadata)
         self.assertEqual("ud", self.ds.userdata_raw)
         self.assertEqual("net", self.ds.network_json)
-        self.assertEqual("vd", self.ds.vendordata_pure)
         self.assertEqual("uuid", self.ds.system_uuid)
         self.assertEqual("ibmcloud", self.ds.cloud_name)
         self.assertEqual("ibmcloud", self.ds.platform_type)

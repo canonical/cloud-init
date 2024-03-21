@@ -36,15 +36,17 @@ import sys
 import time
 from base64 import b64decode
 from collections import deque, namedtuple
-from contextlib import suppress
+from contextlib import contextmanager, suppress
 from errno import ENOENT
 from functools import lru_cache, total_ordering
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
+    Any,
     Callable,
     Deque,
     Dict,
+    Generator,
     List,
     Mapping,
     Optional,
@@ -649,6 +651,7 @@ def _get_variant(info):
             "almalinux",
             "alpine",
             "arch",
+            "azurelinux",
             "centos",
             "cloudlinux",
             "debian",
@@ -2665,26 +2668,6 @@ def get_freebsd_devpth(path):
     return "/dev/" + label_part
 
 
-def get_device_info_from_zpool(zpool):
-    # zpool has 10 second timeout waiting for /dev/zfs LP: #1760173
-    if not os.path.exists("/dev/zfs"):
-        LOG.debug("Cannot get zpool info, no /dev/zfs")
-        return None
-    try:
-        (zpoolstatus, err) = subp.subp(["zpool", "status", zpool])
-    except subp.ProcessExecutionError as err:
-        LOG.warning("Unable to get zpool status of %s: %s", zpool, err)
-        return None
-    if len(err):
-        return None
-    r = r".*(ONLINE).*"
-    for line in zpoolstatus.split("\n"):
-        if re.search(r, line) and zpool not in line and "state" not in line:
-            disk = line.split()[0]
-            LOG.debug('found zpool "%s" on disk %s', zpool, disk)
-            return disk
-
-
 def parse_mount(path, get_mnt_opts=False):
     """Return the mount information for PATH given the lines ``mount(1)``
     This function is compatible with ``util.parse_mount_info()``"""
@@ -3313,3 +3296,12 @@ def read_hotplug_enabled_file(paths: "Paths") -> dict:
         if "scopes" not in content:
             content["scopes"] = []
     return content
+
+
+@contextmanager
+def nullcontext() -> Generator[None, Any, None]:
+    """Context manager that does nothing.
+
+    Note: In python-3.7+, this can be substituted by contextlib.nullcontext
+    """
+    yield

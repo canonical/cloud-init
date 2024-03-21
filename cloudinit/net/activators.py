@@ -108,7 +108,7 @@ class IfConfigActivator(NetworkActivator):
         """Return true if ifconfig can be used on this system."""
         expected = "ifconfig"
         search = ["/sbin"]
-        return subp.which(expected, search=search, target=target)
+        return bool(subp.which(expected, search=search, target=target))
 
     @staticmethod
     def bring_up_interface(device_name: str) -> bool:

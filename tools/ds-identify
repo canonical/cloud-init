@@ -74,6 +74,7 @@ PATH_SYS_CLASS_BLOCK=${PATH_SYS_CLASS_BLOCK:-${PATH_ROOT}/sys/class/block}
 PATH_DEV_DISK="${PATH_DEV_DISK:-${PATH_ROOT}/dev/disk}"
 PATH_VAR_LIB_CLOUD="${PATH_VAR_LIB_CLOUD:-${PATH_ROOT}/var/lib/cloud}"
 PATH_DI_CONFIG="${PATH_DI_CONFIG:-${PATH_ROOT}/etc/cloud/ds-identify.cfg}"
+PATH_DI_ENV="${PATH_DI_ENV:-${PATH_ROOT}/usr/libexec/ds-identify-env}"
 PATH_PROC_CMDLINE="${PATH_PROC_CMDLINE:-${PATH_ROOT}/proc/cmdline}"
 PATH_PROC_1_CMDLINE="${PATH_PROC_1_CMDLINE:-${PATH_ROOT}/proc/1/cmdline}"
 PATH_PROC_1_ENVIRON="${PATH_PROC_1_ENVIRON:-${PATH_ROOT}/proc/1/environ}"
@@ -123,6 +124,7 @@ DS_FOUND=0
 DS_NOT_FOUND=1
 DS_MAYBE=2
 
+DI_SYSTEMD_VIRTUALIZATION=${SYSTEMD_VIRTUALIZATION:-}
 DI_DSNAME=""
 # this has to match the builtin list in cloud-init, it is what will
 # be searched if there is no setting found in config.
@@ -437,10 +439,17 @@ cached() {
 detect_virt() {
     local virt="${UNAVAILABLE}" r="" out=""
     if [ -d /run/systemd ]; then
-        out=$(systemd-detect-virt 2>&1)
-        r=$?
-        if [ $r -eq 0 ] || { [ $r -ne 0 ] && [ "$out" = "none" ]; }; then
-            virt="$out"
+        if [ -n "$DI_SYSTEMD_VIRTUALIZATION" ]; then
+            virt=${DI_SYSTEMD_VIRTUALIZATION#*:}
+            debug 2 "detected $virt via env variable SYSTEMD_VIRTUALIZATION"
+        else
+            # required for compatibility with systemd version <251
+            out=$(systemd-detect-virt 2>&1)
+            r=$?
+            if [ $r -eq 0 ] || { [ $r -ne 0 ] && [ "$out" = "none" ]; }; then
+                virt="$out"
+            fi
+            debug 2 "detected $virt via ds-identify"
         fi
     elif command -v virt-what >/dev/null 2>&1; then
         # Map virt-what's names to those systemd-detect-virt that
@@ -475,7 +484,7 @@ detect_virt() {
             case "$out" in
                 hv) virt="microsoft" ;;
                 vbox) virt="oracle" ;;
-                generic) "vm-other";;
+                generic) virt="vm-other";;
                 *) virt="$out"
             esac
         }
@@ -1124,7 +1133,7 @@ has_ovf_cdrom() {
 
 is_disabled() {
     if [ -f /etc/cloud/cloud-init.disabled ]; then
-        debug 1 "disabled by marker file /etc/cloud-init.disabled"
+        debug 1 "disabled by marker file /etc/cloud/cloud-init.disabled"
         return 0
     fi
     if [ "${KERNEL_CMDLINE:-}" = "cloud-init=disabled" ]; then
@@ -1654,8 +1663,8 @@ dscheck_WSL() {
     WSL_instance_name
     instance_name="${_RET}"
     # shellcheck source=/dev/null
-    . /etc/os-release
-    for userdatafile in "${instance_name}.user-data" "${ID}-${VERSION_ID}" "${ID}-all.user-data" "default.user-data"; do
+    . "${PATH_ROOT}/etc/os-release"
+    for userdatafile in "${instance_name}.user-data" "${ID:-linux}-${VERSION_ID:-${VERSION_CODENAME}}".user-data "${ID:-linux}-all.user-data" "default.user-data"; do
         candidate="$cloudinitdir/$userdatafile"
         if [ -f "$candidate" ]; then
             debug 1 "Found applicable user data file for this instance at: $candidate"
@@ -1953,6 +1962,16 @@ set_run_path() {
     DI_LOG="${DI_LOG:-${PATH_RUN_CI}/ds-identify.log}"
 }
 
+# set ds-identify internal variables by providing an env file
+# testing only - NOT use for production code, it is NOT supported
+get_environment() {
+    if [ -f "$PATH_DI_ENV" ]; then
+        debug 0 "WARN: loading environment file [${PATH_DI_ENV}]";
+        # shellcheck source=/dev/null
+        . "$PATH_DI_ENV"
+    fi
+}
+
 _main() {
     local dscheck_fn="" ret_dis=1 ret_en=0
 
@@ -2079,6 +2098,7 @@ _main() {
 
 main() {
     local ret=""
+    get_environment
     ensure_sane_path
     read_uname_info
     set_run_path
@@ -2108,7 +2128,14 @@ noop() {
     :
 }
 
+get_environment
 case "${DI_MAIN}" in
+    # builtin DI_MAIN implementations
     main|print_info|noop) "${DI_MAIN}" "$@";;
-    *) error "unexpected value for DI_MAIN"; exit 1;;
+
+    # side-load an alternate implementation
+    # testing only - NOT use for production code, it is NOT supported
+    *)
+        debug 0 "WARN: side-loading alternate implementation: [${DI_MAIN}]";
+        exec "${DI_MAIN}" "$@";;
 esac

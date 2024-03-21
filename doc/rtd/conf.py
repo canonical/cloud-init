@@ -146,14 +146,22 @@ linkcheck_anchors_ignore_for_url = (
     r"https://github.com/canonical/ubuntu-pro-client.*",
 )
 
+new_doc_issue_link = (
+    "https://github.com/canonical/cloud-init/issues/new?"
+    "labels=documentation%2C+new&projects=&template=documentation.md&"
+    "title=%5Bdocs%5D%3A+missing+redirect"
+)
+docs_url = "https://docs.cloud-init.io"
+
 # Sphinx-copybutton config options:
 notfound_body = (
     "<h1>Page not found</h1><p>Sorry we missed you! Our docs have had a"
-    " remodel and some deprecated links have changed.</p><p>"
-    "<a href='https://canonical-cloud-init.readthedocs-hosted.com'>Back to our"
-    " homepage now hosted at"
-    " https://canonical-cloud-init.readthedocs-hosted.com</a></p>"
+    " remodel and some deprecated links have changed. Please"
+    f" <a href='{new_doc_issue_link}'>file a documentation bug</a> and"
+    " we'll fix this redirect.</p><p>"
+    f"<a href='{docs_url}'>Back to our homepage hosted at {docs_url}</a></p>"
 )
+
 notfound_context = {
     "title": "Page not found",
     "body": notfound_body,
