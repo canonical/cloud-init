@@ -190,6 +190,7 @@ class DataSourceSmartOS(sources.DataSource):
         self.metadata = {}
         self.network_data = None
         self._network_config = None
+        self.routes_data = None
 
         self.script_base_d = os.path.join(self.paths.get_cpath("scripts"))
 

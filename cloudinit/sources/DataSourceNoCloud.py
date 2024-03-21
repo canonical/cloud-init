@@ -32,6 +32,8 @@ class DataSourceNoCloud(sources.DataSource):
         ]
         self.seed_dir = None
         self.supported_seed_starts = ("/", "file://")
+        self._network_config = None
+        self._network_eni = None
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -209,9 +211,6 @@ class DataSourceNoCloud(sources.DataSource):
 
     @property
     def platform_type(self):
-        # Handle upgrade path of pickled ds
-        if not hasattr(self, "_platform_type"):
-            self._platform_type = None
         if not self._platform_type:
             self._platform_type = "lxd" if util.is_lxd() else "nocloud"
         return self._platform_type

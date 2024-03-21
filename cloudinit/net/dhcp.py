@@ -15,6 +15,7 @@ import struct
 import time
 from contextlib import suppress
 from io import StringIO
+from subprocess import TimeoutExpired
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import configobj
@@ -95,6 +96,10 @@ def maybe_perform_dhcp_discovery(distro, nic=None, dhcp_log_func=None):
         returned.
     """
     interface = nic or distro.fallback_interface
+    if interface is None:
+        LOG.debug("Skip dhcp_discovery: Unable to find fallback nic.")
+        raise NoDHCPLeaseInterfaceError()
+
     return distro.dhcp_client.dhcp_discovery(interface, dhcp_log_func, distro)
 
 
@@ -694,9 +699,17 @@ class Dhcpcd(DhcpClient):
                 return lease
             raise NoDHCPLeaseError("No lease found")
 
+        except TimeoutExpired as error:
+            LOG.debug(
+                "dhcpcd timed out after %s seconds: stderr: %r stdout: %r",
+                error.timeout,
+                error.stderr,
+                error.stdout,
+            )
+            raise NoDHCPLeaseError from error
         except subp.ProcessExecutionError as error:
             LOG.debug(
-                "dhclient exited with code: %s stderr: %r stdout: %r",
+                "dhcpcd exited with code: %s stderr: %r stdout: %r",
                 error.exit_code,
                 error.stderr,
                 error.stdout,

@@ -3,7 +3,9 @@
 import copy
 import os
 from collections import namedtuple
+from logging import getLogger
 from pathlib import Path
+from tempfile import mkdtemp
 from textwrap import dedent
 from uuid import uuid4
 
@@ -20,6 +22,8 @@ from tests.unittests.helpers import (
     populate_dir,
     populate_dir_with_ts,
 )
+
+LOG = getLogger(__name__)
 
 UNAME_MYSYS = "Linux #83-Ubuntu SMP Wed Jan 18 14:10:15 UTC 2017 x86_64"
 UNAME_PPC64EL = (
@@ -99,16 +103,22 @@ MOCK_VIRT_IS_CONTAINER_OTHER = {
     "RET": "container-other",
     "ret": 0,
 }
+IS_CONTAINER_OTHER_ENV = {"SYSTEMD_VIRTUALIZATION": "vm:kvm"}
 MOCK_NOT_LXD_DATASOURCE = {"name": "dscheck_LXD", "ret": 1}
 MOCK_VIRT_IS_KVM = {"name": "detect_virt", "RET": "kvm", "ret": 0}
+KVM_ENV = {"SYSTEMD_VIRTUALIZATION": "vm:kvm"}
 # qemu support for LXD is only for host systems > 5.10 kernel as lxd
 # passed `hv_passthrough` which causes systemd < v.251 to misinterpret CPU
 # as "qemu" instead of "kvm"
 MOCK_VIRT_IS_KVM_QEMU = {"name": "detect_virt", "RET": "qemu", "ret": 0}
+IS_KVM_QEMU_ENV = {"SYSTEMD_VIRTUALIZATION": "vm:qemu"}
 MOCK_VIRT_IS_VMWARE = {"name": "detect_virt", "RET": "vmware", "ret": 0}
+IS_VMWARE_ENV = {"SYSTEMD_VIRTUALIZATION": "vm:vmware"}
 # currenty' SmartOS hypervisor "bhyve" is unknown by systemd-detect-virt.
 MOCK_VIRT_IS_VM_OTHER = {"name": "detect_virt", "RET": "vm-other", "ret": 0}
+IS_VM_OTHER = {"SYSTEMD_VIRTUALIZATION": "vm:vm-other"}
 MOCK_VIRT_IS_XEN = {"name": "detect_virt", "RET": "xen", "ret": 0}
+IS_XEN_ENV = {"SYSTEMD_VIRTUALIZATION": "vm:xen"}
 MOCK_VIRT_IS_WSL = {"name": "detect_virt", "RET": "wsl", "ret": 0}
 MOCK_UNAME_IS_PPC64 = {"name": "uname", "out": UNAME_PPC64EL, "ret": 0}
 MOCK_UNAME_IS_FREEBSD = {"name": "uname", "out": UNAME_FREEBSD, "ret": 0}
@@ -131,6 +141,14 @@ MOCK_WSL_INSTANCE_DATA = {
         LOGO=ubuntu-logo
         """
     ),
+    "os_release_no_version_id": dedent(
+        """\
+        PRETTY_NAME="Debian GNU/Linux trixie/sid"
+        NAME="Debian GNU/Linux"
+        VERSION_CODENAME="trixie"
+        ID=debian
+        """
+    ),
 }
 
 shell_true = 0
@@ -145,6 +163,9 @@ class DsIdentifyBase(CiTestCase):
     dsid_path = cloud_init_project_dir("tools/ds-identify")
     allowed_subp = ["sh"]
 
+    # set to true to write out the mocked ds-identify for inspection
+    debug_mode = True
+
     def call(
         self,
         rootd=None,
@@ -156,6 +177,7 @@ class DsIdentifyBase(CiTestCase):
         policy_dmi=DI_DEFAULT_POLICY,
         policy_no_dmi=DI_DEFAULT_POLICY_NO_DMI,
         ec2_strict_id=DI_EC2_STRICT_ID_DEFAULT,
+        env_vars=None,
     ):
         if args is None:
             args = []
@@ -243,12 +265,26 @@ class DsIdentifyBase(CiTestCase):
 
         endlines = [func + " " + " ".join(['"%s"' % s for s in args])]
 
+        mocked_ds_identify = "\n".join(head + mocklines + endlines) + "\n"
         with open(wrap, "w") as fp:
-            fp.write("\n".join(head + mocklines + endlines) + "\n")
+            fp.write(mocked_ds_identify)
+
+        # debug_mode force this test to write the mocked ds-identify script to
+        # a file for inspection
+        if self.debug_mode:
+            tempdir = mkdtemp()
+            dir = f"{tempdir}/ds-identify"
+            LOG.debug("Writing mocked ds-identify to %s for debugging.", dir)
+            with open(dir, "w") as fp:
+                fp.write(mocked_ds_identify)
 
         rc = 0
         try:
-            out, err = subp.subp(["sh", "-c", ". %s" % wrap], capture=True)
+            out, err = subp.subp(
+                ["sh", "-c", ". %s" % wrap],
+                update_env=env_vars if env_vars else {},
+                capture=True,
+            )
         except subp.ProcessExecutionError as e:
             rc = e.exit_code
             out = e.stdout
@@ -273,6 +309,7 @@ class DsIdentifyBase(CiTestCase):
             "mocks",
             "func",
             "args",
+            "env_vars",
             "policy_dmi",
             "policy_no_dmi",
             "files",
@@ -286,8 +323,9 @@ class DsIdentifyBase(CiTestCase):
 
     def _test_ds_found(self, name):
         data = copy.deepcopy(VALID_CFG[name])
+
         return self._check_via_dict(
-            data, RC_FOUND, dslist=[data.get("ds"), DS_NONE]
+            data, RC_FOUND, dslist=[data.pop("ds"), DS_NONE]
         )
 
     def _test_ds_not_found(self, name):
@@ -300,7 +338,7 @@ class DsIdentifyBase(CiTestCase):
         try:
             self.assertEqual(rc, ret.rc)
             if dslist is not None:
-                self.assertEqual(dslist, ret.cfg["datasource_list"])
+                self.assertEqual(dslist, ret.cfg.get("datasource_list"))
             good = True
         finally:
             if not good:
@@ -411,6 +449,13 @@ class TestDsIdentify(DsIdentifyBase):
         """EC2: hvm instances use dmi serial and uuid starting with 'ec2'."""
         self._test_ds_found("Ec2-hvm")
 
+    def test_aws_ec2_hvm_env(self):
+        """EC2: hvm instances use dmi serial and uuid starting with 'ec2'
+
+        test using SYSTEMD_VIRTUALIZATION, not systemd-detect-virt
+        """
+        self._test_ds_found("Ec2-hvm-env")
+
     def test_aws_ec2_xen(self):
         """EC2: sys/hypervisor/uuid starts with ec2."""
         self._test_ds_found("Ec2-xen")
@@ -430,6 +475,13 @@ class TestDsIdentify(DsIdentifyBase):
     def test_gce_by_product_name(self):
         """GCE identifies itself with product_name."""
         self._test_ds_found("GCE")
+
+    def test_gce_by_product_name_env(self):
+        """GCE identifies itself with product_name.
+
+        Uses SYSTEMD_VIRTUALIZATION
+        """
+        self._test_ds_found("GCE_ENV")
 
     def test_gce_by_serial(self):
         """Older gce compute instances must be identified by serial."""
@@ -452,6 +504,20 @@ class TestDsIdentify(DsIdentifyBase):
         CPUID will be represented properly as "kvm"
         """
         self._test_ds_found("LXD-kvm-qemu-kernel-gt-5.10")
+
+    def test_lxd_kvm_jammy_env(self):
+        """LXD KVM on host systems with a kernel > 5.10 need to match "qemu".
+        LXD provides `hv_passthrough` when launching kvm instances when host
+        kernel is > 5.10. This results in systemd being unable to detect the
+        virtualized CPUID="Linux KVM Hv" as type "kvm" and results in
+        systemd-detect-virt returning "qemu" in this case.
+
+        Assert ds-identify can match systemd-detect-virt="qemu" and
+        /sys/class/dmi/id/board_name = LXD.
+        Once systemd 251 is available on a target distro, the virtualized
+        CPUID will be represented properly as "kvm"
+        """
+        self._test_ds_found("LXD-kvm-qemu-kernel-gt-5.10-env")
 
     def test_lxd_containers(self):
         """LXD containers will have /dev/lxd/socket at generator time."""
@@ -653,6 +719,10 @@ class TestDsIdentify(DsIdentifyBase):
         """SAP Converged Cloud identification"""
         self._test_ds_found("OpenStack-SAPCCloud")
 
+    def test_openstack_sap_ccloud_env(self):
+        """SAP Converged Cloud identification"""
+        self._test_ds_found("OpenStack-SAPCCloud-env")
+
     def test_openstack_huawei_cloud(self):
         """Open Huawei Cloud identification."""
         self._test_ds_found("OpenStack-HuaweiCloud")
@@ -820,9 +890,19 @@ class TestDsIdentify(DsIdentifyBase):
         """SmartOS cloud identified on lxbrand container."""
         self._test_ds_found("SmartOS-lxbrand")
 
+    def test_smartos_lxbrand_env(self):
+        """SmartOS cloud identified on lxbrand container."""
+        self._test_ds_found("SmartOS-lxbrand-env")
+
     def test_smartos_lxbrand_requires_socket(self):
         """SmartOS cloud should not be identified if no socket file."""
         mycfg = copy.deepcopy(VALID_CFG["SmartOS-lxbrand"])
+        del mycfg["files"][ds_smartos.METADATA_SOCKFILE]
+        self._check_via_dict(mycfg, rc=RC_NOT_FOUND, policy_dmi="disabled")
+
+    def test_smartos_lxbrand_requires_socket_env(self):
+        """SmartOS cloud should not be identified if no socket file."""
+        mycfg = copy.deepcopy(VALID_CFG["SmartOS-lxbrand-env"])
         del mycfg["files"][ds_smartos.METADATA_SOCKFILE]
         self._check_via_dict(mycfg, rc=RC_NOT_FOUND, policy_dmi="disabled")
 
@@ -1128,9 +1208,26 @@ class TestWSL(DsIdentifyBase):
         )
         return self._check_via_dict(data, RC_NOT_FOUND)
 
+    def test_found_via_userdata_version_codename(self):
+        """WLS datasource detected by VERSION_CODENAME when no VERSION_ID"""
+        data = copy.deepcopy(VALID_CFG["WSL-supported-debian"])
+        cloudinitdir = self.tmp_dir()
+        data["mocks"].append(
+            {
+                "name": "WSL_cloudinit_dir_in",
+                "ret": 0,
+                "RET": cloudinitdir,
+            },
+        )
+        filename = os.path.join(cloudinitdir, "debian-trixie.user-data")
+        Path(filename).touch()
+        self._check_via_dict(data, RC_FOUND, dslist=[data.get("ds"), DS_NONE])
+        Path(filename).unlink()
+
     def test_found_via_userdata(self):
-        """Asserts that WSL datasource is found if there is applicable
-        userdata files inside cloudinitdir."""
+        """
+        WSL datasource is found on applicable userdata files in cloudinitdir.
+        """
         data = copy.deepcopy(VALID_CFG["WSL-supported"])
         cloudinitdir = self.tmp_dir()
         data["mocks"].append(
@@ -1159,11 +1256,8 @@ class TestWSL(DsIdentifyBase):
             os.path.join(cloudinitdir, "default.user-data"),
         ]
 
-        # Ensures all applicable user data files exist.
         for filename in userdata_files:
             Path(filename).touch()
-
-        for filename in userdata_files:
             self._check_via_dict(
                 data, RC_FOUND, dslist=[data.get("ds"), DS_NONE]
             )
@@ -1276,6 +1370,14 @@ VALID_CFG = {
             P_PRODUCT_UUID: "EC23AEF5-54BE-4843-8D24-8C819F88453E\n",
         },
     },
+    "Ec2-hvm-env": {
+        "ds": "Ec2",
+        "mocks": [{"name": "detect_virt_env", "RET": "vm:kvm", "ret": 0}],
+        "files": {
+            P_PRODUCT_SERIAL: "ec23aef5-54be-4843-8d24-8c819f88453e\n",
+            P_PRODUCT_UUID: "EC23AEF5-54BE-4843-8D24-8C819F88453E\n",
+        },
+    },
     "Ec2-xen": {
         "ds": "Ec2",
         "mocks": [MOCK_VIRT_IS_XEN],
@@ -1295,6 +1397,12 @@ VALID_CFG = {
         "ds": "GCE",
         "files": {P_PRODUCT_NAME: "Google Compute Engine\n"},
         "mocks": [MOCK_VIRT_IS_KVM],
+    },
+    "GCE_ENV": {
+        "ds": "GCE",
+        "files": {P_PRODUCT_NAME: "Google Compute Engine\n"},
+        "env_vars": KVM_ENV,
+        "no_mocks": ["detect_virt"],
     },
     "GCE-serial": {
         "ds": "GCE",
@@ -1346,6 +1454,20 @@ VALID_CFG = {
         # /dev/lxd/sock does not exist and KVM virt-type
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM_QEMU],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+    },
+    # LXD host > 5.10 kvm launch virt==qemu
+    "LXD-kvm-qemu-kernel-gt-5.10-env": {
+        "ds": "LXD",
+        "files": {P_BOARD_NAME: "LXD\n"},
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [
+            {"name": "is_socket_file", "ret": 1},
+        ],
+        "env_vars": IS_KVM_QEMU_ENV,
+        "no_mocks": [
+            "dscheck_LXD",
+            "detect_virt",
+        ],  # Don't default mock dscheck_LXD
     },
     "LXD": {
         "ds": "LXD",
@@ -1497,6 +1619,13 @@ VALID_CFG = {
         "ds": "OpenStack",
         "files": {P_CHASSIS_ASSET_TAG: "SAP CCloud VM\n"},
         "mocks": [MOCK_VIRT_IS_VMWARE],
+    },
+    "OpenStack-SAPCCloud-env": {
+        # SAP CCloud hosts use OpenStack on VMware
+        "ds": "OpenStack",
+        "files": {P_CHASSIS_ASSET_TAG: "SAP CCloud VM\n"},
+        "env_vars": IS_VMWARE_ENV,
+        "no_mocks": ["detect_virt"],
     },
     "OpenStack-HuaweiCloud": {
         # Huawei Cloud hosts use OpenStack
@@ -1854,6 +1983,20 @@ VALID_CFG = {
             },
             {"name": "blkid", "ret": 2, "out": ""},
         ],
+        "files": {ds_smartos.METADATA_SOCKFILE: "would be a socket\n"},
+    },
+    "SmartOS-lxbrand-env": {
+        "ds": "SmartOS",
+        "mocks": [
+            {
+                "name": "uname",
+                "ret": 0,
+                "out": ("Linux BrandZ virtual linux x86_64"),
+            },
+            {"name": "blkid", "ret": 2, "out": ""},
+        ],
+        "no_mocks": ["detect_virt"],
+        "env_vars": IS_CONTAINER_OTHER_ENV,
         "files": {ds_smartos.METADATA_SOCKFILE: "would be a socket\n"},
     },
     "Ec2-ZStack": {
@@ -2234,6 +2377,31 @@ VALID_CFG = {
                 "group_id=0,allow_other 0 0"
             ),
             "etc/os-release": MOCK_WSL_INSTANCE_DATA["os_release"],
+        },
+    },
+    "WSL-supported-debian": {
+        "ds": "WSL",
+        "mocks": [
+            MOCK_VIRT_IS_WSL,
+            MOCK_UNAME_IS_WSL,
+            {
+                "name": "WSL_instance_name",
+                "ret": 0,
+                "RET": MOCK_WSL_INSTANCE_DATA["name"],
+            },
+        ],
+        "files": {
+            "proc/mounts": (
+                "/dev/sdd / ext4 rw,errors=remount-ro,data=ordered 0 0\n"
+                "cgroup2 /sys/fs/cgroup cgroup2 rw,nosuid,nodev,noexec0 0\n"
+                "C:\\134 /mnt/c 9p rw,dirsync,aname=drvfs;path=C:\\;uid=0;"
+                "gid=0;symlinkroot=/mnt/...\n"
+                "snapfuse /snap/core22/1033 fuse.snapfuse ro,nodev,user_id=0,"
+                "group_id=0,allow_other 0 0"
+            ),
+            "etc/os-release": MOCK_WSL_INSTANCE_DATA[
+                "os_release_no_version_id"
+            ],
         },
     },
 }
