@@ -6,6 +6,7 @@ import re
 from functools import partial
 from threading import Event
 from time import process_time
+from unittest.mock import ANY, call
 
 import pytest
 import requests
@@ -446,20 +447,72 @@ class TestDualStack:
         """Assert expected call intervals occur"""
         stagger = 0.1
         with mock.patch(M_PATH + "_run_func_with_delay") as delay_func:
+
+            def identity_of_first_arg(x, _):
+                return x
+
             dual_stack(
-                lambda x, _y: x,
+                identity_of_first_arg,
                 ["you", "and", "me", "and", "dog"],
                 stagger_delay=stagger,
                 timeout=1,
             )
 
-            # ensure that stagger delay for each subsequent call is:
+            # ensure that stagger delay for each call is made with args:
             # [ 0 * N, 1 * N, 2 * N, 3 * N, 4 * N, 5 * N] where N = stagger
             # it appears that without an explicit wait/join we can't assert
             # number of calls
-            for delay, call_item in enumerate(delay_func.call_args_list):
-                _, kwargs = call_item
-                assert stagger * delay == kwargs.get("delay")
+            calls = [
+                call(
+                    func=identity_of_first_arg,
+                    addr="you",
+                    timeout=1,
+                    event=ANY,
+                    delay=stagger * 0,
+                ),
+                call(
+                    func=identity_of_first_arg,
+                    addr="and",
+                    timeout=1,
+                    event=ANY,
+                    delay=stagger * 1,
+                ),
+                call(
+                    func=identity_of_first_arg,
+                    addr="me",
+                    timeout=1,
+                    event=ANY,
+                    delay=stagger * 2,
+                ),
+                call(
+                    func=identity_of_first_arg,
+                    addr="and",
+                    timeout=1,
+                    event=ANY,
+                    delay=stagger * 3,
+                ),
+                call(
+                    func=identity_of_first_arg,
+                    addr="dog",
+                    timeout=1,
+                    event=ANY,
+                    delay=stagger * 4,
+                ),
+            ]
+            num_calls = 0
+            for call_instance in calls:
+                if call_instance in delay_func.call_args_list:
+                    num_calls += 1
+
+            # we can't know the order of the submitted functions' execution
+            # we can't know how many of the submitted functions get called
+            # in advance
+            #
+            # we _do_ know what the possible arg combinations are
+            # we _do_ know from the mocked function how many got called
+            # assert that all calls that occurred had known valid arguments
+            # by checking for the correct number of matches
+            assert num_calls == len(delay_func.call_args_list)
 
 
 ADDR1 = "https://addr1/"

@@ -36,6 +36,10 @@
           "items": {
             "$ref": "#/$defs/config_type_subnet"
           }
+        },
+        "accept-ra": {
+          "type": "boolean",
+          "description": "Whether to accept IPv6 Router Advertisements (RA) on this interface. If unset, it will not be rendered"
         }
       }
     },
@@ -446,10 +450,7 @@
         },
         "network": {
           "type": "string",
-          "description": "IPv4 network address with CIDR netmask notation or IPv6 with prefix length. Alias for ``destination`` and only read when ``destination`` key is absent.",
-          "deprecated": true,
-          "deprecated_version": "23.3",
-          "deprecated_description": "Use ``destination`` instead."
+          "description": "IPv4 network address with CIDR netmask notation or IPv6 with prefix length. Alias for ``destination`` and only read when ``destination`` key is absent. This exists for OpenStack support. OpenStack route definitions are passed through to v1 config and OpenStack's ``network_data.json`` uses ``network`` instead of ``destination``."
         },
         "destination": {
           "type": "string",
