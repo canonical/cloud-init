@@ -4,6 +4,7 @@ cloud-init (23.4.1-0ubuntu1~20.04.3) UNRELEASED; urgency=medium
   * d/cloud-init.maintscript: remove /etc/cloud/clean.d/README
   * d/cloud-init.logrotate: add logrotate config for cloud-init
   * d/cloud-init.templates: enable WSL datasource by default
+  * d/control: remove netifaces
   * d/p/keep-dhclient-as-priority-client.patch
   * d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
     - Retain systemd ordering cloud-config.service After=snapd.seeded.service
@@ -20,12 +21,10 @@ cloud-init (23.4.1-0ubuntu1~20.04.3) UNRELEASED; urgency=medium
     - d/p/status-do-not-remove-duplicated-data.patch
     - d/p/status-retain-recoverable-error-exit-code.patch
     - d/p/keep-dhclient-as-priority-client.patch
-    - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
     - d/p/retain-old-groups.patch
-  * d/control: remove netifaces
-  * Upstream snapshot based on upstream/main at f7c1c761.
+  * Upstream snapshot based on upstream/main at 1dfffd06.
 
- -- James Falcon <james.falcon@canonical.com>  Thu, 14 Mar 2024 10:46:20 -0500
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 21 Mar 2024 15:56:21 -0600
 
 cloud-init (23.4.1-0ubuntu1~20.04.2) focal; urgency=medium
 
