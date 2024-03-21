@@ -1,6 +1,7 @@
 cloud-init (23.4.1-0ubuntu1~22.04.3) UNRELEASED; urgency=medium
 
   * d/apport-general-hook.py: Move apport hook to main branch
+  * d/control: Remove netifaces
   * d/cloud-init.maintscript: remove /etc/cloud/clean.d/README
   * d/cloud-init.logrotate: add logrotate config for cloud-init
   * d/cloud-init.templates: enable WSL datasource by default
@@ -22,10 +23,9 @@ cloud-init (23.4.1-0ubuntu1~22.04.3) UNRELEASED; urgency=medium
     - d/p/status-do-not-remove-duplicated-data.patch
     - d/p/status-retain-recoverable-error-exit-code.patch
     - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
-  * Upstream snapshot based on upstream/main at d8b6ac2b.
-  * d/control: Remove netifaces 
+  * Upstream snapshot based on upstream/main at 1dfffd06.
 
- -- Catherine Redfield <catherine.redfield@canonical.com>  Tue, 05 Mar 2024 15:41:00 -0500
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 21 Mar 2024 15:47:28 -0600
 
 cloud-init (23.4.1-0ubuntu1~22.04.2) jammy; urgency=medium
 
