@@ -1,3 +1,15 @@
+24.1.2
+ - test: Don't assume ordering of ThreadPoolExecutor submissions (#5052)
+ - refactor(ec2): simplify convert_ec2_metadata_network_config
+ - tests: drop CiTestCase and convert to pytest
+ - bug(tests): mock reads of host's /sys/class/net via get_sys_class_path
+ - fix: Fix breaking changes in package install (#5069)
+ - fix: Undeprecate 'network' in schema route definition (#5072)
+ - fix(ec2): fix ipv6 policy routing
+ - fix: document and add 'accept-ra' to network schema (#5060)
+ - bug(maas): register the correct DatasourceMAASLocal in init-local
+   (#5068) (LP: #2057763)
+
 24.1.1
  - fix: Include DataSourceCloudStack attribute in unpickle test (#5039)
  - bug(vmware): initialize new DataSourceVMware attributes at unpickle (#5021)
