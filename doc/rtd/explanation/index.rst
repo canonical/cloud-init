@@ -22,3 +22,4 @@ knowledge and become better at using and configuring ``cloud-init``.
    kernel-cmdline.rst
    failure_states.rst
    exported_errors.rst
+   return_codes.rst

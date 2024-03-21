@@ -37,6 +37,14 @@ def common_mocks(mocker):
         "cloudinit.distros.package_management.apt.Apt._apt_lock_available",
         return_value=True,
     )
+    mocker.patch(
+        "cloudinit.distros.package_management.apt.Apt.available",
+        return_value=True,
+    )
+    mocker.patch(
+        "cloudinit.distros.package_management.snap.Snap.available",
+        return_value=True,
+    )
 
 
 class TestRebootIfRequired:
@@ -275,7 +283,7 @@ class TestMultiplePackageManagers:
         assert caplog.records[-3].levelname == "WARNING"
         assert (
             caplog.records[-3].message
-            == "Failed to install packages: ['pkg1']"
+            == "Failure when attempting to install packages: ['pkg1']"
         )
 
 

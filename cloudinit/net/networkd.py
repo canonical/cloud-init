@@ -192,9 +192,7 @@ class Renderer(renderer.Renderer):
 
         cfg.update_section(sec, "DHCP", dhcp)
 
-        if dhcp in ["ipv6", "yes"] and isinstance(
-            iface.get("accept-ra", ""), bool
-        ):
+        if isinstance(iface.get("accept-ra", ""), bool):
             cfg.update_section(sec, "IPv6AcceptRA", iface["accept-ra"])
 
         return dhcp
