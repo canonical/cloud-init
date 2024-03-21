@@ -48,20 +48,12 @@ Last-Update: 2024-02-14
          os.path.join(cloud.paths.get_ipath_cur(), "snapd.assertions"),
 --- a/cloudinit/config/cc_ubuntu_autoinstall.py
 +++ b/cloudinit/config/cc_ubuntu_autoinstall.py
-@@ -6,7 +6,6 @@ import logging
- import re
- from textwrap import dedent
- 
--from cloudinit import util
- from cloudinit.cloud import Cloud
- from cloudinit.config import Config
- from cloudinit.config.schema import (
-@@ -84,7 +83,6 @@ def handle(name: str, cfg: Config, cloud
+@@ -83,7 +83,6 @@ def handle(name: str, cfg: Config, cloud
          )
          return
  
 -    util.wait_for_snap_seeded(cloud)
-     snap_list, _ = subp(["snap", "list"])
+     snap_list, _ = subp.subp(["snap", "list"])
      installer_present = None
      for snap_name in LIVE_INSTALLER_SNAPS:
 --- a/cloudinit/util.py
@@ -254,7 +246,7 @@ Last-Update: 2024-02-14
  
  
 -@mock.patch(MODPATH + "util.wait_for_snap_seeded")
- @mock.patch(MODPATH + "subp")
+ @mock.patch(MODPATH + "subp.subp")
  class TestHandleAutoinstall:
      """Test cc_ubuntu_autoinstall handling of config."""
  
