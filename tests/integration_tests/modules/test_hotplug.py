@@ -61,7 +61,14 @@ def _get_ip_addr(client):
         attributes = line.split()
         interface, state = attributes[0], attributes[1]
         ip4_cidr = attributes[2] if len(attributes) > 2 else None
-        ip6_cidr = attributes[3] if len(attributes) > 3 else None
+        # The output of `ip --brief addr` can contain metric info:
+        # ens5 UP <ipv4_cidr> metric 100 <ipv6_cidr> ...
+        ip6_cidr = None
+        if len(attributes) > 3:
+            if attributes[3] != "metric":
+                ip6_cidr = attributes[3]
+            elif len(attributes) > 5:
+                ip6_cidr = attributes[5]
         ip4 = ip4_cidr.split("/")[0] if ip4_cidr else None
         ip6 = ip6_cidr.split("/")[0] if ip6_cidr else None
         ip = ip_addr(interface, state, ip4, ip6)
@@ -276,7 +283,6 @@ def test_multi_nic_hotplug(setup_image, session_cloud: IntegrationCloud):
             new_nic_cfg = config["network"]["ethernets"][
                 new_addition.interface
             ]
-            assert "routing-policy" in new_nic_cfg
             assert [{"from": secondary_priv_ip, "table": 101}] == new_nic_cfg[
                 "routing-policy"
             ]
@@ -327,42 +333,52 @@ def test_multi_nic_hotplug_vpc(setup_image, session_cloud: IntegrationCloud):
         user_data=USER_DATA
     ) as client, session_cloud.launch() as bastion:
         ips_before = _get_ip_addr(client)
-        primary_priv_ip = ips_before[1].ip4
-
-        secondary_priv_ip = client.instance.add_network_interface()
+        primary_priv_ip4 = ips_before[1].ip4
+        primary_priv_ip6 = ips_before[1].ip6
+        client.instance.add_network_interface(ipv6_address_count=1)
 
         _wait_till_hotplug_complete(client)
         log_content = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log_content)
 
-        ips_after_add = _get_ip_addr(client)
-
         netplan_cfg = client.read_from_file("/etc/netplan/50-cloud-init.yaml")
         config = yaml.safe_load(netplan_cfg)
+
+        ips_after_add = _get_ip_addr(client)
+        secondary_priv_ip4 = ips_after_add[2].ip4
+        secondary_priv_ip6 = ips_after_add[2].ip6
+        assert primary_priv_ip4 != secondary_priv_ip4
+
         new_addition = [
-            ip for ip in ips_after_add if ip.ip4 == secondary_priv_ip
+            ip for ip in ips_after_add if ip.ip4 == secondary_priv_ip4
         ][0]
         assert new_addition.interface in config["network"]["ethernets"]
         new_nic_cfg = config["network"]["ethernets"][new_addition.interface]
         assert "routing-policy" in new_nic_cfg
-        assert [{"from": secondary_priv_ip, "table": 101}] == new_nic_cfg[
-            "routing-policy"
-        ]
+        assert [
+            {"from": secondary_priv_ip4, "table": 101},
+            {"from": secondary_priv_ip6, "table": 101},
+        ] == new_nic_cfg["routing-policy"]
 
         assert len(ips_after_add) == len(ips_before) + 1
 
         # pings to primary and secondary NICs work
-        r = bastion.execute(f"ping -c1 {primary_priv_ip}")
+        r = bastion.execute(f"ping -c1 {primary_priv_ip4}")
         assert r.ok, r.stdout
-        r = bastion.execute(f"ping -c1 {secondary_priv_ip}")
+        r = bastion.execute(f"ping -c1 {secondary_priv_ip4}")
+        assert r.ok, r.stdout
+        r = bastion.execute(f"ping -c1 {primary_priv_ip6}")
+        assert r.ok, r.stdout
+        r = bastion.execute(f"ping -c1 {secondary_priv_ip6}")
         assert r.ok, r.stdout
 
         # Remove new NIC
-        client.instance.remove_network_interface(secondary_priv_ip)
+        client.instance.remove_network_interface(secondary_priv_ip4)
         _wait_till_hotplug_complete(client, expected_runs=2)
 
         # ping to primary NIC works
-        bastion.execute(f"ping -c1 {primary_priv_ip}")
+        assert bastion.execute(f"ping -c1 {primary_priv_ip4}").ok
+        assert bastion.execute(f"ping -c1 {primary_priv_ip6}").ok
 
         log_content = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log_content)
