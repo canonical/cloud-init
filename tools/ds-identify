@@ -1594,28 +1594,22 @@ dscheck_VMware() {
     return "${DS_NOT_FOUND}"
 }
 
-WSL_cloudinit_dir_in() {
-    _RET=""
-    local cmdexe="" cloudinitdir="" val=""
-    for m in $@; do
-        cmdexe="$m/Windows/System32/cmd.exe"
-        if command -v "$cmdexe" > /dev/null 2>&1; then
-            # Here WSL's proprietary `/init` is used to start the Windows cmd.exe
-            # to output the Windows user profile directory path, which is
-            # held by the environment variable %USERPROFILE%.
-            cloudinitdir=$(/init "$cmdexe" /c echo %USERPROFILE% 2>/dev/null)
-            cloudinitdir="${cloudinitdir%%[[:cntrl:]]}"
-            if [ -n "$cloudinitdir" ]; then
-                # wslpath is a program supplied by WSL itself that translates Windows and Linux paths,
-                # respecting the mountpoints where the Windows drives are mounted.
-                # (in fact it's a symlink to /init).
-                val=$(wslpath -au "$cloudinitdir/.cloud-init/") && _RET="$val"
-                return $?
-            fi
-        fi
-    done
+WSL_win2linux_path() {
+    local val=""
+    val="$(wslpath -au "$1" )"
+    _RET="$val"
+}
 
-    return 1
+WSL_linux2win_path() {
+    local val=""
+    val="$(wslpath -am "$1" )"
+    _RET="$val"
+}
+
+WSL_run_cmd() {
+    local val=""
+    val=$(/init "$cmdexe" /c "$@" 2>/dev/null)
+    _RET="$val"
 }
 
 WSL_profile_dir() {
@@ -1628,13 +1622,14 @@ WSL_profile_dir() {
             # Here WSL's proprietary `/init` is used to start the Windows cmd.exe
             # to output the Windows user profile directory path, which is
             # held by the environment variable %USERPROFILE%.
-            profiledir=$(/init "$cmdexe" /c echo %USERPROFILE% 2>/dev/null)
+            WSL_run_cmd "echo %USERPROFILE%"
+            profiledir="{$_RET}"
             profiledir="${profiledir%%[[:cntrl:]]}"
             if [ -n "$profiledir" ]; then
                 # wslpath is a program supplied by WSL itself that translates Windows and Linux paths,
                 # respecting the mountpoints where the Windows drives are mounted.
                 # (in fact it's a symlink to /init).
-                val=$(wslpath -au "$profiledir") && _RET="$val"
+                WSL_win2linux_path "$profiledir"
                 return $?
             fi
         fi
@@ -1645,9 +1640,10 @@ WSL_profile_dir() {
 
 WSL_instance_name() {
     local val="" instance_name=""
-    instance_name=$(wslpath -am /)
-    val="${instance_name##*/}"
-    _RET="${val}"
+    WSL_linux2win_path "/"
+    instance_name="${_RET}"
+    val="${instance_name#//*/}"
+    _RET="${val%/}"
 }
 
 dscheck_WSL() {
@@ -1696,20 +1692,20 @@ dscheck_WSL() {
     # and the applicable userdata file. Notice the ordering in the for-loop
     # must match our expected precedence, so the file we find is what the
     # datasource must process.
-    cloudinitdir="$profile_dir/.cloud-init"
-    for userdatafile in "${instance_name}.user-data" "${ID:-linux}-${VERSION_ID:-${VERSION_CODENAME}}".user-data "${ID:-linux}-all.user-data" "default.user-data"; do
-        candidate="$cloudinitdir/$userdatafile"
-        if [ -f "$candidate" ]; then
-            debug 1 "Found applicable user data file for this instance at: $candidate"
-            return ${DS_FOUND}
-        fi
-    done
-
     cloudinitdir="$profile_dir/.ubuntupro/.cloud-init"
     for userdatafile in "${instance_name}.user-data" "agent.yaml"; do
         candidate="$cloudinitdir/$userdatafile"
         if [ -f "$candidate" ]; then
             debug 1 "Found applicable pro data file for this instance at: $candidate"
+            return ${DS_FOUND}
+        fi
+    done
+
+    cloudinitdir="$profile_dir/.cloud-init"
+    for userdatafile in "${instance_name}.user-data" "${ID:-linux}-${VERSION_ID:-${VERSION_CODENAME}}.user-data" "${ID:-linux}-all.user-data" "default.user-data"; do
+        candidate="$cloudinitdir/$userdatafile"
+        if [ -f "$candidate" ]; then
+            debug 1 "Found applicable user data file for this instance at: $candidate"
             return ${DS_FOUND}
         fi
     done

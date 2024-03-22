@@ -1183,14 +1183,27 @@ class TestWSL(DsIdentifyBase):
         """Negative test by lack of host filesystem mount points."""
         self._test_ds_not_found("WSL-no-host-mounts")
 
-    def test_no_cloudinitdir(self):
-        """Negative test by not finding %USERPROFILE%/.cloud-init."""
+    def test_no_userprofile(self):
+        """Negative test by failing to read the %USERPROFILE% environment variable."""
         data = copy.deepcopy(VALID_CFG["WSL-supported"])
         data["mocks"].append(
             {
-                "name": "WSL_cloudinit_dir_in",
-                "ret": 1,
-                "RET": "",
+                "name": "WSL_run_cmd",
+                "ret": 0,
+                "RET": "\r\n",
+            },
+        )
+        return self._check_via_dict(data, RC_NOT_FOUND)
+
+    def test_no_cloudinitdir_in_userprofile(self):
+        """Negative test by not finding %USERPROFILE%/.cloud-init."""
+        data = copy.deepcopy(VALID_CFG["WSL-supported"])
+        userprofile = self.tmp_dir()
+        data["mocks"].append(
+            {
+                "name": "WSL_profile_dir",
+                "ret": 0,
+                "RET": userprofile,
             },
         )
         return self._check_via_dict(data, RC_NOT_FOUND)
@@ -1198,27 +1211,56 @@ class TestWSL(DsIdentifyBase):
     def test_empty_cloudinitdir(self):
         """Negative test by lack of host filesystem mount points."""
         data = copy.deepcopy(VALID_CFG["WSL-supported"])
-        cloudinitdir = self.tmp_dir()
+        userprofile = self.tmp_dir()
         data["mocks"].append(
             {
-                "name": "WSL_cloudinit_dir_in",
+                "name": "WSL_profile_dir",
                 "ret": 0,
-                "RET": cloudinitdir,
+                "RET": userprofile,
             },
         )
+        cloudinitdir = os.path.join(userprofile, ".cloud-init")
+        os.mkdir(cloudinitdir)
         return self._check_via_dict(data, RC_NOT_FOUND)
+
+    def test_found_fail_due_instance_name_parsing(self):
+        """WLS datasource detection fail due parsing error even though the file exists."""
+        data = copy.deepcopy(VALID_CFG["WSL-supported-debian"])
+        userprofile = self.tmp_dir()
+        data["mocks"].append(
+            {
+                "name": "WSL_profile_dir",
+                "ret": 0,
+                "RET": userprofile,
+            },
+        )
+
+        # Forcing WSL_linux2win_path to return a path we'll fail to parse
+        # (missing one / in the begining of the path).
+        for i, m in enumerate(data["mocks"]):
+            if m["name"] == "WSL_linux2win_path":
+                data["mocks"][i]["RET"] = "/wsl.localhost/cant-findme"
+
+        cloudinitdir = os.path.join(userprofile, ".cloud-init")
+        os.mkdir(cloudinitdir)
+        filename = os.path.join(cloudinitdir, "cant-findme.user-data")
+        Path(filename).touch()
+        self._check_via_dict(data, RC_NOT_FOUND)
+        Path(filename).unlink()
 
     def test_found_via_userdata_version_codename(self):
         """WLS datasource detected by VERSION_CODENAME when no VERSION_ID"""
         data = copy.deepcopy(VALID_CFG["WSL-supported-debian"])
-        cloudinitdir = self.tmp_dir()
+        userprofile = self.tmp_dir()
         data["mocks"].append(
             {
-                "name": "WSL_cloudinit_dir_in",
+                "name": "WSL_profile_dir",
                 "ret": 0,
-                "RET": cloudinitdir,
+                "RET": userprofile,
             },
         )
+        cloudinitdir = os.path.join(userprofile, ".cloud-init")
+        os.mkdir(cloudinitdir)
         filename = os.path.join(cloudinitdir, "debian-trixie.user-data")
         Path(filename).touch()
         self._check_via_dict(data, RC_FOUND, dslist=[data.get("ds"), DS_NONE])
@@ -1229,15 +1271,25 @@ class TestWSL(DsIdentifyBase):
         WSL datasource is found on applicable userdata files in cloudinitdir.
         """
         data = copy.deepcopy(VALID_CFG["WSL-supported"])
-        cloudinitdir = self.tmp_dir()
+        userprofile = self.tmp_dir()
         data["mocks"].append(
             {
-                "name": "WSL_cloudinit_dir_in",
+                "name": "WSL_profile_dir",
                 "ret": 0,
-                "RET": cloudinitdir,
+                "RET": userprofile,
             },
         )
+        cloudinitdir = os.path.join(userprofile, ".cloud-init")
+        os.mkdir(cloudinitdir)
+        up4wcloudinitdir = os.path.join(userprofile, ".ubuntupro/.cloud-init")
+        os.makedirs(up4wcloudinitdir, exist_ok=True)
         userdata_files = [
+            os.path.join(
+                up4wcloudinitdir, MOCK_WSL_INSTANCE_DATA["name"] + ".user-data"
+            ),
+             os.path.join(
+                up4wcloudinitdir, "agent.yaml"
+            ),
             os.path.join(
                 cloudinitdir, MOCK_WSL_INSTANCE_DATA["name"] + ".user-data"
             ),
@@ -2362,9 +2414,9 @@ VALID_CFG = {
             MOCK_VIRT_IS_WSL,
             MOCK_UNAME_IS_WSL,
             {
-                "name": "WSL_instance_name",
+                "name": "WSL_linux2win_path",
                 "ret": 0,
-                "RET": MOCK_WSL_INSTANCE_DATA["name"],
+                "RET": "//wsl.localhost/%s/" % MOCK_WSL_INSTANCE_DATA["name"],
             },
         ],
         "files": {
@@ -2385,9 +2437,9 @@ VALID_CFG = {
             MOCK_VIRT_IS_WSL,
             MOCK_UNAME_IS_WSL,
             {
-                "name": "WSL_instance_name",
+                "name": "WSL_linux2win_path",
                 "ret": 0,
-                "RET": MOCK_WSL_INSTANCE_DATA["name"],
+                "RET": "//wsl.localhost/%s/" % MOCK_WSL_INSTANCE_DATA["name"],
             },
         ],
         "files": {
