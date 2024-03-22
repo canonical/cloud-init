@@ -2,7 +2,6 @@
 
 import copy
 import io
-import ipaddress
 import logging
 import os
 import textwrap
@@ -14,6 +13,7 @@ from cloudinit.net import (
     SYS_CLASS_NET,
     get_devicelist,
     renderer,
+    should_add_gateway_onlink_flag,
     subnet_is_ipv6,
 )
 from cloudinit.net.network_state import NET_CONFIG_TO_V2, NetworkState
@@ -123,28 +123,17 @@ def _extract_addresses(config: dict, entry: dict, ifname, features=None):
                     "via": subnet.get("gateway"),
                     "to": "default",
                 }
-                try:
-                    subnet_gateway = ipaddress.ip_address(subnet["gateway"])
-                    subnet_network = ipaddress.ip_network(addr, strict=False)
-                    # If the gateway is not contained within the subnet's
-                    # network, mark it as on-link so that it can still be
-                    # reached.
-                    if subnet_gateway not in subnet_network:
-                        LOG.debug(
-                            "Gateway %s is not contained within subnet %s,"
-                            " adding on-link flag",
-                            subnet["gateway"],
-                            addr,
-                        )
-                        new_route["on-link"] = True
-                except ValueError as e:
-                    LOG.warning(
-                        "Failed to check whether gateway %s"
-                        " is contained within subnet %s: %s",
+                # If the gateway is not contained within the subnet's
+                # network, mark it as on-link so that it can still be
+                # reached.
+                if should_add_gateway_onlink_flag(subnet["gateway"], addr):
+                    LOG.debug(
+                        "Gateway %s is not contained within subnet %s,"
+                        " adding on-link flag",
                         subnet["gateway"],
                         addr,
-                        e,
                     )
+                    new_route["on-link"] = True
                 routes.append(new_route)
             if "dns_nameservers" in subnet:
                 nameservers += _listify(subnet.get("dns_nameservers", []))
