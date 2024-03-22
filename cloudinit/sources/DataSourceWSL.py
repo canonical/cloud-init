@@ -216,10 +216,10 @@ def load_instance_metadata(cloudinitdir: PurePath, instance_name: str) -> dict:
     return metadata
 
 
-def load_landscape_data(instance_name: str) -> dict:
+def load_landscape_data(instance_name: str) -> dict | bytes | None:
     """
     Load Landscape config data into a dict, returning an empty dict if nothing
-    is found.
+    is found. If the file is not a YAML, returns the binary file.
     """
     data_dir = ubuntu_pro_data_dir()
     if data_dir is None:
@@ -230,17 +230,21 @@ def load_landscape_data(instance_name: str) -> dict:
     )
 
     try:
-        landscape_data = util.load_yaml(util.load_binary_file(data_path))
+        bin_landscape_data = util.load_binary_file(data_path)
+        landscape_data = util.load_yaml(bin_landscape_data)
+        if landscape_data is None:
+            return bin_landscape_data
+
         return landscape_data
+
     except FileNotFoundError:
         LOG.debug("No Landscape data found at %s, ignoring.", data_path)
+        return None
 
-    return {}
 
-
-def load_agent_data() -> dict:
+def load_agent_data() -> dict | bytes:
     """
-    Load agent.yaml data into a dict, returning an empty dict if nothing is found.
+    Load agent.yaml data into a dict, returning an empty dict if nothing is found. If the file is not a YAML, returns the binary file.
     """
     data_dir = ubuntu_pro_data_dir()
     if data_dir is None:
@@ -249,12 +253,20 @@ def load_agent_data() -> dict:
     data_path = os.path.join(data_dir.as_posix(), agent_file_name())
 
     try:
-        agent_data = util.load_yaml(util.load_binary_file(data_path))
+        bin_agent_data = util.load_binary_file(data_path)
+        agent_data = util.load_yaml(bin_agent_data)
+        if agent_data is None:
+            return bin_agent_data
+
         return agent_data
     except FileNotFoundError:
         LOG.debug("No Pro agent data found at %s, ignoring.", data_path)
 
     return {}
+
+
+def load_user_data() -> dict | bytes | None:
+
 
 
 class DataSourceWSL(sources.DataSource):
@@ -318,45 +330,44 @@ class DataSourceWSL(sources.DataSource):
         self.vendordata_raw = None
         seed_dir = cloud_init_data_dir()
         user_data = {}
+        should_list = False
 
         try:
             self.metadata = load_instance_metadata(
                 seed_dir, self.instance_name
             )
-            file = self.find_user_data_file(seed_dir)
-            if os.path.exists(file.as_posix()):
-                user_data = util.load_yaml(
-                    util.load_binary_file(file.as_posix())
-                )
+            agent_data = load_agent_data()
+            user_data = load_landscape_data(self.instance_name)
+            if user_data is None:
+                # Regular user data
+                file = self.find_user_data_file(seed_dir)
+                if os.path.exists(file.as_posix()):
+                    bin_user_data = util.load_binary_file(file.as_posix())
+                    user_data = util.load_yaml(bin_user_data)
+                    user_data = bin_user_data if user_data is None else user_data
 
         except (ValueError, IOError) as err:
             LOG.error("Unable to load user data: %s", str(err))
 
-        try:
-            agent_data = load_agent_data()
-            landscape_data = load_landscape_data(self.instance_name)
-
-            if landscape_data:
-                user_data = landscape_data
-
-            if not user_data:
-                raise ValueError
-
-            merged = {}
-            # We only care about overriding modules entirely, so we can just
-            # iterate over the top level keys and write over them if the agent
-            # provides them instead
-            for key in user_data:
-                merged[key] = user_data[key]
-            for key in agent_data:
-                merged[key] = agent_data[key]
-            LOG.debug("Merged data: %s", merged)
-            self.userdata_raw = yaml.dump(merged)
+        should_list = isinstance(agent_data, bytes) or isinstance(user_data, bytes)
+        if should_list:
+            self.userdata_raw = [user_data, agent_data]
             return True
 
-        except (ValueError, IOError) as err:
-            LOG.error("Unable to setup WSL datasource: %s", str(err))
-            return False
+        # We only care about overriding modules entirely, so we can just
+        # iterate over the top level keys and write over them if the agent
+        # provides them instead.
+        # That's the reason for not using util.mergemanydict().
+        merged = {}
+        if user_data:
+            for key in user_data:
+                merged[key] = user_data[key]
+        for key in agent_data:
+            merged[key] = agent_data[key]
+
+        LOG.debug("Merged data: %s", merged)
+        self.userdata_raw = yaml.dump(merged)
+        return True
 
 
 # Used to match classes to dependencies
