@@ -1283,6 +1283,48 @@ def is_ipv6_network(address: str) -> bool:
     )
 
 
+def is_ip_in_subnet(address: str, subnet: str) -> bool:
+    """Returns a bool indicating if ``s`` is in subnet.
+
+    :param address:
+        The string of IP address.
+
+    :param subnet:
+        The string of subnet.
+
+    :return:
+        A bool indicating if the string is in subnet.
+    """
+    ip_address = ipaddress.ip_address(address)
+    subnet_network = ipaddress.ip_network(subnet, strict=False)
+    return ip_address in subnet_network
+
+
+def should_add_gateway_onlink_flag(gateway: str, subnet: str) -> bool:
+    """Returns a bool indicating if should add gateway onlink flag.
+
+    :param gateway:
+        The string of gateway address.
+
+    :param subnet:
+        The string of subnet.
+
+    :return:
+        A bool indicating if the string is in subnet.
+    """
+    try:
+        return not is_ip_in_subnet(gateway, subnet)
+    except ValueError as e:
+        LOG.warning(
+            "Failed to check whether gateway %s"
+            " is contained within subnet %s: %s",
+            gateway,
+            subnet,
+            e,
+        )
+        return False
+
+
 def subnet_is_ipv6(subnet) -> bool:
     """Common helper for checking network_state subnets for ipv6."""
     # 'static6', 'dhcp6', 'ipv6_dhcpv6-stateful', 'ipv6_dhcpv6-stateless' or
