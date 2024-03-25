@@ -8,7 +8,8 @@
 import logging
 import os
 from pathlib import PurePath
-from typing import List, cast
+from typing import List
+
 import yaml
 
 from cloudinit import sources, subp, util
@@ -213,10 +214,12 @@ def load_instance_metadata(cloudinitdir: PurePath, instance_name: str) -> dict:
     return metadata
 
 
-def load_landscape_data(instance_name: str, user_home: str) -> dict | bytes | None:
+def load_landscape_data(
+    instance_name: str, user_home: str
+) -> dict | bytes | None:
     """
     Load Landscape config data into a dict, returning an empty dict if nothing
-    is found. If the file is not a YAML, returns the binary file.
+    is found. If the file is not a YAML, returns the raw binary file contents.
     """
     data_dir = ubuntu_pro_data_dir(user_home)
     if data_dir is None:
@@ -241,7 +244,8 @@ def load_landscape_data(instance_name: str, user_home: str) -> dict | bytes | No
 
 def load_agent_data(user_home: str) -> dict | bytes:
     """
-    Load agent.yaml data into a dict, returning an empty dict if nothing is found. If the file is not a YAML, returns the binary file.
+    Load agent.yaml data into a dict, returning an empty dict if nothing is
+    found. If the file is not a YAML, returns the raw binary file contents.
     """
     data_dir = ubuntu_pro_data_dir(user_home)
     if data_dir is None:
@@ -342,12 +346,16 @@ class DataSourceWSL(sources.DataSource):
                 if os.path.exists(file.as_posix()):
                     bin_user_data = util.load_binary_file(file.as_posix())
                     user_data = util.load_yaml(bin_user_data)
-                    user_data = bin_user_data if user_data is None else user_data
+                    user_data = (
+                        bin_user_data if user_data is None else user_data
+                    )
 
         except (ValueError, IOError) as err:
             LOG.error("Unable to load user data: %s", str(err))
 
-        should_list = isinstance(agent_data, bytes) or isinstance(user_data, bytes)
+        should_list = isinstance(agent_data, bytes) or isinstance(
+            user_data, bytes
+        )
         if should_list:
             self.userdata_raw = [user_data, agent_data]
             return True

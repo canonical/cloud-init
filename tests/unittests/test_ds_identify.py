@@ -1224,7 +1224,7 @@ class TestWSL(DsIdentifyBase):
         return self._check_via_dict(data, RC_NOT_FOUND)
 
     def test_found_fail_due_instance_name_parsing(self):
-        """WLS datasource detection fail due parsing error even though the file exists."""
+        """WSL datasource detection fail due parsing error even though the file exists."""
         data = copy.deepcopy(VALID_CFG["WSL-supported-debian"])
         userprofile = self.tmp_dir()
         data["mocks"].append(
@@ -1249,7 +1249,7 @@ class TestWSL(DsIdentifyBase):
         Path(filename).unlink()
 
     def test_found_via_userdata_version_codename(self):
-        """WLS datasource detected by VERSION_CODENAME when no VERSION_ID"""
+        """WSL datasource detected by VERSION_CODENAME when no VERSION_ID"""
         data = copy.deepcopy(VALID_CFG["WSL-supported-debian"])
         userprofile = self.tmp_dir()
         data["mocks"].append(
