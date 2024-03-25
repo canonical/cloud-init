@@ -1623,8 +1623,7 @@ WSL_profile_dir() {
             # to output the Windows user profile directory path, which is
             # held by the environment variable %USERPROFILE%.
             WSL_run_cmd "echo %USERPROFILE%"
-            profiledir="{$_RET}"
-            profiledir="${profiledir%%[[:cntrl:]]}"
+            profiledir="${_RET%%[[:cntrl:]]}"
             if [ -n "$profiledir" ]; then
                 # wslpath is a program supplied by WSL itself that translates Windows and Linux paths,
                 # respecting the mountpoints where the Windows drives are mounted.
