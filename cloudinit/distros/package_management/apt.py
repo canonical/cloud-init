@@ -135,7 +135,7 @@ class Apt(PackageManager):
         return [
             pkg
             for pkg in pkglist
-            if re.split("/|=", pkg)[0].rstrip("-")
+            if re.split("/|=", pkg)[0].rstrip("-^")
             not in self.get_all_packages()
         ]
 
