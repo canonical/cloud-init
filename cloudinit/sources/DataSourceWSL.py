@@ -183,6 +183,24 @@ def agent_file_name() -> str:
     return "agent.yaml"
 
 
+def load_yaml_or_bin(data_path: str) -> dict | bytes | None:
+    """
+    Tries to load a YAML file as a dict, otherwise returns the file's raw
+    binary contents as `bytes`. Returns `None` if no file is found.
+    """
+    try:
+        bin_data = util.load_binary_file(data_path)
+        dict_data = util.load_yaml(bin_data)
+        if dict_data is None:
+            return bin_data
+
+        return dict_data
+    except FileNotFoundError:
+        LOG.debug("No data found at %s, ignoring.", data_path)
+
+    return None
+
+
 DEFAULT_INSTANCE_ID = "iid-datasource-wsl"
 
 
@@ -229,20 +247,10 @@ def load_landscape_data(
         data_dir.as_posix(), landscape_file_name(instance_name)
     )
 
-    try:
-        bin_landscape_data = util.load_binary_file(data_path)
-        landscape_data = util.load_yaml(bin_landscape_data)
-        if landscape_data is None:
-            return bin_landscape_data
-
-        return landscape_data
-
-    except FileNotFoundError:
-        LOG.debug("No Landscape data found at %s, ignoring.", data_path)
-        return None
+    return load_yaml_or_bin(data_path)
 
 
-def load_agent_data(user_home: str) -> dict | bytes:
+def load_agent_data(user_home: str) -> dict | bytes | None:
     """
     Load agent.yaml data into a dict, returning an empty dict if nothing is
     found. If the file is not a YAML, returns the raw binary file contents.
@@ -253,17 +261,7 @@ def load_agent_data(user_home: str) -> dict | bytes:
 
     data_path = os.path.join(data_dir.as_posix(), agent_file_name())
 
-    try:
-        bin_agent_data = util.load_binary_file(data_path)
-        agent_data = util.load_yaml(bin_agent_data)
-        if agent_data is None:
-            return bin_agent_data
-
-        return agent_data
-    except FileNotFoundError:
-        LOG.debug("No Pro agent data found at %s, ignoring.", data_path)
-
-    return {}
+    return load_yaml_or_bin(data_path)
 
 
 def load_user_data() -> dict | bytes | None:
@@ -353,6 +351,13 @@ class DataSourceWSL(sources.DataSource):
         except (ValueError, IOError) as err:
             LOG.error("Unable to load user data: %s", str(err))
 
+        if user_data is None and agent_data is None:
+            self.userdata_raw = None
+            return False
+
+        # If we cannot reliably model data files as dicts, then we cannot merge
+        # ourselves, so we can pass the data in ascending order as a list for
+        # cloud-init to handle internally
         should_list = isinstance(agent_data, bytes) or isinstance(
             user_data, bytes
         )
@@ -368,8 +373,9 @@ class DataSourceWSL(sources.DataSource):
         if user_data:
             for key in user_data:
                 merged[key] = user_data[key]
-        for key in agent_data:
-            merged[key] = agent_data[key]
+        if agent_data:
+            for key in agent_data:
+                merged[key] = agent_data[key]
 
         LOG.debug("Merged data: %s", merged)
         self.userdata_raw = yaml.dump(merged)
