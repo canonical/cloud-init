@@ -103,10 +103,9 @@ def cmd_executable() -> PurePath:
     )
 
 
-def cloud_init_data_dir() -> PurePath:
+def find_home() -> str:
     """
-    Returns the Windows user profile directory translated as a Linux path
-    accessible inside the current WSL instance.
+    Finds the user's home directory path.
     """
     cmd = cmd_executable()
 
@@ -120,8 +119,15 @@ def cloud_init_data_dir() -> PurePath:
         raise subp.ProcessExecutionError(
             "No output from cmd.exe to show the user profile dir."
         )
+    return home
 
-    win_profile_dir = win_path_2_wsl(home)
+
+def cloud_init_data_dir(user_home: str) -> PurePath:
+    """
+    Returns the Windows user profile directory translated as a Linux path
+    accessible inside the current WSL instance.
+    """
+    win_profile_dir = win_path_2_wsl(user_home)
     seed_dir = os.path.join(win_profile_dir, ".cloud-init")
     if not os.path.isdir(seed_dir):
         raise FileNotFoundError("%s directory doesn't exist." % seed_dir)
@@ -129,20 +135,11 @@ def cloud_init_data_dir() -> PurePath:
     return PurePath(seed_dir)
 
 
-def ubuntu_pro_data_dir() -> PurePath | None:
+def ubuntu_pro_data_dir(user_home: str) -> PurePath | None:
     """
     Get the path to the Ubuntu Pro cloud-init directory, or None if not found.
     """
-    cmd = cmd_executable()
-
-    home, _ = subp.subp(["/init", cmd.as_posix(), "/C", "echo %USERPROFILE%"])
-    home = home.rstrip()
-    if not home:
-        raise subp.ProcessExecutionError(
-            "No output from cmd.exe to show the user profile dir."
-        )
-
-    win_profile_dir = win_path_2_wsl(home)
+    win_profile_dir = win_path_2_wsl(user_home)
     pro_dir = os.path.join(win_profile_dir, ".ubuntupro/.cloud-init")
     if not os.path.isdir(pro_dir):
         LOG.debug("Pro cloud-init dir %s was not found", pro_dir)
@@ -216,12 +213,12 @@ def load_instance_metadata(cloudinitdir: PurePath, instance_name: str) -> dict:
     return metadata
 
 
-def load_landscape_data(instance_name: str) -> dict | bytes | None:
+def load_landscape_data(instance_name: str, user_home: str) -> dict | bytes | None:
     """
     Load Landscape config data into a dict, returning an empty dict if nothing
     is found. If the file is not a YAML, returns the binary file.
     """
-    data_dir = ubuntu_pro_data_dir()
+    data_dir = ubuntu_pro_data_dir(user_home)
     if data_dir is None:
         return {}
 
@@ -242,11 +239,11 @@ def load_landscape_data(instance_name: str) -> dict | bytes | None:
         return None
 
 
-def load_agent_data() -> dict | bytes:
+def load_agent_data(user_home: str) -> dict | bytes:
     """
     Load agent.yaml data into a dict, returning an empty dict if nothing is found. If the file is not a YAML, returns the binary file.
     """
-    data_dir = ubuntu_pro_data_dir()
+    data_dir = ubuntu_pro_data_dir(user_home)
     if data_dir is None:
         return {}
 
@@ -266,7 +263,7 @@ def load_agent_data() -> dict | bytes:
 
 
 def load_user_data() -> dict | bytes | None:
-
+    pass
 
 
 class DataSourceWSL(sources.DataSource):
@@ -328,7 +325,8 @@ class DataSourceWSL(sources.DataSource):
 
     def _get_data(self) -> bool:
         self.vendordata_raw = None
-        seed_dir = cloud_init_data_dir()
+        user_home = find_home()
+        seed_dir = cloud_init_data_dir(user_home)
         user_data = {}
         should_list = False
 
@@ -336,8 +334,8 @@ class DataSourceWSL(sources.DataSource):
             self.metadata = load_instance_metadata(
                 seed_dir, self.instance_name
             )
-            agent_data = load_agent_data()
-            user_data = load_landscape_data(self.instance_name)
+            agent_data = load_agent_data(user_home)
+            user_data = load_landscape_data(self.instance_name, user_home)
             if user_data is None:
                 # Regular user data
                 file = self.find_user_data_file(seed_dir)
