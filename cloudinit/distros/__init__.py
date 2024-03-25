@@ -239,21 +239,29 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         # First install packages using package manager(s)
         # supported by the distro
-        uninstalled = []
+        total_failed: Set[str] = set()
         for manager in self.package_managers:
-            to_try = (
-                packages_by_manager.get(manager.__class__, set())
-                | generic_packages
+
+            manager_packages = packages_by_manager.get(
+                manager.__class__, set()
             )
+
+            to_try = manager_packages | generic_packages
+            # Remove any failed we will try for this package manager
+            total_failed.difference_update(to_try)
+            if not manager.available():
+                LOG.debug("Package manager '%s' not available", manager.name)
+                total_failed.update(to_try)
+                continue
             if not to_try:
                 continue
-            uninstalled = manager.install_packages(to_try)
-            failed = {
-                pkg for pkg in uninstalled if pkg not in generic_packages
-            }
+            failed = manager.install_packages(to_try)
+            total_failed.update(failed)
             if failed:
                 LOG.info(error_message, failed)
-            generic_packages = set(uninstalled)
+            # Ensure we don't attempt to install packages specific to
+            # one particular package manager using another package manager
+            generic_packages = set(failed) - manager_packages
 
         # Now attempt any specified package managers not explicitly supported
         # by distro
@@ -261,14 +269,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if manager_type.name in [p.name for p in self.package_managers]:
                 # We already installed/attempted these; don't try again
                 continue
-            uninstalled.extend(
+            total_failed.update(
                 manager_type.from_config(
                     self._runner, self._cfg
                 ).install_packages(pkglist=packages)
             )
 
-        if uninstalled:
-            raise PackageInstallerError(error_message % uninstalled)
+        if total_failed:
+            raise PackageInstallerError(error_message % total_failed)
 
     @property
     def dhcp_client(self) -> dhcp.DhcpClient:

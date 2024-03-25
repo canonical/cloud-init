@@ -17,6 +17,7 @@ from typing import Dict, List
 from cloudinit import dmi, net, sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util, warnings
+from cloudinit.distros import Distro
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import activators
 from cloudinit.net.dhcp import NoDHCPLeaseError
@@ -947,6 +948,82 @@ def _build_nic_order(
     }
 
 
+def _configure_policy_routing(
+    dev_config: dict,
+    *,
+    nic_name: str,
+    nic_metadata: dict,
+    distro: Distro,
+    is_ipv4: bool,
+    table: int,
+) -> None:
+    """
+    Configure policy-based routing on secondary NICs / secondary IPs to
+    ensure outgoing packets are routed via the correct interface.
+
+    @param: dev_config: network cfg v2 to be updated inplace.
+    @param: nic_name: nic name. Only used if ipv4.
+    @param: nic_metadata: nic metadata from IMDS.
+    @param: distro: Instance of Distro. Only used if ipv4.
+    @param: is_ipv4: Boolean indicating if we are acting over ipv4 or not.
+    @param: table: Routing table id.
+    """
+    if not dev_config.get("routes"):
+        dev_config["routes"] = []
+    if is_ipv4:
+        subnet_prefix_routes = nic_metadata["subnet-ipv4-cidr-block"]
+        ips = nic_metadata["local-ipv4s"]
+        try:
+            lease = distro.dhcp_client.dhcp_discovery(nic_name, distro=distro)
+            gateway = lease["routers"]
+        except NoDHCPLeaseError as e:
+            LOG.warning(
+                "Could not perform dhcp discovery on %s to find its "
+                "gateway. Not adding default route via the gateway. "
+                "Error: %s",
+                nic_name,
+                e,
+            )
+        else:
+            # Add default route via the NIC's gateway
+            dev_config["routes"].append(
+                {
+                    "to": "0.0.0.0/0",
+                    "via": gateway,
+                    "table": table,
+                },
+            )
+    else:
+        subnet_prefix_routes = nic_metadata["subnet-ipv6-cidr-blocks"]
+        ips = nic_metadata["ipv6s"]
+
+    subnet_prefix_routes = (
+        [subnet_prefix_routes]
+        if isinstance(subnet_prefix_routes, str)
+        else subnet_prefix_routes
+    )
+    for prefix_route in subnet_prefix_routes:
+        dev_config["routes"].append(
+            {
+                "to": prefix_route,
+                "table": table,
+            },
+        )
+
+    if not dev_config.get("routing-policy"):
+        dev_config["routing-policy"] = []
+    # Packets coming from any IP associated with the current NIC
+    # will be routed using `table` routing table
+    ips = [ips] if isinstance(ips, str) else ips
+    for ip in ips:
+        dev_config["routing-policy"].append(
+            {
+                "from": ip,
+                "table": table,
+            },
+        )
+
+
 def convert_ec2_metadata_network_config(
     network_md,
     distro,
@@ -1013,72 +1090,29 @@ def convert_ec2_metadata_network_config(
             "match": {"macaddress": mac.lower()},
             "set-name": nic_name,
         }
-        # Configure policy-based routing on secondary NICs / secondary IPs to
-        # ensure outgoing packets are routed via the correct interface.
-        #
         # This config only works on systems using Netplan because Networking
         # config V2 does not support `routing-policy`, but this config is
         # passed through on systems using Netplan.
+        # See: https://github.com/canonical/cloud-init/issues/4862
         #
         # If device-number is not present (AliYun or other ec2-like platforms),
         # do not configure source-routing as we cannot determine which is the
         # primary NIC.
+        table = 100 + nic_idx
         if (
             is_netplan
             and nic_metadata.get("device-number")
             and not is_primary_nic
         ):
             dhcp_override["use-routes"] = True
-            table = 100 + nic_idx
-            dev_config["routes"] = []
-            try:
-                lease = distro.dhcp_client.dhcp_discovery(
-                    nic_name, distro=distro
-                )
-                gateway = lease["routers"]
-            except NoDHCPLeaseError as e:
-                LOG.warning(
-                    "Could not perform dhcp discovery on %s to find its "
-                    "gateway. Not adding default route via the gateway. "
-                    "Error: %s",
-                    nic_name,
-                    e,
-                )
-            else:
-                # Add default route via the NIC's gateway
-                dev_config["routes"].append(
-                    {
-                        "to": "0.0.0.0/0",
-                        "via": gateway,
-                        "table": table,
-                    },
-                )
-            subnet_prefix_routes = nic_metadata["subnet-ipv4-cidr-block"]
-            subnet_prefix_routes = (
-                [subnet_prefix_routes]
-                if isinstance(subnet_prefix_routes, str)
-                else subnet_prefix_routes
+            _configure_policy_routing(
+                dev_config,
+                distro=distro,
+                nic_name=nic_name,
+                nic_metadata=nic_metadata,
+                is_ipv4=True,
+                table=table,
             )
-            for prefix_route in subnet_prefix_routes:
-                dev_config["routes"].append(
-                    {
-                        "to": prefix_route,
-                        "table": table,
-                    },
-                )
-
-            dev_config["routing-policy"] = []
-            # Packets coming from any IPv4 associated with the current NIC
-            # will be routed using `table` routing table
-            ipv4s = nic_metadata["local-ipv4s"]
-            ipv4s = [ipv4s] if isinstance(ipv4s, str) else ipv4s
-            for ipv4 in ipv4s:
-                dev_config["routing-policy"].append(
-                    {
-                        "from": ipv4,
-                        "table": table,
-                    },
-                )
         if nic_metadata.get("ipv6s"):  # Any IPv6 addresses configured
             dev_config["dhcp6"] = True
             dev_config["dhcp6-overrides"] = dhcp_override
@@ -1087,31 +1121,14 @@ def convert_ec2_metadata_network_config(
                 and nic_metadata.get("device-number")
                 and not is_primary_nic
             ):
-                table = 100 + nic_idx
-                subnet_prefix_routes = nic_metadata["subnet-ipv6-cidr-block"]
-                subnet_prefix_routes = (
-                    [subnet_prefix_routes]
-                    if isinstance(subnet_prefix_routes, str)
-                    else subnet_prefix_routes
+                _configure_policy_routing(
+                    dev_config,
+                    distro=distro,
+                    nic_name=nic_name,
+                    nic_metadata=nic_metadata,
+                    is_ipv4=False,
+                    table=table,
                 )
-                for prefix_route in subnet_prefix_routes:
-                    dev_config["routes"].append(
-                        {
-                            "to": prefix_route,
-                            "table": table,
-                        },
-                    )
-
-                dev_config["routing-policy"] = []
-                ipv6s = nic_metadata["ipv6s"]
-                ipv6s = [ipv6s] if isinstance(ipv6s, str) else ipv6s
-                for ipv6 in ipv6s:
-                    dev_config["routing-policy"].append(
-                        {
-                            "from": ipv6,
-                            "table": table,
-                        },
-                    )
         dev_config["addresses"] = get_secondary_addresses(nic_metadata, mac)
         if not dev_config["addresses"]:
             dev_config.pop("addresses")  # Since we found none configured
