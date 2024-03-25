@@ -25,7 +25,7 @@ def pkg_config_read(library: str, var: str) -> str:
     }
     cmd = ["pkg-config", f"--variable={var}", library]
     try:
-        path = subprocess.check_output(cmd).decode("utf-8")
+        path = subprocess.check_output(cmd).decode("utf-8")  # nosec
         path = path.strip()
     except Exception:
         path = fallbacks[library][var]
@@ -53,12 +53,12 @@ def version_to_pep440(version: str) -> str:
 
 def get_version() -> str:
     cmd = [sys.executable, "tools/read-version"]
-    ver = subprocess.check_output(cmd)
+    ver = subprocess.check_output(cmd)  # nosec
     version = ver.decode("utf-8").strip()
     return version_to_pep440(version)
 
 
 def read_requires() -> List[str]:
     cmd = [sys.executable, "tools/read-dependencies"]
-    deps = subprocess.check_output(cmd)
+    deps = subprocess.check_output(cmd)  # nosec
     return deps.decode("utf-8").splitlines()

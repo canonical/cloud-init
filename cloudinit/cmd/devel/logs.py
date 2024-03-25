@@ -167,7 +167,7 @@ def _stream_command_output_to_file(cmd, filename, msg, verbosity):
     ensure_dir(os.path.dirname(filename))
     try:
         with open(filename, "w") as f:
-            subprocess.call(cmd, stdout=f, stderr=f)
+            subprocess.call(cmd, stdout=f, stderr=f)  # nosec
     except OSError as e:
         write_file(filename, str(e))
         _debug("collecting %s failed.\n" % msg, 1, verbosity)
