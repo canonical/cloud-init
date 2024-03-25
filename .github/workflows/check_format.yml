@@ -63,9 +63,9 @@ jobs:
 
       - name: "Test format"
         run: |
-          tools/check_json_format.sh cloudinit/schemas/schema-cloud-config-v1.json
-          tools/check_json_format.sh cloudinit/schemas/schema-network-config-v1.json
-          tools/check_json_format.sh cloudinit/schemas/versions.schema.cloud-config.json
+          tools/check_json_format.sh schemas/schema-cloud-config-v1.json
+          tools/check_json_format.sh schemas/schema-network-config-v1.json
+          tools/check_json_format.sh schemas/versions.schema.cloud-config.json
 
   doc:
     strategy:
