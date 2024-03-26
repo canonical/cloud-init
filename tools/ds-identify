@@ -2018,7 +2018,11 @@ _main() {
     # if there is only a single entry in $DI_DSLIST
     if [ $# -eq 1 ] || [ $# -eq 2 -a "$2" = "None" ] ; then
         debug 1 "single entry in datasource_list ($DI_DSLIST) use that."
-        found "$@"
+        if [ $# -eq 1 ]; then
+            write_result "datasource_list: [ $1 ]"
+        else
+            found "$@"
+        fi
         return
     fi
 
