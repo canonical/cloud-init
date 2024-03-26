@@ -9,6 +9,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import ftplib
+import io
 import json
 import logging
 import os
@@ -16,17 +18,17 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from email.utils import parsedate
-from errno import ENOENT
 from functools import partial
 from http.client import NOT_FOUND
 from itertools import count
+from ssl import create_default_context
 from typing import Any, Callable, Iterator, List, Optional, Tuple, Union
-from urllib.parse import quote, urlparse, urlunparse
+from urllib.parse import quote, urlparse, urlsplit, urlunparse
 
 import requests
 from requests import exceptions
 
-from cloudinit import version
+from cloudinit import util, version
 
 LOG = logging.getLogger(__name__)
 
@@ -59,7 +61,164 @@ def combine_url(base, *add_ons):
     return url
 
 
-def read_file_or_url(url, **kwargs) -> Union["FileResponse", "UrlResponse"]:
+def ftp_get_return_code_from_exception(exc) -> int:
+    """helper for read_ftps to map return codes to a number"""
+    # ftplib doesn't expose error codes, so use this lookup table
+    ftp_error_codes = {
+        ftplib.error_reply: 300,  # unexpected [123]xx reply
+        ftplib.error_temp: 400,  # 4xx errors
+        ftplib.error_perm: 500,  # 5xx errors
+        ftplib.error_proto: 600,  # response does not begin with [1-5]
+        EOFError: 700,  # made up
+        # OSError is also possible. Use OSError.errno for that.
+    }
+    code = ftp_error_codes.get(type(exc))  # pyright: ignore
+    if not code:
+        if isinstance(exc, OSError):
+            code = exc.errno
+        else:
+            LOG.warning(
+                "Unexpected exception type while connecting to ftp server."
+            )
+            code = -99
+    return code
+
+
+def read_ftps(url: str, timeout: float = 5.0, **kwargs: dict) -> "FtpResponse":
+    """connect to URL using ftp over TLS and read a file
+
+    when using strict mode (ftps://), raise exception in event of failure
+    when not using strict mode (ftp://), fall back to using unencrypted ftp
+
+    url: string containing the desination to read a file from. The url is
+        parsed with urllib.urlsplit to identify username, password, host,
+        path, and port in the following format:
+            ftps://[username:password@]host[:port]/[path]
+        host is the only required component
+    timeout: maximum time for the connection to take
+    kwargs: unused, for compatibility with read_url
+    returns: UrlResponse
+    """
+
+    url_parts = urlsplit(url)
+    if not url_parts.hostname:
+        raise UrlError(
+            cause="Invalid url provided", code=NOT_FOUND, headers=None, url=url
+        )
+    with io.BytesIO() as buffer:
+        port = url_parts.port or 21
+        user = url_parts.username or "anonymous"
+        if "ftps" == url_parts.scheme:
+            try:
+                ftp_tls = ftplib.FTP_TLS(
+                    context=create_default_context(),
+                )
+                LOG.debug(
+                    "Attempting to connect to %s via port [%s] over tls.",
+                    url,
+                    port,
+                )
+                ftp_tls.connect(
+                    host=url_parts.hostname,
+                    port=port,
+                    timeout=timeout or 5.0,  # uses float internally
+                )
+            except ftplib.all_errors as e:
+                code = ftp_get_return_code_from_exception(e)
+                raise UrlError(
+                    cause=(
+                        "Reading file from server over tls "
+                        f"failed for url {url} [{code}]"
+                    ),
+                    code=code,
+                    headers=None,
+                    url=url,
+                ) from e
+            LOG.debug("Attempting to login with user [%s]", user)
+            try:
+                ftp_tls.login(
+                    user=user,
+                    passwd=url_parts.password or "",
+                )
+            except ftplib.error_perm as e:
+                LOG.warning(
+                    "Attempted to connect to an insecure ftp server but used "
+                    "a scheme of ftps://, which is not allowed. Use ftp:// "
+                    "to allow connecting to insecure ftp servers."
+                )
+                raise UrlError(
+                    cause=(
+                        "Attempted to connect to an insecure ftp server but "
+                        "used a scheme of ftps://, which is not allowed. Use "
+                        "ftp:// to allow connecting to insecure ftp servers."
+                    ),
+                    code=500,
+                    headers=None,
+                    url=url,
+                ) from e
+            LOG.debug("Creating a secure connection")
+            ftp_tls.prot_p()
+            LOG.debug("Reading file: %s", url_parts.path)
+            ftp_tls.retrbinary(f"RETR {url_parts.path}", callback=buffer.write)
+
+            response = FtpResponse(buffer.getvalue(), url)
+            LOG.debug("Closing connection")
+            ftp_tls.close()
+            return response
+        else:
+            try:
+                ftp = ftplib.FTP()
+                LOG.debug(
+                    "Attempting to connect to %s via port %s.", url, port
+                )
+                ftp.connect(
+                    host=url_parts.hostname,
+                    port=port,
+                    timeout=timeout or 5.0,  # uses float internally
+                )
+            except ftplib.all_errors as e:
+                code = ftp_get_return_code_from_exception(e)
+                raise UrlError(
+                    cause=(
+                        "Reading file from ftp server"
+                        f" failed for url {url} [{code}]"
+                    ),
+                    code=code,
+                    headers=None,
+                    url=url,
+                ) from e
+            LOG.debug("Attempting to login with user [%s]", user)
+            ftp.login(
+                user=user,
+                passwd=url_parts.password or "",
+            )
+            LOG.debug("Reading file: %s", url_parts.path)
+            ftp.retrbinary(f"RETR {url_parts.path}", callback=buffer.write)
+            response = FtpResponse(buffer.getvalue(), url)
+            LOG.debug("Closing connection")
+            ftp.close()
+            return response
+
+
+def _read_file(path: str, **kwargs) -> "FileResponse":
+    """read a binary file and return a FileResponse
+
+    matches function signature with read_ftps and read_url
+    """
+    if kwargs.get("data"):
+        LOG.warning("Unable to post data to file resource %s", path)
+    try:
+        contents = util.load_binary_file(path)
+        return FileResponse(contents, path)
+    except FileNotFoundError as e:
+        raise UrlError(cause=e, code=NOT_FOUND, headers=None, url=path) from e
+    except IOError as e:
+        raise UrlError(cause=e, code=e.errno, headers=None, url=path) from e
+
+
+def read_file_or_url(
+    url, **kwargs
+) -> Union["FileResponse", "UrlResponse", "FtpResponse"]:
     """Wrapper function around readurl to allow passing a file path as url.
 
     When url is not a local file path, passthrough any kwargs to readurl.
@@ -68,22 +227,19 @@ def read_file_or_url(url, **kwargs) -> Union["FileResponse", "UrlResponse"]:
     parameters. See: call-signature of readurl in this module for param docs.
     """
     url = url.lstrip()
-    if url.startswith("/"):
-        url = "file://%s" % url
-    if url.lower().startswith("file://"):
-        if kwargs.get("data"):
-            LOG.warning("Unable to post data to file resource %s", url)
-        file_path = url[len("file://") :]
-        try:
-            with open(file_path, "rb") as fp:
-                contents = fp.read()
-        except IOError as e:
-            code = e.errno
-            if e.errno == ENOENT:
-                code = NOT_FOUND
-            raise UrlError(cause=e, code=code, headers=None, url=url) from e
-        return FileResponse(file_path, contents=contents)
+    try:
+        parsed = urlparse(url)
+    except ValueError as e:
+        raise UrlError(cause=e, url=url) from e
+    scheme = parsed.scheme
+    if scheme == "file" or (url and "/" == url[0]):
+        return _read_file(parsed.path, **kwargs)
+    elif scheme in ("ftp", "ftps"):
+        return read_ftps(url, **kwargs)
+    elif scheme in ("http", "https"):
+        return readurl(url, **kwargs)
     else:
+        LOG.warning("Attempting unknown protocol %s", scheme)
         return readurl(url, **kwargs)
 
 
@@ -91,11 +247,11 @@ def read_file_or_url(url, **kwargs) -> Union["FileResponse", "UrlResponse"]:
 # read_file_or_url can return this or that object and the
 # 'user' of those objects will not need to know the difference.
 class StringResponse:
-    def __init__(self, contents, code=200):
+    def __init__(self, contents, url, code=200):
         self.code = code
         self.headers = {}
         self.contents = contents
-        self.url = None
+        self.url = url
 
     def ok(self, *args, **kwargs):
         if self.code != 200:
@@ -107,9 +263,13 @@ class StringResponse:
 
 
 class FileResponse(StringResponse):
-    def __init__(self, path, contents, code=200):
-        StringResponse.__init__(self, contents, code=code)
-        self.url = path
+    def __init__(self, contents: bytes, url: str, code=200):
+        super().__init__(contents, url, code=code)
+
+
+class FtpResponse(StringResponse):
+    def __init__(self, contents: bytes, url: str):
+        super().__init__(contents, url)
 
 
 class UrlResponse:
@@ -123,10 +283,10 @@ class UrlResponse:
         return self._response.content
 
     @property
-    def url(self):
+    def url(self) -> str:
         return self._response.url
 
-    def ok(self, redirects_ok=False):
+    def ok(self, redirects_ok=False) -> bool:
         upper = 300
         if redirects_ok:
             upper = 400
@@ -140,7 +300,7 @@ class UrlResponse:
         return self._response.headers
 
     @property
-    def code(self):
+    def code(self) -> int:
         return self._response.status_code
 
     def __str__(self):
