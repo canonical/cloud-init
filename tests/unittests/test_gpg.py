@@ -44,6 +44,12 @@ def m_subp():
 
 
 @pytest.fixture()
+def m_which():
+    with mock.patch.object(gpg.subp, "which") as m_which:
+        yield m_which
+
+
+@pytest.fixture()
 def m_sleep():
     with mock.patch("cloudinit.gpg.time.sleep") as sleep:
         yield sleep
@@ -168,11 +174,12 @@ class TestReceiveKeys:
         )
         m_sleep.assert_not_called()
 
-    def test_kill_gpg_succeeds(self, m_subp):
+    def test_kill_gpg_succeeds(self, m_subp, m_which):
         """ensure that when gpgconf isn't found, processes are manually
         cleaned up. Also test that the context manager does cleanup
 
         """
+        m_which.return_value = True
         with pytest.raises(ZeroDivisionError):
             with gpg.GPG() as gpg_context:
 
@@ -200,16 +207,16 @@ class TestReceiveKeys:
         m_subp.assert_not_called()
         assert not os.path.isdir(str(gpg_context.temp_dir))
 
-    def test_kill_gpg_failover_succeeds(self, m_subp):
+    def test_kill_gpg_failover_succeeds(self, m_subp, m_which):
         """ensure that when gpgconf isn't found, processes are manually
         cleaned up
         """
-        with mock.patch("cloudinit.gpg.subp.which", return_value=None):
-            gpg_instance = gpg.GPG()
+        m_which.return_value = None
+        gpg_instance = gpg.GPG()
 
-            # "start" gpg (if we don't, we won't kill gpg)
-            gpg_instance.recv_key("", "")
-            gpg_instance.kill_gpg()
+        # "start" gpg (if we don't, we won't kill gpg)
+        gpg_instance.recv_key("", "")
+        gpg_instance.kill_gpg()
         m_subp.assert_has_calls(
             [
                 mock.call(

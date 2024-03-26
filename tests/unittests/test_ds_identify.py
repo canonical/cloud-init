@@ -1458,7 +1458,15 @@ VALID_CFG = {
     # LXD host > 5.10 kvm launch virt==qemu
     "LXD-kvm-qemu-kernel-gt-5.10-env": {
         "ds": "LXD",
-        "files": {P_BOARD_NAME: "LXD\n"},
+        "files": {
+            P_BOARD_NAME: "LXD\n",
+            # this test is systemd-specific, but may run on non-systemd systems
+            # ensure that /run/systemd/ exists, such that this test will take
+            # the systemd branch on those systems as well
+            #
+            # https://github.com/canonical/cloud-init/issues/5095
+            "/run/systemd/somefile": "",
+        },
         # /dev/lxd/sock does not exist and KVM virt-type
         "mocks": [
             {"name": "is_socket_file", "ret": 1},
