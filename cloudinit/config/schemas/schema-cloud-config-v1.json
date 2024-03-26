@@ -835,6 +835,13 @@
                 "vault_password_file": {
                   "type": "string"
                 },
+                "verify_commit": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "inventory": {
+                  "type": "string"
+                },
                 "module_name": {
                   "type": "string"
                 },

@@ -25,6 +25,7 @@ NR_POOL_SERVERS = 4
 distros = [
     "almalinux",
     "alpine",
+    "azurelinux",
     "centos",
     "cloudlinux",
     "cos",
@@ -107,6 +108,15 @@ DISTRO_CLIENT_CONFIG = {
             "confpath": "/etc/ntp.conf",
             "packages": [],
             "service_name": "ntpd",
+        },
+    },
+    "azurelinux": {
+        "chrony": {
+            "service_name": "chronyd",
+        },
+        "systemd-timesyncd": {
+            "check_exe": "/usr/lib/systemd/systemd-timesyncd",
+            "confpath": "/etc/systemd/timesyncd.conf",
         },
     },
     "centos": {

@@ -319,7 +319,7 @@ class MAASSeedDirMalformed(Exception):
 
 # Used to match classes to dependencies
 datasources = [
-    (DataSourceMAAS, (sources.DEP_FILESYSTEM,)),
+    (DataSourceMAASLocal, (sources.DEP_FILESYSTEM,)),
     (DataSourceMAAS, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 ]
 
