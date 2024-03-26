@@ -106,7 +106,7 @@ def cmd_executable() -> PurePath:
 
 def find_home() -> PurePath:
     """
-    Finds the user's home directory path.
+    Finds the user's home directory path as a WSL path.
     """
     cmd = cmd_executable()
 
@@ -120,18 +120,19 @@ def find_home() -> PurePath:
         raise subp.ProcessExecutionError(
             "No output from cmd.exe to show the user profile dir."
         )
-    return PurePath(home)
+    return win_path_2_wsl(home)
 
 
 def cloud_init_data_dir(user_home: PurePath) -> PurePath:
     """
-    Returns the Windows user profile directory translated as a Linux path
-    accessible inside the current WSL instance.
+    Returns the Windows user profile .cloud-init directory translated as a
+    Linux path accessible inside the current WSL instance, or None if not
+    found.
     """
-    win_profile_dir = win_path_2_wsl(user_home)
-    seed_dir = os.path.join(win_profile_dir, ".cloud-init")
+    seed_dir = os.path.join(user_home, ".cloud-init")
     if not os.path.isdir(seed_dir):
-        raise FileNotFoundError("%s directory doesn't exist." % seed_dir)
+        LOG.debug("cloud-init user data dir %s doesn't exist." % seed_dir)
+        return None
 
     return PurePath(seed_dir)
 
@@ -140,10 +141,9 @@ def ubuntu_pro_data_dir(user_home: PurePath) -> PurePath | None:
     """
     Get the path to the Ubuntu Pro cloud-init directory, or None if not found.
     """
-    win_profile_dir = win_path_2_wsl(user_home)
-    pro_dir = os.path.join(win_profile_dir, ".ubuntupro/.cloud-init")
+    pro_dir = os.path.join(user_home, ".ubuntupro/.cloud-init")
     if not os.path.isdir(pro_dir):
-        LOG.debug("Pro cloud-init dir %s was not found", pro_dir)
+        LOG.debug("Pro cloud-init dir %s was not found" % pro_dir)
         return None
 
     return PurePath(pro_dir)
@@ -241,7 +241,7 @@ def load_landscape_data(
     """
     data_dir = ubuntu_pro_data_dir(user_home)
     if data_dir is None:
-        return {}
+        return None
 
     data_path = os.path.join(
         data_dir.as_posix(), landscape_file_name(instance_name)
@@ -257,7 +257,7 @@ def load_agent_data(user_home: str) -> dict | bytes | None:
     """
     data_dir = ubuntu_pro_data_dir(user_home)
     if data_dir is None:
-        return {}
+        return None
 
     data_path = os.path.join(data_dir.as_posix(), agent_file_name())
 
@@ -336,6 +336,10 @@ class DataSourceWSL(sources.DataSource):
             self.metadata = load_instance_metadata(
                 seed_dir, self.instance_name
             )
+        except (ValueError, IOError) as err:
+            LOG.error("Unable to load metadata: %s", str(err))
+
+        try:
             agent_data = load_agent_data(user_home)
             user_data = load_landscape_data(self.instance_name, user_home)
             if user_data is None:
@@ -349,7 +353,7 @@ class DataSourceWSL(sources.DataSource):
                     )
 
         except (ValueError, IOError) as err:
-            LOG.error("Unable to load user data: %s", str(err))
+            LOG.error("Unable to load cloud-init data: %s", str(err))
 
         if user_data is None and agent_data is None:
             self.userdata_raw = None
