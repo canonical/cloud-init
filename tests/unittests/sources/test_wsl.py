@@ -6,6 +6,7 @@
 import logging
 from copy import deepcopy
 from email.mime.multipart import MIMEMultipart
+import os
 from pathlib import PurePath
 from typing import cast
 
@@ -351,6 +352,7 @@ class TestWSLDataSource:
     @mock.patch("cloudinit.util.get_linux_distro")
     @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
     @mock.patch("cloudinit.sources.DataSourceWSL.cloud_init_data_dir")
+    @mock.patch("cloudinit.sources.DataSourceWSL.ubuntu_pro_data_dir")
     def test_data_precedence(self, m_seed_dir, m_iname, m_gld, tmpdir, paths):
         m_gld.return_value = SAMPLE_LINUX_DISTRO
         m_iname.return_value = INSTANCE_NAME
@@ -367,6 +369,33 @@ class TestWSLDataSource:
 
         generic_file = tmpdir.join(".cloud-init", "default.user-data")
         generic_file.write("#cloud-config\npackages:\n- g++-13\n")
+
+        another_file = tmpdir.join(".cloud-iniawdawdawdawdawdt", "default.user-data")
+        another_file.write("#cloud-config\npackages:\n- g++-13\n")
+
+        ubuntu_pro_tmp = tmpdir.join(".ubuntupro", ".cloud-init")
+        os.makedirs(ubuntu_pro_tmp, exist_ok=True)
+        assert os.path.exists(ubuntu_pro_tmp)
+
+        landscape_file = tmpdir.join(
+            ubuntu_pro_tmp, "%s.user-data" % INSTANCE_NAME
+        )
+        landscape_file.write(
+            """#cloud-config
+landscape:
+  client:
+    account_name: landscapetest"""
+        )
+
+        agent_file = tmpdir.join(ubuntu_pro_tmp, "agent.yaml")
+        agent_file.write(
+            """#cloud-config
+landscape:
+    client:
+      account_name: agenttest
+ubuntu_advantage:
+    token: testtoken"""
+        )
 
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
@@ -386,6 +415,8 @@ class TestWSLDataSource:
         )
         assert "wsl.conf" in userdata
         assert "packages" not in userdata
+        assert "ubuntu_advantage" in userdata
+        assert "landscape" in userdata
         shell_script = cast(
             str,
             join_payloads_from_content_type(

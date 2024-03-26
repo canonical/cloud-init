@@ -104,7 +104,7 @@ def cmd_executable() -> PurePath:
     )
 
 
-def find_home() -> str:
+def find_home() -> PurePath:
     """
     Finds the user's home directory path.
     """
@@ -120,10 +120,10 @@ def find_home() -> str:
         raise subp.ProcessExecutionError(
             "No output from cmd.exe to show the user profile dir."
         )
-    return home
+    return PurePath(home)
 
 
-def cloud_init_data_dir(user_home: str) -> PurePath:
+def cloud_init_data_dir(user_home: PurePath) -> PurePath:
     """
     Returns the Windows user profile directory translated as a Linux path
     accessible inside the current WSL instance.
@@ -136,7 +136,7 @@ def cloud_init_data_dir(user_home: str) -> PurePath:
     return PurePath(seed_dir)
 
 
-def ubuntu_pro_data_dir(user_home: str) -> PurePath | None:
+def ubuntu_pro_data_dir(user_home: PurePath) -> PurePath | None:
     """
     Get the path to the Ubuntu Pro cloud-init directory, or None if not found.
     """
@@ -314,7 +314,7 @@ class DataSourceWSL(sources.DataSource):
 
         try:
             metadata = load_instance_metadata(
-                cloud_init_data_dir(), self.instance_name
+                cloud_init_data_dir(find_home()), self.instance_name
             )
             return current == metadata.get("instance-id")
 
