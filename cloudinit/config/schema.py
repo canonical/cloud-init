@@ -42,7 +42,7 @@ from cloudinit.util import (
     load_text_file,
     write_file,
 )
-
+from pathlib import Path
 try:
     from jsonschema import ValidationError as _ValidationError
 
@@ -1553,8 +1553,12 @@ def load_doc(requested_modules: list) -> str:
     return docs
 
 
-def get_schema_dir() -> str:
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "schemas")
+def get_schema_dir(schema_dir=None) -> str:
+
+     if schema_dir:
+        return os.path.join(schema_dir, "schemas")
+     else:
+        return os.path.join(Path(__file__).parent.parent.parent, "schemas")
 
 
 def get_schema(schema_type: SchemaType = SchemaType.CLOUD_CONFIG) -> dict:
