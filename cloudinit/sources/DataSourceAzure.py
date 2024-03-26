@@ -11,7 +11,7 @@ import os
 import os.path
 import re
 import socket
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # nosec B405
 from enum import Enum
 from pathlib import Path
 from time import sleep, time
@@ -1799,7 +1799,7 @@ def write_files(datadir, files, dirmode=None):
     def _redact_password(cnt, fname):
         """Azure provides the UserPassword in plain text. So we redact it"""
         try:
-            root = ET.fromstring(cnt)
+            root = ET.fromstring(cnt)  # nosec B314
             for elem in root.iter():
                 if (
                     "UserPassword" in elem.tag
