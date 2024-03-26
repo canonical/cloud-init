@@ -9,7 +9,7 @@ import traceback
 from datetime import datetime
 from io import StringIO
 from typing import Any, Dict, List, Optional, Tuple
-from xml.etree import ElementTree  # nosec
+from xml.etree import ElementTree  # B405
 
 import requests
 

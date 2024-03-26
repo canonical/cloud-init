@@ -17,7 +17,7 @@ import base64
 import logging
 import os
 import re
-from xml.dom import minidom  # nosec
+from xml.dom import minidom  # nosec B408
 
 from cloudinit import safeyaml, sources, subp, util
 
@@ -353,7 +353,7 @@ def find_child(node, filter_func):
 
 
 def get_properties(contents):
-    dom = minidom.parseString(contents)  # nosec
+    dom = minidom.parseString(contents)  # nosec B318
     if dom.documentElement.localName != "Environment":
         raise XmlError("No Environment Node")
 

@@ -82,7 +82,7 @@ def render_tmpl(template, mode=None, is_yaml=False):
         cmd_variant = ["--variant", VARIANT]
     if PREFIX:
         cmd_prefix = ["--prefix", PREFIX]
-    subprocess.run(  # nosec
+    subprocess.run(  # nosec B603
         [
             sys.executable,
             "./tools/render-template",
