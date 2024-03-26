@@ -1184,7 +1184,9 @@ class TestWSL(DsIdentifyBase):
         self._test_ds_not_found("WSL-no-host-mounts")
 
     def test_no_userprofile(self):
-        """Negative test by failing to read the %USERPROFILE% environment variable."""
+        """Negative test by failing to read the %USERPROFILE% environment
+        variable.
+        """
         data = copy.deepcopy(VALID_CFG["WSL-supported"])
         data["mocks"].append(
             {
@@ -1224,7 +1226,9 @@ class TestWSL(DsIdentifyBase):
         return self._check_via_dict(data, RC_NOT_FOUND)
 
     def test_found_fail_due_instance_name_parsing(self):
-        """WSL datasource detection fail due parsing error even though the file exists."""
+        """WSL datasource detection fail due parsing error even though the file
+        exists.
+        """
         data = copy.deepcopy(VALID_CFG["WSL-supported-debian"])
         userprofile = self.tmp_dir()
         data["mocks"].append(
@@ -1287,9 +1291,7 @@ class TestWSL(DsIdentifyBase):
             os.path.join(
                 up4wcloudinitdir, MOCK_WSL_INSTANCE_DATA["name"] + ".user-data"
             ),
-             os.path.join(
-                up4wcloudinitdir, "agent.yaml"
-            ),
+            os.path.join(up4wcloudinitdir, "agent.yaml"),
             os.path.join(
                 cloudinitdir, MOCK_WSL_INSTANCE_DATA["name"] + ".user-data"
             ),

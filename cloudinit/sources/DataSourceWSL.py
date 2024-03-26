@@ -123,7 +123,7 @@ def find_home() -> PurePath:
     return win_path_2_wsl(home)
 
 
-def cloud_init_data_dir(user_home: PurePath) -> PurePath:
+def cloud_init_data_dir(user_home: PurePath) -> PurePath | None:
     """
     Returns the Windows user profile .cloud-init directory translated as a
     Linux path accessible inside the current WSL instance, or None if not
@@ -131,7 +131,7 @@ def cloud_init_data_dir(user_home: PurePath) -> PurePath:
     """
     seed_dir = os.path.join(user_home, ".cloud-init")
     if not os.path.isdir(seed_dir):
-        LOG.debug("cloud-init user data dir %s doesn't exist." % seed_dir)
+        LOG.debug("cloud-init user data dir %s doesn't exist.", seed_dir)
         return None
 
     return PurePath(seed_dir)
@@ -143,7 +143,7 @@ def ubuntu_pro_data_dir(user_home: PurePath) -> PurePath | None:
     """
     pro_dir = os.path.join(user_home, ".ubuntupro/.cloud-init")
     if not os.path.isdir(pro_dir):
-        LOG.debug("Pro cloud-init dir %s was not found" % pro_dir)
+        LOG.debug("Pro cloud-init dir %s was not found", pro_dir)
         return None
 
     return PurePath(pro_dir)
@@ -233,7 +233,7 @@ def load_instance_metadata(cloudinitdir: PurePath, instance_name: str) -> dict:
 
 
 def load_landscape_data(
-    instance_name: str, user_home: str
+    instance_name: str, user_home: PurePath
 ) -> dict | bytes | None:
     """
     Load Landscape config data into a dict, returning an empty dict if nothing
@@ -250,7 +250,7 @@ def load_landscape_data(
     return load_yaml_or_bin(data_path)
 
 
-def load_agent_data(user_home: str) -> dict | bytes | None:
+def load_agent_data(user_home: PurePath) -> dict | bytes | None:
     """
     Load agent.yaml data into a dict, returning an empty dict if nothing is
     found. If the file is not a YAML, returns the raw binary file contents.
@@ -313,8 +313,12 @@ class DataSourceWSL(sources.DataSource):
             return False
 
         try:
+            data_dir = cloud_init_data_dir(find_home())
+            if data_dir is None:
+                raise ValueError
+
             metadata = load_instance_metadata(
-                cloud_init_data_dir(find_home()), self.instance_name
+                data_dir, self.instance_name
             )
             return current == metadata.get("instance-id")
 
@@ -333,6 +337,9 @@ class DataSourceWSL(sources.DataSource):
         should_list = False
 
         try:
+            if seed_dir is None:
+                raise ValueError
+
             self.metadata = load_instance_metadata(
                 seed_dir, self.instance_name
             )
@@ -344,6 +351,8 @@ class DataSourceWSL(sources.DataSource):
             user_data = load_landscape_data(self.instance_name, user_home)
             if user_data is None:
                 # Regular user data
+                if seed_dir is None:
+                    raise ValueError
                 file = self.find_user_data_file(seed_dir)
                 if os.path.exists(file.as_posix()):
                     bin_user_data = util.load_binary_file(file.as_posix())

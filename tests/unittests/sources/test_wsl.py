@@ -4,9 +4,9 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
+import os
 from copy import deepcopy
 from email.mime.multipart import MIMEMultipart
-import os
 from pathlib import PurePath
 from typing import cast
 
@@ -369,9 +369,6 @@ class TestWSLDataSource:
 
         generic_file = tmpdir.join(".cloud-init", "default.user-data")
         generic_file.write("#cloud-config\npackages:\n- g++-13\n")
-
-        another_file = tmpdir.join(".cloud-iniawdawdawdawdawdt", "default.user-data")
-        another_file.write("#cloud-config\npackages:\n- g++-13\n")
 
         ubuntu_pro_tmp = tmpdir.join(".ubuntupro", ".cloud-init")
         os.makedirs(ubuntu_pro_tmp, exist_ok=True)
