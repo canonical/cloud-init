@@ -90,19 +90,25 @@ class TestPackageCommand:
             apt._wait_for_apt_command("stub", {"args": "stub2"}, timeout=5)
 
     def test_search_stem(self, m_subp, m_which, mocker):
-        """Test that containing `-`, `/`, or `=` is handled correctly."""
+        """Test that containing `-`, `^`, `/`, or `=` is handled correctly."""
         mocker.patch(f"{M_PATH}update_package_sources")
         mocker.patch(
             f"{M_PATH}get_all_packages",
-            return_value=["cloud-init", "pkg2", "pkg3", "pkg4"],
+            return_value=["cloud-init", "pkg2", "pkg3", "pkg4", "pkg5"],
         )
         m_install = mocker.patch(f"{M_PATH}run_package_command")
 
         apt = Apt(runner=mock.Mock())
         apt.install_packages(
-            ["cloud-init", "pkg2-", "pkg3/jammy-updates", "pkg4=1.2"]
+            ["cloud-init", "pkg2-", "pkg3/jammy-updates", "pkg4=1.2", "pkg5^"]
         )
         m_install.assert_called_with(
             "install",
-            pkgs=["cloud-init", "pkg2-", "pkg3/jammy-updates", "pkg4=1.2"],
+            pkgs=[
+                "cloud-init",
+                "pkg2-",
+                "pkg3/jammy-updates",
+                "pkg4=1.2",
+                "pkg5^",
+            ],
         )
