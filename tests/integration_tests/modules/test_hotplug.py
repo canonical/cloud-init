@@ -1,4 +1,3 @@
-import contextlib
 import time
 from collections import namedtuple
 
@@ -238,89 +237,56 @@ def test_multi_nic_hotplug(setup_image, session_cloud: IntegrationCloud):
     """Tests that additional secondary NICs are routable from non-local
     networks after the hotplug hook is executed when network updates
     are configured on the HOTPLUG event."""
-    ec2 = session_cloud.cloud_instance.client
     with session_cloud.launch(launch_kwargs={}, user_data=USER_DATA) as client:
         ips_before = _get_ip_addr(client)
-        instance_pub_ip = client.instance.ip
-        secondary_priv_ip = client.instance.add_network_interface()
-        response = ec2.describe_network_interfaces(
-            Filters=[
-                {
-                    "Name": "private-ip-address",
-                    "Values": [secondary_priv_ip],
-                },
-            ],
+        secondary_priv_ip = client.instance.add_network_interface(
+            ipv4_public_ip_count=1,
         )
-        nic_id = response["NetworkInterfaces"][0]["NetworkInterfaceId"]
+        _wait_till_hotplug_complete(client, expected_runs=1)
 
-        # Create Elastic IP
-        # Refactor after https://github.com/canonical/pycloudlib/issues/337 is
-        # completed
-        allocation = ec2.allocate_address(Domain="vpc")
-        try:
-            secondary_pub_ip = allocation["PublicIp"]
-            association = ec2.associate_address(
-                AllocationId=allocation["AllocationId"],
-                NetworkInterfaceId=nic_id,
-            )
-            assert association["ResponseMetadata"]["HTTPStatusCode"] == 200
+        log_content = client.read_from_file("/var/log/cloud-init.log")
+        verify_clean_log(log_content)
 
-            _wait_till_hotplug_complete(client)
+        ips_after_add = _get_ip_addr(client)
 
-            log_content = client.read_from_file("/var/log/cloud-init.log")
-            verify_clean_log(log_content)
+        netplan_cfg = client.read_from_file("/etc/netplan/50-cloud-init.yaml")
+        config = yaml.safe_load(netplan_cfg)
+        new_addition = [
+            ip for ip in ips_after_add if ip.ip4 == secondary_priv_ip
+        ][0]
+        assert new_addition.interface in config["network"]["ethernets"]
+        new_nic_cfg = config["network"]["ethernets"][new_addition.interface]
+        assert [{"from": secondary_priv_ip, "table": 101}] == new_nic_cfg[
+            "routing-policy"
+        ]
 
-            ips_after_add = _get_ip_addr(client)
+        assert len(ips_after_add) == len(ips_before) + 1
+        public_ips = client.instance.public_ips
+        assert len(public_ips) == 2
 
-            netplan_cfg = client.read_from_file(
-                "/etc/netplan/50-cloud-init.yaml"
-            )
-            config = yaml.safe_load(netplan_cfg)
-            new_addition = [
-                ip for ip in ips_after_add if ip.ip4 == secondary_priv_ip
-            ][0]
-            assert new_addition.interface in config["network"]["ethernets"]
-            new_nic_cfg = config["network"]["ethernets"][
-                new_addition.interface
-            ]
-            assert [{"from": secondary_priv_ip, "table": 101}] == new_nic_cfg[
-                "routing-policy"
-            ]
+        # SSH over all public ips works
+        for pub_ip in public_ips:
+            subp("nc -w 5 -zv " + pub_ip + " 22", shell=True)
 
-            assert len(ips_after_add) == len(ips_before) + 1
+        # Remove new NIC
+        client.instance.remove_network_interface(secondary_priv_ip)
+        _wait_till_hotplug_complete(client, expected_runs=2)
 
-            # SSH over primary NIC works
-            subp("nc -w 5 -zv " + instance_pub_ip + " 22", shell=True)
+        public_ips = client.instance.public_ips
+        assert len(public_ips) == 1
+        # SSH over primary NIC works
+        subp("nc -w 1 -zv " + public_ips[0] + " 22", shell=True)
 
-            # THE TEST: SSH over secondary NIC works
-            subp("nc -w 5 -zv " + secondary_pub_ip + " 22", shell=True)
+        ips_after_remove = _get_ip_addr(client)
+        assert len(ips_after_remove) == len(ips_before)
+        assert secondary_priv_ip not in [ip.ip4 for ip in ips_after_remove]
 
-            # Remove new NIC
-            client.instance.remove_network_interface(secondary_priv_ip)
-            _wait_till_hotplug_complete(client, expected_runs=2)
+        netplan_cfg = client.read_from_file("/etc/netplan/50-cloud-init.yaml")
+        config = yaml.safe_load(netplan_cfg)
+        assert new_addition.interface not in config["network"]["ethernets"]
 
-            # SSH over primary NIC works
-            subp("nc -w 1 -zv " + instance_pub_ip + " 22", shell=True)
-
-            ips_after_remove = _get_ip_addr(client)
-            assert len(ips_after_remove) == len(ips_before)
-            assert secondary_priv_ip not in [ip.ip4 for ip in ips_after_remove]
-
-            netplan_cfg = client.read_from_file(
-                "/etc/netplan/50-cloud-init.yaml"
-            )
-            config = yaml.safe_load(netplan_cfg)
-            assert new_addition.interface not in config["network"]["ethernets"]
-
-            log_content = client.read_from_file("/var/log/cloud-init.log")
-            verify_clean_log(log_content)
-        finally:
-            with contextlib.suppress(Exception):
-                ec2.disassociate_address(
-                    AssociationId=association["AssociationId"]
-                )
-            with contextlib.suppress(Exception):
-                ec2.release_address(AllocationId=allocation["AllocationId"])
+        log_content = client.read_from_file("/var/log/cloud-init.log")
+        verify_clean_log(log_content)
 
 
 @pytest.mark.skipif(CURRENT_RELEASE <= FOCAL, reason="See LP: #2055397")
