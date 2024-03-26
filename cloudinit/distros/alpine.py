@@ -8,6 +8,8 @@
 
 import logging
 import os
+import stat
+from typing import Optional
 
 from cloudinit import distros, helpers, subp, util
 from cloudinit.distros.parsers.hostname import HostnameConf
@@ -260,3 +262,46 @@ class Distro(distros.Distro):
         }
         cmd = list(cmds[action])
         return subp.subp(cmd, capture=True, rcs=rcs)
+
+    @staticmethod
+    def get_mapped_device(blockdev: str) -> Optional[str]:
+        """Returns underlying block device for a mapped device.
+
+        If it is mapped, blockdev will usually take the form of
+        /dev/mapper/some_name
+
+        If blockdev is a symlink pointing to a /dev/dm-* device, return
+        the device pointed to. Otherwise, return None.
+        """
+        realpath = os.path.realpath(blockdev)
+
+        if blockdev.startswith("/dev/mapper"):
+            # For Alpine systems a /dev/mapper/ entry is *not* a
+            # symlink to the related /dev/dm-X block device,
+            # rather it is a  block device itself.
+
+            # Get the major/minor of the /dev/mapper block device
+            major = os.major(os.stat(blockdev).st_rdev)
+            minor = os.minor(os.stat(blockdev).st_rdev)
+
+            # Find the /dev/dm-X device with the same major/minor
+            with os.scandir("/dev/") as it:
+                for deventry in it:
+                    if deventry.name.startswith("dm-"):
+                        res = os.lstat(deventry.path)
+                        if stat.S_ISBLK(res.st_mode):
+                            if (
+                                os.major(os.stat(deventry.path).st_rdev)
+                                == major
+                                and os.minor(os.stat(deventry.path).st_rdev)
+                                == minor
+                            ):
+                                realpath = os.path.realpath(deventry.path)
+                                break
+
+        if realpath.startswith("/dev/dm-"):
+            LOG.debug(
+                "%s is a mapped device pointing to %s", blockdev, realpath
+            )
+            return realpath
+        return None
