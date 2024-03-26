@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 
 """ test_apt_custom_sources_list
 Test templating of custom sources list
@@ -10,6 +11,7 @@ import pytest
 from cloudinit import subp, util
 from cloudinit.config import cc_apt_configure
 from cloudinit.distros.debian import Distro
+from cloudinit.subp import SubpResult
 from tests.unittests.util import get_cloud
 
 TARGET = "/"
@@ -158,7 +160,7 @@ class TestAptSourceConfigSourceList:
         self.subp = mocker.patch.object(
             subp,
             "subp",
-            return_value=("PPID   PID", ""),
+            return_value=SubpResult("PPID   PID", ""),
         )
         lsb = mocker.patch("cloudinit.util.lsb_release")
         lsb.return_value = {"codename": "fakerel"}
@@ -193,7 +195,7 @@ class TestAptSourceConfigSourceList:
         mock_shouldcfg = mocker.patch.object(
             cc_apt_configure,
             "_should_configure_on_empty_apt",
-            return_value=(True, "test"),
+            return_value=SubpResult(True, "test"),
         )
         cc_apt_configure.handle("test", {"apt": {}}, mycloud, None)
 
@@ -330,18 +332,3 @@ class TestAptSourceConfigSourceList:
         sources_file = tmpdir.join(apt_file)
         assert expected == sources_file.read()
         assert 0o644 == stat.S_IMODE(sources_file.stat().mode)
-        self.subp.assert_called_once_with(
-            [
-                "ps",
-                "-o",
-                "ppid,pid",
-                "-C",
-                "keyboxd",
-                "-C",
-                "dirmngr",
-                "-C",
-                "gpg-agent",
-            ],
-            capture=True,
-            rcs=[0, 1],
-        )

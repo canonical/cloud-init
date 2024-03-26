@@ -173,12 +173,27 @@ class DataSourceScaleway(sources.DataSource):
         self.max_wait = int(self.ds_cfg.get("max_wait", DEF_MD_MAX_WAIT))
         self._network_config = sources.UNSET
         self.metadata_urls = DS_BASE_URLS
+        self.metadata_url = None
         self.userdata_url = None
         self.vendordata_url = None
         self.ephemeral_fixed_address = None
         self.has_ipv4 = True
         if "metadata_urls" in self.ds_cfg.keys():
             self.metadata_urls += self.ds_cfg["metadata_urls"]
+
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        super()._unpickle(ci_pkl_version)
+        attr_defaults = {
+            "ephemeral_fixed_address": None,
+            "has_ipv4": True,
+            "max_wait": DEF_MD_MAX_WAIT,
+            "metadata_urls": DS_BASE_URLS,
+            "userdata_url": None,
+            "vendordata_url": None,
+        }
+        for attr in attr_defaults:
+            if not hasattr(self, attr):
+                setattr(self, attr, attr_defaults[attr])
 
     def _set_metadata_url(self, urls):
         """

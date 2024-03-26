@@ -113,6 +113,32 @@ class DataSourceVMware(sources.DataSource):
             (DATA_ACCESS_METHOD_IMC, self.get_imc_data_fn, True),
         ]
 
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        super()._unpickle(ci_pkl_version)
+        for attr in ("rpctool", "rpctool_fn"):
+            if not hasattr(self, attr):
+                setattr(self, attr, None)
+        if not hasattr(self, "cfg"):
+            setattr(self, "cfg", {})
+        if not hasattr(self, "possible_data_access_method_list"):
+            setattr(
+                self,
+                "possible_data_access_method_list",
+                [
+                    (
+                        DATA_ACCESS_METHOD_ENVVAR,
+                        self.get_envvar_data_fn,
+                        False,
+                    ),
+                    (
+                        DATA_ACCESS_METHOD_GUESTINFO,
+                        self.get_guestinfo_data_fn,
+                        True,
+                    ),
+                    (DATA_ACCESS_METHOD_IMC, self.get_imc_data_fn, True),
+                ],
+            )
+
     def __str__(self):
         root = sources.DataSource.__str__(self)
         return "%s [seed=%s]" % (root, self.data_access_method)
@@ -821,19 +847,18 @@ def is_valid_ip_addr(val):
     )
 
 
-def convert_to_netifaces_format(addr):
+def convert_to_netifaces_ipv4_format(addr: dict) -> dict:
     """
     Takes a cloudinit.netinfo formatted address and converts to netifaces
     format, since this module was originally written with netifaces as the
     network introspection module.
-    netifaces format:
+    netifaces ipv4 format:
     {
       "broadcast": "10.15.255.255",
       "netmask": "255.240.0.0",
       "addr": "10.0.1.4"
     }
-
-    cloudinit.netinfo format:
+    cloudinit.netinfo ipv4 format:
     {
       "ip": "10.0.1.4",
       "mask": "255.240.0.0",
@@ -841,10 +866,37 @@ def convert_to_netifaces_format(addr):
       "scope": "global",
     }
     """
+    if not addr.get("ip"):
+        return {}
     return {
-        "broadcast": addr["bcast"],
-        "netmask": addr["mask"],
-        "addr": addr["ip"],
+        "broadcast": addr.get("bcast"),
+        "netmask": addr.get("mask"),
+        "addr": addr.get("ip"),
+    }
+
+
+def convert_to_netifaces_ipv6_format(addr: dict) -> dict:
+    """
+    Takes a cloudinit.netinfo formatted address and converts to netifaces
+    format, since this module was originally written with netifaces as the
+    network introspection module.
+    netifaces ipv6 format:
+    {
+      "netmask": "ffff:ffff:ffff:ffff::/64",
+      "addr": "2001:db8:abcd:1234::1"
+    }
+    cloudinit.netinfo ipv6 format:
+    {
+      "ip": "2001:db8:abcd:1234::1/64",
+      "scope6": "global",
+    }
+    """
+    if not addr.get("ip"):
+        return {}
+    ipv6 = ipaddress.IPv6Interface(addr.get("ip"))
+    return {
+        "netmask": f"{ipv6.netmask}/{ipv6.network.prefixlen}",
+        "addr": str(ipv6.ip),
     }
 
 
@@ -852,7 +904,6 @@ def get_host_info():
     """
     Returns host information such as the host name and network interfaces.
     """
-    # TODO(look to promote netifices use up in cloud-init netinfo funcs)
     host_info = {
         "network": {
             "interfaces": {
@@ -883,9 +934,9 @@ def get_host_info():
         af_inet4 = []
         af_inet6 = []
         for addr in ifaces[dev_name]["ipv4"]:
-            af_inet4.append(convert_to_netifaces_format(addr))
+            af_inet4.append(convert_to_netifaces_ipv4_format(addr))
         for addr in ifaces[dev_name]["ipv6"]:
-            af_inet6.append(convert_to_netifaces_format(addr))
+            af_inet6.append(convert_to_netifaces_ipv6_format(addr))
 
         mac = ifaces[dev_name].get("hwaddr")
 

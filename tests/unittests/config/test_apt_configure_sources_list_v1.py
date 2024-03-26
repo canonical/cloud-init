@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 
 """ test_handler_apt_configure_sources_list
 Test templating of sources list
@@ -9,6 +10,7 @@ import pytest
 
 from cloudinit import subp, util
 from cloudinit.config import cc_apt_configure
+from cloudinit.subp import SubpResult
 from tests.unittests.util import get_cloud
 
 EXAMPLE_TMPL = """\
@@ -86,7 +88,7 @@ class TestAptSourceConfigSourceList:
     @pytest.fixture(autouse=True)
     def common_mocks(self, mocker):
         self.subp = mocker.patch.object(
-            subp, "subp", return_value=("PPID   PID", "")
+            subp, "subp", return_value=SubpResult("PPID   PID", "")
         )
         mocker.patch("cloudinit.config.cc_apt_configure._ensure_dependencies")
         lsb = mocker.patch("cloudinit.util.lsb_release")
@@ -160,22 +162,6 @@ class TestAptSourceConfigSourceList:
         )
         assert 0o644 == stat.S_IMODE(sources_file.stat().mode)
 
-        self.subp.assert_called_once_with(
-            [
-                "ps",
-                "-o",
-                "ppid,pid",
-                "-C",
-                "keyboxd",
-                "-C",
-                "dirmngr",
-                "-C",
-                "gpg-agent",
-            ],
-            capture=True,
-            rcs=[0, 1],
-        )
-
     @staticmethod
     def myresolve(name):
         """Fake util.is_resolvable for mirrorfail tests"""
@@ -229,21 +215,6 @@ class TestAptSourceConfigSourceList:
 
         mockresolve.assert_any_call("http://does.not.exist")
         mockresolve.assert_any_call(mirrorcheck)
-        self.subp.assert_called_once_with(
-            [
-                "ps",
-                "-o",
-                "ppid,pid",
-                "-C",
-                "keyboxd",
-                "-C",
-                "dirmngr",
-                "-C",
-                "gpg-agent",
-            ],
-            capture=True,
-            rcs=[0, 1],
-        )
 
     @pytest.mark.parametrize(
         "deb822,cfg,apt_file,expected",
@@ -301,18 +272,3 @@ class TestAptSourceConfigSourceList:
         sources_file = tmpdir.join(apt_file)
         assert expected == sources_file.read()
         assert 0o644 == stat.S_IMODE(sources_file.stat().mode)
-        self.subp.assert_called_once_with(
-            [
-                "ps",
-                "-o",
-                "ppid,pid",
-                "-C",
-                "keyboxd",
-                "-C",
-                "dirmngr",
-                "-C",
-                "gpg-agent",
-            ],
-            capture=True,
-            rcs=[0, 1],
-        )

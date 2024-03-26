@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 import re
 import shutil
 import tempfile
@@ -379,6 +380,7 @@ class TestRemoveDefaultCaCerts(TestCase):
                 cc_ca_certs.disable_default_ca_certs(distro_name, conf)
 
 
+@pytest.mark.usefixtures("clear_deprecation_log")
 class TestCACertsSchema:
     """Directly test schema rather than through handle."""
 

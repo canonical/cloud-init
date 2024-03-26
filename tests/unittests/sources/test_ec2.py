@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 
 import copy
 import json
@@ -170,6 +171,28 @@ NIC2_MD = {
     "vpc-id": "vpc-a07f62c8",
     "vpc-ipv4-cidr-block": "172.31.0.0/16",
     "vpc-ipv4-cidr-blocks": "172.31.0.0/16",
+}
+
+NIC2_MD_IPV4_IPV6_MULTI_IP = {
+    "device-number": "1",
+    "interface-id": "eni-043cdce36ded5e79f",
+    "ipv6s": [
+        "2600:1f16:292:100:c187:593c:4349:136",
+        "2600:1f16:292:100:f153:12a3:c37c:11f9",
+    ],
+    "local-hostname": "ip-172-31-47-221.us-east-2.compute.internal",
+    "local-ipv4s": "172.31.47.221",
+    "mac": "0a:75:69:92:e2:16",
+    "owner-id": "329910648901",
+    "security-group-ids": "sg-0d68fef37d8cc9b77",
+    "security-groups": "launch-wizard-17",
+    "subnet-id": "subnet-9d7ba0d1",
+    "subnet-ipv4-cidr-block": "172.31.32.0/20",
+    "subnet-ipv6-cidr-blocks": "2600:1f16:292:100::/64",
+    "vpc-id": "vpc-a07f62c8",
+    "vpc-ipv4-cidr-block": "172.31.0.0/16",
+    "vpc-ipv4-cidr-blocks": "172.31.0.0/16",
+    "vpc-ipv6-cidr-blocks": "2600:1f16:292:100::/56",
 }
 
 SECONDARY_IP_METADATA_2018_09_24 = {
@@ -695,29 +718,13 @@ class TestEc2(test_helpers.ResponsesTestCase):
             m_readurl.side_effect = (
                 conn_error,
                 conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
-                conn_error,
                 mock_success,
             )
             with mock.patch("cloudinit.url_helper.time.sleep"):
                 self.assertTrue(ds.wait_for_metadata_service())
 
         # Just one /latest/api/token request
-        self.assertEqual(19, len(m_readurl.call_args_list))
+        self.assertEqual(3, len(m_readurl.call_args_list))
         for readurl_call in m_readurl.call_args_list:
             self.assertIn("latest/api/token", readurl_call[0][0])
 
@@ -1239,7 +1246,7 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
             ),
         )
 
-    def test_convert_ec2_metadata_network_config_handles_multiple_nics(self):
+    def test_convert_ec2_metadata_network_config_multi_nics_ipv4(self):
         """DHCP route-metric increases on secondary NICs for IPv4 and IPv6.
         Source-routing configured for secondary NICs (routing-policy and extra
         routing table)."""
@@ -1282,6 +1289,83 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
                         # NIC2_MD["local-ipv4s"]
                         {"from": "172.31.47.221", "table": 101}
                     ],
+                },
+            },
+        }
+        distro = mock.Mock()
+        distro.network_activator = activators.NetplanActivator
+        distro.dhcp_client.dhcp_discovery.return_value = {
+            "routers": "172.31.1.0"
+        }
+        self.assertEqual(
+            expected,
+            ec2.convert_ec2_metadata_network_config(
+                network_metadata_both, distro, macs_to_nics
+            ),
+        )
+
+    def test_convert_ec2_metadata_network_config_multi_nics_ipv4_ipv6_multi_ip(
+        self,
+    ):
+        """DHCP route-metric increases on secondary NICs for IPv4 and IPv6.
+        Source-routing configured for secondary NICs (routing-policy and extra
+        routing table)."""
+        mac2 = "06:17:04:d7:26:08"
+        macs_to_nics = {self.mac1: "eth9", mac2: "eth10"}
+        network_metadata_both = copy.deepcopy(self.network_metadata)
+        # Add 2nd nic info
+        network_metadata_both["interfaces"]["macs"][
+            mac2
+        ] = NIC2_MD_IPV4_IPV6_MULTI_IP
+        nic1_metadata = network_metadata_both["interfaces"]["macs"][self.mac1]
+        nic1_metadata["ipv6s"] = "2620:0:1009:fd00:e442:c88d:c04d:dc85/64"
+        nic1_metadata.pop("public-ipv4s")  # No public-ipv4 IPs in cfg
+        nic1_metadata["local-ipv4s"] = "10.0.0.42"  # Local ipv4 only on vpc
+        expected = {
+            "version": 2,
+            "ethernets": {
+                "eth9": {
+                    "dhcp4": True,
+                    "dhcp4-overrides": {"route-metric": 100},
+                    "dhcp6": True,
+                    "match": {"macaddress": "06:17:04:d7:26:09"},
+                    "set-name": "eth9",
+                    "dhcp6-overrides": {"route-metric": 100},
+                },
+                "eth10": {
+                    "dhcp4": True,
+                    "dhcp4-overrides": {
+                        "route-metric": 200,
+                        "use-routes": True,
+                    },
+                    "dhcp6": True,
+                    "match": {"macaddress": "06:17:04:d7:26:08"},
+                    "set-name": "eth10",
+                    "routes": [
+                        # via DHCP gateway
+                        {"to": "0.0.0.0/0", "via": "172.31.1.0", "table": 101},
+                        # to NIC2_MD["subnet-ipv4-cidr-block"]
+                        {"to": "172.31.32.0/20", "table": 101},
+                        # to NIC2_MD["subnet-ipv6-cidr-blocks"]
+                        {"to": "2600:1f16:292:100::/64", "table": 101},
+                    ],
+                    "routing-policy": [
+                        # NIC2_MD["local-ipv4s"]
+                        {"from": "172.31.47.221", "table": 101},
+                        {
+                            "from": "2600:1f16:292:100:c187:593c:4349:136",
+                            "table": 101,
+                        },
+                        {
+                            "from": "2600:1f16:292:100:f153:12a3:c37c:11f9",
+                            "table": 101,
+                        },
+                    ],
+                    "dhcp6-overrides": {
+                        "route-metric": 200,
+                        "use-routes": True,
+                    },
+                    "addresses": ["2600:1f16:292:100:f153:12a3:c37c:11f9/128"],
                 },
             },
         }
