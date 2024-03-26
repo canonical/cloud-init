@@ -308,7 +308,6 @@ Example output:
    BOOTPROTO=static
    DEVICE=eth7
    IPADDR=192.168.1.5/255.255.255.0
-   NM_CONTROLLED=no
    ONBOOT=yes
    TYPE=Ethernet
    USERCTL=no
@@ -316,7 +315,6 @@ Example output:
    #
    BOOTPROTO=dhcp
    DEVICE=eth9
-   NM_CONTROLLED=no
    ONBOOT=yes
    TYPE=Ethernet
    USERCTL=no
