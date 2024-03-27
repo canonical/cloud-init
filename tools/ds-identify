@@ -1616,6 +1616,7 @@ WSL_profile_dir() {
     # Determine where a suitable user profile home is located
     _RET=""
     local cmdexe="" profiledir="" val=""
+    # shellcheck disable=SC2068
     for m in $@; do
         cmdexe="$m/Windows/System32/cmd.exe"
         if command -v "$cmdexe" > /dev/null 2>&1; then
