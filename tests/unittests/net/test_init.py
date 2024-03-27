@@ -43,10 +43,7 @@ class TestSysDevPath:
 
 class TestReadSysNet:
     @pytest.fixture(autouse=True)
-    @pytest.mark.parametrize(
-        "disable_sysfs_net", [False], indirect=["disable_sysfs_net"]
-    )
-    def setup(self, disable_sysfs_net, tmpdir_factory):
+    def setup(self, tmpdir_factory):
         # We mock invididual numbered tmpdirs here because these tests write
         # to the sysfs directory and stale test artifacts break later tests.
         mock_sysfs = f"{tmpdir_factory.mktemp('sysfs', numbered=True)}/"
@@ -1895,3 +1892,29 @@ class TestIsIpNetwork:
     )
     def test_is_ip_network(self, func, arg, expected_return):
         assert func(arg) == expected_return
+
+
+class TestIsIpInSubnet:
+    """Tests for net.is_ip_in_subnet()."""
+
+    @pytest.mark.parametrize(
+        "func,ip,subnet,expected_return",
+        (
+            (net.is_ip_in_subnet, "192.168.1.1", "2001:67c::1/64", False),
+            (net.is_ip_in_subnet, "2001:67c::1", "192.168.1.1/24", False),
+            (net.is_ip_in_subnet, "192.168.1.1", "192.168.1.1/24", True),
+            (net.is_ip_in_subnet, "192.168.1.1", "192.168.1.1/32", True),
+            (net.is_ip_in_subnet, "192.168.1.2", "192.168.1.1/24", True),
+            (net.is_ip_in_subnet, "192.168.1.2", "192.168.1.1/32", False),
+            (net.is_ip_in_subnet, "192.168.2.2", "192.168.1.1/24", False),
+            (net.is_ip_in_subnet, "192.168.2.2", "192.168.1.1/32", False),
+            (net.is_ip_in_subnet, "2001:67c1::1", "2001:67c1::1/64", True),
+            (net.is_ip_in_subnet, "2001:67c1::1", "2001:67c1::1/128", True),
+            (net.is_ip_in_subnet, "2001:67c1::2", "2001:67c1::1/64", True),
+            (net.is_ip_in_subnet, "2001:67c1::2", "2001:67c1::1/128", False),
+            (net.is_ip_in_subnet, "2002:67c1::1", "2001:67c1::1/8", True),
+            (net.is_ip_in_subnet, "2002:67c1::1", "2001:67c1::1/16", False),
+        ),
+    )
+    def test_is_ip_in_subnet(self, func, ip, subnet, expected_return):
+        assert func(ip, subnet) == expected_return

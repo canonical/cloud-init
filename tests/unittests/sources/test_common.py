@@ -46,7 +46,7 @@ DEFAULT_LOCAL = [
     Hetzner.DataSourceHetzner,
     IBMCloud.DataSourceIBMCloud,
     LXD.DataSourceLXD,
-    MAAS.DataSourceMAAS,
+    MAAS.DataSourceMAASLocal,
     NoCloud.DataSourceNoCloud,
     OpenNebula.DataSourceOpenNebula,
     Oracle.DataSourceOracle,

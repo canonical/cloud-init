@@ -53,7 +53,7 @@ class GPG:
         """cleanup the gpg temporary directory and kill gpg"""
         self.kill_gpg()
         if self.temp_dir and os.path.isdir(self.temp_dir.name):
-            os.rmdir(self.temp_dir.name)
+            self.temp_dir.cleanup()
 
     def export_armour(self, key: str) -> Optional[str]:
         """Export gpg key, armoured key gets returned"""

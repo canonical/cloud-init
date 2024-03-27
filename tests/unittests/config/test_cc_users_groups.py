@@ -97,6 +97,7 @@ class TestHandleUsersGroups(CiTestCase):
                 "lock_passwd": True,
                 "groups": ["wheel"],
                 "shell": "/bin/tcsh",
+                "homedir": "/home/freebsd",
             }
         }
         metadata = {}
@@ -116,6 +117,7 @@ class TestHandleUsersGroups(CiTestCase):
                     groups="wheel",
                     lock_passwd=True,
                     shell="/bin/tcsh",
+                    homedir="/home/freebsd",
                 ),
                 mock.call("me2", uid=1234, default=False),
             ],

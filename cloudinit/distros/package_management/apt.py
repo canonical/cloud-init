@@ -3,6 +3,7 @@ import fcntl
 import functools
 import logging
 import os
+import re
 import time
 from typing import Any, Iterable, List, Mapping, Optional, Sequence, cast
 
@@ -83,11 +84,11 @@ class Apt(PackageManager):
     ):
         super().__init__(runner)
         if apt_get_command is None:
-            apt_get_command = APT_GET_COMMAND
+            self.apt_get_command = APT_GET_COMMAND
         if apt_get_upgrade_subcommand is None:
             apt_get_upgrade_subcommand = "dist-upgrade"
         self.apt_command = tuple(apt_get_wrapper_command) + tuple(
-            apt_get_command
+            self.apt_get_command
         )
 
         self.apt_get_upgrade_subcommand = apt_get_upgrade_subcommand
@@ -103,6 +104,9 @@ class Apt(PackageManager):
             apt_get_command=cfg.get("apt_get_command"),
             apt_get_upgrade_subcommand=cfg.get("apt_get_upgrade_subcommand"),
         )
+
+    def available(self) -> bool:
+        return bool(subp.which(self.apt_get_command[0]))
 
     def update_package_sources(self):
         self.runner.run(
@@ -123,7 +127,18 @@ class Apt(PackageManager):
         return set(resp.splitlines())
 
     def get_unavailable_packages(self, pkglist: Iterable[str]):
-        return [pkg for pkg in pkglist if pkg not in self.get_all_packages()]
+        # Packages ending with `-` signify to apt to not install a transitive
+        # dependency.
+        # Packages ending with '^' signify to apt to install a Task.
+        # Anything after "/" refers to a target release
+        # "=" allows specifying a specific version
+        # Strip all off when checking for availability
+        return [
+            pkg
+            for pkg in pkglist
+            if re.split("/|=", pkg)[0].rstrip("-^")
+            not in self.get_all_packages()
+        ]
 
     def install_packages(self, pkglist: Iterable) -> UninstalledPackages:
         self.update_package_sources()
@@ -131,11 +146,12 @@ class Apt(PackageManager):
         unavailable = self.get_unavailable_packages(
             [x.split("=")[0] for x in pkglist]
         )
-        LOG.debug(
-            "The following packages were not found by APT so APT will "
-            "not attempt to install them: %s",
-            unavailable,
-        )
+        if unavailable:
+            LOG.debug(
+                "The following packages were not found by APT so APT will "
+                "not attempt to install them: %s",
+                unavailable,
+            )
         to_install = [p for p in pkglist if p not in unavailable]
         if to_install:
             self.run_package_command("install", pkgs=to_install)
