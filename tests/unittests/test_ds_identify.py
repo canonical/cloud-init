@@ -622,7 +622,7 @@ class TestDsIdentify(DsIdentifyBase):
         mydata = copy.deepcopy(VALID_CFG["Ec2-hvm"])
         cfgpath = "etc/cloud/cloud.cfg.d/myds.cfg"
         mydata["files"][cfgpath] = 'datasource_list: ["NoCloud"]\n'
-        self._check_via_dict(mydata, rc=RC_FOUND, dslist=["NoCloud", DS_NONE])
+        self._check_via_dict(mydata, rc=RC_FOUND, dslist=["NoCloud"])
 
     def test_configured_list_with_none(self):
         """When datasource_list already contains None, None is not added.
