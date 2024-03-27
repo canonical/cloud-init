@@ -347,6 +347,9 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if not hasattr(self, key):
                 setattr(self, key, value)
 
+        if not hasattr(self, "check_if_fallback_is_allowed"):
+            self.check_if_fallback_is_allowed = lambda: False
+
         if hasattr(self, "userdata") and self.userdata is not None:
             # If userdata stores MIME data, on < python3.6 it will be
             # missing the 'policy' attribute that exists on >=python3.6.

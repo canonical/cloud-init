@@ -378,11 +378,7 @@ class Init:
                 if existing != "check":
                     raise e
                 ds = self._restore_from_cache()
-                if (
-                    ds
-                    and hasattr(ds, "check_if_fallback_is_allowed")
-                    and ds.check_if_fallback_is_allowed()
-                ):
+                if ds and ds.check_if_fallback_is_allowed():
                     LOG.info(
                         "Restored fallback datasource from checked cache: %s",
                         ds,
