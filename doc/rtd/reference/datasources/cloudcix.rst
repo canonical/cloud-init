@@ -7,7 +7,7 @@ CloudCIX serves metadata through an internal server, accessible at
 ``http://169.254.169.254/v1``. The metadata and userdata can be fetched at
 the ``/metadata`` and ``/userdata`` paths respectively.
 
-CloudCIX instances are identified by the dmi Product Name.
+CloudCIX instances are identified by the dmi product name `CloudCIX`.
 
 Configuration
 -------------

@@ -121,8 +121,7 @@ class DataSourceCloudCIX(sources.DataSource):
 
     @staticmethod
     def ds_detect():
-        product_name = dmi.read_dmi_data("system-product-name")
-        return product_name == CLOUDCIX_DMI_NAME
+        return is_platform_viable()
 
     @property
     def network_config(self):
@@ -154,6 +153,10 @@ class DataSourceCloudCIX(sources.DataSource):
             }
 
         return netcfg
+
+
+def is_platform_viable() -> bool:
+    return dmi.read_dmi_data("system-product-name") == CLOUDCIX_DMI_NAME
 
 
 def read_metadata(base_url, url_params):

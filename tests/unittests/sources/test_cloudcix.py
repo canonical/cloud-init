@@ -5,10 +5,9 @@ import responses
 
 from cloudinit import distros, helpers, sources
 from cloudinit import url_helper as uh
-from cloudinit.net.ephemeral import EphemeralIPNetwork
 from cloudinit.sources import DataSourceCloudCIX as ds_mod
 from cloudinit.sources import InvalidMetaDataException
-from tests.unittests.helpers import ResponsesTestCase, mock
+from tests.unittests.helpers import ResponsesTestCase
 
 METADATA = {
     "instance_id": "12_34",
@@ -72,15 +71,16 @@ class TestDataSourceCloudCIX(ResponsesTestCase):
             return_value="cixnic0",
         )
         self.add_patch(
-            "cloudinit.sources.DataSourceCloudCIX.EphemeralIPNetwork",
-            "_m_EphemeralIPNetwork",
+            "cloudinit.net.ephemeral.EphemeralIPNetwork.__enter__",
+            "_m_EphemeralIPNetwork_enter",
+            return_value=None,
+        )
+        self.add_patch(
+            "cloudinit.net.ephemeral.EphemeralIPNetwork.__exit__",
+            "_m_EphemeralIPNetwork_exit",
+            return_value=None,
         )
 
-        def noop(self):
-            return None
-
-        self._m_EphemeralIPNetwork.__enter__ = noop
-        self._m_EphemeralIPNetwork.__exit__ = noop
 
     def _get_ds(self):
         distro_cls = distros.fetch("ubuntu")
@@ -101,9 +101,11 @@ class TestDataSourceCloudCIX(ResponsesTestCase):
 
     def test_identifying_cloudcix(self):
         self.assertTrue(self.datasource.ds_detect())
+        self.assertTrue(ds_mod.is_platform_viable())
 
         self.m_read_dmi_data.return_value = "OnCloud9"
         self.assertFalse(self.datasource.ds_detect())
+        self.assertFalse(ds_mod.is_platform_viable())
 
     def test_setting_config_options(self):
         cix_options = {
@@ -222,15 +224,44 @@ class TestDataSourceCloudCIX(ResponsesTestCase):
 
         version = ds_mod.METADATA_VERSION
         base_url = ds_mod.METADATA_URLS[0]
+        versioned_url = uh.combine_url(base_url, f"v{version}")
+
+        # Malformed metadata
         self.responses.add_callback(
             responses.GET,
-            uh.combine_url(base_url, f"v{version}", "metadata"),
-            callback=MockImds.metadata_response,
+            uh.combine_url(versioned_url, "metadata"),
+            callback=bad_response,
+        )
+        self.responses.add_callback(
+            responses.GET,
+            uh.combine_url(versioned_url, "userdata"),
+            callback=MockImds.userdata_response,
         )
 
         self.assertRaises(
             InvalidMetaDataException,
             ds_mod.read_metadata,
-            ds_mod.METADATA_URLS[0],
+            versioned_url,
+            self.datasource.get_url_params(),
+        )
+
+    def test_bad_response_code(self):
+        def bad_response(response):
+            return 404, response.headers, ""
+
+        version = ds_mod.METADATA_VERSION
+        base_url = ds_mod.METADATA_URLS[0]
+        versioned_url = uh.combine_url(base_url, f"v{version}")
+
+        self.responses.add_callback(
+            responses.GET,
+            uh.combine_url(versioned_url, "metadata"),
+            callback=bad_response,
+        )
+
+        self.assertRaises(
+            InvalidMetaDataException,
+            ds_mod.read_metadata,
+            versioned_url,
             self.datasource.get_url_params(),
         )
