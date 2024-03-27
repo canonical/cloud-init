@@ -108,6 +108,7 @@ class DataSourceEc2(sources.DataSource):
     default_update_events = {
         EventScope.NETWORK: {
             EventType.BOOT_NEW_INSTANCE,
+            EventType.BOOT,
             EventType.HOTPLUG,
         }
     }

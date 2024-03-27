@@ -23,6 +23,13 @@ class DataSourceAliYun(EC2.DataSourceEc2):
     min_metadata_version = "2016-01-01"
     extended_metadata_versions: List[str] = []
 
+    default_update_events = {
+        EventScope.NETWORK: {
+            EventType.BOOT_NEW_INSTANCE,
+            EventType.HOTPLUG,
+        }
+    }
+
     # Aliyun metadata server security enhanced mode overwrite
     @property
     def imdsv2_token_put_header(self):
