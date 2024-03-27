@@ -43,11 +43,8 @@ class DataSourceCloudCIX(sources.DataSource):
         self.url_sec_between_retries = self.ds_cfg.get("wait")
 
     def _get_data(self):
-        """Fetch the user data, the metadata and the VM password
-        from the metadata service.
-
-        Please refer to the datasource documentation for details on how the
-        metadata server and password server are crawled.
+        """
+        Fetch the user data and the metadata
         """
         try:
             with EphemeralIPNetwork(
@@ -79,7 +76,7 @@ class DataSourceCloudCIX(sources.DataSource):
         md_url = self.determine_md_url()
         if md_url is None:
             raise sources.InvalidMetaDataException(
-                "Could not reach determine MetaData url"
+                "Could not determine MetaData url"
             )
 
         data = read_metadata(md_url, self.get_url_params())

@@ -1,11 +1,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import json
 
+import responses
+
 from cloudinit import distros, helpers, sources
 from cloudinit import url_helper as uh
+from cloudinit.net.ephemeral import EphemeralIPNetwork
 from cloudinit.sources import DataSourceCloudCIX as ds_mod
 from cloudinit.sources import InvalidMetaDataException
-from tests.unittests.helpers import CiTestCase, mock
+from tests.unittests.helpers import ResponsesTestCase, mock
 
 METADATA = {
     "instance_id": "12_34",
@@ -28,35 +31,27 @@ METADATA = {
     },
 }
 
-USERDATA = b"""#cloud-config
+USERDATA = """#cloud-config
 runcmd:
 - [ echo Hello, World >> /etc/greeting ]
 """
 
 
-def mock_imds(base_url, version):
-    # Create a function that mocks responses from a metadata server
-    version_str = f"v{version}"
+class MockImds:
+    @staticmethod
+    def base_response(response):
+        return 200, response.headers, "Metadata enabled"
 
-    def func(url, **urlparams):
+    @staticmethod
+    def metadata_response(response):
+        return 200, response.headers, json.dumps(METADATA).encode()
 
-        if url == base_url:
-            return uh.StringResponse("Metadata enabled")
-
-        md_endpoint = uh.combine_url(base_url, version_str, "metadata")
-        if url == md_endpoint:
-            return uh.StringResponse(json.dumps(METADATA).encode())
-
-        userdata_endpoint = uh.combine_url(base_url, version_str, "userdata")
-        if url == userdata_endpoint:
-            return uh.StringResponse(USERDATA)
-
-        return uh.StringResponse("Not Found", code=404)
-
-    return func
+    @staticmethod
+    def userdata_response(response):
+        return 200, response.headers, USERDATA.encode()
 
 
-class TestDataSourceCloudCIX(CiTestCase):
+class TestDataSourceCloudCIX(ResponsesTestCase):
     """
     Test reading the meta-data
     """
@@ -71,6 +66,21 @@ class TestDataSourceCloudCIX(CiTestCase):
             "m_read_dmi_data",
             return_value="CloudCIX",
         )
+        self.add_patch(
+            "cloudinit.net.find_fallback_nic",
+            "_m_find_fallback_nic",
+            return_value="cixnic0",
+        )
+        self.add_patch(
+            "cloudinit.sources.DataSourceCloudCIX.EphemeralIPNetwork",
+            "_m_EphemeralIPNetwork",
+        )
+
+        def noop(self):
+            return None
+
+        self._m_EphemeralIPNetwork.__enter__ = noop
+        self._m_EphemeralIPNetwork.__exit__ = noop
 
     def _get_ds(self):
         distro_cls = distros.fetch("ubuntu")
@@ -115,11 +125,20 @@ class TestDataSourceCloudCIX(CiTestCase):
         self.assertEqual(new_ds.url_timeout, cix_options["timeout"])
         self.assertEqual(new_ds.url_retries, cix_options["retries"])
 
-    @mock.patch("cloudinit.url_helper.readurl")
-    def test_determine_md_url(self, m_readurl):
+    def test_determine_md_url(self):
         base_url = ds_mod.METADATA_URLS[0]
         version = ds_mod.METADATA_VERSION
-        m_readurl.side_effect = mock_imds(base_url, version)
+        self.responses.reset()
+        self.responses.add_callback(
+            responses.GET,
+            base_url,
+            callback=MockImds.base_response,
+        )
+        self.responses.add_callback(
+            responses.GET,
+            uh.combine_url(base_url, f"v{version}", "metadata"),
+            callback=MockImds.metadata_response,
+        )
 
         md_url = self._get_ds().determine_md_url()
 
@@ -129,28 +148,33 @@ class TestDataSourceCloudCIX(CiTestCase):
         )
         self.assertEqual(md_url, expected_url)
 
-    @mock.patch("cloudinit.url_helper.readurl")
-    def test_reading_metadata_on_cloudcix(self, m_readurl):
+    def test_reading_metadata_on_cloudcix(self):
         base_url = ds_mod.METADATA_URLS[0]
         version = ds_mod.METADATA_VERSION
-        m_readurl.side_effect = mock_imds(base_url, version)
+        # Set up mock endpoints
+        self.responses.reset()
+        self.responses.add_callback(
+            responses.GET,
+            base_url,
+            callback=MockImds.base_response,
+        )
+        self.responses.add_callback(
+            responses.GET,
+            uh.combine_url(base_url, f"v{version}", "metadata"),
+            callback=MockImds.metadata_response,
+        )
+        self.responses.add_callback(
+            responses.GET,
+            uh.combine_url(base_url, f"v{version}", "userdata"),
+            callback=MockImds.userdata_response,
+        )
 
         self.assertTrue(self.datasource.get_data())
         self.assertEqual(self.datasource.metadata, METADATA)
-        self.assertEqual(self.datasource.userdata_raw, USERDATA.decode())
+        self.assertEqual(self.datasource.userdata_raw, USERDATA)
 
-    @mock.patch("cloudinit.url_helper.readurl")
-    def test_failing_imds_endpoints(self, m_readurl):
-        # Set up an empty imds
-        endpoints = dict()
-
-        def faulty_imds(url, **urlparams):
-            if url in endpoints:
-                return endpoints[url]
-            return uh.StringResponse(b"Not Found", code=404)
-
-        m_readurl.side_effect = faulty_imds
-
+    def test_failing_imds_endpoints(self):
+        # Make request before imds is set up
         self.assertRaises(
             sources.InvalidMetaDataException,
             self.datasource.crawl_metadata_service,
@@ -158,7 +182,11 @@ class TestDataSourceCloudCIX(CiTestCase):
 
         # Make imds respond to healthcheck
         base_url = ds_mod.METADATA_URLS[0]
-        endpoints[base_url] = uh.StringResponse("Metadata enabled")
+        self.responses.add_callback(
+            responses.GET,
+            base_url,
+            callback=MockImds.base_response,
+        )
 
         self.assertRaises(
             sources.InvalidMetaDataException,
@@ -166,9 +194,12 @@ class TestDataSourceCloudCIX(CiTestCase):
         )
 
         # Make imds serve metadata
-        version_str = f"v{ds_mod.METADATA_VERSION}"
-        md_url = uh.combine_url(base_url, version_str, "metadata")
-        endpoints[md_url] = uh.StringResponse(json.dumps(METADATA).encode())
+        version = ds_mod.METADATA_VERSION
+        self.responses.add_callback(
+            responses.GET,
+            uh.combine_url(base_url, f"v{version}", "metadata"),
+            callback=MockImds.metadata_response,
+        )
 
         self.assertRaises(
             sources.InvalidMetaDataException,
@@ -176,19 +207,26 @@ class TestDataSourceCloudCIX(CiTestCase):
         )
 
         # Make imds serve userdata
-        ud_url = uh.combine_url(base_url, version_str, "userdata")
-        endpoints[ud_url] = uh.StringResponse(USERDATA)
+        self.responses.add_callback(
+            responses.GET,
+            uh.combine_url(base_url, f"v{version}", "userdata"),
+            callback=MockImds.userdata_response,
+        )
 
         data = self.datasource.crawl_metadata_service()
         self.assertNotEqual(data, dict())
 
-    @mock.patch("cloudinit.url_helper.readurl")
-    def test_read_malformed_metadata(self, m_readurl):
-        def url_responses(url, **params):
-            bad_json = json.dumps(METADATA)[:-2]
-            return uh.StringResponse(bad_json.encode(), code=200)
+    def test_read_malformed_metadata(self):
+        def bad_response(response):
+            return 200, response.headers, json.dumps(METADATA)[:-2]
 
-        m_readurl.side_effect = url_responses
+        version = ds_mod.METADATA_VERSION
+        base_url = ds_mod.METADATA_URLS[0]
+        self.responses.add_callback(
+            responses.GET,
+            uh.combine_url(base_url, f"v{version}", "metadata"),
+            callback=MockImds.metadata_response,
+        )
 
         self.assertRaises(
             InvalidMetaDataException,
