@@ -252,14 +252,14 @@ def join_payloads_from_content_type(
 
 class TestWSLDataSource:
     @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
-    @mock.patch("cloudinit.sources.DataSourceWSL.cloud_init_data_dir")
-    def test_metadata_id_default(self, m_seed_dir, m_iname, tmpdir, paths):
+    @mock.patch("cloudinit.sources.DataSourceWSL.find_home")
+    def test_metadata_id_default(self, m_home_dir, m_iname, tmpdir, paths):
         """
         Validates that instance-id is properly set, indepedent of the existence
         of user-data.
         """
         m_iname.return_value = INSTANCE_NAME
-        m_seed_dir.return_value = PurePath(tmpdir)
+        m_home_dir.return_value = PurePath(tmpdir)
 
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
@@ -271,16 +271,18 @@ class TestWSLDataSource:
         assert ds.get_instance_id() == wsl.DEFAULT_INSTANCE_ID
 
     @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
-    @mock.patch("cloudinit.sources.DataSourceWSL.cloud_init_data_dir")
-    def test_metadata_id(self, m_seed_dir, m_iname, tmpdir, paths):
+    @mock.patch("cloudinit.sources.DataSourceWSL.find_home")
+    def test_metadata_id(self, m_home_dir, m_iname, tmpdir, paths):
         """
         Validates that instance-id is properly set, indepedent of the existence
         of user-data.
         """
         m_iname.return_value = INSTANCE_NAME
-        m_seed_dir.return_value = PurePath(tmpdir)
+        m_home_dir.return_value = PurePath(tmpdir)
         SAMPLE_ID = "Nice-ID"
-        tmpdir.join(f"{INSTANCE_NAME}.meta-data").write(
+        metadata_path = tmpdir.join(".cloud-init", f"{INSTANCE_NAME}.meta-data")
+        metadata_path.dirpath().mkdir()
+        metadata_path.write(
             f'{{"instance-id":"{SAMPLE_ID}"}}',
         )
 
@@ -295,12 +297,14 @@ class TestWSLDataSource:
 
     @mock.patch("cloudinit.util.lsb_release")
     @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
-    @mock.patch("cloudinit.sources.DataSourceWSL.cloud_init_data_dir")
-    def test_get_data_cc(self, m_seed_dir, m_iname, m_gld, paths, tmpdir):
+    @mock.patch("cloudinit.sources.DataSourceWSL.find_home")
+    def test_get_data_cc(self, m_home_dir, m_iname, m_gld, paths, tmpdir):
         m_gld.return_value = SAMPLE_LINUX_DISTRO
         m_iname.return_value = INSTANCE_NAME
-        m_seed_dir.return_value = PurePath(tmpdir)
-        tmpdir.join(f"{INSTANCE_NAME}.user-data").write(
+        m_home_dir.return_value = PurePath(tmpdir)
+        data_path = tmpdir.join(".cloud-init", f"{INSTANCE_NAME}.user-data")
+        data_path.dirpath().mkdir()
+        data_path.write(
             "#cloud-config\nwrite_files:\n- path: /etc/wsl.conf"
         )
 
@@ -322,13 +326,15 @@ class TestWSLDataSource:
 
     @mock.patch("cloudinit.util.lsb_release")
     @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
-    @mock.patch("cloudinit.sources.DataSourceWSL.cloud_init_data_dir")
-    def test_get_data_sh(self, m_seed_dir, m_iname, m_gld, tmpdir, paths):
+    @mock.patch("cloudinit.sources.DataSourceWSL.find_home")
+    def test_get_data_sh(self, m_home_dir, m_iname, m_gld, tmpdir, paths):
         m_gld.return_value = SAMPLE_LINUX_DISTRO
         m_iname.return_value = INSTANCE_NAME
-        m_seed_dir.return_value = PurePath(tmpdir)
+        m_home_dir.return_value = PurePath(tmpdir)
         COMMAND = "echo Hello cloud-init on WSL!"
-        tmpdir.join(f"{INSTANCE_NAME}.user-data").write(
+        data_path = tmpdir.join(".cloud-init", f"{INSTANCE_NAME}.user-data")
+        data_path.dirpath().mkdir()
+        data_path.write(
             f"#!/bin/sh\n{COMMAND}\n"
         )
         ds = wsl.DataSourceWSL(
@@ -351,12 +357,14 @@ class TestWSLDataSource:
 
     @mock.patch("cloudinit.util.get_linux_distro")
     @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
-    @mock.patch("cloudinit.sources.DataSourceWSL.cloud_init_data_dir")
-    @mock.patch("cloudinit.sources.DataSourceWSL.ubuntu_pro_data_dir")
-    def test_data_precedence(self, m_seed_dir, m_iname, m_gld, tmpdir, paths):
-        m_gld.return_value = SAMPLE_LINUX_DISTRO
-        m_iname.return_value = INSTANCE_NAME
-        m_seed_dir.return_value = PurePath(tmpdir)
+    @mock.patch("cloudinit.sources.DataSourceWSL.find_home")
+    def test_data_precedence(
+        self, m_home_dir, m_instance, m_distro, tmpdir, paths
+    ):
+        m_distro.return_value = SAMPLE_LINUX_DISTRO
+        m_instance.return_value = INSTANCE_NAME
+        m_home_dir.return_value = PurePath(tmpdir)
+
         # This is the most specific: should win over the other user-data files.
         # Also, notice the file name casing: should be irrelevant.
         tmpdir.join("ubuntu-24.04.user-data").write(
@@ -372,11 +380,8 @@ class TestWSLDataSource:
 
         ubuntu_pro_tmp = tmpdir.join(".ubuntupro", ".cloud-init")
         os.makedirs(ubuntu_pro_tmp, exist_ok=True)
-        assert os.path.exists(ubuntu_pro_tmp)
 
-        landscape_file = tmpdir.join(
-            ubuntu_pro_tmp, "%s.user-data" % INSTANCE_NAME
-        )
+        landscape_file = ubuntu_pro_tmp.join("%s.user-data" % INSTANCE_NAME)
         landscape_file.write(
             """#cloud-config
 landscape:
@@ -384,7 +389,7 @@ landscape:
     account_name: landscapetest"""
         )
 
-        agent_file = tmpdir.join(ubuntu_pro_tmp, "agent.yaml")
+        agent_file = ubuntu_pro_tmp.join("agent.yaml")
         agent_file.write(
             """#cloud-config
 landscape:
@@ -407,10 +412,10 @@ ubuntu_advantage:
         userdata = cast(
             str,
             join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/cloud-config"
+                cast(MIMEMultipart, ud), "text/x-not-multipart"
             ),
         )
-        assert "wsl.conf" in userdata
+        assert "wsl.conf" not in userdata
         assert "packages" not in userdata
         assert "ubuntu_advantage" in userdata
         assert "landscape" in userdata

@@ -204,15 +204,18 @@ def load_yaml_or_bin(data_path: str) -> dict | bytes | None:
 DEFAULT_INSTANCE_ID = "iid-datasource-wsl"
 
 
-def load_instance_metadata(cloudinitdir: PurePath, instance_name: str) -> dict:
+def load_instance_metadata(cloudinitdir: PurePath | None, instance_name: str) -> dict:
     """
     Returns the relevant metadata loaded from cloudinit dir based on the
     instance name
     """
     metadata = {"instance-id": DEFAULT_INSTANCE_ID}
+    if cloudinitdir is None:
+        return metadata
     metadata_path = os.path.join(
         cloudinitdir.as_posix(), "%s.meta-data" % instance_name
     )
+
     try:
         metadata = util.load_yaml(util.load_binary_file(metadata_path))
     except FileNotFoundError:
@@ -314,12 +317,7 @@ class DataSourceWSL(sources.DataSource):
 
         try:
             data_dir = cloud_init_data_dir(find_home())
-            if data_dir is None:
-                raise ValueError
-
-            metadata = load_instance_metadata(
-                data_dir, self.instance_name
-            )
+            metadata = load_instance_metadata(data_dir, self.instance_name)
             return current == metadata.get("instance-id")
 
         except (IOError, ValueError) as err:
@@ -337,9 +335,6 @@ class DataSourceWSL(sources.DataSource):
         should_list = False
 
         try:
-            if seed_dir is None:
-                raise ValueError
-
             self.metadata = load_instance_metadata(
                 seed_dir, self.instance_name
             )
