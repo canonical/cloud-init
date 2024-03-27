@@ -8,7 +8,7 @@
 import logging
 import os
 from pathlib import PurePath
-from typing import List
+from typing import Any, List, Optional, Union, cast
 
 import yaml
 
@@ -123,7 +123,7 @@ def find_home() -> PurePath:
     return win_path_2_wsl(home)
 
 
-def cloud_init_data_dir(user_home: PurePath) -> PurePath | None:
+def cloud_init_data_dir(user_home: PurePath) -> Optional[PurePath]:
     """
     Returns the Windows user profile .cloud-init directory translated as a
     Linux path accessible inside the current WSL instance, or None if not
@@ -137,7 +137,7 @@ def cloud_init_data_dir(user_home: PurePath) -> PurePath | None:
     return PurePath(seed_dir)
 
 
-def ubuntu_pro_data_dir(user_home: PurePath) -> PurePath | None:
+def ubuntu_pro_data_dir(user_home: PurePath) -> Optional[PurePath]:
     """
     Get the path to the Ubuntu Pro cloud-init directory, or None if not found.
     """
@@ -183,7 +183,7 @@ def agent_file_name() -> str:
     return "agent.yaml"
 
 
-def load_yaml_or_bin(data_path: str) -> dict | bytes | None:
+def load_yaml_or_bin(data_path: str) -> Optional[Union[dict, bytes]]:
     """
     Tries to load a YAML file as a dict, otherwise returns the file's raw
     binary contents as `bytes`. Returns `None` if no file is found.
@@ -205,7 +205,7 @@ DEFAULT_INSTANCE_ID = "iid-datasource-wsl"
 
 
 def load_instance_metadata(
-    cloudinitdir: PurePath | None, instance_name: str
+    cloudinitdir: Optional[PurePath], instance_name: str
 ) -> dict:
     """
     Returns the relevant metadata loaded from cloudinit dir based on the
@@ -239,7 +239,7 @@ def load_instance_metadata(
 
 def load_landscape_data(
     instance_name: str, user_home: PurePath
-) -> dict | bytes | None:
+) -> Optional[Union[dict, bytes]]:
     """
     Load Landscape config data into a dict, returning an empty dict if nothing
     is found. If the file is not a YAML, returns the raw binary file contents.
@@ -255,7 +255,7 @@ def load_landscape_data(
     return load_yaml_or_bin(data_path)
 
 
-def load_agent_data(user_home: PurePath) -> dict | bytes | None:
+def load_agent_data(user_home: PurePath) -> Optional[Union[dict, bytes]]:
     """
     Load agent.yaml data into a dict, returning an empty dict if nothing is
     found. If the file is not a YAML, returns the raw binary file contents.
@@ -267,10 +267,6 @@ def load_agent_data(user_home: PurePath) -> dict | bytes | None:
     data_path = os.path.join(data_dir.as_posix(), agent_file_name())
 
     return load_yaml_or_bin(data_path)
-
-
-def load_user_data() -> dict | bytes | None:
-    pass
 
 
 class DataSourceWSL(sources.DataSource):
@@ -333,8 +329,8 @@ class DataSourceWSL(sources.DataSource):
         self.vendordata_raw = None
         user_home = find_home()
         seed_dir = cloud_init_data_dir(user_home)
-        user_data = {}
-        should_list = False
+        user_data: Optional[Union[dict, bytes]] = None
+        requires_multipart = False
 
         try:
             self.metadata = load_instance_metadata(
@@ -346,10 +342,8 @@ class DataSourceWSL(sources.DataSource):
         try:
             agent_data = load_agent_data(user_home)
             user_data = load_landscape_data(self.instance_name, user_home)
-            if user_data is None:
+            if user_data is None and seed_dir is not None:
                 # Regular user data
-                if seed_dir is None:
-                    raise ValueError
                 file = self.find_user_data_file(seed_dir)
                 if os.path.exists(file.as_posix()):
                     bin_user_data = util.load_binary_file(file.as_posix())
@@ -368,11 +362,11 @@ class DataSourceWSL(sources.DataSource):
         # If we cannot reliably model data files as dicts, then we cannot merge
         # ourselves, so we can pass the data in ascending order as a list for
         # cloud-init to handle internally
-        should_list = isinstance(agent_data, bytes) or isinstance(
+        requires_multipart = isinstance(agent_data, bytes) or isinstance(
             user_data, bytes
         )
-        if should_list:
-            self.userdata_raw = [user_data, agent_data]
+        if requires_multipart:
+            self.userdata_raw = cast(Any, [user_data, agent_data])
             return True
 
         # We only care about overriding modules entirely, so we can just

@@ -483,6 +483,6 @@ package_update: true"""
             " nor ignored"
         )
         assert "landscape" in userdata
-        assert "landscapetest" not in userdata and "agenttest" in userdata, (
-            "Landscape account name should have been overriden by agent data"
-        )
+        assert (
+            "landscapetest" not in userdata and "agenttest" in userdata
+        ), "Landscape account name should have been overriden by agent data"
