@@ -280,7 +280,9 @@ class TestWSLDataSource:
         m_iname.return_value = INSTANCE_NAME
         m_home_dir.return_value = PurePath(tmpdir)
         SAMPLE_ID = "Nice-ID"
-        metadata_path = tmpdir.join(".cloud-init", f"{INSTANCE_NAME}.meta-data")
+        metadata_path = tmpdir.join(
+            ".cloud-init", f"{INSTANCE_NAME}.meta-data"
+        )
         metadata_path.dirpath().mkdir()
         metadata_path.write(
             f'{{"instance-id":"{SAMPLE_ID}"}}',
@@ -304,9 +306,7 @@ class TestWSLDataSource:
         m_home_dir.return_value = PurePath(tmpdir)
         data_path = tmpdir.join(".cloud-init", f"{INSTANCE_NAME}.user-data")
         data_path.dirpath().mkdir()
-        data_path.write(
-            "#cloud-config\nwrite_files:\n- path: /etc/wsl.conf"
-        )
+        data_path.write("#cloud-config\nwrite_files:\n- path: /etc/wsl.conf")
 
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
@@ -334,9 +334,7 @@ class TestWSLDataSource:
         COMMAND = "echo Hello cloud-init on WSL!"
         data_path = tmpdir.join(".cloud-init", f"{INSTANCE_NAME}.user-data")
         data_path.dirpath().mkdir()
-        data_path.write(
-            f"#!/bin/sh\n{COMMAND}\n"
-        )
+        data_path.write(f"#!/bin/sh\n{COMMAND}\n")
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
             distro=None,
@@ -365,29 +363,54 @@ class TestWSLDataSource:
         m_instance.return_value = INSTANCE_NAME
         m_home_dir.return_value = PurePath(tmpdir)
 
+        # Set up basic user data:
+
         # This is the most specific: should win over the other user-data files.
         # Also, notice the file name casing: should be irrelevant.
-        tmpdir.join("ubuntu-24.04.user-data").write(
-            "#cloud-config\nwrite_files:\n- path: /etc/wsl.conf"
-        )
+        user_file = tmpdir.join(".cloud-init", "ubuntu-24.04.user-data")
+        user_file.dirpath().mkdir()
+        user_file.write("#cloud-config\nwrite_files:\n- path: /etc/wsl.conf")
 
         distro_file = tmpdir.join(".cloud-init", "Ubuntu-all.user-data")
-        distro_file.dirpath().mkdir()
         distro_file.write("#!/bin/sh\n\necho Hello World\n")
 
         generic_file = tmpdir.join(".cloud-init", "default.user-data")
         generic_file.write("#cloud-config\npackages:\n- g++-13\n")
 
+        # Run the datasource
+        ds = wsl.DataSourceWSL(
+            sys_cfg=SAMPLE_CFG,
+            distro=None,
+            paths=paths,
+        )
+
+        # Assert user data is properly loaded
+        assert ds.get_data() is True
+        ud = ds.get_userdata()
+
+        assert ud is not None
+        userdata = cast(
+            str,
+            join_payloads_from_content_type(
+                cast(MIMEMultipart, ud), "text/cloud-config"
+            ),
+        )
+        assert "wsl.conf" in userdata
+        assert "packages" not in userdata
+        shell_script = cast(
+            str,
+            join_payloads_from_content_type(
+                cast(MIMEMultipart, ud), "text/x-shellscript"
+            ),
+        )
+
+        assert "" == shell_script
+
+        # Additionally set up some UP4W agent data:
+
+        # Now the winner should be the merge of the agent and Landscape data.
         ubuntu_pro_tmp = tmpdir.join(".ubuntupro", ".cloud-init")
         os.makedirs(ubuntu_pro_tmp, exist_ok=True)
-
-        landscape_file = ubuntu_pro_tmp.join("%s.user-data" % INSTANCE_NAME)
-        landscape_file.write(
-            """#cloud-config
-landscape:
-  client:
-    account_name: landscapetest"""
-        )
 
         agent_file = ubuntu_pro_tmp.join("agent.yaml")
         agent_file.write(
@@ -399,12 +422,14 @@ ubuntu_advantage:
     token: testtoken"""
         )
 
+        # Run the datasource
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
             distro=None,
             paths=paths,
         )
 
+        # Assert agent combines with existing user data
         assert ds.get_data() is True
         ud = ds.get_userdata()
 
@@ -412,18 +437,52 @@ ubuntu_advantage:
         userdata = cast(
             str,
             join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/x-not-multipart"
+                cast(MIMEMultipart, ud), "text/cloud-config"
             ),
         )
-        assert "wsl.conf" not in userdata
+        assert "wsl.conf" in userdata
         assert "packages" not in userdata
         assert "ubuntu_advantage" in userdata
         assert "landscape" in userdata
-        shell_script = cast(
+        assert "agenttest" in userdata
+
+        # Additionally set up some Landscape provided user data
+        landscape_file = ubuntu_pro_tmp.join("%s.user-data" % INSTANCE_NAME)
+        landscape_file.write(
+            """#cloud-config
+landscape:
+  client:
+    account_name: landscapetest
+package_update: true"""
+        )
+
+        # Run the datasource
+        ds = wsl.DataSourceWSL(
+            sys_cfg=SAMPLE_CFG,
+            distro=None,
+            paths=paths,
+        )
+
+        # Assert Landscape and Agent combine, with Agent taking precedence
+        assert ds.get_data() is True
+        ud = ds.get_userdata()
+
+        assert ud is not None
+        userdata = cast(
             str,
             join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/x-shellscript"
+                cast(MIMEMultipart, ud), "text/cloud-config"
             ),
         )
 
-        assert "" == shell_script
+        assert "wsl.conf" not in userdata
+        assert "packages" not in userdata
+        assert "ubuntu_advantage" in userdata
+        assert "package_update" in userdata, (
+            "package_update entry should not be overriden by agent data"
+            " nor ignored"
+        )
+        assert "landscape" in userdata
+        assert "landscapetest" not in userdata and "agenttest" in userdata, (
+            "Landscape account name should have been overriden by agent data"
+        )

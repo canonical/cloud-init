@@ -204,7 +204,9 @@ def load_yaml_or_bin(data_path: str) -> dict | bytes | None:
 DEFAULT_INSTANCE_ID = "iid-datasource-wsl"
 
 
-def load_instance_metadata(cloudinitdir: PurePath | None, instance_name: str) -> dict:
+def load_instance_metadata(
+    cloudinitdir: PurePath | None, instance_name: str
+) -> dict:
     """
     Returns the relevant metadata loaded from cloudinit dir based on the
     instance name
@@ -386,7 +388,7 @@ class DataSourceWSL(sources.DataSource):
                 merged[key] = agent_data[key]
 
         LOG.debug("Merged data: %s", merged)
-        self.userdata_raw = yaml.dump(merged)
+        self.userdata_raw = "#cloud-config\n%s" % yaml.dump(merged)
         return True
 
 
