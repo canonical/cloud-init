@@ -1,11 +1,11 @@
-cloud-init (24.2~1gf7c1c761-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (24.2~1ge1c19a59-0ubuntu1) UNRELEASED; urgency=medium
 
-  * Upstream snapshot based on upstream/main at f7c1c761.
+  * Upstream snapshot based on upstream/main at e1c19a59.
     - Bugs fixed in this snapshot: (LP: #2056439, #2056460, #2056194)
-      (LP: #2055077)
+      (LP: #2055077, #2047796, #2057763)
   * d/control: Remove netifaces
 
- -- James Falcon <james.falcon@canonical.com>  Thu, 14 Mar 2024 10:52:52 -0500
+ -- James Falcon <james.falcon@canonical.com>  Wed, 27 Mar 2024 08:31:16 -0500
 
 cloud-init (24.1-0ubuntu1) noble; urgency=medium
 
