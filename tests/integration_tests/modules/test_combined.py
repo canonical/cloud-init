@@ -19,7 +19,7 @@ from cloudinit.util import is_true
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
-from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
+from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, MANTIC
 from tests.integration_tests.util import (
     get_feature_flag_value,
     get_inactive_modules,
@@ -89,6 +89,14 @@ class TestCombined:
         """
         Test that netplan config file is generated with proper permissions
         """
+        log = class_client.read_from_file("/var/log/cloud-init.log")
+        if CURRENT_RELEASE < MANTIC:
+            assert (
+                "No netplan python module. Fallback to write"
+                " /etc/netplan/50-cloud-init.yaml" in log
+            )
+        else:
+            assert "Rendered netplan config using netplan python API" in log
         file_perms = class_client.execute(
             "stat -c %a /etc/netplan/50-cloud-init.yaml"
         )
