@@ -205,7 +205,7 @@ def doexit(sysexit):
 def execmd(exe_args, output=None, data_in=None):
     ret = 1
     try:
-        proc = subprocess.Popen(
+        proc = subprocess.Popen(  # nosec B603
             exe_args,
             stdin=subprocess.PIPE,
             stdout=output,

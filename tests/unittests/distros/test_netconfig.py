@@ -723,7 +723,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 GATEWAY=192.168.1.254
                 IPADDR=192.168.1.5
                 NETMASK=255.255.255.0
-                NM_CONTROLLED=no
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
@@ -733,7 +732,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 """\
                 BOOTPROTO=dhcp
                 DEVICE=eth1
-                NM_CONTROLLED=no
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
@@ -764,7 +762,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 IPV6_AUTOCONF=no
                 IPV6_DEFAULTGW=2607:f0d0:1002:0011::1
                 IPV6_FORCE_ACCEPT_RA=no
-                NM_CONTROLLED=no
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
@@ -774,7 +771,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 """\
                 BOOTPROTO=dhcp
                 DEVICE=eth1
-                NM_CONTROLLED=no
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
@@ -821,7 +817,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 HWADDR=00:16:3e:60:7c:df
                 IPADDR=192.10.1.2
                 NETMASK=255.255.255.0
-                NM_CONTROLLED=no
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
@@ -833,7 +828,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 DEVICE=infra0
                 IPADDR=10.0.1.2
                 NETMASK=255.255.0.0
-                NM_CONTROLLED=no
                 ONBOOT=yes
                 PHYSDEV=eth0
                 USERCTL=no
@@ -869,7 +863,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 DEVICE=eth0
                 IPADDR=192.10.1.2
                 NETMASK=255.255.255.0
-                NM_CONTROLLED=no
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
@@ -881,7 +874,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 DEVICE=eth0.1001
                 IPADDR=10.0.1.2
                 NETMASK=255.255.0.0
-                NM_CONTROLLED=no
                 ONBOOT=yes
                 PHYSDEV=eth0
                 USERCTL=no
