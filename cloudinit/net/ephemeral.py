@@ -75,6 +75,7 @@ class EphemeralIPv4Network:
         # List of commands to run to cleanup state.
         self.cleanup_cmds: List[Callable] = []
         self.distro = distro
+        self.cidr = f"{self.ip}/{self.prefix}"
 
     def __enter__(self):
         """Perform ephemeral network setup if interface is not connected."""
@@ -117,15 +118,16 @@ class EphemeralIPv4Network:
 
     def _bringup_device(self):
         """Perform the ip commands to fully setup the device."""
-        cidr = "{0}/{1}".format(self.ip, self.prefix)
         LOG.debug(
             "Attempting setup of ephemeral network on %s with %s brd %s",
             self.interface,
-            cidr,
+            self.cidr,
             self.broadcast,
         )
         try:
-            self.distro.net_ops.add_addr(self.interface, cidr, self.broadcast)
+            self.distro.net_ops.add_addr(
+                self.interface, self.cidr, self.broadcast
+            )
         except ProcessExecutionError as e:
             if "File exists" not in str(e.stderr):
                 raise
@@ -145,7 +147,9 @@ class EphemeralIPv4Network:
                 )
             )
             self.cleanup_cmds.append(
-                partial(self.distro.net_ops.del_addr, self.interface, cidr)
+                partial(
+                    self.distro.net_ops.del_addr, self.interface, self.cidr
+                )
             )
 
     def _bringup_static_routes(self):
@@ -351,10 +355,22 @@ class EphemeralDHCPv4:
 class DhcpcdEphemeralIPv4Network(EphemeralIPv4Network):
     """dhcpcd sets up its own ephemeral network and routes"""
 
-    def __enter__(self):
-        return
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-    def __exit__(self, excp_type, excp_value, excp_traceback):
+        # clean up after dhcpcd
+        self.cleanup_cmds.append(
+            partial(
+                self.distro.net_ops.link_down,
+                self.interface,
+                family="inet",
+            )
+        )
+        self.cleanup_cmds.append(
+            partial(self.distro.net_ops.del_addr, self.interface, self.cidr)
+        )
+
+    def __enter__(self):
         return
 
 
