@@ -7,18 +7,18 @@ from cloudinit import subp
 class Iproute2(netops.NetOps):
     @staticmethod
     def link_up(interface: str, family: Optional[str] = None):
-        subp.subp(
-            ["ip"]
-            + (["-family", family] if family else [])
-            + ["link", "set", "dev", interface, "up"]
-        )
+        family_args = []
+        if family:
+            family_args = ["-family", family]
+        subp.subp(["ip", *family_args, "link", "set", "dev", interface, "up"])
 
     @staticmethod
     def link_down(interface: str, family: Optional[str] = None):
+        family_args = []
+        if family:
+            family_args = ["-family", family]
         subp.subp(
-            ["ip"]
-            + (["-family", family] if family else [])
-            + ["link", "set", "dev", interface, "down"]
+            ["ip", *family_args, "link", "set", "dev", interface, "down"]
         )
 
     @staticmethod
@@ -29,22 +29,42 @@ class Iproute2(netops.NetOps):
         gateway: Optional[str] = None,
         source_address: Optional[str] = None,
     ):
+        gateway_args = []
+        source_args = []
+        if gateway and gateway != "0.0.0.0":
+            gateway_args = ["via", gateway]
+        if source_address:
+            source_args = ["src", source_address]
         subp.subp(
-            ["ip", "-4", "route", "add", route]
-            + (["via", gateway] if gateway and gateway != "0.0.0.0" else [])
-            + [
+            [
+                "ip",
+                "-4",
+                "route",
+                "add",
+                route,
+                *gateway_args,
                 "dev",
                 interface,
+                *source_args,
             ]
-            + (["src", source_address] if source_address else []),
         )
 
     @staticmethod
     def append_route(interface: str, address: str, gateway: str):
+        gateway_args = []
+        if gateway and gateway != "0.0.0.0":
+            gateway_args = ["via", gateway]
         subp.subp(
-            ["ip", "-4", "route", "append", address]
-            + (["via", gateway] if gateway and gateway != "0.0.0.0" else [])
-            + ["dev", interface]
+            [
+                "ip",
+                "-4",
+                "route",
+                "append",
+                address,
+                *gateway_args,
+                "dev",
+                interface,
+            ]
         )
 
     @staticmethod
@@ -55,11 +75,24 @@ class Iproute2(netops.NetOps):
         gateway: Optional[str] = None,
         source_address: Optional[str] = None,
     ):
+        gateway_args = []
+        source_args = []
+        if gateway and gateway != "0.0.0.0":
+            gateway_args = ["via", gateway]
+        if source_address:
+            source_args = ["src", source_address]
         subp.subp(
-            ["ip", "-4", "route", "del", address]
-            + (["via", gateway] if gateway and gateway != "0.0.0.0" else [])
-            + ["dev", interface]
-            + (["src", source_address] if source_address else [])
+            [
+                "ip",
+                "-4",
+                "route",
+                "del",
+                address,
+                *gateway_args,
+                "dev",
+                interface,
+                *source_args,
+            ]
         )
 
     @staticmethod
