@@ -839,11 +839,15 @@ def _rename_interfaces(
 
     if len(ops) + len(ups) == 0:
         if len(errors):
-            LOG.debug("unable to do any work for renaming of %s", renames)
+            LOG.warning(
+                "Unable to rename interfaces: %s due to errors: %s",
+                renames,
+                errors,
+            )
         else:
             LOG.debug("no work necessary for renaming of %s", renames)
     else:
-        LOG.debug("achieving renaming of %s with ops %s", renames, ops + ups)
+        LOG.debug("Renamed %s with ops %s", renames, ops + ups)
 
         for op, mac, new_name, params in ops + ups:
             try:
