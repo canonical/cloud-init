@@ -347,6 +347,9 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if not hasattr(self, key):
                 setattr(self, key, value)
 
+        if not hasattr(self, "check_if_fallback_is_allowed"):
+            setattr(self, "check_if_fallback_is_allowed", lambda: False)
+
         if hasattr(self, "userdata") and self.userdata is not None:
             # If userdata stores MIME data, on < python3.6 it will be
             # missing the 'policy' attribute that exists on >=python3.6.
@@ -924,6 +927,16 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     def check_instance_id(self, sys_cfg):
         # quickly (local check only) if self.instance_id is still
+        return False
+
+    def check_if_fallback_is_allowed(self):
+        """check_if_fallback_is_allowed()
+        Checks if a cached ds is allowed to be restored when no valid ds is
+        found in local mode by checking instance-id and searching valid data
+        through ds list.
+
+        @return True if a ds allows fallback, False otherwise.
+        """
         return False
 
     @staticmethod
