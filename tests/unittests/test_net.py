@@ -5072,16 +5072,13 @@ class TestRenameInterfaces:
             },
         }
         net._rename_interfaces(renames, current_info=current_info)
-        print(mock_subp.call_args_list)
         mock_subp.assert_has_calls(
             [
                 mock.call(
                     ["ip", "link", "set", "ens3", "name", "interface0"],
-                    capture=True,
                 ),
                 mock.call(
                     ["ip", "link", "set", "ens5", "name", "interface2"],
-                    capture=True,
                 ),
             ]
         )
@@ -5111,16 +5108,13 @@ class TestRenameInterfaces:
             },
         }
         net._rename_interfaces(renames, current_info=current_info)
-        print(mock_subp.call_args_list)
         mock_subp.assert_has_calls(
             [
                 mock.call(
                     ["ip", "link", "set", "eth0", "name", "interface0"],
-                    capture=True,
                 ),
                 mock.call(
                     ["ip", "link", "set", "eth1", "name", "interface1"],
-                    capture=True,
                 ),
             ]
         )
@@ -5150,25 +5144,18 @@ class TestRenameInterfaces:
             },
         }
         net._rename_interfaces(renames, current_info=current_info)
-        print(mock_subp.call_args_list)
         mock_subp.assert_has_calls(
             [
-                mock.call(["ip", "link", "set", "ens3", "down"], capture=True),
+                mock.call(["ip", "link", "set", "dev", "ens3", "down"]),
                 mock.call(
                     ["ip", "link", "set", "ens3", "name", "interface0"],
-                    capture=True,
                 ),
-                mock.call(["ip", "link", "set", "ens5", "down"], capture=True),
+                mock.call(["ip", "link", "set", "dev", "ens5", "down"]),
                 mock.call(
                     ["ip", "link", "set", "ens5", "name", "interface2"],
-                    capture=True,
                 ),
-                mock.call(
-                    ["ip", "link", "set", "interface0", "up"], capture=True
-                ),
-                mock.call(
-                    ["ip", "link", "set", "interface2", "up"], capture=True
-                ),
+                mock.call(["ip", "link", "set", "dev", "interface0", "up"]),
+                mock.call(["ip", "link", "set", "dev", "interface2", "up"]),
             ]
         )
 
@@ -5197,12 +5184,9 @@ class TestRenameInterfaces:
             },
         }
         net._rename_interfaces(renames, current_info=current_info)
-        print(mock_subp.call_args_list)
         mock_subp.assert_has_calls(
             [
-                mock.call(
-                    ["ip", "link", "set", "eth1", "name", "vf1"], capture=True
-                ),
+                mock.call(["ip", "link", "set", "eth1", "name", "vf1"]),
             ]
         )
 
@@ -5231,12 +5215,9 @@ class TestRenameInterfaces:
             },
         }
         net._rename_interfaces(renames, current_info=current_info)
-        print(mock_subp.call_args_list)
         mock_subp.assert_has_calls(
             [
-                mock.call(
-                    ["ip", "link", "set", "eth1", "name", "vf1"], capture=True
-                ),
+                mock.call(["ip", "link", "set", "eth1", "name", "vf1"]),
             ]
         )
 
@@ -5274,15 +5255,10 @@ class TestRenameInterfaces:
             },
         }
         net._rename_interfaces(renames, current_info=current_info)
-        print(mock_subp.call_args_list)
         mock_subp.assert_has_calls(
             [
-                mock.call(
-                    ["ip", "link", "set", "eth1", "name", "vf1"], capture=True
-                ),
-                mock.call(
-                    ["ip", "link", "set", "eth2", "name", "vf2"], capture=True
-                ),
+                mock.call(["ip", "link", "set", "eth1", "name", "vf1"]),
+                mock.call(["ip", "link", "set", "eth2", "name", "vf2"]),
             ]
         )
 
@@ -5326,7 +5302,6 @@ class TestRenameInterfaces:
         expected = [
             mock.call(
                 ["ip", "link", "set", "eth%d" % i, "name", "en%d" % i],
-                capture=True,
             )
             for i in range(len(renames))
         ]

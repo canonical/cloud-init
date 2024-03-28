@@ -143,7 +143,7 @@ class TestLinuxNetworkingTrySetLinkUp:
         is_success = LinuxNetworking().try_set_link_up(devname)
 
         assert (
-            mock.call(["ip", "link", "set", devname, "up"])
+            mock.call(["ip", "link", "set", "dev", devname, "up"])
             == m_subp.call_args_list[-1]
         )
         assert is_success
@@ -154,7 +154,7 @@ class TestLinuxNetworkingTrySetLinkUp:
         is_success = LinuxNetworking().try_set_link_up(devname)
 
         assert (
-            mock.call(["ip", "link", "set", devname, "up"])
+            mock.call(["ip", "link", "set", "dev", devname, "up"])
             == m_subp.call_args_list[-1]
         )
         assert not is_success

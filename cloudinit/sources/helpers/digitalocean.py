@@ -8,7 +8,7 @@ import random
 
 from cloudinit import dmi
 from cloudinit import net as cloudnet
-from cloudinit import subp, url_helper, util
+from cloudinit import url_helper, util
 
 NIC_MAP = {"public": "eth0", "private": "eth1"}
 
@@ -36,19 +36,10 @@ def assign_ipv4_link_local(distro, nic=None):
         random.randint(1, 168), random.randint(0, 255)
     )
 
-    ip_addr_cmd = ["ip", "addr", "add", addr, "dev", nic]
-    ip_link_cmd = ["ip", "link", "set", "dev", nic, "up"]
-
-    if not subp.which("ip"):
-        raise RuntimeError(
-            "No 'ip' command available to configure ip4LL address"
-        )
-
     try:
-        subp.subp(ip_addr_cmd)
-        LOG.debug("assigned ip4LL address '%s' to '%s'", addr, nic)
-        subp.subp(ip_link_cmd)
-        LOG.debug("brought device '%s' up", nic)
+        distro.net_ops.add_addr(nic, addr)
+        distro.net_ops.link_up(nic)
+        LOG.debug("brought device '%s' up with address %s", nic, addr)
     except Exception:
         util.logexc(
             LOG,
@@ -73,7 +64,7 @@ def get_link_local_nic(distro):
     return min(nics, key=lambda d: cloudnet.read_sys_net_int(d, "ifindex"))
 
 
-def del_ipv4_link_local(nic=None):
+def del_ipv4_link_local(distro, nic=None):
     """Remove the ip4LL address. While this is not necessary, the ip4LL
     address is extraneous and confusing to users.
     """
@@ -86,10 +77,8 @@ def del_ipv4_link_local(nic=None):
 
     LOG.debug("cleaning up ipv4LL address")
 
-    ip_addr_cmd = ["ip", "addr", "flush", "dev", nic]
-
     try:
-        subp.subp(ip_addr_cmd)
+        distro.net_ops.flush_addr(nic)
         LOG.debug("removed ip4LL addresses from %s", nic)
 
     except Exception as e:
