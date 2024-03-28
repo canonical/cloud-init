@@ -1905,10 +1905,19 @@ USERCTL=no
             not in caplog.text
         )
 
-    def test_v4_and_v6_static_config(self, caplog):
-        entry = NETWORK_CONFIGS["v4_and_v6_static"]
+    @pytest.mark.parametrize(
+        "yaml_file,network_config",
+        [
+            ("yaml_v1", "v1_ipv4_and_ipv6_static"),
+            ("yaml_v2", "v2_ipv4_and_ipv6_static"),
+        ],
+    )
+    def test_ipv4_and_ipv6_static_config(
+        self, yaml_file, network_config, caplog
+    ):
+        entry = NETWORK_CONFIGS[network_config]
         found = self._render_and_read(
-            network_config=yaml.safe_load(entry["yaml"])
+            network_config=yaml.safe_load(entry[yaml_file])
         )
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
@@ -1916,7 +1925,8 @@ USERCTL=no
             "Network config: ignoring iface0 device-level mtu:8999"
             " because ipv4 subnet-level mtu:9000 provided."
         )
-        assert expected_msg in caplog.text
+        if yaml_file == "yaml_v1":
+            assert expected_msg in caplog.text
 
     def test_stattic6_from_json(self):
         net_json = {
@@ -2480,30 +2490,35 @@ STARTMODE=auto
         assert resolvconf_content == found["/etc/resolv.conf"]
 
     @pytest.mark.parametrize(
-        "expected_name",
+        "expected_name,yaml_name",
         [
-            "bond",
-            "vlan",
-            "bridge",
-            "manual",
-            "small_v1",
-            "small_v1_suse_dhcp6",
-            "small_v2",
-            "v4_and_v6_static",
-            "dhcpv6_only",
-            "ipv6_slaac",
-            "dhcpv6_stateless",
-            "wakeonlan_disabled",
-            "wakeonlan_enabled",
-            "v4_and_v6",
-            "v6_and_v4",
-            "v1-dns",
-            "v2-dns",
+            ("bond", "yaml"),
+            ("vlan", "yaml"),
+            ("bridge", "yaml"),
+            ("manual", "yaml"),
+            ("small_v1", "yaml"),
+            ("small_v1_suse_dhcp6", "yaml"),
+            ("small_v2", "yaml"),
+            ("v1_ipv4_and_ipv6_static", "yaml_v1"),
+            ("v2_ipv4_and_ipv6_static", "yaml_v2"),
+            ("dhcpv6_only", "yaml"),
+            ("ipv6_slaac", "yaml"),
+            ("dhcpv6_stateless", "yaml"),
+            ("wakeonlan_disabled", "yaml_v2"),
+            ("wakeonlan_enabled", "yaml_v2"),
+            ("v4_and_v6", "yaml_v1"),
+            ("v4_and_v6", "yaml_v2"),
+            ("v6_and_v4", "yaml"),
+            ("v1-dns", "yaml"),
+            ("v2-dns", "yaml"),
         ],
     )
-    def test_config(self, expected_name):
+    def test_config(
+        self,
+        expected_name,
+        yaml_name,
+    ):
         entry = NETWORK_CONFIGS[expected_name]
-        yaml_name = "yaml" if "yaml" in entry else "yaml_v2"
         found = self._render_and_read(
             network_config=yaml.safe_load(entry[yaml_name])
         )
@@ -2753,10 +2768,17 @@ class TestNetworkManagerRendering:
             not in caplog.text
         )
 
-    def test_v4_and_v6_static_config(self, caplog):
-        entry = NETWORK_CONFIGS["v4_and_v6_static"]
+    @pytest.mark.parametrize(
+        "yaml_file,config",
+        [
+            ("yaml_v1", "v1_ipv4_and_ipv6_static"),
+            ("yaml_v2", "v2_ipv4_and_ipv6_static"),
+        ],
+    )
+    def test_ipv4_and_ipv6_static_config(self, yaml_file, config, caplog):
+        entry = NETWORK_CONFIGS[config]
         found = self._render_and_read(
-            network_config=yaml.safe_load(entry["yaml"])
+            network_config=yaml.safe_load(entry[yaml_file])
         )
         self._compare_files_to_expected(
             entry[self.expected_name], self.expected_conf_d, found
@@ -2765,35 +2787,37 @@ class TestNetworkManagerRendering:
             "Network config: ignoring iface0 device-level mtu:8999"
             " because ipv4 subnet-level mtu:9000 provided."
         )
-        assert expected_msg in caplog.text
+        if yaml_file == "yaml_v1":
+            assert expected_msg in caplog.text
 
     @pytest.mark.parametrize(
-        "expected_name",
+        "expected_name,yaml_name",
         [
-            "bond",
-            "vlan",
-            "bridge",
-            "manual",
-            "small_v1",
-            "small_v2",
-            "dhcpv6_only",
-            "ipv6_slaac",
-            "dhcpv6_stateless",
-            "wakeonlan_disabled",
-            "wakeonlan_enabled",
-            "v4_and_v6",
-            "v6_and_v4",
-            "v1-dns",
-            "v2-mixed-routes",
-            "v2-dns",
-            "v2-dns-no-if-ips",
-            "v2-dns-no-dhcp",
-            "v2-route-no-gateway",
+            ("bond", "yaml"),
+            ("vlan", "yaml"),
+            ("bridge", "yaml"),
+            ("manual", "yaml"),
+            ("small_v1", "yaml"),
+            ("small_v2", "yaml"),
+            ("dhcpv6_only", "yaml"),
+            ("ipv6_slaac", "yaml"),
+            ("dhcpv6_stateless", "yaml"),
+            ("wakeonlan_disabled", "yaml_v2"),
+            ("wakeonlan_enabled", "yaml_v2"),
+            ("v4_and_v6", "yaml_v1"),
+            ("v4_and_v6", "yaml_v2"),
+            ("v6_and_v4", "yaml"),
+            ("v1-dns", "yaml"),
+            ("v2-mixed-routes", "yaml"),
+            ("v2-dns", "yaml"),
+            ("v2-dns-no-if-ips", "yaml"),
+            ("v2-dns-no-dhcp", "yaml"),
+            ("v2-route-no-gateway", "yaml"),
         ],
     )
-    def test_config(self, expected_name):
+    def test_config(self, expected_name, yaml_name):
         entry = NETWORK_CONFIGS[expected_name]
-        yaml_name = "yaml" if "yaml" in entry else "yaml_v2"
+        # yaml_name = "yaml" if "yaml" in entry else "yaml_v2"
         found = self._render_and_read(
             network_config=yaml.safe_load(entry[yaml_name])
         )
@@ -3840,8 +3864,10 @@ class TestNetplanRoundTrip:
         [
             ("bond", "yaml"),
             ("small_v1", "yaml"),
-            ("v4_and_v6", "yaml"),
-            ("v4_and_v6_static", "yaml"),
+            ("v4_and_v6", "yaml_v1"),
+            ("v4_and_v6", "yaml_v2"),
+            ("v1_ipv4_and_ipv6_static", "yaml_v1"),
+            ("v2_ipv4_and_ipv6_static", "yaml_v2"),
             ("dhcpv6_only", "yaml"),
             ("dhcpv6_accept_ra", "yaml_v1"),
             ("dhcpv6_reject_ra", "yaml_v1"),
@@ -3866,9 +3892,8 @@ class TestNetplanRoundTrip:
         files = self._render_and_read(
             network_config=yaml.safe_load(entry[yaml_version])
         )
-        assert (
-            entry["expected_netplan"].splitlines()
-            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
+        assert yaml.safe_load(entry["expected_netplan"]) == yaml.safe_load(
+            files["/etc/netplan/50-cloud-init.yaml"]
         )
 
     def testsimple_render_bond_v2_input_netplan(self):
@@ -3975,9 +4000,11 @@ class TestEniRoundTrip:
             pytest.param(
                 "small_v2", "yaml", marks=pytest.mark.xfail(reason="GH-4219")
             ),
-            ("v4_and_v6", "yaml"),
+            ("v4_and_v6", "yaml_v1"),
+            ("v4_and_v6", "yaml_v2"),
             ("dhcpv6_only", "yaml"),
-            ("v4_and_v6_static", "yaml"),
+            ("v1_ipv4_and_ipv6_static", "yaml_v1"),
+            ("v2_ipv4_and_ipv6_static", "yaml_v2"),
             ("dhcpv6_stateless", "yaml"),
             ("ipv6_slaac", "yaml"),
             pytest.param(
@@ -4281,8 +4308,10 @@ class TestNetworkdRoundTrip:
     @pytest.mark.parametrize(
         "expected_name,yaml_version",
         [
-            ("v4_and_v6", "yaml"),
-            ("v4_and_v6_static", "yaml"),
+            ("v4_and_v6", "yaml_v1"),
+            ("v4_and_v6", "yaml_v2"),
+            ("v1_ipv4_and_ipv6_static", "yaml_v1"),
+            ("v2_ipv4_and_ipv6_static", "yaml_v2"),
             ("dhcpv6_only", "yaml"),
             ("dhcpv6_accept_ra", "yaml_v1"),
             ("dhcpv6_accept_ra", "yaml_v2"),
