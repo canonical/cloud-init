@@ -34,7 +34,11 @@ class TestUpgrade:
     # The presence of these attributes existed in 20.1.
     ds_expected_unpickle_attrs = {
         "AltCloud": {"seed", "supported_seed_starts"},
-        "AliYun": {"identity", "metadata_address", "default_update_events"},
+        "AliYun": {
+            "identity",
+            "metadata_address",
+            "default_update_events",
+        },
         "Azure": {
             "_ephemeral_dhcp_ctx",
             "_iso_dev",
@@ -75,7 +79,10 @@ class TestUpgrade:
             "use_ip4LL",
             "wait_retry",
         },
-        "Ec2": {"identity", "metadata_address"},
+        "Ec2": {
+            "identity",
+            "metadata_address",
+        },
         "Exoscale": {
             "api_version",
             "extra_config",

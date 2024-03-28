@@ -22,6 +22,7 @@ from cloudinit.event import EventScope, EventType
 from cloudinit.net import activators
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralIPNetwork
+from cloudinit.sources import NicOrder
 from cloudinit.sources.helpers import ec2
 
 LOG = logging.getLogger(__name__)
@@ -118,10 +119,12 @@ class DataSourceEc2(sources.DataSource):
         super(DataSourceEc2, self).__init__(sys_cfg, distro, paths)
         self.metadata_address = None
         self.identity = None
+        self._fallback_nic_order = NicOrder.MAC
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         super()._unpickle(ci_pkl_version)
         self.extra_hotplug_udev_rules = _EXTRA_HOTPLUG_UDEV_RULES
+        self._fallback_nic_order = NicOrder.MAC
 
     def _get_cloud_name(self):
         """Return the cloud name as identified during _get_data."""
@@ -532,6 +535,7 @@ class DataSourceEc2(sources.DataSource):
                 full_network_config=util.get_cfg_option_bool(
                     self.ds_cfg, "apply_full_imds_network_config", True
                 ),
+                fallback_nic_order=self._fallback_nic_order,
             )
 
             # Non-VPC (aka Classic) Ec2 instances need to rewrite the
@@ -892,10 +896,12 @@ def _collect_platform_data():
 
 
 def _build_nic_order(
-    macs_metadata: Dict[str, Dict], macs: List[str]
+    macs_metadata: Dict[str, Dict],
+    macs_to_nics: Dict[str, str],
+    fallback_nic_order: NicOrder = NicOrder.MAC,
 ) -> Dict[str, int]:
     """
-    Builds a dictionary containing macs as keys nad nic orders as values,
+    Builds a dictionary containing macs as keys and nic orders as values,
     taking into account `network-card` and `device-number` if present.
 
     Note that the first NIC will be the primary NIC as it will be the one with
@@ -903,19 +909,22 @@ def _build_nic_order(
 
     @param macs_metadata: dictionary with mac address as key and contents like:
     {"device-number": "0", "interface-id": "...", "local-ipv4s": ...}
-    @macs: list of macs to consider
+    @macs_to_nics: dictionary with mac address as key and nic name as value
 
     @return: Dictionary with macs as keys and nic orders as values.
     """
     nic_order: Dict[str, int] = {}
-    if len(macs) == 0 or len(macs_metadata) == 0:
+    if len(macs_to_nics) == 0 or len(macs_metadata) == 0:
         return nic_order
 
     valid_macs_metadata = filter(
         # filter out nics without metadata (not a physical nic)
         lambda mmd: mmd[1] is not None,
         # filter by macs
-        map(lambda mac: (mac, macs_metadata.get(mac)), macs),
+        map(
+            lambda mac: (mac, macs_metadata.get(mac), macs_to_nics[mac]),
+            macs_to_nics.keys(),
+        ),
     )
 
     def _get_key_as_int_or(dikt, key, alt_value):
@@ -932,7 +941,7 @@ def _build_nic_order(
     # function.
     return {
         mac: i
-        for i, (mac, _mac_metadata) in enumerate(
+        for i, (mac, _mac_metadata, _nic_name) in enumerate(
             sorted(
                 valid_macs_metadata,
                 key=lambda mmd: (
@@ -942,6 +951,9 @@ def _build_nic_order(
                     _get_key_as_int_or(
                         mmd[1], "device-number", float("infinity")
                     ),
+                    mmd[2]
+                    if fallback_nic_order == NicOrder.NIC_NAME
+                    else mmd[0],
                 ),
             )
         )
@@ -1030,6 +1042,7 @@ def convert_ec2_metadata_network_config(
     macs_to_nics=None,
     fallback_nic=None,
     full_network_config=True,
+    fallback_nic_order=NicOrder.MAC,
 ):
     """Convert ec2 metadata to network config version 2 data dict.
 
@@ -1072,8 +1085,10 @@ def convert_ec2_metadata_network_config(
         return netcfg
     # Apply network config for all nics and any secondary IPv4/v6 addresses
     is_netplan = distro.network_activator == activators.NetplanActivator
+    nic_order = _build_nic_order(
+        macs_metadata, macs_to_nics, fallback_nic_order
+    )
     macs = sorted(macs_to_nics.keys())
-    nic_order = _build_nic_order(macs_metadata, macs)
     for mac in macs:
         nic_name = macs_to_nics[mac]
         nic_metadata = macs_metadata.get(mac)
