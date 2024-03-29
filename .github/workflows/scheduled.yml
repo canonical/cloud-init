@@ -1,4 +1,4 @@
-name: scheduled
+name: scheduled-hypothesis
 on:
   schedule:
     - cron: '3 14 * * *'
