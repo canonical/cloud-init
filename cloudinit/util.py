@@ -2631,7 +2631,7 @@ def find_freebsd_part(fs):
         return splitted[0]
     elif len(splitted) == 3:
         return splitted[2]
-    elif splitted[2] in ["label", "gpt", "ufs"]:
+    elif splitted[2] in ["label", "gpt", "gptid", "ufs", "ufsid"]:
         target_label = fs[5:]
         (part, _err) = subp.subp(["glabel", "status", "-s"])
         for labels in part.split("\n"):
