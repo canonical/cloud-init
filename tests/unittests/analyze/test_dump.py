@@ -7,12 +7,12 @@ import pytest
 
 from cloudinit.analyze.dump import (
     dump_events,
+    has_gnu_date,
     parse_ci_logline,
     parse_timestamp,
 )
-from cloudinit.subp import which
-from cloudinit.util import is_Linux, write_file
-from tests.unittests.helpers import mock, skipIf
+from cloudinit.util import write_file
+from tests.unittests.helpers import mock
 
 
 class TestParseTimestamp:
@@ -43,11 +43,6 @@ class TestParseTimestamp:
         dt = datetime.strptime(journal_stamp + " " + str(year), journal_fmt)
         assert float(dt.strftime("%s.%f")) == parse_timestamp(journal_stamp)
 
-    @skipIf(not which("date"), "'date' command not available.")
-    @skipIf(
-        not is_Linux() and not which("gdate"),
-        "'GNU date' command not available.",
-    )
     @pytest.mark.allow_subp_for("date", "gdate")
     def test_parse_unexpected_timestamp_format_with_date_command(self):
         """Dump sends unexpected timestamp formats to date for processing."""
@@ -57,7 +52,11 @@ class TestParseTimestamp:
         year = datetime.now().year
         dt = datetime.strptime(new_stamp + " " + str(year), new_fmt)
 
-        assert float(dt.strftime("%s.%f")) == parse_timestamp(new_stamp)
+        if has_gnu_date():
+            assert float(dt.strftime("%s.%f")) == parse_timestamp(new_stamp)
+        else:
+            with pytest.raises(ValueError):
+                parse_timestamp(new_stamp)
 
 
 class TestParseCILogLine:
