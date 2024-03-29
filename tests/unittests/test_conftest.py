@@ -38,19 +38,19 @@ class TestDisableSubpUsage:
         assert "allowed: whoami" in str(excinfo.value)
         subp.subp(["whoami"])
 
-    @pytest.mark.allow_subp_for("whoami", "bash")
+    @pytest.mark.allow_subp_for("whoami", "sh")
     def test_subp_usage_can_be_conditionally_reenabled_for_multiple_cmds(self):
         with pytest.raises(UnexpectedSubpError) as excinfo:
             subp.subp(["some", "args"])
-        assert "allowed: whoami,bash" in str(excinfo.value)
-        subp.subp(["bash", "-c", "true"])
+        assert "allowed: whoami,sh" in str(excinfo.value)
+        subp.subp(["sh", "-c", "true"])
         subp.subp(["whoami"])
 
     @pytest.mark.allow_all_subp
-    @pytest.mark.allow_subp_for("bash")
+    @pytest.mark.allow_subp_for("sh")
     def test_both_marks_raise_an_error(self):
         with pytest.raises(UnexpectedSubpError, match="marked both"):
-            subp.subp(["bash"])
+            subp.subp(["sh"])
 
 
 class TestDisableSubpUsageInTestSubclass(CiTestCase):
@@ -68,6 +68,6 @@ class TestDisableSubpUsageInTestSubclass(CiTestCase):
         _old_allowed_subp = self.allow_subp
         self.allowed_subp = True
         try:
-            subp.subp(["bash", "-c", "true"])
+            subp.subp(["sh", "-c", "true"])
         finally:
             self.allowed_subp = _old_allowed_subp
