@@ -596,6 +596,7 @@ class IscDhclient(DhcpClient):
 
 class Dhcpcd(DhcpClient):
     client_name = "dhcpcd"
+    timeout = 300
 
     def dhcp_discovery(
         self,
