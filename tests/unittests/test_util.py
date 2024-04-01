@@ -3245,3 +3245,39 @@ class TestReadHotplugEnabledFile:
         assert {"scopes": ["network"]} == util.read_hotplug_enabled_file(
             MockPath(target_file.strpath)
         )
+
+
+class TestLogExc:
+    def test_logexc(self, caplog):
+        try:
+            _ = 1 / 0
+        except Exception as _:
+            util.logexc(LOG, "an error occurred")
+
+        assert caplog.record_tuples == [
+            (
+                "tests.unittests.test_util",
+                logging.WARNING,
+                "an error occurred",
+            ),
+            ("tests.unittests.test_util", logging.DEBUG, "an error occurred"),
+        ]
+
+    @pytest.mark.parametrize(
+        "log_level",
+        [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR],
+    )
+    def test_logexc_with_log_level(self, caplog, log_level):
+        try:
+            _ = 1 / 0
+        except Exception as _:
+            util.logexc(LOG, "an error occurred", log_level=log_level)
+
+        assert caplog.record_tuples == [
+            (
+                "tests.unittests.test_util",
+                log_level,
+                "an error occurred",
+            ),
+            ("tests.unittests.test_util", logging.DEBUG, "an error occurred"),
+        ]
