@@ -2827,14 +2827,21 @@ class TestPreprovisioningReadAzureOvfFlag(CiTestCase):
         self.assertTrue(cfg["PreprovisionedVm"])
         self.assertEqual("Savable", cfg["PreprovisionedVMType"])
 
-    @pytest.mark.parametrize("provision_guest_proxy_agent", [False, True])
-    def test_read_azure_ovf_with_proxy_guest_agent(self, provision_guest_proxy_agent):
+    def test_read_azure_ovf_with_proxy_guest_agent_true(self):
         """The read_azure_ovf method should set ProvisionGuestProxyAgent
         cfg flag to True."""
-        content = construct_ovf_env(provision_guest_proxy_agent=provision_guest_proxy_agent)
+        content = construct_ovf_env(provision_guest_proxy_agent=True)
         ret = dsaz.read_azure_ovf(content)
         cfg = ret[2]
-        assert (cfg["ProvisionGuestProxyAgent"] is provision_guest_proxy_agent)
+        assert cfg["ProvisionGuestProxyAgent"] is True
+
+    def test_read_azure_ovf_with_proxy_guest_agent_false(self):
+        """The read_azure_ovf method should set ProvisionGuestProxyAgent
+        cfg flag to False."""
+        content = construct_ovf_env(provision_guest_proxy_agent=False)
+        ret = dsaz.read_azure_ovf(content)
+        cfg = ret[2]
+        assert cfg["ProvisionGuestProxyAgent"] is False
 
 
 @pytest.mark.parametrize(
