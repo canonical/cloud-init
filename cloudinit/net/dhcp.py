@@ -791,8 +791,9 @@ class Dhcpcd(DhcpClient):
         try:
             lease = dict(
                 [
-                    a.split("=")
+                    a.split("=", maxsplit=1)
                     for a in lease_dump.strip().replace("'", "").split("\n")
+                    if "=" in a
                 ]
             )
         except ValueError as error:
