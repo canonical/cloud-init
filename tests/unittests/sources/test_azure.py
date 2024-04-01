@@ -2835,6 +2835,14 @@ class TestPreprovisioningReadAzureOvfFlag(CiTestCase):
         cfg = ret[2]
         self.assertTrue(cfg["ProvisionGuestProxyAgent"])
 
+    def test_read_azure_ovf_with_proxy_guest_agent(self):
+        """The read_azure_ovf method should set ProvisionGuestProxyAgent
+        cfg flag to True."""
+        content = construct_ovf_env(provision_guest_proxy_agent=False)
+        ret = dsaz.read_azure_ovf(content)
+        cfg = ret[2]
+        self.assertTrue(cfg["ProvisionGuestProxyAgent"] == False)
+
 
 @pytest.mark.parametrize(
     "ovf_cfg,imds_md,pps_type",
