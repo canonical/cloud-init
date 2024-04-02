@@ -697,12 +697,10 @@ def main_single(name, args):
         return 0
 
 
-def status_wrapper(name, args, data_d=None, link_d=None):
-    if data_d is None:
-        paths = read_cfg_paths()
-        data_d = paths.get_cpath("data")
-    if link_d is None:
-        link_d = os.path.normpath("/run/cloud-init")
+def status_wrapper(name, args):
+    paths = read_cfg_paths()
+    data_d = paths.get_cpath("data")
+    link_d = os.path.normpath(paths.run_dir)
 
     status_path = os.path.join(data_d, "status.json")
     status_link = os.path.join(link_d, "status.json")
