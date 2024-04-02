@@ -1243,7 +1243,6 @@ class TestDhcpcd:
         with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
             Dhcpcd.parse_dhcpcd_lease(dedent(lease), "eth0")
 
-
     def test_parse_lease_dump_fails(self):
         def _raise():
             raise ValueError()
