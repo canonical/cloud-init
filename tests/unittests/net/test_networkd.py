@@ -196,6 +196,7 @@ Domains=rgrunbla.github.beta.tailscale.net
 
 [Route]
 Gateway=10.0.0.1
+GatewayOnLink=yes
 
 [Route]
 Gateway=2a01:4f8:10a:19d2::2
@@ -232,9 +233,190 @@ DHCP=no
 
 [Route]
 Gateway=192.168.254.254
+GatewayOnLink=yes
 
 [Route]
 Gateway=fec0::ffff
+
+[Route]
+Destination=169.254.1.1/32
+
+[Route]
+Destination=fe80::1/128
+
+"""
+
+V1_CONFIG_MULTI_SUBNETS_NOT_ONLINK = """
+network:
+  version: 1
+  config:
+    - type: physical
+      name: eth0
+      mac_address: 'ae:98:25:fa:36:9e'
+      subnets:
+      - type: static
+        address: '10.0.0.2'
+        netmask: '255.255.255.0'
+        gateway: '10.0.0.1'
+      - type: static6
+        address: '2a01:4f8:10a:19d2::4/64'
+        gateway: '2a01:4f8:10a:19d2::2'
+    - type: nameserver
+      address:
+      - '100.100.100.100'
+      search:
+      - 'rgrunbla.github.beta.tailscale.net'
+"""
+
+V1_CONFIG_MULTI_SUBNETS_NOT_ONLINK_RENDERED = """\
+[Address]
+Address=10.0.0.2/24
+
+[Address]
+Address=2a01:4f8:10a:19d2::4/64
+
+[Match]
+MACAddress=ae:98:25:fa:36:9e
+Name=eth0
+
+[Network]
+DHCP=no
+DNS=100.100.100.100
+Domains=rgrunbla.github.beta.tailscale.net
+
+[Route]
+Gateway=10.0.0.1
+
+[Route]
+Gateway=2a01:4f8:10a:19d2::2
+
+"""
+
+V2_CONFIG_MULTI_SUBNETS_NOT_ONLINK = """
+network:
+  version: 2
+  ethernets:
+    eth0:
+      addresses:
+        - 192.168.1.1/24
+        - fec0::1/64
+      gateway4: 192.168.1.254
+      gateway6: "fec0::ffff"
+      routes:
+        - to: 169.254.1.1/32
+        - to: "fe80::1/128"
+"""
+
+V2_CONFIG_MULTI_SUBNETS_NOT_ONLINK_RENDERED = """\
+[Address]
+Address=192.168.1.1/24
+
+[Address]
+Address=fec0::1/64
+
+[Match]
+Name=eth0
+
+[Network]
+DHCP=no
+
+[Route]
+Gateway=192.168.1.254
+
+[Route]
+Gateway=fec0::ffff
+
+[Route]
+Destination=169.254.1.1/32
+
+[Route]
+Destination=fe80::1/128
+
+"""
+
+V1_CONFIG_MULTI_SUBNETS_ONLINK = """
+network:
+  version: 1
+  config:
+    - type: physical
+      name: eth0
+      mac_address: 'ae:98:25:fa:36:9e'
+      subnets:
+      - type: static
+        address: '10.0.0.2'
+        netmask: '255.255.255.0'
+        gateway: '192.168.0.1'
+      - type: static6
+        address: '2a01:4f8:10a:19d2::4/64'
+        gateway: '2000:4f8:10a:19d2::2'
+    - type: nameserver
+      address:
+      - '100.100.100.100'
+      search:
+      - 'rgrunbla.github.beta.tailscale.net'
+"""
+
+V1_CONFIG_MULTI_SUBNETS_ONLINK_RENDERED = """\
+[Address]
+Address=10.0.0.2/24
+
+[Address]
+Address=2a01:4f8:10a:19d2::4/64
+
+[Match]
+MACAddress=ae:98:25:fa:36:9e
+Name=eth0
+
+[Network]
+DHCP=no
+DNS=100.100.100.100
+Domains=rgrunbla.github.beta.tailscale.net
+
+[Route]
+Gateway=192.168.0.1
+GatewayOnLink=yes
+
+[Route]
+Gateway=2000:4f8:10a:19d2::2
+GatewayOnLink=yes
+
+"""
+
+V2_CONFIG_MULTI_SUBNETS_ONLINK = """
+network:
+  version: 2
+  ethernets:
+    eth0:
+      addresses:
+        - 192.168.1.1/32
+        - fec0::1/128
+      gateway4: 192.168.254.254
+      gateway6: "fec0::ffff"
+      routes:
+        - to: 169.254.1.1/32
+        - to: "fe80::1/128"
+"""
+
+V2_CONFIG_MULTI_SUBNETS_ONLINK_RENDERED = """\
+[Address]
+Address=192.168.1.1/32
+
+[Address]
+Address=fec0::1/128
+
+[Match]
+Name=eth0
+
+[Network]
+DHCP=no
+
+[Route]
+Gateway=192.168.254.254
+GatewayOnLink=yes
+
+[Route]
+Gateway=fec0::ffff
+GatewayOnLink=yes
 
 [Route]
 Destination=169.254.1.1/32
@@ -383,6 +565,56 @@ class TestNetworkdRenderState:
             rendered_content = renderer._render_content(ns)
 
         assert rendered_content["eth0"] == V2_CONFIG_MULTI_SUBNETS_RENDERED
+
+    def test_networkd_render_v1_multi_subnets_not_onlink(self):
+        with mock.patch("cloudinit.net.get_interfaces_by_mac"):
+            ns = self._parse_network_state_from_config(
+                V1_CONFIG_MULTI_SUBNETS_NOT_ONLINK
+            )
+            renderer = networkd.Renderer()
+            rendered_content = renderer._render_content(ns)
+
+        assert (
+            rendered_content["eth0"]
+            == V1_CONFIG_MULTI_SUBNETS_NOT_ONLINK_RENDERED
+        )
+
+    def test_networkd_render_v2_multi_subnets_not_onlink(self):
+        with mock.patch("cloudinit.net.get_interfaces_by_mac"):
+            ns = self._parse_network_state_from_config(
+                V2_CONFIG_MULTI_SUBNETS_NOT_ONLINK
+            )
+            renderer = networkd.Renderer()
+            rendered_content = renderer._render_content(ns)
+
+        assert (
+            rendered_content["eth0"]
+            == V2_CONFIG_MULTI_SUBNETS_NOT_ONLINK_RENDERED
+        )
+
+    def test_networkd_render_v1_multi_subnets_onlink(self):
+        with mock.patch("cloudinit.net.get_interfaces_by_mac"):
+            ns = self._parse_network_state_from_config(
+                V1_CONFIG_MULTI_SUBNETS_ONLINK
+            )
+            renderer = networkd.Renderer()
+            rendered_content = renderer._render_content(ns)
+
+        assert (
+            rendered_content["eth0"] == V1_CONFIG_MULTI_SUBNETS_ONLINK_RENDERED
+        )
+
+    def test_networkd_render_v2_multi_subnets_onlink(self):
+        with mock.patch("cloudinit.net.get_interfaces_by_mac"):
+            ns = self._parse_network_state_from_config(
+                V2_CONFIG_MULTI_SUBNETS_ONLINK
+            )
+            renderer = networkd.Renderer()
+            rendered_content = renderer._render_content(ns)
+
+        assert (
+            rendered_content["eth0"] == V2_CONFIG_MULTI_SUBNETS_ONLINK_RENDERED
+        )
 
     @pytest.mark.parametrize("version", ["v1", "v2"])
     @pytest.mark.parametrize(

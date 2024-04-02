@@ -1066,8 +1066,6 @@ def convert_ec2_metadata_network_config(
             "set-name": nic_name,
         }
         nic_metadata = macs_metadata.get(mac)
-        if nic_metadata.get("ipv6s"):  # Any IPv6 addresses configured
-            dev_config["dhcp6"] = True
         netcfg["ethernets"][nic_name] = dev_config
         return netcfg
     # Apply network config for all nics and any secondary IPv4/v6 addresses
@@ -1114,8 +1112,6 @@ def convert_ec2_metadata_network_config(
                 table=table,
             )
         if nic_metadata.get("ipv6s"):  # Any IPv6 addresses configured
-            dev_config["dhcp6"] = True
-            dev_config["dhcp6-overrides"] = dhcp_override
             if (
                 is_netplan
                 and nic_metadata.get("device-number")

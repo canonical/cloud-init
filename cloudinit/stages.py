@@ -40,10 +40,10 @@ from cloudinit.net import cmdline
 from cloudinit.reporting import events
 from cloudinit.settings import (
     CLOUD_CONFIG,
+    DEFAULT_RUN_DIR,
     PER_ALWAYS,
     PER_INSTANCE,
     PER_ONCE,
-    RUN_CLOUD_CONFIG,
 )
 from cloudinit.sources import NetworkConfigSource
 
@@ -275,7 +275,26 @@ class Init:
             self._cfg = self._read_cfg(extra_fns)
 
     def _read_cfg(self, extra_fns):
-        no_cfg_paths = helpers.Paths({}, self.datasource)
+        """read and merge our configuration"""
+        # No config is passed to Paths() here because we don't yet have a
+        # config to pass. We must bootstrap a config to identify
+        # distro-specific run_dir locations. Once we have the run_dir
+        # we re-read our config with a valid Paths() object. This code has to
+        # assume the location of /etc/cloud/cloud.cfg && /etc/cloud/cloud.cfg.d
+
+        initial_config = self._read_bootstrap_cfg(extra_fns, {})
+        paths = initial_config.get("system_info", {}).get("paths", {})
+
+        # run_dir hasn't changed so we can safely return the config
+        if paths.get("run_dir") in (DEFAULT_RUN_DIR, None):
+            return initial_config
+
+        # run_dir has changed so re-read the config to get a valid one
+        # using the new location of run_dir
+        return self._read_bootstrap_cfg(extra_fns, paths)
+
+    def _read_bootstrap_cfg(self, extra_fns, bootstrapped_config: dict):
+        no_cfg_paths = helpers.Paths(bootstrapped_config, self.datasource)
         instance_data_file = no_cfg_paths.get_runpath(
             "instance_data_sensitive"
         )
@@ -283,7 +302,9 @@ class Init:
             paths=no_cfg_paths,
             datasource=self.datasource,
             additional_fns=extra_fns,
-            base_cfg=fetch_base_config(instance_data_file=instance_data_file),
+            base_cfg=fetch_base_config(
+                no_cfg_paths.run_dir, instance_data_file=instance_data_file
+            ),
         )
         return merger.cfg
 
@@ -359,20 +380,32 @@ class Init:
             LOG.debug(myrep.description)
 
         if not ds:
-            util.del_file(self.paths.instance_link)
-            (cfg_list, pkg_list) = self._get_datasources()
-            # Deep copy so that user-data handlers can not modify
-            # (which will affect user-data handlers down the line...)
-            (ds, dsname) = sources.find_source(
-                self.cfg,
-                self.distro,
-                self.paths,
-                copy.deepcopy(self.ds_deps),
-                cfg_list,
-                pkg_list,
-                self.reporter,
-            )
-            LOG.info("Loaded datasource %s - %s", dsname, ds)
+            try:
+                cfg_list, pkg_list = self._get_datasources()
+                # Deep copy so that user-data handlers can not modify
+                # (which will affect user-data handlers down the line...)
+                ds, dsname = sources.find_source(
+                    self.cfg,
+                    self.distro,
+                    self.paths,
+                    copy.deepcopy(self.ds_deps),
+                    cfg_list,
+                    pkg_list,
+                    self.reporter,
+                )
+                util.del_file(self.paths.instance_link)
+                LOG.info("Loaded datasource %s - %s", dsname, ds)
+            except sources.DataSourceNotFoundException as e:
+                if existing != "check":
+                    raise e
+                ds = self._restore_from_cache()
+                if ds and ds.check_if_fallback_is_allowed():
+                    LOG.info(
+                        "Restored fallback datasource from checked cache: %s",
+                        ds,
+                    )
+                else:
+                    raise e
         self.datasource = ds
         # Ensure we adjust our path members datasource
         # now that we have one (thus allowing ipath to be used)
@@ -498,6 +531,9 @@ class Init:
         return ret
 
     def fetch(self, existing="check"):
+        """optionally load datasource from cache, otherwise discover
+        datasource
+        """
         return self._get_data_source(existing=existing)
 
     def instancify(self):
@@ -1076,11 +1112,11 @@ class Init:
             return
 
 
-def read_runtime_config():
-    return util.read_conf(RUN_CLOUD_CONFIG)
+def read_runtime_config(run_dir: str):
+    return util.read_conf(os.path.join(run_dir, "cloud.cfg"))
 
 
-def fetch_base_config(*, instance_data_file=None) -> dict:
+def fetch_base_config(run_dir: str, *, instance_data_file=None) -> dict:
     return util.mergemanydict(
         [
             # builtin config, hardcoded in settings.py.
@@ -1090,7 +1126,7 @@ def fetch_base_config(*, instance_data_file=None) -> dict:
                 CLOUD_CONFIG, instance_data_file=instance_data_file
             ),
             # runtime config. I.e., /run/cloud-init/cloud.cfg
-            read_runtime_config(),
+            read_runtime_config(run_dir),
             # Kernel/cmdline parameters override system config
             util.read_conf_from_cmdline(),
         ],
