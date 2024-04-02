@@ -1,3 +1,4 @@
+revert-dhcp6-on-ec2.patch
 retain-apt-partner-pocket.patch
 expire-on-hashed-users.patch
 retain-netplan-world-readable.patch
