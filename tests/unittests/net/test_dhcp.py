@@ -1204,13 +1204,6 @@ class TestDhcpcd:
         (
             pytest.param(
                 """
-                fail
-                """,
-                {},
-                id="lease_has_no_keys",
-            ),
-            pytest.param(
-                """
 
                 domain_name='us-east-2.compute.internal'
 
@@ -1250,6 +1243,7 @@ class TestDhcpcd:
         with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
             Dhcpcd.parse_dhcpcd_lease(dedent(lease), "eth0")
 
+
     def test_parse_lease_dump_fails(self):
         def _raise():
             raise ValueError()
@@ -1259,6 +1253,15 @@ class TestDhcpcd:
 
         with pytest.raises(InvalidDHCPLeaseFileError):
             with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
+                Dhcpcd.parse_dhcpcd_lease(lease, "eth0")
+
+        with pytest.raises(InvalidDHCPLeaseFileError):
+            with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
+                lease = dedent(
+                    """
+                    fail
+                    """
+                )
                 Dhcpcd.parse_dhcpcd_lease(lease, "eth0")
 
     @pytest.mark.parametrize(
