@@ -24,6 +24,7 @@ from typing import Tuple, Callable
 from cloudinit import netinfo
 from cloudinit import signal_handler
 from cloudinit import sources
+from cloudinit import socket
 from cloudinit import stages
 from cloudinit import url_helper
 from cloudinit import util
@@ -38,7 +39,12 @@ from cloudinit.config.modules import Modules
 from cloudinit.config.schema import validate_cloudconfig_schema
 from cloudinit import log
 from cloudinit.reporting import events
-from cloudinit.settings import PER_INSTANCE, PER_ALWAYS, PER_ONCE, CLOUD_CONFIG
+from cloudinit.settings import (
+    PER_INSTANCE,
+    PER_ALWAYS,
+    PER_ONCE,
+    CLOUD_CONFIG,
+)
 
 # Welcome message template
 WELCOME_MSG_TPL = (
@@ -953,9 +959,19 @@ def main(sysv_args=None):
         default=False,
     )
 
+    parser.add_argument(
+        "--single-process",
+        dest="single_process",
+        action="store_true",
+        help=(
+            "Run run the four stages as a single process as an optimization."
+            "Requires init system integration."
+        ),
+        default=False,
+    )
+
     parser.set_defaults(reporter=None)
     subparsers = parser.add_subparsers(title="Subcommands", dest="subcommand")
-    subparsers.required = True
 
     # Each action and its sub-options (if any)
     parser_init = subparsers.add_parser(
@@ -1143,8 +1159,42 @@ def main(sysv_args=None):
 
             status_parser(parser_status)
             parser_status.set_defaults(action=("status", handle_status_args))
+    else:
+        parser.error("a subcommand is required")
 
     args = parser.parse_args(args=sysv_args)
+    if not args.single_process:
+        return sub_main(args)
+    LOG.info("Running cloud-init in single process mode.")
+
+    # this _must_ be called before sd_notify is called otherwise netcat may
+    # attempt to send "start" before a socket exists
+    sync = socket.SocketSync("local", "network", "config", "final")
+
+    # notify cloud-init-local.service that this stage has completed
+    socket.sd_notify(b"READY=1")
+
+    # wait for cloud-init-local.service to start
+    with sync("local"):
+        sub_main(parser.parse_args(args=["init", "--local"]))
+
+    # wait for cloud-init.service to start
+    with sync("network"):
+        # init stage
+        sub_main(parser.parse_args(args=["init"]))
+
+    # wait for cloud-config.service to start
+    with sync("config"):
+        # config stage
+        sub_main(parser.parse_args(args=["modules", "--mode=config"]))
+
+    with sync("final"):
+        # final stage
+        sub_main(parser.parse_args(args=["modules", "--mode=final"]))
+    socket.sd_notify(b"STOPPING=1")
+
+
+def sub_main(args):
 
     # Subparsers.required = True and each subparser sets action=(name, functor)
     (name, functor) = args.action

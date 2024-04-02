@@ -10,12 +10,13 @@ ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/cloud-init modules --mode=config
+ExecStart=nc.openbsd -Uu -W1 /run/cloud-init/share/config.sock -s /run/cloud-init/share/config-return.sock
 RemainAfterExit=yes
 TimeoutSec=0
 
 # Output needs to appear in instance console output
 StandardOutput=journal+console
+StandardInputText=start
 
 [Install]
 WantedBy=cloud-init.target

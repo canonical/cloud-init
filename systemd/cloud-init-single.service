@@ -1,0 +1,27 @@
+[Unit]
+Description=Cloud-init: Single Process
+DefaultDependencies=no
+Wants=network-pre.target
+After=systemd-remount-fs.service
+Before=NetworkManager.service
+Before=network-pre.target
+Before=shutdown.target
+Before=sysinit.target
+Before=cloud-init-local.service
+Conflicts=shutdown.target
+RequiresMountsFor=/var/lib/cloud
+ConditionPathExists=!/etc/cloud/cloud-init.disabled
+ConditionKernelCommandLine=!cloud-init=disabled
+ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
+
+[Service]
+Type=notify
+ExecStart=/usr/bin/cloud-init --single-process
+KillMode=process
+TimeoutStartSec=infinity
+
+# Output needs to appear in instance console output
+StandardOutput=journal+console
+
+[Install]
+WantedBy=cloud-init.target

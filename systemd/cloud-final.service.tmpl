@@ -15,10 +15,9 @@ ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/cloud-init modules --mode=final
+ExecStart=nc.openbsd -Uu -W1 /run/cloud-init/share/final.sock -s /run/cloud-init/share/final-return.sock
 RemainAfterExit=yes
 TimeoutSec=0
-KillMode=process
 {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
 # Restart NetworkManager if it is present and running.
 ExecStartPost=/bin/sh -c 'u=NetworkManager.service; \
@@ -32,6 +31,7 @@ TasksMax=infinity
 
 # Output needs to appear in instance console output
 StandardOutput=journal+console
+StandardInputText=start
 
 [Install]
 WantedBy=cloud-init.target
