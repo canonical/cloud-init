@@ -1,0 +1,144 @@
+Description: Revert net config changes for ec2 which dropped dhcp6: True
+ To avoid change in behavior on stable releases, retain original net config
+ behavior on ec2 which set dhcp6: True and dhcp6-overrides in network config.
+ While this is desired upstream behavior on new cloud-init releases, we prefer
+ to retain previous behavior to avoid breaking custom environments in Ec2 which
+ may have configured their own dhcp service providing IPv6 configuration.
+Author: Brett Holman <brett.holman@canonical.com>
+Origin: other
+Last-Update: 2024-04-02
+
+--- a/cloudinit/sources/DataSourceEc2.py
++++ b/cloudinit/sources/DataSourceEc2.py
+@@ -1066,6 +1066,8 @@
+             "set-name": nic_name,
+         }
+         nic_metadata = macs_metadata.get(mac)
++        if nic_metadata.get("ipv6s"):  # Any IPv6 addresses configured
++            dev_config["dhcp6"] = True
+         netcfg["ethernets"][nic_name] = dev_config
+         return netcfg
+     # Apply network config for all nics and any secondary IPv4/v6 addresses
+@@ -1112,6 +1114,8 @@
+                 table=table,
+             )
+         if nic_metadata.get("ipv6s"):  # Any IPv6 addresses configured
++            dev_config["dhcp6"] = True
++            dev_config["dhcp6-overrides"] = dhcp_override
+             if (
+                 is_netplan
+                 and nic_metadata.get("device-number")
+--- a/tests/integration_tests/test_upgrade.py
++++ b/tests/integration_tests/test_upgrade.py
+@@ -153,13 +153,6 @@
+             for values in post_network["network"]["ethernets"].values():
+                 values.pop("dhcp6")
+             assert yaml.dump(pre_network) == yaml.dump(post_network)
+-        elif PLATFORM == "ec2":
+-            # After GH-3980, EC2 does not enable dhcp6 anymore. This block can
+-            # be removed after the base cloud-init version is 24.1.
+-            pre_network = yaml.load(pre_network, Loader=yaml.Loader)
+-            post_network = yaml.load(post_network, Loader=yaml.Loader)
+-            pre_network["network"]["ethernets"]["ens5"]["dhcp6"] = False
+-            assert yaml.dump(pre_network) == yaml.dump(post_network)
+         else:
+             assert pre_network == post_network
+ 
+--- a/tests/unittests/sources/test_ec2.py
++++ b/tests/unittests/sources/test_ec2.py
+@@ -460,7 +460,7 @@
+                     "match": {"macaddress": "06:17:04:d7:26:09"},
+                     "set-name": "eth9",
+                     "dhcp4": True,
+-                    "dhcp6": False,
++                    "dhcp6": True,
+                 }
+             },
+         }
+@@ -545,7 +545,7 @@
+                         "2600:1f16:292:100:f153:12a3:c37c:11f9/128",
+                     ],
+                     "dhcp4": True,
+-                    "dhcp6": False,
++                    "dhcp6": True,
+                 }
+             },
+         }
+@@ -625,7 +625,7 @@
+                     "match": {"macaddress": mac1},
+                     "set-name": "eth9",
+                     "dhcp4": True,
+-                    "dhcp6": False,
++                    "dhcp6": True,
+                 }
+             },
+         }
+@@ -1154,7 +1154,7 @@
+                     "match": {"macaddress": self.mac1},
+                     "set-name": "eth9",
+                     "dhcp4": True,
+-                    "dhcp6": False,
++                    "dhcp6": True,
+                 }
+             },
+         }
+@@ -1234,7 +1234,7 @@
+                     "match": {"macaddress": self.mac1},
+                     "set-name": "eth9",
+                     "dhcp4": True,
+-                    "dhcp6": False,
++                    "dhcp6": True,
+                 }
+             },
+         }
+@@ -1267,7 +1267,8 @@
+                     "set-name": "eth9",
+                     "dhcp4": True,
+                     "dhcp4-overrides": {"route-metric": 100},
+-                    "dhcp6": False,
++                    "dhcp6": True,
++                    "dhcp6-overrides": {"route-metric": 100},
+                 },
+                 "eth10": {
+                     "match": {"macaddress": mac2},
+@@ -1326,9 +1327,10 @@
+                 "eth9": {
+                     "dhcp4": True,
+                     "dhcp4-overrides": {"route-metric": 100},
+-                    "dhcp6": False,
++                    "dhcp6": True,
+                     "match": {"macaddress": "06:17:04:d7:26:09"},
+                     "set-name": "eth9",
++                    "dhcp6-overrides": {"route-metric": 100},
+                 },
+                 "eth10": {
+                     "dhcp4": True,
+@@ -1336,7 +1338,7 @@
+                         "route-metric": 200,
+                         "use-routes": True,
+                     },
+-                    "dhcp6": False,
++                    "dhcp6": True,
+                     "match": {"macaddress": "06:17:04:d7:26:08"},
+                     "set-name": "eth10",
+                     "routes": [
+@@ -1359,6 +1361,10 @@
+                             "table": 101,
+                         },
+                     ],
++                    "dhcp6-overrides": {
++                        "route-metric": 200,
++                        "use-routes": True,
++                    },
+                     "addresses": ["2600:1f16:292:100:f153:12a3:c37c:11f9/128"],
+                 },
+             },
+@@ -1388,7 +1394,7 @@
+                     "match": {"macaddress": self.mac1},
+                     "set-name": "eth9",
+                     "dhcp4": True,
+-                    "dhcp6": False,
++                    "dhcp6": True,
+                 }
+             },
+         }

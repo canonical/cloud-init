@@ -1,3 +1,4 @@
+revert-dhcp6-on-ec2.patch
 keep-dhclient-as-priority-client.patch
 revert-551f560d-cloud-config-after-snap-seeding.patch
 do-not-block-user-login.patch
