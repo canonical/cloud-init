@@ -16,7 +16,6 @@ from pathlib import Path
 from typing import NamedTuple
 
 from cloudinit.cmd.devel import read_cfg_paths
-from cloudinit.helpers import Paths
 from cloudinit.stages import Init
 from cloudinit.subp import ProcessExecutionError, subp
 from cloudinit.temp_utils import tempdir
@@ -28,7 +27,8 @@ from cloudinit.util import (
     write_file,
 )
 
-CLOUDINIT_RUN_DIR = "/run/cloud-init"
+PATHS = read_cfg_paths()
+CLOUDINIT_RUN_DIR = PATHS.run_dir
 
 
 class ApportFile(NamedTuple):
@@ -144,7 +144,7 @@ def _copytree_rundir_ignore_files(curdir, files):
     ]
     if os.getuid() != 0:
         # Ignore root-permissioned files
-        ignored_files.append(Paths({}).lookups["instance_data_sensitive"])
+        ignored_files.append(PATHS.lookups["instance_data_sensitive"])
     return ignored_files
 
 
@@ -167,7 +167,7 @@ def _stream_command_output_to_file(cmd, filename, msg, verbosity):
     ensure_dir(os.path.dirname(filename))
     try:
         with open(filename, "w") as f:
-            subprocess.call(cmd, stdout=f, stderr=f)
+            subprocess.call(cmd, stdout=f, stderr=f)  # nosec B603
     except OSError as e:
         write_file(filename, str(e))
         _debug("collecting %s failed.\n" % msg, 1, verbosity)

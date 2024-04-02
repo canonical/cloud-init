@@ -1,3 +1,7 @@
+24.1.3
+ - fix: Always use single datasource if specified (#5098)
+ - fix: Allow caret at the end of apt package (#5099)
+
 24.1.2
  - test: Don't assume ordering of ThreadPoolExecutor submissions (#5052)
  - refactor(ec2): simplify convert_ec2_metadata_network_config

@@ -1,16 +1,10 @@
-name: linkcheck in CI
-
+name: scheduled-linkcheck
 on:
-  push:
-    branches:
-      - main
-  pull_request: {}
-  workflow_dispatch:
-    inputs:
-      failOnError:
-        description: 'Fail job on link check error'
-        required: false
-        default: 'false'
+  schedule:
+    - cron: '3 14 * * *'
+concurrency:
+  group: 'ci-${{ github.workflow }}-${{ github.ref }}'
+  cancel-in-progress: true
 
 jobs:
   linkcheck:

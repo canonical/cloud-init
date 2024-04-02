@@ -596,6 +596,7 @@ class IscDhclient(DhcpClient):
 
 class Dhcpcd(DhcpClient):
     client_name = "dhcpcd"
+    timeout = 300
 
     def dhcp_discovery(
         self,
@@ -782,14 +783,29 @@ class Dhcpcd(DhcpClient):
         subnet_cidr='20'
         subnet_mask='255.255.240.0'
         """
+        LOG.debug(
+            "Parsing dhcpcd lease for interface %s: %r", interface, lease_dump
+        )
 
         # create a dict from dhcpcd dump output - remove single quotes
-        lease = dict(
-            [
-                a.split("=")
-                for a in lease_dump.strip().replace("'", "").split("\n")
-            ]
-        )
+        try:
+            lease = dict(
+                [
+                    a.split("=", maxsplit=1)
+                    for a in lease_dump.strip().replace("'", "").split("\n")
+                    if "=" in a
+                ]
+            )
+            if not lease:
+                msg = (
+                    "No valid DHCP lease configuration "
+                    "found in dhcpcd lease: %r"
+                )
+                LOG.error(msg, lease_dump)
+                raise InvalidDHCPLeaseFileError(msg % lease_dump)
+        except ValueError as error:
+            LOG.error("Error parsing dhcpcd lease: %r", lease_dump)
+            raise InvalidDHCPLeaseFileError from error
 
         # this is expected by cloud-init's code
         lease["interface"] = interface
