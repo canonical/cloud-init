@@ -23,9 +23,9 @@ cloud-init (23.4.1-0ubuntu1~22.04.3) UNRELEASED; urgency=medium
     - d/p/status-do-not-remove-duplicated-data.patch
     - d/p/status-retain-recoverable-error-exit-code.patch
     - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
-  * Upstream snapshot based on upstream/main at 1dfffd06.
+  * Upstream snapshot based on upstream/main at f6ac6ee8.
 
- -- Chad Smith <chad.smith@canonical.com>  Thu, 21 Mar 2024 15:47:28 -0600
+ -- Brett Holman <brett.holman@canonical.com>  Tue, 02 Apr 2024 14:43:21 -0600
 
 cloud-init (23.4.1-0ubuntu1~22.04.2) jammy; urgency=medium
 
