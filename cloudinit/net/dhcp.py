@@ -783,14 +783,21 @@ class Dhcpcd(DhcpClient):
         subnet_cidr='20'
         subnet_mask='255.255.240.0'
         """
+        LOG.debug(
+            "Parsing dhcpcd lease for interface %s: %r", interface, lease_dump
+        )
 
         # create a dict from dhcpcd dump output - remove single quotes
-        lease = dict(
-            [
-                a.split("=")
-                for a in lease_dump.strip().replace("'", "").split("\n")
-            ]
-        )
+        try:
+            lease = dict(
+                [
+                    a.split("=")
+                    for a in lease_dump.strip().replace("'", "").split("\n")
+                ]
+            )
+        except ValueError as error:
+            LOG.error("Error parsing dhcpcd lease: %r", error)
+            raise InvalidDHCPLeaseFileError from error
 
         # this is expected by cloud-init's code
         lease["interface"] = interface
