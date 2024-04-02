@@ -1199,6 +1199,17 @@ class TestDhcpcd:
         assert "255.255.240.0" == parsed_lease["subnet-mask"]
         assert "192.168.0.1" == parsed_lease["routers"]
 
+    def test_parse_lease_dump_fails(self):
+        lease = dedent(
+            """
+            fail
+            """
+        )
+
+        with pytest.raises(InvalidDHCPLeaseFileError):
+            with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
+                Dhcpcd.parse_dhcpcd_lease(lease, "eth0")
+
     @pytest.mark.parametrize(
         "lease_file, option_245",
         (

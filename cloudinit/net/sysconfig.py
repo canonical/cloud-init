@@ -317,7 +317,6 @@ class Renderer(renderer.Renderer):
         "rhel": {
             "ONBOOT": True,
             "USERCTL": False,
-            "NM_CONTROLLED": False,
             "BOOTPROTO": "none",
         },
         "suse": {"BOOTPROTO": "static", "STARTMODE": "auto"},

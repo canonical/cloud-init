@@ -123,7 +123,6 @@ class DataSourceOracle(sources.DataSource):
         sources.NetworkConfigSource.INITRAMFS,
     )
 
-    _network_config: dict = {"config": [], "version": 1}
     perform_dhcp_setup = True
 
     # Careful...these can be overridden in __init__
@@ -141,6 +140,7 @@ class DataSourceOracle(sources.DataSource):
             ]
         )
         self._network_config_source = KlibcOracleNetworkConfigSource()
+        self._network_config: dict = {"config": [], "version": 1}
 
         url_params = self.get_url_params()
         self.url_max_wait = url_params.max_wait_seconds
@@ -156,6 +156,8 @@ class DataSourceOracle(sources.DataSource):
                 "_network_config_source",
                 KlibcOracleNetworkConfigSource(),
             )
+        if not hasattr(self, "_network_config"):
+            self._network_config = {"config": [], "version": 1}
 
     def _has_network_config(self) -> bool:
         return bool(self._network_config.get("config", []))

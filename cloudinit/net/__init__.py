@@ -839,11 +839,15 @@ def _rename_interfaces(
 
     if len(ops) + len(ups) == 0:
         if len(errors):
-            LOG.debug("unable to do any work for renaming of %s", renames)
+            LOG.warning(
+                "Unable to rename interfaces: %s due to errors: %s",
+                renames,
+                errors,
+            )
         else:
             LOG.debug("no work necessary for renaming of %s", renames)
     else:
-        LOG.debug("achieving renaming of %s with ops %s", renames, ops + ups)
+        LOG.debug("Renamed %s with ops %s", renames, ops + ups)
 
         for op, mac, new_name, params in ops + ups:
             try:
@@ -1281,6 +1285,48 @@ def is_ipv6_network(address: str) -> bool:
     return bool(
         maybe_get_address(ipaddress.IPv6Network, address, strict=False)
     )
+
+
+def is_ip_in_subnet(address: str, subnet: str) -> bool:
+    """Returns a bool indicating if ``s`` is in subnet.
+
+    :param address:
+        The string of IP address.
+
+    :param subnet:
+        The string of subnet.
+
+    :return:
+        A bool indicating if the string is in subnet.
+    """
+    ip_address = ipaddress.ip_address(address)
+    subnet_network = ipaddress.ip_network(subnet, strict=False)
+    return ip_address in subnet_network
+
+
+def should_add_gateway_onlink_flag(gateway: str, subnet: str) -> bool:
+    """Returns a bool indicating if should add gateway onlink flag.
+
+    :param gateway:
+        The string of gateway address.
+
+    :param subnet:
+        The string of subnet.
+
+    :return:
+        A bool indicating if the string is in subnet.
+    """
+    try:
+        return not is_ip_in_subnet(gateway, subnet)
+    except ValueError as e:
+        LOG.warning(
+            "Failed to check whether gateway %s"
+            " is contained within subnet %s: %s",
+            gateway,
+            subnet,
+            e,
+        )
+        return False
 
 
 def subnet_is_ipv6(subnet) -> bool:
