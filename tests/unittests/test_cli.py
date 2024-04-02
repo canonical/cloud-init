@@ -15,9 +15,10 @@ from tests.unittests import helpers as test_helpers
 mock = test_helpers.mock
 
 M_PATH = "cloudinit.cmd.main."
+Tmpdir = namedtuple("Tmpdir", ["tmpdir", "link_d", "data_d"])
 
 
-@pytest.fixture(autouse=False)
+@pytest.fixture()
 def mock_get_user_data_file(mocker, tmpdir):
     yield mocker.patch(
         "cloudinit.cmd.devel.logs._get_user_data_file",
@@ -31,6 +32,19 @@ def disable_setup_logging():
     # ensure it is always mocked
     with mock.patch(f"{M_PATH}log.setup_basic_logging", autospec=True):
         yield
+
+
+@pytest.fixture()
+def mock_status_wrapper(mocker, tmpdir):
+    link_d = os.path.join(tmpdir, "link")
+    data_d = os.path.join(tmpdir, "data")
+    with mocker.patch(
+        "cloudinit.cmd.main.read_cfg_paths",
+        return_value=mock.Mock(get_cpath=lambda _: data_d),
+    ), mocker.patch(
+        "cloudinit.cmd.main.os.path.normpath", return_value=link_d
+    ):
+        yield Tmpdir(tmpdir, link_d, data_d)
 
 
 class TestCLI:
@@ -59,29 +73,29 @@ class TestCLI:
             ),
         ],
     )
-    def test_status_wrapper_errors(self, action, name, match, caplog, tmpdir):
-        data_d = tmpdir.join("data")
-        link_d = tmpdir.join("link")
+    def test_status_wrapper_errors(
+        self, action, name, match, caplog, mock_status_wrapper
+    ):
         FakeArgs = namedtuple("FakeArgs", ["action", "local", "mode"])
         my_action = mock.Mock()
 
         myargs = FakeArgs((action, my_action), False, "bogusmode")
         with pytest.raises(ValueError, match=match):
-            cli.status_wrapper(name, myargs, data_d, link_d)
+            cli.status_wrapper(name, myargs)
         assert [] == my_action.call_args_list
 
     @mock.patch("cloudinit.cmd.main.atomic_helper.write_json")
     def test_status_wrapper_init_local_writes_fresh_status_info(
         self,
         m_json,
-        tmpdir,
+        mock_status_wrapper,
     ):
         """When running in init-local mode, status_wrapper writes status.json.
 
         Old status and results artifacts are also removed.
         """
-        data_d = tmpdir.join("data")
-        link_d = tmpdir.join("link")
+        data_d = mock_status_wrapper.data_d
+        link_d = mock_status_wrapper.link_d
         # Write old artifacts which will be removed or updated.
         for _dir in data_d, link_d:
             test_helpers.populate_dir(
@@ -95,7 +109,7 @@ class TestCLI:
             return "SomeDatasource", ["an error"]
 
         myargs = FakeArgs(("ignored_name", myaction), True, "bogusmode")
-        cli.status_wrapper("init", myargs, data_d, link_d)
+        cli.status_wrapper("init", myargs)
         # No errors reported in status
         status_v1 = m_json.call_args_list[1][0][1]["v1"]
         assert status_v1.keys() == {
@@ -117,14 +131,14 @@ class TestCLI:
 
     @mock.patch("cloudinit.cmd.main.atomic_helper.write_json")
     def test_status_wrapper_init_local_honor_cloud_dir(
-        self, m_json, mocker, tmpdir
+        self, m_json, mocker, mock_status_wrapper
     ):
         """When running in init-local mode, status_wrapper honors cloud_dir."""
-        cloud_dir = tmpdir.join("cloud")
+        cloud_dir = mock_status_wrapper.tmpdir.join("cloud")
         paths = helpers.Paths({"cloud_dir": str(cloud_dir)})
         mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
-        data_d = cloud_dir.join("data")
-        link_d = tmpdir.join("link")
+        data_d = mock_status_wrapper.data_d
+        link_d = mock_status_wrapper.link_d
 
         FakeArgs = namedtuple("FakeArgs", ["action", "local", "mode"])
 
@@ -133,7 +147,7 @@ class TestCLI:
             return "SomeDatasource", ["an_error"]
 
         myargs = FakeArgs(("ignored_name", myaction), True, "bogusmode")
-        cli.status_wrapper("init", myargs, link_d=link_d)  # No explicit data_d
+        cli.status_wrapper("init", myargs)  # No explicit data_d
 
         # Access cloud_dir directly
         status_v1 = m_json.call_args_list[1][0][1]["v1"]
@@ -243,7 +257,12 @@ class TestCLI:
     )
     @mock.patch("cloudinit.stages.Init._read_cfg", return_value={})
     def test_conditional_subcommands_from_entry_point_sys_argv(
-        self, m_read_cfg, subcommand, capsys, mock_get_user_data_file, tmpdir
+        self,
+        m_read_cfg,
+        subcommand,
+        capsys,
+        mock_get_user_data_file,
+        mock_status_wrapper,
     ):
         """Subcommands from entry-point are properly parsed from sys.argv."""
         expected_error = f"usage: cloud-init {subcommand}"
@@ -264,7 +283,9 @@ class TestCLI:
             "status",
         ],
     )
-    def test_subcommand_parser(self, subcommand, mock_get_user_data_file):
+    def test_subcommand_parser(
+        self, subcommand, mock_get_user_data_file, mock_status_wrapper
+    ):
         """cloud-init `subcommand` calls its subparser."""
         # Provide -h param to `subcommand` to avoid having to mock behavior.
         out = io.StringIO()
