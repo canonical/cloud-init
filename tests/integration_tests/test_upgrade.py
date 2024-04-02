@@ -153,6 +153,13 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
             for values in post_network["network"]["ethernets"].values():
                 values.pop("dhcp6")
             assert yaml.dump(pre_network) == yaml.dump(post_network)
+        elif PLATFORM == "ec2":
+            # After GH-3980, EC2 does not enable dhcp6 anymore. This block can
+            # be removed after the base cloud-init version is 24.1.
+            pre_network = yaml.load(pre_network, Loader=yaml.Loader)
+            post_network = yaml.load(post_network, Loader=yaml.Loader)
+            pre_network["network"]["ethernets"]["ens5"]["dhcp6"] = False
+            assert yaml.dump(pre_network) == yaml.dump(post_network)
         else:
             assert pre_network == post_network
 
