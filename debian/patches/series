@@ -3,3 +3,4 @@ cpick-144782a8-test-Remove-side-effects-from-tests-5074
 cpick-f74b61ea-ephemeral-dhcpcd-Set-dhcpcd-interface-down
 cpick-8f806e20-net-Warn-when-interface-rename-fails
 cpick-372e80f8-net-dhcp-bump-dhcpcd-timeout-to-300s-5127
+cpick-77771023-net-dhcp-raise-InvalidDHCPLeaseFileError-on-error

@@ -1,0 +1,115 @@
+From 77771023ab5bda43a25cdc3dd4eb69a79169b3cb Mon Sep 17 00:00:00 2001
+From: Chris Patterson <cpatterson@microsoft.com>
+Date: Tue, 2 Apr 2024 12:11:39 -0400
+Subject: [PATCH] net/dhcp: raise InvalidDHCPLeaseFileError on error parsing
+ dhcpcd lease (#5128)
+
+Seeing a fairly large number of lease parsing failures on Azure similar
+to:
+```
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/cloudinit/sources/DataSourceAzure.py", line 851, in _get_data
+    crawled_data = util.log_time(
+                   ^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/cloudinit/util.py", line 2828, in log_time
+    ret = func(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/cloudinit/sources/helpers/azure.py", line 45, in impl
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/cloudinit/sources/DataSourceAzure.py", line 660, in crawl_metadata
+    self._wait_for_pps_savable_reuse()
+  File "/usr/lib/python3/dist-packages/cloudinit/sources/helpers/azure.py", line 45, in impl
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/cloudinit/sources/DataSourceAzure.py", line 1236, in _wait_for_pps_savable_reuse
+    self._wait_for_hot_attached_primary_nic(nl_sock)
+  File "/usr/lib/python3/dist-packages/cloudinit/sources/helpers/azure.py", line 45, in impl
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/cloudinit/sources/DataSourceAzure.py", line 1142, in _wait_for_hot_attached_primary_nic
+    primary_nic_found = self._setup_ephemeral_networking(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/cloudinit/sources/helpers/azure.py", line 45, in impl
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/cloudinit/sources/DataSourceAzure.py", line 440, in _setup_ephemeral_networking
+    lease = self._ephemeral_dhcp_ctx.obtain_lease()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/cloudinit/net/ephemeral.py", line 293, in obtain_lease
+    self.lease = maybe_perform_dhcp_discovery(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/cloudinit/net/dhcp.py", line 103, in maybe_perform_dhcp_discovery
+    return distro.dhcp_client.dhcp_discovery(interface, dhcp_log_func, distro)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/cloudinit/net/dhcp.py", line 656, in dhcp_discovery
+    lease = self.get_newest_lease(interface)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/cloudinit/net/dhcp.py", line 829, in get_newest_lease
+    return self.parse_dhcpcd_lease(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/cloudinit/net/dhcp.py", line 787, in parse_dhcpcd_lease
+    lease = dict(
+            ^^^^^
+ValueError: dictionary update sequence element #0 has length 1; 2 is required
+```
+
+Catch this error in parse_dhcpcd_lease() and raise
+InvalidDHCPLeaseFileError after logging an error.
+
+Signed-off-by: Chris Patterson <cpatterson@microsoft.com>
+---
+ cloudinit/net/dhcp.py            | 19 +++++++++++++------
+ tests/unittests/net/test_dhcp.py | 11 +++++++++++
+ 2 files changed, 24 insertions(+), 6 deletions(-)
+
+--- a/cloudinit/net/dhcp.py
++++ b/cloudinit/net/dhcp.py
+@@ -783,14 +783,21 @@ class Dhcpcd(DhcpClient):
+         subnet_cidr='20'
+         subnet_mask='255.255.240.0'
+         """
++        LOG.debug(
++            "Parsing dhcpcd lease for interface %s: %r", interface, lease_dump
++        )
+ 
+         # create a dict from dhcpcd dump output - remove single quotes
+-        lease = dict(
+-            [
+-                a.split("=")
+-                for a in lease_dump.strip().replace("'", "").split("\n")
+-            ]
+-        )
++        try:
++            lease = dict(
++                [
++                    a.split("=")
++                    for a in lease_dump.strip().replace("'", "").split("\n")
++                ]
++            )
++        except ValueError as error:
++            LOG.error("Error parsing dhcpcd lease: %r", error)
++            raise InvalidDHCPLeaseFileError from error
+ 
+         # this is expected by cloud-init's code
+         lease["interface"] = interface
+--- a/tests/unittests/net/test_dhcp.py
++++ b/tests/unittests/net/test_dhcp.py
+@@ -1199,6 +1199,17 @@ class TestDhcpcd:
+         assert "255.255.240.0" == parsed_lease["subnet-mask"]
+         assert "192.168.0.1" == parsed_lease["routers"]
+ 
++    def test_parse_lease_dump_fails(self):
++        lease = dedent(
++            """
++            fail
++            """
++        )
++
++        with pytest.raises(InvalidDHCPLeaseFileError):
++            with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
++                Dhcpcd.parse_dhcpcd_lease(lease, "eth0")
++
+     @pytest.mark.parametrize(
+         "lease_file, option_245",
+         (
