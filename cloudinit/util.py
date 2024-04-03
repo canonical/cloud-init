@@ -56,12 +56,13 @@ from typing import (
 )
 from urllib import parse
 
+import yaml
+
 from cloudinit import (
     features,
     importer,
     mergers,
     net,
-    safeyaml,
     settings,
     subp,
     temp_utils,
@@ -1009,7 +1010,7 @@ def load_yaml(blob, default=None, allowed=(dict,)):
             len(blob),
             allowed,
         )
-        converted = safeyaml.load(blob)
+        converted = yaml.safe_load(blob)
         if converted is None:
             LOG.debug("loaded blob returned None, returning default.")
             converted = default
@@ -1020,7 +1021,7 @@ def load_yaml(blob, default=None, allowed=(dict,)):
                 % (allowed, type_utils.obj_name(converted))
             )
         loaded = converted
-    except (safeyaml.YAMLError, TypeError, ValueError) as e:
+    except (yaml.YAMLError, TypeError, ValueError) as e:
         msg = "Failed loading yaml blob"
         mark = None
         if hasattr(e, "context_mark") and getattr(e, "context_mark"):

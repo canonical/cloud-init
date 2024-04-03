@@ -18,6 +18,7 @@ from types import ModuleType
 from typing import List, Optional, Sequence, Set
 
 import pytest
+import yaml
 
 from cloudinit.config.schema import (
     VERSIONED_USERDATA_SCHEMA_FILE,
@@ -39,7 +40,7 @@ from cloudinit.config.schema import (
     validate_cloudconfig_schema,
 )
 from cloudinit.distros import OSFAMILIES
-from cloudinit.safeyaml import load, load_with_marks
+from cloudinit.safeyaml import load_with_marks
 from cloudinit.settings import FREQUENCIES
 from cloudinit.sources import DataSourceNotFoundException
 from cloudinit.templater import JinjaSyntaxParsingException
@@ -777,7 +778,7 @@ class TestCloudConfigExamples:
         according to the unified schema of all config modules
         """
         schema = get_schema()
-        config_load = load(example)
+        config_load = yaml.safe_load(example)
         # cloud-init-schema-v1 is permissive of additionalProperties at the
         # top-level.
         # To validate specific schemas against known documented examples
@@ -2176,7 +2177,7 @@ class TestSchemaDocExamples:
     @skipUnlessJsonSchema()
     def test_network_config_schema_v1_doc_examples(self, example_path):
         validate_cloudconfig_schema(
-            config=load(open(example_path)),
+            config=yaml.safe_load(open(example_path)),
             schema=self.net_schema,
             strict=True,
         )

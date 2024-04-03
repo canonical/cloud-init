@@ -12,11 +12,10 @@ import textwrap
 from typing import Optional
 
 import pytest
+import yaml
 from yaml.serializer import Serializer
 
-from cloudinit import distros, net
-from cloudinit import safeyaml as yaml
-from cloudinit import subp, temp_utils, util
+from cloudinit import distros, net, subp, temp_utils, util
 from cloudinit.net import (
     cmdline,
     eni,
@@ -1889,14 +1888,16 @@ USERCTL=no
     def test_config(self, expected_name, yaml_version):
         entry = NETWORK_CONFIGS[expected_name]
         found = self._render_and_read(
-            network_config=yaml.load(entry[yaml_version])
+            network_config=yaml.safe_load(entry[yaml_version])
         )
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
     def test_all_config(self, caplog):
         entry = NETWORK_CONFIGS["all"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        found = self._render_and_read(
+            network_config=yaml.safe_load(entry["yaml"])
+        )
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
         assert (
@@ -1906,7 +1907,9 @@ USERCTL=no
 
     def test_v4_and_v6_static_config(self, caplog):
         entry = NETWORK_CONFIGS["v4_and_v6_static"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        found = self._render_and_read(
+            network_config=yaml.safe_load(entry["yaml"])
+        )
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
         expected_msg = (
@@ -1975,7 +1978,7 @@ USERCTL=no
 
     def test_netplan_dhcp_false_disable_dhcp_in_state(self):
         """netplan config with dhcp[46]: False should not add dhcp in state"""
-        net_config = yaml.load(NETPLAN_DHCP_FALSE)
+        net_config = yaml.safe_load(NETPLAN_DHCP_FALSE)
         ns = network_state.parse_net_config_data(net_config, skip_broken=False)
 
         dhcp_found = [
@@ -2018,7 +2021,9 @@ USERCTL=no
             },
         }
 
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        found = self._render_and_read(
+            network_config=yaml.safe_load(entry["yaml"])
+        )
         self._compare_files_to_expected(entry["expected_sysconfig"], found)
         self._assert_headers(found)
 
@@ -2293,7 +2298,9 @@ USERCTL=no
             dev_attrs=devices,
         )
         entry = NETWORK_CONFIGS["v2-dev-name-via-mac-lookup"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        found = self._render_and_read(
+            network_config=yaml.safe_load(entry["yaml"])
+        )
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
@@ -2498,14 +2505,16 @@ STARTMODE=auto
         entry = NETWORK_CONFIGS[expected_name]
         yaml_name = "yaml" if "yaml" in entry else "yaml_v2"
         found = self._render_and_read(
-            network_config=yaml.load(entry[yaml_name])
+            network_config=yaml.safe_load(entry[yaml_name])
         )
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
     def test_all_config(self, caplog):
         entry = NETWORK_CONFIGS["all"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        found = self._render_and_read(
+            network_config=yaml.safe_load(entry["yaml"])
+        )
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
         assert (
@@ -2733,7 +2742,9 @@ class TestNetworkManagerRendering:
 
     def test_all_config(self, caplog):
         entry = NETWORK_CONFIGS["all"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        found = self._render_and_read(
+            network_config=yaml.safe_load(entry["yaml"])
+        )
         self._compare_files_to_expected(
             entry[self.expected_name], self.expected_conf_d, found
         )
@@ -2744,7 +2755,9 @@ class TestNetworkManagerRendering:
 
     def test_v4_and_v6_static_config(self, caplog):
         entry = NETWORK_CONFIGS["v4_and_v6_static"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        found = self._render_and_read(
+            network_config=yaml.safe_load(entry["yaml"])
+        )
         self._compare_files_to_expected(
             entry[self.expected_name], self.expected_conf_d, found
         )
@@ -2782,7 +2795,7 @@ class TestNetworkManagerRendering:
         entry = NETWORK_CONFIGS[expected_name]
         yaml_name = "yaml" if "yaml" in entry else "yaml_v2"
         found = self._render_and_read(
-            network_config=yaml.load(entry[yaml_name])
+            network_config=yaml.safe_load(entry[yaml_name])
         )
         self._compare_files_to_expected(
             entry[self.expected_name], self.expected_conf_d, found
@@ -3248,7 +3261,7 @@ class TestNetplanNetRendering:
         if network_cfg is None:
             network_cfg = net.generate_fallback_config()
         else:
-            network_cfg = yaml.load(network_cfg)
+            network_cfg = yaml.safe_load(network_cfg)
         assert isinstance(network_cfg, dict)
 
         ns = network_state.parse_net_config_data(
@@ -3269,7 +3282,7 @@ class TestNetplanNetRendering:
             contents = fh.read()
             print(contents)
 
-        assert yaml.load(expected) == yaml.load(contents)
+        assert yaml.safe_load(expected) == yaml.safe_load(contents)
         assert 1, mock_clean_default.call_count
 
 
@@ -3851,7 +3864,7 @@ class TestNetplanRoundTrip:
     def test_config(self, expected_name, yaml_version):
         entry = NETWORK_CONFIGS[expected_name]
         files = self._render_and_read(
-            network_config=yaml.load(entry[yaml_version])
+            network_config=yaml.safe_load(entry[yaml_version])
         )
         assert (
             entry["expected_netplan"].splitlines()
@@ -3861,7 +3874,7 @@ class TestNetplanRoundTrip:
     def testsimple_render_bond_v2_input_netplan(self):
         entry = NETWORK_CONFIGS["bond"]
         files = self._render_and_read(
-            network_config=yaml.load(entry["yaml-v2"])
+            network_config=yaml.safe_load(entry["yaml-v2"])
         )
         assert (
             entry["expected_netplan-v2"].splitlines()
@@ -3873,7 +3886,7 @@ class TestNetplanRoundTrip:
             "yaml": V1_NAMESERVER_ALIAS,
             "expected_netplan": NETPLAN_NO_ALIAS,
         }
-        network_config = yaml.load(entry["yaml"])
+        network_config = yaml.safe_load(entry["yaml"])
         ns = network_state.parse_net_config_data(network_config)
         files = self._render_and_read(state=ns)
         # check for alias
@@ -3881,7 +3894,7 @@ class TestNetplanRoundTrip:
 
         # test load the yaml to ensure we don't render something not loadable
         # this allows single aliases, but not duplicate ones
-        parsed = yaml.load(files["/etc/netplan/50-cloud-init.yaml"])
+        parsed = yaml.safe_load(files["/etc/netplan/50-cloud-init.yaml"])
         assert parsed is not None
 
         # now look for any alias, avoid rendering them entirely
@@ -3905,7 +3918,7 @@ class TestNetplanRoundTrip:
                 "gratuitious", "gratuitous"
             ),
         }
-        network_config = yaml.load(entry["yaml"]).get("network")
+        network_config = yaml.safe_load(entry["yaml"]).get("network")
         files = self._render_and_read(network_config=network_config)
         assert (
             entry["expected_netplan"].splitlines()
@@ -3991,7 +4004,7 @@ class TestEniRoundTrip:
     def test_config(self, expected_name, yaml_version):
         entry = NETWORK_CONFIGS[expected_name]
         files = self._render_and_read(
-            network_config=yaml.load(entry[yaml_version])
+            network_config=yaml.safe_load(entry[yaml_version])
         )
         assert (
             entry["expected_eni"].splitlines()
@@ -4282,7 +4295,7 @@ class TestNetworkdRoundTrip:
         nwk_fn = "/etc/systemd/network/10-cloud-init-iface0.network"
         entry = NETWORK_CONFIGS[expected_name]
         files = self._render_and_read(
-            network_config=yaml.load(entry[yaml_version])
+            network_config=yaml.safe_load(entry[yaml_version])
         )
 
         actual = files[nwk_fn].splitlines()
@@ -4298,7 +4311,9 @@ class TestNetworkdRoundTrip:
         nwk_fn1 = "/etc/systemd/network/10-cloud-init-eth99.network"
         nwk_fn2 = "/etc/systemd/network/10-cloud-init-eth1.network"
         entry = NETWORK_CONFIGS["small_v1"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        files = self._render_and_read(
+            network_config=yaml.safe_load(entry["yaml"])
+        )
 
         actual = files[nwk_fn1].splitlines()
         actual = self.create_conf_dict(actual)
@@ -4321,7 +4336,9 @@ class TestNetworkdRoundTrip:
         nwk_fn1 = "/etc/systemd/network/10-cloud-init-eth99.network"
         nwk_fn2 = "/etc/systemd/network/10-cloud-init-eth1.network"
         entry = NETWORK_CONFIGS["small_v2"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        files = self._render_and_read(
+            network_config=yaml.safe_load(entry["yaml"])
+        )
 
         actual = files[nwk_fn1].splitlines()
         actual = self.create_conf_dict(actual)
@@ -4346,7 +4363,9 @@ class TestNetworkdRoundTrip:
     def test_v1_dns(self, m_chown):
         nwk_fn = "/etc/systemd/network/10-cloud-init-eth0.network"
         entry = NETWORK_CONFIGS["v1-dns"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        files = self._render_and_read(
+            network_config=yaml.safe_load(entry["yaml"])
+        )
 
         actual = self.create_conf_dict(files[nwk_fn].splitlines())
         expected = self.create_conf_dict(
@@ -4359,7 +4378,9 @@ class TestNetworkdRoundTrip:
     def test_v2_dns(self, m_chown):
         nwk_fn = "/etc/systemd/network/10-cloud-init-eth0.network"
         entry = NETWORK_CONFIGS["v2-dns"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        files = self._render_and_read(
+            network_config=yaml.safe_load(entry["yaml"])
+        )
 
         actual = self.create_conf_dict(files[nwk_fn].splitlines())
         expected = self.create_conf_dict(

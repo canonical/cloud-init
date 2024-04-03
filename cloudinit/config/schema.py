@@ -1083,7 +1083,7 @@ def validate_cloudconfig_file(
         if annotate:
             cloudconfig, marks = safeyaml.load_with_marks(content)
         else:
-            cloudconfig = safeyaml.load(content)
+            cloudconfig = yaml.safe_load(content)
             marks = {}
     except yaml.YAMLError as e:
         line = column = 1
