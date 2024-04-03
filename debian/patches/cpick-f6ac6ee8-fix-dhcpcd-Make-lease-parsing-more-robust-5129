@@ -1,0 +1,111 @@
+From f6ac6ee8a4321ba959ae8f3ae9f1b9ac3b9fafd0 Mon Sep 17 00:00:00 2001
+From: Brett Holman <brett.holman@canonical.com>
+Date: Tue, 2 Apr 2024 14:40:06 -0600
+Subject: [PATCH] fix(dhcpcd): Make lease parsing more robust (#5129)
+
+---
+ cloudinit/net/dhcp.py            | 12 +++++-
+ tests/unittests/net/test_dhcp.py | 63 +++++++++++++++++++++++++++++---
+ 2 files changed, 68 insertions(+), 7 deletions(-)
+
+--- a/cloudinit/net/dhcp.py
++++ b/cloudinit/net/dhcp.py
+@@ -791,12 +791,20 @@ class Dhcpcd(DhcpClient):
+         try:
+             lease = dict(
+                 [
+-                    a.split("=")
++                    a.split("=", maxsplit=1)
+                     for a in lease_dump.strip().replace("'", "").split("\n")
++                    if "=" in a
+                 ]
+             )
++            if not lease:
++                msg = (
++                    "No valid DHCP lease configuration "
++                    "found in dhcpcd lease: %r"
++                )
++                LOG.error(msg, lease_dump)
++                raise InvalidDHCPLeaseFileError(msg % lease_dump)
+         except ValueError as error:
+-            LOG.error("Error parsing dhcpcd lease: %r", error)
++            LOG.error("Error parsing dhcpcd lease: %r", lease_dump)
+             raise InvalidDHCPLeaseFileError from error
+ 
+         # this is expected by cloud-init's code
+--- a/tests/unittests/net/test_dhcp.py
++++ b/tests/unittests/net/test_dhcp.py
+@@ -1199,15 +1199,68 @@ class TestDhcpcd:
+         assert "255.255.240.0" == parsed_lease["subnet-mask"]
+         assert "192.168.0.1" == parsed_lease["routers"]
+ 
++    @pytest.mark.parametrize(
++        "lease, parsed",
++        (
++            pytest.param(
++                """
++
++                domain_name='us-east-2.compute.internal'
++
++                domain_name_servers='192.168.0.2'
++
++                """,
++                {
++                    "domain_name": "us-east-2.compute.internal",
++                    "domain_name_servers": "192.168.0.2",
++                },
++                id="lease_has_empty_lines",
++            ),
++            pytest.param(
++                """
++                domain_name='us-east-2.compute.internal'
++                not-a-kv-pair
++                domain_name_servers='192.168.0.2'
++                """,
++                {
++                    "domain_name": "us-east-2.compute.internal",
++                    "domain_name_servers": "192.168.0.2",
++                },
++                id="lease_has_values_that_arent_key_value_pairs",
++            ),
++            pytest.param(
++                """
++                domain_name='us-east=2.compute.internal'
++                """,
++                {
++                    "domain_name": "us-east=2.compute.internal",
++                },
++                id="lease_has_kv_pair_including_equals_sign_in_value",
++            ),
++        ),
++    )
++    def test_parse_lease_dump_resilience(self, lease, parsed):
++        with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
++            Dhcpcd.parse_dhcpcd_lease(dedent(lease), "eth0")
++
+     def test_parse_lease_dump_fails(self):
+-        lease = dedent(
+-            """
+-            fail
+-            """
+-        )
++        def _raise():
++            raise ValueError()
++
++        lease = mock.Mock()
++        lease.strip = _raise
++
++        with pytest.raises(InvalidDHCPLeaseFileError):
++            with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
++                Dhcpcd.parse_dhcpcd_lease(lease, "eth0")
+ 
+         with pytest.raises(InvalidDHCPLeaseFileError):
+             with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
++                lease = dedent(
++                    """
++                    fail
++                    """
++                )
+                 Dhcpcd.parse_dhcpcd_lease(lease, "eth0")
+ 
+     @pytest.mark.parametrize(
