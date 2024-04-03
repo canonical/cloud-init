@@ -1,0 +1,606 @@
+From 144782a838123099334fe44c07566b07503fd67b Mon Sep 17 00:00:00 2001
+From: James Falcon <james.falcon@canonical.com>
+Date: Tue, 19 Mar 2024 14:52:52 -0500
+Subject: [PATCH] test: Remove side effects from tests (#5074)
+
+These are the failures I could find when running tests in random order.
+Changes that aren't self-explanatory should include a comment in the
+test itself.
+
+test_vultr.py includes a refactor to remove global state and remove
+a test that didn't work and wasn't needed after the changes.
+---
+ cloudinit/sources/helpers/openstack.py        |   2 +-
+ tests/unittests/cmd/devel/test_net_convert.py |  24 ++-
+ tests/unittests/cmd/test_main.py              |  12 ++
+ .../unittests/config/test_cc_apt_configure.py |   2 +-
+ tests/unittests/config/test_cc_ca_certs.py    |   1 +
+ .../unittests/config/test_cc_set_passwords.py |   6 +-
+ tests/unittests/config/test_cc_ssh.py         |  22 ++-
+ tests/unittests/conftest.py                   |  15 +-
+ tests/unittests/distros/test_netconfig.py     |   2 +-
+ tests/unittests/helpers.py                    |   1 +
+ tests/unittests/runs/test_simple_run.py       |  10 ++
+ tests/unittests/sources/test_lxd.py           |   6 +-
+ tests/unittests/sources/test_vultr.py         | 151 ++++--------------
+ tests/unittests/test_cli.py                   |  10 +-
+ 14 files changed, 127 insertions(+), 137 deletions(-)
+
+--- a/cloudinit/sources/helpers/openstack.py
++++ b/cloudinit/sources/helpers/openstack.py
+@@ -763,7 +763,7 @@ def convert_net_json(network_json=None,
+                 cfg["type"] = "infiniband"
+ 
+     for service in services:
+-        cfg = service
++        cfg = copy.deepcopy(service)
+         cfg.update({"type": "nameserver"})
+         config.append(cfg)
+ 
+--- a/tests/unittests/cmd/devel/test_net_convert.py
++++ b/tests/unittests/cmd/devel/test_net_convert.py
+@@ -90,6 +90,18 @@ may-fail=false
+ """
+ 
+ 
++@pytest.fixture
++def mock_setup_logging():
++    """Mock setup_basic_logging to avoid changing log level.
++
++    net_convert.handle_args() can call setup_basic_logging() with a
++    WARNING level, which would be a side-effect for future tests.
++    It's behavior isn't checked in these tests, so mock it out.
++    """
++    with mock.patch(f"{M_PATH}log.setup_basic_logging"):
++        yield
++
++
+ class TestNetConvert:
+ 
+     missing_required_args = itertools.combinations(
+@@ -155,7 +167,13 @@ class TestNetConvert:
+         ),
+     )
+     def test_convert_output_kind_artifacts(
+-        self, output_kind, outfile_content, debug, capsys, tmpdir
++        self,
++        output_kind,
++        outfile_content,
++        debug,
++        capsys,
++        tmpdir,
++        mock_setup_logging,
+     ):
+         """Assert proper output-kind artifacts are written."""
+         network_data = tmpdir.join("network_data")
+@@ -186,7 +204,9 @@ class TestNetConvert:
+                 ] == chown.call_args_list
+ 
+     @pytest.mark.parametrize("debug", (False, True))
+-    def test_convert_netplan_passthrough(self, debug, tmpdir):
++    def test_convert_netplan_passthrough(
++        self, debug, tmpdir, mock_setup_logging
++    ):
+         """Assert that if the network config's version is 2 and the renderer is
+         Netplan, then the config is passed through as-is.
+         """
+--- a/tests/unittests/cmd/test_main.py
++++ b/tests/unittests/cmd/test_main.py
+@@ -54,6 +54,18 @@ class TestMain(FilesystemMockingTestCase
+         self.patchUtils(self.new_root)
+         self.stderr = StringIO()
+         self.patchStdoutAndStderr(stderr=self.stderr)
++        # Every cc_ module calls get_meta_doc on import.
++        # This call will fail if filesystem redirection mocks are in place
++        # and the module hasn't already been imported which can depend
++        # on test ordering.
++        self.m_doc = mock.patch(
++            "cloudinit.config.schema.get_meta_doc", return_value={}
++        )
++        self.m_doc.start()
++
++    def tearDown(self):
++        self.m_doc.stop()
++        super().tearDown()
+ 
+     def test_main_init_run_net_runs_modules(self):
+         """Modules like write_files are run in 'net' mode."""
+--- a/tests/unittests/config/test_cc_apt_configure.py
++++ b/tests/unittests/config/test_cc_apt_configure.py
+@@ -298,6 +298,7 @@ class TestAptConfigure:
+         ),
+     )
+     @mock.patch(M_PATH + "get_apt_cfg")
++    @mock.patch.object(features, "APT_DEB822_SOURCE_LIST_FILE", True)
+     def test_remove_source(
+         self,
+         m_get_apt_cfg,
+@@ -312,7 +313,6 @@ class TestAptConfigure:
+             "sourceparts": f"{tmpdir}/etc/apt/sources.list.d/",
+         }
+         cloud = get_cloud(distro_name)
+-        features.APT_DEB822_SOURCE_LIST_FILE = True
+         sources_file = tmpdir.join("/etc/apt/sources.list")
+         deb822_sources_file = tmpdir.join(
+             f"/etc/apt/sources.list.d/{distro_name}.sources"
+--- a/tests/unittests/config/test_cc_ca_certs.py
++++ b/tests/unittests/config/test_cc_ca_certs.py
+@@ -379,6 +379,7 @@ class TestRemoveDefaultCaCerts(TestCase)
+                 cc_ca_certs.disable_default_ca_certs(distro_name, conf)
+ 
+ 
++@pytest.mark.usefixtures("clear_deprecation_log")
+ class TestCACertsSchema:
+     """Directly test schema rather than through handle."""
+ 
+--- a/tests/unittests/config/test_cc_set_passwords.py
++++ b/tests/unittests/config/test_cc_set_passwords.py
+@@ -1,5 +1,6 @@
+ # This file is part of cloud-init. See LICENSE file for license information.
+ 
++import copy
+ import logging
+ from unittest import mock
+ 
+@@ -508,6 +509,7 @@ expire_cases = [
+ class TestExpire:
+     @pytest.mark.parametrize("cfg", expire_cases)
+     def test_expire(self, cfg, mocker, caplog):
++        cfg = copy.deepcopy(cfg)
+         cloud = get_cloud()
+         mocker.patch(f"{MODPATH}subp.subp")
+         mocker.patch.object(cloud.distro, "chpasswd")
+@@ -533,7 +535,9 @@ class TestExpire:
+     def test_expire_old_behavior(self, cfg, mocker, caplog):
+         # Previously expire didn't apply to hashed passwords.
+         # Ensure we can preserve that case on older releases
+-        features.EXPIRE_APPLIES_TO_HASHED_USERS = False
++        mocker.patch.object(features, "EXPIRE_APPLIES_TO_HASHED_USERS", False)
++
++        cfg = copy.deepcopy(cfg)
+         cloud = get_cloud()
+         mocker.patch(f"{MODPATH}subp.subp")
+         mocker.patch.object(cloud.distro, "chpasswd")
+--- a/tests/unittests/config/test_cc_ssh.py
++++ b/tests/unittests/config/test_cc_ssh.py
+@@ -38,8 +38,10 @@ def publish_hostkey_test_setup(tmpdir):
+         with open(filepath, "w") as f:
+             f.write(" ".join(test_hostkeys[key_type]))
+ 
+-    cc_ssh.KEY_FILE_TPL = os.path.join(hostkey_tmpdir, "ssh_host_%s_key")
+-    yield test_hostkeys, test_hostkey_files
++    with mock.patch.object(
++        cc_ssh, "KEY_FILE_TPL", os.path.join(hostkey_tmpdir, "ssh_host_%s_key")
++    ):
++        yield test_hostkeys, test_hostkey_files
+ 
+ 
+ def _replace_options(user: Optional[str] = None) -> str:
+@@ -255,6 +257,7 @@ class TestHandleSsh:
+     @mock.patch(MODPATH + "ug_util.normalize_users_groups")
+     @mock.patch(MODPATH + "os.path.exists")
+     @mock.patch(MODPATH + "util.fips_enabled", return_value=False)
++    @mock.patch.object(cc_ssh, "PUBLISH_HOST_KEYS", True)
+     def test_handle_publish_hostkeys(
+         self,
+         m_fips,
+@@ -268,7 +271,6 @@ class TestHandleSsh:
+     ):
+         """Test handle with various configs for ssh_publish_hostkeys."""
+         test_hostkeys, test_hostkey_files = publish_hostkey_test_setup
+-        cc_ssh.PUBLISH_HOST_KEYS = True
+         keys = ["key1"]
+         user = "clouduser"
+         # Return no matching keys for first glob, test keys for second.
+@@ -282,7 +284,6 @@ class TestHandleSsh:
+         m_path_exists.return_value = True
+         m_nug.return_value = ({user: {"default": user}}, {})
+         cloud = get_cloud(distro="ubuntu", metadata={"public-keys": keys})
+-        cloud.datasource.publish_host_keys = mock.Mock()
+ 
+         expected_calls = []
+         if expected_key_types is not None:
+@@ -294,10 +295,15 @@ class TestHandleSsh:
+                     ]
+                 )
+             ]
+-        cc_ssh.handle("name", cfg, cloud, None)
+-        assert (
+-            expected_calls == cloud.datasource.publish_host_keys.call_args_list
+-        )
++
++        with mock.patch.object(
++            cloud.datasource, "publish_host_keys", mock.Mock()
++        ):
++            cc_ssh.handle("name", cfg, cloud, None)
++            assert (
++                expected_calls
++                == cloud.datasource.publish_host_keys.call_args_list
++            )
+ 
+     @pytest.mark.parametrize(
+         "ssh_keys_group_exists,sshd_version,expected_private_permissions",
+--- a/tests/unittests/conftest.py
++++ b/tests/unittests/conftest.py
+@@ -110,12 +110,21 @@ def dhclient_exists():
+ log.configure_root_logger()
+ 
+ 
+-@pytest.fixture(autouse=True)
+-def disable_root_logger_setup(request):
+-    with mock.patch("cloudinit.cmd.main.configure_root_logger", autospec=True):
++@pytest.fixture(autouse=True, scope="session")
++def disable_root_logger_setup():
++    with mock.patch("cloudinit.log.configure_root_logger", autospec=True):
+         yield
+ 
+ 
++@pytest.fixture
++def clear_deprecation_log():
++    """Clear any deprecation warnings before and after running tests."""
++    # Since deprecations are de-duped, the existance (or non-existance) of
++    # a deprecation warning in a previous test can cause the next test to
++    # fail.
++    util.deprecate._log = set()
++
++
+ PYTEST_VERSION_TUPLE = tuple(map(int, pytest.__version__.split(".")))
+ 
+ if PYTEST_VERSION_TUPLE < (3, 9, 0):
+--- a/tests/unittests/distros/test_netconfig.py
++++ b/tests/unittests/distros/test_netconfig.py
+@@ -303,7 +303,7 @@ class TestNetCfgDistroBase(FilesystemMoc
+ 
+     def _get_distro(self, dname, renderers=None, activators=None):
+         cls = distros.fetch(dname)
+-        cfg = settings.CFG_BUILTIN
++        cfg = copy.deepcopy(settings.CFG_BUILTIN)
+         cfg["system_info"]["distro"] = dname
+         system_info_network_cfg = {}
+         if renderers:
+--- a/tests/unittests/helpers.py
++++ b/tests/unittests/helpers.py
+@@ -161,6 +161,7 @@ class CiTestCase(TestCase):
+             self.old_handlers = self.logger.handlers
+             self.logger.handlers = [handler]
+             self.old_level = logging.root.level
++            self.logger.level = logging.DEBUG
+         if self.allowed_subp is True:
+             subp.subp = _real_subp
+         else:
+--- a/tests/unittests/runs/test_simple_run.py
++++ b/tests/unittests/runs/test_simple_run.py
+@@ -2,6 +2,7 @@
+ 
+ import copy
+ import os
++from unittest import mock
+ 
+ from cloudinit import atomic_helper, safeyaml, stages, util
+ from cloudinit.config.modules import Modules
+@@ -45,6 +46,15 @@ class TestSimpleRun(helpers.FilesystemMo
+         self.patchOS(self.new_root)
+         self.patchUtils(self.new_root)
+ 
++        self.m_doc = mock.patch(
++            "cloudinit.config.schema.get_meta_doc", return_value={}
++        )
++        self.m_doc.start()
++
++    def tearDown(self):
++        self.m_doc.stop()
++        super().tearDown()
++
+     def test_none_ds_populates_var_lib_cloud(self):
+         """Init and run_section default behavior creates appropriate dirs."""
+         # Now start verifying whats created
+--- a/tests/unittests/sources/test_lxd.py
++++ b/tests/unittests/sources/test_lxd.py
+@@ -333,13 +333,13 @@ class TestDataSourceLXD:
+         assert NETWORK_V1 == lxd_ds.network_config
+         assert LXD_V1_METADATA == lxd_ds._crawled_metadata
+ 
++    @mock.patch.object(lxd, "generate_network_config", return_value=NETWORK_V1)
+     def test_network_config_crawled_metadata_no_network_config(
+-        self, lxd_ds_no_network_config
++        self, m_generate, lxd_ds_no_network_config
+     ):
+         """network_config is correctly computed when _network_config is unset
+         and _crawled_metadata does not contain network_config.
+         """
+-        lxd.generate_network_config = mock.Mock(return_value=NETWORK_V1)
+         assert UNSET == lxd_ds_no_network_config._crawled_metadata
+         assert UNSET == lxd_ds_no_network_config._network_config
+         assert None is lxd_ds_no_network_config.userdata_raw
+@@ -349,7 +349,7 @@ class TestDataSourceLXD:
+             LXD_V1_METADATA_NO_NETWORK_CONFIG
+             == lxd_ds_no_network_config._crawled_metadata
+         )
+-        assert 1 == lxd.generate_network_config.call_count
++        assert 1 == m_generate.call_count
+ 
+ 
+ class TestIsPlatformViable:
+--- a/tests/unittests/sources/test_vultr.py
++++ b/tests/unittests/sources/test_vultr.py
+@@ -5,7 +5,7 @@
+ # Vultr Metadata API:
+ # https://www.vultr.com/metadata/
+ 
+-import json
++import copy
+ 
+ from cloudinit import helpers, settings
+ from cloudinit.net.dhcp import NoDHCPLeaseError
+@@ -13,6 +13,20 @@ from cloudinit.sources import DataSource
+ from cloudinit.sources.helpers import vultr
+ from tests.unittests.helpers import CiTestCase, mock
+ 
++VENDOR_DATA = """\
++#cloud-config
++package_upgrade: true
++disable_root: 0
++ssh_pwauth: 1
++chpasswd:
++  expire: false
++  list:
++  - root:$6$SxXx...k2mJNIzZB5vMCDBlYT1
++system_info:
++  default_user:
++    name: root
++"""
++
+ # Vultr metadata test data
+ VULTR_V1_1 = {
+     "bgp": {
+@@ -58,18 +72,7 @@ VULTR_V1_1 = {
+     "startup-script": "echo No configured startup script",
+     "raid1-script": "",
+     "user-data": [],
+-    "vendor-data": [
+-        {
+-            "package_upgrade": "true",
+-            "disable_root": 0,
+-            "ssh_pwauth": 1,
+-            "chpasswd": {
+-                "expire": False,
+-                "list": ["root:$6$S2Smuj.../VqxmIR9Urw0jPZ88i4yvB/"],
+-            },
+-            "system_info": {"default_user": {"name": "root"}},
+-        }
+-    ],
++    "vendor-data": VENDOR_DATA,
+ }
+ 
+ VULTR_V1_2 = {
+@@ -130,22 +133,9 @@ VULTR_V1_2 = {
+     "user-defined": [],
+     "startup-script": "echo No configured startup script",
+     "user-data": [],
+-    "vendor-data": [
+-        {
+-            "package_upgrade": "true",
+-            "disable_root": 0,
+-            "ssh_pwauth": 1,
+-            "chpasswd": {
+-                "expire": False,
+-                "list": ["root:$6$SxXx...k2mJNIzZB5vMCDBlYT1"],
+-            },
+-            "system_info": {"default_user": {"name": "root"}},
+-        }
+-    ],
++    "vendor-data": VENDOR_DATA,
+ }
+ 
+-VULTR_V1_3 = None
+-
+ SSH_KEYS_1 = ["ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key"]
+ 
+ CLOUD_INTERFACES = {
+@@ -190,20 +180,6 @@ ORDERED_INTERFACES = ["eth0", "eth1", "e
+ 
+ FILTERED_INTERFACES = ["eth1", "eth2", "eth0"]
+ 
+-# Expected generated objects
+-
+-# Expected config
+-EXPECTED_VULTR_CONFIG = {
+-    "package_upgrade": "true",
+-    "disable_root": 0,
+-    "ssh_pwauth": 1,
+-    "chpasswd": {
+-        "expire": False,
+-        "list": ["root:$6$SxXx...k2mJNIzZB5vMCDBlYT1"],
+-    },
+-    "system_info": {"default_user": {"name": "root"}},
+-}
+-
+ # Expected network config object from generator
+ EXPECTED_VULTR_NETWORK_1 = {
+     "version": 1,
+@@ -271,28 +247,9 @@ INTERFACE_MAP = {
+ }
+ 
+ 
+-FINAL_INTERFACE_USED = ""
+-
+-
+ class TestDataSourceVultr(CiTestCase):
+     def setUp(self):
+-        global VULTR_V1_3
+         super(TestDataSourceVultr, self).setUp()
+-
+-        # Create v3
+-        VULTR_V1_3 = VULTR_V1_2.copy()
+-        VULTR_V1_3["cloud_interfaces"] = CLOUD_INTERFACES.copy()
+-        VULTR_V1_3["interfaces"] = []
+-
+-        # Stored as a dict to make it easier to maintain
+-        raw1 = json.dumps(VULTR_V1_1["vendor-data"][0])
+-        raw2 = json.dumps(VULTR_V1_2["vendor-data"][0])
+-
+-        # Make expected format
+-        VULTR_V1_1["vendor-data"] = [raw1]
+-        VULTR_V1_2["vendor-data"] = [raw2]
+-        VULTR_V1_3["vendor-data"] = [raw2]
+-
+         self.tmp = self.tmp_dir()
+ 
+     # Test the datasource itself
+@@ -330,8 +287,8 @@ class TestDataSourceVultr(CiTestCase):
+ 
+         # Test vendor config
+         self.assertEqual(
+-            EXPECTED_VULTR_CONFIG,
+-            json.loads(vendordata[0].replace("#cloud-config", "")),
++            VENDOR_DATA,
++            vendordata,
+         )
+ 
+         self.maxDiff = orig_val
+@@ -339,6 +296,15 @@ class TestDataSourceVultr(CiTestCase):
+         # Test network config generation
+         self.assertEqual(EXPECTED_VULTR_NETWORK_2, source.network_config)
+ 
++    def _get_metadata(self):
++        # Create v1_3
++        vultr_v1_3 = VULTR_V1_2.copy()
++        vultr_v1_3["cloud_interfaces"] = CLOUD_INTERFACES.copy()
++        vultr_v1_3["interfaces"] = []
++        vultr_v1_3["vendor-data"] = copy.deepcopy(VULTR_V1_2["vendor-data"])
++
++        return vultr_v1_3
++
+     # Test the datasource with new network config type
+     @mock.patch("cloudinit.net.get_interfaces_by_mac")
+     @mock.patch("cloudinit.sources.helpers.vultr.is_vultr")
+@@ -346,7 +312,7 @@ class TestDataSourceVultr(CiTestCase):
+     def test_datasource_cloud_interfaces(
+         self, mock_getmeta, mock_isvultr, mock_netmap
+     ):
+-        mock_getmeta.return_value = VULTR_V1_3
++        mock_getmeta.return_value = self._get_metadata()
+         mock_isvultr.return_value = True
+         mock_netmap.return_value = INTERFACE_MAP
+ 
+@@ -375,7 +341,7 @@ class TestDataSourceVultr(CiTestCase):
+     @mock.patch("cloudinit.net.get_interfaces_by_mac")
+     def test_private_network_config(self, mock_netmap):
+         mock_netmap.return_value = INTERFACE_MAP
+-        interf = VULTR_V1_2["interfaces"].copy()
++        interf = copy.deepcopy(VULTR_V1_2["interfaces"])
+ 
+         # Test configuring
+         self.assertEqual(
+@@ -384,28 +350,11 @@ class TestDataSourceVultr(CiTestCase):
+ 
+         # Test unconfigured
+         interf[1]["unconfigured"] = True
+-        expected = EXPECTED_VULTR_NETWORK_2.copy()
++        expected = copy.deepcopy(EXPECTED_VULTR_NETWORK_2)
+         expected["config"].pop(2)
+         self.assertEqual(expected, vultr.generate_network_config(interf))
+ 
+     # Override ephemeral for proper unit testing
+-    def ephemeral_init(
+-        self, distro, iface="", connectivity_url_data=None, tmp_dir=None
+-    ):
+-        global FINAL_INTERFACE_USED
+-        FINAL_INTERFACE_USED = iface
+-        if iface == "eth0":
+-            return
+-        raise NoDHCPLeaseError("Generic for testing")
+-
+-    # Override ephemeral for proper unit testing
+-    def ephemeral_init_always(
+-        self, iface="", connectivity_url_data=None, tmp_dir=None
+-    ):
+-        global FINAL_INTERFACE_USED
+-        FINAL_INTERFACE_USED = iface
+-
+-    # Override ephemeral for proper unit testing
+     def override_enter(self):
+         return
+ 
+@@ -415,7 +364,8 @@ class TestDataSourceVultr(CiTestCase):
+ 
+     # Test interface seeking to ensure we are able to find the correct one
+     @mock.patch(
+-        "cloudinit.net.ephemeral.EphemeralDHCPv4.__init__", ephemeral_init
++        "cloudinit.net.ephemeral.EphemeralDHCPv4.__init__",
++        side_effect=(NoDHCPLeaseError("Generic for testing"), None),
+     )
+     @mock.patch(
+         "cloudinit.net.ephemeral.EphemeralDHCPv4.__enter__", override_enter
+@@ -431,6 +381,7 @@ class TestDataSourceVultr(CiTestCase):
+         mock_interface_list,
+         mock_read_metadata,
+         mock_isvultr,
++        mock_eph_init,
+     ):
+         mock_read_metadata.return_value = {}
+         mock_isvultr.return_value = True
+@@ -447,36 +398,4 @@ class TestDataSourceVultr(CiTestCase):
+         except Exception:
+             pass
+ 
+-        self.assertEqual(FINAL_INTERFACE_USED, INTERFACES[3])
+-
+-    # Test route checking sucessful DHCPs
+-    @mock.patch(
+-        "cloudinit.net.ephemeral.EphemeralDHCPv4.__init__",
+-        ephemeral_init_always,
+-    )
+-    @mock.patch(
+-        "cloudinit.net.ephemeral.EphemeralDHCPv4.__enter__", override_enter
+-    )
+-    @mock.patch(
+-        "cloudinit.net.ephemeral.EphemeralDHCPv4.__exit__", override_exit
+-    )
+-    @mock.patch("cloudinit.sources.helpers.vultr.get_interface_list")
+-    @mock.patch("cloudinit.sources.helpers.vultr.is_vultr")
+-    @mock.patch("cloudinit.sources.helpers.vultr.read_metadata")
+-    def test_interface_seek_route_check(
+-        self, mock_read_metadata, mock_isvultr, mock_interface_list
+-    ):
+-        mock_read_metadata.return_value = {}
+-        mock_interface_list.return_value = FILTERED_INTERFACES
+-        mock_isvultr.return_value = True
+-
+-        source = DataSourceVultr.DataSourceVultr(
+-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+-        )
+-
+-        try:
+-            source._get_data()
+-        except Exception:
+-            pass
+-
+-        self.assertEqual(FINAL_INTERFACE_USED, INTERFACES[3])
++        assert mock_eph_init.call_args[1]["iface"] == FILTERED_INTERFACES[1]
+--- a/tests/unittests/test_cli.py
++++ b/tests/unittests/test_cli.py
+@@ -25,6 +25,14 @@ def mock_get_user_data_file(mocker, tmpd
+     )
+ 
+ 
++@pytest.fixture(autouse=True, scope="module")
++def disable_setup_logging():
++    # setup_basic_logging can change the logging level to WARNING, so
++    # ensure it is always mocked
++    with mock.patch(f"{M_PATH}log.setup_basic_logging", autospec=True):
++        yield
++
++
+ class TestCLI:
+     def _call_main(self, sysv_args=None):
+         if not sysv_args:
+@@ -193,7 +201,7 @@ class TestCLI:
+             ),
+         ),
+     )
+-    @mock.patch("cloudinit.cmd.main.setup_basic_logging")
++    @mock.patch("cloudinit.cmd.main.log.setup_basic_logging")
+     def test_subcommands_log_to_stderr_via_setup_basic_logging(
+         self, setup_basic_logging, subcommand, log_to_stderr, mocks
+     ):
