@@ -3729,6 +3729,9 @@ class TestProvisioning:
         }
 
     def test_no_pps(self):
+        ovf = construct_ovf_env(provision_guest_proxy_agent=False)
+        md, ud, cfg = dsaz.read_azure_ovf(ovf)
+        self.mock_util_mount_cb.return_value = (md, ud, cfg, {})
         self.mock_readurl.side_effect = [
             mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
         ]
@@ -3795,6 +3798,171 @@ class TestProvisioning:
         # Verify reports via KVP.
         assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
+
+        # Verify dmesg reported via KVP.
+        assert len(self.mock_report_dmesg_to_kvp.mock_calls) == 1
+
+    def test_no_pps_gpa(self):
+        self.mock_subp_subp.side_effect = [
+            subp.SubpResult("Guest Proxy Agent running", ""),
+        ]
+        ovf = construct_ovf_env(provision_guest_proxy_agent=True)
+        md, ud, cfg = dsaz.read_azure_ovf(ovf)
+        self.mock_util_mount_cb.return_value = (md, ud, cfg, {})
+        self.mock_readurl.side_effect = [
+            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+        ]
+        self.mock_azure_get_metadata_from_fabric.return_value = []
+
+        self.azure_ds._check_and_get_data()
+
+        assert self.mock_subp_subp.mock_calls == [
+            mock.call(
+                ["azure-proxy-agent", "--status", "--wait", "120"],
+                capture=True,
+            ),
+        ]
+        assert self.mock_readurl.mock_calls == [
+            mock.call(
+                "http://169.254.169.254/metadata/instance?"
+                "api-version=2021-08-01&extended=true",
+                timeout=30,
+                headers={"Metadata": "true"},
+                exception_cb=mock.ANY,
+                infinite=True,
+                log_req_resp=True,
+            ),
+        ]
+
+        # Verify DHCP is setup once.
+        assert self.mock_wrapping_setup_ephemeral_networking.mock_calls == [
+            mock.call(timeout_minutes=20)
+        ]
+        assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
+            mock.call(
+                self.azure_ds.distro,
+                None,
+                dsaz.dhcp_log_cb,
+            )
+        ]
+        assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
+        assert self.azure_ds._is_ephemeral_networking_up() is False
+
+        # Verify DMI usage.
+        assert self.mock_dmi_read_dmi_data.mock_calls == [
+            mock.call("chassis-asset-tag"),
+            mock.call("system-uuid"),
+        ]
+        assert (
+            self.azure_ds.metadata["instance-id"]
+            == "50109936-ef07-47fe-ac82-890c853f60d5"
+        )
+
+        # Verify IMDS metadata.
+        assert self.azure_ds.metadata["imds"] == self.imds_md
+
+        # Verify reporting ready once.
+        assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
+            mock.call(
+                endpoint="10.11.12.13",
+                distro=self.azure_ds.distro,
+                iso_dev="/dev/sr0",
+                pubkey_info=None,
+            )
+        ]
+
+        # Verify netlink.
+        assert self.mock_netlink.mock_calls == []
+
+        # Verify no reported_ready marker written.
+        assert self.wrapped_util_write_file.mock_calls == []
+        assert self.patched_reported_ready_marker_path.exists() is False
+
+        # Verify reports via KVP.
+        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
+        assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
+
+        # Verify dmesg reported via KVP.
+        assert len(self.mock_report_dmesg_to_kvp.mock_calls) == 1
+
+    def test_no_pps_gpa_fail(self):
+        self.mock_subp_subp.side_effect = [
+            subp.ProcessExecutionError(
+                cmd=["failed", "azure-proxy-agent"],
+                stdout="test_stdout",
+                stderr="test_stderr",
+                exit_code=4,
+            ),
+        ]
+        ovf = construct_ovf_env(provision_guest_proxy_agent=True)
+        md, ud, cfg = dsaz.read_azure_ovf(ovf)
+        self.mock_util_mount_cb.return_value = (md, ud, cfg, {})
+        self.mock_readurl.side_effect = [
+            mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+        ]
+        self.mock_azure_get_metadata_from_fabric.return_value = []
+
+        self.azure_ds._check_and_get_data()
+
+        assert self.mock_subp_subp.mock_calls == [
+            mock.call(
+                ["azure-proxy-agent", "--status", "--wait", "120"],
+                capture=True,
+            ),
+        ]
+        assert self.mock_readurl.mock_calls == [
+            mock.call(
+                "http://169.254.169.254/metadata/instance?"
+                "api-version=2021-08-01&extended=true",
+                timeout=30,
+                headers={"Metadata": "true"},
+                exception_cb=mock.ANY,
+                infinite=True,
+                log_req_resp=True,
+            ),
+        ]
+
+        # Verify DHCP is setup once.
+        assert self.mock_wrapping_setup_ephemeral_networking.mock_calls == [
+            mock.call(timeout_minutes=20)
+        ]
+        assert self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls == [
+            mock.call(
+                self.azure_ds.distro,
+                None,
+                dsaz.dhcp_log_cb,
+            )
+        ]
+        assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
+        assert self.azure_ds._is_ephemeral_networking_up() is False
+
+        # Verify DMI usage.
+        assert self.mock_dmi_read_dmi_data.mock_calls == [
+            mock.call("chassis-asset-tag"),
+            mock.call("system-uuid"),
+            mock.call("system-uuid"),
+        ]
+        assert (
+            self.azure_ds.metadata["instance-id"]
+            == "50109936-ef07-47fe-ac82-890c853f60d5"
+        )
+
+        # Verify IMDS metadata.
+        assert self.azure_ds.metadata["imds"] == self.imds_md
+
+        # Verify reporting ready once.
+        assert self.mock_azure_get_metadata_from_fabric.mock_calls == []
+
+        # Verify netlink.
+        assert self.mock_netlink.mock_calls == []
+
+        # Verify no reported_ready marker written.
+        assert self.wrapped_util_write_file.mock_calls == []
+        assert self.patched_reported_ready_marker_path.exists() is False
+
+        # Verify reports via KVP.
+        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 1
+        assert len(self.mock_kvp_report_success_to_host.mock_calls) == 0
 
         # Verify dmesg reported via KVP.
         assert len(self.mock_report_dmesg_to_kvp.mock_calls) == 1
@@ -4485,6 +4653,30 @@ class TestProvisioning:
         # Verify reports via KVP.
         assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 1
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 0
+
+    def test_check_azure_proxy_agent_status(self, caplog):
+        self.mock_subp_subp.side_effect = [
+            subp.SubpResult("Guest Proxy Agent running", ""),
+        ]
+        self.azure_ds._check_azure_proxy_agent_status()
+        assert "Running azure-proxy-agent" in caplog.text
+
+    def test_check_azure_proxy_agent_status_notfound(self, caplog):
+        self.mock_subp_subp.side_effect = [FileNotFoundError]
+        self.azure_ds._check_azure_proxy_agent_status()
+        assert "azure-proxy-agent not found" in caplog.text
+
+    def test_check_azure_proxy_agent_status_failure(self, caplog):
+        self.mock_subp_subp.side_effect = [
+            subp.ProcessExecutionError(
+                cmd=["failed", "azure-proxy-agent"],
+                stdout="test_stdout",
+                stderr="test_stderr",
+                exit_code=4,
+            ),
+        ]
+        self.azure_ds._check_azure_proxy_agent_status()
+        assert "azure-proxy-agent status failure" in caplog.text
 
 
 class TestGetMetadataFromImds:

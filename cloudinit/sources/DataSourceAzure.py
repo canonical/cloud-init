@@ -554,6 +554,35 @@ class DataSourceAzure(sources.DataSource):
             or self._ephemeral_dhcp_ctx.lease is None
         )
 
+    def _check_azure_proxy_agent_status(self) -> None:
+        try:
+            cmd = [
+                "azure-proxy-agent",
+                "--status",
+                "--wait",
+                "120",
+            ]
+            (out, err) = subp.subp(cmd, capture=True)
+            report_diagnostic_event(
+                "Running azure-proxy-agent",
+                logger_func=LOG.info,
+            )
+            if err:
+                LOG.warning(
+                    "Running %s resulted in stderr output: %s",
+                    cmd,
+                    err,
+                )
+        except FileNotFoundError as error:
+            reportable_error = errors.ReportableErrorProxyAgentNotFound()
+            self._report_failure(reportable_error)
+
+        except subp.ProcessExecutionError as error:
+            reportable_error = errors.ReportableErrorProxyAgentStatusFailure(
+                error
+            )
+            self._report_failure(reportable_error)
+
     @azure_ds_telemetry_reporter
     def crawl_metadata(self):
         """Walk all instance metadata sources returning a dict on success.
@@ -631,8 +660,14 @@ class DataSourceAzure(sources.DataSource):
         except NoDHCPLeaseError:
             pass
 
+        # import pdb
+        # pdb.set_trace()
         imds_md = {}
         if self._is_ephemeral_networking_up():
+            # check if azure-proxy-agent is enabled in the ovf-env.xml file.
+            if cfg.get("ProvisionGuestProxyAgent"):
+                self._check_azure_proxy_agent_status()
+
             imds_md = self.get_metadata_from_imds(report_failure=True)
 
         if not imds_md and ovf_source is None:
