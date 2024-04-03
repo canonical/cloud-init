@@ -1,0 +1,29 @@
+From 8f806e20bda1bdf0e00ff180183990470e241837 Mon Sep 17 00:00:00 2001
+From: Brett Holman <brett.holman@canonical.com>
+Date: Thu, 28 Mar 2024 14:50:25 -0600
+Subject: [PATCH] net: Warn when interface rename fails
+
+---
+ cloudinit/net/__init__.py | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+--- a/cloudinit/net/__init__.py
++++ b/cloudinit/net/__init__.py
+@@ -839,11 +839,15 @@ def _rename_interfaces(
+ 
+     if len(ops) + len(ups) == 0:
+         if len(errors):
+-            LOG.debug("unable to do any work for renaming of %s", renames)
++            LOG.warning(
++                "Unable to rename interfaces: %s due to errors: %s",
++                renames,
++                errors,
++            )
+         else:
+             LOG.debug("no work necessary for renaming of %s", renames)
+     else:
+-        LOG.debug("achieving renaming of %s with ops %s", renames, ops + ups)
++        LOG.debug("Renamed %s with ops %s", renames, ops + ups)
+ 
+         for op, mac, new_name, params in ops + ups:
+             try:
