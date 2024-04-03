@@ -1,0 +1,34 @@
+From 372e80f8e6e01441e69d277782e2367678994abb Mon Sep 17 00:00:00 2001
+From: Chris Patterson <cpatterson@microsoft.com>
+Date: Mon, 1 Apr 2024 17:41:25 -0400
+Subject: [PATCH] net/dhcp: bump dhcpcd timeout to 300s (#5127)
+
+On most distros, including Ubuntu, the default timeout for dhclient is 300s.
+There is no cloud-init controlled duration for the dhclient process as
+it doesn't fork until after it receives an IP address and there is no timeout
+value passed to subp().
+
+I have seen some distros configure dhclient with a timeout of 60s, but
+is far less common.
+
+Given that a cloud VM is not very useful with DHCP, err on the generous
+side and allow up to 300 seconds for dhcpcd to get an address.
+
+Note that there is still an issue with dhcpcd retries which will be
+addressed later in a separate PR.
+
+Signed-off-by: Chris Patterson <cpatterson@microsoft.com>
+---
+ cloudinit/net/dhcp.py | 1 +
+ 1 file changed, 1 insertion(+)
+
+--- a/cloudinit/net/dhcp.py
++++ b/cloudinit/net/dhcp.py
+@@ -596,6 +596,7 @@ class IscDhclient(DhcpClient):
+ 
+ class Dhcpcd(DhcpClient):
+     client_name = "dhcpcd"
++    timeout = 300
+ 
+     def dhcp_discovery(
+         self,
