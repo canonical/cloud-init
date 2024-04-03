@@ -660,8 +660,6 @@ class DataSourceAzure(sources.DataSource):
         except NoDHCPLeaseError:
             pass
 
-        # import pdb
-        # pdb.set_trace()
         imds_md = {}
         if self._is_ephemeral_networking_up():
             # check if azure-proxy-agent is enabled in the ovf-env.xml file.
