@@ -1,3 +1,26 @@
+cloud-init (24.1.3-0ubuntu2) UNRELEASED; urgency=medium
+
+  * Upstream bug fix release based on 24.1.4.
+    + functional fixes in debian/patches:
+      - cpick-f74b61ea-ephemeral-dhcpcd-Set-dhcpcd-interface-down
+        When dhcpcd client sets up a device to discover IMDS, ensure
+        link is set back down to avoid interface rename failures (GH-5019)
+      - cpick-372e80f8-net-dhcp-bump-dhcpcd-timeout-to-300s-5127
+        Extend default timeout of dhcpcd command to 300 seconds
+      - cpick-77771023-net-dhcp-raise-InvalidDHCPLeaseFileError-on-error
+        Raise any dhcpcd lease parse failures as InvalidDHCPLeaseFileError
+        (GH-5128)
+      - cpick-f6ac6ee8-fix-dhcpcd-Make-lease-parsing-more-robust-5129
+        Avoid tracebacks on empty invalid lease content from dhcpcd
+        and raise InvalidDHCPLeaseFileError with full lease parsed when errors
+        occur. (GH-5128)
+    + test fixes in debian/patches:
+      - d/p/cpick-accdfe6a-refactor-Import-log-module-rather-than-functions-5074
+        Avoid mock failures in unit tests by module-level import of log
+      - cpick-144782a8-test-Remove-side-effects-from-tests-5074
+
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 03 Apr 2024 12:09:38 -0600
+
 cloud-init (24.1.3-0ubuntu1) noble; urgency=medium
 
   * Upstream snapshot based on 24.1.3.
