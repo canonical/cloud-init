@@ -562,20 +562,23 @@ class DataSourceAzure(sources.DataSource):
                 "--wait",
                 "120",
             ]
-            (out, err) = subp.subp(cmd, capture=True)
+            out, err = subp.subp(cmd)
             report_diagnostic_event(
                 "Running azure-proxy-agent",
                 logger_func=LOG.info,
             )
             if err:
-                LOG.warning(
-                    "Running %s resulted in stderr output: %s",
-                    cmd,
-                    err,
+                report_diagnostic_event(
+                    "Running %s resulted in stderr output: %s with stdout: %s"
+                    % cmd
+                    % err
+                    % out,
+                    logger_func=LOG.warning,
                 )
-        except FileNotFoundError as error:
-            reportable_error = errors.ReportableErrorProxyAgentNotFound()
-            self._report_failure(reportable_error)
+
+        except FileNotFoundError:
+            error = errors.ReportableErrorProxyAgentNotFound()
+            self._report_failure(error)
 
         except subp.ProcessExecutionError as error:
             reportable_error = errors.ReportableErrorProxyAgentStatusFailure(
@@ -664,6 +667,8 @@ class DataSourceAzure(sources.DataSource):
         if self._is_ephemeral_networking_up():
             # check if azure-proxy-agent is enabled in the ovf-env.xml file.
             if cfg.get("ProvisionGuestProxyAgent"):
+                # check if azure-proxy-agent is working correctly when enabled
+                # in the ovf-env.xml file. If not, fail provisioning.
                 self._check_azure_proxy_agent_status()
 
             imds_md = self.get_metadata_from_imds(report_failure=True)

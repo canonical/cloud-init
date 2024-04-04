@@ -13,7 +13,7 @@ from xml.etree import ElementTree  # nosec B405
 
 import requests
 
-from cloudinit import version, subp
+from cloudinit import subp, version
 from cloudinit.sources.azure import identity
 from cloudinit.url_helper import UrlError
 
@@ -209,4 +209,3 @@ class ReportableErrorProxyAgentStatusFailure(ReportableError):
         self.supporting_data["exit_code"] = exception.exit_code
         self.supporting_data["stdout"] = exception.stdout
         self.supporting_data["stderr"] = exception.stderr
-

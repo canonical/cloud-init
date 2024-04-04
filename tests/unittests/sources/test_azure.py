@@ -3819,7 +3819,6 @@ class TestProvisioning:
         assert self.mock_subp_subp.mock_calls == [
             mock.call(
                 ["azure-proxy-agent", "--status", "--wait", "120"],
-                capture=True,
             ),
         ]
         assert self.mock_readurl.mock_calls == [
@@ -3907,7 +3906,6 @@ class TestProvisioning:
         assert self.mock_subp_subp.mock_calls == [
             mock.call(
                 ["azure-proxy-agent", "--status", "--wait", "120"],
-                capture=True,
             ),
         ]
         assert self.mock_readurl.mock_calls == [
@@ -3962,6 +3960,7 @@ class TestProvisioning:
 
         # Verify reports via KVP.
         assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 1
+        assert len(self.mock_azure_report_failure_to_fabric.mock_calls) == 1
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 0
 
         # Verify dmesg reported via KVP.
@@ -4653,6 +4652,13 @@ class TestProvisioning:
         # Verify reports via KVP.
         assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 1
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 0
+
+
+class TestCheckAzureProxyAgent:
+    @pytest.fixture(autouse=True)
+    def proxy_setup(self, azure_ds, mock_subp_subp):
+        self.azure_ds = azure_ds
+        self.mock_subp_subp = mock_subp_subp
 
     def test_check_azure_proxy_agent_status(self, caplog):
         self.mock_subp_subp.side_effect = [
