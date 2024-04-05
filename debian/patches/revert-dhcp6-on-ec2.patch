@@ -9,7 +9,7 @@ Origin: other
 Last-Update: 2024-04-02
 --- a/cloudinit/sources/DataSourceEc2.py
 +++ b/cloudinit/sources/DataSourceEc2.py
-@@ -1066,6 +1066,8 @@
+@@ -1066,6 +1066,8 @@ def convert_ec2_metadata_network_config(
              "set-name": nic_name,
          }
          nic_metadata = macs_metadata.get(mac)
@@ -18,7 +18,7 @@ Last-Update: 2024-04-02
          netcfg["ethernets"][nic_name] = dev_config
          return netcfg
      # Apply network config for all nics and any secondary IPv4/v6 addresses
-@@ -1112,6 +1114,8 @@
+@@ -1112,6 +1114,8 @@ def convert_ec2_metadata_network_config(
                  table=table,
              )
          if nic_metadata.get("ipv6s"):  # Any IPv6 addresses configured
@@ -29,7 +29,7 @@ Last-Update: 2024-04-02
                  and nic_metadata.get("device-number")
 --- a/tests/integration_tests/test_upgrade.py
 +++ b/tests/integration_tests/test_upgrade.py
-@@ -153,13 +153,6 @@
+@@ -153,13 +153,6 @@ def test_clean_boot_of_upgraded_package(
              for values in post_network["network"]["ethernets"].values():
                  values.pop("dhcp6")
              assert yaml.dump(pre_network) == yaml.dump(post_network)
@@ -45,7 +45,7 @@ Last-Update: 2024-04-02
  
 --- a/tests/unittests/sources/test_ec2.py
 +++ b/tests/unittests/sources/test_ec2.py
-@@ -460,7 +460,7 @@
+@@ -452,7 +452,7 @@ class TestEc2:
                      "match": {"macaddress": "06:17:04:d7:26:09"},
                      "set-name": "eth9",
                      "dhcp4": True,
@@ -54,7 +54,7 @@ Last-Update: 2024-04-02
                  }
              },
          }
-@@ -545,7 +545,7 @@
+@@ -545,7 +545,7 @@ class TestEc2:
                          "2600:1f16:292:100:f153:12a3:c37c:11f9/128",
                      ],
                      "dhcp4": True,
@@ -63,7 +63,7 @@ Last-Update: 2024-04-02
                  }
              },
          }
-@@ -625,7 +625,7 @@
+@@ -636,7 +636,7 @@ class TestEc2:
                      "match": {"macaddress": mac1},
                      "set-name": "eth9",
                      "dhcp4": True,
@@ -72,8 +72,8 @@ Last-Update: 2024-04-02
                  }
              },
          }
-@@ -1154,7 +1154,7 @@
-                     "match": {"macaddress": self.mac1},
+@@ -1201,7 +1201,7 @@ class TestConvertEc2MetadataNetworkConfi
+                     "match": {"macaddress": self.MAC1},
                      "set-name": "eth9",
                      "dhcp4": True,
 -                    "dhcp6": False,
@@ -81,8 +81,8 @@ Last-Update: 2024-04-02
                  }
              },
          }
-@@ -1234,7 +1234,7 @@
-                     "match": {"macaddress": self.mac1},
+@@ -1271,7 +1271,7 @@ class TestConvertEc2MetadataNetworkConfi
+                     "match": {"macaddress": self.MAC1},
                      "set-name": "eth9",
                      "dhcp4": True,
 -                    "dhcp6": False,
@@ -90,7 +90,7 @@ Last-Update: 2024-04-02
                  }
              },
          }
-@@ -1267,7 +1267,8 @@
+@@ -1325,7 +1325,8 @@ class TestConvertEc2MetadataNetworkConfi
                      "set-name": "eth9",
                      "dhcp4": True,
                      "dhcp4-overrides": {"route-metric": 100},
@@ -100,7 +100,7 @@ Last-Update: 2024-04-02
                  },
                  "eth10": {
                      "match": {"macaddress": mac2},
-@@ -1326,9 +1327,10 @@
+@@ -1381,9 +1382,10 @@ class TestConvertEc2MetadataNetworkConfi
                  "eth9": {
                      "dhcp4": True,
                      "dhcp4-overrides": {"route-metric": 100},
@@ -112,7 +112,7 @@ Last-Update: 2024-04-02
                  },
                  "eth10": {
                      "dhcp4": True,
-@@ -1336,7 +1338,7 @@
+@@ -1391,7 +1393,7 @@ class TestConvertEc2MetadataNetworkConfi
                          "route-metric": 200,
                          "use-routes": True,
                      },
@@ -121,7 +121,7 @@ Last-Update: 2024-04-02
                      "match": {"macaddress": "06:17:04:d7:26:08"},
                      "set-name": "eth10",
                      "routes": [
-@@ -1359,6 +1361,10 @@
+@@ -1414,6 +1416,10 @@ class TestConvertEc2MetadataNetworkConfi
                              "table": 101,
                          },
                      ],
@@ -132,8 +132,8 @@ Last-Update: 2024-04-02
                      "addresses": ["2600:1f16:292:100:f153:12a3:c37c:11f9/128"],
                  },
              },
-@@ -1388,7 +1394,7 @@
-                     "match": {"macaddress": self.mac1},
+@@ -1440,7 +1446,7 @@ class TestConvertEc2MetadataNetworkConfi
+                     "match": {"macaddress": self.MAC1},
                      "set-name": "eth9",
                      "dhcp4": True,
 -                    "dhcp6": False,

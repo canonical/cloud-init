@@ -97,7 +97,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
          self.assertIn("Passthrough netplan v2 config", self.logs.getvalue())
          self.assertIn(
              "Selected renderer 'netplan' from priority list: ['netplan']",
-@@ -1035,12 +1047,16 @@ class TestNetCfgDistroArch(TestNetCfgDis
+@@ -1027,12 +1039,16 @@ class TestNetCfgDistroArch(TestNetCfgDis
          with mock.patch(
              "cloudinit.net.netplan.get_devicelist", return_value=[]
          ):
