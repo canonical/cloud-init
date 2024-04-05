@@ -1,4 +1,3 @@
-revert-dhcp6-on-ec2.patch
 expire-on-hashed-users.patch
 retain-old-groups.patch
 keep-dhclient-as-priority-client.patch
