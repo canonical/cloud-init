@@ -791,12 +791,20 @@ class Dhcpcd(DhcpClient):
         try:
             lease = dict(
                 [
-                    a.split("=")
+                    a.split("=", maxsplit=1)
                     for a in lease_dump.strip().replace("'", "").split("\n")
+                    if "=" in a
                 ]
             )
+            if not lease:
+                msg = (
+                    "No valid DHCP lease configuration "
+                    "found in dhcpcd lease: %r"
+                )
+                LOG.error(msg, lease_dump)
+                raise InvalidDHCPLeaseFileError(msg % lease_dump)
         except ValueError as error:
-            LOG.error("Error parsing dhcpcd lease: %r", error)
+            LOG.error("Error parsing dhcpcd lease: %r", lease_dump)
             raise InvalidDHCPLeaseFileError from error
 
         # this is expected by cloud-init's code

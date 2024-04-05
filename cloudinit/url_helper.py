@@ -281,11 +281,12 @@ def readurl(
     if sec_between is None:
         sec_between = -1
 
-    excps = []
+    if session is None:
+        session = requests.Session()
+
     # Handle retrying ourselves since the built-in support
     # doesn't handle sleeping between tries...
-    # Infinitely retry if infinite is True
-    for i in count() if infinite else range(manual_tries):
+    for i in count():
         req_args["headers"] = headers_cb(url)
         filtered_req_args = {}
         for (k, v) in req_args.items():
@@ -300,7 +301,6 @@ def readurl(
             else:
                 filtered_req_args[k] = v
         try:
-
             if log_req_resp:
                 LOG.debug(
                     "[%s/%s] open '%s' with %s configuration",
@@ -310,11 +310,7 @@ def readurl(
                     filtered_req_args,
                 )
 
-            if session is None:
-                session = requests.Session()
-
-            with session as sess:
-                r = sess.request(**req_args)
+            r = session.request(**req_args)
 
             if check_status:
                 r.raise_for_status()
@@ -329,6 +325,10 @@ def readurl(
             # subclass for responses, so add our own backward-compat
             # attrs
             return UrlResponse(r)
+        except exceptions.SSLError as e:
+            # ssl exceptions are not going to get fixed by waiting a
+            # few seconds
+            raise UrlError(e, url=url) from e
         except exceptions.RequestException as e:
             if (
                 isinstance(e, (exceptions.HTTPError))
@@ -337,29 +337,26 @@ def readurl(
                     e.response, "status_code"
                 )
             ):
-                excps.append(
-                    UrlError(
-                        e,
-                        code=e.response.status_code,
-                        headers=e.response.headers,
-                        url=url,
-                    )
+                url_error = UrlError(
+                    e,
+                    code=e.response.status_code,
+                    headers=e.response.headers,
+                    url=url,
                 )
             else:
-                excps.append(UrlError(e, url=url))
-                if isinstance(e, exceptions.SSLError):
-                    # ssl exceptions are not going to get fixed by waiting a
-                    # few seconds
-                    break
-            if exception_cb and not exception_cb(req_args.copy(), excps[-1]):
+                url_error = UrlError(e, url=url)
+
+            if exception_cb and not exception_cb(req_args.copy(), url_error):
                 # if an exception callback was given, it should return True
                 # to continue retrying and False to break and re-raise the
                 # exception
-                break
-            if (infinite and sec_between > 0) or (
-                i + 1 < manual_tries and sec_between > 0
-            ):
+                raise url_error from e
 
+            will_retry = infinite or (i + 1 < manual_tries)
+            if not will_retry:
+                raise url_error from e
+
+            if sec_between > 0:
                 if log_req_resp:
                     LOG.debug(
                         "Please wait %s seconds while we wait to try again",
@@ -367,7 +364,7 @@ def readurl(
                     )
                 time.sleep(sec_between)
 
-    raise excps[-1]
+    raise RuntimeError("This path should be unreachable...")
 
 
 def _run_func_with_delay(

@@ -1211,6 +1211,70 @@ class TestDhcpcd:
                 Dhcpcd.parse_dhcpcd_lease(lease, "eth0")
 
     @pytest.mark.parametrize(
+        "lease, parsed",
+        (
+            pytest.param(
+                """
+
+                domain_name='us-east-2.compute.internal'
+
+                domain_name_servers='192.168.0.2'
+
+                """,
+                {
+                    "domain_name": "us-east-2.compute.internal",
+                    "domain_name_servers": "192.168.0.2",
+                },
+                id="lease_has_empty_lines",
+            ),
+            pytest.param(
+                """
+                domain_name='us-east-2.compute.internal'
+                not-a-kv-pair
+                domain_name_servers='192.168.0.2'
+                """,
+                {
+                    "domain_name": "us-east-2.compute.internal",
+                    "domain_name_servers": "192.168.0.2",
+                },
+                id="lease_has_values_that_arent_key_value_pairs",
+            ),
+            pytest.param(
+                """
+                domain_name='us-east=2.compute.internal'
+                """,
+                {
+                    "domain_name": "us-east=2.compute.internal",
+                },
+                id="lease_has_kv_pair_including_equals_sign_in_value",
+            ),
+        ),
+    )
+    def test_parse_lease_dump_resilience(self, lease, parsed):
+        with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
+            Dhcpcd.parse_dhcpcd_lease(dedent(lease), "eth0")
+
+    def test_parse_lease_dump_fails(self):
+        def _raise():
+            raise ValueError()
+
+        lease = mock.Mock()
+        lease.strip = _raise
+
+        with pytest.raises(InvalidDHCPLeaseFileError):
+            with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
+                Dhcpcd.parse_dhcpcd_lease(lease, "eth0")
+
+        with pytest.raises(InvalidDHCPLeaseFileError):
+            with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
+                lease = dedent(
+                    """
+                    fail
+                    """
+                )
+                Dhcpcd.parse_dhcpcd_lease(lease, "eth0")
+
+    @pytest.mark.parametrize(
         "lease_file, option_245",
         (
             pytest.param("enp24s0.lease", None, id="no option 245"),
