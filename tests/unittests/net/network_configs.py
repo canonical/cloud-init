@@ -1107,6 +1107,8 @@ NETWORK_CONFIGS = {
               - {'type': 'ipv6_slaac'}
         """
         ).rstrip(" "),
+        # A yaml_v2 doesn't make sense here as the configuration looks exactly
+        # the same as the dhcpv6_only test.
         "expected_sysconfig_opensuse": {
             "ifcfg-iface0": textwrap.dedent(
                 """\
