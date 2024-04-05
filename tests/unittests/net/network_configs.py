@@ -3,7 +3,7 @@
 import textwrap
 
 NETWORK_CONFIGS = {
-    "small_v1_suse_dhcp6": {
+    "small_suse_dhcp6": {
         "expected_sysconfig_opensuse": {
             "ifcfg-eth1": textwrap.dedent(
                 """\
@@ -21,7 +21,7 @@ NETWORK_CONFIGS = {
                 STARTMODE=auto"""
             ),
         },
-        "yaml": textwrap.dedent(
+        "yaml_v1": textwrap.dedent(
             """
             version: 1
             config:
@@ -53,6 +53,35 @@ NETWORK_CONFIGS = {
                   search:
                     - wark.maas
         """
+        ),
+        "yaml_v2": textwrap.dedent(
+            """
+            version: 2
+            ethernets:
+                eth1:
+                    match:
+                        macaddress: cf:d6:af:48:e8:80
+                    set-name: eth1
+                eth99:
+                    dhcp4: true
+                    dhcp6: true
+                    addresses:
+                    - 192.168.21.3/24
+                    match:
+                        macaddress: c0:d6:9f:2c:e8:80
+                    nameservers:
+                        addresses:
+                        - 8.8.8.8
+                        - 8.8.4.4
+                        search:
+                        - barley.maas
+                        - sach.maas
+                    routes:
+                    -   metric: 10000
+                        to: 0.0.0.0/0
+                        via: 65.61.151.37
+                    set-name: eth99
+            """
         ),
     },
     "small_v1": {
@@ -802,6 +831,8 @@ NETWORK_CONFIGS = {
                   - type: dhcp4
         """
         ).rstrip(" "),
+        # Do not include a yaml_v2 here as it renders exactly the same as
+        # the v4_and_v6 case, and that's fine
     },
     "dhcpv6_only": {
         "expected_networkd": textwrap.dedent(
