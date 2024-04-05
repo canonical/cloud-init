@@ -1161,7 +1161,7 @@ NETWORK_CONFIGS = {
         },
     },
     "static6": {
-        "yaml": textwrap.dedent(
+        "yaml_v1": textwrap.dedent(
             """\
         version: 1
         config:
@@ -1173,6 +1173,16 @@ NETWORK_CONFIGS = {
               address: 2001:1::1/64
     """
         ).rstrip(" "),
+        "yaml_v2": textwrap.dedent(
+            """\
+            version: 2
+            ethernets:
+                iface0:
+                    accept-ra: false
+                    addresses:
+                    - 2001:1::1/64
+            """
+        ),
         "expected_sysconfig_rhel": {
             "ifcfg-iface0": textwrap.dedent(
                 """\
