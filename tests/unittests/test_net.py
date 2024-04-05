@@ -4021,6 +4021,7 @@ class TestEniRoundTrip:
                 ),
             ),
             ("dhcpv6_accept_ra", "yaml_v1"),
+            ("dhcpv6_accept_ra", "yaml_v2"),
             ("dhcpv6_reject_ra", "yaml_v1"),
             ("wakeonlan_disabled", "yaml_v2"),
             ("wakeonlan_enabled", "yaml_v2"),
