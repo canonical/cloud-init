@@ -555,6 +555,7 @@ class DataSourceAzure(sources.DataSource):
         )
 
     def _check_azure_proxy_agent_status(self) -> None:
+        '''check if azure-proxy-agent is working correctly. If not, fail provisioning.'''
         try:
             cmd = [
                 "azure-proxy-agent",
@@ -667,8 +668,6 @@ class DataSourceAzure(sources.DataSource):
         if self._is_ephemeral_networking_up():
             # check if azure-proxy-agent is enabled in the ovf-env.xml file.
             if cfg.get("ProvisionGuestProxyAgent"):
-                # check if azure-proxy-agent is working correctly when enabled
-                # in the ovf-env.xml file. If not, fail provisioning.
                 self._check_azure_proxy_agent_status()
 
             imds_md = self.get_metadata_from_imds(report_failure=True)

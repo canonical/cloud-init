@@ -54,6 +54,16 @@ def mock_wrapping_setup_ephemeral_networking(azure_ds):
 
 
 @pytest.fixture
+def mock_wrapping_report_failure(azure_ds):
+    with mock.patch.object(
+        azure_ds,
+        "_report_failure",
+        wraps=azure_ds._report_failure,
+    ) as m:
+        yield m
+
+
+@pytest.fixture
 def mock_azure_helper_readurl():
     with mock.patch(
         "cloudinit.sources.helpers.azure.url_helper.readurl", autospec=True
@@ -327,6 +337,15 @@ def mock_util_mount_cb():
         MOCKPATH + "util.mount_cb",
         autospec=True,
         return_value=({}, "", {}, {}),
+    ) as m:
+        yield m
+
+
+@pytest.fixture
+def mock_report_failure():
+    with mock.patch(
+        MOCKPATH + "_report_failure",
+        autospec=True,
     ) as m:
         yield m
 
@@ -3797,12 +3816,14 @@ class TestProvisioning:
 
         # Verify reports via KVP.
         assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
+        assert len(self.mock_azure_report_failure_to_fabric.mock_calls) == 0
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
         # Verify dmesg reported via KVP.
         assert len(self.mock_report_dmesg_to_kvp.mock_calls) == 1
 
     def test_no_pps_gpa(self):
+        """test full provisioning scope when azure-proxy-agent is enabled and running."""
         self.mock_subp_subp.side_effect = [
             subp.SubpResult("Guest Proxy Agent running", ""),
         ]
@@ -3879,12 +3900,15 @@ class TestProvisioning:
 
         # Verify reports via KVP.
         assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
+        assert len(self.mock_azure_report_failure_to_fabric.mock_calls) == 0
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
         # Verify dmesg reported via KVP.
         assert len(self.mock_report_dmesg_to_kvp.mock_calls) == 1
 
     def test_no_pps_gpa_fail(self):
+        """test full provisioning scope when azure-proxy-agent is enabled and
+        throwing an exception during provisioning."""
         self.mock_subp_subp.side_effect = [
             subp.ProcessExecutionError(
                 cmd=["failed", "azure-proxy-agent"],
@@ -4656,23 +4680,39 @@ class TestProvisioning:
 
 class TestCheckAzureProxyAgent:
     @pytest.fixture(autouse=True)
-    def proxy_setup(self, azure_ds, mock_subp_subp):
+    def proxy_setup(
+        self,
+        azure_ds,
+        mock_subp_subp,
+        caplog,
+        mock_wrapping_report_failure,
+        mock_timestamp,
+    ):
         self.azure_ds = azure_ds
         self.mock_subp_subp = mock_subp_subp
+        self.caplog = caplog
+        self.mock_wrapping_report_failure = mock_wrapping_report_failure
+        self.mock_timestamp = mock_timestamp
 
-    def test_check_azure_proxy_agent_status(self, caplog):
+    def test_check_azure_proxy_agent_status(self):
         self.mock_subp_subp.side_effect = [
             subp.SubpResult("Guest Proxy Agent running", ""),
         ]
         self.azure_ds._check_azure_proxy_agent_status()
-        assert "Running azure-proxy-agent" in caplog.text
+        assert "Running azure-proxy-agent" in self.caplog.text
+        assert self.mock_wrapping_report_failure.mock_calls == []
 
-    def test_check_azure_proxy_agent_status_notfound(self, caplog):
+    def test_check_azure_proxy_agent_status_notfound(self):
         self.mock_subp_subp.side_effect = [FileNotFoundError]
         self.azure_ds._check_azure_proxy_agent_status()
-        assert "azure-proxy-agent not found" in caplog.text
+        assert "azure-proxy-agent not found" in self.caplog.text
+        assert self.mock_wrapping_report_failure.mock_calls == [
+            mock.call(
+                errors.ReportableErrorProxyAgentNotFound(),
+            ),
+        ]
 
-    def test_check_azure_proxy_agent_status_failure(self, caplog):
+    def test_check_azure_proxy_agent_status_failure(self):
         self.mock_subp_subp.side_effect = [
             subp.ProcessExecutionError(
                 cmd=["failed", "azure-proxy-agent"],
@@ -4682,7 +4722,19 @@ class TestCheckAzureProxyAgent:
             ),
         ]
         self.azure_ds._check_azure_proxy_agent_status()
-        assert "azure-proxy-agent status failure" in caplog.text
+        assert "azure-proxy-agent status failure" in self.caplog.text
+        exception = subp.ProcessExecutionError(
+            stdout="test_stdout",
+            stderr="test_stderr",
+            exit_code=4,
+        )
+        assert self.mock_wrapping_report_failure.mock_calls == [
+            mock.call(
+                errors.ReportableErrorProxyAgentStatusFailure(
+                    exception=exception
+                ),
+            ),
+        ]
 
 
 class TestGetMetadataFromImds:
