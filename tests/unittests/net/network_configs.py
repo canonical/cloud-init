@@ -861,7 +861,7 @@ NETWORK_CONFIGS = {
                         dhcp6: true
         """
         ).rstrip(" "),
-        "yaml": textwrap.dedent(
+        "yaml_v1": textwrap.dedent(
             """\
             version: 1
             config:
@@ -871,6 +871,14 @@ NETWORK_CONFIGS = {
                 - {'type': 'dhcp6'}
         """
         ).rstrip(" "),
+        "yaml_v2": textwrap.dedent(
+            """\
+            version: 2
+            ethernets:
+                iface0:
+                    dhcp6: true
+            """
+        ),
         "expected_sysconfig_opensuse": {
             "ifcfg-iface0": textwrap.dedent(
                 """\
