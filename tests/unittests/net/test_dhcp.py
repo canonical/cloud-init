@@ -288,6 +288,17 @@ class TestDHCPParseStaticRoutes(CiTestCase):
             IscDhclient.parse_static_routes(rfc3442),
         )
 
+    def test_unknown_121(self):
+        for unknown121 in [
+            "0:a:0:0:1:20:a8:3f:81:10:a:0:0:1:20:a9:fe:a9:fe:a:0:0:1",
+            "0:a:0:0:1:20:a8:3f:81:10:a:0:0:1:20:a9:fe:a9:fe:a:0:0:1;",
+        ]:
+            assert IscDhclient.parse_static_routes(unknown121) == [
+                ("0.0.0.0/0", "10.0.0.1"),
+                ("168.63.129.16/32", "10.0.0.1"),
+                ("169.254.169.254/32", "10.0.0.1"),
+            ]
+
     def test_parse_static_routes_default_route(self):
         rfc3442 = "0,130,56,240,1"
         self.assertEqual(
