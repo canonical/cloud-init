@@ -1230,6 +1230,8 @@ NETWORK_CONFIGS = {
             - {'type': 'ipv6_dhcpv6-stateless'}
     """
         ).rstrip(" "),
+        # yaml_v2 makes no sense here as it would be the exact same
+        # configuration as the dhcpv6_only test
         "expected_sysconfig_opensuse": {
             "ifcfg-iface0": textwrap.dedent(
                 """\
@@ -1314,6 +1316,8 @@ NETWORK_CONFIGS = {
             accept-ra: true
     """
         ).rstrip(" "),
+        # yaml_v2 makes no sense here as it would be the exact same
+        # configuration as the dhcpv6_only test
         "expected_sysconfig_opensuse": {
             "ifcfg-iface0": textwrap.dedent(
                 """\
@@ -2333,6 +2337,108 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                   metric: 3
         """
         ).lstrip(),
+    },
+    "all_v2": {
+        "yaml": textwrap.dedent(
+            """
+            version: 2
+            ethernets:
+                eth0:
+                    match:
+                    macaddress: c0:d6:9f:2c:e8:80
+                    set-name: eth0
+                eth1:
+                    match:
+                    macaddress: aa:d6:9f:2c:e8:80
+                    set-name: eth1
+                eth2:
+                    match:
+                    macaddress: c0:bb:9f:2c:e8:80
+                    set-name: eth2
+                eth3:
+                    match:
+                    macaddress: 66:bb:9f:2c:e8:80
+                    set-name: eth3
+                eth4:
+                    match:
+                    macaddress: 98:bb:9f:2c:e8:80
+                    set-name: eth4
+                eth5:
+                    dhcp4: true
+                    match:
+                    macaddress: 98:bb:9f:2c:e8:8a
+                    set-name: eth5
+            bonds:
+                bond0:
+                    dhcp6: true
+                    interfaces:
+                      - eth1
+                      - eth2
+                    macaddress: aa:bb:cc:dd:ee:ff
+                    parameters:
+                        mii-monitor-interval: 100
+                        mode: active-backup
+                        transmit-hash-policy: layer3+4
+            bridges:
+                br0:
+                    addresses:
+                      - 192.168.14.2/24
+                      - 2001:1::1/64
+                    interfaces:
+                      - eth3
+                      - eth4
+                    macaddress: bb:bb:bb:bb:bb:aa
+                    nameservers:
+                        addresses:
+                          - 8.8.8.8
+                          - 4.4.4.4
+                          - 8.8.4.4
+                        search:
+                          - barley.maas
+                          - wark.maas
+                          - foobar.maas
+                    parameters:
+                        ageing-time: 250
+                        forward-delay: 1
+                        hello-time: 1
+                        max-age: 10
+                        path-cost:
+                            eth3: 50
+                            eth4: 75
+                        port-priority:
+                            eth3: 28
+                            eth4: 14
+                        priority: 22
+                        stp: false
+                    routes:
+                      - to: ::/0
+                        via: 2001:4800:78ff:1b::1
+                vlans:
+                    bond0.200:
+                        dhcp4: true
+                        id: 200
+                        link: bond0
+                    eth0.101:
+                        addresses:
+                          - 192.168.0.2/24
+                          - 192.168.2.10/24
+                    id: 101
+                    link: eth0
+                    macaddress: aa:bb:cc:dd:ee:11
+                    mtu: 1500
+                    nameservers:
+                        addresses:
+                          - 192.168.0.10
+                          - 10.23.23.134
+                        search:
+                          - barley.maas
+                          - sacchromyces.maas
+                          - brettanomyces.maas
+                    routes:
+                      - to: default
+                        via: 192.168.0.1
+            """
+        ),
     },
     "bond": {
         "yaml": textwrap.dedent(
