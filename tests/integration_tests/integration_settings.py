@@ -88,6 +88,12 @@ LOCAL_LOG_PATH = "/tmp/cloud_init_test_logs"
 # `html` directory with the coverage report.
 INCLUDE_COVERAGE = False
 
+# We default our profile to False because it involves modifying the
+# cloud-init systemd services, which is too intrusive of a change to
+# enable by default. If changed to true, the test directory corresponding
+# to the test run under LOCAL_LOG_PATH defined above will contain a report
+INCLUDE_PROFILE = False
+
 ##################################################################
 # USER SETTINGS OVERRIDES
 ##################################################################
