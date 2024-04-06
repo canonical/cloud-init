@@ -76,7 +76,7 @@ gptid/4cd084b4-7fb4-11ee-a7ba-002590ec5bf2  N/A  vtbd0p4
         mock_subp.return_value = (glabel_out, "")
         res = find_freebsd_part(
             "/dev/gptid/4cd084b4-7fb4-11ee-a7ba-002590ec5bf2"
-            )
+        )
         self.assertEqual("vtbd0p4", res)
 
     @mock.patch("cloudinit.subp.subp")
