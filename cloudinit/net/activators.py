@@ -1,10 +1,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, Iterable, List, Optional, Type, Union
+from functools import partial
+from typing import Callable, Dict, Iterable, List, Optional, Type, Union
 
 from cloudinit import subp, util
 from cloudinit.net.eni import available as eni_available
+from cloudinit.net.netops.iproute2 import Iproute2
 from cloudinit.net.netplan import available as netplan_available
 from cloudinit.net.network_manager import available as nm_available
 from cloudinit.net.network_state import NetworkState
@@ -17,15 +19,24 @@ class NoActivatorException(Exception):
     pass
 
 
-def _alter_interface(cmd, device_name) -> bool:
-    LOG.debug("Attempting command %s for device %s", cmd, device_name)
+def _alter_interface(cmd: list, device_name: str) -> bool:
+    """Attempt to alter an interface using a command list"""
+    return _alter_interface_callable(partial(subp.subp, cmd))
+
+
+def _alter_interface_callable(callable: Callable) -> bool:
+    """Attempt to alter an interface using a callable
+
+    this function standardizes logging and response to failure for
+    various activators
+    """
     try:
-        (_out, err) = subp.subp(cmd)
+        _out, err = callable()
         if len(err):
-            LOG.warning("Running %s resulted in stderr output: %s", cmd, err)
+            LOG.warning("Received stderr output: %s", err)
         return True
-    except subp.ProcessExecutionError:
-        util.logexc(LOG, "Running interface command %s failed", cmd)
+    except subp.ProcessExecutionError as e:
+        util.logexc(LOG, "Running interface command %s failed", e.cmd)
         return False
 
 
@@ -231,8 +242,9 @@ class NetworkdActivator(NetworkActivator):
     @staticmethod
     def bring_up_interface(device_name: str) -> bool:
         """Return True is successful, otherwise return False"""
-        cmd = ["ip", "link", "set", "up", device_name]
-        return _alter_interface(cmd, device_name)
+        return _alter_interface_callable(
+            partial(Iproute2.link_up, device_name)
+        )
 
     @staticmethod
     def bring_up_all_interfaces(network_state: NetworkState) -> bool:
@@ -243,8 +255,9 @@ class NetworkdActivator(NetworkActivator):
     @staticmethod
     def bring_down_interface(device_name: str) -> bool:
         """Return True is successful, otherwise return False"""
-        cmd = ["ip", "link", "set", "down", device_name]
-        return _alter_interface(cmd, device_name)
+        return _alter_interface_callable(
+            partial(Iproute2.link_down, device_name)
+        )
 
 
 # This section is mostly copied and pasted from renderers.py. An abstract

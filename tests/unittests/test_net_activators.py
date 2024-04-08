@@ -234,8 +234,8 @@ NETWORK_MANAGER_BRING_UP_CALL_LIST: list = [
 ]
 
 NETWORKD_BRING_UP_CALL_LIST: list = [
-    ((["ip", "link", "set", "up", "eth0"],), {}),
-    ((["ip", "link", "set", "up", "eth1"],), {}),
+    ((["ip", "link", "set", "dev", "eth0", "up"],), {}),
+    ((["ip", "link", "set", "dev", "eth1", "up"],), {}),
     ((["systemctl", "restart", "systemd-networkd", "systemd-resolved"],), {}),
 ]
 
@@ -300,8 +300,8 @@ NETWORK_MANAGER_BRING_DOWN_CALL_LIST: list = [
 ]
 
 NETWORKD_BRING_DOWN_CALL_LIST: list = [
-    ((["ip", "link", "set", "down", "eth0"],), {}),
-    ((["ip", "link", "set", "down", "eth1"],), {}),
+    ((["ip", "link", "set", "dev", "eth0", "down"],), {}),
+    ((["ip", "link", "set", "dev", "eth1", "down"],), {}),
 ]
 
 
