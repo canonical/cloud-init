@@ -14,6 +14,7 @@ import responses
 from cloudinit import helpers
 from cloudinit.net import activators
 from cloudinit.sources import DataSourceEc2 as ec2
+from cloudinit.sources import NicOrder
 from tests.unittests.util import MockDistro
 
 DYNAMIC_METADATA = {
@@ -1041,11 +1042,18 @@ class TestGetSecondaryAddresses:
 
 class TestBuildNicOrder:
     @pytest.mark.parametrize(
-        ["macs_metadata", "macs", "expected"],
+        ["macs_metadata", "macs_to_nics", "default_nic_order", "expected"],
         [
-            pytest.param({}, [], {}, id="all_empty"),
+            pytest.param({}, {}, NicOrder.MAC, {}, id="all_empty"),
             pytest.param(
-                {}, ["0a:f7:8d:96:f2:a1"], {}, id="empty_macs_metadata"
+                {}, {}, NicOrder.NIC_NAME, {}, id="all_empty_sort_by_nic_name"
+            ),
+            pytest.param(
+                {},
+                {"0a:f7:8d:96:f2:a1": "eth0"},
+                NicOrder.MAC,
+                {},
+                id="empty_macs_metadata",
             ),
             pytest.param(
                 {
@@ -1054,7 +1062,8 @@ class TestBuildNicOrder:
                         "mac": "0a:0d:dd:44:cd:7b",
                     }
                 },
-                [],
+                {},
+                NicOrder.MAC,
                 {},
                 id="empty_macs",
             ),
@@ -1067,8 +1076,9 @@ class TestBuildNicOrder:
                         "mac": "0a:f7:8d:96:f2:a1",
                     },
                 },
-                ["0a:f7:8d:96:f2:a1", "0a:0d:dd:44:cd:7b"],
-                {"0a:f7:8d:96:f2:a1": 0, "0a:0d:dd:44:cd:7b": 1},
+                {"0a:f7:8d:96:f2:a1": "eth0", "0a:0d:dd:44:cd:7b": "eth1"},
+                NicOrder.MAC,
+                {"0a:0d:dd:44:cd:7b": 0, "0a:f7:8d:96:f2:a1": 1},
                 id="no-device-number-info",
             ),
             pytest.param(
@@ -1080,7 +1090,8 @@ class TestBuildNicOrder:
                         "mac": "0a:f7:8d:96:f2:a1",
                     },
                 },
-                ["0a:f7:8d:96:f2:a1"],
+                {"0a:f7:8d:96:f2:a1": "eth0"},
+                NicOrder.MAC,
                 {"0a:f7:8d:96:f2:a1": 0},
                 id="no-device-number-info-subset",
             ),
@@ -1095,7 +1106,8 @@ class TestBuildNicOrder:
                         "mac": "0a:f7:8d:96:f2:a1",
                     },
                 },
-                ["0a:f7:8d:96:f2:a1", "0a:0d:dd:44:cd:7b"],
+                {"0a:0d:dd:44:cd:7b": "eth0", "0a:f7:8d:96:f2:a1": "eth1"},
+                NicOrder.MAC,
                 {"0a:0d:dd:44:cd:7b": 0, "0a:f7:8d:96:f2:a1": 1},
                 id="device-numbers",
             ),
@@ -1117,11 +1129,12 @@ class TestBuildNicOrder:
                         "mac": "0a:f7:8d:96:f2:a1",
                     },
                 },
-                [
-                    "0a:f7:8d:96:f2:a1",
-                    "0a:0d:dd:44:cd:7b",
-                    "0a:f7:8d:96:f2:a2",
-                ],
+                {
+                    "0a:0d:dd:44:cd:7b": "eth0",
+                    "0a:f7:8d:96:f2:a1": "eth1",
+                    "0a:f7:8d:96:f2:a2": "eth2",
+                },
+                NicOrder.MAC,
                 {
                     "0a:0d:dd:44:cd:7b": 0,
                     "0a:f7:8d:96:f2:a1": 1,
@@ -1143,14 +1156,15 @@ class TestBuildNicOrder:
                     },
                     "0a:f7:8d:96:f2:a2": {
                         "device-number": "1",
-                        "mac": "0a:f7:8d:96:f2:a1",
+                        "mac": "0a:f7:8d:96:f2:a2",
                     },
                 },
-                [
-                    "0a:f7:8d:96:f2:a1",
-                    "0a:0d:dd:44:cd:7b",
-                    "0a:f7:8d:96:f2:a2",
-                ],
+                {
+                    "0a:0d:dd:44:cd:7b": "eth0",
+                    "0a:f7:8d:96:f2:a1": "eth1",
+                    "0a:f7:8d:96:f2:a2": "eth2",
+                },
+                NicOrder.MAC,
                 {
                     "0a:0d:dd:44:cd:7b": 0,
                     "0a:f7:8d:96:f2:a1": 1,
@@ -1167,14 +1181,182 @@ class TestBuildNicOrder:
                         "mac": "0a:f7:8d:96:f2:a1",
                     },
                 },
-                ["0a:f7:8d:96:f2:a9"],
+                {"0a:f7:8d:96:f2:a9": "eth0"},
+                NicOrder.MAC,
                 {},
                 id="macs-not-in-md",
             ),
+            pytest.param(
+                {},
+                {"0a:f7:8d:96:f2:a1": "eth0"},
+                NicOrder.NIC_NAME,
+                {},
+                id="empty_macs_metadata_sort_by_nic_name",
+            ),
+            pytest.param(
+                {
+                    "0a:0d:dd:44:cd:7b": {
+                        "device-number": "0",
+                        "mac": "0a:0d:dd:44:cd:7b",
+                    }
+                },
+                {},
+                NicOrder.NIC_NAME,
+                {},
+                id="empty_macs_sort_by_nic_name",
+            ),
+            pytest.param(
+                {
+                    "0a:0d:dd:44:cd:7b": {
+                        "mac": "0a:0d:dd:44:cd:7b",
+                    },
+                    "0a:f7:8d:96:f2:a1": {
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                },
+                {"0a:f7:8d:96:f2:a1": "eth0", "0a:0d:dd:44:cd:7b": "eth1"},
+                NicOrder.NIC_NAME,
+                {"0a:f7:8d:96:f2:a1": 0, "0a:0d:dd:44:cd:7b": 1},
+                id="no-device-number-info-sort-by-nic-name",
+            ),
+            pytest.param(
+                {
+                    "0a:0d:dd:44:cd:7b": {
+                        "mac": "0a:0d:dd:44:cd:7b",
+                    },
+                    "0a:f7:8d:96:f2:a1": {
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                },
+                {"0a:f7:8d:96:f2:a1": "eth0"},
+                NicOrder.NIC_NAME,
+                {"0a:f7:8d:96:f2:a1": 0},
+                id="no-device-number-info-subset-sort-by-nic-name",
+            ),
+            pytest.param(
+                {
+                    "0a:0d:dd:44:cd:7b": {
+                        "device-number": "0",
+                        "mac": "0a:0d:dd:44:cd:7b",
+                    },
+                    "0a:f7:8d:96:f2:a1": {
+                        "device-number": "1",
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                },
+                {"0a:0d:dd:44:cd:7b": "eth0", "0a:f7:8d:96:f2:a1": "eth1"},
+                NicOrder.NIC_NAME,
+                {"0a:0d:dd:44:cd:7b": 0, "0a:f7:8d:96:f2:a1": 1},
+                id="device-numbers-sort-by-nic-name",
+            ),
+            pytest.param(
+                {
+                    "0a:0d:dd:44:cd:7b": {
+                        "network-card": "1",
+                        "device-number": "1",
+                        "mac": "0a:0d:dd:44:cd:7b",
+                    },
+                    "0a:f7:8d:96:f2:a1": {
+                        "network-card": "0",
+                        "device-number": "0",
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                    "0a:f7:8d:96:f2:a2": {
+                        "network-card": "2",
+                        "device-number": "1",
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                },
+                {
+                    "0a:f7:8d:96:f2:a1": "eth0",
+                    "0a:0d:dd:44:cd:7b": "eth1",
+                    "0a:f7:8d:96:f2:a2": "eth2",
+                },
+                NicOrder.MAC,
+                {
+                    "0a:f7:8d:96:f2:a1": 0,
+                    "0a:0d:dd:44:cd:7b": 1,
+                    "0a:f7:8d:96:f2:a2": 2,
+                },
+                id="network-cardes-sort-by-nic-name",
+            ),
+            pytest.param(
+                {
+                    "0a:0d:dd:44:cd:7b": {
+                        "network-card": "0",
+                        "device-number": "0",
+                        "mac": "0a:0d:dd:44:cd:7b",
+                    },
+                    "0a:f7:8d:96:f2:a1": {
+                        "network-card": "1",
+                        "device-number": "1",
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                    "0a:f7:8d:96:f2:a2": {
+                        "device-number": "1",
+                        "mac": "0a:f7:8d:96:f2:a2",
+                    },
+                },
+                {
+                    "0a:0d:dd:44:cd:7b": "eth0",
+                    "0a:f7:8d:96:f2:a1": "eth1",
+                    "0a:f7:8d:96:f2:a2": "eth2",
+                },
+                NicOrder.NIC_NAME,
+                {
+                    "0a:0d:dd:44:cd:7b": 0,
+                    "0a:f7:8d:96:f2:a1": 1,
+                    "0a:f7:8d:96:f2:a2": 2,
+                },
+                id="network-card-partially-missing-sort-by-nic-name",
+            ),
+            pytest.param(
+                {
+                    "0a:0d:dd:44:cd:7b": {
+                        "mac": "0a:0d:dd:44:cd:7b",
+                    },
+                    "0a:f7:8d:96:f2:a1": {
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                },
+                {"0a:f7:8d:96:f2:a9": "eth0"},
+                NicOrder.NIC_NAME,
+                {},
+                id="macs-not-in-md-sort-by-nic-name",
+            ),
+            pytest.param(
+                {
+                    "0a:0d:dd:44:cd:7b": {
+                        "mac": "0a:0d:dd:44:cd:7b",
+                    },
+                    "0a:f7:8d:96:f2:a1": {
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                    "0a:f7:8d:96:f2:a2": {
+                        "mac": "0a:f7:8d:96:f2:a1",
+                    },
+                },
+                {
+                    "0a:f7:8d:96:f2:a1": "eth0",
+                    "0a:0d:dd:44:cd:7b": "eth1",
+                    "0a:f7:8d:96:f2:a2": "eth2",
+                },
+                NicOrder.NIC_NAME,
+                {
+                    "0a:f7:8d:96:f2:a1": 0,
+                    "0a:0d:dd:44:cd:7b": 1,
+                    "0a:f7:8d:96:f2:a2": 2,
+                },
+                id="no-device-number-info-subset-sort-by-nic-name",
+            ),
         ],
     )
-    def test_build_nic_order(self, macs_metadata, macs, expected):
-        assert expected == ec2._build_nic_order(macs_metadata, macs)
+    def test_build_nic_order(
+        self, macs_metadata, macs_to_nics, default_nic_order, expected
+    ):
+        assert expected == ec2._build_nic_order(
+            macs_metadata, macs_to_nics, default_nic_order
+        )
 
 
 class TestConvertEc2MetadataNetworkConfig:

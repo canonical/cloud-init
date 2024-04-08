@@ -7,7 +7,7 @@ from typing import List
 from cloudinit import dmi, sources
 from cloudinit.event import EventScope, EventType
 from cloudinit.sources import DataSourceEc2 as EC2
-from cloudinit.sources import DataSourceHostname
+from cloudinit.sources import DataSourceHostname, NicOrder
 
 LOG = logging.getLogger(__name__)
 
@@ -32,6 +32,11 @@ class DataSourceAliYun(EC2.DataSourceEc2):
         super(DataSourceAliYun, self).__init__(sys_cfg, distro, paths)
         self.default_update_events = copy.deepcopy(self.default_update_events)
         self.default_update_events[EventScope.NETWORK].add(EventType.BOOT)
+        self._fallback_nic_order = NicOrder.NIC_NAME
+
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        super()._unpickle(ci_pkl_version)
+        self._fallback_nic_order = NicOrder.NIC_NAME
 
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         hostname = self.metadata.get("hostname")
