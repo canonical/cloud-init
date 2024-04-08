@@ -299,14 +299,14 @@ class TestGetSchema:
         assert [] == sorted(legacy_schema_keys)
 
     def test_new_schema_location(self):
-        schema_dir = get_schema_dir("/usr/share/doc/cloud-init/")
+        schema_dir = get_schema_dir("/usr/share/cloud-init")
         schema_file = tempfile.NamedTemporaryFile()
-        schema_file.name = os.path.join(schema_dir+"/",VERSIONED_USERDATA_SCHEMA_FILE)
+        schema_file.name = os.path.join(schema_dir+"/", VERSIONED_USERDATA_SCHEMA_FILE)
 
-        assert schema_file.name == "/usr/share/doc/cloud-init/schemas/versions.schema.cloud-config.json"
+        assert schema_file.name == "/usr/share/cloud-init/schemas/versions.schema.cloud-config.json"
 
     def test_load_file_from_new_location(self):
-        schema_dir = get_schema_dir("/usr/share/doc/cloud-init/")
+        schema_dir = get_schema_dir("/usr/share/cloud-init")
         schema_file = tempfile.NamedTemporaryFile()
         schema_file.name = os.path.join(schema_dir+"/", VERSIONED_USERDATA_SCHEMA_FILE)
 

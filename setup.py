@@ -302,7 +302,7 @@ data_files = [
         [f for f in glob("doc/examples/seed/*") if is_f(f)],
     ),
     (
-        USR + "/share/doc/cloud-init/schemas",
+        USR + "/usr/share/cloud-init/schemas",
         [f for f in glob("schemas/*") if is_f(f)],
     ),
 ]
