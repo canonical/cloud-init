@@ -314,6 +314,7 @@ class EphemeralDHCPv4:
                 "rfc3442-classless-static-routes",
                 "classless-static-routes",
                 "static_routes",
+                "unknown-121",
             ],
             "router": "routers",
         }
