@@ -166,6 +166,13 @@ class IntegrationInstance:
         )
         assert self.execute("python3 /var/tmp/enable_coverage.py").ok
 
+    def install_profile(self):
+        self.push_file(
+            local_path=ASSETS_DIR / "enable_profile.py",
+            remote_path="/var/tmp/enable_profile.py",
+        )
+        assert self.execute("python3 /var/tmp/enable_profile.py").ok
+
     def install_new_cloud_init(
         self,
         source: CloudInitSource,
