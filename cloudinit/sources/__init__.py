@@ -83,6 +83,16 @@ class NetworkConfigSource(Enum):
         return self.value
 
 
+class NicOrder(Enum):
+    """Represents ways to sort NICs"""
+
+    MAC = "mac"
+    NIC_NAME = "nic_name"
+
+    def __str__(self) -> str:
+        return self.value
+
+
 class DatasourceUnpickleUserDataError(Exception):
     """Raised when userdata is unable to be unpickled due to python upgrades"""
 

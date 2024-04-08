@@ -152,6 +152,11 @@ class TestReadFileOrUrl(CiTestCase):
 
         m_response = mock.MagicMock()
 
+        class FakeSessionRaisesHttpError(requests.Session):
+            @classmethod
+            def request(cls, **kwargs):
+                raise requests.exceptions.HTTPError("broke")
+
         class FakeSession(requests.Session):
             @classmethod
             def request(cls, **kwargs):
@@ -171,8 +176,10 @@ class TestReadFileOrUrl(CiTestCase):
                 return m_response
 
         with mock.patch(M_PATH + "requests.Session") as m_session:
-            error = requests.exceptions.HTTPError("broke")
-            m_session.side_effect = [error, FakeSession()]
+            m_session.side_effect = [
+                FakeSessionRaisesHttpError(),
+                FakeSession(),
+            ]
             # assert no retries and check_status == True
             with self.assertRaises(UrlError) as context_manager:
                 response = read_file_or_url(url)

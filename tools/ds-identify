@@ -438,7 +438,7 @@ cached() {
 
 detect_virt() {
     local virt="${UNAVAILABLE}" r="" out=""
-    if [ -d /run/systemd ]; then
+    if [ -d "${PATH_ROOT}/run/systemd" ]; then
         if [ -n "$DI_SYSTEMD_VIRTUALIZATION" ]; then
             virt=${DI_SYSTEMD_VIRTUALIZATION#*:}
             debug 2 "detected $virt via env variable SYSTEMD_VIRTUALIZATION"
