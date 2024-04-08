@@ -22,9 +22,11 @@ cloud-init (23.4.1-0ubuntu1~20.04.3) UNRELEASED; urgency=medium
     - d/p/status-retain-recoverable-error-exit-code.patch
     - d/p/keep-dhclient-as-priority-client.patch
     - d/p/retain-old-groups.patch
-  * Upstream snapshot based on upstream/main at 1dfffd06.
+    - d/p/retain-ec2-default-net-update-events.patch
+    - d/p/retain-netplan-world-readable.patch
+  * Upstream snapshot based on upstream/main at 0a3a5e25.
 
- -- Brett Holman <brett.holman@canonical.com>  Thu, 2 Apr 2024 15:56:21 -0600
+ -- James Falcon <james.falcon@canonical.com>  Mon, 08 Apr 2024 13:32:49 -0500
 
 cloud-init (23.4.1-0ubuntu1~20.04.2) focal; urgency=medium
 
