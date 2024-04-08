@@ -1,4 +1,4 @@
-cloud-init (24.1.3-0ubuntu1~23.10.2) UNRELEASED; urgency=medium
+cloud-init (24.1.3-0ubuntu1~23.10.2) mantic; urgency=medium
 
   * cherry-pick 516fad6d: fix(url_helper): fix TCP connection leak on
     readurl() retries
