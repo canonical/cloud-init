@@ -30,7 +30,7 @@ cloud-init (24.1~6ga4140119-0ubuntu1) noble; urgency=medium
     - Remove patch, snapd no longer blocks ssh
   * d/s/: Move apport hook to main branch
   * d/cloud-init.postinst: change priority of hotplug rules.
-    Avoids LP: #1946003 on upgraded systems. References:
+    Avoids LP #1946003 on upgraded systems. References:
     [0] https://github.com/canonical/cloud-init/pull/4799
     [1] commit/b519d861aff8b44a0610c176cb34adcbe28df144
   * Upstream snapshot based on upstream/main at a4140119.
