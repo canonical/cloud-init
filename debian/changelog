@@ -23,9 +23,12 @@ cloud-init (23.4.1-0ubuntu1~22.04.3) UNRELEASED; urgency=medium
     - d/p/status-do-not-remove-duplicated-data.patch
     - d/p/status-retain-recoverable-error-exit-code.patch
     - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
-  * Upstream snapshot based on upstream/main at f6ac6ee8.
+    - d/p/keep-dhclient-as-priority-client.patch
+    - d/p/retain-ec2-default-net-update-events.patch
+    - d/p/retain-old-groups.patch
+  * Upstream snapshot based on upstream/main at 0a3a5e25.
 
- -- Brett Holman <brett.holman@canonical.com>  Tue, 02 Apr 2024 14:43:21 -0600
+ -- James Falcon <james.falcon@canonical.com>  Mon, 08 Apr 2024 14:54:53 -0500
 
 cloud-init (23.4.1-0ubuntu1~22.04.2) jammy; urgency=medium
 
