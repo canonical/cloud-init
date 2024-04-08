@@ -31,7 +31,7 @@ cloud-init (24.1.1-0ubuntu1~20.04.1) focal; urgency=medium
     on stable releases.
   * d/po/templates.pot: update for wsl
   * d/cloud-init.postinst: change priority of hotplug rules.
-    Avoids LP: #1946003 on upgraded systems. References:
+    Avoids LP #1946003 on upgraded systems. References:
     [0] https://github.com/canonical/cloud-init/pull/4799
     [1] commit/b519d861aff8b44a0610c176cb34adcbe28df144
   * refresh patches:
