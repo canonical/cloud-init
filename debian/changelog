@@ -12,7 +12,7 @@ cloud-init (23.4.1-0ubuntu1~20.04.3) UNRELEASED; urgency=medium
     Reverts 4dbb08f5f0cc4f41cf9dd1474f0600a11510a3c9 to not change behavior
     on stable releases.
   * d/cloud-init.postinst: change priority of hotplug rules.
-    Avoids LP: #1946003 on upgraded systems. References:
+    Avoids LP #1946003 on upgraded systems. References:
     [0] https://github.com/canonical/cloud-init/pull/4799
     [1] commit/b519d861aff8b44a0610c176cb34adcbe28df144
   * refresh patches:
