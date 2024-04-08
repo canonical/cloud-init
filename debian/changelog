@@ -11,8 +11,6 @@ cloud-init (23.4.1-0ubuntu1~20.04.3) UNRELEASED; urgency=medium
   * d/p/retain-ec2-default-net-update-events.patch:
     Reverts 4dbb08f5f0cc4f41cf9dd1474f0600a11510a3c9 to not change behavior
     on stable releases.
-  * d/p/revert-dhcp6-on-ec2.patch
-    Revert dhcp6 change on ec2 to avoid behavior change
   * d/cloud-init.postinst: change priority of hotplug rules.
     Avoids LP: #1946003 on upgraded systems. References:
     [0] https://github.com/canonical/cloud-init/pull/4799
