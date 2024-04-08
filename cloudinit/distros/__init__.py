@@ -1006,14 +1006,20 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                     )
                     raise e
 
-    def ensure_sudo_dir(self, path, sudo_base="/etc/sudoers"):
+    def ensure_sudo_dir(
+            self, path, sudo_base=("/etc/sudoers","/usr/etc/sudoers")):
         # Ensure the dir is included and that
         # it actually exists as a directory
         sudoers_contents = ""
         base_exists = False
-        if os.path.exists(sudo_base):
-            sudoers_contents = util.load_text_file(sudo_base)
-            base_exists = True
+        admin_sudo_base = "/etc/sudoers"
+        if not isinstance(sudo_base, (list, tuple)):
+            sudo_base = [sudo_base]
+        for sudoers_base in sudo_base:
+            if os.path.exists(sudoers_base):
+                sudoers_contents = util.load_text_file(sudoers_base)
+                base_exists = True
+                break
         found_include = False
         for line in sudoers_contents.splitlines():
             line = line.strip()
@@ -1039,8 +1045,11 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                         "",
                     ]
                     sudoers_contents = "\n".join(lines)
-                    util.write_file(sudo_base, sudoers_contents, 0o440)
+                    util.write_file(admin_sudo_base, sudoers_contents, 0o440)
                 else:
+                    if sudoers_base != admin_sudo_base:
+                        util.write_file(
+                            admin_sudo_base, sudoers_contents, 0o440)
                     lines = [
                         "",
                         util.make_header(base="added"),
@@ -1048,10 +1057,10 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                         "",
                     ]
                     sudoers_contents = "\n".join(lines)
-                    util.append_file(sudo_base, sudoers_contents)
-                LOG.debug("Added '#includedir %s' to %s", path, sudo_base)
+                    util.append_file(admin_sudo_base, sudoers_contents)
+                LOG.debug("Added '#includedir %s' to %s", path, admin_sudo_base)
             except IOError as e:
-                util.logexc(LOG, "Failed to write %s", sudo_base)
+                util.logexc(LOG, "Failed to write %s", admin_sudo_base)
                 raise e
         util.ensure_dir(path, 0o750)
 

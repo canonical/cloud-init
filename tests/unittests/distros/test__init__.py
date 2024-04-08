@@ -232,6 +232,32 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         self.assertIn("josh", contents)
         self.assertEqual(2, contents.count("josh"))
 
+    def test_sudoers_ensure_append_sudoer_file(self):
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        self.patchOS(self.tmp)
+        self.patchUtils(self.tmp)
+        util.write_file("/etc/sudoers", "josh, josh\n")
+        d.ensure_sudo_dir("/b", "/etc/sudoers")
+        contents = util.load_text_file("/etc/sudoers")
+        self.assertIn("includedir /b", contents)
+        self.assertTrue(os.path.isdir("/b"))
+        self.assertIn("josh", contents)
+        self.assertEqual(2, contents.count("josh"))
+
+    def test_usr_sudoers_ensure_append(self):
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        self.patchOS(self.tmp)
+        self.patchUtils(self.tmp)
+        util.write_file("/usr/etc/sudoers", "josh, josh\n")
+        d.ensure_sudo_dir("/b")
+        contents = util.load_text_file("/etc/sudoers")
+        self.assertIn("includedir /b", contents)
+        self.assertTrue(os.path.isdir("/b"))
+        self.assertIn("josh", contents)
+        self.assertEqual(2, contents.count("josh"))
+
     def test_sudoers_ensure_only_one_includedir(self):
         cls = distros.fetch("ubuntu")
         d = cls("ubuntu", {}, None)
