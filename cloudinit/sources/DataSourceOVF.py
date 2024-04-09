@@ -19,7 +19,9 @@ import os
 import re
 from xml.dom import minidom  # nosec B408
 
-from cloudinit import safeyaml, sources, subp, util
+import yaml
+
+from cloudinit import sources, subp, util
 
 LOG = logging.getLogger(__name__)
 
@@ -408,4 +410,4 @@ def safeload_yaml_or_dict(data):
     """
     if not data:
         return {}
-    return safeyaml.load(data)
+    return yaml.safe_load(data)

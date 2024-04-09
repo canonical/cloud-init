@@ -11,7 +11,9 @@ import os
 import re
 import time
 
-from cloudinit import safeyaml, subp, util
+import yaml
+
+from cloudinit import subp, util
 
 from .config import Config
 from .config_custom_script import PostCustomScript, PreCustomScript
@@ -263,8 +265,8 @@ def get_data_from_imc_raw_data_cust_cfg(cust_cfg):
 
         try:
             logger.debug("Validating if meta data is valid or not")
-            md = safeyaml.load(md)
-        except safeyaml.YAMLError as e:
+            md = yaml.safe_load(md)
+        except yaml.YAMLError as e:
             set_cust_error_status(
                 "Error parsing the cloud-init meta data",
                 str(e),

@@ -10,8 +10,9 @@ from textwrap import dedent
 from uuid import uuid4
 
 import pytest
+import yaml
 
-from cloudinit import atomic_helper, safeyaml, subp, util
+from cloudinit import atomic_helper, subp, util
 from cloudinit.sources import DataSourceIBMCloud as ds_ibm
 from cloudinit.sources import DataSourceOracle as ds_oracle
 from cloudinit.sources import DataSourceSmartOS as ds_smartos
@@ -295,7 +296,7 @@ class DsIdentifyBase(CiTestCase):
         if os.path.exists(cfg_out):
             contents = util.load_text_file(cfg_out)
             try:
-                cfg = safeyaml.load(contents)
+                cfg = yaml.safe_load(contents)
             except Exception as e:
                 cfg = {"_INVALID_YAML": contents, "_EXCEPTION": str(e)}
 
