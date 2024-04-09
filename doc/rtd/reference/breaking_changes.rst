@@ -32,5 +32,21 @@ runcmd:
 23.4 - status codes
 ===================
 
-something something if you have a script that relies on cloud-init status
-return values make sure to update it?
+Cloud-init return codes have been extended with a new error code (2),
+which will be returned when cloud-init experiences an error that it can
+recover from.  See :ref:`this page which documents the change<error_codes>`.
+
+
+23.2 - kernel commandline
+=========================
+
+The ds= kernel commandline value is used to forcibly select a specific
+datasource in cloud-init. Prior to 23.2, this only optionally selected
+the ``NoCloud`` datasource.
+
+Anyone that previously had a matching `ds=nocloud*` in their kernel commandline
+that did not want to use the NoCloud datasource may experience broken behavior
+as a result of this change.
+
+Workarounds include updating the kernel commandline and optionally configuring
+a datasource_list in /etc/cloud/cloud.cfg.d/*.cfg.
