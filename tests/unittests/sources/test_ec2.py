@@ -598,7 +598,12 @@ class TestEc2:
 
         def _remove_md(resp_list: List) -> None:
             for index, url in enumerate(resp_list):
-                if url["url"].startswith(
+                try:
+                    url = url.url
+                except AttributeError:
+                    # Can be removed when Bionic is EOL
+                    url = url["url"]
+                if url.startswith(
                     "http://169.254.169.254/2009-04-04/meta-data/"
                 ):
                     del resp_list[index]
@@ -615,6 +620,11 @@ class TestEc2:
         elif hasattr(responses, "_matches"):
             # Can be removed when Focal is EOL
             _remove_md(responses._matches)
+        elif hasattr(responses, "_default_mock") and hasattr(
+            responses._default_mock, "_matches"
+        ):
+            # Can be removed when Focal is EOL
+            _remove_md(responses._default_mock._matches)
 
         # Provide new revision of metadata that contains network data
         register_mock_metaserver(
