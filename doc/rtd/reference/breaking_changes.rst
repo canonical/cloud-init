@@ -49,4 +49,4 @@ that did not want to use the ``NoCloud`` datasource may experience broken behavi
 as a result of this change.
 
 Workarounds include updating the kernel commandline and optionally configuring
-a datasource_list in /etc/cloud/cloud.cfg.d/*.cfg.
+a ``datasource_list`` in ``/etc/cloud/cloud.cfg.d/*.cfg``.
