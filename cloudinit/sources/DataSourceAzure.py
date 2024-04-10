@@ -555,7 +555,8 @@ class DataSourceAzure(sources.DataSource):
         )
 
     def _check_azure_proxy_agent_status(self) -> None:
-        '''check if azure-proxy-agent is working correctly. If not, fail provisioning.'''
+        """check if azure-proxy-agent is fully running and can procede to
+        communicate with IMDS and Wire Server. If not, fail provisioning."""
         try:
             cmd = [
                 "azure-proxy-agent",

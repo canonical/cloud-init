@@ -3823,7 +3823,8 @@ class TestProvisioning:
         assert len(self.mock_report_dmesg_to_kvp.mock_calls) == 1
 
     def test_no_pps_gpa(self):
-        """test full provisioning scope when azure-proxy-agent is enabled and running."""
+        """test full provisioning scope when azure-proxy-agent
+        is enabled and running."""
         self.mock_subp_subp.side_effect = [
             subp.SubpResult("Guest Proxy Agent running", ""),
         ]
