@@ -1798,17 +1798,10 @@ def get_config_logfiles(cfg):
     return list(set(logs + rotated_logs))
 
 
-def logexc(log, msg, *args, log_level: int = logging.WARNING) -> None:
+def logexc(
+    log, msg, *args, log_level: int = logging.WARNING, exc_info=True
+) -> None:
     log.log(log_level, msg, *args)
-
-    # Debug gets the full trace.  However, nose has a bug whereby its
-    # logcapture plugin doesn't properly handle the case where there is no
-    # actual exception.  To avoid tracebacks during the test suite then, we'll
-    # do the actual exc_info extraction here, and if there is no exception in
-    # flight, we'll just pass in None.
-    exc_info = sys.exc_info()
-    if exc_info == (None, None, None):
-        exc_info = None  # type: ignore
     log.debug(msg, exc_info=exc_info, *args)
 
 
