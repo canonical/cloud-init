@@ -12,6 +12,12 @@ provide configurations.
 Configuration Methods:
 ======================
 
+.. warning::
+    User data placed under ``/etc/cloud/`` will **not** be recognized as a
+    source of configuration data by the NoCloud datasource. While it may
+    be acted upon by cloud-init, this use case may be better served
+    by :ref:`DataSourceNone<datasource_none_example>`.
+
 Method 1: Local filesystem, labeled filesystem
 ----------------------------------------------
 
