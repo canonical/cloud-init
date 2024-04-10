@@ -3,7 +3,7 @@
 Breaking changes
 ****************
 
-This section provides reference and guidance on specific breaking changes to 
+This section provides guidance on specific breaking changes to 
 cloud-init releases. 
 
 24.1 - removed Ubuntu's ordering dependency on snapd.seeded
