@@ -1797,13 +1797,9 @@ def get_config_logfiles(cfg):
     return list(set(logs + rotated_logs))
 
 
-def logexc(log, msg, *args):
-    # Setting this here allows this to change
-    # levels easily (not always error level)
-    # or even desirable to have that much junk
-    # coming out to a non-debug stream
-    if msg:
-        log.warning(msg, *args)
+def logexc(log, msg, *args, log_level: int = logging.WARNING) -> None:
+    log.log(log_level, msg, *args)
+
     # Debug gets the full trace.  However, nose has a bug whereby its
     # logcapture plugin doesn't properly handle the case where there is no
     # actual exception.  To avoid tracebacks during the test suite then, we'll
@@ -1811,7 +1807,7 @@ def logexc(log, msg, *args):
     # flight, we'll just pass in None.
     exc_info = sys.exc_info()
     if exc_info == (None, None, None):
-        exc_info = None
+        exc_info = None  # type: ignore
     log.debug(msg, exc_info=exc_info, *args)
 
 
