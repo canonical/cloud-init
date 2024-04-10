@@ -34,7 +34,7 @@ Will now need to be:
 
 Cloud-init return codes have been extended with a new error code (2),
 which will be returned when cloud-init experiences an error that it can
-recover from.  See :ref:`this page which documents the change<error_codes>`.
+recover from. See :ref:`this page which documents the change <error_codes>`.
 
 
 23.2 - kernel commandline
