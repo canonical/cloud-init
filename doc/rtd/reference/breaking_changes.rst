@@ -17,7 +17,7 @@ example, a cloud config that previously included:
 .. code-block:: yaml
 
     runcmd:
-        - [ snap, install, mc-installer ]
+      - [ snap, install, mc-installer ]
 
 
 Will now need to be:
@@ -25,12 +25,12 @@ Will now need to be:
 .. code-block:: yaml
 
     runcmd:
-        - [ snap, wait, system, seed.loaded ]
-        - [ snap, install, mc-installer ]
+      - [ snap, wait, system, seed.loaded ]
+      - [ snap, install, mc-installer ]
 
 
-23.4 - status codes
-===================
+23.4 - added status code for recoverable error
+==============================================
 
 Cloud-init return codes have been extended with a new error code (2),
 which will be returned when cloud-init experiences an error that it can
