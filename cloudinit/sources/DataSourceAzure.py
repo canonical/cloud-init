@@ -556,7 +556,9 @@ class DataSourceAzure(sources.DataSource):
 
     def _check_azure_proxy_agent_status(self) -> None:
         """check if azure-proxy-agent is fully running and can procede to
-        communicate with IMDS and Wire Server. If not, fail provisioning."""
+        communicate with IMDS and Wire Server. If not, fail provisioning.
+        Azure Guest Proxy Agent source code:
+        https://github.com/azure/guestproxyagent"""
         try:
             cmd = [
                 "azure-proxy-agent",
