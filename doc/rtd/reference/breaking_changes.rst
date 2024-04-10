@@ -3,8 +3,8 @@
 Breaking changes
 ****************
 
-This section provides guidance on specific breaking changes to 
-cloud-init releases. 
+This section provides guidance on specific breaking changes to cloud-init
+releases.
 
 24.1 - removed Ubuntu's ordering dependency on snapd.seeded
 ===========================================================
@@ -44,9 +44,9 @@ The ``ds=`` kernel commandline value is used to forcibly select a specific
 datasource in cloud-init. Prior to 23.2, this only optionally selected
 the ``NoCloud`` datasource.
 
-Anyone that previously had a matching ``ds=nocloud*`` in their kernel commandline
-that did not want to use the ``NoCloud`` datasource may experience broken behavior
-as a result of this change.
+Anyone that previously had a matching ``ds=nocloud*`` in their kernel command
+line that did not want to use the ``NoCloud`` datasource may experience broken
+behavior as a result of this change.
 
 Workarounds include updating the kernel commandline and optionally configuring
 a ``datasource_list`` in ``/etc/cloud/cloud.cfg.d/*.cfg``.
