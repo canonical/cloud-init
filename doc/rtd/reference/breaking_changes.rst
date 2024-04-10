@@ -40,7 +40,7 @@ recover from. See :ref:`this page which documents the change <error_codes>`.
 23.2 - kernel commandline
 =========================
 
-The ds= kernel commandline value is used to forcibly select a specific
+The ``ds=`` kernel commandline value is used to forcibly select a specific
 datasource in cloud-init. Prior to 23.2, this only optionally selected
 the ``NoCloud`` datasource.
 
