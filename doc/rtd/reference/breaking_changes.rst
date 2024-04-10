@@ -44,7 +44,7 @@ The ``ds=`` kernel commandline value is used to forcibly select a specific
 datasource in cloud-init. Prior to 23.2, this only optionally selected
 the ``NoCloud`` datasource.
 
-Anyone that previously had a matching `ds=nocloud*` in their kernel commandline
+Anyone that previously had a matching ``ds=nocloud*`` in their kernel commandline
 that did not want to use the NoCloud datasource may experience broken behavior
 as a result of this change.
 
