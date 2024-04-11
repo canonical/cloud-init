@@ -4,14 +4,12 @@ None
 ****
 
 The data source ``None`` may be used when no other viable datasource is
-present on disk. This has three primary use cases:
+present on disk. This has two primary use cases:
 
-1. Testing cloud-init in an environment where no datasource is
-   available.
+1. Providing user data to cloud-init from on-disk configuration when
+   no other datasource is present.
 2. As a fallback for when a datasource is otherwise intermittently
    unavailable.
-3. Providing user data to cloud-init from on-disk configuration when
-   no other datasource is present.
 
 When the datasource is ``None``, cloud-init is unable to obtain or
 render networking configuration. Additionally, when cloud-init
@@ -22,7 +20,7 @@ Configuration
 
 User data and meta data may be passed to cloud-init via system
 configuration in :file:`/etc/cloud/cloud.cfg` or
-:file:`/etc/cloud/cloud.cfg.d/`.
+:file:`/etc/cloud/cloud.cfg.d/*.cfg`.
 
 ``userdata_raw``
 ----------------
