@@ -14,7 +14,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import cloud, subp, temp_utils
+from cloudinit import cloud, distros, subp, temp_utils
 from cloudinit.config import cc_growpart
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -215,7 +215,7 @@ class TestConfig(TestCase):
             diskdev = "/dev/sdb"
             partnum = 1
             partdev = "/dev/sdb"
-            ret.resize(diskdev, partnum, partdev)
+            ret.resize(diskdev, partnum, partdev, None)
         mockobj.assert_has_calls(
             [
                 mock.call(
@@ -351,8 +351,8 @@ class TestResize(unittest.TestCase):
         resize_calls = []
 
         class myresizer:
-            def resize(self, diskdev, partnum, partdev):
-                resize_calls.append((diskdev, partnum, partdev))
+            def resize(self, diskdev, partnum, partdev, fs):
+                resize_calls.append((diskdev, partnum, partdev, fs))
                 if partdev == "/dev/YYda2":
                     return (1024, 2048)
                 return (1024, 1024)  # old size, new size
@@ -395,7 +395,70 @@ class TestResize(unittest.TestCase):
             os.stat = real_stat
 
 
+class TestResizeZFS:
+    def _devent2dev_side_effect(self, value):
+        if value.startswith("zroot"):
+            return value, "zfs"
+        raise RuntimeError(f"unexpected value {value}")
+
+    def _subp_side_effect(self, value, **kwargs):
+        if value[0] == "growpart":
+            raise subp.ProcessExecutionError()
+        elif value[0] == "zpool":
+            return ("1024\n", "")
+        raise subp.ProcessExecutionError()
+
+    @pytest.fixture
+    def common_mocks(self, mocker):
+        # These are all "happy path" mocks which will get overridden
+        # when needed
+        mocker.patch(
+            "cloudinit.config.cc_growpart.devent2dev",
+            side_effect=self._devent2dev_side_effect,
+        )
+        mocker.patch("cloudinit.util.is_container", return_value=False)
+        # Find /etc/rc.d/growfs
+        mocker.patch("os.path.isfile", return_value=True)
+        mocker.patch(
+            "cloudinit.config.cc_growpart.subp.subp",
+            side_effect=self._subp_side_effect,
+        )
+        cls = distros.fetch("freebsd")
+        # patch ifconfig -a
+        mocker.patch(
+            "cloudinit.distros.networking.subp.subp", return_value=("", None)
+        )
+        self.distro = cls("freebsd", {}, None)
+
+    @pytest.mark.parametrize(
+        "dev, expected",
+        [
+            ("zroot/ROOT/changed", cc_growpart.RESIZE.CHANGED),
+            ("zroot/ROOT/nochange", cc_growpart.RESIZE.NOCHANGE),
+        ],
+    )
+    def test_zroot(self, dev, expected, common_mocks):
+        resize_calls = []
+
+        class myresizer:
+            def resize(self, diskdev, partnum, partdev, fs):
+                resize_calls.append((diskdev, partnum, partdev, fs))
+                if partdev == "zroot/ROOT/changed":
+                    return (1024, 2048)
+                return (1024, 1024)  # old size, new size
+
+        def find(name, res):
+            for f in res:
+                if f[0] == name:
+                    return f
+            return None
+
+        resized = cc_growpart.resize_devices(myresizer(), [dev], self.distro)
+        assert expected == find(dev, resized)[1]
+
+
 class TestGetSize:
+    # TODO: add tests for get_zfs_size()
     @pytest.mark.parametrize(
         "file_exists, expected",
         (
@@ -408,7 +471,7 @@ class TestGetSize:
         tmp_file = tmp_path / "tmp.txt"
         if file_exists:
             tmp_file.write_bytes(b"0")
-        assert expected == cc_growpart.get_size(tmp_file)
+        assert expected == cc_growpart.get_size(tmp_file, None)
 
 
 class TestEncrypted:
@@ -437,11 +500,13 @@ class TestEncrypted:
 
     def _devent2dev_side_effect(self, value):
         if value == "/fake_encrypted":
-            return "/dev/mapper/fake"
+            return "/dev/mapper/fake", "ext3"
         elif value == "/":
-            return "/dev/vdz"
+            return "/dev/vdz", "ext4"
+        elif value.startswith("zroot"):
+            return value, "zfs"
         elif value.startswith("/dev"):
-            return value
+            return value, None
         raise RuntimeError(f"unexpected value {value}")
 
     def _realpath_side_effect(self, value):
