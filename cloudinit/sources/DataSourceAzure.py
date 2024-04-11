@@ -567,14 +567,11 @@ class DataSourceAzure(sources.DataSource):
                 "120",
             ]
             out, err = subp.subp(cmd)
-            if err:
-                report_diagnostic_event(
-                    "Running %s resulted in stderr output: %s with stdout: %s"
-                    % cmd
-                    % err
-                    % out,
-                    logger_func=LOG.debug,
-                )
+            report_diagnostic_event(
+                "Running azure-proxy-agent %s resulted"
+                "in stderr output: %s with stdout: %s" % (cmd, err, out),
+                logger_func=LOG.debug,
+            )
 
         except FileNotFoundError:
             error = errors.ReportableErrorProxyAgentNotFound()
