@@ -8,11 +8,8 @@ from functools import partial
 from typing import Any, Callable, Dict, List, Optional
 
 import cloudinit.net as net
-from cloudinit.net.dhcp import (
-    Dhcpcd,
-    NoDHCPLeaseError,
-    maybe_perform_dhcp_discovery,
-)
+import cloudinit.netinfo as netinfo
+from cloudinit.net.dhcp import NoDHCPLeaseError, maybe_perform_dhcp_discovery
 from cloudinit.subp import ProcessExecutionError
 
 LOG = logging.getLogger(__name__)
@@ -36,6 +33,7 @@ class EphemeralIPv4Network:
         ip,
         prefix_or_mask,
         broadcast,
+        interface_addrs_before_dhcp: dict,
         router=None,
         connectivity_url_data: Optional[Dict[str, Any]] = None,
         static_routes=None,
@@ -76,9 +74,20 @@ class EphemeralIPv4Network:
         self.cleanup_cmds: List[Callable] = []
         self.distro = distro
         self.cidr = f"{self.ip}/{self.prefix}"
+        self.interface_addrs_before_dhcp = interface_addrs_before_dhcp.get(
+            self.interface, {}
+        )
+        self.interface_addrs_after_dhcp = netinfo.netdev_info().get(
+            self.interface, {}
+        )
 
     def __enter__(self):
-        """Perform ephemeral network setup if interface is not connected."""
+        """Set up ephemeral network if interface is not connected.
+
+        This context manager handles the lifecycle of the network interface,
+        addresses, routes, etc
+        """
+
         if self.connectivity_url_data:
             if net.has_url_connectivity(self.connectivity_url_data):
                 LOG.debug(
@@ -94,7 +103,13 @@ class EphemeralIPv4Network:
                     self.connectivity_url_data["url"],
                 )
         try:
-            self._bringup_device()
+            try:
+                self._bringup_device()
+            except ProcessExecutionError as e:
+                if "File exists" not in str(
+                    e.stderr
+                ) and "Address already assigned" not in str(e.stderr):
+                    raise
 
             # rfc3442 requires us to ignore the router config *if*
             # classless static routes are provided.
@@ -122,28 +137,56 @@ class EphemeralIPv4Network:
             cmd()
 
     def _bringup_device(self):
-        """Perform the ip commands to fully setup the device."""
+        """Perform the ip commands to fully set up the device.
+
+        Dhcp clients behave differently in how they leave link state and ip
+        address assignment.
+
+        Attempt assigning address and setting up link if needed to be done.
+        Set cleanup_cmds to return the interface state to how it was prior
+        to execution of the dhcp client.
+        """
         LOG.debug(
             "Attempting setup of ephemeral network on %s with %s brd %s",
             self.interface,
             self.cidr,
             self.broadcast,
         )
-        try:
-            self.distro.net_ops.add_addr(
-                self.interface, self.cidr, self.broadcast
-            )
-        except ProcessExecutionError as e:
-            if "File exists" not in str(e.stderr):
-                raise
+        has_link = self.interface_addrs_after_dhcp.get("up")
+        had_link = self.interface_addrs_before_dhcp.get("up")
+        has_ip = self.ip in [
+            ip.get("ip")
+            for ip in self.interface_addrs_after_dhcp.get("ipv4", {})
+        ]
+        had_ip = self.ip in [
+            ip.get("ip")
+            for ip in self.interface_addrs_before_dhcp.get("ipv4", {})
+        ]
+
+        if has_ip:
             LOG.debug(
-                "Skip ephemeral network setup, %s already has address %s",
+                "Skip adding ip address: %s already has address %s",
                 self.interface,
                 self.ip,
             )
         else:
-            # Address creation success, bring up device and queue cleanup
+            self.distro.net_ops.add_addr(
+                self.interface, self.cidr, self.broadcast
+            )
+        if has_link:
+            LOG.debug(
+                "Skip bringing up network link: interface %s is already up",
+                self.interface,
+            )
+        else:
             self.distro.net_ops.link_up(self.interface, family="inet")
+        if had_link:
+            LOG.debug(
+                "Not queueing link down: link was up prior before receiving a "
+                "dhcp lease",
+                self.interface,
+            )
+        else:
             self.cleanup_cmds.append(
                 partial(
                     self.distro.net_ops.link_down,
@@ -151,6 +194,13 @@ class EphemeralIPv4Network:
                     family="inet",
                 )
             )
+        if had_ip:
+            LOG.debug(
+                "Not queueing address removal: address was assigned before "
+                "receiving a dhcp lease",
+                self.interface,
+            )
+        else:
             self.cleanup_cmds.append(
                 partial(
                     self.distro.net_ops.del_addr, self.interface, self.cidr
@@ -259,6 +309,7 @@ class EphemeralDHCPv4:
         self.dhcp_log_func = dhcp_log_func
         self.connectivity_url_data = connectivity_url_data
         self.distro = distro
+        self.interface_addrs_before_dhcp = netinfo.netdev_info()
 
     def __enter__(self):
         """Setup sandboxed dhcp context, unless connectivity_url can already be
@@ -331,10 +382,11 @@ class EphemeralDHCPv4:
             )
         if self.connectivity_url_data:
             kwargs["connectivity_url_data"] = self.connectivity_url_data
-        if isinstance(self.distro.dhcp_client, Dhcpcd):
-            ephipv4 = DhcpcdEphemeralIPv4Network(self.distro, **kwargs)
-        else:
-            ephipv4 = EphemeralIPv4Network(self.distro, **kwargs)
+        ephipv4 = EphemeralIPv4Network(
+            self.distro,
+            interface_addrs_before_dhcp=self.interface_addrs_before_dhcp,
+            **kwargs,
+        )
         ephipv4.__enter__()
         self._ephipv4 = ephipv4
         return self.lease
@@ -356,28 +408,6 @@ class EphemeralDHCPv4:
         for different_names in lease_option_names:
             if not result.get(internal_mapping):
                 result[internal_mapping] = self.lease.get(different_names)
-
-
-class DhcpcdEphemeralIPv4Network(EphemeralIPv4Network):
-    """dhcpcd sets up its own ephemeral network and routes"""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # clean up after dhcpcd
-        self.cleanup_cmds.append(
-            partial(
-                self.distro.net_ops.link_down,
-                self.interface,
-                family="inet",
-            )
-        )
-        self.cleanup_cmds.append(
-            partial(self.distro.net_ops.del_addr, self.interface, self.cidr)
-        )
-
-    def __enter__(self):
-        return
 
 
 class EphemeralIPNetwork:
