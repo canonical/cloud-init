@@ -6,6 +6,30 @@ Breaking changes
 This section provides guidance on specific breaking changes to cloud-init
 releases.
 
+.. note::
+    These changes may not be present in all distributions of cloud-init as
+    many operating system vendors patch out breaking changes in
+    cloud-init to ensure consistent behavior on their platform.
+
+Datasource identification
+=========================
+
+**23.2**
+    If the detected ``datasource_list`` contains a single datasource or
+    that datasource plus ``None``, automatically use that datasource without
+    checking to see if it is available. This allows for using datasources that
+    don't have a way to be deterministically detected.
+**23.4**
+    If the detected ``datasource_list`` contains a single datasource plus
+    ``None``, no longer automatically use that datasource because ``None`` is
+    a valid datasource that may be used if the primary datasource is
+    not available.
+**24.1**
+    ds-identify will no longer automatically append ``None`` to a
+    datasource list that has been provided under ``/etc/cloud``. If ``None``
+    is desired as a fallback, it must be explicitly added to the customized
+    datasource list.
+
 24.1 - removed Ubuntu's ordering dependency on snapd.seeded
 ===========================================================
 
