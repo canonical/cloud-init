@@ -182,8 +182,8 @@ class EphemeralIPv4Network:
             self.distro.net_ops.link_up(self.interface, family="inet")
         if had_link:
             LOG.debug(
-                "Not queueing link down: link was up prior before receiving a "
-                "dhcp lease",
+                "Not queueing link down: link [%s] was up prior before "
+                "receiving a dhcp lease",
                 self.interface,
             )
         else:
@@ -196,9 +196,9 @@ class EphemeralIPv4Network:
             )
         if had_ip:
             LOG.debug(
-                "Not queueing address removal: address was assigned before "
+                "Not queueing address removal: address %s was assigned before "
                 "receiving a dhcp lease",
-                self.interface,
+                self.ip,
             )
         else:
             self.cleanup_cmds.append(

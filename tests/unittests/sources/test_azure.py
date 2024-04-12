@@ -29,6 +29,7 @@ from cloudinit.util import (
 from tests.unittests.helpers import (
     CiTestCase,
     ExitStack,
+    example_netdev,
     mock,
     populate_dir,
     resourceLocation,
@@ -96,6 +97,11 @@ def mock_device_driver():
         return_value="fake_driver",
     ) as m:
         yield m
+
+
+@pytest.fixture(autouse=True)
+def mock_netinfo(disable_netdev_info):
+    pass
 
 
 @pytest.fixture
@@ -3001,6 +3007,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
             ip="10.0.0.4",
             prefix_or_mask="32",
             broadcast="255.255.255.255",
+            interface_addrs_before_dhcp=example_netdev,
             router="10.0.0.1",
             static_routes=[
                 ("0.0.0.0/0", "10.0.0.1"),
@@ -3030,6 +3037,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
             ip="10.0.0.4",
             prefix_or_mask="32",
             broadcast="255.255.255.255",
+            interface_addrs_before_dhcp=example_netdev,
             router="10.0.0.1",
             static_routes=None,
         )
@@ -3594,6 +3602,7 @@ class TestCheckIfPrimary:
             ip="10.0.0.4",
             prefix_or_mask="32",
             broadcast="255.255.255.255",
+            interface_addrs_before_dhcp=example_netdev,
             router="10.0.0.1",
             static_routes=static_routes,
         )
@@ -3607,6 +3616,7 @@ class TestCheckIfPrimary:
             ip="10.0.0.4",
             prefix_or_mask="32",
             broadcast="255.255.255.255",
+            interface_addrs_before_dhcp=example_netdev,
             router="10.0.0.1",
             static_routes=[("1.2.3.4/32", "10.0.0.1")],
         )
@@ -3629,6 +3639,7 @@ class TestCheckIfPrimary:
             ip="10.0.0.4",
             prefix_or_mask="32",
             broadcast="255.255.255.255",
+            interface_addrs_before_dhcp=example_netdev,
             router="10.0.0.1",
             static_routes=static_routes,
         )
