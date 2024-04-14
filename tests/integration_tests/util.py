@@ -62,7 +62,7 @@ def _format_found(header: str, items: list) -> str:
 
 
 def verify_clean_boot(
-    c: "IntegrationInstance",
+    instance: "IntegrationInstance",
     ignore_warnings: Optional[Union[List[str], bool]] = None,
     ignore_errors: Optional[Union[List[str], bool]] = None,
     require_warnings: Optional[list] = None,
@@ -81,7 +81,7 @@ def verify_clean_boot(
     - less resource intensive (no log copying required)
     - nice error formatting
 
-    c: test instance
+    instance: test instance
     ignored_warnings: list of expected warnings to ignore,
         or true to ignore all
     ignored_errors: list of expected errors to ignore, or true to ignore all
@@ -93,7 +93,7 @@ def verify_clean_boot(
     ignore_warnings = ignore_warnings or []
     require_errors = require_errors or []
     require_warnings = require_warnings or []
-    status = json.loads(c.execute("cloud-init status --format=json"))
+    status = json.loads(instance.execute("cloud-init status --format=json"))
 
     unexpected_errors = set()
     unexpected_warnings = set()
@@ -348,16 +348,15 @@ def get_feature_flag_value(client: "IntegrationInstance", key):
     return value
 
 
-def override_kernel_cmdline(ds_str: str, c: "IntegrationInstance"):
+def override_kernel_cmdline(ds_str: str, instance: "IntegrationInstance"):
     """set the kernel commandline and reboot, return after boot done
 
     This will not work with containers. This is only tested with lxd vms
     but in theory should work on any virtual machine using grub.
 
     ds_str: the string that will be inserted into /proc/cmdline
-    c: instance to set kernel commandline for
+    instance: instance to set kernel commandline for
     """
-    client = c
 
     # The final output in /etc/default/grub should be:
     #
@@ -372,15 +371,17 @@ def override_kernel_cmdline(ds_str: str, c: "IntegrationInstance"):
     #
     # Not doing this will result in a semicolon-delimited ds argument
     # terminating the kernel arguments prematurely.
-    assert client.execute(
+    assert instance.execute(
         'printf "GRUB_CMDLINE_LINUX=\\"" >> /etc/default/grub'
     ).ok
-    assert client.execute('printf "\'" >> /etc/default/grub').ok
-    assert client.execute(f"printf '{ds_str}' >> /etc/default/grub").ok
-    assert client.execute('printf "\'\\"" >> /etc/default/grub').ok
+    assert instance.execute('printf "\'" >> /etc/default/grub').ok
+    assert instance.execute(f"printf '{ds_str}' >> /etc/default/grub").ok
+    assert instance.execute('printf "\'\\"" >> /etc/default/grub').ok
 
     # We should probably include non-systemd distros at some point. This should
     # most likely be as simple as updating the output path for grub-mkconfig
-    assert client.execute("grub-mkconfig -o /boot/efi/EFI/ubuntu/grub.cfg").ok
-    assert client.execute("cloud-init clean --logs").ok
-    client.restart()
+    assert instance.execute(
+        "grub-mkconfig -o /boot/efi/EFI/ubuntu/grub.cfg"
+    ).ok
+    assert instance.execute("cloud-init clean --logs").ok
+    instance.restart()
