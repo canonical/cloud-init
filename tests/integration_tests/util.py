@@ -1,3 +1,4 @@
+import json
 import logging
 import multiprocessing
 import os
@@ -8,11 +9,13 @@ from contextlib import contextmanager
 from functools import lru_cache
 from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING, Set
+from typing import TYPE_CHECKING, List, Optional, Set, Union
 
 import pytest
 
 from cloudinit.subp import subp
+
+LOG = logging.getLogger("integration_testing.util")
 
 if TYPE_CHECKING:
     # instances.py has imports util.py, so avoid circular import
@@ -40,6 +43,130 @@ def verify_ordered_items_in_text(to_verify: list, text: str):
             matched = re.search(re.escape(item), text[index:])
         assert matched, "Expected item not found: '{}'".format(item)
         index = matched.start()
+
+
+def _format_found(header: str, items: list) -> str:
+    """Helper function to format assertion message"""
+
+    # do nothing, allows this formatter to be "stackable"
+    if not items:
+        return ""
+
+    # if only one error put the header and the error message on a single line
+    if 1 == len(items):
+        return f"\n{header}: {items.pop(0)}"
+
+    # otherwise make a list after header
+    else:
+        return f"\n{header}:\n\t- " + "\n\t- ".join(items)
+
+
+def verify_clean_boot(
+    instance: "IntegrationInstance",
+    ignore_warnings: Optional[Union[List[str], bool]] = None,
+    ignore_errors: Optional[Union[List[str], bool]] = None,
+    require_warnings: Optional[list] = None,
+    require_errors: Optional[list] = None,
+):
+    """raise assertions if the client experienced unexpected warnings or errors
+
+    fail when an required error isn't found
+
+    This function is similar to verify_clean_log, hence the similar name.
+
+    differences from verify_clean_log:
+
+    - more expressive syntax
+    - extensible (can be easily extended for other log levels)
+    - less resource intensive (no log copying required)
+    - nice error formatting
+
+    instance: test instance
+    ignored_warnings: list of expected warnings to ignore,
+        or true to ignore all
+    ignored_errors: list of expected errors to ignore, or true to ignore all
+    require_warnings: Optional[list] = None,
+    require_errors: Optional[list] = None,
+    fail_when_expected_not_found: optional list of expected errors
+    """
+    ignore_errors = ignore_errors or []
+    ignore_warnings = ignore_warnings or []
+    require_errors = require_errors or []
+    require_warnings = require_warnings or []
+    status = json.loads(instance.execute("cloud-init status --format=json"))
+
+    unexpected_errors = set()
+    unexpected_warnings = set()
+
+    required_warnings_found = set()
+    required_errors_found = set()
+
+    for current_error in status["errors"]:
+
+        # check for required errors
+        for expected in require_errors:
+            if expected in current_error:
+                required_errors_found.add(expected)
+
+        # check for unexpected errors
+        if ignore_errors is True:
+            continue
+        for expected in [*ignore_errors, *require_errors]:
+            if expected in current_error:
+                break
+        else:
+            unexpected_errors.add(current_error)
+
+    # check for unexpected warnings
+    for current_warning in status["recoverable_errors"].get("WARNING", []):
+
+        # check for required warnings
+        for expected in require_warnings:
+            if expected in current_warning:
+                required_warnings_found.add(expected)
+
+        # check for unexpected warnings
+        if ignore_warnings is True:
+            continue
+        for expected in [*ignore_warnings, *require_warnings]:
+            if expected in current_warning:
+                break
+        else:
+            unexpected_warnings.add(current_warning)
+
+    required_errors_not_found = set(require_errors) - required_errors_found
+    required_warnings_not_found = (
+        set(require_warnings) - required_warnings_found
+    )
+
+    errors = [
+        *unexpected_errors,
+        *required_errors_not_found,
+        *unexpected_warnings,
+        *required_warnings_not_found,
+    ]
+    if errors:
+        message = ""
+        # if there is only one message, don't include the generic header
+        # so that the user can read the exact message in the pytest summary
+        if len(errors) > 1:
+            # more than one error, so include a generic message
+            message += "Unexpected warnings or errors found"
+
+        # errors are probably more important, order them first
+        message += _format_found(
+            "Found unexpected errors", list(unexpected_errors)
+        )
+        message += _format_found(
+            "Required errors not found", list(required_errors_not_found)
+        )
+        message += _format_found(
+            "Found unexpected warnings", list(unexpected_warnings)
+        )
+        message += _format_found(
+            "Required warnings not found", list(required_warnings_not_found)
+        )
+        assert not errors, message
 
 
 def verify_clean_log(log: str, ignore_deprecations: bool = True):
@@ -219,3 +346,42 @@ def get_feature_flag_value(client: "IntegrationInstance", key):
     if "NameError" in value:
         raise NameError(f"name '{key}' is not defined")
     return value
+
+
+def override_kernel_cmdline(ds_str: str, instance: "IntegrationInstance"):
+    """set the kernel commandline and reboot, return after boot done
+
+    This will not work with containers. This is only tested with lxd vms
+    but in theory should work on any virtual machine using grub.
+
+    ds_str: the string that will be inserted into /proc/cmdline
+    instance: instance to set kernel commandline for
+    """
+
+    # The final output in /etc/default/grub should be:
+    #
+    # GRUB_CMDLINE_LINUX="'ds=nocloud;s=http://my-url/'"
+    #
+    # That ensures that the kernel commandline passed into
+    # /boot/efi/EFI/ubuntu/grub.cfg will be properly single-quoted
+    #
+    # Example:
+    #
+    # linux /boot/vmlinuz-5.15.0-1030-kvm ro 'ds=nocloud;s=http://my-url/'
+    #
+    # Not doing this will result in a semicolon-delimited ds argument
+    # terminating the kernel arguments prematurely.
+    assert instance.execute(
+        'printf "GRUB_CMDLINE_LINUX=\\"" >> /etc/default/grub'
+    ).ok
+    assert instance.execute('printf "\'" >> /etc/default/grub').ok
+    assert instance.execute(f"printf '{ds_str}' >> /etc/default/grub").ok
+    assert instance.execute('printf "\'\\"" >> /etc/default/grub').ok
+
+    # We should probably include non-systemd distros at some point. This should
+    # most likely be as simple as updating the output path for grub-mkconfig
+    assert instance.execute(
+        "grub-mkconfig -o /boot/efi/EFI/ubuntu/grub.cfg"
+    ).ok
+    assert instance.execute("cloud-init clean --logs").ok
+    instance.restart()

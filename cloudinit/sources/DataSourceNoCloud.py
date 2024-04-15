@@ -288,7 +288,9 @@ def load_cmdline_data(fill, cmdline=None):
 
         seedfrom = fill.get("seedfrom")
         if seedfrom:
-            if seedfrom.startswith(("http://", "https://")):
+            if seedfrom.startswith(
+                ("http://", "https://", "ftp://", "ftps://")
+            ):
                 fill["dsmode"] = sources.DSMODE_NETWORK
             elif seedfrom.startswith(("file://", "/")):
                 fill["dsmode"] = sources.DSMODE_LOCAL
@@ -365,7 +367,12 @@ def _merge_new_seed(cur, seeded):
 class DataSourceNoCloudNet(DataSourceNoCloud):
     def __init__(self, sys_cfg, distro, paths):
         DataSourceNoCloud.__init__(self, sys_cfg, distro, paths)
-        self.supported_seed_starts = ("http://", "https://")
+        self.supported_seed_starts = (
+            "http://",
+            "https://",
+            "ftp://",
+            "ftps://",
+        )
 
     def ds_detect(self):
         """Check dmi and kernel commandline for dsname
@@ -414,3 +421,14 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
+
+
+if __name__ == "__main__":
+    from sys import argv
+
+    logging.basicConfig(level=logging.DEBUG)
+    seedfrom = argv[1]
+    md_seed, ud, vd = util.read_seeded(seedfrom)
+    print(f"seeded: {md_seed}")
+    print(f"ud: {ud}")
+    print(f"vd: {vd}")

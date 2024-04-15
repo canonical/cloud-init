@@ -2529,7 +2529,7 @@ class TestReadSeeded:
                 else:
                     _url, _, md_type = parsed_url.netloc.partition("8008")
                 path = f"/{md_type}"
-            return url_helper.StringResponse(f"{path}: 1")
+            return url_helper.StringResponse(f"{path}: 1", "http://url/")
 
         m_read.side_effect = fake_response
 
