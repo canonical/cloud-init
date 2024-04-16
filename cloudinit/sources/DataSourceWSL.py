@@ -8,7 +8,7 @@
 import logging
 import os
 from pathlib import PurePath
-from typing import Any, List, Optional, Union, cast
+from typing import Any, List, Optional, Tuple, Union, cast
 
 import yaml
 
@@ -19,6 +19,10 @@ from cloudinit.helpers import Paths
 LOG = logging.getLogger(__name__)
 
 WSLPATH_CMD = "/usr/bin/wslpath"
+
+DEFAULT_INSTANCE_ID = "iid-datasource-wsl"
+LANDSCAPE_DATA_FILE = "%s.user-data"
+AGENT_DATA_FILE = "agent.yaml"
 
 
 def wsl_path_2_win(path: str) -> PurePath:
@@ -169,20 +173,6 @@ def candidate_user_data_file_names(instance_name) -> List[str]:
     ]
 
 
-def landscape_file_name(instance_name) -> str:
-    """
-    Return the Landscape configuration name.
-    """
-    return "%s.user-data" % instance_name
-
-
-def agent_file_name() -> str:
-    """
-    Return the Pro agent configuration name.
-    """
-    return "agent.yaml"
-
-
 def load_yaml_or_bin(data_path: str) -> Optional[Union[dict, bytes]]:
     """
     Tries to load a YAML file as a dict, otherwise returns the file's raw
@@ -199,9 +189,6 @@ def load_yaml_or_bin(data_path: str) -> Optional[Union[dict, bytes]]:
         LOG.debug("No data found at %s, ignoring.", data_path)
 
     return None
-
-
-DEFAULT_INSTANCE_ID = "iid-datasource-wsl"
 
 
 def load_instance_metadata(
@@ -237,36 +224,22 @@ def load_instance_metadata(
     return metadata
 
 
-def load_landscape_data(
-    instance_name: str, user_home: PurePath
-) -> Optional[Union[dict, bytes]]:
+def load_ubuntu_pro_data(
+    user_home: PurePath,
+) -> Tuple[Union[dict, bytes, None], Union[dict, bytes, None]]:
     """
-    Load Landscape config data into a dict, returning an empty dict if nothing
-    is found. If the file is not a YAML, returns the raw binary file contents.
+    Read .ubuntupro user-data if present and return a tuple of agent and
+    landscape user-data.
     """
-    data_dir = ubuntu_pro_data_dir(user_home)
-    if data_dir is None:
-        return None
+    pro_dir = os.path.join(user_home, ".ubuntupro/.cloud-init")
+    if not os.path.isdir(pro_dir):
+        return None, None
 
-    data_path = os.path.join(
-        data_dir.as_posix(), landscape_file_name(instance_name)
+    landscape_data = load_yaml_or_bin(
+        os.path.join(pro_dir, LANDSCAPE_DATA_FILE % instance_name())
     )
-
-    return load_yaml_or_bin(data_path)
-
-
-def load_agent_data(user_home: PurePath) -> Optional[Union[dict, bytes]]:
-    """
-    Load agent.yaml data into a dict, returning an empty dict if nothing is
-    found. If the file is not a YAML, returns the raw binary file contents.
-    """
-    data_dir = ubuntu_pro_data_dir(user_home)
-    if data_dir is None:
-        return None
-
-    data_path = os.path.join(data_dir.as_posix(), agent_file_name())
-
-    return load_yaml_or_bin(data_path)
+    agent_data = load_yaml_or_bin(os.path.join(pro_dir, AGENT_DATA_FILE))
+    return agent_data, landscape_data
 
 
 class DataSourceWSL(sources.DataSource):
@@ -332,6 +305,7 @@ class DataSourceWSL(sources.DataSource):
         user_data: Optional[Union[dict, bytes]] = None
         requires_multipart = False
 
+        # Load any metadata
         try:
             self.metadata = load_instance_metadata(
                 seed_dir, self.instance_name
@@ -339,23 +313,23 @@ class DataSourceWSL(sources.DataSource):
         except (ValueError, IOError) as err:
             LOG.error("Unable to load metadata: %s", str(err))
 
+        # Load Ubuntu Pro configs
+        agent_data, user_data = load_ubuntu_pro_data(user_home)
+
+        # Load regular user configs
         try:
-            agent_data = load_agent_data(user_home)
-            user_data = load_landscape_data(self.instance_name, user_home)
             if user_data is None and seed_dir is not None:
-                # Regular user data
                 file = self.find_user_data_file(seed_dir)
-                if os.path.exists(file.as_posix()):
-                    bin_user_data = util.load_binary_file(file.as_posix())
-                    user_data = util.load_yaml(bin_user_data)
-                    user_data = (
-                        bin_user_data if user_data is None else user_data
-                    )
-
+                user_data = load_yaml_or_bin(file.as_posix())
         except (ValueError, IOError) as err:
-            LOG.error("Unable to load cloud-init data: %s", str(err))
+            LOG.error(
+                "Unable to load any user-data file in %s: %s",
+                seed_dir,
+                str(err),
+            )
 
-        if user_data is None and agent_data is None:
+        # No configs were found
+        if not any([user_data, agent_data]):
             self.userdata_raw = None
             return False
 
