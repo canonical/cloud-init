@@ -141,18 +141,6 @@ def cloud_init_data_dir(user_home: PurePath) -> Optional[PurePath]:
     return PurePath(seed_dir)
 
 
-def ubuntu_pro_data_dir(user_home: PurePath) -> Optional[PurePath]:
-    """
-    Get the path to the Ubuntu Pro cloud-init directory, or None if not found.
-    """
-    pro_dir = os.path.join(user_home, ".ubuntupro/.cloud-init")
-    if not os.path.isdir(pro_dir):
-        LOG.debug("Pro cloud-init dir %s was not found", pro_dir)
-        return None
-
-    return PurePath(pro_dir)
-
-
 def candidate_user_data_file_names(instance_name) -> List[str]:
     """
     Return a list of candidate file names that may contain user-data
