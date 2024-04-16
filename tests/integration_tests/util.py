@@ -209,9 +209,8 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
         )
     if "found network data from DataSourceNone" in log:
         warning_texts.append("Used fallback datasource")
-        warning_texts.append(
-            "Falling back to a hard restart of systemd-networkd.service"
-        )
+    if "['netplan', 'apply']" in log:
+        warning_texts.append("Failed to connect system bus")
     if "oracle" in log:
         # LP: #1842752
         lease_exists_text = "Stderr: RTNETLINK answers: File exists"
