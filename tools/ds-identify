@@ -1642,7 +1642,9 @@ WSL_instance_name() {
     local val="" instance_name=""
     WSL_linux2win_path "/"
     instance_name="${_RET}"
+    # Extracts "Ubuntu/" from "//wsl.localhost/Ubuntu/"
     val="${instance_name#//*/}"
+    # Extracts "Ubuntu" from "Ubuntu/"
     _RET="${val%/}"
 }
 
