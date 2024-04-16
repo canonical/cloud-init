@@ -11,7 +11,7 @@ from cloudinit.analyze.dump import (
     parse_ci_logline,
     parse_timestamp,
 )
-from cloudinit.util import write_file
+from cloudinit.util import get_linux_distro, write_file
 from tests.unittests.helpers import mock
 
 
@@ -43,6 +43,10 @@ class TestParseTimestamp:
         dt = datetime.strptime(journal_stamp + " " + str(year), journal_fmt)
         assert float(dt.strftime("%s.%f")) == parse_timestamp(journal_stamp)
 
+    @pytest.mark.skipif(
+        get_linux_distro()[0] == "alpine",
+        reason="glibc timezone behaviour expected",
+    )
     @pytest.mark.allow_subp_for("date", "gdate")
     def test_parse_unexpected_timestamp_format_with_date_command(self):
         """Dump sends unexpected timestamp formats to date for processing."""
@@ -137,6 +141,10 @@ class TestParseCILogLine:
             [mock.call("2016-08-30 21:53:25.972325+00:00")]
         )
 
+    @pytest.mark.skipif(
+        get_linux_distro()[0] == "alpine",
+        reason="glibc timezone behaviour expected",
+    )
     def test_parse_logline_returns_event_for_amazon_linux_2_line(self):
         line = (
             "Apr 30 19:39:11 cloud-init[2673]: handlers.py[DEBUG]: start:"
