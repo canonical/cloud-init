@@ -923,29 +923,6 @@ class TestEphemeralIPV4Network(CiTestCase):
         for teardown in expected_teardown_calls:
             assert teardown in m_subp.call_args_list
 
-    @mock.patch("cloudinit.net.readurl")
-    def test_ephemeral_ipv4_no_network_if_url_connectivity(
-        self, m_readurl, m_subp
-    ):
-        """No network setup is performed if we can successfully connect to
-        connectivity_url."""
-        params = {
-            "interface": "eth0",
-            "ip": "192.168.2.2",
-            "prefix_or_mask": "255.255.255.0",
-            "broadcast": "192.168.2.255",
-            "interface_addrs_before_dhcp": example_netdev,
-            "connectivity_url_data": {"url": "http://example.org/index.html"},
-        }
-
-        with EphemeralIPv4Network(MockDistro(), **params):
-            self.assertEqual(
-                [mock.call(url="http://example.org/index.html", timeout=5)],
-                m_readurl.call_args_list,
-            )
-        # Ensure that no teardown happens:
-        m_subp.assert_has_calls([])
-
     def test_ephemeral_ipv4_network_noop_when_configured(self, m_subp):
         """EphemeralIPv4Network handles exception when address is setup.
 

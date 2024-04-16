@@ -35,7 +35,6 @@ class EphemeralIPv4Network:
         broadcast,
         interface_addrs_before_dhcp: dict,
         router=None,
-        connectivity_url_data: Optional[Dict[str, Any]] = None,
         static_routes=None,
     ):
         """Setup context manager and validate call signature.
@@ -46,8 +45,6 @@ class EphemeralIPv4Network:
             prefix.
         @param broadcast: Broadcast address for the IPv4 network.
         @param router: Optionally the default gateway IP.
-        @param connectivity_url_data: Optionally, a URL to verify if a usable
-           connection already exists.
         @param static_routes: Optionally a list of static routes from DHCP
         """
         if not all([interface, ip, prefix_or_mask, broadcast]):
@@ -64,7 +61,6 @@ class EphemeralIPv4Network:
                 "netmask: {0}".format(e)
             ) from e
 
-        self.connectivity_url_data = connectivity_url_data
         self.interface = interface
         self.ip = ip
         self.broadcast = broadcast
@@ -77,9 +73,6 @@ class EphemeralIPv4Network:
         self.interface_addrs_before_dhcp = interface_addrs_before_dhcp.get(
             self.interface, {}
         )
-        self.interface_addrs_after_dhcp = netinfo.netdev_info().get(
-            self.interface, {}
-        )
 
     def __enter__(self):
         """Set up ephemeral network if interface is not connected.
@@ -88,20 +81,6 @@ class EphemeralIPv4Network:
         addresses, routes, etc
         """
 
-        if self.connectivity_url_data:
-            if net.has_url_connectivity(self.connectivity_url_data):
-                LOG.debug(
-                    "Skip ephemeral network setup, instance has connectivity"
-                    " to %s",
-                    self.connectivity_url_data["url"],
-                )
-                return
-            else:
-                LOG.debug(
-                    "Instance does not have connectivity to %s. Bringing up "
-                    "ephemeral network now.",
-                    self.connectivity_url_data["url"],
-                )
         try:
             try:
                 self._bringup_device()
@@ -152,11 +131,13 @@ class EphemeralIPv4Network:
             self.cidr,
             self.broadcast,
         )
-        has_link = self.interface_addrs_after_dhcp.get("up")
+        interface_addrs_after_dhcp = netinfo.netdev_info().get(
+            self.interface, {}
+        )
+        has_link = interface_addrs_after_dhcp.get("up")
         had_link = self.interface_addrs_before_dhcp.get("up")
         has_ip = self.ip in [
-            ip.get("ip")
-            for ip in self.interface_addrs_after_dhcp.get("ipv4", {})
+            ip.get("ip") for ip in interface_addrs_after_dhcp.get("ipv4", {})
         ]
         had_ip = self.ip in [
             ip.get("ip")
@@ -380,8 +361,6 @@ class EphemeralDHCPv4:
             ] = self.distro.dhcp_client.parse_static_routes(
                 kwargs["static_routes"]
             )
-        if self.connectivity_url_data:
-            kwargs["connectivity_url_data"] = self.connectivity_url_data
         ephipv4 = EphemeralIPv4Network(
             self.distro,
             interface_addrs_before_dhcp=self.interface_addrs_before_dhcp,
