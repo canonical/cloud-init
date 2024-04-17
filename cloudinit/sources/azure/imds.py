@@ -7,6 +7,7 @@ from time import time
 from typing import Dict, Optional, Type, Union
 
 import requests
+import uuid
 
 from cloudinit import util
 from cloudinit.sources.helpers.azure import report_diagnostic_event
@@ -126,10 +127,14 @@ def _fetch_url(
     :raises UrlError: on error fetching metadata.
     """
     try:
+        headers_cb = {
+            "Metadata": "true",
+            "x-ms-client-request-id": str(uuid.uuid4()),
+        }
         response = readurl(
             url,
             exception_cb=retry_handler.exception_callback,
-            headers={"Metadata": "true"},
+            headers_cb=headers_cb,
             infinite=True,
             log_req_resp=log_response,
             timeout=timeout,
@@ -218,10 +223,14 @@ def fetch_reprovision_data() -> bytes:
         ),
         retry_deadline=None,
     )
+    headers_cb = {
+        "Metadata": "true",
+        "x-ms-client-request-id": str(uuid.uuid4()),
+    }
     response = readurl(
         url,
         exception_cb=handler.exception_callback,
-        headers={"Metadata": "true"},
+        headers_cb=headers_cb,
         infinite=True,
         log_req_resp=False,
         timeout=30,
