@@ -3394,7 +3394,7 @@ class TestNetplanPostcommands:
         mock_subp.side_effect = iter([subp.ProcessExecutionError])
         renderer.render_network_state(ns, target=render_dir)
 
-        mock_netplan_generate.assert_called_with(run=True, same_content=False)
+        mock_netplan_generate.assert_called_with(run=True, config_changed=True)
         mock_net_setup_link.assert_called_with(run=True)
 
     @mock.patch("cloudinit.util.SeLinuxGuard")

@@ -4,7 +4,6 @@ import copy
 import io
 import logging
 import os
-import shutil
 import textwrap
 from tempfile import SpooledTemporaryFile
 from typing import Optional, cast
@@ -19,7 +18,6 @@ from cloudinit.net import (
     subnet_is_ipv6,
 )
 from cloudinit.net.network_state import NET_CONFIG_TO_V2, NetworkState
-from cloudinit.temp_utils import mkdtemp
 
 CLOUDINIT_NETPLAN_FILE = "/etc/netplan/50-cloud-init.yaml"
 
@@ -250,10 +248,9 @@ def netplan_api_write_yaml_file(net_config_content: str) -> bool:
             CLOUDINIT_NETPLAN_FILE,
         )
         return False
-    cfg_dir = mkdtemp()
     try:
-        with SpooledTemporaryFile(dir=cfg_dir, mode="w+b") as f:
-            f.write(util.encode_text(net_config_content))
+        with SpooledTemporaryFile(mode="w") as f:
+            f.write(net_config_content)
             f.flush()
             f.seek(0, io.SEEK_SET)
             parser = Parser()
@@ -276,34 +273,29 @@ def netplan_api_write_yaml_file(net_config_content: str) -> bool:
             e,
         )
         return False
-    if os.path.exists(cfg_dir):
-        shutil.rmtree(cfg_dir)
     LOG.debug("Rendered netplan config using netplan python API")
     return True
 
 
-def fallback_write_netplan_yaml(filename: str, content: str) -> bool:
-    """Write netplan config to filename reporting when content is unchanged.
+def has_netplan_config_changed(cfg_file: str, content: str) -> bool:
+    """Return True when new netplan config has changed vs previous."""
+    if not os.path.exists(cfg_file):
+        # This is our first write of netplan's cfg_file, representing change.
+        return True
+    # Check prev cfg vs current cfg. Ignore comments
+    prior_cfg = util.load_yaml(util.load_text_file(cfg_file))
+    return prior_cfg != util.load_yaml(content)
 
-    Return bool: True if new content is the same as original content.
-    """
-    # Determine if existing config files have the same content
-    same_netplan_config = False
-    if os.path.exists(filename):
-        hashed_content = util.hash_buffer(io.BytesIO(content.encode()))
-        with open(filename, "rb") as f:
-            hashed_original_content = util.hash_buffer(f)
-        if hashed_content == hashed_original_content:
-            same_netplan_config = True
 
+def fallback_write_netplan_yaml(cfg_file: str, content: str):
+    """Write netplan config to cfg_file because python API was unavailable."""
     mode = 0o600 if features.NETPLAN_CONFIG_ROOT_READ_ONLY else 0o644
-    if not same_netplan_config and os.path.exists(filename):
-        current_mode = util.get_permissions(filename)
+    if os.path.exists(cfg_file):
+        current_mode = util.get_permissions(cfg_file)
         if current_mode & mode == current_mode:
             # preserve mode if existing perms are more strict
             mode = current_mode
-    util.write_file(filename, content, mode=mode)
-    return same_netplan_config
+    util.write_file(cfg_file, content, mode=mode)
 
 
 class Renderer(renderer.Renderer):
@@ -358,22 +350,22 @@ class Renderer(renderer.Renderer):
             header += "\n"
         content = header + content
 
-        same_netplan_config = False
+        netplan_config_changed = has_netplan_config_changed(fpnplan, content)
         if not netplan_api_write_yaml_file(content):
-            same_netplan_config = fallback_write_netplan_yaml(fpnplan, content)
+            fallback_write_netplan_yaml(fpnplan, content)
 
         if self.clean_default:
             _clean_default(target=target)
         self._netplan_generate(
-            run=self._postcmds, same_content=same_netplan_config
+            run=self._postcmds, config_changed=netplan_config_changed
         )
         self._net_setup_link(run=self._postcmds)
 
-    def _netplan_generate(self, run: bool = False, same_content: bool = False):
+    def _netplan_generate(self, run: bool, config_changed: bool):
         if not run:
-            LOG.debug("netplan generate postcmd disabled")
+            LOG.debug("netplan generate postcmds disabled")
             return
-        if same_content:
+        if not config_changed:
             LOG.debug(
                 "skipping call to `netplan generate`."
                 " reason: identical netplan config"

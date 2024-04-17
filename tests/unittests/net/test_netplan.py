@@ -17,27 +17,28 @@ def renderer(tmp_path):
 
 
 class TestNetplanRenderer:
-    @pytest.mark.parametrize("write_config", [True, False])
-    def test_skip_netplan_generate(self, renderer, write_config, mocker):
-        """Check `netplan generate` is called if netplan config has changed."""
+    @pytest.mark.parametrize(
+        "orig_config", ["", "{'orig_cfg': true}", "{'new_cfg': true}"]
+    )
+    def test_skip_netplan_generate(self, renderer, orig_config, mocker):
+        """Check `netplan generate` called when netplan config has changed."""
         header = "\n"
-        content = "foo"
+        new_config = "{'new_cfg': true}"
         renderer_mocks = mocker.patch.multiple(
             renderer,
-            _render_content=mocker.Mock(return_value=content),
+            _render_content=mocker.Mock(return_value=new_config),
             _netplan_generate=mocker.DEFAULT,
             _net_setup_link=mocker.DEFAULT,
         )
-        if write_config:
+        if orig_config:
             util.ensure_dir(os.path.dirname(renderer.netplan_path))
             with open(renderer.netplan_path, "w") as f:
                 f.write(header)
-                f.write(content)
-
+                f.write(orig_config)
         renderer.render_network_state(mocker.Mock())
-
+        config_changed = bool(orig_config != new_config)
         assert renderer_mocks["_netplan_generate"].call_args_list == [
-            mock.call(run=True, same_content=write_config)
+            mock.call(run=True, config_changed=config_changed)
         ]
 
 
