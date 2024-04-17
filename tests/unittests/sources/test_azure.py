@@ -742,14 +742,20 @@ class TestGenerateNetworkConfig:
                             "match": {"macaddress": "00:0d:3a:04:75:98"},
                             "dhcp6": False,
                             "dhcp4": True,
-                            "dhcp4-overrides": {"route-metric": 200},
+                            "dhcp4-overrides": {
+                                "route-metric": 200,
+                                "use-dns": False,
+                            },
                         },
                         "eth2": {
                             "set-name": "eth2",
                             "match": {"macaddress": "00:0d:3a:04:75:98"},
                             "dhcp6": False,
                             "dhcp4": True,
-                            "dhcp4-overrides": {"route-metric": 300},
+                            "dhcp4-overrides": {
+                                "route-metric": 300,
+                                "use-dns": False,
+                            },
                         },
                     },
                     "version": 2,
@@ -976,7 +982,7 @@ class TestNetworkConfig:
                     "dhcp6": False,
                     "match": {"macaddress": "00:0d:3a:04:75:98"},
                     "set-name": "eth0",
-                }
+                },
             },
             "version": 2,
         }
@@ -1557,7 +1563,7 @@ scbus-1 on xpt0 bus 0
                     "dhcp6": False,
                     "dhcp4": True,
                     "dhcp4-overrides": {"route-metric": 100},
-                }
+                },
             },
             "version": 2,
         }
@@ -1586,14 +1592,14 @@ scbus-1 on xpt0 bus 0
                     "match": {"macaddress": "22:0d:3a:04:75:98"},
                     "dhcp6": False,
                     "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 200},
+                    "dhcp4-overrides": {"route-metric": 200, "use-dns": False},
                 },
                 "eth2": {
                     "set-name": "eth2",
                     "match": {"macaddress": "33:0d:3a:04:75:98"},
                     "dhcp6": False,
                     "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 300},
+                    "dhcp4-overrides": {"route-metric": 300, "use-dns": False},
                 },
             },
             "version": 2,
@@ -1626,7 +1632,7 @@ scbus-1 on xpt0 bus 0
                     "dhcp6": False,
                     "dhcp4": True,
                     "dhcp4-overrides": {"route-metric": 100},
-                }
+                },
             },
             "version": 2,
         }
