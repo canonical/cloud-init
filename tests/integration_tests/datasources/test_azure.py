@@ -1,11 +1,15 @@
+import datetime
+
 import pytest
+import yaml
+from pycloudlib.azure.util import AzureCreateParams, AzureParams
 from pycloudlib.cloud import ImageType
 
 from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.conftest import get_validated_source
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
-from tests.integration_tests.releases import CURRENT_RELEASE
+from tests.integration_tests.releases import BIONIC, CURRENT_RELEASE
 
 
 def _check_for_eject_errors(
@@ -45,3 +49,42 @@ def test_azure_eject(session_cloud: IntegrationCloud):
                 session_cloud.cloud_instance.delete_image(snapshot_id)
         else:
             _check_for_eject_errors(instance)
+
+
+@pytest.mark.skipif(PLATFORM != "azure", reason="Test is Azure specific")
+@pytest.mark.skipif(
+    CURRENT_RELEASE < BIONIC, reason="Easier to test on Bionic+"
+)
+def test_azure_multi_nic_setup(
+    setup_image, session_cloud: IntegrationCloud
+) -> None:
+    """Integration test for https://warthogs.atlassian.net/browse/CPC-3999.
+
+    Azure should have the primary NIC only route to DNS.
+    Ensure other NICs do not have route to DNS.
+    """
+    us = datetime.datetime.now().strftime("%f")
+    rg_params = AzureParams(f"ci-test-multi-nic-setup-{us}", None)
+    nic_one = AzureCreateParams(f"ci-nic1-test-{us}", rg_params.name, None)
+    nic_two = AzureCreateParams(f"ci-nic2-test-{us}", rg_params.name, None)
+    with session_cloud.launch(
+        launch_kwargs={
+            "resource_group_params": rg_params,
+            "network_interfaces_params": [nic_one, nic_two],
+        }
+    ) as snapshot_instance:
+        _check_for_eject_errors(snapshot_instance)
+        if CURRENT_RELEASE.series == "bionic":
+            ret = snapshot_instance.execute("systemd-resolve --status")
+            assert ret.ok, ret.stderr
+            assert ret.stdout.count("Current Scopes: DNS") == 1
+        else:
+            ret = snapshot_instance.execute("resolvectl dns")
+            assert ret.ok, ret.stderr
+            routes = yaml.safe_load(ret.stdout)
+            routes_devices = list(routes.keys())
+            eth1_dev = [dev for dev in routes_devices if "(eth1)" in dev][0]
+            assert routes[eth1_dev] is None
+            # check the instance can resolve something
+            res = snapshot_instance.execute("resolvectl query google.com")
+            assert res.ok, res.stderr

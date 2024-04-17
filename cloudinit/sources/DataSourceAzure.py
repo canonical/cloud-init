@@ -1482,18 +1482,23 @@ class DataSourceAzure(sources.DataSource):
     def _generate_network_config(self):
         """Generate network configuration according to configuration."""
         # Use IMDS network metadata, if configured.
+        fxn = add_dhcp_config_for_primary_and_secondary_nics_to_network_config
         if (
             self._metadata_imds
             and self._metadata_imds != sources.UNSET
             and self.ds_cfg.get("apply_network_config")
         ):
             try:
-                return generate_network_config_from_instance_network_metadata(
-                    self._metadata_imds["network"],
-                    apply_network_config_for_secondary_ips=self.ds_cfg.get(
-                        "apply_network_config_for_secondary_ips"
-                    ),
+                netcfg = (
+                    generate_network_config_from_instance_network_metadata(
+                        self._metadata_imds["network"],
+                        apply_network_config_for_secondary_ips=self.ds_cfg.get(
+                            "apply_network_config_for_secondary_ips"
+                        ),
+                    )
                 )
+                net_cfg = fxn(netcfg)
+                return net_cfg
             except Exception as e:
                 LOG.error(
                     "Failed generating network config "
@@ -1943,6 +1948,30 @@ def load_azure_ds_dir(source_dir):
 
     md, ud, cfg = read_azure_ovf(contents)
     return (md, ud, cfg, {"ovf-env.xml": contents})
+
+
+def add_dhcp_config_for_primary_and_secondary_nics_to_network_config(
+    netconfig: dict,
+) -> dict:
+    """
+    Configure the ephemeral and hotplug details.
+    parameters:
+        netconfig: dict, Network config details with other ethernet devices.
+
+    returns the updated network configuration
+    """
+    netconfig["ethernets"]["primary"] = {
+        "dhcp4": True,
+        "match": {"driver": "hv_netvsc", "name": "eth0"},
+    }
+    netconfig["ethernets"]["secondary"] = {
+        "dhcp4": True,
+        "dhcp4-overrides": {"use-dns": False},
+        "optional": True,
+        "match": {"driver": "hv_netvsc", "name": "!eth0"},
+    }
+
+    return netconfig
 
 
 @azure_ds_telemetry_reporter

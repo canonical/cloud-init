@@ -976,7 +976,17 @@ class TestNetworkConfig:
                     "dhcp6": False,
                     "match": {"macaddress": "00:0d:3a:04:75:98"},
                     "set-name": "eth0",
-                }
+                },
+                "primary": {
+                    "dhcp4": True,
+                    "match": {"driver": "hv_netvsc", "name": "eth0"},
+                },
+                "secondary": {
+                    "dhcp4": True,
+                    "dhcp4-overrides": {"use-dns": False},
+                    "optional": True,
+                    "match": {"driver": "hv_netvsc", "name": "!eth0"},
+                },
             },
             "version": 2,
         }
@@ -1557,7 +1567,17 @@ scbus-1 on xpt0 bus 0
                     "dhcp6": False,
                     "dhcp4": True,
                     "dhcp4-overrides": {"route-metric": 100},
-                }
+                },
+                "primary": {
+                    "dhcp4": True,
+                    "match": {"driver": "hv_netvsc", "name": "eth0"},
+                },
+                "secondary": {
+                    "dhcp4": True,
+                    "dhcp4-overrides": {"use-dns": False},
+                    "optional": True,
+                    "match": {"driver": "hv_netvsc", "name": "!eth0"},
+                },
             },
             "version": 2,
         }
@@ -1595,6 +1615,16 @@ scbus-1 on xpt0 bus 0
                     "dhcp4": True,
                     "dhcp4-overrides": {"route-metric": 300},
                 },
+                "primary": {
+                    "dhcp4": True,
+                    "match": {"driver": "hv_netvsc", "name": "eth0"},
+                },
+                "secondary": {
+                    "dhcp4": True,
+                    "dhcp4-overrides": {"use-dns": False},
+                    "optional": True,
+                    "match": {"driver": "hv_netvsc", "name": "!eth0"},
+                },
             },
             "version": 2,
         }
@@ -1626,7 +1656,17 @@ scbus-1 on xpt0 bus 0
                     "dhcp6": False,
                     "dhcp4": True,
                     "dhcp4-overrides": {"route-metric": 100},
-                }
+                },
+                "primary": {
+                    "dhcp4": True,
+                    "match": {"driver": "hv_netvsc", "name": "eth0"},
+                },
+                "secondary": {
+                    "dhcp4": True,
+                    "dhcp4-overrides": {"use-dns": False},
+                    "optional": True,
+                    "match": {"driver": "hv_netvsc", "name": "!eth0"},
+                },
             },
             "version": 2,
         }
