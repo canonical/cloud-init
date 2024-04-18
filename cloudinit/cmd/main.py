@@ -760,6 +760,7 @@ def status_wrapper(name, args):
 
     nullstatus = {
         "errors": [],
+        "recoverable_errors": [],
         "start": None,
         "finished": None,
     }
@@ -774,8 +775,25 @@ def status_wrapper(name, args):
 
     v1 = status["v1"]
     v1["stage"] = mode
-    uptime = util.uptime()
-    v1[mode]["start"] = float(uptime)
+    start_time = v1[mode]["start"]
+    error_list = v1[mode]["errors"]
+    recoverable_errors = v1[mode]["recoverable_errors"]
+    if any([recoverable_errors, error_list, start_time]):
+        # This stage was likely restarted, which isn't expected.
+        LOG.warning(
+            "[%s] Unexpected value found in status.json. "
+            "Was this stage restarted?",
+            mode,
+        )
+        if start_time:
+            LOG.warning("unexpected start_time: %s", start_time)
+        if error_list:
+            LOG.warning("unexpected errors: %s", error_list)
+        if recoverable_errors:
+            LOG.warning(
+                "unexpected recoverable_errors: %s", recoverable_errors
+            )
+    v1[mode]["start"] = float(util.uptime())
     v1[mode]["recoverable_errors"] = next(
         filter(lambda h: isinstance(h, log.LogExporter), root_logger.handlers)
     ).export_logs()
@@ -795,21 +813,44 @@ def status_wrapper(name, args):
         else:
             errors = ret
 
-        v1[mode]["errors"] = [str(e) for e in errors]
+        v1[mode]["errors"].extend([str(e) for e in errors])
 
     except Exception as e:
-        util.logexc(LOG, "failed stage %s", mode)
+        LOG.exception("failed stage %s", mode)
         print_exc("failed run of stage %s" % mode)
-        v1[mode]["errors"] = [str(e)]
+        v1[mode]["errors"].append(str(e))
+        raise e
+    except SystemExit as e:
+        # silence a pylint false positive
+        # https://github.com/pylint-dev/pylint/issues/9556
+        if e.code:  # pylint: disable=using-constant-test
+            # Only log errors when sys.exit() is called with a non-zero
+            # exit code
+            LOG.exception("failed stage %s", mode)
+            print_exc("failed run of stage %s" % mode)
+            v1[mode]["errors"].append(f"sys.exit({str(e.code)}) called")
+        raise e
+    finally:
+        # It is desireable to write to status.json before exiting, even when
+        # sys.exit() is called.
+        v1[mode]["finished"] = float(util.uptime())
+        v1["stage"] = None
 
-    v1[mode]["finished"] = float(util.uptime())
-    v1["stage"] = None
+        # merge new recoverable errors into exising recoverable error list
+        old_recoverable_errors = v1[mode]["recoverable_errors"]
+        new_recoverable_errors = next(
+            filter(
+                lambda h: isinstance(h, log.LogExporter), root_logger.handlers
+            )
+        ).export_logs()
+        for key in new_recoverable_errors.keys():
+            if key in old_recoverable_errors:
+                old_recoverable_errors[key].extend(new_recoverable_errors[key])
+            else:
+                old_recoverable_errors[key] = new_recoverable_errors[key]
 
-    # Write status.json after running init / module code
-    v1[mode]["recoverable_errors"] = next(
-        filter(lambda h: isinstance(h, log.LogExporter), root_logger.handlers)
-    ).export_logs()
-    atomic_helper.write_json(status_path, status)
+        # Write status.json after running init / module code
+        atomic_helper.write_json(status_path, status)
 
     if mode == "modules-final":
         # write the 'finished' file
