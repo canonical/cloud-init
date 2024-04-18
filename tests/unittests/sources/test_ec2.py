@@ -15,6 +15,7 @@ from cloudinit import helpers
 from cloudinit.net import activators
 from cloudinit.sources import DataSourceEc2 as ec2
 from cloudinit.sources import NicOrder
+from tests.unittests.helpers import example_netdev
 from tests.unittests.util import MockDistro
 
 DYNAMIC_METADATA = {
@@ -930,6 +931,7 @@ class TestEc2:
         )
 
     @responses.activate
+    @pytest.mark.usefixtures("disable_netdev_info")
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv6Network")
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
@@ -945,6 +947,7 @@ class TestEc2:
         caplog,
         mocker,
         tmpdir,
+        disable_netdev_info,
     ):
         """Ec2Local returns True for valid platform data on non-BSD with dhcp.
 
@@ -978,6 +981,7 @@ class TestEc2:
         m_net4.assert_called_once_with(
             ds.distro,
             broadcast="192.168.2.255",
+            interface_addrs_before_dhcp=example_netdev,
             interface="eth9",
             ip="192.168.2.9",
             prefix_or_mask="255.255.255.0",
