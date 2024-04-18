@@ -658,10 +658,6 @@ def convert_net_json(network_json=None, known_macs=None):
             if network["type"] in ["ipv6_dhcpv6-stateful", "ipv6_dhcp"]:
                 cfg.update({"accept-ra": True})
 
-            if network["type"] == "ipv4":
-                subnet["ipv4"] = True
-            if network["type"] == "ipv6":
-                subnet["ipv6"] = True
             subnets.append(subnet)
         cfg.update({"subnets": subnets})
         if link["type"] in ["bond"]:
