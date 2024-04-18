@@ -78,8 +78,7 @@ def _get_ip_addr(client):
 @pytest.mark.skipif(
     PLATFORM != "openstack",
     reason=(
-        f"Test was written for {PLATFORM} but can likely run on "
-        "other platforms."
+        "Test was written for openstack but can likely run on other platforms."
     ),
 )
 @pytest.mark.skipif(
@@ -202,8 +201,7 @@ def test_hotplug_enable_cmd_ec2(client: IntegrationInstance):
 @pytest.mark.skipif(
     PLATFORM != "openstack",
     reason=(
-        f"Test was written for {PLATFORM} but can likely run on "
-        "other platforms."
+        "Test was written for openstack but can likely run on other platforms."
     ),
 )
 def test_no_hotplug_in_userdata(client: IntegrationInstance):
