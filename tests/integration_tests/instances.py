@@ -211,10 +211,15 @@ class IntegrationInstance:
 
     def install_ppa(self):
         log.info("Installing PPA")
+        if self.execute("which add-apt-repository").failed:
+            log.info("Installing missing software-properties-common package")
+            self._apt_update()
+            assert self.execute(
+                "apt install -qy software-properties-common"
+            ).ok
         assert self.execute(
             "add-apt-repository {} -y".format(self.settings.CLOUD_INIT_SOURCE)
         ).ok
-        self._apt_update()
         assert self.execute("apt-get install -qy cloud-init").ok
 
     @retry(tries=30, delay=1)
