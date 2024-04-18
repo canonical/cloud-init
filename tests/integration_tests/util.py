@@ -325,6 +325,8 @@ def get_console_log(client: "IntegrationInstance"):
         console_log = client.instance.console_log()
     except NotImplementedError:
         pytest.skip("NotImplementedError when requesting console log")
+    if console_log is None:
+        pytest.skip("Console log has not been setup")
     if console_log.lower().startswith("no console output"):
         pytest.fail("no console output")
     return console_log
