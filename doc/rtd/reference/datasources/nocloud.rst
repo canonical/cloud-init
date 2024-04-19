@@ -18,37 +18,54 @@ Configuration Methods:
     be acted upon by cloud-init, using
     :ref:`DataSourceNone<datasource_none_example>` should be preferred.
 
-Method 1: Local filesystem, labeled filesystem
-----------------------------------------------
+Method 1: Labeled filesystem
+----------------------------
 
-To provide cloud-init configurations from the local filesystem, a labeled
-`vfat`_ or `iso9660`_ filesystem containing user data and metadata may
-be used. For this method to work, the filesystem volume must be labelled
-``CIDATA``.
+A labeled `vfat`_ or `iso9660` filesystem containing user data and metadata
+files may be used. The filesystem volume must be labelled ``CIDATA``.
 
-Method 2: Local filesystem, kernel commandline or SMBIOS
---------------------------------------------------------
 
-Configuration files can be provided on the local filesystem without a label
-using kernel commandline arguments or SMBIOS serial number to tell cloud-init
-where on the filesystem to look.
+Method 2: Custom webserver
+--------------------------
 
-Alternatively, one can provide metadata via the kernel command line or SMBIOS
-"serial number" option. This argument might look like: ::
+Configuration files can be provided to cloud-init over HTTP(s). To tell
+cloud-init the URI to use, arguments must be passed to the instance via the
+kernel commandline  or SMBIOS serial number. This argument might look like: ::
 
-  ds=nocloud;s=file://path/to/directory/;h=node-42
-
-Method 3: Custom webserver: kernel commandline or SMBIOS
---------------------------------------------------------
-
-In a similar fashion, configuration files can be provided to cloud-init using a
-custom webserver at a URL dictated by kernel commandline arguments or SMBIOS
-serial number. This argument might look like: ::
-
-  ds=nocloud;s=http://10.42.42.42/cloud-init/configs/
+  ds=nocloud;s=https://10.42.42.42/cloud-init/configs/
 
 .. note::
-   When supplementing kernel parameters in GRUB's boot menu take care to single-quote this full value to avoid GRUB interpreting the semi-colon as a reserved word. See: `GRUB quoting`_
+   If using kernel command line arguments with GRUB, note that an
+   unescaped semicolon is intepreted as the end of a statement.
+   Consider using single-quotes to avoid this pitfall. See: `GRUB quoting`_
+   ds=nocloud;s=http://10.42.42.42/cloud-init/configs/
+
+Method 3: FTP Server
+--------------------
+
+Configuration files can be provided to cloud-init over unsecured FTP
+or alternatively with FTP over TLS. To tell cloud-init the URL to use,
+arguments must be passed to the instance via the kernel commandline or SMBIOS
+serial number. This argument might look like: ::
+
+  ds=nocloud;s=ftps://10.42.42.42/cloud-init/configs/
+
+
+Method 4: Local filesystem, kernel commandline or SMBIOS
+--------------------------------------------------------
+
+Configuration files can be provided on the local filesystem at specific
+filesystem paths using kernel commandline arguments or SMBIOS serial number to
+tell cloud-init where on the filesystem to look.
+
+.. note::
+   Unless arbitrary filesystem paths are required, one might prefer to use
+   :ref:`DataSourceNone<datasource_none_example>`, since it does not require
+   modifying the kernel commandline or SMBIOS.
+
+This argument might look like: ::
+
+  ds=nocloud;s=file://path/to/directory/;h=node-42
 
 Permitted keys
 ==============
@@ -59,41 +76,45 @@ The permitted keys are:
 * ``i`` or ``instance-id``
 * ``s`` or ``seedfrom``
 
-A valid ``seedfrom`` value consists of:
+A valid ``seedfrom`` value consists of a URI which must contain a
+trailing ``/``.
 
-Filesystem
-----------
+HTTP and HTTPS
+--------------
 
-A filesystem path starting with ``/`` or ``file://`` that points to a directory
-containing files: ``user-data``, ``meta-data``, and (optionally)
-``vendor-data`` (a trailing ``/`` is required)
+The URI elements supported by NoCloud's HTTP and HTTPS implementations
+include: ::
 
-HTTP server
------------
+   <scheme>://<host>/<path>/
 
-An ``http`` or ``https`` URL (a trailing ``/`` is required)
+Where ``scheme`` can be ``http`` or ``https`` and ``host`` can be an IP
+address or DNS name.
 
+FTP and FTP over TLS
+--------------------
 
-File formats
-============
+The URI elements supported by NoCloud's FTP and FTPS implementation
+include: ::
 
-These user data and metadata files are required as separate files at the
-same base URL: ::
+   <scheme>://<userinfo>@<host>:<port>/<path>/
 
-  /user-data
-  /meta-data
+Where ``scheme`` can be ``ftp`` or ``ftps``, ``userinfo`` will be
+``username:password`` (defaults is ``anonymous`` and an empty password),
+``host`` can be an IP address or DNS name, and ``port`` is which network
+port to use (default is ``21``).
 
-Both files must be present for it to be considered a valid seed ISO.
+Path Resource
+-------------
 
-The ``user-data`` file uses :ref:`user data format<user_data_formats>` and
-``meta-data`` is a YAML-formatted file representing what you'd find in the EC2
-metadata service.
+The path pointed to by the URI will contain the following files:
 
-You may also optionally provide a vendor data file adhering to
-:ref:`user data formats<user_data_formats>` at the same base URL: ::
+``user-data`` (reqired)
+``meta-data`` (required)
+``vendor-data`` (optional)
 
-  /vendor-data
-
+The ``user-data`` file uses :ref:`user data format<user_data_formats>`. The
+``meta-data`` file is a YAML-formatted file. The vendor data file adhers to
+:ref:`user data formats<user_data_formats>` at the same base URL.
 
 DMI-specific kernel commandline
 ===============================
