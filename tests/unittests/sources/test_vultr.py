@@ -22,9 +22,6 @@ chpasswd:
   expire: false
   list:
   - root:$6$SxXx...k2mJNIzZB5vMCDBlYT1
-system_info:
-  default_user:
-    name: root
 """
 
 # Vultr metadata test data
