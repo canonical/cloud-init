@@ -54,6 +54,7 @@ The following is a list of documentation for each supported datasource:
    datasources/lxd.rst
    datasources/maas.rst
    datasources/nocloud.rst
+   datasources/none.rst
    datasources/nwcs.rst
    datasources/opennebula.rst
    datasources/openstack.rst
@@ -67,4 +68,3 @@ The following is a list of documentation for each supported datasource:
    datasources/vultr.rst
    datasources/wsl.rst
    datasources/zstack.rst
-
