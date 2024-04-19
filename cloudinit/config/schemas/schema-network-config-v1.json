@@ -532,6 +532,14 @@
           "items": {
             "$ref": "#/$defs/anyOf_type_route"
           }
+        },
+        "ipv4": {
+          "type": "boolean",
+          "description": "Indicate if the subnet is IPv4. If not specified, it will be inferred from the subnet type or address. This exists for compatibility with OpenStack's ``network_data.json`` when rendered through sysconfig."
+        },
+        "ipv6": {
+          "type": "boolean",
+          "description": "Indicate if the subnet is IPv6. If not specified, it will be inferred from the subnet type or address. This is exists for compatibility with OpenStack's ``network_data.json`` when rendered through sysconfig."
         }
       }
     },
