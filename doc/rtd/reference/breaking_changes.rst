@@ -11,8 +11,8 @@ releases.
     many operating system vendors patch out breaking changes in
     cloud-init to ensure consistent behavior on their platform.
 
-Datasource identification
-=========================
+23.2-24.1 - Datasource identification
+=====================================
 
 **23.2**
     If the detected ``datasource_list`` contains a single datasource or
@@ -25,10 +25,10 @@ Datasource identification
     a valid datasource that may be used if the primary datasource is
     not available.
 **24.1**
-    ds-identify will no longer automatically append ``None`` to a
-    datasource list that has been provided under ``/etc/cloud``. If ``None``
-    is desired as a fallback, it must be explicitly added to the customized
-    datasource list.
+    ds-identify no longer automatically appends ``None`` to a
+    datasource list with a single entry provided under ``/etc/cloud``.
+    If ``None`` is desired as a fallback, it must be explicitly added to the
+    customized datasource list.
 
 24.1 - removed Ubuntu's ordering dependency on snapd.seeded
 ===========================================================
