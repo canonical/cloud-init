@@ -577,6 +577,12 @@
         },
         "merge_type": {
           "$ref": "#/$defs/merge_definition"
+        },
+        "system_info": {
+          "type": "object",
+          "description": "System and/or distro specific settings. This is not intended to be overridden by user data or vendor data.",
+          "deprecated": true,
+          "deprecated_version": "24.2"
         }
       }
     },
@@ -3876,6 +3882,7 @@
     "ssh_pwauth": {},
     "ssh_quiet_keygen": {},
     "swap": {},
+    "system_info": {},
     "timezone": {},
     "ubuntu_advantage": {},
     "ubuntu_pro": {},
