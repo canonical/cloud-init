@@ -66,6 +66,13 @@ class TestNetplanGenerateBehaviorOnReboot:
         client.execute(
             "mv /var/log/cloud-init.log /var/log/cloud-init.log.bak"
         )
+        if CURRENT_RELEASE < MANTIC:
+            assert (
+                "No netplan python module. Fallback to write"
+                " /etc/netplan/50-cloud-init.yaml" in log
+            )
+        else:
+            assert "Rendered netplan config using netplan python API" in log
         netplan = yaml.safe_load(
             client.execute("cat /etc/netplan/50-cloud-init.yaml")
         )
