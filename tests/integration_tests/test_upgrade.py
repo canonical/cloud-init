@@ -12,6 +12,7 @@ from tests.integration_tests.releases import (
     CURRENT_RELEASE,
     FOCAL,
     IS_UBUNTU,
+    MANTIC,
     NOBLE,
 )
 from tests.integration_tests.util import verify_clean_log
@@ -154,7 +155,12 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
                 values.pop("dhcp6")
             assert yaml.dump(pre_network) == yaml.dump(post_network)
         else:
-            assert pre_network == post_network
+            if CURRENT_RELEASE < MANTIC:
+                assert pre_network == post_network
+            else:
+                # Mantic and later Netplan API is used which doesn't allow
+                # for cloud-init to write a header in network config
+                assert yaml.load(pre_network) == yaml.load(post_network)
 
         # Calculate and log all the boot numbers
         pre_analyze_totals = [
