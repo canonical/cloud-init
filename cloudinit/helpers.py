@@ -34,7 +34,7 @@ class DummySemaphores:
         pass
 
     @contextlib.contextmanager
-    def lock(self, _name, _freq, _clear_on_fail=False):
+    def lock(self, _name, _freq):
         yield DummyLock()
 
     def has_run(self, _name, _freq):
@@ -61,14 +61,9 @@ class FileSemaphores:
         self.sem_path = sem_path
 
     @contextlib.contextmanager
-    def lock(self, name, freq, clear_on_fail=False):
+    def lock(self, name, freq):
         name = canon_sem_name(name)
-        try:
-            yield self._acquire(name, freq)
-        except Exception:
-            if clear_on_fail:
-                self.clear(name, freq)
-            raise
+        yield self._acquire(name, freq)
 
     def clear(self, name, freq):
         name = canon_sem_name(name)
@@ -138,7 +133,7 @@ class Runners:
             self.sems[sem_path] = FileSemaphores(sem_path)
         return self.sems[sem_path]
 
-    def run(self, name, functor, args, freq=None, clear_on_fail=False):
+    def run(self, name, functor, args, freq=None):
         sem = self._get_sem(freq)
         if not sem:
             sem = DummySemaphores()
@@ -147,7 +142,7 @@ class Runners:
         if sem.has_run(name, freq):
             LOG.debug("%s already ran (freq=%s)", name, freq)
             return (False, None)
-        with sem.lock(name, freq, clear_on_fail) as lk:
+        with sem.lock(name, freq) as lk:
             if not lk:
                 raise LockFailure("Failed to acquire lock for %s" % name)
             else:
