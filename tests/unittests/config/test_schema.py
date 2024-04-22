@@ -2190,7 +2190,7 @@ class TestSchemaDocExamples:
     @skipUnlessJsonSchema()
     def test_network_config_schema_v2_doc_examples(self, example_path):
         validate_cloudconfig_schema(
-            config=load(open(example_path)),
+            config=yaml.safe_load(open(example_path)),
             schema=self.net_schema_v2,
             schema_type=SchemaType.NETWORK_CONFIG_V2,
             strict=True,
