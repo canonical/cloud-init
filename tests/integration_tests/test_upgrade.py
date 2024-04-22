@@ -156,11 +156,16 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
             assert yaml.dump(pre_network) == yaml.dump(post_network)
         else:
             if CURRENT_RELEASE < MANTIC:
+                # Assert the full content is preserved including header comment
+                # since cloud-init writes the file directly and does not use
+                # netplan API to write 50-cloud-init.yaml.
                 assert pre_network == post_network
             else:
-                # Mantic and later Netplan API is used which doesn't allow
-                # for cloud-init to write a header in network config
-                assert yaml.load(pre_network) == yaml.load(post_network)
+                # Mantic and later Netplan API is used and doesn't allow
+                # cloud-init to write header comments in network config
+                assert yaml.safe_load(pre_network) == yaml.safe_load(
+                    post_network
+                )
 
         # Calculate and log all the boot numbers
         pre_analyze_totals = [
