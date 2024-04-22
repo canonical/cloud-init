@@ -555,10 +555,20 @@ class DataSourceAzure(sources.DataSource):
         )
 
     def _check_azure_proxy_agent_status(self) -> None:
-        """check if azure-proxy-agent is fully running and can procede to
-        communicate with IMDS and Wire Server. If not, fail provisioning.
-        Azure Guest Proxy Agent source code:
-        https://github.com/azure/guestproxyagent"""
+        """Check if azure-proxy-agent is ready for communication with WS/IMDS.
+
+        If ProvisionGuestProxyAgent is true, query azure-proxy-agent status,
+        waiting up to 120 seconds for the proxy to negotiate with Wireserver
+        and configure an eBPF proxy.  Once azure-proxy-agent is ready,
+        it will exit with code 0 and cloud-init can then expect to be able to
+        communicate with these services.
+
+        Fail deployment if azure-proxy-agent is not found or otherwise returns
+        an error.
+
+        For more information, check out:
+        https://github.com/azure/guestproxyagent
+        """
         try:
             cmd = [
                 "azure-proxy-agent",
@@ -572,11 +582,9 @@ class DataSourceAzure(sources.DataSource):
                 "in stderr output: %s with stdout: %s" % (cmd, err, out),
                 logger_func=LOG.debug,
             )
-
         except FileNotFoundError:
             error = errors.ReportableErrorProxyAgentNotFound()
             self._report_failure(error)
-
         except subp.ProcessExecutionError as error:
             reportable_error = errors.ReportableErrorProxyAgentStatusFailure(
                 error

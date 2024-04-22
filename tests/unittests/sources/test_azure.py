@@ -3758,6 +3758,8 @@ class TestProvisioning:
 
         self.azure_ds._check_and_get_data()
 
+        assert self.mock_subp_subp.mock_calls == []
+
         assert self.mock_readurl.mock_calls == [
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
@@ -4714,21 +4716,17 @@ class TestCheckAzureProxyAgent:
         ]
 
     def test_check_azure_proxy_agent_status_failure(self):
-        self.mock_subp_subp.side_effect = [
-            subp.ProcessExecutionError(
-                cmd=["failed", "azure-proxy-agent"],
-                stdout="test_stdout",
-                stderr="test_stderr",
-                exit_code=4,
-            ),
-        ]
-        self.azure_ds._check_azure_proxy_agent_status()
-        assert "azure-proxy-agent status failure" in self.caplog.text
         exception = subp.ProcessExecutionError(
+            cmd=["failed", "azure-proxy-agent"],
             stdout="test_stdout",
             stderr="test_stderr",
             exit_code=4,
         )
+        self.mock_subp_subp.side_effect = [
+            exception,
+        ]
+        self.azure_ds._check_azure_proxy_agent_status()
+        assert "azure-proxy-agent status failure" in self.caplog.text
         assert self.mock_wrapping_report_failure.mock_calls == [
             mock.call(
                 errors.ReportableErrorProxyAgentStatusFailure(
