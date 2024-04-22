@@ -143,15 +143,27 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
                 assert post_json["v1"]["datasource"].startswith(
                     "DataSourceAzure"
                 )
-        if PLATFORM in ["gce", "qemu"] and CURRENT_RELEASE < NOBLE:
+        if any(
+            [
+                CURRENT_RELEASE > FOCAL,
+                PLATFORM in ["gce", "qemu"],
+            ]
+        ):
+            # Netplan systems > focal will use the netplan API to generate
+            # the network config, which results in comments being stripped
+            # and indentation be different.
+
             # GCE regenerates network config per boot AND
             # GCE uses fallback config AND
             # #4474 changed fallback configuration.
-            # Once the baseline includes #4474, this can be removed
+            # Once the baseline includes #4474, the GCE specific portion
+            # of this can be removed
             pre_network = yaml.load(pre_network, Loader=yaml.Loader)
             post_network = yaml.load(post_network, Loader=yaml.Loader)
-            for values in post_network["network"]["ethernets"].values():
-                values.pop("dhcp6")
+            if PLATFORM in ["gce", "qemu"] and CURRENT_RELEASE < NOBLE:
+
+                for values in post_network["network"]["ethernets"].values():
+                    values.pop("dhcp6")
             assert yaml.dump(pre_network) == yaml.dump(post_network)
         else:
             assert pre_network == post_network

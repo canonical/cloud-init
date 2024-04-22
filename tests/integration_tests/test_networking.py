@@ -198,7 +198,8 @@ def test_netplan_rendering(
     }
     with session_cloud.launch(launch_kwargs=launch_kwargs) as client:
         result = client.execute("cat /etc/netplan/50-cloud-init.yaml")
-        assert result.stdout.startswith(EXPECTED_NETPLAN_HEADER)
+        if CURRENT_RELEASE < JAMMY:
+            assert result.stdout.startswith(EXPECTED_NETPLAN_HEADER)
         assert expected == yaml.safe_load(result.stdout)
 
 
