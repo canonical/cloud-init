@@ -757,14 +757,16 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def get_public_ssh_keys(self):
         return normalize_pubkey_data(self.metadata.get("public-keys"))
 
-    def publish_host_keys(self, hostkeys):
+    def publish_host_keys(self, hostkeys) -> bool:
         """Publish the public SSH host keys (found in /etc/ssh/*.pub).
 
         @param hostkeys: List of host key tuples (key_type, key_value),
             where key_type is the first field in the public key file
             (e.g. 'ssh-rsa') and key_value is the key itself
             (e.g. 'AAAAB3NzaC1y...').
+        @return: True if publishing host keys succeeded, otherwise False
         """
+        return True
 
     def _remap_device(self, short_name):
         # LP: #611137
