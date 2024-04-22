@@ -67,52 +67,21 @@ def sys_dev_path(devname, path=""):
 def read_sys_net(
     devname,
     path,
-    translate=None,
-    on_enoent=None,
-    on_keyerror=None,
-    on_einval=None,
 ):
     dev_path = sys_dev_path(devname, path)
+    return util.load_text_file(dev_path).strip()
+
+
+def read_sys_net_safe(iface, field):
     try:
-        contents = util.load_text_file(dev_path)
-    except (OSError, IOError) as e:
-        e_errno = getattr(e, "errno", None)
-        if e_errno in (errno.ENOENT, errno.ENOTDIR):
-            if on_enoent is not None:
-                return on_enoent(e)
-        if e_errno in (errno.EINVAL,):
-            if on_einval is not None:
-                return on_einval(e)
+        return read_sys_net(
+            iface,
+            field,
+        )
+    except OSError as e:
+        if e.errno in (errno.ENOENT, errno.ENOTDIR, errno.EINVAL):
+            return False
         raise
-    contents = contents.strip()
-    if translate is None:
-        return contents
-    try:
-        return translate[contents]
-    except KeyError as e:
-        if on_keyerror is not None:
-            return on_keyerror(e)
-        else:
-            LOG.debug(
-                "Found unexpected (not translatable) value '%s' in '%s",
-                contents,
-                dev_path,
-            )
-            raise
-
-
-def read_sys_net_safe(iface, field, translate=None):
-    def on_excp_false(e):
-        return False
-
-    return read_sys_net(
-        iface,
-        field,
-        on_keyerror=on_excp_false,
-        on_enoent=on_excp_false,
-        on_einval=on_excp_false,
-        translate=translate,
-    )
 
 
 def read_sys_net_int(iface, field):
@@ -125,12 +94,13 @@ def read_sys_net_int(iface, field):
         return None
 
 
-def is_up(devname):
+def is_up(devname) -> bool:
     # The linux kernel says to consider devices in 'unknown'
     # operstate as up for the purposes of network configuration. See
     # Documentation/networking/operstates.txt in the kernel source.
     translate = {"up": True, "unknown": True, "down": False}
-    return read_sys_net_safe(devname, "operstate", translate=translate)
+    contents = read_sys_net_safe(devname, "operstate")
+    return translate.get(contents, False)
 
 
 def is_bridge(devname):
@@ -237,7 +207,7 @@ def get_dev_features(devname):
     features = ""
     try:
         features = read_sys_net(devname, "device/features")
-    except Exception:
+    except (OSError, UnicodeError):
         pass
     return features
 

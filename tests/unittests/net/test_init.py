@@ -66,57 +66,9 @@ class TestReadSysNet:
         with pytest.raises(Exception, match="No such file or directory"):
             net.read_sys_net("dev", "attr")
 
-    def test_read_sys_net_handles_error_with_on_enoent(self):
-        """read_sys_net handles OSError/IOError with on_enoent if provided."""
-        handled_errors = []
-
-        def on_enoent(e):
-            handled_errors.append(e)
-
-        net.read_sys_net("dev", "attr", on_enoent=on_enoent)
-        error = handled_errors[0]
-        assert isinstance(error, Exception)
-        assert "No such file or directory" in str(error)
-
-    def test_read_sys_net_translates_content(self):
-        """read_sys_net translates content when translate dict is provided."""
-        content = "you're welcome\n"
-        write_file(os.path.join(self.sysdir, "dev", "attr"), content)
-        translate = {"you're welcome": "de nada"}
-        assert "de nada" == net.read_sys_net(
-            "dev", "attr", translate=translate
-        )
-
-    def test_read_sys_net_errors_on_translation_failures(self, caplog):
-        """read_sys_net raises a KeyError and logs details on failure."""
-        content = "you're welcome\n"
-        write_file(os.path.join(self.sysdir, "dev", "attr"), content)
-        with pytest.raises(KeyError, match='"you\'re welcome"'):
-            net.read_sys_net("dev", "attr", translate={})
-        assert (
-            "Found unexpected (not translatable) value 'you're welcome' in "
-            "'{0}dev/attr".format(self.sysdir) in caplog.text
-        )
-
-    def test_read_sys_net_handles_handles_with_onkeyerror(self):
-        """read_sys_net handles translation errors calling on_keyerror."""
-        content = "you're welcome\n"
-        write_file(os.path.join(self.sysdir, "dev", "attr"), content)
-        handled_errors = []
-
-        def on_keyerror(e):
-            handled_errors.append(e)
-
-        net.read_sys_net("dev", "attr", translate={}, on_keyerror=on_keyerror)
-        error = handled_errors[0]
-        assert isinstance(error, KeyError)
-        assert '"you\'re welcome"' == str(error)
-
-    def test_read_sys_net_safe_false_on_translate_failure(self):
-        """read_sys_net_safe returns False on translation failures."""
-        content = "you're welcome\n"
-        write_file(os.path.join(self.sysdir, "dev", "attr"), content)
-        assert not net.read_sys_net_safe("dev", "attr", translate={})
+    def test_read_sys_net_safe_handles_error(self):
+        """read_sys_net_safe handles OSError/IOError"""
+        assert not net.read_sys_net_safe("dev", "attr")
 
     def test_read_sys_net_safe_returns_false_on_noent_failure(self):
         """read_sys_net_safe returns False on file not found failures."""
@@ -1399,7 +1351,7 @@ class TestNetFailOver:
 
     def test_get_dev_features_none_returns_empty_string(self):
         devname = random_string()
-        self.read_sys_net.side_effect = Exception("error")
+        self.read_sys_net.side_effect = FileNotFoundError("error")
         assert "" == net.get_dev_features(devname)
         assert 1 == self.read_sys_net.call_count
         self.read_sys_net.assert_called_once_with(devname, "device/features")
