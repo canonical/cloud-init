@@ -30,7 +30,7 @@ Method 2: Custom webserver
 
 Configuration files can be provided to cloud-init over HTTP(s). To tell
 cloud-init the URI to use, arguments must be passed to the instance via the
-kernel commandline  or SMBIOS serial number. This argument might look like: ::
+kernel commandline or SMBIOS serial number. This argument might look like: ::
 
   ds=nocloud;s=https://10.42.42.42/cloud-init/configs/
 
@@ -108,12 +108,12 @@ Path Resource
 
 The path pointed to by the URI will contain the following files:
 
-``user-data`` (reqired)
+``user-data`` (required)
 ``meta-data`` (required)
 ``vendor-data`` (optional)
 
 The ``user-data`` file uses :ref:`user data format<user_data_formats>`. The
-``meta-data`` file is a YAML-formatted file. The vendor data file adhers to
+``meta-data`` file is a YAML-formatted file. The vendor data file adheres to
 :ref:`user data formats<user_data_formats>` at the same base URL.
 
 DMI-specific kernel commandline
