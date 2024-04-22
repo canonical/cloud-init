@@ -123,10 +123,6 @@ class Distro(distros.Distro):
             # once we've updated the system config, invalidate cache
             self.system_locale = None
 
-    def _write_network_state(self, *args, **kwargs):
-        _maybe_remove_legacy_eth0()
-        return super()._write_network_state(*args, **kwargs)
-
     def _write_hostname(self, hostname, filename):
         conf = None
         try:
@@ -219,38 +215,6 @@ class Distro(distros.Distro):
         # if localectl can be used in the future, this line may still
         # be needed
         self.manage_service("restart", "console-setup")
-
-
-def _maybe_remove_legacy_eth0(path="/etc/network/interfaces.d/eth0.cfg"):
-    """Ubuntu cloud images previously included a 'eth0.cfg' that had
-    hard coded content.  That file would interfere with the rendered
-    configuration if it was present.
-
-    if the file does not exist do nothing.
-    If the file exists:
-      - with known content, remove it and warn
-      - with unknown content, leave it and warn
-    """
-
-    if not os.path.exists(path):
-        return
-
-    bmsg = "Dynamic networking config may not apply."
-    try:
-        contents = util.load_text_file(path)
-        known_contents = ["auto eth0", "iface eth0 inet dhcp"]
-        lines = [
-            f.strip() for f in contents.splitlines() if not f.startswith("#")
-        ]
-        if lines == known_contents:
-            util.del_file(path)
-            msg = "removed %s with known contents" % path
-        else:
-            msg = bmsg + " '%s' exists with user configured content." % path
-    except Exception:
-        msg = bmsg + " %s exists, but could not be read." % path
-
-    LOG.warning(msg)
 
 
 def read_system_locale(sys_path=LOCALE_CONF_FN, keyname="LANG"):
