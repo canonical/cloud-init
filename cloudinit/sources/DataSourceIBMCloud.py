@@ -358,7 +358,7 @@ def metadata_from_dir(source_dir):
         raw = None
         try:
             raw = util.load_binary_file(fpath)
-        except IOError as e:
+        except OSError as e:
             LOG.debug("Failed reading path '%s': %s", fpath, e)
 
         if raw is None or transl is None:

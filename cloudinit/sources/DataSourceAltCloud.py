@@ -59,10 +59,10 @@ def read_user_data_callback(mount_dir):
     # First try deltacloud_user_data_file. On failure try user_data_file.
     try:
         user_data = util.load_text_file(deltacloud_user_data_file).strip()
-    except IOError:
+    except OSError:
         try:
             user_data = util.load_text_file(user_data_file).strip()
-        except IOError:
+        except OSError:
             util.logexc(LOG, "Failed accessing user data file.")
             return None
 
@@ -109,7 +109,7 @@ class DataSourceAltCloud(sources.DataSource):
                 cloud_type = (
                     util.load_text_file(CLOUD_INFO_FILE).strip().upper()
                 )
-            except IOError:
+            except OSError:
                 util.logexc(
                     LOG,
                     "Unable to access cloud info file at %s.",

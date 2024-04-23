@@ -128,7 +128,7 @@ def attach_cloud_info(report, ui=None):
                 instance_data = json.load(file)
                 assert instance_data.get("v1", {}).get("cloud_name")
                 return  # Valid instance-data means generic-hooks will report
-        except (IOError, json.decoder.JSONDecodeError, AssertionError):
+        except (OSError, json.decoder.JSONDecodeError, AssertionError):
             pass
 
         # No valid /run/cloud/instance-data.json on system. Prompt for cloud.
