@@ -10,6 +10,7 @@ import abc
 import base64
 import copy
 import functools
+import json
 import logging
 import os
 
@@ -179,15 +180,22 @@ class BaseReader(metaclass=abc.ABCMeta):
         pass
 
     def _find_working_version(self):
+        versions_available = []
         try:
             versions_available = self._fetch_available_versions()
-        except Exception as e:
+        except (OSError, url_helper.UrlError) as e:
             LOG.debug(
                 "Unable to read openstack versions from %s due to: %s",
                 self.base_path,
                 e,
             )
-            versions_available = []
+        except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
+            LOG.debug(
+                "Unable to read openstack versions from %s due to: %s",
+                self.base_path,
+                e,
+            )
 
         # openstack.OS_VERSIONS is stored in chronological order, so
         # reverse it to check newest first.
@@ -272,7 +280,7 @@ class BaseReader(metaclass=abc.ABCMeta):
             found = False
             try:
                 data = self._path_read(path)
-            except IOError as e:
+            except (OSError, url_helper.UrlError) as e:
                 if not required:
                     LOG.debug(
                         "Failed reading optional path %s due to: %s", path, e
@@ -288,7 +296,12 @@ class BaseReader(metaclass=abc.ABCMeta):
             if found and translator:
                 try:
                     data = translator(data)
+                except json.JSONDecodeError as e:
+                    raise BrokenMetadata(
+                        "Failed to process path %s: %s" % (path, e)
+                    ) from e
                 except Exception as e:
+                    LOG.warning("Unhandled exception: %s", e)
                     raise BrokenMetadata(
                         "Failed to process path %s: %s" % (path, e)
                     ) from e
@@ -304,6 +317,11 @@ class BaseReader(metaclass=abc.ABCMeta):
                 raise BrokenMetadata(
                     "Badly formatted metadata random_seed entry: %s" % e
                 ) from e
+            except Exception as e:
+                LOG.warning("Unhandled exception: %s", e)
+                raise BrokenMetadata(
+                    "Badly formatted metadata random_seed entry: %s" % e
+                ) from e
 
         # load any files that were provided
         files = {}
@@ -314,7 +332,7 @@ class BaseReader(metaclass=abc.ABCMeta):
             path = item["path"]
             try:
                 files[path] = self._read_content_path(item)
-            except Exception as e:
+            except (OSError, url_helper.UrlError) as e:
                 raise BrokenMetadata(
                     "Failed to read provided file %s: %s" % (path, e)
                 ) from e
@@ -390,7 +408,12 @@ class ConfigDriveReader(BaseReader):
         else:
             try:
                 return util.load_json(self._path_read(path))
+            except (OSError, ValueError) as e:
+                raise BrokenMetadata(
+                    "Failed to process path %s: %s" % (path, e)
+                ) from e
             except Exception as e:
+                LOG.warning("Unhandled exception: %s", e)
                 raise BrokenMetadata(
                     "Failed to process path %s: %s" % (path, e)
                 ) from e
@@ -424,7 +447,7 @@ class ConfigDriveReader(BaseReader):
                     # determine that every member of FILES_V1 has a callable in
                     # the appropriate position
                     md[key] = translator(contents)  # pylint: disable=E1102
-                except Exception as e:
+                except json.JSONDecodeError as e:
                     raise BrokenMetadata(
                         "Failed to process path %s: %s" % (path, e)
                     ) from e

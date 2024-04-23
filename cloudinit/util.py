@@ -33,6 +33,7 @@ import string
 import subprocess
 import sys
 import time
+import zlib
 from base64 import b64decode
 from collections import deque, namedtuple
 from contextlib import contextmanager, suppress
@@ -407,7 +408,13 @@ def decomp_gzip(data, quiet=True, decode=True):
                 return decode_binary(gh.read())
             else:
                 return gh.read()
+    except (OSError, EOFError, zlib.error) as e:
+        if quiet:
+            return data
+        else:
+            raise DecompressionError(str(e)) from e
     except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
         if quiet:
             return data
         else:
@@ -586,8 +593,10 @@ def get_linux_distro():
         try:
             # Was removed in 3.8
             dist = platform.dist()  # type: ignore  # pylint: disable=W1505,E1101
-        except Exception:
+        except AttributeError:
             pass
+        except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
         finally:
             found = None
             for entry in dist:
@@ -1361,8 +1370,10 @@ def search_for_mirror(candidates):
             if is_resolvable_url(cand):
                 LOG.debug("found working mirror: '%s'", cand)
                 return cand
-        except Exception:
-            pass
+        except ValueError:
+            LOG.debug("Failed to parse url: %s", cand)
+        except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
     return None
 
 
@@ -1590,13 +1601,24 @@ def _get_cmdline():
             contents = load_text_file("/proc/1/cmdline")
             # replace nulls with space and drop trailing null
             cmdline = contents.replace("\x00", " ")[:-1]
+        except OSError as e:
+            LOG.warning("failed reading /proc/1/cmdline: %s", e)
+            cmdline = ""
         except Exception as e:
+            LOG.warning(
+                "Unhandled exception: %s",
+            )
             LOG.warning("failed reading /proc/1/cmdline: %s", e)
             cmdline = ""
     else:
         try:
             cmdline = load_text_file("/proc/cmdline").strip()
+        except OSError:
+            cmdline = ""
         except Exception:
+            LOG.warning(
+                "Unhandled exception: %s",
+            )
             cmdline = ""
 
     return cmdline
@@ -2100,7 +2122,10 @@ def copy(src, dest):
 def time_rfc2822():
     try:
         ts = time.strftime("%a, %d %b %Y %H:%M:%S %z", time.gmtime())
-    except Exception:
+    except ValueError:
+        ts = "??"
+    except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
         ts = "??"
     return ts
 

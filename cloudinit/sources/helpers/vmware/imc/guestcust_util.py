@@ -52,7 +52,7 @@ def send_rpc(rpc):
         # Remove the trailing newline in the output.
         if out:
             out = out.rstrip()
-    except Exception as e:
+    except subp.ProcessExecutionError as e:
         logger.debug("Failed to send RPC command")
         logger.exception(e)
 

@@ -573,7 +573,16 @@ def netdev_pformat():
     empty = "."
     try:
         netdev = netdev_info(empty=empty)
+    except (OSError, subp.ProcessExecutionError) as e:
+        lines.append(
+            util.center(
+                "Net device info failed ({error})".format(error=str(e)),
+                "!",
+                80,
+            )
+        )
     except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
         lines.append(
             util.center(
                 "Net device info failed ({error})".format(error=str(e)),
@@ -624,7 +633,15 @@ def route_pformat():
     lines = []
     try:
         routes = route_info()
+    except subp.ProcessExecutionError as e:
+        lines.append(
+            util.center(
+                "Route info failed ({error})".format(error=str(e)), "!", 80
+            )
+        )
+        util.logexc(LOG, "Route info failed: %s" % e)
     except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
         lines.append(
             util.center(
                 "Route info failed ({error})".format(error=str(e)), "!", 80

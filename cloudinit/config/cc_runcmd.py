@@ -47,4 +47,5 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         content = util.shellify(cmd)
         util.write_file(out_fn, content, 0o700)
     except Exception as e:
-        raise type(e)("Failed to shellify {} into file {}".format(cmd, out_fn))
+        util.logexc(LOG, "Failed to shellify runcmd: %s", e)
+        raise

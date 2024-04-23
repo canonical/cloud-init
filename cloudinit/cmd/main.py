@@ -801,8 +801,12 @@ def status_wrapper(name, args):
     else:
         try:
             status = json.loads(util.load_text_file(status_path))
-        except Exception:
-            pass
+        except OSError:
+            LOG.warning("File %s cannot be accessed %s.", status_path, mode)
+        except (UnicodeDecodeError, json.JSONDecodeError) as e:
+            LOG.warning("File %s not valid json %s: %s", status_path, mode, e)
+        except Exception as e:
+            LOG.warning("File %s not valid json %s: %s", status_path, mode, e)
 
     if mode not in status["v1"]:
         # this should never happen, but leave it just to be safe

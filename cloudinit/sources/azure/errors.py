@@ -56,8 +56,11 @@ class ReportableError(Exception):
 
         try:
             self.vm_id = identity.query_vm_id()
-        except Exception as id_error:
-            self.vm_id = f"failed to read vm id: {id_error!r}"
+        except (RuntimeError, OSError, ValueError) as e:
+            self.vm_id = f"failed to read vm id: {e!r}"
+        except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
+            self.vm_id = f"failed to read vm id: {e!r}"
 
     def as_encoded_report(
         self,

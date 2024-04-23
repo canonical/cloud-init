@@ -1064,8 +1064,8 @@ def main():
     """
     try:
         loggers.setup_basic_logging()
-    except Exception:
-        pass
+    except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
     metadata = {
         WAIT_ON_NETWORK: {
             WAIT_ON_NETWORK_IPV4: True,

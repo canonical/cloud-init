@@ -8,6 +8,7 @@
 
 import argparse
 import glob
+import logging
 import os
 import sys
 
@@ -37,6 +38,7 @@ GEN_NET_CONFIG_FILES = [
 GEN_SSH_CONFIG_FILES = [
     "/etc/ssh/sshd_config.d/50-cloud-init.conf",
 ]
+LOG = logging.getLogger(__name__)
 
 
 def get_parser(parser=None):

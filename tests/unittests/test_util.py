@@ -1317,7 +1317,7 @@ class TestGetLinuxDistro(CiTestCase):
     ):
         """Verify we get an empty tuple when no information exists and
         Exceptions are not propagated"""
-        m_platform_dist.side_effect = Exception()
+        m_platform_dist.side_effect = AttributeError()
         m_platform_system.return_value = "Linux"
         m_path_exists.return_value = 0
         dist = util.get_linux_distro()

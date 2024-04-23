@@ -9,6 +9,7 @@
 
 import logging
 import pwd
+from typing import List
 
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
@@ -58,15 +59,14 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     # import for cloudinit created users
     (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
-    elist = []
+    elist: List[Exception] = []
     for user, user_cfg in users.items():
         import_ids = []
         if user_cfg["default"]:
             import_ids = util.get_cfg_option_list(cfg, "ssh_import_id", [])
         else:
-            try:
-                import_ids = user_cfg["ssh_import_id"]
-            except Exception:
+            import_ids = user_cfg.get("ssh_import_id", [])
+            if not import_ids:
                 LOG.debug("User %s is not configured for ssh_import_id", user)
                 continue
 
@@ -74,12 +74,10 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             import_ids = util.uniq_merge(import_ids)
             import_ids = [str(i) for i in import_ids]
         except Exception:
-            LOG.debug(
-                "User %s is not correctly configured for ssh_import_id", user
-            )
+            util.logexc(LOG, "Unhandled configuration for user %s", user)
             continue
 
-        if not len(import_ids):
+        if not import_ids:
             continue
 
         try:

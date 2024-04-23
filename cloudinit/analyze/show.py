@@ -6,10 +6,11 @@
 
 import datetime
 import json
+import logging
 import sys
 import time
 
-from cloudinit import subp, util
+from cloudinit import lifecycle, subp, util
 from cloudinit.distros import uses_systemd
 
 # Example events:
@@ -49,6 +50,7 @@ SUCCESS_CODE = "successful"
 FAIL_CODE = "failure"
 CONTAINER_CODE = "container"
 TIMESTAMP_UNKNOWN = (FAIL_CODE, -1, -1, -1)
+LOG = logging.getLogger(__name__)
 
 
 def format_record(msg, event):
@@ -142,7 +144,7 @@ class SystemctlReader:
                 return err
             self.epoch = value
             return None
-        except Exception as systemctl_fail:
+        except subp.ProcessExecutionError as systemctl_fail:
             return systemctl_fail
 
     def parse_epoch_as_float(self):
@@ -213,9 +215,16 @@ def gather_timestamps_using_dmesg():
                 # systemd wont start cloud-init in this case,
                 # so we cannot get that timestamp
                 return SUCCESS_CODE, kernel_start, kernel_end, kernel_end
-
-    except Exception:
+    except (ValueError, subp.ProcessExecutionError):
         pass
+    except Exception as e:
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception: %s",
+            args=e,
+        )
     return TIMESTAMP_UNKNOWN
 
 
@@ -244,10 +253,10 @@ def gather_timestamps_using_systemd():
         cloudinit_sysd = base_time + delta_ci_s
 
     except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
         # Except ALL exceptions as Systemctl reader can throw many different
         # errors, but any failure in systemctl means that timestamps cannot be
         # obtained
-        print(e)
         return TIMESTAMP_UNKNOWN
     return status, kernel_start, kernel_end, cloudinit_sysd
 

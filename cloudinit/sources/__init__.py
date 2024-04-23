@@ -1210,7 +1210,11 @@ def pkl_load(fname: str) -> Optional[DataSource]:
     pickle_contents = None
     try:
         pickle_contents = util.load_binary_file(fname)
+    except OSError as e:
+        if os.path.isfile(fname):
+            LOG.warning("failed loading pickle in %s: %s", fname, e)
     except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
         if os.path.isfile(fname):
             LOG.warning("failed loading pickle in %s: %s", fname, e)
 

@@ -209,6 +209,8 @@ def get_dev_features(devname):
         features = read_sys_net(devname, "device/features")
     except (OSError, UnicodeError):
         pass
+    except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
     return features
 
 
@@ -815,9 +817,15 @@ def _rename_interfaces(
         for op, mac, new_name, params in ops + ups:
             try:
                 opmap[op](*params)
-            except Exception as e:
+            except subp.ProcessExecutionError as e:
                 errors.append(
                     "[unknown] Error performing %s%s for %s, %s: %s"
+                    % (op, params, mac, new_name, e)
+                )
+            except Exception as e:
+                errors.append(
+                    "[unknown] Unexpected exception "
+                    "performing %s%s for %s, %s: %s"
                     % (op, params, mac, new_name, e)
                 )
 

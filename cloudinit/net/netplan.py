@@ -238,6 +238,7 @@ def netplan_api_write_yaml_file(net_config_content: str) -> bool:
     separate file or directory paths than world-readable configuration parts.
     """
     try:
+        from netplan import NetplanException  # type: ignore
         from netplan.parser import Parser  # type: ignore
         from netplan.state import State  # type: ignore
     except ImportError:
@@ -263,7 +264,16 @@ def netplan_api_write_yaml_file(net_config_content: str) -> bool:
             state_output_file._write_yaml_file(
                 os.path.basename(CLOUDINIT_NETPLAN_FILE)
             )
+    except (NetplanException, OSError) as e:
+        LOG.warning(
+            "Unable to render network config using netplan python module."
+            " Fallback to write %s. %s",
+            CLOUDINIT_NETPLAN_FILE,
+            e,
+        )
+        return False
     except Exception as e:
+        LOG.warning("Unhandled exception: %s")
         LOG.warning(
             "Unable to render network config using netplan python module."
             " Fallback to write %s. %s",

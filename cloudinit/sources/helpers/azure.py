@@ -207,9 +207,15 @@ def report_dmesg_to_kvp():
     try:
         out, _ = subp.subp(["dmesg"], decode=False, capture=True)
         report_compressed_event("dmesg", out)
-    except Exception as ex:
+    except (zlib.error, subp.ProcessExecutionError) as e:
         report_diagnostic_event(
-            "Exception when dumping dmesg log: %s" % repr(ex),
+            "Exception when dumping dmesg log: %s" % repr(e),
+            logger_func=LOG.warning,
+        )
+    except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
+        report_diagnostic_event(
+            "Exception when dumping dmesg log: %s" % repr(e),
             logger_func=LOG.warning,
         )
 
@@ -712,7 +718,13 @@ class WALinuxAgentShim:
         LOG.debug("Ejecting the provisioning iso")
         try:
             distro.eject_media(iso_dev)
+        except subp.ProcessExecutionError as e:
+            report_diagnostic_event(
+                "Failed ejecting the provisioning iso: %s" % e,
+                logger_func=LOG.error,
+            )
         except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
             report_diagnostic_event(
                 "Failed ejecting the provisioning iso: %s" % e,
                 logger_func=LOG.error,

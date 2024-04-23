@@ -109,6 +109,7 @@ class DataSourceGCE(sources.DataSource):
                                 url_params=url_params,
                             )
                         except Exception as e:
+                            LOG.warning("Unhandled exception: %s", e)
                             LOG.debug(
                                 "Error fetching IMD with candidate NIC %s: %s",
                                 candidate_nic,
@@ -191,9 +192,7 @@ def _write_host_key_to_guest_attributes(key_type, key_value) -> bool:
         LOG.debug("Wrote %s host key to guest attributes.", key_type)
         return True
     else:
-        LOG.info(
-            "Unable to write %s host key to guest attributes.", key_type
-        )
+        LOG.info("Unable to write %s host key to guest attributes.", key_type)
         return False
 
 

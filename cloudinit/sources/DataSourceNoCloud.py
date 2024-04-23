@@ -369,7 +369,8 @@ def parse_cmdline_data(ds_id, fill, cmdline=None):
             continue
         try:
             (k, v) = item.split("=", 1)
-        except Exception:
+        except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
             k = item
             v = None
         if k in s2l:

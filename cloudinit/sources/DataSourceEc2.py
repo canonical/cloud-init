@@ -826,6 +826,7 @@ def identify_platform():
             if result:
                 return result
         except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
             LOG.warning(
                 "calling %s with %s raised exception: %s", checker, data, e
             )

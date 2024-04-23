@@ -237,6 +237,12 @@ def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction):
             event_handler.success()
             break
         except Exception as e:
+            # The number of possible exceptions handled here is large and
+            # difficult to audit. If retries fail this exception is always
+            # re-raised. Therefore, this callsite is allowed to be an exception
+            # to the rule that handle Exception must log a warning or reraise
+            # or call util.logexc() - since it does technically do this on
+            # timeout.
             LOG.debug("Exception while processing hotplug event. %s", e)
             time.sleep(wait)
             last_exception = e

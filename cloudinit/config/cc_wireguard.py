@@ -70,7 +70,7 @@ def write_config(wg_int: dict):
         util.write_file(
             wg_int["config_path"], wg_int["content"], mode=WG_CONFIG_FILE_MODE
         )
-    except Exception as e:
+    except (OSError, KeyError) as e:
         raise RuntimeError(
             "Failure writing Wireguard configuration file"
             f' {wg_int["config_path"]}:{NL}{str(e)}'
