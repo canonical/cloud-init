@@ -3,7 +3,6 @@
 """Tests of the built-in user data handlers."""
 
 import copy
-import errno
 import os
 from textwrap import dedent
 
@@ -191,7 +190,7 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         h = JinjaTemplatePartHandler(self.paths, sub_handlers=[script_handler])
         with mock.patch(self.mpath + "load_text_file") as m_load:
             with self.assertRaises(JinjaLoadError) as context_manager:
-                m_load.side_effect = OSError(errno.EACCES, "Not allowed")
+                m_load.side_effect = PermissionError("Not allowed")
                 h.handle_part(
                     data="data",
                     ctype="!" + handlers.CONTENT_START,

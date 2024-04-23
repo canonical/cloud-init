@@ -12,7 +12,6 @@ This file contains code used to gather the user data passed to an
 instance on RHEVm and vSphere.
 """
 
-import errno
 import logging
 import os
 import os.path
@@ -213,9 +212,8 @@ class DataSourceAltCloud(sources.DataSource):
 
         try:
             return_str = util.mount_cb(floppy_dev, read_user_data_callback)
-        except OSError as err:
-            if err.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
+            pass
         except util.MountFailedError:
             util.logexc(
                 LOG,
@@ -253,9 +251,8 @@ class DataSourceAltCloud(sources.DataSource):
                 if return_str:
                     self.source = cdrom_dev
                     break
-            except OSError as err:
-                if err.errno != errno.ENOENT:
-                    raise
+            except FileNotFoundError:
+                pass
             except util.MountFailedError:
                 util.logexc(
                     LOG,

@@ -2,7 +2,6 @@
 # pylint: disable=attribute-defined-outside-init
 
 import copy
-import errno
 import ipaddress
 import os
 from pathlib import Path
@@ -532,10 +531,9 @@ class TestGetDeviceList(CiTestCase):
 
     def test_get_devicelist_raise_oserror(self):
         """get_devicelist raise any non-ENOENT OSerror."""
-        error = OSError("Can not do it")
-        error.errno = errno.EPERM  # Set non-ENOENT
+        error = PermissionError("Can not do it")
         self.m_sys_path.side_effect = error
-        with self.assertRaises(OSError) as context_manager:
+        with self.assertRaises(PermissionError) as context_manager:
             net.get_devicelist()
         exception = context_manager.exception
         self.assertEqual("Can not do it", str(exception))

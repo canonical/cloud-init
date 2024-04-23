@@ -9,9 +9,9 @@
 
 """ Mcollective: Install, configure and start mcollective"""
 
-import errno
 import io
 import logging
+from contextlib import suppress
 from textwrap import dedent
 
 # Used since this can maintain comments
@@ -100,15 +100,12 @@ def configure(
     try:
         old_contents = util.load_binary_file(server_cfg, quiet=False)
         mcollective_config = ConfigObj(io.BytesIO(old_contents))
-    except OSError as e:
-        if e.errno != errno.ENOENT:
-            raise
-        else:
-            LOG.debug(
-                "Did not find file %s (starting with an empty config)",
-                server_cfg,
-            )
-            mcollective_config = ConfigObj()
+    except FileNotFoundError:
+        LOG.debug(
+            "Did not find file %s (starting with an empty config)",
+            server_cfg,
+        )
+        mcollective_config = ConfigObj()
     for cfg_name, cfg in config.items():
         if cfg_name == "public-cert":
             util.write_file(pubcert_file, cfg, mode=0o644)
@@ -133,16 +130,10 @@ def configure(
                 # Otherwise just try to convert it to a string
                 mcollective_config[cfg_name] = str(cfg)
 
-    try:
+    with suppress(FileNotFoundError):
         # We got all our config as wanted we'll copy
         # the previous server.cfg and overwrite the old with our new one
         util.copy(server_cfg, "%s.old" % (server_cfg))
-    except OSError as e:
-        if e.errno == errno.ENOENT:
-            # Doesn't exist to copy...
-            pass
-        else:
-            raise
 
     # Now we got the whole (new) file, write to disk...
     contents = io.BytesIO()

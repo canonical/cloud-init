@@ -1,11 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import contextlib
-import errno
 import logging
 import os
 import shutil
 import tempfile
+from contextlib import suppress
 
 from cloudinit import util
 
@@ -71,11 +71,8 @@ def ExtendedTemporaryFile(**kwargs):
     # file to unlink has been unlinked elsewhere..
 
     def _unlink_if_exists(path):
-        try:
+        with suppress(FileNotFoundError):
             os.unlink(path)
-        except OSError as e:
-            if e.errno != errno.ENOENT:
-                raise e
 
     fh.unlink = _unlink_if_exists
 

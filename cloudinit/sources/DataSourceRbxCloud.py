@@ -9,7 +9,6 @@
 This file contains code used to gather the user data passed to an
 instance on rootbox / hyperone cloud platforms
 """
-import errno
 import logging
 import os
 import os.path
@@ -96,9 +95,8 @@ def get_md():
             )
             if rbx_data:
                 return rbx_data
-        except OSError as err:
-            if err.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
+            pass
         except util.MountFailedError:
             util.logexc(
                 LOG, "Failed to mount %s when looking for user data", device
