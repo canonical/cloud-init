@@ -132,7 +132,7 @@ class TestWSLHelperFunctions:
         assert None is not cmd.relative_to(GOOD_MOUNTS["C:\\"]["mountpoint"])
 
         m_os_access.return_value = False
-        with pytest.raises(IOError):
+        with pytest.raises(OSError):
             wsl.cmd_executable()
 
     @mock.patch("os.access")
@@ -146,7 +146,7 @@ class TestWSLHelperFunctions:
         m_mounts.return_value = deepcopy(GOOD_MOUNTS)
         m_mounts.return_value.pop("C:\\")
         m_mounts.return_value.pop("D:\\")
-        with pytest.raises(IOError):
+        with pytest.raises(OSError):
             wsl.cmd_executable()
 
     @pytest.mark.parametrize(

@@ -63,7 +63,7 @@ def cmd_executable() -> PurePath:
 
     mounts = mounted_win_drives()
     if not mounts:
-        raise IOError("Windows drives are not mounted.")
+        raise OSError("Windows drives are not mounted.")
 
     # cmd.exe path is being stable for decades.
     candidate = "%s/Windows/System32/cmd.exe"
@@ -75,7 +75,7 @@ def cmd_executable() -> PurePath:
         LOG.debug("Found cmd.exe at <%s>", cmd)
         return PurePath(cmd)
 
-    raise IOError(
+    raise OSError(
         "Couldn't find cmd.exe in any mount point: %s" % ", ".join(mounts)
     )
 
@@ -84,7 +84,7 @@ def find_home() -> PurePath:
     """
     Finds the user's home directory path as a WSL path.
 
-    raises: IOError when no mountpoint with cmd.exe is found
+    raises: OSError when no mountpoint with cmd.exe is found
                ProcessExecutionError when either cmd.exe is unable to retrieve
                the user's home directory
     """
@@ -334,7 +334,7 @@ class DataSourceWSL(sources.DataSource):
             ef.name.casefold(): ef.path for ef in os.scandir(seed_dir)
         }
         if not existing_files:
-            raise IOError("%s directory is empty" % seed_dir)
+            raise OSError("%s directory is empty" % seed_dir)
 
         folded_names = [
             f.casefold()
@@ -344,7 +344,7 @@ class DataSourceWSL(sources.DataSource):
             if filename in existing_files.keys():
                 return PurePath(existing_files[filename])
 
-        raise IOError(
+        raise OSError(
             "%s doesn't contain any of the expected user-data files" % seed_dir
         )
 
@@ -360,7 +360,7 @@ class DataSourceWSL(sources.DataSource):
             metadata = load_instance_metadata(data_dir, instance_name())
             return current == metadata.get("instance-id")
 
-        except (IOError, ValueError) as err:
+        except (OSError, ValueError) as err:
             LOG.warning(
                 "Unable to check_instance_id from metadata file: %s",
                 str(err),
@@ -378,7 +378,7 @@ class DataSourceWSL(sources.DataSource):
 
         try:
             user_home = find_home()
-        except IOError as e:
+        except OSError as e:
             LOG.debug("Unable to detect WSL datasource: %s", e)
             return False
 
@@ -391,7 +391,7 @@ class DataSourceWSL(sources.DataSource):
             self.metadata = load_instance_metadata(
                 seed_dir, self.instance_name
             )
-        except (ValueError, IOError) as err:
+        except (ValueError, OSError) as err:
             LOG.error("Unable to load metadata: %s", str(err))
             return False
 
@@ -404,7 +404,7 @@ class DataSourceWSL(sources.DataSource):
             if user_data is None and seed_dir is not None:
                 user_data = ConfigData(self.find_user_data_file(seed_dir))
 
-        except (ValueError, IOError) as err:
+        except (ValueError, OSError) as err:
             log = LOG.info if agent_data else LOG.error
             log(
                 "Unable to load any user-data file in %s: %s",

@@ -1296,7 +1296,7 @@ def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
             if hostname in toks[2:]:
                 fqdn = toks[1]
                 break
-    except IOError:
+    except OSError:
         pass
     return fqdn
 
@@ -1646,7 +1646,7 @@ def fips_enabled() -> bool:
     try:
         contents = load_text_file(fips_proc).strip()
         return contents == "1"
-    except (IOError, OSError):
+    except OSError:
         # for BSD systems and Linux systems where the proc entry is not
         # available, we assume FIPS is disabled to retain the old behavior
         # for now.
@@ -1995,7 +1995,7 @@ def mounts():
                 "opts": opts,
             }
         LOG.debug("Fetched %s mounts from %s", mounted, method)
-    except (IOError, OSError):
+    except OSError:
         logexc(LOG, "Failed fetching mount points")
     return mounted
 
@@ -2065,7 +2065,7 @@ def mount_cb(
                     umount = tmpd  # This forces it to be unmounted (when set)
                     mountpoint = tmpd
                     break
-                except (IOError, OSError) as exc:
+                except OSError as exc:
                     if log_error:
                         LOG.debug(
                             "Failed to mount device: '%s' with type: '%s' "
@@ -2479,7 +2479,7 @@ def is_container():
             return True
         if "LIBVIRT_LXC_UUID" in pid1env:
             return True
-    except (IOError, OSError):
+    except OSError:
         pass
 
     # Detect OpenVZ containers
@@ -2494,7 +2494,7 @@ def is_container():
                 (_key, val) = line.strip().split(":", 1)
                 if val != "0":
                     return True
-    except (IOError, OSError):
+    except OSError:
         pass
 
     return False
@@ -2520,7 +2520,7 @@ def get_proc_env(
     contents: Union[str, bytes]
     try:
         contents = load_binary_file(fn)
-    except (IOError, OSError):
+    except OSError:
         return {}
 
     env = {}

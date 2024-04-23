@@ -223,7 +223,7 @@ def get_previous_iid(paths):
     fname = os.path.join(paths.get_cpath("data"), "instance-id")
     try:
         return util.load_text_file(fname).rstrip("\n")
-    except IOError:
+    except OSError:
         return None
 
 
@@ -249,7 +249,7 @@ def write_injected_files(files):
                 filename = os.sep + filename
             try:
                 util.write_file(filename, content, mode=0o660)
-            except IOError:
+            except OSError:
                 util.logexc(LOG, "Failed writing file: %s", filename)
 
 

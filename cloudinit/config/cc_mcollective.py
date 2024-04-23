@@ -48,7 +48,7 @@ def configure(
     try:
         old_contents = util.load_binary_file(server_cfg, quiet=False)
         mcollective_config = ConfigObj(io.BytesIO(old_contents))
-    except IOError as e:
+    except OSError as e:
         if e.errno != errno.ENOENT:
             raise
         else:
@@ -85,7 +85,7 @@ def configure(
         # We got all our config as wanted we'll copy
         # the previous server.cfg and overwrite the old with our new one
         util.copy(server_cfg, "%s.old" % (server_cfg))
-    except IOError as e:
+    except OSError as e:
         if e.errno == errno.ENOENT:
             # Doesn't exist to copy...
             pass

@@ -48,7 +48,7 @@ def givecmdline(pid):
             return m.group(2)
         else:
             return util.load_text_file("/proc/%s/cmdline" % pid)
-    except IOError:
+    except OSError:
         return None
 
 
@@ -194,11 +194,11 @@ def run_after_pid_gone(pid, pidcmdline, timeout, condition, func, args):
                 msg = "cmdline changed for %s [now: %s]" % (pid, cmdline)
                 break
 
-        except IOError as ioerr:
+        except OSError as ioerr:
             if ioerr.errno in known_errnos:
                 msg = "pidfile gone [%d]" % ioerr.errno
             else:
-                fatal("IOError during wait: %s" % ioerr)
+                fatal("OSError during wait: %s" % ioerr)
             break
 
         except Exception as e:

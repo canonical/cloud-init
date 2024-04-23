@@ -71,5 +71,5 @@ class HostnameConf:
             entries.append(("hostname", [head, tail]))
             hostnames_found.add(head)
         if len(hostnames_found) > 1:
-            raise IOError("Multiple hostnames (%s) found!" % (hostnames_found))
+            raise OSError("Multiple hostnames (%s) found!" % (hostnames_found))
         return entries

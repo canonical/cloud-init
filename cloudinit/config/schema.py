@@ -1631,7 +1631,7 @@ def get_schema(schema_type: SchemaType = SchemaType.CLOUD_CONFIG) -> dict:
     full_schema = None
     try:
         full_schema = json.loads(load_text_file(schema_file))
-    except (IOError, OSError):
+    except OSError:
         LOG.warning(
             "Skipping %s schema validation. No JSON schema file found %s.",
             schema_type.value,
@@ -1771,7 +1771,7 @@ def get_config_paths_from_args(
 
     try:
         paths = read_cfg_paths(fetch_existing_datasource="trust")
-    except (IOError, OSError) as e:
+    except OSError as e:
         if e.errno == EACCES:
             LOG.debug(
                 "Using default instance-data/user-data paths for non-root user"

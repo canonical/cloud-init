@@ -61,13 +61,12 @@ class TestReadSysNet:
         assert content.strip() == net.read_sys_net("dev", "attr")
 
     def test_read_sys_net_reraises_oserror(self):
-        """read_sys_net raises OSError/IOError when file doesn't exist."""
-        # Non-specific Exception because versions of python OSError vs IOError.
+        """read_sys_net raises OSError when file doesn't exist."""
         with pytest.raises(Exception, match="No such file or directory"):
             net.read_sys_net("dev", "attr")
 
     def test_read_sys_net_safe_handles_error(self):
-        """read_sys_net_safe handles OSError/IOError"""
+        """read_sys_net_safe handles OSError"""
         assert not net.read_sys_net_safe("dev", "attr")
 
     def test_read_sys_net_safe_returns_false_on_noent_failure(self):

@@ -870,7 +870,7 @@ class Init:
             instance_json = util.load_json(
                 util.load_text_file(json_sensitive_file)
             )
-        except (OSError, IOError) as e:
+        except OSError as e:
             LOG.warning(
                 "Skipping write of system_info/features to %s."
                 " Unable to read file: %s",

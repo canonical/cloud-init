@@ -2063,7 +2063,7 @@ class TestFipsEnabled:
         def fake_load_file(path):
             assert path == "/proc/sys/crypto/fips_enabled"
             if fips_enabled_content is None:
-                raise IOError("No file exists Bob")
+                raise OSError("No file exists Bob")
             return fips_enabled_content
 
         load_file.side_effect = fake_load_file
@@ -2697,7 +2697,7 @@ class TestProcessExecutionError(helpers.TestCase):
         )
 
     def test_pexec_error_type(self):
-        self.assertIsInstance(subp.ProcessExecutionError(), IOError)
+        self.assertIsInstance(subp.ProcessExecutionError(), OSError)
 
     def test_pexec_error_empty_msgs(self):
         error = subp.ProcessExecutionError()

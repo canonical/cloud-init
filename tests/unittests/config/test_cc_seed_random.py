@@ -85,7 +85,7 @@ class TestRandomSeed:
             }
         }
         pytest.raises(
-            IOError,
+            OSError,
             cc_seed_random.handle,
             "test",
             cfg,

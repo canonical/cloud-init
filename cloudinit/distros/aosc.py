@@ -121,7 +121,7 @@ def read_locale_conf(sys_path):
     try:
         contents = util.load_text_file(sys_path).splitlines()
         exists = True
-    except IOError:
+    except OSError:
         contents = []
     return (exists, SysConf(contents))
 

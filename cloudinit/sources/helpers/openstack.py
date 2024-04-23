@@ -79,7 +79,7 @@ KNOWN_PHYSICAL_TYPES = (
 )
 
 
-class NonReadable(IOError):
+class NonReadable(OSError):
     pass
 
 
@@ -362,7 +362,7 @@ class BaseReader(metaclass=abc.ABCMeta):
             try:
                 content = self._read_content_path(net_item, decode=True)
                 results["network_config"] = content
-            except IOError as e:
+            except OSError as e:
                 raise BrokenMetadata(
                     "Failed to read network configuration: %s" % (e)
                 ) from e
@@ -464,7 +464,7 @@ class ConfigDriveReader(BaseReader):
                 path = found[name]
                 try:
                     contents = self._path_read(path)
-                except IOError as e:
+                except OSError as e:
                     raise BrokenMetadata("Failed to read: %s" % path) from e
                 try:
                     # Disable not-callable pylint check; pylint isn't able to

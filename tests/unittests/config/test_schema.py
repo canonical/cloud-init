@@ -2691,7 +2691,7 @@ class TestHandleSchemaArgs:
         "failure, expected_logs",
         (
             (
-                IOError("No permissions on /var/lib/cloud/instance"),
+                OSError("No permissions on /var/lib/cloud/instance"),
                 ["Using default instance-data/user-data paths for non-root"],
             ),
             (
@@ -2711,7 +2711,7 @@ class TestHandleSchemaArgs:
         caplog,
         tmpdir,
     ):
-        if isinstance(failure, IOError):
+        if isinstance(failure, OSError):
             failure.errno = EACCES
         read_cfg_paths.side_effect = [failure, paths]
         user_data_fn = tmpdir.join("user-data")
