@@ -78,7 +78,7 @@ tell cloud-init where on the filesystem to look.
 
 This argument might look like: ::
 
-  ds=nocloud;s=file://path/to/directory/;h=node-42
+  ds=nocloud;s=file://path/to/directory/
 
 Alternatively, this URI may be defined in a configuration in a file
 :file:`/etc/cloud/cloud.cfg.d/*.cfg` like this: ::
@@ -91,14 +91,19 @@ Alternatively, this URI may be defined in a configuration in a file
 Permitted keys
 ==============
 
-The permitted keys are:
+The only required key is:
 
-* ``h`` or ``local-hostname``
-* ``i`` or ``instance-id``
 * ``s`` or ``seedfrom``
 
-A valid ``seedfrom`` value consists of a URI which must contain a
-trailing ``/``.
+A valid ``seedfrom`` value consists of a URI which must contain a trailing
+``/``. The short key ``s`` is only supported by kernel commandline or
+SMBIOS, when using a ``*.cfg`` file, ``seedfrom`` is required.
+
+Some optional keys may be used, but their use is discouraged and may
+be removed in the future.
+
+* ``h`` or ``local-hostname`` (:ref:`cloud-config<mod-set_hostname>` preferred)
+* ``i`` or ``instance-id``  (set instance id  in :file:`meta-data` instead)
 
 HTTP and HTTPS
 --------------
