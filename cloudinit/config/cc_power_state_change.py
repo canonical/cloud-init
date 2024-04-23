@@ -125,13 +125,9 @@ def check_condition(cond):
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
-    try:
-        (args, timeout, condition) = load_power_state(cfg, cloud.distro)
-        if args is None:
-            LOG.debug("no power_state provided. doing nothing")
-            return
-    except Exception as e:
-        LOG.warning("%s Not performing power state change!", str(e))
+    args, timeout, condition = load_power_state(cfg, cloud.distro)
+    if args is None:
+        LOG.debug("no power_state provided. doing nothing")
         return
 
     if condition is False:
