@@ -11,7 +11,6 @@ import sys
 import unittest
 from collections import namedtuple
 from copy import deepcopy
-from errno import EACCES
 from pathlib import Path
 from textwrap import dedent
 from types import ModuleType
@@ -2691,8 +2690,11 @@ class TestHandleSchemaArgs:
         "failure, expected_logs",
         (
             (
-                OSError("No permissions on /var/lib/cloud/instance"),
-                ["Using default instance-data/user-data paths for non-root"],
+                PermissionError("No permissions on /var/lib/cloud/instance"),
+                [
+                    "Using default instance-data/user-data paths with "
+                    "insufficient permissions"
+                ],
             ),
             (
                 DataSourceNotFoundException("No cached datasource found yet"),
@@ -2711,8 +2713,6 @@ class TestHandleSchemaArgs:
         caplog,
         tmpdir,
     ):
-        if isinstance(failure, OSError):
-            failure.errno = EACCES
         read_cfg_paths.side_effect = [failure, paths]
         user_data_fn = tmpdir.join("user-data")
         with open(user_data_fn, "w") as f:

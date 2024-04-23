@@ -1,7 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 # pylint: disable=attribute-defined-outside-init
 
-import errno
 import logging
 import os
 import re
@@ -361,9 +360,7 @@ class TestResize(unittest.TestCase):
             if path in devs:
                 return devstat_ret
             if path in enoent:
-                e = OSError("%s: does not exist" % path)
-                e.errno = errno.ENOENT
-                raise e
+                raise FileNotFoundError("%s: does not exist" % path)
             return real_stat(path)
 
         opinfo = self.distro.device_part_info

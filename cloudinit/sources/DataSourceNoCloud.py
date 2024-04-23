@@ -8,7 +8,6 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import errno
 import logging
 import os
 from functools import partial
@@ -157,9 +156,8 @@ class DataSourceNoCloud(sources.DataSource):
                     LOG.debug("Using data from %s", dev)
                     found.append(dev)
                     break
-                except OSError as e:
-                    if e.errno != errno.ENOENT:
-                        raise
+                except FileNotFoundError:
+                    pass
                 except util.MountFailedError:
                     util.logexc(
                         LOG, "Failed to mount %s when looking for data", dev

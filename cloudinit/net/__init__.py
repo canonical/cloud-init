@@ -78,8 +78,10 @@ def read_sys_net_safe(iface, field):
             iface,
             field,
         )
+    except (FileNotFoundError, NotADirectoryError):
+        return False
     except OSError as e:
-        if e.errno in (errno.ENOENT, errno.ENOTDIR, errno.EINVAL):
+        if e.errno == errno.EINVAL:
             return False
         raise
 

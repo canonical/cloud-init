@@ -6,7 +6,6 @@
 
 """Power State Change: Change power state"""
 
-import errno
 import logging
 import os
 import re
@@ -181,8 +180,6 @@ def run_after_pid_gone(pid, pidcmdline, timeout, condition, func, args):
         LOG.warning(msg)
         doexit(EXIT_FAIL)
 
-    known_errnos = (errno.ENOENT, errno.ESRCH)
-
     while True:
         if time.monotonic() > end_time:
             msg = "timeout reached before %s ended" % pid
@@ -193,14 +190,11 @@ def run_after_pid_gone(pid, pidcmdline, timeout, condition, func, args):
             if cmdline != pidcmdline:
                 msg = "cmdline changed for %s [now: %s]" % (pid, cmdline)
                 break
-
-        except OSError as ioerr:
-            if ioerr.errno in known_errnos:
-                msg = "pidfile gone [%d]" % ioerr.errno
-            else:
-                fatal("OSError during wait: %s" % ioerr)
+        except (ProcessLookupError, FileNotFoundError):
+            msg = "pidfile gone"
             break
-
+        except OSError as ioerr:
+            fatal("OSError during wait: %s" % ioerr)
         except Exception as e:
             fatal("Unexpected Exception: %s" % e)
 

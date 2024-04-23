@@ -3,7 +3,6 @@
 """Tests for cloudinit.util"""
 
 import base64
-import errno
 import io
 import json
 import logging
@@ -551,7 +550,7 @@ class TestUtil:
 
     @mock.patch(
         M_PATH + "read_conf",
-        side_effect=(OSError(errno.EACCES, "Not allowed"), {"0": "0"}),
+        side_effect=(PermissionError("Not allowed"), {"0": "0"}),
     )
     def test_read_conf_d_no_permissions(
         self, m_read_conf, caplog, capsys, tmpdir
@@ -586,7 +585,7 @@ class TestUtil:
     @mock.patch(M_PATH + "mergemanydict")
     @mock.patch(M_PATH + "read_conf_d", return_value={"my_config": "foo"})
     @mock.patch(
-        M_PATH + "read_conf", side_effect=OSError(errno.EACCES, "Not allowed")
+        M_PATH + "read_conf", side_effect=PermissionError("Not allowed")
     )
     def test_read_conf_with_confd_no_permissions(
         self,

@@ -8,7 +8,6 @@
 
 """Resizefs: cloud-config module which resizes the filesystem"""
 
-import errno
 import logging
 import os
 import re
@@ -215,19 +214,17 @@ def maybe_get_writable_device_path(devpath, info):
 
     try:
         statret = os.stat(devpath)
-    except OSError as exc:
-        if container and exc.errno == errno.ENOENT:
+    except FileNotFoundError:
+        if container:
             LOG.debug(
                 "Device '%s' did not exist in container. cannot resize: %s",
                 devpath,
                 info,
             )
-        elif exc.errno == errno.ENOENT:
+        else:
             LOG.warning(
                 "Device '%s' did not exist. cannot resize: %s", devpath, info
             )
-        else:
-            raise exc
         return None
 
     if not stat.S_ISBLK(statret.st_mode) and not stat.S_ISCHR(statret.st_mode):

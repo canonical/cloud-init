@@ -14,7 +14,6 @@ from collections.abc import Iterable
 from contextlib import suppress
 from copy import deepcopy
 from enum import Enum
-from errno import EACCES
 from functools import partial
 from itertools import chain
 from typing import (
@@ -1771,14 +1770,12 @@ def get_config_paths_from_args(
 
     try:
         paths = read_cfg_paths(fetch_existing_datasource="trust")
-    except OSError as e:
-        if e.errno == EACCES:
-            LOG.debug(
-                "Using default instance-data/user-data paths for non-root user"
-            )
-            paths = read_cfg_paths()
-        else:
-            raise
+    except PermissionError:
+        LOG.debug(
+            "Using default instance-data/user-data "
+            "paths with insufficient permissions"
+        )
+        paths = read_cfg_paths()
     except DataSourceNotFoundException:
         paths = read_cfg_paths()
         LOG.warning(

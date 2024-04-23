@@ -22,7 +22,6 @@
 
 import base64
 import binascii
-import errno
 import fcntl
 import json
 import logging
@@ -443,12 +442,8 @@ class JoyentMetadataClient:
                 if byte == b"\n":
                     return as_ascii()
                 response.append(byte)
-            except OSError as exc:
-                if exc.errno == errno.EAGAIN:
-                    raise JoyentMetadataTimeoutException(
-                        msg % as_ascii()
-                    ) from exc
-                raise
+            except BlockingIOError as e:
+                raise JoyentMetadataTimeoutException(msg % as_ascii()) from e
 
     def _write(self, msg):
         self.fp.write(msg.encode("ascii"))

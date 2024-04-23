@@ -1,6 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import errno
 import gzip
 import json
 import os
@@ -167,7 +166,7 @@ class TestQuery:
             varname=None,
         )
         with mock.patch(M_PATH + "util.load_binary_file") as m_load:
-            m_load.side_effect = OSError(errno.EACCES, "Not allowed")
+            m_load.side_effect = PermissionError("Not allowed")
             assert 1 == query.handle_args("anyname", args)
         msg = "No read permission on '%s'. Try sudo" % noread_fn
         assert msg in caplog.text
@@ -175,8 +174,8 @@ class TestQuery:
     @pytest.mark.parametrize(
         "exception",
         [
-            (OSError(errno.EACCES, "Not allowed"),),
-            (OSError(errno.ENOENT, "Not allowed"),),
+            (PermissionError("Not allowed"),),
+            (FileNotFoundError("Not allowed"),),
             (OSError,),
         ],
     )

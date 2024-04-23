@@ -4,7 +4,6 @@ import copy
 import logging
 import os
 import re
-from errno import EACCES
 from typing import Optional, Type
 
 from cloudinit import handlers, lifecycle
