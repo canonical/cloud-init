@@ -734,6 +734,7 @@ def wait_for_url(
             reason = "request error [%s]" % e
             url_exc = e
         except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
             reason = "unexpected error [%s]" % e
             url_exc = e
         time_taken = int(time.time() - start_time)
@@ -910,7 +911,11 @@ class OauthUrlHelper:
         date = exception.headers["date"]
         try:
             remote_time = time.mktime(parsedate(date))
+        except (ValueError, OverflowError) as e:
+            LOG.warning("Failed to convert datetime '%s': %s", date, e)
+            return
         except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
             LOG.warning("Failed to convert datetime '%s': %s", date, e)
             return
 

@@ -42,8 +42,11 @@ def report_failure_to_host(error: errors.ReportableError) -> bool:
 def report_success_to_host() -> bool:
     try:
         vm_id = identity.query_vm_id()
-    except Exception as id_error:
-        vm_id = f"failed to read vm id: {id_error!r}"
+    except (RuntimeError, OSError, ValueError) as e:
+        vm_id = f"failed to read vm id: {e!r}"
+    except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
+        vm_id = f"failed to read vm id: {e!r}"
 
     report = errors.encode_report(
         [

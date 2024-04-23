@@ -15,6 +15,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.nonmultipart import MIMENonMultipart
 from email.mime.text import MIMEText
 
+import yaml
+
 from cloudinit import features, handlers, util
 from cloudinit.url_helper import UrlError, read_file_or_url
 
@@ -177,8 +179,10 @@ class UserDataProcessor:
                 payload = util.load_yaml(msg.get_payload(decode=True))
                 if payload:
                     payload_idx = payload.get("launch-index")
-            except Exception:
+            except yaml.YAMLError:
                 pass
+            except Exception as e:
+                LOG.warning("Unhandled exception: %s", e)
         # Header overrides contents, for now (?) or the other way around?
         if header_idx is not None:
             payload_idx = header_idx

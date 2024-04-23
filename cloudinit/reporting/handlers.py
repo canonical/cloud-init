@@ -50,7 +50,7 @@ class LogHandler(ReportingHandler):
             input_level = level
             try:
                 level = getattr(logging, level.upper())
-            except Exception:
+            except AttributeError:
                 LOG.warning("invalid level '%s', using WARN", input_level)
                 level = logging.WARN
         self.level = level
@@ -131,7 +131,15 @@ class WebHookHandler(ReportingHandler):
                     log_req_resp=False,
                 )
                 consecutive_failed = 0
+            except url_helper.UrlError as e:
+                LOG.warning(
+                    "Failed posting event: %s. This was caused by: %s",
+                    args[1],
+                    e,
+                )
+                consecutive_failed += 1
             except Exception as e:
+                LOG.warning("Unhandled exception: %s", e)
                 LOG.warning(
                     "Failed posting event: %s. This was caused by: %s",
                     args[1],

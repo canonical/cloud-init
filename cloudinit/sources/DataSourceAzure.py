@@ -5,6 +5,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import base64
+import binascii
 import functools
 import logging
 import os
@@ -715,6 +716,7 @@ class DataSourceAzure(sources.DataSource):
                 )
                 crawled_data["files"] = {"ovf-env.xml": contents}
             except Exception as e:
+                LOG.warning("Unhandled exception: %s", e)
                 report_diagnostic_event(
                     "Failed to construct OVF from IMDS data %s" % e,
                     logger_func=LOG.debug,
@@ -730,7 +732,12 @@ class DataSourceAzure(sources.DataSource):
                     crawled_data["userdata_raw"] = base64.b64decode(
                         "".join(imds_userdata.split())
                     )
-                except Exception:
+                except binascii.Error:
+                    report_diagnostic_event(
+                        "Bad userdata in IMDS", logger_func=LOG.warning
+                    )
+                except Exception as e:
+                    LOG.warning("Unhandled exception: %s", e)
                     report_diagnostic_event(
                         "Bad userdata in IMDS", logger_func=LOG.warning
                     )
@@ -752,9 +759,9 @@ class DataSourceAzure(sources.DataSource):
             )
             try:
                 ssh_keys = self._report_ready(pubkey_info=pubkey_info)
-            except Exception:
+            except Exception as e:
+                LOG.warning("Unhandled exception: %s", e)
                 # Failed to report ready, but continue with best effort.
-                pass
             else:
                 LOG.debug("negotiating returned %s", ssh_keys)
                 if ssh_keys:
@@ -839,12 +846,16 @@ class DataSourceAzure(sources.DataSource):
         """
         try:
             get_boot_telemetry()
+        except RuntimeError as e:
+            LOG.warning("Failed to get boot telemetry: %s", e)
         except Exception as e:
+            LOG.warning("Unhandled excption: %s", e)
             LOG.warning("Failed to get boot telemetry: %s", e)
 
         try:
             get_system_info()
         except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
             LOG.warning("Failed to get system information: %s", e)
 
         try:
@@ -856,8 +867,9 @@ class DataSourceAzure(sources.DataSource):
         except errors.ReportableError as error:
             self._report_failure(error)
             return False
-        except Exception as error:
-            reportable_error = errors.ReportableErrorUnhandledException(error)
+        except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
+            reportable_error = errors.ReportableErrorUnhandledException(e)
             self._report_failure(reportable_error)
             return False
         finally:
@@ -1072,13 +1084,13 @@ class DataSourceAzure(sources.DataSource):
         """
         try:
             self._report_ready()
-        except Exception as error:
+        except UrlError as error:
             # Ignore HTTP failures for Savable PPS as the call may appear to
             # fail if the network interface is unplugged or the VM is
             # suspended before we process the response. Worst case scenario
             # is that we failed to report ready for source PPS and this VM
             # will be discarded shortly, no harm done.
-            if expect_url_error and isinstance(error, UrlError):
+            if expect_url_error:
                 report_diagnostic_event(
                     "Ignoring http call failure, it was expected.",
                     logger_func=LOG.debug,
@@ -1091,6 +1103,11 @@ class DataSourceAzure(sources.DataSource):
                 )
                 report_diagnostic_event(msg, logger_func=LOG.error)
                 raise sources.InvalidMetaDataException(msg) from error
+        except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
+            msg = "Failed reporting ready while in the preprovisioning pool."
+            report_diagnostic_event(msg, logger_func=LOG.error)
+            raise sources.InvalidMetaDataException(msg) from e
 
         # Reset flag as we will need to report ready again for re-use.
         self._negotiated = False
@@ -1314,7 +1331,14 @@ class DataSourceAzure(sources.DataSource):
                 )
                 self._negotiated = True
                 return True
+            except UrlError as e:
+                report_diagnostic_event(
+                    "Failed to report failure using "
+                    "cached ephemeral dhcp context: %s" % e,
+                    logger_func=LOG.error,
+                )
             except Exception as e:
+                LOG.warning("Unhandled exception: %s", e)
                 report_diagnostic_event(
                     "Failed to report failure using "
                     "cached ephemeral dhcp context: %s" % e,
@@ -1338,6 +1362,7 @@ class DataSourceAzure(sources.DataSource):
             self._negotiated = True
             return True
         except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
             report_diagnostic_event(
                 "Failed to report failure using new ephemeral dhcp: %s" % e,
                 logger_func=LOG.debug,
@@ -1383,7 +1408,7 @@ class DataSourceAzure(sources.DataSource):
     def _ppstype_from_imds(self, imds_md: dict) -> Optional[str]:
         try:
             return imds_md["extended"]["compute"]["ppsType"]
-        except Exception as e:
+        except KeyError as e:
             report_diagnostic_event(
                 "Could not retrieve pps configuration from IMDS: %s" % e,
                 logger_func=LOG.debug,
@@ -1495,6 +1520,7 @@ class DataSourceAzure(sources.DataSource):
                     ),
                 )
             except Exception as e:
+                LOG.warning("Unhandled exception: %s", e)
                 LOG.error(
                     "Failed generating network config "
                     "from IMDS network metadata: %s",
@@ -1505,6 +1531,7 @@ class DataSourceAzure(sources.DataSource):
         try:
             return _generate_network_config_from_fallback_config()
         except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
             LOG.error("Failed generating fallback network config: %s", str(e))
 
         return {}
@@ -1807,7 +1834,11 @@ def write_files(datadir, files, dirmode=None):
                 ):
                     elem.text = DEF_PASSWD_REDACTION
             return ET.tostring(root)
-        except Exception:
+        except ET.ParseError:
+            LOG.critical("failed to redact userpassword in %s", fname)
+            return cnt
+        except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
             LOG.critical("failed to redact userpassword in %s", fname)
             return cnt
 

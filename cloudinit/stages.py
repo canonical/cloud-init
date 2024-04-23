@@ -475,9 +475,9 @@ class Init:
         previous_ds = None
         ds_fn = os.path.join(idir, "datasource")
         try:
-            previous_ds = util.load_text_file(ds_fn).strip()
-        except Exception:
-            pass
+            previous_ds = util.load_text_file(ds_fn, quiet=True).strip()
+        except OSError:
+            LOG.info("Couldn't load file %s", previous_ds)
         if not previous_ds:
             previous_ds = ds
         util.write_file(ds_fn, "%s\n" % ds)
@@ -511,7 +511,8 @@ class Init:
         iid_fn = os.path.join(dp, "instance-id")
         try:
             self._previous_iid = util.load_text_file(iid_fn).strip()
-        except Exception:
+        except OSError:
+            LOG.info("Couldn't load file %s", iid_fn)
             self._previous_iid = NO_PREVIOUS_INSTANCE_ID
 
         LOG.debug("previous iid found to be %s", self._previous_iid)
@@ -1008,7 +1009,7 @@ class Init:
             LOG.debug("applying net config names for %s", netcfg)
             self.distro.networking.apply_network_config_names(netcfg)
         except Exception as e:
-            LOG.warning("Failed to rename devices: %s", e)
+            util.logexc(LOG, "Failed to rename devices: %s", e)
 
     def _get_per_boot_network_semaphore(self):
         return namedtuple("Semaphore", "semaphore args")(

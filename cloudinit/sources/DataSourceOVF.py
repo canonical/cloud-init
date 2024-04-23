@@ -14,6 +14,7 @@ This module provides a cloud-init datasource for OVF data.
 """
 
 import base64
+import binascii
 import logging
 import os
 import re
@@ -158,13 +159,21 @@ def read_ovf_environment(contents, read_network=False):
         elif prop in network_props and read_network:
             try:
                 network_config = base64.b64decode(val.encode())
-                md[prop] = safeload_yaml_or_dict(network_config).get("network")
-            except Exception:
+                md[prop] = (yaml.safe_load(network_config) or {}).get(
+                    "network"
+                )
+            except (binascii.Error, yaml.YAMLError):
+                LOG.debug("Ignore network-config in wrong format")
+            except Exception as e:
+                LOG.warning("Unhandled exception: %s", e)
                 LOG.debug("Ignore network-config in wrong format")
         elif prop == "user-data":
             try:
                 ud = base64.b64decode(val.encode())
-            except Exception:
+            except binascii.Error:
+                ud = val.encode()
+            except Exception as e:
+                LOG.warning("Unhandled exception: %s", e)
                 ud = val.encode()
     return (md, ud, cfg)
 
@@ -400,14 +409,3 @@ datasources = (
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-def safeload_yaml_or_dict(data):
-    """
-    The meta data could be JSON or YAML. Since YAML is a strict superset of
-    JSON, we will unmarshal the data as YAML. If data is None then a new
-    dictionary is returned.
-    """
-    if not data:
-        return {}
-    return yaml.safe_load(data)

@@ -818,7 +818,13 @@ def _rename_interfaces(
         for op, mac, new_name, params in ops + ups:
             try:
                 opmap.get(op)(*params)
+            except subp.ProcessExecutionError as e:
+                errors.append(
+                    "[unknown] Error performing %s%s for %s, %s: %s"
+                    % (op, params, mac, new_name, e)
+                )
             except Exception as e:
+                LOG.warning("Unhandled exception: %s", e)
                 errors.append(
                     "[unknown] Error performing %s%s for %s, %s: %s"
                     % (op, params, mac, new_name, e)

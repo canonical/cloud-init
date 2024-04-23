@@ -405,7 +405,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 continue
             try:
                 manager.update_package_sources()
+            except subp.ProcessExecutionError as e:
+                LOG.error(
+                    "Failed to update package using %s: %s", manager.name, e
+                )
             except Exception as e:
+                LOG.warning("Unhandled exception: %s", e)
                 LOG.error(
                     "Failed to update package using %s: %s", manager.name, e
                 )
@@ -1597,5 +1602,8 @@ def uses_systemd():
     try:
         res = os.lstat("/run/systemd/system")
         return stat.S_ISDIR(res.st_mode)
-    except Exception:
+    except OSError:
+        return False
+    except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
         return False

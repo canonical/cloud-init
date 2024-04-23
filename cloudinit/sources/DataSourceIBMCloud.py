@@ -366,7 +366,7 @@ def metadata_from_dir(source_dir):
         else:
             try:
                 data = transl(raw)
-            except Exception as e:
+            except json.JSONDecodeError as e:
                 raise sources.BrokenMetadata(
                     "Failed decoding %s: %s" % (path, e)
                 )

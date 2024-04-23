@@ -34,6 +34,7 @@ import string
 import subprocess
 import sys
 import time
+import zlib
 from base64 import b64decode
 from collections import deque, namedtuple
 from contextlib import contextmanager, suppress
@@ -404,7 +405,13 @@ def decomp_gzip(data, quiet=True, decode=True):
                 return decode_binary(gh.read())
             else:
                 return gh.read()
+    except (OSError, EOFError, zlib.error) as e:
+        if quiet:
+            return data
+        else:
+            raise DecompressionError(str(e)) from e
     except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
         if quiet:
             return data
         else:
@@ -627,7 +634,7 @@ def get_linux_distro():
         try:
             # Was removed in 3.8
             dist = platform.dist()  # pylint: disable=W1505,E1101
-        except Exception:
+        except AttributeError:
             pass
         finally:
             found = None
@@ -1384,12 +1391,10 @@ def search_for_mirror(candidates):
 
     LOG.debug("search for mirror in candidates: '%s'", candidates)
     for cand in candidates:
-        try:
+        with suppress(ValueError):
             if is_resolvable_url(cand):
                 LOG.debug("found working mirror: '%s'", cand)
                 return cand
-        except Exception:
-            pass
     return None
 
 
@@ -1629,13 +1634,24 @@ def _get_cmdline():
             contents = load_text_file("/proc/1/cmdline")
             # replace nulls with space and drop trailing null
             cmdline = contents.replace("\x00", " ")[:-1]
+        except OSError as e:
+            LOG.warning("failed reading /proc/1/cmdline: %s", e)
+            cmdline = ""
         except Exception as e:
+            LOG.warning(
+                "Unhandled exception: %s",
+            )
             LOG.warning("failed reading /proc/1/cmdline: %s", e)
             cmdline = ""
     else:
         try:
             cmdline = load_text_file("/proc/cmdline").strip()
+        except OSError:
+            cmdline = ""
         except Exception:
+            LOG.warning(
+                "Unhandled exception: %s",
+            )
             cmdline = ""
 
     return cmdline
@@ -1950,11 +1966,16 @@ def mounts():
                     (dev, mp, fstype, opts, _freq, _passno) = mpline.split()
                 else:
                     m = re.search(mountre, mpline)
+                    if not m:
+                        continue
                     dev = m.group(1)
                     mp = m.group(2)
                     fstype = m.group(3)
                     opts = m.group(4)
-            except Exception:
+            except IndexError:
+                continue
+            except Exception as e:
+                LOG.warning("Unhandled exception: %s", e)
                 continue
             # If the name of the mount point contains spaces these
             # can be escaped as '\040', so undo that..
@@ -2102,7 +2123,10 @@ def copy(src, dest):
 def time_rfc2822():
     try:
         ts = time.strftime("%a, %d %b %Y %H:%M:%S %z", time.gmtime())
-    except Exception:
+    except ValueError:
+        ts = "??"
+    except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
         ts = "??"
     return ts
 
@@ -2848,8 +2872,8 @@ def log_time(
                 tmsg += " (N/A)"
         try:
             logfunc(msg + tmsg)
-        except Exception:
-            pass
+        except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
     return ret
 
 
