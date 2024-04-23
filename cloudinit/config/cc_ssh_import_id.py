@@ -150,11 +150,7 @@ def import_ssh_ids(ids, user):
         return
     LOG.debug("Importing SSH ids for user %s.", user)
 
-    try:
-        subp.subp(cmd, capture=False)
-    except subp.ProcessExecutionError as exc:
-        util.logexc(LOG, "Failed to run command to import %s SSH ids", user)
-        raise exc
+    subp.subp(cmd, capture=False)
 
 
 def is_key_in_nested_dict(config: dict, search_key: str) -> bool:
