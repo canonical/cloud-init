@@ -2416,7 +2416,7 @@ VALID_CFG = {
             MOCK_VIRT_IS_WSL,
             MOCK_UNAME_IS_WSL,
             {
-                "name": "WSL_linux2win_path",
+                "name": "WSL_path",
                 "ret": 0,
                 "RET": "//wsl.localhost/%s/" % MOCK_WSL_INSTANCE_DATA["name"],
             },
@@ -2439,7 +2439,7 @@ VALID_CFG = {
             MOCK_VIRT_IS_WSL,
             MOCK_UNAME_IS_WSL,
             {
-                "name": "WSL_linux2win_path",
+                "name": "WSL_path",
                 "ret": 0,
                 "RET": "//wsl.localhost/%s/" % MOCK_WSL_INSTANCE_DATA["name"],
             },

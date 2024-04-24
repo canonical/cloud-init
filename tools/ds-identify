@@ -1594,15 +1594,9 @@ dscheck_VMware() {
     return "${DS_NOT_FOUND}"
 }
 
-WSL_win2linux_path() {
-    local val=""
-    val="$(wslpath -au "$1" )"
-    _RET="$val"
-}
-
-WSL_linux2win_path() {
-    local val=""
-    val="$(wslpath -am "$1" )"
+WSL_path() {
+    local params="$1" path="$2" val=""
+    val="$(wslpath "$params" "$1")"
     _RET="$val"
 }
 
@@ -1629,7 +1623,7 @@ WSL_profile_dir() {
                 # wslpath is a program supplied by WSL itself that translates Windows and Linux paths,
                 # respecting the mountpoints where the Windows drives are mounted.
                 # (in fact it's a symlink to /init).
-                WSL_win2linux_path "$profiledir"
+                WSL_path "-au" "$profiledir"
                 return $?
             fi
         fi
@@ -1640,7 +1634,7 @@ WSL_profile_dir() {
 
 WSL_instance_name() {
     local val="" instance_name=""
-    WSL_linux2win_path "/"
+    WSL_path "-am" "/"
     instance_name="${_RET}"
     # Extracts "Ubuntu/" from "//wsl.localhost/Ubuntu/"
     val="${instance_name#//*/}"
