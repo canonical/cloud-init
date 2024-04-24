@@ -61,7 +61,7 @@ following paths:
    then the first user-provided configuration will be used in its place.
 
 2. ``%USERPROFILE%\.ubuntupro\.cloud-init\agent.yaml`` holds data provided by
-   the Ubuntu Pro for WSL agent. If this file is present, it's modules will be
+   the Ubuntu Pro for WSL agent. If this file is present, its modules will be
    merged with (1), overriding any conflicting modules. If (1) is not provided,
    then this file will be merged with any valid user-provided configuration
    instead.
