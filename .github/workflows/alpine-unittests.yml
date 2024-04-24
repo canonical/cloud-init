@@ -28,41 +28,42 @@ jobs:
           # Fetch all tags for tools/read-version
           fetch-depth: 0
 
-      - name: Install incus
-        run: curl https://pkgs.zabbly.com/get/incus-stable | sudo sh -x
-
       - name: Reset the firewall
         run: |
           sudo iptables -I DOCKER-USER -j ACCEPT
 
-      - name: Init incus
+      - name: Make sure the latest version is installed
         run: |
-          sudo incus admin init --auto
+          sudo snap refresh lxd --channel latest/stable
+
+      - name: Init lxd
+        run: |
+          sudo lxd admin init --auto
 
           # we shouldn't have to do this, but the link is down and we need it up
-          sudo ip link set incusbr0 up
+          sudo ip link set lxdbr0 up
 
       - name: Create alpine container
-        # the current shell doesn't have incus-admin as one of the groups
-        # so switch groups to run incus commands
-        run: sudo sg incus-admin -c 'incus launch images:alpine/edge alpine'
+        # the current shell doesn't have lxd as one of the groups
+        # so switch groups to run lxd commands
+        run: sudo sg lxd -c 'lxc launch images:alpine/edge alpine'
 
       - name: Check networking (for debugging)
         run: |
-          sudo sg incus-admin -c 'incus exec alpine -- ping -c 1 google.com || true'
-          sudo sg incus-admin -c 'incus exec alpine -- ping -c 1 dl-cdn.alpinelinux.org || true'
-          sudo sg incus-admin -c 'incus exec alpine -- nslookup www.google.com || true'
-          sudo sg incus-admin -c 'incus exec alpine -- ping -c 1 dl-cdn.alpinelinux.org || true'
+          sudo sg lxd -c 'lxc exec alpine -- ping -c 1 google.com || true'
+          sudo sg lxd -c 'lxc exec alpine -- ping -c 1 dl-cdn.alpinelinux.org || true'
+          sudo sg lxd -c 'lxc exec alpine -- nslookup www.google.com || true'
+          sudo sg lxd -c 'lxc exec alpine -- ping -c 1 dl-cdn.alpinelinux.org || true'
 
       - name: Install dependencies
-        run: sudo sg incus-admin -c 'incus exec alpine -- apk add py3-tox git'
+        run: sudo sg lxd -c 'lxc exec alpine -- apk add py3-tox git'
 
       - name: Mount source into container directory
-        run: sudo sg incus-admin -c 'incus config device add alpine gitdir disk source=$(pwd) path=/root/cloud-init-ro'
+        run: sudo sg lxd -c 'lxc config device add alpine gitdir disk source=$(pwd) path=/root/cloud-init-ro'
 
       - name: Create a r/w directory to run tests in
         # without this, tox fails during package install
-        run: sudo sg incus-admin -c 'incus exec alpine -- git clone cloud-init-ro/ cloud-init-rw'
+        run: sudo sg lxd -c 'lxc exec alpine -- git clone cloud-init-ro/ cloud-init-rw'
 
       - name: Run unittests
-        run: sudo sg incus-admin -c 'incus exec alpine --cwd /root/cloud-init-rw -- sh -c "tox -e py3"'
+        run: sudo sg lxd -c 'lxc exec alpine --cwd /root/cloud-init-rw -- sh -c "tox -e py3"'
