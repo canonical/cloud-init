@@ -79,17 +79,21 @@ def print_exc(msg=""):
     sys.stderr.write("\n")
 
 
-def log_ppid():
-    if util.is_Linux():
+def log_ppid(distro):
+    if distro.is_linux:
         ppid = os.getppid()
-        LOG.info("PID [%s] started cloud-init.", ppid)
+        log = LOG.info
+        extra_message = ""
+        if 1 != ppid and distro.uses_systemd():
+            log = LOG.warning
+            extra_message = ("Not a supported configuration.",)
+        log("PID [%s] started cloud-init. %s", ppid, extra_message)
 
 
 def welcome(action, msg=None):
     if not msg:
         msg = welcome_format(action)
     util.multi_log("%s\n" % (msg), console=False, stderr=True, log=LOG)
-    log_ppid()
     return msg
 
 
@@ -345,6 +349,7 @@ def main_init(name, args):
     init = stages.Init(ds_deps=deps, reporter=args.reporter)
     # Stage 1
     init.read_cfg(extract_fns(args))
+    log_ppid(init.distro)
     # Stage 2
     outfmt = None
     errfmt = None
@@ -600,6 +605,7 @@ def main_modules(action_name, args):
     init = stages.Init(ds_deps=[], reporter=args.reporter)
     # Stage 1
     init.read_cfg(extract_fns(args))
+    log_ppid(init.distro)
     # Stage 2
     try:
         init.fetch(existing="trust")
