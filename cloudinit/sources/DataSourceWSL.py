@@ -25,27 +25,17 @@ LANDSCAPE_DATA_FILE = "%s.user-data"
 AGENT_DATA_FILE = "agent.yaml"
 
 
-def wsl_path_2_win(path: str) -> PurePath:
-    """
-    Translates a path inside the current WSL instance's filesystem to a
-    Windows accessible path.
-
-    Example:
-    # Running under an instance named "CoolInstance"
-    root = wslpath2win("/") # root == "//wsl.localhost/CoolInstance/"
-
-    :param path: string representing a Linux path, whether existing or not.
-    """
-    out, _ = subp.subp([WSLPATH_CMD, "-am", path])
-    return PurePath(out.rstrip())
-
-
 def instance_name() -> str:
     """
     Returns the name of the current WSL instance as seen from outside.
     """
-    root_net_path = wsl_path_2_win("/")
-    return root_net_path.name
+    # Translates a path inside the current WSL instance's filesystem to a
+    # Windows accessible path.
+    # Example:
+    # Running under an instance named "CoolInstance"
+    # WSLPATH_CMD -am "/" == "//wsl.localhost/CoolInstance/"
+    root_net_path, _ = subp.subp([WSLPATH_CMD, "-am", "/"])
+    return PurePath(root_net_path.rstrip()).name
 
 
 def mounted_win_drives() -> List[str]:
