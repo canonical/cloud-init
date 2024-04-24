@@ -37,6 +37,8 @@ the datasource from working.
 For more information about how to configure WSL,
 `check the official documentation <https://learn.microsoft.com/windows/wsl/wsl-config#configuration-settings-for-wslconf>`_.
 
+.. _wsl_user_data_configuration:
+
 User data configuration
 ========================
 
@@ -205,4 +207,3 @@ include file.
   WSL automatically generates those files by default, unless configured to
   behave otherwise in ``/etc/wsl.conf``. Overwriting may work, but only
   until the next reboot.
-

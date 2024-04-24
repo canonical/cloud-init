@@ -18,7 +18,27 @@ Prerequisites
 =============
 
 This tutorial assumes you are running within a ``Windows 11`` or ``Windows
-Server 2022`` environment. If running this tutorial within a virtualized
+Server 2022`` environment. If ``wsl`` is already installed, you must be
+running version 2. You can check your version of ``wsl`` by running the
+following command:
+
+.. code-block:: doscon
+
+    PS> wsl --version
+
+Example output:
+
+.. code-block:: text
+
+    WSL version: 2.1.5.0
+    Kernel version: 5.15.146.1
+    WSLg version: 1.0.60
+    MSRDC version: 1.2.5105
+    Direct3D version: 1.611.1-81528511
+    DXCore version: 10.0.25131.1002-220531-1700.rs-onecore-base2-hyp
+    Windows version: 10.0.20348.2402
+
+If running this tutorial within a virtualized
 environment (`including in the cloud`_), ensure that
 `nested virtualization`_ is enabled.
 
@@ -139,6 +159,13 @@ For example, if your username is ``me``, the path would be
 Ensure that the file is saved with the ``.user-data`` extension and
 not as a ``.txt`` file.
 
+.. note::
+    We are creating user data that is tied to the instance we just created,
+    but by changing the filename, we can create user data that applies to
+    multiple or all WSL instances. See
+    :ref:`WSL Datasource reference page<wsl_user_data_configuration>` for
+    more information.
+
 What is user data?
 ==================
 
@@ -226,6 +253,18 @@ Which provides the following output:
 .. code-block:: text
 
     status: done
+
+Now we can now see that cloud-init has detected that we running in WSL:
+
+.. code-block:: shell-session
+
+    $ cloud-id
+
+Which provides the following output:
+
+.. code-block:: text
+
+    wsl
 
 Verify our user data
 --------------------
