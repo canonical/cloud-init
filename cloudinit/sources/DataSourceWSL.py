@@ -54,26 +54,6 @@ def mounted_win_drives() -> List[str]:
     return mounted
 
 
-def win_path_2_wsl(path: str) -> PurePath:
-    """
-    Returns a translation of a Windows path to a Linux path that can be
-    accessed inside the current instance filesystem.
-
-    It requires the Windows drive mounting feature to be enabled and the
-    disk drive must be muonted for this to succeed.
-
-    Example:
-    # Assuming Windows drives are mounted under /mnt/ and "S:" doesn't exist:
-    p = winpath2wsl("C:\\ProgramData") # p == "/mnt/c/ProgramData/"
-    n = winpath2wsl("S:\\CoolFolder") # Exception! S: is not mounted.
-
-    :param path: string representing a Windows path. The root drive must exist,
-    although the path is not required to.
-    """
-    out, _ = subp.subp([WSLPATH_CMD, "-au", path])
-    return PurePath(out.rstrip())
-
-
 def cmd_executable() -> PurePath:
     """
     Returns the Linux path to the Windows host's cmd.exe.
@@ -101,6 +81,10 @@ def cmd_executable() -> PurePath:
 def find_home() -> PurePath:
     """
     Finds the user's home directory path as a WSL path.
+
+    raises: IOError when no mountpoint with cmd.exe is found
+               ProcessExecutionError when either cmd.exe is unable to retrieve
+               the user's home directory
     """
     cmd = cmd_executable()
 
@@ -114,7 +98,14 @@ def find_home() -> PurePath:
         raise subp.ProcessExecutionError(
             "No output from cmd.exe to show the user profile dir."
         )
-    return win_path_2_wsl(home)
+    # Returns a translation of a Windows path to a Linux path that can be
+    # accessed inside the current instance filesystem.
+    # Example:
+    # Assuming Windows drives are mounted under /mnt/ and "S:" doesn't exist:
+    # WSLPATH_CMD -au "C:\\ProgramData" == "/mnt/c/ProgramData/"
+    # WSLPATH_CMD -au "S:\\Something" # raises exception S: is not mounted.
+    out, _ = subp.subp([WSLPATH_CMD, "-au", home])
+    return PurePath(out.rstrip())
 
 
 def cloud_init_data_dir(user_home: PurePath) -> Optional[PurePath]:
