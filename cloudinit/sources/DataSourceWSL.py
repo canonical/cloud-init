@@ -216,7 +216,7 @@ class DataSourceWSL(sources.DataSource):
 
     def __init__(self, sys_cfg, distro: Distro, paths: Paths, ud_proc=None):
         super().__init__(sys_cfg, distro, paths, ud_proc)
-        self.instance_name = instance_name()
+        self.instance_name = ""
 
     def find_user_data_file(self, seed_dir: PurePath) -> PurePath:
         """
@@ -257,7 +257,7 @@ class DataSourceWSL(sources.DataSource):
 
         try:
             data_dir = cloud_init_data_dir(find_home())
-            metadata = load_instance_metadata(data_dir, self.instance_name)
+            metadata = load_instance_metadata(data_dir, instance_name())
             return current == metadata.get("instance-id")
 
         except (IOError, ValueError) as err:
@@ -268,8 +268,7 @@ class DataSourceWSL(sources.DataSource):
             return False
 
     def _get_data(self) -> bool:
-        self.vendordata_raw = None
-        user_home = find_home()
+        self.instance_name = instance_name()
         seed_dir = cloud_init_data_dir(user_home)
         user_data: Optional[Union[dict, bytes]] = None
         requires_multipart = False
