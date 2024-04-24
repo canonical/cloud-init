@@ -284,7 +284,6 @@ class DataSourceWSL(sources.DataSource):
 
         seed_dir = cloud_init_data_dir(user_home)
         user_data: Optional[Union[dict, bytes]] = None
-        requires_multipart = False
 
         # Load any metadata
         try:
@@ -312,16 +311,12 @@ class DataSourceWSL(sources.DataSource):
 
         # No configs were found
         if not any([user_data, agent_data]):
-            self.userdata_raw = None
             return False
 
         # If we cannot reliably model data files as dicts, then we cannot merge
         # ourselves, so we can pass the data in ascending order as a list for
         # cloud-init to handle internally
-        requires_multipart = isinstance(agent_data, bytes) or isinstance(
-            user_data, bytes
-        )
-        if requires_multipart:
+        if isinstance(agent_data, bytes) or isinstance(user_data, bytes):
             self.userdata_raw = cast(Any, [user_data, agent_data])
             return True
 
