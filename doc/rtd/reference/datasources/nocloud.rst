@@ -91,22 +91,31 @@ Alternatively, this URI may be defined in a configuration in a file
 Permitted keys
 ==============
 
+Currenty three keys (and their aliases) are permitted for configuring
+cloud-init.
+
 The only required key is:
 
-* ``s`` or ``seedfrom``
+* ``seedfrom`` alias: ``s``
 
 A valid ``seedfrom`` value consists of a URI which must contain a trailing
-``/``. The short key ``s`` is only supported by kernel commandline or
-SMBIOS, when using a ``*.cfg`` file, ``seedfrom`` is required.
+``/``.
 
 Some optional keys may be used, but their use is discouraged and may
 be removed in the future.
 
-* ``h`` or ``local-hostname`` (:ref:`cloud-config<mod-set_hostname>` preferred)
-* ``i`` or ``instance-id``  (set instance id  in :file:`meta-data` instead)
+* ``local-hostname`` alias: ``h`` (:ref:`cloud-config<mod-set_hostname>`
+  preferred)
+* ``instance-id`` alias: ``i``  (set instance id  in :file:`meta-data` instead)
 
-HTTP and HTTPS
---------------
+.. note::
+
+   The aliases ``s`` , ``h`` and ``i`` are only supported by kernel
+   commandline or SMBIOS. When configured in a ``*.cfg`` file, the long key
+   name is required.
+
+Seedfrom: HTTP and HTTPS
+------------------------
 
 The URI elements supported by NoCloud's HTTP and HTTPS implementations
 include: ::
@@ -116,8 +125,8 @@ include: ::
 Where ``scheme`` can be ``http`` or ``https`` and ``host`` can be an IP
 address or DNS name.
 
-FTP and FTP over TLS
---------------------
+Seedfrom: FTP and FTP over TLS
+------------------------------
 
 The URI elements supported by NoCloud's FTP and FTPS implementation
 include: ::
@@ -129,15 +138,19 @@ Where ``scheme`` can be ``ftp`` or ``ftps``, ``userinfo`` will be
 ``host`` can be an IP address or DNS name, and ``port`` is which network
 port to use (default is ``21``).
 
-Path Resource
--------------
+Seedfrom: Files
+---------------
 
-The path pointed to by the URI must contain the following files:
+The path pointed to by the URI can contain the following
+files:
 
 ``user-data`` (required)
 ``meta-data`` (required)
 ``vendor-data`` (optional)
 ``network-config`` (optional)
+
+If the seedfrom URI doesn't contain the required files, this datasource
+will be skipped.
 
 The ``user-data`` file uses :ref:`user data format<user_data_formats>`. The
 ``meta-data`` file is a YAML-formatted file.
