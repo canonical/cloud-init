@@ -171,6 +171,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self.package_managers: List[PackageManager] = []
         self._dhcp_client = None
         self._fallback_interface = None
+        self.is_linux = True
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         """Perform deserialization fixes for Distro."""
@@ -187,6 +188,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             self._dhcp_client = None
         if not hasattr(self, "_fallback_interface"):
             self._fallback_interface = None
+        if not hasattr(self, "is_linux"):
+            self.is_linux = True
 
     def _validate_entry(self, entry):
         if isinstance(entry, str):
