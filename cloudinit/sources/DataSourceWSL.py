@@ -268,7 +268,20 @@ class DataSourceWSL(sources.DataSource):
             return False
 
     def _get_data(self) -> bool:
+        if not subp.which(WSLPATH_CMD):
+            LOG.debug(
+                "No WSL command %s found. Cannot detect WSL datasource",
+                WSLPATH_CMD,
+            )
+            return False
         self.instance_name = instance_name()
+
+        try:
+            user_home = find_home()
+        except IOError as e:
+            LOG.debug("Unable to detect WSL datasource: %s", e)
+            return False
+
         seed_dir = cloud_init_data_dir(user_home)
         user_data: Optional[Union[dict, bytes]] = None
         requires_multipart = False
@@ -280,6 +293,7 @@ class DataSourceWSL(sources.DataSource):
             )
         except (ValueError, IOError) as err:
             LOG.error("Unable to load metadata: %s", str(err))
+            return False
 
         # Load Ubuntu Pro configs
         agent_data, user_data = load_ubuntu_pro_data(user_home)
