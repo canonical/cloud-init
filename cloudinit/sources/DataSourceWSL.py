@@ -324,15 +324,25 @@ class DataSourceWSL(sources.DataSource):
         # iterate over the top level keys and write over them if the agent
         # provides them instead.
         # That's the reason for not using util.mergemanydict().
-        merged = {}
+        merged: dict = {}
+        overridden_keys: list[str] = []
         if user_data:
-            for key in user_data:
-                merged[key] = user_data[key]
+            merged = user_data
         if agent_data:
+            if user_data:
+                LOG.debug("Merging both user_data and agent.yaml configs.")
             for key in agent_data:
+                if key in merged:
+                    overridden_keys.append(key)
                 merged[key] = agent_data[key]
+            if overridden_keys:
+                LOG.debug(
+                    (
+                        " agent.yaml overrides config keys: "
+                        ", ".join(overridden_keys)
+                    )
+                )
 
-        LOG.debug("Merged data: %s", merged)
         self.userdata_raw = "#cloud-config\n%s" % yaml.dump(merged)
         return True
 
