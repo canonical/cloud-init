@@ -3549,7 +3549,7 @@ class TestCmdlineConfigParsing:
         found = cmdline.read_kernel_cmdline_config(cmdline=raw_cmdline)
         assert found is None
         expected_log = (
-            "Expected base64 encoded kernel commandline parameter"
+            "Expected base64 encoded kernel command line parameter"
             " network-config. Ignoring network-config={config:disabled}."
         )
         assert expected_log in caplog.text

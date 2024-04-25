@@ -351,21 +351,21 @@ def get_feature_flag_value(client: "IntegrationInstance", key):
     return value
 
 
-def override_kernel_cmdline(ds_str: str, instance: "IntegrationInstance"):
-    """set the kernel commandline and reboot, return after boot done
+def override_kernel_command_line(ds_str: str, instance: "IntegrationInstance"):
+    """set the kernel command line and reboot, return after boot done
 
     This will not work with containers. This is only tested with lxd vms
     but in theory should work on any virtual machine using grub.
 
     ds_str: the string that will be inserted into /proc/cmdline
-    instance: instance to set kernel commandline for
+    instance: instance to set kernel command line for
     """
 
     # The final output in /etc/default/grub should be:
     #
     # GRUB_CMDLINE_LINUX="'ds=nocloud;s=http://my-url/'"
     #
-    # That ensures that the kernel commandline passed into
+    # That ensures that the kernel command line passed into
     # /boot/efi/EFI/ubuntu/grub.cfg will be properly single-quoted
     #
     # Example:

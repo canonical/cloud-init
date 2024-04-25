@@ -1,4 +1,4 @@
-.. _kernel_cmdline:
+.. _kernel_command_line:
 
 Kernel command line
 *******************

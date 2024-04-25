@@ -281,7 +281,7 @@ def handle_args(name, args):
         try:
             rendered_payload = render_jinja_payload(
                 payload=payload,
-                payload_fn="query commandline",
+                payload_fn="query command line",
                 instance_data=instance_data,
                 debug=True if args.debug else False,
             )
