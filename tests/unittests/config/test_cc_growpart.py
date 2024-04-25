@@ -772,7 +772,8 @@ class TestGrowpartSchema:
                         "Cloud config schema deprecations: "
                         "growpart.mode:  Changed in version 22.3. "
                         "Specifying a boolean ``false`` value for "
-                        "``mode`` is deprecated. Use ``off`` instead."
+                        "``mode`` is deprecated. Use the string ``'off'`` "
+                        "instead."
                     ),
                 ),
             ),

@@ -1494,7 +1494,7 @@
           "properties": {
             "mode": {
               "default": "auto",
-              "description": "The utility to use for resizing. Default: ``auto``\n\nPossible options:\n\n* ``auto`` - Use any available utility\n\n* ``growpart`` - Use growpart utility\n\n* ``gpart`` - Use BSD gpart utility\n\n* ``off`` - Take no action",
+              "description": "The utility to use for resizing. Default: ``auto``\n\nPossible options:\n\n* ``auto`` - Use any available utility\n\n* ``growpart`` - Use growpart utility\n\n* ``gpart`` - Use BSD gpart utility\n\n* ``'off'`` - Take no action",
               "oneOf": [
                 {
                   "enum": [
@@ -1510,7 +1510,7 @@
                   ],
                   "changed": true,
                   "changed_version": "22.3",
-                  "changed_description": "Specifying a boolean ``false`` value for ``mode`` is deprecated. Use ``off`` instead."
+                  "changed_description": "Specifying a boolean ``false`` value for ``mode`` is deprecated. Use the string ``'off'`` instead."
                 }
               ]
             },
