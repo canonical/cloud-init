@@ -7,7 +7,7 @@
 
 import logging
 import os
-import platform
+import typing
 from pathlib import PurePath
 from typing import Any, List, Optional, Tuple, Union, cast
 
@@ -296,7 +296,7 @@ class DataSourceWSL(sources.DataSource):
             return False
 
         # # Load Ubuntu Pro configs only on Ubuntu distros
-        if platform.freedesktop_os_release().get("NAME") == "Ubuntu":
+        if self.distro.name == "ubuntu":
             agent_data, user_data = load_ubuntu_pro_data(user_home)
 
         # Load regular user configs
@@ -327,7 +327,7 @@ class DataSourceWSL(sources.DataSource):
         # provides them instead.
         # That's the reason for not using util.mergemanydict().
         merged: dict = {}
-        overridden_keys: list[str] = []
+        overridden_keys: typing.List[str] = []
         if user_data:
             merged = user_data
         if agent_data:

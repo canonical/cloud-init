@@ -1689,6 +1689,7 @@ dscheck_WSL() {
     # must match our expected precedence, so the file we find is what the
     # datasource must process.
     # We only care about ubuntupro configs if the distro is an Ubuntu distro.
+    # shellcheck disable=SC2153
     if [ "$NAME" = "Ubuntu" ]; then
         cloudinitdir="$profile_dir/.ubuntupro/.cloud-init"
         for userdatafile in "${instance_name}.user-data" "agent.yaml"; do
