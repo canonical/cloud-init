@@ -1688,14 +1688,17 @@ dscheck_WSL() {
     # and the applicable userdata file. Notice the ordering in the for-loop
     # must match our expected precedence, so the file we find is what the
     # datasource must process.
-    cloudinitdir="$profile_dir/.ubuntupro/.cloud-init"
-    for userdatafile in "${instance_name}.user-data" "agent.yaml"; do
-        candidate="$cloudinitdir/$userdatafile"
-        if [ -f "$candidate" ]; then
-            debug 1 "Found applicable pro data file for this instance at: $candidate"
-            return ${DS_FOUND}
-        fi
-    done
+    # We only care about ubuntupro configs if the distro is an Ubuntu distro.
+    if [ "$NAME" = "Ubuntu" ]; then
+        cloudinitdir="$profile_dir/.ubuntupro/.cloud-init"
+        for userdatafile in "${instance_name}.user-data" "agent.yaml"; do
+            candidate="$cloudinitdir/$userdatafile"
+            if [ -f "$candidate" ]; then
+                debug 1 "Found applicable pro data file for this instance at: $candidate"
+                return ${DS_FOUND}
+            fi
+        done
+    fi
 
     cloudinitdir="$profile_dir/.cloud-init"
     for userdatafile in "${instance_name}.user-data" "${ID:-linux}-${VERSION_ID:-${VERSION_CODENAME}}.user-data" "${ID:-linux}-all.user-data" "default.user-data"; do

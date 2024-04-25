@@ -7,6 +7,7 @@
 
 import logging
 import os
+import platform
 from pathlib import PurePath
 from typing import Any, List, Optional, Tuple, Union, cast
 
@@ -294,8 +295,9 @@ class DataSourceWSL(sources.DataSource):
             LOG.error("Unable to load metadata: %s", str(err))
             return False
 
-        # Load Ubuntu Pro configs
-        agent_data, user_data = load_ubuntu_pro_data(user_home)
+        # # Load Ubuntu Pro configs only on Ubuntu distros
+        if platform.freedesktop_os_release().get("NAME") == "Ubuntu":
+            agent_data, user_data = load_ubuntu_pro_data(user_home)
 
         # Load regular user configs
         try:
