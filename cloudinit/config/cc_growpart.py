@@ -600,7 +600,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if util.is_false(mode):
         if mode != "off":
             util.deprecate(
-                deprecated="Growpart's 'mode' key with value '{mode}'",
+                deprecated=f"Growpart's 'mode' key with value '{mode}'",
                 deprecated_version="22.2",
                 extra_message="Use 'off' instead.",
             )
