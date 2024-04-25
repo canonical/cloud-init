@@ -726,10 +726,6 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             new_ud = f.apply(new_ud)
         return new_ud
 
-    @property
-    def is_disconnected(self):
-        return False
-
     def get_userdata_raw(self):
         return self.userdata_raw
 

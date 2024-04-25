@@ -110,5 +110,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     except Exception:
         util.logexc(LOG, "Failed to write boot finished file %s", boot_fin_fn)
 
-    if cloud.datasource.is_disconnected:
-        LOG.warning("Used fallback datasource")
+    if cloud.datasource.dsname == "None":
+        if cloud.datasource.sys_cfg.get("datasource_list") != ["None"]:
+            LOG.warning("Used fallback datasource")
