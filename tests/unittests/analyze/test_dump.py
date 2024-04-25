@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from datetime import datetime
+from contextlib import suppress
+from datetime import datetime, timezone
 from textwrap import dedent
 
 import pytest
@@ -20,8 +21,10 @@ class TestParseTimestamp:
         """Logs with cloud-init detailed formats will be properly parsed."""
         trusty_fmt = "%Y-%m-%d %H:%M:%S,%f"
         trusty_stamp = "2016-09-12 14:39:20,839"
-        dt = datetime.strptime(trusty_stamp, trusty_fmt)
-        assert float(dt.strftime("%s.%f")) == parse_timestamp(trusty_stamp)
+        dt = datetime.strptime(trusty_stamp, trusty_fmt).replace(
+            tzinfo=timezone.utc
+        )
+        assert dt.timestamp() == parse_timestamp(trusty_stamp)
 
     def test_parse_timestamp_handles_syslog_adding_year(self):
         """Syslog timestamps lack a year. Add year and properly parse."""
@@ -30,8 +33,10 @@ class TestParseTimestamp:
 
         # convert stamp ourselves by adding the missing year value
         year = datetime.now().year
-        dt = datetime.strptime(syslog_stamp + " " + str(year), syslog_fmt)
-        assert float(dt.strftime("%s.%f")) == parse_timestamp(syslog_stamp)
+        dt = datetime.strptime(
+            syslog_stamp + " " + str(year), syslog_fmt
+        ).replace(tzinfo=timezone.utc)
+        assert dt.timestamp() == parse_timestamp(syslog_stamp)
 
     def test_parse_timestamp_handles_journalctl_format_adding_year(self):
         """Journalctl precise timestamps lack a year. Add year and parse."""
@@ -40,8 +45,10 @@ class TestParseTimestamp:
 
         # convert stamp ourselves by adding the missing year value
         year = datetime.now().year
-        dt = datetime.strptime(journal_stamp + " " + str(year), journal_fmt)
-        assert float(dt.strftime("%s.%f")) == parse_timestamp(journal_stamp)
+        dt = datetime.strptime(
+            journal_stamp + " " + str(year), journal_fmt
+        ).replace(tzinfo=timezone.utc)
+        assert dt.timestamp() == parse_timestamp(journal_stamp)
 
     @pytest.mark.allow_subp_for("date", "gdate")
     def test_parse_unexpected_timestamp_format_with_date_command(self):
@@ -50,13 +57,59 @@ class TestParseTimestamp:
         new_stamp = "17:15 08/08"
         # convert stamp ourselves by adding the missing year value
         year = datetime.now().year
-        dt = datetime.strptime(new_stamp + " " + str(year), new_fmt)
+        dt = datetime.strptime(new_stamp + " " + str(year), new_fmt).replace(
+            tzinfo=timezone.utc
+        )
 
         if has_gnu_date():
-            assert float(dt.strftime("%s.%f")) == parse_timestamp(new_stamp)
+            assert dt.timestamp() == parse_timestamp(new_stamp)
         else:
             with pytest.raises(ValueError):
                 parse_timestamp(new_stamp)
+
+    @pytest.mark.allow_subp_for("date", "gdate")
+    def test_parse_timestamp_round_trip(self):
+        """Ensure that timezone doesn't affect the returned timestamp.
+
+        Depending on the format of the timestamp, we use different methods
+        to parse it. In all cases, the timestamp should be returned the
+        same, regardless of timezone.
+        """
+        times = [
+            "Sep 12 14:39:00",
+            "Sep 12 14:39:00.839452",
+            "14:39 09/12",
+            "2020-09-12 14:39:00,839",
+            "2020-09-12 14:39:00.839452+00:00",
+        ]
+
+        timestamps = []
+        for f in times:
+            with suppress(ValueError):
+                timestamps.append(parse_timestamp(f))
+
+        new_times = [
+            datetime.fromtimestamp(ts, tz=timezone.utc).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+            for ts in timestamps
+        ]
+        assert all(t.endswith("-09-12 14:39:00") for t in new_times)
+
+    @pytest.mark.allow_subp_for("date", "gdate")
+    def test_parse_timestamp_handles_explicit_timezone(self):
+        """Explicitly provided timezones are parsed and properly offset."""
+        if not has_gnu_date():
+            pytest.skip("GNU date is required for this test")
+
+        original_ts = "2020-09-12 14:39:20.839452+02:00"
+        parsed_ts = parse_timestamp(original_ts)
+        assert (
+            datetime.fromtimestamp(parsed_ts, tz=timezone.utc).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+            == "2020-09-12 12:39:20"
+        )
 
 
 class TestParseCILogLine:
@@ -81,8 +134,8 @@ class TestParseCILogLine:
         )
         dt = datetime.strptime(
             "2017-08-08 20:05:07,147", "%Y-%m-%d %H:%M:%S,%f"
-        )
-        timestamp = float(dt.strftime("%s.%f"))
+        ).replace(tzinfo=timezone.utc)
+        timestamp = dt.timestamp()
         expected = {
             "description": "starting search for local datasources",
             "event_type": "start",
@@ -102,8 +155,8 @@ class TestParseCILogLine:
         year = datetime.now().year
         dt = datetime.strptime(
             "Nov 03 06:51:06.074410 %d" % year, "%b %d %H:%M:%S.%f %Y"
-        )
-        timestamp = float(dt.strftime("%s.%f"))
+        ).replace(tzinfo=timezone.utc)
+        timestamp = dt.timestamp()
         expected = {
             "description": "starting search for local datasources",
             "event_type": "start",
@@ -144,9 +197,11 @@ class TestParseCILogLine:
         )
         # Generate the expected value using `datetime`, so that TZ
         # determination is consistent with the code under test.
-        timestamp_dt = datetime.strptime(
-            "Apr 30 19:39:11", "%b %d %H:%M:%S"
-        ).replace(year=datetime.now().year)
+        timestamp_dt = (
+            datetime.strptime("Apr 30 19:39:11", "%b %d %H:%M:%S")
+            .replace(year=datetime.now().year)
+            .replace(tzinfo=timezone.utc)
+        )
         expected = {
             "description": "attempting to read from cache [check]",
             "event_type": "start",
@@ -184,8 +239,8 @@ class TestDumpEvents:
         year = datetime.now().year
         dt1 = datetime.strptime(
             "Nov 03 06:51:06.074410 %d" % year, "%b %d %H:%M:%S.%f %Y"
-        )
-        timestamp1 = float(dt1.strftime("%s.%f"))
+        ).replace(tzinfo=timezone.utc)
+        timestamp1 = dt1.timestamp()
         expected_events = [
             {
                 "description": "starting search for local datasources",
@@ -216,8 +271,8 @@ class TestDumpEvents:
         year = datetime.now().year
         dt1 = datetime.strptime(
             "Nov 03 06:51:06.074410 %d" % year, "%b %d %H:%M:%S.%f %Y"
-        )
-        timestamp1 = float(dt1.strftime("%s.%f"))
+        ).replace(tzinfo=timezone.utc)
+        timestamp1 = dt1.timestamp()
         expected_events = [
             {
                 "description": "starting search for local datasources",

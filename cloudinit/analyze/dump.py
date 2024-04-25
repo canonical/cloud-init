@@ -2,7 +2,7 @@
 
 import calendar
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 from cloudinit import atomic_helper, subp, util
 
@@ -36,13 +36,16 @@ def parse_timestamp(timestampstr):
         if "." in timestampstr:
             FMT = CLOUD_INIT_JOURNALCTL_FMT
         dt = datetime.strptime(
-            timestampstr + " " + str(datetime.now().year), FMT
-        )
-        timestamp = dt.strftime("%s.%f")
+            timestampstr + " " + str(datetime.now().year),
+            FMT,
+        ).replace(tzinfo=timezone.utc)
+        timestamp = dt.timestamp()
     elif "," in timestampstr:
         # 2016-09-12 14:39:20,839
-        dt = datetime.strptime(timestampstr, CLOUD_INIT_ASCTIME_FMT)
-        timestamp = dt.strftime("%s.%f")
+        dt = datetime.strptime(timestampstr, CLOUD_INIT_ASCTIME_FMT).replace(
+            tzinfo=timezone.utc
+        )
+        timestamp = dt.timestamp()
     else:
         # allow GNU date(1) to handle other formats we don't expect
         # This may throw a ValueError if no GNU date can be found
@@ -70,7 +73,7 @@ def parse_timestamp_from_date(timestampstr):
             f"Unable to parse timestamp without GNU date: [{timestampstr}]"
         )
     return float(
-        subp.subp([date, "+%s.%3N", "-d", timestampstr]).stdout.strip()
+        subp.subp([date, "-u", "+%s.%3N", "-d", timestampstr]).stdout.strip()
     )
 
 
