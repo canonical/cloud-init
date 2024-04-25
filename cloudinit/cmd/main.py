@@ -328,9 +328,12 @@ def main_init(name, args):
     outfmt = None
     errfmt = None
     try:
-        early_logs.append((logging.DEBUG, "Closing stdin."))
-        util.close_stdin()
-        (outfmt, errfmt) = util.fixup_output(init.cfg, name)
+        if not os.isatty(sys.stdin.fileno()):
+            early_logs.append((logging.DEBUG, "Closing stdin."))
+            util.close_stdin()
+        else:
+            LOG.warning("Not closing stdin, stdin is a tty.")
+        outfmt, errfmt = util.fixup_output(init.cfg, name)
     except Exception:
         msg = "Failed to setup output redirection!"
         util.logexc(LOG, msg)
@@ -598,8 +601,11 @@ def main_modules(action_name, args):
     mods = Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 4
     try:
-        LOG.debug("Closing stdin")
-        util.close_stdin()
+        if not os.isatty(sys.stdin.fileno()):
+            LOG.debug("Closing stdin")
+            util.close_stdin()
+        else:
+            LOG.warning("Not closing stdin, stdin is a tty.")
         util.fixup_output(mods.cfg, name)
     except Exception:
         util.logexc(LOG, "Failed to setup output redirection!")
@@ -667,8 +673,11 @@ def main_single(name, args):
         mod_freq = FREQ_SHORT_NAMES.get(mod_freq)
     # Stage 4
     try:
-        LOG.debug("Closing stdin")
-        util.close_stdin()
+        if not os.isatty(sys.stdin.fileno()):
+            LOG.debug("Closing stdin")
+            util.close_stdin()
+        else:
+            LOG.warning("Not closing stdin, stdin is a tty.")
         util.fixup_output(mods.cfg, None)
     except Exception:
         util.logexc(LOG, "Failed to setup output redirection!")
