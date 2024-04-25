@@ -30,7 +30,7 @@ Method 2: Custom webserver
 
 Configuration files can be provided to cloud-init over HTTP(s). To tell
 cloud-init the URI to use, arguments must be passed to the instance via the
-kernel commandline or SMBIOS serial number. This argument might look like: ::
+kernel command line or SMBIOS serial number. This argument might look like: ::
 
   ds=nocloud;s=https://10.42.42.42/cloud-init/configs/
 
@@ -52,7 +52,7 @@ Method 3: FTP Server
 
 Configuration files can be provided to cloud-init over unsecured FTP
 or alternatively with FTP over TLS. To tell cloud-init the URL to use,
-arguments must be passed to the instance via the kernel commandline or SMBIOS
+arguments must be passed to the instance via the kernel command line or SMBIOS
 serial number. This argument might look like: ::
 
   ds=nocloud;s=ftps://10.42.42.42/cloud-init/configs/
@@ -68,13 +68,13 @@ Method 4: Local filesystem
 --------------------------
 
 Configuration files can be provided on the local filesystem at specific
-filesystem paths using kernel commandline arguments or SMBIOS serial number to
+filesystem paths using kernel command line arguments or SMBIOS serial number to
 tell cloud-init where on the filesystem to look.
 
 .. note::
    Unless arbitrary filesystem paths are required, one might prefer to use
    :ref:`DataSourceNone<datasource_none_example>`, since it does not require
-   modifying the kernel commandline or SMBIOS.
+   modifying the kernel command line or SMBIOS.
 
 This argument might look like: ::
 
@@ -91,7 +91,7 @@ Alternatively, this URI may be defined in a configuration in a file
 Permitted keys
 ==============
 
-Currenty three keys (and their aliases) are permitted for configuring
+Currently three keys (and their aliases) are permitted for configuring
 cloud-init.
 
 The only required key is:
@@ -111,7 +111,7 @@ be removed in the future.
 .. note::
 
    The aliases ``s`` , ``h`` and ``i`` are only supported by kernel
-   commandline or SMBIOS. When configured in a ``*.cfg`` file, the long key
+   command line or SMBIOS. When configured in a ``*.cfg`` file, the long key
    name is required.
 
 Seedfrom: HTTP and HTTPS
@@ -159,8 +159,8 @@ The ``vendor-data`` file adheres to
 :ref:`user data formats<user_data_formats>`. The ``network-config`` file
 follows cloud-init's :ref:`Network Configuration Formats<network_config_v2>`.
 
-DMI-specific kernel commandline
-===============================
+DMI-specific kernel command line
+================================
 
 Cloud-init performs variable expansion of the ``seedfrom`` URL for any DMI
 kernel variables present in :file:`/sys/class/dmi/id` (kenv on FreeBSD).

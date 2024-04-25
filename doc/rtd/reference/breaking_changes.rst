@@ -61,10 +61,10 @@ which will be returned when cloud-init experiences an error that it can
 recover from. See :ref:`this page which documents the change <error_codes>`.
 
 
-23.2 - kernel commandline
-=========================
+23.2 - kernel command line
+==========================
 
-The ``ds=`` kernel commandline value is used to forcibly select a specific
+The ``ds=`` kernel command line value is used to forcibly select a specific
 datasource in cloud-init. Prior to 23.2, this only optionally selected
 the ``NoCloud`` datasource.
 
@@ -72,5 +72,5 @@ Anyone that previously had a matching ``ds=nocloud*`` in their kernel command
 line that did not want to use the ``NoCloud`` datasource may experience broken
 behavior as a result of this change.
 
-Workarounds include updating the kernel commandline and optionally configuring
+Workarounds include updating the kernel command line and optionally configuring
 a ``datasource_list`` in ``/etc/cloud/cloud.cfg.d/*.cfg``.
