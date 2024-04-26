@@ -38,15 +38,8 @@ jobs:
         # so switch groups to run lxd commands
         run: lxc launch images:alpine/edge alpine
 
-      - name: Check networking (for debugging)
-        run: |
-          lxc exec alpine -- ping -c 1 google.com || true
-          lxc exec alpine -- ping -c 1 dl-cdn.alpinelinux.org || true
-          lxc exec alpine -- nslookup www.google.com || true
-          lxc exec alpine -- ping -c 1 dl-cdn.alpinelinux.org || true
-
       - name: Install dependencies
-        run: lxc exec alpine -- apk add py3-tox git
+        run: lxc exec alpine -- apk add py3-tox git tzdata
 
       - name: Mount source into container directory
         run: lxc config device add alpine gitdir disk source=$(pwd) path=/root/cloud-init-ro
@@ -59,6 +52,10 @@ jobs:
         # test for regression of GH-5158
         # https://github.com/canonical/cloud-init/issues/5158
         run: lxc exec alpine -- ln -s /usr/share/zoneinfo/Europe/Brussels /etc/localtime
+
+      - name: Stop network
+        # Take down network interfaces to ensure tests don't use network
+        run: lxc exec alpine -- ifdown -a
 
       - name: Run unittests
         run: lxc exec alpine --cwd /root/cloud-init-rw -- sh -c "tox -e py3"
