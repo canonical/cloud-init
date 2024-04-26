@@ -38,6 +38,13 @@ jobs:
         # so switch groups to run lxd commands
         run: lxc launch images:alpine/edge alpine
 
+      - name: Check networking (for debugging)
+        run: |
+          lxc exec alpine -- ping -c 1 google.com || true
+          lxc exec alpine -- ping -c 1 dl-cdn.alpinelinux.org || true
+          lxc exec alpine -- nslookup www.google.com || true
+          lxc exec alpine -- ping -c 1 dl-cdn.alpinelinux.org || true
+
       - name: Install dependencies
         run: lxc exec alpine -- apk add py3-tox git tzdata
 
