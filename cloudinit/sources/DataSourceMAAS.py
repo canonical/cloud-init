@@ -127,11 +127,6 @@ class DataSourceMAAS(sources.DataSource):
             return False
 
         timeout = 50
-        try:
-            if timeout in mcfg:
-                timeout = int(mcfg.get("timeout", timeout))
-        except Exception:
-            LOG.warning("Failed to get timeout, using %s", timeout)
 
         starttime = time.time()
         if url.endswith("/"):
