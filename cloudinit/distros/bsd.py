@@ -169,4 +169,5 @@ class BSD(distros.Distro):
             if m:
                 return m["dev"], m["part_slice"]
 
-        return distros.Distro.device_part_info(devpath)
+        # the input is bogus and we need to bail
+        raise ValueError(f"Invalid value for devpath: '{devpath}'")

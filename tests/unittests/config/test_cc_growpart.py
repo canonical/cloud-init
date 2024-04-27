@@ -681,6 +681,12 @@ class TestDevicePartInfo:
                 does_not_raise(),
                 id="bsd_mbr_slice_and_partition",
             ),
+            pytest.param(
+                "zroot/ROOТ/default",
+                (),
+                pytest.raises(ValueError),
+                id="zfs_dataset",
+            ),
         ),
     )
     def test_device_part_info(self, devpath, expected, raised_exception):
