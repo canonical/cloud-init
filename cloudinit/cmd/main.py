@@ -79,15 +79,20 @@ def print_exc(msg=""):
     sys.stderr.write("\n")
 
 
-def log_ppid(distro):
+def log_ppid(distro, bootstage_name):
     if distro.is_linux:
         ppid = os.getppid()
         log = LOG.info
         extra_message = ""
         if 1 != ppid and distro.uses_systemd():
             log = LOG.warning
-            extra_message = ("Not a supported configuration.",)
-        log("PID [%s] started cloud-init. %s", ppid, extra_message)
+            extra_message = " Unsupported configuration: boot stage called outside of systemd"
+        log(
+            "PID [%s] started cloud-init '%s'.%s",
+            ppid,
+            bootstage_name,
+            extra_message,
+        )
 
 
 def welcome(action, msg=None):
@@ -342,14 +347,11 @@ def main_init(name, args):
     #    objects config as it may be different from init object
     # 10. Run the modules for the 'init' stage
     # 11. Done!
-    if not args.local:
-        w_msg = welcome_format(name)
-    else:
-        w_msg = welcome_format("%s-local" % (name))
+    bootstage_name = "init-local" if args.local else "init"
+    w_msg = welcome_format(bootstage_name)
     init = stages.Init(ds_deps=deps, reporter=args.reporter)
     # Stage 1
     init.read_cfg(extract_fns(args))
-    log_ppid(init.distro)
     # Stage 2
     outfmt = None
     errfmt = None
@@ -374,6 +376,7 @@ def main_init(name, args):
     # config applied.  We send the welcome message now, as stderr/out have
     # been redirected and log now configured.
     welcome(name, msg=w_msg)
+    log_ppid(init.distro, bootstage_name)
 
     # re-play early log messages before logging was setup
     for lvl, msg in early_logs:
@@ -601,11 +604,11 @@ def main_modules(action_name, args):
     #    the modules objects configuration
     # 5. Run the modules for the given stage name
     # 6. Done!
-    w_msg = welcome_format("%s:%s" % (action_name, name))
+    bootstage_name = "%s:%s" % (action_name, name)
+    w_msg = welcome_format(bootstage_name)
     init = stages.Init(ds_deps=[], reporter=args.reporter)
     # Stage 1
     init.read_cfg(extract_fns(args))
-    log_ppid(init.distro)
     # Stage 2
     try:
         init.fetch(existing="trust")
@@ -639,6 +642,7 @@ def main_modules(action_name, args):
 
     # now that logging is setup and stdout redirected, send welcome
     welcome(name, msg=w_msg)
+    log_ppid(init.distro, bootstage_name)
 
     if name == "init":
         util.deprecate(
