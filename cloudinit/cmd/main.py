@@ -86,7 +86,10 @@ def log_ppid(distro, bootstage_name):
         extra_message = ""
         if 1 != ppid and distro.uses_systemd():
             log = LOG.warning
-            extra_message = " Unsupported configuration: boot stage called outside of systemd"
+            extra_message = (
+                " Unsupported configuration: boot stage called "
+                "outside of systemd"
+            )
         log(
             "PID [%s] started cloud-init '%s'.%s",
             ppid,
