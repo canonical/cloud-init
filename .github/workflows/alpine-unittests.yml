@@ -60,9 +60,13 @@ jobs:
         # https://github.com/canonical/cloud-init/issues/5158
         run: lxc exec alpine -- ln -s /usr/share/zoneinfo/Europe/Brussels /etc/localtime
 
+      - name: Set up tox environment
+        # Setup the environment and then tell pytest to do essentially nothing
+        run: lxc exec alpine --cwd /root/cloud-init-rw -- tox -e py3 -- --cache-show=
+
       - name: Stop network
         # Take down network interfaces to ensure tests don't use network
         run: lxc exec alpine -- ifdown -a
 
       - name: Run unittests
-        run: lxc exec alpine --cwd /root/cloud-init-rw -- sh -c "tox -e py3"
+        run: lxc exec alpine --cwd /root/cloud-init-rw -- tox -e py3
