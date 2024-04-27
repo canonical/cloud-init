@@ -1495,7 +1495,7 @@ NETWORK_CONFIGS = {
         """
         ).rstrip(" "),
     },
-    "all": {
+    "large_v1": {
         "expected_eni": """\
 auto lo
 iface lo inet loopback
@@ -2338,35 +2338,629 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
         """
         ).lstrip(),
     },
-    "all_v2": {
+    "large_v2": {
+        "expected_eni": """\
+auto lo
+iface lo inet loopback
+    dns-nameservers 8.8.8.8 4.4.4.4 8.8.4.4
+    dns-search barley.maas wark.maas foobar.maas
+
+iface eth0 inet manual
+
+auto eth1
+iface eth1 inet manual
+    bond-master bond0
+    bond-mode active-backup
+    bond-xmit-hash-policy layer3+4
+    bond_miimon 100
+
+auto eth2
+iface eth2 inet manual
+    bond-master bond0
+    bond-mode active-backup
+    bond-xmit-hash-policy layer3+4
+    bond_miimon 100
+
+iface eth3 inet manual
+
+iface eth4 inet manual
+
+# control-manual eth5
+iface eth5 inet dhcp
+
+auto ib0
+iface ib0 inet static
+    address 192.168.200.7/24
+    mtu 9000
+    hwaddress a0:00:02:20:fe:80:00:00:00:00:00:00:ec:0d:9a:03:00:15:e2:c1
+
+auto bond0
+iface bond0 inet6 dhcp
+    bond-mode active-backup
+    bond-slaves none
+    bond-xmit-hash-policy layer3+4
+    bond_miimon 100
+    hwaddress aa:bb:cc:dd:ee:ff
+
+auto br0
+iface br0 inet static
+    address 192.168.14.2/24
+    bridge_ageing 250
+    bridge_bridgeprio 22
+    bridge_fd 1
+    bridge_gcint 2
+    bridge_hello 1
+    bridge_maxage 10
+    bridge_pathcost eth3 50
+    bridge_pathcost eth4 75
+    bridge_portprio eth3 28
+    bridge_portprio eth4 14
+    bridge_ports eth3 eth4
+    bridge_stp off
+    bridge_waitport 1 eth3
+    bridge_waitport 2 eth4
+    hwaddress bb:bb:bb:bb:bb:aa
+
+# control-alias br0
+iface br0 inet6 static
+    address 2001:1::1/64
+    post-up route add -A inet6 default gw 2001:4800:78ff:1b::1 || true
+    pre-down route del -A inet6 default gw 2001:4800:78ff:1b::1 || true
+
+auto bond0.200
+iface bond0.200 inet dhcp
+    vlan-raw-device bond0
+    vlan_id 200
+
+auto eth0.101
+iface eth0.101 inet static
+    address 192.168.0.2/24
+    dns-nameservers 192.168.0.10 10.23.23.134
+    dns-search barley.maas sacchromyces.maas brettanomyces.maas
+    gateway 192.168.0.1
+    mtu 1500
+    hwaddress aa:bb:cc:dd:ee:11
+    vlan-raw-device eth0
+    vlan_id 101
+
+# control-alias eth0.101
+iface eth0.101 inet static
+    address 192.168.2.10/24
+
+post-up route add -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
+pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
+""",
+        "expected_sysconfig_opensuse": {
+            "ifcfg-bond0": textwrap.dedent(
+                """\
+                BONDING_MASTER=yes
+                BONDING_MODULE_OPTS="mode=active-backup """
+                """xmit_hash_policy=layer3+4 """
+                """miimon=100"
+                BONDING_SLAVE_0=eth1
+                BONDING_SLAVE_1=eth2
+                BOOTPROTO=dhcp6
+                DHCLIENT6_MODE=managed
+                LLADDR=aa:bb:cc:dd:ee:ff
+                STARTMODE=auto"""
+            ),
+            "ifcfg-bond0.200": textwrap.dedent(
+                """\
+                BOOTPROTO=dhcp4
+                ETHERDEVICE=bond0
+                STARTMODE=auto
+                VLAN_ID=200"""
+            ),
+            "ifcfg-br0": textwrap.dedent(
+                """\
+                BRIDGE_AGEINGTIME=250
+                BOOTPROTO=static
+                IPADDR=192.168.14.2
+                IPADDR6=2001:1::1/64
+                LLADDRESS=bb:bb:bb:bb:bb:aa
+                NETMASK=255.255.255.0
+                BRIDGE_PRIORITY=22
+                BRIDGE_PORTS='eth3 eth4'
+                STARTMODE=auto
+                BRIDGE_STP=off"""
+            ),
+            "ifcfg-eth0": textwrap.dedent(
+                """\
+                BOOTPROTO=static
+                LLADDR=c0:d6:9f:2c:e8:80
+                STARTMODE=auto"""
+            ),
+            "ifcfg-eth0.101": textwrap.dedent(
+                """\
+                BOOTPROTO=static
+                IPADDR=192.168.0.2
+                IPADDR1=192.168.2.10
+                MTU=1500
+                NETMASK=255.255.255.0
+                NETMASK1=255.255.255.0
+                ETHERDEVICE=eth0
+                STARTMODE=auto
+                VLAN_ID=101"""
+            ),
+            "ifcfg-eth1": textwrap.dedent(
+                """\
+                BOOTPROTO=none
+                LLADDR=aa:d6:9f:2c:e8:80
+                STARTMODE=hotplug"""
+            ),
+            "ifcfg-eth2": textwrap.dedent(
+                """\
+                BOOTPROTO=none
+                LLADDR=c0:bb:9f:2c:e8:80
+                STARTMODE=hotplug"""
+            ),
+            "ifcfg-eth3": textwrap.dedent(
+                """\
+                BOOTPROTO=static
+                BRIDGE=yes
+                LLADDR=66:bb:9f:2c:e8:80
+                STARTMODE=auto"""
+            ),
+            "ifcfg-eth4": textwrap.dedent(
+                """\
+                BOOTPROTO=static
+                BRIDGE=yes
+                LLADDR=98:bb:9f:2c:e8:80
+                STARTMODE=auto"""
+            ),
+            "ifcfg-eth5": textwrap.dedent(
+                """\
+                BOOTPROTO=dhcp4
+                LLADDR=98:bb:9f:2c:e8:8a
+                STARTMODE=manual"""
+            ),
+            "ifcfg-ib0": textwrap.dedent(
+                """\
+                BOOTPROTO=static
+                LLADDR=a0:00:02:20:fe:80:00:00:00:00:00:00:ec:0d:9a:03:00:15:e2:c1
+                IPADDR=192.168.200.7
+                MTU=9000
+                NETMASK=255.255.255.0
+                STARTMODE=auto
+                TYPE=InfiniBand"""
+            ),
+        },
+        "expected_sysconfig_rhel": {
+            "ifcfg-bond0": textwrap.dedent(
+                """\
+                BONDING_MASTER=yes
+                BONDING_OPTS="mode=active-backup """
+                """xmit_hash_policy=layer3+4 """
+                """miimon=100"
+                BONDING_SLAVE0=eth1
+                BONDING_SLAVE1=eth2
+                BOOTPROTO=none
+                DEVICE=bond0
+                DHCPV6C=yes
+                IPV6INIT=yes
+                MACADDR=aa:bb:cc:dd:ee:ff
+                ONBOOT=yes
+                TYPE=Bond
+                USERCTL=no"""
+            ),
+            "ifcfg-bond0.200": textwrap.dedent(
+                """\
+                BOOTPROTO=dhcp
+                DEVICE=bond0.200
+                DHCLIENT_SET_DEFAULT_ROUTE=no
+                ONBOOT=yes
+                PHYSDEV=bond0
+                USERCTL=no
+                VLAN=yes"""
+            ),
+            "ifcfg-br0": textwrap.dedent(
+                """\
+                AGEING=250
+                BOOTPROTO=none
+                DEFROUTE=yes
+                DEVICE=br0
+                IPADDR=192.168.14.2
+                IPV6ADDR=2001:1::1/64
+                IPV6INIT=yes
+                IPV6_AUTOCONF=no
+                IPV6_FORCE_ACCEPT_RA=no
+                IPV6_DEFAULTGW=2001:4800:78ff:1b::1
+                MACADDR=bb:bb:bb:bb:bb:aa
+                NETMASK=255.255.255.0
+                ONBOOT=yes
+                PRIO=22
+                STP=no
+                TYPE=Bridge
+                USERCTL=no"""
+            ),
+            "ifcfg-eth0": textwrap.dedent(
+                """\
+                BOOTPROTO=none
+                DEVICE=eth0
+                HWADDR=c0:d6:9f:2c:e8:80
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no"""
+            ),
+            "ifcfg-eth0.101": textwrap.dedent(
+                """\
+                BOOTPROTO=none
+                DEFROUTE=yes
+                DEVICE=eth0.101
+                DNS1=192.168.0.10
+                DNS2=10.23.23.134
+                DOMAIN="barley.maas sacchromyces.maas brettanomyces.maas"
+                GATEWAY=192.168.0.1
+                IPADDR=192.168.0.2
+                IPADDR1=192.168.2.10
+                MTU=1500
+                NETMASK=255.255.255.0
+                NETMASK1=255.255.255.0
+                ONBOOT=yes
+                PHYSDEV=eth0
+                USERCTL=no
+                VLAN=yes"""
+            ),
+            "ifcfg-eth1": textwrap.dedent(
+                """\
+                BOOTPROTO=none
+                DEVICE=eth1
+                HWADDR=aa:d6:9f:2c:e8:80
+                MASTER=bond0
+                ONBOOT=yes
+                SLAVE=yes
+                TYPE=Ethernet
+                USERCTL=no"""
+            ),
+            "ifcfg-eth2": textwrap.dedent(
+                """\
+                BOOTPROTO=none
+                DEVICE=eth2
+                HWADDR=c0:bb:9f:2c:e8:80
+                MASTER=bond0
+                ONBOOT=yes
+                SLAVE=yes
+                TYPE=Ethernet
+                USERCTL=no"""
+            ),
+            "ifcfg-eth3": textwrap.dedent(
+                """\
+                BOOTPROTO=none
+                BRIDGE=br0
+                DEVICE=eth3
+                HWADDR=66:bb:9f:2c:e8:80
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no"""
+            ),
+            "ifcfg-eth4": textwrap.dedent(
+                """\
+                BOOTPROTO=none
+                BRIDGE=br0
+                DEVICE=eth4
+                HWADDR=98:bb:9f:2c:e8:80
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no"""
+            ),
+            "ifcfg-eth5": textwrap.dedent(
+                """\
+                BOOTPROTO=dhcp
+                DEVICE=eth5
+                DHCLIENT_SET_DEFAULT_ROUTE=no
+                HWADDR=98:bb:9f:2c:e8:8a
+                ONBOOT=no
+                TYPE=Ethernet
+                USERCTL=no"""
+            ),
+            "ifcfg-ib0": textwrap.dedent(
+                """\
+                BOOTPROTO=none
+                DEVICE=ib0
+                HWADDR=a0:00:02:20:fe:80:00:00:00:00:00:00:ec:0d:9a:03:00:15:e2:c1
+                IPADDR=192.168.200.7
+                MTU=9000
+                NETMASK=255.255.255.0
+                ONBOOT=yes
+                TYPE=InfiniBand
+                USERCTL=no"""
+            ),
+        },
+        "expected_network_manager": {
+            "cloud-init-eth3.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init eth3
+                uuid=b7e95dda-7746-5bf8-bf33-6e5f3c926790
+                autoconnect-priority=120
+                type=ethernet
+                slave-type=bridge
+                master=dee46ce4-af7a-5e7c-aa08-b25533ae9213
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [ethernet]
+                mac-address=66:BB:9F:2C:E8:80
+
+                """
+            ),
+            "cloud-init-eth5.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init eth5
+                uuid=5fda13c7-9942-5e90-a41b-1d043bd725dc
+                autoconnect-priority=120
+                type=ethernet
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [ethernet]
+                mac-address=98:BB:9F:2C:E8:8A
+
+                [ipv4]
+                method=auto
+                may-fail=false
+                dns=8.8.8.8;4.4.4.4;8.8.4.4;
+                dns-search=barley.maas;wark.maas;foobar.maas;
+
+                """
+            ),
+            "cloud-init-ib0.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init ib0
+                uuid=11a1dda7-78b4-5529-beba-d9b5f549ad7b
+                autoconnect-priority=120
+                type=infiniband
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [infiniband]
+                transport-mode=datagram
+                mtu=9000
+                mac-address=A0:00:02:20:FE:80:00:00:00:00:00:00:EC:0D:9A:03:00:15:E2:C1
+
+                [ipv4]
+                method=manual
+                may-fail=false
+                address1=192.168.200.7/24
+                dns=8.8.8.8;4.4.4.4;8.8.4.4;
+                dns-search=barley.maas;wark.maas;foobar.maas;
+
+                """
+            ),
+            "cloud-init-bond0.200.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init bond0.200
+                uuid=88984a9c-ff22-5233-9267-86315e0acaa7
+                autoconnect-priority=120
+                type=vlan
+                interface-name=bond0.200
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [vlan]
+                id=200
+                parent=54317911-f840-516b-a10d-82cb4c1f075c
+
+                [ipv4]
+                method=auto
+                may-fail=false
+                dns=8.8.8.8;4.4.4.4;8.8.4.4;
+                dns-search=barley.maas;wark.maas;foobar.maas;
+
+                """
+            ),
+            "cloud-init-eth0.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init eth0
+                uuid=1dd9a779-d327-56e1-8454-c65e2556c12c
+                autoconnect-priority=120
+                type=ethernet
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [ethernet]
+                mac-address=C0:D6:9F:2C:E8:80
+
+                """
+            ),
+            "cloud-init-eth4.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init eth4
+                uuid=e27e4959-fb50-5580-b9a4-2073554627b9
+                autoconnect-priority=120
+                type=ethernet
+                slave-type=bridge
+                master=dee46ce4-af7a-5e7c-aa08-b25533ae9213
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [ethernet]
+                mac-address=98:BB:9F:2C:E8:80
+
+                """
+            ),
+            "cloud-init-eth1.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init eth1
+                uuid=3c50eb47-7260-5a6d-801d-bd4f587d6b58
+                autoconnect-priority=120
+                type=ethernet
+                slave-type=bond
+                master=54317911-f840-516b-a10d-82cb4c1f075c
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [ethernet]
+                mac-address=AA:D6:9F:2C:E8:80
+
+                """
+            ),
+            "cloud-init-br0.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init br0
+                uuid=dee46ce4-af7a-5e7c-aa08-b25533ae9213
+                autoconnect-priority=120
+                type=bridge
+                interface-name=br0
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [bridge]
+                stp=false
+                priority=22
+                mac-address=BB:BB:BB:BB:BB:AA
+
+                [ipv4]
+                method=manual
+                may-fail=false
+                address1=192.168.14.2/24
+                dns=8.8.8.8;4.4.4.4;8.8.4.4;
+                dns-search=barley.maas;wark.maas;foobar.maas;
+
+                [ipv6]
+                route1=::/0,2001:4800:78ff:1b::1
+                method=manual
+                may-fail=false
+                address1=2001:1::1/64
+                dns-search=barley.maas;wark.maas;foobar.maas;
+
+                """
+            ),
+            "cloud-init-eth0.101.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init eth0.101
+                uuid=b5acec5e-db80-5935-8b02-0d5619fc42bf
+                autoconnect-priority=120
+                type=vlan
+                interface-name=eth0.101
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [vlan]
+                id=101
+                parent=1dd9a779-d327-56e1-8454-c65e2556c12c
+
+                [ipv4]
+                method=manual
+                may-fail=false
+                address1=192.168.0.2/24
+                route1=0.0.0.0/0,192.168.0.1
+                address2=192.168.2.10/24
+                dns=192.168.0.10;10.23.23.134;
+                dns-search=barley.maas;sacchromyces.maas;brettanomyces.maas;
+
+                """
+            ),
+            "cloud-init-bond0.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init bond0
+                uuid=54317911-f840-516b-a10d-82cb4c1f075c
+                autoconnect-priority=120
+                type=bond
+                interface-name=bond0
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [bond]
+                mode=active-backup
+                miimon=100
+                xmit_hash_policy=layer3+4
+
+                [ipv6]
+                method=auto
+                may-fail=false
+                dns-search=barley.maas;wark.maas;foobar.maas;
+
+                """
+            ),
+            "cloud-init-eth2.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init eth2
+                uuid=5559a242-3421-5fdd-896e-9cb8313d5804
+                autoconnect-priority=120
+                type=ethernet
+                slave-type=bond
+                master=54317911-f840-516b-a10d-82cb4c1f075c
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [ethernet]
+                mac-address=C0:BB:9F:2C:E8:80
+
+                """
+            ),
+        },
         "yaml": textwrap.dedent(
             """
             version: 2
             ethernets:
                 eth0:
                     match:
-                    macaddress: c0:d6:9f:2c:e8:80
+                        macaddress: c0:d6:9f:2c:e8:80
                     set-name: eth0
                 eth1:
                     match:
-                    macaddress: aa:d6:9f:2c:e8:80
+                        macaddress: aa:d6:9f:2c:e8:80
                     set-name: eth1
                 eth2:
                     match:
-                    macaddress: c0:bb:9f:2c:e8:80
+                        macaddress: c0:bb:9f:2c:e8:80
                     set-name: eth2
                 eth3:
                     match:
-                    macaddress: 66:bb:9f:2c:e8:80
+                        macaddress: 66:bb:9f:2c:e8:80
                     set-name: eth3
                 eth4:
                     match:
-                    macaddress: 98:bb:9f:2c:e8:80
+                        macaddress: 98:bb:9f:2c:e8:80
                     set-name: eth4
                 eth5:
                     dhcp4: true
                     match:
-                    macaddress: 98:bb:9f:2c:e8:8a
+                        macaddress: 98:bb:9f:2c:e8:8a
                     set-name: eth5
             bonds:
                 bond0:
@@ -2413,30 +3007,30 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                     routes:
                       - to: ::/0
                         via: 2001:4800:78ff:1b::1
-                vlans:
-                    bond0.200:
-                        dhcp4: true
-                        id: 200
-                        link: bond0
-                    eth0.101:
-                        addresses:
-                          - 192.168.0.2/24
-                          - 192.168.2.10/24
+            vlans:
+                bond0.200:
+                    dhcp4: true
+                    id: 200
+                    link: bond0
+                eth0.101:
+                    addresses:
+                        - 192.168.0.2/24
+                        - 192.168.2.10/24
                     id: 101
                     link: eth0
                     macaddress: aa:bb:cc:dd:ee:11
                     mtu: 1500
                     nameservers:
                         addresses:
-                          - 192.168.0.10
-                          - 10.23.23.134
+                            - 192.168.0.10
+                            - 10.23.23.134
                         search:
-                          - barley.maas
-                          - sacchromyces.maas
-                          - brettanomyces.maas
+                            - barley.maas
+                            - sacchromyces.maas
+                            - brettanomyces.maas
                     routes:
-                      - to: default
-                        via: 192.168.0.1
+                        - to: 0.0.0.0/0
+                          via: 192.168.0.1
             """
         ),
     },

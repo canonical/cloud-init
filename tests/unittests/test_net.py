@@ -1885,6 +1885,13 @@ USERCTL=no
                 ),
             ),
             ("v2-dns", "yaml"),
+            pytest.param(
+                "large_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason="Bond and Bridge MAC address not rendered"
+                ),
+            ),
         ],
     )
     def test_config(self, expected_name, yaml_version):
@@ -1895,8 +1902,8 @@ USERCTL=no
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
-    def test_all_config(self, caplog):
-        entry = NETWORK_CONFIGS["all"]
+    def test_large_v1_config(self, caplog):
+        entry = NETWORK_CONFIGS["large_v1"]
         found = self._render_and_read(
             network_config=yaml.safe_load(entry["yaml"])
         )
@@ -2515,6 +2522,13 @@ STARTMODE=auto
             ("v6_and_v4", "yaml"),
             ("v1-dns", "yaml"),
             ("v2-dns", "yaml"),
+            pytest.param(
+                "large_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason="Bond and Bridge LLADDR not rendered"
+                ),
+            ),
         ],
     )
     def test_config(
@@ -2529,8 +2543,8 @@ STARTMODE=auto
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
-    def test_all_config(self, caplog):
-        entry = NETWORK_CONFIGS["all"]
+    def test_large_v2_config(self, caplog):
+        entry = NETWORK_CONFIGS["large_v1"]
         found = self._render_and_read(
             network_config=yaml.safe_load(entry["yaml"])
         )
@@ -2759,19 +2773,6 @@ class TestNetworkManagerRendering:
             found,
         )
 
-    def test_all_config(self, caplog):
-        entry = NETWORK_CONFIGS["all"]
-        found = self._render_and_read(
-            network_config=yaml.safe_load(entry["yaml"])
-        )
-        self._compare_files_to_expected(
-            entry[self.expected_name], self.expected_conf_d, found
-        )
-        assert (
-            "Network config: ignoring eth0.101 device-level mtu"
-            not in caplog.text
-        )
-
     @pytest.mark.parametrize(
         "yaml_file,config",
         [
@@ -2818,6 +2819,17 @@ class TestNetworkManagerRendering:
             ("v2-dns-no-if-ips", "yaml"),
             ("v2-dns-no-dhcp", "yaml"),
             ("v2-route-no-gateway", "yaml"),
+            pytest.param(
+                "large_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason=(
+                        "Bridge MAC and bond miimon not rendered. "
+                        "Bond DNS not rendered. "
+                        "DNS not rendered when DHCP is enabled."
+                    ),
+                ),
+            ),
         ],
     )
     def test_config(self, expected_name, yaml_name):
@@ -2828,6 +2840,19 @@ class TestNetworkManagerRendering:
         )
         self._compare_files_to_expected(
             entry[self.expected_name], self.expected_conf_d, found
+        )
+
+    def test_large_v1_config(self, caplog):
+        entry = NETWORK_CONFIGS["large_v1"]
+        found = self._render_and_read(
+            network_config=yaml.safe_load(entry["yaml"])
+        )
+        self._compare_files_to_expected(
+            entry[self.expected_name], self.expected_conf_d, found
+        )
+        assert (
+            "Network config: ignoring eth0.101 device-level mtu"
+            not in caplog.text
         )
 
 
@@ -3882,7 +3907,7 @@ class TestNetplanRoundTrip:
             ("dhcpv6_stateful", "yaml"),
             ("wakeonlan_disabled", "yaml_v2"),
             ("wakeonlan_enabled", "yaml_v2"),
-            ("all", "yaml"),
+            ("large_v1", "yaml"),
             ("manual", "yaml"),
             pytest.param(
                 "v1-dns",
@@ -4001,7 +4026,21 @@ class TestEniRoundTrip:
     @pytest.mark.parametrize(
         "expected_name,yaml_version",
         [
-            ("all", "yaml"),
+            ("large_v1", "yaml"),
+            pytest.param(
+                "large_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason=(
+                        "MAC for bond and bridge not being rendered. "
+                        "bond-miimon is used rather than bond_miimon. "
+                        "No rendering of bridge_gcint. "
+                        "No rendering of bridge_waitport. "
+                        "IPv6 routes added to IPv4 section. "
+                        "DNS rendering inconsistencies."
+                    )
+                ),
+            ),
             ("small_v1", "yaml"),
             pytest.param(
                 "small_v2", "yaml", marks=pytest.mark.xfail(reason="GH-4219")
