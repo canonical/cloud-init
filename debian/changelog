@@ -1,3 +1,10 @@
+cloud-init (24.1.3-0ubuntu1~22.04.2) UNRELEASED; urgency=medium
+
+  * cherry-pick a6f7577d: bug(package_update): avoid snap refresh in
+    images without (LP: #2064132)
+
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 29 Apr 2024 10:01:25 -0600
+
 cloud-init (24.1.3-0ubuntu1~22.04.1) jammy; urgency=medium
 
   * Upstream snapshot based on 24.1.3. (LP: #2056100).
