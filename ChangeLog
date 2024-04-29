@@ -1,3 +1,7 @@
+24.1.5
+ - fix(package_update): avoid snap refresh in images without snap command
+   (LP: #2064132)
+
 24.1.4
  - fix(dhcpcd): Make lease parsing more robust (#5129)
  - net/dhcp: raise InvalidDHCPLeaseFileError on error parsing dhcpcd lease
