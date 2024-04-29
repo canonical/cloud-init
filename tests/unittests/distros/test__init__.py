@@ -253,6 +253,8 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         util.write_file("/usr/etc/sudoers", "josh, josh\n")
         d.ensure_sudo_dir("/b")
         contents = util.load_text_file("/etc/sudoers")
+        self.assertIn("josh", contents)
+        self.assertEqual(2, contents.count("josh"))
         self.assertIn("includedir /b", contents)
         self.assertTrue(os.path.isdir("/b"))
 

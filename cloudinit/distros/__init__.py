@@ -1041,7 +1041,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                         "#includedir %s" % (path),
                         "",
                     ]
-                    sudoers_contents = "\n".join(lines)
+                    sudoers_contents += "\n".join(lines)
                     util.write_file(sudo_base, sudoers_contents, 0o440)
                 else:
                     lines = [
