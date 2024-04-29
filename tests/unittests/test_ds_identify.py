@@ -617,6 +617,13 @@ class TestDsIdentify(DsIdentifyBase):
         """
         self._test_ds_found("Ec2-hvm-env")
 
+    def test_aws_ec2_hvm_endian(self):
+        """EC2: hvm instances use system-uuid and may have swapped endianness
+
+        test using SYSTEMD_VIRTUALIZATION, not systemd-detect-virt
+        """
+        self._test_ds_found("Ec2-hvm-swap-endianness")
+
     def test_aws_ec2_xen(self):
         """EC2: sys/hypervisor/uuid starts with ec2."""
         self._test_ds_found("Ec2-xen")
@@ -1536,6 +1543,13 @@ VALID_CFG = {
         "files": {
             P_PRODUCT_SERIAL: "ec23aef5-54be-4843-8d24-8c819f88453e\n",
             P_PRODUCT_UUID: "EC23AEF5-54BE-4843-8D24-8C819F88453E\n",
+        },
+    },
+    "Ec2-hvm-swap-endianness": {
+        "ds": "Ec2",
+        "mocks": [{"name": "detect_virt", "RET": "kvm", "ret": 0}],
+        "files": {
+            P_PRODUCT_UUID: "AB232AEC-54BE-4843-8D24-8C819F88453E\n",
         },
     },
     "Ec2-hvm-env": {
