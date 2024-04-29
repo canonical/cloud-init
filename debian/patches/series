@@ -6,3 +6,4 @@ retain-apt-pre-deb822.patch
 status-retain-recoverable-error-exit-code.patch
 retain-ec2-default-net-update-events.patch
 cpick-516fad6d-fix-url_helper-fix-TCP-connection-leak-on-readurl
+cpick-a6f7577d-bug-package_update-avoid-snap-refresh-in-images-without
