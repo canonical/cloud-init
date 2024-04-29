@@ -14,6 +14,7 @@ import pytest
 
 from cloudinit import util
 from cloudinit.sources import DataSourceWSL as wsl
+from tests.unittests.distros import _get_distro
 from tests.unittests.helpers import does_not_raise, mock
 
 INSTANCE_NAME = "Noble-MLKit"
@@ -251,34 +252,41 @@ def join_payloads_from_content_type(
 
 
 class TestWSLDataSource:
-    @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
-    @mock.patch("cloudinit.sources.DataSourceWSL.find_home")
-    def test_metadata_id_default(self, m_home_dir, m_iname, tmpdir, paths):
+    @pytest.fixture(autouse=True)
+    def setup(self, mocker, tmpdir):
+        mocker.patch(
+            "cloudinit.sources.DataSourceWSL.instance_name",
+            return_value=INSTANCE_NAME,
+        )
+        mocker.patch(
+            "cloudinit.sources.DataSourceWSL.find_home",
+            return_value=PurePath(tmpdir),
+        )
+        mocker.patch(
+            "cloudinit.sources.DataSourceWSL.subp.which",
+            return_value="/usr/bin/wslpath",
+        )
+
+    def test_metadata_id_default(self, tmpdir, paths):
         """
         Validates that instance-id is properly set, indepedent of the existence
         of user-data.
         """
-        m_iname.return_value = INSTANCE_NAME
-        m_home_dir.return_value = PurePath(tmpdir)
 
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=None,
+            distro=_get_distro("ubuntu"),
             paths=paths,
         )
         ds.get_data()
 
         assert ds.get_instance_id() == wsl.DEFAULT_INSTANCE_ID
 
-    @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
-    @mock.patch("cloudinit.sources.DataSourceWSL.find_home")
-    def test_metadata_id(self, m_home_dir, m_iname, tmpdir, paths):
+    def test_metadata_id(self, tmpdir, paths):
         """
         Validates that instance-id is properly set, indepedent of the existence
         of user-data.
         """
-        m_iname.return_value = INSTANCE_NAME
-        m_home_dir.return_value = PurePath(tmpdir)
         SAMPLE_ID = "Nice-ID"
         metadata_path = tmpdir.join(
             ".cloud-init", f"{INSTANCE_NAME}.meta-data"
@@ -290,7 +298,7 @@ class TestWSLDataSource:
 
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=None,
+            distro=_get_distro("ubuntu"),
             paths=paths,
         )
         ds.get_data()
@@ -298,19 +306,15 @@ class TestWSLDataSource:
         assert ds.get_instance_id() == SAMPLE_ID
 
     @mock.patch("cloudinit.util.lsb_release")
-    @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
-    @mock.patch("cloudinit.sources.DataSourceWSL.find_home")
-    def test_get_data_cc(self, m_home_dir, m_iname, m_gld, paths, tmpdir):
-        m_gld.return_value = SAMPLE_LINUX_DISTRO
-        m_iname.return_value = INSTANCE_NAME
-        m_home_dir.return_value = PurePath(tmpdir)
+    def test_get_data_cc(self, m_lsb_release, paths, tmpdir):
+        m_lsb_release.return_value = SAMPLE_LINUX_DISTRO
         data_path = tmpdir.join(".cloud-init", f"{INSTANCE_NAME}.user-data")
         data_path.dirpath().mkdir()
         data_path.write("#cloud-config\nwrite_files:\n- path: /etc/wsl.conf")
 
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=None,
+            distro=_get_distro("ubuntu"),
             paths=paths,
         )
 
@@ -325,19 +329,15 @@ class TestWSLDataSource:
         assert "wsl.conf" in cast(str, userdata)
 
     @mock.patch("cloudinit.util.lsb_release")
-    @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
-    @mock.patch("cloudinit.sources.DataSourceWSL.find_home")
-    def test_get_data_sh(self, m_home_dir, m_iname, m_gld, tmpdir, paths):
-        m_gld.return_value = SAMPLE_LINUX_DISTRO
-        m_iname.return_value = INSTANCE_NAME
-        m_home_dir.return_value = PurePath(tmpdir)
+    def test_get_data_sh(self, m_lsb_release, tmpdir, paths):
+        m_lsb_release.return_value = SAMPLE_LINUX_DISTRO
         COMMAND = "echo Hello cloud-init on WSL!"
         data_path = tmpdir.join(".cloud-init", f"{INSTANCE_NAME}.user-data")
         data_path.dirpath().mkdir()
         data_path.write(f"#!/bin/sh\n{COMMAND}\n")
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=None,
+            distro=_get_distro("ubuntu"),
             paths=paths,
         )
 
@@ -354,14 +354,8 @@ class TestWSLDataSource:
         assert COMMAND in userdata
 
     @mock.patch("cloudinit.util.get_linux_distro")
-    @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
-    @mock.patch("cloudinit.sources.DataSourceWSL.find_home")
-    def test_data_precedence(
-        self, m_home_dir, m_instance, m_distro, tmpdir, paths
-    ):
-        m_distro.return_value = SAMPLE_LINUX_DISTRO
-        m_instance.return_value = INSTANCE_NAME
-        m_home_dir.return_value = PurePath(tmpdir)
+    def test_data_precedence(self, m_get_linux_dist, tmpdir, paths):
+        m_get_linux_dist.return_value = SAMPLE_LINUX_DISTRO
 
         # Set up basic user data:
 
@@ -380,7 +374,7 @@ class TestWSLDataSource:
         # Run the datasource
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=None,
+            distro=_get_distro("ubuntu"),
             paths=paths,
         )
 
@@ -425,7 +419,7 @@ ubuntu_advantage:
         # Run the datasource
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=None,
+            distro=_get_distro("ubuntu"),
             paths=paths,
         )
 
@@ -459,7 +453,7 @@ package_update: true"""
         # Run the datasource
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=None,
+            distro=_get_distro("ubuntu"),
             paths=paths,
         )
 
