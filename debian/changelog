@@ -1,3 +1,10 @@
+cloud-init (24.1.3-0ubuntu1~23.10.3) UNRELEASED; urgency=medium
+
+  * cherry-pick a6f7577d: bug(package_update): avoid snap refresh in
+    images without (LP: #2064132)
+
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 29 Apr 2024 11:54:45 -0600
+
 cloud-init (24.1.3-0ubuntu1~23.10.2) mantic; urgency=medium
 
   * cherry-pick 516fad6d: fix(url_helper): fix TCP connection leak on
