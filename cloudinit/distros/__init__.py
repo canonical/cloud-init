@@ -396,6 +396,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     def update_package_sources(self):
         for manager in self.package_managers:
+            if not manager.available():
+                LOG.debug(
+                    "Skipping update for package manager '%s': not available.",
+                    manager.name,
+                )
+                continue
             try:
                 manager.update_package_sources()
             except Exception as e:
