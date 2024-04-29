@@ -140,7 +140,6 @@ class TestFetchMetadataWithApiFallback:
 
     # Early versions of responses do not appreciate the parameters...
     base_url = "http://169.254.169.254/metadata/instance"
-    headers = {"Metadata": "true"}
     timeout = 30
 
     @pytest.mark.parametrize("retry_deadline", [0.0, 1.0, 60.0])
@@ -168,7 +167,7 @@ class TestFetchMetadataWithApiFallback:
             mock.call(
                 self.default_url,
                 timeout=self.timeout,
-                headers=self.headers,
+                headers_cb=mock.ANY,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
@@ -213,7 +212,7 @@ class TestFetchMetadataWithApiFallback:
             mock.call(
                 self.default_url,
                 timeout=self.timeout,
-                headers=self.headers,
+                headers_cb=mock.ANY,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
@@ -221,7 +220,7 @@ class TestFetchMetadataWithApiFallback:
             mock.call(
                 self.fallback_url,
                 timeout=self.timeout,
-                headers=self.headers,
+                headers_cb=mock.ANY,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
@@ -575,7 +574,7 @@ class TestFetchMetadataWithApiFallback:
             mock.call(
                 self.default_url,
                 timeout=self.timeout,
-                headers=self.headers,
+                headers_cb=mock.ANY,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
@@ -639,7 +638,6 @@ class TestFetchReprovisionData:
         "http://169.254.169.254/metadata/"
         "reprovisiondata?api-version=2019-06-01"
     )
-    headers = {"Metadata": "true"}
     timeout = 30
 
     # Early versions of responses do not appreciate the parameters...
@@ -663,7 +661,7 @@ class TestFetchReprovisionData:
             mock.call(
                 self.url,
                 timeout=self.timeout,
-                headers=self.headers,
+                headers_cb=mock.ANY,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=False,

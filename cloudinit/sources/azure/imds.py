@@ -3,11 +3,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+import uuid
 from time import time
 from typing import Dict, Optional, Type, Union
 
 import requests
-import uuid
 
 from cloudinit import util
 from cloudinit.sources.helpers.azure import report_diagnostic_event
@@ -127,7 +127,7 @@ def _fetch_url(
     :raises UrlError: on error fetching metadata.
     """
     try:
-        headers_cb = {
+        headers_cb = lambda _: {
             "Metadata": "true",
             "x-ms-client-request-id": str(uuid.uuid4()),
         }
@@ -223,7 +223,7 @@ def fetch_reprovision_data() -> bytes:
         ),
         retry_deadline=None,
     )
-    headers_cb = {
+    headers_cb = lambda _: {
         "Metadata": "true",
         "x-ms-client-request-id": str(uuid.uuid4()),
     }

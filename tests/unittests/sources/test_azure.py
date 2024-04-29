@@ -12,7 +12,6 @@ from pathlib import Path
 import passlib.hash
 import pytest
 import requests
-import uuid
 
 from cloudinit import distros, dmi, helpers, subp, url_helper
 from cloudinit.atomic_helper import b64e, json_dumps
@@ -295,14 +294,6 @@ def mock_timestamp():
     with mock.patch.object(errors, "datetime", autospec=True) as m:
         m.utcnow.return_value = timestamp
         yield timestamp
-
-
-@pytest.fixture
-def mock_uuid():
-    uuid4 = uuid.uuid4()
-    with mock.patch.object(imds, "uuid", autospec=True) as m:
-        m.uuid4.return_value = uuid4
-        yield uuid4
 
 
 @pytest.fixture
@@ -3679,7 +3670,6 @@ class TestProvisioning:
         mock_report_dmesg_to_kvp,
         mock_subp_subp,
         mock_timestamp,
-        mock_uuid,
         mock_util_ensure_dir,
         mock_util_find_devs_with,
         mock_util_load_file,
@@ -3710,7 +3700,6 @@ class TestProvisioning:
         self.mock_report_dmesg_to_kvp = mock_report_dmesg_to_kvp
         self.mock_subp_subp = mock_subp_subp
         self.mock_timestmp = mock_timestamp
-        self.mock_uuid = mock_uuid
         self.mock_util_ensure_dir = mock_util_ensure_dir
         self.mock_util_find_devs_with = mock_util_find_devs_with
         self.mock_util_load_file = mock_util_load_file
@@ -3760,10 +3749,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 timeout=30,
-                headers_cb={
-                    "Metadata": "true",
-                    "x-ms-client-request-id": str(self.mock_uuid),
-                },
+                headers_cb=mock.ANY,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
@@ -3842,10 +3828,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers_cb={
-                    "Metadata": "true",
-                    "x-ms-client-request-id": str(self.mock_uuid),
-                },
+                headers_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -3854,10 +3837,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/reprovisiondata?"
                 "api-version=2019-06-01",
                 exception_cb=mock.ANY,
-                headers_cb={
-                    "Metadata": "true",
-                    "x-ms-client-request-id": str(self.mock_uuid),
-                },
+                headers_cb=mock.ANY,
                 log_req_resp=False,
                 infinite=True,
                 timeout=30,
@@ -3866,10 +3846,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers_cb={
-                    "Metadata": "true",
-                    "x-ms-client-request-id": str(self.mock_uuid),
-                },
+                headers_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -3914,10 +3891,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers_cb={
-                    "Metadata": "true",
-                    "x-ms-client-request-id": str(self.mock_uuid),
-                },
+                headers_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -3926,10 +3900,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/reprovisiondata?"
                 "api-version=2019-06-01",
                 exception_cb=mock.ANY,
-                headers_cb={
-                    "Metadata": "true",
-                    "x-ms-client-request-id": str(self.mock_uuid),
-                },
+                headers_cb=mock.ANY,
                 log_req_resp=False,
                 infinite=True,
                 timeout=30,
@@ -3938,10 +3909,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers_cb={
-                    "Metadata": "true",
-                    "x-ms-client-request-id": str(self.mock_uuid),
-                },
+                headers_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4041,10 +4009,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers_cb={
-                    "Metadata": "true",
-                    "x-ms-client-request-id": str(self.mock_uuid),
-                },
+                headers_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4053,10 +4018,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/reprovisiondata?"
                 "api-version=2019-06-01",
                 exception_cb=mock.ANY,
-                headers_cb={
-                    "Metadata": "true",
-                    "x-ms-client-request-id": str(self.mock_uuid),
-                },
+                headers_cb=mock.ANY,
                 log_req_resp=False,
                 infinite=True,
                 timeout=30,
@@ -4065,10 +4027,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers_cb={
-                    "Metadata": "true",
-                    "x-ms-client-request-id": str(self.mock_uuid),
-                },
+                headers_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4208,10 +4167,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers_cb={
-                    "Metadata": "true",
-                    "x-ms-client-request-id": str(self.mock_uuid),
-                },
+                headers_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4220,10 +4176,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/reprovisiondata?"
                 "api-version=2019-06-01",
                 exception_cb=mock.ANY,
-                headers_cb={
-                    "Metadata": "true",
-                    "x-ms-client-request-id": str(self.mock_uuid),
-                },
+                headers_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=False,
                 timeout=30,
@@ -4232,10 +4185,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers_cb={
-                    "Metadata": "true",
-                    "x-ms-client-request-id": str(self.mock_uuid),
-                },
+                headers_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4329,10 +4279,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers_cb={
-                    "Metadata": "true",
-                    "x-ms-client-request-id": str(self.mock_uuid),
-                },
+                headers_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4341,10 +4288,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/reprovisiondata?"
                 "api-version=2019-06-01",
                 exception_cb=mock.ANY,
-                headers_cb={
-                    "Metadata": "true",
-                    "x-ms-client-request-id": str(self.mock_uuid),
-                },
+                headers_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=False,
                 timeout=30,
@@ -4353,10 +4297,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers_cb={
-                    "Metadata": "true",
-                    "x-ms-client-request-id": str(self.mock_uuid),
-                },
+                headers_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4464,10 +4405,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers_cb={
-                    "Metadata": "true",
-                    "x-ms-client-request-id": str(self.mock_uuid),
-                },
+                headers_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4530,10 +4468,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 timeout=30,
-                headers_cb={
-                    "Metadata": "true",
-                    "x-ms-client-request-id": str(self.mock_uuid),
-                },
+                headers_cb=mock.ANY,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
