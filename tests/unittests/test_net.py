@@ -1859,7 +1859,8 @@ USERCTL=no
     @pytest.mark.parametrize(
         "expected_name,yaml_version",
         [
-            ("bond", "yaml"),
+            ("bond_v1", "yaml"),
+            ("bond_v2", "yaml"),
             ("vlan", "yaml"),
             ("bridge", "yaml"),
             ("manual", "yaml"),
@@ -2501,7 +2502,8 @@ STARTMODE=auto
     @pytest.mark.parametrize(
         "expected_name,yaml_name",
         [
-            ("bond", "yaml"),
+            ("bond_v1", "yaml"),
+            ("bond_v2", "yaml"),
             ("vlan", "yaml"),
             ("bridge", "yaml"),
             ("manual", "yaml"),
@@ -2798,7 +2800,8 @@ class TestNetworkManagerRendering:
     @pytest.mark.parametrize(
         "expected_name,yaml_name",
         [
-            ("bond", "yaml"),
+            ("bond_v1", "yaml"),
+            ("bond_v2", "yaml"),
             ("vlan", "yaml"),
             ("bridge", "yaml"),
             ("manual", "yaml"),
@@ -3892,7 +3895,8 @@ class TestNetplanRoundTrip:
     @pytest.mark.parametrize(
         "expected_name,yaml_version",
         [
-            ("bond", "yaml"),
+            ("bond_v1", "yaml"),
+            ("bond_v2", "yaml"),
             ("small_v1", "yaml"),
             ("v4_and_v6", "yaml_v1"),
             ("v4_and_v6", "yaml_v2"),
@@ -3925,16 +3929,6 @@ class TestNetplanRoundTrip:
         )
         assert yaml.safe_load(entry["expected_netplan"]) == yaml.safe_load(
             files["/etc/netplan/50-cloud-init.yaml"]
-        )
-
-    def testsimple_render_bond_v2_input_netplan(self):
-        entry = NETWORK_CONFIGS["bond"]
-        files = self._render_and_read(
-            network_config=yaml.safe_load(entry["yaml-v2"])
-        )
-        assert (
-            entry["expected_netplan-v2"].splitlines()
-            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
         )
 
     def test_render_output_has_yaml_no_aliases(self):
@@ -4067,7 +4061,8 @@ class TestEniRoundTrip:
             ("wakeonlan_disabled", "yaml_v2"),
             ("wakeonlan_enabled", "yaml_v2"),
             ("manual", "yaml"),
-            ("bond", "yaml"),
+            ("bond_v1", "yaml"),
+            ("bond_v2", "yaml"),
             pytest.param(
                 "v1-dns", "yaml", marks=pytest.mark.xfail(reason="GH-4219")
             ),
