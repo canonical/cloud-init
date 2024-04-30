@@ -797,12 +797,12 @@ def identify_aliyun(data):
 def identify_aws(data):
     # data is a dictionary returned by _collect_platform_data.
     uuid_str = data["uuid"]
+    if uuid_str.startswith("ec2"):
+        # example same-endian uuid:
+        # EC2E1916-9099-7CAF-FD21-012345ABCDEF
+        return CloudNames.AWS
     with suppress(ValueError):
-        if uuid_str.startswith("ec2"):
-            # example same-endian uuid:
-            # EC2E1916-9099-7CAF-FD21-012345ABCDEF
-            return CloudNames.AWS
-        elif uuid.UUID(uuid_str).bytes_le.hex().startswith("ec2"):
+        if uuid.UUID(uuid_str).bytes_le.hex().startswith("ec2"):
             # check for other endianness
             # example other-endian uuid:
             # 45E12AEC-DCD1-B213-94ED-012345ABCDEF
@@ -870,7 +870,7 @@ def _collect_platform_data():
     and product_uuid is lower case.  This returns lower case values for both.
     """
     uuid = None
-    with suppress(OSError):
+    with suppress(OSError, UnicodeDecodeError):
         uuid = util.load_text_file("/sys/hypervisor/uuid").strip()
 
     uuid = uuid or dmi.read_dmi_data("system-uuid") or ""
