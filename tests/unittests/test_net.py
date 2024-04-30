@@ -1867,7 +1867,8 @@ USERCTL=no
                     reason="Bond MAC address not rendered"
                 ),
             ),
-            ("vlan", "yaml"),
+            ("vlan_v1", "yaml"),
+            ("vlan_v2", "yaml"),
             ("bridge", "yaml"),
             ("manual", "yaml"),
             ("small_v1", "yaml"),
@@ -2516,7 +2517,8 @@ STARTMODE=auto
                     reason="Bond MAC address not rendered"
                 ),
             ),
-            ("vlan", "yaml"),
+            ("vlan_v1", "yaml"),
+            ("vlan_v2", "yaml"),
             ("bridge", "yaml"),
             ("manual", "yaml"),
             ("small_v1", "yaml"),
@@ -2820,7 +2822,8 @@ class TestNetworkManagerRendering:
                     reason="mii-monitor-interval not rendered."
                 ),
             ),
-            ("vlan", "yaml"),
+            ("vlan_v1", "yaml"),
+            ("vlan_v2", "yaml"),
             ("bridge", "yaml"),
             ("manual", "yaml"),
             ("small_v1", "yaml"),
