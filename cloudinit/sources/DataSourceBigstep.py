@@ -26,7 +26,7 @@ class DataSourceBigstep(sources.DataSource):
         if url is None:
             return False
         response = url_helper.readurl(url)
-        decoded = json.loads(response.contents.decode())
+        decoded = json.loads(response.contents)
         self.metadata = decoded["metadata"]
         self.vendordata_raw = decoded["vendordata_raw"]
         self.userdata_raw = decoded["userdata_raw"]
