@@ -4016,7 +4016,7 @@ iface bond0 inet6 static
         },
     },
     "bridge": {
-        "yaml": textwrap.dedent(
+        "yaml_v1": textwrap.dedent(
             """
             version: 1
             config:
@@ -4043,6 +4043,34 @@ iface bond0 inet6 static
                 subnets:
                   - type: static
                     address: 192.168.2.2/24"""
+        ),
+        "yaml_v2": textwrap.dedent(
+            """
+            version: 2
+            ethernets:
+                eth0:
+                    addresses:
+                    - 2001:1::100/96
+                    match:
+                        macaddress: '52:54:00:12:34:00'
+                    set-name: eth0
+                eth1:
+                    addresses:
+                    - 2001:1::101/96
+                    match:
+                        macaddress: '52:54:00:12:34:01'
+                    set-name: eth1
+            bridges:
+                br0:
+                    addresses:
+                    - 192.168.2.2/24
+                    interfaces:
+                    - eth0
+                    - eth1
+                    parameters:
+                        priority: 22
+                        stp: false
+            """
         ),
         "expected_sysconfig_opensuse": {
             "ifcfg-br0": textwrap.dedent(
