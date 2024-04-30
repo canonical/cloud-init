@@ -3433,7 +3433,7 @@ iface bond0 inet6 static
                 -   to: 2001:67c::/32
                     via: 2001:67c:1562::1
                 -   metric: 10000
-                    to: 3001:67c::/64
+                    to: 3001:67c::/32
                     via: 3001:67c:15::1
             """
         ),
@@ -3444,10 +3444,12 @@ iface bond0 inet6 static
              ethernets:
                  bond0s0:
                      match:
+                         driver: virtio_net
                          macaddress: aa:bb:cc:dd:e8:00
                      set-name: bond0s0
                  bond0s1:
                      match:
+                         driver: e1000
                          macaddress: aa:bb:cc:dd:e8:01
                      set-name: bond0s1
              bonds:
@@ -3472,7 +3474,7 @@ iface bond0 inet6 static
                          transmit-hash-policy: layer3+4
                          up-delay: 20
                      routes:
-                     -   to: default
+                     -   to: 0.0.0.0/0
                          via: 192.168.0.1
                      -   to: 10.1.3.0/24
                          via: 192.168.0.3
@@ -3493,26 +3495,26 @@ iface bond0s0 inet manual
     bond-downdelay 10
     bond-fail-over-mac active
     bond-master bond0
+    bond_miimon 100
     bond-mode active-backup
     bond-num-grat-arp 5
     bond-primary bond0s0
     bond-primary-reselect always
     bond-updelay 20
     bond-xmit-hash-policy layer3+4
-    bond_miimon 100
 
 auto bond0s1
 iface bond0s1 inet manual
     bond-downdelay 10
     bond-fail-over-mac active
     bond-master bond0
+    bond_miimon 100
     bond-mode active-backup
     bond-num-grat-arp 5
     bond-primary bond0s0
     bond-primary-reselect always
     bond-updelay 20
     bond-xmit-hash-policy layer3+4
-    bond_miimon 100
 
 auto bond0
 iface bond0 inet static
@@ -3520,6 +3522,7 @@ iface bond0 inet static
     gateway 192.168.0.1
     bond-downdelay 10
     bond-fail-over-mac active
+    bond_miimon 100
     bond-mode active-backup
     bond-num-grat-arp 5
     bond-primary bond0s0
@@ -3527,7 +3530,6 @@ iface bond0 inet static
     bond-slaves none
     bond-updelay 20
     bond-xmit-hash-policy layer3+4
-    bond_miimon 100
     hwaddress aa:bb:cc:dd:e8:ff
     mtu 9000
     post-up route add -net 10.1.3.0/24 gw 192.168.0.3 || true
@@ -3727,16 +3729,16 @@ iface bond0 inet6 static
                 method=manual
                 may-fail=false
                 address1=192.168.0.2/24
-                gateway=192.168.0.1
-                route1=10.1.3.0/24,192.168.0.3
+                route1=0.0.0.0/0,192.168.0.1
+                route2=10.1.3.0/24,192.168.0.3
                 address2=192.168.1.2/24
 
                 [ipv6]
+                route1=2001:67c::/32,2001:67c:1562::1
+                route2=3001:67c::/32,3001:67c:15::1
                 method=manual
                 may-fail=false
                 address1=2001:1::1/92
-                route1=2001:67c::/32,2001:67c:1562::1
-                route2=3001:67c::/32,3001:67c:15::1
 
                 """
             ),

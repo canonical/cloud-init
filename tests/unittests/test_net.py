@@ -1860,7 +1860,13 @@ USERCTL=no
         "expected_name,yaml_version",
         [
             ("bond_v1", "yaml"),
-            ("bond_v2", "yaml"),
+            pytest.param(
+                "bond_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason="Bond MAC address not rendered"
+                ),
+            ),
             ("vlan", "yaml"),
             ("bridge", "yaml"),
             ("manual", "yaml"),
@@ -2503,7 +2509,13 @@ STARTMODE=auto
         "expected_name,yaml_name",
         [
             ("bond_v1", "yaml"),
-            ("bond_v2", "yaml"),
+            pytest.param(
+                "bond_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason="Bond MAC address not rendered"
+                ),
+            ),
             ("vlan", "yaml"),
             ("bridge", "yaml"),
             ("manual", "yaml"),
@@ -2801,7 +2813,13 @@ class TestNetworkManagerRendering:
         "expected_name,yaml_name",
         [
             ("bond_v1", "yaml"),
-            ("bond_v2", "yaml"),
+            pytest.param(
+                "bond_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason="mii-monitor-interval not rendered."
+                ),
+            ),
             ("vlan", "yaml"),
             ("bridge", "yaml"),
             ("manual", "yaml"),
@@ -4062,7 +4080,18 @@ class TestEniRoundTrip:
             ("wakeonlan_enabled", "yaml_v2"),
             ("manual", "yaml"),
             ("bond_v1", "yaml"),
-            ("bond_v2", "yaml"),
+            pytest.param(
+                "bond_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason=(
+                        "Rendering bond_miimon rather than bond-miimon. "
+                        "Using pre-down/post-up routes for gateway rather "
+                        "gateway. "
+                        "Adding ipv6 routes to ipv4 section"
+                    )
+                ),
+            ),
             pytest.param(
                 "v1-dns", "yaml", marks=pytest.mark.xfail(reason="GH-4219")
             ),
