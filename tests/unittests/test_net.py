@@ -1087,10 +1087,6 @@ def _setup_test(
     def fake_read(
         devname,
         path,
-        translate=None,
-        on_enoent=None,
-        on_keyerror=None,
-        on_einval=None,
     ):
         return dev_attrs[devname][path]
 

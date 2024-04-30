@@ -843,6 +843,7 @@ def identify_platform():
             if result:
                 return result
         except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
             LOG.warning(
                 "calling %s with %s raised exception: %s", checker, data, e
             )
@@ -866,7 +867,7 @@ def _collect_platform_data():
     try:
         uuid = util.load_text_file("/sys/hypervisor/uuid").strip()
         data["uuid_source"] = "hypervisor"
-    except Exception:
+    except OSError:
         uuid = dmi.read_dmi_data("system-uuid")
         data["uuid_source"] = "dmi"
 

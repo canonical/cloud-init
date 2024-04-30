@@ -6,7 +6,6 @@
 
 """Power State Change: Change power state"""
 
-import errno
 import logging
 import os
 import re
@@ -96,7 +95,7 @@ def givecmdline(pid):
             return m.group(2)
         else:
             return util.load_text_file("/proc/%s/cmdline" % pid)
-    except IOError:
+    except OSError:
         return None
 
 
@@ -119,19 +118,19 @@ def check_condition(cond):
         else:
             LOG.warning("%sunexpected exit %s. do not apply change.", pre, ret)
             return False
+    except OSError as e:
+        LOG.warning("%sUnexpected error: %s", pre, e)
+        return False
     except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
         LOG.warning("%sUnexpected error: %s", pre, e)
         return False
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
-    try:
-        (args, timeout, condition) = load_power_state(cfg, cloud.distro)
-        if args is None:
-            LOG.debug("no power_state provided. doing nothing")
-            return
-    except Exception as e:
-        LOG.warning("%s Not performing power state change!", str(e))
+    args, timeout, condition = load_power_state(cfg, cloud.distro)
+    if args is None:
+        LOG.debug("no power_state provided. doing nothing")
         return
 
     if condition is False:
@@ -229,8 +228,6 @@ def run_after_pid_gone(pid, pidcmdline, timeout, condition, func, args):
         LOG.warning(msg)
         doexit(EXIT_FAIL)
 
-    known_errnos = (errno.ENOENT, errno.ESRCH)
-
     while True:
         if time.time() > end_time:
             msg = "timeout reached before %s ended" % pid
@@ -241,14 +238,11 @@ def run_after_pid_gone(pid, pidcmdline, timeout, condition, func, args):
             if cmdline != pidcmdline:
                 msg = "cmdline changed for %s [now: %s]" % (pid, cmdline)
                 break
-
-        except IOError as ioerr:
-            if ioerr.errno in known_errnos:
-                msg = "pidfile gone [%d]" % ioerr.errno
-            else:
-                fatal("IOError during wait: %s" % ioerr)
+        except (ProcessLookupError, FileNotFoundError):
+            msg = "pidfile gone"
             break
-
+        except OSError as ioerr:
+            fatal("OSError during wait: %s" % ioerr)
         except Exception as e:
             fatal("Unexpected Exception: %s" % e)
 

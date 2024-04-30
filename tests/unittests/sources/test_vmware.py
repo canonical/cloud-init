@@ -905,6 +905,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
                     "util.del_dir": True,
                     "guestcust_util.search_file": self.tdir,
                     "guestcust_util.wait_for_cust_cfg_file": conf_file,
+                    "guestcust_util.send_rpc": ("", ""),
                 },
                 ds.get_imc_data_fn,
             )

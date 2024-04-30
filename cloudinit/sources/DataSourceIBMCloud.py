@@ -344,15 +344,12 @@ def metadata_from_dir(source_dir):
     def opath(fname):
         return os.path.join("openstack", "latest", fname)
 
-    def load_json_bytes(blob):
-        return json.loads(blob.decode("utf-8"))
-
     files = [
         # tuples of (results_name, path, translator)
-        ("metadata_raw", opath("meta_data.json"), load_json_bytes),
+        ("metadata_raw", opath("meta_data.json"), json.loads),
         ("userdata", opath("user_data"), None),
-        ("vendordata", opath("vendor_data.json"), load_json_bytes),
-        ("networkdata", opath("network_data.json"), load_json_bytes),
+        ("vendordata", opath("vendor_data.json"), json.loads),
+        ("networkdata", opath("network_data.json"), json.loads),
     ]
 
     results = {}
@@ -361,7 +358,7 @@ def metadata_from_dir(source_dir):
         raw = None
         try:
             raw = util.load_binary_file(fpath)
-        except IOError as e:
+        except OSError as e:
             LOG.debug("Failed reading path '%s': %s", fpath, e)
 
         if raw is None or transl is None:
@@ -369,7 +366,7 @@ def metadata_from_dir(source_dir):
         else:
             try:
                 data = transl(raw)
-            except Exception as e:
+            except json.JSONDecodeError as e:
                 raise sources.BrokenMetadata(
                     "Failed decoding %s: %s" % (path, e)
                 )

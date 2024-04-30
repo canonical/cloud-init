@@ -50,7 +50,7 @@ class LogHandler(ReportingHandler):
             input_level = level
             try:
                 level = getattr(logging, level.upper())
-            except Exception:
+            except AttributeError:
                 LOG.warning("invalid level '%s', using WARN", input_level)
                 level = logging.WARN
         self.level = level
@@ -131,7 +131,15 @@ class WebHookHandler(ReportingHandler):
                     log_req_resp=False,
                 )
                 consecutive_failed = 0
+            except url_helper.UrlError as e:
+                LOG.warning(
+                    "Failed posting event: %s. This was caused by: %s",
+                    args[1],
+                    e,
+                )
+                consecutive_failed += 1
             except Exception as e:
+                LOG.warning("Unhandled exception: %s", e)
                 LOG.warning(
                     "Failed posting event: %s. This was caused by: %s",
                     args[1],
@@ -234,7 +242,7 @@ class HyperVKvpReportingHandler(ReportingHandler):
             if os.path.getmtime(kvp_file) < boot_time:
                 with open(kvp_file, "w"):
                     pass
-        except (OSError, IOError) as e:
+        except OSError as e:
             LOG.warning("failed to truncate kvp pool file, %s", e)
         finally:
             cls._already_truncated_pool_file = True
@@ -359,7 +367,7 @@ class HyperVKvpReportingHandler(ReportingHandler):
 
         try:
             self._append_kvp_item(data)
-        except (OSError, IOError):
+        except OSError:
             LOG.warning("failed posting kvp=%s value=%s", key, value)
 
     def _encode_event(self, event):
@@ -406,7 +414,7 @@ class HyperVKvpReportingHandler(ReportingHandler):
                         event = None
                 try:
                     self._append_kvp_item(encoded_data)
-                except (OSError, IOError) as e:
+                except OSError as e:
                     LOG.warning("failed posting events to kvp, %s", e)
                 finally:
                     for _ in range(items_from_queue):

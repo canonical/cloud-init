@@ -8,6 +8,7 @@
 """Growpart: Grow partitions"""
 
 import base64
+import binascii
 import copy
 import json
 import logging
@@ -374,7 +375,7 @@ def resize_encrypted(blockdev, partition) -> Tuple[str, str]:
         key = keydata["key"]
         decoded_key = base64.b64decode(key)
         slot = keydata["slot"]
-    except Exception as e:
+    except (OSError, binascii.Error, json.JSONDecodeError) as e:
         raise RuntimeError(
             "Could not load encryption key. This is expected if "
             "the volume has been previously resized."
@@ -489,7 +490,16 @@ def resize_devices(resizer, devices, distro: Distro):
                             "as it is not encrypted.",
                         )
                     )
+            except OSError as e:
+                info.append(
+                    (
+                        devent,
+                        RESIZE.FAILED,
+                        f"Resizing encrypted device ({blockdev}) failed: {e}",
+                    )
+                )
             except Exception as e:
+                LOG.warning("Unhandled exception: %s", e)
                 info.append(
                     (
                         devent,

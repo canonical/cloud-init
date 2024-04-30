@@ -171,7 +171,7 @@ class BSDRenderer(renderer.Renderer):
                 )
             )
             resolvconf.parse()
-        except IOError:
+        except OSError:
             util.logexc(
                 LOG,
                 "Failed to parse %s, use new empty file",

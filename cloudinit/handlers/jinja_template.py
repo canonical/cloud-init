@@ -4,7 +4,6 @@ import copy
 import logging
 import os
 import re
-from errno import EACCES
 from typing import Optional, Type
 
 from cloudinit import handlers
@@ -117,15 +116,14 @@ def render_jinja_payload_from_file(
         )
     try:
         instance_data = load_json(load_text_file(instance_data_file))
-    except Exception as e:
-        msg = "Loading Jinja instance data failed"
-        if isinstance(e, (IOError, OSError)):
-            if e.errno == EACCES:
-                msg = (
-                    "Cannot render jinja template vars. No read permission on"
-                    " '%s'. Try sudo" % instance_data_file
-                )
+    except PermissionError as e:
+        msg = (
+            "Cannot render jinja template vars. No read permission on"
+            " '%s'. Try sudo" % instance_data_file
+        )
         raise JinjaLoadError(msg) from e
+    except (OSError, ValueError) as e:
+        raise JinjaLoadError("Loading Jinja instance data failed") from e
 
     rendered_payload = render_jinja_payload(
         payload, payload_fn, instance_data, debug

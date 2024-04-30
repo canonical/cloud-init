@@ -270,7 +270,7 @@ def enumerate_disk(device, nodeps=False):
     info = None
     try:
         info, _err = subp.subp(lsblk_cmd)
-    except Exception as e:
+    except subp.ProcessExecutionError as e:
         raise RuntimeError(
             "Failed during disk check for %s\n%s" % (device, e)
         ) from e
@@ -309,7 +309,11 @@ def is_device_valid(name, partition=False):
     d_type = ""
     try:
         d_type = device_type(name)
-    except Exception:
+    except RuntimeError:
+        LOG.warning("Query against device %s failed", name)
+        return False
+    except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
         LOG.warning("Query against device %s failed", name)
         return False
 
@@ -334,7 +338,7 @@ def check_fs(device):
     blkid_cmd = [BLKID_CMD, "-c", "/dev/null", device]
     try:
         out, _err = subp.subp(blkid_cmd, rcs=[0, 2])
-    except Exception as e:
+    except subp.ProcessExecutionError as e:
         raise RuntimeError(
             "Failed during disk check for %s\n%s" % (device, e)
         ) from e
@@ -440,7 +444,7 @@ def get_hdd_size(device):
     try:
         size_in_bytes, _ = subp.subp([BLKDEV_CMD, "--getsize64", device])
         sector_size, _ = subp.subp([BLKDEV_CMD, "--getss", device])
-    except Exception as e:
+    except subp.ProcessExecutionError as e:
         raise RuntimeError("Failed to get %s size\n%s" % (device, e)) from e
 
     return int(size_in_bytes) / int(sector_size)
@@ -458,7 +462,7 @@ def check_partition_mbr_layout(device, layout):
     prt_cmd = [SFDISK_CMD, "-l", device]
     try:
         out, _err = subp.subp(prt_cmd, data="%s\n" % layout)
-    except Exception as e:
+    except subp.ProcessExecutionError as e:
         raise RuntimeError(
             "Error running partition command on %s\n%s" % (device, e)
         ) from e
@@ -489,7 +493,7 @@ def check_partition_gpt_layout(device, layout):
     prt_cmd = [SGDISK_CMD, "-p", device]
     try:
         out, _err = subp.subp(prt_cmd, update_env=LANG_C_ENV)
-    except Exception as e:
+    except subp.ProcessExecutionError as e:
         raise RuntimeError(
             "Error running partition command on %s\n%s" % (device, e)
         ) from e
@@ -680,7 +684,7 @@ def purge_disk(device):
             try:
                 LOG.info("Purging filesystem on /dev/%s", d["name"])
                 subp.subp(wipefs_cmd)
-            except Exception as e:
+            except subp.ProcessExecutionError as e:
                 raise RuntimeError(
                     "Failed FS purge of /dev/%s" % d["name"]
                 ) from e
@@ -716,7 +720,7 @@ def read_parttbl(device):
     util.udevadm_settle()
     try:
         subp.subp(probe_cmd)
-    except Exception as e:
+    except subp.ProcessExecutionError as e:
         util.logexc(LOG, "Failed reading the partition table %s" % e)
 
     util.udevadm_settle()
@@ -731,7 +735,7 @@ def exec_mkpart_mbr(device, layout):
     prt_cmd = [SFDISK_CMD, "--force", device]
     try:
         subp.subp(prt_cmd, data="%s\n" % layout)
-    except Exception as e:
+    except subp.ProcessExecutionError as e:
         raise RuntimeError(
             "Failed to partition device %s\n%s" % (device, e)
         ) from e
@@ -759,7 +763,10 @@ def exec_mkpart_gpt(device, layout):
                 subp.subp(
                     [SGDISK_CMD, "-t", "{}:{}".format(index, pinput), device]
                 )
-    except Exception:
+    except subp.ProcessExecutionError:
+        LOG.warning("Failed to partition device %s", device)
+    except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
         LOG.warning("Failed to partition device %s", device)
         raise
 
@@ -1057,5 +1064,5 @@ def mkfs(fs_cfg):
     LOG.debug("     Using cmd: %s", str(fs_cmd))
     try:
         subp.subp(fs_cmd, shell=shell)
-    except Exception as e:
+    except subp.ProcessExecutionError as e:
         raise RuntimeError("Failed to exec of '%s':\n%s" % (fs_cmd, e)) from e

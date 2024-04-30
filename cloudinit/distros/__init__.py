@@ -367,7 +367,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def _find_tz_file(self, tz):
         tz_file = os.path.join(self.tz_zone_dir, str(tz))
         if not os.path.isfile(tz_file):
-            raise IOError(
+            raise OSError(
                 "Invalid timezone %s, no file found at %s" % (tz, tz_file)
             )
         return tz_file
@@ -405,7 +405,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 continue
             try:
                 manager.update_package_sources()
+            except subp.ProcessExecutionError as e:
+                LOG.error(
+                    "Failed to update package using %s: %s", manager.name, e
+                )
             except Exception as e:
+                LOG.warning("Unhandled exception: %s", e)
                 LOG.error(
                     "Failed to update package using %s: %s", manager.name, e
                 )
@@ -584,7 +589,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         for fn in update_files:
             try:
                 self._write_hostname(hostname, fn)
-            except IOError:
+            except OSError:
                 util.logexc(
                     LOG, "Failed to write hostname %s to %s", hostname, fn
                 )
@@ -999,14 +1004,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             contents = [util.make_header(), content]
             try:
                 util.write_file(doas_file, "\n".join(contents), mode=0o440)
-            except IOError as e:
+            except OSError as e:
                 util.logexc(LOG, "Failed to write doas file %s", doas_file)
                 raise e
         else:
             if content not in util.load_text_file(doas_file):
                 try:
                     util.append_file(doas_file, content)
-                except IOError as e:
+                except OSError as e:
                     util.logexc(
                         LOG, "Failed to append to doas file %s", doas_file
                     )
@@ -1056,7 +1061,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                     sudoers_contents = "\n".join(lines)
                     util.append_file(sudo_base, sudoers_contents)
                 LOG.debug("Added '#includedir %s' to %s", path, sudo_base)
-            except IOError as e:
+            except OSError as e:
                 util.logexc(LOG, "Failed to write %s", sudo_base)
                 raise e
         util.ensure_dir(path, 0o750)
@@ -1089,14 +1094,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             ]
             try:
                 util.write_file(sudo_file, "\n".join(contents), 0o440)
-            except IOError as e:
+            except OSError as e:
                 util.logexc(LOG, "Failed to write sudoers file %s", sudo_file)
                 raise e
         else:
             if content not in util.load_text_file(sudo_file):
                 try:
                     util.append_file(sudo_file, content)
-                except IOError as e:
+                except OSError as e:
                     util.logexc(
                         LOG, "Failed to append to sudoers file %s", sudo_file
                     )
@@ -1317,7 +1322,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 )
                 return None
             return int(match.group(field))
-        except IOError as e:
+        except OSError as e:
             LOG.warning("Failed to load /proc/%s/stat. %s", pid, e)
         except IndexError:
             LOG.warning(
@@ -1597,5 +1602,8 @@ def uses_systemd():
     try:
         res = os.lstat("/run/systemd/system")
         return stat.S_ISDIR(res.st_mode)
-    except Exception:
+    except OSError:
+        return False
+    except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
         return False

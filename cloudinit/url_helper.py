@@ -212,7 +212,7 @@ def _read_file(path: str, **kwargs) -> "FileResponse":
         return FileResponse(contents, path)
     except FileNotFoundError as e:
         raise UrlError(cause=e, code=NOT_FOUND, headers=None, url=path) from e
-    except IOError as e:
+    except OSError as e:
         raise UrlError(cause=e, code=e.errno, headers=None, url=path) from e
 
 
@@ -321,9 +321,9 @@ class UrlResponse:
         yield from self._response.iter_content(chunk_size, decode_unicode)
 
 
-class UrlError(IOError):
+class UrlError(OSError):
     def __init__(self, cause, code=None, headers=None, url=None):
-        IOError.__init__(self, str(cause))
+        OSError.__init__(self, str(cause))
         self.cause = cause
         self.code = code
         self.headers = headers
@@ -734,6 +734,7 @@ def wait_for_url(
             reason = "request error [%s]" % e
             url_exc = e
         except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
             reason = "unexpected error [%s]" % e
             url_exc = e
         time_taken = int(time.time() - start_time)
@@ -910,7 +911,11 @@ class OauthUrlHelper:
         date = exception.headers["date"]
         try:
             remote_time = time.mktime(parsedate(date))
+        except (ValueError, OverflowError) as e:
+            LOG.warning("Failed to convert datetime '%s': %s", date, e)
+            return
         except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
             LOG.warning("Failed to convert datetime '%s': %s", date, e)
             return
 

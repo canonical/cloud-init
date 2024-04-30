@@ -34,6 +34,7 @@ import string
 import subprocess
 import sys
 import time
+import zlib
 from base64 import b64decode
 from collections import deque, namedtuple
 from contextlib import contextmanager, suppress
@@ -51,6 +52,7 @@ from typing import (
     Mapping,
     Optional,
     Sequence,
+    Tuple,
     TypeVar,
     Union,
 )
@@ -403,7 +405,13 @@ def decomp_gzip(data, quiet=True, decode=True):
                 return decode_binary(gh.read())
             else:
                 return gh.read()
+    except (OSError, EOFError, zlib.error) as e:
+        if quiet:
+            return data
+        else:
+            raise DecompressionError(str(e)) from e
     except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
         if quiet:
             return data
         else:
@@ -626,7 +634,7 @@ def get_linux_distro():
         try:
             # Was removed in 3.8
             dist = platform.dist()  # pylint: disable=W1505,E1101
-        except Exception:
+        except AttributeError:
             pass
         finally:
             found = None
@@ -1295,7 +1303,7 @@ def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
             if hostname in toks[2:]:
                 fqdn = toks[1]
                 break
-    except IOError:
+    except OSError:
         pass
     return fqdn
 
@@ -1383,12 +1391,10 @@ def search_for_mirror(candidates):
 
     LOG.debug("search for mirror in candidates: '%s'", candidates)
     for cand in candidates:
-        try:
+        with suppress(ValueError):
             if is_resolvable_url(cand):
                 LOG.debug("found working mirror: '%s'", cand)
                 return cand
-        except Exception:
-            pass
     return None
 
 
@@ -1628,13 +1634,24 @@ def _get_cmdline():
             contents = load_text_file("/proc/1/cmdline")
             # replace nulls with space and drop trailing null
             cmdline = contents.replace("\x00", " ")[:-1]
+        except OSError as e:
+            LOG.warning("failed reading /proc/1/cmdline: %s", e)
+            cmdline = ""
         except Exception as e:
+            LOG.warning(
+                "Unhandled exception: %s",
+            )
             LOG.warning("failed reading /proc/1/cmdline: %s", e)
             cmdline = ""
     else:
         try:
             cmdline = load_text_file("/proc/cmdline").strip()
+        except OSError:
+            cmdline = ""
         except Exception:
+            LOG.warning(
+                "Unhandled exception: %s",
+            )
             cmdline = ""
 
     return cmdline
@@ -1652,7 +1669,7 @@ def fips_enabled() -> bool:
     try:
         contents = load_text_file(fips_proc).strip()
         return contents == "1"
-    except (IOError, OSError):
+    except OSError:
         # for BSD systems and Linux systems where the proc entry is not
         # available, we assume FIPS is disabled to retain the old behavior
         # for now.
@@ -1855,8 +1872,21 @@ def ensure_dirs(dirlist, mode=0o755):
         ensure_dir(d, mode)
 
 
-def load_json(text, root_types=(dict,)):
-    decoded = json.loads(decode_binary(text))
+def load_json(
+    content: Union[str, bytes, bytearray], root_types: Tuple[type] = (dict,)
+):
+    """load json and verify that the returned object is a certain type
+
+    Args:
+        content (str, bytes, bytearray): An object to be deserialized.
+        root_types (tupletypes, optional): Valid types to be returned.
+    Raises:
+        UnicodeDecodeError: If content cannot be decoded to utf-8.
+        JSONDecodeError: If content does not contain valid json.
+        TypeError: If json returned from json.loads() from `content` does not
+            match `root_types`.
+    """
+    decoded = json.loads(content)
     if not isinstance(decoded, tuple(root_types)):
         expected_types = ", ".join([str(t) for t in root_types])
         raise TypeError(
@@ -1936,11 +1966,16 @@ def mounts():
                     (dev, mp, fstype, opts, _freq, _passno) = mpline.split()
                 else:
                     m = re.search(mountre, mpline)
+                    if not m:
+                        continue
                     dev = m.group(1)
                     mp = m.group(2)
                     fstype = m.group(3)
                     opts = m.group(4)
-            except Exception:
+            except IndexError:
+                continue
+            except Exception as e:
+                LOG.warning("Unhandled exception: %s", e)
                 continue
             # If the name of the mount point contains spaces these
             # can be escaped as '\040', so undo that..
@@ -1951,7 +1986,7 @@ def mounts():
                 "opts": opts,
             }
         LOG.debug("Fetched %s mounts from %s", mounted, method)
-    except (IOError, OSError):
+    except OSError:
         logexc(LOG, "Failed fetching mount points")
     return mounted
 
@@ -2021,7 +2056,7 @@ def mount_cb(
                     umount = tmpd  # This forces it to be unmounted (when set)
                     mountpoint = tmpd
                     break
-                except (IOError, OSError) as exc:
+                except OSError as exc:
                     if log_error:
                         LOG.debug(
                             "Failed to mount device: '%s' with type: '%s' "
@@ -2088,7 +2123,10 @@ def copy(src, dest):
 def time_rfc2822():
     try:
         ts = time.strftime("%a, %d %b %Y %H:%M:%S %z", time.gmtime())
-    except Exception:
+    except ValueError:
+        ts = "??"
+    except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
         ts = "??"
     return ts
 
@@ -2427,7 +2465,7 @@ def is_container():
             return True
         if "LIBVIRT_LXC_UUID" in pid1env:
             return True
-    except (IOError, OSError):
+    except OSError:
         pass
 
     # Detect OpenVZ containers
@@ -2442,7 +2480,7 @@ def is_container():
                 (_key, val) = line.strip().split(":", 1)
                 if val != "0":
                     return True
-    except (IOError, OSError):
+    except OSError:
         pass
 
     return False
@@ -2465,7 +2503,7 @@ def get_proc_env(pid, encoding="utf-8", errors="replace"):
 
     try:
         contents = load_binary_file(fn)
-    except (IOError, OSError):
+    except OSError:
         return {}
 
     env = {}
@@ -2834,8 +2872,8 @@ def log_time(
                 tmsg += " (N/A)"
         try:
             logfunc(msg + tmsg)
-        except Exception:
-            pass
+        except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
     return ret
 
 
@@ -3271,7 +3309,7 @@ def read_hotplug_enabled_file(paths: "Paths") -> dict:
     content: dict = {"scopes": []}
     try:
         content = json.loads(
-            load_text_file(paths.get_cpath("hotplug.enabled"), quiet=False)
+            load_binary_file(paths.get_cpath("hotplug.enabled"), quiet=False)
         )
     except FileNotFoundError:
         LOG.debug("File not found: %s", paths.get_cpath("hotplug.enabled"))

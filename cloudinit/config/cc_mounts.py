@@ -349,7 +349,7 @@ def setup_swapfile(fname, size=None, maxsize=None):
     if str(size).lower() == "auto":
         try:
             memsize = util.read_meminfo()["total"]
-        except IOError:
+        except OSError:
             LOG.debug("Not creating swap: failed to read meminfo")
             return
 
@@ -402,7 +402,13 @@ def handle_swapcfg(swapcfg):
                     LOG.debug("swap file %s already in use", fname)
                     return fname
             LOG.debug("swap file %s exists, but not in /proc/swaps", fname)
-        except Exception:
+        except OSError:
+            LOG.warning(
+                "swap file %s exists. Error reading /proc/swaps", fname
+            )
+            return fname
+        except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
             LOG.warning(
                 "swap file %s exists. Error reading /proc/swaps", fname
             )
@@ -415,7 +421,10 @@ def handle_swapcfg(swapcfg):
             maxsize = util.human2bytes(maxsize)
         return setup_swapfile(fname=fname, size=size, maxsize=maxsize)
 
+    except OSError as e:
+        LOG.warning("failed to setup swap: %s", e)
     except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
         LOG.warning("failed to setup swap: %s", e)
 
     return None
@@ -457,10 +466,12 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
             try:
                 toks = WS.split(line)
+                fstab_devs[toks[0]] = line
+                fstab_lines.append(line)
             except Exception:
-                pass
-            fstab_devs[toks[0]] = line
-            fstab_lines.append(line)
+                util.logexc(
+                    LOG, "Failed to parse devs from file %s", FSTAB_PATH
+                )
 
     device_aliases = cfg.get("device_aliases", {})
 

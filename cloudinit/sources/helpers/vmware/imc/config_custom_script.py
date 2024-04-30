@@ -14,7 +14,7 @@ from cloudinit import subp, util
 LOG = logging.getLogger(__name__)
 
 
-class CustomScriptNotFound(Exception):
+class CustomScriptNotFound(OSError):
     pass
 
 
