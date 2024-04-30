@@ -8,3 +8,4 @@ retain-apt-pre-deb822.patch
 status-retain-recoverable-error-exit-code.patch
 retain-ec2-default-net-update-events.patch
 cpick-a6f7577d-bug-package_update-avoid-snap-refresh-in-images-without
+cli-retain-file-argument-as-main-cmd-arg.patch
