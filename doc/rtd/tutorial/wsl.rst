@@ -69,8 +69,7 @@ Reboot the system when prompted.
 Obtain the Ubuntu WSL image
 ===========================
 
-Ubuntu 24.04, which is still in development,
-is the first Ubuntu version to support cloud-init in WSL,
+Ubuntu 24.04 is the first Ubuntu version to support cloud-init in WSL,
 so that is the image that we'll use.
 
 We have two options to obtain the Ubuntu 24.04 WSL image: the Microsoft
@@ -101,9 +100,9 @@ Example output:
 
     Windows Subsystem for Linux Distributions:
     Ubuntu (Default)
-    Ubuntu-Preview
+    Ubuntu-24.04
 
-It should show ``Ubuntu-Preview`` in the list of available WSL instances.
+It should show ``Ubuntu-24.04`` in the list of available WSL instances.
 
 Option #2: The Ubuntu image server
 ----------------------------------
@@ -128,7 +127,7 @@ Import the image into WSL storing it in the ``wsl-images`` directory.
 
 .. code-block:: doscon
 
-    PS> wsl --import Ubuntu-Preview wsl-images .\wsl-images\ubuntu-noble-wsl-amd64-wsl.rootfs.tar.gz
+    PS> wsl --import Ubuntu-24.04 wsl-images .\wsl-images\ubuntu-noble-wsl-amd64-wsl.rootfs.tar.gz
 
 Example output:
 
@@ -152,10 +151,10 @@ Open Notepad and paste the following:
       path: /var/tmp/hello-world.txt
       permissions: '0777'
 
-Save the file to ``%USERPROFILE%\.cloud-init\Ubuntu-Preview.user-data``.
+Save the file to ``%USERPROFILE%\.cloud-init\Ubuntu-24.04.user-data``.
 
 For example, if your username is ``me``, the path would be
-``C:\Users\me\.cloud-init\Ubuntu-Preview.user-data``.
+``C:\Users\me\.cloud-init\Ubuntu-24.04.user-data``.
 Ensure that the file is saved with the ``.user-data`` extension and
 not as a ``.txt`` file.
 
@@ -199,7 +198,7 @@ Start the Ubuntu WSL instance
 
 .. code-block:: doscon
 
-    PS> wsl --distribution Ubuntu-Preview
+    PS> wsl --distribution Ubuntu-24.04
 
 The Ubuntu WSL instance will start, and you may be prompted for a username
 and password.
@@ -218,7 +217,7 @@ screen similar to the following:
 
 .. code-block:: text
 
-    Welcome to Ubuntu Noble Numbat (development branch) (GNU/Linux 5.15.146.1-microsoft-standard-WSL2 x86_64)
+    Welcome to Ubuntu Noble Numbat (GNU/Linux 5.15.146.1-microsoft-standard-WSL2 x86_64)
 
     * Documentation:  https://help.ubuntu.com
     * Management:     https://landscape.canonical.com
@@ -331,5 +330,5 @@ Cloud-init's WSL reference documentation can be found on the
 
 .. _including in the cloud: https://techcommunity.microsoft.com/t5/itops-talk-blog/how-to-setup-nested-virtualization-for-azure-vm-vhd/ba-p/1115338
 .. _nested virtualization: https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/user-guide/nested-virtualization
-.. _Ubuntu 24.04: https://apps.microsoft.com/detail/9p7bdvkvnxz6
+.. _Ubuntu 24.04: https://apps.microsoft.com/detail/9nz3klhxdjp5
 .. _Ubuntu image server: https://cloud-images.ubuntu.com/wsl/
