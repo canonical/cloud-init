@@ -51,6 +51,7 @@ from typing import (
     Mapping,
     Optional,
     Sequence,
+    Tuple,
     TypeVar,
     Union,
 )
@@ -1855,8 +1856,21 @@ def ensure_dirs(dirlist, mode=0o755):
         ensure_dir(d, mode)
 
 
-def load_json(text, root_types=(dict,)):
-    decoded = json.loads(decode_binary(text))
+def load_json(
+    content: Union[str, bytes, bytearray], root_types: Tuple[type] = (dict,)
+):
+    """load json and verify that the returned object is a certain type
+
+    Args:
+        content (str, bytes, bytearray): An object to be deserialized.
+        root_types (tupletypes, optional): Valid types to be returned.
+    Raises:
+        UnicodeDecodeError: If content cannot be decoded to utf-8.
+        JSONDecodeError: If content does not contain valid json.
+        TypeError: If json returned from json.loads() from `content` does not
+            match `root_types`.
+    """
+    decoded = json.loads(content)
     if not isinstance(decoded, tuple(root_types)):
         expected_types = ", ".join([str(t) for t in root_types])
         raise TypeError(
@@ -3271,7 +3285,7 @@ def read_hotplug_enabled_file(paths: "Paths") -> dict:
     content: dict = {"scopes": []}
     try:
         content = json.loads(
-            load_text_file(paths.get_cpath("hotplug.enabled"), quiet=False)
+            load_binary_file(paths.get_cpath("hotplug.enabled"), quiet=False)
         )
     except FileNotFoundError:
         LOG.debug("File not found: %s", paths.get_cpath("hotplug.enabled"))

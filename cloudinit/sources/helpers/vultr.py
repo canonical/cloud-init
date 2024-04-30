@@ -32,7 +32,7 @@ def get_metadata(
                 connectivity_url_data={"url": url},
             ):
                 # Fetch the metadata
-                v1 = read_metadata(url, timeout, retries, sec_between, agent)
+                v1 = _read_metadata(url, timeout, retries, sec_between, agent)
 
                 metadata = json.loads(v1)
                 refactor_metadata(metadata)
@@ -101,7 +101,7 @@ def is_vultr():
 
 
 # Read Metadata endpoint
-def read_metadata(url, timeout, retries, sec_between, agent):
+def _read_metadata(url, timeout, retries, sec_between, agent) -> bytes:
     url = "%s/v1.json" % url
 
     # Announce os details so we can handle non Vultr origin
@@ -121,7 +121,7 @@ def read_metadata(url, timeout, retries, sec_between, agent):
             "Failed to connect to %s: Code: %s" % url, response.code
         )
 
-    return response.contents.decode()
+    return response.contents
 
 
 # Wrapped for caching

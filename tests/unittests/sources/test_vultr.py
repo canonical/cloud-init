@@ -371,7 +371,7 @@ class TestDataSourceVultr(CiTestCase):
         "cloudinit.net.ephemeral.EphemeralDHCPv4.__exit__", override_exit
     )
     @mock.patch("cloudinit.sources.helpers.vultr.is_vultr")
-    @mock.patch("cloudinit.sources.helpers.vultr.read_metadata")
+    @mock.patch("cloudinit.sources.helpers.vultr._read_metadata")
     @mock.patch("cloudinit.sources.helpers.vultr.get_interface_list")
     def test_interface_seek(
         self,

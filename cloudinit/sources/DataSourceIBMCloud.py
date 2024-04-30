@@ -344,15 +344,12 @@ def metadata_from_dir(source_dir):
     def opath(fname):
         return os.path.join("openstack", "latest", fname)
 
-    def load_json_bytes(blob):
-        return json.loads(blob.decode("utf-8"))
-
     files = [
         # tuples of (results_name, path, translator)
-        ("metadata_raw", opath("meta_data.json"), load_json_bytes),
+        ("metadata_raw", opath("meta_data.json"), json.loads),
         ("userdata", opath("user_data"), None),
-        ("vendordata", opath("vendor_data.json"), load_json_bytes),
-        ("networkdata", opath("network_data.json"), load_json_bytes),
+        ("vendordata", opath("vendor_data.json"), json.loads),
+        ("networkdata", opath("network_data.json"), json.loads),
     ]
 
     results = {}
