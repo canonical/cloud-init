@@ -1,3 +1,11 @@
+cloud-init (24.1.3-0ubuntu1~20.04.3) UNRELEASED; urgency=medium
+
+  * d/p/cli-retain-file-argument-as-main-cmd-arg.patch: retain ability to
+    provide -f or --file on the command line before cloud-init subcommands
+    init, modules or single (LP: #2064300)
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 30 Apr 2024 15:49:35 -0600
+
 cloud-init (24.1.3-0ubuntu1~20.04.2) focal; urgency=medium
 
   * cherry-pick a6f7577d: bug(package_update): avoid snap refresh in
