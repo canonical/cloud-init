@@ -693,7 +693,7 @@ def wait_for_url(
         if max_wait in (float("inf"), None):
             return False
         return (max_wait <= 0) or (
-            time.time() - start_time + sleep_time > max_wait
+            time.monotonic() - start_time + sleep_time > max_wait
         )
 
     def handle_url_response(response, url):
@@ -736,7 +736,7 @@ def wait_for_url(
         except Exception as e:
             reason = "unexpected error [%s]" % e
             url_exc = e
-        time_taken = int(time.time() - start_time)
+        time_taken = int(time.monotonic() - start_time)
         max_wait_str = "%ss" % max_wait if max_wait else "unlimited"
         status_msg = "Calling '%s' failed [%s/%s]: %s" % (
             url or getattr(url_exc, "url", "url ? None"),
@@ -770,7 +770,7 @@ def wait_for_url(
             return (url, read_url_cb(url, timeout))
 
         for url in urls:
-            now = time.time()
+            now = time.monotonic()
             if loop_n != 0:
                 if timeup(max_wait, start_time):
                     return
@@ -804,7 +804,7 @@ def wait_for_url(
         if out:
             return out
 
-    start_time = time.time()
+    start_time = time.monotonic()
     if sleep_time and sleep_time_cb:
         raise ValueError("sleep_time and sleep_time_cb are mutually exclusive")
 
@@ -840,7 +840,7 @@ def wait_for_url(
         time.sleep(current_sleep_time)
 
         # shorten timeout to not run way over max_time
-        current_time = time.time()
+        current_time = time.monotonic()
         if timeout and current_time + timeout > start_time + max_wait:
             timeout = max_wait - (current_time - start_time)
             if timeout <= 0:

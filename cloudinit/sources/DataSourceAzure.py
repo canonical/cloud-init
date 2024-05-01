@@ -14,7 +14,7 @@ import socket
 import xml.etree.ElementTree as ET  # nosec B405
 from enum import Enum
 from pathlib import Path
-from time import sleep, time
+from time import monotonic, sleep, time
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -428,7 +428,7 @@ class DataSourceAzure(sources.DataSource):
         )
 
         lease = None
-        start_time = time()
+        start_time = monotonic()
         deadline = start_time + timeout_minutes * 60
         with events.ReportEventStack(
             name="obtain-dhcp-lease",
@@ -445,7 +445,7 @@ class DataSourceAzure(sources.DataSource):
                     )
                     self._report_failure(
                         errors.ReportableErrorDhcpInterfaceNotFound(
-                            duration=time() - start_time
+                            duration=monotonic() - start_time
                         ),
                         host_only=True,
                     )
@@ -464,7 +464,7 @@ class DataSourceAzure(sources.DataSource):
                     )
                     self._report_failure(
                         errors.ReportableErrorDhcpLease(
-                            duration=time() - start_time, interface=iface
+                            duration=monotonic() - start_time, interface=iface
                         ),
                         host_only=True,
                     )
@@ -483,7 +483,7 @@ class DataSourceAzure(sources.DataSource):
                     )
 
                 # Sleep before retrying, otherwise break if past deadline.
-                if lease is None and time() + retry_sleep < deadline:
+                if lease is None and monotonic() + retry_sleep < deadline:
                     sleep(retry_sleep)
                 else:
                     break
@@ -766,7 +766,7 @@ class DataSourceAzure(sources.DataSource):
 
     @azure_ds_telemetry_reporter
     def get_metadata_from_imds(self, report_failure: bool) -> Dict:
-        start_time = time()
+        start_time = monotonic()
         retry_deadline = start_time + 300
 
         # As a temporary workaround to support Azure Stack implementations
@@ -785,7 +785,7 @@ class DataSourceAzure(sources.DataSource):
             )
         except UrlError as error:
             error_string = str(error)
-            duration = time() - start_time
+            duration = monotonic() - start_time
             error_report = errors.ReportableErrorImdsUrlError(
                 exception=error, duration=duration
             )

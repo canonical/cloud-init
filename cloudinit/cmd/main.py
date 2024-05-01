@@ -16,7 +16,6 @@ import argparse
 import json
 import os
 import sys
-import time
 import traceback
 import logging
 import yaml
@@ -764,7 +763,8 @@ def status_wrapper(name, args):
 
     v1 = status["v1"]
     v1["stage"] = mode
-    v1[mode]["start"] = time.time()
+    uptime = util.uptime()
+    v1[mode]["start"] = float(uptime)
     v1[mode]["recoverable_errors"] = next(
         filter(lambda h: isinstance(h, log.LogExporter), root_logger.handlers)
     ).export_logs()
@@ -791,7 +791,7 @@ def status_wrapper(name, args):
         print_exc("failed run of stage %s" % mode)
         v1[mode]["errors"] = [str(e)]
 
-    v1[mode]["finished"] = time.time()
+    v1[mode]["finished"] = float(util.uptime())
     v1["stage"] = None
 
     # Write status.json after running init / module code
