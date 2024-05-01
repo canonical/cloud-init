@@ -256,7 +256,7 @@ def subp(
             x if isinstance(x, bytes) else x.encode("utf-8") for x in args
         ]
     try:
-        before = time.time()
+        before = time.monotonic()
         sp = subprocess.Popen(
             bytes_args,
             stdout=stdout,
@@ -267,7 +267,7 @@ def subp(
             cwd=cwd,
         )
         out, err = sp.communicate(data, timeout=timeout)
-        total = time.time() - before
+        total = time.monotonic() - before
         if total > 0.1:
             LOG.debug(
                 "%s took %.3ss to run",

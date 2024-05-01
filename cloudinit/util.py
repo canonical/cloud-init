@@ -2806,7 +2806,7 @@ def log_time(
     if kwargs is None:
         kwargs = {}
 
-    start = time.time()
+    start = time.monotonic()
 
     ustart = None
     if get_uptime:
@@ -2818,7 +2818,7 @@ def log_time(
     try:
         ret = func(*args, **kwargs)
     finally:
-        delta = time.time() - start
+        delta = time.monotonic() - start
         udelta = None
         if ustart is not None:
             try:

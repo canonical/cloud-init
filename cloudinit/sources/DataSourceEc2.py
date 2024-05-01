@@ -378,7 +378,7 @@ class DataSourceEc2(sources.DataSource):
                 urls.append(cur)
                 url2base[cur] = url
 
-            start_time = time.time()
+            start_time = time.monotonic()
             url, _ = uhelp.wait_for_url(
                 urls=urls,
                 max_wait=url_params.max_wait_seconds,
@@ -401,7 +401,7 @@ class DataSourceEc2(sources.DataSource):
             LOG.critical(
                 "Giving up on md from %s after %s seconds",
                 urls,
-                int(time.time() - start_time),
+                int(time.monotonic() - start_time),
             )
 
         return bool(metadata_address)
