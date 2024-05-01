@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
 import os
+import re
 import uuid
 from enum import Enum
 from pathlib import Path
@@ -217,10 +218,20 @@ class IntegrationInstance:
             assert self.execute(
                 "apt install -qy software-properties-common"
             ).ok
+        pin_origin = self.settings.CLOUD_INIT_SOURCE[4:]  # Drop leading ppa:
+        pin_origin = re.sub("[^a-z0-9-]", "-", pin_origin)
+        self.write_to_file(
+            "/etc/apt/preferences.d/cloud-init-integration-testing",
+            f"package: cloud-init\nPin: release o=LP-PPA-{pin_origin}\n"
+            "Pin-Priority: 1001\n",
+        )
         assert self.execute(
             "add-apt-repository {} -y".format(self.settings.CLOUD_INIT_SOURCE)
         ).ok
-        assert self.execute("apt-get install -qy cloud-init").ok
+        # PIN this PPA as priority for cloud-init installs regardless of ver
+        assert self.execute(
+            "apt-get install -qy cloud-init --allow-downgrades"
+        ).ok
 
     @retry(tries=30, delay=1)
     def install_deb(self):
