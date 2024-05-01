@@ -2282,6 +2282,16 @@ class TestNetworkSchema:
             ),
             pytest.param(
                 {
+                    "version": 2,
+                    "ethernets": {"eno1": {"dhcp4": True}},
+                },
+                SchemaType.NETWORK_CONFIG_V2,
+                does_not_raise(),
+                "",
+                id="net_v2_no_top_level",
+            ),
+            pytest.param(
+                {
                     "network": {
                         "version": 2,
                         "ethernets": {
