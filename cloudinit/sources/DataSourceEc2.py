@@ -12,6 +12,8 @@ import copy
 import logging
 import os
 import time
+import uuid
+from contextlib import suppress
 from typing import Dict, List
 
 from cloudinit import dmi, net, sources
@@ -794,11 +796,17 @@ def identify_aliyun(data):
 
 def identify_aws(data):
     # data is a dictionary returned by _collect_platform_data.
-    if data["uuid"].startswith("ec2") and (
-        data["uuid_source"] == "hypervisor" or data["uuid"] == data["serial"]
-    ):
+    uuid_str = data["uuid"]
+    if uuid_str.startswith("ec2"):
+        # example same-endian uuid:
+        # EC2E1916-9099-7CAF-FD21-012345ABCDEF
         return CloudNames.AWS
-
+    with suppress(ValueError):
+        if uuid.UUID(uuid_str).bytes_le.hex().startswith("ec2"):
+            # check for other endianness
+            # example other-endian uuid:
+            # 45E12AEC-DCD1-B213-94ED-012345ABCDEF
+            return CloudNames.AWS
     return None
 
 
@@ -853,7 +861,6 @@ def _collect_platform_data():
 
     Keys in the dictionary are as follows:
        uuid: system-uuid from dmi or /sys/hypervisor
-       uuid_source: 'hypervisor' (/sys/hypervisor/uuid) or 'dmi'
        serial: dmi 'system-serial-number' (/sys/.../product_serial)
        asset_tag: 'dmidecode -s chassis-asset-tag'
        vendor: dmi 'system-manufacturer' (/sys/.../sys_vendor)
@@ -862,37 +869,23 @@ def _collect_platform_data():
     On Ec2 instances experimentation is that product_serial is upper case,
     and product_uuid is lower case.  This returns lower case values for both.
     """
-    data = {}
-    try:
+    uuid = None
+    with suppress(OSError, UnicodeDecodeError):
         uuid = util.load_text_file("/sys/hypervisor/uuid").strip()
-        data["uuid_source"] = "hypervisor"
-    except Exception:
-        uuid = dmi.read_dmi_data("system-uuid")
-        data["uuid_source"] = "dmi"
 
-    if uuid is None:
-        uuid = ""
-    data["uuid"] = uuid.lower()
+    uuid = uuid or dmi.read_dmi_data("system-uuid") or ""
+    serial = dmi.read_dmi_data("system-serial-number") or ""
+    asset_tag = dmi.read_dmi_data("chassis-asset-tag") or ""
+    vendor = dmi.read_dmi_data("system-manufacturer") or ""
+    product_name = dmi.read_dmi_data("system-product-name") or ""
 
-    serial = dmi.read_dmi_data("system-serial-number")
-    if serial is None:
-        serial = ""
-
-    data["serial"] = serial.lower()
-
-    asset_tag = dmi.read_dmi_data("chassis-asset-tag")
-    if asset_tag is None:
-        asset_tag = ""
-
-    data["asset_tag"] = asset_tag.lower()
-
-    vendor = dmi.read_dmi_data("system-manufacturer")
-    data["vendor"] = (vendor if vendor else "").lower()
-
-    product_name = dmi.read_dmi_data("system-product-name")
-    data["product_name"] = (product_name if product_name else "").lower()
-
-    return data
+    return {
+        "uuid": uuid.lower(),
+        "serial": serial.lower(),
+        "asset_tag": asset_tag.lower(),
+        "vendor": vendor.lower(),
+        "product_name": product_name.lower(),
+    }
 
 
 def _build_nic_order(

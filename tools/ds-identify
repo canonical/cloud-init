@@ -1347,16 +1347,23 @@ ec2_identify_platform() {
         return 0
     fi
 
-    # product uuid and product serial start with case insensitive
-    local uuid="${DI_DMI_PRODUCT_UUID}"
-    case "$uuid:$serial" in
-        [Ee][Cc]2*:[Ee][Cc]2*)
-            # both start with ec2, now check for case insensitive equal
-            nocase_equal "$uuid" "$serial" &&
-                { _RET="AWS"; return 0; };;
+    # keep only the first octet
+    local start_uuid="${DI_DMI_PRODUCT_UUID%%-*}"
+    case "$start_uuid" in
+        # example ec2 uuid:
+        # EC2E1916-9099-7CAF-FD21-012345ABCDEF
+        [Ee][Cc]2*)
+            _RET="AWS"
+            ;;
+        # example ec2 uuid:
+        # 45E12AEC-DCD1-B213-94ED-012345ABCDEF
+        *2[0-9a-fA-F][Ee][Cc])
+            _RET="AWS"
+            ;;
+        *)
+            _RET="$default"
+            ;;
     esac
-
-    _RET="$default"
     return 0;
 }
 
