@@ -737,18 +737,31 @@ def status_wrapper(name, args):
     else:
         raise ValueError("unknown name: %s" % name)
 
-    modes = (
+    if mode not in (
         "init",
         "init-local",
         "modules-config",
         "modules-final",
-    )
-    if mode not in modes:
+    ):
         raise ValueError(
             "Invalid cloud init mode specified '{0}'".format(mode)
         )
 
-    status = None
+    nullstatus = {
+        "errors": [],
+        "recoverable_errors": [],
+        "start": None,
+        "finished": None,
+    }
+    status = {
+        "v1": {
+            "datasource": None,
+            "init": nullstatus.copy(),
+            "init-local": nullstatus.copy(),
+            "modules-config": nullstatus.copy(),
+            "modules-final": nullstatus.copy(),
+        }
+    }
     if mode == "init-local":
         for f in (status_link, result_link, status_path, result_path):
             util.del_file(f)
@@ -758,43 +771,21 @@ def status_wrapper(name, args):
         except Exception:
             pass
 
-    nullstatus = {
-        "errors": [],
-        "recoverable_errors": [],
-        "start": None,
-        "finished": None,
-    }
-
-    if status is None:
-        status = {"v1": {}}
-        status["v1"]["datasource"] = None
-
-    for m in modes:
-        if m not in status["v1"]:
-            status["v1"][m] = nullstatus.copy()
+    if mode not in status["v1"]:
+        # this should never happen, but leave it just to be safe
+        status["v1"][mode] = nullstatus.copy()
 
     v1 = status["v1"]
     v1["stage"] = mode
-    start_time = v1[mode]["start"]
-    error_list = v1[mode]["errors"]
-    recoverable_errors = v1[mode]["recoverable_errors"]
-    if any([recoverable_errors, error_list, start_time]):
-        # This stage was likely restarted, which isn't expected.
+    if v1[mode]["start"] and not v1[mode]["finished"]:
+        # This stage was restarted, which isn't expected.
         LOG.warning(
-            "[%s] Unexpected value found in status.json. "
-            "Was this stage restarted?",
+            "Unexpected start time for stage %s. " "Was this stage restarted?",
             mode,
         )
-        if start_time:
-            LOG.warning("unexpected start_time: %s", start_time)
-        if error_list:
-            LOG.warning("unexpected errors: %s", error_list)
-        if recoverable_errors:
-            LOG.warning(
-                "unexpected recoverable_errors: %s", recoverable_errors
-            )
+
     v1[mode]["start"] = float(util.uptime())
-    v1[mode]["recoverable_errors"] = next(
+    preexisting_recoverable_errors = next(
         filter(lambda h: isinstance(h, log.LogExporter), root_logger.handlers)
     ).export_logs()
 
@@ -819,7 +810,7 @@ def status_wrapper(name, args):
         LOG.exception("failed stage %s", mode)
         print_exc("failed run of stage %s" % mode)
         v1[mode]["errors"].append(str(e))
-        raise e
+        raise
     except SystemExit as e:
         # silence a pylint false positive
         # https://github.com/pylint-dev/pylint/issues/9556
@@ -829,25 +820,31 @@ def status_wrapper(name, args):
             LOG.exception("failed stage %s", mode)
             print_exc("failed run of stage %s" % mode)
             v1[mode]["errors"].append(f"sys.exit({str(e.code)}) called")
-        raise e
+        raise
     finally:
         # It is desireable to write to status.json before exiting, even when
         # sys.exit() is called.
         v1[mode]["finished"] = float(util.uptime())
         v1["stage"] = None
 
-        # merge new recoverable errors into exising recoverable error list
-        old_recoverable_errors = v1[mode]["recoverable_errors"]
+        # merge new recoverable errors into existing recoverable error list
         new_recoverable_errors = next(
             filter(
                 lambda h: isinstance(h, log.LogExporter), root_logger.handlers
             )
         ).export_logs()
         for key in new_recoverable_errors.keys():
-            if key in old_recoverable_errors:
-                old_recoverable_errors[key].extend(new_recoverable_errors[key])
+            if key in preexisting_recoverable_errors:
+                v1[mode]["recoverable_errors"][key] = list(
+                    set(
+                        preexisting_recoverable_errors[key]
+                        + new_recoverable_errors[key]
+                    )
+                )
             else:
-                old_recoverable_errors[key] = new_recoverable_errors[key]
+                v1[mode]["recoverable_errors"][key] = new_recoverable_errors[
+                    key
+                ]
 
         # Write status.json after running init / module code
         atomic_helper.write_json(status_path, status)
@@ -855,8 +852,8 @@ def status_wrapper(name, args):
     if mode == "modules-final":
         # write the 'finished' file
         errors = []
-        for m in modes:
-            if v1[m]["errors"]:
+        for m in v1.keys():
+            if isinstance(v1[m], dict) and v1[m].get("errors"):
                 errors.extend(v1[m].get("errors", []))
 
         atomic_helper.write_json(
