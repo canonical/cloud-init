@@ -2861,7 +2861,6 @@ class TestNetworkManagerRendering:
     )
     def test_config(self, expected_name, yaml_name):
         entry = NETWORK_CONFIGS[expected_name]
-        # yaml_name = "yaml" if "yaml" in entry else "yaml_v2"
         found = self._render_and_read(
             network_config=yaml.safe_load(entry[yaml_name])
         )
