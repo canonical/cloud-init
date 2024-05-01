@@ -4825,4 +4825,4 @@ class TestDependencyFallback:
         """Ensure that crypt/passlib import failover gets exercised on all
         Python versions
         """
-        assert dsaz.encrypt_pass("`")
+        assert dsaz.crypt.encrypt_pass("`", "")
