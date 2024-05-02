@@ -1,6 +1,7 @@
 ## template:jinja
 [Unit]
-Description=Execute cloud user/final scripts
+# https://cloudinit.readthedocs.io/en/latest/explanation/boot.html
+Description=Cloud-init: Final Stage
 After=network-online.target time-sync.target cloud-config.service rc-local.service
 {% if variant in ["ubuntu", "unknown", "debian"] %}
 After=multi-user.target
