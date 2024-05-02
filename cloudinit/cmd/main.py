@@ -19,7 +19,7 @@ import sys
 import traceback
 import logging
 import yaml
-from typing import Tuple
+from typing import Tuple, Callable
 
 from cloudinit import netinfo
 from cloudinit import signal_handler
@@ -92,6 +92,20 @@ def welcome_format(action):
         timestamp=util.time_rfc2822(),
         action=action,
     )
+
+
+def close_stdin(logger: Callable[[str], None] = LOG.debug):
+    """
+    reopen stdin as /dev/null to ensure no side effects
+
+    logger: a function for logging messages
+    """
+    if not os.isatty(sys.stdin.fileno()):
+        logger("Closing stdin")
+        with open(os.devnull) as fp:
+            os.dup2(fp.fileno(), sys.stdin.fileno())
+    else:
+        logger("Not closing stdin, stdin is a tty.")
 
 
 def extract_fns(args):
@@ -327,9 +341,8 @@ def main_init(name, args):
     outfmt = None
     errfmt = None
     try:
-        early_logs.append((logging.DEBUG, "Closing stdin."))
-        util.close_stdin()
-        (outfmt, errfmt) = util.fixup_output(init.cfg, name)
+        close_stdin(lambda msg: early_logs.append((logging.DEBUG, msg)))
+        outfmt, errfmt = util.fixup_output(init.cfg, name)
     except Exception:
         msg = "Failed to setup output redirection!"
         util.logexc(LOG, msg)
@@ -597,8 +610,7 @@ def main_modules(action_name, args):
     mods = Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 4
     try:
-        LOG.debug("Closing stdin")
-        util.close_stdin()
+        close_stdin()
         util.fixup_output(mods.cfg, name)
     except Exception:
         util.logexc(LOG, "Failed to setup output redirection!")
@@ -666,8 +678,7 @@ def main_single(name, args):
         mod_freq = FREQ_SHORT_NAMES.get(mod_freq)
     # Stage 4
     try:
-        LOG.debug("Closing stdin")
-        util.close_stdin()
+        close_stdin()
         util.fixup_output(mods.cfg, None)
     except Exception:
         util.logexc(LOG, "Failed to setup output redirection!")
