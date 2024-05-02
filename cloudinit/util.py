@@ -1392,20 +1392,6 @@ def search_for_mirror(candidates):
     return None
 
 
-def close_stdin():
-    """
-    reopen stdin as /dev/null so even subprocesses or other os level things get
-    /dev/null as input.
-
-    if _CLOUD_INIT_SAVE_STDIN is set in environment to a non empty and true
-    value then input will not be closed (useful for debugging).
-    """
-    if is_true(os.environ.get("_CLOUD_INIT_SAVE_STDIN")):
-        return
-    with open(os.devnull) as fp:
-        os.dup2(fp.fileno(), sys.stdin.fileno())
-
-
 def find_devs_with_freebsd(
     criteria=None, oformat="device", tag=None, no_cache=False, path=None
 ):
