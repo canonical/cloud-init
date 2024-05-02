@@ -626,7 +626,9 @@ def netplan_validate_network_schema(
     try:
         from netplan import NetplanParserException, Parser  # type: ignore
     except ImportError:
-        LOG.debug("Skipping netplan schema validation. No netplan available")
+        LOG.debug(
+            "Skipping netplan schema validation. No netplan API available"
+        )
         return False
 
     # netplan Parser looks at all *.yaml files in the target directory underA
@@ -726,6 +728,8 @@ def validate_cloudconfig_schema(
     @raises: ValueError on invalid schema_type not in CLOUD_CONFIG or
         NETWORK_CONFIG_V1 or NETWORK_CONFIG_V2
     """
+    from cloudinit.net.netplan import available as netplan_available
+
     if schema_type == SchemaType.NETWORK_CONFIG:
         network_version = network_schema_version(config)
         if network_version == 2:
@@ -740,6 +744,14 @@ def validate_cloudconfig_schema(
         ):
             # Schema was validated by netplan
             return True
+        elif netplan_available():
+            # We found no netplan API on netplan system, do not perform schema
+            # validation against cloud-init's network v2 schema because netplan
+            # supports more config keys than in cloud-init's netv2 schema.
+            # This may result in schema warnings for valid netplan config
+            # which would be successfully rendered by netplan but doesn't
+            # adhere to cloud-init's network v2.
+            return False
 
     if schema is None:
         schema = get_schema(schema_type)
@@ -1070,6 +1082,8 @@ def validate_cloudconfig_file(
     :raises SchemaValidationError containing any of schema_errors encountered.
     :raises RuntimeError when config_path does not exist.
     """
+    from cloudinit.net.netplan import available as netplan_available
+
     decoded_content = load_text_file(config_path)
     if not decoded_content:
         print(
@@ -1140,6 +1154,12 @@ def validate_cloudconfig_file(
                 network_config=cloudconfig, strict=True, annotate=annotate
             ):
                 return True  # schema validation performed by netplan
+            elif netplan_available():
+                print(
+                    "Skipping network-config schema validation for version: 2."
+                    " No netplan API available."
+                )
+                return False
         elif network_version == 1:
             schema_type = SchemaType.NETWORK_CONFIG_V1
             # refresh schema since NETWORK_CONFIG defaults to V2
