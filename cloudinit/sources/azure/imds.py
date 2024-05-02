@@ -18,6 +18,13 @@ LOG = logging.getLogger(__name__)
 IMDS_URL = "http://169.254.169.254/metadata"
 
 
+def headers_cb(_url):
+    return {
+        "Metadata": "true",
+        "x-ms-client-request-id": str(uuid.uuid4()),
+    }
+
+
 class ReadUrlRetryHandler:
     """Manager for readurl retry behavior using exception_callback().
 
@@ -127,10 +134,6 @@ def _fetch_url(
     :raises UrlError: on error fetching metadata.
     """
     try:
-        headers_cb = lambda _: {
-            "Metadata": "true",
-            "x-ms-client-request-id": str(uuid.uuid4()),
-        }
         response = readurl(
             url,
             exception_cb=retry_handler.exception_callback,
@@ -223,10 +226,6 @@ def fetch_reprovision_data() -> bytes:
         ),
         retry_deadline=None,
     )
-    headers_cb = lambda _: {
-        "Metadata": "true",
-        "x-ms-client-request-id": str(uuid.uuid4()),
-    }
     response = readurl(
         url,
         exception_cb=handler.exception_callback,

@@ -129,6 +129,18 @@ def regex_for_http_error(error):
     return f".*{error!s}.*"
 
 
+class TestHeaders:
+    default_url = (
+        "http://169.254.169.254/metadata/instance?"
+        "api-version=2021-08-01&extended=true"
+    )
+
+    def test_headers_cb(self):
+        headers = imds.headers_cb(self.default_url)
+        assert list(headers.keys()) == ["Metadata", "x-ms-client-request-id"]
+        assert headers.get("Metadata") == "true"
+
+
 class TestFetchMetadataWithApiFallback:
     default_url = (
         "http://169.254.169.254/metadata/instance?"
@@ -227,11 +239,17 @@ class TestFetchMetadataWithApiFallback:
             ),
         ]
 
+        headers = wrapped_readurl.mock_calls[0].kwargs["headers_cb"](None)
+        assert list(headers.keys()) == ["Metadata", "x-ms-client-request-id"]
+        assert headers.get("Metadata") == "true"
+
         assert caplog.record_tuples == [
             (
                 "cloudinit.url_helper",
                 logging.DEBUG,
-                StringMatch(r"\[0/infinite\] open.*"),
+                StringMatch(
+                    r"\[0/infinite\] open.*[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}.*"
+                ),
             ),
             (
                 LOG_PATH,
