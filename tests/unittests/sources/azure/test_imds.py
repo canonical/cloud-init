@@ -248,7 +248,8 @@ class TestFetchMetadataWithApiFallback:
                 "cloudinit.url_helper",
                 logging.DEBUG,
                 StringMatch(
-                    r"\[0/infinite\] open.*[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}.*"
+                    r"\[0/infinite\] open.*[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-"
+                    "[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}.*"
                 ),
             ),
             (
