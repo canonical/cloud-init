@@ -295,11 +295,11 @@ def test_invalid_network_v2_netplan(
         # Netplan python API only available on MANTIC and later
         if CURRENT_RELEASE < MANTIC:
             assert (
-                "Skipping netplan schema validation. No netplan available"
+                "Skipping netplan schema validation. No netplan API available"
             ) in client.read_from_file("/var/log/cloud-init.log")
             assert (
-                "Skipping network-config schema validation. No network schema"
-                " for version: 2"
+                "Skipping network-config schema validation for version: 2."
+                " No netplan API available."
             ) in client.execute("cloud-init schema --system")
         else:
             assert (

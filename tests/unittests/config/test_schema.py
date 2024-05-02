@@ -355,11 +355,11 @@ class TestNetplanValidateNetworkSchema:
             ({"version": 1}, ""),
             (
                 {"version": 2},
-                "Skipping netplan schema validation. No netplan available",
+                "Skipping netplan schema validation. No netplan API available",
             ),
             (
                 {"network": {"version": 2}},
-                "Skipping netplan schema validation. No netplan available",
+                "Skipping netplan schema validation. No netplan API available",
             ),
         ),
     )
@@ -1902,8 +1902,10 @@ class TestMain:
             ),
         ),
     )
+    @mock.patch("cloudinit.net.netplan.available", return_value=False)
     def test_main_validates_config_file(
         self,
+        _netplan_available,
         _read_cfg_paths,
         schema_type,
         content,
@@ -2046,7 +2048,7 @@ class TestMain:
                 "   dhcp4: true\n",
                 "  Valid schema network-config",
                 does_not_raise(),
-                id="netv2_schema_validated",
+                id="netv2_schema_validated_non_netplan",
             ),
             pytest.param(
                 "network: {}\n",
@@ -2073,10 +2075,12 @@ class TestMain:
     )
     @mock.patch(M_PATH + "read_cfg_paths")
     @mock.patch(M_PATH + "os.getuid", return_value=0)
+    @mock.patch("cloudinit.net.netplan.available", return_value=False)
     def test_main_validates_system_userdata_vendordata_and_network_config(
         self,
-        _read_cfg_paths,
+        _netplan_available,
         _getuid,
+        _read_cfg_paths,
         read_cfg_paths,
         net_config,
         net_output,
@@ -2467,8 +2471,15 @@ class TestNetworkSchema:
             ),
         ),
     )
+    @mock.patch("cloudinit.net.netplan.available", return_value=False)
     def test_network_schema(
-        self, src_config, schema_type_version, expectation, log, caplog
+        self,
+        _netplan_available,
+        src_config,
+        schema_type_version,
+        expectation,
+        log,
+        caplog,
     ):
         net_schema = get_schema(schema_type=schema_type_version)
         with expectation:
