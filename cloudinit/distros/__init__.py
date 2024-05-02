@@ -395,7 +395,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # managers.
         raise NotImplementedError()
 
-    def update_package_sources(self):
+    def update_package_sources(self, *, force=False):
         for manager in self.package_managers:
             if not manager.available():
                 LOG.debug(
@@ -404,7 +404,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 )
                 continue
             try:
-                manager.update_package_sources()
+                manager.update_package_sources(force=force)
             except Exception as e:
                 LOG.error(
                     "Failed to update package using %s: %s", manager.name, e

@@ -42,7 +42,7 @@ ADD_APT_REPO_MATCH = r"^[\w-]+:\w"
 class FakeDistro:
     """Fake Distro helper object"""
 
-    def update_package_sources(self):
+    def update_package_sources(self, *, force=False):
         """Fake update_package_sources helper method"""
         return
 

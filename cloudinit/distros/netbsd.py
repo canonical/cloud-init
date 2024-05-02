@@ -153,7 +153,7 @@ class NetBSD(cloudinit.distros.bsd.BSD):
             )
         }
 
-    def update_package_sources(self):
+    def update_package_sources(self, *, force=False):
         pass
 
 
