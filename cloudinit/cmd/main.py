@@ -56,6 +56,14 @@ FREQ_SHORT_NAMES = {
     "once": PER_ONCE,
 }
 
+# https://cloudinit.readthedocs.io/en/latest/explanation/boot.html
+STAGE_NAME = {
+    "init-local": "Local Stage",
+    "init": "Network Stage",
+    "modules-config": "Config Stage",
+    "modules-final": "Final Stage",
+}
+
 LOG = logging.getLogger(__name__)
 
 
@@ -749,7 +757,7 @@ def status_wrapper(name, args):
 
     nullstatus = {
         "errors": [],
-        "recoverable_errors": [],
+        "recoverable_errors": {},
         "start": None,
         "finished": None,
     }
@@ -780,8 +788,8 @@ def status_wrapper(name, args):
     if v1[mode]["start"] and not v1[mode]["finished"]:
         # This stage was restarted, which isn't expected.
         LOG.warning(
-            "Unexpected start time for stage %s. " "Was this stage restarted?",
-            mode,
+            "Unexpected start time found for %s. " "Was this stage restarted?",
+            STAGE_NAME[mode],
         )
 
     v1[mode]["start"] = float(util.uptime())

@@ -498,25 +498,25 @@ class TestSignalHandling:
                                 ),
                                 "init": {
                                     "errors": [],
-                                    "recoverable_errors": [],
+                                    "recoverable_errors": {},
                                     "start": 124.567,
                                     "finished": None,
                                 },
                                 "init-local": {
                                     "errors": [],
-                                    "recoverable_errors": [],
+                                    "recoverable_errors": {},
                                     "start": 100.0,
                                     "finished": 100.00001,
                                 },
                                 "modules-config": {
                                     "errors": [],
-                                    "recoverable_errors": [],
+                                    "recoverable_errors": {},
                                     "start": None,
                                     "finished": None,
                                 },
                                 "modules-final": {
                                     "errors": [],
-                                    "recoverable_errors": [],
+                                    "recoverable_errors": {},
                                     "start": None,
                                     "finished": None,
                                 },
@@ -540,8 +540,7 @@ class TestSignalHandling:
 
         # assert that the status shows recoverable errors
         assert (
-            "[init] Unexpected value found in status.json. "
-            "Was this stage restarted?"
+            'Unexpected start time found for Network Stage. Was this stage restarted?'
             in m_json.call_args[0][1]["v1"]["init"]["recoverable_errors"][
                 "WARNING"
             ]
