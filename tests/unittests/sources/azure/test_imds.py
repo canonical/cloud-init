@@ -239,7 +239,10 @@ class TestFetchMetadataWithApiFallback:
             ),
         ]
 
-        headers = wrapped_readurl.mock_calls[0].kwargs["headers_cb"](None)
+        headers = wrapped_readurl.mock_calls[0].kwargs
+        if isinstance(headers, tuple):
+            headers = dict(headers)
+        headers = headers["headers_cb"](None)
         assert list(headers.keys()) == ["Metadata", "x-ms-client-request-id"]
         assert headers.get("Metadata") == "true"
 
