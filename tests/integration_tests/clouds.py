@@ -218,17 +218,9 @@ class Ec2Cloud(IntegrationCloud):
                     name="ec2-cloud-init-integration"
                 )
 
-            # Enable IPv6 metadata at http://[fd00:ec2::254]
-            if "Ipv6AddressCount" not in launch_kwargs:
-                launch_kwargs["Ipv6AddressCount"] = 1
-            if "MetadataOptions" not in launch_kwargs:
-                launch_kwargs["MetadataOptions"] = {}
-            if "HttpProtocolIpv6" not in launch_kwargs["MetadataOptions"]:
-                launch_kwargs["MetadataOptions"] = {
-                    "HttpProtocolIpv6": "enabled"
-                }
-
-        pycloudlib_instance = self.cloud_instance.launch(**launch_kwargs)
+        pycloudlib_instance = self.cloud_instance.launch(
+            enable_ipv6=enable_ipv6, **launch_kwargs
+        )
         self._maybe_wait(pycloudlib_instance, wait)
         return pycloudlib_instance
 

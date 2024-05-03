@@ -1,3 +1,4 @@
+-r requirements.txt
 doc8
 furo
 m2r2

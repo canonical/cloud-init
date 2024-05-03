@@ -1,13 +1,19 @@
 from typing import Optional
 
+from cloudinit.subp import SubpResult
+
 
 class NetOps:
     @staticmethod
-    def link_up(interface: str):
+    def link_up(interface: str) -> SubpResult:
         pass
 
     @staticmethod
-    def link_down(interface: str):
+    def link_down(interface: str) -> SubpResult:
+        pass
+
+    @staticmethod
+    def link_rename(current_name: str, new_name: str):
         pass
 
     @staticmethod
@@ -39,9 +45,15 @@ class NetOps:
         pass
 
     @staticmethod
-    def add_addr(interface: str, address: str, broadcast: str):
+    def add_addr(
+        interface: str, address: str, broadcast: Optional[str] = None
+    ):
         pass
 
     @staticmethod
     def del_addr(interface: str, address: str):
+        pass
+
+    @staticmethod
+    def flush_addr(interface: str):
         pass

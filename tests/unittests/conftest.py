@@ -10,7 +10,7 @@ import pytest
 from cloudinit import atomic_helper, log, util
 from cloudinit.gpg import GPG
 from tests.hypothesis import HAS_HYPOTHESIS
-from tests.unittests.helpers import retarget_many_wrapper
+from tests.unittests.helpers import example_netdev, retarget_many_wrapper
 
 
 @pytest.fixture
@@ -99,6 +99,15 @@ def disable_sysfs_net(tmpdir_factory):
         "cloudinit.net.get_sys_class_path", return_value=mock_sysfs
     ):
         yield mock_sysfs
+
+
+@pytest.fixture(scope="class")
+def disable_netdev_info(request):
+    """Avoid tests which read the underlying host's /syc/class/net."""
+    with mock.patch(
+        "cloudinit.netinfo.netdev_info", return_value=example_netdev
+    ) as mock_netdev:
+        yield mock_netdev
 
 
 @pytest.fixture(autouse=True)

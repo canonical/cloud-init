@@ -99,14 +99,14 @@ class TestSchemaDeprecations:
             # No netplan API available skips validation
             content_responses[NET_CFG_V2] = {
                 "out": (
-                    "Skipping network-config schema validation."
-                    " No network schema for version: 2"
+                    "Skipping network-config schema validation for version: 2."
+                    " No netplan API available."
                 )
             }
             content_responses[NET_CFG_V2_INVALID] = {
                 "out": (
-                    "Skipping network-config schema validation."
-                    " No network schema for version: 2"
+                    "Skipping network-config schema validation for version: 2."
+                    " No netplan API available."
                 )
             }
 

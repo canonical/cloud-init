@@ -18,7 +18,8 @@ import logging
 import os
 import pwd
 import re
-import string
+import shlex
+import textwrap
 
 from cloudinit import atomic_helper, net, sources, subp, util
 
@@ -27,6 +28,16 @@ LOG = logging.getLogger(__name__)
 DEFAULT_IID = "iid-dsopennebula"
 DEFAULT_PARSEUSER = "nobody"
 CONTEXT_DISK_FILES = ["context.sh"]
+EXCLUDED_VARS = (
+    "EPOCHREALTIME",
+    "EPOCHSECONDS",
+    "RANDOM",
+    "LINENO",
+    "SECONDS",
+    "_",
+    "SRANDOM",
+    "__v",
+)
 
 
 class DataSourceOpenNebula(sources.DataSource):
@@ -299,109 +310,86 @@ def switch_user_cmd(user):
     return ["sudo", "-u", user]
 
 
-def parse_shell_config(
-    content, keylist=None, bash=None, asuser=None, switch_user_cb=None
-):
-
-    if isinstance(bash, str):
-        bash = [bash]
-    elif bash is None:
-        bash = ["bash", "-e"]
-
-    if switch_user_cb is None:
-        switch_user_cb = switch_user_cmd
-
-    # allvars expands to all existing variables by using '${!x*}' notation
-    # where x is lower or upper case letters or '_'
-    allvars = ["${!%s*}" % x for x in string.ascii_letters + "_"]
-
-    keylist_in = keylist
-    if keylist is None:
-        keylist = allvars
-        keylist_in = []
-
-    setup = "\n".join(
-        (
-            '__v="";',
-            "",
-        )
+def varprinter():
+    """print the shell environment variables within delimiters to be parsed"""
+    return textwrap.dedent(
+        """
+        printf "%s\\0" _start_
+        [ $0 != 'sh' ] && set -o posix
+        set
+        [ $0 != 'sh' ] && set +o posix
+        printf "%s\\0" _start_
+        """
     )
 
-    def varprinter(vlist):
-        # output '\0'.join(['_start_', key=value NULL for vars in vlist]
-        return "\n".join(
-            (
-                'printf "%s\\0" _start_',
-                "for __v in %s; do" % " ".join(vlist),
-                '   printf "%s=%s\\0" "$__v" "${!__v}";',
-                "done",
-                "",
-            )
+
+def parse_shell_config(content, asuser=None):
+    """run content and return environment variables which changed
+
+    WARNING: the special variable _start_ is used to delimit content
+
+    a context.sh that defines this variable might break in unexpected
+    ways
+
+    compatible with posix shells such as dash and ash and any shell
+    which supports `set -o posix`
+    """
+    if b"_start_\x00" in content.encode():
+        LOG.warning(
+            "User defined _start_ variable in context.sh, this may break"
+            "cloud-init in unexpected ways."
         )
 
-    # the rendered 'bcmd' is bash syntax that does
+    # the rendered 'bcmd' does:
+    #
     # setup: declare variables we use (so they show up in 'all')
     # varprinter(allvars): print all variables known at beginning
     # content: execute the provided content
     # varprinter(keylist): print all variables known after content
     #
-    # output is then a null terminated array of:
-    #   literal '_start_'
-    #   key=value (for each preset variable)
-    #   literal '_start_'
-    #   key=value (for each post set variable)
+    # output is then a newline terminated array of:
+    #   [0] unwanted content before first _start_
+    #   [1] key=value (for each preset variable)
+    #   [2] unwanted content between second and third _start_
+    #   [3] key=value (for each post set variable)
     bcmd = (
-        "unset IFS\n"
-        + setup
-        + varprinter(allvars)
+        varprinter()
         + "{\n%s\n\n:\n} > /dev/null\n" % content
-        + "unset IFS\n"
-        + varprinter(keylist)
+        + varprinter()
         + "\n"
     )
 
     cmd = []
     if asuser is not None:
-        cmd = switch_user_cb(asuser)
+        cmd = switch_user_cmd(asuser)
+    cmd.extend(["sh", "-e"])
 
-    cmd.extend(bash)
+    output = subp.subp(cmd, data=bcmd).stdout
 
-    (output, _error) = subp.subp(cmd, data=bcmd)
-
-    # exclude vars in bash that change on their own or that we used
-    excluded = (
-        "EPOCHREALTIME",
-        "EPOCHSECONDS",
-        "RANDOM",
-        "LINENO",
-        "SECONDS",
-        "_",
-        "SRANDOM",
-        "__v",
-    )
-    preset = {}
+    # exclude vars that change on their own or that we used
     ret = {}
-    target = None
-    output = output[0:-1]  # remove trailing null
 
-    # go through output.  First _start_ is for 'preset', second for 'target'.
     # Add to ret only things were changed and not in excluded.
-    for line in output.split("\x00"):
-        try:
-            (key, val) = line.split("=", 1)
-            if target is preset:
-                preset[key] = val
-            elif key not in excluded and (
-                key in keylist_in or preset.get(key) != val
-            ):
-                ret[key] = val
-        except ValueError:
-            if line != "_start_":
-                raise
-            if target is None:
-                target = preset
-            elif target is preset:
-                target = ret
+    # skip all content before initial _start_\x00 pair
+    sections = output.split("_start_\x00")[1:]
+
+    # store env variables prior to content run
+    # skip all content before second _start\x00 pair
+    # store env variables prior to content run
+    before, after = sections[0], sections[2]
+
+    pre_env = dict(
+        variable.split("=", maxsplit=1) for variable in shlex.split(before)
+    )
+    post_env = dict(
+        variable.split("=", maxsplit=1) for variable in shlex.split(after)
+    )
+    for key in set(pre_env.keys()).union(set(post_env.keys())):
+        if key in EXCLUDED_VARS:
+            continue
+        value = post_env.get(key)
+        if value is not None and value != pre_env.get(key):
+            ret[key] = value
 
     return ret
 

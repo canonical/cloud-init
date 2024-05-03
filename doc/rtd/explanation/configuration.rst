@@ -21,7 +21,9 @@ From lowest priority to highest, configuration sources are:
 - **Kernel command line**: On the kernel command line, anything found between
   ``cc:`` and ``end_cc`` will be interpreted as cloud-config user data.
 
-These four sources make up the base configuration.
+These four sources make up the base configuration. The contents of this
+configuration are defined in the
+:ref:`base configuration reference page<base_config_reference>`.
 
 Vendor and user data
 ====================

@@ -4,6 +4,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
+import os
 from copy import deepcopy
 from email.mime.multipart import MIMEMultipart
 from pathlib import PurePath
@@ -13,6 +14,7 @@ import pytest
 
 from cloudinit import util
 from cloudinit.sources import DataSourceWSL as wsl
+from tests.unittests.distros import _get_distro
 from tests.unittests.helpers import does_not_raise, mock
 
 INSTANCE_NAME = "Noble-MLKit"
@@ -250,42 +252,53 @@ def join_payloads_from_content_type(
 
 
 class TestWSLDataSource:
-    @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
-    @mock.patch("cloudinit.sources.DataSourceWSL.cloud_init_data_dir")
-    def test_metadata_id_default(self, m_seed_dir, m_iname, tmpdir, paths):
+    @pytest.fixture(autouse=True)
+    def setup(self, mocker, tmpdir):
+        mocker.patch(
+            "cloudinit.sources.DataSourceWSL.instance_name",
+            return_value=INSTANCE_NAME,
+        )
+        mocker.patch(
+            "cloudinit.sources.DataSourceWSL.find_home",
+            return_value=PurePath(tmpdir),
+        )
+        mocker.patch(
+            "cloudinit.sources.DataSourceWSL.subp.which",
+            return_value="/usr/bin/wslpath",
+        )
+
+    def test_metadata_id_default(self, tmpdir, paths):
         """
         Validates that instance-id is properly set, indepedent of the existence
         of user-data.
         """
-        m_iname.return_value = INSTANCE_NAME
-        m_seed_dir.return_value = PurePath(tmpdir)
 
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=None,
+            distro=_get_distro("ubuntu"),
             paths=paths,
         )
         ds.get_data()
 
         assert ds.get_instance_id() == wsl.DEFAULT_INSTANCE_ID
 
-    @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
-    @mock.patch("cloudinit.sources.DataSourceWSL.cloud_init_data_dir")
-    def test_metadata_id(self, m_seed_dir, m_iname, tmpdir, paths):
+    def test_metadata_id(self, tmpdir, paths):
         """
         Validates that instance-id is properly set, indepedent of the existence
         of user-data.
         """
-        m_iname.return_value = INSTANCE_NAME
-        m_seed_dir.return_value = PurePath(tmpdir)
         SAMPLE_ID = "Nice-ID"
-        tmpdir.join(f"{INSTANCE_NAME}.meta-data").write(
+        metadata_path = tmpdir.join(
+            ".cloud-init", f"{INSTANCE_NAME}.meta-data"
+        )
+        metadata_path.dirpath().mkdir()
+        metadata_path.write(
             f'{{"instance-id":"{SAMPLE_ID}"}}',
         )
 
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=None,
+            distro=_get_distro("ubuntu"),
             paths=paths,
         )
         ds.get_data()
@@ -293,19 +306,15 @@ class TestWSLDataSource:
         assert ds.get_instance_id() == SAMPLE_ID
 
     @mock.patch("cloudinit.util.lsb_release")
-    @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
-    @mock.patch("cloudinit.sources.DataSourceWSL.cloud_init_data_dir")
-    def test_get_data_cc(self, m_seed_dir, m_iname, m_gld, paths, tmpdir):
-        m_gld.return_value = SAMPLE_LINUX_DISTRO
-        m_iname.return_value = INSTANCE_NAME
-        m_seed_dir.return_value = PurePath(tmpdir)
-        tmpdir.join(f"{INSTANCE_NAME}.user-data").write(
-            "#cloud-config\nwrite_files:\n- path: /etc/wsl.conf"
-        )
+    def test_get_data_cc(self, m_lsb_release, paths, tmpdir):
+        m_lsb_release.return_value = SAMPLE_LINUX_DISTRO
+        data_path = tmpdir.join(".cloud-init", f"{INSTANCE_NAME}.user-data")
+        data_path.dirpath().mkdir()
+        data_path.write("#cloud-config\nwrite_files:\n- path: /etc/wsl.conf")
 
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=None,
+            distro=_get_distro("ubuntu"),
             paths=paths,
         )
 
@@ -320,19 +329,15 @@ class TestWSLDataSource:
         assert "wsl.conf" in cast(str, userdata)
 
     @mock.patch("cloudinit.util.lsb_release")
-    @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
-    @mock.patch("cloudinit.sources.DataSourceWSL.cloud_init_data_dir")
-    def test_get_data_sh(self, m_seed_dir, m_iname, m_gld, tmpdir, paths):
-        m_gld.return_value = SAMPLE_LINUX_DISTRO
-        m_iname.return_value = INSTANCE_NAME
-        m_seed_dir.return_value = PurePath(tmpdir)
+    def test_get_data_sh(self, m_lsb_release, tmpdir, paths):
+        m_lsb_release.return_value = SAMPLE_LINUX_DISTRO
         COMMAND = "echo Hello cloud-init on WSL!"
-        tmpdir.join(f"{INSTANCE_NAME}.user-data").write(
-            f"#!/bin/sh\n{COMMAND}\n"
-        )
+        data_path = tmpdir.join(".cloud-init", f"{INSTANCE_NAME}.user-data")
+        data_path.dirpath().mkdir()
+        data_path.write(f"#!/bin/sh\n{COMMAND}\n")
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=None,
+            distro=_get_distro("ubuntu"),
             paths=paths,
         )
 
@@ -349,31 +354,31 @@ class TestWSLDataSource:
         assert COMMAND in userdata
 
     @mock.patch("cloudinit.util.get_linux_distro")
-    @mock.patch("cloudinit.sources.DataSourceWSL.instance_name")
-    @mock.patch("cloudinit.sources.DataSourceWSL.cloud_init_data_dir")
-    def test_data_precedence(self, m_seed_dir, m_iname, m_gld, tmpdir, paths):
-        m_gld.return_value = SAMPLE_LINUX_DISTRO
-        m_iname.return_value = INSTANCE_NAME
-        m_seed_dir.return_value = PurePath(tmpdir)
+    def test_data_precedence(self, m_get_linux_dist, tmpdir, paths):
+        m_get_linux_dist.return_value = SAMPLE_LINUX_DISTRO
+
+        # Set up basic user data:
+
         # This is the most specific: should win over the other user-data files.
         # Also, notice the file name casing: should be irrelevant.
-        tmpdir.join("ubuntu-24.04.user-data").write(
-            "#cloud-config\nwrite_files:\n- path: /etc/wsl.conf"
-        )
+        user_file = tmpdir.join(".cloud-init", "ubuntu-24.04.user-data")
+        user_file.dirpath().mkdir()
+        user_file.write("#cloud-config\nwrite_files:\n- path: /etc/wsl.conf")
 
         distro_file = tmpdir.join(".cloud-init", "Ubuntu-all.user-data")
-        distro_file.dirpath().mkdir()
         distro_file.write("#!/bin/sh\n\necho Hello World\n")
 
         generic_file = tmpdir.join(".cloud-init", "default.user-data")
         generic_file.write("#cloud-config\npackages:\n- g++-13\n")
 
+        # Run the datasource
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=None,
+            distro=_get_distro("ubuntu"),
             paths=paths,
         )
 
+        # Assert user data is properly loaded
         assert ds.get_data() is True
         ud = ds.get_userdata()
 
@@ -394,3 +399,84 @@ class TestWSLDataSource:
         )
 
         assert "" == shell_script
+
+        # Additionally set up some UP4W agent data:
+
+        # Now the winner should be the merge of the agent and Landscape data.
+        ubuntu_pro_tmp = tmpdir.join(".ubuntupro", ".cloud-init")
+        os.makedirs(ubuntu_pro_tmp, exist_ok=True)
+
+        agent_file = ubuntu_pro_tmp.join("agent.yaml")
+        agent_file.write(
+            """#cloud-config
+landscape:
+    client:
+      account_name: agenttest
+ubuntu_advantage:
+    token: testtoken"""
+        )
+
+        # Run the datasource
+        ds = wsl.DataSourceWSL(
+            sys_cfg=SAMPLE_CFG,
+            distro=_get_distro("ubuntu"),
+            paths=paths,
+        )
+
+        # Assert agent combines with existing user data
+        assert ds.get_data() is True
+        ud = ds.get_userdata()
+
+        assert ud is not None
+        userdata = cast(
+            str,
+            join_payloads_from_content_type(
+                cast(MIMEMultipart, ud), "text/cloud-config"
+            ),
+        )
+        assert "wsl.conf" in userdata
+        assert "packages" not in userdata
+        assert "ubuntu_advantage" in userdata
+        assert "landscape" in userdata
+        assert "agenttest" in userdata
+
+        # Additionally set up some Landscape provided user data
+        landscape_file = ubuntu_pro_tmp.join("%s.user-data" % INSTANCE_NAME)
+        landscape_file.write(
+            """#cloud-config
+landscape:
+  client:
+    account_name: landscapetest
+package_update: true"""
+        )
+
+        # Run the datasource
+        ds = wsl.DataSourceWSL(
+            sys_cfg=SAMPLE_CFG,
+            distro=_get_distro("ubuntu"),
+            paths=paths,
+        )
+
+        # Assert Landscape and Agent combine, with Agent taking precedence
+        assert ds.get_data() is True
+        ud = ds.get_userdata()
+
+        assert ud is not None
+        userdata = cast(
+            str,
+            join_payloads_from_content_type(
+                cast(MIMEMultipart, ud), "text/cloud-config"
+            ),
+        )
+
+        assert "wsl.conf" not in userdata
+        assert "packages" not in userdata
+        assert "ubuntu_advantage" in userdata
+        assert "package_update" in userdata, (
+            "package_update entry should not be overriden by agent data"
+            " nor ignored"
+        )
+        assert "landscape" in userdata
+        assert (
+            "landscapetest" not in userdata and "agenttest" in userdata
+        ), "Landscape account name should have been overriden by agent data"

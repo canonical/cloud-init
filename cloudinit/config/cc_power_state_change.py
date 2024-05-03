@@ -223,7 +223,7 @@ def run_after_pid_gone(pid, pidcmdline, timeout, condition, func, args):
     # is no longer alive.  After it is gone, or timeout has passed
     # execute func(args)
     msg = None
-    end_time = time.time() + timeout
+    end_time = time.monotonic() + timeout
 
     def fatal(msg):
         LOG.warning(msg)
@@ -232,7 +232,7 @@ def run_after_pid_gone(pid, pidcmdline, timeout, condition, func, args):
     known_errnos = (errno.ENOENT, errno.ESRCH)
 
     while True:
-        if time.time() > end_time:
+        if time.monotonic() > end_time:
             msg = "timeout reached before %s ended" % pid
             break
 

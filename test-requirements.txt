@@ -1,5 +1,7 @@
 # Needed generally in tests
 
+-r requirements.txt
+
 # Avoid breaking change in `testpaths` treatment forced
 # test/unittests/conftest.py to be loaded by our integration-tests tox env
 # resulting in an unmet dependency issue:

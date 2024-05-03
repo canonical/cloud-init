@@ -5,9 +5,9 @@ import textwrap
 from unittest import mock
 
 import pytest
+import yaml
 
 from cloudinit import net
-from cloudinit import safeyaml as yaml
 from cloudinit.distros.networking import (
     BSDNetworking,
     LinuxNetworking,
@@ -143,7 +143,7 @@ class TestLinuxNetworkingTrySetLinkUp:
         is_success = LinuxNetworking().try_set_link_up(devname)
 
         assert (
-            mock.call(["ip", "link", "set", devname, "up"])
+            mock.call(["ip", "link", "set", "dev", devname, "up"])
             == m_subp.call_args_list[-1]
         )
         assert is_success
@@ -154,7 +154,7 @@ class TestLinuxNetworkingTrySetLinkUp:
         is_success = LinuxNetworking().try_set_link_up(devname)
 
         assert (
-            mock.call(["ip", "link", "set", devname, "up"])
+            mock.call(["ip", "link", "set", "dev", devname, "up"])
             == m_subp.call_args_list[-1]
         )
         assert not is_success
@@ -356,7 +356,7 @@ class TestLinuxNetworkingApplyNetworkCfgNames:
         networking = LinuxNetworking()
         m_device_driver.return_value = "virtio_net"
         m_device_devid.return_value = "0x15d8"
-        netcfg = yaml.load(getattr(self, config_attr))
+        netcfg = yaml.safe_load(getattr(self, config_attr))
 
         with mock.patch.object(
             networking, "_rename_interfaces"
@@ -381,7 +381,7 @@ class TestLinuxNetworkingApplyNetworkCfgNames:
         self, config_attr: str
     ):
         networking = LinuxNetworking()
-        netcfg = yaml.load(getattr(self, config_attr))
+        netcfg = yaml.safe_load(getattr(self, config_attr))
         with mock.patch.object(
             networking, "_rename_interfaces"
         ) as m_rename_interfaces:
@@ -391,4 +391,4 @@ class TestLinuxNetworkingApplyNetworkCfgNames:
     def test_apply_v2_renames_raises_runtime_error_on_unknown_version(self):
         networking = LinuxNetworking()
         with pytest.raises(RuntimeError):
-            networking.apply_network_config_names(yaml.load("version: 3"))
+            networking.apply_network_config_names(yaml.safe_load("version: 3"))

@@ -16,10 +16,10 @@ import argparse
 import json
 import os
 import sys
-import time
 import traceback
 import logging
-from typing import Tuple
+import yaml
+from typing import Tuple, Callable
 
 from cloudinit import netinfo
 from cloudinit import signal_handler
@@ -37,7 +37,6 @@ from cloudinit.config.modules import Modules
 from cloudinit.config.schema import validate_cloudconfig_schema
 from cloudinit import log
 from cloudinit.reporting import events
-from cloudinit.safeyaml import load
 from cloudinit.settings import PER_INSTANCE, PER_ALWAYS, PER_ONCE, CLOUD_CONFIG
 
 # Welcome message template
@@ -93,6 +92,20 @@ def welcome_format(action):
         timestamp=util.time_rfc2822(),
         action=action,
     )
+
+
+def close_stdin(logger: Callable[[str], None] = LOG.debug):
+    """
+    reopen stdin as /dev/null to ensure no side effects
+
+    logger: a function for logging messages
+    """
+    if not os.isatty(sys.stdin.fileno()):
+        logger("Closing stdin")
+        with open(os.devnull) as fp:
+            os.dup2(fp.fileno(), sys.stdin.fileno())
+    else:
+        logger("Not closing stdin, stdin is a tty.")
 
 
 def extract_fns(args):
@@ -328,9 +341,8 @@ def main_init(name, args):
     outfmt = None
     errfmt = None
     try:
-        early_logs.append((logging.DEBUG, "Closing stdin."))
-        util.close_stdin()
-        (outfmt, errfmt) = util.fixup_output(init.cfg, name)
+        close_stdin(lambda msg: early_logs.append((logging.DEBUG, msg)))
+        outfmt, errfmt = util.fixup_output(init.cfg, name)
     except Exception:
         msg = "Failed to setup output redirection!"
         util.logexc(LOG, msg)
@@ -481,7 +493,7 @@ def main_init(name, args):
     cloud_cfg_path = init.paths.get_ipath_cur("cloud_config")
     if os.path.exists(cloud_cfg_path) and os.stat(cloud_cfg_path).st_size != 0:
         validate_cloudconfig_schema(
-            config=load(util.load_text_file(cloud_cfg_path)),
+            config=yaml.safe_load(util.load_text_file(cloud_cfg_path)),
             strict=False,
             log_details=False,
             log_deprecations=True,
@@ -598,8 +610,7 @@ def main_modules(action_name, args):
     mods = Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 4
     try:
-        LOG.debug("Closing stdin")
-        util.close_stdin()
+        close_stdin()
         util.fixup_output(mods.cfg, name)
     except Exception:
         util.logexc(LOG, "Failed to setup output redirection!")
@@ -667,8 +678,7 @@ def main_single(name, args):
         mod_freq = FREQ_SHORT_NAMES.get(mod_freq)
     # Stage 4
     try:
-        LOG.debug("Closing stdin")
-        util.close_stdin()
+        close_stdin()
         util.fixup_output(mods.cfg, None)
     except Exception:
         util.logexc(LOG, "Failed to setup output redirection!")
@@ -697,12 +707,10 @@ def main_single(name, args):
         return 0
 
 
-def status_wrapper(name, args, data_d=None, link_d=None):
-    if data_d is None:
-        paths = read_cfg_paths()
-        data_d = paths.get_cpath("data")
-    if link_d is None:
-        link_d = os.path.normpath("/run/cloud-init")
+def status_wrapper(name, args):
+    paths = read_cfg_paths()
+    data_d = paths.get_cpath("data")
+    link_d = os.path.normpath(paths.run_dir)
 
     status_path = os.path.join(data_d, "status.json")
     status_link = os.path.join(link_d, "status.json")
@@ -766,7 +774,8 @@ def status_wrapper(name, args, data_d=None, link_d=None):
 
     v1 = status["v1"]
     v1["stage"] = mode
-    v1[mode]["start"] = time.time()
+    uptime = util.uptime()
+    v1[mode]["start"] = float(uptime)
     v1[mode]["recoverable_errors"] = next(
         filter(lambda h: isinstance(h, log.LogExporter), root_logger.handlers)
     ).export_logs()
@@ -793,7 +802,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
         print_exc("failed run of stage %s" % mode)
         v1[mode]["errors"] = [str(e)]
 
-    v1[mode]["finished"] = time.time()
+    v1[mode]["finished"] = float(util.uptime())
     v1["stage"] = None
 
     # Write status.json after running init / module code

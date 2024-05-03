@@ -37,6 +37,8 @@ the datasource from working.
 For more information about how to configure WSL,
 `check the official documentation <https://learn.microsoft.com/windows/wsl/wsl-config#configuration-settings-for-wslconf>`_.
 
+.. _wsl_user_data_configuration:
+
 User data configuration
 ========================
 
@@ -49,7 +51,25 @@ User data can be supplied in any
 :ref:`format supported by cloud-init<user_data_formats>`, such as YAML
 cloud-config files or shell scripts. At runtime, the WSL datasource looks for
 user data in the following locations inside the Windows host filesystem, in the
-order specified below:
+order specified below.
+
+First, configurations from Ubuntu Pro/Landscape are checked for in the
+following paths:
+
+1. ``%USERPROFILE%\.ubuntupro\.cloud-init\<InstanceName>.user-data`` holds data
+   provided by Landscape to configure a specific WSL instance. If this file
+   is present, normal user-provided configurations are not looked for. This
+   file is merged with (2) on a per-module basis. If this file is not present,
+   then the first user-provided configuration will be used in its place.
+
+2. ``%USERPROFILE%\.ubuntupro\.cloud-init\agent.yaml`` holds data provided by
+   the Ubuntu Pro for WSL agent. If this file is present, its modules will be
+   merged with (1), overriding any conflicting modules. If (1) is not provided,
+   then this file will be merged with any valid user-provided configuration
+   instead.
+
+Then, if a file from (1) is not found, a user-provided configuration will be
+looked for instead in the following order:
 
 1. ``%USERPROFILE%\.cloud-init\<InstanceName>.user-data`` holds user data for a
    specific instance configuration. The datasource resolves the name attributed
@@ -82,7 +102,8 @@ Only the first match is loaded, and no config merging is done, even in the
 presence of errors. That avoids unexpected behaviour due to surprising merge
 scenarios. Also, notice that the file name casing is irrelevant since both the
 Windows file names, as well as the WSL distro names, are case-insensitive by
-default. If none are found, cloud-init remains disabled.
+default. If none are found, cloud-init remains disabled if no other
+configurations from previous steps were found.
 
 .. note::
    Some users may have configured case sensitivity for file names on Windows.
@@ -205,4 +226,3 @@ include file.
   WSL automatically generates those files by default, unless configured to
   behave otherwise in ``/etc/wsl.conf``. Overwriting may work, but only
   until the next reboot.
-

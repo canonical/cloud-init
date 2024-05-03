@@ -15,6 +15,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 from cloudinit import subp, util
+from cloudinit.net.netops.iproute2 import Iproute2
 from cloudinit.url_helper import UrlError, readurl
 
 LOG = logging.getLogger(__name__)
@@ -723,15 +724,6 @@ def _rename_interfaces(
     def update_byname(bymac):
         return dict((data["name"], data) for data in cur_info.values())
 
-    def rename(cur, new):
-        subp.subp(["ip", "link", "set", cur, "name", new], capture=True)
-
-    def down(name):
-        subp.subp(["ip", "link", "set", name, "down"], capture=True)
-
-    def up(name):
-        subp.subp(["ip", "link", "set", name, "up"], capture=True)
-
     ops = []
     errors = []
     ups = []
@@ -835,15 +827,23 @@ def _rename_interfaces(
         cur_byname = update_byname(cur_info)
         ops += cur_ops
 
-    opmap = {"rename": rename, "down": down, "up": up}
+    opmap = {
+        "rename": Iproute2.link_rename,
+        "down": Iproute2.link_down,
+        "up": Iproute2.link_up,
+    }
 
     if len(ops) + len(ups) == 0:
         if len(errors):
-            LOG.debug("unable to do any work for renaming of %s", renames)
+            LOG.warning(
+                "Unable to rename interfaces: %s due to errors: %s",
+                renames,
+                errors,
+            )
         else:
             LOG.debug("no work necessary for renaming of %s", renames)
     else:
-        LOG.debug("achieving renaming of %s with ops %s", renames, ops + ups)
+        LOG.debug("Renamed %s with ops %s", renames, ops + ups)
 
         for op, mac, new_name, params in ops + ups:
             try:

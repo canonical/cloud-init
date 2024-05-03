@@ -22,7 +22,21 @@ class TestMergeRun(helpers.FilesystemMockingTestCase):
         cfg = {
             "datasource_list": ["None"],
             "cloud_init_modules": ["write_files"],
-            "system_info": {"paths": {"run_dir": new_root}},
+            "system_info": {
+                "paths": {"run_dir": new_root},
+                "package_mirrors": [
+                    {
+                        "arches": ["i386", "amd64", "blah"],
+                        "failsafe": {
+                            "primary": "http://my.archive.mydomain.com/ubuntu",
+                            "security": (
+                                "http://my.security.mydomain.com/ubuntu"
+                            ),
+                        },
+                        "search": {"primary": [], "security": []},
+                    },
+                ],
+            },
         }
         ud = helpers.readResource("user_data.1.txt")
         cloud_cfg = safeyaml.dumps(cfg)

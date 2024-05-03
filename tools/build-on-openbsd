@@ -16,9 +16,12 @@ pkgs="
    py3-configobj
    py3-jinja2
    py3-jsonschema
+   py3-jsonpatch
+   py3-jsonpointer
    py3-oauthlib
    py3-requests
    py3-setuptools
+   py3-serial
    py3-yaml
    sudo--
    wget
@@ -43,6 +46,7 @@ else
     RC_LOCAL="/etc/rc.local"
     RC_LOCAL_CONTENT="
 
+rm -rf /var/run/cloud-init
 /usr/local/lib/cloud-init/ds-identify
 
 cloud-init init --local

@@ -73,7 +73,8 @@ show_authors = False
 # Sphinx-copybutton config options: 1) prompt to be stripped from copied code.
 # 2) Set to copy all lines (not just prompt lines) to ensure multiline snippets
 # can be copied even if they don't contain an EOF line.
-copybutton_prompt_text = "$ "
+copybutton_prompt_text = r"\$ |PS> "
+copybutton_prompt_is_regexp = True
 copybutton_only_copy_prompt_lines = False
 
 # -- Options for HTML output --------------------------------------------------

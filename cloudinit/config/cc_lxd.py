@@ -11,7 +11,9 @@ import os
 from textwrap import dedent
 from typing import List, Tuple
 
-from cloudinit import safeyaml, subp, util
+import yaml
+
+from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema, get_meta_doc
@@ -512,8 +514,8 @@ def get_required_packages(init_cfg: dict, preseed_str: str) -> List[str]:
     if preseed_str and "storage_pools" in preseed_str:
         # Assume correct YAML preseed format
         try:
-            preseed_cfg = safeyaml.load(preseed_str)
-        except (safeyaml.YAMLError, TypeError, ValueError):
+            preseed_cfg = yaml.safe_load(preseed_str)
+        except (yaml.YAMLError, TypeError, ValueError):
             LOG.warning(
                 "lxd.preseed string value is not YAML. "
                 " Unable to determine required storage driver packages to"

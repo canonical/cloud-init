@@ -94,7 +94,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             url2base[md_url] = url
 
         url_params = self.get_url_params()
-        start_time = time.time()
+        start_time = time.monotonic()
         avail_url, _response = url_helper.wait_for_url(
             urls=md_urls,
             max_wait=url_params.max_wait_seconds,
@@ -107,7 +107,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             LOG.debug(
                 "Giving up on OpenStack md from %s after %s seconds",
                 md_urls,
-                int(time.time() - start_time),
+                int(time.monotonic() - start_time),
             )
 
         self.metadata_address = url2base.get(avail_url)

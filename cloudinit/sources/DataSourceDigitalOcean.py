@@ -94,7 +94,7 @@ class DataSourceDigitalOcean(sources.DataSource):
         self.userdata_raw = md.get("user_data", None)
 
         if ipv4LL_nic:
-            do_helper.del_ipv4_link_local(ipv4LL_nic)
+            do_helper.del_ipv4_link_local(self.distro, ipv4LL_nic)
 
         return True
 

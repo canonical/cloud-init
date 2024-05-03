@@ -5,6 +5,7 @@ from string import Template
 from unittest import mock
 
 import pytest
+import yaml
 
 from cloudinit import safeyaml
 from cloudinit.net import network_state, networkd
@@ -448,8 +449,8 @@ network:
 class TestNetworkdRenderState:
     def _parse_network_state_from_config(self, config):
         with mock.patch("cloudinit.net.network_state.get_interfaces_by_mac"):
-            yaml = safeyaml.load(config)
-            return network_state.parse_net_config_data(yaml["network"])
+            config = yaml.safe_load(config)
+            return network_state.parse_net_config_data(config["network"])
 
     def test_networkd_render_with_set_name(self):
         with mock.patch("cloudinit.net.get_interfaces_by_mac"):
@@ -625,7 +626,7 @@ class TestNetworkdRenderState:
         with mock.patch("cloudinit.net.get_interfaces_by_mac"):
             # network-config v1 inputs
             if version == "v1":
-                config = safeyaml.load(V1_CONFIG_ACCEPT_RA_YAML)
+                config = yaml.safe_load(V1_CONFIG_ACCEPT_RA_YAML)
                 if address == "4" or address == "6":
                     config["network"]["config"][0]["subnets"] = [
                         {"type": f"dhcp{address}"}
@@ -638,7 +639,7 @@ class TestNetworkdRenderState:
                     config["network"]["config"][0]["accept-ra"] = accept_ra
             # network-config v2 inputs
             elif version == "v2":
-                config = safeyaml.load(V2_CONFIG_ACCEPT_RA_YAML)
+                config = yaml.safe_load(V2_CONFIG_ACCEPT_RA_YAML)
                 if address == "4" or address == "6":
                     config["network"]["ethernets"]["eth0"][
                         f"dhcp{address}"

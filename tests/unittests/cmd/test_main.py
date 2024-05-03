@@ -80,7 +80,7 @@ class TestMain(FilesystemMockingTestCase):
         (_item1, item2) = wrap_and_call(
             "cloudinit.cmd.main",
             {
-                "util.close_stdin": True,
+                "close_stdin": True,
                 "netinfo.debug_info": "my net debug info",
                 "util.fixup_output": ("outfmt", "errfmt"),
             },
@@ -149,7 +149,7 @@ class TestMain(FilesystemMockingTestCase):
         (_item1, item2) = wrap_and_call(
             "cloudinit.cmd.main",
             {
-                "util.close_stdin": True,
+                "close_stdin": True,
                 "netinfo.debug_info": "my net debug info",
                 "cc_set_hostname.handle": {"side_effect": set_hostname},
                 "util.fixup_output": ("outfmt", "errfmt"),

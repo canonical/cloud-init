@@ -10,8 +10,9 @@ from textwrap import dedent
 from uuid import uuid4
 
 import pytest
+import yaml
 
-from cloudinit import atomic_helper, safeyaml, subp, util
+from cloudinit import atomic_helper, subp, util
 from cloudinit.sources import DataSourceIBMCloud as ds_ibm
 from cloudinit.sources import DataSourceOracle as ds_oracle
 from cloudinit.sources import DataSourceSmartOS as ds_smartos
@@ -65,6 +66,146 @@ BLKID_UEFI_UBUNTU = [
     },
 ]
 
+
+DEFAULT_CLOUD_CONFIG = """\
+# The top level settings are used as module
+# and base configuration.
+# A set of users which may be applied and/or used by various modules
+# when a 'default' entry is found it will reference the 'default_user'
+# from the distro configuration specified below
+users:
+   - default
+
+# If this is set, 'root' will not be able to ssh in and they
+# will get a message to login instead as the default $user
+disable_root: true
+
+# This will cause the set+update hostname module to not operate (if true)
+preserve_hostname: false
+
+# If you use datasource_list array, keep array items in a single line.
+# If you use multi line array, ds-identify script won't read array items.
+# Example datasource config
+# datasource:
+#    Ec2:
+#      metadata_urls: [ 'blah.com' ]
+#      timeout: 5 # (defaults to 50 seconds)
+#      max_wait: 10 # (defaults to 120 seconds)
+
+# The modules that run in the 'init' stage
+cloud_init_modules:
+ - migrator
+ - seed_random
+ - bootcmd
+ - write-files
+ - growpart
+ - resizefs
+ - disk_setup
+ - mounts
+ - set_hostname
+ - update_hostname
+ - update_etc_hosts
+ - ca-certs
+ - rsyslog
+ - users-groups
+ - ssh
+
+# The modules that run in the 'config' stage
+cloud_config_modules:
+ - wireguard
+ - snap
+ - ubuntu_autoinstall
+ - ssh-import-id
+ - keyboard
+ - locale
+ - set-passwords
+ - grub-dpkg
+ - apt-pipelining
+ - apt-configure
+ - ubuntu-advantage
+ - ntp
+ - timezone
+ - disable-ec2-metadata
+ - runcmd
+ - byobu
+
+# The modules that run in the 'final' stage
+cloud_final_modules:
+ - package-update-upgrade-install
+ - fan
+ - landscape
+ - lxd
+ - ubuntu-drivers
+ - write-files-deferred
+ - puppet
+ - chef
+ - ansible
+ - mcollective
+ - salt-minion
+ - reset_rmc
+ - refresh_rmc_and_interface
+ - rightscale_userdata
+ - scripts-vendor
+ - scripts-per-once
+ - scripts-per-boot
+ - scripts-per-instance
+ - scripts-user
+ - ssh-authkey-fingerprints
+ - keys-to-console
+ - install-hotplug
+ - phone-home
+ - final-message
+ - power-state-change
+
+# System and/or distro specific settings
+# (not accessible to handlers/transforms)
+system_info:
+   # This will affect which distro class gets used
+   distro: ubuntu
+   # Default user name + that default users groups (if added/used)
+   default_user:
+     name: ubuntu
+     lock_passwd: True
+     gecos: Ubuntu
+     groups: [adm, audio, cdrom, floppy, lxd, netdev, plugdev, sudo, video]
+     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+     shell: /bin/bash
+   network:
+     renderers: ['netplan', 'eni', 'sysconfig']
+     activators: ['netplan', 'eni', 'network-manager', 'networkd']
+   # Automatically discover the best ntp_client
+   ntp_client: auto
+   # Other config here will be given to the distro class and/or path classes
+   paths:
+      cloud_dir: /var/lib/cloud/
+      templates_dir: /etc/cloud/templates/
+   package_mirrors:
+     - arches: [i386, amd64]
+       failsafe:
+         primary: http://archive.ubuntu.com/ubuntu
+         security: http://security.ubuntu.com/ubuntu
+       search:
+         primary:
+           - http://%(ec2_region)s.ec2.archive.ubuntu.com/ubuntu/
+           - http://%(availability_zone)s.clouds.archive.ubuntu.com/ubuntu/
+           - http://%(region)s.clouds.archive.ubuntu.com/ubuntu/
+         security: []
+     - arches: [arm64, armel, armhf]
+       failsafe:
+         primary: http://ports.ubuntu.com/ubuntu-ports
+         security: http://ports.ubuntu.com/ubuntu-ports
+       search:
+         primary:
+           - http://%(ec2_region)s.ec2.ports.ubuntu.com/ubuntu-ports/
+           - http://%(availability_zone)s.clouds.ports.ubuntu.com/ubuntu-ports/
+           - http://%(region)s.clouds.ports.ubuntu.com/ubuntu-ports/
+         security: []
+     - arches: [default]
+       failsafe:
+         primary: http://ports.ubuntu.com/ubuntu-ports
+         security: http://ports.ubuntu.com/ubuntu-ports
+   ssh_svcname: ssh
+"""
 
 POLICY_FOUND_ONLY = "search,found=all,maybe=none,notfound=disabled"
 POLICY_FOUND_OR_MAYBE = "search,found=all,maybe=all,notfound=disabled"
@@ -187,6 +328,10 @@ class DsIdentifyBase(CiTestCase):
         if files is None:
             files = {}
 
+        cloudcfg = "etc/cloud/cloud.cfg"
+        if cloudcfg not in files:
+            files[cloudcfg] = DEFAULT_CLOUD_CONFIG
+
         if rootd is None:
             rootd = self.tmp_dir()
 
@@ -295,7 +440,7 @@ class DsIdentifyBase(CiTestCase):
         if os.path.exists(cfg_out):
             contents = util.load_text_file(cfg_out)
             try:
-                cfg = safeyaml.load(contents)
+                cfg = yaml.safe_load(contents)
             except Exception as e:
                 cfg = {"_INVALID_YAML": contents, "_EXCEPTION": str(e)}
 
@@ -408,6 +553,7 @@ class TestDsIdentify(DsIdentifyBase):
         config = "LXD-kvm-not-MAAS-2"
         self._test_ds_found(config)
 
+    @pytest.mark.xfail(reason="GH-4796")
     def test_maas_not_detected_3(self):
         """Don't incorrectly identify maas
 
@@ -424,6 +570,21 @@ class TestDsIdentify(DsIdentifyBase):
         """
         config = "LXD-kvm-not-MAAS-3"
         self._test_ds_found(config)
+
+    def test_flow_sequence_control(self):
+        """ensure that an invalid key in the flow_sequence tests produces no
+        datasource list match
+
+        control test: this test serves as a control test for test_flow_sequence
+        """
+        data = copy.deepcopy(VALID_CFG["flow_sequence-control"])
+        self._check_via_dict(data, RC_NOT_FOUND)
+
+    def test_flow_sequence(self):
+        """correctly identify flow sequences"""
+        for i in range(1, 10):
+            data = copy.deepcopy(VALID_CFG[f"flow_sequence-{i}"])
+            self._check_via_dict(data, RC_FOUND, dslist=[data.get("ds")])
 
     def test_azure_invalid_configuration(self):
         """Don't detect incorrect config when invalid datasource_list provided
@@ -455,6 +616,13 @@ class TestDsIdentify(DsIdentifyBase):
         test using SYSTEMD_VIRTUALIZATION, not systemd-detect-virt
         """
         self._test_ds_found("Ec2-hvm-env")
+
+    def test_aws_ec2_hvm_endian(self):
+        """EC2: hvm instances use system-uuid and may have swapped endianness
+
+        test using SYSTEMD_VIRTUALIZATION, not systemd-detect-virt
+        """
+        self._test_ds_found("Ec2-hvm-swap-endianness")
 
     def test_aws_ec2_xen(self):
         """EC2: sys/hypervisor/uuid starts with ec2."""
@@ -566,6 +734,13 @@ class TestDsIdentify(DsIdentifyBase):
         self.assertEqual(
             ret.cfg.get("datasource_list"), ["ConfigDrive", "None"]
         )
+
+    @pytest.mark.xfail(
+        reason=("not supported: yaml parser implemented in POSIX shell")
+    )
+    def test_multiline_yaml(self):
+        """Multi-line yaml is unsupported"""
+        self._test_ds_found("LXD-kvm-not-azure")
 
     def test_ibmcloud_template_userdata_in_provisioning(self):
         """Template provisioned with user-data during provisioning stage.
@@ -1183,14 +1358,29 @@ class TestWSL(DsIdentifyBase):
         """Negative test by lack of host filesystem mount points."""
         self._test_ds_not_found("WSL-no-host-mounts")
 
-    def test_no_cloudinitdir(self):
-        """Negative test by not finding %USERPROFILE%/.cloud-init."""
+    def test_no_userprofile(self):
+        """Negative test by failing to read the %USERPROFILE% environment
+        variable.
+        """
         data = copy.deepcopy(VALID_CFG["WSL-supported"])
         data["mocks"].append(
             {
-                "name": "WSL_cloudinit_dir_in",
-                "ret": 1,
-                "RET": "",
+                "name": "WSL_run_cmd",
+                "ret": 0,
+                "RET": "\r\n",
+            },
+        )
+        return self._check_via_dict(data, RC_NOT_FOUND)
+
+    def test_no_cloudinitdir_in_userprofile(self):
+        """Negative test by not finding %USERPROFILE%/.cloud-init."""
+        data = copy.deepcopy(VALID_CFG["WSL-supported"])
+        userprofile = self.tmp_dir()
+        data["mocks"].append(
+            {
+                "name": "WSL_profile_dir",
+                "ret": 0,
+                "RET": userprofile,
             },
         )
         return self._check_via_dict(data, RC_NOT_FOUND)
@@ -1198,27 +1388,58 @@ class TestWSL(DsIdentifyBase):
     def test_empty_cloudinitdir(self):
         """Negative test by lack of host filesystem mount points."""
         data = copy.deepcopy(VALID_CFG["WSL-supported"])
-        cloudinitdir = self.tmp_dir()
+        userprofile = self.tmp_dir()
         data["mocks"].append(
             {
-                "name": "WSL_cloudinit_dir_in",
+                "name": "WSL_profile_dir",
                 "ret": 0,
-                "RET": cloudinitdir,
+                "RET": userprofile,
             },
         )
+        cloudinitdir = os.path.join(userprofile, ".cloud-init")
+        os.mkdir(cloudinitdir)
         return self._check_via_dict(data, RC_NOT_FOUND)
 
-    def test_found_via_userdata_version_codename(self):
-        """WLS datasource detected by VERSION_CODENAME when no VERSION_ID"""
+    def test_found_fail_due_instance_name_parsing(self):
+        """WSL datasource detection fail due parsing error even though the file
+        exists.
+        """
         data = copy.deepcopy(VALID_CFG["WSL-supported-debian"])
-        cloudinitdir = self.tmp_dir()
+        userprofile = self.tmp_dir()
         data["mocks"].append(
             {
-                "name": "WSL_cloudinit_dir_in",
+                "name": "WSL_profile_dir",
                 "ret": 0,
-                "RET": cloudinitdir,
+                "RET": userprofile,
             },
         )
+
+        # Forcing WSL_linux2win_path to return a path we'll fail to parse
+        # (missing one / in the begining of the path).
+        for i, m in enumerate(data["mocks"]):
+            if m["name"] == "WSL_linux2win_path":
+                data["mocks"][i]["RET"] = "/wsl.localhost/cant-findme"
+
+        cloudinitdir = os.path.join(userprofile, ".cloud-init")
+        os.mkdir(cloudinitdir)
+        filename = os.path.join(cloudinitdir, "cant-findme.user-data")
+        Path(filename).touch()
+        self._check_via_dict(data, RC_NOT_FOUND)
+        Path(filename).unlink()
+
+    def test_found_via_userdata_version_codename(self):
+        """WSL datasource detected by VERSION_CODENAME when no VERSION_ID"""
+        data = copy.deepcopy(VALID_CFG["WSL-supported-debian"])
+        userprofile = self.tmp_dir()
+        data["mocks"].append(
+            {
+                "name": "WSL_profile_dir",
+                "ret": 0,
+                "RET": userprofile,
+            },
+        )
+        cloudinitdir = os.path.join(userprofile, ".cloud-init")
+        os.mkdir(cloudinitdir)
         filename = os.path.join(cloudinitdir, "debian-trixie.user-data")
         Path(filename).touch()
         self._check_via_dict(data, RC_FOUND, dslist=[data.get("ds"), DS_NONE])
@@ -1229,15 +1450,23 @@ class TestWSL(DsIdentifyBase):
         WSL datasource is found on applicable userdata files in cloudinitdir.
         """
         data = copy.deepcopy(VALID_CFG["WSL-supported"])
-        cloudinitdir = self.tmp_dir()
+        userprofile = self.tmp_dir()
         data["mocks"].append(
             {
-                "name": "WSL_cloudinit_dir_in",
+                "name": "WSL_profile_dir",
                 "ret": 0,
-                "RET": cloudinitdir,
+                "RET": userprofile,
             },
         )
+        cloudinitdir = os.path.join(userprofile, ".cloud-init")
+        os.mkdir(cloudinitdir)
+        up4wcloudinitdir = os.path.join(userprofile, ".ubuntupro/.cloud-init")
+        os.makedirs(up4wcloudinitdir, exist_ok=True)
         userdata_files = [
+            os.path.join(
+                up4wcloudinitdir, MOCK_WSL_INSTANCE_DATA["name"] + ".user-data"
+            ),
+            os.path.join(up4wcloudinitdir, "agent.yaml"),
             os.path.join(
                 cloudinitdir, MOCK_WSL_INSTANCE_DATA["name"] + ".user-data"
             ),
@@ -1370,6 +1599,13 @@ VALID_CFG = {
             P_PRODUCT_UUID: "EC23AEF5-54BE-4843-8D24-8C819F88453E\n",
         },
     },
+    "Ec2-hvm-swap-endianness": {
+        "ds": "Ec2",
+        "mocks": [{"name": "detect_virt", "RET": "kvm", "ret": 0}],
+        "files": {
+            P_PRODUCT_UUID: "AB232AEC-54BE-4843-8D24-8C819F88453E\n",
+        },
+    },
     "Ec2-hvm-env": {
         "ds": "Ec2",
         "mocks": [{"name": "detect_virt_env", "RET": "vm:kvm", "ret": 0}],
@@ -1442,7 +1678,137 @@ VALID_CFG = {
         "ds": "LXD",
         "files": {
             P_BOARD_NAME: "LXD\n",
-            "etc/cloud/cloud.cfg.d/92-broken-maas.cfg": ("MAAS: None"),
+            "etc/cloud/cloud.cfg.d/92-broken-maas.cfg": ("MAAS: None\n"),
+        },
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+    },
+    "flow_sequence-control": {
+        "ds": "None",
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+        "files": {
+            "etc/cloud/cloud.cfg": dedent(
+                """\
+                "datasource-list":  [ None    ]   \n
+                """
+            )
+        },
+    },
+    # no quotes, whitespace between all chars and at the end of line
+    "flow_sequence-1": {
+        "ds": "None",
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+        "files": {
+            "etc/cloud/cloud.cfg": dedent(
+                """\
+                datasource_list :  [ None    ]   \n
+                """
+            )
+        },
+    },
+    # double quotes
+    "flow_sequence-2": {
+        "ds": "None",
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+        "files": {
+            "etc/cloud/cloud.cfg": dedent(
+                """\
+                "datasource_list": [None]
+                """
+            )
+        },
+    },
+    # single quotes
+    "flow_sequence-3": {
+        "ds": "None",
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+        "files": {
+            "etc/cloud/cloud.cfg": dedent(
+                """\
+                'datasource_list': [None]
+                """
+            )
+        },
+    },
+    # no newlines
+    "flow_sequence-4": {
+        "ds": "None",
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+        "files": {
+            "etc/cloud/cloud.cfg": dedent("datasource_list:  [ None     ]")
+        },
+    },
+    # double quoted key, single quoted list member
+    "flow_sequence-5": {
+        "ds": "None",
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+        "files": {
+            "etc/cloud/cloud.cfg": dedent(
+                "\"datasource_list\": [    'None' ]  "
+            )
+        },
+    },
+    # single quotes, whitespace before colon
+    "flow_sequence-6": {
+        "ds": "None",
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+        "files": {
+            "etc/cloud/cloud.cfg": dedent("'datasource_list' : [    None  ]  ")
+        },
+    },
+    "flow_sequence-7": {
+        "ds": "None",
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+        "files": {
+            "etc/cloud/cloud.cfg": dedent(
+                '"datasource_list"     : [    None  ]  '
+            )
+        },
+    },
+    # tabs as part of whitespace between all chars
+    "flow_sequence-8": {
+        "ds": "None",
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+        "files": {
+            "etc/cloud/cloud.cfg": dedent(
+                '"datasource_list"   \t\t  : \t\t[\t   \tNone \t \t ] \t\t '
+            )
+        },
+    },
+    # no quotes, no whitespace
+    "flow_sequence-9": {
+        "ds": "None",
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+        "files": {"etc/cloud/cloud.cfg": dedent("datasource_list: [None]")},
+    },
+    "LXD-kvm-not-azure": {
+        "ds": "Azure",
+        "files": {
+            P_BOARD_NAME: "LXD\n",
+            "etc/cloud/cloud.cfg.d/92-broken-azure.cfg": (
+                "datasource_list:\n - Azure"
+            ),
         },
         # /dev/lxd/sock does not exist and KVM virt-type
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
@@ -1512,9 +1878,9 @@ VALID_CFG = {
             # Also include a datasource list of more than just
             # [NoCloud, None], because that would automatically select
             # NoCloud without checking
-            "/etc/cloud/cloud.cfg": dedent(
+            "etc/cloud/cloud.cfg": dedent(
                 """\
-                datasource_list: [ Azure, Openstack, NoCloud, None ]
+                datasource_list: [ Azure, OpenStack, NoCloud, None ]
                 datasource:
                   NoCloud:
                     user-data: |
@@ -2370,9 +2736,9 @@ VALID_CFG = {
             MOCK_VIRT_IS_WSL,
             MOCK_UNAME_IS_WSL,
             {
-                "name": "WSL_instance_name",
+                "name": "WSL_path",
                 "ret": 0,
-                "RET": MOCK_WSL_INSTANCE_DATA["name"],
+                "RET": "//wsl.localhost/%s/" % MOCK_WSL_INSTANCE_DATA["name"],
             },
         ],
         "files": {
@@ -2393,9 +2759,9 @@ VALID_CFG = {
             MOCK_VIRT_IS_WSL,
             MOCK_UNAME_IS_WSL,
             {
-                "name": "WSL_instance_name",
+                "name": "WSL_path",
                 "ret": 0,
-                "RET": MOCK_WSL_INSTANCE_DATA["name"],
+                "RET": "//wsl.localhost/%s/" % MOCK_WSL_INSTANCE_DATA["name"],
             },
         ],
         "files": {
