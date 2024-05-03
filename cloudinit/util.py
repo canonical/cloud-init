@@ -3309,11 +3309,11 @@ def read_hotplug_enabled_file(paths: "Paths") -> dict:
     content: dict = {"scopes": []}
     try:
         content = json.loads(
-            load_binary_file(paths.get_cpath("hotplug.enabled"), quiet=False)
+            load_text_file(paths.get_cpath("hotplug.enabled"), quiet=False)
         )
     except FileNotFoundError:
         LOG.debug("File not found: %s", paths.get_cpath("hotplug.enabled"))
-    except json.JSONDecodeError as e:
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
         LOG.warning(
             "Ignoring contents of %s because it is not decodable. Error: %s",
             settings.HOTPLUG_ENABLED_FILE,
