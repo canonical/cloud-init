@@ -13,7 +13,7 @@ from typing import Optional
 
 from cloudinit import distros, helpers, subp, util
 from cloudinit.distros.parsers.hostname import HostnameConf
-from cloudinit.settings import PER_INSTANCE, PER_ALWAYS
+from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
