@@ -745,12 +745,7 @@ def status_wrapper(name, args):
     else:
         raise ValueError("unknown name: %s" % name)
 
-    if mode not in (
-        "init",
-        "init-local",
-        "modules-config",
-        "modules-final",
-    ):
+    if mode not in STAGE_NAME:
         raise ValueError(
             "Invalid cloud init mode specified '{0}'".format(mode)
         )

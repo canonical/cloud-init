@@ -470,6 +470,7 @@ class TestSignalHandling:
                 ),
             )
             assert 1 == e.code
+            assert not m_json.call_args[0][1]["v1"]["init"]["errors"]
 
     @mock.patch("cloudinit.cmd.main.atomic_helper.write_json")
     def test_status_wrapper_signal_warnings(
