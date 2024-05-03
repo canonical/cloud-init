@@ -139,6 +139,13 @@ class TestHeaders:
         headers = imds.headers_cb(self.default_url)
         assert list(headers.keys()) == ["Metadata", "x-ms-client-request-id"]
         assert headers.get("Metadata") == "true"
+        uuid = headers.get("x-ms-client-request-id")
+        match = re.search(
+            "^[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-"
+            "[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}$",
+            uuid,
+        )
+        assert match
 
 
 class TestFetchMetadataWithApiFallback:
@@ -179,7 +186,7 @@ class TestFetchMetadataWithApiFallback:
             mock.call(
                 self.default_url,
                 timeout=self.timeout,
-                headers_cb=mock.ANY,
+                headers_cb=imds.headers_cb,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
@@ -224,7 +231,7 @@ class TestFetchMetadataWithApiFallback:
             mock.call(
                 self.default_url,
                 timeout=self.timeout,
-                headers_cb=mock.ANY,
+                headers_cb=imds.headers_cb,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
@@ -232,7 +239,7 @@ class TestFetchMetadataWithApiFallback:
             mock.call(
                 self.fallback_url,
                 timeout=self.timeout,
-                headers_cb=mock.ANY,
+                headers_cb=imds.headers_cb,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
@@ -590,7 +597,7 @@ class TestFetchMetadataWithApiFallback:
             mock.call(
                 self.default_url,
                 timeout=self.timeout,
-                headers_cb=mock.ANY,
+                headers_cb=imds.headers_cb,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
@@ -677,7 +684,7 @@ class TestFetchReprovisionData:
             mock.call(
                 self.url,
                 timeout=self.timeout,
-                headers_cb=mock.ANY,
+                headers_cb=imds.headers_cb,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=False,
