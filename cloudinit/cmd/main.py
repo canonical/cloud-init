@@ -788,7 +788,7 @@ def status_wrapper(name, args):
     if v1[mode]["start"] and not v1[mode]["finished"]:
         # This stage was restarted, which isn't expected.
         LOG.warning(
-            "Unexpected start time found for %s. " "Was this stage restarted?",
+            "Unexpected start time found for %s. Was this stage restarted?",
             STAGE_NAME[mode],
         )
 

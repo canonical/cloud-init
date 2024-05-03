@@ -540,7 +540,8 @@ class TestSignalHandling:
 
         # assert that the status shows recoverable errors
         assert (
-            'Unexpected start time found for Network Stage. Was this stage restarted?'
+            "Unexpected start time found for Network Stage. "
+            "Was this stage restarted?"
             in m_json.call_args[0][1]["v1"]["init"]["recoverable_errors"][
                 "WARNING"
             ]
