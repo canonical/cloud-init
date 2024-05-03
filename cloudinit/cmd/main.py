@@ -815,6 +815,12 @@ def status_wrapper(name, args):
         v1[mode]["errors"].append(str(e))
         raise
     except SystemExit as e:
+        # All calls to sys.exit() will resume running here. Before exiting,
+        # cloud-init will:
+        # 1) Write status.json (and result.json if in Final stage).
+        # 2) Write the final log message containing module run time.
+        # 3) Flush any queued reporting event handlers.
+        #
         # silence a pylint false positive
         # https://github.com/pylint-dev/pylint/issues/9556
         if e.code:  # pylint: disable=using-constant-test
@@ -823,7 +829,6 @@ def status_wrapper(name, args):
             LOG.exception("failed stage %s", mode)
             print_exc("failed run of stage %s" % mode)
             v1[mode]["errors"].append(f"sys.exit({str(e.code)}) called")
-        raise
     finally:
         # It is desireable to write to status.json before exiting, even when
         # sys.exit() is called.
