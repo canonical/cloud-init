@@ -1391,10 +1391,14 @@ def search_for_mirror(candidates):
 
     LOG.debug("search for mirror in candidates: '%s'", candidates)
     for cand in candidates:
-        with suppress(ValueError):
+        try:
             if is_resolvable_url(cand):
                 LOG.debug("found working mirror: '%s'", cand)
                 return cand
+        except ValueError:
+            LOG.debug("Failed to parse url: %s", cand)
+        except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
     return None
 
 

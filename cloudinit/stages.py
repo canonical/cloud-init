@@ -477,7 +477,11 @@ class Init:
         try:
             previous_ds = util.load_text_file(ds_fn, quiet=True).strip()
         except OSError:
-            LOG.info("Couldn't load file %s", previous_ds)
+            pass
+        except UnicodeDecodeError:
+            LOG.warning("Invalid previous datasource in file: %s", previous_ds)
+        except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
         if not previous_ds:
             previous_ds = ds
         util.write_file(ds_fn, "%s\n" % ds)
@@ -509,11 +513,15 @@ class Init:
 
         dp = self.paths.get_cpath("data")
         iid_fn = os.path.join(dp, "instance-id")
+        self._previous_iid = NO_PREVIOUS_INSTANCE_ID
         try:
             self._previous_iid = util.load_text_file(iid_fn).strip()
         except OSError:
-            LOG.info("Couldn't load file %s", iid_fn)
-            self._previous_iid = NO_PREVIOUS_INSTANCE_ID
+            pass
+        except UnicodeDecodeError:
+            LOG.warning("Invalid instance id in file: %s", iid_fn)
+        except Exception as e:
+            LOG.warning("Unhandled exception: %s", e)
 
         LOG.debug("previous iid found to be %s", self._previous_iid)
         return self._previous_iid

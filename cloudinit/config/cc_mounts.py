@@ -406,13 +406,9 @@ def handle_swapcfg(swapcfg):
             LOG.warning(
                 "swap file %s exists. Error reading /proc/swaps", fname
             )
-            return fname
         except Exception as e:
             LOG.warning("Unhandled exception: %s", e)
-            LOG.warning(
-                "swap file %s exists. Error reading /proc/swaps", fname
-            )
-            return fname
+        return fname
 
     try:
         if isinstance(size, str) and size != "auto":
@@ -472,6 +468,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 util.logexc(
                     LOG, "Failed to parse devs from file %s", FSTAB_PATH
                 )
+                raise
 
     device_aliases = cfg.get("device_aliases", {})
 

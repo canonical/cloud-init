@@ -122,7 +122,10 @@ def render_jinja_payload_from_file(
             " '%s'. Try sudo" % instance_data_file
         )
         raise JinjaLoadError(msg) from e
-    except (OSError, ValueError) as e:
+    except (OSError, ValueError, TypeError) as e:
+        raise JinjaLoadError("Loading Jinja instance data failed") from e
+    except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
         raise JinjaLoadError("Loading Jinja instance data failed") from e
 
     rendered_payload = render_jinja_payload(

@@ -190,7 +190,7 @@ class BaseReader(metaclass=abc.ABCMeta):
                 e,
             )
         except Exception as e:
-            LOG.warning("Unhandled exception")
+            LOG.warning("Unhandled exception: %s", e)
             LOG.debug(
                 "Unable to read openstack versions from %s due to: %s",
                 self.base_path,
@@ -317,6 +317,11 @@ class BaseReader(metaclass=abc.ABCMeta):
                 raise BrokenMetadata(
                     "Badly formatted metadata random_seed entry: %s" % e
                 ) from e
+            except Exception as e:
+                LOG.warning("Unhandled exception: %s", e)
+                raise BrokenMetadata(
+                    "Badly formatted metadata random_seed entry: %s" % e
+                ) from e
 
         # load any files that were provided
         files = {}
@@ -403,7 +408,12 @@ class ConfigDriveReader(BaseReader):
         else:
             try:
                 return util.load_json(self._path_read(path))
-            except OSError as e:
+            except (OSError, ValueError) as e:
+                raise BrokenMetadata(
+                    "Failed to process path %s: %s" % (path, e)
+                ) from e
+            except Exception as e:
+                LOG.warning("Unhandled exception: %s", e)
                 raise BrokenMetadata(
                     "Failed to process path %s: %s" % (path, e)
                 ) from e

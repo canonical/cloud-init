@@ -39,6 +39,8 @@ RENAMED_MODULES = {
     "cc_ubuntu_advantage": "cc_ubuntu_pro",  # Renamed 24.1
 }
 
+RunOutput = Tuple[List[str], List[Tuple[str, Exception]]]
+
 
 class ModuleDetails(NamedTuple):
     module: ModuleType
@@ -248,7 +250,7 @@ class Modules:
 
     def _run_modules(
         self, mostly_mods: List[ModuleDetails]
-    ) -> Tuple[List[str], List[Tuple[str, Exception]]]:
+    ) -> RunOutput:
         cc = self.init.cloudify()
         # Return which ones ran
         # and which ones failed + the exception of why it failed
@@ -300,7 +302,7 @@ class Modules:
 
     def run_single(
         self, mod_name: str, args=None, freq=None
-    ) -> Tuple[List[str], List[Tuple[str, Exception]]]:
+    ) -> RunOutput:
         """Run a single module
 
         return: a tuple containing two lists:
@@ -321,7 +323,7 @@ class Modules:
 
     def run_section(
         self, section_name: str
-    ) -> Tuple[List[str], List[Tuple[str, Exception]]]:
+    ) -> RunOutput:
         """Runs all modules in the given section.
 
         section_name - One of the modules lists as defined in

@@ -94,11 +94,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         try:
             import_ids = util.uniq_merge(import_ids)
             import_ids = [str(i) for i in import_ids]
-        except (AttributeError, TypeError):
-            LOG.warning(
-                "User %s is not correctly configured for ssh_import_id", user
-            )
-            continue
         except Exception:
             util.logexc(LOG, "Unhandled configuration for user %s", user)
             continue
@@ -108,11 +103,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
         try:
             import_ssh_ids(import_ids, user)
-        except subp.ProcessExecutionError as exc:
-            util.logexc(
-                LOG, "ssh-import-id failed for: %s %s", user, import_ids
-            )
-            elist.append(exc)
         except Exception as exc:
             util.logexc(
                 LOG, "ssh-import-id failed for: %s %s", user, import_ids
