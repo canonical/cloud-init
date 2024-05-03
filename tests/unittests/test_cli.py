@@ -423,24 +423,23 @@ class TestSignalHandling:
         mock_status_wrapper,
     ):
         """make sure that when sys.exit(N) is called, the correct code is
-        called
+        returned
         """
         for code in [1, 2, 3, 4]:
-            with pytest.raises(SystemExit) as e:
-                cli.status_wrapper(
-                    "init",
-                    FakeArgs(
-                        (
-                            None,
-                            # silence pylint false positive
-                            # https://github.com/pylint-dev/pylint/issues/9557
-                            lambda *_: sys.exit(code),  # pylint: disable=W0640
-                        ),
-                        False,
-                        "bogusmode",
+            rc = cli.status_wrapper(
+                "init",
+                FakeArgs(
+                    (
+                        None,
+                        # silence pylint false positive
+                        # https://github.com/pylint-dev/pylint/issues/9557
+                        lambda *_: sys.exit(code),  # pylint: disable=W0640
                     ),
-                )
-                assert code == e.value.code
+                    False,
+                    "bogusmode",
+                ),
+            )
+            assert 1 == rc
 
             # assert that the status shows errors
             assert (
@@ -454,23 +453,22 @@ class TestSignalHandling:
         m_json,
         mock_status_wrapper,
     ):
-        """if sys.exit() is called from a non-signal handler, make sure that
-        cloud-init doesn't interfere - just re-raise"""
+        """if sys.exit(0) is called, make sure that cloud-init doesn't log a
+        warning"""
         # call status_wrapper() with the required args
-        with pytest.raises(SystemExit) as e:
-            cli.status_wrapper(
-                "init",
-                FakeArgs(
-                    (
-                        None,
-                        lambda *_: sys.exit(1),
-                    ),
-                    False,
-                    "bogusmode",
+        rc = cli.status_wrapper(
+            "init",
+            FakeArgs(
+                (
+                    None,
+                    lambda *_: sys.exit(0),
                 ),
-            )
-            assert 1 == e.code
-            assert not m_json.call_args[0][1]["v1"]["init"]["errors"]
+                False,
+                "bogusmode",
+            ),
+        )
+        assert 0 == rc
+        assert not m_json.call_args[0][1]["v1"]["init"]["errors"]
 
     @mock.patch("cloudinit.cmd.main.atomic_helper.write_json")
     def test_status_wrapper_signal_warnings(
