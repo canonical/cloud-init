@@ -241,7 +241,7 @@ class TestFetchMetadataWithApiFallback:
 
         headers = wrapped_readurl.mock_calls[0].kwargs
         if isinstance(headers, tuple):
-            _, headers_cb, _, _, _ = wrapped_readurl.mock_calls[0].kwargs
+            _, headers_cb, _ = wrapped_readurl.mock_calls[0].kwargs
         else:
             headers_cb = headers["headers_cb"]
         headers = headers_cb(None)
