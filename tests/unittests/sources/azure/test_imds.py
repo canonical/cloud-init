@@ -239,21 +239,13 @@ class TestFetchMetadataWithApiFallback:
             ),
         ]
 
-        headers = wrapped_readurl.mock_calls[0].kwargs
-        if isinstance(headers, tuple):
-            _, headers_cb, _ = wrapped_readurl.mock_calls[0].kwargs
-        else:
-            headers_cb = headers["headers_cb"]
-        headers = headers_cb(None)
-        assert list(headers.keys()) == ["Metadata", "x-ms-client-request-id"]
-        assert headers.get("Metadata") == "true"
-
         assert caplog.record_tuples == [
             (
                 "cloudinit.url_helper",
                 logging.DEBUG,
                 StringMatch(
-                    r"\[0/infinite\] open.*[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-"
+                    r"\[0/infinite\] open.*Metadata.*true"
+                    ".*x-ms-client-request-id.*[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-"
                     "[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}.*"
                 ),
             ),
