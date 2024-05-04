@@ -930,7 +930,7 @@ def mkfs(fs_cfg):
                 LOG.debug("Device %s has required file system", device)
                 return
             else:
-                LOG.warning("Destroying filesystem on %s", device)
+                LOG.debug("Destroying filesystem on %s", device)
 
         else:
             LOG.debug("Device %s is cleared for formatting", device)
