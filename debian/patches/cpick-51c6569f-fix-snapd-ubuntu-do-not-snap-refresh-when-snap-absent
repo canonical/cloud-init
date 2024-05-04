@@ -1,0 +1,63 @@
+From 51c6569f96bee4f91aad5db58765c7abab7ffcdf Mon Sep 17 00:00:00 2001
+From: Chad Smith <chad.smith@canonical.com>
+Date: Fri, 3 May 2024 14:58:01 -0600
+Subject: [PATCH] fix(snapd): ubuntu do not snap refresh when snap absent
+
+No longer call snap refresh when cloud-config user-data
+specifies upgade_packages:true and custom Ubuntu images
+do not have snapd package installed
+
+LP: #2064300
+---
+ cloudinit/distros/ubuntu.py            |  3 ++-
+ tests/unittests/distros/test_ubuntu.py | 32 ++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 1 deletion(-)
+ create mode 100644 tests/unittests/distros/test_ubuntu.py
+
+--- a/cloudinit/distros/ubuntu.py
++++ b/cloudinit/distros/ubuntu.py
+@@ -40,7 +40,8 @@ class Distro(debian.Distro):
+ 
+     def package_command(self, command, args=None, pkgs=None):
+         super().package_command(command, args, pkgs)
+-        self.snap.upgrade_packages()
++        if self.snap.available():
++            self.snap.upgrade_packages()
+ 
+     @property
+     def preferred_ntp_clients(self):
+--- /dev/null
++++ b/tests/unittests/distros/test_ubuntu.py
+@@ -0,0 +1,32 @@
++# This file is part of cloud-init. See LICENSE file for license information.
++import pytest
++
++from cloudinit.distros import fetch
++
++
++class TestPackageCommand:
++    @pytest.mark.parametrize("snap_available", (True, False))
++    def test_package_command_only_refresh_snap_when_available(
++        self, snap_available, mocker
++    ):
++        """Avoid calls to snap refresh when snap command not available."""
++        m_snap_available = mocker.patch(
++            "cloudinit.distros.ubuntu.Snap.available",
++            return_value=snap_available,
++        )
++        m_snap_upgrade_packges = mocker.patch(
++            "cloudinit.distros.ubuntu.Snap.upgrade_packages",
++            return_value=snap_available,
++        )
++        m_apt_run_package_command = mocker.patch(
++            "cloudinit.distros.package_management.apt.Apt.run_package_command",
++        )
++        cls = fetch("ubuntu")
++        distro = cls("ubuntu", {}, None)
++        distro.package_command("upgrade")
++        m_apt_run_package_command.assert_called_once_with("upgrade")
++        m_snap_available.assert_called_once()
++        if snap_available:
++            m_snap_upgrade_packges.assert_called_once()
++        else:
++            m_snap_upgrade_packges.assert_not_called()
