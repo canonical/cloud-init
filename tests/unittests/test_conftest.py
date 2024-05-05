@@ -54,7 +54,11 @@ class TestDisableSubpUsage:
 
 
 class TestDisableSubpUsageInTestSubclass(CiTestCase):
-    """Test that disable_subp_usage doesn't impact CiTestCase's subp logic."""
+    """Test that disable_subp_usage doesn't impact CiTestCase's subp logic.
+
+    Once the rest of the CiTestCase tests are removed, this class
+    should be removed as well.
+    """
 
     def test_using_subp_raises_exception(self):
         with pytest.raises(Exception):
