@@ -10,6 +10,7 @@
 import logging
 import os
 import shlex
+from pathlib import Path
 from textwrap import dedent
 
 from cloudinit import subp, util
@@ -915,7 +916,15 @@ def mkfs(fs_cfg):
     if not partition or partition.isdigit():
         # Handle manual definition of partition
         if partition.isdigit():
+            # nvme support
+            # https://github.com/torvalds/linux/blob/45db3ab/block/partitions
+            # /core.c#L330
+            if device[-1].isdigit():
+                device = f"{device}p"
             device = "%s%s" % (device, partition)
+            if not Path(device).is_block_device():
+                LOG.warning("Path %s does not exist or is not a block device")
+                return
             LOG.debug(
                 "Manual request of partition %s for %s", partition, device
             )
