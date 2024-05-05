@@ -184,6 +184,10 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
         raise AssertionError(
             "Found unexpected errors: %s" % "\n".join(error_logs)
         )
+    if re.findall("Cloud-init.*received SIG", log):
+        raise AssertionError(
+            "Found unexpected signal termination: %s" % "\n".join(error_logs)
+        )
 
     warning_count = log.count("[WARNING]")
     expected_warnings = 0
