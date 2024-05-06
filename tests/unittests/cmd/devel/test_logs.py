@@ -379,7 +379,7 @@ class TestCollectInstallerLogs:
         mocker.patch(
             M_PATH + "INSTALLER_APPORT_SENSITIVE_FILES", apport_sensitive_files
         )
-        logs.collect_installer_logs(
+        logs._collect_installer_logs(
             log_dir=tmpdir.strpath,
             include_userdata=include_userdata,
             verbosity=0,
