@@ -1091,7 +1091,7 @@ def main(sysv_args=None):
                 handle_collect_logs_args,
             )
 
-            logs_parser(parser_collect_logs)
+            logs_parser(parser=parser_collect_logs)
             parser_collect_logs.set_defaults(
                 action=("collect-logs", handle_collect_logs_args)
             )
