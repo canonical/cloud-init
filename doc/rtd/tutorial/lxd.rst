@@ -127,7 +127,7 @@ Which should print the following:
 
 .. code-block::
 
-    Valid cloud-config: system userdata
+    Valid schema user-data
 
 Finally, let us verify that our user data was applied successfully:
 

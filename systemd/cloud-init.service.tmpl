@@ -1,6 +1,7 @@
 ## template:jinja
 [Unit]
-Description=Initial cloud-init job (metadata service crawler)
+# https://cloudinit.readthedocs.io/en/latest/explanation/boot.html
+Description=Cloud-init: Network Stage
 {% if variant not in ["photon", "rhel"] %}
 DefaultDependencies=no
 {% endif %}

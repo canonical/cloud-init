@@ -7,6 +7,8 @@ import stat
 import tempfile
 from base64 import b64decode, b64encode
 
+from cloudinit import util
+
 _DEF_PERMS = 0o644
 LOG = logging.getLogger(__name__)
 
@@ -43,9 +45,9 @@ def write_file(
 
     tf = None
     try:
-        tf = tempfile.NamedTemporaryFile(
-            dir=os.path.dirname(filename), delete=False, mode=omode
-        )
+        dirname = os.path.dirname(filename)
+        util.ensure_dir(dirname)
+        tf = tempfile.NamedTemporaryFile(dir=dirname, delete=False, mode=omode)
         LOG.debug(
             "Atomically writing to file %s (via temporary file %s) - %s: [%o]"
             " %d bytes/chars",

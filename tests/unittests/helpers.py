@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 
 import functools
 import io
@@ -52,6 +53,41 @@ except ImportError:
 SCHEMA_EMPTY_ERROR = (
     "(is too short|should be non-empty|does not have enough properties)"
 )
+
+example_netdev = {
+    "eth0": {
+        "hwaddr": "00:16:3e:16:db:54",
+        "ipv4": [
+            {
+                "bcast": "10.85.130.255",
+                "ip": "10.85.130.116",
+                "mask": "255.255.255.0",
+                "scope": "global",
+            }
+        ],
+        "ipv6": [
+            {
+                "ip": "fd42:baa2:3dd:17a:216:3eff:fe16:db54/64",
+                "scope6": "global",
+            },
+            {"ip": "fe80::216:3eff:fe16:db54/64", "scope6": "link"},
+        ],
+        "up": True,
+    },
+    "lo": {
+        "hwaddr": "",
+        "ipv4": [
+            {
+                "bcast": "",
+                "ip": "127.0.0.1",
+                "mask": "255.0.0.0",
+                "scope": "host",
+            }
+        ],
+        "ipv6": [{"ip": "::1/128", "scope6": "host"}],
+        "up": True,
+    },
+}
 
 
 # Makes the old path start
@@ -161,6 +197,7 @@ class CiTestCase(TestCase):
             self.old_handlers = self.logger.handlers
             self.logger.handlers = [handler]
             self.old_level = logging.root.level
+            self.logger.level = logging.DEBUG
         if self.allowed_subp is True:
             subp.subp = _real_subp
         else:

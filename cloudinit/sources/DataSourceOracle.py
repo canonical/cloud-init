@@ -15,9 +15,11 @@ Notes:
 
 import base64
 import ipaddress
+import json
 import logging
+import time
 from collections import namedtuple
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 from cloudinit import atomic_helper, dmi, net, sources, util
 from cloudinit.distros.networking import NetworkConfig
@@ -27,7 +29,7 @@ from cloudinit.net import (
     get_interfaces_by_mac,
     is_netfail_master,
 )
-from cloudinit.url_helper import UrlError, readurl
+from cloudinit.url_helper import wait_for_url
 
 LOG = logging.getLogger(__name__)
 
@@ -114,7 +116,6 @@ class DataSourceOracle(sources.DataSource):
 
     dsname = "Oracle"
     system_uuid = None
-    vendordata_pure = None
     network_config_sources: Tuple[sources.NetworkConfigSource, ...] = (
         sources.NetworkConfigSource.CMD_LINE,
         sources.NetworkConfigSource.SYSTEM_CFG,
@@ -122,7 +123,11 @@ class DataSourceOracle(sources.DataSource):
         sources.NetworkConfigSource.INITRAMFS,
     )
 
-    _network_config: dict = {"config": [], "version": 1}
+    perform_dhcp_setup = True
+
+    # Careful...these can be overridden in __init__
+    url_max_wait = 30
+    url_timeout = 5
 
     def __init__(self, sys_cfg, *args, **kwargs):
         super(DataSourceOracle, self).__init__(sys_cfg, *args, **kwargs)
@@ -135,6 +140,24 @@ class DataSourceOracle(sources.DataSource):
             ]
         )
         self._network_config_source = KlibcOracleNetworkConfigSource()
+        self._network_config: dict = {"config": [], "version": 1}
+
+        url_params = self.get_url_params()
+        self.url_max_wait = url_params.max_wait_seconds
+        self.url_timeout = url_params.timeout_seconds
+
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        super()._unpickle(ci_pkl_version)
+        if not hasattr(self, "_vnics_data"):
+            setattr(self, "_vnics_data", None)
+        if not hasattr(self, "_network_config_source"):
+            setattr(
+                self,
+                "_network_config_source",
+                KlibcOracleNetworkConfigSource(),
+            )
+        if not hasattr(self, "_network_config"):
+            self._network_config = {"config": [], "version": 1}
 
     def _has_network_config(self) -> bool:
         return bool(self._network_config.get("config", []))
@@ -148,23 +171,31 @@ class DataSourceOracle(sources.DataSource):
 
         self.system_uuid = _read_system_uuid()
 
-        network_context = ephemeral.EphemeralDHCPv4(
-            self.distro,
-            iface=net.find_fallback_nic(),
-            connectivity_url_data={
-                "url": METADATA_PATTERN.format(version=2, path="instance"),
-                "headers": V2_HEADERS,
-            },
-        )
+        if self.perform_dhcp_setup:
+            network_context = ephemeral.EphemeralDHCPv4(
+                self.distro,
+                iface=net.find_fallback_nic(),
+                connectivity_url_data={
+                    "url": METADATA_PATTERN.format(version=2, path="instance"),
+                    "headers": V2_HEADERS,
+                },
+            )
+        else:
+            network_context = util.nullcontext()
         fetch_primary_nic = not self._is_iscsi_root()
         fetch_secondary_nics = self.ds_cfg.get(
             "configure_secondary_nics",
             BUILTIN_DS_CONFIG["configure_secondary_nics"],
         )
+
         with network_context:
             fetched_metadata = read_opc_metadata(
-                fetch_vnics_data=fetch_primary_nic or fetch_secondary_nics
+                fetch_vnics_data=fetch_primary_nic or fetch_secondary_nics,
+                max_wait=self.url_max_wait,
+                timeout=self.url_timeout,
             )
+        if not fetched_metadata:
+            return False
 
         data = self._crawled_metadata = fetched_metadata.instance_data
         self.metadata_address = METADATA_ROOT.format(
@@ -332,6 +363,10 @@ class DataSourceOracle(sources.DataSource):
                 self._network_config["ethernets"][name] = interface_config
 
 
+class DataSourceOracleNet(DataSourceOracle):
+    perform_dhcp_setup = False
+
+
 def _read_system_uuid() -> Optional[str]:
     sys_uuid = dmi.read_dmi_data("system-uuid")
     return None if sys_uuid is None else sys_uuid.lower()
@@ -342,15 +377,20 @@ def _is_platform_viable() -> bool:
     return asset_tag == CHASSIS_ASSET_TAG
 
 
-def _fetch(metadata_version: int, path: str, retries: int = 2) -> dict:
-    return readurl(
-        url=METADATA_PATTERN.format(version=metadata_version, path=path),
-        headers=V2_HEADERS if metadata_version > 1 else None,
-        retries=retries,
-    )._response.json()
+def _url_version(url: str) -> int:
+    return 2 if url.startswith("http://169.254.169.254/opc/v2") else 1
 
 
-def read_opc_metadata(*, fetch_vnics_data: bool = False) -> OpcMetadata:
+def _headers_cb(url: str) -> Optional[Dict[str, str]]:
+    return V2_HEADERS if _url_version(url) == 2 else None
+
+
+def read_opc_metadata(
+    *,
+    fetch_vnics_data: bool = False,
+    max_wait=DataSourceOracle.url_max_wait,
+    timeout=DataSourceOracle.url_timeout,
+) -> Optional[OpcMetadata]:
     """Fetch metadata from the /opc/ routes.
 
     :return:
@@ -359,30 +399,60 @@ def read_opc_metadata(*, fetch_vnics_data: bool = False) -> OpcMetadata:
           The JSON-decoded value of the instance data endpoint on the IMDS
           The JSON-decoded value of the vnics data endpoint if
             `fetch_vnics_data` is True, else None
+        or None if fetching metadata failed
 
     """
     # Per Oracle, there are short windows (measured in milliseconds) throughout
     # an instance's lifetime where the IMDS is being updated and may 404 as a
-    # result.  To work around these windows, we retry a couple of times.
-    metadata_version = 2
-    try:
-        instance_data = _fetch(metadata_version, path="instance")
-    except UrlError:
-        metadata_version = 1
-        instance_data = _fetch(metadata_version, path="instance")
+    # result.
+    urls = [
+        METADATA_PATTERN.format(version=2, path="instance"),
+        METADATA_PATTERN.format(version=1, path="instance"),
+    ]
+    start_time = time.monotonic()
+    instance_url, instance_response = wait_for_url(
+        urls,
+        max_wait=max_wait,
+        timeout=timeout,
+        headers_cb=_headers_cb,
+        sleep_time=0,
+    )
+    if not instance_url:
+        LOG.warning("Failed to fetch IMDS metadata!")
+        return None
+    instance_data = json.loads(instance_response.decode("utf-8"))
+
+    metadata_version = _url_version(instance_url)
 
     vnics_data = None
     if fetch_vnics_data:
-        try:
-            vnics_data = _fetch(metadata_version, path="vnics")
-        except UrlError:
-            util.logexc(LOG, "Failed to fetch IMDS network configuration!")
+        # This allows us to go over the max_wait time by the timeout length,
+        # but if we were able to retrieve instance metadata, that seems
+        # like a worthwhile tradeoff rather than having incomplete metadata.
+        vnics_url, vnics_response = wait_for_url(
+            [METADATA_PATTERN.format(version=metadata_version, path="vnics")],
+            max_wait=max_wait - (time.monotonic() - start_time),
+            timeout=timeout,
+            headers_cb=_headers_cb,
+            sleep_time=0,
+        )
+        if vnics_url:
+            vnics_data = json.loads(vnics_response.decode("utf-8"))
+        else:
+            LOG.warning("Failed to fetch IMDS network configuration!")
     return OpcMetadata(metadata_version, instance_data, vnics_data)
 
 
 # Used to match classes to dependencies
 datasources = [
     (DataSourceOracle, (sources.DEP_FILESYSTEM,)),
+    (
+        DataSourceOracleNet,
+        (
+            sources.DEP_FILESYSTEM,
+            sources.DEP_NETWORK,
+        ),
+    ),
 ]
 
 

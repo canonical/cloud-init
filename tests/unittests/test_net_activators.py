@@ -3,6 +3,7 @@ from contextlib import ExitStack
 from unittest.mock import patch
 
 import pytest
+import yaml
 
 from cloudinit.net.activators import (
     DEFAULT_PRIORITY,
@@ -16,7 +17,6 @@ from cloudinit.net.activators import (
     select_activator,
 )
 from cloudinit.net.network_state import parse_net_config_data
-from cloudinit.safeyaml import load
 
 V1_CONFIG = """\
 version: 1
@@ -234,8 +234,8 @@ NETWORK_MANAGER_BRING_UP_CALL_LIST: list = [
 ]
 
 NETWORKD_BRING_UP_CALL_LIST: list = [
-    ((["ip", "link", "set", "up", "eth0"],), {}),
-    ((["ip", "link", "set", "up", "eth1"],), {}),
+    ((["ip", "link", "set", "dev", "eth0", "up"],), {}),
+    ((["ip", "link", "set", "dev", "eth1", "up"],), {}),
     ((["systemctl", "restart", "systemd-networkd", "systemd-resolved"],), {}),
 ]
 
@@ -274,7 +274,7 @@ class TestActivatorsBringUp:
     def test_bring_up_all_interfaces_v1(
         self, m_subp, activator, expected_call_list, available_mocks
     ):
-        network_state = parse_net_config_data(load(V1_CONFIG))
+        network_state = parse_net_config_data(yaml.safe_load(V1_CONFIG))
         activator.bring_up_all_interfaces(network_state)
         for call in m_subp.call_args_list:
             assert call in expected_call_list
@@ -283,7 +283,7 @@ class TestActivatorsBringUp:
     def test_bring_up_all_interfaces_v2(
         self, m_subp, activator, expected_call_list, available_mocks
     ):
-        network_state = parse_net_config_data(load(V2_CONFIG))
+        network_state = parse_net_config_data(yaml.safe_load(V2_CONFIG))
         activator.bring_up_all_interfaces(network_state)
         for call in m_subp.call_args_list:
             assert call in expected_call_list
@@ -300,8 +300,8 @@ NETWORK_MANAGER_BRING_DOWN_CALL_LIST: list = [
 ]
 
 NETWORKD_BRING_DOWN_CALL_LIST: list = [
-    ((["ip", "link", "set", "down", "eth0"],), {}),
-    ((["ip", "link", "set", "down", "eth1"],), {}),
+    ((["ip", "link", "set", "dev", "eth0", "down"],), {}),
+    ((["ip", "link", "set", "dev", "eth1", "down"],), {}),
 ]
 
 

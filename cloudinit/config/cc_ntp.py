@@ -25,6 +25,7 @@ NR_POOL_SERVERS = 4
 distros = [
     "almalinux",
     "alpine",
+    "azurelinux",
     "centos",
     "cloudlinux",
     "cos",
@@ -107,6 +108,15 @@ DISTRO_CLIENT_CONFIG = {
             "confpath": "/etc/ntp.conf",
             "packages": [],
             "service_name": "ntpd",
+        },
+    },
+    "azurelinux": {
+        "chrony": {
+            "service_name": "chronyd",
+        },
+        "systemd-timesyncd": {
+            "check_exe": "/usr/lib/systemd/systemd-timesyncd",
+            "confpath": "/etc/systemd/timesyncd.conf",
         },
     },
     "centos": {
@@ -223,6 +233,9 @@ DISTRO_CLIENT_CONFIG = {
 
 for distro in ("opensuse-microos", "opensuse-tumbleweed", "opensuse-leap"):
     DISTRO_CLIENT_CONFIG[distro] = DISTRO_CLIENT_CONFIG["opensuse"]
+
+for distro in ("almalinux", "cloudlinux"):
+    DISTRO_CLIENT_CONFIG[distro] = DISTRO_CLIENT_CONFIG["rhel"]
 
 for distro in ("sle_hpc", "sle-micro"):
     DISTRO_CLIENT_CONFIG[distro] = DISTRO_CLIENT_CONFIG["sles"]

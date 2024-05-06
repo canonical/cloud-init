@@ -121,14 +121,10 @@ class Distro(cloudinit.distros.bsd.BSD):
             pw_useradd_cmd.append("-d/nonexistent")
             log_pw_useradd_cmd.append("-d/nonexistent")
         else:
-            pw_useradd_cmd.append(
-                "-d{home_dir}/{name}".format(home_dir=self.home_dir, name=name)
-            )
+            homedir = kwargs.get("homedir", f"{self.home_dir}/{name}")
+            pw_useradd_cmd.append("-d" + homedir)
             pw_useradd_cmd.append("-m")
-            log_pw_useradd_cmd.append(
-                "-d{home_dir}/{name}".format(home_dir=self.home_dir, name=name)
-            )
-
+            log_pw_useradd_cmd.append("-d" + homedir)
             log_pw_useradd_cmd.append("-m")
 
         # Run the command

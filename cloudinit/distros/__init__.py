@@ -68,6 +68,7 @@ OSFAMILIES = {
     "redhat": [
         "almalinux",
         "amazon",
+        "azurelinux",
         "centos",
         "cloudlinux",
         "eurolinux",
@@ -238,21 +239,29 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         # First install packages using package manager(s)
         # supported by the distro
-        uninstalled = []
+        total_failed: Set[str] = set()
         for manager in self.package_managers:
-            to_try = (
-                packages_by_manager.get(manager.__class__, set())
-                | generic_packages
+
+            manager_packages = packages_by_manager.get(
+                manager.__class__, set()
             )
+
+            to_try = manager_packages | generic_packages
+            # Remove any failed we will try for this package manager
+            total_failed.difference_update(to_try)
+            if not manager.available():
+                LOG.debug("Package manager '%s' not available", manager.name)
+                total_failed.update(to_try)
+                continue
             if not to_try:
                 continue
-            uninstalled = manager.install_packages(to_try)
-            failed = {
-                pkg for pkg in uninstalled if pkg not in generic_packages
-            }
+            failed = manager.install_packages(to_try)
+            total_failed.update(failed)
             if failed:
                 LOG.info(error_message, failed)
-            generic_packages = set(uninstalled)
+            # Ensure we don't attempt to install packages specific to
+            # one particular package manager using another package manager
+            generic_packages = set(failed) - manager_packages
 
         # Now attempt any specified package managers not explicitly supported
         # by distro
@@ -260,14 +269,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if manager_type.name in [p.name for p in self.package_managers]:
                 # We already installed/attempted these; don't try again
                 continue
-            uninstalled.extend(
+            total_failed.update(
                 manager_type.from_config(
                     self._runner, self._cfg
                 ).install_packages(pkglist=packages)
             )
 
-        if uninstalled:
-            raise PackageInstallerError(error_message % uninstalled)
+        if total_failed:
+            raise PackageInstallerError(error_message % total_failed)
 
     @property
     def dhcp_client(self) -> dhcp.DhcpClient:
@@ -388,6 +397,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     def update_package_sources(self):
         for manager in self.package_managers:
+            if not manager.available():
+                LOG.debug(
+                    "Skipping update for package manager '%s': not available.",
+                    manager.name,
+                )
+                continue
             try:
                 manager.update_package_sources()
             except Exception as e:
@@ -1119,9 +1134,10 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 subp.subp(["usermod", "-a", "-G", name, member])
                 LOG.info("Added user '%s' to group '%s'", member, name)
 
-    def shutdown_command(self, *, mode, delay, message):
+    @classmethod
+    def shutdown_command(cls, *, mode, delay, message):
         # called from cc_power_state_change.load_power_state
-        command = ["shutdown", self.shutdown_options_map[mode]]
+        command = ["shutdown", cls.shutdown_options_map[mode]]
         try:
             if delay != "now":
                 delay = "+%d" % int(delay)
@@ -1328,6 +1344,60 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 reason="neither eject nor /lib/udev/cdrom_id are found",
             )
         subp.subp(cmd)
+
+    @staticmethod
+    def get_mapped_device(blockdev: str) -> Optional[str]:
+        """Returns underlying block device for a mapped device.
+
+        If it is mapped, blockdev will usually take the form of
+        /dev/mapper/some_name
+
+        If blockdev is a symlink pointing to a /dev/dm-* device, return
+        the device pointed to. Otherwise, return None.
+        """
+        realpath = os.path.realpath(blockdev)
+        if realpath.startswith("/dev/dm-"):
+            LOG.debug(
+                "%s is a mapped device pointing to %s", blockdev, realpath
+            )
+            return realpath
+        return None
+
+    @staticmethod
+    def device_part_info(devpath: str) -> tuple:
+        """convert an entry in /dev/ to parent disk and partition number
+
+        input of /dev/vdb or /dev/disk/by-label/foo
+        rpath is hopefully a real-ish path in /dev (vda, sdb..)
+        """
+        rpath = os.path.realpath(devpath)
+
+        bname = os.path.basename(rpath)
+        syspath = "/sys/class/block/%s" % bname
+
+        if not os.path.exists(syspath):
+            raise ValueError("%s had no syspath (%s)" % (devpath, syspath))
+
+        ptpath = os.path.join(syspath, "partition")
+        if not os.path.exists(ptpath):
+            raise TypeError("%s not a partition" % devpath)
+
+        ptnum = util.load_text_file(ptpath).rstrip()
+
+        # for a partition, real syspath is something like:
+        # /sys/devices/pci0000:00/0000:00:04.0/virtio1/block/vda/vda1
+        rsyspath = os.path.realpath(syspath)
+        disksyspath = os.path.dirname(rsyspath)
+
+        diskmajmin = util.load_text_file(
+            os.path.join(disksyspath, "dev")
+        ).rstrip()
+        diskdevpath = os.path.realpath("/dev/block/%s" % diskmajmin)
+
+        # diskdevpath has something like 253:0
+        # and udev has put links in /dev/block/253:0 to the device
+        # name in /dev/
+        return diskdevpath, ptnum
 
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):

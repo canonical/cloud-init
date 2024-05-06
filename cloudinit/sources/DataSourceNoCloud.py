@@ -32,6 +32,8 @@ class DataSourceNoCloud(sources.DataSource):
         ]
         self.seed_dir = None
         self.supported_seed_starts = ("/", "file://")
+        self._network_config = None
+        self._network_eni = None
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -209,9 +211,6 @@ class DataSourceNoCloud(sources.DataSource):
 
     @property
     def platform_type(self):
-        # Handle upgrade path of pickled ds
-        if not hasattr(self, "_platform_type"):
-            self._platform_type = None
         if not self._platform_type:
             self._platform_type = "lxd" if util.is_lxd() else "nocloud"
         return self._platform_type
@@ -289,7 +288,9 @@ def load_cmdline_data(fill, cmdline=None):
 
         seedfrom = fill.get("seedfrom")
         if seedfrom:
-            if seedfrom.startswith(("http://", "https://")):
+            if seedfrom.startswith(
+                ("http://", "https://", "ftp://", "ftps://")
+            ):
                 fill["dsmode"] = sources.DSMODE_NETWORK
             elif seedfrom.startswith(("file://", "/")):
                 fill["dsmode"] = sources.DSMODE_LOCAL
@@ -366,7 +367,12 @@ def _merge_new_seed(cur, seeded):
 class DataSourceNoCloudNet(DataSourceNoCloud):
     def __init__(self, sys_cfg, distro, paths):
         DataSourceNoCloud.__init__(self, sys_cfg, distro, paths)
-        self.supported_seed_starts = ("http://", "https://")
+        self.supported_seed_starts = (
+            "http://",
+            "https://",
+            "ftp://",
+            "ftps://",
+        )
 
     def ds_detect(self):
         """Check dmi and kernel commandline for dsname
@@ -415,3 +421,14 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
+
+
+if __name__ == "__main__":
+    from sys import argv
+
+    logging.basicConfig(level=logging.DEBUG)
+    seedfrom = argv[1]
+    md_seed, ud, vd = util.read_seeded(seedfrom)
+    print(f"seeded: {md_seed}")
+    print(f"ud: {ud}")
+    print(f"vd: {vd}")

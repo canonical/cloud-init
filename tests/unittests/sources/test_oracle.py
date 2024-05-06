@@ -4,6 +4,7 @@ import base64
 import copy
 import json
 import logging
+from itertools import count
 from unittest import mock
 
 import pytest
@@ -14,7 +15,6 @@ from cloudinit.sources import NetworkConfigSource
 from cloudinit.sources.DataSourceOracle import OpcMetadata
 from cloudinit.url_helper import UrlError
 from tests.unittests import helpers as test_helpers
-from tests.unittests.helpers import does_not_raise
 
 DS_PATH = "cloudinit.sources.DataSourceOracle"
 
@@ -730,84 +730,70 @@ class TestReadOpcMetadata:
         assert instance_data == metadata.instance_data
         assert vnics_data == metadata.vnics_data
 
-    # No need to actually wait between retries in the tests
     @mock.patch("cloudinit.url_helper.time.sleep", lambda _: None)
-    @pytest.mark.parametrize(
-        "v2_failure_count,v1_failure_count,expected_body,expectation",
-        [
-            (1, 0, json.loads(OPC_V2_METADATA), does_not_raise()),
-            (2, 0, json.loads(OPC_V2_METADATA), does_not_raise()),
-            (3, 0, json.loads(OPC_V1_METADATA), does_not_raise()),
-            (3, 1, json.loads(OPC_V1_METADATA), does_not_raise()),
-            (3, 2, json.loads(OPC_V1_METADATA), does_not_raise()),
-            (3, 3, None, pytest.raises(UrlError)),
-        ],
+    @mock.patch("cloudinit.url_helper.time.monotonic", side_effect=count(0, 1))
+    @mock.patch("cloudinit.url_helper.readurl", side_effect=UrlError)
+    def test_retry(self, m_readurl, m_time):
+        # Since wait_for_url has its own retry tests, just verify that we
+        # attempted to contact both endpoints multiple times
+        oracle.read_opc_metadata()
+        assert len(m_readurl.call_args_list) > 3
+        assert (
+            m_readurl.call_args_list[0][0][0]
+            == "http://169.254.169.254/opc/v2/instance/"
+        )
+        assert (
+            m_readurl.call_args_list[1][0][0]
+            == "http://169.254.169.254/opc/v1/instance/"
+        )
+        assert (
+            m_readurl.call_args_list[2][0][0]
+            == "http://169.254.169.254/opc/v2/instance/"
+        )
+        assert (
+            m_readurl.call_args_list[3][0][0]
+            == "http://169.254.169.254/opc/v1/instance/"
+        )
+
+    @mock.patch("cloudinit.url_helper.time.sleep", lambda _: None)
+    @mock.patch("cloudinit.url_helper.time.monotonic", side_effect=[0, 11])
+    @mock.patch(
+        "cloudinit.sources.DataSourceOracle.wait_for_url",
+        return_value=("http://hi", b'{"some": "value"}'),
     )
-    def test_retries(
-        self,
-        v2_failure_count,
-        v1_failure_count,
-        expected_body,
-        expectation,
-        mocked_responses,
-    ):
-        # Workaround https://github.com/getsentry/responses/pull/171
-        # This mocking can be unrolled when Bionic is EOL
-        url_v2_call_count = 0
+    def test_fetch_vnics_max_wait(self, m_wait_for_url, m_time):
+        oracle.read_opc_metadata(fetch_vnics_data=True)
+        assert m_wait_for_url.call_count == 2
+        # 19 because start time was 0, next time was 11 and max wait is 30
+        assert m_wait_for_url.call_args_list[-1][1]["max_wait"] == 19
 
-        def url_v2_callback(request):
-            nonlocal url_v2_call_count
-            url_v2_call_count += 1
-            if url_v2_call_count <= v2_failure_count:
-                return (
-                    404,
-                    request.headers,
-                    f"403 Client Error: Forbidden for url: {url_v2}",
-                )
-            return 200, request.headers, OPC_V2_METADATA
-
-        url_v2 = "http://169.254.169.254/opc/v2/instance/"
-        mocked_responses.add_callback(
-            responses.GET, url_v2, callback=url_v2_callback
-        )
-
-        # Workaround https://github.com/getsentry/responses/pull/171
-        # This mocking can be unrolled when Bionic is EOL
-        url_v1_call_count = 0
-
-        def url_v1_callback(request):
-            nonlocal url_v1_call_count
-            url_v1_call_count += 1
-            if url_v1_call_count <= v1_failure_count:
-                return (
-                    404,
-                    request.headers,
-                    f"403 Client Error: Forbidden for url: {url_v1}",
-                )
-            return 200, request.headers, OPC_V1_METADATA
-
-        url_v1 = "http://169.254.169.254/opc/v1/instance/"
-        mocked_responses.add_callback(
-            responses.GET, url_v1, callback=url_v1_callback
-        )
-
-        with expectation:
-            assert expected_body == oracle.read_opc_metadata().instance_data
+    @mock.patch("cloudinit.url_helper.time.sleep", lambda _: None)
+    @mock.patch("cloudinit.url_helper.time.monotonic", side_effect=[0, 1000])
+    @mock.patch(
+        "cloudinit.sources.DataSourceOracle.wait_for_url",
+        return_value=("http://hi", b'{"some": "value"}'),
+    )
+    def test_attempt_vnics_after_max_wait_expire(self, m_wait_for_url, m_time):
+        oracle.read_opc_metadata(fetch_vnics_data=True)
+        assert m_wait_for_url.call_count == 2
+        assert m_wait_for_url.call_args_list[-1][1]["max_wait"] < 0
 
     # No need to actually wait between retries in the tests
     @mock.patch("cloudinit.url_helper.time.sleep", lambda _: None)
     def test_fetch_vnics_error(self, caplog):
-        def mocked_fetch(*args, path="instance", **kwargs):
-            if path == "vnics":
-                raise UrlError("cause")
+        def m_wait(*args, **kwargs):
+            for url in args[0]:
+                if "vnics" in url:
+                    return False, None
+            return ("http://localhost", b"{}")
 
-        with mock.patch(DS_PATH + "._fetch", side_effect=mocked_fetch):
+        with mock.patch(DS_PATH + ".wait_for_url", side_effect=m_wait):
             opc_metadata = oracle.read_opc_metadata(fetch_vnics_data=True)
             assert None is opc_metadata.vnics_data
         assert (
             logging.WARNING,
             "Failed to fetch IMDS network configuration!",
-        ) == caplog.record_tuples[-2][1:]
+        ) == caplog.record_tuples[-1][1:], caplog.record_tuples
 
 
 @pytest.mark.parametrize(

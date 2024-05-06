@@ -400,6 +400,20 @@ OS_RELEASE_MARINER = dedent(
 """
 )
 
+OS_RELEASE_AZURELINUX = dedent(
+    """\
+    NAME="Microsoft Azure Linux"
+    VERSION="3.0.20240206"
+    ID=azurelinux
+    VERSION_ID="3.0"
+    PRETTY_NAME="Microsoft Azure Linux 3.0"
+    ANSI_COLOR="1;34"
+    HOME_URL="https://aka.ms/azurelinux"
+    BUG_REPORT_URL="https://aka.ms/azurelinux"
+    SUPPORT_URL="https://aka.ms/azurelinux"
+"""
+)
+
 
 @pytest.mark.usefixtures("fake_filesystem")
 class TestUtil:
@@ -1249,6 +1263,16 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(("mariner", "2.0", ""), dist)
 
+    @mock.patch("cloudinit.util.load_text_file")
+    def test_get_linux_azurelinux_os_release(
+        self, m_os_release, m_path_exists
+    ):
+        """Verify we get the correct name and machine arch on Azure Linux"""
+        m_os_release.return_value = OS_RELEASE_AZURELINUX
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(("azurelinux", "3.0", ""), dist)
+
     @mock.patch(M_PATH + "load_text_file")
     def test_get_linux_openmandriva(self, m_os_release, m_path_exists):
         """Verify we get the correct name and machine arch on OpenMandriva"""
@@ -1310,6 +1334,7 @@ class TestGetVariant:
             ({"system": "Linux", "dist": ("almalinux",)}, "almalinux"),
             ({"system": "linux", "dist": ("alpine",)}, "alpine"),
             ({"system": "linux", "dist": ("arch",)}, "arch"),
+            ({"system": "linux", "dist": ("azurelinux",)}, "azurelinux"),
             ({"system": "linux", "dist": ("centos",)}, "centos"),
             ({"system": "linux", "dist": ("cloudlinux",)}, "cloudlinux"),
             ({"system": "linux", "dist": ("debian",)}, "debian"),
@@ -2504,7 +2529,7 @@ class TestReadSeeded:
                 else:
                     _url, _, md_type = parsed_url.netloc.partition("8008")
                 path = f"/{md_type}"
-            return url_helper.StringResponse(f"{path}: 1")
+            return url_helper.StringResponse(f"{path}: 1", "http://url/")
 
         m_read.side_effect = fake_response
 
@@ -3220,3 +3245,39 @@ class TestReadHotplugEnabledFile:
         assert {"scopes": ["network"]} == util.read_hotplug_enabled_file(
             MockPath(target_file.strpath)
         )
+
+
+class TestLogExc:
+    def test_logexc(self, caplog):
+        try:
+            _ = 1 / 0
+        except Exception as _:
+            util.logexc(LOG, "an error occurred")
+
+        assert caplog.record_tuples == [
+            (
+                "tests.unittests.test_util",
+                logging.WARNING,
+                "an error occurred",
+            ),
+            ("tests.unittests.test_util", logging.DEBUG, "an error occurred"),
+        ]
+
+    @pytest.mark.parametrize(
+        "log_level",
+        [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR],
+    )
+    def test_logexc_with_log_level(self, caplog, log_level):
+        try:
+            _ = 1 / 0
+        except Exception as _:
+            util.logexc(LOG, "an error occurred", log_level=log_level)
+
+        assert caplog.record_tuples == [
+            (
+                "tests.unittests.test_util",
+                log_level,
+                "an error occurred",
+            ),
+            ("tests.unittests.test_util", logging.DEBUG, "an error occurred"),
+        ]

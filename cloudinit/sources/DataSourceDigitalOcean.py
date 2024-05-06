@@ -48,6 +48,7 @@ class DataSourceDigitalOcean(sources.DataSource):
         self.use_ip4LL = self.ds_cfg.get("use_ip4LL", MD_USE_IPV4LL)
         self.wait_retry = self.ds_cfg.get("wait_retry", MD_WAIT_RETRY)
         self._network_config = None
+        self.metadata_full = None
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         super()._unpickle(ci_pkl_version)
@@ -93,7 +94,7 @@ class DataSourceDigitalOcean(sources.DataSource):
         self.userdata_raw = md.get("user_data", None)
 
         if ipv4LL_nic:
-            do_helper.del_ipv4_link_local(ipv4LL_nic)
+            do_helper.del_ipv4_link_local(self.distro, ipv4LL_nic)
 
         return True
 

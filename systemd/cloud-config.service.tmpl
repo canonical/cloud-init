@@ -1,6 +1,7 @@
 ## template:jinja
 [Unit]
-Description=Apply the settings specified in cloud-config
+# https://cloudinit.readthedocs.io/en/latest/explanation/boot.html
+Description=Cloud-init: Config Stage
 After=network-online.target cloud-config.target
 Before=systemd-user-sessions.service
 Wants=network-online.target cloud-config.target

@@ -9,6 +9,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import ftplib
+import io
 import json
 import logging
 import os
@@ -16,17 +18,17 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from email.utils import parsedate
-from errno import ENOENT
 from functools import partial
 from http.client import NOT_FOUND
 from itertools import count
+from ssl import create_default_context
 from typing import Any, Callable, Iterator, List, Optional, Tuple, Union
-from urllib.parse import quote, urlparse, urlunparse
+from urllib.parse import quote, urlparse, urlsplit, urlunparse
 
 import requests
 from requests import exceptions
 
-from cloudinit import version
+from cloudinit import util, version
 
 LOG = logging.getLogger(__name__)
 
@@ -59,7 +61,164 @@ def combine_url(base, *add_ons):
     return url
 
 
-def read_file_or_url(url, **kwargs) -> Union["FileResponse", "UrlResponse"]:
+def ftp_get_return_code_from_exception(exc) -> int:
+    """helper for read_ftps to map return codes to a number"""
+    # ftplib doesn't expose error codes, so use this lookup table
+    ftp_error_codes = {
+        ftplib.error_reply: 300,  # unexpected [123]xx reply
+        ftplib.error_temp: 400,  # 4xx errors
+        ftplib.error_perm: 500,  # 5xx errors
+        ftplib.error_proto: 600,  # response does not begin with [1-5]
+        EOFError: 700,  # made up
+        # OSError is also possible. Use OSError.errno for that.
+    }
+    code = ftp_error_codes.get(type(exc))  # pyright: ignore
+    if not code:
+        if isinstance(exc, OSError):
+            code = exc.errno
+        else:
+            LOG.warning(
+                "Unexpected exception type while connecting to ftp server."
+            )
+            code = -99
+    return code
+
+
+def read_ftps(url: str, timeout: float = 5.0, **kwargs: dict) -> "FtpResponse":
+    """connect to URL using ftp over TLS and read a file
+
+    when using strict mode (ftps://), raise exception in event of failure
+    when not using strict mode (ftp://), fall back to using unencrypted ftp
+
+    url: string containing the desination to read a file from. The url is
+        parsed with urllib.urlsplit to identify username, password, host,
+        path, and port in the following format:
+            ftps://[username:password@]host[:port]/[path]
+        host is the only required component
+    timeout: maximum time for the connection to take
+    kwargs: unused, for compatibility with read_url
+    returns: UrlResponse
+    """
+
+    url_parts = urlsplit(url)
+    if not url_parts.hostname:
+        raise UrlError(
+            cause="Invalid url provided", code=NOT_FOUND, headers=None, url=url
+        )
+    with io.BytesIO() as buffer:
+        port = url_parts.port or 21
+        user = url_parts.username or "anonymous"
+        if "ftps" == url_parts.scheme:
+            try:
+                ftp_tls = ftplib.FTP_TLS(
+                    context=create_default_context(),
+                )
+                LOG.debug(
+                    "Attempting to connect to %s via port [%s] over tls.",
+                    url,
+                    port,
+                )
+                ftp_tls.connect(
+                    host=url_parts.hostname,
+                    port=port,
+                    timeout=timeout or 5.0,  # uses float internally
+                )
+            except ftplib.all_errors as e:
+                code = ftp_get_return_code_from_exception(e)
+                raise UrlError(
+                    cause=(
+                        "Reading file from server over tls "
+                        f"failed for url {url} [{code}]"
+                    ),
+                    code=code,
+                    headers=None,
+                    url=url,
+                ) from e
+            LOG.debug("Attempting to login with user [%s]", user)
+            try:
+                ftp_tls.login(
+                    user=user,
+                    passwd=url_parts.password or "",
+                )
+            except ftplib.error_perm as e:
+                LOG.warning(
+                    "Attempted to connect to an insecure ftp server but used "
+                    "a scheme of ftps://, which is not allowed. Use ftp:// "
+                    "to allow connecting to insecure ftp servers."
+                )
+                raise UrlError(
+                    cause=(
+                        "Attempted to connect to an insecure ftp server but "
+                        "used a scheme of ftps://, which is not allowed. Use "
+                        "ftp:// to allow connecting to insecure ftp servers."
+                    ),
+                    code=500,
+                    headers=None,
+                    url=url,
+                ) from e
+            LOG.debug("Creating a secure connection")
+            ftp_tls.prot_p()
+            LOG.debug("Reading file: %s", url_parts.path)
+            ftp_tls.retrbinary(f"RETR {url_parts.path}", callback=buffer.write)
+
+            response = FtpResponse(buffer.getvalue(), url)
+            LOG.debug("Closing connection")
+            ftp_tls.close()
+            return response
+        else:
+            try:
+                ftp = ftplib.FTP()
+                LOG.debug(
+                    "Attempting to connect to %s via port %s.", url, port
+                )
+                ftp.connect(
+                    host=url_parts.hostname,
+                    port=port,
+                    timeout=timeout or 5.0,  # uses float internally
+                )
+            except ftplib.all_errors as e:
+                code = ftp_get_return_code_from_exception(e)
+                raise UrlError(
+                    cause=(
+                        "Reading file from ftp server"
+                        f" failed for url {url} [{code}]"
+                    ),
+                    code=code,
+                    headers=None,
+                    url=url,
+                ) from e
+            LOG.debug("Attempting to login with user [%s]", user)
+            ftp.login(
+                user=user,
+                passwd=url_parts.password or "",
+            )
+            LOG.debug("Reading file: %s", url_parts.path)
+            ftp.retrbinary(f"RETR {url_parts.path}", callback=buffer.write)
+            response = FtpResponse(buffer.getvalue(), url)
+            LOG.debug("Closing connection")
+            ftp.close()
+            return response
+
+
+def _read_file(path: str, **kwargs) -> "FileResponse":
+    """read a binary file and return a FileResponse
+
+    matches function signature with read_ftps and read_url
+    """
+    if kwargs.get("data"):
+        LOG.warning("Unable to post data to file resource %s", path)
+    try:
+        contents = util.load_binary_file(path)
+        return FileResponse(contents, path)
+    except FileNotFoundError as e:
+        raise UrlError(cause=e, code=NOT_FOUND, headers=None, url=path) from e
+    except IOError as e:
+        raise UrlError(cause=e, code=e.errno, headers=None, url=path) from e
+
+
+def read_file_or_url(
+    url, **kwargs
+) -> Union["FileResponse", "UrlResponse", "FtpResponse"]:
     """Wrapper function around readurl to allow passing a file path as url.
 
     When url is not a local file path, passthrough any kwargs to readurl.
@@ -68,22 +227,19 @@ def read_file_or_url(url, **kwargs) -> Union["FileResponse", "UrlResponse"]:
     parameters. See: call-signature of readurl in this module for param docs.
     """
     url = url.lstrip()
-    if url.startswith("/"):
-        url = "file://%s" % url
-    if url.lower().startswith("file://"):
-        if kwargs.get("data"):
-            LOG.warning("Unable to post data to file resource %s", url)
-        file_path = url[len("file://") :]
-        try:
-            with open(file_path, "rb") as fp:
-                contents = fp.read()
-        except IOError as e:
-            code = e.errno
-            if e.errno == ENOENT:
-                code = NOT_FOUND
-            raise UrlError(cause=e, code=code, headers=None, url=url) from e
-        return FileResponse(file_path, contents=contents)
+    try:
+        parsed = urlparse(url)
+    except ValueError as e:
+        raise UrlError(cause=e, url=url) from e
+    scheme = parsed.scheme
+    if scheme == "file" or (url and "/" == url[0]):
+        return _read_file(parsed.path, **kwargs)
+    elif scheme in ("ftp", "ftps"):
+        return read_ftps(url, **kwargs)
+    elif scheme in ("http", "https"):
+        return readurl(url, **kwargs)
     else:
+        LOG.warning("Attempting unknown protocol %s", scheme)
         return readurl(url, **kwargs)
 
 
@@ -91,11 +247,11 @@ def read_file_or_url(url, **kwargs) -> Union["FileResponse", "UrlResponse"]:
 # read_file_or_url can return this or that object and the
 # 'user' of those objects will not need to know the difference.
 class StringResponse:
-    def __init__(self, contents, code=200):
+    def __init__(self, contents, url, code=200):
         self.code = code
         self.headers = {}
         self.contents = contents
-        self.url = None
+        self.url = url
 
     def ok(self, *args, **kwargs):
         if self.code != 200:
@@ -107,9 +263,13 @@ class StringResponse:
 
 
 class FileResponse(StringResponse):
-    def __init__(self, path, contents, code=200):
-        StringResponse.__init__(self, contents, code=code)
-        self.url = path
+    def __init__(self, contents: bytes, url: str, code=200):
+        super().__init__(contents, url, code=code)
+
+
+class FtpResponse(StringResponse):
+    def __init__(self, contents: bytes, url: str):
+        super().__init__(contents, url)
 
 
 class UrlResponse:
@@ -123,10 +283,10 @@ class UrlResponse:
         return self._response.content
 
     @property
-    def url(self):
+    def url(self) -> str:
         return self._response.url
 
-    def ok(self, redirects_ok=False):
+    def ok(self, redirects_ok=False) -> bool:
         upper = 300
         if redirects_ok:
             upper = 400
@@ -140,7 +300,7 @@ class UrlResponse:
         return self._response.headers
 
     @property
-    def code(self):
+    def code(self) -> int:
         return self._response.status_code
 
     def __str__(self):
@@ -281,11 +441,12 @@ def readurl(
     if sec_between is None:
         sec_between = -1
 
-    excps = []
+    if session is None:
+        session = requests.Session()
+
     # Handle retrying ourselves since the built-in support
     # doesn't handle sleeping between tries...
-    # Infinitely retry if infinite is True
-    for i in count() if infinite else range(manual_tries):
+    for i in count():
         req_args["headers"] = headers_cb(url)
         filtered_req_args = {}
         for (k, v) in req_args.items():
@@ -300,7 +461,6 @@ def readurl(
             else:
                 filtered_req_args[k] = v
         try:
-
             if log_req_resp:
                 LOG.debug(
                     "[%s/%s] open '%s' with %s configuration",
@@ -310,11 +470,7 @@ def readurl(
                     filtered_req_args,
                 )
 
-            if session is None:
-                session = requests.Session()
-
-            with session as sess:
-                r = sess.request(**req_args)
+            r = session.request(**req_args)
 
             if check_status:
                 r.raise_for_status()
@@ -329,6 +485,10 @@ def readurl(
             # subclass for responses, so add our own backward-compat
             # attrs
             return UrlResponse(r)
+        except exceptions.SSLError as e:
+            # ssl exceptions are not going to get fixed by waiting a
+            # few seconds
+            raise UrlError(e, url=url) from e
         except exceptions.RequestException as e:
             if (
                 isinstance(e, (exceptions.HTTPError))
@@ -337,29 +497,26 @@ def readurl(
                     e.response, "status_code"
                 )
             ):
-                excps.append(
-                    UrlError(
-                        e,
-                        code=e.response.status_code,
-                        headers=e.response.headers,
-                        url=url,
-                    )
+                url_error = UrlError(
+                    e,
+                    code=e.response.status_code,
+                    headers=e.response.headers,
+                    url=url,
                 )
             else:
-                excps.append(UrlError(e, url=url))
-                if isinstance(e, exceptions.SSLError):
-                    # ssl exceptions are not going to get fixed by waiting a
-                    # few seconds
-                    break
-            if exception_cb and not exception_cb(req_args.copy(), excps[-1]):
+                url_error = UrlError(e, url=url)
+
+            if exception_cb and not exception_cb(req_args.copy(), url_error):
                 # if an exception callback was given, it should return True
                 # to continue retrying and False to break and re-raise the
                 # exception
-                break
-            if (infinite and sec_between > 0) or (
-                i + 1 < manual_tries and sec_between > 0
-            ):
+                raise url_error from e
 
+            will_retry = infinite or (i + 1 < manual_tries)
+            if not will_retry:
+                raise url_error from e
+
+            if sec_between > 0:
                 if log_req_resp:
                     LOG.debug(
                         "Please wait %s seconds while we wait to try again",
@@ -367,7 +524,7 @@ def readurl(
                     )
                 time.sleep(sec_between)
 
-    raise excps[-1]
+    raise RuntimeError("This path should be unreachable...")
 
 
 def _run_func_with_delay(
@@ -473,14 +630,14 @@ def dual_stack(
 
 def wait_for_url(
     urls,
-    max_wait=None,
-    timeout=None,
+    max_wait: float = float("inf"),
+    timeout: Optional[float] = None,
     status_cb: Callable = LOG.debug,  # some sources use different log levels
     headers_cb: Optional[Callable] = None,
     headers_redact=None,
-    sleep_time: int = 1,
+    sleep_time: Optional[float] = None,
     exception_cb: Optional[Callable] = None,
-    sleep_time_cb: Optional[Callable[[Any, int], int]] = None,
+    sleep_time_cb: Optional[Callable[[Any, float], float]] = None,
     request_method: str = "",
     connect_synchronously: bool = True,
     async_delay: float = 0.150,
@@ -496,10 +653,15 @@ def wait_for_url(
     headers_cb: call method with single argument of url to get headers
                 for request.
     headers_redact: a list of header names to redact from the log
+    sleep_time: Amount of time to sleep between retries. If this and
+                sleep_time_cb are None, the default sleep time
+                defaults to 1 second and increases by 1 seconds every 5
+                tries. Cannot be specified along with `sleep_time_cb`.
     exception_cb: call method with 2 arguments 'msg' (per status_cb) and
                   'exception', the exception that occurred.
     sleep_time_cb: call method with 2 arguments (response, loop_n) that
-                   generates the next sleep time.
+                   generates the next sleep time. Cannot be specified
+                   along with 'sleep_time`.
     request_method: indicate the type of HTTP request, GET, PUT, or POST
     connect_synchronously: if false, enables executing requests in parallel
     async_delay: delay before parallel metadata requests, see RFC 6555
@@ -520,17 +682,19 @@ def wait_for_url(
     data host (169.254.169.254) may be firewalled off Entirely for a system,
     meaning that the connection will block forever unless a timeout is set.
 
-    A value of None for max_wait will retry indefinitely.
+    The default value for max_wait will retry indefinitely.
     """
 
-    def default_sleep_time(_, loop_number: int) -> int:
-        return int(loop_number / 5) + 1
+    def default_sleep_time(_, loop_number: int) -> float:
+        return sleep_time if sleep_time is not None else loop_number // 5 + 1
 
-    def timeup(max_wait, start_time):
+    def timeup(max_wait: float, start_time: float, sleep_time: float = 0):
         """Check if time is up based on start time and max wait"""
-        if max_wait is None:
+        if max_wait in (float("inf"), None):
             return False
-        return (max_wait <= 0) or (time.time() - start_time > max_wait)
+        return (max_wait <= 0) or (
+            time.monotonic() - start_time + sleep_time > max_wait
+        )
 
     def handle_url_response(response, url):
         """Map requests response code/contents to internal "UrlError" type"""
@@ -572,10 +736,10 @@ def wait_for_url(
         except Exception as e:
             reason = "unexpected error [%s]" % e
             url_exc = e
-        time_taken = int(time.time() - start_time)
+        time_taken = int(time.monotonic() - start_time)
         max_wait_str = "%ss" % max_wait if max_wait else "unlimited"
         status_msg = "Calling '%s' failed [%s/%s]: %s" % (
-            url,
+            url or getattr(url_exc, "url", "url ? None"),
             time_taken,
             max_wait_str,
             reason,
@@ -606,7 +770,7 @@ def wait_for_url(
             return (url, read_url_cb(url, timeout))
 
         for url in urls:
-            now = time.time()
+            now = time.monotonic()
             if loop_n != 0:
                 if timeup(max_wait, start_time):
                     return
@@ -640,7 +804,9 @@ def wait_for_url(
         if out:
             return out
 
-    start_time = time.time()
+    start_time = time.monotonic()
+    if sleep_time and sleep_time_cb:
+        raise ValueError("sleep_time and sleep_time_cb are mutually exclusive")
 
     # Dual-stack support factored out serial and parallel execution paths to
     # allow the retry loop logic to exist separately from the http calls.
@@ -656,25 +822,30 @@ def wait_for_url(
     loop_n: int = 0
     response = None
     while True:
-        sleep_time = calculate_sleep_time(response, loop_n)
+        current_sleep_time = calculate_sleep_time(response, loop_n)
 
         url = do_read_url(start_time, timeout, exception_cb, status_cb)
         if url:
             address, response = url
             return (address, response.contents)
 
-        if timeup(max_wait, start_time):
+        if timeup(max_wait, start_time, current_sleep_time):
             break
 
         loop_n = loop_n + 1
         LOG.debug(
-            "Please wait %s seconds while we wait to try again", sleep_time
+            "Please wait %s seconds while we wait to try again",
+            current_sleep_time,
         )
-        time.sleep(sleep_time)
+        time.sleep(current_sleep_time)
 
         # shorten timeout to not run way over max_time
-        # timeout=0.0 causes exceptions in urllib, set to None if zero
-        timeout = int((start_time + max_wait) - time.time()) or None
+        current_time = time.monotonic()
+        if timeout and current_time + timeout > start_time + max_wait:
+            timeout = max_wait - (current_time - start_time)
+            if timeout <= 0:
+                # We've already exceeded our max_wait. Time to bail.
+                break
 
     LOG.error("Timed out, no response from urls: %s", urls)
     return False, None

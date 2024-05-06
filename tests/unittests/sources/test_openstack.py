@@ -136,7 +136,7 @@ def _register_uris(version, ec2_files, ec2_meta, os_files, *, responses_mock):
 
     responses_mock.add_callback(
         responses.GET,
-        re.compile(r"http://169.254.169.254/.*"),
+        re.compile(r"http://(169.254.169.254|\[fe80::a9fe:a9fe\])/.*"),
         callback=get_request_callback,
     )
 
@@ -315,8 +315,6 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         self.assertEqual(EC2_META, ds_os.ec2_metadata)
         self.assertEqual(USER_DATA, ds_os.userdata_raw)
         self.assertEqual(2, len(ds_os.files))
-        self.assertEqual(VENDOR_DATA, ds_os.vendordata_pure)
-        self.assertEqual(VENDOR_DATA2, ds_os.vendordata2_pure)
         self.assertIsNone(ds_os.vendordata_raw)
         m_dhcp.assert_not_called()
 
@@ -324,6 +322,7 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
     @test_helpers.mock.patch(
         "cloudinit.net.ephemeral.maybe_perform_dhcp_discovery"
     )
+    @pytest.mark.usefixtures("disable_netdev_info")
     def test_local_datasource(self, m_dhcp, m_net):
         """OpenStackLocal calls EphemeralDHCPNetwork and gets instance data."""
         _register_uris(
@@ -362,8 +361,6 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         self.assertEqual(EC2_META, ds_os_local.ec2_metadata)
         self.assertEqual(USER_DATA, ds_os_local.userdata_raw)
         self.assertEqual(2, len(ds_os_local.files))
-        self.assertEqual(VENDOR_DATA, ds_os_local.vendordata_pure)
-        self.assertEqual(VENDOR_DATA2, ds_os_local.vendordata2_pure)
         self.assertIsNone(ds_os_local.vendordata_raw)
         m_dhcp.assert_called_with(distro, "eth9", None)
 
@@ -388,10 +385,10 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             found = ds_os.get_data()
         self.assertFalse(found)
         self.assertIsNone(ds_os.version)
-        self.assertIn(
-            "InvalidMetaDataException: Broken metadata address"
-            " http://169.254.169.25",
+        self.assertRegex(
             self.logs.getvalue(),
+            r"InvalidMetaDataException: Broken metadata address"
+            r" http://(169.254.169.254|\[fe80::a9fe:a9fe\])",
         )
 
     def test_no_datasource(self):

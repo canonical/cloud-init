@@ -2,10 +2,10 @@
 
 import copy
 import io
-import ipaddress
 import logging
 import os
 import textwrap
+from tempfile import SpooledTemporaryFile
 from typing import Optional, cast
 
 from cloudinit import features, safeyaml, subp, util
@@ -14,6 +14,7 @@ from cloudinit.net import (
     SYS_CLASS_NET,
     get_devicelist,
     renderer,
+    should_add_gateway_onlink_flag,
     subnet_is_ipv6,
 )
 from cloudinit.net.network_state import NET_CONFIG_TO_V2, NetworkState
@@ -123,28 +124,17 @@ def _extract_addresses(config: dict, entry: dict, ifname, features=None):
                     "via": subnet.get("gateway"),
                     "to": "default",
                 }
-                try:
-                    subnet_gateway = ipaddress.ip_address(subnet["gateway"])
-                    subnet_network = ipaddress.ip_network(addr, strict=False)
-                    # If the gateway is not contained within the subnet's
-                    # network, mark it as on-link so that it can still be
-                    # reached.
-                    if subnet_gateway not in subnet_network:
-                        LOG.debug(
-                            "Gateway %s is not contained within subnet %s,"
-                            " adding on-link flag",
-                            subnet["gateway"],
-                            addr,
-                        )
-                        new_route["on-link"] = True
-                except ValueError as e:
-                    LOG.warning(
-                        "Failed to check whether gateway %s"
-                        " is contained within subnet %s: %s",
+                # If the gateway is not contained within the subnet's
+                # network, mark it as on-link so that it can still be
+                # reached.
+                if should_add_gateway_onlink_flag(subnet["gateway"], addr):
+                    LOG.debug(
+                        "Gateway %s is not contained within subnet %s,"
+                        " adding on-link flag",
                         subnet["gateway"],
                         addr,
-                        e,
                     )
+                    new_route["on-link"] = True
                 routes.append(new_route)
             if "dns_nameservers" in subnet:
                 nameservers += _listify(subnet.get("dns_nameservers", []))
@@ -235,6 +225,79 @@ def _clean_default(target=None):
         os.unlink(f)
 
 
+def netplan_api_write_yaml_file(net_config_content: str) -> bool:
+    """Use netplan.State._write_yaml_file to write netplan config
+
+    Where netplan python API exists, prefer to use of the private
+    _write_yaml_file to ensure proper permissions and file locations
+    are chosen by the netplan python bindings in the environment.
+
+    By calling the netplan API, allow netplan versions to change behavior
+    related to file permissions and treatment of sensitive configuration
+    under the API call to _write_yaml_file.
+
+    In future netplan releases, security-sensitive config may be written to
+    separate file or directory paths than world-readable configuration parts.
+    """
+    try:
+        from netplan.parser import Parser  # type: ignore
+        from netplan.state import State  # type: ignore
+    except ImportError:
+        LOG.debug(
+            "No netplan python module. Fallback to write %s",
+            CLOUDINIT_NETPLAN_FILE,
+        )
+        return False
+    try:
+        with SpooledTemporaryFile(mode="w") as f:
+            f.write(net_config_content)
+            f.flush()
+            f.seek(0, io.SEEK_SET)
+            parser = Parser()
+            parser.load_yaml(f)
+            state_output_file = State()
+            state_output_file.import_parser_results(parser)
+
+            # Write our desired basename 50-cloud-init.yaml, allow netplan to
+            # determine default root-dir /etc/netplan and/or specialized
+            # filenames or read permissions based on whether this config
+            # contains secrets.
+            state_output_file._write_yaml_file(
+                os.path.basename(CLOUDINIT_NETPLAN_FILE)
+            )
+    except Exception as e:
+        LOG.warning(
+            "Unable to render network config using netplan python module."
+            " Fallback to write %s. %s",
+            CLOUDINIT_NETPLAN_FILE,
+            e,
+        )
+        return False
+    LOG.debug("Rendered netplan config using netplan python API")
+    return True
+
+
+def has_netplan_config_changed(cfg_file: str, content: str) -> bool:
+    """Return True when new netplan config has changed vs previous."""
+    if not os.path.exists(cfg_file):
+        # This is our first write of netplan's cfg_file, representing change.
+        return True
+    # Check prev cfg vs current cfg. Ignore comments
+    prior_cfg = util.load_yaml(util.load_text_file(cfg_file))
+    return prior_cfg != util.load_yaml(content)
+
+
+def fallback_write_netplan_yaml(cfg_file: str, content: str):
+    """Write netplan config to cfg_file because python API was unavailable."""
+    mode = 0o600 if features.NETPLAN_CONFIG_ROOT_READ_ONLY else 0o644
+    if os.path.exists(cfg_file):
+        current_mode = util.get_permissions(cfg_file)
+        if current_mode & mode == current_mode:
+            # preserve mode if existing perms are more strict
+            mode = current_mode
+    util.write_file(cfg_file, content, mode=mode)
+
+
 class Renderer(renderer.Renderer):
     """Renders network information in a /etc/netplan/network.yaml format."""
 
@@ -287,33 +350,22 @@ class Renderer(renderer.Renderer):
             header += "\n"
         content = header + content
 
-        # determine if existing config files have the same content
-        same_content = False
-        if os.path.exists(fpnplan):
-            hashed_content = util.hash_buffer(io.BytesIO(content.encode()))
-            with open(fpnplan, "rb") as f:
-                hashed_original_content = util.hash_buffer(f)
-            if hashed_content == hashed_original_content:
-                same_content = True
-
-        mode = 0o600 if features.NETPLAN_CONFIG_ROOT_READ_ONLY else 0o644
-        if not same_content and os.path.exists(fpnplan):
-            current_mode = util.get_permissions(fpnplan)
-            if current_mode & mode == current_mode:
-                # preserve mode if existing perms are more strict than default
-                mode = current_mode
-        util.write_file(fpnplan, content, mode=mode)
+        netplan_config_changed = has_netplan_config_changed(fpnplan, content)
+        if not netplan_api_write_yaml_file(content):
+            fallback_write_netplan_yaml(fpnplan, content)
 
         if self.clean_default:
             _clean_default(target=target)
-        self._netplan_generate(run=self._postcmds, same_content=same_content)
+        self._netplan_generate(
+            run=self._postcmds, config_changed=netplan_config_changed
+        )
         self._net_setup_link(run=self._postcmds)
 
-    def _netplan_generate(self, run: bool = False, same_content: bool = False):
+    def _netplan_generate(self, run: bool, config_changed: bool):
         if not run:
-            LOG.debug("netplan generate postcmd disabled")
+            LOG.debug("netplan generate postcmds disabled")
             return
-        if same_content:
+        if not config_changed:
             LOG.debug(
                 "skipping call to `netplan generate`."
                 " reason: identical netplan config"

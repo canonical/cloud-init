@@ -82,6 +82,13 @@ be sent in a packet- or frame-based network. Specifying ``mtu`` is optional.
    configuration time. It's possible to specify a value too large or to
    small for a device, and may be ignored by the device.
 
+``accept-ra: <boolean>``
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``accept-ra`` key is a boolean value that specifies whether or not to
+accept Router Advertisements (RA) for this interface. Specifying ``accept-ra``
+is optional.
+
 Physical example
 ^^^^^^^^^^^^^^^^
 
@@ -296,6 +303,8 @@ Valid keys for ``subnets`` include the following:
   interface will be handled during boot.
 - ``address``: IPv4 or IPv6 address. It may include CIDR netmask notation.
 - ``netmask``: IPv4 subnet mask in dotted format or CIDR notation.
+- ``broadcast`` : IPv4 broadcast address in dotted format. This is
+  only rendered if :file:`/etc/network/interfaces` is used.
 - ``gateway``: IPv4 address of the default gateway for this subnet.
 - ``dns_nameservers``: Specify a list of IPv4 dns server IPs to end up in
   :file:`resolv.conf`.

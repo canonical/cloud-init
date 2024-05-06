@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 
 import errno
 import logging
@@ -20,12 +21,14 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
+from cloudinit.distros.bsd import BSD
 from cloudinit.subp import SubpResult
 from tests.unittests.helpers import (
     TestCase,
     does_not_raise,
     skipUnlessJsonSchema,
 )
+from tests.unittests.util import MockDistro
 
 # growpart:
 #   mode: auto  # off, on, auto, 'growpart'
@@ -316,15 +319,14 @@ class TestConfig(TestCase):
             factory.assert_called_once_with(
                 "auto", distro=self.distro, devices=["/"]
             )
-            rsdevs.assert_called_once_with(myresizer, ["/"], self.distro.name)
+            rsdevs.assert_called_once_with(myresizer, ["/"], self.distro)
 
 
 class TestResize(unittest.TestCase):
     def setUp(self):
-        super(TestResize, self).setUp()
+        super().setUp()
         self.name = "growpart"
-        self.distro = mock.Mock()
-        self.distro.name = "ubuntu"
+        self.distro = MockDistro()
         self.log = logging.getLogger("TestResize")
 
     def test_simple_devices(self):
@@ -364,13 +366,13 @@ class TestResize(unittest.TestCase):
                 raise e
             return real_stat(path)
 
-        opinfo = cc_growpart.device_part_info
+        opinfo = self.distro.device_part_info
         try:
-            cc_growpart.device_part_info = simple_device_part_info
+            self.distro.device_part_info = simple_device_part_info
             os.stat = mystat
 
             resized = cc_growpart.resize_devices(
-                myresizer(), devs + enoent, self.distro.name
+                myresizer(), devs + enoent, self.distro
             )
 
             def find(name, res):
@@ -388,11 +390,8 @@ class TestResize(unittest.TestCase):
             self.assertEqual(
                 cc_growpart.RESIZE.SKIPPED, find(enoent[0], resized)[1]
             )
-            # self.assertEqual(resize_calls,
-            #                 [("/dev/XXda", "1", "/dev/XXda1"),
-            #                  ("/dev/YYda", "2", "/dev/YYda2")])
         finally:
-            cc_growpart.device_part_info = opinfo
+            self.distro.device_part_info = opinfo
             os.stat = real_stat
 
 
@@ -468,10 +467,9 @@ class TestEncrypted:
     def common_mocks(self, mocker):
         # These are all "happy path" mocks which will get overridden
         # when needed
-        mocker.patch(
-            "cloudinit.config.cc_growpart.device_part_info",
-            side_effect=self._device_part_info_side_effect,
-        )
+        self.distro = MockDistro
+        original_device_part_info = self.distro.device_part_info
+        self.distro.device_part_info = self._device_part_info_side_effect
         mocker.patch("os.stat")
         mocker.patch("stat.S_ISBLK")
         mocker.patch("stat.S_ISCHR")
@@ -502,15 +500,14 @@ class TestEncrypted:
         mocker.patch("pathlib.Path.exists", return_value=True)
         self.m_unlink = mocker.patch("pathlib.Path.unlink", autospec=True)
 
-        self.distro = mock.Mock()
-        self.distro.name = "ubuntu"
-
         self.resizer = mock.Mock()
         self.resizer.resize = mock.Mock(return_value=(1024, 1024))
+        yield
+        self.distro.device_part_info = original_device_part_info
 
     def test_resize_when_encrypted(self, common_mocks, caplog):
         info = cc_growpart.resize_devices(
-            self.resizer, ["/fake_encrypted"], self.distro.name
+            self.resizer, ["/fake_encrypted"], self.distro
         )
         assert len(info) == 2
         assert info[0][0] == "/dev/vdx1"
@@ -529,9 +526,7 @@ class TestEncrypted:
         self.assert_resize_and_cleanup()
 
     def test_resize_when_unencrypted(self, common_mocks):
-        info = cc_growpart.resize_devices(
-            self.resizer, ["/"], self.distro.name
-        )
+        info = cc_growpart.resize_devices(self.resizer, ["/"], self.distro)
         assert len(info) == 1
         assert info[0][0] == "/"
         assert "encrypted" not in info[0][2]
@@ -545,7 +540,7 @@ class TestEncrypted:
             return_value=None,
         )
         info = cc_growpart.resize_devices(
-            self.resizer, ["/fake_encrypted"], self.distro.name
+            self.resizer, ["/fake_encrypted"], self.distro
         )
 
         assert len(info) == 1
@@ -563,7 +558,7 @@ class TestEncrypted:
             side_effect=_subp_side_effect,
         )
         info = cc_growpart.resize_devices(
-            self.resizer, ["/fake_encrypted"], self.distro.name
+            self.resizer, ["/fake_encrypted"], self.distro
         )
         assert len(info) == 1
         assert info[0][0] == "/fake_encrypted"
@@ -584,7 +579,7 @@ class TestEncrypted:
             side_effect=_subp_side_effect,
         )
         info = cc_growpart.resize_devices(
-            self.resizer, ["/fake_encrypted"], self.distro.name
+            self.resizer, ["/fake_encrypted"], self.distro
         )
         assert len(info) == 1
         assert info[0][0] == "/fake_encrypted"
@@ -599,7 +594,7 @@ class TestEncrypted:
         # on a system with an encrypted root partition
         mocker.patch("pathlib.Path.open", side_effect=FileNotFoundError())
         info = cc_growpart.resize_devices(
-            self.resizer, ["/fake_encrypted"], self.distro.name
+            self.resizer, ["/fake_encrypted"], self.distro
         )
         assert len(info) == 2
         assert info[0][0] == "/dev/vdx1"
@@ -628,7 +623,7 @@ class TestEncrypted:
         )
 
         info = cc_growpart.resize_devices(
-            self.resizer, ["/fake_encrypted"], self.distro.name
+            self.resizer, ["/fake_encrypted"], self.distro
         )
         assert len(info) == 2
         assert info[0][0] == "/dev/vdx1"
@@ -648,7 +643,7 @@ class TestEncrypted:
     def test_resize_skipped(self, common_mocks, mocker, caplog):
         mocker.patch("pathlib.Path.exists", return_value=False)
         info = cc_growpart.resize_devices(
-            self.resizer, ["/fake_encrypted"], self.distro.name
+            self.resizer, ["/fake_encrypted"], self.distro
         )
         assert len(info) == 2
         assert info[1] == (
@@ -672,31 +667,25 @@ class Bunch:
 
 class TestDevicePartInfo:
     @pytest.mark.parametrize(
-        "devpath, is_BSD, expected, raised_exception",
+        "devpath, expected, raised_exception",
         (
             pytest.param(
                 "/dev/vtbd0p2",
-                True,
                 ("/dev/vtbd0", "2"),
                 does_not_raise(),
                 id="gpt_partition",
             ),
             pytest.param(
                 "/dev/vbd0s3a",
-                True,
                 ("/dev/vbd0", "3a"),
                 does_not_raise(),
                 id="bsd_mbr_slice_and_partition",
             ),
         ),
     )
-    @mock.patch("cloudinit.util.is_BSD")
-    def test_device_part_info(
-        self, m_is_BSD, is_BSD, devpath, expected, raised_exception
-    ):
-        m_is_BSD.return_value = is_BSD
+    def test_device_part_info(self, devpath, expected, raised_exception):
         with raised_exception:
-            assert expected == cc_growpart.device_part_info(devpath)
+            assert expected == BSD.device_part_info(devpath)
 
 
 class TestGrowpartSchema:

@@ -8,7 +8,7 @@ import subprocess
 import time
 from errno import ENOEXEC
 from io import TextIOWrapper
-from typing import List, Union
+from typing import List, Optional, Union
 
 LOG = logging.getLogger(__name__)
 
@@ -218,21 +218,14 @@ def subp(
     if update_env:
         env.update(update_env)
 
-    if not logstring:
-        LOG.debug(
-            "Running command %s with allowed return codes %s"
-            " (shell=%s, capture=%s)",
-            args,
-            rcs,
-            shell,
-            capture,
-        )
-    else:
-        LOG.debug(
-            "Running hidden command to protect sensitive "
-            "input/output logstring: %s",
-            logstring,
-        )
+    LOG.debug(
+        "Running command %s with allowed return codes %s"
+        " (shell=%s, capture=%s)",
+        logstring if logstring else args,
+        rcs,
+        shell,
+        capture,
+    )
 
     stdin: Union[TextIOWrapper, int]
     stdout = None
@@ -263,7 +256,7 @@ def subp(
             x if isinstance(x, bytes) else x.encode("utf-8") for x in args
         ]
     try:
-        before = time.time()
+        before = time.monotonic()
         sp = subprocess.Popen(
             bytes_args,
             stdout=stdout,
@@ -274,9 +267,13 @@ def subp(
             cwd=cwd,
         )
         out, err = sp.communicate(data, timeout=timeout)
-        total = time.time() - before
+        total = time.monotonic() - before
         if total > 0.1:
-            LOG.debug("command %s took %.3ss to run", args, total)
+            LOG.debug(
+                "%s took %.3ss to run",
+                logstring if logstring else args,
+                total,
+            )
     except OSError as e:
         raise ProcessExecutionError(
             cmd=args,
@@ -322,7 +319,7 @@ def target_path(target=None, path=None):
     return os.path.join(target, path)
 
 
-def which(program, search=None, target=None):
+def which(program, search=None, target=None) -> Optional[str]:
     target = target_path(target)
 
     if os.path.sep in program and is_exe(target_path(target, program)):

@@ -41,85 +41,106 @@ class TestAptKey:
 
     @mock.patch.object(subp, "subp", return_value=SubpResult("fakekey", ""))
     @mock.patch.object(util, "write_file")
-    def _apt_key_add_success_helper(self, directory, *args, hardened=False):
+    def _apt_key_add_success_helper(
+        self, directory, gpg, *args, hardened=False
+    ):
         file = cc_apt_configure.apt_key(
-            "add", output_file="my-key", data="fakekey", hardened=hardened
+            "add",
+            gpg=gpg,
+            output_file="my-key",
+            data="fakekey",
+            hardened=hardened,
         )
         assert file == directory + "/my-key.gpg"
 
-    def test_apt_key_add_success(self):
+    def test_apt_key_add_success(self, m_gpg):
         """Verify the right directory path gets returned for unhardened case"""
-        self._apt_key_add_success_helper("/etc/apt/trusted.gpg.d")
+        self._apt_key_add_success_helper("/etc/apt/trusted.gpg.d", m_gpg)
 
-    def test_apt_key_add_success_hardened(self):
+    def test_apt_key_add_success_hardened(self, m_gpg):
         """Verify the right directory path gets returned for hardened case"""
         self._apt_key_add_success_helper(
-            "/etc/apt/cloud-init.gpg.d", hardened=True
+            "/etc/apt/cloud-init.gpg.d", m_gpg, hardened=True
         )
 
-    def test_apt_key_add_fail_no_file_name(self):
+    def test_apt_key_add_fail_no_file_name(self, m_gpg):
         """Verify that null filename gets handled correctly"""
-        file = cc_apt_configure.apt_key("add", output_file=None, data="")
+        file = cc_apt_configure.apt_key(
+            "add", gpg=m_gpg, output_file=None, data=""
+        )
         assert "/dev/null" == file
 
-    def _apt_key_fail_helper(self):
+    def _apt_key_fail_helper(self, m_gpg):
         file = cc_apt_configure.apt_key(
-            "add", output_file="my-key", data="fakekey"
+            "add", gpg=m_gpg, output_file="my-key", data="fakekey"
         )
         assert file == "/dev/null"
 
-    @mock.patch.object(subp, "subp", side_effect=subp.ProcessExecutionError)
-    def test_apt_key_add_fail_no_file_name_subproc(self, *args):
+    def test_apt_key_add_fail_no_file_name_subproc(self, m_gpg):
         """Verify that bad key value gets handled correctly"""
-        self._apt_key_fail_helper()
+        m_gpg.dearmor = mock.Mock(side_effect=subp.ProcessExecutionError)
+        self._apt_key_fail_helper(m_gpg)
 
-    @mock.patch.object(
-        subp, "subp", side_effect=UnicodeDecodeError("test", b"", 1, 1, "")
-    )
-    def test_apt_key_add_fail_no_file_name_unicode(self, *args):
+    def test_apt_key_add_fail_no_file_name_unicode(self, m_gpg):
         """Verify that bad key encoding gets handled correctly"""
-        self._apt_key_fail_helper()
+        m_gpg.dearmor = mock.Mock(
+            side_effect=UnicodeDecodeError("test", b"", 1, 1, "")
+        )
+        self._apt_key_fail_helper(m_gpg)
 
-    def _apt_key_list_success_helper(self, finger, key, human_output=True):
+    def _apt_key_list_success_helper(
+        self, finger, key, gpg, human_output=True
+    ):
         @mock.patch.object(os, "listdir", return_value=("/fake/dir/key.gpg",))
         @mock.patch.object(subp, "subp", return_value=(key, ""))
         def mocked_list(*a):
 
-            keys = cc_apt_configure.apt_key("list", human_output)
+            keys = cc_apt_configure.apt_key("list", gpg, human_output)
             assert finger in keys
 
         mocked_list()
 
-    def test_apt_key_list_success_human(self):
+    def test_apt_key_list_success_human(self, m_gpg):
         """Verify expected key output, human"""
+        m_gpg.list_keys = mock.Mock(
+            return_value="3A3E F34D FDED B3B7 F3FD  F603 F83F 7712 9A5E BD85"
+        )
         self._apt_key_list_success_helper(
-            TEST_KEY_FINGERPRINT_HUMAN, TEST_KEY_HUMAN
+            TEST_KEY_FINGERPRINT_HUMAN, TEST_KEY_HUMAN, m_gpg
         )
 
-    def test_apt_key_list_success_machine(self):
+    def test_apt_key_list_success_machine(self, m_gpg):
         """Verify expected key output, machine"""
+        m_gpg.list_keys = mock.Mock(
+            return_value="3A3EF34DFDEDB3B7F3FDF603F83F77129A5EBD85"
+        )
         self._apt_key_list_success_helper(
-            TEST_KEY_FINGERPRINT_MACHINE, TEST_KEY_MACHINE, human_output=False
+            TEST_KEY_FINGERPRINT_MACHINE,
+            TEST_KEY_MACHINE,
+            m_gpg,
+            human_output=False,
         )
 
-    @mock.patch.object(os, "listdir", return_value=())
-    @mock.patch.object(subp, "subp", return_value=("", ""))
-    def test_apt_key_list_fail_no_keys(self, *args):
+    @mock.patch.object(cc_apt_configure.os, "listdir", return_value=())
+    @mock.patch.object(cc_apt_configure.os.path, "isfile", return_value=False)
+    def test_apt_key_list_fail_no_keys(self, m_isfile, m_listdir, m_gpg):
         """Ensure falsy output for no keys"""
-        keys = cc_apt_configure.apt_key("list")
+        keys = cc_apt_configure.apt_key("list", m_gpg)
         assert not keys
 
-    @mock.patch.object(os, "listdir", return_value="file_not_gpg_key.txt")
-    @mock.patch.object(subp, "subp", return_value=("", ""))
-    def test_apt_key_list_fail_no_keys_file(self, *args):
+    @mock.patch.object(os, "listdir", return_value=["file_not_gpg_key.txt"])
+    def test_apt_key_list_fail_no_keys_file(self, m_listdir, m_gpg, *args):
         """Ensure non-gpg file is not returned.
 
         apt-key used file extensions for this, so we do too
         """
-        assert not cc_apt_configure.apt_key("list")
+        assert "file_not_gpg_key.txt" not in cc_apt_configure.apt_key(
+            "list", m_gpg
+        )
 
-    @mock.patch.object(subp, "subp", side_effect=subp.ProcessExecutionError)
-    @mock.patch.object(os, "listdir", return_value="bad_gpg_key.gpg")
-    def test_apt_key_list_fail_bad_key_file(self, *args):
+    @mock.patch.object(cc_apt_configure.os, "listdir", return_value=())
+    @mock.patch.object(cc_apt_configure.os.path, "isfile", return_value=False)
+    def test_apt_key_list_fail_bad_key_file(self, m_isfile, m_listdir, m_gpg):
         """Ensure bad gpg key doesn't throw exeption."""
-        assert not cc_apt_configure.apt_key("list")
+        m_gpg.list_keys = mock.Mock(side_effect=subp.ProcessExecutionError)
+        assert not cc_apt_configure.apt_key("list", m_gpg)

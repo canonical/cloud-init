@@ -16,10 +16,10 @@ import argparse
 import json
 import os
 import sys
-import time
 import traceback
 import logging
-from typing import Tuple
+import yaml
+from typing import Tuple, Callable
 
 from cloudinit import netinfo
 from cloudinit import signal_handler
@@ -35,16 +35,8 @@ from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.config import cc_set_hostname
 from cloudinit.config.modules import Modules
 from cloudinit.config.schema import validate_cloudconfig_schema
-from cloudinit.log import (
-    LogExporter,
-    setup_basic_logging,
-    setup_logging,
-    reset_logging,
-    configure_root_logger,
-    DEPRECATED,
-)
+from cloudinit import log
 from cloudinit.reporting import events
-from cloudinit.safeyaml import load
 from cloudinit.settings import PER_INSTANCE, PER_ALWAYS, PER_ONCE, CLOUD_CONFIG
 
 # Welcome message template
@@ -62,6 +54,14 @@ FREQ_SHORT_NAMES = {
     "instance": PER_INSTANCE,
     "always": PER_ALWAYS,
     "once": PER_ONCE,
+}
+
+# https://cloudinit.readthedocs.io/en/latest/explanation/boot.html
+STAGE_NAME = {
+    "init-local": "Local Stage",
+    "init": "Network Stage",
+    "modules-config": "Config Stage",
+    "modules-final": "Final Stage",
 }
 
 LOG = logging.getLogger(__name__)
@@ -100,6 +100,20 @@ def welcome_format(action):
         timestamp=util.time_rfc2822(),
         action=action,
     )
+
+
+def close_stdin(logger: Callable[[str], None] = LOG.debug):
+    """
+    reopen stdin as /dev/null to ensure no side effects
+
+    logger: a function for logging messages
+    """
+    if not os.isatty(sys.stdin.fileno()):
+        logger("Closing stdin")
+        with open(os.devnull) as fp:
+            os.dup2(fp.fileno(), sys.stdin.fileno())
+    else:
+        logger("Not closing stdin, stdin is a tty.")
 
 
 def extract_fns(args):
@@ -223,7 +237,7 @@ def attempt_cmdline_url(path, network=True, cmdline=None) -> Tuple[int, str]:
             if is_cloud_cfg:
                 if cmdline_name == "url":
                     return (
-                        DEPRECATED,
+                        log.DEPRECATED,
                         str(
                             util.deprecate(
                                 deprecated="The kernel command line key `url`",
@@ -335,9 +349,8 @@ def main_init(name, args):
     outfmt = None
     errfmt = None
     try:
-        early_logs.append((logging.DEBUG, "Closing stdin."))
-        util.close_stdin()
-        (outfmt, errfmt) = util.fixup_output(init.cfg, name)
+        close_stdin(lambda msg: early_logs.append((logging.DEBUG, msg)))
+        outfmt, errfmt = util.fixup_output(init.cfg, name)
     except Exception:
         msg = "Failed to setup output redirection!"
         util.logexc(LOG, msg)
@@ -348,8 +361,8 @@ def main_init(name, args):
         LOG.debug(
             "Logging being reset, this logger may no longer be active shortly"
         )
-        reset_logging()
-    setup_logging(init.cfg)
+        log.reset_logging()
+    log.setup_logging(init.cfg)
     apply_reporting_cfg(init.cfg)
 
     # Any log usage prior to setup_logging above did not have local user log
@@ -488,7 +501,7 @@ def main_init(name, args):
     cloud_cfg_path = init.paths.get_ipath_cur("cloud_config")
     if os.path.exists(cloud_cfg_path) and os.stat(cloud_cfg_path).st_size != 0:
         validate_cloudconfig_schema(
-            config=load(util.load_text_file(cloud_cfg_path)),
+            config=yaml.safe_load(util.load_text_file(cloud_cfg_path)),
             strict=False,
             log_details=False,
             log_deprecations=True,
@@ -510,7 +523,7 @@ def main_init(name, args):
             (outfmt, errfmt) = util.fixup_output(mods.cfg, name)
     except Exception:
         util.logexc(LOG, "Failed to re-adjust output redirection!")
-    setup_logging(mods.cfg)
+    log.setup_logging(mods.cfg)
 
     # give the activated datasource a chance to adjust
     init.activate_datasource()
@@ -605,8 +618,7 @@ def main_modules(action_name, args):
     mods = Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 4
     try:
-        LOG.debug("Closing stdin")
-        util.close_stdin()
+        close_stdin()
         util.fixup_output(mods.cfg, name)
     except Exception:
         util.logexc(LOG, "Failed to setup output redirection!")
@@ -615,12 +627,19 @@ def main_modules(action_name, args):
         LOG.debug(
             "Logging being reset, this logger may no longer be active shortly"
         )
-        reset_logging()
-    setup_logging(mods.cfg)
+        log.reset_logging()
+    log.setup_logging(mods.cfg)
     apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
     welcome(name, msg=w_msg)
+
+    if name == "init":
+        util.deprecate(
+            deprecated="`--mode init`",
+            deprecated_version="24.1",
+            extra_message="Use `cloud-init init` instead.",
+        )
 
     # Stage 5
     return run_module_section(mods, name, name)
@@ -667,8 +686,7 @@ def main_single(name, args):
         mod_freq = FREQ_SHORT_NAMES.get(mod_freq)
     # Stage 4
     try:
-        LOG.debug("Closing stdin")
-        util.close_stdin()
+        close_stdin()
         util.fixup_output(mods.cfg, None)
     except Exception:
         util.logexc(LOG, "Failed to setup output redirection!")
@@ -677,8 +695,8 @@ def main_single(name, args):
         LOG.debug(
             "Logging being reset, this logger may no longer be active shortly"
         )
-        reset_logging()
-    setup_logging(mods.cfg)
+        log.reset_logging()
+    log.setup_logging(mods.cfg)
     apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
@@ -697,12 +715,10 @@ def main_single(name, args):
         return 0
 
 
-def status_wrapper(name, args, data_d=None, link_d=None):
-    if data_d is None:
-        paths = read_cfg_paths()
-        data_d = paths.get_cpath("data")
-    if link_d is None:
-        link_d = os.path.normpath("/run/cloud-init")
+def status_wrapper(name, args):
+    paths = read_cfg_paths()
+    data_d = paths.get_cpath("data")
+    link_d = os.path.normpath(paths.run_dir)
 
     status_path = os.path.join(data_d, "status.json")
     status_link = os.path.join(link_d, "status.json")
@@ -729,18 +745,26 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     else:
         raise ValueError("unknown name: %s" % name)
 
-    modes = (
-        "init",
-        "init-local",
-        "modules-config",
-        "modules-final",
-    )
-    if mode not in modes:
+    if mode not in STAGE_NAME:
         raise ValueError(
             "Invalid cloud init mode specified '{0}'".format(mode)
         )
 
-    status = None
+    nullstatus = {
+        "errors": [],
+        "recoverable_errors": {},
+        "start": None,
+        "finished": None,
+    }
+    status = {
+        "v1": {
+            "datasource": None,
+            "init": nullstatus.copy(),
+            "init-local": nullstatus.copy(),
+            "modules-config": nullstatus.copy(),
+            "modules-final": nullstatus.copy(),
+        }
+    }
     if mode == "init-local":
         for f in (status_link, result_link, status_path, result_path):
             util.del_file(f)
@@ -750,25 +774,22 @@ def status_wrapper(name, args, data_d=None, link_d=None):
         except Exception:
             pass
 
-    nullstatus = {
-        "errors": [],
-        "start": None,
-        "finished": None,
-    }
-
-    if status is None:
-        status = {"v1": {}}
-        status["v1"]["datasource"] = None
-
-    for m in modes:
-        if m not in status["v1"]:
-            status["v1"][m] = nullstatus.copy()
+    if mode not in status["v1"]:
+        # this should never happen, but leave it just to be safe
+        status["v1"][mode] = nullstatus.copy()
 
     v1 = status["v1"]
     v1["stage"] = mode
-    v1[mode]["start"] = time.time()
-    v1[mode]["recoverable_errors"] = next(
-        filter(lambda h: isinstance(h, LogExporter), root_logger.handlers)
+    if v1[mode]["start"] and not v1[mode]["finished"]:
+        # This stage was restarted, which isn't expected.
+        LOG.warning(
+            "Unexpected start time found for %s. Was this stage restarted?",
+            STAGE_NAME[mode],
+        )
+
+    v1[mode]["start"] = float(util.uptime())
+    preexisting_recoverable_errors = next(
+        filter(lambda h: isinstance(h, log.LogExporter), root_logger.handlers)
     ).export_logs()
 
     # Write status.json prior to running init / module code
@@ -786,27 +807,56 @@ def status_wrapper(name, args, data_d=None, link_d=None):
         else:
             errors = ret
 
-        v1[mode]["errors"] = [str(e) for e in errors]
-
+        v1[mode]["errors"].extend([str(e) for e in errors])
     except Exception as e:
-        util.logexc(LOG, "failed stage %s", mode)
+        LOG.exception("failed stage %s", mode)
         print_exc("failed run of stage %s" % mode)
-        v1[mode]["errors"] = [str(e)]
+        v1[mode]["errors"].append(str(e))
+    except SystemExit as e:
+        # All calls to sys.exit() resume running here.
+        # silence a pylint false positive
+        # https://github.com/pylint-dev/pylint/issues/9556
+        if e.code:  # pylint: disable=using-constant-test
+            # Only log errors when sys.exit() is called with a non-zero
+            # exit code
+            LOG.exception("failed stage %s", mode)
+            print_exc("failed run of stage %s" % mode)
+            v1[mode]["errors"].append(f"sys.exit({str(e.code)}) called")
+    finally:
+        # Before it exits, cloud-init will:
+        # 1) Write status.json (and result.json if in Final stage).
+        # 2) Write the final log message containing module run time.
+        # 3) Flush any queued reporting event handlers.
+        v1[mode]["finished"] = float(util.uptime())
+        v1["stage"] = None
 
-    v1[mode]["finished"] = time.time()
-    v1["stage"] = None
+        # merge new recoverable errors into existing recoverable error list
+        new_recoverable_errors = next(
+            filter(
+                lambda h: isinstance(h, log.LogExporter), root_logger.handlers
+            )
+        ).export_logs()
+        for key in new_recoverable_errors.keys():
+            if key in preexisting_recoverable_errors:
+                v1[mode]["recoverable_errors"][key] = list(
+                    set(
+                        preexisting_recoverable_errors[key]
+                        + new_recoverable_errors[key]
+                    )
+                )
+            else:
+                v1[mode]["recoverable_errors"][key] = new_recoverable_errors[
+                    key
+                ]
 
-    # Write status.json after running init / module code
-    v1[mode]["recoverable_errors"] = next(
-        filter(lambda h: isinstance(h, LogExporter), root_logger.handlers)
-    ).export_logs()
-    atomic_helper.write_json(status_path, status)
+        # Write status.json after running init / module code
+        atomic_helper.write_json(status_path, status)
 
     if mode == "modules-final":
         # write the 'finished' file
         errors = []
-        for m in modes:
-            if v1[m]["errors"]:
+        for m in v1.keys():
+            if isinstance(v1[m], dict) and v1[m].get("errors"):
                 errors.extend(v1[m].get("errors", []))
 
         atomic_helper.write_json(
@@ -856,7 +906,7 @@ def main_features(name, args):
 
 
 def main(sysv_args=None):
-    configure_root_logger()
+    log.configure_root_logger()
     if not sysv_args:
         sysv_args = sys.argv
     parser = argparse.ArgumentParser(prog=sysv_args.pop(0))
@@ -918,11 +968,20 @@ def main(sysv_args=None):
     parser_mod = subparsers.add_parser(
         "modules", help="Activate modules using a given configuration key."
     )
+    extra_help = util.deprecate(
+        deprecated="`init`",
+        deprecated_version="24.1",
+        extra_message="Use `cloud-init init` instead.",
+        return_log=True,
+    )
     parser_mod.add_argument(
         "--mode",
         "-m",
         action="store",
-        help="Module configuration name to use (default: %(default)s).",
+        help=(
+            f"Module configuration name to use (default: %(default)s)."
+            f" {extra_help}"
+        ),
         default="config",
         choices=("init", "config", "final"),
     )
@@ -1080,9 +1139,11 @@ def main(sysv_args=None):
     #   - if --debug is passed, logging.DEBUG
     #   - if --debug is not passed, logging.WARNING
     if name not in ("init", "modules"):
-        setup_basic_logging(logging.DEBUG if args.debug else logging.WARNING)
+        log.setup_basic_logging(
+            logging.DEBUG if args.debug else logging.WARNING
+        )
     elif args.debug:
-        setup_basic_logging()
+        log.setup_basic_logging()
 
     # Setup signal handlers before running
     signal_handler.attach_handlers()
@@ -1132,6 +1193,12 @@ def main(sysv_args=None):
             args=(name, args),
         )
     reporting.flush_events()
+
+    # handle return code for main_modules, as it is not wrapped by
+    # status_wrapped when mode == init
+    if "modules" == name and "init" == args.mode:
+        retval = len(retval)
+
     return retval
 
 

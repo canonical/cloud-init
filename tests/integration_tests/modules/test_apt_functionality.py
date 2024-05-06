@@ -5,7 +5,6 @@ from textwrap import dedent
 
 import pytest
 
-from cloudinit import gpg
 from cloudinit.config import cc_apt_configure
 from cloudinit.util import is_true
 from tests.integration_tests.clouds import IntegrationCloud
@@ -19,6 +18,7 @@ from tests.integration_tests.util import (
 
 DEB822_SOURCES_FILE = "/etc/apt/sources.list.d/ubuntu.sources"
 ORIG_SOURCES_FILE = "/etc/apt/sources.list"
+GET_TEMPDIR = "python3 -c 'import tempfile;print(tempfile.mkdtemp());'"
 
 USER_DATA = """\
 #cloud-config
@@ -136,15 +136,26 @@ class TestApt:
         """Return all keys in /etc/apt/trusted.gpg.d/ and /etc/apt/trusted.gpg
         in human readable format. Mimics the output of apt-key finger
         """
-        list_cmd = " ".join(gpg.GPG_LIST) + " "
+        class_client.execute("mkdir /root/tmpdir && chmod &00 /root/tmpdir")
+        GPG_LIST = [
+            "gpg",
+            "--no-options",
+            "--with-fingerprint",
+            "--homedir /root/tmpdir",
+            "--no-default-keyring",
+            "--list-keys",
+            "--keyring",
+        ]
+
+        list_cmd = " ".join(GPG_LIST) + " "
         keys = class_client.execute(list_cmd + cc_apt_configure.APT_LOCAL_KEYS)
-        print(keys)
         files = class_client.execute(
             "ls " + cc_apt_configure.APT_TRUSTED_GPG_DIR
         )
         for file in files.split():
             path = cc_apt_configure.APT_TRUSTED_GPG_DIR + file
             keys += class_client.execute(list_cmd + path) or ""
+        class_client.execute("gpgconf --homedir /root/tmpdir --kill all")
         return keys
 
     def test_sources_list(self, class_client: IntegrationInstance):
@@ -203,8 +214,10 @@ class TestApt:
         )
         assert path_contents == source
 
+        temp = class_client.execute(GET_TEMPDIR)
         key = class_client.execute(
-            "gpg --no-default-keyring --with-fingerprint --list-keys "
+            f"gpg --no-options --homedir {temp} --no-default-keyring "
+            "--with-fingerprint --list-keys "
             "--keyring /etc/apt/cloud-init.gpg.d/test_signed_by.gpg"
         )
 

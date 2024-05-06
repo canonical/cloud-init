@@ -763,7 +763,7 @@ def convert_net_json(network_json=None, known_macs=None):
                 cfg["type"] = "infiniband"
 
     for service in services:
-        cfg = service
+        cfg = copy.deepcopy(service)
         cfg.update({"type": "nameserver"})
         config.append(cfg)
 

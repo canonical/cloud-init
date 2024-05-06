@@ -3,14 +3,13 @@
 from unittest import mock
 
 from cloudinit.sources.helpers import openstack
-from tests.unittests import helpers as test_helpers
 
 
 @mock.patch(
     "cloudinit.net.is_openvswitch_internal_interface",
     mock.Mock(return_value=False),
 )
-class TestConvertNetJson(test_helpers.CiTestCase):
+class TestConvertNetJson:
     def test_phy_types(self):
         """Verify the different known physical types are handled."""
         # network_data.json example from
@@ -54,11 +53,8 @@ class TestConvertNetJson(test_helpers.CiTestCase):
 
         for t in openstack.KNOWN_PHYSICAL_TYPES:
             net_json["links"][0]["type"] = t
-            self.assertEqual(
-                expected,
-                openstack.convert_net_json(
-                    network_json=net_json, known_macs=macs
-                ),
+            assert expected == openstack.convert_net_json(
+                network_json=net_json, known_macs=macs
             )
 
     def test_subnet_dns(self):
@@ -113,9 +109,6 @@ class TestConvertNetJson(test_helpers.CiTestCase):
 
         for t in openstack.KNOWN_PHYSICAL_TYPES:
             net_json["links"][0]["type"] = t
-            self.assertEqual(
-                expected,
-                openstack.convert_net_json(
-                    network_json=net_json, known_macs=macs
-                ),
+            assert expected == openstack.convert_net_json(
+                network_json=net_json, known_macs=macs
             )

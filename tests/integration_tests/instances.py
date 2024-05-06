@@ -1,12 +1,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
 import os
+import re
 import uuid
 from enum import Enum
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Union
 
+from pycloudlib.gce.instance import GceInstance
 from pycloudlib.instance import BaseInstance
 from pycloudlib.result import Result
 
@@ -67,7 +69,10 @@ class IntegrationInstance:
         self._ip = ""
 
     def destroy(self):
-        self.instance.delete()
+        if isinstance(self.instance, GceInstance):
+            self.instance.delete(wait=False)
+        else:
+            self.instance.delete()
 
     def restart(self):
         """Restart this instance (via cloud mechanism) and wait for boot.
@@ -162,6 +167,13 @@ class IntegrationInstance:
         )
         assert self.execute("python3 /var/tmp/enable_coverage.py").ok
 
+    def install_profile(self):
+        self.push_file(
+            local_path=ASSETS_DIR / "enable_profile.py",
+            remote_path="/var/tmp/enable_profile.py",
+        )
+        assert self.execute("python3 /var/tmp/enable_profile.py").ok
+
     def install_new_cloud_init(
         self,
         source: CloudInitSource,
@@ -200,11 +212,26 @@ class IntegrationInstance:
 
     def install_ppa(self):
         log.info("Installing PPA")
+        if self.execute("which add-apt-repository").failed:
+            log.info("Installing missing software-properties-common package")
+            self._apt_update()
+            assert self.execute(
+                "apt install -qy software-properties-common"
+            ).ok
+        pin_origin = self.settings.CLOUD_INIT_SOURCE[4:]  # Drop leading ppa:
+        pin_origin = re.sub("[^a-z0-9-]", "-", pin_origin)
+        self.write_to_file(
+            "/etc/apt/preferences.d/cloud-init-integration-testing",
+            f"package: cloud-init\nPin: release o=LP-PPA-{pin_origin}\n"
+            "Pin-Priority: 1001\n",
+        )
         assert self.execute(
             "add-apt-repository {} -y".format(self.settings.CLOUD_INIT_SOURCE)
         ).ok
-        self._apt_update()
-        assert self.execute("apt-get install -qy cloud-init").ok
+        # PIN this PPA as priority for cloud-init installs regardless of ver
+        assert self.execute(
+            "apt-get install -qy cloud-init --allow-downgrades"
+        ).ok
 
     @retry(tries=30, delay=1)
     def install_deb(self):
