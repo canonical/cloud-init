@@ -13,7 +13,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.stages import Init
@@ -27,8 +27,23 @@ from cloudinit.util import (
     write_file,
 )
 
-PATHS = read_cfg_paths()
-CLOUDINIT_RUN_DIR = PATHS.run_dir
+
+class LogPaths(NamedTuple):
+    userdata_raw: str
+    cloud_data: str
+    run_dir: str
+    instance_data_sensitive: str
+
+
+def get_log_paths(init: Optional[Init] = None) -> LogPaths:
+    """Return a Paths object based on the system configuration on disk."""
+    paths = init.paths if init else read_cfg_paths()
+    return LogPaths(
+        userdata_raw=paths.get_ipath_cur("userdata_raw"),
+        cloud_data=paths.get_cpath("data"),
+        run_dir=paths.run_dir,
+        instance_data_sensitive=paths.lookups["instance_data_sensitive"],
+    )
 
 
 class ApportFile(NamedTuple):
@@ -81,16 +96,6 @@ INSTALLER_APPORT_FILES = [
 ]
 
 
-def _get_user_data_file() -> str:
-    paths = read_cfg_paths()
-    return paths.get_ipath_cur("userdata_raw")
-
-
-def _get_cloud_data_path() -> str:
-    paths = read_cfg_paths()
-    return paths.get_cpath("data")
-
-
 def get_parser(parser=None):
     """Build or extend and arg parser for collect-logs utility.
 
@@ -122,7 +127,6 @@ def get_parser(parser=None):
             " Default: cloud-init.tar.gz"
         ),
     )
-    user_data_file = _get_user_data_file()
     parser.add_argument(
         "--include-userdata",
         "-u",
@@ -131,20 +135,20 @@ def get_parser(parser=None):
         dest="userdata",
         help=(
             "Optionally include user-data from {0} which could contain"
-            " sensitive information.".format(user_data_file)
+            " sensitive information.".format(get_log_paths().userdata_raw)
         ),
     )
     return parser
 
 
-def _copytree_rundir_ignore_files(curdir, files):
+def _get_copytree_ignore_files(paths: LogPaths):
     """Return a list of files to ignore for /run/cloud-init directory"""
     ignored_files = [
         "hook-hotplug-cmd",  # named pipe for hotplug
     ]
     if os.getuid() != 0:
         # Ignore root-permissioned files
-        ignored_files.append(PATHS.lookups["instance_data_sensitive"])
+        ignored_files.append(paths.instance_data_sensitive)
     return ignored_files
 
 
@@ -216,7 +220,6 @@ def collect_logs(tarfile, include_userdata: bool, verbosity=0):
         )
         return 1
 
-    init = Init(ds_deps=[])
     tarfile = os.path.abspath(tarfile)
     log_dir = datetime.utcnow().date().strftime("cloud-init-logs-%Y-%m-%d")
     with tempdir(dir="/tmp") as tmp_dir:
@@ -250,36 +253,38 @@ def collect_logs(tarfile, include_userdata: bool, verbosity=0):
             verbosity=verbosity,
         )
 
+        init = Init(ds_deps=[])
         init.read_cfg()
+        paths = get_log_paths(init)
         for log in get_config_logfiles(init.cfg):
             _collect_file(log, log_dir, verbosity)
         if include_userdata:
-            user_data_file = _get_user_data_file()
+            user_data_file = paths.userdata_raw
             _collect_file(user_data_file, log_dir, verbosity)
         collect_installer_logs(log_dir, include_userdata, verbosity)
 
         run_dir = os.path.join(log_dir, "run")
         ensure_dir(run_dir)
-        if os.path.exists(CLOUDINIT_RUN_DIR):
+        if os.path.exists(paths.run_dir):
             try:
                 shutil.copytree(
-                    CLOUDINIT_RUN_DIR,
+                    paths.run_dir,
                     os.path.join(run_dir, "cloud-init"),
-                    ignore=_copytree_rundir_ignore_files,
+                    ignore=lambda _, __: _get_copytree_ignore_files(paths),
                 )
             except shutil.Error as e:
                 sys.stderr.write("Failed collecting file(s) due to error:\n")
                 sys.stderr.write(str(e) + "\n")
-            _debug("collected dir %s\n" % CLOUDINIT_RUN_DIR, 1, verbosity)
+            _debug("collected dir %s\n" % paths.run_dir, 1, verbosity)
         else:
             _debug(
-                "directory '%s' did not exist\n" % CLOUDINIT_RUN_DIR,
+                "directory '%s' did not exist\n" % paths.run_dir,
                 1,
                 verbosity,
             )
-        if os.path.exists(os.path.join(CLOUDINIT_RUN_DIR, "disabled")):
+        if os.path.exists(os.path.join(paths.run_dir, "disabled")):
             # Fallback to grab previous cloud/data
-            cloud_data_dir = Path(_get_cloud_data_path())
+            cloud_data_dir = Path(paths.cloud_data)
             if cloud_data_dir.exists():
                 shutil.copytree(
                     str(cloud_data_dir),
