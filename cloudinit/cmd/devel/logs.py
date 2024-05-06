@@ -11,7 +11,7 @@ import os
 import shutil
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import NamedTuple, Optional
 
@@ -192,7 +192,9 @@ def _collect_file(path, out_dir, verbosity):
         _debug("file %s did not exist\n" % path, 2, verbosity)
 
 
-def collect_installer_logs(log_dir, include_userdata, verbosity):
+def _collect_installer_logs(
+    log_dir: str, include_userdata: bool, verbosity: int
+):
     """Obtain subiquity logs and config files."""
     for src_file in INSTALLER_APPORT_FILES:
         destination_dir = Path(log_dir + src_file.path).parent
@@ -207,11 +209,91 @@ def collect_installer_logs(log_dir, include_userdata, verbosity):
             _collect_file(src_file.path, str(destination_dir), verbosity)
 
 
-def collect_logs(tarfile, include_userdata: bool, verbosity=0):
+def _collect_version_info(log_dir: str, verbosity: int):
+    version = _write_command_output_to_file(
+        cmd=["cloud-init", "--version"],
+        filename=os.path.join(log_dir, "version"),
+        msg="cloud-init --version",
+        verbosity=verbosity,
+    )
+    dpkg_ver = _write_command_output_to_file(
+        cmd=["dpkg-query", "--show", "-f=${Version}\n", "cloud-init"],
+        filename=os.path.join(log_dir, "dpkg-version"),
+        msg="dpkg version",
+        verbosity=verbosity,
+    )
+    if not version:
+        version = dpkg_ver if dpkg_ver else "not-available"
+    _debug("collected cloud-init version: %s\n" % version, 1, verbosity)
+
+
+def _collect_system_logs(log_dir: str, verbosity: int):
+    _stream_command_output_to_file(
+        cmd=["dmesg"],
+        filename=os.path.join(log_dir, "dmesg.txt"),
+        msg="dmesg output",
+        verbosity=verbosity,
+    )
+    _stream_command_output_to_file(
+        cmd=["journalctl", "--boot=0", "-o", "short-precise"],
+        filename=os.path.join(log_dir, "journal.txt"),
+        msg="systemd journal of current boot",
+        verbosity=verbosity,
+    )
+
+
+def _collect_cloudinit_logs(
+    log_dir: str,
+    verbosity: int,
+    init: Init,
+    paths: LogPaths,
+    include_userdata: bool,
+):
+    for log in get_config_logfiles(init.cfg):
+        _collect_file(log, log_dir, verbosity)
+    if include_userdata:
+        user_data_file = paths.userdata_raw
+        _collect_file(user_data_file, log_dir, verbosity)
+
+
+def _collect_run_dir(log_dir: str, verbosity: int, paths: LogPaths):
+    run_dir = os.path.join(log_dir, "run")
+    ensure_dir(run_dir)
+    if os.path.exists(paths.run_dir):
+        try:
+            shutil.copytree(
+                paths.run_dir,
+                os.path.join(run_dir, "cloud-init"),
+                ignore=lambda _, __: _get_copytree_ignore_files(paths),
+            )
+        except shutil.Error as e:
+            sys.stderr.write("Failed collecting file(s) due to error:\n")
+            sys.stderr.write(str(e) + "\n")
+        _debug("collected dir %s\n" % paths.run_dir, 1, verbosity)
+    else:
+        _debug(
+            "directory '%s' did not exist\n" % paths.run_dir,
+            1,
+            verbosity,
+        )
+    if os.path.exists(os.path.join(paths.run_dir, "disabled")):
+        # Fallback to grab previous cloud/data
+        cloud_data_dir = Path(paths.cloud_data)
+        if cloud_data_dir.exists():
+            shutil.copytree(
+                str(cloud_data_dir),
+                Path(log_dir + str(cloud_data_dir)),
+            )
+
+
+def collect_logs(
+    tarfile: str, include_userdata: bool, verbosity: int = 0
+) -> int:
     """Collect all cloud-init logs and tar them up into the provided tarfile.
 
     @param tarfile: The path of the tar-gzipped file to create.
     @param include_userdata: Boolean, true means include user-data.
+    @return: 0 on success, 1 on failure.
     """
     if include_userdata and os.getuid() != 0:
         sys.stderr.write(
@@ -221,84 +303,35 @@ def collect_logs(tarfile, include_userdata: bool, verbosity=0):
         return 1
 
     tarfile = os.path.abspath(tarfile)
-    log_dir = datetime.utcnow().date().strftime("cloud-init-logs-%Y-%m-%d")
+    log_dir = (
+        datetime.now(timezone.utc).date().strftime("cloud-init-logs-%Y-%m-%d")
+    )
     with tempdir(dir="/tmp") as tmp_dir:
         log_dir = os.path.join(tmp_dir, log_dir)
-        version = _write_command_output_to_file(
-            cmd=["cloud-init", "--version"],
-            filename=os.path.join(log_dir, "version"),
-            msg="cloud-init --version",
-            verbosity=verbosity,
-        )
-        dpkg_ver = _write_command_output_to_file(
-            cmd=["dpkg-query", "--show", "-f=${Version}\n", "cloud-init"],
-            filename=os.path.join(log_dir, "dpkg-version"),
-            msg="dpkg version",
-            verbosity=verbosity,
-        )
-        if not version:
-            version = dpkg_ver if dpkg_ver else "not-available"
-        print("version: ", version)
-        _debug("collected cloud-init version: %s\n" % version, 1, verbosity)
-        _stream_command_output_to_file(
-            cmd=["dmesg"],
-            filename=os.path.join(log_dir, "dmesg.txt"),
-            msg="dmesg output",
-            verbosity=verbosity,
-        )
-        _stream_command_output_to_file(
-            cmd=["journalctl", "--boot=0", "-o", "short-precise"],
-            filename=os.path.join(log_dir, "journal.txt"),
-            msg="systemd journal of current boot",
-            verbosity=verbosity,
-        )
-
         init = Init(ds_deps=[])
         init.read_cfg()
         paths = get_log_paths(init)
-        for log in get_config_logfiles(init.cfg):
-            _collect_file(log, log_dir, verbosity)
-        if include_userdata:
-            user_data_file = paths.userdata_raw
-            _collect_file(user_data_file, log_dir, verbosity)
-        collect_installer_logs(log_dir, include_userdata, verbosity)
 
-        run_dir = os.path.join(log_dir, "run")
-        ensure_dir(run_dir)
-        if os.path.exists(paths.run_dir):
-            try:
-                shutil.copytree(
-                    paths.run_dir,
-                    os.path.join(run_dir, "cloud-init"),
-                    ignore=lambda _, __: _get_copytree_ignore_files(paths),
-                )
-            except shutil.Error as e:
-                sys.stderr.write("Failed collecting file(s) due to error:\n")
-                sys.stderr.write(str(e) + "\n")
-            _debug("collected dir %s\n" % paths.run_dir, 1, verbosity)
-        else:
-            _debug(
-                "directory '%s' did not exist\n" % paths.run_dir,
-                1,
-                verbosity,
-            )
-        if os.path.exists(os.path.join(paths.run_dir, "disabled")):
-            # Fallback to grab previous cloud/data
-            cloud_data_dir = Path(paths.cloud_data)
-            if cloud_data_dir.exists():
-                shutil.copytree(
-                    str(cloud_data_dir),
-                    Path(log_dir + str(cloud_data_dir)),
-                )
+        _collect_version_info(log_dir, verbosity)
+        _collect_system_logs(log_dir, verbosity)
+        _collect_cloudinit_logs(
+            log_dir, verbosity, init, paths, include_userdata
+        )
+        _collect_installer_logs(log_dir, include_userdata, verbosity)
+        _collect_run_dir(log_dir, verbosity, paths)
         with chdir(tmp_dir):
-            subp(["tar", "czvf", tarfile, log_dir.replace(tmp_dir + "/", "")])
+            subp(["tar", "czvf", tarfile, log_dir.replace(f"{tmp_dir}/", "")])
     sys.stderr.write("Wrote %s\n" % tarfile)
     return 0
 
 
 def handle_collect_logs_args(name, args):
     """Handle calls to 'cloud-init collect-logs' as a subcommand."""
-    return collect_logs(args.tarfile, args.userdata, args.verbosity)
+    return collect_logs(
+        tarfile=args.tarfile,
+        include_userdata=args.userdata,
+        verbosity=args.verbosity,
+    )
 
 
 def main():
