@@ -21,14 +21,6 @@ Tmpdir = namedtuple("Tmpdir", ["tmpdir", "link_d", "data_d"])
 FakeArgs = namedtuple("FakeArgs", ["action", "local", "mode"])
 
 
-@pytest.fixture()
-def mock_get_user_data_file(mocker, tmpdir):
-    yield mocker.patch(
-        "cloudinit.cmd.devel.logs._get_user_data_file",
-        return_value=tmpdir.join("cloud"),
-    )
-
-
 @pytest.fixture(autouse=True, scope="module")
 def disable_setup_logging():
     # setup_basic_logging can change the logging level to WARNING, so
@@ -255,13 +247,11 @@ class TestCLI:
             "schema",
         ],
     )
-    @mock.patch("cloudinit.stages.Init._read_cfg", return_value={})
     def test_conditional_subcommands_from_entry_point_sys_argv(
         self,
-        m_read_cfg,
         subcommand,
         capsys,
-        mock_get_user_data_file,
+        m_log_paths,
         mock_status_wrapper,
     ):
         """Subcommands from entry-point are properly parsed from sys.argv."""
@@ -284,7 +274,7 @@ class TestCLI:
         ],
     )
     def test_subcommand_parser(
-        self, subcommand, mock_get_user_data_file, mock_status_wrapper
+        self, subcommand, m_log_paths, mock_status_wrapper
     ):
         """cloud-init `subcommand` calls its subparser."""
         # Provide -h param to `subcommand` to avoid having to mock behavior.
