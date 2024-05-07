@@ -307,6 +307,9 @@ class Paths(persistence.CloudInitPickleMixin):
         self.cfgs = path_cfgs
         # Populate all the initial paths
         self.cloud_dir: str = path_cfgs.get("cloud_dir", "/var/lib/cloud")
+        self.docs_dir: str = path_cfgs.get(
+            "docs_dir", "/usr/share/doc/cloud-init/"
+        )
         self.run_dir: str = path_cfgs.get("run_dir", settings.DEFAULT_RUN_DIR)
         self.instance_link: str = os.path.join(self.cloud_dir, "instance")
         self.boot_finished: str = os.path.join(

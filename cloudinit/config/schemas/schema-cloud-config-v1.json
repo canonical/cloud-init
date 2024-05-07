@@ -649,7 +649,7 @@
                 "distro",
                 "pip"
               ],
-              "description": "The type of installation for ansible. It can be one of the following values:\n\n - ``distro``\n - ``pip``"
+              "description": "The type of installation for ansible. It can be one of the following values:\n-  ``distro``\n-  ``pip``"
             },
             "run_user": {
               "type": "string",
@@ -685,6 +685,7 @@
                 "run_ansible": {
                   "type": "array",
                   "items": {
+                    "type": "object",
                     "properties": {
                       "playbook_name": {
                         "type": "string"

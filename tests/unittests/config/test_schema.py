@@ -29,6 +29,7 @@ from cloudinit.config.schema import (
     annotated_cloudconfig_file,
     get_jsonschema_validator,
     get_meta_doc,
+    get_module_docs,
     get_schema,
     get_schema_dir,
     handle_schema_args,
@@ -297,14 +298,78 @@ class TestGetSchema:
         assert [] == sorted(legacy_schema_keys)
 
 
+MODULE_DATA_YAML_TMPL = """\
+{mod_id}:
+  name: {name}
+  title: My Module
+  description:
+    My amazing module description
+  examples:
+  - comment: "comment 1"
+    file: {examplefile}
+"""
+
+
+class TestGetModuleDocs:
+    def test_get_module_docs_loads_all_data_yaml_files_from_modules_dirs(
+        self, mocker, paths
+    ):
+        """get_module_docs aggregates all data.yaml module docs."""
+        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
+        modules_dir = Path(paths.docs_dir, "module-docs")
+
+        assert {} == get_module_docs()
+
+        mod1_dir = Path(modules_dir, "cc_mod1")
+        mod1_dir.mkdir(parents=True)
+        mod1_data = Path(mod1_dir, "data.yaml")
+        # Skip any subdir that does not contain a data.yaml
+        assert {} == get_module_docs()
+        # Create data file to any subdir that does not contain a data.yaml
+        mod1_content = MODULE_DATA_YAML_TMPL.format(
+            mod_id="cc_mod1",
+            name="mod1",
+            examplefile=mod1_data,
+        )
+        mod1_data.write_text(mod1_content)
+        expected = yaml.safe_load(mod1_content)
+        assert expected == get_module_docs()
+        mod2_dir = Path(modules_dir, "cc_mod2")
+        mod2_dir.mkdir(parents=True)
+        mod2_data = Path(mod2_dir, "data.yaml")
+        mod2_content = MODULE_DATA_YAML_TMPL.format(
+            mod_id="cc_mod2",
+            name="mod2",
+            examplefile=mod2_data,
+        )
+        mod2_data.write_text(mod2_content)
+        expected.update(yaml.safe_load(mod2_content))
+        assert expected == get_module_docs()
+
+    def test_validate_data_file_schema(self, mocker, paths):
+        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
+        root_dir = Path(__file__).parent.parent.parent.parent
+        for mod_data_f in root_dir.glob("doc/module-docs/*/data.yaml"):
+            docs_metadata = yaml.safe_load(mod_data_f.read_text())
+            assert docs_metadata.get(mod_data_f.parent.stem), (
+                f"Top-level key in {mod_data_f} doesn't match"
+                f" {mod_data_f.parent.stem}"
+            )
+            assert ["description", "examples", "name", "title"] == sorted(
+                docs_metadata[mod_data_f.parent.stem].keys()
+            )
+
+
 class TestLoadDoc:
     docs = get_module_variable("__doc__")
 
+    # TODO(remove when last __doc__ = load_meta_doc is removed)
     @pytest.mark.parametrize(
         "module_name",
-        ("cc_apt_pipelining",),  # new style composite schema file
+        ("cc_zypper_add_repo",),
     )
-    def test_report_docs_consolidated_schema(self, module_name):
+    def test_report_docs_consolidated_schema(self, module_name, mocker, paths):
+        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
         doc = load_doc([module_name])
         assert doc, "Unexpected empty docs for {}".format(module_name)
         assert self.docs[module_name] == doc
@@ -986,8 +1051,11 @@ class TestSchemaDocMarkdown:
             {"activate_by_schema_keys": []},
         ],
     )
-    def test_get_meta_doc_returns_restructured_text(self, meta_update):
+    def test_get_meta_doc_returns_restructured_text(
+        self, meta_update, paths, mocker
+    ):
         """get_meta_doc returns restructured text for a cloudinit schema."""
+        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
         full_schema = deepcopy(self.required_schema)
         full_schema.update(
             {
@@ -1030,7 +1098,10 @@ class TestSchemaDocMarkdown:
         for line in [ln for ln in doc.splitlines() if ln.strip()]:
             assert line in expected_lines
 
-    def test_get_meta_doc_full_with_activate_by_schema_keys(self):
+    def test_get_meta_doc_full_with_activate_by_schema_keys(
+        self, paths, mocker
+    ):
+        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
         full_schema = deepcopy(self.required_schema)
         full_schema.update(
             {
@@ -1078,14 +1149,18 @@ class TestSchemaDocMarkdown:
         for line in [ln for ln in doc.splitlines() if ln.strip()]:
             assert line in expected_lines
 
-    def test_get_meta_doc_handles_multiple_types(self):
+    def test_get_meta_doc_handles_multiple_types(self, paths, mocker):
         """get_meta_doc delimits multiple property types with a '/'."""
+        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
         schema = {"properties": {"prop1": {"type": ["string", "integer"]}}}
         assert "**prop1:** (string/integer)" in get_meta_doc(self.meta, schema)
 
     @pytest.mark.parametrize("multi_key", ["oneOf", "anyOf"])
-    def test_get_meta_doc_handles_multiple_types_recursive(self, multi_key):
+    def test_get_meta_doc_handles_multiple_types_recursive(
+        self, multi_key, mocker, paths
+    ):
         """get_meta_doc delimits multiple property types with a '/'."""
+        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
         schema = {
             "properties": {
                 "prop1": {
@@ -1100,8 +1175,9 @@ class TestSchemaDocMarkdown:
             self.meta, schema
         )
 
-    def test_references_are_flattened_in_schema_docs(self):
+    def test_references_are_flattened_in_schema_docs(self, paths, mocker):
         """get_meta_doc flattens and renders full schema definitions."""
+        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
         schema = {
             "$defs": {
                 "flattenit": {
@@ -1142,8 +1218,11 @@ class TestSchemaDocMarkdown:
             ),
         ),
     )
-    def test_get_meta_doc_handles_enum_types(self, sub_schema, expected):
+    def test_get_meta_doc_handles_enum_types(
+        self, sub_schema, expected, mocker, paths
+    ):
         """get_meta_doc converts enum types to yaml and delimits with '/'."""
+        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
         schema = {"properties": {"prop1": sub_schema}}
         assert expected in get_meta_doc(self.meta, schema)
 
@@ -1186,19 +1265,21 @@ class TestSchemaDocMarkdown:
         ),
     )
     def test_get_meta_doc_hidden_hides_specific_properties_from_docs(
-        self, schema, expected
+        self, schema, expected, paths, mocker
     ):
         """Docs are hidden for any property in the hidden list.
 
         Useful for hiding deprecated key schema.
         """
+        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
         assert "".join(expected) in get_meta_doc(self.meta, schema)
 
     @pytest.mark.parametrize("multi_key", ["oneOf", "anyOf"])
     def test_get_meta_doc_handles_nested_multi_schema_property_types(
-        self, multi_key
+        self, multi_key, paths, mocker
     ):
         """get_meta_doc describes array items oneOf declarations in type."""
+        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
         schema = {
             "properties": {
                 "prop1": {
@@ -1214,8 +1295,11 @@ class TestSchemaDocMarkdown:
         )
 
     @pytest.mark.parametrize("multi_key", ["oneOf", "anyOf"])
-    def test_get_meta_doc_handles_types_as_list(self, multi_key):
+    def test_get_meta_doc_handles_types_as_list(
+        self, multi_key, paths, mocker
+    ):
         """get_meta_doc renders types which have a list value."""
+        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
         schema = {
             "properties": {
                 "prop1": {
@@ -1231,8 +1315,9 @@ class TestSchemaDocMarkdown:
             in get_meta_doc(self.meta, schema)
         )
 
-    def test_get_meta_doc_handles_flattening_defs(self):
+    def test_get_meta_doc_handles_flattening_defs(self, paths, mocker):
         """get_meta_doc renders $defs."""
+        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
         schema = {
             "$defs": {
                 "prop1object": {
@@ -1247,8 +1332,9 @@ class TestSchemaDocMarkdown:
             in get_meta_doc(self.meta, schema)
         )
 
-    def test_get_meta_doc_handles_string_examples(self):
+    def test_get_meta_doc_handles_string_examples(self, paths, mocker):
         """get_meta_doc properly indented examples as a list of strings."""
+        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
         full_schema = deepcopy(self.required_schema)
         full_schema.update(
             {
@@ -1278,8 +1364,9 @@ class TestSchemaDocMarkdown:
         ]
         assert "".join(expected) in get_meta_doc(self.meta, full_schema)
 
-    def test_get_meta_doc_properly_parse_description(self):
+    def test_get_meta_doc_properly_parse_description(self, paths, mocker):
         """get_meta_doc description properly formatted"""
+        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
         schema = {
             "properties": {
                 "p1": {
@@ -1348,7 +1435,10 @@ class TestSchemaDocMarkdown:
             ),
         ],
     )
-    def test_get_meta_doc_additional_keys(self, key, expectation):
+    def test_get_meta_doc_additional_keys(
+        self, key, expectation, paths, mocker
+    ):
+        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
         schema = {
             "properties": {
                 "prop1": {
@@ -1364,8 +1454,9 @@ class TestSchemaDocMarkdown:
         with expectation:
             get_meta_doc(invalid_meta, schema)
 
-    def test_label_overrides_property_name(self):
+    def test_label_overrides_property_name(self, paths, mocker):
         """get_meta_doc overrides property name with label."""
+        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
         schema = {
             "properties": {
                 "old_prop1": {
@@ -1651,7 +1742,10 @@ class TestSchemaDocMarkdown:
             ),
         ],
     )
-    def test_get_meta_doc_render_deprecated_info(self, schema, expected_lines):
+    def test_get_meta_doc_render_deprecated_info(
+        self, schema, expected_lines, paths, mocker
+    ):
+        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
         doc = get_meta_doc(self.meta, schema)
         for line in expected_lines:
             assert line in doc
@@ -1816,9 +1910,10 @@ class TestMain:
     )
     @mock.patch(M_PATH + "os.getuid", return_value=100)
     def test_main_ignores_schema_type(
-        self, _read_cfg_paths, _os_getuid, params, expectation, capsys
+        self, _os_getuid, read_cfg_paths, params, expectation, paths, capsys
     ):
         """Main ignores --schema-type param when --system or --docs present."""
+        read_cfg_paths.return_value = paths
         params = list(itertools.chain(*[a.split() for a in params]))
         with mock.patch(
             "sys.argv", ["mycmd", "--schema-type", "network-config"] + params
@@ -1869,8 +1964,13 @@ class TestMain:
             "Cannot use --annotate with --docs\n" == err
         )
 
-    def test_main_prints_docs(self, _read_cfg_paths, capsys):
+    def test_main_prints_docs(self, read_cfg_paths, paths, capsys):
         """When --docs parameter is provided, main generates documentation."""
+        paths.docs_dir = Path(
+            Path(__file__).parent.parent.parent.parent, "doc/"
+        )
+        read_cfg_paths.return_value = paths
+
         myargs = ["mycmd", "--docs", "all"]
         with mock.patch("sys.argv", myargs):
             assert 0 == main(), "Expected 0 exit code"
