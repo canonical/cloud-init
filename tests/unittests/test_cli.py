@@ -136,7 +136,9 @@ class TestCLI:
         """When running in init-local mode, status_wrapper honors cloud_dir."""
         cloud_dir = mock_status_wrapper.tmpdir.join("cloud")
         paths = helpers.Paths({"cloud_dir": str(cloud_dir)})
-        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
+        mocker.patch(
+            "cloudinit.config.schema.read_cfg_paths", return_value=paths
+        )
         data_d = mock_status_wrapper.data_d
         link_d = mock_status_wrapper.link_d
 
@@ -368,7 +370,13 @@ class TestCLI:
     )
     @mock.patch("cloudinit.stages.Init._read_cfg", return_value={})
     def test_wb_schema_subcommand(
-        self, m_read_cfg, args, expected_doc_sections, is_error
+        self,
+        m_read_cfg,
+        args,
+        expected_doc_sections,
+        is_error,
+        mocker,
+        request,
     ):
         """Validate that doc content has correct values."""
 
@@ -381,6 +389,12 @@ class TestCLI:
             contextlib.redirect_stderr
             if is_error
             else contextlib.redirect_stdout
+        )
+        paths = helpers.Paths(
+            {"docs_dir": os.path.join(request.config.rootdir, "doc")}
+        )
+        mocker.patch(
+            "cloudinit.config.schema.read_cfg_paths", return_value=paths
         )
         with redirecter(out_or_err):
             self._call_main(["cloud-init", "schema", "--docs"] + args)
