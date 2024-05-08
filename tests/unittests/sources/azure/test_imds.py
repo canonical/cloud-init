@@ -129,6 +129,25 @@ def regex_for_http_error(error):
     return f".*{error!s}.*"
 
 
+class TestHeaders:
+    default_url = (
+        "http://169.254.169.254/metadata/instance?"
+        "api-version=2021-08-01&extended=true"
+    )
+
+    def test_headers_cb(self):
+        headers = imds.headers_cb(self.default_url)
+        assert list(headers.keys()) == ["Metadata", "x-ms-client-request-id"]
+        assert headers.get("Metadata") == "true"
+        uuid = headers.get("x-ms-client-request-id")
+        match = re.search(
+            "^[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-"
+            "[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}$",
+            uuid,
+        )
+        assert match
+
+
 class TestFetchMetadataWithApiFallback:
     default_url = (
         "http://169.254.169.254/metadata/instance?"
@@ -140,7 +159,6 @@ class TestFetchMetadataWithApiFallback:
 
     # Early versions of responses do not appreciate the parameters...
     base_url = "http://169.254.169.254/metadata/instance"
-    headers = {"Metadata": "true"}
     timeout = 30
 
     @pytest.mark.parametrize("retry_deadline", [0.0, 1.0, 60.0])
@@ -168,7 +186,7 @@ class TestFetchMetadataWithApiFallback:
             mock.call(
                 self.default_url,
                 timeout=self.timeout,
-                headers=self.headers,
+                headers_cb=imds.headers_cb,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
@@ -213,7 +231,7 @@ class TestFetchMetadataWithApiFallback:
             mock.call(
                 self.default_url,
                 timeout=self.timeout,
-                headers=self.headers,
+                headers_cb=imds.headers_cb,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
@@ -221,7 +239,7 @@ class TestFetchMetadataWithApiFallback:
             mock.call(
                 self.fallback_url,
                 timeout=self.timeout,
-                headers=self.headers,
+                headers_cb=imds.headers_cb,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
@@ -232,7 +250,11 @@ class TestFetchMetadataWithApiFallback:
             (
                 "cloudinit.url_helper",
                 logging.DEBUG,
-                StringMatch(r"\[0/infinite\] open.*"),
+                StringMatch(
+                    r"\[0/infinite\] open.*Metadata.*true"
+                    ".*x-ms-client-request-id.*[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-"
+                    "[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}.*"
+                ),
             ),
             (
                 LOG_PATH,
@@ -575,7 +597,7 @@ class TestFetchMetadataWithApiFallback:
             mock.call(
                 self.default_url,
                 timeout=self.timeout,
-                headers=self.headers,
+                headers_cb=imds.headers_cb,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
@@ -639,7 +661,6 @@ class TestFetchReprovisionData:
         "http://169.254.169.254/metadata/"
         "reprovisiondata?api-version=2019-06-01"
     )
-    headers = {"Metadata": "true"}
     timeout = 30
 
     # Early versions of responses do not appreciate the parameters...
@@ -663,7 +684,7 @@ class TestFetchReprovisionData:
             mock.call(
                 self.url,
                 timeout=self.timeout,
-                headers=self.headers,
+                headers_cb=imds.headers_cb,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=False,
