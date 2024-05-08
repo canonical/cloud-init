@@ -11,6 +11,7 @@ matrices and so on.
    :maxdepth: 1
 
    modules.rst
+   yaml_examples.rst
    examples.rst
    cli.rst
    availability.rst

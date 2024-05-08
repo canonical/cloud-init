@@ -1,4 +1,3 @@
-.. _yaml_examples:
 
 Cloud config examples
 *********************
