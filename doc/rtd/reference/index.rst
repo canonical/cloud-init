@@ -10,8 +10,8 @@ matrices and so on.
 .. toctree::
    :maxdepth: 1
 
-   modules.rst
    yaml_examples.rst
+   modules.rst
    examples.rst
    cli.rst
    availability.rst
