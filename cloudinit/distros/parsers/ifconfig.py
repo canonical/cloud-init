@@ -210,14 +210,12 @@ class Ifconfig:
         if "/" in toks[1]:
             ip = IPv4Interface(toks[1])
             netmask = str(ip.netmask)
-            if "broadcast" in toks:
-                broadcast = toks[toks.index("broadcast") + 1]
         else:
             netmask = str(IPv4Address(int(toks[3], 0)))
-            if "broadcast" in toks:
-                broadcast = toks[toks.index("broadcast") + 1]
             ip = IPv4Interface("%s/%s" % (toks[1], netmask))
 
+        if "broadcast" in toks:
+            broadcast = toks[toks.index("broadcast") + 1]
         prefixlen = ip.with_prefixlen.split("/")[1]
         return (
             str(ip.ip),
