@@ -26,8 +26,7 @@ date. A 5 year timeline may also be expected for changed keys.
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_bootcmd/data.yaml
    :template: modules.tmpl
-.. datatemplate:yaml:: ../../module-docs/cc_byobu/data.yaml
-   :template: modules.tmpl
+.. automodule:: cloudinit.config.cc_byobu
 .. automodule:: cloudinit.config.cc_ca_certs
 .. automodule:: cloudinit.config.cc_chef
 .. automodule:: cloudinit.config.cc_disable_ec2_metadata
