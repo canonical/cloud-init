@@ -243,7 +243,7 @@ def get_dev_features(devname):
 
 
 def has_netfail_standby_feature(devname):
-    """ Return True if VIRTIO_NET_F_STANDBY bit (62) is set.
+    """Return True if VIRTIO_NET_F_STANDBY bit (62) is set.
 
     https://github.com/torvalds/linux/blob/ \
         089cf7f6ecb266b6a4164919a2e69bd2f938374a/ \
@@ -642,7 +642,7 @@ def interface_has_own_mac(ifname, strict=False):
     are bonds or vlans that inherit their mac from another device.
     Possible values are:
       0: permanent address    2: stolen from another device
-      1: randomly generated   3: set using dev_set_mac_address"""
+    1: randomly generated   3: set using dev_set_mac_address"""
 
     assign_type = read_sys_net_int(ifname, "addr_assign_type")
     if assign_type is None:

@@ -753,7 +753,7 @@ def get_cfg_by_path(yobj, keyp, default=None):
                  or an iterable.
     @param default: The default to return if the path does not exist.
     @return: The value of the item at keyp."
-        is not found."""
+    is not found."""
 
     if isinstance(keyp, str):
         keyp = keyp.split("/")
@@ -3009,7 +3009,7 @@ def rootdev_from_cmdline(cmdline):
 
 
 def load_shell_content(content, add_empty=False, empty_val=None):
-    """Given shell like syntax (key=value\nkey2=value2\n) in content
+    r"""Given shell like syntax (key=value\nkey2=value2\n) in content
     return the data in dictionary form.  If 'add_empty' is True
     then add entries in to the returned dictionary for 'VAR='
     variables.  Set their value to empty_val."""
@@ -3097,7 +3097,7 @@ def udevadm_settle(exists=None, timeout=None):
 
 
 def error(msg, rc=1, fmt="Error:\n{}", sys_exit=False):
-    """
+    r"""
     Print error to stderr and return or exit
 
     @param msg: message to print

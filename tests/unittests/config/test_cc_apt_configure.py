@@ -1,6 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-""" Tests for cc_apt_configure module """
+"""Tests for cc_apt_configure module"""
 
 import re
 from pathlib import Path

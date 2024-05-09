@@ -4,7 +4,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"Yum Add Repo: Add yum repository configuration to the system"
+"""Yum Add Repo: Add yum repository configuration to the system"""
 
 import io
 import logging

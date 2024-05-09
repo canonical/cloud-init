@@ -4,7 +4,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"Users and Groups: Configure users and groups"
+"""Users and Groups: Configure users and groups"""
 
 import logging
 from textwrap import dedent

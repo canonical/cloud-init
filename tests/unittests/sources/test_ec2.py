@@ -259,7 +259,7 @@ def disable_is_resolvable():
 
 
 def _register_ssh_keys(rfunc, base_url, keys_data):
-    """handle ssh key inconsistencies.
+    r"""handle ssh key inconsistencies.
 
     public-keys in the ec2 metadata is inconsistently formated compared
     to other entries.
@@ -295,7 +295,7 @@ def _register_ssh_keys(rfunc, base_url, keys_data):
 
 
 def register_mock_metaserver(base_url, data, responses_mock=None):
-    """Register with responses a ec2 metadata like service serving 'data'.
+    r"""Register with responses a ec2 metadata like service serving 'data'.
 
     If given a dictionary, it will populate urls under base_url for
     that dictionary.  For example, input of
