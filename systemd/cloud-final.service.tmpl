@@ -19,7 +19,7 @@ ExecStart=/usr/bin/cloud-init modules --mode=final
 RemainAfterExit=yes
 TimeoutSec=0
 KillMode=process
-{% if variant == "rhel" %}
+{% if variant in ["almalinux", "cloudlinux", "rhel"] %}
 # Restart NetworkManager if it is present and running.
 ExecStartPost=/bin/sh -c 'u=NetworkManager.service; \
  out=$(systemctl show --property=SubState $u) || exit; \
