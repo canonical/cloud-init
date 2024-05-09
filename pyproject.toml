@@ -42,7 +42,7 @@ ignore_missing_imports = true
 target-version = "py37"
 line-length = 79
 # E, W, and F make up the entirety of default flake8
-select = [
+lint.select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
     "F",   # pyflakes
@@ -54,8 +54,8 @@ select = [
     "PIE", # flake8-pie
     "Q",   # flake8-quotes
 ]
-ignore = [
+lint.ignore = [
     "E731", # Do not assign a `lambda` expression, use a `def`
 ]
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "cloudinit/cmd/main.py" = ["E402"]
