@@ -914,7 +914,7 @@ class TestDsIdentify(DsIdentifyBase):
         """On non-Intel, openstack without dmi info is maybe.
 
         nova does not identify itself on platforms other than intel.
-           https://bugs.launchpad.net/cloud-init/+bugs?field.tag=dsid-nova"""
+        https://bugs.launchpad.net/cloud-init/+bugs?field.tag=dsid-nova"""
 
         data = copy.deepcopy(VALID_CFG["OpenStack"])
         del data["files"][P_PRODUCT_NAME]

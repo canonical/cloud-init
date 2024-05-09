@@ -43,6 +43,7 @@ target-version = "py37"
 line-length = 79
 # E, W, and F make up the entirety of default flake8
 lint.select = [
+    "D",   # pydocstyle
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
     "F",   # pyflakes
@@ -55,7 +56,23 @@ lint.select = [
     "Q",   # flake8-quotes
 ]
 lint.ignore = [
+    "D100", # docstring: public module
+    "D101", # docstring: public class required
+    "D102", # docstring: public method required
+    "D103", # docstring: public function required
+    "D107", # docstring: __init__ required
+    "D104", # docstring: public package required
+    "D105", # docstring: magic method required
+    "D200", # docstring: one line docstring shouldn't wrap
+    "D202", # docstring: blank line
+    "D205", # docstring: 1 blank line between initial and summary
+    "D209", # docstring: closing quotes -> separate line
+    "D400", # docstring: end with a period
+    "D401", # docstring: imperative mood
+    "D402", # docstring: docstring shouldn't start with func signature
+    "D403", # docstring: capitalized first line
     "E731", # Do not assign a `lambda` expression, use a `def`
 ]
-[tool.ruff.lint.per-file-ignores]
-"cloudinit/cmd/main.py" = ["E402"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"

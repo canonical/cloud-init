@@ -476,7 +476,7 @@ class OpenSSLManager:
 
     @azure_ds_telemetry_reporter
     def _get_fingerprint_from_cert(self, certificate):
-        """openssl x509 formats fingerprints as so:
+        r"""openssl x509 formats fingerprints as so:
         'SHA1 Fingerprint=07:3E:19:D1:4D:1C:79:92:24:C6:A0:FD:8D:DA:\
         B6:A8:BF:27:D4:73\n'
 
