@@ -923,7 +923,6 @@ class TestValidateCloudConfigFile:
     def test_validateconfig_file_raises_jinja_syntax_error(
         self, annotate, tmpdir, mocker, capsys
     ):
-        """ """
         # will throw error because of space between last two }'s
         invalid_jinja_template = "## template: jinja\na:b\nc:{{ d } }"
         mocker.patch("os.path.exists", return_value=True)
@@ -1980,7 +1979,6 @@ class TestMain:
         paths,
         capsys,
     ):
-        """"""
         paths.get_ipath = paths.get_ipath_cur
         read_cfg_paths.return_value = paths
         path_content_by_key = {

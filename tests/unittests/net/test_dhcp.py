@@ -666,7 +666,7 @@ class TestDHCPDiscoveryClean:
     def test_dhcp_output_error_stream(
         self, m_wait, m_which, m_subp, m_kill, m_remove, tmpdir
     ):
-        """ "dhcp_log_func is called with the output and error streams of
+        """dhcp_log_func is called with the output and error streams of
         dhclient when the callable is passed."""
         dhclient_err = "FAKE DHCLIENT ERROR"
         dhclient_out = "FAKE DHCLIENT OUT"

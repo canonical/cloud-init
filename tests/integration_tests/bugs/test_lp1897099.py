@@ -1,4 +1,4 @@
-""" Integration test for LP #187099
+"""Integration test for LP #187099
 
 Ensure that if fallocate fails during mkswap that we fall back to using dd
 

@@ -4,7 +4,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 #
 """Hetzner Cloud API Documentation
-   https://docs.hetzner.cloud/"""
+https://docs.hetzner.cloud/"""
 
 import logging
 

@@ -1,5 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-"""Datasource for IBMCloud.
+r"""Datasource for IBMCloud.
 
 IBMCloud is also know as SoftLayer or BlueMix.
 IBMCloud hypervisor is xen (2018-03-10).
@@ -296,7 +296,7 @@ def read_md():
     @return: None if not running on IBM Cloud.
              dictionary with guaranteed fields: metadata, version
              and optional fields: userdata, vendordata, networkdata.
-             Also includes the system uuid from /sys/hypervisor/uuid."""
+    Also includes the system uuid from /sys/hypervisor/uuid."""
     platform, path = get_ibm_platform()
     if platform is None:
         LOG.debug("This is not an IBMCloud platform.")
