@@ -1,0 +1,3 @@
+#cloud-config
+apk_repos:
+  preserve_repositories: true
