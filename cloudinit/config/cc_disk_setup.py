@@ -21,7 +21,6 @@ from cloudinit.settings import PER_INSTANCE
 
 # Define the commands to use
 SFDISK_CMD = subp.which("sfdisk")
-SGDISK_CMD = subp.which("sgdisk")
 LSBLK_CMD = subp.which("lsblk")
 BLKID_CMD = subp.which("blkid")
 BLKDEV_CMD = subp.which("blockdev")
@@ -446,7 +445,7 @@ def get_hdd_size(device):
     return int(size_in_bytes) / int(sector_size)
 
 
-def check_partition_mbr_layout(device, layout):
+def check_partition_gpt_mbr_layout(device, layout):
     """
     Returns true if the partition layout matches the one on the disk
 
@@ -485,47 +484,6 @@ def check_partition_mbr_layout(device, layout):
     return found_layout
 
 
-def check_partition_gpt_layout(device, layout):
-    prt_cmd = [SGDISK_CMD, "-p", device]
-    try:
-        out, _err = subp.subp(prt_cmd, update_env=LANG_C_ENV)
-    except Exception as e:
-        raise RuntimeError(
-            "Error running partition command on %s\n%s" % (device, e)
-        ) from e
-
-    out_lines = iter(out.splitlines())
-    # Skip header.  Output looks like:
-    # ***************************************************************
-    # Found invalid GPT and valid MBR; converting MBR to GPT format
-    # in memory.
-    # ***************************************************************
-    #
-    # Disk /dev/vdb: 83886080 sectors, 40.0 GiB
-    # Logical sector size: 512 bytes
-    # Disk identifier (GUID): 8A7F11AD-3953-491B-8051-077E01C8E9A7
-    # Partition table holds up to 128 entries
-    # First usable sector is 34, last usable sector is 83886046
-    # Partitions will be aligned on 2048-sector boundaries
-    # Total free space is 83476413 sectors (39.8 GiB)
-    #
-    # Number Start (sector) End (sector) Size       Code  Name
-    # 1      2048           206847       100.0 MiB  0700  Microsoft basic data
-    for line in out_lines:
-        if line.strip().startswith("Number"):
-            break
-
-    codes = [line.strip().split()[5] for line in out_lines]
-    cleaned = []
-
-    # user would expect a code '83' to be Linux, but sgdisk outputs 8300.
-    for code in codes:
-        if len(code) == 4 and code.endswith("00"):
-            code = code[0:2]
-        cleaned.append(code)
-    return cleaned
-
-
 def check_partition_layout(table_type, device, layout):
     """
     See if the partition lay out matches.
@@ -534,10 +492,8 @@ def check_partition_layout(table_type, device, layout):
     to add support for other disk layout schemes, add a
     function called check_partition_%s_layout
     """
-    if "gpt" == table_type:
-        found_layout = check_partition_gpt_layout(device, layout)
-    elif "mbr" == table_type:
-        found_layout = check_partition_mbr_layout(device, layout)
+    if "gpt" == table_type or "mbr" == table_type:
+        found_layout = check_partition_gpt_mbr_layout(device, layout)
     else:
         raise RuntimeError("Unable to determine table type")
 
@@ -722,10 +678,10 @@ def read_parttbl(device):
     util.udevadm_settle()
 
 
-def exec_mkpart_mbr(device, layout):
+def exec_mkpart_gpt_mbr(device, layout):
     """
     Break out of mbr partition to allow for future partition
-    types, i.e. gpt
+    types.
     """
     # Create the partitions
     prt_cmd = [SFDISK_CMD, "--force", device]
@@ -735,33 +691,6 @@ def exec_mkpart_mbr(device, layout):
         raise RuntimeError(
             "Failed to partition device %s\n%s" % (device, e)
         ) from e
-
-    read_parttbl(device)
-
-
-def exec_mkpart_gpt(device, layout):
-    try:
-        subp.subp([SGDISK_CMD, "-Z", device])
-        for index, (partition_type, (start, end)) in enumerate(layout):
-            index += 1
-            subp.subp(
-                [
-                    SGDISK_CMD,
-                    "-n",
-                    "{}:{}:{}".format(index, start, end),
-                    device,
-                ]
-            )
-            if partition_type is not None:
-                # convert to a 4 char (or more) string right padded with 0
-                # 82 -> 8200.  'Linux' -> 'Linux'
-                pinput = str(partition_type).ljust(4, "0")
-                subp.subp(
-                    [SGDISK_CMD, "-t", "{}:{}".format(index, pinput), device]
-                )
-    except Exception:
-        LOG.warning("Failed to partition device %s", device)
-        raise
 
     read_parttbl(device)
 
@@ -843,10 +772,8 @@ def mkpart(device, definition):
     LOG.debug("   Layout is: %s", part_definition)
 
     LOG.debug("Creating partition table on %s", device)
-    if "mbr" == table_type:
-        exec_mkpart_mbr(device, part_definition)
-    elif "gpt" == table_type:
-        exec_mkpart_gpt(device, part_definition)
+    if "mbr" == table_type or "gpt" == table_type:
+        exec_mkpart_gpt_mbr(device, part_definition)
     else:
         raise RuntimeError("Unable to determine table type")
 
