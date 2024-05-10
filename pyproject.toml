@@ -47,7 +47,6 @@ lint.select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
     "F",   # pyflakes
-    "CPY", # flake8-copyright
     "T10", # flake8-debugger
     "ISC", # flake8-implicit-str-concat
     "ICN", # flake8-import-conventions
