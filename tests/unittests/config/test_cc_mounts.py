@@ -62,133 +62,114 @@ class TestSanitizeDevname(test_helpers.FilesystemMockingTestCase):
     def test_existent_full_disk_path_is_returned(self):
         disk_path = "/dev/sda"
         self.mock_existence_of_disk(disk_path)
-        self.assertEqual(
-            disk_path,
-            cc_mounts.sanitize_devname(disk_path, lambda x: None),
+        assert disk_path == cc_mounts.sanitize_devname(
+            disk_path, lambda x: None
         )
 
     def test_existent_disk_name_returns_full_path(self):
         disk_name = "sda"
         disk_path = "/dev/" + disk_name
         self.mock_existence_of_disk(disk_path)
-        self.assertEqual(
-            disk_path,
-            cc_mounts.sanitize_devname(disk_name, lambda x: None),
+        assert disk_path == cc_mounts.sanitize_devname(
+            disk_name, lambda x: None
         )
 
     def test_existent_meta_disk_is_returned(self):
         actual_disk_path = "/dev/sda"
         self.mock_existence_of_disk(actual_disk_path)
-        self.assertEqual(
-            actual_disk_path,
-            cc_mounts.sanitize_devname(
-                "ephemeral0",
-                lambda x: actual_disk_path,
-            ),
+        assert actual_disk_path == cc_mounts.sanitize_devname(
+            "ephemeral0",
+            lambda x: actual_disk_path,
         )
 
     def test_existent_meta_partition_is_returned(self):
         disk_name, partition_part = "/dev/sda", "1"
         actual_partition_path = disk_name + partition_part
         self.mock_existence_of_partition(disk_name, partition_part)
-        self.assertEqual(
-            actual_partition_path,
-            cc_mounts.sanitize_devname(
-                "ephemeral0.1",
-                lambda x: disk_name,
-            ),
+        assert actual_partition_path == cc_mounts.sanitize_devname(
+            "ephemeral0.1",
+            lambda x: disk_name,
         )
 
     def test_existent_meta_partition_with_p_is_returned(self):
         disk_name, partition_part = "/dev/sda", "p1"
         actual_partition_path = disk_name + partition_part
         self.mock_existence_of_partition(disk_name, partition_part)
-        self.assertEqual(
-            actual_partition_path,
-            cc_mounts.sanitize_devname(
-                "ephemeral0.1",
-                lambda x: disk_name,
-            ),
+        assert actual_partition_path == cc_mounts.sanitize_devname(
+            "ephemeral0.1",
+            lambda x: disk_name,
         )
 
     def test_first_partition_returned_if_existent_disk_is_partitioned(self):
         disk_name, partition_part = "/dev/sda", "1"
         actual_partition_path = disk_name + partition_part
         self.mock_existence_of_partition(disk_name, partition_part)
-        self.assertEqual(
-            actual_partition_path,
-            cc_mounts.sanitize_devname(
-                "ephemeral0",
-                lambda x: disk_name,
-            ),
+        assert actual_partition_path == cc_mounts.sanitize_devname(
+            "ephemeral0",
+            lambda x: disk_name,
         )
 
     def test_nth_partition_returned_if_requested(self):
         disk_name, partition_part = "/dev/sda", "3"
         actual_partition_path = disk_name + partition_part
         self.mock_existence_of_partition(disk_name, partition_part)
-        self.assertEqual(
-            actual_partition_path,
-            cc_mounts.sanitize_devname(
-                "ephemeral0.3",
-                lambda x: disk_name,
-            ),
+        assert actual_partition_path == cc_mounts.sanitize_devname(
+            "ephemeral0.3",
+            lambda x: disk_name,
         )
 
     def test_transformer_returning_none_returns_none(self):
-        self.assertIsNone(
+        assert (
             cc_mounts.sanitize_devname(
                 "ephemeral0",
                 lambda x: None,
             )
+            is None
         )
 
     def test_missing_device_returns_none(self):
-        self.assertIsNone(
+        assert (
             cc_mounts.sanitize_devname(
                 "/dev/sda",
                 None,
             )
+            is None
         )
 
     def test_missing_sys_returns_none(self):
         disk_path = "/dev/sda"
         self._makedirs(disk_path)
-        self.assertIsNone(
+        assert (
             cc_mounts.sanitize_devname(
                 disk_path,
                 None,
             )
+            is None
         )
 
     def test_existent_disk_but_missing_partition_returns_none(self):
         disk_path = "/dev/sda"
         self.mock_existence_of_disk(disk_path)
-        self.assertIsNone(
+        assert (
             cc_mounts.sanitize_devname(
                 "ephemeral0.1",
                 lambda x: disk_path,
             )
+            is None
         )
 
     def test_network_device_returns_network_device(self):
         disk_path = "netdevice:/path"
-        self.assertEqual(
+        assert disk_path == cc_mounts.sanitize_devname(
             disk_path,
-            cc_mounts.sanitize_devname(
-                disk_path,
-                None,
-            ),
+            None,
         )
 
     def test_device_aliases_remapping(self):
         disk_path = "/dev/sda"
         self.mock_existence_of_disk(disk_path)
-        self.assertEqual(
-            disk_path,
-            cc_mounts.sanitize_devname(
-                "mydata", lambda x: None, {"mydata": disk_path}
-            ),
+        assert disk_path == cc_mounts.sanitize_devname(
+            "mydata", lambda x: None, {"mydata": disk_path}
         )
 
 
@@ -392,7 +373,7 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
 
     def test_no_fstab(self):
         """Handle images which do not include an fstab."""
-        self.assertFalse(os.path.exists(cc_mounts.FSTAB_PATH))
+        assert not os.path.exists(cc_mounts.FSTAB_PATH)
         fstab_expected_content = (
             "%s\tnone\tswap\tsw,comment=cloudconfig\t0\t0\n"
             % (self.swap_path,)
@@ -400,7 +381,7 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
         cc_mounts.handle(None, {}, self.mock_cloud, [])
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
-            self.assertEqual(fstab_expected_content, fstab_new_content)
+            assert fstab_expected_content == fstab_new_content
 
     def test_swap_integrity(self):
         """Ensure that the swap file is correctly created and can
@@ -431,7 +412,7 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
 
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
-            self.assertEqual(fstab_expected_content, fstab_new_content)
+            assert fstab_expected_content == fstab_new_content
 
     def test_fstab_same_swap_device_already_configured(self):
         """Ensure that cloud-init will not add a swap device if the same
@@ -449,7 +430,7 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
 
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
-            self.assertEqual(fstab_expected_content, fstab_new_content)
+            assert fstab_expected_content == fstab_new_content
 
     def test_fstab_alternate_swap_device_already_configured(self):
         """Ensure that cloud-init will add a discovered swap device to
@@ -470,7 +451,7 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
 
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
-            self.assertEqual(fstab_expected_content, fstab_new_content)
+            assert fstab_expected_content == fstab_new_content
 
     def test_no_change_fstab_sets_needs_mount_all(self):
         """verify unchanged fstab entries are mounted if not call mount -a"""
@@ -485,7 +466,7 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
             fd.write(fstab_original_content)
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
-            self.assertEqual(fstab_expected_content, fstab_new_content)
+            assert fstab_expected_content == fstab_new_content
         cc_mounts.handle(None, cc, self.mock_cloud, [])
         self.m_subp_subp.assert_has_calls(
             [
