@@ -1,4 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+
+# TODO: Importing this file without first importing
+# cloudinit.sources.azure.errors will result in a circular import.
 import base64
 import json
 import logging
