@@ -28,16 +28,23 @@ date. A 5 year timeline may also be expected for changed keys.
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_byobu/data.yaml
    :template: modules.tmpl
-.. automodule:: cloudinit.config.cc_ca_certs
-.. automodule:: cloudinit.config.cc_chef
-.. automodule:: cloudinit.config.cc_disable_ec2_metadata
+.. datatemplate:yaml:: ../../module-docs/cc_ca_certs/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_chef/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_disable_ec2_metadata/data.yaml
+   :template: modules.tmpl
 
 .. _mod-disk_setup:
 
-.. automodule:: cloudinit.config.cc_disk_setup
-.. automodule:: cloudinit.config.cc_fan
-.. automodule:: cloudinit.config.cc_final_message
-.. automodule:: cloudinit.config.cc_growpart
+.. datatemplate:yaml:: ../../module-docs/cc_disk_setup/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_fan/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_final_message/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_growpart/data.yaml
+   :template: modules.tmpl
 .. automodule:: cloudinit.config.cc_grub_dpkg
 .. automodule:: cloudinit.config.cc_install_hotplug
 .. automodule:: cloudinit.config.cc_keyboard

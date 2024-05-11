@@ -1,0 +1,19 @@
+cc_ca_certs:
+  name: CA Certificates
+  title: Add ca certificates
+  description: |
+    This module adds CA certificates to the system's CA store and updates any
+    related files using the appropriate OS-specific utility. The default CA
+    certificates can be disabled/deleted from use by the system with the
+    configuration option ``remove_defaults``.
+
+    .. note::
+       certificates must be specified using valid yaml. in order to specify a
+       multiline certificate, the yaml multiline list syntax must be used
+
+    .. note::
+       Alpine Linux requires the ca-certificates package to be installed in
+       order to provide the ``update-ca-certificates`` command.
+  examples:
+  - comment: ""
+    file: cc_ca_certs/example1.yaml

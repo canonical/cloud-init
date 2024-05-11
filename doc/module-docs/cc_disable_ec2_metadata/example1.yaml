@@ -1,0 +1,2 @@
+#cloud-config
+disable_ec2_metadata: true
