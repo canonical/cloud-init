@@ -9,12 +9,11 @@
 import logging
 import os
 import time
-from textwrap import dedent
 
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.log import flush_loggers
 from cloudinit.settings import PER_INSTANCE
@@ -22,40 +21,10 @@ from cloudinit.settings import PER_INSTANCE
 REBOOT_FILES = ("/var/run/reboot-required", "/run/reboot-needed")
 REBOOT_CMD = ["/sbin/reboot"]
 
-MODULE_DESCRIPTION = """\
-This module allows packages to be updated, upgraded or installed during boot.
-If any packages are to be installed or an upgrade is to be performed then the
-package cache will be updated first. If a package installation or upgrade
-requires a reboot, then a reboot can be performed if
-``package_reboot_if_required`` is specified.
-"""
-
 meta: MetaSchema = {
     "id": "cc_package_update_upgrade_install",
-    "name": "Package Update Upgrade Install",
-    "title": "Update, upgrade, and install packages",
-    "description": MODULE_DESCRIPTION,
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
-    "examples": [
-        dedent(
-            """\
-            packages:
-              - pwgen
-              - pastebinit
-              - [libpython3.8, 3.8.10-0ubuntu1~20.04.2]
-              - snap:
-                - certbot
-                - [juju, --edge]
-                - [lxd, --channel=5.15/stable]
-              - apt:
-                - mg
-            package_update: true
-            package_upgrade: true
-            package_reboot_if_required: true
-            """
-        )
-    ],
     "activate_by_schema_keys": [
         "apt_update",
         "package_update",
@@ -63,9 +32,8 @@ meta: MetaSchema = {
         "package_upgrade",
         "packages",
     ],
-}
+}  # type: ignore
 
-__doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
 

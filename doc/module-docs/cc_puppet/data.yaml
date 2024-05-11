@@ -1,0 +1,23 @@
+cc_puppet:
+  name: Puppet
+  title: Install, configure and start puppet
+  description: |
+    This module handles puppet installation and configuration. If the
+    ``puppet`` key does not exist in global configuration, no action will be
+    taken. If a config entry for ``puppet`` is present, then by default the
+    latest version of puppet will be installed. If the ``puppet`` config key
+    exists in the config archive, this module will attempt to start puppet even
+    if no installation was performed.
+
+    The module also provides keys for configuring the new puppet 4 paths and
+    installing the puppet package from the puppetlabs repositories:
+    https://docs.puppet.com/puppet/4.2/reference/whered_it_go.html
+    The keys are ``package_name``, ``conf_file``, ``ssl_dir`` and
+    ``csr_attributes_path``. If unset, their values will default to
+    ones that work with puppet 3.x and with distributions that ship modified
+    puppet 4.x that uses the old paths.
+  examples:
+  - comment: ""
+    file: cc_puppet/example1.yaml
+  - comment: ""
+    file: cc_puppet/example2.yaml
