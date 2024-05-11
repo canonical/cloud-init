@@ -3,7 +3,9 @@ import os
 import sys
 
 from cloudinit import version
-from cloudinit.config.schema import get_schema
+from cloudinit.config.schema import (
+    flatten_schema_all_of, flatten_schema_refs, get_schema
+)
 from cloudinit.handlers.jinja_template import render_jinja_payload
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -217,9 +219,18 @@ def render_nested_properties(prop_cfg, prefix):
         prop_str += render_nested_properties(prop_cfg["items"], prefix)
     if "properties" not in prop_cfg:
         return prop_str
-    for prop_name, nested_cfg in prop_cfg["properties"].items():
+    for prop_name, nested_cfg in prop_cfg.get("properties", {}).items():
+        flatten_schema_all_of(nested_cfg)
+        flatten_schema_refs(nested_cfg, defs)
         prop_str += render_property_template(prop_name, nested_cfg, prefix)
-        prop_str += render_nested_properties(nested_cfg, prefix + "  ")
+        prop_str += render_nested_properties(nested_cfg, defs, prefix + "  ")
+    for prop_name, nested_cfg in prop_cfg.get("patternProperties", {}).items():
+        flatten_schema_all_of(nested_cfg)
+        flatten_schema_refs(nested_cfg, defs)
+        if nested_cfg.get("label"):
+            prop_name = nested_cfg.get("label")
+        prop_str += render_property_template(prop_name, nested_cfg, prefix)
+        prop_str += render_nested_properties(nested_cfg, defs, prefix + "  ")
     return prop_str
 
 

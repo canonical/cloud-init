@@ -1334,7 +1334,7 @@ def _flatten_schema_refs(src_cfg: dict, defs: dict):
             sub_schema.update(defs[reference])
 
 
-def _flatten_schema_all_of(src_cfg: dict):
+def flatten_schema_all_of(src_cfg: dict):
     """Flatten schema: Merge allOf.
 
     If a schema as allOf, then all of the sub-schemas must hold. Therefore
@@ -1404,8 +1404,8 @@ def _get_property_doc(schema: dict, defs: dict, prefix="   ") -> str:
 
     for prop_schema in property_schemas:
         for prop_key, prop_config in prop_schema.items():
-            _flatten_schema_refs(prop_config, defs)
-            _flatten_schema_all_of(prop_config)
+            flatten_schema_refs(prop_config, defs)
+            flatten_schema_all_of(prop_config)
             if prop_config.get("hidden") is True:
                 continue  # document nothing for this property
 

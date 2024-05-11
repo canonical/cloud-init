@@ -1,0 +1,5 @@
+#cloud-config
+ growpart:
+   mode: auto
+   devices: ["/"]
+   ignore_growroot_disabled: false
