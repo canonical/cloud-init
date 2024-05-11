@@ -10,6 +10,10 @@ import pytest
 import requests
 import responses
 
+# TODO: Importing `errors` here is a hack to avoid a circular import.
+# Without it, we have a azure->errors->identity->azure import loop, but
+# long term we should restructure these modules to avoid the issue.
+from cloudinit.sources.azure import errors as _errors  # noqa: F401
 from cloudinit.sources.azure import imds
 from cloudinit.url_helper import UrlError, readurl
 
