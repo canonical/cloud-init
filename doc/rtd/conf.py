@@ -4,7 +4,9 @@ import sys
 
 from cloudinit import version
 from cloudinit.config.schema import (
-    flatten_schema_all_of, flatten_schema_refs, get_schema
+    flatten_schema_all_of,
+    flatten_schema_refs,
+    get_schema,
 )
 from cloudinit.handlers.jinja_template import render_jinja_payload
 
@@ -196,13 +198,47 @@ def get_types_str(prop_cfg):
     return types
 
 
+def get_changed_str(prop_name, prop_cfg):
+    changed_cfg = {}
+    if prop_cfg.get("changed"):
+        changed_cfg = prop_cfg
+    for oneof_cfg in prop_cfg.get("oneOf", []):
+        if oneof_cfg.get("changed"):
+            changed_cfg = oneof_cfg
+            break
+    if changed_cfg:
+        with open("templates/property_changed.tmpl", "r") as stream:
+            content = "## template: jinja\n" + stream.read()
+        return render_jinja_payload(
+            content, f"changed_{prop_name}", changed_cfg
+        )
+    return ""
+
+
+def get_deprecated_str(prop_name, prop_cfg):
+    deprecated_cfg = {}
+    if prop_cfg.get("deprecated"):
+        deprecated_cfg = prop_cfg
+    for oneof_cfg in prop_cfg.get("oneOf", []):
+        if oneof_cfg.get("deprecated"):
+            deprecated_cfg = oneof_cfg
+            break
+    if deprecated_cfg:
+        with open("templates/property_deprecation.tmpl", "r") as stream:
+            content = "## template: jinja\n" + stream.read()
+        return render_jinja_payload(
+            content, f"deprecation_{prop_name}", deprecated_cfg
+        )
+    return ""
+
+
 def render_property_template(prop_name, prop_cfg, prefix=""):
-    with open("templates/module_property.tmpl", "r") as stream:
-        content = "## template: jinja\n" + stream.read()
     if prop_cfg.get("description"):
         description = f" {prop_cfg['description']}"
     else:
         description = ""
+    description += get_deprecated_str(prop_name, prop_cfg)
+    description += get_changed_str(prop_name, prop_cfg)
     jinja_vars = {
         "prefix": prefix,
         "name": prop_name,
@@ -210,6 +246,8 @@ def render_property_template(prop_name, prop_cfg, prefix=""):
         "types": get_types_str(prop_cfg),
         "prop_cfg": prop_cfg,
     }
+    with open("templates/module_property.tmpl", "r") as stream:
+        content = "## template: jinja\n" + stream.read()
     return render_jinja_payload(content, f"doc_module_{prop_name}", jinja_vars)
 
 
