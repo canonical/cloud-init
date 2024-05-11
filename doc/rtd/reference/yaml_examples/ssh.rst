@@ -1,0 +1,79 @@
+.. _cce-ssh:
+
+Configure SSH and SSH keys
+**************************
+
+For a full list of keys, refer to the `SSH module`_ schema.
+
+.. code-block:: yaml
+
+    #cloud-config
+    ssh_keys:
+      rsa_private: |
+        -----BEGIN RSA PRIVATE KEY-----
+        MIIBxwIBAAJhAKD0YSHy73nUgysO13XsJmd4fHiFyQ+00R7VVu2iV9Qco
+        ...
+        -----END RSA PRIVATE KEY-----
+      rsa_public: ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7Xd ...
+      rsa_certificate: |
+        ssh-rsa-cert-v01@openssh.com AAAAIHNzaC1lZDI1NTE5LWNlcnQt ...
+    ssh_authorized_keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEA3FSyQwBI6Z+nCSjUU ...
+      - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA3I7VUf2l5gSn5uavROsc5HRDpZ ...
+    ssh_deletekeys: true
+    ssh_genkeytypes: [rsa, ecdsa, ed25519]
+    disable_root: true
+    disable_root_opts: no-port-forwarding,no-agent-forwarding,no-X11-forwarding
+    allow_public_ssh_keys: true
+    ssh_quiet_keygen: true
+    ssh_publish_hostkeys:
+      enabled: true
+      blacklist: [rsa]
+
+Configure instance's SSH keys
+=============================
+
+.. code-block:: yaml
+
+    #cloud-config
+
+    # add each entry to ~/.ssh/authorized_keys for the configured user or the
+    # first user defined in the user definition directive.
+    ssh_authorized_keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEA3FSyQwBI6Z+nCSjUUk8EEAnnkhXlukKoUPND/RRClWz2s5TCzIkd3Ou5+Cyz71X0XmazM3l5WgeErvtIwQMyT1KjNoMhoJMrJnWqQPOt5Q8zWd9qG7PBl9+eiH5qV7NZ mykey@host
+      - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA3I7VUf2l5gSn5uavROsc5HRDpZdQueUq5ozemNSj8T7enqKHOEaFoU2VoPgGEWC9RyzSQVeyD6s7APMcE82EtmW4skVEgEGSbDc1pvxzxtchBj78hJP6Cf5TCMFSXw+Fz5rF1dR23QDbN1mkHs7adr8GW4kSWqU7Q7NDwfIrJJtO7Hi42GyXtvEONHbiRPOe8stqUly7MvUoN+5kfjBM8Qqpfl2+FNhTYWpMfYdPUnE7u536WqzFmsaqJctz3gBxH9Ex7dFtrxR4qiqEr9Qtlu3xGn7Bw07/+i1D+ey3ONkZLN+LQ714cgj8fRS4Hj29SCmXp5Kt5/82cD/VN3NtHw== smoser@brickies
+
+    # Send pre-generated SSH private keys to the server
+    # If these are present, they will be written to /etc/ssh and
+    # new random keys will not be generated
+    #  in addition to 'rsa' as shown below, 'ecdsa' is also supported
+    ssh_keys:
+      rsa_private: |
+        -----BEGIN RSA PRIVATE KEY-----
+        MIIBxwIBAAJhAKD0YSHy73nUgysO13XsJmd4fHiFyQ+00R7VVu2iV9Qcon2LZS/x
+        1cydPZ4pQpfjEha6WxZ6o8ci/Ea/w0n+0HGPwaxlEG2Z9inNtj3pgFrYcRztfECb
+        1j6HCibZbAzYtwIBIwJgO8h72WjcmvcpZ8OvHSvTwAguO2TkR6mPgHsgSaKy6GJo
+        PUJnaZRWuba/HX0KGyhz19nPzLpzG5f0fYahlMJAyc13FV7K6kMBPXTRR6FxgHEg
+        L0MPC7cdqAwOVNcPY6A7AjEA1bNaIjOzFN2sfZX0j7OMhQuc4zP7r80zaGc5oy6W
+        p58hRAncFKEvnEq2CeL3vtuZAjEAwNBHpbNsBYTRPCHM7rZuG/iBtwp8Rxhc9I5w
+        ixvzMgi+HpGLWzUIBS+P/XhekIjPAjA285rVmEP+DR255Ls65QbgYhJmTzIXQ2T9
+        luLvcmFBC6l35Uc4gTgg4ALsmXLn71MCMGMpSWspEvuGInayTCL+vEjmNBT+FAdO
+        W7D4zCpI43jRS9U06JVOeSc9CDk2lwiA3wIwCTB/6uc8Cq85D9YqpM10FuHjKpnP
+        REPPOyrAspdeOAV+6VKRavstea7+2DZmSUgE
+        -----END RSA PRIVATE KEY-----
+
+      rsa_public: ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7XdewmZ3h8eIXJD7TRHtVW7aJX1ByifYtlL/HVzJ09nilCl+MSFrpbFnqjxyL8Rr/DSf7QcY/BrGUQbZn2Kc22PemAWthxHO18QJvWPocKJtlsDNi3 smoser@localhost
+
+    # By default, the fingerprints of the authorized keys for the users
+    # cloud-init adds are printed to the console. Setting
+    # no_ssh_fingerprints to true suppresses this output.
+    no_ssh_fingerprints: false
+
+    # By default, (most) ssh host keys are printed to the console. Setting
+    # emit_keys_to_console to false suppresses this output.
+    ssh:
+      emit_keys_to_console: false
+
+
+.. LINKS
+.. _SSH module: https://cloudinit.readthedocs.io/en/latest/reference/modules.html#ssh
