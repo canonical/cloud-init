@@ -12,12 +12,11 @@ import os
 import re
 import subprocess
 import time
-from textwrap import dedent
 
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
@@ -25,60 +24,13 @@ frequency = PER_INSTANCE
 
 EXIT_FAIL = 254
 
-MODULE_DESCRIPTION = """\
-This module handles shutdown/reboot after all config modules have been run. By
-default it will take no action, and the system will keep running unless a
-package installation/upgrade requires a system reboot (e.g. installing a new
-kernel) and ``package_reboot_if_required`` is true.
-
-Using this module ensures that cloud-init is entirely finished with
-modules that would be executed.
-
-An example to distinguish delay from timeout:
-
-If you delay 5 (5 minutes) and have a timeout of
-120 (2 minutes), then the max time until shutdown will be 7 minutes, though
-it could be as soon as 5 minutes. Cloud-init will invoke 'shutdown +5' after
-the process finishes, or when 'timeout' seconds have elapsed.
-
-.. note::
-    With Alpine Linux any message value specified is ignored as Alpine's halt,
-    poweroff, and reboot commands do not support broadcasting a message.
-
-"""
-
 meta: MetaSchema = {
     "id": "cc_power_state_change",
-    "name": "Power State Change",
-    "title": "Change power state",
-    "description": MODULE_DESCRIPTION,
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
-    "examples": [
-        dedent(
-            """\
-            power_state:
-                delay: now
-                mode: poweroff
-                message: Powering off
-                timeout: 2
-                condition: true
-            """
-        ),
-        dedent(
-            """\
-            power_state:
-                delay: 30
-                mode: reboot
-                message: Rebooting machine
-                condition: test -f /var/tmp/reboot_me
-            """
-        ),
-    ],
     "activate_by_schema_keys": ["power_state"],
-}
+}  # type: ignore
 
-__doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
 
