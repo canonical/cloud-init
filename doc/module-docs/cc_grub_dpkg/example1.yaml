@@ -1,0 +1,9 @@
+#cloud-config
+grub_dpkg:
+  enabled: true
+  # BIOS mode (install_devices needs disk)
+  grub-pc/install_devices: /dev/sda
+  grub-pc/install_devices_empty: false
+  # EFI mode (install_devices needs partition)
+  grub-efi/install_devices: /dev/sda
+

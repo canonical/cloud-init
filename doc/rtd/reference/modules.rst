@@ -46,7 +46,8 @@ date. A 5 year timeline may also be expected for changed keys.
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_growpart/data.yaml
    :template: modules.tmpl
-.. automodule:: cloudinit.config.cc_grub_dpkg
+.. datatemplate:yaml:: ../../module-docs/cc_grub_dpkg/data.yaml
+   :template: modules.tmpl
 .. automodule:: cloudinit.config.cc_install_hotplug
 .. automodule:: cloudinit.config.cc_keyboard
 .. automodule:: cloudinit.config.cc_keys_to_console
