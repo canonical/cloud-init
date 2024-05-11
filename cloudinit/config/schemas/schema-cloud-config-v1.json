@@ -1155,7 +1155,7 @@
               },
               "minItems": 1,
               "uniqueItems": true,
-              "description": "Create the necessary directories for chef to run. By default, it creates the following directories:\n\n - ``/etc/chef``\n - ``/var/log/chef``\n - ``/var/lib/chef``\n - ``/var/cache/chef``\n - ``/var/backups/chef``\n - ``/var/run/chef``"
+              "description": "Create the necessary directories for chef to run. By default, it creates the following directories:\n- ``/etc/chef``\n- ``/var/log/chef``\n- ``/var/lib/chef``\n- ``/var/cache/chef``\n- ``/var/backups/chef``\n- ``/var/run/chef``"
             },
             "validation_cert": {
               "type": "string",
