@@ -1246,7 +1246,7 @@ def _get_property_type(property_dict: dict, defs: dict) -> str:
     """Return a string representing a property type from a given
     jsonschema.
     """
-    _flatten_schema_refs(property_dict, defs)
+    flatten_schema_refs(property_dict, defs)
     property_types = property_dict.get("type", [])
     if not isinstance(property_types, list):
         property_types = [property_types]
@@ -1308,7 +1308,7 @@ def _parse_description(description, prefix) -> str:
     return description
 
 
-def _flatten_schema_refs(src_cfg: dict, defs: dict):
+def flatten_schema_refs(src_cfg: dict, defs: dict):
     """Flatten schema: replace $refs in src_cfg with definitions from $defs."""
     if "$ref" in src_cfg:
         reference = src_cfg.pop("$ref").replace("#/$defs/", "")
@@ -1423,7 +1423,7 @@ def _get_property_doc(schema: dict, defs: dict, prefix="   ") -> str:
             )
             items = prop_config.get("items")
             if items:
-                _flatten_schema_refs(items, defs)
+                flatten_schema_refs(items, defs)
                 if items.get("properties") or items.get("patternProperties"):
                     properties.append(
                         SCHEMA_LIST_ITEM_TMPL.format(
@@ -1471,7 +1471,7 @@ def _get_examples(meta: MetaSchema) -> str:
         rst_content += SCHEMA_EXAMPLES_SPACER_TEMPLATE.format(
             example_count=count
         )
-        # FIXME(no conditional needed when all modules in module-doc.yaml)
+        # FIXME(drop conditional when all mods have rtd/module-doc/*/data.yaml)
         if isinstance(example, dict):
             if example["comment"]:
                 comment = f"# {example['comment']}\n"

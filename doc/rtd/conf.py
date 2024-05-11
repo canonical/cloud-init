@@ -213,11 +213,12 @@ def render_property_template(prop_name, prop_cfg, prefix=""):
     return render_jinja_payload(content, f"doc_module_{prop_name}", jinja_vars)
 
 
-def render_nested_properties(prop_cfg, prefix):
+def render_nested_properties(prop_cfg, defs, prefix):
     prop_str = ""
+    flatten_schema_refs(prop_cfg, defs)
     if "items" in prop_cfg:
-        prop_str += render_nested_properties(prop_cfg["items"], prefix)
-    if "properties" not in prop_cfg:
+        prop_str += render_nested_properties(prop_cfg["items"], defs, prefix)
+    if not set(["properties", "patternProperties"]).intersection(prop_cfg):
         return prop_str
     for prop_name, nested_cfg in prop_cfg.get("properties", {}).items():
         flatten_schema_all_of(nested_cfg)
@@ -239,13 +240,16 @@ def render_module_schemas():
 
     mod_docs = {}
     schema = get_schema()
+    defs = schema.get("$defs", {})
     for key in schema["$defs"]:
         if key[:3] != "cc_":
             continue
         locs, _ = find_module(key, ["", "cloudinit.config"], ["meta"])
         mod = import_module(locs[0])
         mod_docs[key] = {
-            "schema_doc": render_nested_properties(schema["$defs"][key], ""),
+            "schema_doc": render_nested_properties(
+                schema["$defs"][key], defs, ""
+            ),
             "meta": mod.meta,
         }
     return mod_docs

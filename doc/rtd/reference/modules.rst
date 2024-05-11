@@ -21,7 +21,8 @@ date. A 5 year timeline may also be expected for changed keys.
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_apk_configure/data.yaml
    :template: modules.tmpl
-.. automodule:: cloudinit.config.cc_apt_configure
+.. datatemplate:yaml:: ../../module-docs/cc_apt_configure/data.yaml
+   :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_apt_pipelining/data.yaml
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_bootcmd/data.yaml
