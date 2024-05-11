@@ -1,0 +1,40 @@
+#cloud-config
+ntp:
+  enabled: true
+  ntp_client: myntpclient
+  config:
+    confpath: /etc/myntpclient/myntpclient.conf
+    check_exe: myntpclientd
+    packages:
+    - myntpclient
+    service_name: myntpclient
+    template: |
+      ## template:jinja
+      # My NTP Client config
+      {% if pools -%}# pools{% endif %}
+      {% for pool in pools -%}
+      pool {{pool}} iburst
+      {% endfor %}
+      {%- if servers %}# servers
+      {% endif %}
+      {% for server in servers -%}
+      server {{server}} iburst
+      {% endfor %}
+      {% if peers -%}# peers{% endif %}
+      {% for peer in peers -%}
+      peer {{peer}}
+      {% endfor %}
+      {% if allow -%}# allow{% endif %}
+      {% for cidr in allow -%}
+      allow {{cidr}}
+      {% endfor %}
+  pools: [0.int.pool.ntp.org, 1.int.pool.ntp.org, ntp.myorg.org]
+  servers:
+  - ntp.server.local
+  - ntp.ubuntu.com
+  - 192.168.23.2
+  allow:
+  - 192.168.23.0/32
+  peers:
+  - km001
+  - km002

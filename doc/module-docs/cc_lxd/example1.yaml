@@ -1,0 +1,4 @@
+#cloud-config
+lxd:
+  init:
+    storage_backend: dir

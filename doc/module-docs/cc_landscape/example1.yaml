@@ -1,0 +1,12 @@
+#cloud-config
+landscape:
+  client:
+    url: https://landscape.canonical.com/message-system
+    ping_url: http://landscape.canonical.com/ping
+    data_path: /var/lib/landscape/client
+    http_proxy: http://my.proxy.com/foobar
+    https_proxy: https://my.proxy.com/foobar
+    tags: server,cloud
+    computer_title: footitle
+    registration_key: fookey
+    account_name: fooaccount

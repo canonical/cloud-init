@@ -2034,7 +2034,7 @@
                 "format": "hostname"
               },
               "uniqueItems": true,
-              "description": "List of ntp pools. If both pools and servers are\nempty, 4 default pool servers will be provided of\nthe format ``{0-3}.{distro}.pool.ntp.org``. NOTE:\nfor Alpine Linux when using the Busybox NTP client\nthis setting will be ignored due to the limited\nfunctionality of Busybox's ntpd."
+              "description": "List of ntp pools. If both pools and servers are empty, 4 default pool servers will be provided of the format ``{0-3}.{distro}.pool.ntp.org``. NOTE: for Alpine Linux when using the Busybox NTP client this setting will be ignored due to the limited functionality of Busybox's ntpd."
             },
             "servers": {
               "type": "array",
@@ -2043,7 +2043,7 @@
                 "format": "hostname"
               },
               "uniqueItems": true,
-              "description": "List of ntp servers. If both pools and servers are\nempty, 4 default pool servers will be provided with\nthe format ``{0-3}.{distro}.pool.ntp.org``."
+              "description": "List of ntp servers. If both pools and servers are empty, 4 default pool servers will be provided with the format ``{0-3}.{distro}.pool.ntp.org``."
             },
             "peers": {
               "type": "array",
@@ -2065,26 +2065,26 @@
             "ntp_client": {
               "type": "string",
               "default": "auto",
-              "description": "Name of an NTP client to use to configure system NTP.\nWhen unprovided or 'auto' the default client preferred\nby the distribution will be used. The following\nbuilt-in client names can be used to override existing\nconfiguration defaults: chrony, ntp, openntpd,\nntpdate, systemd-timesyncd."
+              "description": "Name of an NTP client to use to configure system NTP. When unprovided or 'auto' the default client preferred by the distribution will be used. The following built-in client names can be used to override existing configuration defaults: chrony, ntp, openntpd, ntpdate, systemd-timesyncd."
             },
             "enabled": {
               "type": "boolean",
               "default": true,
-              "description": "Attempt to enable ntp clients if set to True.  If set\nto False, ntp client will not be configured or\ninstalled"
+              "description": "Attempt to enable ntp clients if set to True.  If set to ``false``, ntp client will not be configured or installed"
             },
             "config": {
-              "description": "Configuration settings or overrides for the\n``ntp_client`` specified.",
+              "description": "Configuration settings or overrides for the ``ntp_client`` specified.",
               "type": "object",
               "minProperties": 1,
               "additionalProperties": false,
               "properties": {
                 "confpath": {
                   "type": "string",
-                  "description": "The path to where the ``ntp_client``\nconfiguration is written."
+                  "description": "The path to where the ``ntp_client`` configuration is written."
                 },
                 "check_exe": {
                   "type": "string",
-                  "description": "The executable name for the ``ntp_client``.\nFor example, ntp service ``check_exe`` is\n'ntpd' because it runs the ntpd binary."
+                  "description": "The executable name for the ``ntp_client``. For example, ntp service ``check_exe`` is 'ntpd' because it runs the ntpd binary."
                 },
                 "packages": {
                   "type": "array",
@@ -2092,15 +2092,15 @@
                     "type": "string"
                   },
                   "uniqueItems": true,
-                  "description": "List of packages needed to be installed for the\nselected ``ntp_client``."
+                  "description": "List of packages needed to be installed for the selected ``ntp_client``."
                 },
                 "service_name": {
                   "type": "string",
-                  "description": "The systemd or sysvinit service name used to\nstart and stop the ``ntp_client``\nservice."
+                  "description": "The systemd or sysvinit service name used to start and stop the ``ntp_client`` service."
                 },
                 "template": {
                   "type": "string",
-                  "description": "Inline template allowing users to customize their ``ntp_client`` configuration with the use of the Jinja templating engine.\nThe template content should start with ``## template:jinja``.\nWithin the template, you can utilize any of the following ntp module config keys: ``servers``, ``pools``, ``allow``, and ``peers``.\nEach cc_ntp schema config key and expected value type is defined above."
+                  "description": "Inline template allowing users to customize their ``ntp_client`` configuration with the use of the Jinja templating engine. The template content should start with ``## template:jinja``. Within the template, you can utilize any of the following ntp module config keys: ``servers``, ``pools``, ``allow``, and ``peers``. Each cc_ntp schema config key and expected value type is defined above."
                 }
               }
             }

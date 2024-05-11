@@ -1,0 +1,4 @@
+#cloud-config
+keyboard:
+  layout: gb
+  variant: gb-extd

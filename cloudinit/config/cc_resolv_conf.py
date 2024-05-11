@@ -9,12 +9,11 @@
 """Resolv Conf: configure resolv.conf"""
 
 import logging
-from textwrap import dedent
 
 from cloudinit import templater, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
@@ -24,38 +23,8 @@ RESOLVE_CONFIG_TEMPLATE_MAP = {
     "/etc/systemd/resolved.conf": "systemd.resolved.conf",
 }
 
-MODULE_DESCRIPTION = """\
-Unless manually editing :file:`/etc/resolv.conf` is the correct way to manage
-nameserver information on your operating system, you do not want to use
-this module. Many distros have moved away from manually editing ``resolv.conf``
-so please verify that this is the preferred nameserver management method for
-your distro before using this module.
-
-Note that using :ref:`network_config` is preferred, rather than using this
-module, when possible.
-
-This module is intended to manage resolv.conf in environments where early
-configuration of resolv.conf is necessary for further bootstrapping and/or
-where configuration management such as puppet or chef own DNS configuration.
-
-When using a :ref:`datasource_config_drive` and a RHEL-like system,
-resolv.conf will also be managed automatically due to the available
-information provided for DNS servers in the :ref:`network_config_v2` format.
-For those that wish to have different settings, use this module.
-
-In order for the ``resolv_conf`` section to be applied, ``manage_resolv_conf``
-must be set ``true``.
-
-.. note::
-    For Red Hat with sysconfig, be sure to set PEERDNS=no for all DHCP
-    enabled NICs.
-"""
-
 meta: MetaSchema = {
     "id": "cc_resolv_conf",
-    "name": "Resolv Conf",
-    "title": "Configure resolv.conf",
-    "description": MODULE_DESCRIPTION,
     "distros": [
         "alpine",
         "azurelinux",
@@ -73,31 +42,8 @@ meta: MetaSchema = {
         "openeuler",
     ],
     "frequency": PER_INSTANCE,
-    "examples": [
-        dedent(
-            """\
-            manage_resolv_conf: true
-            resolv_conf:
-              nameservers:
-                - 8.8.8.8
-                - 8.8.4.4
-              searchdomains:
-                - foo.example.com
-                - bar.example.com
-              domain: example.com
-              sortlist:
-                - 10.0.0.1/255
-                - 10.0.0.2
-              options:
-                rotate: true
-                timeout: 1
-            """
-        )
-    ],
     "activate_by_schema_keys": ["manage_resolv_conf"],
-}
-
-__doc__ = get_meta_doc(meta)
+}  # type: ignore
 
 
 def generate_resolv_conf(template_fn, params, target_fname):
