@@ -1541,8 +1541,8 @@
           "properties": {
             "enabled": {
               "type": "boolean",
-              "default": true,
-              "description": "Whether to configure which device is used as the target for grub installation. Default: ``true``"
+              "default": false,
+              "description": "Whether to configure which device is used as the target for grub installation. Default: ``false``"
             },
             "grub-pc/install_devices": {
               "type": "string",
