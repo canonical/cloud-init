@@ -430,12 +430,6 @@ def readurl(
         def_headers.update(headers)
     headers = def_headers
 
-    if not headers_cb:
-
-        def _cb(url):
-            return headers
-
-        headers_cb = _cb
     if data:
         req_args["data"] = data
     if sec_between is None:
@@ -447,7 +441,11 @@ def readurl(
     # Handle retrying ourselves since the built-in support
     # doesn't handle sleeping between tries...
     for i in count():
-        req_args["headers"] = headers_cb(url)
+        if headers_cb:
+            req_args["headers"] = headers_cb(url)
+            req_args["headers"].update(def_headers)
+        else:
+            req_args["headers"] = headers
         filtered_req_args = {}
         for (k, v) in req_args.items():
             if k == "data":
