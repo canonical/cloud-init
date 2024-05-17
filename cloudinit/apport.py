@@ -64,6 +64,7 @@ KNOWN_CLOUD_NAMES = [
     "ZStack",
     "Outscale",
     "WSL",
+    "Aeza.net",
     "Other",
 ]
 

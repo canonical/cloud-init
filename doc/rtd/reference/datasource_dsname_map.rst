@@ -53,3 +53,4 @@ mapping between datasource module names and ``dsname`` in the table below.
     DataSourceVMware.py, VMware
     DataSourceVultr.py, Vultr
     DataSourceWSL.py, WSL
+    DataSourceAeza.py, Aeza

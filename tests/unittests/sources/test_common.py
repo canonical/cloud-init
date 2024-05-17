@@ -34,6 +34,7 @@ from cloudinit.sources import DataSourceUpCloud as UpCloud
 from cloudinit.sources import DataSourceVMware as VMware
 from cloudinit.sources import DataSourceVultr as Vultr
 from cloudinit.sources import DataSourceWSL as WSL
+from cloudinit.sources import DataSourceAeza as Aeza
 from tests.unittests import helpers as test_helpers
 
 DEFAULT_LOCAL = [
@@ -62,6 +63,7 @@ DEFAULT_LOCAL = [
     NWCS.DataSourceNWCS,
     Akamai.DataSourceAkamaiLocal,
     WSL.DataSourceWSL,
+    Aeza.DataSourceAeza,
 ]
 
 DEFAULT_NETWORK = [
