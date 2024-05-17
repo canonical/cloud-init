@@ -48,4 +48,4 @@ Aeza's datasource can be configured as follows: ::
 .. note::
    ``{id}`` in URLs is system-uuid DMI value.
 
-.. _Aeza: https://aeza.net/
+.. _Aeza: https://wiki.aeza.net/cloud-init
