@@ -62,6 +62,7 @@ environments in the public cloud:
 - Zadara Edge Cloud Platform
 - 3DS Outscale
 - Akamai
+- Aeza.net
 
 Additionally, ``cloud-init`` is supported on these private clouds:
 
