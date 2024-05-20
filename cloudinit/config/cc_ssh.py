@@ -184,6 +184,42 @@ for k in GENERATE_KEY_NAMES:
 KEY_GEN_TPL = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
 
 
+def set_redhat_keyfile_perms(keyfile: str) -> None:
+    """
+    For fedora 37, centos 9 stream and below:
+     - sshd version is earlier than version 9.
+     - 'ssh_keys' group is present and owns the private keys.
+     - private keys have permission 0o640.
+    For fedora 38, centos 10 stream and above:
+     - ssh version is atleast version 9.
+     - 'ssh_keys' group is absent. 'root' group owns the keys.
+     - private keys have permission 0o600, same as upstream.
+    Public keys in all cases have permission 0o644.
+    """
+    permissions_public = 0o644
+    ssh_version = ssh_util.get_opensshd_upstream_version()
+    if ssh_version and ssh_version < util.Version(9, 0):
+        # fedora 37, centos 9 stream and below has sshd
+        # versions less than 9 and private key permissions are
+        # set to 0o640 from sshd-keygen.
+        # See sanitize permissions" section in sshd-keygen.
+        permissions_private = 0o640
+    else:
+        # fedora 38, centos 10 stream and above. sshd-keygen sets
+        # private key persmissions to 0o600.
+        permissions_private = 0o600
+
+    gid = util.get_group_id("ssh_keys")
+    if gid != -1:
+        # 'ssh_keys' group exists for fedora 37, centos 9 stream
+        # and below. On these distros, 'ssh_keys' group own the private
+        # keys. When 'ssh_keys' group is absent for newer distros,
+        # 'root' group owns the private keys which is the default.
+        os.chown(keyfile, -1, gid)
+    os.chmod(keyfile, permissions_private)
+    os.chmod(f"{keyfile}.pub", permissions_public)
+
+
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     # remove the static keys from the pristine image
@@ -280,16 +316,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                     ):
                         sys.stdout.write(util.decode_binary(out))
 
-                    gid = util.get_group_id("ssh_keys")
-                    if gid != -1:
-                        # perform same "sanitize permissions" as sshd-keygen
-                        permissions_private = 0o600
-                        ssh_version = ssh_util.get_opensshd_upstream_version()
-                        if ssh_version and ssh_version < util.Version(9, 0):
-                            permissions_private = 0o640
-                        os.chown(keyfile, -1, gid)
-                        os.chmod(keyfile, permissions_private)
-                        os.chmod(f"{keyfile}.pub", 0o644)
+                    if cloud.distro.osfamily == "redhat":
+                        set_redhat_keyfile_perms(keyfile)
                 except subp.ProcessExecutionError as e:
                     err = util.decode_binary(e.stderr).lower()
                     if e.exit_code == 1 and err.lower().startswith(
