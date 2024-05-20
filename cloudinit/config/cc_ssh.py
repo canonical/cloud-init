@@ -264,9 +264,20 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
         for keytype in key_names:
             keyfile = KEY_FILE_TPL % (keytype)
-            if os.path.exists(keyfile):
+            if os.path.exists(keyfile) and os.path.getsize(keyfile) != 0:
+                # no need to generate keys if the keyfile exists and
+                # is not an empty file.
                 continue
             util.ensure_dir(os.path.dirname(keyfile))
+            if os.path.exists(keyfile) and os.path.getsize(keyfile) == 0:
+                # remove empty ssh key files.
+                try:
+                    util.del_file(keyfile)
+                except Exception:
+                    util.logexc(
+                        LOG, "Failed deleting empty key file %s", keyfile
+                    )
+
             cmd = ["ssh-keygen", "-t", keytype, "-N", "", "-f", keyfile]
 
             # TODO(harlowja): Is this guard needed?
