@@ -11,6 +11,25 @@ releases.
     many operating system vendors patch out breaking changes in
     cloud-init to ensure consistent behavior on their platform.
 
+24.1 - Removal of ``--file`` top-level option
+=============================================
+
+The ``--file`` top-level option has been removed from cloud-init. It only
+applied to a handful of subcommands so it did not make sense as a top-level
+option. Instead, ``--file`` may be passed to a subcommand that supports it.
+For example, the following command will no longer work:
+
+.. code-block:: bash
+
+    cloud-init --file=userdata.yaml modules --mode config
+
+Instead, use:
+
+.. code-block:: bash
+
+    cloud-init modules --file=userdata.yaml --mode config
+
+
 23.2-24.1 - Datasource identification
 =====================================
 
