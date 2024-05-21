@@ -16,6 +16,7 @@ After=cloud-init.target
 Requires=cloud-init-hotplugd.socket
 ConditionPathExists=!/etc/cloud/cloud-init.disabled
 ConditionKernelCommandLine=!cloud-init=disabled
+ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
 
 [Service]
 Type=oneshot
