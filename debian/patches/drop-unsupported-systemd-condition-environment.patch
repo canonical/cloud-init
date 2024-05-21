@@ -1,0 +1,57 @@
+Description: Drop systemd ignored ConditionEnvironment keys from units on Focal
+ The systemd ConditionEnvironment config key was introduced in systemd
+ version 246, yet Ubuntu Focal contains only systemd v. 245.4. This setting
+ is otherwise ignored by systemd on Focal, but drop the config to avoid
+ warnings from systemctl status cloud-init.
+Origin: backport
+Author: Chad Smith <chad.smith@canonical.com>
+Last-Update: 2024-05-21
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/systemd/cloud-config.service.tmpl
++++ b/systemd/cloud-config.service.tmpl
+@@ -6,7 +6,6 @@
+ Wants=network-online.target cloud-config.target
+ ConditionPathExists=!/etc/cloud/cloud-init.disabled
+ ConditionKernelCommandLine=!cloud-init=disabled
+-ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
+ 
+ [Service]
+ Type=oneshot
+--- a/systemd/cloud-final.service.tmpl
++++ b/systemd/cloud-final.service.tmpl
+@@ -9,7 +9,6 @@
+ Wants=network-online.target cloud-config.service
+ ConditionPathExists=!/etc/cloud/cloud-init.disabled
+ ConditionKernelCommandLine=!cloud-init=disabled
+-ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
+ 
+ 
+ [Service]
+--- a/systemd/cloud-init-local.service.tmpl
++++ b/systemd/cloud-init-local.service.tmpl
+@@ -28,7 +28,6 @@
+ RequiresMountsFor=/var/lib/cloud
+ ConditionPathExists=!/etc/cloud/cloud-init.disabled
+ ConditionKernelCommandLine=!cloud-init=disabled
+-ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
+ 
+ [Service]
+ Type=oneshot
+--- a/systemd/cloud-init.service.tmpl
++++ b/systemd/cloud-init.service.tmpl
+@@ -41,7 +41,6 @@
+ Before=systemd-user-sessions.service
+ ConditionPathExists=!/etc/cloud/cloud-init.disabled
+ ConditionKernelCommandLine=!cloud-init=disabled
+-ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
+ 
+ [Service]
+ Type=oneshot
+--- a/systemd/cloud-init.target
++++ b/systemd/cloud-init.target
+@@ -12,4 +12,3 @@
+ After=multi-user.target
+ ConditionPathExists=!/etc/cloud/cloud-init.disabled
+ ConditionKernelCommandLine=!cloud-init=disabled
+-ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
