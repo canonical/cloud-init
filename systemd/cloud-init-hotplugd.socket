@@ -6,6 +6,9 @@
 [Unit]
 Description=cloud-init hotplug hook socket
 After=cloud-config.target
+ConditionPathExists=!/etc/cloud/cloud-init.disabled
+ConditionKernelCommandLine=!cloud-init=disabled
+ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
 
 [Socket]
 ListenFIFO=/run/cloud-init/hook-hotplug-cmd
