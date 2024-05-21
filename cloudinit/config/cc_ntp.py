@@ -25,6 +25,7 @@ NR_POOL_SERVERS = 4
 distros = [
     "almalinux",
     "alpine",
+    "aosc",
     "azurelinux",
     "centos",
     "cloudlinux",
@@ -108,6 +109,12 @@ DISTRO_CLIENT_CONFIG = {
             "confpath": "/etc/ntp.conf",
             "packages": [],
             "service_name": "ntpd",
+        },
+    },
+    "aosc": {
+        "systemd-timesyncd": {
+            "check_exe": "/usr/lib/systemd/systemd-timesyncd",
+            "confpath": "/etc/systemd/timesyncd.conf",
         },
     },
     "azurelinux": {
