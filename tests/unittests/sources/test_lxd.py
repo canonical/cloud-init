@@ -650,8 +650,10 @@ class TestReadMetadata:
                 mock_status_code = mock.PropertyMock(return_value=404)
             type(m_resp).ok = mock_ok
             type(m_resp).status_code = mock_status_code
-            mock_text = mock.PropertyMock(return_value=content)
-            type(m_resp).text = mock_text
+            mock_content = mock.PropertyMock(
+                return_value=content.encode("utf-8")
+            )
+            type(m_resp).content = mock_content
             return m_resp
 
         m_session_get.side_effect = fake_get
