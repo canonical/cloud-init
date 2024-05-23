@@ -511,6 +511,7 @@ class TestCombined:
         client = class_client
         assert "💩" == client.read_from_file("/var/tmp/unicode_data")
 
+
 @pytest.mark.user_data(USER_DATA)
 class TestCombinedNoCI:
     @retry(tries=30, delay=1)
