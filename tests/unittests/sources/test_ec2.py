@@ -12,7 +12,7 @@ import requests
 import responses
 
 from cloudinit import helpers
-from cloudinit.net import activators
+from cloudinit.net import netplan
 from cloudinit.sources import DataSourceEc2 as ec2
 from cloudinit.sources import NicOrder
 from tests.unittests.helpers import example_netdev
@@ -1546,7 +1546,7 @@ class TestConvertEc2MetadataNetworkConfig:
             },
         }
         distro = mock.Mock()
-        distro.network_activator = activators.NetplanActivator
+        distro.network_renderer = netplan.Renderer
         distro.dhcp_client.dhcp_discovery.return_value = {
             "routers": "172.31.1.0"
         }
@@ -1620,7 +1620,7 @@ class TestConvertEc2MetadataNetworkConfig:
             },
         }
         distro = mock.Mock()
-        distro.network_activator = activators.NetplanActivator
+        distro.network_renderer = netplan.Renderer
         distro.dhcp_client.dhcp_discovery.return_value = {
             "routers": "172.31.1.0"
         }
