@@ -970,11 +970,23 @@ def _configure_policy_routing(
     @param: is_ipv4: Boolean indicating if we are acting over ipv4 or not.
     @param: table: Routing table id.
     """
+    if is_ipv4:
+        subnet_prefix_routes = nic_metadata.get("subnet-ipv4-cidr-block")
+        ips = nic_metadata.get("local-ipv4s")
+    else:
+        subnet_prefix_routes = nic_metadata.get("subnet-ipv6-cidr-blocks")
+        ips = nic_metadata.get("ipv6s")
+    if not (subnet_prefix_routes and ips):
+        LOG.debug(
+            "Not enough IMDS information to configure policy routing "
+            "for IPv%s",
+            "4" if is_ipv4 else "6",
+        )
+        return
+
     if not dev_config.get("routes"):
         dev_config["routes"] = []
     if is_ipv4:
-        subnet_prefix_routes = nic_metadata["subnet-ipv4-cidr-block"]
-        ips = nic_metadata["local-ipv4s"]
         try:
             lease = distro.dhcp_client.dhcp_discovery(nic_name, distro=distro)
             gateway = lease["routers"]
@@ -995,9 +1007,6 @@ def _configure_policy_routing(
                     "table": table,
                 },
             )
-    else:
-        subnet_prefix_routes = nic_metadata["subnet-ipv6-cidr-blocks"]
-        ips = nic_metadata["ipv6s"]
 
     subnet_prefix_routes = (
         [subnet_prefix_routes]
