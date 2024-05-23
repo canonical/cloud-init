@@ -11,8 +11,11 @@ releases.
     many operating system vendors patch out breaking changes in
     cloud-init to ensure consistent behavior on their platform.
 
-24.1 - Removal of ``--file`` top-level option
-=============================================
+24.1
+====
+
+Removal of ``--file`` top-level option
+--------------------------------------
 
 The ``--file`` top-level option has been removed from cloud-init. It only
 applied to a handful of subcommands so it did not make sense as a top-level
@@ -30,27 +33,8 @@ Instead, use:
     cloud-init modules --file=userdata.yaml --mode config
 
 
-23.2-24.1 - Datasource identification
-=====================================
-
-**23.2**
-    If the detected ``datasource_list`` contains a single datasource or
-    that datasource plus ``None``, automatically use that datasource without
-    checking to see if it is available. This allows for using datasources that
-    don't have a way to be deterministically detected.
-**23.4**
-    If the detected ``datasource_list`` contains a single datasource plus
-    ``None``, no longer automatically use that datasource because ``None`` is
-    a valid datasource that may be used if the primary datasource is
-    not available.
-**24.1**
-    ds-identify no longer automatically appends ``None`` to a
-    datasource list with a single entry provided under ``/etc/cloud``.
-    If ``None`` is desired as a fallback, it must be explicitly added to the
-    customized datasource list.
-
-24.1 - removed Ubuntu's ordering dependency on snapd.seeded
-===========================================================
+Removed Ubuntu's ordering dependency on snapd.seeded
+----------------------------------------------------
 
 In Ubuntu releases, cloud-init will no longer wait on ``snapd`` pre-seeding to
 run. If a user-provided script relies on a snap, it must now be prefixed with
@@ -71,6 +55,25 @@ Will now need to be:
       - [ snap, wait, system, seed.loaded ]
       - [ snap, install, mc-installer ]
 
+
+23.2-24.1 - Datasource identification
+=====================================
+
+**23.2**
+    If the detected ``datasource_list`` contains a single datasource or
+    that datasource plus ``None``, automatically use that datasource without
+    checking to see if it is available. This allows for using datasources that
+    don't have a way to be deterministically detected.
+**23.4**
+    If the detected ``datasource_list`` contains a single datasource plus
+    ``None``, no longer automatically use that datasource because ``None`` is
+    a valid datasource that may be used if the primary datasource is
+    not available.
+**24.1**
+    ds-identify no longer automatically appends ``None`` to a
+    datasource list with a single entry provided under ``/etc/cloud``.
+    If ``None`` is desired as a fallback, it must be explicitly added to the
+    customized datasource list.
 
 23.4 - added status code for recoverable error
 ==============================================
