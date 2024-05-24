@@ -284,7 +284,7 @@ def _get_json_response(
             "Skipping %s on [HTTP:%d]:%s",
             url,
             url_response.status_code,
-            url_response.text,
+            url_response.content.decode("utf-8"),
         )
         return {}
     try:
@@ -293,7 +293,7 @@ def _get_json_response(
         raise sources.InvalidMetaDataException(
             "Unable to process LXD config at {url}."
             " Expected JSON but found: {resp}".format(
-                url=url, resp=url_response.text
+                url=url, resp=url_response.content.decode("utf-8")
             )
         ) from exc
 
@@ -321,7 +321,7 @@ def _do_request(
             "Invalid HTTP response [{code}] from {route}: {resp}".format(
                 code=response.status_code,
                 route=url,
-                resp=response.text,
+                resp=response.content.decode("utf-8"),
             )
         )
     return response
@@ -364,12 +364,13 @@ class _MetaDataReader:
             config_route_response = _do_request(
                 session, config_route_url, do_raise=False
             )
+            response_text = config_route_response.content.decode("utf-8")
             if not config_route_response.ok:
                 LOG.debug(
                     "Skipping %s on [HTTP:%d]:%s",
                     config_route_url,
                     config_route_response.status_code,
-                    config_route_response.text,
+                    response_text,
                 )
                 continue
 
@@ -377,16 +378,14 @@ class _MetaDataReader:
             # Leave raw data values/format unchanged to represent it in
             # instance-data.json for cloud-init query or jinja template
             # use.
-            config["config"][cfg_key] = config_route_response.text
+            config["config"][cfg_key] = response_text
             # Promote common CONFIG_KEY_ALIASES to top-level keys.
             if cfg_key in CONFIG_KEY_ALIASES:
                 # Due to sort of config_routes, promote cloud-init.*
                 # aliases before user.*. This allows user.* keys to act as
                 # fallback config on old LXD, with new cloud-init images.
                 if CONFIG_KEY_ALIASES[cfg_key] not in config:
-                    config[
-                        CONFIG_KEY_ALIASES[cfg_key]
-                    ] = config_route_response.text
+                    config[CONFIG_KEY_ALIASES[cfg_key]] = response_text
                 else:
                     LOG.warning(
                         "Ignoring LXD config %s in favor of %s value.",
@@ -404,7 +403,9 @@ class _MetaDataReader:
                 md_route = url_helper.combine_url(
                     self._version_url, "meta-data"
                 )
-                md["meta-data"] = _do_request(session, md_route).text
+                md["meta-data"] = _do_request(
+                    session, md_route
+                ).content.decode("utf-8")
             if MetaDataKeys.CONFIG in metadata_keys:
                 md.update(self._process_config(session))
             if MetaDataKeys.DEVICES in metadata_keys:

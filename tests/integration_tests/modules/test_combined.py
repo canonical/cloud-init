@@ -68,6 +68,7 @@ rsyslog:
     me: "127.0.0.1"
 runcmd:
   - echo 'hello world' > /var/tmp/runcmd_output
+  - echo '💩' > /var/tmp/unicode_data
 
   - #
   - logger "My test log"
@@ -505,6 +506,10 @@ class TestCombined:
         client.restart()
         assert client.execute(f"test -f /run/cloud-init/{cloud_file}").ok
         assert client.execute("test -f /run/cloud-init/cloud-id").ok
+
+    def test_unicode(self, class_client: IntegrationInstance):
+        client = class_client
+        assert "💩" == client.read_from_file("/var/tmp/unicode_data")
 
 
 @pytest.mark.user_data(USER_DATA)

@@ -21,7 +21,7 @@ from cloudinit import url_helper as uhelp
 from cloudinit import util, warnings
 from cloudinit.distros import Distro
 from cloudinit.event import EventScope, EventType
-from cloudinit.net import activators
+from cloudinit.net import netplan
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralIPNetwork
 from cloudinit.sources import NicOrder
@@ -973,11 +973,23 @@ def _configure_policy_routing(
     @param: is_ipv4: Boolean indicating if we are acting over ipv4 or not.
     @param: table: Routing table id.
     """
+    if is_ipv4:
+        subnet_prefix_routes = nic_metadata.get("subnet-ipv4-cidr-block")
+        ips = nic_metadata.get("local-ipv4s")
+    else:
+        subnet_prefix_routes = nic_metadata.get("subnet-ipv6-cidr-blocks")
+        ips = nic_metadata.get("ipv6s")
+    if not (subnet_prefix_routes and ips):
+        LOG.debug(
+            "Not enough IMDS information to configure policy routing "
+            "for IPv%s",
+            "4" if is_ipv4 else "6",
+        )
+        return
+
     if not dev_config.get("routes"):
         dev_config["routes"] = []
     if is_ipv4:
-        subnet_prefix_routes = nic_metadata["subnet-ipv4-cidr-block"]
-        ips = nic_metadata["local-ipv4s"]
         try:
             lease = distro.dhcp_client.dhcp_discovery(nic_name, distro=distro)
             gateway = lease["routers"]
@@ -998,9 +1010,6 @@ def _configure_policy_routing(
                     "table": table,
                 },
             )
-    else:
-        subnet_prefix_routes = nic_metadata["subnet-ipv6-cidr-blocks"]
-        ips = nic_metadata["ipv6s"]
 
     subnet_prefix_routes = (
         [subnet_prefix_routes]
@@ -1077,7 +1086,7 @@ def convert_ec2_metadata_network_config(
         netcfg["ethernets"][nic_name] = dev_config
         return netcfg
     # Apply network config for all nics and any secondary IPv4/v6 addresses
-    is_netplan = distro.network_activator == activators.NetplanActivator
+    is_netplan = distro.network_renderer == netplan.Renderer
     nic_order = _build_nic_order(
         macs_metadata, macs_to_nics, fallback_nic_order
     )

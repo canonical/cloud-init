@@ -1,4 +1,5 @@
 """NoCloud datasource integration tests."""
+
 from textwrap import dedent
 
 import pytest
@@ -310,8 +311,11 @@ class TestFTP:
                 assert client.execute(
                     "git clone https://github.com/FiloSottile/mkcert && "
                     "cd mkcert && "
-                    "go build -ldflags "
-                    '"-X main.Version=$(git describe --tags)"'
+                    "export latest_ver=$(git describe --tags --abbrev=0) && "
+                    'wget "https://github.com/FiloSottile/mkcert/releases/'
+                    "download/${latest_ver}/mkcert-"
+                    '${latest_ver}-linux-amd64"'
+                    " -O mkcert"
                 ).ok
 
                 # giddyup

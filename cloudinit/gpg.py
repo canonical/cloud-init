@@ -116,7 +116,7 @@ class GPG:
         @param key: a string key fingerprint (as passed to gpg --recv-keys).
         @param keyserver: the keyserver to request keys from.
         @param retries: an iterable of sleep lengths for retries.
-                        Use None to indicate no retries."""
+        Use None to indicate no retries."""
         LOG.debug("Importing key '%s' from keyserver '%s'", key, keyserver)
         trynum = 0
         error = None

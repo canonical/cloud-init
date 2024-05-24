@@ -11,6 +11,11 @@ from unittest import mock
 from cloudinit import util
 from cloudinit.reporting import events, instantiated_handler_registry
 from cloudinit.reporting.handlers import HyperVKvpReportingHandler
+
+# TODO: Importing `errors` here is a hack to avoid a circular import.
+# Without it, we have a azure->errors->identity->azure import loop, but
+# long term we should restructure these modules to avoid the issue.
+from cloudinit.sources.azure import errors  # noqa: F401
 from cloudinit.sources.helpers import azure
 from tests.unittests.helpers import CiTestCase
 

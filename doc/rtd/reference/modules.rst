@@ -17,12 +17,17 @@ deprecated keys may cause warnings in the logs. In the case that a
 key's expected value changes, the key will be marked ``changed`` with a
 date. A 5 year timeline may also be expected for changed keys.
 
-.. automodule:: cloudinit.config.cc_ansible
-.. automodule:: cloudinit.config.cc_apk_configure
+.. datatemplate:yaml:: ../../module-docs/cc_ansible/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_apk_configure/data.yaml
+   :template: modules.tmpl
 .. automodule:: cloudinit.config.cc_apt_configure
-.. automodule:: cloudinit.config.cc_apt_pipelining
-.. automodule:: cloudinit.config.cc_bootcmd
-.. automodule:: cloudinit.config.cc_byobu
+.. datatemplate:yaml:: ../../module-docs/cc_apt_pipelining/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_bootcmd/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_byobu/data.yaml
+   :template: modules.tmpl
 .. automodule:: cloudinit.config.cc_ca_certs
 .. automodule:: cloudinit.config.cc_chef
 .. automodule:: cloudinit.config.cc_disable_ec2_metadata
