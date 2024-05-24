@@ -8,3 +8,5 @@ cpick-f6ac6ee8-fix-dhcpcd-Make-lease-parsing-more-robust-5129
 cpick-516fad6d-fix-url_helper-fix-TCP-connection-leak-on-readurl
 cpick-a6f7577d-bug-package_update-avoid-snap-refresh-in-images-without
 cpick-51c6569f-fix-snapd-ubuntu-do-not-snap-refresh-when-snap-absent
+cpick-417ee551-fix-ec2-Ensure-metadata-exists-before-configuring-PBR
+
