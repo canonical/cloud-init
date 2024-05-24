@@ -1,4 +1,4 @@
-cloud-init (24.1.3-0ubuntu3.2) UNRELEASED; urgency=medium
+cloud-init (24.1.3-0ubuntu3.2) noble; urgency=medium
 
   * Upstream bug fix release based on 24.1.6
     + functional fixes in debian/patches:
@@ -9,7 +9,7 @@ cloud-init (24.1.3-0ubuntu3.2) UNRELEASED; urgency=medium
     + test fixes in debian/patches:
       - cpick-74dc7cce: test: Fix failing test_ec2.py test (#5324)
 
- -- James Falcon <james.falcon@canonical.com>  Fri, 24 May 2024 14:45:58 -0500
+ -- James Falcon <james.falcon@canonical.com>  Fri, 24 May 2024 14:51:52 -0500
 
 cloud-init (24.1.3-0ubuntu3.1) noble; urgency=medium
 
