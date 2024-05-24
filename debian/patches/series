@@ -12,3 +12,4 @@ cli-retain-file-argument-as-main-cmd-arg.patch
 cpick-51c6569f-fix-snapd-ubuntu-do-not-snap-refresh-when-snap-absent
 cpick-417ee551-fix-ec2-Ensure-metadata-exists-before-configuring-PBR
 cpick-d6776632-fix-Check-renderer-for-netplan-specific-code-5321
+cpick-74dc7cce-test-Fix-failing-test_ec2.py-test-5324
