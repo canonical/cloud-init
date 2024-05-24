@@ -54,8 +54,8 @@ jobs:
       - name: Create a r/w directory to run tests in
         # without this, tox fails during package install
         run: |
-          lxc exec alpine -- git config --global --add safe.directory /root/cloud-init-ro//.git
-          lxc exec alpine -- git clone cloud-init-ro/ cloud-init-rw
+          lxc exec alpine -- git config --global --add safe.directory /root/cloud-init-ro/.git
+          lxc exec alpine -- git clone cloud-init-ro cloud-init-rw
 
       - name: Set a timezone
         # test for regression of GH-5158
