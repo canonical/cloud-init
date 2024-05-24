@@ -9,4 +9,5 @@ cpick-516fad6d-fix-url_helper-fix-TCP-connection-leak-on-readurl
 cpick-a6f7577d-bug-package_update-avoid-snap-refresh-in-images-without
 cpick-51c6569f-fix-snapd-ubuntu-do-not-snap-refresh-when-snap-absent
 cpick-417ee551-fix-ec2-Ensure-metadata-exists-before-configuring-PBR
+cpick-d6776632-fix-Check-renderer-for-netplan-specific-code-5321
 
