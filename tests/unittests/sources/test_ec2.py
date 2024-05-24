@@ -1478,7 +1478,7 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
             },
         }
         distro = mock.Mock()
-        distro.network_activator = activators.NetplanActivator
+        distro.network_renderer = netplan.Renderer
         assert expected == ec2.convert_ec2_metadata_network_config(
             network_metadata, distro, macs_to_nics
         )
