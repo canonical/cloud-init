@@ -1,0 +1,88 @@
+From d677663231baea15248867140aa00e01bdafd58c Mon Sep 17 00:00:00 2001
+From: James Falcon <james.falcon@canonical.com>
+Date: Fri, 24 May 2024 09:10:24 -0500
+Subject: [PATCH] fix: Check renderer for netplan-specific code (#5321)
+
+DataSourceEc2 has netplan-specific code that was gated by the
+selected activator. However, in practice, the activators are rarely
+used. Somebody may have selected a non-netplan renderer without
+selecting the proper activator with it. Since this involves rendering
+configuration, we should gate on the renderer instead.
+
+Fixes GH-5318
+---
+ cloudinit/distros/__init__.py       | 5 +++--
+ cloudinit/sources/DataSourceEc2.py  | 4 ++--
+ tests/unittests/sources/test_ec2.py | 6 +++---
+ 3 files changed, 8 insertions(+), 7 deletions(-)
+
+--- a/cloudinit/distros/__init__.py
++++ b/cloudinit/distros/__init__.py
+@@ -348,7 +348,8 @@ class Distro(persistence.CloudInitPickle
+         except activators.NoActivatorException:
+             return None
+ 
+-    def _get_renderer(self) -> Renderer:
++    @property
++    def network_renderer(self) -> Renderer:
+         priority = util.get_cfg_by_path(
+             self._cfg, ("network", "renderers"), None
+         )
+@@ -441,7 +442,7 @@ class Distro(persistence.CloudInitPickle
+ 
+         Returns True if any devices failed to come up, otherwise False.
+         """
+-        renderer = self._get_renderer()
++        renderer = self.network_renderer
+         network_state = parse_net_config_data(netconfig, renderer=renderer)
+         self._write_network_state(network_state, renderer)
+ 
+--- a/cloudinit/sources/DataSourceEc2.py
++++ b/cloudinit/sources/DataSourceEc2.py
+@@ -19,7 +19,7 @@ from cloudinit import url_helper as uhel
+ from cloudinit import util, warnings
+ from cloudinit.distros import Distro
+ from cloudinit.event import EventScope, EventType
+-from cloudinit.net import activators
++from cloudinit.net import netplan
+ from cloudinit.net.dhcp import NoDHCPLeaseError
+ from cloudinit.net.ephemeral import EphemeralIPNetwork
+ from cloudinit.sources.helpers import ec2
+@@ -1075,7 +1075,7 @@ def convert_ec2_metadata_network_config(
+         netcfg["ethernets"][nic_name] = dev_config
+         return netcfg
+     # Apply network config for all nics and any secondary IPv4/v6 addresses
+-    is_netplan = distro.network_activator == activators.NetplanActivator
++    is_netplan = distro.network_renderer == netplan.Renderer
+     macs = sorted(macs_to_nics.keys())
+     nic_order = _build_nic_order(macs_metadata, macs)
+     for mac in macs:
+--- a/tests/unittests/sources/test_ec2.py
++++ b/tests/unittests/sources/test_ec2.py
+@@ -10,7 +10,7 @@ import requests
+ import responses
+ 
+ from cloudinit import helpers
+-from cloudinit.net import activators
++from cloudinit.net import netplan
+ from cloudinit.sources import DataSourceEc2 as ec2
+ from tests.unittests import helpers as test_helpers
+ from tests.unittests.util import MockDistro
+@@ -1345,7 +1345,7 @@ class TestConvertEc2MetadataNetworkConfi
+             },
+         }
+         distro = mock.Mock()
+-        distro.network_activator = activators.NetplanActivator
++        distro.network_renderer = netplan.Renderer
+         distro.dhcp_client.dhcp_discovery.return_value = {
+             "routers": "172.31.1.0"
+         }
+@@ -1422,7 +1422,7 @@ class TestConvertEc2MetadataNetworkConfi
+             },
+         }
+         distro = mock.Mock()
+-        distro.network_activator = activators.NetplanActivator
++        distro.network_renderer = netplan.Renderer
+         distro.dhcp_client.dhcp_discovery.return_value = {
+             "routers": "172.31.1.0"
+         }
