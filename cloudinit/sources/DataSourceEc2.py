@@ -19,7 +19,7 @@ from cloudinit import url_helper as uhelp
 from cloudinit import util, warnings
 from cloudinit.distros import Distro
 from cloudinit.event import EventScope, EventType
-from cloudinit.net import activators
+from cloudinit.net import netplan
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralIPNetwork
 from cloudinit.sources.helpers import ec2
@@ -1082,7 +1082,7 @@ def convert_ec2_metadata_network_config(
         netcfg["ethernets"][nic_name] = dev_config
         return netcfg
     # Apply network config for all nics and any secondary IPv4/v6 addresses
-    is_netplan = distro.network_activator == activators.NetplanActivator
+    is_netplan = distro.network_renderer == netplan.Renderer
     macs = sorted(macs_to_nics.keys())
     nic_order = _build_nic_order(macs_metadata, macs)
     for mac in macs:

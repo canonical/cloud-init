@@ -348,7 +348,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         except activators.NoActivatorException:
             return None
 
-    def _get_renderer(self) -> Renderer:
+    @property
+    def network_renderer(self) -> Renderer:
         priority = util.get_cfg_by_path(
             self._cfg, ("network", "renderers"), None
         )
@@ -441,7 +442,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         Returns True if any devices failed to come up, otherwise False.
         """
-        renderer = self._get_renderer()
+        renderer = self.network_renderer
         network_state = parse_net_config_data(netconfig, renderer=renderer)
         self._write_network_state(network_state, renderer)
 
