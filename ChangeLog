@@ -1,3 +1,8 @@
+24.1.6
+ - fix(ec2): Ensure metadata exists before configuring PBR (#5287)
+ - fix: Check renderer for netplan-specific code (#5321)
+ - test: Fix failing test_ec2.py test (#5324)
+
 24.1.5
  - fix(package_update): avoid snap refresh in images without snap command
    (LP: #2064132)
