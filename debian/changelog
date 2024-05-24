@@ -1,4 +1,4 @@
-cloud-init (24.1.3-0ubuntu3.2) UNRELEASED; urgency=medium
+cloud-init (24.1.3-0ubuntu3.2) noble; urgency=medium
 
   * cherry-pick 51c6569f: fix(snapd): ubuntu do not snap refresh when
     snap absent (LP: #2064132)
