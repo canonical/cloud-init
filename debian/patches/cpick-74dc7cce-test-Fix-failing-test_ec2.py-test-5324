@@ -1,0 +1,21 @@
+From 74dc7cce0ef828632bf15172a38927a757a43607 Mon Sep 17 00:00:00 2001
+From: James Falcon <james.falcon@canonical.com>
+Date: Fri, 24 May 2024 09:33:23 -0500
+Subject: [PATCH] test: Fix failing test_ec2.py test (#5324)
+
+#5321 missed one test update. Fix it.
+---
+ tests/unittests/sources/test_ec2.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/tests/unittests/sources/test_ec2.py
++++ b/tests/unittests/sources/test_ec2.py
+@@ -1478,7 +1478,7 @@ class TestConvertEc2MetadataNetworkConfi
+             },
+         }
+         distro = mock.Mock()
+-        distro.network_activator = activators.NetplanActivator
++        distro.network_renderer = netplan.Renderer
+         assert expected == ec2.convert_ec2_metadata_network_config(
+             network_metadata, distro, macs_to_nics
+         )
