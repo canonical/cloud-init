@@ -45,8 +45,6 @@ OMNIBUS_URL = "https://www.chef.io/chef/install.sh"
 OMNIBUS_URL_RETRIES = 5
 
 CHEF_VALIDATION_PEM_PATH = "/etc/chef/validation.pem"
-CHEF_ENCRYPTED_DATA_BAG_PATH = "/etc/chef/encrypted_data_bag_secret"
-CHEF_ENVIRONMENT = "_default"
 CHEF_FB_PATH = "/etc/chef/firstboot.json"
 CHEF_RB_TPL_DEFAULTS = {
     # These are ruby symbols...

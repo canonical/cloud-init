@@ -107,7 +107,6 @@ IBM_CONFIG_UUID = "9796-932E"
 
 class Platforms:
     TEMPLATE_LIVE_METADATA = "Template/Live/Metadata"
-    TEMPLATE_LIVE_NODATA = "UNABLE TO BE IDENTIFIED."
     TEMPLATE_PROVISIONING_METADATA = "Template/Provisioning/Metadata"
     TEMPLATE_PROVISIONING_NODATA = "Template/Provisioning/No-Metadata"
     OS_CODE = "OS-Code/Live"
