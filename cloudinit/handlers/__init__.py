@@ -55,6 +55,7 @@ INCLUSION_TYPES_MAP = {
     "text/x-shellscript-per-boot": "text/x-shellscript-per-boot",
     "text/x-shellscript-per-instance": "text/x-shellscript-per-instance",
     "text/x-shellscript-per-once": "text/x-shellscript-per-once",
+    "-----begin pgp message-----": "text/x-pgp-armored",
 }
 
 # Sorted longest first

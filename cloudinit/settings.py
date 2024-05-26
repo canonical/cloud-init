@@ -79,3 +79,4 @@ PER_ONCE = "once"
 FREQUENCIES = [PER_INSTANCE, PER_ALWAYS, PER_ONCE]
 
 HOTPLUG_ENABLED_FILE = "/var/lib/cloud/hotplug.enabled"
+KEY_DIR = "/etc/cloud/keys"
