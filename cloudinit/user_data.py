@@ -8,14 +8,18 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import email
 import logging
 import os
+from email.message import Message
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.nonmultipart import MIMENonMultipart
 from email.mime.text import MIMEText
+import pathlib
 
-from cloudinit import features, handlers, util
+from cloudinit import features, gpg, handlers, subp, util
+from cloudinit.settings import KEY_DIR
 from cloudinit.url_helper import UrlError, read_file_or_url
 
 LOG = logging.getLogger(__name__)
@@ -37,6 +41,7 @@ ARCHIVE_UNDEF_TYPE = "text/cloud-config"
 ARCHIVE_UNDEF_BINARY_TYPE = "application/octet-stream"
 
 # This seems to hit most of the gzip possible content types.
+ENCRYPT_TYPE = "text/x-pgp-armored"
 DECOMP_TYPES = [
     "application/gzip",
     "application/gzip-compressed",
@@ -47,6 +52,7 @@ DECOMP_TYPES = [
     "application/x-gzip",
     "application/x-gzip-compressed",
 ]
+TRANSFORM_TYPES = [ENCRYPT_TYPE] + DECOMP_TYPES
 
 # Msg header used to track attachments
 ATTACHMENT_FIELD = "Number-Attachments"
@@ -87,7 +93,7 @@ class UserDataProcessor:
             self._process_msg(convert_string(blob), accumulating_msg)
         return accumulating_msg
 
-    def _process_msg(self, base_msg, append_msg):
+    def _process_msg(self, base_msg: Message, append_msg):
         def find_ctype(payload):
             return handlers.type_from_starts_with(payload)
 
@@ -95,49 +101,67 @@ class UserDataProcessor:
             if is_skippable(part):
                 continue
 
-            ctype = None
-            ctype_orig = part.get_content_type()
             payload = util.fully_decoded_payload(part)
-            was_compressed = False
 
-            # When the message states it is of a gzipped content type ensure
-            # that we attempt to decode said payload so that the decompressed
-            # data can be examined (instead of the compressed data).
-            if ctype_orig in DECOMP_TYPES:
-                try:
-                    payload = util.decomp_gzip(payload, quiet=False)
-                    # At this point we don't know what the content-type is
-                    # since we just decompressed it.
-                    ctype_orig = None
-                    was_compressed = True
-                except util.DecompressionError as e:
-                    error_message = (
-                        "Failed decompressing payload from {} of"
-                        " length {} due to: {}".format(
-                            ctype_orig, len(payload), e
-                        )
-                    )
-                    _handle_error(error_message, e)
-                    continue
-
-            # Attempt to figure out the payloads content-type
-            if not ctype_orig:
-                ctype_orig = UNDEF_TYPE
+            ctype = part.get_content_type()
             # There are known cases where mime-type text/x-shellscript included
             # non shell-script content that was user-data instead.  It is safe
             # to check the true MIME type for x-shellscript type since all
             # shellscript payloads must have a #! header.  The other MIME types
             # that cloud-init supports do not have the same guarantee.
-            if ctype_orig in TYPE_NEEDED + ["text/x-shellscript"]:
-                ctype = find_ctype(payload)
-            if ctype is None:
-                ctype = ctype_orig
+            if ctype in TYPE_NEEDED + ["text/x-shellscript"]:
+                ctype = find_ctype(payload) or ctype
+
+            was_transformed = False
+
+            # When the message states it is transformed ensure
+            # that we attempt to decode said payload so that the transformed
+            # data can be examined.
+            parent_ctype = None
+            if ctype in TRANSFORM_TYPES:
+                if ctype in DECOMP_TYPES:
+                    try:
+                        payload = util.decomp_gzip(payload, quiet=False)
+                    except util.DecompressionError as e:
+                        error_message = (
+                            "Failed decompressing payload from {} of"
+                            " length {} due to: {}".format(
+                                ctype, len(payload), e
+                            )
+                        )
+                        _handle_error(error_message, e)
+                        continue
+                elif ctype == ENCRYPT_TYPE and isinstance(payload, str):
+                    with gpg.GPG() as gpg_context:
+                        # Import all keys from the /etc/cloud/keys directory
+                        keys_dir = pathlib.Path("/etc/cloud/keys")
+                        if keys_dir.is_dir():
+                            for key_path in keys_dir.iterdir():
+                                gpg_context.import_key(key_path)
+                        try:
+                            payload = gpg_context.decrypt(payload)
+                        except subp.ProcessExecutionError as e:
+                            raise RuntimeError(
+                                "Failed decrypting user data payload of type "
+                                f"{ctype}. Ensure any necessary keys are "
+                                f"present in {KEY_DIR}."
+                            ) from e
+                else:
+                    error_message = (
+                        f"Unknown content type {ctype} that"
+                        " is marked as transformed"
+                    )
+                    _handle_error(error_message)
+                    continue
+                was_transformed = True
+                parent_ctype = ctype
+                ctype = find_ctype(payload) or parent_ctype
 
             # In the case where the data was compressed, we want to make sure
             # that we create a new message that contains the found content
             # type with the uncompressed content since later traversals of the
             # messages will expect a part not compressed.
-            if was_compressed:
+            if was_transformed:
                 maintype, subtype = ctype.split("/", 1)
                 n_part = MIMENonMultipart(maintype, subtype)
                 n_part.set_payload(payload)
@@ -146,12 +170,13 @@ class UserDataProcessor:
                 # after decoding and decompression.
                 if part.get_filename():
                     _set_filename(n_part, part.get_filename())
-                for h in ("Launch-Index",):
-                    if h in part:
-                        _replace_header(n_part, h, str(part[h]))
+                if "Launch-Index" in part:
+                    _replace_header(
+                        n_part, "Launch-Index", str(part["Launch-Index"])
+                    )
                 part = n_part
 
-            if ctype != ctype_orig:
+            if ctype != parent_ctype:
                 _replace_header(part, CONTENT_TYPE, ctype)
 
             if ctype in INCLUDE_TYPES:
@@ -361,8 +386,12 @@ def is_skippable(part):
     return False
 
 
+def message_from_string(string) -> Message:
+    return email.message_from_string(string)
+
+
 # Coverts a raw string into a mime message
-def convert_string(raw_data, content_type=NOT_MULTIPART_TYPE):
+def convert_string(raw_data, content_type=NOT_MULTIPART_TYPE) -> Message:
     """convert a string (more likely bytes) or a message into
     a mime message."""
     if not raw_data:
@@ -380,7 +409,7 @@ def convert_string(raw_data, content_type=NOT_MULTIPART_TYPE):
         bdata = raw_data
     bdata = util.decomp_gzip(bdata, decode=False)
     if b"mime-version:" in bdata[0:4096].lower():
-        msg = util.message_from_string(bdata.decode("utf-8"))
+        msg = message_from_string(bdata.decode("utf-8"))
     else:
         msg = create_binmsg(bdata, content_type)
 

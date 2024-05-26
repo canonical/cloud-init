@@ -9,6 +9,7 @@
 
 import logging
 import os
+import pathlib
 import re
 import signal
 import time
@@ -67,6 +68,43 @@ class GPG:
             # debug, since it happens for any key not on the system initially
             LOG.debug('Failed to export armoured key "%s": %s', key, error)
         return None
+
+    def import_key(self, key: pathlib.Path) -> None:
+        """Import gpg key from a file to the temporary keyring.
+
+        :param key: path to the key file
+        """
+        try:
+            subp.subp(
+                [
+                    "gpg",
+                    "--batch",
+                    "--import",
+                    str(key),
+                ],
+                update_env=self.env,
+            )
+        except subp.ProcessExecutionError as error:
+            LOG.warning("Failed to import key %s: %s", key, error)
+
+    def decrypt(self, data: str) -> str:
+        """Process data using gpg.
+
+        This can be used to decrypt encrypted data, verify signed data,
+        or both depending on the data provided.
+
+        :param data: ASCII-armored GPG message to process
+        :return: decrypted data
+        :raises: ProcessExecutionError if gpg fails to decrypt data
+        """
+        return subp.subp(
+            [
+                "gpg",
+                "--decrypt",
+            ],
+            data=data,
+            update_env=self.env,
+        ).stdout
 
     def dearmor(self, key: str) -> str:
         """Dearmor gpg key, dearmored key gets returned
