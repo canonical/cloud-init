@@ -3113,13 +3113,50 @@ def error(msg, rc=1, fmt="Error:\n{}", sys_exit=False):
 
 @total_ordering
 class Version(namedtuple("Version", ["major", "minor", "patch", "rev"])):
-    def __new__(cls, major=-1, minor=-1, patch=-1, rev=-1):
+    """A class for comparing versions.
+
+    Implemented as a named tuple with all ordering methods. Comparisons
+    between X.Y.N and X.Y always treats the more specific number as larger.
+
+    :param major: the most significant number in a version
+    :param minor: next greatest significant number after major
+    :param patch: next greatest significant number after minor
+    :param rev: the least significant number in a version
+
+    :raises TypeError: If invalid arguments are given.
+    :raises ValueError: If invalid arguments are given.
+
+    Examples:
+
+        >>> Version(2, 9) == Version.from_str("2.9")
+        True
+        >>> Version(2, 9, 1) > Version.from_str("2.9.1")
+        False
+        >>> Version(3, 10) > Version.from_str("3.9.9.9")
+        True
+        >>> Version(3, 7) >= Version.from_str("3.7")
+        True
+
+    """
+
+    def __new__(
+        cls, major: int = -1, minor: int = -1, patch: int = -1, rev: int = -1
+    ) -> "Version":
         """Default of -1 allows us to tiebreak in favor of the most specific
         number"""
         return super(Version, cls).__new__(cls, major, minor, patch, rev)
 
     @classmethod
-    def from_str(cls, version: str):
+    def from_str(cls, version: str) -> "Version":
+        """Create a Version object from a string.
+
+        :param version: A period-delimited version string, max 4 segments.
+
+        :raises TypeError: Raised if invalid arguments are given.
+        :raises ValueError: Raised if invalid arguments are given.
+
+        :return: A Version object.
+        """
         return cls(*(list(map(int, version.split(".")))))
 
     def __gt__(self, other):
@@ -3144,15 +3181,15 @@ class Version(namedtuple("Version", ["major", "minor", "patch", "rev"])):
     def __str__(self):
         return ".".join(self)
 
-    def _compare_version(self, other) -> int:
-        """
-        return values:
-            1: self > v2
-            -1: self < v2
-            0: self == v2
+    def __hash__(self):
+        return hash(str(self))
 
-        to break a tie between 3.1.N and 3.1, always treat the more
-        specific number as larger
+    def _compare_version(self, other: "Version") -> int:
+        """Compare this Version to another.
+
+        :param other: A Version object.
+
+        :return: -1 if self > other, 1 if self < other, else 0
         """
         if self == other:
             return 0
