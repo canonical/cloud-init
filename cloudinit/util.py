@@ -3127,7 +3127,6 @@ class Version(namedtuple("Version", ["major", "minor", "patch", "rev"])):
     :raises ValueError: If invalid arguments are given.
 
     Examples:
-
         >>> Version(2, 9) == Version.from_str("2.9")
         True
         >>> Version(2, 9, 1) > Version.from_str("2.9.1")
