@@ -336,6 +336,8 @@ class DataSourceEc2(sources.DataSource):
         return None
 
     def wait_for_metadata_service(self):
+        urls = []
+        start_time = 0
         mcfg = self.ds_cfg
 
         url_params = self.get_url_params()
@@ -369,7 +371,6 @@ class DataSourceEc2(sources.DataSource):
             and self.cloud_name not in IDMSV2_SUPPORTED_CLOUD_PLATFORMS
         ):
             # if we can't get a token, use instance-id path
-            urls = []
             url2base = {}
             url_path = "{ver}/meta-data/instance-id".format(
                 ver=self.min_metadata_version

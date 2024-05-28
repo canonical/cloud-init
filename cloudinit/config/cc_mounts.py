@@ -304,6 +304,10 @@ def create_swapfile(fname: str, size: str) -> None:
                 "bs=1M",
                 "count=%s" % size,
             ]
+        else:
+            raise subp.ProcessExecutionError(
+                "Missing dependency: 'dd' and 'fallocate' are not available"
+            )
 
         try:
             subp.subp(cmd, capture=True)

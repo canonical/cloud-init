@@ -121,6 +121,8 @@ class BSD(distros.Distro):
             if not self.pkg_cmd_upgrade_prefix:
                 return
             cmd = self.pkg_cmd_upgrade_prefix
+        else:
+            cmd = []
 
         if args and isinstance(args, str):
             cmd.append(args)

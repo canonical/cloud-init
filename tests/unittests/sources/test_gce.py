@@ -101,6 +101,7 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
             gce_meta = GCE_META
 
         def _request_callback(request):
+            recursive = False
             url_path = urlparse(request.url).path
             if url_path.startswith("/computeMetadata/v1/"):
                 path = url_path.split("/computeMetadata/v1/")[1:][0]

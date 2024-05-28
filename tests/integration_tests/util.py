@@ -319,7 +319,7 @@ def wait_for_cloud_init(client: "IntegrationInstance", num_retries: int = 30):
         except Exception as e:
             last_exception = e
         time.sleep(1)
-    raise Exception(
+    raise Exception(  # pylint: disable=W0719
         "cloud-init status did not return successfully."
     ) from last_exception
 
