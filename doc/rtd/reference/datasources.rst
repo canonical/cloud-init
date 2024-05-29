@@ -26,7 +26,7 @@ There are exceptions, however, when the :ref:`datasource does not
 identify<datasource_ironic>` itself to ``cloud-init``. For these
 exceptions, one can override datasource detection either by configuring a
 single datasource in the :ref:`datasource_list<base_config_datasource_list>`,
-or by using :ref:`kernel commandline arguments<kernel_datasource_override>`.
+or by using :ref:`kernel command line arguments<kernel_datasource_override>`.
 
 .. _datasources_supported:
 

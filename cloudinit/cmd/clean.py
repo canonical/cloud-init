@@ -4,7 +4,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""Define 'clean' utility and handler as part of cloud-init commandline."""
+"""Define 'clean' utility and handler as part of cloud-init command line."""
 
 import argparse
 import glob

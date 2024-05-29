@@ -1735,7 +1735,7 @@ def get_config_paths_from_args(
 ) -> Tuple[str, List[InstanceDataPart]]:
     """Return appropriate instance-data.json and instance data parts
 
-    Based on commandline args, and user permissions, determine the
+    Based on command line args, and user permissions, determine the
     appropriate instance-data.json to source for jinja templates and
     a list of applicable InstanceDataParts such as user-data, vendor-data
     and network-config for which to validate schema. Avoid returning any

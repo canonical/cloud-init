@@ -193,7 +193,7 @@ def maybe_get_writable_device_path(devpath, info):
     @param info: String representing information about the requested device.
     @param log: Logger to which logs will be added upon error.
 
-    @returns devpath or updated devpath per kernel commandline if the device
+    @returns devpath or updated devpath per kernel command line if the device
         path is a writable block device, returns None otherwise.
     """
     container = util.is_container()

@@ -148,7 +148,7 @@ Explicitly set ``datasource_list`` to only ``openstack``, such as:
 Method 2: Kernel command line
 -----------------------------
 
-Set the kernel commandline to configure
+Set the kernel command line to configure
 :ref:`datasource override <kernel_datasource_override>`.
 
 Example using Ubuntu + GRUB2:

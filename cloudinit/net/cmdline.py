@@ -261,7 +261,7 @@ def _b64dgz(data):
         blob = base64.b64decode(data)
     except (TypeError, ValueError):
         LOG.error(
-            "Expected base64 encoded kernel commandline parameter"
+            "Expected base64 encoded kernel command line parameter"
             " network-config. Ignoring network-config=%s.",
             data,
         )
