@@ -19,7 +19,7 @@ knowledge and become better at using and configuring ``cloud-init``.
    vendordata.rst
    security.rst
    analyze.rst
-   kernel-cmdline.rst
+   kernel-command-line.rst
    failure_states.rst
    exported_errors.rst
    return_codes.rst

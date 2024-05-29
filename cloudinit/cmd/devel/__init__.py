@@ -1,6 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""Common cloud-init devel commandline utility functions."""
+"""Common cloud-init devel command line utility functions."""
 
 from cloudinit.helpers import Paths
 from cloudinit.stages import Init
