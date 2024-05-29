@@ -50,7 +50,7 @@ class Iproute2(NetOps):
                 "ip",
                 "-4",
                 "route",
-                "add",
+                "replace",
                 route,
                 *gateway_args,
                 "dev",
