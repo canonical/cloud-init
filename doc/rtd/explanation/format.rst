@@ -70,7 +70,8 @@ Kernel command line
 
 When using the NoCloud datasource, users can pass user data via the kernel
 command line parameters. See the :ref:`NoCloud datasource<datasource_nocloud>`
-and :ref:`kernel_command_line` documentation for more details.
+and :ref:`explanation/kernel-command-line:Kernel command line` documentation
+for more details.
 
 Gzip compressed content
 =======================
