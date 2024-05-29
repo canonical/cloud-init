@@ -1965,6 +1965,9 @@ def generate_network_config_from_instance_network_metadata(
         # addresses.
         nicname = "eth{idx}".format(idx=idx)
         dhcp_override = {"route-metric": (idx + 1) * 100}
+        # DNS resolution through secondary NICs is not supported, disable it.
+        if idx > 0:
+            dhcp_override["use-dns"] = False
         dev_config: Dict[str, Any] = {
             "dhcp4": True,
             "dhcp4-overrides": dhcp_override,
