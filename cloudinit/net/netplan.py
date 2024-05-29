@@ -381,6 +381,9 @@ class Renderer(renderer.Renderer):
         if not run:
             LOG.debug("netplan net_setup_link postcmd disabled")
             return
+        elif "net.ifnames=0" in util.get_cmdline():
+            LOG.debug("Predictable interface names disabled.")
+            return
         setup_lnk = ["udevadm", "test-builtin", "net_setup_link"]
 
         # It's possible we can race a udev rename and attempt to run
