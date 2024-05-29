@@ -19,15 +19,6 @@ from cloudinit.config.schema import MetaSchema, get_meta_doc
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
-# Define the commands to use
-SFDISK_CMD = subp.which("sfdisk")
-SGDISK_CMD = subp.which("sgdisk")
-LSBLK_CMD = subp.which("lsblk")
-BLKID_CMD = subp.which("blkid")
-BLKDEV_CMD = subp.which("blockdev")
-PARTPROBE_CMD = subp.which("partprobe")
-WIPEFS_CMD = subp.which("wipefs")
-
 LANG_C_ENV = {"LANG": "C"}
 LOG = logging.getLogger(__name__)
 
@@ -257,7 +248,7 @@ def enumerate_disk(device, nodeps=False):
     """
 
     lsblk_cmd = [
-        LSBLK_CMD,
+        "lsblk",
         "--pairs",
         "--output",
         "NAME,TYPE,FSTYPE,LABEL",
@@ -331,7 +322,7 @@ def check_fs(device):
     """
     out, label, fs_type, uuid = None, None, None, None
 
-    blkid_cmd = [BLKID_CMD, "-c", "/dev/null", device]
+    blkid_cmd = ["blkid", "-c", "/dev/null", device]
     try:
         out, _err = subp.subp(blkid_cmd, rcs=[0, 2])
     except Exception as e:
@@ -438,8 +429,8 @@ def is_disk_used(device):
 
 def get_hdd_size(device):
     try:
-        size_in_bytes, _ = subp.subp([BLKDEV_CMD, "--getsize64", device])
-        sector_size, _ = subp.subp([BLKDEV_CMD, "--getss", device])
+        size_in_bytes, _ = subp.subp(["blockdev", "--getsize64", device])
+        sector_size, _ = subp.subp(["blockdev", "--getss", device])
     except Exception as e:
         raise RuntimeError("Failed to get %s size\n%s" % (device, e)) from e
 
@@ -455,7 +446,8 @@ def check_partition_mbr_layout(device, layout):
     """
 
     read_parttbl(device)
-    prt_cmd = [SFDISK_CMD, "-l", device]
+
+    prt_cmd = ["sfdisk", "-l", device]
     try:
         out, _err = subp.subp(prt_cmd, data="%s\n" % layout)
     except Exception as e:
@@ -486,7 +478,7 @@ def check_partition_mbr_layout(device, layout):
 
 
 def check_partition_gpt_layout(device, layout):
-    prt_cmd = [SGDISK_CMD, "-p", device]
+    prt_cmd = ["sgdisk", "-p", device]
     try:
         out, _err = subp.subp(prt_cmd, update_env=LANG_C_ENV)
     except Exception as e:
@@ -676,7 +668,7 @@ def purge_disk(device):
     # wipe any file systems first
     for d in enumerate_disk(device):
         if d["type"] not in ["disk", "crypt"]:
-            wipefs_cmd = [WIPEFS_CMD, "--all", "/dev/%s" % d["name"]]
+            wipefs_cmd = ["wipefs", "--all", "/dev/%s" % d["name"]]
             try:
                 LOG.info("Purging filesystem on /dev/%s", d["name"])
                 subp.subp(wipefs_cmd)
@@ -709,10 +701,11 @@ def read_parttbl(device):
     `Partprobe` is preferred over `blkdev` since it is more reliably
     able to probe the partition table.
     """
-    if PARTPROBE_CMD is not None:
-        probe_cmd = [PARTPROBE_CMD, device]
+    partprobe = "partprobe"
+    if subp.which(partprobe):
+        probe_cmd = [partprobe, device]
     else:
-        probe_cmd = [BLKDEV_CMD, "--rereadpt", device]
+        probe_cmd = ["blockdev", "--rereadpt", device]
     util.udevadm_settle()
     try:
         subp.subp(probe_cmd)
@@ -728,7 +721,7 @@ def exec_mkpart_mbr(device, layout):
     types, i.e. gpt
     """
     # Create the partitions
-    prt_cmd = [SFDISK_CMD, "--force", device]
+    prt_cmd = ["sfdisk", "--force", device]
     try:
         subp.subp(prt_cmd, data="%s\n" % layout)
     except Exception as e:
@@ -741,12 +734,12 @@ def exec_mkpart_mbr(device, layout):
 
 def exec_mkpart_gpt(device, layout):
     try:
-        subp.subp([SGDISK_CMD, "-Z", device])
+        subp.subp(["sgdisk", "-Z", device])
         for index, (partition_type, (start, end)) in enumerate(layout):
             index += 1
             subp.subp(
                 [
-                    SGDISK_CMD,
+                    "sgdisk",
                     "-n",
                     "{}:{}:{}".format(index, start, end),
                     device,
@@ -757,7 +750,7 @@ def exec_mkpart_gpt(device, layout):
                 # 82 -> 8200.  'Linux' -> 'Linux'
                 pinput = str(partition_type).ljust(4, "0")
                 subp.subp(
-                    [SGDISK_CMD, "-t", "{}:{}".format(index, pinput), device]
+                    ["sgdisk", "-t", "{}:{}".format(index, pinput), device]
                 )
     except Exception:
         LOG.warning("Failed to partition device %s", device)
