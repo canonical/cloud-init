@@ -55,6 +55,8 @@ gapmi = distros._get_arch_package_mirror_info
 
 
 class TestGenericDistro(helpers.FilesystemMockingTestCase):
+    with_logs = True
+
     def setUp(self):
         super(TestGenericDistro, self).setUp()
         # Make a temp directoy for tests to use.
@@ -231,6 +233,47 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         self.assertTrue(os.path.isdir("/b"))
         self.assertIn("josh", contents)
         self.assertEqual(2, contents.count("josh"))
+        self.assertIn(
+            "Added '#includedir /b' to /etc/sudoers", self.logs.getvalue()
+        )
+
+    def test_sudoers_ensure_append_sudoer_file(self):
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        self.patchOS(self.tmp)
+        self.patchUtils(self.tmp)
+        util.write_file("/etc/sudoers", "josh, josh\n")
+        d.ensure_sudo_dir("/b", "/etc/sudoers")
+        contents = util.load_text_file("/etc/sudoers")
+        self.assertIn("includedir /b", contents)
+        self.assertTrue(os.path.isdir("/b"))
+        self.assertIn("josh", contents)
+        self.assertEqual(2, contents.count("josh"))
+
+    def test_usr_sudoers_ensure_new(self):
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        self.patchOS(self.tmp)
+        self.patchUtils(self.tmp)
+        util.write_file("/usr/etc/sudoers", "josh, josh\n")
+        d.ensure_sudo_dir("/b")
+        contents = util.load_text_file("/etc/sudoers")
+        self.assertIn("josh", contents)
+        self.assertEqual(2, contents.count("josh"))
+        self.assertIn("includedir /b", contents)
+        self.assertTrue(os.path.isdir("/b"))
+        self.assertIn(
+            "Using content from '/usr/etc/sudoers", self.logs.getvalue()
+        )
+
+    def test_usr_sudoers_ensure_no_etc_create_when_include_in_usr_etc(self):
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        self.patchOS(self.tmp)
+        self.patchUtils(self.tmp)
+        util.write_file("/usr/etc/sudoers", "#includedir /b")
+        d.ensure_sudo_dir("/b")
+        self.assertTrue(not os.path.exists("/etc/sudoers"))
 
     def test_sudoers_ensure_only_one_includedir(self):
         cls = distros.fetch("ubuntu")

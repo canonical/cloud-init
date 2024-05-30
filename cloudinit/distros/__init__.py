@@ -1018,9 +1018,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # it actually exists as a directory
         sudoers_contents = ""
         base_exists = False
+        system_sudo_base = "/usr/etc/sudoers"
         if os.path.exists(sudo_base):
             sudoers_contents = util.load_text_file(sudo_base)
             base_exists = True
+        elif os.path.exists(system_sudo_base):
+            sudoers_contents = util.load_text_file(system_sudo_base)
         found_include = False
         for line in sudoers_contents.splitlines():
             line = line.strip()
@@ -1045,7 +1048,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                         "#includedir %s" % (path),
                         "",
                     ]
-                    sudoers_contents = "\n".join(lines)
+                    if sudoers_contents:
+                        LOG.info("Using content from '%s'", system_sudo_base)
+                    sudoers_contents += "\n".join(lines)
                     util.write_file(sudo_base, sudoers_contents, 0o440)
                 else:
                     lines = [
