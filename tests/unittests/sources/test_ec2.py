@@ -12,7 +12,7 @@ import requests
 import responses
 
 from cloudinit import helpers
-from cloudinit.net import activators
+from cloudinit.net import netplan
 from cloudinit.sources import DataSourceEc2 as ec2
 from cloudinit.sources import NicOrder
 from tests.unittests.helpers import example_netdev
@@ -195,6 +195,43 @@ NIC2_MD_IPV4_IPV6_MULTI_IP = {
     "vpc-ipv4-cidr-block": "172.31.0.0/16",
     "vpc-ipv4-cidr-blocks": "172.31.0.0/16",
     "vpc-ipv6-cidr-blocks": "2600:1f16:292:100::/56",
+}
+
+MULTI_NIC_V6_ONLY_MD = {
+    "macs": {
+        "02:6b:df:a2:4b:2b": {
+            "device-number": "1",
+            "interface-id": "eni-0669816d0cf606123",
+            "ipv6s": "2600:1f16:67f:f201:8d2e:4d1f:9e80:4ab9",
+            "local-hostname": "i-0951b6d0b66337123.us-east-2.compute.internal",
+            "mac": "02:6b:df:a2:4b:2b",
+            "owner-id": "483410185123",
+            "security-group-ids": "sg-0bf34e5c3cde1d123",
+            "security-groups": "default",
+            "subnet-id": "subnet-0903f279682c66123",
+            "subnet-ipv6-cidr-blocks": "2600:1f16:67f:f201:0:0:0:0/64",
+            "vpc-id": "vpc-0ac1befb8c824a123",
+            "vpc-ipv4-cidr-block": "192.168.0.0/20",
+            "vpc-ipv4-cidr-blocks": "192.168.0.0/20",
+            "vpc-ipv6-cidr-blocks": "2600:1f16:67f:f200:0:0:0:0/56",
+        },
+        "02:7c:03:b8:5c:af": {
+            "device-number": "0",
+            "interface-id": "eni-0f3cddb84c16e1123",
+            "ipv6s": "2600:1f16:67f:f201:6613:29a2:dbf7:2f1f",
+            "local-hostname": "i-0951b6d0b66337123.us-east-2.compute.internal",
+            "mac": "02:7c:03:b8:5c:af",
+            "owner-id": "483410185123",
+            "security-group-ids": "sg-0bf34e5c3cde1d123",
+            "security-groups": "default",
+            "subnet-id": "subnet-0903f279682c66123",
+            "subnet-ipv6-cidr-blocks": "2600:1f16:67f:f201:0:0:0:0/64",
+            "vpc-id": "vpc-0ac1befb8c824a123",
+            "vpc-ipv4-cidr-block": "192.168.0.0/20",
+            "vpc-ipv4-cidr-blocks": "192.168.0.0/20",
+            "vpc-ipv6-cidr-blocks": "2600:1f16:67f:f200:0:0:0:0/56",
+        },
+    }
 }
 
 SECONDARY_IP_METADATA_2018_09_24 = {
@@ -1546,7 +1583,7 @@ class TestConvertEc2MetadataNetworkConfig:
             },
         }
         distro = mock.Mock()
-        distro.network_activator = activators.NetplanActivator
+        distro.network_renderer = netplan.Renderer
         distro.dhcp_client.dhcp_discovery.return_value = {
             "routers": "172.31.1.0"
         }
@@ -1620,13 +1657,64 @@ class TestConvertEc2MetadataNetworkConfig:
             },
         }
         distro = mock.Mock()
-        distro.network_activator = activators.NetplanActivator
+        distro.network_renderer = netplan.Renderer
         distro.dhcp_client.dhcp_discovery.return_value = {
             "routers": "172.31.1.0"
         }
         assert expected == ec2.convert_ec2_metadata_network_config(
             network_metadata_both, distro, macs_to_nics
         )
+
+    def test_convert_ec2_metadata_network_config_multi_nics_ipv6_only(self):
+        """Like above, but only ipv6s are present in metadata."""
+        macs_to_nics = {
+            "02:7c:03:b8:5c:af": "eth0",
+            "02:6b:df:a2:4b:2b": "eth1",
+        }
+        mac_data = copy.deepcopy(MULTI_NIC_V6_ONLY_MD)
+        network_metadata = {"interfaces": mac_data}
+        expected = {
+            "version": 2,
+            "ethernets": {
+                "eth0": {
+                    "dhcp4": True,
+                    "dhcp4-overrides": {"route-metric": 100},
+                    "dhcp6": True,
+                    "match": {"macaddress": "02:7c:03:b8:5c:af"},
+                    "set-name": "eth0",
+                    "dhcp6-overrides": {"route-metric": 100},
+                },
+                "eth1": {
+                    "dhcp4": True,
+                    "dhcp4-overrides": {
+                        "route-metric": 200,
+                        "use-routes": True,
+                    },
+                    "dhcp6": True,
+                    "match": {"macaddress": "02:6b:df:a2:4b:2b"},
+                    "set-name": "eth1",
+                    "routes": [
+                        {"to": "2600:1f16:67f:f201:0:0:0:0/64", "table": 101},
+                    ],
+                    "routing-policy": [
+                        {
+                            "from": "2600:1f16:67f:f201:8d2e:4d1f:9e80:4ab9",
+                            "table": 101,
+                        },
+                    ],
+                    "dhcp6-overrides": {
+                        "route-metric": 200,
+                        "use-routes": True,
+                    },
+                },
+            },
+        }
+        distro = mock.Mock()
+        distro.network_renderer = netplan.Renderer
+        assert expected == ec2.convert_ec2_metadata_network_config(
+            network_metadata, distro, macs_to_nics
+        )
+        distro.dhcp_client.dhcp_discovery.assert_not_called()
 
     def test_convert_ec2_metadata_network_config_handles_dhcp4_and_dhcp6(self):
         """Config both dhcp4 and dhcp6 when both vpc-ipv6 and ipv4 exists."""

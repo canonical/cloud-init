@@ -649,7 +649,7 @@
                 "distro",
                 "pip"
               ],
-              "description": "The type of installation for ansible. It can be one of the following values:\n\n - ``distro``\n - ``pip``"
+              "description": "The type of installation for ansible. It can be one of the following values:\n-  ``distro``\n-  ``pip``"
             },
             "run_user": {
               "type": "string",
@@ -685,6 +685,7 @@
                 "run_ansible": {
                   "type": "array",
                   "items": {
+                    "type": "object",
                     "properties": {
                       "playbook_name": {
                         "type": "string"
@@ -896,7 +897,7 @@
             "preserve_repositories": {
               "type": "boolean",
               "default": false,
-              "description": "By default, cloud-init will generate a new repositories file ``/etc/apk/repositories`` based on any valid configuration settings specified within a apk_repos section of cloud config. To disable this behavior and preserve the repositories file from the pristine image, set ``preserve_repositories`` to ``true``.\n\n The ``preserve_repositories`` option overrides all other config keys that would alter ``/etc/apk/repositories``."
+              "description": "By default, cloud-init will generate a new repositories file ``/etc/apk/repositories`` based on any valid configuration settings specified within a apk_repos section of cloud config. To disable this behavior and preserve the repositories file from the pristine image, set ``preserve_repositories`` to ``true``.\nThe ``preserve_repositories`` option overrides all other config keys that would alter ``/etc/apk/repositories``."
             },
             "alpine_repo": {
               "type": [

@@ -292,6 +292,10 @@ class _LxdIntegrationCloud(IntegrationCloud):
                 os.path.join(cloudinit_path, "..", "templates"),
                 "/etc/cloud/templates",
             ),
+            (
+                os.path.join(cloudinit_path, "..", "doc", "module-docs"),
+                "/usr/share/doc/cloud-init/module-docs",
+            ),
         ]
         for n, (source_path, target_path) in enumerate(mounts):
             format_variables = {

@@ -8,7 +8,7 @@ Instance metadata
    :maxdepth: 1
    :hidden:
 
-   kernel-cmdline.rst
+   kernel-command-line.rst
 
 What is ``instance-data?``
 ==========================

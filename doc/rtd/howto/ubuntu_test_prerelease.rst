@@ -49,7 +49,7 @@ Do this to avoid unintentionally installing other unreleased packages.
     rm -f /etc/apt/sources.list.d/proposed.list
     apt update
 
-Remove artefacts and reboot
+Remove artifacts and reboot
 ---------------------------
 
 This will cause cloud-init to rerun as if it is a first boot.

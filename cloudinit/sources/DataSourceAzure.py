@@ -49,7 +49,7 @@ from cloudinit.sources.helpers.azure import (
 from cloudinit.url_helper import UrlError
 
 try:
-    import crypt
+    import crypt  # pylint: disable=W4901
 
     blowfish_hash: Any = functools.partial(
         crypt.crypt, salt=f"$6${util.rand_str(strlen=16)}"
@@ -1965,6 +1965,9 @@ def generate_network_config_from_instance_network_metadata(
         # addresses.
         nicname = "eth{idx}".format(idx=idx)
         dhcp_override = {"route-metric": (idx + 1) * 100}
+        # DNS resolution through secondary NICs is not supported, disable it.
+        if idx > 0:
+            dhcp_override["use-dns"] = False
         dev_config: Dict[str, Any] = {
             "dhcp4": True,
             "dhcp4-overrides": dhcp_override,

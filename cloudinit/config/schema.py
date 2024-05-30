@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """schema.py: Set of module functions for processing cloud-config schema."""
 import argparse
+import glob
 import json
 import logging
 import os
@@ -40,6 +41,7 @@ from cloudinit.util import (
     error,
     get_modules_from_dir,
     load_text_file,
+    load_yaml,
     write_file,
 )
 
@@ -1459,6 +1461,8 @@ def _get_property_doc(schema: dict, defs: dict, prefix="   ") -> str:
 
 def _get_examples(meta: MetaSchema) -> str:
     """Return restructured text describing the meta examples if present."""
+    paths = read_cfg_paths()
+    module_docs_dir = os.path.join(paths.docs_dir, "module-docs")
     examples = meta.get("examples")
     if not examples:
         return ""
@@ -1467,6 +1471,15 @@ def _get_examples(meta: MetaSchema) -> str:
         rst_content += SCHEMA_EXAMPLES_SPACER_TEMPLATE.format(
             example_count=count
         )
+        # FIXME(no conditional needed when all modules in module-doc.yaml)
+        if isinstance(example, dict):
+            if example["comment"]:
+                comment = f"# {example['comment']}\n"
+            else:
+                comment = ""
+            example = comment + load_text_file(
+                os.path.join(module_docs_dir, example["file"])
+            )
         indented_lines = textwrap.indent(example, "   ").split("\n")
         rst_content += "\n".join(indented_lines)
     return rst_content
@@ -1576,19 +1589,36 @@ def load_doc(requested_modules: list) -> str:
             ),
             sys_exit=True,
         )
-    for mod_name in all_modules:
+    module_docs = get_module_docs()
+    schema = get_schema()
+    for mod_name in sorted(all_modules):
         if "all" in requested_modules or mod_name in requested_modules:
             (mod_locs, _) = importer.find_module(
                 mod_name, ["cloudinit.config"], ["meta"]
             )
             if mod_locs:
                 mod = importer.import_module(mod_locs[0])
-                docs += mod.__doc__ or ""
+                if module_docs.get(mod.meta["id"]):
+                    # Include docs only when module id is in module_docs
+                    mod.meta.update(module_docs.get(mod.meta["id"], {}))
+                    docs += get_meta_doc(mod.meta, schema) or ""
+                else:
+                    docs += mod.__doc__ or ""
     return docs
 
 
 def get_schema_dir() -> str:
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "schemas")
+
+
+def get_module_docs() -> dict:
+    """Return a dict keyed on cc_<mod_name> with documentation info"""
+    paths = read_cfg_paths()
+    mod_docs = {}
+    module_docs_dir = os.path.join(paths.docs_dir, "module-docs")
+    for mod_doc in glob.glob(f"{module_docs_dir}/*/data.yaml"):
+        mod_docs.update(load_yaml(load_text_file(mod_doc)))
+    return mod_docs
 
 
 def get_schema(schema_type: SchemaType = SchemaType.CLOUD_CONFIG) -> dict:
@@ -1705,7 +1735,7 @@ def get_config_paths_from_args(
 ) -> Tuple[str, List[InstanceDataPart]]:
     """Return appropriate instance-data.json and instance data parts
 
-    Based on commandline args, and user permissions, determine the
+    Based on command line args, and user permissions, determine the
     appropriate instance-data.json to source for jinja templates and
     a list of applicable InstanceDataParts such as user-data, vendor-data
     and network-config for which to validate schema. Avoid returning any

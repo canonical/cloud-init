@@ -284,6 +284,7 @@ class DataSourceWSL(sources.DataSource):
             return False
 
         seed_dir = cloud_init_data_dir(user_home)
+        agent_data = None
         user_data: Optional[Union[dict, bytes]] = None
 
         # Load any metadata

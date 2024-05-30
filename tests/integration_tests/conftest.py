@@ -318,7 +318,7 @@ def _client(
 
 
 @pytest.fixture
-def client(
+def client(  # pylint: disable=W0135
     request, fixture_utils, session_cloud, setup_image
 ) -> Iterator[IntegrationInstance]:
     """Provide a client that runs for every test."""
@@ -327,7 +327,7 @@ def client(
 
 
 @pytest.fixture(scope="module")
-def module_client(
+def module_client(  # pylint: disable=W0135
     request, fixture_utils, session_cloud, setup_image
 ) -> Iterator[IntegrationInstance]:
     """Provide a client that runs once per module."""
@@ -336,7 +336,7 @@ def module_client(
 
 
 @pytest.fixture(scope="class")
-def class_client(
+def class_client(  # pylint: disable=W0135
     request, fixture_utils, session_cloud, setup_image
 ) -> Iterator[IntegrationInstance]:
     """Provide a client that runs once per class."""

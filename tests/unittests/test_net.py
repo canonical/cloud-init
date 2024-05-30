@@ -3397,10 +3397,13 @@ class TestNetplanPostcommands:
         mock_netplan_generate.assert_called_with(run=True, config_changed=True)
         mock_net_setup_link.assert_called_with(run=True)
 
+    @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("cloudinit.util.SeLinuxGuard")
     @mock.patch.object(netplan, "get_devicelist")
     @mock.patch("cloudinit.subp.subp")
-    def test_netplan_postcmds(self, mock_subp, mock_devlist, mock_sel):
+    def test_netplan_postcmds(
+        self, mock_subp, mock_devlist, mock_sel, m_get_cmdline
+    ):
         mock_sel.__enter__ = mock.Mock(return_value=False)
         mock_sel.__exit__ = mock.Mock()
         mock_devlist.side_effect = [["lo"]]
@@ -3549,7 +3552,7 @@ class TestCmdlineConfigParsing:
         found = cmdline.read_kernel_cmdline_config(cmdline=raw_cmdline)
         assert found is None
         expected_log = (
-            "Expected base64 encoded kernel commandline parameter"
+            "Expected base64 encoded kernel command line parameter"
             " network-config. Ignoring network-config={config:disabled}."
         )
         assert expected_log in caplog.text

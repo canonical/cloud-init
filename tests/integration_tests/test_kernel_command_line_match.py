@@ -8,7 +8,7 @@ from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.util import (
     lxd_has_nocloud,
-    override_kernel_cmdline,
+    override_kernel_command_line,
     wait_for_cloud_init,
 )
 
@@ -32,25 +32,25 @@ log = logging.getLogger("integration_testing")
 def test_lxd_datasource_kernel_override(
     ds_str, configured, cmdline_configured, client: IntegrationInstance
 ):
-    """This test is twofold: it tests kernel commandline override, which also
+    """This test is twofold: it tests kernel command line override, which also
     validates OpenStack Ironic requirements. OpenStack Ironic does not
     advertise itself to cloud-init via any of the conventional methods: DMI,
     etc.
 
-    On systemd, ds-identify is able to grok kernel commandline, however to
+    On systemd, ds-identify is able to grok kernel command line, however to
     support cloud-init kernel command line parsing on non-systemd, parsing
-    kernel commandline in Python code is required.
+    kernel command line in Python code is required.
     """
 
     if configured == "lxd_or_nocloud":
         configured = (
             "DataSourceNoCloud" if lxd_has_nocloud(client) else "DataSourceLXD"
         )
-    override_kernel_cmdline(ds_str, client)
+    override_kernel_command_line(ds_str, client)
     if cmdline_configured:
         assert (
-            "Machine is configured by the kernel commandline to run on single "
-            f"datasource {configured}"
+            "Machine is configured by the kernel command line to run on single"
+            f" datasource {configured}"
         ) in client.execute("cat /var/log/cloud-init.log")
     else:
         # verify that no plat
@@ -58,7 +58,7 @@ def test_lxd_datasource_kernel_override(
         assert (f"Detected platform: {configured}") in log
         assert (
             "Machine is configured by the kernel "
-            "commandline to run on single "
+            "command line to run on single "
         ) not in log
 
 
@@ -98,7 +98,7 @@ def test_lxd_datasource_kernel_override_nocloud_net(
         assert wait_for_cloud_init(client, num_retries=60).ok
         if source.installs_new_version():
             client.install_new_cloud_init(source, clean=False)
-        override_kernel_cmdline(ds_str, client)
+        override_kernel_command_line(ds_str, client)
 
         logs = client.execute("cat /var/log/cloud-init.log")
         assert (
@@ -115,9 +115,9 @@ def test_lxd_datasource_kernel_override_nocloud_net(
 @pytest.mark.skipif(PLATFORM != "lxd_vm", reason="Modifies grub config")
 @pytest.mark.lxd_use_exec
 def test_lxd_disable_cloud_init_cmdline(client: IntegrationInstance):
-    """Verify cloud-init disablement via kernel commandline works."""
+    """Verify cloud-init disablement via kernel command line works."""
 
-    override_kernel_cmdline("cloud-init=disabled", client)
+    override_kernel_command_line("cloud-init=disabled", client)
     assert "Active: inactive (dead)" in client.execute(
         "systemctl status cloud-init"
     )
