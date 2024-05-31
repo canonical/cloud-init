@@ -921,8 +921,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         if hashed:
             # Need to use the short option name '-e' instead of '--encrypted'
-            # (which would be more descriptive) since SLES 11 doesn't know
-            # about long names.
+            # (which would be more descriptive) since Busybox and SLES 11
+            # chpasswd don't know about long names.
             cmd.append("-e")
 
         try:
