@@ -25,11 +25,6 @@ jobs:
             continue-on-error: false
             check-latest: false
             experimental: false
-          - python-version: "3.13-dev"
-            toxenv: py3
-            check-latest: true
-            experimental: true
-            continue-on-error: true
     name: unittest / ${{ matrix.toxenv }} / python ${{matrix.python-version}}
     runs-on: ubuntu-20.04
     continue-on-error: ${{ matrix.experimental }}
