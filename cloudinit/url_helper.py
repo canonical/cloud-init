@@ -431,12 +431,6 @@ def readurl(
         def_headers.update(headers)
     headers = def_headers
 
-    # if not headers_cb:
-
-    #     def _cb(url):
-    #         return headers
-
-    #     headers_cb = _cb
     if data:
         req_args["data"] = data
     if sec_between is None:
