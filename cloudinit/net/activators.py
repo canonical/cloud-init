@@ -19,12 +19,16 @@ class NoActivatorException(Exception):
     pass
 
 
-def _alter_interface(cmd: list, device_name: str) -> bool:
+def _alter_interface(
+    cmd: list, device_name: str, warn_on_stderr: bool = True
+) -> bool:
     """Attempt to alter an interface using a command list"""
-    return _alter_interface_callable(partial(subp.subp, cmd))
+    return _alter_interface_callable(partial(subp.subp, cmd), warn_on_stderr)
 
 
-def _alter_interface_callable(callable: Callable) -> bool:
+def _alter_interface_callable(
+    callable: Callable, warn_on_stderr: bool = True
+) -> bool:
     """Attempt to alter an interface using a callable
 
     this function standardizes logging and response to failure for
@@ -33,7 +37,8 @@ def _alter_interface_callable(callable: Callable) -> bool:
     try:
         _out, err = callable()
         if len(err):
-            LOG.warning("Received stderr output: %s", err)
+            log_stderr = LOG.warning if warn_on_stderr else LOG.debug
+            log_stderr("Received stderr output: %s", err)
         return True
     except subp.ProcessExecutionError as e:
         util.logexc(LOG, "Running interface command %s failed", e.cmd)
@@ -198,7 +203,9 @@ class NetplanActivator(NetworkActivator):
             "Calling 'netplan apply' rather than "
             "altering individual interfaces"
         )
-        return _alter_interface(NetplanActivator.NETPLAN_CMD, "all")
+        return _alter_interface(
+            NetplanActivator.NETPLAN_CMD, "all", warn_on_stderr=False
+        )
 
     @staticmethod
     def bring_up_interfaces(device_names: Iterable[str]) -> bool:
@@ -210,7 +217,9 @@ class NetplanActivator(NetworkActivator):
             "Calling 'netplan apply' rather than "
             "altering individual interfaces"
         )
-        return _alter_interface(NetplanActivator.NETPLAN_CMD, "all")
+        return _alter_interface(
+            NetplanActivator.NETPLAN_CMD, "all", warn_on_stderr=False
+        )
 
     @staticmethod
     def bring_up_all_interfaces(network_state: NetworkState) -> bool:
@@ -218,7 +227,9 @@ class NetplanActivator(NetworkActivator):
 
         Return True is successful, otherwise return False
         """
-        return _alter_interface(NetplanActivator.NETPLAN_CMD, "all")
+        return _alter_interface(
+            NetplanActivator.NETPLAN_CMD, "all", warn_on_stderr=False
+        )
 
     @staticmethod
     def bring_down_interface(device_name: str) -> bool:
@@ -230,7 +241,9 @@ class NetplanActivator(NetworkActivator):
             "Calling 'netplan apply' rather than "
             "altering individual interfaces"
         )
-        return _alter_interface(NetplanActivator.NETPLAN_CMD, "all")
+        return _alter_interface(
+            NetplanActivator.NETPLAN_CMD, "all", warn_on_stderr=False
+        )
 
 
 class NetworkdActivator(NetworkActivator):
