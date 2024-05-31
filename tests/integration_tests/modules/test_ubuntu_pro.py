@@ -43,14 +43,6 @@ ubuntu_pro:
 
 PRO_AUTO_ATTACH_DISABLED = """\
 #cloud-config
-# ubuntu_advantage config kept as duplication until the release of this
-# commit in proclient (ubuntu-advantage-tools v. 32):
-# https://github.com/canonical/ubuntu-pro-client/commit/7bb69e3ad
-# Without a top-level ubuntu_advantage key Pro will automatically attach
-# instead of defer to cloud-init for all attach operations.
-ubuntu_advantage:
-  features:
-    disable_auto_attach: true
 ubuntu_pro:
   features:
     disable_auto_attach: true
@@ -59,10 +51,6 @@ ubuntu_pro:
 PRO_DAEMON_DISABLED = """\
 #cloud-config
 # Disable Pro daemon (only needed in GCE)
-# Drop ubuntu_advantage key once ubuntu-advantage-tools v. 32 is SRU'd
-ubuntu_advantage:
-  features:
-    disable_auto_attach: true
 ubuntu_pro:
   features:
     disable_auto_attach: true
@@ -72,21 +60,18 @@ bootcmd:
 
 AUTO_ATTACH_CUSTOM_SERVICES = """\
 #cloud-config
-# Drop ubuntu_advantage key once ubuntu-advantage-tools v. 32 is SRU'd
-ubuntu_advantage:
-  enable:
-  - esm-infra
 ubuntu_pro:
   enable:
   - esm-infra
 """
 
 
-def did_ua_service_noop(client: IntegrationInstance) -> bool:
-    ua_log = client.read_from_file("/var/log/ubuntu-advantage.log")
-    return (
+def assert_ua_service_noop(client: IntegrationInstance):
+    status_resp = client.execute("systemctl status ua-auto-attach.service")
+    assert status_resp.return_code == 3  # Due to being skipped
+    assert (
         "Skipping auto-attach and deferring to cloud-init to setup and"
-        " configure auto-attach" in ua_log
+        " configure auto-attach" in status_resp.stdout
     )
 
 
@@ -212,16 +197,8 @@ def maybe_install_cloud_init(session_cloud: IntegrationCloud):
         user_data=user_data,
         launch_kwargs=launch_kwargs,
     ) as client:
-        # TODO: Re-enable this check after cloud images contain
-        # cloud-init 23.4.
-        # Explanation: We have to include something under
-        # user-data.ubuntu_pro to skip the automatic auto-attach
-        # (driven by ua-auto-attach.service and/or ubuntu-advantage.service)
-        # while customizing the instance but in cloud-init < 23.4,
-        # user-data.ubuntu_pro requires a token key.
-
-        # log = client.read_from_file("/var/log/cloud-init.log")
-        # verify_clean_log(log)
+        log = client.read_from_file("/var/log/cloud-init.log")
+        verify_clean_log(log)
 
         assert not is_attached(
             client
@@ -260,7 +237,7 @@ class TestUbuntuAdvantagePro:
         ) as client:
             log = client.read_from_file("/var/log/cloud-init.log")
             verify_clean_log(log)
-            assert did_ua_service_noop(client)
+            assert_ua_service_noop(client)
             assert is_attached(client)
             services_status = get_services_status(client)
             assert services_status.pop(
