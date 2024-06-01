@@ -127,7 +127,7 @@ if TYPE_CHECKING:
         title: str
         description: str
         distros: typing.List[str]
-        examples: typing.List[str]
+        examples: typing.List[Union[dict, str]]
         frequency: str
         activate_by_schema_keys: NotRequired[List[str]]
 
