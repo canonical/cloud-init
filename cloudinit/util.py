@@ -357,8 +357,6 @@ def read_conf(fname, *, instance_data_file=None) -> Dict:
                 config_file,
                 repr(e),
             )
-    if config_file is None:
-        return {}
     return load_yaml(config_file, default={})  # pyright: ignore
 
 
