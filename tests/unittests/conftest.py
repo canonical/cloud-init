@@ -152,7 +152,7 @@ def clear_deprecation_log():
     # Since deprecations are de-duped, the existance (or non-existance) of
     # a deprecation warning in a previous test can cause the next test to
     # fail.
-    util.deprecate._log = set()
+    setattr(util.deprecate, "log", set())
 
 
 PYTEST_VERSION_TUPLE = tuple(map(int, pytest.__version__.split(".")))

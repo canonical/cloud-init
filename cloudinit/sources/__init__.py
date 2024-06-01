@@ -375,7 +375,6 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 )
                 raise DatasourceUnpickleUserDataError() from e
 
-
     def __str__(self):
         return type_utils.obj_name(self)
 
