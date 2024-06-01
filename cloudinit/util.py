@@ -3250,8 +3250,8 @@ def deprecate(
 
     Note: uses keyword-only arguments to improve legibility
     """
-    if not hasattr(deprecate, "_log"):
-        deprecate._log = set()  # type: ignore
+    if not hasattr(deprecate, "log"):
+        setattr(deprecate, "log", set())
     message = extra_message or ""
     dedup = hash(deprecated + message + deprecated_version + str(schedule))
     version = Version.from_str(deprecated_version)
@@ -3267,8 +3267,9 @@ def deprecate(
         level = log.DEPRECATED
     else:
         level = logging.WARN
-    if not skip_log and dedup not in deprecate._log:  # type: ignore
-        deprecate._log.add(dedup)  # type: ignore
+    log_cache = getattr(deprecate, "log")
+    if not skip_log and dedup not in log_cache:
+        log_cache.add(dedup)
         LOG.log(level, deprecate_msg)
     return DeprecationLog(level, deprecate_msg)
 

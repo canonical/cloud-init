@@ -28,7 +28,7 @@ class BSD(distros.Distro):
     # There is no update/upgrade on OpenBSD
     pkg_cmd_update_prefix: Optional[List[str]] = None
     pkg_cmd_upgrade_prefix: Optional[List[str]] = None
-    net_ops = bsd_netops.BsdNetOps  # type: ignore
+    net_ops = bsd_netops.BsdNetOps
 
     def __init__(self, name, cfg, paths):
         super().__init__(name, cfg, paths)
