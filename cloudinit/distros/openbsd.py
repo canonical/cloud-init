@@ -53,7 +53,7 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
             raise
 
     def unlock_passwd(self, name):
-        pass
+        LOG.debug("OpenBSD password lock is not reversible, ignoring unlock")
 
     def _get_pkg_cmd_environ(self):
         """Return env vars used in OpenBSD package_command operations"""

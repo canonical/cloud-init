@@ -64,6 +64,11 @@ class NetBSD(cloudinit.distros.bsd.BSD):
         return ["usermod", "-G", group_name, member_name]
 
     def add_user(self, name, **kwargs):
+        """
+        Add a user to the system using standard tools
+
+        Returns False if user already exists, otherwise True.
+        """
         if util.is_user(name):
             LOG.info("User %s already exists, skipping.", name)
             return False
@@ -111,6 +116,9 @@ class NetBSD(cloudinit.distros.bsd.BSD):
         passwd_val = kwargs.get("passwd", None)
         if passwd_val is not None:
             self.set_passwd(name, passwd_val, hashed=True)
+
+        # Indicate that a new user was created
+        return True
 
     def set_passwd(self, user, passwd, hashed=False):
         if hashed:
