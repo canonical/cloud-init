@@ -86,7 +86,12 @@ class Distro(cloudinit.distros.bsd.BSD):
     def _get_add_member_to_group_cmd(self, member_name, group_name):
         return ["pw", "usermod", "-n", member_name, "-G", group_name]
 
-    def add_user(self, name, **kwargs):
+    def add_user(self, name, **kwargs) -> bool:
+        """
+        Add a user to the system using standard tools
+
+        Returns False if user already exists, otherwise True.
+        """
         if util.is_user(name):
             LOG.info("User %s already exists, skipping.", name)
             return False
@@ -139,6 +144,9 @@ class Distro(cloudinit.distros.bsd.BSD):
         passwd_val = kwargs.get("passwd", None)
         if passwd_val is not None:
             self.set_passwd(name, passwd_val, hashed=True)
+
+        # Indicate that a new user was created
+        return True
 
     def expire_passwd(self, user):
         try:
