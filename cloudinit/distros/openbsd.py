@@ -45,6 +45,25 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
         cmd = list(init_cmd) + list(cmds[action])
         return subp.subp(cmd, capture=True, rcs=rcs)
 
+    def _check_if_existing_password(self, username, shadow_file=None) -> bool:
+        """
+        Check whether ``username`` user has an existing password (regardless
+        of whether locked or not).
+
+        For OpenBSD (from https://man.openbsd.org/passwd.5) a password field
+        of "" indicates no password, and password field values of either
+        "*" or "*************" (13 "*") indicate differing forms of "locked"
+        but with no password defined.
+
+        Returns either 'True' to indicate a password present, or 'False'
+        for no password set.
+        """
+
+        status = not self._check_if_password_field_matches(
+            username, "::", ":*:", ":*************:", check_file=shadow_file
+        )
+        return status
+
     def lock_passwd(self, name):
         try:
             subp.subp(["usermod", "-p", "*", name])
@@ -53,7 +72,11 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
             raise
 
     def unlock_passwd(self, name):
-        pass
+        LOG.debug(
+            "OpenBSD password lock is not reversible, "
+            "ignoring unlock for user %s",
+            name,
+        )
 
     def _get_pkg_cmd_environ(self):
         """Return env vars used in OpenBSD package_command operations"""

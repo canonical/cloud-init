@@ -16,6 +16,21 @@ def common_mocks(mocker):
     mocker.patch("cloudinit.distros.util.system_is_snappy", return_value=False)
 
 
+def _existing_shadow_grep(name: str):
+    """Return a mock of grep of /etc/shadow call based on username."""
+    return mock.call(
+        ["grep", "-q", "-e", f"^{name}::", "-e", f"^{name}:!:", "/etc/shadow"]
+    )
+
+
+def _chpasswdmock(name: str, password: str, hashed: bool = False):
+    """Return a mock of chpasswd call based on args"""
+    cmd = ["chpasswd", "-e"] if hashed else ["chpasswd"]
+    return mock.call(
+        cmd, data=f"{name}:{password}", logstring=f"chpasswd for {name}"
+    )
+
+
 def _useradd2call(args: List[str]):
     # return a mock call for the useradd command in args
     # with expected 'logstring'.
@@ -76,17 +91,98 @@ class TestCreateUser:
                 id="unlocked",
             ),
             pytest.param(
-                {"passwd": "passfoo"},
+                {"passwd": "$6$rounds=..."},
                 [
-                    _useradd2call([USER, "--password", "passfoo", "-m"]),
+                    _useradd2call([USER, "--password", "$6$rounds=...", "-m"]),
                     mock.call(["passwd", "-l", USER]),
                 ],
-                id="set_password",
+                id="set_implicit_encrypted_password",
+            ),
+            pytest.param(
+                {"passwd": ""},
+                [
+                    _useradd2call([USER, "-m"]),
+                    mock.call(["passwd", "-l", USER]),
+                ],
+                id="set_empty_passwd_new_user",
+            ),
+            pytest.param(
+                {"plain_text_passwd": "clearfoo"},
+                [
+                    _useradd2call([USER, "-m"]),
+                    _chpasswdmock(USER, "clearfoo"),
+                    mock.call(["passwd", "-l", USER]),
+                ],
+                id="set_plain_text_password",
+            ),
+            pytest.param(
+                {"hashed_passwd": "$6$rounds=..."},
+                [
+                    _useradd2call([USER, "-m"]),
+                    _chpasswdmock(USER, "$6$rounds=...", hashed=True),
+                    mock.call(["passwd", "-l", USER]),
+                ],
+                id="set_explicitly_hashed_password",
             ),
         ],
     )
-    def test_create_options(self, m_subp, dist, create_kwargs, expected):
+    @mock.patch("cloudinit.distros.util.is_user", return_value=False)
+    def test_create_options(
+        self, _is_user, m_subp, dist, create_kwargs, expected
+    ):
         dist.create_user(name=USER, **create_kwargs)
+        assert m_subp.call_args_list == expected
+
+    @pytest.mark.parametrize(
+        "create_kwargs,expected,expected_logs",
+        [
+            pytest.param(
+                {"passwd": "$6$rounds=..."},
+                [
+                    _existing_shadow_grep(USER),
+                    mock.call(["passwd", "-l", USER]),
+                ],
+                [
+                    "'passwd' in user-data is ignored for existing user "
+                    "foo_user"
+                ],
+                id="skip_passwd_set_on_existing_user",
+            ),
+            pytest.param(
+                {"plain_text_passwd": "clearfoo"},
+                [
+                    _chpasswdmock(USER, "clearfoo"),
+                    mock.call(["passwd", "-l", USER]),
+                ],
+                [],
+                id="set_plain_text_password_on_existing_user",
+            ),
+            pytest.param(
+                {"hashed_passwd": "$6$rounds=..."},
+                [
+                    _chpasswdmock(USER, "$6$rounds=...", hashed=True),
+                    mock.call(["passwd", "-l", USER]),
+                ],
+                [],
+                id="set_explicitly_hashed_password",
+            ),
+        ],
+    )
+    @mock.patch("cloudinit.distros.util.is_user", return_value=True)
+    def test_create_passwd_existing_user(
+        self,
+        m_is_user,
+        m_subp,
+        dist,
+        create_kwargs,
+        expected,
+        expected_logs,
+        caplog,
+    ):
+        """When user exists, don't unlock on empty or locked passwords."""
+        dist.create_user(name=USER, **create_kwargs)
+        for log in expected_logs:
+            assert log in caplog.text
         assert m_subp.call_args_list == expected
 
     @mock.patch("cloudinit.distros.util.is_group")

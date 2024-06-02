@@ -86,7 +86,12 @@ class Distro(cloudinit.distros.bsd.BSD):
     def _get_add_member_to_group_cmd(self, member_name, group_name):
         return ["pw", "usermod", "-n", member_name, "-G", group_name]
 
-    def add_user(self, name, **kwargs):
+    def add_user(self, name, **kwargs) -> bool:
+        """
+        Add a user to the system using standard tools
+
+        Returns False if user already exists, otherwise True.
+        """
         if util.is_user(name):
             LOG.info("User %s already exists, skipping.", name)
             return False
@@ -140,6 +145,28 @@ class Distro(cloudinit.distros.bsd.BSD):
         if passwd_val is not None:
             self.set_passwd(name, passwd_val, hashed=True)
 
+        # Indicate that a new user was created
+        return True
+
+    def _check_if_existing_password(self, username, shadow_file=None) -> bool:
+        """
+        Check whether ``username`` user has an existing password (regardless
+        of whether locked or not).
+
+        For FreeBSD (from https://man.freebsd.org/cgi/man.cgi?passwd(5)) a
+        password field of "" indicates no password, and a password
+        field value of either "*" or "*LOCKED*" indicate differing forms of
+        "locked" but with no password defined.
+
+        Returns either 'True' to indicate a password present, or 'False'
+        for no password set.
+        """
+
+        status = not self._check_if_password_field_matches(
+            username, "::", ":*:", ":*LOCKED*:", check_file=shadow_file
+        )
+        return status
+
     def expire_passwd(self, user):
         try:
             subp.subp(["pw", "usermod", user, "-p", "01-Jan-1970"])
@@ -169,6 +196,13 @@ class Distro(cloudinit.distros.bsd.BSD):
         except Exception:
             util.logexc(LOG, "Failed to lock password login for user %s", name)
             raise
+
+    def unlock_passwd(self, name):
+        LOG.debug(
+            "Dragonfly BSD/FreeBSD password lock is not reversible, "
+            "ignoring unlock for user %s",
+            name,
+        )
 
     def apply_locale(self, locale, out_fn=None):
         # Adjust the locales value to the new value
