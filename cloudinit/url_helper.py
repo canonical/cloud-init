@@ -426,11 +426,8 @@ def readurl(
     user_agent = "Cloud-Init/%s" % (version.version_string())
     if headers is not None:
         headers = headers.copy()
-        "User-Agent": user_agent,
-    }
-    if headers:
-        def_headers.update(headers)
-    headers = def_headers
+    else:
+        headers = {}
 
     if data:
         req_args["data"] = data
