@@ -424,7 +424,8 @@ def readurl(
         manual_tries = max(int(retries) + 1, 1)
 
     user_agent = "Cloud-Init/%s" % (version.version_string())
-    def_headers = {
+    if headers is not None:
+        headers = headers.copy()
         "User-Agent": user_agent,
     }
     if headers:
