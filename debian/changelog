@@ -19,10 +19,12 @@ cloud-init (23.4.1-0ubuntu1~23.10.5) UNRELEASED; urgency=medium
   * refresh patches:
     - d/p/status-do-not-remove-duplicated-data.patch
     - d/p/status-retain-recoverable-error-exit-code.patch
-    - d/p/retain-ec2-default-net-update-events.patch
-  * Upstream snapshot based on upstream/main at 0a3a5e25.
+    - d/p/cli-retain-file-argument-as-main-cmd-arg.patch
+    - d/p/do-not-block-user-login.patch
 
- -- James Falcon <james.falcon@canonical.com>  Mon, 08 Apr 2024 14:57:11 -0500
+  * Upstream snapshot based on upstream/main at f93514aa.
+
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 03 Jun 2024 11:01:37 -0600
 
 cloud-init (24.1.3-0ubuntu1~23.10.4) mantic; urgency=medium
 
