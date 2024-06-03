@@ -17,6 +17,33 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  
 --- a/tests/unittests/cmd/test_status.py
 +++ b/tests/unittests/cmd/test_status.py
+@@ -523,7 +523,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
+                    recoverable_errors: {}
+                    schemas:
+                        '1':
+-                           boot_status_code: enabled-by-kernel-cmdline
++                           boot_status_code: enabled-by-kernel-command-line
+                            datasource: ''
+                            detail: 'Running in stage: init'
+                            errors: []
+@@ -573,7 +573,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
+                     "_schema_version": "1",
+                     "schemas": {
+                         "1": {
+-                            "boot_status_code": "enabled-by-kernel-cmdline",
++                            "boot_status_code": "enabled-by-kernel-command-line",
+                             "datasource": "",
+                             "detail": "Running in stage: init",
+                             "errors": [],
+@@ -644,7 +644,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
+                     "recoverable_errors": {},
+                     "schemas": {
+                         "1": {
+-                            "boot_status_code": "enabled-by-kernel-cmdline",
++                            "boot_status_code": "enabled-by-kernel-command-line",
+                             "datasource": "nocloud",
+                             "detail": "DataSourceNoCloud "
+                             "[seed=/var/.../seed/nocloud-net][dsmode=net]",
 @@ -726,7 +726,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
                  },
                  None,
@@ -25,4 +52,13 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 +                0,
                  {
                      "_schema_version": "1",
-                     "boot_status_code": "enabled-by-kernel-cmdline",
+                     "boot_status_code": "enabled-by-kernel-command-line",
+@@ -790,7 +790,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
+                     },
+                     "schemas": {
+                         "1": {
+-                            "boot_status_code": "enabled-by-kernel-cmdline",
++                            "boot_status_code": "enabled-by-kernel-command-line",
+                             "datasource": "nocloud",
+                             "detail": "DataSourceNoCloud "
+                             "[seed=/var/.../seed/nocloud-net][dsmode=net]",
