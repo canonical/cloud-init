@@ -1,23 +1,24 @@
 ## template:jinja
 [Unit]
-Description=Initial cloud-init job (pre-networking)
-{% if variant in ["ubuntu", "unknown", "debian", "rhel" ] %}
+# https://cloudinit.readthedocs.io/en/latest/explanation/boot.html
+Description=Cloud-init: Local Stage (pre-network)
+{% if variant in ["almalinux", "cloudlinux", "ubuntu", "unknown", "debian", "rhel"] %}
 DefaultDependencies=no
 {% endif %}
 Wants=network-pre.target
 After=hv_kvp_daemon.service
 After=systemd-remount-fs.service
-{% if variant == "rhel" %}
+{% if variant in ["almalinux", "cloudlinux", "rhel"] %}
 Requires=dbus.socket
 After=dbus.socket
 {% endif %}
 Before=NetworkManager.service
-{% if variant == "rhel" %}
+{% if variant in ["almalinux", "cloudlinux", "rhel"] %}
 Before=network.service
 {% endif %}
 Before=network-pre.target
 Before=shutdown.target
-{% if variant == "rhel" %}
+{% if variant in ["almalinux", "cloudlinux", "rhel"] %}
 Before=firewalld.target
 Conflicts=shutdown.target
 {% endif %}
@@ -32,7 +33,7 @@ ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
 
 [Service]
 Type=oneshot
-{% if variant == "rhel" %}
+{% if variant in ["almalinux", "cloudlinux", "rhel"] %}
 ExecStartPre=/bin/mkdir -p /run/cloud-init
 ExecStartPre=/sbin/restorecon /run/cloud-init
 ExecStartPre=/usr/bin/touch /run/cloud-init/enabled

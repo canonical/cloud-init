@@ -361,6 +361,22 @@
           },
           "minItems": 1
         },
+        "ssh-authorized-keys": {
+          "allOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            {
+              "deprecated": true,
+              "deprecated_version": "18.3",
+              "deprecated_description": "Use ``ssh_authorized_keys`` instead."
+            }
+          ]
+        },
         "ssh_import_id": {
           "description": "List of ssh ids to import for user. Can not be combined with ``ssh_redirect_user``. See the man page[1] for more details. [1] https://manpages.ubuntu.com/manpages/noble/en/man1/ssh-import-id.1.html",
           "type": "array",
@@ -577,6 +593,12 @@
         },
         "merge_type": {
           "$ref": "#/$defs/merge_definition"
+        },
+        "system_info": {
+          "type": "object",
+          "description": "System and/or distro specific settings. This is not intended to be overridden by user data or vendor data.",
+          "deprecated": true,
+          "deprecated_version": "24.2"
         }
       }
     },
@@ -627,7 +649,7 @@
                 "distro",
                 "pip"
               ],
-              "description": "The type of installation for ansible. It can be one of the following values:\n\n - ``distro``\n - ``pip``"
+              "description": "The type of installation for ansible. It can be one of the following values:\n-  ``distro``\n-  ``pip``"
             },
             "run_user": {
               "type": "string",
@@ -663,6 +685,7 @@
                 "run_ansible": {
                   "type": "array",
                   "items": {
+                    "type": "object",
                     "properties": {
                       "playbook_name": {
                         "type": "string"
@@ -874,7 +897,7 @@
             "preserve_repositories": {
               "type": "boolean",
               "default": false,
-              "description": "By default, cloud-init will generate a new repositories file ``/etc/apk/repositories`` based on any valid configuration settings specified within a apk_repos section of cloud config. To disable this behavior and preserve the repositories file from the pristine image, set ``preserve_repositories`` to ``true``.\n\n The ``preserve_repositories`` option overrides all other config keys that would alter ``/etc/apk/repositories``."
+              "description": "By default, cloud-init will generate a new repositories file ``/etc/apk/repositories`` based on any valid configuration settings specified within a apk_repos section of cloud config. To disable this behavior and preserve the repositories file from the pristine image, set ``preserve_repositories`` to ``true``.\nThe ``preserve_repositories`` option overrides all other config keys that would alter ``/etc/apk/repositories``."
             },
             "alpine_repo": {
               "type": [
@@ -1931,12 +1954,12 @@
         },
         "mount_default_fields": {
           "type": "array",
-          "description": "Default mount configuration for any mount entry with less than 6 options provided. When specified, 6 items are required and represent ``/etc/fstab`` entries. Default: ``defaults,nofail,x-systemd.requires=cloud-init.service,_netdev``",
+          "description": "Default mount configuration for any mount entry with less than 6 options provided. When specified, 6 items are required and represent ``/etc/fstab`` entries. Default: ``defaults,nofail,x-systemd.after=cloud-init.service,_netdev``",
           "default": [
             null,
             null,
             "auto",
-            "defaults,nofail,x-systemd.requires=cloud-init.service",
+            "defaults,nofail,x-systemd.after=cloud-init.service",
             "0",
             "2"
           ],
@@ -3876,6 +3899,7 @@
     "ssh_pwauth": {},
     "ssh_quiet_keygen": {},
     "swap": {},
+    "system_info": {},
     "timezone": {},
     "ubuntu_advantage": {},
     "ubuntu_pro": {},

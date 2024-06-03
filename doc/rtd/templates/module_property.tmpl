@@ -1,0 +1,12 @@
+{% macro print_prop(name, types, description, prefix) -%}
+{% set descr_suffix = description.splitlines()[0]|d('') -%}
+{% set descr_lines = description.splitlines()[1:]|d([]) -%}
+{{prefix}}* **{{name}}:** ({{types}}){{ descr_suffix }}
+{% for line in descr_lines -%}
+{{prefix ~ '  '}}{{ line }}
+{% endfor -%}
+{%- endmacro -%}
+{% if prop_cfg.get('items', {}).get('type') == 'object' %}
+{% set description = description ~ " Each object in **" ~ name ~ "** list supports the following keys:" %}
+{% endif %}
+{{ print_prop(name, types, description, prefix ) }}

@@ -33,7 +33,7 @@ from tests.unittests.helpers import CiTestCase, mock
 
 
 def int_to_bytes(i):
-    """convert integer to binary: eg: 1 to \x01"""
+    r"""convert integer to binary: eg: 1 to \x01"""
     hex_value = "{0:x}".format(i)
     hex_value = "0" * (len(hex_value) % 2) + hex_value
     return codecs.decode(hex_value, "hex_codec")

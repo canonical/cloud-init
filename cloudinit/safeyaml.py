@@ -10,7 +10,6 @@ from typing import Any, Dict, List, Tuple
 
 import yaml
 
-YAMLError = yaml.YAMLError
 
 # SchemaPathMarks track the path to an element within a loaded YAML file.
 # The start_mark and end_mark contain the row and column indicators
@@ -47,11 +46,6 @@ class SchemaPathMarks:
             and self.end_mark.line == other.end_mark.line
             and self.end_mark.column == other.end_mark.column
         )
-
-
-class _CustomSafeLoader(yaml.SafeLoader):
-    def construct_python_unicode(self, node):
-        return super().construct_scalar(node)
 
 
 def _find_closest_parent(child_mark, marks):
@@ -236,12 +230,6 @@ class _CustomSafeLoaderWithMarks(yaml.SafeLoader):
         return data
 
 
-_CustomSafeLoader.add_constructor(
-    "tag:yaml.org,2002:python/unicode",
-    _CustomSafeLoader.construct_python_unicode,
-)
-
-
 class NoAliasSafeDumper(yaml.dumper.SafeDumper):
     """A class which avoids constructing anchors/aliases on yaml dump"""
 
@@ -268,10 +256,6 @@ def load_with_marks(blob) -> Tuple[Any, Dict[str, int]]:
     else:
         schemamarks = result.pop("schemamarks")
     return result, schemamarks
-
-
-def load(blob):
-    return yaml.load(blob, Loader=_CustomSafeLoader)
 
 
 def dumps(obj, explicit_start=True, explicit_end=True, noalias=False):

@@ -249,6 +249,7 @@ class TestNtp(FilesystemMockingTestCase):
                     )
 
     def _get_expected_pools(self, pools, distro, client):
+        expected_pools = None
         if client in ["ntp", "chrony"]:
             if client == "ntp" and distro == "alpine":
                 # NTP for Alpine Linux is Busybox's ntp which does not
@@ -264,6 +265,7 @@ class TestNtp(FilesystemMockingTestCase):
         return expected_pools
 
     def _get_expected_servers(self, servers, distro, client):
+        expected_servers = None
         if client in ["ntp", "chrony"]:
             if client == "ntp" and distro == "alpine":
                 # NTP for Alpine Linux is Busybox's ntp which only supports

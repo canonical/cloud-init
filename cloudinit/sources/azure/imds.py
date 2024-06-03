@@ -3,6 +3,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+import uuid
 from time import time
 from typing import Dict, Optional, Type, Union
 
@@ -15,6 +16,13 @@ from cloudinit.url_helper import UrlError, readurl
 LOG = logging.getLogger(__name__)
 
 IMDS_URL = "http://169.254.169.254/metadata"
+
+
+def headers_cb(_url):
+    return {
+        "Metadata": "true",
+        "x-ms-client-request-id": str(uuid.uuid4()),
+    }
 
 
 class ReadUrlRetryHandler:
@@ -129,7 +137,7 @@ def _fetch_url(
         response = readurl(
             url,
             exception_cb=retry_handler.exception_callback,
-            headers={"Metadata": "true"},
+            headers_cb=headers_cb,
             infinite=True,
             log_req_resp=log_response,
             timeout=timeout,
@@ -221,7 +229,7 @@ def fetch_reprovision_data() -> bytes:
     response = readurl(
         url,
         exception_cb=handler.exception_callback,
-        headers={"Metadata": "true"},
+        headers_cb=headers_cb,
         infinite=True,
         log_req_resp=False,
         timeout=30,

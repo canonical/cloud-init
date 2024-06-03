@@ -115,7 +115,7 @@ def handle_args(name, args):
     if args.kind == "eni":
         pre_ns = eni.convert_eni_data(net_data)
     elif args.kind == "yaml":
-        pre_ns = safeyaml.load(net_data)
+        pre_ns = yaml.safe_load(net_data)
         if "network" in pre_ns:
             pre_ns = pre_ns.get("network")
         if args.debug:

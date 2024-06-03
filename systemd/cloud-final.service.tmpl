@@ -1,6 +1,7 @@
 ## template:jinja
 [Unit]
-Description=Execute cloud user/final scripts
+# https://cloudinit.readthedocs.io/en/latest/explanation/boot.html
+Description=Cloud-init: Final Stage
 After=network-online.target time-sync.target cloud-config.service rc-local.service
 {% if variant in ["ubuntu", "unknown", "debian"] %}
 After=multi-user.target
@@ -18,7 +19,7 @@ ExecStart=/usr/bin/cloud-init modules --mode=final
 RemainAfterExit=yes
 TimeoutSec=0
 KillMode=process
-{% if variant == "rhel" %}
+{% if variant in ["almalinux", "cloudlinux", "rhel"] %}
 # Restart NetworkManager if it is present and running.
 ExecStartPost=/bin/sh -c 'u=NetworkManager.service; \
  out=$(systemctl show --property=SubState $u) || exit; \

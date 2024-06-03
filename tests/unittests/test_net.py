@@ -12,11 +12,10 @@ import textwrap
 from typing import Optional
 
 import pytest
+import yaml
 from yaml.serializer import Serializer
 
-from cloudinit import distros, net
-from cloudinit import safeyaml as yaml
-from cloudinit import subp, temp_utils, util
+from cloudinit import distros, net, subp, temp_utils, util
 from cloudinit.net import (
     cmdline,
     eni,
@@ -1860,18 +1859,29 @@ USERCTL=no
     @pytest.mark.parametrize(
         "expected_name,yaml_version",
         [
-            ("bond", "yaml"),
-            ("vlan", "yaml"),
-            ("bridge", "yaml"),
+            ("bond_v1", "yaml"),
+            pytest.param(
+                "bond_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason="Bond MAC address not rendered"
+                ),
+            ),
+            ("vlan_v1", "yaml"),
+            ("vlan_v2", "yaml"),
+            ("bridge", "yaml_v1"),
+            ("bridge", "yaml_v2"),
             ("manual", "yaml"),
             ("small_v1", "yaml"),
             ("small_v2", "yaml"),
-            ("dhcpv6_only", "yaml"),
+            ("dhcpv6_only", "yaml_v1"),
+            ("dhcpv6_only", "yaml_v2"),
             ("dhcpv6_accept_ra", "yaml_v1"),
             ("dhcpv6_accept_ra", "yaml_v2"),
             ("dhcpv6_reject_ra", "yaml_v1"),
-            ("static6", "yaml"),
             ("dhcpv6_reject_ra", "yaml_v2"),
+            ("static6", "yaml_v1"),
+            ("static6", "yaml_v2"),
             ("dhcpv6_stateless", "yaml"),
             ("dhcpv6_stateful", "yaml"),
             ("wakeonlan_disabled", "yaml_v2"),
@@ -1884,19 +1894,28 @@ USERCTL=no
                 ),
             ),
             ("v2-dns", "yaml"),
+            pytest.param(
+                "large_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason="Bond and Bridge MAC address not rendered"
+                ),
+            ),
         ],
     )
     def test_config(self, expected_name, yaml_version):
         entry = NETWORK_CONFIGS[expected_name]
         found = self._render_and_read(
-            network_config=yaml.load(entry[yaml_version])
+            network_config=yaml.safe_load(entry[yaml_version])
         )
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
-    def test_all_config(self, caplog):
-        entry = NETWORK_CONFIGS["all"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+    def test_large_v1_config(self, caplog):
+        entry = NETWORK_CONFIGS["large_v1"]
+        found = self._render_and_read(
+            network_config=yaml.safe_load(entry["yaml"])
+        )
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
         assert (
@@ -1904,16 +1923,28 @@ USERCTL=no
             not in caplog.text
         )
 
-    def test_v4_and_v6_static_config(self, caplog):
-        entry = NETWORK_CONFIGS["v4_and_v6_static"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+    @pytest.mark.parametrize(
+        "yaml_file,network_config",
+        [
+            ("yaml_v1", "v1_ipv4_and_ipv6_static"),
+            ("yaml_v2", "v2_ipv4_and_ipv6_static"),
+        ],
+    )
+    def test_ipv4_and_ipv6_static_config(
+        self, yaml_file, network_config, caplog
+    ):
+        entry = NETWORK_CONFIGS[network_config]
+        found = self._render_and_read(
+            network_config=yaml.safe_load(entry[yaml_file])
+        )
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
         expected_msg = (
             "Network config: ignoring iface0 device-level mtu:8999"
             " because ipv4 subnet-level mtu:9000 provided."
         )
-        assert expected_msg in caplog.text
+        if yaml_file == "yaml_v1":
+            assert expected_msg in caplog.text
 
     def test_stattic6_from_json(self):
         net_json = {
@@ -1975,7 +2006,7 @@ USERCTL=no
 
     def test_netplan_dhcp_false_disable_dhcp_in_state(self):
         """netplan config with dhcp[46]: False should not add dhcp in state"""
-        net_config = yaml.load(NETPLAN_DHCP_FALSE)
+        net_config = yaml.safe_load(NETPLAN_DHCP_FALSE)
         ns = network_state.parse_net_config_data(net_config, skip_broken=False)
 
         dhcp_found = [
@@ -2018,7 +2049,9 @@ USERCTL=no
             },
         }
 
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        found = self._render_and_read(
+            network_config=yaml.safe_load(entry["yaml"])
+        )
         self._compare_files_to_expected(entry["expected_sysconfig"], found)
         self._assert_headers(found)
 
@@ -2293,7 +2326,9 @@ USERCTL=no
             dev_attrs=devices,
         )
         entry = NETWORK_CONFIGS["v2-dev-name-via-mac-lookup"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        found = self._render_and_read(
+            network_config=yaml.safe_load(entry["yaml"])
+        )
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
@@ -2473,39 +2508,64 @@ STARTMODE=auto
         assert resolvconf_content == found["/etc/resolv.conf"]
 
     @pytest.mark.parametrize(
-        "expected_name",
+        "expected_name,yaml_name",
         [
-            "bond",
-            "vlan",
-            "bridge",
-            "manual",
-            "small_v1",
-            "small_v1_suse_dhcp6",
-            "small_v2",
-            "v4_and_v6_static",
-            "dhcpv6_only",
-            "ipv6_slaac",
-            "dhcpv6_stateless",
-            "wakeonlan_disabled",
-            "wakeonlan_enabled",
-            "v4_and_v6",
-            "v6_and_v4",
-            "v1-dns",
-            "v2-dns",
+            ("bond_v1", "yaml"),
+            pytest.param(
+                "bond_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason="Bond MAC address not rendered"
+                ),
+            ),
+            ("vlan_v1", "yaml"),
+            ("vlan_v2", "yaml"),
+            ("bridge", "yaml_v1"),
+            ("bridge", "yaml_v2"),
+            ("manual", "yaml"),
+            ("small_v1", "yaml"),
+            ("small_suse_dhcp6", "yaml_v1"),
+            ("small_suse_dhcp6", "yaml_v2"),
+            ("small_v2", "yaml"),
+            ("v1_ipv4_and_ipv6_static", "yaml_v1"),
+            ("v2_ipv4_and_ipv6_static", "yaml_v2"),
+            ("dhcpv6_only", "yaml_v1"),
+            ("dhcpv6_only", "yaml_v2"),
+            ("ipv6_slaac", "yaml"),
+            ("dhcpv6_stateless", "yaml"),
+            ("wakeonlan_disabled", "yaml_v2"),
+            ("wakeonlan_enabled", "yaml_v2"),
+            ("v4_and_v6", "yaml_v1"),
+            ("v4_and_v6", "yaml_v2"),
+            ("v6_and_v4", "yaml"),
+            ("v1-dns", "yaml"),
+            ("v2-dns", "yaml"),
+            pytest.param(
+                "large_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason="Bond and Bridge LLADDR not rendered"
+                ),
+            ),
         ],
     )
-    def test_config(self, expected_name):
+    def test_config(
+        self,
+        expected_name,
+        yaml_name,
+    ):
         entry = NETWORK_CONFIGS[expected_name]
-        yaml_name = "yaml" if "yaml" in entry else "yaml_v2"
         found = self._render_and_read(
-            network_config=yaml.load(entry[yaml_name])
+            network_config=yaml.safe_load(entry[yaml_name])
         )
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
-    def test_all_config(self, caplog):
-        entry = NETWORK_CONFIGS["all"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+    def test_large_v2_config(self, caplog):
+        entry = NETWORK_CONFIGS["large_v1"]
+        found = self._render_and_read(
+            network_config=yaml.safe_load(entry["yaml"])
+        )
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
         assert (
@@ -2731,20 +2791,18 @@ class TestNetworkManagerRendering:
             found,
         )
 
-    def test_all_config(self, caplog):
-        entry = NETWORK_CONFIGS["all"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
-        self._compare_files_to_expected(
-            entry[self.expected_name], self.expected_conf_d, found
+    @pytest.mark.parametrize(
+        "yaml_file,config",
+        [
+            ("yaml_v1", "v1_ipv4_and_ipv6_static"),
+            ("yaml_v2", "v2_ipv4_and_ipv6_static"),
+        ],
+    )
+    def test_ipv4_and_ipv6_static_config(self, yaml_file, config, caplog):
+        entry = NETWORK_CONFIGS[config]
+        found = self._render_and_read(
+            network_config=yaml.safe_load(entry[yaml_file])
         )
-        assert (
-            "Network config: ignoring eth0.101 device-level mtu"
-            not in caplog.text
-        )
-
-    def test_v4_and_v6_static_config(self, caplog):
-        entry = NETWORK_CONFIGS["v4_and_v6_static"]
-        found = self._render_and_read(network_config=yaml.load(entry["yaml"]))
         self._compare_files_to_expected(
             entry[self.expected_name], self.expected_conf_d, found
         )
@@ -2752,40 +2810,75 @@ class TestNetworkManagerRendering:
             "Network config: ignoring iface0 device-level mtu:8999"
             " because ipv4 subnet-level mtu:9000 provided."
         )
-        assert expected_msg in caplog.text
+        if yaml_file == "yaml_v1":
+            assert expected_msg in caplog.text
 
     @pytest.mark.parametrize(
-        "expected_name",
+        "expected_name,yaml_name",
         [
-            "bond",
-            "vlan",
-            "bridge",
-            "manual",
-            "small_v1",
-            "small_v2",
-            "dhcpv6_only",
-            "ipv6_slaac",
-            "dhcpv6_stateless",
-            "wakeonlan_disabled",
-            "wakeonlan_enabled",
-            "v4_and_v6",
-            "v6_and_v4",
-            "v1-dns",
-            "v2-mixed-routes",
-            "v2-dns",
-            "v2-dns-no-if-ips",
-            "v2-dns-no-dhcp",
-            "v2-route-no-gateway",
+            ("bond_v1", "yaml"),
+            pytest.param(
+                "bond_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason="mii-monitor-interval not rendered."
+                ),
+            ),
+            ("vlan_v1", "yaml"),
+            ("vlan_v2", "yaml"),
+            ("bridge", "yaml_v1"),
+            ("bridge", "yaml_v2"),
+            ("manual", "yaml"),
+            ("small_v1", "yaml"),
+            ("small_v2", "yaml"),
+            ("dhcpv6_only", "yaml_v1"),
+            ("dhcpv6_only", "yaml_v2"),
+            ("ipv6_slaac", "yaml"),
+            ("dhcpv6_stateless", "yaml"),
+            ("wakeonlan_disabled", "yaml_v2"),
+            ("wakeonlan_enabled", "yaml_v2"),
+            ("v4_and_v6", "yaml_v1"),
+            ("v4_and_v6", "yaml_v2"),
+            ("v6_and_v4", "yaml"),
+            ("v1-dns", "yaml"),
+            ("v2-mixed-routes", "yaml"),
+            ("v2-dns", "yaml"),
+            ("v2-dns-no-if-ips", "yaml"),
+            ("v2-dns-no-dhcp", "yaml"),
+            ("v2-route-no-gateway", "yaml"),
+            pytest.param(
+                "large_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason=(
+                        "Bridge MAC and bond miimon not rendered. "
+                        "Bond DNS not rendered. "
+                        "DNS not rendered when DHCP is enabled."
+                    ),
+                ),
+            ),
         ],
     )
-    def test_config(self, expected_name):
+    def test_config(self, expected_name, yaml_name):
         entry = NETWORK_CONFIGS[expected_name]
-        yaml_name = "yaml" if "yaml" in entry else "yaml_v2"
         found = self._render_and_read(
-            network_config=yaml.load(entry[yaml_name])
+            network_config=yaml.safe_load(entry[yaml_name])
         )
         self._compare_files_to_expected(
             entry[self.expected_name], self.expected_conf_d, found
+        )
+
+    def test_large_v1_config(self, caplog):
+        entry = NETWORK_CONFIGS["large_v1"]
+        found = self._render_and_read(
+            network_config=yaml.safe_load(entry["yaml"])
+        )
+        self._compare_files_to_expected(
+            entry[self.expected_name], self.expected_conf_d, found
+        )
+        assert (
+            "Network config: ignoring eth0.101 device-level mtu"
+            not in caplog.text
         )
 
 
@@ -3248,7 +3341,7 @@ class TestNetplanNetRendering:
         if network_cfg is None:
             network_cfg = net.generate_fallback_config()
         else:
-            network_cfg = yaml.load(network_cfg)
+            network_cfg = yaml.safe_load(network_cfg)
         assert isinstance(network_cfg, dict)
 
         ns = network_state.parse_net_config_data(
@@ -3269,7 +3362,7 @@ class TestNetplanNetRendering:
             contents = fh.read()
             print(contents)
 
-        assert yaml.load(expected) == yaml.load(contents)
+        assert yaml.safe_load(expected) == yaml.safe_load(contents)
         assert 1, mock_clean_default.call_count
 
 
@@ -3381,13 +3474,16 @@ class TestNetplanPostcommands:
         mock_subp.side_effect = iter([subp.ProcessExecutionError])
         renderer.render_network_state(ns, target=render_dir)
 
-        mock_netplan_generate.assert_called_with(run=True, same_content=False)
+        mock_netplan_generate.assert_called_with(run=True, config_changed=True)
         mock_net_setup_link.assert_called_with(run=True)
 
+    @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("cloudinit.util.SeLinuxGuard")
     @mock.patch.object(netplan, "get_devicelist")
     @mock.patch("cloudinit.subp.subp")
-    def test_netplan_postcmds(self, mock_subp, mock_devlist, mock_sel):
+    def test_netplan_postcmds(
+        self, mock_subp, mock_devlist, mock_sel, m_get_cmdline
+    ):
         mock_sel.__enter__ = mock.Mock(return_value=False)
         mock_sel.__exit__ = mock.Mock()
         mock_devlist.side_effect = [["lo"]]
@@ -3536,7 +3632,7 @@ class TestCmdlineConfigParsing:
         found = cmdline.read_kernel_cmdline_config(cmdline=raw_cmdline)
         assert found is None
         expected_log = (
-            "Expected base64 encoded kernel commandline parameter"
+            "Expected base64 encoded kernel command line parameter"
             " network-config. Ignoring network-config={config:disabled}."
         )
         assert expected_log in caplog.text
@@ -3825,11 +3921,15 @@ class TestNetplanRoundTrip:
     @pytest.mark.parametrize(
         "expected_name,yaml_version",
         [
-            ("bond", "yaml"),
+            ("bond_v1", "yaml"),
+            ("bond_v2", "yaml"),
             ("small_v1", "yaml"),
-            ("v4_and_v6", "yaml"),
-            ("v4_and_v6_static", "yaml"),
-            ("dhcpv6_only", "yaml"),
+            ("v4_and_v6", "yaml_v1"),
+            ("v4_and_v6", "yaml_v2"),
+            ("v1_ipv4_and_ipv6_static", "yaml_v1"),
+            ("v2_ipv4_and_ipv6_static", "yaml_v2"),
+            ("dhcpv6_only", "yaml_v1"),
+            ("dhcpv6_only", "yaml_v2"),
             ("dhcpv6_accept_ra", "yaml_v1"),
             ("dhcpv6_reject_ra", "yaml_v1"),
             ("ipv6_slaac", "yaml"),
@@ -3837,7 +3937,7 @@ class TestNetplanRoundTrip:
             ("dhcpv6_stateful", "yaml"),
             ("wakeonlan_disabled", "yaml_v2"),
             ("wakeonlan_enabled", "yaml_v2"),
-            ("all", "yaml"),
+            ("large_v1", "yaml"),
             ("manual", "yaml"),
             pytest.param(
                 "v1-dns",
@@ -3851,21 +3951,10 @@ class TestNetplanRoundTrip:
     def test_config(self, expected_name, yaml_version):
         entry = NETWORK_CONFIGS[expected_name]
         files = self._render_and_read(
-            network_config=yaml.load(entry[yaml_version])
+            network_config=yaml.safe_load(entry[yaml_version])
         )
-        assert (
-            entry["expected_netplan"].splitlines()
-            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
-        )
-
-    def testsimple_render_bond_v2_input_netplan(self):
-        entry = NETWORK_CONFIGS["bond"]
-        files = self._render_and_read(
-            network_config=yaml.load(entry["yaml-v2"])
-        )
-        assert (
-            entry["expected_netplan-v2"].splitlines()
-            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
+        assert yaml.safe_load(entry["expected_netplan"]) == yaml.safe_load(
+            files["/etc/netplan/50-cloud-init.yaml"]
         )
 
     def test_render_output_has_yaml_no_aliases(self):
@@ -3873,7 +3962,7 @@ class TestNetplanRoundTrip:
             "yaml": V1_NAMESERVER_ALIAS,
             "expected_netplan": NETPLAN_NO_ALIAS,
         }
-        network_config = yaml.load(entry["yaml"])
+        network_config = yaml.safe_load(entry["yaml"])
         ns = network_state.parse_net_config_data(network_config)
         files = self._render_and_read(state=ns)
         # check for alias
@@ -3881,7 +3970,7 @@ class TestNetplanRoundTrip:
 
         # test load the yaml to ensure we don't render something not loadable
         # this allows single aliases, but not duplicate ones
-        parsed = yaml.load(files["/etc/netplan/50-cloud-init.yaml"])
+        parsed = yaml.safe_load(files["/etc/netplan/50-cloud-init.yaml"])
         assert parsed is not None
 
         # now look for any alias, avoid rendering them entirely
@@ -3905,7 +3994,7 @@ class TestNetplanRoundTrip:
                 "gratuitious", "gratuitous"
             ),
         }
-        network_config = yaml.load(entry["yaml"]).get("network")
+        network_config = yaml.safe_load(entry["yaml"]).get("network")
         files = self._render_and_read(network_config=network_config)
         assert (
             entry["expected_netplan"].splitlines()
@@ -3957,14 +4046,31 @@ class TestEniRoundTrip:
     @pytest.mark.parametrize(
         "expected_name,yaml_version",
         [
-            ("all", "yaml"),
+            ("large_v1", "yaml"),
+            pytest.param(
+                "large_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason=(
+                        "MAC for bond and bridge not being rendered. "
+                        "bond-miimon is used rather than bond_miimon. "
+                        "No rendering of bridge_gcint. "
+                        "No rendering of bridge_waitport. "
+                        "IPv6 routes added to IPv4 section. "
+                        "DNS rendering inconsistencies."
+                    )
+                ),
+            ),
             ("small_v1", "yaml"),
             pytest.param(
                 "small_v2", "yaml", marks=pytest.mark.xfail(reason="GH-4219")
             ),
-            ("v4_and_v6", "yaml"),
-            ("dhcpv6_only", "yaml"),
-            ("v4_and_v6_static", "yaml"),
+            ("v4_and_v6", "yaml_v1"),
+            ("v4_and_v6", "yaml_v2"),
+            ("dhcpv6_only", "yaml_v1"),
+            ("dhcpv6_only", "yaml_v2"),
+            ("v1_ipv4_and_ipv6_static", "yaml_v1"),
+            ("v2_ipv4_and_ipv6_static", "yaml_v2"),
             ("dhcpv6_stateless", "yaml"),
             ("ipv6_slaac", "yaml"),
             pytest.param(
@@ -3975,11 +4081,25 @@ class TestEniRoundTrip:
                 ),
             ),
             ("dhcpv6_accept_ra", "yaml_v1"),
+            ("dhcpv6_accept_ra", "yaml_v2"),
             ("dhcpv6_reject_ra", "yaml_v1"),
+            ("dhcpv6_reject_ra", "yaml_v2"),
             ("wakeonlan_disabled", "yaml_v2"),
             ("wakeonlan_enabled", "yaml_v2"),
             ("manual", "yaml"),
-            ("bond", "yaml"),
+            ("bond_v1", "yaml"),
+            pytest.param(
+                "bond_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason=(
+                        "Rendering bond_miimon rather than bond-miimon. "
+                        "Using pre-down/post-up routes for gateway rather "
+                        "gateway. "
+                        "Adding ipv6 routes to ipv4 section"
+                    )
+                ),
+            ),
             pytest.param(
                 "v1-dns", "yaml", marks=pytest.mark.xfail(reason="GH-4219")
             ),
@@ -3991,7 +4111,7 @@ class TestEniRoundTrip:
     def test_config(self, expected_name, yaml_version):
         entry = NETWORK_CONFIGS[expected_name]
         files = self._render_and_read(
-            network_config=yaml.load(entry[yaml_version])
+            network_config=yaml.safe_load(entry[yaml_version])
         )
         assert (
             entry["expected_eni"].splitlines()
@@ -4268,9 +4388,12 @@ class TestNetworkdRoundTrip:
     @pytest.mark.parametrize(
         "expected_name,yaml_version",
         [
-            ("v4_and_v6", "yaml"),
-            ("v4_and_v6_static", "yaml"),
-            ("dhcpv6_only", "yaml"),
+            ("v4_and_v6", "yaml_v1"),
+            ("v4_and_v6", "yaml_v2"),
+            ("v1_ipv4_and_ipv6_static", "yaml_v1"),
+            ("v2_ipv4_and_ipv6_static", "yaml_v2"),
+            ("dhcpv6_only", "yaml_v1"),
+            ("dhcpv6_only", "yaml_v2"),
             ("dhcpv6_accept_ra", "yaml_v1"),
             ("dhcpv6_accept_ra", "yaml_v2"),
             ("dhcpv6_reject_ra", "yaml_v1"),
@@ -4282,7 +4405,7 @@ class TestNetworkdRoundTrip:
         nwk_fn = "/etc/systemd/network/10-cloud-init-iface0.network"
         entry = NETWORK_CONFIGS[expected_name]
         files = self._render_and_read(
-            network_config=yaml.load(entry[yaml_version])
+            network_config=yaml.safe_load(entry[yaml_version])
         )
 
         actual = files[nwk_fn].splitlines()
@@ -4298,7 +4421,9 @@ class TestNetworkdRoundTrip:
         nwk_fn1 = "/etc/systemd/network/10-cloud-init-eth99.network"
         nwk_fn2 = "/etc/systemd/network/10-cloud-init-eth1.network"
         entry = NETWORK_CONFIGS["small_v1"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        files = self._render_and_read(
+            network_config=yaml.safe_load(entry["yaml"])
+        )
 
         actual = files[nwk_fn1].splitlines()
         actual = self.create_conf_dict(actual)
@@ -4321,7 +4446,9 @@ class TestNetworkdRoundTrip:
         nwk_fn1 = "/etc/systemd/network/10-cloud-init-eth99.network"
         nwk_fn2 = "/etc/systemd/network/10-cloud-init-eth1.network"
         entry = NETWORK_CONFIGS["small_v2"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        files = self._render_and_read(
+            network_config=yaml.safe_load(entry["yaml"])
+        )
 
         actual = files[nwk_fn1].splitlines()
         actual = self.create_conf_dict(actual)
@@ -4346,7 +4473,9 @@ class TestNetworkdRoundTrip:
     def test_v1_dns(self, m_chown):
         nwk_fn = "/etc/systemd/network/10-cloud-init-eth0.network"
         entry = NETWORK_CONFIGS["v1-dns"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        files = self._render_and_read(
+            network_config=yaml.safe_load(entry["yaml"])
+        )
 
         actual = self.create_conf_dict(files[nwk_fn].splitlines())
         expected = self.create_conf_dict(
@@ -4359,7 +4488,9 @@ class TestNetworkdRoundTrip:
     def test_v2_dns(self, m_chown):
         nwk_fn = "/etc/systemd/network/10-cloud-init-eth0.network"
         entry = NETWORK_CONFIGS["v2-dns"]
-        files = self._render_and_read(network_config=yaml.load(entry["yaml"]))
+        files = self._render_and_read(
+            network_config=yaml.safe_load(entry["yaml"])
+        )
 
         actual = self.create_conf_dict(files[nwk_fn].splitlines())
         expected = self.create_conf_dict(
@@ -5072,16 +5203,13 @@ class TestRenameInterfaces:
             },
         }
         net._rename_interfaces(renames, current_info=current_info)
-        print(mock_subp.call_args_list)
         mock_subp.assert_has_calls(
             [
                 mock.call(
                     ["ip", "link", "set", "ens3", "name", "interface0"],
-                    capture=True,
                 ),
                 mock.call(
                     ["ip", "link", "set", "ens5", "name", "interface2"],
-                    capture=True,
                 ),
             ]
         )
@@ -5111,16 +5239,13 @@ class TestRenameInterfaces:
             },
         }
         net._rename_interfaces(renames, current_info=current_info)
-        print(mock_subp.call_args_list)
         mock_subp.assert_has_calls(
             [
                 mock.call(
                     ["ip", "link", "set", "eth0", "name", "interface0"],
-                    capture=True,
                 ),
                 mock.call(
                     ["ip", "link", "set", "eth1", "name", "interface1"],
-                    capture=True,
                 ),
             ]
         )
@@ -5150,25 +5275,18 @@ class TestRenameInterfaces:
             },
         }
         net._rename_interfaces(renames, current_info=current_info)
-        print(mock_subp.call_args_list)
         mock_subp.assert_has_calls(
             [
-                mock.call(["ip", "link", "set", "ens3", "down"], capture=True),
+                mock.call(["ip", "link", "set", "dev", "ens3", "down"]),
                 mock.call(
                     ["ip", "link", "set", "ens3", "name", "interface0"],
-                    capture=True,
                 ),
-                mock.call(["ip", "link", "set", "ens5", "down"], capture=True),
+                mock.call(["ip", "link", "set", "dev", "ens5", "down"]),
                 mock.call(
                     ["ip", "link", "set", "ens5", "name", "interface2"],
-                    capture=True,
                 ),
-                mock.call(
-                    ["ip", "link", "set", "interface0", "up"], capture=True
-                ),
-                mock.call(
-                    ["ip", "link", "set", "interface2", "up"], capture=True
-                ),
+                mock.call(["ip", "link", "set", "dev", "interface0", "up"]),
+                mock.call(["ip", "link", "set", "dev", "interface2", "up"]),
             ]
         )
 
@@ -5197,12 +5315,9 @@ class TestRenameInterfaces:
             },
         }
         net._rename_interfaces(renames, current_info=current_info)
-        print(mock_subp.call_args_list)
         mock_subp.assert_has_calls(
             [
-                mock.call(
-                    ["ip", "link", "set", "eth1", "name", "vf1"], capture=True
-                ),
+                mock.call(["ip", "link", "set", "eth1", "name", "vf1"]),
             ]
         )
 
@@ -5231,12 +5346,9 @@ class TestRenameInterfaces:
             },
         }
         net._rename_interfaces(renames, current_info=current_info)
-        print(mock_subp.call_args_list)
         mock_subp.assert_has_calls(
             [
-                mock.call(
-                    ["ip", "link", "set", "eth1", "name", "vf1"], capture=True
-                ),
+                mock.call(["ip", "link", "set", "eth1", "name", "vf1"]),
             ]
         )
 
@@ -5274,15 +5386,10 @@ class TestRenameInterfaces:
             },
         }
         net._rename_interfaces(renames, current_info=current_info)
-        print(mock_subp.call_args_list)
         mock_subp.assert_has_calls(
             [
-                mock.call(
-                    ["ip", "link", "set", "eth1", "name", "vf1"], capture=True
-                ),
-                mock.call(
-                    ["ip", "link", "set", "eth2", "name", "vf2"], capture=True
-                ),
+                mock.call(["ip", "link", "set", "eth1", "name", "vf1"]),
+                mock.call(["ip", "link", "set", "eth2", "name", "vf2"]),
             ]
         )
 
@@ -5326,7 +5433,6 @@ class TestRenameInterfaces:
         expected = [
             mock.call(
                 ["ip", "link", "set", "eth%d" % i, "name", "en%d" % i],
-                capture=True,
             )
             for i in range(len(renames))
         ]

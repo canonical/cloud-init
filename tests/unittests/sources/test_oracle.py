@@ -731,7 +731,7 @@ class TestReadOpcMetadata:
         assert vnics_data == metadata.vnics_data
 
     @mock.patch("cloudinit.url_helper.time.sleep", lambda _: None)
-    @mock.patch("cloudinit.url_helper.time.time", side_effect=count(0, 1))
+    @mock.patch("cloudinit.url_helper.time.monotonic", side_effect=count(0, 1))
     @mock.patch("cloudinit.url_helper.readurl", side_effect=UrlError)
     def test_retry(self, m_readurl, m_time):
         # Since wait_for_url has its own retry tests, just verify that we
@@ -756,7 +756,7 @@ class TestReadOpcMetadata:
         )
 
     @mock.patch("cloudinit.url_helper.time.sleep", lambda _: None)
-    @mock.patch("cloudinit.url_helper.time.time", side_effect=[0, 11])
+    @mock.patch("cloudinit.url_helper.time.monotonic", side_effect=[0, 11])
     @mock.patch(
         "cloudinit.sources.DataSourceOracle.wait_for_url",
         return_value=("http://hi", b'{"some": "value"}'),
@@ -768,7 +768,7 @@ class TestReadOpcMetadata:
         assert m_wait_for_url.call_args_list[-1][1]["max_wait"] == 19
 
     @mock.patch("cloudinit.url_helper.time.sleep", lambda _: None)
-    @mock.patch("cloudinit.url_helper.time.time", side_effect=[0, 1000])
+    @mock.patch("cloudinit.url_helper.time.monotonic", side_effect=[0, 1000])
     @mock.patch(
         "cloudinit.sources.DataSourceOracle.wait_for_url",
         return_value=("http://hi", b'{"some": "value"}'),

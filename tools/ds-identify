@@ -567,7 +567,6 @@ read_dmi_product_serial() {
     DI_DMI_PRODUCT_SERIAL="$_RET"
 }
 
-# shellcheck disable=2034
 read_uname_info() {
     # run uname, and parse output.
     # uname is tricky to parse as it outputs always in a given order
@@ -621,7 +620,7 @@ parse_yaml_array() {
 
 read_datasource_list() {
     cached "$DI_DSLIST" && return
-    local dslist=""
+    local dslist="" key="datasource_list"
     # if DI_DSNAME is set directly, then avoid parsing config.
     if [ -n "${DI_DSNAME}" ]; then
         dslist="${DI_DSNAME}"
@@ -639,14 +638,14 @@ read_datasource_list() {
             dslist=${_RET}
             ;;
     esac
-    if [ -z "$dslist" ] && check_config datasource_list; then
+    if [ -z "$dslist" ] && check_config "$key" && get_single_line_flow_sequence "$key" "$_RET"; then
         debug 1 "$_RET_fname set datasource_list: $_RET"
         parse_yaml_array "$_RET"
         dslist=${_RET}
     fi
     if [ -z "$dslist" ]; then
         dslist=${DI_DSLIST_DEFAULT}
-        debug 1 "no datasource_list found, using default: $dslist"
+        warn "no datasource_list found, using default: $dslist"
     fi
     DI_DSLIST=$dslist
     return 0
@@ -728,9 +727,12 @@ nocase_equal() {
     [ "$1" = "$2" ] && return 0
 
     local delim="-delim-"
-    # shellcheck disable=2018,2019
-    out=$(echo "$1${delim}$2" | tr A-Z a-z)
-    [ "${out#*"${delim}"}" = "${out%"${delim}"*}" ]
+    out=$(echo "$1${delim}$2" | tr '[:upper:]' '[:lower:]')
+    # delim is known not to be a pattern, and some editors currently struggle
+    # with parsing the quoted output required to satisfy SC2295
+    # shellcheck disable=2295
+    # https://github.com/tree-sitter/tree-sitter-bash/issues/254
+    [ "${out#*${delim}}" = "${out%${delim}*}" ]
 }
 
 check_seed_dir() {
@@ -824,26 +826,112 @@ check_config() {
     if [ "$1" = "$files" -a ! -f "$1" ]; then
         return 1
     fi
-    local fname="" line="" ret="" found=0 found_fn=""
-    # shellcheck disable=2094
-    for fname in "$@"; do
-        [ -f "$fname" ] || continue
-        while read line; do
-            line=${line%%#*}
-            case "$line" in
-                $key:\ *|"${key}":)
-                    ret=${line#*:};
-                    ret=${ret# };
-                    found=$((found+1))
-                    found_fn="$fname";;
-            esac
-        done <"$fname"
+    local line="" ret="" found=0 found_fn="" oifs="$IFS" out=""
+    # check for a yaml key/value pair on a single line
+    #
+    # note that:
+    # - keys may be single or double quoted
+    # - spaces and tabs may exist between key and colon
+    #
+    # the following are all valid under the yaml spec (as of 1.2.2):
+    #
+    # key: string
+    # key: "quoted string"
+    # key: 1
+    # key: [ some_value ]
+    # key : [ "some value" ]
+    # key\t:\t[\tsome_value\t]\t
+    # 
+    # The syntax warned about is not valid posix shell, and we are not
+    # attempting to access an index of arrays. Silence it.
+    # shellcheck disable=1087
+    out=$(grep "$key[\"\']*[[:space:]]*:" "$@" 2>/dev/null)
+    IFS=${CR}
+    for line in $out; do
+        # drop '# comment'
+        line=${line%%#*}
+        # if more than one file was 'grep'ed, then grep will output filename:
+        # but if only one file, line will not be prefixed.
+        if [ $# -eq 1 ]; then
+            found_fn="$1"
+            if [ "${#line}" -eq 0 ]; then
+                continue
+            fi
+        else
+            found_fn="${line%%:*}"
+            line=${line#"$found_fn:"}
+            if [ "${#line}" -eq 0 ]; then
+                continue
+            fi
+        fi
+        ret=${line#*: };
+        found=$((found+1))
     done
+    IFS="$oifs"
     if [ $found -ne 0 ]; then
         _RET="$ret"
         _RET_fname="$found_fn"
         return 0
     fi
+    return 1
+}
+
+get_value() {
+    # get_value(key, value)
+    # for a key / value pair, check that the value is non-empty and
+    # return the value if it exists
+    #
+    # This function is intended to be run on the output of check_config
+    # when the value for a key needs to be in the output.
+    #
+    # `check_config` returns true when no value is in the line, but this
+    # is insufficient when a value is required, as in the case of
+    # parsing 'datasource_list:'
+    local key="$1" value="$2" found=0 ret=""
+
+    # remove everything before final ':'
+    ret="${value##*:}"
+
+    # remove preceding and trailing whitespace
+    trim "$ret"
+
+    # check value length
+    if [ "${#_RET}" -ne 0 ]; then
+        return 0
+    fi
+    debug 1 "key $key didn't have a valid value"
+    return 1
+}
+
+get_single_line_flow_sequence() {
+    # get_single_line_flow_sequence(key, value)
+    # for a key / value pair, check that the value contains a single
+    # line flow sequence[1] with a value
+    #
+    # return 0 if a single line flow sequence is found, otherwise 1
+    # does not modify _RET
+    #
+    # [1] https://yaml.org/spec/1.2.2/#741-flow-sequences
+    local ret="" tmp=""
+    get_value "$1" "$2" || return 1
+    ret="$_RET"
+    tmp="$_RET"
+
+    # remove smallest ] suffix
+    tmp="${tmp%]}"
+
+    # remove smallest [ prefix
+    tmp="${tmp#[}"
+
+    # remove preceding and trailing whitespace
+    trim "$tmp"
+    _RET="$ret"
+
+    # check value length
+    if [ "${#_RET}" -ne 0 ]; then
+        return 0
+    fi
+    debug 1 "key $key didn't have a valid single line flow sequence"
     return 1
 }
 
@@ -1002,7 +1090,7 @@ vmware_guest_customization() {
     # (disable_vmware_customization=true). If it is set to false, then
     # user has requested customization.
     local key="disable_vmware_customization"
-    if check_config "$key"; then
+    if check_config "$key" && get_value "$key" "$_RET"; then
         debug 2 "${_RET_fname} set $key to $_RET"
         case "$_RET" in
             0|false|False) return 0;;
@@ -1259,16 +1347,23 @@ ec2_identify_platform() {
         return 0
     fi
 
-    # product uuid and product serial start with case insensitive
-    local uuid="${DI_DMI_PRODUCT_UUID}"
-    case "$uuid:$serial" in
-        [Ee][Cc]2*:[Ee][Cc]2*)
-            # both start with ec2, now check for case insensitive equal
-            nocase_equal "$uuid" "$serial" &&
-                { _RET="AWS"; return 0; };;
+    # keep only the first octet
+    local start_uuid="${DI_DMI_PRODUCT_UUID%%-*}"
+    case "$start_uuid" in
+        # example ec2 uuid:
+        # EC2E1916-9099-7CAF-FD21-012345ABCDEF
+        [Ee][Cc]2*)
+            _RET="AWS"
+            ;;
+        # example ec2 uuid:
+        # 45E12AEC-DCD1-B213-94ED-012345ABCDEF
+        *2[0-9a-fA-F][Ee][Cc])
+            _RET="AWS"
+            ;;
+        *)
+            _RET="$default"
+            ;;
     esac
-
-    _RET="$default"
     return 0;
 }
 
@@ -1595,21 +1690,36 @@ dscheck_VMware() {
     return "${DS_NOT_FOUND}"
 }
 
-WSL_cloudinit_dir_in() {
+WSL_path() {
+    local params="$1" path="$2" val=""
+    val="$(wslpath "$params" "$1")"
+    _RET="$val"
+}
+
+WSL_run_cmd() {
+    local val="" exepath="$1"
+    shift
+    _RET=$(/init "$exepath" /c "$@" 2>/dev/null)
+}
+
+WSL_profile_dir() {
+    # Determine where a suitable user profile home is located
     _RET=""
-    local cmdexe="" cloudinitdir="" val=""
-    for m in "$@"; do
-        cmdexe="$m/Windows/System23/cmd.exe"
+    local cmdexe="" profiledir="" val=""
+    # shellcheck disable=SC2068
+    for m in $@; do
+        cmdexe="$m/Windows/System32/cmd.exe"
         if command -v "$cmdexe" > /dev/null 2>&1; then
             # Here WSL's proprietary `/init` is used to start the Windows cmd.exe
             # to output the Windows user profile directory path, which is
             # held by the environment variable %USERPROFILE%.
-            cloudinitdir=$(/init "$cmdexe" /c echo %USERPROFILE% 2>/dev/null)
-            if [ -n "$cloudinitdir" ]; then
+            WSL_run_cmd "$cmdexe" "echo %USERPROFILE%"
+            profiledir="${_RET%%[[:cntrl:]]}"
+            if [ -n "$profiledir" ]; then
                 # wslpath is a program supplied by WSL itself that translates Windows and Linux paths,
                 # respecting the mountpoints where the Windows drives are mounted.
                 # (in fact it's a symlink to /init).
-                val=$(wslpath -au "$cloudinitdir") && _RET="$val"
+                WSL_path "-au" "$profiledir"
                 return $?
             fi
         fi
@@ -1620,9 +1730,12 @@ WSL_cloudinit_dir_in() {
 
 WSL_instance_name() {
     local val="" instance_name=""
-    instance_name=$(wslpath -am /)
-    val="${instance_name##*/}"
-    _RET="${val}"
+    WSL_path "-am" "/"
+    instance_name="${_RET}"
+    # Extracts "Ubuntu/" from "//wsl.localhost/Ubuntu/"
+    val="${instance_name#//*/}"
+    # Extracts "Ubuntu" from "Ubuntu/"
+    _RET="${val%/}"
 }
 
 dscheck_WSL() {
@@ -1649,22 +1762,43 @@ dscheck_WSL() {
     fi
 
     # We know we are under WSL and have acess to the host filesystem,
-    # so let's find the .cloud-init directory
-    WSL_cloudinit_dir_in "$mountpoints"
-    cloudinitdir="${_RET}"
-    if [ -z "$cloudinitdir" ]; then
-        debug 1 "%USERPROFILE/.cloud-init/ directory not found"
+    # so let's find the user's home directory
+    WSL_profile_dir "$mountpoints"
+    profile_dir="${_RET}"
+    if [ -z "$profile_dir" ]; then
+        debug 1 "%USERPROFILE% directory not found"
         return "${DS_NOT_FOUND}"
     fi
 
-    # and the applicable userdata file. Notice the ordering in the for-loop
-    # must match our expected precedence, so the file we find is what the
-    # datasource must process.
+    # Then we can check for any .cloud-init folders for the user
+    if [ ! -d "$profile_dir/.cloud-init/" ] && [ ! -d "$profile_dir/.ubuntupro/.cloud-init/" ]; then
+        debug 1 "No .cloud-init directories found"
+        return "${DS_NOT_FOUND}"
+    fi
+
     WSL_instance_name
     instance_name="${_RET}"
     # shellcheck source=/dev/null
     . "${PATH_ROOT}/etc/os-release"
-    for userdatafile in "${instance_name}.user-data" "${ID:-linux}-${VERSION_ID:-${VERSION_CODENAME}}".user-data "${ID:-linux}-all.user-data" "default.user-data"; do
+
+    # and the applicable userdata file. Notice the ordering in the for-loop
+    # must match our expected precedence, so the file we find is what the
+    # datasource must process.
+    # We only care about ubuntupro configs if the distro is an Ubuntu distro.
+    # shellcheck disable=SC2153
+    if [ "$NAME" = "Ubuntu" ]; then
+        cloudinitdir="$profile_dir/.ubuntupro/.cloud-init"
+        for userdatafile in "${instance_name}.user-data" "agent.yaml"; do
+            candidate="$cloudinitdir/$userdatafile"
+            if [ -f "$candidate" ]; then
+                debug 1 "Found applicable pro data file for this instance at: $candidate"
+                return ${DS_FOUND}
+            fi
+        done
+    fi
+
+    cloudinitdir="$profile_dir/.cloud-init"
+    for userdatafile in "${instance_name}.user-data" "${ID:-linux}-${VERSION_ID:-${VERSION_CODENAME}}.user-data" "${ID:-linux}-all.user-data" "default.user-data"; do
         candidate="$cloudinitdir/$userdatafile"
         if [ -f "$candidate" ]; then
             debug 1 "Found applicable user data file for this instance at: $candidate"
@@ -1770,9 +1904,11 @@ found() {
 }
 
 trim() {
-    # shellcheck disable=2048,2086
-    set -- $*
-    _RET="$*"
+    # trim all whitespace from the string, assign output to _RET
+    local tmp="" cur="$*"
+    until tmp="${cur#[[:space:]]}"; [ "$tmp" = "$cur" ]; do cur="$tmp"; done
+    until tmp="${cur%[[:space:]]}"; [ "$tmp" = "$cur" ]; do cur="$tmp"; done
+    _RET="$tmp"
 }
 
 unquote() {

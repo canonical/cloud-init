@@ -88,6 +88,8 @@ class TestPackageUpdateUpgradeInstall:
 
 
 HELLO_VERSIONS_BY_RELEASE = {
+    "oracular": "2.10-3build2",
+    "noble": "2.10-3build1",
     "mantic": "2.10-3",
     "lunar": "2.10-3",
     "jammy": "2.10-2ubuntu4",
@@ -104,7 +106,7 @@ packages:
 @pytest.mark.skipif(not IS_UBUNTU, reason="Uses Apt")
 def test_versioned_packages_are_installed(session_cloud: IntegrationCloud):
     pkg_version = HELLO_VERSIONS_BY_RELEASE.get(
-        CURRENT_RELEASE.series, "2.10-3"
+        CURRENT_RELEASE.series, "2.10-3build1"
     )
     with session_cloud.launch(
         user_data=VERSIONED_USER_DATA.format(pkg_version=pkg_version)

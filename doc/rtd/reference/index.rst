@@ -23,4 +23,5 @@ matrices and so on.
    datasource_dsname_map.rst
    performance_analysis.rst
    ubuntu_stable_release_updates.rst
+   breaking_changes.rst
    user_files.rst

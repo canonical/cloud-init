@@ -161,7 +161,7 @@ class Resizer(ABC):
         ...
 
     @abstractmethod
-    def resize(self, diskdev, partnum, partdev):
+    def resize(self, diskdev, partnum, partdev, fs):
         ...
 
 
@@ -178,8 +178,8 @@ class ResizeGrowPart(Resizer):
             pass
         return False
 
-    def resize(self, diskdev, partnum, partdev):
-        before = get_size(partdev)
+    def resize(self, diskdev, partnum, partdev, fs):
+        before = get_size(partdev, fs)
 
         # growpart uses tmp dir to store intermediate states
         # and may conflict with systemd-tmpfiles-clean
@@ -211,7 +211,7 @@ class ResizeGrowPart(Resizer):
                 util.logexc(LOG, "Failed: growpart %s %s", diskdev, partnum)
                 raise ResizeFailedException(e) from e
 
-        return (before, get_size(partdev))
+        return (before, get_size(partdev, fs))
 
 
 class ResizeGrowFS(Resizer):
@@ -231,15 +231,15 @@ class ResizeGrowFS(Resizer):
         """growfs only works on the root partition"""
         return os.path.isfile("/etc/rc.d/growfs") and devices == ["/"]
 
-    def resize(self, diskdev, partnum, partdev):
-        before = get_size(partdev)
+    def resize(self, diskdev, partnum, partdev, fs):
+        before = get_size(partdev, fs)
         try:
             self._distro.manage_service(action="onestart", service="growfs")
         except subp.ProcessExecutionError as e:
             util.logexc(LOG, "Failed: service growfs onestart")
             raise ResizeFailedException(e) from e
 
-        return (before, get_size(partdev))
+        return (before, get_size(partdev, fs))
 
 
 class ResizeGpart(Resizer):
@@ -255,7 +255,7 @@ class ResizeGpart(Resizer):
             pass
         return False
 
-    def resize(self, diskdev, partnum, partdev):
+    def resize(self, diskdev, partnum, partdev, fs):
         """
         GPT disks store metadata at the beginning (primary) and at the
         end (secondary) of the disk. When launching an image with a
@@ -270,79 +270,49 @@ class ResizeGpart(Resizer):
                 util.logexc(LOG, "Failed: gpart recover %s", diskdev)
                 raise ResizeFailedException(e) from e
 
-        before = get_size(partdev)
+        before = get_size(partdev, fs)
         try:
             subp.subp(["gpart", "resize", "-i", partnum, diskdev])
         except subp.ProcessExecutionError as e:
             util.logexc(LOG, "Failed: gpart resize -i %s %s", partnum, diskdev)
             raise ResizeFailedException(e) from e
 
-        return (before, get_size(partdev))
+        return (before, get_size(partdev, fs))
 
 
-def get_size(filename) -> Optional[int]:
+def get_size(filename, fs) -> Optional[int]:
     fd = None
     try:
         fd = os.open(filename, os.O_RDONLY)
         return os.lseek(fd, 0, os.SEEK_END)
     except FileNotFoundError:
+        if fs == "zfs":
+            return get_zfs_size(filename)
         return None
     finally:
         if fd:
             os.close(fd)
 
 
-def device_part_info(devpath):
-    # convert an entry in /dev/ to parent disk and partition number
-
-    # input of /dev/vdb or /dev/disk/by-label/foo
-    # rpath is hopefully a real-ish path in /dev (vda, sdb..)
-    rpath = os.path.realpath(devpath)
-
-    bname = os.path.basename(rpath)
-    syspath = "/sys/class/block/%s" % bname
-
-    if util.is_BSD():
-        # FreeBSD doesn't know of sysfs so just get everything we need from
-        # the device, like /dev/vtbd0p2.
-        fpart = "/dev/" + util.find_freebsd_part(devpath)
-        # Handle both GPT partitions and MBR slices with partitions
-        m = re.search(
-            r"^(?P<dev>/dev/.+)[sp](?P<part_slice>\d+[a-z]*)$", fpart
-        )
-        if m:
-            return m["dev"], m["part_slice"]
-
-    if not os.path.exists(syspath):
-        raise ValueError("%s had no syspath (%s)" % (devpath, syspath))
-
-    ptpath = os.path.join(syspath, "partition")
-    if not os.path.exists(ptpath):
-        raise TypeError("%s not a partition" % devpath)
-
-    ptnum = util.load_text_file(ptpath).rstrip()
-
-    # for a partition, real syspath is something like:
-    # /sys/devices/pci0000:00/0000:00:04.0/virtio1/block/vda/vda1
-    rsyspath = os.path.realpath(syspath)
-    disksyspath = os.path.dirname(rsyspath)
-
-    diskmajmin = util.load_text_file(os.path.join(disksyspath, "dev")).rstrip()
-    diskdevpath = os.path.realpath("/dev/block/%s" % diskmajmin)
-
-    # diskdevpath has something like 253:0
-    # and udev has put links in /dev/block/253:0 to the device name in /dev/
-    return (diskdevpath, ptnum)
+def get_zfs_size(dataset) -> Optional[int]:
+    zpool = dataset.split("/")[0]
+    try:
+        size, _ = subp.subp(["zpool", "get", "-Hpovalue", "size", zpool])
+    except subp.ProcessExecutionError as e:
+        LOG.debug("Failed: zpool get size %s: %s", zpool, e)
+        return None
+    return int(size.strip())
 
 
 def devent2dev(devent):
     if devent.startswith("/dev/"):
-        return devent
-    else:
-        result = util.get_mount_info(devent)
-        if not result:
-            raise ValueError("Could not determine device of '%s' % dev_ent")
-        dev = result[0]
+        return devent, None
+
+    result = util.get_mount_info(devent)
+    if not result:
+        raise ValueError("Could not determine device of '%s' % dev_ent")
+    dev = result[0]
+    fs = result[1]
 
     container = util.is_container()
 
@@ -353,51 +323,9 @@ def devent2dev(devent):
             if os.path.exists(dev):
                 # if /dev/root exists, but we failed to convert
                 # that to a "real" /dev/ path device, then return it.
-                return dev
+                return dev, None
             raise ValueError("Unable to find device '/dev/root'")
-    return dev
-
-
-def get_mapped_device(blockdev, distro_name):
-    """Returns underlying block device for a mapped device.
-
-    If it is mapped, blockdev will usually take the form of
-    /dev/mapper/some_name
-
-    If blockdev is a symlink pointing to a /dev/dm-* device, return
-    the device pointed to. Otherwise, return None.
-    """
-    realpath = os.path.realpath(blockdev)
-
-    if distro_name == "alpine":
-        if blockdev.startswith("/dev/mapper"):
-            # For Alpine systems a /dev/mapper/ entry is *not* a
-            # symlink to the related /dev/dm-X block device,
-            # rather it is a  block device itself.
-
-            # Get the major/minor of the /dev/mapper block device
-            major = os.major(os.stat(blockdev).st_rdev)
-            minor = os.minor(os.stat(blockdev).st_rdev)
-
-            # Find the /dev/dm-X device with the same major/minor
-            with os.scandir("/dev/") as it:
-                for deventry in it:
-                    if deventry.name.startswith("dm-"):
-                        res = os.lstat(deventry.path)
-                        if stat.S_ISBLK(res.st_mode):
-                            if (
-                                os.major(os.stat(deventry.path).st_rdev)
-                                == major
-                                and os.minor(os.stat(deventry.path).st_rdev)
-                                == minor
-                            ):
-                                realpath = os.path.realpath(deventry.path)
-                                break
-
-    if realpath.startswith("/dev/dm-"):
-        LOG.debug("%s is a mapped device pointing to %s", blockdev, realpath)
-        return realpath
-    return None
+    return dev, fs
 
 
 def is_encrypted(blockdev, partition) -> bool:
@@ -499,15 +427,64 @@ def resize_encrypted(blockdev, partition) -> Tuple[str, str]:
     )
 
 
-def resize_devices(resizer, devices, distro_name):
+def _call_resizer(resizer, devent, disk, ptnum, blockdev, fs):
+    info = []
+    try:
+        old, new = resizer.resize(disk, ptnum, blockdev, fs)
+        if old == new:
+            info.append(
+                (
+                    devent,
+                    RESIZE.NOCHANGE,
+                    "no change necessary (%s, %s)" % (disk, ptnum),
+                )
+            )
+        elif new is None or old is None:
+            msg = ""
+            if disk is not None and ptnum is None:
+                msg = "changed (%s, %s) size, new size is unknown" % (
+                    disk,
+                    ptnum,
+                )
+            else:
+                msg = "changed (%s) size, new size is unknown" % blockdev
+            info.append((devent, RESIZE.CHANGED, msg))
+        else:
+            msg = ""
+            if disk is not None and ptnum is None:
+                msg = "changed (%s, %s) from %s to %s" % (
+                    disk,
+                    ptnum,
+                    old,
+                    new,
+                )
+            else:
+                msg = "changed (%s) from %s to %s" % (blockdev, old, new)
+            info.append((devent, RESIZE.CHANGED, msg))
+
+    except ResizeFailedException as e:
+        info.append(
+            (
+                devent,
+                RESIZE.FAILED,
+                "failed to resize: disk=%s, ptnum=%s: %s" % (disk, ptnum, e),
+            )
+        )
+    return info
+
+
+def resize_devices(resizer, devices, distro: Distro):
     # returns a tuple of tuples containing (entry-in-devices, action, message)
     devices = copy.copy(devices)
     info = []
 
     while devices:
         devent = devices.pop(0)
+        disk = None
+        ptnum = None
+
         try:
-            blockdev = devent2dev(devent)
+            blockdev, fs = devent2dev(devent)
         except ValueError as e:
             info.append(
                 (
@@ -517,6 +494,11 @@ def resize_devices(resizer, devices, distro_name):
                 )
             )
             continue
+
+        LOG.debug("growpart found fs=%s", fs)
+        if fs == "zfs":
+            info += _call_resizer(resizer, devent, disk, ptnum, blockdev, fs)
+            return info
 
         try:
             statret = os.stat(blockdev)
@@ -542,7 +524,7 @@ def resize_devices(resizer, devices, distro_name):
             )
             continue
 
-        underlying_blockdev = get_mapped_device(blockdev, distro_name)
+        underlying_blockdev = distro.get_mapped_device(blockdev)
         if underlying_blockdev:
             try:
                 # We need to resize the underlying partition first
@@ -586,7 +568,7 @@ def resize_devices(resizer, devices, distro_name):
             # though we should probably grow the ability to
             continue
         try:
-            (disk, ptnum) = device_part_info(blockdev)
+            disk, ptnum = distro.device_part_info(blockdev)
         except (TypeError, ValueError) as e:
             info.append(
                 (
@@ -597,44 +579,7 @@ def resize_devices(resizer, devices, distro_name):
             )
             continue
 
-        try:
-            old, new = resizer.resize(disk, ptnum, blockdev)
-            if old == new:
-                info.append(
-                    (
-                        devent,
-                        RESIZE.NOCHANGE,
-                        "no change necessary (%s, %s)" % (disk, ptnum),
-                    )
-                )
-            elif new is None or old is None:
-                info.append(
-                    (
-                        devent,
-                        RESIZE.CHANGED,
-                        "changed (%s, %s) size, new size is unknown"
-                        % (disk, ptnum),
-                    )
-                )
-            else:
-                info.append(
-                    (
-                        devent,
-                        RESIZE.CHANGED,
-                        "changed (%s, %s) from %s to %s"
-                        % (disk, ptnum, old, new),
-                    )
-                )
-
-        except ResizeFailedException as e:
-            info.append(
-                (
-                    devent,
-                    RESIZE.FAILED,
-                    "failed to resize: disk=%s, ptnum=%s: %s"
-                    % (disk, ptnum, e),
-                )
-            )
+        info += _call_resizer(resizer, devent, disk, ptnum, blockdev, fs)
 
     return info
 
@@ -685,7 +630,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         logfunc=LOG.debug,
         msg="resize_devices",
         func=resize_devices,
-        args=(resizer, devices, cloud.distro.name),
+        args=(resizer, devices, cloud.distro),
     )
     for entry, action, msg in resized:
         if action == RESIZE.CHANGED:

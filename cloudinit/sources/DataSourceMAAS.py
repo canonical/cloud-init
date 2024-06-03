@@ -43,6 +43,10 @@ class DataSourceMAAS(sources.DataSource):
     id_hash = None
     _oauth_helper = None
 
+    # Setup read_url parameters per get_url_params.
+    url_max_wait = 120
+    url_timeout = 50
+
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.base_url = None
@@ -116,30 +120,18 @@ class DataSourceMAAS(sources.DataSource):
         return "seed-dir (%s)" % self.base_url
 
     def wait_for_metadata_service(self, url):
-        mcfg = self.ds_cfg
-        max_wait = 120
-        try:
-            max_wait = int(mcfg.get("max_wait", max_wait))
-        except Exception:
-            util.logexc(LOG, "Failed to get max wait. using %s", max_wait)
-
-        if max_wait == 0:
+        url_params = self.get_url_params()
+        if url_params.max_wait_seconds == 0:
             return False
 
-        timeout = 50
-        try:
-            if timeout in mcfg:
-                timeout = int(mcfg.get("timeout", timeout))
-        except Exception:
-            LOG.warning("Failed to get timeout, using %s", timeout)
-
-        starttime = time.time()
-        if url.endswith("/"):
-            url = url[:-1]
+        starttime = time.monotonic()
+        url = url.rstrip("/")
         check_url = "%s/%s/meta-data/instance-id" % (url, MD_VERSION)
         urls = [check_url]
         url, _response = self.oauth_helper.wait_for_url(
-            urls=urls, max_wait=max_wait, timeout=timeout
+            urls=urls,
+            max_wait=url_params.max_wait_seconds,
+            timeout=url_params.timeout_seconds,
         )
 
         if url:
@@ -148,7 +140,7 @@ class DataSourceMAAS(sources.DataSource):
             LOG.critical(
                 "Giving up on md from %s after %i seconds",
                 urls,
-                int(time.time() - starttime),
+                int(time.monotonic() - starttime),
             )
 
         return bool(url)
@@ -187,7 +179,7 @@ def get_oauth_helper(cfg):
     """Return an oauth helper instance for values in cfg.
 
     @raises ValueError from OauthUrlHelper if some required fields have
-            true-ish values but others do not."""
+    true-ish values but others do not."""
     keys = ("consumer_key", "consumer_secret", "token_key", "token_secret")
     kwargs = dict([(r, cfg.get(r)) for r in keys])
     return url_helper.OauthUrlHelper(**kwargs)
