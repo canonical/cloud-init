@@ -1087,7 +1087,7 @@ def convert_ec2_metadata_network_config(
         netcfg["ethernets"][nic_name] = dev_config
         return netcfg
     # Apply network config for all nics and any secondary IPv4/v6 addresses
-    is_netplan = distro.network_renderer == netplan.Renderer
+    is_netplan = isinstance(distro.network_renderer, netplan.Renderer)
     nic_order = _build_nic_order(
         macs_metadata, macs_to_nics, fallback_nic_order
     )
