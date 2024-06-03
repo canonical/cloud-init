@@ -1,4 +1,4 @@
-cloud-init (23.4.1-0ubuntu1~23.10.5) UNRELEASED; urgency=medium
+cloud-init (24.1.3-0ubuntu1~23.10.7) UNRELEASED; urgency=medium
 
   * d/apport-general-hook.py: Move apport hook to main branch
   * d/cloud-init.maintscript: remove /etc/cloud/clean.d/README
@@ -25,6 +25,27 @@ cloud-init (23.4.1-0ubuntu1~23.10.5) UNRELEASED; urgency=medium
   * Upstream snapshot based on upstream/main at f93514aa.
 
  -- Chad Smith <chad.smith@canonical.com>  Mon, 03 Jun 2024 11:01:37 -0600
+
+cloud-init (24.1.3-0ubuntu1~23.10.6) mantic; urgency=medium
+
+  * Upstream bug fix release based on 24.1.6
+    + functional fixes in debian/patches:
+      - cpick-417ee551: fix(ec2): Ensure metadata exists before configuring PBR.
+        (LP: #2066979)
+      - cpick-d6776632: fix: Check renderer for netplan-specific code (#5321)
+        (LP: #2066985)
+    + test fixes in debian/patches:
+      - cpick-74dc7cce: test: Fix failing test_ec2.py test (#5324)
+
+ -- James Falcon <james.falcon@canonical.com>  Fri, 24 May 2024 15:15:28 -0500
+
+cloud-init (24.1.3-0ubuntu1~23.10.5) mantic; urgency=medium
+
+  * cherry-pick 51c6569f: fix(snapd): ubuntu do not snap refresh when
+    snap absent (LP: #2064132)
+    - fix in 24.1.3-0ubuntu1~23.10.3 did not handle package_upgrade case
+
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 03 May 2024 20:15:18 -0600
 
 cloud-init (24.1.3-0ubuntu1~23.10.4) mantic; urgency=medium
 
