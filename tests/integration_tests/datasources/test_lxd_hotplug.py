@@ -1,8 +1,8 @@
 import json
 
 import pytest
+import yaml
 
-from cloudinit import safeyaml
 from cloudinit.subp import subp
 from cloudinit.util import is_true
 from tests.integration_tests.decorators import retry
@@ -142,10 +142,10 @@ class TestLxdHotplug:
             f"nictype=bridged parent=ci-test-br-eth2".split()
         )
         ensure_hotplug_exited(client)
-        post_netplan = safeyaml.load(
+        post_netplan = yaml.safe_load(
             client.read_from_file("/etc/netplan/50-cloud-init.yaml")
         )
-        expected_netplan = safeyaml.load(UPDATED_NETWORK_CONFIG)
+        expected_netplan = yaml.safe_load(UPDATED_NETWORK_CONFIG)
         expected_netplan = {"network": expected_netplan}
         assert post_netplan == expected_netplan, client.read_from_file(
             "/var/log/cloud-init.log"

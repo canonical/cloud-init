@@ -301,6 +301,10 @@ data_files = [
         USR + "/share/doc/cloud-init/examples/seed",
         [f for f in glob("doc/examples/seed/*") if is_f(f)],
     ),
+    (
+        USR + "/share/doc/cloud-init/module-docs",
+        [f for f in glob("doc/module-docs/*", recursive=True) if is_f(f)],
+    ),
 ]
 if not platform.system().endswith("BSD"):
     RULES_PATH = pkg_config_read("udev", "udevdir")

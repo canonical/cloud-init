@@ -21,6 +21,7 @@ from cloudinit.util import ensure_file, write_file
 from tests.unittests.helpers import (
     CiTestCase,
     ResponsesTestCase,
+    example_netdev,
     random_string,
 )
 from tests.unittests.util import MockDistro
@@ -765,6 +766,7 @@ class TestInterfaceHasOwnMAC(CiTestCase):
 
 
 @mock.patch("cloudinit.net.subp.subp")
+@pytest.mark.usefixtures("disable_netdev_info")
 class TestEphemeralIPV4Network(CiTestCase):
 
     with_logs = True
@@ -789,7 +791,11 @@ class TestEphemeralIPV4Network(CiTestCase):
             params = copy.deepcopy(required_params)
             params[key] = None
             with self.assertRaises(ValueError) as context_manager:
-                EphemeralIPv4Network(MockDistro(), **params)
+                EphemeralIPv4Network(
+                    MockDistro(),
+                    interface_addrs_before_dhcp=example_netdev,
+                    **params,
+                )
             error = context_manager.exception
             self.assertIn("Cannot init network on", str(error))
             self.assertEqual(0, m_subp.call_count)
@@ -800,6 +806,7 @@ class TestEphemeralIPV4Network(CiTestCase):
             "interface": "eth0",
             "ip": "192.168.2.2",
             "broadcast": "192.168.2.255",
+            "interface_addrs_before_dhcp": example_netdev,
         }
         invalid_masks = ("invalid", "invalid.", "123.123.123")
         for error_val in invalid_masks:
@@ -831,23 +838,8 @@ class TestEphemeralIPV4Network(CiTestCase):
                 ],
                 update_env={"LANG": "C"},
             ),
-            mock.call(
-                ["ip", "-family", "inet", "link", "set", "dev", "eth0", "up"],
-            ),
         ]
         expected_teardown_calls = [
-            mock.call(
-                [
-                    "ip",
-                    "-family",
-                    "inet",
-                    "link",
-                    "set",
-                    "dev",
-                    "eth0",
-                    "down",
-                ],
-            ),
             mock.call(
                 [
                     "ip",
@@ -866,6 +858,7 @@ class TestEphemeralIPV4Network(CiTestCase):
             "ip": "192.168.2.2",
             "prefix_or_mask": "255.255.255.0",
             "broadcast": "192.168.2.255",
+            "interface_addrs_before_dhcp": example_netdev,
         }
         with EphemeralIPv4Network(MockDistro(), **params):
             self.assertEqual(expected_setup_calls, m_subp.call_args_list)
@@ -892,6 +885,7 @@ class TestEphemeralIPV4Network(CiTestCase):
                 ip="1.1.1.1",
                 prefix_or_mask="255.255.255.0",
                 broadcast="1.1.1.255",
+                interface_addrs_before_dhcp=example_netdev,
                 static_routes=[
                     ("2.2.2.2/32", "9.9.9.9"),
                     ("3.3.3.3/32", "8.8.8.8"),
@@ -918,18 +912,6 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "ip",
                     "-family",
                     "inet",
-                    "link",
-                    "set",
-                    "dev",
-                    "eth0",
-                    "down",
-                ],
-            ),
-            mock.call(
-                [
-                    "ip",
-                    "-family",
-                    "inet",
                     "addr",
                     "del",
                     "1.1.1.1/24",
@@ -941,28 +923,6 @@ class TestEphemeralIPV4Network(CiTestCase):
         for teardown in expected_teardown_calls:
             assert teardown in m_subp.call_args_list
 
-    @mock.patch("cloudinit.net.readurl")
-    def test_ephemeral_ipv4_no_network_if_url_connectivity(
-        self, m_readurl, m_subp
-    ):
-        """No network setup is performed if we can successfully connect to
-        connectivity_url."""
-        params = {
-            "interface": "eth0",
-            "ip": "192.168.2.2",
-            "prefix_or_mask": "255.255.255.0",
-            "broadcast": "192.168.2.255",
-            "connectivity_url_data": {"url": "http://example.org/index.html"},
-        }
-
-        with EphemeralIPv4Network(MockDistro(), **params):
-            self.assertEqual(
-                [mock.call(url="http://example.org/index.html", timeout=5)],
-                m_readurl.call_args_list,
-            )
-        # Ensure that no teardown happens:
-        m_subp.assert_has_calls([])
-
     def test_ephemeral_ipv4_network_noop_when_configured(self, m_subp):
         """EphemeralIPv4Network handles exception when address is setup.
 
@@ -970,37 +930,20 @@ class TestEphemeralIPV4Network(CiTestCase):
         """
         params = {
             "interface": "eth0",
-            "ip": "192.168.2.2",
+            "ip": "10.85.130.116",
             "prefix_or_mask": "255.255.255.0",
             "broadcast": "192.168.2.255",
+            "interface_addrs_before_dhcp": example_netdev,
         }
         m_subp.side_effect = ProcessExecutionError(
             "", "RTNETLINK answers: File exists", 2
         )
-        expected_calls = [
-            mock.call(
-                [
-                    "ip",
-                    "-family",
-                    "inet",
-                    "addr",
-                    "add",
-                    "192.168.2.2/24",
-                    "broadcast",
-                    "192.168.2.255",
-                    "dev",
-                    "eth0",
-                ],
-                update_env={"LANG": "C"},
-            )
-        ]
+        expected_calls = []
         with EphemeralIPv4Network(MockDistro(), **params):
             pass
-        self.assertEqual(expected_calls, m_subp.call_args_list)
-        self.assertIn(
-            "Skip ephemeral network setup, eth0 already has address",
-            self.logs.getvalue(),
-        )
+        assert expected_calls == m_subp.call_args_list
+        assert "Skip bringing up network link" in self.logs.getvalue()
+        assert "Skip adding ip address" in self.logs.getvalue()
 
     def test_ephemeral_ipv4_network_with_prefix(self, m_subp):
         """EphemeralIPv4Network takes a valid prefix to setup the network."""
@@ -1009,6 +952,7 @@ class TestEphemeralIPV4Network(CiTestCase):
             "ip": "192.168.2.2",
             "prefix_or_mask": "24",
             "broadcast": "192.168.2.255",
+            "interface_addrs_before_dhcp": example_netdev,
         }
         for prefix_val in ["24", 16]:  # prefix can be int or string
             params["prefix_or_mask"] = prefix_val
@@ -1061,6 +1005,7 @@ class TestEphemeralIPV4Network(CiTestCase):
             "prefix_or_mask": "255.255.255.0",
             "broadcast": "192.168.2.255",
             "router": "192.168.2.1",
+            "interface_addrs_before_dhcp": example_netdev,
         }
         # Empty response from ip route gw check
         m_subp.return_value = subp.SubpResult("", "")
@@ -1080,16 +1025,13 @@ class TestEphemeralIPV4Network(CiTestCase):
                 ],
                 update_env={"LANG": "C"},
             ),
-            mock.call(
-                ["ip", "-family", "inet", "link", "set", "dev", "eth0", "up"],
-            ),
             mock.call(["ip", "route", "show", "0.0.0.0/0"]),
             mock.call(
                 [
                     "ip",
                     "-4",
                     "route",
-                    "add",
+                    "replace",
                     "192.168.2.1",
                     "dev",
                     "eth0",
@@ -1102,7 +1044,7 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "ip",
                     "-4",
                     "route",
-                    "add",
+                    "replace",
                     "default",
                     "via",
                     "192.168.2.1",
@@ -1146,6 +1088,7 @@ class TestEphemeralIPV4Network(CiTestCase):
                 ("0.0.0.0/0", "192.168.2.1"),
             ],
             "router": "192.168.2.1",
+            "interface_addrs_before_dhcp": example_netdev,
         }
         expected_setup_calls = [
             mock.call(
@@ -1162,9 +1105,6 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "eth0",
                 ],
                 update_env={"LANG": "C"},
-            ),
-            mock.call(
-                ["ip", "-family", "inet", "link", "set", "dev", "eth0", "up"],
             ),
             mock.call(
                 [
@@ -1233,18 +1173,6 @@ class TestEphemeralIPV4Network(CiTestCase):
             ),
             mock.call(
                 ["ip", "-4", "route", "del", "192.168.2.1/32", "dev", "eth0"],
-            ),
-            mock.call(
-                [
-                    "ip",
-                    "-family",
-                    "inet",
-                    "link",
-                    "set",
-                    "dev",
-                    "eth0",
-                    "down",
-                ],
             ),
             mock.call(
                 [

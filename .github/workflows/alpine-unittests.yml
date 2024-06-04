@@ -1,0 +1,74 @@
+
+name: Alpine Unittests
+
+on:
+  pull_request:
+    branches-ignore:
+      - 'ubuntu/**'
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: 'ci-${{ github.workflow }}-${{ github.ref }}'
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: sh -ex {0}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: "Checkout"
+        uses: actions/checkout@v4
+        with:
+          # Fetch all tags for tools/read-version
+          fetch-depth: 0
+
+      - name: Setup LXD
+        uses: canonical/setup-lxd@v0.1.1
+        with:
+          channel: latest/candidate
+
+      - name: Create alpine container
+        # the current shell doesn't have lxd as one of the groups
+        # so switch groups to run lxd commands
+        run: lxc launch images:alpine/edge alpine
+
+      - name: Check networking (for debugging)
+        run: |
+          lxc exec alpine -- ping -c 1 google.com || true
+          lxc exec alpine -- ping -c 1 dl-cdn.alpinelinux.org || true
+          lxc exec alpine -- nslookup www.google.com || true
+          lxc exec alpine -- ping -c 1 dl-cdn.alpinelinux.org || true
+
+      - name: Install dependencies
+        run: lxc exec alpine -- apk add py3-tox git tzdata
+
+      - name: Mount source into container directory
+        run: lxc config device add alpine gitdir disk source=$(pwd) path=/root/cloud-init-ro
+
+      - name: Create a r/w directory to run tests in
+        # without this, tox fails during package install
+        run: |
+          lxc exec alpine -- git config --global --add safe.directory /root/cloud-init-ro/.git
+          lxc exec alpine -- git clone cloud-init-ro cloud-init-rw
+
+      - name: Set a timezone
+        # test for regression of GH-5158
+        # https://github.com/canonical/cloud-init/issues/5158
+        run: lxc exec alpine -- ln -s /usr/share/zoneinfo/Europe/Brussels /etc/localtime
+
+      - name: Set up tox environment
+        # Setup the environment and then tell pytest to do essentially nothing
+        run: lxc exec alpine --cwd /root/cloud-init-rw -- tox -e py3 -- --cache-show=
+
+      - name: Stop network
+        # Take down network interfaces to ensure tests don't use network
+        run: lxc exec alpine -- ifdown -a
+
+      - name: Run unittests
+        run: lxc exec alpine --cwd /root/cloud-init-rw -- tox -e py3

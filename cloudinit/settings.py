@@ -59,6 +59,7 @@ CFG_BUILTIN = {
     "system_info": {
         "paths": {
             "cloud_dir": "/var/lib/cloud",
+            "docs_dir": "/usr/share/doc/cloud-init/",
             "templates_dir": "/etc/cloud/templates/",
         },
         "distro": "ubuntu",

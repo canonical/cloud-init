@@ -7,7 +7,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-""" Mcollective: Install, configure and start mcollective"""
+"""Mcollective: Install, configure and start mcollective"""
 
 import errno
 import io

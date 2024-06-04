@@ -12,6 +12,8 @@ import copy
 import logging
 import os
 import time
+import uuid
+from contextlib import suppress
 from typing import Dict, List
 
 from cloudinit import dmi, net, sources
@@ -19,7 +21,7 @@ from cloudinit import url_helper as uhelp
 from cloudinit import util, warnings
 from cloudinit.distros import Distro
 from cloudinit.event import EventScope, EventType
-from cloudinit.net import activators
+from cloudinit.net import netplan
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralIPNetwork
 from cloudinit.sources import NicOrder
@@ -334,6 +336,8 @@ class DataSourceEc2(sources.DataSource):
         return None
 
     def wait_for_metadata_service(self):
+        urls = []
+        start_time = 0
         mcfg = self.ds_cfg
 
         url_params = self.get_url_params()
@@ -367,7 +371,6 @@ class DataSourceEc2(sources.DataSource):
             and self.cloud_name not in IDMSV2_SUPPORTED_CLOUD_PLATFORMS
         ):
             # if we can't get a token, use instance-id path
-            urls = []
             url2base = {}
             url_path = "{ver}/meta-data/instance-id".format(
                 ver=self.min_metadata_version
@@ -378,7 +381,7 @@ class DataSourceEc2(sources.DataSource):
                 urls.append(cur)
                 url2base[cur] = url
 
-            start_time = time.time()
+            start_time = time.monotonic()
             url, _ = uhelp.wait_for_url(
                 urls=urls,
                 max_wait=url_params.max_wait_seconds,
@@ -401,7 +404,7 @@ class DataSourceEc2(sources.DataSource):
             LOG.critical(
                 "Giving up on md from %s after %s seconds",
                 urls,
-                int(time.time() - start_time),
+                int(time.monotonic() - start_time),
             )
 
         return bool(metadata_address)
@@ -794,11 +797,17 @@ def identify_aliyun(data):
 
 def identify_aws(data):
     # data is a dictionary returned by _collect_platform_data.
-    if data["uuid"].startswith("ec2") and (
-        data["uuid_source"] == "hypervisor" or data["uuid"] == data["serial"]
-    ):
+    uuid_str = data["uuid"]
+    if uuid_str.startswith("ec2"):
+        # example same-endian uuid:
+        # EC2E1916-9099-7CAF-FD21-012345ABCDEF
         return CloudNames.AWS
-
+    with suppress(ValueError):
+        if uuid.UUID(uuid_str).bytes_le.hex().startswith("ec2"):
+            # check for other endianness
+            # example other-endian uuid:
+            # 45E12AEC-DCD1-B213-94ED-012345ABCDEF
+            return CloudNames.AWS
     return None
 
 
@@ -853,7 +862,6 @@ def _collect_platform_data():
 
     Keys in the dictionary are as follows:
        uuid: system-uuid from dmi or /sys/hypervisor
-       uuid_source: 'hypervisor' (/sys/hypervisor/uuid) or 'dmi'
        serial: dmi 'system-serial-number' (/sys/.../product_serial)
        asset_tag: 'dmidecode -s chassis-asset-tag'
        vendor: dmi 'system-manufacturer' (/sys/.../sys_vendor)
@@ -862,37 +870,23 @@ def _collect_platform_data():
     On Ec2 instances experimentation is that product_serial is upper case,
     and product_uuid is lower case.  This returns lower case values for both.
     """
-    data = {}
-    try:
+    uuid = None
+    with suppress(OSError, UnicodeDecodeError):
         uuid = util.load_text_file("/sys/hypervisor/uuid").strip()
-        data["uuid_source"] = "hypervisor"
-    except Exception:
-        uuid = dmi.read_dmi_data("system-uuid")
-        data["uuid_source"] = "dmi"
 
-    if uuid is None:
-        uuid = ""
-    data["uuid"] = uuid.lower()
+    uuid = uuid or dmi.read_dmi_data("system-uuid") or ""
+    serial = dmi.read_dmi_data("system-serial-number") or ""
+    asset_tag = dmi.read_dmi_data("chassis-asset-tag") or ""
+    vendor = dmi.read_dmi_data("system-manufacturer") or ""
+    product_name = dmi.read_dmi_data("system-product-name") or ""
 
-    serial = dmi.read_dmi_data("system-serial-number")
-    if serial is None:
-        serial = ""
-
-    data["serial"] = serial.lower()
-
-    asset_tag = dmi.read_dmi_data("chassis-asset-tag")
-    if asset_tag is None:
-        asset_tag = ""
-
-    data["asset_tag"] = asset_tag.lower()
-
-    vendor = dmi.read_dmi_data("system-manufacturer")
-    data["vendor"] = (vendor if vendor else "").lower()
-
-    product_name = dmi.read_dmi_data("system-product-name")
-    data["product_name"] = (product_name if product_name else "").lower()
-
-    return data
+    return {
+        "uuid": uuid.lower(),
+        "serial": serial.lower(),
+        "asset_tag": asset_tag.lower(),
+        "vendor": vendor.lower(),
+        "product_name": product_name.lower(),
+    }
 
 
 def _build_nic_order(
@@ -980,11 +974,23 @@ def _configure_policy_routing(
     @param: is_ipv4: Boolean indicating if we are acting over ipv4 or not.
     @param: table: Routing table id.
     """
+    if is_ipv4:
+        subnet_prefix_routes = nic_metadata.get("subnet-ipv4-cidr-block")
+        ips = nic_metadata.get("local-ipv4s")
+    else:
+        subnet_prefix_routes = nic_metadata.get("subnet-ipv6-cidr-blocks")
+        ips = nic_metadata.get("ipv6s")
+    if not (subnet_prefix_routes and ips):
+        LOG.debug(
+            "Not enough IMDS information to configure policy routing "
+            "for IPv%s",
+            "4" if is_ipv4 else "6",
+        )
+        return
+
     if not dev_config.get("routes"):
         dev_config["routes"] = []
     if is_ipv4:
-        subnet_prefix_routes = nic_metadata["subnet-ipv4-cidr-block"]
-        ips = nic_metadata["local-ipv4s"]
         try:
             lease = distro.dhcp_client.dhcp_discovery(nic_name, distro=distro)
             gateway = lease["routers"]
@@ -1005,9 +1011,6 @@ def _configure_policy_routing(
                     "table": table,
                 },
             )
-    else:
-        subnet_prefix_routes = nic_metadata["subnet-ipv6-cidr-blocks"]
-        ips = nic_metadata["ipv6s"]
 
     subnet_prefix_routes = (
         [subnet_prefix_routes]
@@ -1084,7 +1087,7 @@ def convert_ec2_metadata_network_config(
         netcfg["ethernets"][nic_name] = dev_config
         return netcfg
     # Apply network config for all nics and any secondary IPv4/v6 addresses
-    is_netplan = distro.network_activator == activators.NetplanActivator
+    is_netplan = isinstance(distro.network_renderer, netplan.Renderer)
     nic_order = _build_nic_order(
         macs_metadata, macs_to_nics, fallback_nic_order
     )

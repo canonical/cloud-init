@@ -29,6 +29,7 @@ from cloudinit.util import ensure_file, load_binary_file, subp, write_file
 from tests.unittests.helpers import (
     CiTestCase,
     ResponsesTestCase,
+    example_netdev,
     mock,
     populate_dir,
 )
@@ -138,6 +139,7 @@ class TestParseDHCPLeasesFile(CiTestCase):
 
 
 @pytest.mark.usefixtures("dhclient_exists")
+@pytest.mark.usefixtures("disable_netdev_info")
 class TestDHCPRFC3442(CiTestCase):
     def test_parse_lease_finds_rfc3442_classless_static_routes(self):
         """IscDhclient().get_newest_lease() returns
@@ -222,6 +224,7 @@ class TestDHCPRFC3442(CiTestCase):
         eph.obtain_lease()
         expected_kwargs = {
             "interface": "wlp3s0",
+            "interface_addrs_before_dhcp": example_netdev,
             "ip": "192.168.2.74",
             "prefix_or_mask": "255.255.255.0",
             "broadcast": "192.168.2.255",
@@ -251,6 +254,7 @@ class TestDHCPRFC3442(CiTestCase):
         eph.obtain_lease()
         expected_kwargs = {
             "interface": "wlp3s0",
+            "interface_addrs_before_dhcp": example_netdev,
             "ip": "192.168.2.74",
             "prefix_or_mask": "255.255.255.0",
             "broadcast": "192.168.2.255",
@@ -662,7 +666,7 @@ class TestDHCPDiscoveryClean:
     def test_dhcp_output_error_stream(
         self, m_wait, m_which, m_subp, m_kill, m_remove, tmpdir
     ):
-        """ "dhcp_log_func is called with the output and error streams of
+        """dhcp_log_func is called with the output and error streams of
         dhclient when the callable is passed."""
         dhclient_err = "FAKE DHCLIENT ERROR"
         dhclient_out = "FAKE DHCLIENT OUT"
@@ -810,6 +814,7 @@ class TestSystemdParseLeases(CiTestCase):
         )
 
 
+@pytest.mark.usefixtures("disable_netdev_info")
 class TestEphemeralDhcpNoNetworkSetup(ResponsesTestCase):
     @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
     def test_ephemeral_dhcp_no_network_if_url_connectivity(self, m_dhcp):
@@ -857,6 +862,7 @@ class TestEphemeralDhcpNoNetworkSetup(ResponsesTestCase):
         NoDHCPLeaseMissingDhclientError,
     ],
 )
+@pytest.mark.usefixtures("disable_netdev_info")
 class TestEphemeralDhcpLeaseErrors:
     @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     def test_obtain_lease_raises_error(self, m_dhcp, error_class):

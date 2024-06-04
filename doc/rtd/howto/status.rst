@@ -107,11 +107,11 @@ contain any of the following states:
   which prevents cloud-init from ever running
 - ``'disabled-by-generator'``: ``ds-identify`` determined no applicable
   cloud-init datasources
-- ``'disabled-by-kernel-cmdline'``: kernel command line contained
+- ``'disabled-by-kernel-command-line'``: kernel command line contained
   cloud-init=disabled
 - ``'disabled-by-environment-variable'``: environment variable
   ``KERNEL_CMDLINE`` contained ``cloud-init=disabled``
-- ``'enabled-by-kernel-cmdline'``: kernel command line contained
+- ``'enabled-by-kernel-command-line'``: kernel command line contained
   cloud-init=enabled
 - ``'enabled-by-generator'``: ``ds-identify`` detected possible cloud-init
   datasources

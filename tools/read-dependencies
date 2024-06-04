@@ -203,7 +203,7 @@ def parse_pip_requirements(requirements_path):
     with open(requirements_path, "r") as fp:
         for line in fp:
             line = line.strip()
-            if not line or line.startswith("#"):
+            if not line or line.startswith(("#", "-r ")):
                 continue
 
             # remove pip-style markers
@@ -212,9 +212,7 @@ def parse_pip_requirements(requirements_path):
             # remove version requirements
             version_comparison = re.compile(r"[~!>=.<]+")
             if version_comparison.search(dep):
-                dep_names.append(
-                    version_comparison.split(dep)[0].strip()
-                )
+                dep_names.append(version_comparison.split(dep)[0].strip())
             else:
                 dep_names.append(dep)
     return dep_names

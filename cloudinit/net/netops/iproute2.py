@@ -1,25 +1,35 @@
 from typing import Optional
 
-import cloudinit.net.netops as netops
 from cloudinit import subp
+from cloudinit.net.netops import NetOps
 
 
-class Iproute2(netops.NetOps):
+class Iproute2(NetOps):
     @staticmethod
-    def link_up(interface: str, family: Optional[str] = None):
-        subp.subp(
-            ["ip"]
-            + (["-family", family] if family else [])
-            + ["link", "set", "dev", interface, "up"]
+    def link_up(
+        interface: str, family: Optional[str] = None
+    ) -> subp.SubpResult:
+        family_args = []
+        if family:
+            family_args = ["-family", family]
+        return subp.subp(
+            ["ip", *family_args, "link", "set", "dev", interface, "up"]
         )
 
     @staticmethod
-    def link_down(interface: str, family: Optional[str] = None):
-        subp.subp(
-            ["ip"]
-            + (["-family", family] if family else [])
-            + ["link", "set", "dev", interface, "down"]
+    def link_down(
+        interface: str, family: Optional[str] = None
+    ) -> subp.SubpResult:
+        family_args = []
+        if family:
+            family_args = ["-family", family]
+        return subp.subp(
+            ["ip", *family_args, "link", "set", "dev", interface, "down"]
         )
+
+    @staticmethod
+    def link_rename(current_name: str, new_name: str):
+        subp.subp(["ip", "link", "set", current_name, "name", new_name])
 
     @staticmethod
     def add_route(
@@ -29,22 +39,42 @@ class Iproute2(netops.NetOps):
         gateway: Optional[str] = None,
         source_address: Optional[str] = None,
     ):
+        gateway_args = []
+        source_args = []
+        if gateway and gateway != "0.0.0.0":
+            gateway_args = ["via", gateway]
+        if source_address:
+            source_args = ["src", source_address]
         subp.subp(
-            ["ip", "-4", "route", "add", route]
-            + (["via", gateway] if gateway and gateway != "0.0.0.0" else [])
-            + [
+            [
+                "ip",
+                "-4",
+                "route",
+                "replace",
+                route,
+                *gateway_args,
                 "dev",
                 interface,
+                *source_args,
             ]
-            + (["src", source_address] if source_address else []),
         )
 
     @staticmethod
     def append_route(interface: str, address: str, gateway: str):
+        gateway_args = []
+        if gateway and gateway != "0.0.0.0":
+            gateway_args = ["via", gateway]
         subp.subp(
-            ["ip", "-4", "route", "append", address]
-            + (["via", gateway] if gateway and gateway != "0.0.0.0" else [])
-            + ["dev", interface]
+            [
+                "ip",
+                "-4",
+                "route",
+                "append",
+                address,
+                *gateway_args,
+                "dev",
+                interface,
+            ]
         )
 
     @staticmethod
@@ -55,11 +85,24 @@ class Iproute2(netops.NetOps):
         gateway: Optional[str] = None,
         source_address: Optional[str] = None,
     ):
+        gateway_args = []
+        source_args = []
+        if gateway and gateway != "0.0.0.0":
+            gateway_args = ["via", gateway]
+        if source_address:
+            source_args = ["src", source_address]
         subp.subp(
-            ["ip", "-4", "route", "del", address]
-            + (["via", gateway] if gateway and gateway != "0.0.0.0" else [])
-            + ["dev", interface]
-            + (["src", source_address] if source_address else [])
+            [
+                "ip",
+                "-4",
+                "route",
+                "del",
+                address,
+                *gateway_args,
+                "dev",
+                interface,
+                *source_args,
+            ]
         )
 
     @staticmethod
@@ -69,7 +112,12 @@ class Iproute2(netops.NetOps):
         ).stdout
 
     @staticmethod
-    def add_addr(interface: str, address: str, broadcast: str):
+    def add_addr(
+        interface: str, address: str, broadcast: Optional[str] = None
+    ):
+        broadcast_args = []
+        if broadcast:
+            broadcast_args = ["broadcast", broadcast]
         subp.subp(
             [
                 "ip",
@@ -78,8 +126,7 @@ class Iproute2(netops.NetOps):
                 "addr",
                 "add",
                 address,
-                "broadcast",
-                broadcast,
+                *broadcast_args,
                 "dev",
                 interface,
             ],
@@ -91,3 +138,7 @@ class Iproute2(netops.NetOps):
         subp.subp(
             ["ip", "-family", "inet", "addr", "del", address, "dev", interface]
         )
+
+    @staticmethod
+    def flush_addr(interface: str):
+        subp.subp(["ip", "flush", "dev", interface])

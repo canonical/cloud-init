@@ -8,29 +8,6 @@
 #   Number: Set pipelining to some number (not recommended)
 apt_pipelining: False
 
-## apt config via system_info:
-# under the 'system_info', you can customize cloud-init's interaction
-# with apt.
-#  system_info:
-#    apt_get_command: [command, argument, argument]
-#    apt_get_upgrade_subcommand: dist-upgrade
-#
-# apt_get_command:
-#  To specify a different 'apt-get' command, set 'apt_get_command'.
-#  This must be a list, and the subcommand (update, upgrade) is appended to it.
-#  default is:
-#    ['apt-get', '--option=Dpkg::Options::=--force-confold',
-#     '--option=Dpkg::options::=--force-unsafe-io', '--assume-yes', '--quiet']
-#
-# apt_get_upgrade_subcommand: "dist-upgrade"
-#  Specify a different subcommand for 'upgrade. The default is 'dist-upgrade'.
-#  This is the subcommand that is invoked for package_upgrade.
-#
-# apt_get_wrapper:
-#   command: eatmydata
-#   enabled: [True, False, "auto"]
-#
-
 # Install additional packages on first boot
 #
 # Default: none

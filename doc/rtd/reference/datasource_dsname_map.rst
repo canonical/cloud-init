@@ -4,7 +4,7 @@ Datasource dsname
 *****************
 
 Each datasource has an attribute called dsname. This may be used in the
-kernel commandline to
+kernel command line to
 :ref:`override datasource detection<kernel_datasource_override>`. The
 ``dsname`` on the kernel command line may be a case-insensitive match. See the
 mapping between datasource module names and ``dsname`` in the table below.

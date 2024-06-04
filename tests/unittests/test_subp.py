@@ -12,7 +12,7 @@ from cloudinit import subp, util
 from tests.helpers import get_top_level_dir
 from tests.unittests.helpers import CiTestCase
 
-BASH = subp.which("bash")
+SH = "sh"
 BOGUS_COMMAND = "this-is-not-expected-to-be-a-program-name"
 
 
@@ -93,24 +93,24 @@ class TestPrependBaseCommands(CiTestCase):
 
 class TestSubp(CiTestCase):
     allowed_subp = [
-        BASH,
+        SH,
         "cat",
         CiTestCase.SUBP_SHELL_TRUE,
         BOGUS_COMMAND,
         sys.executable,
+        "env",
     ]
 
-    stdin2err = [BASH, "-c", "cat >&2"]
+    stdin2err = [SH, "-c", "cat >&2"]
     stdin2out = ["cat"]
     utf8_invalid = b"ab\xaadef"
     utf8_valid = b"start \xc3\xa9 end"
     utf8_valid_2 = b"d\xc3\xa9j\xc8\xa7"
-    printenv = [BASH, "-c", 'for n in "$@"; do echo "$n=${!n}"; done', "--"]
 
-    def printf_cmd(self, *args):
-        # bash's printf supports \xaa.  So does /usr/bin/printf
-        # but by using bash, we remove dependency on another program.
-        return [BASH, "-c", 'printf "$@"', "printf"] + list(args)
+    @staticmethod
+    def printf_cmd(arg):
+        """print with builtin printf"""
+        return [SH, "-c", 'printf "$@"', "printf", arg]
 
     def test_subp_handles_bytestrings(self):
         """subp can run a bytestring command if shell is True."""
@@ -146,11 +146,21 @@ class TestSubp(CiTestCase):
         self.assertEqual(out, self.utf8_valid)
 
     def test_subp_decode_ignore(self):
+        """ensure that invalid utf-8 is ignored with the "ignore" kwarg"""
         # this executes a string that writes invalid utf-8 to stdout
-        (out, _err) = subp.subp(
-            self.printf_cmd("abc\\xaadef"), capture=True, decode="ignore"
-        )
-        self.assertEqual(out, "abcdef")
+        with mock.patch.object(
+            subp.subprocess,
+            "Popen",
+            autospec=True,
+        ) as sp:
+            sp.return_value.communicate = mock.Mock(
+                return_value=(b"abc\xaadef", None)
+            )
+            sp.return_value.returncode = 0
+            assert (
+                "abcdef"
+                == subp.subp([SH], capture=True, decode="ignore").stdout
+            )
 
     def test_subp_decode_strict_valid_utf8(self):
         (out, _err) = subp.subp(
@@ -189,20 +199,22 @@ class TestSubp(CiTestCase):
 
     def test_subp_reads_env(self):
         with mock.patch.dict("os.environ", values={"FOO": "BAR"}):
-            out, _err = subp.subp(self.printenv + ["FOO"], capture=True)
-        self.assertEqual("FOO=BAR", out.splitlines()[0])
+            assert {"FOO=BAR"}.issubset(
+                subp.subp("env", capture=True).stdout.splitlines()
+            )
 
     def test_subp_update_env(self):
+        """test that subp's update_env argument updates the environment"""
         extra = {"FOO": "BAR", "HOME": "/root", "K1": "V1"}
         with mock.patch.dict("os.environ", values=extra):
             out, _err = subp.subp(
-                self.printenv + ["FOO", "HOME", "K1", "K2"],
+                "env",
                 capture=True,
                 update_env={"HOME": "/myhome", "K2": "V2"},
             )
 
-        self.assertEqual(
-            ["FOO=BAR", "HOME=/myhome", "K1=V1", "K2=V2"], out.splitlines()
+        assert {"FOO=BAR", "HOME=/myhome", "K1=V1", "K2=V2"}.issubset(
+            set(out.splitlines())
         )
 
     def test_subp_warn_missing_shebang(self):
@@ -282,7 +294,7 @@ class TestSubp(CiTestCase):
             ]
         )
         cmd = [
-            BASH,
+            SH,
             "-c",
             'echo -n "$@"',
             "--",

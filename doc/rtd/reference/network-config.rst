@@ -223,6 +223,11 @@ for BSD flavors at the moment.
 Network output policy
 =====================
 
+.. note::
+
+   These are **upstream** defaults and are known to be overridden by
+   downstream distributions.
+
 The default policy for selecting a network ``renderer`` (in order of
 preference) is as follows:
 

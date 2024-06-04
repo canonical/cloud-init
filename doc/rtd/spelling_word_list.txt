@@ -61,6 +61,7 @@ dotnet
 downstreams
 dpkg
 dropbearssh
+ds-identify
 dsa
 dsmode
 dsname

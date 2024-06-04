@@ -14,7 +14,7 @@ capable of.
 Core tutorial
 =============
 
-This tutorial, which we recommend if you are completely new to ``cloudinit``,
+This tutorial, which we recommend if you are completely new to ``cloud-init``,
 uses the QEMU emulator to introduce you to all of the key concepts, tools,
 processes and operations that you will need to get started.
 
@@ -35,3 +35,15 @@ user data script.
    :maxdepth: 1
 
    lxd.rst
+
+WSL tutorial
+============
+
+This tutorial is for learning to use ``cloud-init`` within a ``WSL``
+environment. You will use a ``cloud-init`` user data script to customize a
+``WSL`` instance.
+
+.. toctree::
+   :maxdepth: 1
+
+   wsl.rst
