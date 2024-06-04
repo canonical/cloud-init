@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, List, Optional, Set, Union
 import pytest
 
 from cloudinit.subp import subp
+from tests.integration_tests.integration_settings import PLATFORM
 
 LOG = logging.getLogger("integration_testing.util")
 
@@ -70,7 +71,9 @@ def verify_clean_boot(
 ):
     """raise assertions if the client experienced unexpected warnings or errors
 
-    fail when an required error isn't found
+    Fail when an required error isn't found.
+    Ignore expected errors and warnings, but only for the PLATFORM or RELEASE
+    which is expected to have this warning or error.
 
     This function is similar to verify_clean_log, hence the similar name.
 
@@ -89,6 +92,60 @@ def verify_clean_boot(
     require_errors: Optional[list] = None,
     fail_when_expected_not_found: optional list of expected errors
     """
+
+    # Define exceptions by matrix of platform and Ubuntu release
+    if "azure" == PLATFORM:
+        # Consistently on all Azure launches:
+        ignore_warnings.append("No lease found; using default endpoint")
+    elif "lxd_vm" == PLATFORM:
+        # Ubuntu lxd storage
+        ignore_warnings.append(
+            "thinpool by default on Ubuntu due to LP #1982780"
+        )
+        ignore_warnings.append(
+            "Could not match supplied host pattern, ignoring:",
+        )
+    elif "oracle" == PLATFORM:
+        # LP: #1842752
+        ignore_warnings.append("Stderr: RTNETLINK answers: File exists")
+        # LP: #1833446
+        ignore_warnings.append(
+            "UrlError: 404 Client Error: Not Found for url: "
+            "http://169.254.169.254/latest/meta-data/"
+        )
+        # Oracle has a file in /etc/cloud/cloud.cfg.d that contains
+        # users:
+        # - default
+        # - name: opc
+        #   ssh_redirect_user: true
+        # This can trigger a warning about opc having no public key
+        ignore_warnings.append(
+            "Unable to disable SSH logins for opc given ssh_redirect_user"
+        )
+
+    _verify_clean_boot(
+        instance,
+        ignore_warnings=ignore_warnings,
+        ignore_errors=ignore_errors,
+        require_warnings=require_warnings,
+        require_errors=require_errors,
+    )
+    # assert no Tracebacks
+    assert (
+        "0"
+        == instance.execute(
+            "grep --count Traceback /var/log/cloud-init.log"
+        ).stdout.strip()
+    ), "Unexpected traceback found in /var/log/cloud-init.log"
+
+
+def _verify_clean_boot(
+    instance: "IntegrationInstance",
+    ignore_warnings: Optional[Union[List[str], bool]] = None,
+    ignore_errors: Optional[Union[List[str], bool]] = None,
+    require_warnings: Optional[list] = None,
+    require_errors: Optional[list] = None,
+):
     ignore_errors = ignore_errors or []
     ignore_warnings = ignore_warnings or []
     require_errors = require_errors or []
