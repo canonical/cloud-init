@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """schema.py: Set of module functions for processing cloud-config schema."""
 import argparse
+import glob
 import json
 import logging
 import os
@@ -40,6 +41,7 @@ from cloudinit.util import (
     error,
     get_modules_from_dir,
     load_text_file,
+    load_yaml,
     write_file,
 )
 
@@ -66,6 +68,7 @@ VERSIONED_USERDATA_SCHEMA_FILE = "versions.schema.cloud-config.json"
 # 3. Add the new version definition to versions.schema.cloud-config.json
 USERDATA_SCHEMA_FILE = "schema-cloud-config-v1.json"
 NETWORK_CONFIG_V1_SCHEMA_FILE = "schema-network-config-v1.json"
+NETWORK_CONFIG_V2_SCHEMA_FILE = "schema-network-config-v2.json"
 
 _YAML_MAP = {True: "true", False: "false", None: "null"}
 SCHEMA_DOC_TMPL = """
@@ -160,6 +163,8 @@ class SchemaType(Enum):
 
     CLOUD_CONFIG = "cloud-config"
     NETWORK_CONFIG = "network-config"
+    NETWORK_CONFIG_V1 = "network-config-v1"
+    NETWORK_CONFIG_V2 = "network-config-v2"
 
 
 # Placeholders for versioned schema and schema file locations.
@@ -169,7 +174,13 @@ SCHEMA_FILES_BY_TYPE = {
         "latest": USERDATA_SCHEMA_FILE,
     },
     SchemaType.NETWORK_CONFIG: {
+        "latest": NETWORK_CONFIG_V2_SCHEMA_FILE,
+    },
+    SchemaType.NETWORK_CONFIG_V1: {
         "latest": NETWORK_CONFIG_V1_SCHEMA_FILE,
+    },
+    SchemaType.NETWORK_CONFIG_V2: {
+        "latest": NETWORK_CONFIG_V2_SCHEMA_FILE,
     },
 }
 
@@ -617,7 +628,9 @@ def netplan_validate_network_schema(
     try:
         from netplan import NetplanParserException, Parser  # type: ignore
     except ImportError:
-        LOG.debug("Skipping netplan schema validation. No netplan available")
+        LOG.debug(
+            "Skipping netplan schema validation. No netplan API available"
+        )
         return False
 
     # netplan Parser looks at all *.yaml files in the target directory underA
@@ -699,7 +712,8 @@ def validate_cloudconfig_schema(
        for the cloud config module (config.cc_*). If None, validate against
        global schema.
     @param schema_type: Optional SchemaType.
-       One of: SchemaType.CLOUD_CONFIG or  SchemaType.NETWORK_CONFIG.
+       One of: SchemaType.CLOUD_CONFIG or SchemaType.NETWORK_CONFIG_V1 or
+            SchemaType.NETWORK_CONFIG_V2
        Default: SchemaType.CLOUD_CONFIG
     @param strict: Boolean, when True raise SchemaValidationErrors instead of
        logging warnings.
@@ -714,17 +728,31 @@ def validate_cloudconfig_schema(
         against the provided schema.
     @raises: RuntimeError when provided config sourced from YAML is not a dict.
     @raises: ValueError on invalid schema_type not in CLOUD_CONFIG or
-        NETWORK_CONFIG
+        NETWORK_CONFIG_V1 or NETWORK_CONFIG_V2
     """
+    from cloudinit.net.netplan import available as netplan_available
+
     if schema_type == SchemaType.NETWORK_CONFIG:
-        if network_schema_version(config) == 2:
-            if netplan_validate_network_schema(
-                network_config=config, strict=strict, log_details=log_details
-            ):
-                # Schema was validated by netplan
-                return True
-            # network-config schema version 2 but no netplan.
-            # TODO(add JSON schema definition for network version 2)
+        network_version = network_schema_version(config)
+        if network_version == 2:
+            schema_type = SchemaType.NETWORK_CONFIG_V2
+        elif network_version == 1:
+            schema_type = SchemaType.NETWORK_CONFIG_V1
+        schema = get_schema(schema_type)
+
+    if schema_type == SchemaType.NETWORK_CONFIG_V2:
+        if netplan_validate_network_schema(
+            network_config=config, strict=strict, log_details=log_details
+        ):
+            # Schema was validated by netplan
+            return True
+        elif netplan_available():
+            # We found no netplan API on netplan system, do not perform schema
+            # validation against cloud-init's network v2 schema because netplan
+            # supports more config keys than in cloud-init's netv2 schema.
+            # This may result in schema warnings for valid netplan config
+            # which would be successfully rendered by netplan but doesn't
+            # adhere to cloud-init's network v2.
             return False
 
     if schema is None:
@@ -1056,6 +1084,8 @@ def validate_cloudconfig_file(
     :raises SchemaValidationError containing any of schema_errors encountered.
     :raises RuntimeError when config_path does not exist.
     """
+    from cloudinit.net.netplan import available as netplan_available
+
     decoded_content = load_text_file(config_path)
     if not decoded_content:
         print(
@@ -1083,7 +1113,7 @@ def validate_cloudconfig_file(
         if annotate:
             cloudconfig, marks = safeyaml.load_with_marks(content)
         else:
-            cloudconfig = safeyaml.load(content)
+            cloudconfig = yaml.safe_load(content)
             marks = {}
     except yaml.YAMLError as e:
         line = column = 1
@@ -1121,22 +1151,28 @@ def validate_cloudconfig_file(
             return False
         network_version = network_schema_version(cloudconfig)
         if network_version == 2:
+            schema_type = SchemaType.NETWORK_CONFIG_V2
             if netplan_validate_network_schema(
                 network_config=cloudconfig, strict=True, annotate=annotate
             ):
                 return True  # schema validation performed by netplan
-        if network_version != 1:
-            # Validation requires JSON schema definition in
-            # cloudinit/config/schemas/schema-network-config-v1.json
-            print(
-                "Skipping network-config schema validation."
-                " No network schema for version:"
-                f" {network_schema_version(cloudconfig)}"
-            )
-            return False
+            elif netplan_available():
+                print(
+                    "Skipping network-config schema validation for version: 2."
+                    " No netplan API available."
+                )
+                return False
+        elif network_version == 1:
+            schema_type = SchemaType.NETWORK_CONFIG_V1
+            # refresh schema since NETWORK_CONFIG defaults to V2
+            schema = get_schema(schema_type)
     try:
         if not validate_cloudconfig_schema(
-            cloudconfig, schema=schema, strict=True, log_deprecations=False
+            cloudconfig,
+            schema=schema,
+            schema_type=schema_type,
+            strict=True,
+            log_deprecations=False,
         ):
             print(
                 f"Skipping {schema_type.value} schema validation."
@@ -1425,6 +1461,8 @@ def _get_property_doc(schema: dict, defs: dict, prefix="   ") -> str:
 
 def _get_examples(meta: MetaSchema) -> str:
     """Return restructured text describing the meta examples if present."""
+    paths = read_cfg_paths()
+    module_docs_dir = os.path.join(paths.docs_dir, "module-docs")
     examples = meta.get("examples")
     if not examples:
         return ""
@@ -1433,6 +1471,15 @@ def _get_examples(meta: MetaSchema) -> str:
         rst_content += SCHEMA_EXAMPLES_SPACER_TEMPLATE.format(
             example_count=count
         )
+        # FIXME(no conditional needed when all modules in module-doc.yaml)
+        if isinstance(example, dict):
+            if example["comment"]:
+                comment = f"# {example['comment']}\n"
+            else:
+                comment = ""
+            example = comment + load_text_file(
+                os.path.join(module_docs_dir, example["file"])
+            )
         indented_lines = textwrap.indent(example, "   ").split("\n")
         rst_content += "\n".join(indented_lines)
     return rst_content
@@ -1542,19 +1589,36 @@ def load_doc(requested_modules: list) -> str:
             ),
             sys_exit=True,
         )
-    for mod_name in all_modules:
+    module_docs = get_module_docs()
+    schema = get_schema()
+    for mod_name in sorted(all_modules):
         if "all" in requested_modules or mod_name in requested_modules:
             (mod_locs, _) = importer.find_module(
                 mod_name, ["cloudinit.config"], ["meta"]
             )
             if mod_locs:
                 mod = importer.import_module(mod_locs[0])
-                docs += mod.__doc__ or ""
+                if module_docs.get(mod.meta["id"]):
+                    # Include docs only when module id is in module_docs
+                    mod.meta.update(module_docs.get(mod.meta["id"], {}))
+                    docs += get_meta_doc(mod.meta, schema) or ""
+                else:
+                    docs += mod.__doc__ or ""
     return docs
 
 
 def get_schema_dir() -> str:
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "schemas")
+
+
+def get_module_docs() -> dict:
+    """Return a dict keyed on cc_<mod_name> with documentation info"""
+    paths = read_cfg_paths()
+    mod_docs = {}
+    module_docs_dir = os.path.join(paths.docs_dir, "module-docs")
+    for mod_doc in glob.glob(f"{module_docs_dir}/*/data.yaml"):
+        mod_docs.update(load_yaml(load_text_file(mod_doc)))
+    return mod_docs
 
 
 def get_schema(schema_type: SchemaType = SchemaType.CLOUD_CONFIG) -> dict:
@@ -1671,7 +1735,7 @@ def get_config_paths_from_args(
 ) -> Tuple[str, List[InstanceDataPart]]:
     """Return appropriate instance-data.json and instance data parts
 
-    Based on commandline args, and user permissions, determine the
+    Based on command line args, and user permissions, determine the
     appropriate instance-data.json to source for jinja templates and
     a list of applicable InstanceDataParts such as user-data, vendor-data
     and network-config for which to validate schema. Avoid returning any

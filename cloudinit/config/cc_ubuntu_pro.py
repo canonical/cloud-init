@@ -261,7 +261,7 @@ def set_pro_config(pro_config: Any = None):
 
 
 def configure_pro(token, enable=None):
-    """Call ua commandline client to attach and/or enable services."""
+    """Call ua command line client to attach and/or enable services."""
     if enable is None:
         enable = []
     elif isinstance(enable, str):

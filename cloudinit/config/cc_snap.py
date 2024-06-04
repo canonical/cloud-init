@@ -116,7 +116,7 @@ SNAP_CMD = "snap"
 
 
 def add_assertions(assertions, assertions_file):
-    """Import list of assertions.
+    r"""Import list of assertions.
 
     Import assertions by concatenating each assertion into a
     string separated by a '\n'.  Write this string to a instance file and

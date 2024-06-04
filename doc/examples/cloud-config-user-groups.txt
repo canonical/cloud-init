@@ -137,13 +137,5 @@ users:
 #
 # users[0] (the first user in users) overrides the user directive.
 #
-# The 'default' user above references the distro's config:
-# system_info:
-#   default_user:
-#     name: Ubuntu
-#     plain_text_passwd: 'ubuntu'
-#     homedir: /home/ubuntu
-#     shell: /bin/bash
-#     lock_passwd: True
-#     gecos: Ubuntu
-#     groups: [adm, cdrom, dip, lxd, sudo]
+# The 'default' user above references the distro's config set in
+# /etc/cloud/cloud.cfg.

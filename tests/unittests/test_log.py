@@ -1,6 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""Tests for cloudinit.log """
+"""Tests for cloudinit.log"""
 
 import datetime
 import io

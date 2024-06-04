@@ -1,24 +1,18 @@
-name: scheduled-hypothesis
+name: scheduled-daily
 on:
   schedule:
     - cron: '3 14 * * *'
 concurrency:
   group: 'ci-${{ github.workflow }}-${{ github.ref }}'
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  unittests:
-    strategy:
-      matrix:
-        toxenv: [ hypothesis-slow ]
-    name: unittest / ${{ matrix.toxenv }}
+  hypothesis:
+    name: unittest / hypothesis-slow
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-        with:
-          # Fetch all tags for tools/read-version
-          fetch-depth: 0
       - name: Install dependencies
         env:
           DEBIAN_FRONTEND: noninteractive
@@ -29,4 +23,37 @@ jobs:
         env:
           PYTEST_ADDOPTS: -v
           HYPOTHESIS_PROFILE: ci
-        run: tox -e ${{ matrix.toxenv }}
+        run: tox -e hypothesis-slow
+  devel_tests:
+    name: unittest / 3.13-dev
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install Python 3.13-dev
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.13-dev
+          check-latest: true
+      - name: Install tox
+        run: pip install tox
+      - name: Run unittest
+        run: tox -e py3
+  format_tip:
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [tip-ruff, tip-mypy, tip-pylint, tip-black, tip-isort]
+    name: format-tip
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install dependencies
+        run: |
+          sudo apt-get -qy update
+          sudo apt-get -qy install tox
+      - name: Run Linters tip
+        env:
+          TOXENV: ${{ matrix.env }}
+        run: tox

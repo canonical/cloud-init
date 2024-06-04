@@ -6,6 +6,6 @@
     notifempty
     rotate 6
     compress
-    delayacompress
+    delaycompress
     size 1M   
 }

@@ -13,6 +13,7 @@ import logging
 import re
 from copy import copy, deepcopy
 from ipaddress import IPv4Network
+from typing import Dict, List, Union
 
 from cloudinit import subp, util
 from cloudinit.net.network_state import net_prefix_to_ipv4_mask
@@ -282,7 +283,45 @@ def _netdev_info_ifconfig(ifconfig_data):
     return devs
 
 
-def netdev_info(empty=""):
+def netdev_info(
+    empty="",
+) -> Dict[str, Dict[str, Union[str, List[Dict[str, str]]]]]:
+    """return the instance's interfaces and interface data
+
+    includes, interface name, link state, hardware address, and lists of ipv4
+    and ipv6 addresses
+
+    example output:
+    {
+    'lo': {
+        'up': True,
+        'hwaddr': '',
+        'ipv4': [
+        {
+            'bcast': '',
+            'ip': '127.0.0.1',
+            'mask': '255.0.0.0',
+            'scope': 'host',
+        }],
+        'ipv6': [{'ip': '::1/128', 'scope6': 'host'}],
+    },
+    'lxdbr0': {
+        'up': True
+        'hwaddr': '00:16:3e:fa:84:30',
+        'ipv4': [{
+            'bcast': '',
+            'ip': '10.161.80.1',
+            'mask': '255.255.255.0',
+            'scope': 'global',
+        }],
+        'ipv6': [
+            {'ip': 'fd42:80e2:4695:1e96::1/64', 'scope6': 'global'},
+            {'ip': 'fe80::216:3eff:fefa:8430/64', 'scope6': 'link'},
+        ]
+    },
+    }
+
+    """
     devs = {}
     if util.is_NetBSD():
         (ifcfg_out, _err) = subp.subp(["ifconfig", "-a"], rcs=[0, 1])

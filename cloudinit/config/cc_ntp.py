@@ -234,6 +234,9 @@ DISTRO_CLIENT_CONFIG = {
 for distro in ("opensuse-microos", "opensuse-tumbleweed", "opensuse-leap"):
     DISTRO_CLIENT_CONFIG[distro] = DISTRO_CLIENT_CONFIG["opensuse"]
 
+for distro in ("almalinux", "cloudlinux"):
+    DISTRO_CLIENT_CONFIG[distro] = DISTRO_CLIENT_CONFIG["rhel"]
+
 for distro in ("sle_hpc", "sle-micro"):
     DISTRO_CLIENT_CONFIG[distro] = DISTRO_CLIENT_CONFIG["sles"]
 

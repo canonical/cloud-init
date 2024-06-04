@@ -5,7 +5,7 @@
 import copy
 import errno
 import os
-from textwrap import dedent
+import re
 
 import pytest
 
@@ -25,72 +25,65 @@ from cloudinit.handlers.shell_script_by_frequency import (
     path_map,
 )
 from cloudinit.settings import PER_ALWAYS, PER_INSTANCE, PER_ONCE
-from tests.unittests.helpers import CiTestCase, mock, skipUnlessJinja
+from tests.unittests.helpers import mock, skipUnlessJinja
 from tests.unittests.util import FakeDataSource
 
 INSTANCE_DATA_FILE = "instance-data-sensitive.json"
+MPATH = "cloudinit.handlers.jinja_template."
 
 
-class TestJinjaTemplatePartHandler(CiTestCase):
-
-    with_logs = True
-
-    mpath = "cloudinit.handlers.jinja_template."
-
-    def setUp(self):
-        super(TestJinjaTemplatePartHandler, self).setUp()
-        self.tmp = self.tmp_dir()
-        self.run_dir = os.path.join(self.tmp, "run_dir")
-        util.ensure_dir(self.run_dir)
-        self.paths = helpers.Paths(
-            {"cloud_dir": self.tmp, "run_dir": self.run_dir}
+class TestJinjaTemplatePartHandler:
+    @pytest.fixture
+    def setup(self, tmp_path):
+        yield helpers.Paths(
+            {"cloud_dir": tmp_path, "run_dir": tmp_path / "run_dir"}
         )
 
-    def test_jinja_template_part_handler_defaults(self):
+    def test_jinja_template_part_handler_defaults(self, paths):
         """On init, paths are saved and subhandler types are empty."""
-        h = JinjaTemplatePartHandler(self.paths)
-        self.assertEqual(["## template: jinja"], h.prefixes)
-        self.assertEqual(3, h.handler_version)
-        self.assertEqual(self.paths, h.paths)
-        self.assertEqual({}, h.sub_handlers)
+        h = JinjaTemplatePartHandler(paths)
+        assert ["## template: jinja"] == h.prefixes
+        assert 3 == h.handler_version
+        assert paths == h.paths
+        assert {} == h.sub_handlers
 
-    def test_jinja_template_part_handler_looks_up_sub_handler_types(self):
+    def test_jinja_template_part_handler_looks_up_sub_handler_types(
+        self, paths
+    ):
         """When sub_handlers are passed, init lists types of subhandlers."""
-        script_handler = ShellScriptPartHandler(self.paths)
-        cloudconfig_handler = CloudConfigPartHandler(self.paths)
+        script_handler = ShellScriptPartHandler(paths)
+        cloudconfig_handler = CloudConfigPartHandler(paths)
         h = JinjaTemplatePartHandler(
-            self.paths, sub_handlers=[script_handler, cloudconfig_handler]
+            paths, sub_handlers=[script_handler, cloudconfig_handler]
         )
-        self.assertCountEqual(
-            [
-                "text/cloud-config",
-                "text/cloud-config-jsonp",
-                "text/x-shellscript",
-            ],
-            h.sub_handlers,
-        )
+        expected = [
+            "text/cloud-config",
+            "text/cloud-config-jsonp",
+            "text/x-shellscript",
+        ]
+        assert sorted(expected) == sorted(h.sub_handlers)
 
-    def test_jinja_template_part_handler_looks_up_subhandler_types(self):
+    def test_jinja_template_part_handler_looks_up_subhandler_types(
+        self, paths
+    ):
         """When sub_handlers are passed, init lists types of subhandlers."""
-        script_handler = ShellScriptPartHandler(self.paths)
-        cloudconfig_handler = CloudConfigPartHandler(self.paths)
+        script_handler = ShellScriptPartHandler(paths)
+        cloudconfig_handler = CloudConfigPartHandler(paths)
         h = JinjaTemplatePartHandler(
-            self.paths, sub_handlers=[script_handler, cloudconfig_handler]
+            paths, sub_handlers=[script_handler, cloudconfig_handler]
         )
-        self.assertCountEqual(
-            [
-                "text/cloud-config",
-                "text/cloud-config-jsonp",
-                "text/x-shellscript",
-            ],
-            h.sub_handlers,
-        )
+        expected = [
+            "text/cloud-config",
+            "text/cloud-config-jsonp",
+            "text/x-shellscript",
+        ]
+        assert sorted(expected) == sorted(h.sub_handlers)
 
-    def test_jinja_template_handle_noop_on_content_signals(self):
+    def test_jinja_template_handle_noop_on_content_signals(self, paths):
         """Perform no part handling when content type is CONTENT_SIGNALS."""
-        script_handler = ShellScriptPartHandler(self.paths)
+        script_handler = ShellScriptPartHandler(paths)
 
-        h = JinjaTemplatePartHandler(self.paths, sub_handlers=[script_handler])
+        h = JinjaTemplatePartHandler(paths, sub_handlers=[script_handler])
         with mock.patch.object(script_handler, "handle_part") as m_handle_part:
             h.handle_part(
                 data="data",
@@ -103,16 +96,18 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         m_handle_part.assert_not_called()
 
     @skipUnlessJinja()
-    def test_jinja_template_handle_subhandler_v2_with_clean_payload(self):
+    def test_jinja_template_handle_subhandler_v2_with_clean_payload(
+        self, paths
+    ):
         """Call version 2 subhandler.handle_part with stripped payload."""
-        script_handler = ShellScriptPartHandler(self.paths)
-        self.assertEqual(2, script_handler.handler_version)
+        script_handler = ShellScriptPartHandler(paths)
+        assert 2 == script_handler.handler_version
 
         # Create required instance data json file
-        instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
+        instance_json = os.path.join(paths.run_dir, INSTANCE_DATA_FILE)
         instance_data = {"topkey": "echo himom"}
         util.write_file(instance_json, atomic_helper.json_dumps(instance_data))
-        h = JinjaTemplatePartHandler(self.paths, sub_handlers=[script_handler])
+        h = JinjaTemplatePartHandler(paths, sub_handlers=[script_handler])
         with mock.patch.object(script_handler, "handle_part") as m_part:
             # ctype with leading '!' not in handlers.CONTENT_SIGNALS
             h.handle_part(
@@ -128,18 +123,18 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         )
 
     @skipUnlessJinja()
-    def test_jinja_template_handle_subhandler_v3_with_clean_payload(self):
+    def test_jinja_template_handle_subhandler_v3_with_clean_payload(
+        self, paths
+    ):
         """Call version 3 subhandler.handle_part with stripped payload."""
-        cloudcfg_handler = CloudConfigPartHandler(self.paths)
-        self.assertEqual(3, cloudcfg_handler.handler_version)
+        cloudcfg_handler = CloudConfigPartHandler(paths)
+        assert 3 == cloudcfg_handler.handler_version
 
         # Create required instance-data.json file
-        instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
+        instance_json = os.path.join(paths.run_dir, INSTANCE_DATA_FILE)
         instance_data = {"topkey": {"sub": "runcmd: [echo hi]"}}
         util.write_file(instance_json, atomic_helper.json_dumps(instance_data))
-        h = JinjaTemplatePartHandler(
-            self.paths, sub_handlers=[cloudcfg_handler]
-        )
+        h = JinjaTemplatePartHandler(paths, sub_handlers=[cloudcfg_handler])
         with mock.patch.object(cloudcfg_handler, "handle_part") as m_part:
             # ctype with leading '!' not in handlers.CONTENT_SIGNALS
             h.handle_part(
@@ -159,11 +154,13 @@ class TestJinjaTemplatePartHandler(CiTestCase):
             "headers",
         )
 
-    def test_jinja_template_handle_errors_on_missing_instance_data_json(self):
+    def test_jinja_template_handle_errors_on_missing_instance_data_json(
+        self, paths
+    ):
         """If instance-data is absent, raise an error from handle_part."""
-        script_handler = ShellScriptPartHandler(self.paths)
-        h = JinjaTemplatePartHandler(self.paths, sub_handlers=[script_handler])
-        with self.assertRaises(JinjaLoadError) as context_manager:
+        script_handler = ShellScriptPartHandler(paths)
+        h = JinjaTemplatePartHandler(paths, sub_handlers=[script_handler])
+        with pytest.raises(JinjaLoadError) as context_manager:
             h.handle_part(
                 data="data",
                 ctype="!" + handlers.CONTENT_START,
@@ -173,24 +170,25 @@ class TestJinjaTemplatePartHandler(CiTestCase):
                 headers="headers",
             )
         script_file = os.path.join(script_handler.script_dir, "part01")
-        self.assertEqual(
+        assert (
             "Cannot render jinja template vars. Instance data not yet present"
-            " at {}/{}".format(self.run_dir, INSTANCE_DATA_FILE),
-            str(context_manager.exception),
+            " at {}/{}".format(paths.run_dir, INSTANCE_DATA_FILE)
+            == str(context_manager.value)
         )
-        self.assertFalse(
-            os.path.exists(script_file),
-            "Unexpected file created %s" % script_file,
+        assert not os.path.exists(script_file), (
+            "Unexpected file created %s" % script_file
         )
 
-    def test_jinja_template_handle_errors_on_unreadable_instance_data(self):
+    def test_jinja_template_handle_errors_on_unreadable_instance_data(
+        self, paths
+    ):
         """If instance-data is unreadable, raise an error from handle_part."""
-        script_handler = ShellScriptPartHandler(self.paths)
-        instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
+        script_handler = ShellScriptPartHandler(paths)
+        instance_json = os.path.join(paths.run_dir, INSTANCE_DATA_FILE)
         util.write_file(instance_json, atomic_helper.json_dumps({}))
-        h = JinjaTemplatePartHandler(self.paths, sub_handlers=[script_handler])
-        with mock.patch(self.mpath + "load_text_file") as m_load:
-            with self.assertRaises(JinjaLoadError) as context_manager:
+        h = JinjaTemplatePartHandler(paths, sub_handlers=[script_handler])
+        with mock.patch(MPATH + "load_text_file") as m_load:
+            with pytest.raises(JinjaLoadError) as context_manager:
                 m_load.side_effect = OSError(errno.EACCES, "Not allowed")
                 h.handle_part(
                     data="data",
@@ -201,24 +199,23 @@ class TestJinjaTemplatePartHandler(CiTestCase):
                     headers="headers",
                 )
         script_file = os.path.join(script_handler.script_dir, "part01")
-        self.assertEqual(
+        assert (
             "Cannot render jinja template vars. No read permission on "
-            "'{}/{}'. Try sudo".format(self.run_dir, INSTANCE_DATA_FILE),
-            str(context_manager.exception),
+            "'{}/{}'. Try sudo".format(paths.run_dir, INSTANCE_DATA_FILE)
+            == str(context_manager.value)
         )
-        self.assertFalse(
-            os.path.exists(script_file),
-            "Unexpected file created %s" % script_file,
+        assert not os.path.exists(script_file), (
+            "Unexpected file created %s" % script_file
         )
 
     @skipUnlessJinja()
-    def test_jinja_template_handle_renders_jinja_content(self):
+    def test_jinja_template_handle_renders_jinja_content(self, paths, caplog):
         """When present, render jinja variables from instance data"""
-        script_handler = ShellScriptPartHandler(self.paths)
-        instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
+        script_handler = ShellScriptPartHandler(paths)
+        instance_json = os.path.join(paths.run_dir, INSTANCE_DATA_FILE)
         instance_data = {"topkey": {"subkey": "echo himom"}}
         util.write_file(instance_json, atomic_helper.json_dumps(instance_data))
-        h = JinjaTemplatePartHandler(self.paths, sub_handlers=[script_handler])
+        h = JinjaTemplatePartHandler(paths, sub_handlers=[script_handler])
         h.handle_part(
             data="data",
             ctype="!" + handlers.CONTENT_START,
@@ -232,24 +229,24 @@ class TestJinjaTemplatePartHandler(CiTestCase):
             headers="headers",
         )
         script_file = os.path.join(script_handler.script_dir, "part01")
-        self.assertNotIn(
+        assert (
             "Instance data not yet present at {}/{}".format(
-                self.run_dir, INSTANCE_DATA_FILE
-            ),
-            self.logs.getvalue(),
+                paths.run_dir, INSTANCE_DATA_FILE
+            )
+            not in caplog.text
         )
-        self.assertEqual(
-            "#!/bin/bash\necho himom", util.load_text_file(script_file)
-        )
+        assert "#!/bin/bash\necho himom" == util.load_text_file(script_file)
 
     @skipUnlessJinja()
-    def test_jinja_template_handle_renders_jinja_content_missing_keys(self):
+    def test_jinja_template_handle_renders_jinja_content_missing_keys(
+        self, paths, caplog
+    ):
         """When specified jinja variable is undefined, log a warning."""
-        script_handler = ShellScriptPartHandler(self.paths)
-        instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
+        script_handler = ShellScriptPartHandler(paths)
+        instance_json = os.path.join(paths.run_dir, INSTANCE_DATA_FILE)
         instance_data = {"topkey": {"subkey": "echo himom"}}
         util.write_file(instance_json, atomic_helper.json_dumps(instance_data))
-        h = JinjaTemplatePartHandler(self.paths, sub_handlers=[script_handler])
+        h = JinjaTemplatePartHandler(paths, sub_handlers=[script_handler])
         h.handle_part(
             data="data",
             ctype="!" + handlers.CONTENT_START,
@@ -259,14 +256,12 @@ class TestJinjaTemplatePartHandler(CiTestCase):
             headers="headers",
         )
         script_file = os.path.join(script_handler.script_dir, "part01")
-        self.assertTrue(
-            os.path.exists(script_file),
-            "Missing expected file %s" % script_file,
+        assert os.path.exists(script_file), (
+            "Missing expected file %s" % script_file
         )
-        self.assertIn(
-            "WARNING: Could not render jinja template variables in file"
-            " 'part01': 'goodtry'\n",
-            self.logs.getvalue(),
+        assert (
+            "Could not render jinja template variables in file"
+            " 'part01': 'goodtry'\n" in caplog.text
         )
 
 
@@ -353,59 +348,50 @@ class TestConvertJinjaInstanceData:
         assert expected_data == converted_data
 
 
-class TestRenderJinjaPayload(CiTestCase):
-
-    with_logs = True
-
+class TestRenderJinjaPayload:
     @skipUnlessJinja()
-    def test_render_jinja_payload_logs_jinja_vars_on_debug(self):
+    def test_render_jinja_payload_logs_jinja_vars_on_debug(self, caplog):
         """When debug is True, log jinja varables available."""
         payload = (
             "## template: jinja\n#!/bin/sh\necho hi from {{ v1.hostname }}"
         )
         instance_data = {"v1": {"hostname": "foo"}, "instance-id": "iid"}
-        expected_log = dedent(
-            """\
-            DEBUG: Converted jinja variables
-            {
-             "hostname": "foo",
-             "instance-id": "iid",
-             "instance_id": "iid",
-             "v1": {
-              "hostname": "foo"
-             }
-            }
-            """
-        )
-        self.assertEqual(
+        assert (
             render_jinja_payload(
                 payload=payload,
                 payload_fn="myfile",
                 instance_data=instance_data,
                 debug=True,
-            ),
-            "#!/bin/sh\necho hi from foo",
+            )
+            == "#!/bin/sh\necho hi from foo"
         )
-        self.assertEqual(expected_log, self.logs.getvalue())
+        expected_log = (
+            '.*Converted jinja variables\\n.*{\\n.*"hostname": "foo",\\n.*'
+            '"instance-id": "iid",\\n.*"instance_id": "iid",\\n.*'
+            '"v1": {\\n.*"hostname": "foo"\\n.*}'
+        )
+        assert re.match(expected_log, caplog.text, re.DOTALL)
 
     @skipUnlessJinja()
-    def test_render_jinja_payload_replaces_missing_variables_and_warns(self):
+    def test_render_jinja_payload_replaces_missing_variables_and_warns(
+        self, caplog
+    ):
         """Warn on missing jinja variables and replace the absent variable."""
         payload = "## template: jinja\n#!/bin/sh\necho hi from {{ NOTHERE }}"
         instance_data = {"v1": {"hostname": "foo"}, "instance-id": "iid"}
-        self.assertEqual(
+        assert (
             render_jinja_payload(
                 payload=payload,
                 payload_fn="myfile",
                 instance_data=instance_data,
-            ),
-            "#!/bin/sh\necho hi from CI_MISSING_JINJA_VAR/NOTHERE",
+            )
+            == "#!/bin/sh\necho hi from CI_MISSING_JINJA_VAR/NOTHERE"
         )
         expected_log = (
-            "WARNING: Could not render jinja template variables in file"
+            "Could not render jinja template variables in file"
             " 'myfile': 'NOTHERE'"
         )
-        self.assertIn(expected_log, self.logs.getvalue())
+        assert expected_log in caplog.text
 
 
 class TestShellScriptByFrequencyHandlers:

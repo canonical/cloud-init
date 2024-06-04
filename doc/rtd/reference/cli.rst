@@ -212,7 +212,7 @@ Example output:
 
 Generally run by OS init systems to execute ``cloud-init``'s stages:
 *init* and *init-local*. See :ref:`boot_stages` for more info.
-Can be run on the commandline, but is generally gated to run only once
+Can be run on the command line, but is generally gated to run only once
 due to semaphores in :file:`/var/lib/cloud/instance/sem/` and
 :file:`/var/lib/cloud/sem`.
 

@@ -7,15 +7,9 @@ from io import StringIO
 from textwrap import dedent
 from unittest import mock
 
-from cloudinit import (
-    distros,
-    features,
-    helpers,
-    safeyaml,
-    settings,
-    subp,
-    util,
-)
+import yaml
+
+from cloudinit import distros, features, helpers, settings, subp, util
 from cloudinit.distros.parsers.sys_conf import SysConf
 from cloudinit.net.activators import IfUpDownActivator
 from tests.unittests.helpers import (
@@ -1148,7 +1142,7 @@ class TestNetCfgDistroPhoton(TestNetCfgDistroBase):
         [Address]
         Address=192.168.0.102/24"""
 
-        net_cfg = safeyaml.load(V1_NET_CFG_WITH_DUPS)
+        net_cfg = yaml.safe_load(V1_NET_CFG_WITH_DUPS)
 
         expected = self.create_conf_dict(expected.splitlines())
         expected_cfgs = {
@@ -1273,7 +1267,7 @@ class TestNetCfgDistroMariner(TestNetCfgDistroBase):
         [Address]
         Address=192.168.0.102/24"""
 
-        net_cfg = safeyaml.load(V1_NET_CFG_WITH_DUPS)
+        net_cfg = yaml.safe_load(V1_NET_CFG_WITH_DUPS)
 
         expected = self.create_conf_dict(expected.splitlines())
         expected_cfgs = {
@@ -1398,7 +1392,7 @@ class TestNetCfgDistroAzureLinux(TestNetCfgDistroBase):
         [Address]
         Address=192.168.0.102/24"""
 
-        net_cfg = safeyaml.load(V1_NET_CFG_WITH_DUPS)
+        net_cfg = yaml.safe_load(V1_NET_CFG_WITH_DUPS)
 
         expected = self.create_conf_dict(expected.splitlines())
         expected_cfgs = {

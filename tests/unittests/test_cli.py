@@ -2,8 +2,10 @@
 
 import contextlib
 import io
+import json
 import logging
 import os
+import sys
 from collections import namedtuple
 
 import pytest
@@ -16,14 +18,7 @@ mock = test_helpers.mock
 
 M_PATH = "cloudinit.cmd.main."
 Tmpdir = namedtuple("Tmpdir", ["tmpdir", "link_d", "data_d"])
-
-
-@pytest.fixture()
-def mock_get_user_data_file(mocker, tmpdir):
-    yield mocker.patch(
-        "cloudinit.cmd.devel.logs._get_user_data_file",
-        return_value=tmpdir.join("cloud"),
-    )
+FakeArgs = namedtuple("FakeArgs", ["action", "local", "mode"])
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -76,7 +71,6 @@ class TestCLI:
     def test_status_wrapper_errors(
         self, action, name, match, caplog, mock_status_wrapper
     ):
-        FakeArgs = namedtuple("FakeArgs", ["action", "local", "mode"])
         my_action = mock.Mock()
 
         myargs = FakeArgs((action, my_action), False, "bogusmode")
@@ -101,8 +95,6 @@ class TestCLI:
             test_helpers.populate_dir(
                 str(_dir), {"status.json": "old", "result.json": "old"}
             )
-
-        FakeArgs = namedtuple("FakeArgs", ["action", "local", "mode"])
 
         def myaction(name, args):
             # Return an error to watch status capture them
@@ -136,11 +128,11 @@ class TestCLI:
         """When running in init-local mode, status_wrapper honors cloud_dir."""
         cloud_dir = mock_status_wrapper.tmpdir.join("cloud")
         paths = helpers.Paths({"cloud_dir": str(cloud_dir)})
-        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
+        mocker.patch(
+            "cloudinit.config.schema.read_cfg_paths", return_value=paths
+        )
         data_d = mock_status_wrapper.data_d
         link_d = mock_status_wrapper.link_d
-
-        FakeArgs = namedtuple("FakeArgs", ["action", "local", "mode"])
 
         def myaction(name, args):
             # Return an error to watch status capture them
@@ -255,13 +247,11 @@ class TestCLI:
             "schema",
         ],
     )
-    @mock.patch("cloudinit.stages.Init._read_cfg", return_value={})
     def test_conditional_subcommands_from_entry_point_sys_argv(
         self,
-        m_read_cfg,
         subcommand,
         capsys,
-        mock_get_user_data_file,
+        m_log_paths,
         mock_status_wrapper,
     ):
         """Subcommands from entry-point are properly parsed from sys.argv."""
@@ -284,7 +274,7 @@ class TestCLI:
         ],
     )
     def test_subcommand_parser(
-        self, subcommand, mock_get_user_data_file, mock_status_wrapper
+        self, subcommand, m_log_paths, mock_status_wrapper
     ):
         """cloud-init `subcommand` calls its subparser."""
         # Provide -h param to `subcommand` to avoid having to mock behavior.
@@ -370,7 +360,13 @@ class TestCLI:
     )
     @mock.patch("cloudinit.stages.Init._read_cfg", return_value={})
     def test_wb_schema_subcommand(
-        self, m_read_cfg, args, expected_doc_sections, is_error
+        self,
+        m_read_cfg,
+        args,
+        expected_doc_sections,
+        is_error,
+        mocker,
+        request,
     ):
         """Validate that doc content has correct values."""
 
@@ -383,6 +379,12 @@ class TestCLI:
             contextlib.redirect_stderr
             if is_error
             else contextlib.redirect_stdout
+        )
+        paths = helpers.Paths(
+            {"docs_dir": os.path.join(request.config.rootdir, "doc")}
+        )
+        mocker.patch(
+            "cloudinit.config.schema.read_cfg_paths", return_value=paths
         )
         with redirecter(out_or_err):
             self._call_main(["cloud-init", "schema", "--docs"] + args)
@@ -414,3 +416,136 @@ class TestCLI:
         assert "features" == parseargs.action[0]
         assert False is parseargs.debug
         assert False is parseargs.force
+
+
+class TestSignalHandling:
+    @mock.patch("cloudinit.cmd.main.atomic_helper.write_json")
+    def test_status_wrapper_signal_sys_exit(
+        self,
+        m_json,
+        mocker,
+        mock_status_wrapper,
+    ):
+        """make sure that when sys.exit(N) is called, the correct code is
+        returned
+        """
+        for code in [1, 2, 3, 4]:
+            rc = cli.status_wrapper(
+                "init",
+                FakeArgs(
+                    (
+                        None,
+                        # silence pylint false positive
+                        # https://github.com/pylint-dev/pylint/issues/9557
+                        lambda *_: sys.exit(code),  # pylint: disable=W0640
+                    ),
+                    False,
+                    "bogusmode",
+                ),
+            )
+            assert 1 == rc
+
+            # assert that the status shows errors
+            assert (
+                f"sys.exit({code}) called"
+                in m_json.call_args[0][1]["v1"]["init"]["errors"]
+            )
+
+    @mock.patch("cloudinit.cmd.main.atomic_helper.write_json")
+    def test_status_wrapper_no_signal_sys_exit(
+        self,
+        m_json,
+        mock_status_wrapper,
+    ):
+        """if sys.exit(0) is called, make sure that cloud-init doesn't log a
+        warning"""
+        # call status_wrapper() with the required args
+        rc = cli.status_wrapper(
+            "init",
+            FakeArgs(
+                (
+                    None,
+                    lambda *_: sys.exit(0),
+                ),
+                False,
+                "bogusmode",
+            ),
+        )
+        assert 0 == rc
+        assert not m_json.call_args[0][1]["v1"]["init"]["errors"]
+
+    @mock.patch("cloudinit.cmd.main.atomic_helper.write_json")
+    def test_status_wrapper_signal_warnings(
+        self,
+        m_json,
+        mock_status_wrapper,
+    ):
+        """If a stage is started and status.json already has a start time but
+        no end time for that stage, this is an unknown state - make sure that
+        a warning is logged.
+        """
+
+        # Write a status.json to the mocked temporary directory
+        for dir in mock_status_wrapper.data_d, mock_status_wrapper.link_d:
+            test_helpers.populate_dir(
+                str(dir),
+                {
+                    "status.json": json.dumps(
+                        {
+                            "v1": {
+                                "stage": "init",
+                                "datasource": (
+                                    "DataSourceNoCloud "
+                                    "[seed=/var/.../seed/nocloud-net]"
+                                    "[dsmode=net]"
+                                ),
+                                "init": {
+                                    "errors": [],
+                                    "recoverable_errors": {},
+                                    "start": 124.567,
+                                    "finished": None,
+                                },
+                                "init-local": {
+                                    "errors": [],
+                                    "recoverable_errors": {},
+                                    "start": 100.0,
+                                    "finished": 100.00001,
+                                },
+                                "modules-config": {
+                                    "errors": [],
+                                    "recoverable_errors": {},
+                                    "start": None,
+                                    "finished": None,
+                                },
+                                "modules-final": {
+                                    "errors": [],
+                                    "recoverable_errors": {},
+                                    "start": None,
+                                    "finished": None,
+                                },
+                            }
+                        }
+                    )
+                },
+            )
+        # call status_wrapper() with the required args
+        cli.status_wrapper(
+            "init",
+            FakeArgs(
+                (
+                    None,
+                    lambda *_: ("SomeDataSource", []),
+                ),
+                False,
+                "bogusmode",
+            ),
+        )
+
+        # assert that the status shows recoverable errors
+        assert (
+            "Unexpected start time found for Network Stage. "
+            "Was this stage restarted?"
+            in m_json.call_args[0][1]["v1"]["init"]["recoverable_errors"][
+                "WARNING"
+            ]
+        )

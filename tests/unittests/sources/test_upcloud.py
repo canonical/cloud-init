@@ -4,12 +4,14 @@
 
 import json
 
+import pytest
+
 from cloudinit import helpers, importer, settings, sources
 from cloudinit.sources.DataSourceUpCloud import (
     DataSourceUpCloud,
     DataSourceUpCloudLocal,
 )
-from tests.unittests.helpers import CiTestCase, mock
+from tests.unittests.helpers import CiTestCase, example_netdev, mock
 
 UC_METADATA = json.loads(
     """
@@ -216,6 +218,7 @@ class TestUpCloudNetworkSetup(CiTestCase):
             ds._get_sysinfo = get_sysinfo
         return ds
 
+    @pytest.mark.usefixtures("disable_netdev_info")
     @mock.patch("cloudinit.sources.helpers.upcloud.read_metadata")
     @mock.patch("cloudinit.net.find_fallback_nic")
     @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
@@ -245,6 +248,7 @@ class TestUpCloudNetworkSetup(CiTestCase):
         m_net.assert_called_once_with(
             ds.distro,
             broadcast="10.6.3.255",
+            interface_addrs_before_dhcp=example_netdev,
             interface="eth1",
             ip="10.6.3.27",
             prefix_or_mask="22",

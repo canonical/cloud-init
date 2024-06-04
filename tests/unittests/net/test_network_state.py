@@ -3,8 +3,9 @@ import ipaddress
 from unittest import mock
 
 import pytest
+import yaml
 
-from cloudinit import safeyaml, util
+from cloudinit import util
 from cloudinit.net import network_state
 from cloudinit.net.netplan import Renderer as NetplanRenderer
 from cloudinit.net.renderers import NAME_TO_RENDERER
@@ -215,7 +216,7 @@ class TestNetworkStateParseConfigV2:
         needed.
         """
         util.deprecate._log = set()  # type: ignore
-        ncfg = safeyaml.load(
+        ncfg = yaml.safe_load(
             cfg.format(
                 gateway4="gateway4: 10.54.0.1",
                 gateway6="gateway6: 2a00:1730:fff9:100::1",
@@ -241,8 +242,8 @@ class TestNetworkStateParseConfigV2:
 class TestNetworkStateParseNameservers:
     def _parse_network_state_from_config(self, config):
         with mock.patch("cloudinit.net.network_state.get_interfaces_by_mac"):
-            yaml = safeyaml.load(config)
-            return network_state.parse_net_config_data(yaml["network"])
+            config = yaml.safe_load(config)
+            return network_state.parse_net_config_data(config["network"])
 
     def test_v1_nameservers_valid(self):
         config = self._parse_network_state_from_config(

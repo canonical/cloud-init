@@ -1,8 +1,10 @@
+import logging
 from collections import namedtuple
 from contextlib import ExitStack
 from unittest.mock import patch
 
 import pytest
+import yaml
 
 from cloudinit.net.activators import (
     DEFAULT_PRIORITY,
@@ -16,7 +18,6 @@ from cloudinit.net.activators import (
     select_activator,
 )
 from cloudinit.net.network_state import parse_net_config_data
-from cloudinit.safeyaml import load
 
 V1_CONFIG = """\
 version: 1
@@ -250,6 +251,23 @@ NETWORKD_BRING_UP_CALL_LIST: list = [
     ],
 )
 class TestActivatorsBringUp:
+    @patch("cloudinit.subp.subp", return_value=("", "Some warning condition"))
+    def test_bring_up_interface_log_level_on_stderr(
+        self, m_subp, activator, expected_call_list, available_mocks, caplog
+    ):
+        """Activator stderr logged debug for netplan and warning for others."""
+        if activator == NetplanActivator:
+            log_level = logging.DEBUG
+        else:
+            log_level = logging.WARNING
+        with caplog.at_level(log_level):
+            activator.bring_up_interface("eth0")
+        index = 0
+        for call in m_subp.call_args_list:
+            assert call == expected_call_list[index]
+            index += 1
+        assert "Received stderr output: Some warning condition" in caplog.text
+
     @patch("cloudinit.subp.subp", return_value=("", ""))
     def test_bring_up_interface(
         self, m_subp, activator, expected_call_list, available_mocks
@@ -274,7 +292,7 @@ class TestActivatorsBringUp:
     def test_bring_up_all_interfaces_v1(
         self, m_subp, activator, expected_call_list, available_mocks
     ):
-        network_state = parse_net_config_data(load(V1_CONFIG))
+        network_state = parse_net_config_data(yaml.safe_load(V1_CONFIG))
         activator.bring_up_all_interfaces(network_state)
         for call in m_subp.call_args_list:
             assert call in expected_call_list
@@ -283,7 +301,7 @@ class TestActivatorsBringUp:
     def test_bring_up_all_interfaces_v2(
         self, m_subp, activator, expected_call_list, available_mocks
     ):
-        network_state = parse_net_config_data(load(V2_CONFIG))
+        network_state = parse_net_config_data(yaml.safe_load(V2_CONFIG))
         activator.bring_up_all_interfaces(network_state)
         for call in m_subp.call_args_list:
             assert call in expected_call_list
