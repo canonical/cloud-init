@@ -71,9 +71,8 @@ def verify_clean_boot(
 ):
     """raise assertions if the client experienced unexpected warnings or errors
 
-    Fail when an required error isn't found.
-    Ignore expected errors and warnings, but only for the PLATFORM or RELEASE
-    which is expected to have this warning or error.
+    Fail when a required error isn't found.
+    Expected warnings and errors are defined in this function.
 
     This function is similar to verify_clean_log, hence the similar name.
 
@@ -93,25 +92,41 @@ def verify_clean_boot(
     fail_when_expected_not_found: optional list of expected errors
     """
 
+    def append_or_create_list(
+        maybe_list: Optional[Union[List[str], bool]], value: str
+    ) -> List[str]:
+        """handle multiple types"""
+        if isinstance(maybe_list, list):
+            maybe_list.append(value)
+        elif maybe_list is None or isinstance(maybe_list, bool):
+            maybe_list = [value]
+        return maybe_list
+
     # Define exceptions by matrix of platform and Ubuntu release
     if "azure" == PLATFORM:
         # Consistently on all Azure launches:
-        ignore_warnings.append("No lease found; using default endpoint")
+        ignore_warnings = append_or_create_list(
+            ignore_warnings, "No lease found; using default endpoint"
+        )
     elif "lxd_vm" == PLATFORM:
         # Ubuntu lxd storage
-        ignore_warnings.append(
-            "thinpool by default on Ubuntu due to LP #1982780"
+        ignore_warnings = append_or_create_list(
+            ignore_warnings, "thinpool by default on Ubuntu due to LP #1982780"
         )
-        ignore_warnings.append(
+        ignore_warnings = append_or_create_list(
+            ignore_warnings,
             "Could not match supplied host pattern, ignoring:",
         )
     elif "oracle" == PLATFORM:
         # LP: #1842752
-        ignore_warnings.append("Stderr: RTNETLINK answers: File exists")
+        ignore_errors = append_or_create_list(
+            ignore_warnings, "Stderr: RTNETLINK answers: File exists"
+        )
         # LP: #1833446
-        ignore_warnings.append(
+        ignore_warnings = append_or_create_list(
+            ignore_warnings,
             "UrlError: 404 Client Error: Not Found for url: "
-            "http://169.254.169.254/latest/meta-data/"
+            "http://169.254.169.254/latest/meta-data/",
         )
         # Oracle has a file in /etc/cloud/cloud.cfg.d that contains
         # users:
@@ -119,8 +134,9 @@ def verify_clean_boot(
         # - name: opc
         #   ssh_redirect_user: true
         # This can trigger a warning about opc having no public key
-        ignore_warnings.append(
-            "Unable to disable SSH logins for opc given ssh_redirect_user"
+        ignore_warnings = append_or_create_list(
+            ignore_warnings,
+            "Unable to disable SSH logins for opc given ssh_redirect_user",
         )
 
     _verify_clean_boot(
