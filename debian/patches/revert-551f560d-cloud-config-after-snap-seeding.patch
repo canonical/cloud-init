@@ -27,7 +27,7 @@ Last-Update: 2024-02-14
      def get_template_filename(self, name):
 --- a/cloudinit/config/cc_lxd.py
 +++ b/cloudinit/config/cc_lxd.py
-@@ -210,7 +210,6 @@ def handle(name: str, cfg: Config, cloud
+@@ -212,7 +212,6 @@ def handle(name: str, cfg: Config, cloud
              f" '{type(lxd_cfg).__name__}'"
          )
  
@@ -58,7 +58,7 @@ Last-Update: 2024-02-14
      for snap_name in LIVE_INSTALLER_SNAPS:
 --- a/cloudinit/util.py
 +++ b/cloudinit/util.py
-@@ -69,7 +69,7 @@ from cloudinit import (
+@@ -70,7 +70,7 @@ from cloudinit import (
      url_helper,
      version,
  )
@@ -67,7 +67,7 @@ Last-Update: 2024-02-14
  
  if TYPE_CHECKING:
      # Avoid circular import
-@@ -3084,18 +3084,6 @@ def wait_for_files(flist, maxwait, naple
+@@ -3059,18 +3059,6 @@ def wait_for_files(flist, maxwait, naple
      return need
  
  
@@ -88,9 +88,9 @@ Last-Update: 2024-02-14
      result = get_mount_info(mount_point, get_mnt_opts=True)
 --- a/systemd/cloud-config.service.tmpl
 +++ b/systemd/cloud-config.service.tmpl
-@@ -2,6 +2,7 @@
- [Unit]
- Description=Apply the settings specified in cloud-config
+@@ -3,6 +3,7 @@
+ # https://cloudinit.readthedocs.io/en/latest/explanation/boot.html
+ Description=Cloud-init: Config Stage
  After=network-online.target cloud-config.target
 +After=snapd.seeded.service
  Before=systemd-user-sessions.service
