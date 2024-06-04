@@ -53,13 +53,20 @@ def _wait_till_hotplug_complete(client, expected_runs=1):
     raise Exception("Waiting for hotplug handler failed")
 
 
-def _get_ip_addr(client):
+def _get_ip_addr(client, *, _retries: int = 0):
     ips = []
     lines = client.execute("ip --brief addr").split("\n")
     for line in lines:
         attributes = line.split()
         interface, state = attributes[0], attributes[1]
         ip4_cidr = attributes[2] if len(attributes) > 2 else None
+
+        # Retry to wait for ipv6_cidr:
+        # ens6 UP <ipv4_cidr> metric 200 <ipv6_cidr> <ipv6_cidr scope link>
+        if len(attributes) == 6 and _retries < 3:
+            time.sleep(1)
+            return _get_ip_addr(client, _retries=_retries + 1)
+
         # The output of `ip --brief addr` can contain metric info:
         # ens5 UP <ipv4_cidr> metric 100 <ipv6_cidr> ...
         ip6_cidr = None
