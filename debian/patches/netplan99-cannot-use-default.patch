@@ -11,7 +11,7 @@ Last-Update: 2023-05-19
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/cloudinit/net/netplan.py
 +++ b/cloudinit/net/netplan.py
-@@ -121,7 +121,7 @@ def _extract_addresses(config: dict, ent
+@@ -122,7 +122,7 @@ def _extract_addresses(config: dict, ent
              if subnet.get("gateway"):
                  new_route = {
                      "via": subnet.get("gateway"),
@@ -22,7 +22,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                  # network, mark it as on-link so that it can still be
 --- a/tests/unittests/test_net.py
 +++ b/tests/unittests/test_net.py
-@@ -403,7 +403,7 @@ network:
+@@ -402,7 +402,7 @@ network:
                  transmit-hash-policy: layer3+4
                  up-delay: 0
              routes:
@@ -31,7 +31,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                  via: 10.101.11.254
      vlans:
          bond0.3502:
-@@ -2934,9 +2934,9 @@ class TestNetplanNetRendering:
+@@ -3027,9 +3027,9 @@ class TestNetplanNetRendering:
                          macaddress: 00:11:22:33:44:55
                        set-name: interface0
                        routes:
@@ -43,7 +43,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                            via: 11.0.0.1
                  """,
                  id="physical_gateway46",
-@@ -2973,9 +2973,9 @@ class TestNetplanNetRendering:
+@@ -3066,9 +3066,9 @@ class TestNetplanNetRendering:
                        - eth0
                        - eth1
                        routes:
@@ -55,7 +55,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                            via: 11.0.0.1
                      eth0: {}
                      eth1: {}
-@@ -3012,9 +3012,9 @@ class TestNetplanNetRendering:
+@@ -3105,9 +3105,9 @@ class TestNetplanNetRendering:
                        interfaces:
                        - eth0
                        routes:
@@ -67,7 +67,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                            via: 11.0.0.1
                  """,
                  id="bridge_gateway46",
-@@ -3048,9 +3048,9 @@ class TestNetplanNetRendering:
+@@ -3141,9 +3141,9 @@ class TestNetplanNetRendering:
                        id: 101
                        link: eth0
                        routes:
@@ -79,7 +79,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                            via: 11.0.0.1
                  """,
                  id="vlan_gateway46",
-@@ -3099,7 +3099,7 @@ class TestNetplanNetRendering:
+@@ -3192,7 +3192,7 @@ class TestNetplanNetRendering:
                          - exemplary
                        set-name: interface0
                        routes:
@@ -88,7 +88,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                            via: 192.168.23.1
                  """,
                  id="nameserver_gateway4",
-@@ -3134,7 +3134,7 @@ class TestNetplanNetRendering:
+@@ -3227,7 +3227,7 @@ class TestNetplanNetRendering:
                        match:
                          macaddress: 00:11:22:33:44:55
                        routes:
@@ -97,7 +97,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                            via: 192.168.23.1
                        -   to: 10.176.0.0/24
                            via: 10.184.225.121
-@@ -3169,7 +3169,7 @@ class TestNetplanNetRendering:
+@@ -3262,7 +3262,7 @@ class TestNetplanNetRendering:
                        match:
                          macaddress: 00:11:22:33:44:55
                        routes:
@@ -106,7 +106,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                            via: 192.168.23.1
                        -   to: 192.167.225.122/24
                            via: 192.168.23.1
-@@ -3205,10 +3205,10 @@ class TestNetplanNetRendering:
+@@ -3298,10 +3298,10 @@ class TestNetplanNetRendering:
                        match:
                          macaddress: 00:11:22:33:44:55
                        routes:
@@ -121,7 +121,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                        set-name: interface0
 --- a/tests/unittests/distros/test_netconfig.py
 +++ b/tests/unittests/distros/test_netconfig.py
-@@ -199,7 +199,7 @@ network:
+@@ -193,7 +193,7 @@ network:
              addresses:
              - 192.168.1.5/24
              routes:
@@ -130,7 +130,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                  via: 192.168.1.254
          eth1:
              dhcp4: true
-@@ -218,7 +218,7 @@ network:
+@@ -212,7 +212,7 @@ network:
              addresses:
              - 2607:f0d0:1002:0011::2/64
              routes:
@@ -139,7 +139,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                  via: 2607:f0d0:1002:0011::1
          eth1:
              dhcp4: true
-@@ -1028,7 +1028,7 @@ class TestNetCfgDistroArch(TestNetCfgDis
+@@ -1022,7 +1022,7 @@ class TestNetCfgDistroArch(TestNetCfgDis
                              addresses:
                              - 192.168.1.5/24
                              routes:
@@ -150,7 +150,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                              dhcp4: true
 --- a/tests/unittests/net/network_configs.py
 +++ b/tests/unittests/net/network_configs.py
-@@ -1505,7 +1505,7 @@ pre-down route del -net 10.0.0.0/8 gw 11
+@@ -1684,7 +1684,7 @@ pre-down route del -net 10.0.0.0/8 gw 11
                              - sacchromyces.maas
                              - brettanomyces.maas
                          routes:
@@ -159,7 +159,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                              via: 192.168.0.1
          """
          ).rstrip(" "),
-@@ -2244,7 +2244,7 @@ pre-down route del -net 10.0.0.0/8 gw 11
+@@ -3119,7 +3119,7 @@ pre-down route del -net 10.0.0.0/8 gw 11
                           transmit-hash-policy: layer3+4
                           up-delay: 20
                       routes:

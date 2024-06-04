@@ -8,8 +8,8 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 
 --- a/systemd/cloud-config.service.tmpl
 +++ b/systemd/cloud-config.service.tmpl
-@@ -3,7 +3,6 @@
- Description=Apply the settings specified in cloud-config
+@@ -4,7 +4,6 @@
+ Description=Cloud-init: Config Stage
  After=network-online.target cloud-config.target
  After=snapd.seeded.service
 -Before=systemd-user-sessions.service
@@ -18,7 +18,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  ConditionKernelCommandLine=!cloud-init=disabled
 --- a/systemd/cloud-init.service.tmpl
 +++ b/systemd/cloud-init.service.tmpl
-@@ -38,6 +38,7 @@ Conflicts=shutdown.target
+@@ -39,6 +39,7 @@ Conflicts=shutdown.target
  Before=shutdown.target
  Conflicts=shutdown.target
  {% endif %}
