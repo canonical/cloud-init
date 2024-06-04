@@ -2,13 +2,22 @@ import re
 
 import pytest
 
+from cloudinit.util import should_log_deprecation
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.util import get_feature_flag_value
 
 
-def _test_crawl(client, ip):
-    assert client.execute("cloud-init clean --logs").ok
-    assert client.execute("cloud-init init --local").ok
+def _test_crawl(client: IntegrationInstance, ip: str):
+    return_code = (
+        2
+        if should_log_deprecation(
+            "24.3", get_feature_flag_value(client, "DEPRECATION_INFO_BOUNDARY")
+        )
+        else 0
+    )
+    assert client.execute("cloud-init clean --logs")
+    assert return_code == client.execute("cloud-init init --local").return_code
     log = client.read_from_file("/var/log/cloud-init.log")
     assert f"Using metadata source: '{ip}'" in log
     result = re.findall(r"Crawl of metadata service.* (\d+.\d+) seconds", log)
