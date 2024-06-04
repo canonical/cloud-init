@@ -192,9 +192,9 @@ class TestConvertNetJson:
                     "name": "bond0",
                     "mac_address": "xx:xx:xx:xx:xx:00",
                     "params": {
-                        "bond_miimon": 100,
-                        "bond_mode": "802.3ad",
-                        "bond_xmit_hash_policy": "layer3+4",
+                        "bond-miimon": 100,
+                        "bond-mode": "802.3ad",
+                        "bond-xmit_hash_policy": "layer3+4",
                     },
                     "subnets": [],
                     "type": "bond",
