@@ -108,7 +108,7 @@ system, or the result of a user configuration.
 External reasons
 ----------------
 
-- Failed dependent services in the boot.
+- Other services failed or are stuck.
 - Bugs in the kernel or drivers.
 - Bugs in external userspace tools that are called by ``cloud-init``.
 
@@ -142,16 +142,28 @@ To start debugging
    See :ref:`our guide on exported errors<reported_status>` for more
    information on these exported errors.
 
-4. Identify which cloud-init :ref:`boot stage<boot_stages>` is currently
-   running:
+4. Inspect running services :ref:`boot stage<boot_stages>`:
 
    .. code-block::
 
-      systemctl status cloud-init-local.service cloud-init.service\
-           cloud-config.service cloud-final.service
+      $ systemctl list-jobs --after
+      JOB UNIT                                             TYPE  STATE
+      150 cloud-final.service                              start waiting
+      └─      waiting for job 147 (cloud-init.target/start)   -     -
+      155 blocking-daemon.service                               start running
+      └─      waiting for job 150 (cloud-final.service/start) -     -
+      147 cloud-init.target                                start waiting
 
-   Cloud-init may have started to run, but not completed. This shows how many,
-   and which, cloud-init stages completed.
+      3 jobs listed.
+
+
+   In the above example we can see that ``cloud-final.service`` is
+   waiting and is ordered before ``cloud-init.target``, and that
+   ``blocking-daemon.service`` is currently running and is ordered
+   before ``cloud-final.service``. From this output, we deduce that cloud-init
+   is not complete because the service named ``blocking-daemon.service`` hasn't
+   yet completed, and that we should investigate ``blocking-daemon.service``
+   to understand why it is still running.
 
 5. Use the PID of the running service to find all running subprocesses.
    Any running process that was spawned by cloud-init may be blocking

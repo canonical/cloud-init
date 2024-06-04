@@ -152,6 +152,11 @@ class TestReadFileOrUrl(CiTestCase):
 
         m_response = mock.MagicMock()
 
+        class FakeSessionRaisesHttpError(requests.Session):
+            @classmethod
+            def request(cls, **kwargs):
+                raise requests.exceptions.HTTPError("broke")
+
         class FakeSession(requests.Session):
             @classmethod
             def request(cls, **kwargs):
@@ -171,8 +176,10 @@ class TestReadFileOrUrl(CiTestCase):
                 return m_response
 
         with mock.patch(M_PATH + "requests.Session") as m_session:
-            error = requests.exceptions.HTTPError("broke")
-            m_session.side_effect = [error, FakeSession()]
+            m_session.side_effect = [
+                FakeSessionRaisesHttpError(),
+                FakeSession(),
+            ]
             # assert no retries and check_status == True
             with self.assertRaises(UrlError) as context_manager:
                 response = read_file_or_url(url)
@@ -534,7 +541,9 @@ class TestUrlHelper:
         m_sleep = mocker.patch(
             f"{M_PATH}time.sleep", side_effect=self.sleep_side_effect
         )
-        mocker.patch(f"{M_PATH}time.time", side_effect=self.time_side_effect)
+        mocker.patch(
+            f"{M_PATH}time.monotonic", side_effect=self.time_side_effect
+        )
 
         yield m_readurl, m_sleep
 
@@ -684,9 +693,9 @@ class TestUrlHelper:
         assert actual_sleep_times == expected_sleep_times
 
     # These side effect methods are a way of having a somewhat predictable
-    # output for time.time(). Otherwise, we have to track too many calls
-    # to time.time() and unrelated changes to code being called could cause
-    # these tests to fail.
+    # output for time.monotonic(). Otherwise, we have to track too many calls
+    # to time.monotonic() and unrelated changes to code being called could
+    # cause these tests to fail.
     # 0.0000001 is added to simulate additional execution time but keep it
     # small enough for pytest.approx() to work
     def sleep_side_effect(self, sleep_time):

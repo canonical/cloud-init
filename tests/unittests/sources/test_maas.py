@@ -116,7 +116,7 @@ class TestMAASDataSource:
             short = url[len(prefix) :]
             if short not in data:
                 raise url_helper.UrlError("not found", code=404, url=url)
-            return url_helper.StringResponse(data[short])
+            return url_helper.StringResponse(data[short], url)
 
         # Now do the actual call of the code under test.
         with mock.patch("cloudinit.url_helper.readurl") as mock_readurl:

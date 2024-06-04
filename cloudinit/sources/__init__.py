@@ -83,6 +83,16 @@ class NetworkConfigSource(Enum):
         return self.value
 
 
+class NicOrder(Enum):
+    """Represents ways to sort NICs"""
+
+    MAC = "mac"
+    NIC_NAME = "nic_name"
+
+    def __str__(self) -> str:
+        return self.value
+
+
 class DatasourceUnpickleUserDataError(Exception):
     """Raised when userdata is unable to be unpickled due to python upgrades"""
 
@@ -347,6 +357,9 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if not hasattr(self, key):
                 setattr(self, key, value)
 
+        if not hasattr(self, "check_if_fallback_is_allowed"):
+            setattr(self, "check_if_fallback_is_allowed", lambda: False)
+
         if hasattr(self, "userdata") and self.userdata is not None:
             # If userdata stores MIME data, on < python3.6 it will be
             # missing the 'policy' attribute that exists on >=python3.6.
@@ -373,7 +386,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def override_ds_detect(self) -> bool:
         """Override if either:
         - only a single datasource defined (nothing to fall back to)
-        - commandline argument is used (ci.ds=OpenStack)
+        - command line argument is used (ci.ds=OpenStack)
 
         Note: get_cmdline() is required for the general case - when ds-identify
         does not run, _something_ needs to detect the kernel command line
@@ -381,7 +394,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
         if self.dsname.lower() == parse_cmdline().lower():
             LOG.debug(
-                "Machine is configured by the kernel commandline to run on "
+                "Machine is configured by the kernel command line to run on "
                 "single datasource %s.",
                 self,
             )
@@ -926,6 +939,16 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # quickly (local check only) if self.instance_id is still
         return False
 
+    def check_if_fallback_is_allowed(self):
+        """check_if_fallback_is_allowed()
+        Checks if a cached ds is allowed to be restored when no valid ds is
+        found in local mode by checking instance-id and searching valid data
+        through ds list.
+
+        @return True if a ds allows fallback, False otherwise.
+        """
+        return False
+
     @staticmethod
     def _determine_dsmode(candidates, default=None, valid=None):
         # return the first candidate that is non None, warn if not valid
@@ -1209,7 +1232,7 @@ def parse_cmdline_or_dmi(input: str) -> str:
         dsname = deprecated.group(1).strip()
         util.deprecate(
             deprecated=(
-                f"Defining the datasource on the commandline using "
+                f"Defining the datasource on the command line using "
                 f"ci.ds={dsname} or "
                 f"ci.datasource={dsname}"
             ),

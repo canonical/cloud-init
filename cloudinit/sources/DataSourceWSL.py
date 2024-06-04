@@ -3,12 +3,15 @@
 # Author: Carlos Nihelton <carlos.santanadeoliveira@canonical.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
-""" Datasource to support the Windows Subsystem for Linux platform. """
+"""Datasource to support the Windows Subsystem for Linux platform."""
 
 import logging
 import os
+import typing
 from pathlib import PurePath
-from typing import List, cast
+from typing import Any, List, Optional, Tuple, Union, cast
+
+import yaml
 
 from cloudinit import sources, subp, util
 from cloudinit.distros import Distro
@@ -18,28 +21,22 @@ LOG = logging.getLogger(__name__)
 
 WSLPATH_CMD = "/usr/bin/wslpath"
 
-
-def wsl_path_2_win(path: str) -> PurePath:
-    """
-    Translates a path inside the current WSL instance's filesystem to a
-    Windows accessible path.
-
-    Example:
-    # Running under an instance named "CoolInstance"
-    root = wslpath2win("/") # root == "//wsl.localhost/CoolInstance/"
-
-    :param path: string representing a Linux path, whether existing or not.
-    """
-    out, _ = subp.subp([WSLPATH_CMD, "-am", path])
-    return PurePath(out.rstrip())
+DEFAULT_INSTANCE_ID = "iid-datasource-wsl"
+LANDSCAPE_DATA_FILE = "%s.user-data"
+AGENT_DATA_FILE = "agent.yaml"
 
 
 def instance_name() -> str:
     """
     Returns the name of the current WSL instance as seen from outside.
     """
-    root_net_path = wsl_path_2_win("/")
-    return root_net_path.name
+    # Translates a path inside the current WSL instance's filesystem to a
+    # Windows accessible path.
+    # Example:
+    # Running under an instance named "CoolInstance"
+    # WSLPATH_CMD -am "/" == "//wsl.localhost/CoolInstance/"
+    root_net_path, _ = subp.subp([WSLPATH_CMD, "-am", "/"])
+    return PurePath(root_net_path.rstrip()).name
 
 
 def mounted_win_drives() -> List[str]:
@@ -56,26 +53,6 @@ def mounted_win_drives() -> List[str]:
             mounted.append(mnt["mountpoint"])
 
     return mounted
-
-
-def win_path_2_wsl(path: str) -> PurePath:
-    """
-    Returns a translation of a Windows path to a Linux path that can be
-    accessed inside the current instance filesystem.
-
-    It requires the Windows drive mounting feature to be enabled and the
-    disk drive must be muonted for this to succeed.
-
-    Example:
-    # Assuming Windows drives are mounted under /mnt/ and "S:" doesn't exist:
-    p = winpath2wsl("C:\\ProgramData") # p == "/mnt/c/ProgramData/"
-    n = winpath2wsl("S:\\CoolFolder") # Exception! S: is not mounted.
-
-    :param path: string representing a Windows path. The root drive must exist,
-    although the path is not required to.
-    """
-    out, _ = subp.subp([WSLPATH_CMD, "-au", path])
-    return PurePath(out.rstrip())
 
 
 def cmd_executable() -> PurePath:
@@ -102,10 +79,13 @@ def cmd_executable() -> PurePath:
     )
 
 
-def cloud_init_data_dir() -> PurePath:
+def find_home() -> PurePath:
     """
-    Returns the Windows user profile directory translated as a Linux path
-    accessible inside the current WSL instance.
+    Finds the user's home directory path as a WSL path.
+
+    raises: IOError when no mountpoint with cmd.exe is found
+               ProcessExecutionError when either cmd.exe is unable to retrieve
+               the user's home directory
     """
     cmd = cmd_executable()
 
@@ -119,11 +99,26 @@ def cloud_init_data_dir() -> PurePath:
         raise subp.ProcessExecutionError(
             "No output from cmd.exe to show the user profile dir."
         )
+    # Returns a translation of a Windows path to a Linux path that can be
+    # accessed inside the current instance filesystem.
+    # Example:
+    # Assuming Windows drives are mounted under /mnt/ and "S:" doesn't exist:
+    # WSLPATH_CMD -au "C:\\ProgramData" == "/mnt/c/ProgramData/"
+    # WSLPATH_CMD -au "S:\\Something" # raises exception S: is not mounted.
+    out, _ = subp.subp([WSLPATH_CMD, "-au", home])
+    return PurePath(out.rstrip())
 
-    win_profile_dir = win_path_2_wsl(home)
-    seed_dir = os.path.join(win_profile_dir, ".cloud-init")
+
+def cloud_init_data_dir(user_home: PurePath) -> Optional[PurePath]:
+    """
+    Returns the Windows user profile .cloud-init directory translated as a
+    Linux path accessible inside the current WSL instance, or None if not
+    found.
+    """
+    seed_dir = os.path.join(user_home, ".cloud-init")
     if not os.path.isdir(seed_dir):
-        raise FileNotFoundError("%s directory doesn't exist." % seed_dir)
+        LOG.debug("cloud-init user data dir %s doesn't exist.", seed_dir)
+        return None
 
     return PurePath(seed_dir)
 
@@ -148,18 +143,38 @@ def candidate_user_data_file_names(instance_name) -> List[str]:
     ]
 
 
-DEFAULT_INSTANCE_ID = "iid-datasource-wsl"
+def load_yaml_or_bin(data_path: str) -> Optional[Union[dict, bytes]]:
+    """
+    Tries to load a YAML file as a dict, otherwise returns the file's raw
+    binary contents as `bytes`. Returns `None` if no file is found.
+    """
+    try:
+        bin_data = util.load_binary_file(data_path)
+        dict_data = util.load_yaml(bin_data)
+        if dict_data is None:
+            return bin_data
+
+        return dict_data
+    except FileNotFoundError:
+        LOG.debug("No data found at %s, ignoring.", data_path)
+
+    return None
 
 
-def load_instance_metadata(cloudinitdir: PurePath, instance_name: str) -> dict:
+def load_instance_metadata(
+    cloudinitdir: Optional[PurePath], instance_name: str
+) -> dict:
     """
     Returns the relevant metadata loaded from cloudinit dir based on the
     instance name
     """
     metadata = {"instance-id": DEFAULT_INSTANCE_ID}
+    if cloudinitdir is None:
+        return metadata
     metadata_path = os.path.join(
         cloudinitdir.as_posix(), "%s.meta-data" % instance_name
     )
+
     try:
         metadata = util.load_yaml(util.load_binary_file(metadata_path))
     except FileNotFoundError:
@@ -179,12 +194,30 @@ def load_instance_metadata(cloudinitdir: PurePath, instance_name: str) -> dict:
     return metadata
 
 
+def load_ubuntu_pro_data(
+    user_home: PurePath,
+) -> Tuple[Union[dict, bytes, None], Union[dict, bytes, None]]:
+    """
+    Read .ubuntupro user-data if present and return a tuple of agent and
+    landscape user-data.
+    """
+    pro_dir = os.path.join(user_home, ".ubuntupro/.cloud-init")
+    if not os.path.isdir(pro_dir):
+        return None, None
+
+    landscape_data = load_yaml_or_bin(
+        os.path.join(pro_dir, LANDSCAPE_DATA_FILE % instance_name())
+    )
+    agent_data = load_yaml_or_bin(os.path.join(pro_dir, AGENT_DATA_FILE))
+    return agent_data, landscape_data
+
+
 class DataSourceWSL(sources.DataSource):
     dsname = "WSL"
 
     def __init__(self, sys_cfg, distro: Distro, paths: Paths, ud_proc=None):
         super().__init__(sys_cfg, distro, paths, ud_proc)
-        self.instance_name = instance_name()
+        self.instance_name = ""
 
     def find_user_data_file(self, seed_dir: PurePath) -> PurePath:
         """
@@ -224,9 +257,8 @@ class DataSourceWSL(sources.DataSource):
             return False
 
         try:
-            metadata = load_instance_metadata(
-                cloud_init_data_dir(), self.instance_name
-            )
+            data_dir = cloud_init_data_dir(find_home())
+            metadata = load_instance_metadata(data_dir, instance_name())
             return current == metadata.get("instance-id")
 
         except (IOError, ValueError) as err:
@@ -237,22 +269,85 @@ class DataSourceWSL(sources.DataSource):
             return False
 
     def _get_data(self) -> bool:
-        self.vendordata_raw = None
-        seed_dir = cloud_init_data_dir()
+        if not subp.which(WSLPATH_CMD):
+            LOG.debug(
+                "No WSL command %s found. Cannot detect WSL datasource",
+                WSLPATH_CMD,
+            )
+            return False
+        self.instance_name = instance_name()
 
+        try:
+            user_home = find_home()
+        except IOError as e:
+            LOG.debug("Unable to detect WSL datasource: %s", e)
+            return False
+
+        seed_dir = cloud_init_data_dir(user_home)
+        agent_data = None
+        user_data: Optional[Union[dict, bytes]] = None
+
+        # Load any metadata
         try:
             self.metadata = load_instance_metadata(
                 seed_dir, self.instance_name
             )
-            file = self.find_user_data_file(seed_dir)
-            self.userdata_raw = cast(
-                str, util.load_binary_file(file.as_posix())
+        except (ValueError, IOError) as err:
+            LOG.error("Unable to load metadata: %s", str(err))
+            return False
+
+        # # Load Ubuntu Pro configs only on Ubuntu distros
+        if self.distro.name == "ubuntu":
+            agent_data, user_data = load_ubuntu_pro_data(user_home)
+
+        # Load regular user configs
+        try:
+            if user_data is None and seed_dir is not None:
+                file = self.find_user_data_file(seed_dir)
+                user_data = load_yaml_or_bin(file.as_posix())
+        except (ValueError, IOError) as err:
+            LOG.error(
+                "Unable to load any user-data file in %s: %s",
+                seed_dir,
+                str(err),
             )
+
+        # No configs were found
+        if not any([user_data, agent_data]):
+            return False
+
+        # If we cannot reliably model data files as dicts, then we cannot merge
+        # ourselves, so we can pass the data in ascending order as a list for
+        # cloud-init to handle internally
+        if isinstance(agent_data, bytes) or isinstance(user_data, bytes):
+            self.userdata_raw = cast(Any, [user_data, agent_data])
             return True
 
-        except (ValueError, IOError) as err:
-            LOG.error("Unable to setup WSL datasource: %s", str(err))
-            return False
+        # We only care about overriding modules entirely, so we can just
+        # iterate over the top level keys and write over them if the agent
+        # provides them instead.
+        # That's the reason for not using util.mergemanydict().
+        merged: dict = {}
+        overridden_keys: typing.List[str] = []
+        if user_data:
+            merged = user_data
+        if agent_data:
+            if user_data:
+                LOG.debug("Merging both user_data and agent.yaml configs.")
+            for key in agent_data:
+                if key in merged:
+                    overridden_keys.append(key)
+                merged[key] = agent_data[key]
+            if overridden_keys:
+                LOG.debug(
+                    (
+                        " agent.yaml overrides config keys: "
+                        ", ".join(overridden_keys)
+                    )
+                )
+
+        self.userdata_raw = "#cloud-config\n%s" % yaml.dump(merged)
+        return True
 
 
 # Used to match classes to dependencies

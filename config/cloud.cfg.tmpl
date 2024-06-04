@@ -62,7 +62,7 @@ disable_root: true
                    "openmandriva", "photon", "TencentOS"] or is_rhel %}
 
 {% if is_rhel %}
-mount_default_fields: [~, ~, 'auto', 'defaults,nofail,x-systemd.requires=cloud-init.service,_netdev', '0', '2']
+mount_default_fields: [~, ~, 'auto', 'defaults,nofail,x-systemd.after=cloud-init.service,_netdev', '0', '2']
 {% else %}
 mount_default_fields: [~, ~, 'auto', 'defaults,nofail', '0', '2']
 {% endif %}
@@ -331,7 +331,7 @@ system_info:
     templates_dir: /etc/cloud/templates/
 {% elif is_bsd %}
   paths:
-    run_dir: /var/run/
+    run_dir: /var/run/cloud-init/
 {% endif %}
 {% if variant == "debian" %}
   package_mirrors:

@@ -1,7 +1,8 @@
 ## template:jinja
 [Unit]
-Description=Initial cloud-init job (metadata service crawler)
-{% if variant not in ["photon", "rhel"] %}
+# https://cloudinit.readthedocs.io/en/latest/explanation/boot.html
+Description=Cloud-init: Network Stage
+{% if variant not in ["almalinux", "cloudlinux", "photon", "rhel"] %}
 DefaultDependencies=no
 {% endif %}
 Wants=cloud-init-local.service

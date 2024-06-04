@@ -3,6 +3,8 @@ import os
 import sys
 
 from cloudinit import version
+from cloudinit.config.schema import get_schema
+from cloudinit.handlers.jinja_template import render_jinja_payload
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -36,6 +38,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.viewcode",
+    "sphinxcontrib.datatemplates",
     "sphinxcontrib.spelling",
 ]
 
@@ -44,6 +47,7 @@ extensions = [
 # https://docs.ubuntu.com/styleguide/en/
 spelling_warning = True
 
+templates_path = ["templates"]
 # Uses case-independent spelling matches from doc/rtd/spelling_word_list.txt
 spelling_filters = ["spelling.WordListFilter"]
 
@@ -73,7 +77,8 @@ show_authors = False
 # Sphinx-copybutton config options: 1) prompt to be stripped from copied code.
 # 2) Set to copy all lines (not just prompt lines) to ensure multiline snippets
 # can be copied even if they don't contain an EOF line.
-copybutton_prompt_text = "$ "
+copybutton_prompt_text = r"\$ |PS> "
+copybutton_prompt_is_regexp = True
 copybutton_only_copy_prompt_lines = False
 
 # -- Options for HTML output --------------------------------------------------
@@ -166,3 +171,73 @@ notfound_context = {
     "title": "Page not found",
     "body": notfound_body,
 }
+
+
+def get_types_str(prop_cfg):
+    """Return formatted string for all supported config types."""
+    types = ""
+
+    # When oneOf present, join each alternative with an '/'
+    types += "/".join(
+        get_types_str(oneof_cfg) for oneof_cfg in prop_cfg.get("oneOf", [])
+    )
+    if "items" in prop_cfg:
+        types = f"{prop_cfg['type']} of "
+        types += get_types_str(prop_cfg["items"])
+    elif "enum" in prop_cfg:
+        types += f"{'/'.join([f'``{enum}``' for enum in prop_cfg['enum']])}"
+    elif "type" in prop_cfg:
+        if isinstance(prop_cfg["type"], list):
+            types = "/".join(prop_cfg["type"])
+        else:
+            types = prop_cfg["type"]
+    return types
+
+
+def render_property_template(prop_name, prop_cfg, prefix=""):
+    with open("templates/module_property.tmpl", "r") as stream:
+        content = "## template: jinja\n" + stream.read()
+    if prop_cfg.get("description"):
+        description = f" {prop_cfg['description']}"
+    else:
+        description = ""
+    jinja_vars = {
+        "prefix": prefix,
+        "name": prop_name,
+        "description": description,
+        "types": get_types_str(prop_cfg),
+        "prop_cfg": prop_cfg,
+    }
+    return render_jinja_payload(content, f"doc_module_{prop_name}", jinja_vars)
+
+
+def render_nested_properties(prop_cfg, prefix):
+    prop_str = ""
+    if "items" in prop_cfg:
+        prop_str += render_nested_properties(prop_cfg["items"], prefix)
+    if "properties" not in prop_cfg:
+        return prop_str
+    for prop_name, nested_cfg in prop_cfg["properties"].items():
+        prop_str += render_property_template(prop_name, nested_cfg, prefix)
+        prop_str += render_nested_properties(nested_cfg, prefix + "  ")
+    return prop_str
+
+
+def render_module_schemas():
+    from cloudinit.importer import find_module, import_module
+
+    mod_docs = {}
+    schema = get_schema()
+    for key in schema["$defs"]:
+        if key[:3] != "cc_":
+            continue
+        locs, _ = find_module(key, ["", "cloudinit.config"], ["meta"])
+        mod = import_module(locs[0])
+        mod_docs[key] = {
+            "schema_doc": render_nested_properties(schema["$defs"][key], ""),
+            "meta": mod.meta,
+        }
+    return mod_docs
+
+
+html_context = render_module_schemas()

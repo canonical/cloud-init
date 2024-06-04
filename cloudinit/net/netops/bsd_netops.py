@@ -6,12 +6,12 @@ from cloudinit import subp
 
 class BsdNetOps(netops.NetOps):
     @staticmethod
-    def link_up(interface: str):
-        subp.subp(["ifconfig", interface, "up"])
+    def link_up(interface: str) -> subp.SubpResult:
+        return subp.subp(["ifconfig", interface, "up"])
 
     @staticmethod
-    def link_down(interface: str):
-        subp.subp(["ifconfig", interface, "down"])
+    def link_down(interface: str) -> subp.SubpResult:
+        return subp.subp(["ifconfig", interface, "down"])
 
     @staticmethod
     def add_route(
@@ -50,14 +50,18 @@ class BsdNetOps(netops.NetOps):
         return std.splitlines()[-1].strip()
 
     @staticmethod
-    def add_addr(interface: str, address: str, broadcast: str):
+    def add_addr(
+        interface: str, address: str, broadcast: Optional[str] = None
+    ):
+        broadcast_args = []
+        if broadcast:
+            broadcast_args = ["broadcast", broadcast]
         subp.subp(
             [
                 "ifconfig",
                 interface,
                 address,
-                "broadcast",
-                broadcast,
+                *broadcast_args,
                 "alias",
             ],
         )

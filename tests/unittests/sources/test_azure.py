@@ -29,6 +29,7 @@ from cloudinit.util import (
 from tests.unittests.helpers import (
     CiTestCase,
     ExitStack,
+    example_netdev,
     mock,
     populate_dir,
     resourceLocation,
@@ -108,6 +109,11 @@ def mock_device_driver():
         yield m
 
 
+@pytest.fixture(autouse=True)
+def mock_netinfo(disable_netdev_info):
+    pass
+
+
 @pytest.fixture
 def mock_generate_fallback_config():
     with mock.patch(
@@ -121,6 +127,15 @@ def mock_generate_fallback_config():
 def mock_time():
     with mock.patch(
         MOCKPATH + "time",
+        autospec=True,
+    ) as m:
+        yield m
+
+
+@pytest.fixture
+def mock_monotonic():
+    with mock.patch(
+        MOCKPATH + "monotonic",
         autospec=True,
     ) as m:
         yield m
@@ -746,14 +761,20 @@ class TestGenerateNetworkConfig:
                             "match": {"macaddress": "00:0d:3a:04:75:98"},
                             "dhcp6": False,
                             "dhcp4": True,
-                            "dhcp4-overrides": {"route-metric": 200},
+                            "dhcp4-overrides": {
+                                "route-metric": 200,
+                                "use-dns": False,
+                            },
                         },
                         "eth2": {
                             "set-name": "eth2",
                             "match": {"macaddress": "00:0d:3a:04:75:98"},
                             "dhcp6": False,
                             "dhcp4": True,
-                            "dhcp4-overrides": {"route-metric": 300},
+                            "dhcp4-overrides": {
+                                "route-metric": 300,
+                                "use-dns": False,
+                            },
                         },
                     },
                     "version": 2,
@@ -980,7 +1001,7 @@ class TestNetworkConfig:
                     "dhcp6": False,
                     "match": {"macaddress": "00:0d:3a:04:75:98"},
                     "set-name": "eth0",
-                }
+                },
             },
             "version": 2,
         }
@@ -1561,7 +1582,7 @@ scbus-1 on xpt0 bus 0
                     "dhcp6": False,
                     "dhcp4": True,
                     "dhcp4-overrides": {"route-metric": 100},
-                }
+                },
             },
             "version": 2,
         }
@@ -1590,14 +1611,14 @@ scbus-1 on xpt0 bus 0
                     "match": {"macaddress": "22:0d:3a:04:75:98"},
                     "dhcp6": False,
                     "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 200},
+                    "dhcp4-overrides": {"route-metric": 200, "use-dns": False},
                 },
                 "eth2": {
                     "set-name": "eth2",
                     "match": {"macaddress": "33:0d:3a:04:75:98"},
                     "dhcp6": False,
                     "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 300},
+                    "dhcp4-overrides": {"route-metric": 300, "use-dns": False},
                 },
             },
             "version": 2,
@@ -1630,7 +1651,7 @@ scbus-1 on xpt0 bus 0
                     "dhcp6": False,
                     "dhcp4": True,
                     "dhcp4-overrides": {"route-metric": 100},
-                }
+                },
             },
             "version": 2,
         }
@@ -2846,13 +2867,21 @@ class TestPreprovisioningReadAzureOvfFlag(CiTestCase):
         self.assertTrue(cfg["PreprovisionedVm"])
         self.assertEqual("Savable", cfg["PreprovisionedVMType"])
 
-    def test_read_azure_ovf_with_proxy_guest_agent(self):
+    def test_read_azure_ovf_with_proxy_guest_agent_true(self):
         """The read_azure_ovf method should set ProvisionGuestProxyAgent
         cfg flag to True."""
         content = construct_ovf_env(provision_guest_proxy_agent=True)
         ret = dsaz.read_azure_ovf(content)
         cfg = ret[2]
-        self.assertTrue(cfg["ProvisionGuestProxyAgent"])
+        assert cfg["ProvisionGuestProxyAgent"] is True
+
+    def test_read_azure_ovf_with_proxy_guest_agent_false(self):
+        """The read_azure_ovf method should set ProvisionGuestProxyAgent
+        cfg flag to False."""
+        content = construct_ovf_env(provision_guest_proxy_agent=False)
+        ret = dsaz.read_azure_ovf(content)
+        cfg = ret[2]
+        assert cfg["ProvisionGuestProxyAgent"] is False
 
 
 @pytest.mark.parametrize(
@@ -3012,6 +3041,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
             ip="10.0.0.4",
             prefix_or_mask="32",
             broadcast="255.255.255.255",
+            interface_addrs_before_dhcp=example_netdev,
             router="10.0.0.1",
             static_routes=[
                 ("0.0.0.0/0", "10.0.0.1"),
@@ -3041,6 +3071,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
             ip="10.0.0.4",
             prefix_or_mask="32",
             broadcast="255.255.255.255",
+            interface_addrs_before_dhcp=example_netdev,
             router="10.0.0.1",
             static_routes=None,
         )
@@ -3556,10 +3587,11 @@ class TestEphemeralNetworking:
         mock_kvp_report_failure_to_host,
         mock_sleep,
         mock_time,
+        mock_monotonic,
         error_class,
         error_reason,
     ):
-        mock_time.side_effect = [
+        mock_monotonic.side_effect = [
             0.0,  # start
             60.1,  # duration check for host error report
             60.11,  # loop check
@@ -3605,6 +3637,7 @@ class TestCheckIfPrimary:
             ip="10.0.0.4",
             prefix_or_mask="32",
             broadcast="255.255.255.255",
+            interface_addrs_before_dhcp=example_netdev,
             router="10.0.0.1",
             static_routes=static_routes,
         )
@@ -3618,6 +3651,7 @@ class TestCheckIfPrimary:
             ip="10.0.0.4",
             prefix_or_mask="32",
             broadcast="255.255.255.255",
+            interface_addrs_before_dhcp=example_netdev,
             router="10.0.0.1",
             static_routes=[("1.2.3.4/32", "10.0.0.1")],
         )
@@ -3640,6 +3674,7 @@ class TestCheckIfPrimary:
             ip="10.0.0.4",
             prefix_or_mask="32",
             broadcast="255.255.255.255",
+            interface_addrs_before_dhcp=example_netdev,
             router="10.0.0.1",
             static_routes=static_routes,
         )
@@ -3765,7 +3800,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 timeout=30,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
@@ -4014,7 +4049,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4023,7 +4058,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/reprovisiondata?"
                 "api-version=2019-06-01",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 log_req_resp=False,
                 infinite=True,
                 timeout=30,
@@ -4032,7 +4067,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4077,7 +4112,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4086,7 +4121,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/reprovisiondata?"
                 "api-version=2019-06-01",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 log_req_resp=False,
                 infinite=True,
                 timeout=30,
@@ -4095,7 +4130,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4195,7 +4230,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4204,7 +4239,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/reprovisiondata?"
                 "api-version=2019-06-01",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 log_req_resp=False,
                 infinite=True,
                 timeout=30,
@@ -4213,7 +4248,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4353,7 +4388,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4362,7 +4397,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/reprovisiondata?"
                 "api-version=2019-06-01",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=False,
                 timeout=30,
@@ -4371,7 +4406,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4465,7 +4500,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4474,7 +4509,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/reprovisiondata?"
                 "api-version=2019-06-01",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=False,
                 timeout=30,
@@ -4483,7 +4518,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4591,7 +4626,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4654,7 +4689,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 timeout=30,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
@@ -4760,6 +4795,7 @@ class TestGetMetadataFromImds:
         mock_imds_fetch_metadata_with_api_fallback,
         mock_kvp_report_failure_to_host,
         mock_time,
+        mock_monotonic,
         monkeypatch,
         report_failure,
         reported_error_type,
@@ -4770,7 +4806,7 @@ class TestGetMetadataFromImds:
         )
         azure_ds._route_configured_for_imds = route_configured_for_imds
         mock_imds_fetch_metadata_with_api_fallback.side_effect = exception
-        mock_time.return_value = 0.0
+        mock_monotonic.return_value = 0.0
         max_connection_errors = None if route_configured_for_imds else 11
 
         assert (

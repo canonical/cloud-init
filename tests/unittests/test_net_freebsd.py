@@ -1,8 +1,9 @@
 import os
 
+import yaml
+
 import cloudinit.net
 import cloudinit.net.network_state
-from cloudinit import safeyaml
 from tests.unittests.helpers import CiTestCase, dir2dict, mock, readResource
 
 SAMPLE_FREEBSD_IFCONFIG_OUT = readResource("netinfo/freebsd-ifconfig-output")
@@ -76,7 +77,7 @@ class TestFreeBSDRoundTrip(CiTestCase):
         entry = {
             "yaml": V1,
         }
-        network_config = safeyaml.load(entry["yaml"])
+        network_config = yaml.safe_load(entry["yaml"])
         ns = cloudinit.net.network_state.parse_net_config_data(network_config)
         files = self._render_and_read(state=ns)
         assert files == {

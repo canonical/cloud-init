@@ -118,7 +118,9 @@ def setup_image(session_cloud: IntegrationCloud, request):
     """
     source = get_validated_source(session_cloud)
     if not (
-        source.installs_new_version() or integration_settings.INCLUDE_COVERAGE
+        source.installs_new_version()
+        or integration_settings.INCLUDE_COVERAGE
+        or integration_settings.INCLUDE_PROFILE
     ):
         return
     log.info("Setting up source image")
@@ -126,9 +128,20 @@ def setup_image(session_cloud: IntegrationCloud, request):
     if source.installs_new_version():
         log.info("Installing cloud-init from %s", source.name)
         client.install_new_cloud_init(source)
+    if (
+        integration_settings.INCLUDE_PROFILE
+        and integration_settings.INCLUDE_COVERAGE
+    ):
+        log.error(
+            "Invalid configuration, cannot enable both profile and coverage."
+        )
+        raise ValueError()
     if integration_settings.INCLUDE_COVERAGE:
         log.info("Installing coverage")
         client.install_coverage()
+    elif integration_settings.INCLUDE_PROFILE:
+        log.info("Installing profiler")
+        client.install_profile()
     # All done customizing the image, so snapshot it and make it global
     snapshot_id = client.snapshot()
     client.cloud.snapshot_id = snapshot_id
@@ -167,6 +180,30 @@ def _collect_coverage(instance: IntegrationInstance, log_dir: Path):
         instance.pull_file("/.coverage", log_dir / ".coverage")
     except Exception as e:
         log.error("Failed to pull coverage for: %s", e)
+
+
+def _collect_profile(instance: IntegrationInstance, log_dir: Path):
+    log.info("Writing profile to %s", log_dir)
+    try:
+        (log_dir / "profile").mkdir(parents=True)
+        instance.pull_file(
+            "/var/log/cloud-init-local.service.stats",
+            log_dir / "profile" / "local.stats",
+        )
+        instance.pull_file(
+            "/var/log/cloud-init.service.stats",
+            log_dir / "profile" / "network.stats",
+        )
+        instance.pull_file(
+            "/var/log/cloud-config.service.stats",
+            log_dir / "profile" / "config.stats",
+        )
+        instance.pull_file(
+            "/var/log/cloud-final.service.stats",
+            log_dir / "profile" / "final.stats",
+        )
+    except Exception as e:
+        log.error("Failed to pull profile for: %s", e)
 
 
 def _setup_artifact_paths(node_id: str):
@@ -209,7 +246,12 @@ def _collect_artifacts(
         integration_settings.COLLECT_LOGS == "ON_ERROR" and test_failed
     )
     should_collect_coverage = integration_settings.INCLUDE_COVERAGE
-    if not (should_collect_logs or should_collect_coverage):
+    should_collect_profile = integration_settings.INCLUDE_PROFILE
+    if not (
+        should_collect_logs
+        or should_collect_coverage
+        or should_collect_profile
+    ):
         return
 
     log_dir = _setup_artifact_paths(node_id)
@@ -219,6 +261,9 @@ def _collect_artifacts(
 
     if should_collect_coverage:
         _collect_coverage(instance, log_dir)
+
+    elif should_collect_profile:
+        _collect_profile(instance, log_dir)
 
 
 @contextmanager
@@ -273,7 +318,7 @@ def _client(
 
 
 @pytest.fixture
-def client(
+def client(  # pylint: disable=W0135
     request, fixture_utils, session_cloud, setup_image
 ) -> Iterator[IntegrationInstance]:
     """Provide a client that runs for every test."""
@@ -282,7 +327,7 @@ def client(
 
 
 @pytest.fixture(scope="module")
-def module_client(
+def module_client(  # pylint: disable=W0135
     request, fixture_utils, session_cloud, setup_image
 ) -> Iterator[IntegrationInstance]:
     """Provide a client that runs once per module."""
@@ -291,7 +336,7 @@ def module_client(
 
 
 @pytest.fixture(scope="class")
-def class_client(
+def class_client(  # pylint: disable=W0135
     request, fixture_utils, session_cloud, setup_image
 ) -> Iterator[IntegrationInstance]:
     """Provide a client that runs once per class."""
@@ -385,7 +430,20 @@ def _generate_coverage_report() -> None:
     log.info("Coverage report generated")
 
 
+def _generate_profile_report() -> None:
+    log.info("Profile reports generated, run the following to view:")
+    command = (
+        "python3 -m snakeviz /tmp/cloud_init_test_logs/"
+        "last/tests/integration_tests/*/*/*/profile/%s"
+    )
+    log.info(command, "local.stats")
+    log.info(command, "network.stats")
+    log.info(command, "config.stats")
+    log.info(command, "final.stats")
+
+
 def pytest_sessionfinish(session, exitstatus) -> None:
-    if not integration_settings.INCLUDE_COVERAGE:
-        return
-    _generate_coverage_report()
+    if integration_settings.INCLUDE_COVERAGE:
+        _generate_coverage_report()
+    elif integration_settings.INCLUDE_PROFILE:
+        _generate_profile_report()

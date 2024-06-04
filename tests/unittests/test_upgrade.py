@@ -186,8 +186,12 @@ class TestUpgrade:
         "match_case_insensitive_module_name",
         lambda name: f"DataSource{name}",
     )
+    @mock.patch(
+        "cloudinit.sources.DataSourceCloudStack.get_vr_address",
+        return_value="data-server.",
+    )
     def test_all_ds_init_vs_unpickle_attributes(
-        self, mode, mocker, paths, tmpdir
+        self, m_get_vr_address, mode, mocker, paths, tmpdir
     ):
         """Unpickle resets any instance attributes created in __init__
 

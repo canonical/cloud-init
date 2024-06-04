@@ -29,6 +29,7 @@ from cloudinit.util import ensure_file, load_binary_file, subp, write_file
 from tests.unittests.helpers import (
     CiTestCase,
     ResponsesTestCase,
+    example_netdev,
     mock,
     populate_dir,
 )
@@ -138,6 +139,7 @@ class TestParseDHCPLeasesFile(CiTestCase):
 
 
 @pytest.mark.usefixtures("dhclient_exists")
+@pytest.mark.usefixtures("disable_netdev_info")
 class TestDHCPRFC3442(CiTestCase):
     def test_parse_lease_finds_rfc3442_classless_static_routes(self):
         """IscDhclient().get_newest_lease() returns
@@ -222,6 +224,7 @@ class TestDHCPRFC3442(CiTestCase):
         eph.obtain_lease()
         expected_kwargs = {
             "interface": "wlp3s0",
+            "interface_addrs_before_dhcp": example_netdev,
             "ip": "192.168.2.74",
             "prefix_or_mask": "255.255.255.0",
             "broadcast": "192.168.2.255",
@@ -251,6 +254,7 @@ class TestDHCPRFC3442(CiTestCase):
         eph.obtain_lease()
         expected_kwargs = {
             "interface": "wlp3s0",
+            "interface_addrs_before_dhcp": example_netdev,
             "ip": "192.168.2.74",
             "prefix_or_mask": "255.255.255.0",
             "broadcast": "192.168.2.255",
@@ -287,6 +291,17 @@ class TestDHCPParseStaticRoutes(CiTestCase):
             [("169.254.169.254/32", "130.56.248.255")],
             IscDhclient.parse_static_routes(rfc3442),
         )
+
+    def test_unknown_121(self):
+        for unknown121 in [
+            "0:a:0:0:1:20:a8:3f:81:10:a:0:0:1:20:a9:fe:a9:fe:a:0:0:1",
+            "0:a:0:0:1:20:a8:3f:81:10:a:0:0:1:20:a9:fe:a9:fe:a:0:0:1;",
+        ]:
+            assert IscDhclient.parse_static_routes(unknown121) == [
+                ("0.0.0.0/0", "10.0.0.1"),
+                ("168.63.129.16/32", "10.0.0.1"),
+                ("169.254.169.254/32", "10.0.0.1"),
+            ]
 
     def test_parse_static_routes_default_route(self):
         rfc3442 = "0,130,56,240,1"
@@ -651,7 +666,7 @@ class TestDHCPDiscoveryClean:
     def test_dhcp_output_error_stream(
         self, m_wait, m_which, m_subp, m_kill, m_remove, tmpdir
     ):
-        """ "dhcp_log_func is called with the output and error streams of
+        """dhcp_log_func is called with the output and error streams of
         dhclient when the callable is passed."""
         dhclient_err = "FAKE DHCLIENT ERROR"
         dhclient_out = "FAKE DHCLIENT OUT"
@@ -799,6 +814,7 @@ class TestSystemdParseLeases(CiTestCase):
         )
 
 
+@pytest.mark.usefixtures("disable_netdev_info")
 class TestEphemeralDhcpNoNetworkSetup(ResponsesTestCase):
     @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
     def test_ephemeral_dhcp_no_network_if_url_connectivity(self, m_dhcp):
@@ -846,6 +862,7 @@ class TestEphemeralDhcpNoNetworkSetup(ResponsesTestCase):
         NoDHCPLeaseMissingDhclientError,
     ],
 )
+@pytest.mark.usefixtures("disable_netdev_info")
 class TestEphemeralDhcpLeaseErrors:
     @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     def test_obtain_lease_raises_error(self, m_dhcp, error_class):
@@ -1198,6 +1215,70 @@ class TestDhcpcd:
         assert "192.168.0.212" == parsed_lease["fixed-address"]
         assert "255.255.240.0" == parsed_lease["subnet-mask"]
         assert "192.168.0.1" == parsed_lease["routers"]
+
+    @pytest.mark.parametrize(
+        "lease, parsed",
+        (
+            pytest.param(
+                """
+
+                domain_name='us-east-2.compute.internal'
+
+                domain_name_servers='192.168.0.2'
+
+                """,
+                {
+                    "domain_name": "us-east-2.compute.internal",
+                    "domain_name_servers": "192.168.0.2",
+                },
+                id="lease_has_empty_lines",
+            ),
+            pytest.param(
+                """
+                domain_name='us-east-2.compute.internal'
+                not-a-kv-pair
+                domain_name_servers='192.168.0.2'
+                """,
+                {
+                    "domain_name": "us-east-2.compute.internal",
+                    "domain_name_servers": "192.168.0.2",
+                },
+                id="lease_has_values_that_arent_key_value_pairs",
+            ),
+            pytest.param(
+                """
+                domain_name='us-east=2.compute.internal'
+                """,
+                {
+                    "domain_name": "us-east=2.compute.internal",
+                },
+                id="lease_has_kv_pair_including_equals_sign_in_value",
+            ),
+        ),
+    )
+    def test_parse_lease_dump_resilience(self, lease, parsed):
+        with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
+            Dhcpcd.parse_dhcpcd_lease(dedent(lease), "eth0")
+
+    def test_parse_lease_dump_fails(self):
+        def _raise():
+            raise ValueError()
+
+        lease = mock.Mock()
+        lease.strip = _raise
+
+        with pytest.raises(InvalidDHCPLeaseFileError):
+            with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
+                Dhcpcd.parse_dhcpcd_lease(lease, "eth0")
+
+        with pytest.raises(InvalidDHCPLeaseFileError):
+            with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
+                lease = dedent(
+                    """
+                    fail
+                    """
+                )
+                Dhcpcd.parse_dhcpcd_lease(lease, "eth0")
 
     @pytest.mark.parametrize(
         "lease_file, option_245",

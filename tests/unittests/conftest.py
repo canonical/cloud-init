@@ -1,6 +1,7 @@
 import builtins
 import glob
 import os
+import pathlib
 import shutil
 from pathlib import Path
 from unittest import mock
@@ -8,9 +9,10 @@ from unittest import mock
 import pytest
 
 from cloudinit import atomic_helper, log, util
+from cloudinit.cmd.devel import logs
 from cloudinit.gpg import GPG
 from tests.hypothesis import HAS_HYPOTHESIS
-from tests.unittests.helpers import retarget_many_wrapper
+from tests.unittests.helpers import example_netdev, retarget_many_wrapper
 
 
 @pytest.fixture
@@ -101,6 +103,15 @@ def disable_sysfs_net(tmpdir_factory):
         yield mock_sysfs
 
 
+@pytest.fixture(scope="class")
+def disable_netdev_info(request):
+    """Avoid tests which read the underlying host's /syc/class/net."""
+    with mock.patch(
+        "cloudinit.netinfo.netdev_info", return_value=example_netdev
+    ) as mock_netdev:
+        yield mock_netdev
+
+
 @pytest.fixture(autouse=True)
 def disable_dns_lookup(request):
     if "allow_dns_lookup" in request.keywords:
@@ -158,3 +169,19 @@ if HAS_HYPOTHESIS:
 
     settings.register_profile("ci", max_examples=1000)
     settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "default"))
+
+
+@pytest.fixture
+def m_log_paths(mocker, tmp_path):
+    """Define logs.LogPaths for testing and mock get_log_paths with it."""
+    paths = logs.LogPaths(
+        userdata_raw=tmp_path / "userdata_raw",
+        cloud_data=tmp_path / "cloud_data",
+        run_dir=tmp_path / "run_dir",
+        instance_data_sensitive=tmp_path
+        / "run_dir"
+        / "instance_data_sensitive",
+    )
+    pathlib.Path(paths.run_dir).mkdir()
+    mocker.patch.object(logs, "get_log_paths", return_value=paths)
+    yield paths

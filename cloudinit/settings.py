@@ -16,7 +16,7 @@ CLOUD_CONFIG = "/etc/cloud/cloud.cfg"
 
 CLEAN_RUNPARTS_DIR = "/etc/cloud/clean.d"
 
-RUN_CLOUD_CONFIG = "/run/cloud-init/cloud.cfg"
+DEFAULT_RUN_DIR = "/run/cloud-init"
 
 # What u get if no config is provided
 CFG_BUILTIN = {
@@ -59,6 +59,7 @@ CFG_BUILTIN = {
     "system_info": {
         "paths": {
             "cloud_dir": "/var/lib/cloud",
+            "docs_dir": "/usr/share/doc/cloud-init/",
             "templates_dir": "/etc/cloud/templates/",
         },
         "distro": "ubuntu",

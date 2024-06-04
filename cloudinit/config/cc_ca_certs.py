@@ -64,6 +64,12 @@ for distro in (
 ):
     DISTRO_OVERRIDES[distro] = DISTRO_OVERRIDES["opensuse"]
 
+for distro in (
+    "almalinux",
+    "cloudlinux",
+):
+    DISTRO_OVERRIDES[distro] = DISTRO_OVERRIDES["rhel"]
+
 MODULE_DESCRIPTION = """\
 This module adds CA certificates to the system's CA store and updates any
 related files using the appropriate OS-specific utility. The default CA
@@ -79,6 +85,8 @@ configuration option ``remove_defaults``.
     order to provide the ``update-ca-certificates`` command.
 """
 distros = [
+    "almalinux",
+    "cloudlinux",
     "alpine",
     "debian",
     "fedora",

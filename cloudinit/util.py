@@ -56,12 +56,13 @@ from typing import (
 )
 from urllib import parse
 
+import yaml
+
 from cloudinit import (
     features,
     importer,
     mergers,
     net,
-    safeyaml,
     settings,
     subp,
     temp_utils,
@@ -395,13 +396,13 @@ def clean_filename(fn):
 
 def decomp_gzip(data, quiet=True, decode=True):
     try:
-        buf = io.BytesIO(encode_text(data))
-        with contextlib.closing(gzip.GzipFile(None, "rb", 1, buf)) as gh:
-            # E1101 is https://github.com/PyCQA/pylint/issues/1444
+        with io.BytesIO(encode_text(data)) as buf, gzip.GzipFile(
+            None, "rb", 1, buf
+        ) as gh:
             if decode:
-                return decode_binary(gh.read())  # pylint: disable=E1101
+                return decode_binary(gh.read())
             else:
-                return gh.read()  # pylint: disable=E1101
+                return gh.read()
     except Exception as e:
         if quiet:
             return data
@@ -752,7 +753,7 @@ def get_cfg_by_path(yobj, keyp, default=None):
                  or an iterable.
     @param default: The default to return if the path does not exist.
     @return: The value of the item at keyp."
-        is not found."""
+    is not found."""
 
     if isinstance(keyp, str):
         keyp = keyp.split("/")
@@ -949,13 +950,14 @@ def del_dir(path):
     shutil.rmtree(path)
 
 
-# read_optional_seed
-# returns boolean indicating success or failure (presence of files)
-# if files are present, populates 'fill' dictionary with 'user-data' and
-# 'meta-data' entries
 def read_optional_seed(fill, base="", ext="", timeout=5):
+    """
+    returns boolean indicating success or failure (presense of files)
+    if files are present, populates 'fill' dictionary with 'user-data' and
+    'meta-data' entries
+    """
     try:
-        (md, ud, vd) = read_seeded(base, ext, timeout)
+        md, ud, vd = read_seeded(base=base, ext=ext, timeout=timeout)
         fill["user-data"] = ud
         fill["vendor-data"] = vd
         fill["meta-data"] = md
@@ -1009,7 +1011,7 @@ def load_yaml(blob, default=None, allowed=(dict,)):
             len(blob),
             allowed,
         )
-        converted = safeyaml.load(blob)
+        converted = yaml.safe_load(blob)
         if converted is None:
             LOG.debug("loaded blob returned None, returning default.")
             converted = default
@@ -1020,7 +1022,7 @@ def load_yaml(blob, default=None, allowed=(dict,)):
                 % (allowed, type_utils.obj_name(converted))
             )
         loaded = converted
-    except (safeyaml.YAMLError, TypeError, ValueError) as e:
+    except (yaml.YAMLError, TypeError, ValueError) as e:
         msg = "Failed loading yaml blob"
         mark = None
         if hasattr(e, "context_mark") and getattr(e, "context_mark"):
@@ -1390,20 +1392,6 @@ def search_for_mirror(candidates):
     return None
 
 
-def close_stdin():
-    """
-    reopen stdin as /dev/null so even subprocesses or other os level things get
-    /dev/null as input.
-
-    if _CLOUD_INIT_SAVE_STDIN is set in environment to a non empty and true
-    value then input will not be closed (useful for debugging).
-    """
-    if is_true(os.environ.get("_CLOUD_INIT_SAVE_STDIN")):
-        return
-    with open(os.devnull) as fp:
-        os.dup2(fp.fileno(), sys.stdin.fileno())
-
-
 def find_devs_with_freebsd(
     criteria=None, oformat="device", tag=None, no_cache=False, path=None
 ):
@@ -1598,14 +1586,14 @@ def load_binary_file(
     quiet: bool = False,
 ) -> bytes:
     LOG.debug("Reading from %s (quiet=%s)", fname, quiet)
-    ofh = io.BytesIO()
-    try:
-        with open(fname, "rb") as ifh:
-            pipe_in_out(ifh, ofh, chunk_cb=read_cb)
-    except FileNotFoundError:
-        if not quiet:
-            raise
-    contents = ofh.getvalue()
+    with io.BytesIO() as ofh:
+        try:
+            with open(fname, "rb") as ifh:
+                pipe_in_out(ifh, ofh, chunk_cb=read_cb)
+        except FileNotFoundError:
+            if not quiet:
+                raise
+        contents = ofh.getvalue()
     LOG.debug("Read %s bytes from %s", len(contents), fname)
     return contents
 
@@ -1796,21 +1784,10 @@ def get_config_logfiles(cfg):
     return list(set(logs + rotated_logs))
 
 
-def logexc(log, msg, *args):
-    # Setting this here allows this to change
-    # levels easily (not always error level)
-    # or even desirable to have that much junk
-    # coming out to a non-debug stream
-    if msg:
-        log.warning(msg, *args)
-    # Debug gets the full trace.  However, nose has a bug whereby its
-    # logcapture plugin doesn't properly handle the case where there is no
-    # actual exception.  To avoid tracebacks during the test suite then, we'll
-    # do the actual exc_info extraction here, and if there is no exception in
-    # flight, we'll just pass in None.
-    exc_info = sys.exc_info()
-    if exc_info == (None, None, None):
-        exc_info = None
+def logexc(
+    log, msg, *args, log_level: int = logging.WARNING, exc_info=True
+) -> None:
+    log.log(log_level, msg, *args)
     log.debug(msg, exc_info=exc_info, *args)
 
 
@@ -2631,7 +2608,7 @@ def find_freebsd_part(fs):
         return splitted[0]
     elif len(splitted) == 3:
         return splitted[2]
-    elif splitted[2] in ["label", "gpt", "ufs"]:
+    elif splitted[2] in ["label", "gpt", "gptid", "ufs", "ufsid"]:
         target_label = fs[5:]
         (part, _err) = subp.subp(["glabel", "status", "-s"])
         for labels in part.split("\n"):
@@ -2815,7 +2792,7 @@ def log_time(
     if kwargs is None:
         kwargs = {}
 
-    start = time.time()
+    start = time.monotonic()
 
     ustart = None
     if get_uptime:
@@ -2827,7 +2804,7 @@ def log_time(
     try:
         ret = func(*args, **kwargs)
     finally:
-        delta = time.time() - start
+        delta = time.monotonic() - start
         udelta = None
         if ustart is not None:
             try:
@@ -2958,8 +2935,6 @@ def is_x86(uname_arch=None):
 
 
 def message_from_string(string):
-    if sys.version_info[:2] < (2, 7):
-        return email.message_from_file(io.StringIO(string))
     return email.message_from_string(string)
 
 
@@ -3034,7 +3009,7 @@ def rootdev_from_cmdline(cmdline):
 
 
 def load_shell_content(content, add_empty=False, empty_val=None):
-    """Given shell like syntax (key=value\nkey2=value2\n) in content
+    r"""Given shell like syntax (key=value\nkey2=value2\n) in content
     return the data in dictionary form.  If 'add_empty' is True
     then add entries in to the returned dictionary for 'VAR='
     variables.  Set their value to empty_val."""
@@ -3122,7 +3097,7 @@ def udevadm_settle(exists=None, timeout=None):
 
 
 def error(msg, rc=1, fmt="Error:\n{}", sys_exit=False):
-    """
+    r"""
     Print error to stderr and return or exit
 
     @param msg: message to print
@@ -3138,13 +3113,49 @@ def error(msg, rc=1, fmt="Error:\n{}", sys_exit=False):
 
 @total_ordering
 class Version(namedtuple("Version", ["major", "minor", "patch", "rev"])):
-    def __new__(cls, major=-1, minor=-1, patch=-1, rev=-1):
+    """A class for comparing versions.
+
+    Implemented as a named tuple with all ordering methods. Comparisons
+    between X.Y.N and X.Y always treats the more specific number as larger.
+
+    :param major: the most significant number in a version
+    :param minor: next greatest significant number after major
+    :param patch: next greatest significant number after minor
+    :param rev: the least significant number in a version
+
+    :raises TypeError: If invalid arguments are given.
+    :raises ValueError: If invalid arguments are given.
+
+    Examples:
+        >>> Version(2, 9) == Version.from_str("2.9")
+        True
+        >>> Version(2, 9, 1) > Version.from_str("2.9.1")
+        False
+        >>> Version(3, 10) > Version.from_str("3.9.9.9")
+        True
+        >>> Version(3, 7) >= Version.from_str("3.7")
+        True
+
+    """
+
+    def __new__(
+        cls, major: int = -1, minor: int = -1, patch: int = -1, rev: int = -1
+    ) -> "Version":
         """Default of -1 allows us to tiebreak in favor of the most specific
         number"""
         return super(Version, cls).__new__(cls, major, minor, patch, rev)
 
     @classmethod
-    def from_str(cls, version: str):
+    def from_str(cls, version: str) -> "Version":
+        """Create a Version object from a string.
+
+        :param version: A period-delimited version string, max 4 segments.
+
+        :raises TypeError: Raised if invalid arguments are given.
+        :raises ValueError: Raised if invalid arguments are given.
+
+        :return: A Version object.
+        """
         return cls(*(list(map(int, version.split(".")))))
 
     def __gt__(self, other):
@@ -3169,15 +3180,15 @@ class Version(namedtuple("Version", ["major", "minor", "patch", "rev"])):
     def __str__(self):
         return ".".join(self)
 
-    def _compare_version(self, other) -> int:
-        """
-        return values:
-            1: self > v2
-            -1: self < v2
-            0: self == v2
+    def __hash__(self):
+        return hash(str(self))
 
-        to break a tie between 3.1.N and 3.1, always treat the more
-        specific number as larger
+    def _compare_version(self, other: "Version") -> int:
+        """Compare this Version to another.
+
+        :param other: A Version object.
+
+        :return: -1 if self > other, 1 if self < other, else 0
         """
         if self == other:
             return 0

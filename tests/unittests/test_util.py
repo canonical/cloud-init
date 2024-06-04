@@ -1725,6 +1725,8 @@ class TestRedirectOutputPreexecFn:
             args = (test_string, None)
         elif request.param == "errfmt":
             args = (None, test_string)
+        else:
+            args = (None, None)
         with mock.patch(M_PATH + "subprocess.Popen") as m_popen:
             util.redirect_output(*args)
 
@@ -2529,7 +2531,7 @@ class TestReadSeeded:
                 else:
                     _url, _, md_type = parsed_url.netloc.partition("8008")
                 path = f"/{md_type}"
-            return url_helper.StringResponse(f"{path}: 1")
+            return url_helper.StringResponse(f"{path}: 1", "http://url/")
 
         m_read.side_effect = fake_response
 
@@ -3245,3 +3247,39 @@ class TestReadHotplugEnabledFile:
         assert {"scopes": ["network"]} == util.read_hotplug_enabled_file(
             MockPath(target_file.strpath)
         )
+
+
+class TestLogExc:
+    def test_logexc(self, caplog):
+        try:
+            _ = 1 / 0
+        except Exception as _:
+            util.logexc(LOG, "an error occurred")
+
+        assert caplog.record_tuples == [
+            (
+                "tests.unittests.test_util",
+                logging.WARNING,
+                "an error occurred",
+            ),
+            ("tests.unittests.test_util", logging.DEBUG, "an error occurred"),
+        ]
+
+    @pytest.mark.parametrize(
+        "log_level",
+        [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR],
+    )
+    def test_logexc_with_log_level(self, caplog, log_level):
+        try:
+            _ = 1 / 0
+        except Exception as _:
+            util.logexc(LOG, "an error occurred", log_level=log_level)
+
+        assert caplog.record_tuples == [
+            (
+                "tests.unittests.test_util",
+                log_level,
+                "an error occurred",
+            ),
+            ("tests.unittests.test_util", logging.DEBUG, "an error occurred"),
+        ]
