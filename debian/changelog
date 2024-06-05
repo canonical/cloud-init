@@ -1,10 +1,12 @@
-cloud-init (24.1.3-0ubuntu1~20.04.5) focal; urgency=medium
+cloud-init (24.1.3-0ubuntu1~20.04.5) UNRELEASED; urgency=medium
 
-  * Upstream bug fix release based on 24.1.6
+  * Upstream bug fix release based on 24.1.7
     + functional fixes in debian/patches:
       - cpick-417ee551: fix(ec2): Ensure metadata exists before configuring PBR.
         (LP: #2066979)
       - cpick-d6776632: fix: Check renderer for netplan-specific code (#5321)
+        (LP: #2066985)
+      - cpick d771d1f4: fix(ec2): Correctly identify netplan renderer (#5361)
         (LP: #2066985)
     + test fixes in debian/patches:
       - cpick-74dc7cce: test: Fix failing test_ec2.py test (#5324)
