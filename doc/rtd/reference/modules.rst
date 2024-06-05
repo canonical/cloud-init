@@ -73,6 +73,9 @@ date. A 5 year timeline may also be expected for changed keys.
 .. automodule:: cloudinit.config.cc_scripts_user
 .. automodule:: cloudinit.config.cc_scripts_vendor
 .. automodule:: cloudinit.config.cc_seed_random
+
+.. _mod-set_hostname:
+
 .. automodule:: cloudinit.config.cc_set_hostname
 
 .. _mod-set_passwords:

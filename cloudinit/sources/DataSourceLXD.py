@@ -332,7 +332,7 @@ class MetaDataKeys(Flag):
     CONFIG = auto()
     DEVICES = auto()
     META_DATA = auto()
-    ALL = CONFIG | DEVICES | META_DATA
+    ALL = CONFIG | DEVICES | META_DATA  # pylint: disable=E1131
 
 
 class _MetaDataReader:

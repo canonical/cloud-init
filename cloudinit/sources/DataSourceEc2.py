@@ -336,6 +336,8 @@ class DataSourceEc2(sources.DataSource):
         return None
 
     def wait_for_metadata_service(self):
+        urls = []
+        start_time = 0
         mcfg = self.ds_cfg
 
         url_params = self.get_url_params()
@@ -369,7 +371,6 @@ class DataSourceEc2(sources.DataSource):
             and self.cloud_name not in IDMSV2_SUPPORTED_CLOUD_PLATFORMS
         ):
             # if we can't get a token, use instance-id path
-            urls = []
             url2base = {}
             url_path = "{ver}/meta-data/instance-id".format(
                 ver=self.min_metadata_version
@@ -1086,7 +1087,7 @@ def convert_ec2_metadata_network_config(
         netcfg["ethernets"][nic_name] = dev_config
         return netcfg
     # Apply network config for all nics and any secondary IPv4/v6 addresses
-    is_netplan = distro.network_renderer == netplan.Renderer
+    is_netplan = isinstance(distro.network_renderer, netplan.Renderer)
     nic_order = _build_nic_order(
         macs_metadata, macs_to_nics, fallback_nic_order
     )

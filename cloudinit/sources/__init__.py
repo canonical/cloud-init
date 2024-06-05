@@ -386,7 +386,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def override_ds_detect(self) -> bool:
         """Override if either:
         - only a single datasource defined (nothing to fall back to)
-        - commandline argument is used (ci.ds=OpenStack)
+        - command line argument is used (ci.ds=OpenStack)
 
         Note: get_cmdline() is required for the general case - when ds-identify
         does not run, _something_ needs to detect the kernel command line
@@ -394,7 +394,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
         if self.dsname.lower() == parse_cmdline().lower():
             LOG.debug(
-                "Machine is configured by the kernel commandline to run on "
+                "Machine is configured by the kernel command line to run on "
                 "single datasource %s.",
                 self,
             )
@@ -725,10 +725,6 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         for f in filters:
             new_ud = f.apply(new_ud)
         return new_ud
-
-    @property
-    def is_disconnected(self):
-        return False
 
     def get_userdata_raw(self):
         return self.userdata_raw
@@ -1232,7 +1228,7 @@ def parse_cmdline_or_dmi(input: str) -> str:
         dsname = deprecated.group(1).strip()
         util.deprecate(
             deprecated=(
-                f"Defining the datasource on the commandline using "
+                f"Defining the datasource on the command line using "
                 f"ci.ds={dsname} or "
                 f"ci.datasource={dsname}"
             ),

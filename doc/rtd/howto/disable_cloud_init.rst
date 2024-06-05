@@ -22,10 +22,10 @@ Example:
 
     $ touch /etc/cloud/cloud-init.disabled
 
-Method 2: kernel commandline
-============================
+Method 2: kernel command line
+=============================
 
-To disable cloud-init, add ``cloud-init=disabled`` to the kernel commandline.
+To disable cloud-init, add ``cloud-init=disabled`` to the kernel command line.
 
 Example (using GRUB2 with Ubuntu):
 

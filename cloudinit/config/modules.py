@@ -208,7 +208,7 @@ class Modules:
                 util.deprecate(
                     deprecated=(
                         f"Module has been renamed from {mod_name} to "
-                        f"{RENAMED_MODULES[mod_name][1]}. Update any"
+                        f"{RENAMED_MODULES[mod_name]}. Update any"
                         " references in /etc/cloud/cloud.cfg"
                     ),
                     deprecated_version="24.1",

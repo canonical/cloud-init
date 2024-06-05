@@ -215,7 +215,7 @@ def render_nested_properties(prop_cfg, prefix):
     prop_str = ""
     if "items" in prop_cfg:
         prop_str += render_nested_properties(prop_cfg["items"], prefix)
-    if not "properties" in prop_cfg:
+    if "properties" not in prop_cfg:
         return prop_str
     for prop_name, nested_cfg in prop_cfg["properties"].items():
         prop_str += render_property_template(prop_name, nested_cfg, prefix)

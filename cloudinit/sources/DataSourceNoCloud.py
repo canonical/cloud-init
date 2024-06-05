@@ -67,7 +67,7 @@ class DataSourceNoCloud(sources.DataSource):
 
         try:
             # Parse the system serial label from dmi. If not empty, try parsing
-            # like the commandline
+            # like the command line
             md = {}
             serial = dmi.read_dmi_data("system-serial-number")
             if serial and load_cmdline_data(md, serial):
@@ -375,7 +375,7 @@ class DataSourceNoCloudNet(DataSourceNoCloud):
         )
 
     def ds_detect(self):
-        """Check dmi and kernel commandline for dsname
+        """Check dmi and kernel command line for dsname
 
         NoCloud historically used "nocloud-net" as its dsname
         for network timeframe (DEP_NETWORK), which supports http(s) urls.

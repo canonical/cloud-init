@@ -10,7 +10,7 @@ from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL
 from tests.integration_tests.util import (
-    override_kernel_cmdline,
+    override_kernel_command_line,
     verify_clean_boot,
     verify_clean_log,
 )
@@ -223,7 +223,7 @@ class TestFTP:
         """configure an ftp server to start prior to network timeframe
         optionally install certs and make the server support only FTP over TLS
 
-        cmdline: a string containing the kernel commandline set on reboot
+        cmdline: a string containing the kernel command line set on reboot
         client: an instance to configure
         encrypted: a boolean which modifies the configured ftp server
         """
@@ -379,8 +379,8 @@ class TestFTP:
         )
         client.write_to_file("/vendor-data", "")
 
-        # set the kernel commandline, reboot with it
-        override_kernel_cmdline(cmdline, client)
+        # set the kernel command line, reboot with it
+        override_kernel_command_line(cmdline, client)
 
     def test_nocloud_ftp_unencrypted_server_succeeds(
         self, client: IntegrationInstance

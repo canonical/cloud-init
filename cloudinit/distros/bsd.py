@@ -121,6 +121,8 @@ class BSD(distros.Distro):
             if not self.pkg_cmd_upgrade_prefix:
                 return
             cmd = self.pkg_cmd_upgrade_prefix
+        else:
+            cmd = []
 
         if args and isinstance(args, str):
             cmd.append(args)
@@ -169,4 +171,5 @@ class BSD(distros.Distro):
             if m:
                 return m["dev"], m["part_slice"]
 
-        return distros.Distro.device_part_info(devpath)
+        # the input is bogus and we need to bail
+        raise ValueError(f"Invalid value for devpath: '{devpath}'")

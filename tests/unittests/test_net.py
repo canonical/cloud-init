@@ -1859,18 +1859,29 @@ USERCTL=no
     @pytest.mark.parametrize(
         "expected_name,yaml_version",
         [
-            ("bond", "yaml"),
-            ("vlan", "yaml"),
-            ("bridge", "yaml"),
+            ("bond_v1", "yaml"),
+            pytest.param(
+                "bond_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason="Bond MAC address not rendered"
+                ),
+            ),
+            ("vlan_v1", "yaml"),
+            ("vlan_v2", "yaml"),
+            ("bridge", "yaml_v1"),
+            ("bridge", "yaml_v2"),
             ("manual", "yaml"),
             ("small_v1", "yaml"),
             ("small_v2", "yaml"),
-            ("dhcpv6_only", "yaml"),
+            ("dhcpv6_only", "yaml_v1"),
+            ("dhcpv6_only", "yaml_v2"),
             ("dhcpv6_accept_ra", "yaml_v1"),
             ("dhcpv6_accept_ra", "yaml_v2"),
             ("dhcpv6_reject_ra", "yaml_v1"),
-            ("static6", "yaml"),
             ("dhcpv6_reject_ra", "yaml_v2"),
+            ("static6", "yaml_v1"),
+            ("static6", "yaml_v2"),
             ("dhcpv6_stateless", "yaml"),
             ("dhcpv6_stateful", "yaml"),
             ("wakeonlan_disabled", "yaml_v2"),
@@ -1883,6 +1894,13 @@ USERCTL=no
                 ),
             ),
             ("v2-dns", "yaml"),
+            pytest.param(
+                "large_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason="Bond and Bridge MAC address not rendered"
+                ),
+            ),
         ],
     )
     def test_config(self, expected_name, yaml_version):
@@ -1893,8 +1911,8 @@ USERCTL=no
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
-    def test_all_config(self, caplog):
-        entry = NETWORK_CONFIGS["all"]
+    def test_large_v1_config(self, caplog):
+        entry = NETWORK_CONFIGS["large_v1"]
         found = self._render_and_read(
             network_config=yaml.safe_load(entry["yaml"])
         )
@@ -1905,10 +1923,19 @@ USERCTL=no
             not in caplog.text
         )
 
-    def test_v4_and_v6_static_config(self, caplog):
-        entry = NETWORK_CONFIGS["v4_and_v6_static"]
+    @pytest.mark.parametrize(
+        "yaml_file,network_config",
+        [
+            ("yaml_v1", "v1_ipv4_and_ipv6_static"),
+            ("yaml_v2", "v2_ipv4_and_ipv6_static"),
+        ],
+    )
+    def test_ipv4_and_ipv6_static_config(
+        self, yaml_file, network_config, caplog
+    ):
+        entry = NETWORK_CONFIGS[network_config]
         found = self._render_and_read(
-            network_config=yaml.safe_load(entry["yaml"])
+            network_config=yaml.safe_load(entry[yaml_file])
         )
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
@@ -1916,7 +1943,8 @@ USERCTL=no
             "Network config: ignoring iface0 device-level mtu:8999"
             " because ipv4 subnet-level mtu:9000 provided."
         )
-        assert expected_msg in caplog.text
+        if yaml_file == "yaml_v1":
+            assert expected_msg in caplog.text
 
     def test_stattic6_from_json(self):
         net_json = {
@@ -2480,38 +2508,61 @@ STARTMODE=auto
         assert resolvconf_content == found["/etc/resolv.conf"]
 
     @pytest.mark.parametrize(
-        "expected_name",
+        "expected_name,yaml_name",
         [
-            "bond",
-            "vlan",
-            "bridge",
-            "manual",
-            "small_v1",
-            "small_v1_suse_dhcp6",
-            "small_v2",
-            "v4_and_v6_static",
-            "dhcpv6_only",
-            "ipv6_slaac",
-            "dhcpv6_stateless",
-            "wakeonlan_disabled",
-            "wakeonlan_enabled",
-            "v4_and_v6",
-            "v6_and_v4",
-            "v1-dns",
-            "v2-dns",
+            ("bond_v1", "yaml"),
+            pytest.param(
+                "bond_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason="Bond MAC address not rendered"
+                ),
+            ),
+            ("vlan_v1", "yaml"),
+            ("vlan_v2", "yaml"),
+            ("bridge", "yaml_v1"),
+            ("bridge", "yaml_v2"),
+            ("manual", "yaml"),
+            ("small_v1", "yaml"),
+            ("small_suse_dhcp6", "yaml_v1"),
+            ("small_suse_dhcp6", "yaml_v2"),
+            ("small_v2", "yaml"),
+            ("v1_ipv4_and_ipv6_static", "yaml_v1"),
+            ("v2_ipv4_and_ipv6_static", "yaml_v2"),
+            ("dhcpv6_only", "yaml_v1"),
+            ("dhcpv6_only", "yaml_v2"),
+            ("ipv6_slaac", "yaml"),
+            ("dhcpv6_stateless", "yaml"),
+            ("wakeonlan_disabled", "yaml_v2"),
+            ("wakeonlan_enabled", "yaml_v2"),
+            ("v4_and_v6", "yaml_v1"),
+            ("v4_and_v6", "yaml_v2"),
+            ("v6_and_v4", "yaml"),
+            ("v1-dns", "yaml"),
+            ("v2-dns", "yaml"),
+            pytest.param(
+                "large_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason="Bond and Bridge LLADDR not rendered"
+                ),
+            ),
         ],
     )
-    def test_config(self, expected_name):
+    def test_config(
+        self,
+        expected_name,
+        yaml_name,
+    ):
         entry = NETWORK_CONFIGS[expected_name]
-        yaml_name = "yaml" if "yaml" in entry else "yaml_v2"
         found = self._render_and_read(
             network_config=yaml.safe_load(entry[yaml_name])
         )
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
-    def test_all_config(self, caplog):
-        entry = NETWORK_CONFIGS["all"]
+    def test_large_v2_config(self, caplog):
+        entry = NETWORK_CONFIGS["large_v1"]
         found = self._render_and_read(
             network_config=yaml.safe_load(entry["yaml"])
         )
@@ -2740,8 +2791,85 @@ class TestNetworkManagerRendering:
             found,
         )
 
-    def test_all_config(self, caplog):
-        entry = NETWORK_CONFIGS["all"]
+    @pytest.mark.parametrize(
+        "yaml_file,config",
+        [
+            ("yaml_v1", "v1_ipv4_and_ipv6_static"),
+            ("yaml_v2", "v2_ipv4_and_ipv6_static"),
+        ],
+    )
+    def test_ipv4_and_ipv6_static_config(self, yaml_file, config, caplog):
+        entry = NETWORK_CONFIGS[config]
+        found = self._render_and_read(
+            network_config=yaml.safe_load(entry[yaml_file])
+        )
+        self._compare_files_to_expected(
+            entry[self.expected_name], self.expected_conf_d, found
+        )
+        expected_msg = (
+            "Network config: ignoring iface0 device-level mtu:8999"
+            " because ipv4 subnet-level mtu:9000 provided."
+        )
+        if yaml_file == "yaml_v1":
+            assert expected_msg in caplog.text
+
+    @pytest.mark.parametrize(
+        "expected_name,yaml_name",
+        [
+            ("bond_v1", "yaml"),
+            pytest.param(
+                "bond_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason="mii-monitor-interval not rendered."
+                ),
+            ),
+            ("vlan_v1", "yaml"),
+            ("vlan_v2", "yaml"),
+            ("bridge", "yaml_v1"),
+            ("bridge", "yaml_v2"),
+            ("manual", "yaml"),
+            ("small_v1", "yaml"),
+            ("small_v2", "yaml"),
+            ("dhcpv6_only", "yaml_v1"),
+            ("dhcpv6_only", "yaml_v2"),
+            ("ipv6_slaac", "yaml"),
+            ("dhcpv6_stateless", "yaml"),
+            ("wakeonlan_disabled", "yaml_v2"),
+            ("wakeonlan_enabled", "yaml_v2"),
+            ("v4_and_v6", "yaml_v1"),
+            ("v4_and_v6", "yaml_v2"),
+            ("v6_and_v4", "yaml"),
+            ("v1-dns", "yaml"),
+            ("v2-mixed-routes", "yaml"),
+            ("v2-dns", "yaml"),
+            ("v2-dns-no-if-ips", "yaml"),
+            ("v2-dns-no-dhcp", "yaml"),
+            ("v2-route-no-gateway", "yaml"),
+            pytest.param(
+                "large_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason=(
+                        "Bridge MAC and bond miimon not rendered. "
+                        "Bond DNS not rendered. "
+                        "DNS not rendered when DHCP is enabled."
+                    ),
+                ),
+            ),
+        ],
+    )
+    def test_config(self, expected_name, yaml_name):
+        entry = NETWORK_CONFIGS[expected_name]
+        found = self._render_and_read(
+            network_config=yaml.safe_load(entry[yaml_name])
+        )
+        self._compare_files_to_expected(
+            entry[self.expected_name], self.expected_conf_d, found
+        )
+
+    def test_large_v1_config(self, caplog):
+        entry = NETWORK_CONFIGS["large_v1"]
         found = self._render_and_read(
             network_config=yaml.safe_load(entry["yaml"])
         )
@@ -2751,54 +2879,6 @@ class TestNetworkManagerRendering:
         assert (
             "Network config: ignoring eth0.101 device-level mtu"
             not in caplog.text
-        )
-
-    def test_v4_and_v6_static_config(self, caplog):
-        entry = NETWORK_CONFIGS["v4_and_v6_static"]
-        found = self._render_and_read(
-            network_config=yaml.safe_load(entry["yaml"])
-        )
-        self._compare_files_to_expected(
-            entry[self.expected_name], self.expected_conf_d, found
-        )
-        expected_msg = (
-            "Network config: ignoring iface0 device-level mtu:8999"
-            " because ipv4 subnet-level mtu:9000 provided."
-        )
-        assert expected_msg in caplog.text
-
-    @pytest.mark.parametrize(
-        "expected_name",
-        [
-            "bond",
-            "vlan",
-            "bridge",
-            "manual",
-            "small_v1",
-            "small_v2",
-            "dhcpv6_only",
-            "ipv6_slaac",
-            "dhcpv6_stateless",
-            "wakeonlan_disabled",
-            "wakeonlan_enabled",
-            "v4_and_v6",
-            "v6_and_v4",
-            "v1-dns",
-            "v2-mixed-routes",
-            "v2-dns",
-            "v2-dns-no-if-ips",
-            "v2-dns-no-dhcp",
-            "v2-route-no-gateway",
-        ],
-    )
-    def test_config(self, expected_name):
-        entry = NETWORK_CONFIGS[expected_name]
-        yaml_name = "yaml" if "yaml" in entry else "yaml_v2"
-        found = self._render_and_read(
-            network_config=yaml.safe_load(entry[yaml_name])
-        )
-        self._compare_files_to_expected(
-            entry[self.expected_name], self.expected_conf_d, found
         )
 
 
@@ -3397,10 +3477,13 @@ class TestNetplanPostcommands:
         mock_netplan_generate.assert_called_with(run=True, config_changed=True)
         mock_net_setup_link.assert_called_with(run=True)
 
+    @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("cloudinit.util.SeLinuxGuard")
     @mock.patch.object(netplan, "get_devicelist")
     @mock.patch("cloudinit.subp.subp")
-    def test_netplan_postcmds(self, mock_subp, mock_devlist, mock_sel):
+    def test_netplan_postcmds(
+        self, mock_subp, mock_devlist, mock_sel, m_get_cmdline
+    ):
         mock_sel.__enter__ = mock.Mock(return_value=False)
         mock_sel.__exit__ = mock.Mock()
         mock_devlist.side_effect = [["lo"]]
@@ -3549,7 +3632,7 @@ class TestCmdlineConfigParsing:
         found = cmdline.read_kernel_cmdline_config(cmdline=raw_cmdline)
         assert found is None
         expected_log = (
-            "Expected base64 encoded kernel commandline parameter"
+            "Expected base64 encoded kernel command line parameter"
             " network-config. Ignoring network-config={config:disabled}."
         )
         assert expected_log in caplog.text
@@ -3838,11 +3921,15 @@ class TestNetplanRoundTrip:
     @pytest.mark.parametrize(
         "expected_name,yaml_version",
         [
-            ("bond", "yaml"),
+            ("bond_v1", "yaml"),
+            ("bond_v2", "yaml"),
             ("small_v1", "yaml"),
-            ("v4_and_v6", "yaml"),
-            ("v4_and_v6_static", "yaml"),
-            ("dhcpv6_only", "yaml"),
+            ("v4_and_v6", "yaml_v1"),
+            ("v4_and_v6", "yaml_v2"),
+            ("v1_ipv4_and_ipv6_static", "yaml_v1"),
+            ("v2_ipv4_and_ipv6_static", "yaml_v2"),
+            ("dhcpv6_only", "yaml_v1"),
+            ("dhcpv6_only", "yaml_v2"),
             ("dhcpv6_accept_ra", "yaml_v1"),
             ("dhcpv6_reject_ra", "yaml_v1"),
             ("ipv6_slaac", "yaml"),
@@ -3850,7 +3937,7 @@ class TestNetplanRoundTrip:
             ("dhcpv6_stateful", "yaml"),
             ("wakeonlan_disabled", "yaml_v2"),
             ("wakeonlan_enabled", "yaml_v2"),
-            ("all", "yaml"),
+            ("large_v1", "yaml"),
             ("manual", "yaml"),
             pytest.param(
                 "v1-dns",
@@ -3866,19 +3953,8 @@ class TestNetplanRoundTrip:
         files = self._render_and_read(
             network_config=yaml.safe_load(entry[yaml_version])
         )
-        assert (
-            entry["expected_netplan"].splitlines()
-            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
-        )
-
-    def testsimple_render_bond_v2_input_netplan(self):
-        entry = NETWORK_CONFIGS["bond"]
-        files = self._render_and_read(
-            network_config=yaml.safe_load(entry["yaml-v2"])
-        )
-        assert (
-            entry["expected_netplan-v2"].splitlines()
-            == files["/etc/netplan/50-cloud-init.yaml"].splitlines()
+        assert yaml.safe_load(entry["expected_netplan"]) == yaml.safe_load(
+            files["/etc/netplan/50-cloud-init.yaml"]
         )
 
     def test_render_output_has_yaml_no_aliases(self):
@@ -3970,14 +4046,31 @@ class TestEniRoundTrip:
     @pytest.mark.parametrize(
         "expected_name,yaml_version",
         [
-            ("all", "yaml"),
+            ("large_v1", "yaml"),
+            pytest.param(
+                "large_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason=(
+                        "MAC for bond and bridge not being rendered. "
+                        "bond-miimon is used rather than bond_miimon. "
+                        "No rendering of bridge_gcint. "
+                        "No rendering of bridge_waitport. "
+                        "IPv6 routes added to IPv4 section. "
+                        "DNS rendering inconsistencies."
+                    )
+                ),
+            ),
             ("small_v1", "yaml"),
             pytest.param(
                 "small_v2", "yaml", marks=pytest.mark.xfail(reason="GH-4219")
             ),
-            ("v4_and_v6", "yaml"),
-            ("dhcpv6_only", "yaml"),
-            ("v4_and_v6_static", "yaml"),
+            ("v4_and_v6", "yaml_v1"),
+            ("v4_and_v6", "yaml_v2"),
+            ("dhcpv6_only", "yaml_v1"),
+            ("dhcpv6_only", "yaml_v2"),
+            ("v1_ipv4_and_ipv6_static", "yaml_v1"),
+            ("v2_ipv4_and_ipv6_static", "yaml_v2"),
             ("dhcpv6_stateless", "yaml"),
             ("ipv6_slaac", "yaml"),
             pytest.param(
@@ -3988,11 +4081,25 @@ class TestEniRoundTrip:
                 ),
             ),
             ("dhcpv6_accept_ra", "yaml_v1"),
+            ("dhcpv6_accept_ra", "yaml_v2"),
             ("dhcpv6_reject_ra", "yaml_v1"),
+            ("dhcpv6_reject_ra", "yaml_v2"),
             ("wakeonlan_disabled", "yaml_v2"),
             ("wakeonlan_enabled", "yaml_v2"),
             ("manual", "yaml"),
-            ("bond", "yaml"),
+            ("bond_v1", "yaml"),
+            pytest.param(
+                "bond_v2",
+                "yaml",
+                marks=pytest.mark.xfail(
+                    reason=(
+                        "Rendering bond_miimon rather than bond-miimon. "
+                        "Using pre-down/post-up routes for gateway rather "
+                        "gateway. "
+                        "Adding ipv6 routes to ipv4 section"
+                    )
+                ),
+            ),
             pytest.param(
                 "v1-dns", "yaml", marks=pytest.mark.xfail(reason="GH-4219")
             ),
@@ -4281,9 +4388,12 @@ class TestNetworkdRoundTrip:
     @pytest.mark.parametrize(
         "expected_name,yaml_version",
         [
-            ("v4_and_v6", "yaml"),
-            ("v4_and_v6_static", "yaml"),
-            ("dhcpv6_only", "yaml"),
+            ("v4_and_v6", "yaml_v1"),
+            ("v4_and_v6", "yaml_v2"),
+            ("v1_ipv4_and_ipv6_static", "yaml_v1"),
+            ("v2_ipv4_and_ipv6_static", "yaml_v2"),
+            ("dhcpv6_only", "yaml_v1"),
+            ("dhcpv6_only", "yaml_v2"),
             ("dhcpv6_accept_ra", "yaml_v1"),
             ("dhcpv6_accept_ra", "yaml_v2"),
             ("dhcpv6_reject_ra", "yaml_v1"),

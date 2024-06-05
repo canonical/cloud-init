@@ -5,7 +5,7 @@
 import copy
 import errno
 import os
-from textwrap import dedent
+import re
 
 import pytest
 
@@ -356,19 +356,6 @@ class TestRenderJinjaPayload:
             "## template: jinja\n#!/bin/sh\necho hi from {{ v1.hostname }}"
         )
         instance_data = {"v1": {"hostname": "foo"}, "instance-id": "iid"}
-        expected_log = dedent(
-            """\
-            Converted jinja variables
-            {
-             "hostname": "foo",
-             "instance-id": "iid",
-             "instance_id": "iid",
-             "v1": {
-              "hostname": "foo"
-             }
-            }
-            """
-        )
         assert (
             render_jinja_payload(
                 payload=payload,
@@ -378,7 +365,12 @@ class TestRenderJinjaPayload:
             )
             == "#!/bin/sh\necho hi from foo"
         )
-        assert expected_log in caplog.text
+        expected_log = (
+            '.*Converted jinja variables\\n.*{\\n.*"hostname": "foo",\\n.*'
+            '"instance-id": "iid",\\n.*"instance_id": "iid",\\n.*'
+            '"v1": {\\n.*"hostname": "foo"\\n.*}'
+        )
+        assert re.match(expected_log, caplog.text, re.DOTALL)
 
     @skipUnlessJinja()
     def test_render_jinja_payload_replaces_missing_variables_and_warns(

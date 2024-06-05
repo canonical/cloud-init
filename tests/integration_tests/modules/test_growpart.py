@@ -62,7 +62,7 @@ class TestGrowPart:
         log = client.read_from_file("/var/log/cloud-init.log")
         assert (
             "cc_growpart.py[INFO]: '/dev/sdb1' resized:"
-            " changed (/dev/sdb, 1) from" in log
+            " changed (/dev/sdb1) from" in log
         )
 
         lsblk = json.loads(client.execute("lsblk --json"))
