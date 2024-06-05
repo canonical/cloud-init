@@ -20,6 +20,7 @@ from cloudinit.url_helper import (
     dual_stack,
     oauth_headers,
     read_file_or_url,
+    readurl,
     wait_for_url,
 )
 from tests.unittests.helpers import CiTestCase, mock, skipIf
@@ -280,6 +281,71 @@ def assert_time(func, max_time=1):
         diff = process_time() - start
         assert diff < max_time
     return out
+
+
+class TestReadUrl:
+    @pytest.mark.parametrize("headers", [{}, {"Metadata": "true"}])
+    def test_headers(self, headers):
+        url = "http://hostname/path"
+        m_response = mock.MagicMock()
+
+        expected_headers = headers.copy()
+        expected_headers["User-Agent"] = "Cloud-Init/%s" % (
+            version.version_string()
+        )
+
+        class FakeSession(requests.Session):
+            @classmethod
+            def request(cls, **kwargs):
+                expected_kwargs = {
+                    "url": url,
+                    "allow_redirects": True,
+                    "method": "GET",
+                    "headers": expected_headers,
+                    "stream": False,
+                }
+
+                assert kwargs == expected_kwargs
+                return m_response
+
+        with mock.patch(
+            M_PATH + "requests.Session", side_effect=[FakeSession()]
+        ):
+            response = readurl(url, headers=headers)
+
+        assert response._response == m_response
+
+    @pytest.mark.parametrize("headers", [{}, {"Metadata": "true"}])
+    def test_headers_cb(self, headers):
+        url = "http://hostname/path"
+        m_response = mock.MagicMock()
+
+        expected_headers = headers.copy()
+        expected_headers["User-Agent"] = "Cloud-Init/%s" % (
+            version.version_string()
+        )
+        headers_cb = lambda _: headers
+
+        class FakeSession(requests.Session):
+            @classmethod
+            def request(cls, **kwargs):
+                expected_kwargs = {
+                    "url": url,
+                    "allow_redirects": True,
+                    "method": "GET",
+                    "headers": expected_headers,
+                    "stream": False,
+                }
+
+                assert kwargs == expected_kwargs
+                return m_response
+
+        with mock.patch(
+            M_PATH + "requests.Session", side_effect=[FakeSession()]
+        ):
+            response = readurl(url, headers_cb=headers_cb)
+
+        assert response._response == m_response
 
 
 event = Event()
