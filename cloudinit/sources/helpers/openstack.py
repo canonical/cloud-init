@@ -578,7 +578,13 @@ def convert_net_json(network_json=None, known_macs=None):
             "scope",
             "dns_nameservers",
             "dns_search",
-            "routes",
+        ],
+        "routes": [
+            "network",
+            "destination",
+            "netmask",
+            "gateway",
+            "metric"
         ],
     }
 
@@ -620,6 +626,20 @@ def convert_net_json(network_json=None, known_macs=None):
                 (k, v) for k, v in network.items() if k in valid_keys["subnet"]
             )
 
+            # Filter the route entries as they may contain extra elements such
+            # as DNS which are required elsewhere by the cloudinit schema
+            subnet.update(
+                {
+                    "routes": [
+                        dict(
+                            (k, v) for k, v in route.items()
+                            if k in valid_keys["routes"]
+                        )
+                        for route in network.get("routes", [])
+                    ]
+                }
+            )
+
             if network["type"] == "ipv4_dhcp":
                 subnet.update({"type": "dhcp4"})
             elif network["type"] == "ipv6_dhcp":
@@ -648,7 +668,8 @@ def convert_net_json(network_json=None, known_macs=None):
 
             dns_nameservers = [
                 service["address"]
-                for service in network.get("services", [])
+                for route in network.get("routes", [])
+                for service in route.get("services", [])
                 if service.get("type") == "dns"
             ]
             if dns_nameservers:
