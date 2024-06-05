@@ -1,0 +1,50 @@
+From d771d1f4ba74daed2e82bd3e5d8232e11f52e29a Mon Sep 17 00:00:00 2001
+From: James Falcon <james.falcon@canonical.com>
+Date: Mon, 3 Jun 2024 21:53:06 -0500
+Subject: [PATCH] fix(ec2): Correctly identify netplan renderer (#5361)
+
+---
+ cloudinit/sources/DataSourceEc2.py  | 2 +-
+ tests/unittests/sources/test_ec2.py | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+--- a/cloudinit/sources/DataSourceEc2.py
++++ b/cloudinit/sources/DataSourceEc2.py
+@@ -1075,7 +1075,7 @@ def convert_ec2_metadata_network_config(
+         netcfg["ethernets"][nic_name] = dev_config
+         return netcfg
+     # Apply network config for all nics and any secondary IPv4/v6 addresses
+-    is_netplan = distro.network_renderer == netplan.Renderer
++    is_netplan = isinstance(distro.network_renderer, netplan.Renderer)
+     macs = sorted(macs_to_nics.keys())
+     nic_order = _build_nic_order(macs_metadata, macs)
+     for mac in macs:
+--- a/tests/unittests/sources/test_ec2.py
++++ b/tests/unittests/sources/test_ec2.py
+@@ -1345,7 +1345,7 @@ class TestConvertEc2MetadataNetworkConfi
+             },
+         }
+         distro = mock.Mock()
+-        distro.network_renderer = netplan.Renderer
++        distro.network_renderer = netplan.Renderer()
+         distro.dhcp_client.dhcp_discovery.return_value = {
+             "routers": "172.31.1.0"
+         }
+@@ -1422,7 +1422,7 @@ class TestConvertEc2MetadataNetworkConfi
+             },
+         }
+         distro = mock.Mock()
+-        distro.network_renderer = netplan.Renderer
++        distro.network_renderer = netplan.Renderer()
+         distro.dhcp_client.dhcp_discovery.return_value = {
+             "routers": "172.31.1.0"
+         }
+@@ -1478,7 +1478,7 @@ class TestConvertEc2MetadataNetworkConfi
+             },
+         }
+         distro = mock.Mock()
+-        distro.network_renderer = netplan.Renderer
++        distro.network_renderer = netplan.Renderer()
+         assert expected == ec2.convert_ec2_metadata_network_config(
+             network_metadata, distro, macs_to_nics
+         )
