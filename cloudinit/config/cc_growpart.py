@@ -118,36 +118,6 @@ class RESIZE:
 LOG = logging.getLogger(__name__)
 
 
-def resizer_factory(mode: str, distro: Distro, devices: list):
-    resize_class = None
-    if mode == "auto":
-        for _name, resizer in RESIZERS:
-            cur = resizer(distro)
-            if cur.available(devices=devices):
-                resize_class = cur
-                break
-
-        if not resize_class:
-            raise ValueError("No resizers available")
-
-    else:
-        mmap = {}
-        for k, v in RESIZERS:
-            mmap[k] = v
-
-        if mode not in mmap:
-            raise TypeError("unknown resize mode %s" % mode)
-
-        mclass = mmap[mode](distro)
-        if mclass.available(devices=devices):
-            resize_class = mclass
-
-        if not resize_class:
-            raise ValueError("mode %s not available" % mode)
-
-    return resize_class
-
-
 class ResizeFailedException(Exception):
     pass
 
@@ -278,6 +248,36 @@ class ResizeGpart(Resizer):
             raise ResizeFailedException(e) from e
 
         return (before, get_size(partdev, fs))
+
+
+def resizer_factory(mode: str, distro: Distro, devices: list) -> Resizer:
+    resize_class = None
+    if mode == "auto":
+        for _name, resizer in RESIZERS:
+            cur = resizer(distro)
+            if cur.available(devices=devices):
+                resize_class = cur
+                break
+
+        if not resize_class:
+            raise ValueError("No resizers available")
+
+    else:
+        mmap = {}
+        for k, v in RESIZERS:
+            mmap[k] = v
+
+        if mode not in mmap:
+            raise TypeError("unknown resize mode %s" % mode)
+
+        mclass = mmap[mode](distro)
+        if mclass.available(devices=devices):
+            resize_class = mclass
+
+        if not resize_class:
+            raise ValueError("mode %s not available" % mode)
+
+    return resize_class
 
 
 def get_size(filename, fs) -> Optional[int]:
@@ -473,7 +473,7 @@ def _call_resizer(resizer, devent, disk, ptnum, blockdev, fs):
     return info
 
 
-def resize_devices(resizer, devices, distro: Distro):
+def resize_devices(resizer: Resizer, devices, distro: Distro):
     # returns a tuple of tuples containing (entry-in-devices, action, message)
     devices = copy.copy(devices)
     info = []
@@ -496,9 +496,14 @@ def resize_devices(resizer, devices, distro: Distro):
             continue
 
         LOG.debug("growpart found fs=%s", fs)
-        if fs == "zfs":
+        # TODO: This seems to be the wrong place for this. On Linux, we the
+        # `os.stat(blockdev)` call below will fail on a ZFS filesystem.
+        # We then delay resizing the FS until calling cc_resizefs. Yet
+        # the code here is to accommodate the FreeBSD `growfs` service.
+        # Ideally we would grow the FS for both OSes in the same module.
+        if fs == "zfs" and isinstance(resizer, ResizeGrowFS):
             info += _call_resizer(resizer, devent, disk, ptnum, blockdev, fs)
-            return info
+            continue
 
         try:
             statret = os.stat(blockdev)
