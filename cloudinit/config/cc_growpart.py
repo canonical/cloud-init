@@ -503,7 +503,7 @@ def resize_devices(resizer: Resizer, devices, distro: Distro):
         # Ideally we would grow the FS for both OSes in the same module.
         if fs == "zfs" and isinstance(resizer, ResizeGrowFS):
             info += _call_resizer(resizer, devent, disk, ptnum, blockdev, fs)
-            return info
+            continue
 
         try:
             statret = os.stat(blockdev)
