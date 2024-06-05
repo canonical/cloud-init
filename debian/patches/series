@@ -12,3 +12,4 @@ cpick-417ee551-fix-ec2-Ensure-metadata-exists-before-configuring-PBR
 cpick-d6776632-fix-Check-renderer-for-netplan-specific-code-5321
 cpick-74dc7cce-test-Fix-failing-test_ec2.py-test-5324
 
+cpick-d771d1f4-fix-ec2-Correctly-identify-netplan-renderer-5361
