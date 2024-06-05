@@ -3885,7 +3885,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 timeout=30,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
@@ -3975,7 +3975,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 timeout=30,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
