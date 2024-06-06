@@ -235,7 +235,7 @@ def get_vr_address():
         LOG.debug("No lease file found, using default gateway")
         return get_default_gateway()
 
-    lease_file = dhcp.IscDhclient.parse_dhcp_server_from_lease_file(lease_file)
+    latest_address = dhcp.IscDhclient.parse_dhcp_server_from_lease_file(lease_file)
     if not latest_address:
         # No virtual router found, fallback on default gateway
         LOG.debug("No DHCP found, using default gateway")
