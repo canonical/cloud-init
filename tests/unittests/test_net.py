@@ -3499,13 +3499,11 @@ class TestNetplanPostcommands:
         )
         mock_subp.side_effect = iter(
             [
-                subp.ProcessExecutionError,
                 ("", ""),
                 ("", ""),
             ]
         )
         expected = [
-            mock.call(["netplan", "info"], capture=True),
             mock.call(["netplan", "generate"], capture=True),
             mock.call(
                 [
