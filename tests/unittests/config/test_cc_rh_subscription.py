@@ -184,7 +184,7 @@ class TestBadInput(CiTestCase):
         "rh_subscription": {
             "activation-key": "abcdef1234",
             "fookey": "bar",
-            "org": "123",
+            "org": "ABC",
         }
     }
 
