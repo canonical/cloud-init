@@ -2478,8 +2478,8 @@
               "description": "The activation key to use. Must be used with ``org``. Should not be used with ``username`` or ``password``"
             },
             "org": {
-              "type": "integer",
-              "description": "The organization number to use. Must be used with ``activation-key``. Should not be used with ``username`` or ``password``"
+              "type": "string",
+              "description": "The organization name to use. Must be used with ``activation-key``. Should not be used with ``username`` or ``password``"
             },
             "auto-attach": {
               "type": "boolean",
