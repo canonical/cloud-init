@@ -26,8 +26,6 @@ class Distro(distros.Distro):
     init_cmd = ["service"]
     locale_conf_fn = "/etc/sysconfig/language"
     network_conf_fn = "/etc/sysconfig/network/config"
-    network_script_tpl = "/etc/sysconfig/network/ifcfg-%s"
-    route_conf_tpl = "/etc/sysconfig/network/ifroute-%s"
     systemd_hostname_conf_fn = "/etc/hostname"
     systemd_locale_conf_fn = "/etc/locale.conf"
     tz_local_fn = "/etc/localtime"

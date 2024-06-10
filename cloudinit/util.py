@@ -1041,7 +1041,7 @@ def load_yaml(blob, default=None, allowed=(dict,)):
     return loaded
 
 
-def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
+def read_seeded(base="", ext="", timeout=5, retries=10):
     if base.find("%s") >= 0:
         ud_url = base.replace("%s", "user-data" + ext)
         vd_url = base.replace("%s", "vendor-data" + ext)

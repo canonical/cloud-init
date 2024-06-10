@@ -45,9 +45,6 @@ format_key = {
     "%T": "total_time",
 }
 
-formatting_help = " ".join(
-    ["{0}: {1}".format(k.replace("%", "%%"), v) for k, v in format_key.items()]
-)
 SUCCESS_CODE = "successful"
 FAIL_CODE = "failure"
 CONTAINER_CODE = "container"
@@ -257,21 +254,15 @@ def gather_timestamps_using_systemd():
 
 def generate_records(
     events,
-    blame_sort=False,
     print_format="(%n) %d seconds in %I%D",
-    dump_files=False,
-    log_datafiles=False,
 ):
     """
     Take in raw events and create parent-child dependencies between events
     in order to order events in chronological order.
 
     :param events: JSONs from dump that represents events taken from logs
-    :param blame_sort: whether to sort by timestamp or by time taken.
     :param print_format: formatting to represent event, time stamp,
     and time taken by the event in one line
-    :param dump_files: whether to dump files into JSONs
-    :param log_datafiles: whether or not to log events generated
 
     :return: boot records ordered chronologically
     """
