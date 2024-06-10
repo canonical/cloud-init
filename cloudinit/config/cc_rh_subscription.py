@@ -47,14 +47,14 @@ meta: MetaSchema = {
             """\
             rh_subscription:
                 activation-key: foobar
-                org: 12345
+                org: 'ABC'
             """
         ),
         dedent(
             """\
             rh_subscription:
                 activation-key: foobar
-                org: 12345
+                org: 'ABC'
                 auto-attach: true
                 service-level: self-support
                 add-pool:
