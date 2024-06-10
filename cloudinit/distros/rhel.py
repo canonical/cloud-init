@@ -26,7 +26,6 @@ class Distro(distros.Distro):
     network_conf_fn = "/etc/sysconfig/network"
     hostname_conf_fn = "/etc/sysconfig/network"
     systemd_hostname_conf_fn = "/etc/hostname"
-    network_script_tpl = "/etc/sysconfig/network-scripts/ifcfg-%s"
     tz_local_fn = "/etc/localtime"
     usr_lib_exec = "/usr/libexec"
     # RHEL and derivatives use NetworkManager DHCP client by default.

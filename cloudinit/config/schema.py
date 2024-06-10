@@ -101,7 +101,6 @@ SCHEMA_DOC_TMPL = """
 
 {examples}
 """
-SCHEMA_PROPERTY_HEADER = ""
 SCHEMA_PROPERTY_TMPL = "{prefix}* **{prop_name}:** ({prop_type}){description}"
 SCHEMA_LIST_ITEM_TMPL = (
     "{prefix}* Each object in **{prop_name}** list supports "
@@ -110,7 +109,6 @@ SCHEMA_LIST_ITEM_TMPL = (
 SCHEMA_EXAMPLES_HEADER = ""
 SCHEMA_EXAMPLES_SPACER_TEMPLATE = "\n   # --- Example{example_count} ---\n\n"
 DEPRECATED_KEY = "deprecated"
-DEPRECATED_PREFIX = "DEPRECATED: "
 
 # user-data files typically must begin with a leading '#'
 USERDATA_VALID_HEADERS = sorted(
