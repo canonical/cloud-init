@@ -1,9 +1,17 @@
 """test that ds-identify works as expected"""
 
+import json
+
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import OS_IMAGE, PLATFORM
 from tests.integration_tests.util import verify_clean_log, wait_for_cloud_init
 
 DATASOURCE_LIST_FILE = "/etc/cloud/cloud.cfg.d/90_dpkg.cfg"
+MAP_PLATFORM_TO_DATASOURCE = {
+    "lxd_container": "lxd",
+    "lxd_vm": "lxd",
+    "qemu": "nocloud",
+}
 
 
 def test_ds_identify(client: IntegrationInstance):
@@ -19,3 +27,10 @@ def test_ds_identify(client: IntegrationInstance):
     wait_for_cloud_init(client)
     verify_clean_log(client.execute("cat /var/log/cloud-init.log"))
     assert client.execute("cloud-init status --wait")
+
+    datasource = MAP_PLATFORM_TO_DATASOURCE.get(PLATFORM)
+    if "lxd" == datasource and "focal" == OS_IMAGE:
+        datasource = "nocloud"
+    assert datasource == json.loads(
+        client.execute("cloud-init status --format json").stdout
+    ).get("datasource")
