@@ -769,10 +769,6 @@ def add_apt_key(ent, cloud, gpg, hardened=False, file_name=None):
         )
 
 
-def update_packages(cloud):
-    cloud.distro.update_package_sources()
-
-
 def add_apt_sources(
     srcdict, cloud, gpg, template_params=None, aa_repo_match=None
 ):
@@ -856,7 +852,7 @@ def add_apt_sources(
             LOG.exception("failed write to file %s: %s", sourcefn, detail)
             raise
 
-    update_packages(cloud)
+    cloud.distro.update_package_sources(force=True)
 
     return
 
