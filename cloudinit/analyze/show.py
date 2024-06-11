@@ -220,10 +220,10 @@ def gather_timestamps_using_dmesg():
                 # so we cannot get that timestamp
                 return SUCCESS_CODE, kernel_start, kernel_end, kernel_end
     except (ValueError, subp.ProcessExecutionError):
-        return TIMESTAMP_UNKNOWN
+        pass
     except Exception as e:
         LOG.warning("Unhandled exception: %s", e)
-        return TIMESTAMP_UNKNOWN
+    return TIMESTAMP_UNKNOWN
 
 
 def gather_timestamps_using_systemd():

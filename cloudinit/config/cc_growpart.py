@@ -380,6 +380,12 @@ def resize_encrypted(blockdev, partition) -> Tuple[str, str]:
             "Could not load encryption key. This is expected if "
             "the volume has been previously resized."
         ) from e
+    except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
+        raise RuntimeError(
+            "Could not load encryption key. This is expected if "
+            "the volume has been previously resized."
+        ) from e
 
     try:
         subp.subp(

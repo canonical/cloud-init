@@ -867,9 +867,8 @@ class DataSourceAzure(sources.DataSource):
         except errors.ReportableError as error:
             self._report_failure(error)
             return False
-        except Exception as e:
-            LOG.warning("Unhandled exception: %s", e)
-            reportable_error = errors.ReportableErrorUnhandledException(e)
+        except Exception as error:
+            reportable_error = errors.ReportableErrorUnhandledException(error)
             self._report_failure(reportable_error)
             return False
         finally:
@@ -1338,7 +1337,6 @@ class DataSourceAzure(sources.DataSource):
                     logger_func=LOG.error,
                 )
             except Exception as e:
-                LOG.warning("Unhandled exception: %s", e)
                 report_diagnostic_event(
                     "Failed to report failure using "
                     "cached ephemeral dhcp context: %s" % e,
@@ -1520,7 +1518,6 @@ class DataSourceAzure(sources.DataSource):
                     ),
                 )
             except Exception as e:
-                LOG.warning("Unhandled exception: %s", e)
                 LOG.error(
                     "Failed generating network config "
                     "from IMDS network metadata: %s",
@@ -1531,7 +1528,6 @@ class DataSourceAzure(sources.DataSource):
         try:
             return _generate_network_config_from_fallback_config()
         except Exception as e:
-            LOG.warning("Unhandled exception: %s", e)
             LOG.error("Failed generating fallback network config: %s", str(e))
 
         return {}

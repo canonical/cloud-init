@@ -209,8 +209,10 @@ def get_dev_features(devname):
     features = ""
     try:
         features = read_sys_net(devname, "device/features")
-    except OSError:
+    except (OSError, UnicodeError):
         pass
+    except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
     return features
 
 
