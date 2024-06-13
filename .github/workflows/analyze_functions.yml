@@ -1,0 +1,50 @@
+# .github/workflows/analyze_functions.yml
+name: Analyze Python Functions
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout source branch
+      uses: actions/checkout@v2
+      with:
+        ref: ${{ github.head_ref }}
+
+    - name: Install Python and dependencies
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+    - run: pip install pyyaml
+
+    - name: Analyze source branch
+      run: |
+        python tools/analyze_functions.py analyze source_functions_info.yml cloudinit tests 
+
+    - name: Upload source analysis result
+      uses: actions/upload-artifact@v2
+      with:
+        name: source-functions-info
+        path: source_functions_info.yml
+
+    - name: Checkout target branch
+      uses: actions/checkout@v2
+      with:
+        ref: ${{ github.base_ref }}
+
+    - name: Download source analysis result
+      uses: actions/download-artifact@v2
+      with:
+        name: source-functions-info
+
+    - name: Analyze target branch
+      run: |
+        python tools/analyze_functions.py analyze target_functions_info.yml cloudinit tests
+
+    - name: Compare analysis results
+      run: python tools/analyze_functions.py compare source_functions_info.yml target_functions_info.yml
