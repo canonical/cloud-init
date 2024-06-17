@@ -1,0 +1,22 @@
+Description: Do not warn when `system_info` is passed as user/vendor data.
+ It is used on existing releases.
+Author: James Falcon <james.falcon@canonical.com>
+Origin: other
+Forwarded: not-needed
+Bug: https://github.com/canonical/cloud-init/issues/5392
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+
+--- a/cloudinit/config/schemas/schema-cloud-config-v1.json
++++ b/cloudinit/config/schemas/schema-cloud-config-v1.json
+@@ -596,9 +596,7 @@
+         },
+         "system_info": {
+           "type": "object",
+-          "description": "System and/or distro specific settings. This is not intended to be overridden by user data or vendor data.",
+-          "deprecated": true,
+-          "deprecated_version": "24.2"
++          "description": "System and/or distro specific settings. This is not intended to be overridden by user data or vendor data."
+         }
+       }
+     },
