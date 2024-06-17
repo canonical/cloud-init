@@ -1,6 +1,8 @@
 cloud-init (24.1.3-0ubuntu3.1~24.04.1) UNRELEASED; urgency=medium
 
   * d/control: Remove netifaces
+  * d/p/no-warn-on-system-info.patch:
+    - Do not warn when system_info used as user/vendor data
   * Upstream snapshot based on upstream/main at cf72d7f3.
 
  -- James Falcon <james.falcon@canonical.com>  Mon, 06 May 2024 10:52:47 -0500
