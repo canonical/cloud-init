@@ -994,7 +994,7 @@ def process_merged_cloud_config_part_problems(
 def _get_config_type_and_rendered_userdata(
     config_path: str,
     content: str,
-    instance_data_path: str = None,
+    instance_data_path: Optional[str] = None,
 ) -> UserDataTypeAndDecodedContent:
     """
     Return tuple of user-data-type and rendered content.
@@ -1065,7 +1065,7 @@ def validate_cloudconfig_file(
     schema: dict,
     schema_type: SchemaType = SchemaType.CLOUD_CONFIG,
     annotate: bool = False,
-    instance_data_path: str = None,
+    instance_data_path: Optional[str] = None,
 ) -> bool:
     """Validate cloudconfig file adheres to a specific jsonschema.
 
