@@ -66,6 +66,7 @@ def verify_clean_boot(
     instance: "IntegrationInstance",
     ignore_warnings: Optional[Union[List[str], bool]] = None,
     ignore_errors: Optional[Union[List[str], bool]] = None,
+    ignore_tracebacks: Optional[Union[List[str], bool]] = None,
     require_warnings: Optional[list] = None,
     require_errors: Optional[list] = None,
 ):
@@ -94,14 +95,17 @@ def verify_clean_boot(
 
     def append_or_create_list(
         maybe_list: Optional[Union[List[str], bool]], value: str
-    ) -> List[str]:
+    ) -> Optional[Union[List[str], bool]]:
         """handle multiple types"""
         if isinstance(maybe_list, list):
             maybe_list.append(value)
-        elif maybe_list is None or isinstance(maybe_list, bool):
+        elif maybe_list is True:
+            return True  # Ignoring all texts, so no need to append.
+        elif maybe_list in (None, False):
             maybe_list = [value]
         return maybe_list
 
+    traceback_texts = []
     # Define exceptions by matrix of platform and Ubuntu release
     if "azure" == PLATFORM:
         # Consistently on all Azure launches:
@@ -122,11 +126,16 @@ def verify_clean_boot(
         ignore_errors = append_or_create_list(
             ignore_warnings, "Stderr: RTNETLINK answers: File exists"
         )
+        traceback_texts.append("Stderr: RTNETLINK answers: File exists")
         # LP: #1833446
         ignore_warnings = append_or_create_list(
             ignore_warnings,
             "UrlError: 404 Client Error: Not Found for url: "
             "http://169.254.169.254/latest/meta-data/",
+        )
+        traceback_texts.append(
+            "UrlError: 404 Client Error: Not Found for url: "
+            "http://169.254.169.254/latest/meta-data/"
         )
         # Oracle has a file in /etc/cloud/cloud.cfg.d that contains
         # users:
@@ -143,22 +152,17 @@ def verify_clean_boot(
         instance,
         ignore_warnings=ignore_warnings,
         ignore_errors=ignore_errors,
+        ignore_tracebacks=ignore_tracebacks,
         require_warnings=require_warnings,
         require_errors=require_errors,
     )
-    # assert no Tracebacks
-    assert (
-        "0"
-        == instance.execute(
-            "grep --count Traceback /var/log/cloud-init.log"
-        ).stdout.strip()
-    ), "Unexpected traceback found in /var/log/cloud-init.log"
 
 
 def _verify_clean_boot(
     instance: "IntegrationInstance",
     ignore_warnings: Optional[Union[List[str], bool]] = None,
     ignore_errors: Optional[Union[List[str], bool]] = None,
+    ignore_tracebacks: Optional[Union[List[str], bool]] = None,
     require_warnings: Optional[list] = None,
     require_errors: Optional[list] = None,
 ):
@@ -181,9 +185,9 @@ def _verify_clean_boot(
             if expected in current_error:
                 required_errors_found.add(expected)
 
-        # check for unexpected errors
         if ignore_errors is True:
             continue
+        # check for unexpected errors
         for expected in [*ignore_errors, *require_errors]:
             if expected in current_error:
                 break
@@ -198,9 +202,9 @@ def _verify_clean_boot(
             if expected in current_warning:
                 required_warnings_found.add(expected)
 
-        # check for unexpected warnings
         if ignore_warnings is True:
             continue
+        # check for unexpected warnings
         for expected in [*ignore_warnings, *require_warnings]:
             if expected in current_warning:
                 break
@@ -240,6 +244,28 @@ def _verify_clean_boot(
             "Required warnings not found", list(required_warnings_not_found)
         )
         assert not errors, message
+
+    if ignore_tracebacks is True:
+        return
+    # assert no unexpected Tracebacks
+    expected_traceback_count = 0
+    traceback_count = int(
+        instance.execute(
+            "grep --count Traceback /var/log/cloud-init.log"
+        ).stdout.strip()
+    )
+    if ignore_tracebacks:
+        for expected_traceback in ignore_tracebacks:
+            expected_traceback_count += int(
+                instance.execute(
+                    f"grep --count '{expected_traceback}'"
+                    " /var/log/cloud-init.log"
+                ).stdout.strip()
+            )
+    assert expected_traceback_count == traceback_count, (
+        f"{traceback_count - expected_traceback_count} unexpected traceback(s)"
+        " found in /var/log/cloud-init.log"
+    )
 
 
 def verify_clean_log(log: str, ignore_deprecations: bool = True):
