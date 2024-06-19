@@ -79,23 +79,30 @@ def print_exc(msg=""):
     sys.stderr.write("\n")
 
 
+DEPRECATE_BOOT_STAGE_MESSAGE = (
+    "Triggering cloud-init boot stages outside of intial system boot is not a"
+    " fully supported operation which can lead to incomplete or incorrect"
+    " configuration. As such, cloud-init is deprecating this feature in the"
+    " future. If you currently use cloud-init in this way,"
+    " please file an issue describing in detail your use case so that"
+    " cloud-init can better support your needs:"
+    " https://github.com/canonical/cloud-init/issues/new"
+)
+
+
 def log_ppid(distro, bootstage_name):
     if distro.is_linux:
         ppid = os.getppid()
-        log = LOG.info
-        extra_message = ""
         if 1 != ppid and distro.uses_systemd():
-            log = LOG.warning
-            extra_message = (
-                " Unsupported configuration: boot stage called "
-                "outside of systemd"
+            util.deprecate(
+                deprecated=(
+                    "Unsupported configuration: boot stage called "
+                    f"by PID [{ppid}] outside of systemd"
+                ),
+                deprecated_version="24.3",
+                extra_message=DEPRECATE_BOOT_STAGE_MESSAGE,
             )
-        log(
-            "PID [%s] started cloud-init '%s'.%s",
-            ppid,
-            bootstage_name,
-            extra_message,
-        )
+    LOG.info("PID [%s] started cloud-init '%s'.", ppid, bootstage_name)
 
 
 def welcome(action, msg=None):
