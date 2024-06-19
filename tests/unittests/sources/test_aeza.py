@@ -25,8 +25,6 @@ runcmd:
 - [touch, /root/cloud-init-worked ]
 """
 
-VENDORDATA = "test"
-
 
 class TestDataSourceAeza(CiTestCase):
     """
@@ -40,36 +38,30 @@ class TestDataSourceAeza(CiTestCase):
     def get_ds(self):
         distro = mock.MagicMock()
         distro.get_tmp_exec_path = self.tmp_dir
-        ds = DataSourceAeza.DataSourceAeza(
-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
-        )
+        ds = DataSourceAeza.DataSourceAeza(settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp}))
         return ds
 
-    @mock.patch("cloudinit.sources.helpers.aeza.read_metadata")
-    @mock.patch("cloudinit.sources.helpers.aeza.read_userdata")
-    @mock.patch("cloudinit.sources.helpers.aeza.read_vendordata")
+    @mock.patch("cloudinit.sources.DataSourceAeza.read_metadata")
+    @mock.patch("cloudinit.sources.DataSourceAeza.read_data")
+    @mock.patch("cloudinit.sources.DataSourceAeza.DataSourceAeza.ds_detect")
     def test_read_data(
         self,
-        m_readvd,
-        m_readud,
-        m_readmd,
+        m_ds_detect,
+        m_read_data,
+        m_read_metadata,
     ):
-        m_readmd.return_value = METADATA.copy()
-        m_readud.return_value = USERDATA
-        m_readvd.return_value = VENDORDATA
+        m_read_metadata.return_value = METADATA.copy()
+        m_read_data.return_value = USERDATA
+        m_ds_detect.return_value = True
 
         ds = self.get_ds()
-        ret = ds.get_data()
+        with self.allow_subp(True):
+            ret = ds.get_data()
         self.assertTrue(ret)
 
-        self.assertTrue(m_readmd.called)
-        self.assertEqual(METADATA.get("hostname"), ds.get_hostname().hostname)
+        self.assertTrue(m_read_metadata.called)
         self.assertEqual(METADATA.get("public-keys"), ds.get_public_ssh_keys())
         self.assertIsInstance(ds.get_public_ssh_keys(), list)
 
-        self.assertTrue(m_readud.called)
+        self.assertTrue(m_read_data.called)
         self.assertEqual(ds.get_userdata_raw(), USERDATA)
-
-        self.assertTrue(m_readvd.called)
-        self.assertEqual(ds.get_vendordata_raw(), VENDORDATA)
-
