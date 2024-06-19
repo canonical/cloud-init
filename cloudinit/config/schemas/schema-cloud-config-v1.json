@@ -405,6 +405,15 @@
               "description": "Sudo rule to use or false. Absence of a sudo value or ``null`` will result in no sudo rules added for this user."
             },
             {
+              "type": "array",
+              "items": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            {
               "type": "boolean",
               "changed": true,
               "changed_version": "22.2",
