@@ -629,7 +629,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"a-b": "asdf"},
-                "Deprecated cloud-config provided:\na-b: <desc> "
+                "Deprecated cloud-config provided: a-b: <desc> "
                 "Deprecated in version 22.1.",
             ),
             (
@@ -650,7 +650,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated cloud-config provided: x: <desc> "
                 "Deprecated in version 22.1.",
             ),
             (
@@ -671,7 +671,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "5"},
-                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated cloud-config provided: x: <desc> "
                 "Deprecated in version 22.1. <dep desc>",
             ),
             (
@@ -692,7 +692,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "5"},
-                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated cloud-config provided: x: <desc> "
                 "Deprecated in version 22.1.",
             ),
             (
@@ -708,7 +708,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated cloud-config provided: x: <desc> "
                 "Deprecated in version 22.1.",
             ),
             (
@@ -745,7 +745,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated cloud-config provided: x: <desc> "
                 "Deprecated in version 32.3.",
             ),
             (
@@ -770,7 +770,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided:\nx:  Deprecated in "
+                "Deprecated cloud-config provided: x:  Deprecated in "
                 "version 27.2.",
             ),
             (
@@ -786,7 +786,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"a-b": "asdf"},
-                "Deprecated cloud-config provided:\na-b: <desc> "
+                "Deprecated cloud-config provided: a-b: <desc> "
                 "Deprecated in version 27.2.",
             ),
             pytest.param(
@@ -804,8 +804,8 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"a-b": "asdf"},
-                "Deprecated cloud-config provided:\na-b:  Deprecated "
-                "in version 27.2.\na-b:  Changed in version 22.2. "
+                "Deprecated cloud-config provided: a-b:  Deprecated "
+                "in version 27.2., a-b:  Changed in version 22.2. "
                 "Drop ballast.",
                 id="deprecated_pattern_property_without_description",
             ),
