@@ -256,17 +256,17 @@ class TestCollectLogs:
     def test_write_command_output_to_file(
         self,
         m_getuid,
-        tmpdir,
+        tmp_path,
         cmd,
         expected_file_contents,
         expected_return_value,
     ):
         m_getuid.return_value = 100
-        output_file = tmpdir.join("test-output-file.txt")
+        output_file = tmp_path / "test-output-file.txt"
 
         return_output = logs._write_command_output_to_file(
-            filename=output_file,
             cmd=cmd,
+            file_path=output_file,
             msg="",
         )
 
@@ -281,14 +281,14 @@ class TestCollectLogs:
         ],
     )
     def test_stream_command_output_to_file(
-        self, m_getuid, tmpdir, cmd, expected_file_contents
+        self, m_getuid, tmp_path, cmd, expected_file_contents
     ):
         m_getuid.return_value = 100
-        output_file = tmpdir.join("test-output-file.txt")
+        output_file = tmp_path / "test-output-file.txt"
 
         logs._stream_command_output_to_file(
-            filename=output_file,
             cmd=cmd,
+            file_path=output_file,
             msg="",
         )
 
