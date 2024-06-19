@@ -4,7 +4,6 @@ import glob
 import os
 import re
 from datetime import datetime
-from io import StringIO
 
 import pytest
 
@@ -21,22 +20,19 @@ INSTANCE_JSON_SENSITIVE_FILE = "instance-data-sensitive.json"
 @mock.patch("cloudinit.cmd.devel.logs.os.getuid")
 class TestCollectLogs:
     def test_collect_logs_with_userdata_requires_root_user(
-        self, m_getuid, tmpdir
+        self, m_getuid, tmpdir, caplog
     ):
         """collect-logs errors when non-root user collects userdata ."""
         m_getuid.return_value = 100  # non-root
         output_tarfile = tmpdir.join("logs.tgz")
-        with mock.patch("sys.stderr", new_callable=StringIO) as m_stderr:
-            assert 1 == logs.collect_logs(
-                output_tarfile, include_userdata=True
-            )
+        assert 1 == logs.collect_logs(output_tarfile, include_userdata=True)
         assert (
             "To include userdata, root user is required."
-            " Try sudo cloud-init collect-logs\n" == m_stderr.getvalue()
+            " Try sudo cloud-init collect-logs" in caplog.text
         )
 
     def test_collect_logs_creates_tarfile(
-        self, m_getuid, m_log_paths, mocker, tmpdir
+        self, m_getuid, m_log_paths, mocker, tmpdir, caplog
     ):
         """collect-logs creates a tarfile with all related cloud-init info."""
         m_getuid.return_value = 100
@@ -101,13 +97,10 @@ class TestCollectLogs:
                 )
             stdout.write(expected_subp[cmd_tuple])
 
-        fake_stderr = mock.MagicMock()
-
         mocker.patch(M_PATH + "subp", side_effect=fake_subp)
         mocker.patch(
             M_PATH + "subprocess.call", side_effect=fake_subprocess_call
         )
-        mocker.patch(M_PATH + "sys.stderr", fake_stderr)
         mocker.patch(M_PATH + "INSTALLER_APPORT_FILES", [])
         mocker.patch(M_PATH + "INSTALLER_APPORT_SENSITIVE_FILES", [])
         logs.collect_logs(output_tarfile, include_userdata=False)
@@ -151,10 +144,10 @@ class TestCollectLogs:
         assert "results" == load_text_file(
             os.path.join(out_logdir, "run", "cloud-init", "results.json")
         )
-        fake_stderr.write.assert_any_call("Wrote %s\n" % output_tarfile)
+        assert f"Wrote {output_tarfile}" in caplog.text
 
     def test_collect_logs_includes_optional_userdata(
-        self, m_getuid, mocker, tmpdir, m_log_paths
+        self, m_getuid, mocker, tmpdir, m_log_paths, caplog
     ):
         """collect-logs include userdata when --include-userdata is set."""
         m_getuid.return_value = 0
@@ -215,13 +208,10 @@ class TestCollectLogs:
                 )
             stdout.write(expected_subp[cmd_tuple])
 
-        fake_stderr = mock.MagicMock()
-
         mocker.patch(M_PATH + "subp", side_effect=fake_subp)
         mocker.patch(
             M_PATH + "subprocess.call", side_effect=fake_subprocess_call
         )
-        mocker.patch(M_PATH + "sys.stderr", fake_stderr)
         mocker.patch(M_PATH + "INSTALLER_APPORT_FILES", [])
         mocker.patch(M_PATH + "INSTALLER_APPORT_SENSITIVE_FILES", [])
         logs.collect_logs(output_tarfile, include_userdata=True)
@@ -239,7 +229,7 @@ class TestCollectLogs:
                 m_log_paths.instance_data_sensitive.name,
             )
         )
-        fake_stderr.write.assert_any_call("Wrote %s\n" % output_tarfile)
+        assert f"Wrote {output_tarfile}" in caplog.text
 
     @pytest.mark.parametrize(
         "cmd, expected_file_contents, expected_return_value",
@@ -278,7 +268,6 @@ class TestCollectLogs:
             filename=output_file,
             cmd=cmd,
             msg="",
-            verbosity=1,
         )
 
         assert expected_return_value == return_output
@@ -301,7 +290,6 @@ class TestCollectLogs:
             filename=output_file,
             cmd=cmd,
             msg="",
-            verbosity=1,
         )
 
         assert expected_file_contents == load_text_file(output_file)
@@ -382,7 +370,6 @@ class TestCollectInstallerLogs:
         logs._collect_installer_logs(
             log_dir=tmpdir.strpath,
             include_userdata=include_userdata,
-            verbosity=0,
         )
         expect_userdata = bool(include_userdata and apport_sensitive_files)
         # when subiquity artifacts exist, and userdata set true, expect logs
