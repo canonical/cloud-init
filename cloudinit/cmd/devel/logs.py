@@ -14,8 +14,7 @@ import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import NamedTuple, Optional, cast
+from typing import List, NamedTuple, Optional, cast
 
 from cloudinit import log
 from cloudinit.cmd.devel import read_cfg_paths
@@ -157,35 +156,42 @@ def _get_copytree_ignore_files(paths: LogPaths):
     return ignored_files
 
 
-def _write_command_output_to_file(cmd, filename, msg):
+def _write_command_output_to_file(
+    cmd: List[str],
+    file_path: pathlib.Path,
+    msg: str,
+) -> Optional[str]:
     """Helper which runs a command and writes output or error to filename."""
-    ensure_dir(os.path.dirname(filename))
+    file_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         output = subp(cmd).stdout
     except ProcessExecutionError as e:
-        write_file(filename, str(e))
+        write_file(file_path, str(e))
         LOG.debug("collecting %s failed.", msg)
+        output = None
     else:
-        write_file(filename, output)
-        LOG.debug("collected %s", msg)
-        return output
+        write_file(file_path, output)
+        LOG.debug("collected %s to file '%s'", msg, file_path.stem)
+    return output
 
 
-def _stream_command_output_to_file(cmd, filename, msg):
+def _stream_command_output_to_file(
+    cmd: List[str], file_path: pathlib.Path, msg: str
+) -> None:
     """Helper which runs a command and writes output or error to filename.
 
     `subprocess.call` is invoked directly here to stream output to the file.
     Otherwise memory usage can be high for large outputs.
     """
-    ensure_dir(os.path.dirname(filename))
+    file_path.parent.mkdir(parents=True, exist_ok=True)
     try:
-        with open(filename, "w") as f:
+        with file_path.open("w") as f:
             subprocess.call(cmd, stdout=f, stderr=f)  # nosec B603
     except OSError as e:
-        write_file(filename, str(e))
+        write_file(file_path, str(e))
         LOG.debug("collecting %s failed.", msg)
     else:
-        LOG.debug("collected %s", msg)
+        LOG.debug("collected %s to file '%s'", msg, file_path.stem)
 
 
 def _collect_file(path: str, out_dir: str) -> None:
@@ -199,13 +205,13 @@ def _collect_file(path: str, out_dir: str) -> None:
 def _collect_installer_logs(log_dir: str, include_userdata: bool) -> None:
     """Obtain subiquity logs and config files."""
     for src_file in INSTALLER_APPORT_FILES:
-        destination_dir = Path(log_dir + src_file.path).parent
+        destination_dir = pathlib.Path(log_dir + src_file.path).parent
         if not destination_dir.exists():
             ensure_dir(str(destination_dir))
         _collect_file(src_file.path, str(destination_dir))
     if include_userdata:
         for src_file in INSTALLER_APPORT_SENSITIVE_FILES:
-            destination_dir = Path(log_dir + src_file.path).parent
+            destination_dir = pathlib.Path(log_dir + src_file.path).parent
             if not destination_dir.exists():
                 ensure_dir(str(destination_dir))
             _collect_file(src_file.path, str(destination_dir))
@@ -214,12 +220,12 @@ def _collect_installer_logs(log_dir: str, include_userdata: bool) -> None:
 def _collect_version_info(log_dir: str) -> None:
     version = _write_command_output_to_file(
         cmd=["cloud-init", "--version"],
-        filename=os.path.join(log_dir, "version"),
+        file_path=pathlib.Path(log_dir, "version"),
         msg="cloud-init --version",
     )
     dpkg_ver = _write_command_output_to_file(
         cmd=["dpkg-query", "--show", "-f=${Version}\n", "cloud-init"],
-        filename=os.path.join(log_dir, "dpkg-version"),
+        file_path=pathlib.Path(log_dir, "dpkg-version"),
         msg="dpkg version",
     )
     if not version:
@@ -230,12 +236,12 @@ def _collect_version_info(log_dir: str) -> None:
 def _collect_system_logs(log_dir: str) -> None:
     _stream_command_output_to_file(
         cmd=["dmesg"],
-        filename=os.path.join(log_dir, "dmesg.txt"),
+        file_path=pathlib.Path(log_dir, "dmesg.txt"),
         msg="dmesg output",
     )
     _stream_command_output_to_file(
         cmd=["journalctl", "--boot=0", "-o", "short-precise"],
-        filename=os.path.join(log_dir, "journal.txt"),
+        file_path=pathlib.Path(log_dir, "journal.txt"),
         msg="systemd journal of current boot",
     )
 
@@ -270,11 +276,11 @@ def _collect_run_dir(log_dir: str, paths: LogPaths) -> None:
         LOG.debug("directory '%s' did not exist", paths.run_dir)
     if os.path.exists(os.path.join(paths.run_dir, "disabled")):
         # Fallback to grab previous cloud/data
-        cloud_data_dir = Path(paths.cloud_data)
+        cloud_data_dir = pathlib.Path(paths.cloud_data)
         if cloud_data_dir.exists():
             shutil.copytree(
                 str(cloud_data_dir),
-                Path(log_dir + str(cloud_data_dir)),
+                pathlib.Path(log_dir + str(cloud_data_dir)),
             )
 
 
