@@ -100,7 +100,9 @@ INSTALLER_APPORT_FILES = [
 ]
 
 
-def get_parser(parser=None):
+def get_parser(
+    parser: Optional[argparse.ArgumentParser] = None,
+) -> argparse.ArgumentParser:
     """Build or extend and arg parser for collect-logs utility.
 
     @param parser: Optional existing ArgumentParser instance representing the
@@ -145,7 +147,7 @@ def get_parser(parser=None):
     return parser
 
 
-def _get_copytree_ignore_files(paths: LogPaths):
+def _get_copytree_ignore_files(paths: LogPaths) -> List[str]:
     """Return a list of files to ignore for /run/cloud-init directory"""
     ignored_files = [
         "hook-hotplug-cmd",  # named pipe for hotplug
@@ -229,8 +231,7 @@ def _collect_version_info(log_dir: str) -> None:
         msg="dpkg version",
     )
     if not version:
-        version = dpkg_ver if dpkg_ver else "not-available"
-    LOG.debug("collected cloud-init version: %s", version)
+        version = dpkg_ver or "not-available"
 
 
 def _collect_system_logs(log_dir: str) -> None:
@@ -333,7 +334,7 @@ def _setup_logger(verbosity: int) -> None:
     LOG.addHandler(handler)
 
 
-def handle_collect_logs_args(name, args):
+def handle_collect_logs_args(_name: str, args: argparse.Namespace) -> int:
     """Handle calls to 'cloud-init collect-logs' as a subcommand."""
     _setup_logger(args.verbosity)
     return collect_logs(
@@ -342,11 +343,5 @@ def handle_collect_logs_args(name, args):
     )
 
 
-def main():
-    """Tool to collect and tar all cloud-init related logs."""
-    parser = get_parser()
-    return handle_collect_logs_args("collect-logs", parser.parse_args())
-
-
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(handle_collect_logs_args("", get_parser().parse_args()))
