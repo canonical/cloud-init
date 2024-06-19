@@ -427,6 +427,10 @@ class TestFTP:
                 " a scheme of ftps://, which is not allowed. Use ftp:// "
                 "to allow connecting to insecure ftp servers.",
             ],
+            ignore_tracebacks=[
+                'ftplib.error_perm: 500 Command "AUTH" not understood.',
+                "UrlError: Attempted to connect to an insecure ftp server",
+            ],
         )
 
     def test_nocloud_ftps_encrypted_server_succeeds(
