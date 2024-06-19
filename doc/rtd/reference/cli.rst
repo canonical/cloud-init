@@ -212,9 +212,10 @@ Example output:
 
 Generally run by OS init systems to execute ``cloud-init``'s stages:
 *init* and *init-local*. See :ref:`boot_stages` for more info.
-Can be run on the command line, but is generally gated to run only once
-due to semaphores in :file:`/var/lib/cloud/instance/sem/` and
-:file:`/var/lib/cloud/sem`.
+Can be run on the command line, but is deprecated, because incomplete
+configuration can be applied when run later in boot. The boot stages are
+generally gated to run only once due to semaphores in
+:file:`/var/lib/cloud/instance/sem/` and :file:`/var/lib/cloud/sem`.
 
 * :command:`--local`: Run *init-local* stage instead of *init*.
 * :command:`--file` : Use additional yaml configuration files.
@@ -226,16 +227,19 @@ due to semaphores in :file:`/var/lib/cloud/instance/sem/` and
 
 Generally run by OS init systems to execute ``modules:config`` and
 ``modules:final`` boot stages. This executes cloud config :ref:`modules`
-configured to run in the Init, Config and Final stages. The modules are
-declared to run in various boot stages in the file
+configured to run in the Init, Config and Final stages. Can be run on the
+command line, but this is not recommended and will generate a warning because
+incomplete configuration can be applied when run later in boot.
+The modules are declared to run in various boot stages in the file
 :file:`/etc/cloud/cloud.cfg` under keys:
 
 * ``cloud_init_modules``
 * ``cloud_config_modules``
 * ``cloud_final_modules``
 
-Can be run on the command line, but each module is gated to run only once due
-to semaphores in :file:`/var/lib/cloud/`.
+Can be run on the command line, but is deprecated, because incomplete
+configuration can be applied when run later in boot. Each module is gated to
+run only once due to semaphores in :file:`/var/lib/cloud/`.
 
 * :command:`--mode [init|config|final]`: Run ``modules:init``,
   ``modules:config`` or ``modules:final`` ``cloud-init`` stages.
