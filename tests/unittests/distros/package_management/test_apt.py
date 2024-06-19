@@ -8,7 +8,7 @@ import pytest
 from cloudinit import helpers, subp
 from cloudinit.distros.package_management import apt
 from cloudinit.distros.package_management.apt import APT_GET_COMMAND, Apt
-from tests.unittests.helpers import MockPaths
+from tests.unittests.helpers import get_mock_paths
 from tests.unittests.util import FakeDataSource
 
 M_PATH = "cloudinit.distros.package_management.apt.Apt."
@@ -125,11 +125,15 @@ class TestPackageCommand:
     [f"{TMP_DIR}/{FILE}" for FILE in apt.APT_LOCK_FILES],
 )
 class TestUpdatePackageSources:
+    def __init__(self):
+        MockPaths = get_mock_paths(TMP_DIR)
+        self.MockPaths = MockPaths({}, FakeDataSource())
+
     @mock.patch.object(apt.subp, "which", return_value=True)
     @mock.patch.object(apt.subp, "subp")
     def test_force_update_calls_twice(self, m_subp, m_which):
         """Ensure that force=true calls apt update again"""
-        instance = apt.Apt(helpers.Runners(MockPaths({}, FakeDataSource())))
+        instance = apt.Apt(helpers.Runners(self.MockPaths))
         instance.update_package_sources()
         instance.update_package_sources(force=True)
         assert 2 == len(m_subp.call_args_list)
@@ -139,7 +143,7 @@ class TestUpdatePackageSources:
     @mock.patch.object(apt.subp, "subp")
     def test_force_update_twice_calls_twice(self, m_subp, m_which):
         """Ensure that force=true calls apt update again when called twice"""
-        instance = apt.Apt(helpers.Runners(MockPaths({}, FakeDataSource())))
+        instance = apt.Apt(helpers.Runners(self.MockPaths))
         instance.update_package_sources(force=True)
         instance.update_package_sources(force=True)
         assert 2 == len(m_subp.call_args_list)
@@ -149,7 +153,7 @@ class TestUpdatePackageSources:
     @mock.patch.object(apt.subp, "subp")
     def test_no_force_update_calls_once(self, m_subp, m_which):
         """Ensure that apt-get update calls are deduped unless expected"""
-        instance = apt.Apt(helpers.Runners(MockPaths({}, FakeDataSource())))
+        instance = apt.Apt(helpers.Runners(self.MockPaths))
         instance.update_package_sources()
         instance.update_package_sources()
         assert 1 == len(m_subp.call_args_list)
