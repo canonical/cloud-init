@@ -44,7 +44,10 @@ def _multi_cfg_bool_get(cfg, *keys):
     return False
 
 
-def _fire_reboot(wait_attempts=6, initial_sleep=1, backoff=2):
+def _fire_reboot(
+    wait_attempts: int = 6, initial_sleep: int = 1, backoff: int = 2
+):
+    """Run a reboot command and panic if it doesn't happen fast enough."""
     subp.subp(REBOOT_CMD)
     start = time.monotonic()
     wait_time = initial_sleep
