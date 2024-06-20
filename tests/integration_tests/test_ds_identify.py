@@ -11,6 +11,8 @@ MAP_PLATFORM_TO_DATASOURCE = {
     "lxd_container": "lxd",
     "lxd_vm": "lxd",
     "qemu": "nocloud",
+    "ec2": "aws",
+    "oci": "oracle",
 }
 
 
@@ -28,9 +30,9 @@ def test_ds_identify(client: IntegrationInstance):
     verify_clean_log(client.execute("cat /var/log/cloud-init.log"))
     assert client.execute("cloud-init status --wait")
 
-    datasource = MAP_PLATFORM_TO_DATASOURCE.get(PLATFORM)
+    datasource = MAP_PLATFORM_TO_DATASOURCE.get(PLATFORM, PLATFORM)
     if "lxd" == datasource and "focal" == OS_IMAGE:
         datasource = "nocloud"
-    assert datasource == json.loads(
-        client.execute("cloud-init status --format json").stdout
-    ).get("datasource")
+    cloud_id = client.execute("cloud-id")
+    assert cloud_id.ok
+    assert datasource == cloud_id.stdout.rstrip()
