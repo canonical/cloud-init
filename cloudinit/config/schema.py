@@ -679,15 +679,16 @@ def netplan_validate_network_schema(
             message = _format_schema_problems(
                 errors,
                 prefix=(
-                    f"Invalid {SchemaType.NETWORK_CONFIG.value} provided:\n"
+                    f"{SchemaType.NETWORK_CONFIG.value} failed "
+                    "schema validation!\n"
                 ),
                 separator="\n",
             )
         else:
             message = (
-                f"Invalid {SchemaType.NETWORK_CONFIG.value} provided: "
-                "Please run 'sudo cloud-init schema --system' to "
-                "see the schema errors."
+                f"{SchemaType.NETWORK_CONFIG.value} failed schema validation! "
+                "You may run 'sudo cloud-init schema --system' to "
+                "check the details."
             )
         LOG.warning(message)
     return True
@@ -807,14 +808,14 @@ def validate_cloudconfig_schema(
         if log_details:
             details = _format_schema_problems(
                 errors,
-                prefix=f"Invalid {schema_type.value} provided:\n",
+                prefix=f"{schema_type.value} failed schema validation!\n",
                 separator="\n",
             )
         else:
             details = (
-                f"Invalid {schema_type.value} provided: "
-                "Please run 'sudo cloud-init schema --system' to "
-                "see the schema errors."
+                f"{schema_type.value} failed schema validation! "
+                "You may run 'sudo cloud-init schema --system' to "
+                "check the details."
             )
         LOG.warning(details)
     return True
