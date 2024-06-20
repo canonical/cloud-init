@@ -206,9 +206,9 @@ class Apt(PackageManager):
         short_cmd: Name of command like "upgrade" or "install"
         subp_kwargs: kwargs to pass to subp
         """
-        start_time = time.time()
+        start_time = time.monotonic()
         LOG.debug("Waiting for APT lock")
-        while time.time() - start_time < timeout:
+        while time.monotonic() - start_time < timeout:
             if not self._apt_lock_available():
                 time.sleep(1)
                 continue
