@@ -469,10 +469,13 @@ def get_mock_paths(temp_dir):
             self.cloud_dir: str = path_cfgs.get(
                 "cloud_dir", f"{temp_dir}/var/lib/cloud"
             )
-            self.run_dir: str = path_cfgs.get("run_dir", f"{temp_dir}/run/cloud/")
+            self.run_dir: str = path_cfgs.get(
+                "run_dir", f"{temp_dir}/run/cloud/"
+            )
             self.template_dir: str = path_cfgs.get(
                 "templates_dir", f"{temp_dir}/etc/cloud/templates/"
             )
+
     return MockPaths
 
 
