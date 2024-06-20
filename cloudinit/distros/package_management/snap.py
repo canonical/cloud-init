@@ -35,4 +35,13 @@ class Snap(PackageManager):
 
     @staticmethod
     def upgrade_packages():
-        subp.subp(["snap", "refresh"])
+        (out, _err) = subp.subp(
+            ["snap", "get", "system", "refresh.hold"], rcs=[0, 1]
+        )
+
+        if out.strip() == "forever":
+            LOG.info(
+                "Skipping snap refresh because refresh.hold is set to forever"
+            )
+        else:
+            subp.subp(["snap", "refresh"])
