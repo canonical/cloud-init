@@ -448,8 +448,9 @@ class TestNetplanValidateNetworkSchema:
                     column=12,
                     message="incorrect YAML value: yes for dhcp value",
                 ),
-                r"Invalid network-config provided:.*format-l1.c12: Invalid"
-                " netplan schema. incorrect YAML value: yes for dhcp value",
+                r"network-config failed schema validation!.*format-l1.c12: "
+                "Invalid netplan schema. incorrect YAML value: yes for dhcp "
+                "value",
             ),
         ),
     )
@@ -513,8 +514,8 @@ class TestValidateCloudConfigSchema:
         assert "cloudinit.config.schema" == module
         assert logging.WARNING == log_level
         assert (
-            "Invalid cloud-config provided:\np1: -1 is not of type 'string'"
-            == log_msg
+            "cloud-config failed schema validation!\n"
+            "p1: -1 is not of type 'string'" == log_msg
         )
 
     @skipUnlessJsonSchema()
@@ -534,8 +535,9 @@ class TestValidateCloudConfigSchema:
         assert "cloudinit.config.schema" == module
         assert logging.WARNING == log_level
         assert (
-            "Invalid cloud-config provided: Please run 'sudo cloud-init "
-            "schema --system' to see the schema errors." == log_msg
+            "cloud-config failed schema validation! You may run "
+            "'sudo cloud-init schema --system' to check the details."
+            == log_msg
         )
 
     @skipUnlessJsonSchema()
