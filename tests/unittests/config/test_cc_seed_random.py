@@ -12,6 +12,7 @@ import gzip
 import logging
 import tempfile
 from io import BytesIO
+from unittest import mock
 
 import pytest
 
@@ -35,7 +36,6 @@ class TestRandomSeed:
 
         # by default 'which' has nothing in its path
         self.apply_patches([(subp, "which", self._which)])
-        self.apply_patches([(subp, "subp", self._subp)])
         self.subp_called = []
         self.whichdata = {}
 
@@ -161,10 +161,17 @@ class TestRandomSeed:
         c = get_cloud("ubuntu")
         self.whichdata = {"pollinate": "/usr/bin/pollinate"}
         cfg = {"random_seed": {"command": ["pollinate", "-q"]}}
-        cc_seed_random.handle("test", cfg, c, [])
+        with mock.patch.object(cc_seed_random.subp, "subp") as subp:
+            cc_seed_random.handle("test", cfg, c, [])
 
-        subp_args = [f["args"] for f in self.subp_called]
-        assert ["pollinate", "-q"] in subp_args
+        assert (
+            mock.call(
+                ["pollinate", "-q"],
+                update_env={"RANDOM_SEED_FILE": "/dev/urandom"},
+                capture=False,
+            )
+            in subp.call_args_list
+        )
 
     def test_seed_command_not_provided(self):
         c = get_cloud("ubuntu")
@@ -189,9 +196,12 @@ class TestRandomSeed:
         c = get_cloud("ubuntu")
         self.whichdata = {"foo": "foo"}
         cfg = {"random_seed": {"command_required": True, "command": ["foo"]}}
-        cc_seed_random.handle("test", cfg, c, [])
-
-        assert ["foo"] in [f["args"] for f in self.subp_called]
+        with mock.patch.object(cc_seed_random.subp, "subp") as m_subp:
+            cc_seed_random.handle("test", cfg, c, [])
+        assert (
+            mock.call(["foo"], update_env=mock.ANY, capture=mock.ANY)
+            == m_subp.call_args
+        )
 
     def test_file_in_environment_for_command(self):
         c = get_cloud("ubuntu")
@@ -203,12 +213,14 @@ class TestRandomSeed:
                 "file": self._seed_file,
             }
         }
-        cc_seed_random.handle("test", cfg, c, [])
+        with mock.patch.object(cc_seed_random.subp, "subp") as m_subp:
+            cc_seed_random.handle("test", cfg, c, [])
 
-        # this just instists that the first time subp was called,
+        # this just insists that the first time subp was called,
         # RANDOM_SEED_FILE was in the environment set up correctly
-        subp_env = [f["update_env"] for f in self.subp_called]
-        assert subp_env[0].get("RANDOM_SEED_FILE") == self._seed_file
+        assert m_subp.call_args == mock.call(
+            ["foo"], update_env={"RANDOM_SEED_FILE": mock.ANY}, capture=False
+        )
 
 
 def apply_patches(patches):
