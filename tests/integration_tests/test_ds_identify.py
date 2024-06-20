@@ -19,9 +19,9 @@ MAP_PLATFORM_TO_DATASOURCE = {
 def test_ds_identify(client: IntegrationInstance):
     """Verify that ds-identify works correctly
 
-    Deb packaging often a datasource_list with a single datasource, which
-    bypasses ds-identify. This tests works by removing this file and verifying
-    that cloud-init doesn't experience issues.
+    Deb packaging often a defines datasource_list with a single datasource,
+    which bypasses ds-identify logic. This tests works by removing this file
+    and verifying that cloud-init doesn't experience issues.
     """
     assert client.execute(f"rm {DATASOURCE_LIST_FILE}")
     assert client.execute("cloud-init clean --logs")
