@@ -1,7 +1,5 @@
 """test that ds-identify works as expected"""
 
-import json
-
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import OS_IMAGE, PLATFORM
 from tests.integration_tests.util import verify_clean_log, wait_for_cloud_init
