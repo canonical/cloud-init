@@ -9,5 +9,7 @@ cc_package_update_upgrade_install:
   - comment: |
       Example 1:
     file: cc_package_update_upgrade_install/example1.yaml
+  - comment: "By default, `package_upgrade: true` will trigger upgrades on any installed package manager. To avoid calling `snap refresh` in images with snap installed, set snap refresh.hold to `forever` will prevent cloud-init's snap interaction during any boot"
+    file: cc_package_update_upgrade_install/example2.yaml
   name: Package Update Upgrade Install
   title: Update, upgrade, and install packages
