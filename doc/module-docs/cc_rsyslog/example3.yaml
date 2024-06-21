@@ -1,0 +1,6 @@
+#cloud-config
+rsyslog:
+  config_dir: /usr/local/etc/rsyslog.d
+  check_exe: "rsyslogd"
+  packages: ["rsyslogd"]
+  install_rsyslog: True

@@ -1,0 +1,7 @@
+#cloud-config
+power_state:
+  mode: reboot
+ubuntu_pro:
+  token: <ubuntu_pro_token>
+  enable:
+  - fips

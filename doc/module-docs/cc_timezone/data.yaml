@@ -1,0 +1,9 @@
+cc_timezone:
+  name: Timezone
+  title: Set the system timezone
+  description: |
+    Sets the `system timezone <https://www.iana.org/time-zones>`_ based on the
+    value provided.
+  examples:
+  - comment: ""
+    file: cc_timezone/example1.yaml

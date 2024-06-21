@@ -1,0 +1,4 @@
+#cloud-config
+drivers:
+  nvidia:
+    license-accepted: true

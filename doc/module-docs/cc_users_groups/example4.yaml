@@ -1,0 +1,12 @@
+#cloud-config
+users:
+- name: newsuper
+  gecos: Big Stuff
+  groups: users, admin
+  doas:
+    - permit nopass newsuper
+    - deny newsuper as root
+  lock_passwd: true
+  ssh_import_id:
+    - lp:falcojr
+    - gh:TheRealFalcon

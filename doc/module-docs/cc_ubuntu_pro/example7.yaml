@@ -1,0 +1,4 @@
+#cloud-config
+ubuntu_pro:
+  features:
+    disable_auto_attach: True

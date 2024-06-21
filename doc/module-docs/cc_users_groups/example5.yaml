@@ -1,0 +1,5 @@
+#cloud-config
+users:
+- default
+- name: youruser
+  selinux_user: staff_u

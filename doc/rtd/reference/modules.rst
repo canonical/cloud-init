@@ -35,9 +35,6 @@ the logs. If a key's expected value changes, the key will be marked
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_disable_ec2_metadata/data.yaml
    :template: modules.tmpl
-
-.. _mod-disk_setup:
-
 .. datatemplate:yaml:: ../../module-docs/cc_disk_setup/data.yaml
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_fan/data.yaml
@@ -64,9 +61,6 @@ the logs. If a key's expected value changes, the key will be marked
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_mounts/data.yaml
    :template: modules.tmpl
-
-.. _mod-ntp:
-
 .. datatemplate:yaml:: ../../module-docs/cc_ntp/data.yaml
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_package_update_upgrade_install/data.yaml
@@ -83,47 +77,55 @@ the logs. If a key's expected value changes, the key will be marked
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_rh_subscription/data.yaml
    :template: modules.tmpl
-
-.. _mod-rsyslog:
-
-.. automodule:: cloudinit.config.cc_rsyslog
-
-.. _mod-runcmd:
-
-.. automodule:: cloudinit.config.cc_runcmd
-.. automodule:: cloudinit.config.cc_salt_minion
-.. automodule:: cloudinit.config.cc_scripts_per_boot
-.. automodule:: cloudinit.config.cc_scripts_per_instance
-.. automodule:: cloudinit.config.cc_scripts_per_once
-.. automodule:: cloudinit.config.cc_scripts_user
-.. automodule:: cloudinit.config.cc_scripts_vendor
-.. automodule:: cloudinit.config.cc_seed_random
-
-.. _mod-set_hostname:
-
-.. automodule:: cloudinit.config.cc_set_hostname
-
-.. _mod-set_passwords:
-
-.. automodule:: cloudinit.config.cc_set_passwords
-.. automodule:: cloudinit.config.cc_snap
-.. automodule:: cloudinit.config.cc_spacewalk
-.. automodule:: cloudinit.config.cc_ssh
-.. automodule:: cloudinit.config.cc_ssh_authkey_fingerprints
-.. automodule:: cloudinit.config.cc_ssh_import_id
-.. automodule:: cloudinit.config.cc_timezone
-.. automodule:: cloudinit.config.cc_ubuntu_drivers
-.. automodule:: cloudinit.config.cc_ubuntu_pro
-.. automodule:: cloudinit.config.cc_update_etc_hosts
-.. automodule:: cloudinit.config.cc_update_hostname
-
-.. _mod-users_groups:
-
-.. automodule:: cloudinit.config.cc_users_groups
-.. automodule:: cloudinit.config.cc_wireguard
-
-.. _mod-write_files:
-
-.. automodule:: cloudinit.config.cc_write_files
-.. automodule:: cloudinit.config.cc_yum_add_repo
-.. automodule:: cloudinit.config.cc_zypper_add_repo
+.. datatemplate:yaml:: ../../module-docs/cc_rsyslog/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_runcmd/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_salt_minion/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_scripts_per_boot/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_scripts_per_instance/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_scripts_per_once/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_scripts_user/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_scripts_vendor/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_seed_random/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_set_hostname/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_set_passwords/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_snap/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_spacewalk/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_ssh/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_ssh_authkey_fingerprints/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_ssh_import_id/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_timezone/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_ubuntu_drivers/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_ubuntu_pro/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_update_etc_hosts/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_update_hostname/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_users_groups/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_wireguard/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_write_files/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_yum_add_repo/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_zypper_add_repo/data.yaml
+   :template: modules.tmpl

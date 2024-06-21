@@ -1,0 +1,3 @@
+#cloud-config
+ssh_pwauth: true
+password: password1

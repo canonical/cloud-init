@@ -35,15 +35,18 @@
 
    .. tab-item:: Examples
 
-   {% for example in mod_cfg['examples'] %}
-      {% for line in example["comment"].splitlines() %}
-      {{ line }}
-      {% endfor %}
+      {% if mod_cfg['examples'] %}
+          {% for example in mod_cfg['examples'] %}
+              {% for line in example["comment"].splitlines() %}
+              {{ line }} 
+              {% endfor %}
 
-      .. literalinclude:: ../../module-docs/{{ example["file"] }}
-          :language: yaml
+              .. literalinclude:: ../../module-docs/{{ example["file"] }}
+                 :language: yaml
 
-   {% endfor %}
-
+          {% endfor %}
+          {% else %}
+              No examples for this module
+          {% endif %}
 
 {% endfor %}
