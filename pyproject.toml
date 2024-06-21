@@ -25,7 +25,6 @@ exclude = []
 module = [
     "apport.*",
     "BaseHTTPServer",
-    "cloudinit.feature_overrides",
     "configobj",
     "debconf",
     "httplib",
@@ -33,7 +32,6 @@ module = [
     "paramiko.*",
     "pip.*",
     "pycloudlib.*",
-    "responses",
     "serial",
     "tests.integration_tests.user_settings",
     "uaclient.*",
