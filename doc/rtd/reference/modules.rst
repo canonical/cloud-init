@@ -5,17 +5,17 @@ Module reference
 
 Deprecation schedule and versions
 ---------------------------------
-Keys may be documented as ``deprecated``, ``new``, or ``changed``.
+
+Keys can be documented as ``deprecated``, ``new``, or ``changed``.
 This allows cloud-init to evolve as requirements change, and to adopt
 better practices without maintaining design decisions indefinitely.
 
-Keys that have been marked as deprecated or changed may be removed or
-changed 5 years from the date of deprecation. For example, a key that is
-deprecated in version ``22.1`` (which is the first release in 2022) is
-scheduled to be removed in ``27.1`` (first release in 2027). Use of
-deprecated keys may cause warnings in the logs. In the case that a
-key's expected value changes, the key will be marked ``changed`` with a
-date. A 5 year timeline may also be expected for changed keys.
+Keys marked as ``deprecated`` or ``changed`` may be removed or changed 5
+years from the deprecation date. For example, if a key is deprecated in
+version ``22.1`` (the first release in 2022) it is scheduled to be removed in
+``27.1`` (first release in 2027). Use of deprecated keys may cause warnings in
+the logs. If a key's expected value changes, the key will be marked
+``changed`` with a date. A 5 year timeline also applies to changed keys.
 
 .. datatemplate:yaml:: ../../module-docs/cc_ansible/data.yaml
    :template: modules.tmpl
