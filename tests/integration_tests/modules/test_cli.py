@@ -108,8 +108,8 @@ def test_invalid_userdata_schema(client: IntegrationInstance):
     ), f"Unexpected exit code {result.return_code}"
     log = client.read_from_file("/var/log/cloud-init.log")
     warning = (
-        "[WARNING]: Invalid cloud-config provided: Please run "
-        "'sudo cloud-init schema --system' to see the schema errors."
+        "[WARNING]: cloud-config failed schema validation! "
+        "You may run 'sudo cloud-init schema --system' to check the details."
     )
     assert warning in log
     assert "asdfasdf" not in log
