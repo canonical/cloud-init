@@ -86,10 +86,10 @@ def test_status_json_errors(client):
     assert "Deprecated cloud-config provided:\nca-certs:" in json.loads(
         status_json
     )["recoverable_errors"].get("DEPRECATED").pop(0)
-    assert "Invalid cloud-config provided" in json.loads(status_json)["init"][
-        "recoverable_errors"
-    ].get("WARNING").pop(0)
-    assert "Invalid cloud-config provided" in json.loads(status_json)[
+    assert "cloud-config failed schema validation" in json.loads(status_json)[
+        "init"
+    ]["recoverable_errors"].get("WARNING").pop(0)
+    assert "cloud-config failed schema validation" in json.loads(status_json)[
         "recoverable_errors"
     ].get("WARNING").pop(0)
 
