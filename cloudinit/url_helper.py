@@ -423,19 +423,12 @@ def readurl(
     if retries:
         manual_tries = max(int(retries) + 1, 1)
 
-    def_headers = {
-        "User-Agent": "Cloud-Init/%s" % (version.version_string()),
-    }
-    if headers:
-        def_headers.update(headers)
-    headers = def_headers
+    user_agent = "Cloud-Init/%s" % (version.version_string())
+    if headers is not None:
+        headers = headers.copy()
+    else:
+        headers = {}
 
-    if not headers_cb:
-
-        def _cb(url):
-            return headers
-
-        headers_cb = _cb
     if data:
         req_args["data"] = data
     if sec_between is None:
@@ -447,7 +440,13 @@ def readurl(
     # Handle retrying ourselves since the built-in support
     # doesn't handle sleeping between tries...
     for i in count():
-        req_args["headers"] = headers_cb(url)
+        if headers_cb:
+            headers = headers_cb(url)
+
+        if "User-Agent" not in headers:
+            headers["User-Agent"] = user_agent
+
+        req_args["headers"] = headers
         filtered_req_args = {}
         for (k, v) in req_args.items():
             if k == "data":

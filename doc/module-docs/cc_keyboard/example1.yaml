@@ -1,0 +1,3 @@
+#cloud-config
+keyboard:
+  layout: us

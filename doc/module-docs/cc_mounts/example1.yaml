@@ -1,0 +1,10 @@
+#cloud-config
+mounts:
+- [ /dev/ephemeral0, /mnt, auto, "defaults,noexec" ]
+- [ sdc, /opt/data ]
+- [ xvdh, /opt/data, auto, "defaults,nofail", "0", "0" ]
+mount_default_fields: [None, None, auto, "defaults,nofail", "0", "2"]
+swap:
+  filename: /my/swapfile
+  size: auto
+  maxsize: 10485760

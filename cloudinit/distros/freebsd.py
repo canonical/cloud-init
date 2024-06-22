@@ -12,7 +12,7 @@ from io import StringIO
 import cloudinit.distros.bsd
 from cloudinit import subp, util
 from cloudinit.distros.networking import FreeBSDNetworking
-from cloudinit.settings import PER_INSTANCE
+from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
@@ -203,12 +203,12 @@ class Distro(cloudinit.distros.bsd.BSD):
         operations"""
         return {"ASSUME_ALWAYS_YES": "YES"}
 
-    def update_package_sources(self):
+    def update_package_sources(self, *, force=False):
         self._runner.run(
             "update-sources",
             self.package_command,
             ["update"],
-            freq=PER_INSTANCE,
+            freq=PER_ALWAYS if force else PER_INSTANCE,
         )
 
     @staticmethod

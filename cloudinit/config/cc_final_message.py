@@ -8,56 +8,23 @@
 """Final Message: Output final message when cloud-init has finished"""
 
 import logging
-from textwrap import dedent
 
 from cloudinit import templater, util, version
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_ALWAYS
 
-MODULE_DESCRIPTION = """\
-This module configures the final message that cloud-init writes. The message is
-specified as a jinja template with the following variables set:
-
-    - ``version``: cloud-init version
-    - ``timestamp``: time at cloud-init finish
-    - ``datasource``: cloud-init data source
-    - ``uptime``: system uptime
-
-This message is written to the cloud-init log (usually /var/log/cloud-init.log)
-as well as stderr (which usually redirects to /var/log/cloud-init-output.log).
-
-Upon exit, this module writes the system uptime, timestamp, and cloud-init
-version to ``/var/lib/cloud/instance/boot-finished`` independent of any
-user data specified for this module.
-"""
 frequency = PER_ALWAYS
 meta: MetaSchema = {
     "id": "cc_final_message",
-    "name": "Final Message",
-    "title": "Output final message when cloud-init has finished",
-    "description": MODULE_DESCRIPTION,
     "distros": [ALL_DISTROS],
     "frequency": frequency,
-    "examples": [
-        dedent(
-            """\
-            final_message: |
-              cloud-init has finished
-              version: $version
-              timestamp: $timestamp
-              datasource: $datasource
-              uptime: $uptime
-            """
-        )
-    ],
     "activate_by_schema_keys": [],
-}
+}  # type: ignore
 
 LOG = logging.getLogger(__name__)
-__doc__ = get_meta_doc(meta)
 
 # Jinja formatted default message
 FINAL_MESSAGE_DEF = (
@@ -110,5 +77,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     except Exception:
         util.logexc(LOG, "Failed to write boot finished file %s", boot_fin_fn)
 
-    if cloud.datasource.is_disconnected:
-        LOG.warning("Used fallback datasource")
+    if cloud.datasource.dsname == "None":
+        if cloud.datasource.sys_cfg.get("datasource_list") != ["None"]:
+            LOG.warning("Used fallback datasource")

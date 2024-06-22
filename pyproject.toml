@@ -37,6 +37,7 @@ module = [
     "uaclient.*",
 ]
 ignore_missing_imports = true
+no_implicit_optional = true
 
 [tool.ruff]
 target-version = "py37"

@@ -3,7 +3,11 @@ import os
 import sys
 
 from cloudinit import version
-from cloudinit.config.schema import get_schema
+from cloudinit.config.schema import (
+    flatten_schema_all_of,
+    flatten_schema_refs,
+    get_schema,
+)
 from cloudinit.handlers.jinja_template import render_jinja_payload
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -194,13 +198,47 @@ def get_types_str(prop_cfg):
     return types
 
 
+def get_changed_str(prop_name, prop_cfg):
+    changed_cfg = {}
+    if prop_cfg.get("changed"):
+        changed_cfg = prop_cfg
+    for oneof_cfg in prop_cfg.get("oneOf", []):
+        if oneof_cfg.get("changed"):
+            changed_cfg = oneof_cfg
+            break
+    if changed_cfg:
+        with open("templates/property_changed.tmpl", "r") as stream:
+            content = "## template: jinja\n" + stream.read()
+        return render_jinja_payload(
+            content, f"changed_{prop_name}", changed_cfg
+        )
+    return ""
+
+
+def get_deprecated_str(prop_name, prop_cfg):
+    deprecated_cfg = {}
+    if prop_cfg.get("deprecated"):
+        deprecated_cfg = prop_cfg
+    for oneof_cfg in prop_cfg.get("oneOf", []):
+        if oneof_cfg.get("deprecated"):
+            deprecated_cfg = oneof_cfg
+            break
+    if deprecated_cfg:
+        with open("templates/property_deprecation.tmpl", "r") as stream:
+            content = "## template: jinja\n" + stream.read()
+        return render_jinja_payload(
+            content, f"deprecation_{prop_name}", deprecated_cfg
+        )
+    return ""
+
+
 def render_property_template(prop_name, prop_cfg, prefix=""):
-    with open("templates/module_property.tmpl", "r") as stream:
-        content = "## template: jinja\n" + stream.read()
     if prop_cfg.get("description"):
         description = f" {prop_cfg['description']}"
     else:
         description = ""
+    description += get_deprecated_str(prop_name, prop_cfg)
+    description += get_changed_str(prop_name, prop_cfg)
     jinja_vars = {
         "prefix": prefix,
         "name": prop_name,
@@ -208,18 +246,30 @@ def render_property_template(prop_name, prop_cfg, prefix=""):
         "types": get_types_str(prop_cfg),
         "prop_cfg": prop_cfg,
     }
+    with open("templates/module_property.tmpl", "r") as stream:
+        content = "## template: jinja\n" + stream.read()
     return render_jinja_payload(content, f"doc_module_{prop_name}", jinja_vars)
 
 
-def render_nested_properties(prop_cfg, prefix):
+def render_nested_properties(prop_cfg, defs, prefix):
     prop_str = ""
+    flatten_schema_refs(prop_cfg, defs)
     if "items" in prop_cfg:
-        prop_str += render_nested_properties(prop_cfg["items"], prefix)
-    if "properties" not in prop_cfg:
+        prop_str += render_nested_properties(prop_cfg["items"], defs, prefix)
+    if not set(["properties", "patternProperties"]).intersection(prop_cfg):
         return prop_str
-    for prop_name, nested_cfg in prop_cfg["properties"].items():
+    for prop_name, nested_cfg in prop_cfg.get("properties", {}).items():
+        flatten_schema_all_of(nested_cfg)
+        flatten_schema_refs(nested_cfg, defs)
         prop_str += render_property_template(prop_name, nested_cfg, prefix)
-        prop_str += render_nested_properties(nested_cfg, prefix + "  ")
+        prop_str += render_nested_properties(nested_cfg, defs, prefix + "  ")
+    for prop_name, nested_cfg in prop_cfg.get("patternProperties", {}).items():
+        flatten_schema_all_of(nested_cfg)
+        flatten_schema_refs(nested_cfg, defs)
+        if nested_cfg.get("label"):
+            prop_name = nested_cfg.get("label")
+        prop_str += render_property_template(prop_name, nested_cfg, prefix)
+        prop_str += render_nested_properties(nested_cfg, defs, prefix + "  ")
     return prop_str
 
 
@@ -228,13 +278,16 @@ def render_module_schemas():
 
     mod_docs = {}
     schema = get_schema()
+    defs = schema.get("$defs", {})
     for key in schema["$defs"]:
         if key[:3] != "cc_":
             continue
         locs, _ = find_module(key, ["", "cloudinit.config"], ["meta"])
         mod = import_module(locs[0])
         mod_docs[key] = {
-            "schema_doc": render_nested_properties(schema["$defs"][key], ""),
+            "schema_doc": render_nested_properties(
+                schema["$defs"][key], defs, ""
+            ),
             "meta": mod.meta,
         }
     return mod_docs

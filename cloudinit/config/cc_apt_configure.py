@@ -14,13 +14,13 @@ import os
 import pathlib
 import re
 import shutil
-from textwrap import dedent, indent
+from textwrap import indent
 from typing import Dict, Iterable, List, Mapping
 
 from cloudinit import features, subp, templater, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.gpg import GPG
 from cloudinit.settings import PER_INSTANCE
 
@@ -34,9 +34,6 @@ APT_TRUSTED_GPG_DIR = "/etc/apt/trusted.gpg.d/"
 CLOUD_INIT_GPG_DIR = "/etc/apt/cloud-init.gpg.d/"
 DISABLE_SUITES_REDACT_PREFIX = "# cloud-init disable_suites redacted: "
 
-frequency = PER_INSTANCE
-distros = ["ubuntu", "debian"]
-
 PACKAGE_DEPENDENCY_BY_COMMAND: Mapping[str, str] = {
     "add-apt-repository": "software-properties-common",
     "gpg": "gnupg",
@@ -44,122 +41,10 @@ PACKAGE_DEPENDENCY_BY_COMMAND: Mapping[str, str] = {
 
 meta: MetaSchema = {
     "id": "cc_apt_configure",
-    "name": "Apt Configure",
-    "title": "Configure apt for the user",
-    "description": dedent(
-        """\
-        This module handles both configuration of apt options and adding
-        source lists.  There are configuration options such as
-        ``apt_get_wrapper`` and ``apt_get_command`` that control how
-        cloud-init invokes apt-get. These configuration options are
-        handled on a per-distro basis, so consult documentation for
-        cloud-init's distro support for instructions on using
-        these config options.
-
-        By default, cloud-init will generate default
-        apt sources information in deb822 format at
-        :file:`/etc/apt/sources.list.d/<distro>.sources`. When the value
-        of `sources_list` does not appear to be deb822 format, or stable
-        distribution releases disable deb822 format,
-        :file:`/etc/apt/sources.list` will be written instead.
-
-        .. note::
-            To ensure that apt configuration is valid yaml, any strings
-            containing special characters, especially ``:`` should be quoted.
-
-        .. note::
-            For more information about apt configuration, see the
-            ``Additional apt configuration`` example."""
-    ),
-    "distros": distros,
-    "examples": [
-        dedent(
-            """\
-        apt:
-          preserve_sources_list: false
-          disable_suites:
-            - $RELEASE-updates
-            - backports
-            - $RELEASE
-            - mysuite
-          primary:
-            - arches:
-                - amd64
-                - i386
-                - default
-              uri: 'http://us.archive.ubuntu.com/ubuntu'
-              search:
-                - 'http://cool.but-sometimes-unreachable.com/ubuntu'
-                - 'http://us.archive.ubuntu.com/ubuntu'
-              search_dns: false
-            - arches:
-                - s390x
-                - arm64
-              uri: 'http://archive-to-use-for-arm64.example.com/ubuntu'
-
-          security:
-            - arches:
-                - default
-              search_dns: true
-          sources_list: |
-              deb $MIRROR $RELEASE main restricted
-              deb-src $MIRROR $RELEASE main restricted
-              deb $PRIMARY $RELEASE universe restricted
-              deb $SECURITY $RELEASE-security multiverse
-          debconf_selections:
-              set1: the-package the-package/some-flag boolean true
-          conf: |
-              APT {
-                  Get {
-                      Assume-Yes 'true';
-                      Fix-Broken 'true';
-                  }
-              }
-          proxy: 'http://[[user][:pass]@]host[:port]/'
-          http_proxy: 'http://[[user][:pass]@]host[:port]/'
-          ftp_proxy: 'ftp://[[user][:pass]@]host[:port]/'
-          https_proxy: 'https://[[user][:pass]@]host[:port]/'
-          sources:
-              source1:
-                  keyid: 'keyid'
-                  keyserver: 'keyserverurl'
-                  source: 'deb [signed-by=$KEY_FILE] http://<url>/ bionic main'
-              source2:
-                  source: 'ppa:<ppa-name>'
-              source3:
-                  source: 'deb $MIRROR $RELEASE multiverse'
-                  key: |
-                      ------BEGIN PGP PUBLIC KEY BLOCK-------
-                      <key data>
-                      ------END PGP PUBLIC KEY BLOCK-------
-              source4:
-                  source: 'deb $MIRROR $RELEASE multiverse'
-                  append: false
-                  key: |
-                      ------BEGIN PGP PUBLIC KEY BLOCK-------
-                      <key data>
-                      ------END PGP PUBLIC KEY BLOCK-------"""
-        ),
-        dedent(
-            """\
-        # cloud-init version 23.4 will generate a deb822 formatted sources
-        # file at /etc/apt/sources.list.d/<distro>.sources instead of
-        # /etc/apt/sources.list when  `sources_list` content is deb822
-        # format.
-        apt:
-            sources_list: |
-              Types: deb
-              URIs: http://archive.ubuntu.com/ubuntu/
-              Suites: $RELEASE
-              Components: main
-            """
-        ),
-    ],
-    "frequency": frequency,
+    "distros": ["ubuntu", "debian"],
+    "frequency": PER_INSTANCE,
     "activate_by_schema_keys": [],
-}
-
-__doc__ = get_meta_doc(meta)
+}  # type: ignore
 
 
 # place where apt stores cached repository data
@@ -769,10 +654,6 @@ def add_apt_key(ent, cloud, gpg, hardened=False, file_name=None):
         )
 
 
-def update_packages(cloud):
-    cloud.distro.update_package_sources()
-
-
 def add_apt_sources(
     srcdict, cloud, gpg, template_params=None, aa_repo_match=None
 ):
@@ -856,7 +737,7 @@ def add_apt_sources(
             LOG.exception("failed write to file %s: %s", sourcefn, detail)
             raise
 
-    update_packages(cloud)
+    cloud.distro.update_package_sources(force=True)
 
     return
 

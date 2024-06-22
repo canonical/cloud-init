@@ -27,7 +27,6 @@ NETWORK_FILE_HEADER = """\
 # network: {config: disabled}
 """
 
-NETWORK_CONF_FN = "/etc/network/interfaces.d/50-cloud-init"
 LOCALE_CONF_FN = "/etc/default/locale"
 
 

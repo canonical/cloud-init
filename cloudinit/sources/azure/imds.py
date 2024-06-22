@@ -4,7 +4,7 @@
 
 import logging
 import uuid
-from time import time
+from time import monotonic
 from typing import Dict, Optional, Type, Union
 
 import requests
@@ -31,7 +31,7 @@ class ReadUrlRetryHandler:
     :param logging_backoff: Backoff to limit logging.
     :param max_connection_errors: Number of connection errors to retry on.
     :param retry_codes: Set of http codes to retry on.
-    :param retry_deadline: Optional time()-based deadline to retry until.
+    :param retry_deadline: Optional monotonic()-based deadline to retry until.
     """
 
     def __init__(
@@ -66,7 +66,10 @@ class ReadUrlRetryHandler:
             return False
 
         log = True
-        if self.retry_deadline is not None and time() >= self.retry_deadline:
+        if (
+            self.retry_deadline is not None
+            and monotonic() >= self.retry_deadline
+        ):
             retry = False
         else:
             retry = True

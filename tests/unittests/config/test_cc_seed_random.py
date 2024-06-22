@@ -7,10 +7,12 @@
 #    Based on test_handler_set_hostname.py
 #
 #    This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 import gzip
 import logging
 import tempfile
 from io import BytesIO
+from unittest import mock
 
 import pytest
 
@@ -21,28 +23,25 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import TestCase, skipUnlessJsonSchema
+from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
 
-class TestRandomSeed(TestCase):
-    def setUp(self):
-        super(TestRandomSeed, self).setUp()
+class TestRandomSeed:
+    def setup_method(self):
         self._seed_file = tempfile.mktemp()
         self.unapply = []
 
         # by default 'which' has nothing in its path
         self.apply_patches([(subp, "which", self._which)])
-        self.apply_patches([(subp, "subp", self._subp)])
         self.subp_called = []
         self.whichdata = {}
 
-    def tearDown(self):
+    def teardown_method(self):
         apply_patches([i for i in reversed(self.unapply)])
         util.del_file(self._seed_file)
-        super().tearDown()
 
     def apply_patches(self, patches):
         ret = apply_patches(patches)
@@ -74,7 +73,7 @@ class TestRandomSeed(TestCase):
         }
         cc_seed_random.handle("test", cfg, get_cloud("ubuntu"), [])
         contents = util.load_text_file(self._seed_file)
-        self.assertEqual("tiny-tim-was-here", contents)
+        assert "tiny-tim-was-here" == contents
 
     def test_append_random_unknown_encoding(self):
         data = self._compress(b"tiny-toe")
@@ -85,7 +84,7 @@ class TestRandomSeed(TestCase):
                 "encoding": "special_encoding",
             }
         }
-        self.assertRaises(
+        pytest.raises(
             IOError,
             cc_seed_random.handle,
             "test",
@@ -105,7 +104,7 @@ class TestRandomSeed(TestCase):
         }
         cc_seed_random.handle("test", cfg, get_cloud("ubuntu"), [])
         contents = util.load_text_file(self._seed_file)
-        self.assertEqual("tiny-toe", contents)
+        assert "tiny-toe" == contents
 
     def test_append_random_gz(self):
         data = self._compress(b"big-toe")
@@ -118,7 +117,7 @@ class TestRandomSeed(TestCase):
         }
         cc_seed_random.handle("test", cfg, get_cloud("ubuntu"), [])
         contents = util.load_text_file(self._seed_file)
-        self.assertEqual("big-toe", contents)
+        assert "big-toe" == contents
 
     def test_append_random_base64(self):
         data = atomic_helper.b64e("bubbles")
@@ -131,7 +130,7 @@ class TestRandomSeed(TestCase):
         }
         cc_seed_random.handle("test", cfg, get_cloud("ubuntu"), [])
         contents = util.load_text_file(self._seed_file)
-        self.assertEqual("bubbles", contents)
+        assert "bubbles" == contents
 
     def test_append_random_b64(self):
         data = atomic_helper.b64e("kit-kat")
@@ -144,7 +143,7 @@ class TestRandomSeed(TestCase):
         }
         cc_seed_random.handle("test", cfg, get_cloud("ubuntu"), [])
         contents = util.load_text_file(self._seed_file)
-        self.assertEqual("kit-kat", contents)
+        assert "kit-kat" == contents
 
     def test_append_random_metadata(self):
         cfg = {
@@ -156,16 +155,23 @@ class TestRandomSeed(TestCase):
         c = get_cloud("ubuntu", metadata={"random_seed": "-so-was-josh"})
         cc_seed_random.handle("test", cfg, c, [])
         contents = util.load_text_file(self._seed_file)
-        self.assertEqual("tiny-tim-was-here-so-was-josh", contents)
+        assert "tiny-tim-was-here-so-was-josh" == contents
 
     def test_seed_command_provided_and_available(self):
         c = get_cloud("ubuntu")
         self.whichdata = {"pollinate": "/usr/bin/pollinate"}
         cfg = {"random_seed": {"command": ["pollinate", "-q"]}}
-        cc_seed_random.handle("test", cfg, c, [])
+        with mock.patch.object(cc_seed_random.subp, "subp") as subp:
+            cc_seed_random.handle("test", cfg, c, [])
 
-        subp_args = [f["args"] for f in self.subp_called]
-        self.assertIn(["pollinate", "-q"], subp_args)
+        assert (
+            mock.call(
+                ["pollinate", "-q"],
+                update_env={"RANDOM_SEED_FILE": "/dev/urandom"},
+                capture=False,
+            )
+            in subp.call_args_list
+        )
 
     def test_seed_command_not_provided(self):
         c = get_cloud("ubuntu")
@@ -173,7 +179,7 @@ class TestRandomSeed(TestCase):
         cc_seed_random.handle("test", {}, c, [])
 
         # subp should not have been called as which would say not available
-        self.assertFalse(self.subp_called)
+        assert not self.subp_called
 
     def test_unavailable_seed_command_and_required_raises_error(self):
         c = get_cloud("ubuntu")
@@ -184,17 +190,18 @@ class TestRandomSeed(TestCase):
                 "command_required": True,
             }
         }
-        self.assertRaises(
-            ValueError, cc_seed_random.handle, "test", cfg, c, []
-        )
+        pytest.raises(ValueError, cc_seed_random.handle, "test", cfg, c, [])
 
     def test_seed_command_and_required(self):
         c = get_cloud("ubuntu")
         self.whichdata = {"foo": "foo"}
         cfg = {"random_seed": {"command_required": True, "command": ["foo"]}}
-        cc_seed_random.handle("test", cfg, c, [])
-
-        self.assertIn(["foo"], [f["args"] for f in self.subp_called])
+        with mock.patch.object(cc_seed_random.subp, "subp") as m_subp:
+            cc_seed_random.handle("test", cfg, c, [])
+        assert (
+            mock.call(["foo"], update_env=mock.ANY, capture=mock.ANY)
+            == m_subp.call_args
+        )
 
     def test_file_in_environment_for_command(self):
         c = get_cloud("ubuntu")
@@ -206,12 +213,14 @@ class TestRandomSeed(TestCase):
                 "file": self._seed_file,
             }
         }
-        cc_seed_random.handle("test", cfg, c, [])
+        with mock.patch.object(cc_seed_random.subp, "subp") as m_subp:
+            cc_seed_random.handle("test", cfg, c, [])
 
-        # this just instists that the first time subp was called,
+        # this just insists that the first time subp was called,
         # RANDOM_SEED_FILE was in the environment set up correctly
-        subp_env = [f["update_env"] for f in self.subp_called]
-        self.assertEqual(subp_env[0].get("RANDOM_SEED_FILE"), self._seed_file)
+        assert m_subp.call_args == mock.call(
+            ["foo"], update_env={"RANDOM_SEED_FILE": mock.ANY}, capture=False
+        )
 
 
 def apply_patches(patches):

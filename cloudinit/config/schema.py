@@ -101,7 +101,6 @@ SCHEMA_DOC_TMPL = """
 
 {examples}
 """
-SCHEMA_PROPERTY_HEADER = ""
 SCHEMA_PROPERTY_TMPL = "{prefix}* **{prop_name}:** ({prop_type}){description}"
 SCHEMA_LIST_ITEM_TMPL = (
     "{prefix}* Each object in **{prop_name}** list supports "
@@ -110,7 +109,6 @@ SCHEMA_LIST_ITEM_TMPL = (
 SCHEMA_EXAMPLES_HEADER = ""
 SCHEMA_EXAMPLES_SPACER_TEMPLATE = "\n   # --- Example{example_count} ---\n\n"
 DEPRECATED_KEY = "deprecated"
-DEPRECATED_PREFIX = "DEPRECATED: "
 
 # user-data files typically must begin with a leading '#'
 USERDATA_VALID_HEADERS = sorted(
@@ -681,15 +679,16 @@ def netplan_validate_network_schema(
             message = _format_schema_problems(
                 errors,
                 prefix=(
-                    f"Invalid {SchemaType.NETWORK_CONFIG.value} provided:\n"
+                    f"{SchemaType.NETWORK_CONFIG.value} failed "
+                    "schema validation!\n"
                 ),
                 separator="\n",
             )
         else:
             message = (
-                f"Invalid {SchemaType.NETWORK_CONFIG.value} provided: "
-                "Please run 'sudo cloud-init schema --system' to "
-                "see the schema errors."
+                f"{SchemaType.NETWORK_CONFIG.value} failed schema validation! "
+                "You may run 'sudo cloud-init schema --system' to "
+                "check the details."
             )
         LOG.warning(message)
     return True
@@ -809,14 +808,14 @@ def validate_cloudconfig_schema(
         if log_details:
             details = _format_schema_problems(
                 errors,
-                prefix=f"Invalid {schema_type.value} provided:\n",
+                prefix=f"{schema_type.value} failed schema validation!\n",
                 separator="\n",
             )
         else:
             details = (
-                f"Invalid {schema_type.value} provided: "
-                "Please run 'sudo cloud-init schema --system' to "
-                "see the schema errors."
+                f"{schema_type.value} failed schema validation! "
+                "You may run 'sudo cloud-init schema --system' to "
+                "check the details."
             )
         LOG.warning(details)
     return True
@@ -996,7 +995,7 @@ def process_merged_cloud_config_part_problems(
 def _get_config_type_and_rendered_userdata(
     config_path: str,
     content: str,
-    instance_data_path: str = None,
+    instance_data_path: Optional[str] = None,
 ) -> UserDataTypeAndDecodedContent:
     """
     Return tuple of user-data-type and rendered content.
@@ -1067,7 +1066,7 @@ def validate_cloudconfig_file(
     schema: dict,
     schema_type: SchemaType = SchemaType.CLOUD_CONFIG,
     annotate: bool = False,
-    instance_data_path: str = None,
+    instance_data_path: Optional[str] = None,
 ) -> bool:
     """Validate cloudconfig file adheres to a specific jsonschema.
 
@@ -1246,7 +1245,7 @@ def _get_property_type(property_dict: dict, defs: dict) -> str:
     """Return a string representing a property type from a given
     jsonschema.
     """
-    _flatten_schema_refs(property_dict, defs)
+    flatten_schema_refs(property_dict, defs)
     property_types = property_dict.get("type", [])
     if not isinstance(property_types, list):
         property_types = [property_types]
@@ -1308,7 +1307,7 @@ def _parse_description(description, prefix) -> str:
     return description
 
 
-def _flatten_schema_refs(src_cfg: dict, defs: dict):
+def flatten_schema_refs(src_cfg: dict, defs: dict):
     """Flatten schema: replace $refs in src_cfg with definitions from $defs."""
     if "$ref" in src_cfg:
         reference = src_cfg.pop("$ref").replace("#/$defs/", "")
@@ -1334,7 +1333,7 @@ def _flatten_schema_refs(src_cfg: dict, defs: dict):
             sub_schema.update(defs[reference])
 
 
-def _flatten_schema_all_of(src_cfg: dict):
+def flatten_schema_all_of(src_cfg: dict):
     """Flatten schema: Merge allOf.
 
     If a schema as allOf, then all of the sub-schemas must hold. Therefore
@@ -1404,8 +1403,8 @@ def _get_property_doc(schema: dict, defs: dict, prefix="   ") -> str:
 
     for prop_schema in property_schemas:
         for prop_key, prop_config in prop_schema.items():
-            _flatten_schema_refs(prop_config, defs)
-            _flatten_schema_all_of(prop_config)
+            flatten_schema_refs(prop_config, defs)
+            flatten_schema_all_of(prop_config)
             if prop_config.get("hidden") is True:
                 continue  # document nothing for this property
 
@@ -1423,7 +1422,7 @@ def _get_property_doc(schema: dict, defs: dict, prefix="   ") -> str:
             )
             items = prop_config.get("items")
             if items:
-                _flatten_schema_refs(items, defs)
+                flatten_schema_refs(items, defs)
                 if items.get("properties") or items.get("patternProperties"):
                     properties.append(
                         SCHEMA_LIST_ITEM_TMPL.format(
@@ -1471,7 +1470,7 @@ def _get_examples(meta: MetaSchema) -> str:
         rst_content += SCHEMA_EXAMPLES_SPACER_TEMPLATE.format(
             example_count=count
         )
-        # FIXME(no conditional needed when all modules in module-doc.yaml)
+        # FIXME(drop conditional when all mods have rtd/module-doc/*/data.yaml)
         if isinstance(example, dict):
             if example["comment"]:
                 comment = f"# {example['comment']}\n"

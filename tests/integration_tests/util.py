@@ -304,10 +304,8 @@ def wait_for_cloud_init(client: "IntegrationInstance", num_retries: int = 30):
     for _ in range(num_retries):
         try:
             result = client.execute("cloud-init status")
-            if (
-                result
-                and result.ok
-                and ("running" not in result or "not started" not in result)
+            if result.return_code in (0, 2) and (
+                "running" not in result or "not started" not in result
             ):
                 return result
         except Exception as e:
@@ -386,3 +384,12 @@ def override_kernel_command_line(ds_str: str, instance: "IntegrationInstance"):
     ).ok
     assert instance.execute("cloud-init clean --logs").ok
     instance.restart()
+
+
+def push_and_enable_systemd_unit(
+    client: "IntegrationInstance", unit_name: str, content: str
+) -> None:
+    service_filename = f"/etc/systemd/system/{unit_name}"
+    client.write_to_file(service_filename, content)
+    client.execute(f"chmod 0644 {service_filename}", use_sudo=True)
+    client.execute(f"systemctl enable {unit_name}", use_sudo=True)

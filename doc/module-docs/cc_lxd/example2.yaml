@@ -1,0 +1,22 @@
+#cloud-config
+lxd:
+  init:
+    network_address: 0.0.0.0
+    network_port: 8443
+    storage_backend: zfs
+    storage_pool: datapool
+    storage_create_loop: 10
+  bridge:
+    mode: new
+    mtu: 1500
+    name: lxdbr0
+    ipv4_address: 10.0.8.1
+    ipv4_netmask: 24
+    ipv4_dhcp_first: 10.0.8.2
+    ipv4_dhcp_last: 10.0.8.3
+    ipv4_dhcp_leases: 250
+    ipv4_nat: true
+    ipv6_address: fd98:9e0:3744::1
+    ipv6_netmask: 64
+    ipv6_nat: true
+    domain: lxd

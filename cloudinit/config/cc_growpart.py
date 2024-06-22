@@ -18,86 +18,24 @@ import stat
 from abc import ABC, abstractmethod
 from contextlib import suppress
 from pathlib import Path
-from textwrap import dedent
 from typing import Optional, Tuple
 
 from cloudinit import subp, temp_utils, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS, Distro
 from cloudinit.settings import PER_ALWAYS
 
 MODULE_DESCRIPTION = """\
-Growpart resizes partitions to fill the available disk space.
-This is useful for cloud instances with a larger amount of disk space available
-than the pristine image uses, as it allows the instance to automatically make
-use of the extra space. Note that this only works if the partition to be
-resized is the last one on a disk with classic partitioning scheme (MBR, BSD,
-GPT). LVM, Btrfs and ZFS have no such restrictions.
-
-The devices on which to run growpart are specified as a list under the
-``devices`` key.
-
-There is some functionality overlap between this module and the ``growroot``
-functionality of ``cloud-initramfs-tools``. However, there are some situations
-where one tool is able to function and the other is not. The default
-configuration for both should work for most cloud instances. To explicitly
-prevent ``cloud-initramfs-tools`` from running ``growroot``, the file
-``/etc/growroot-disabled`` can be created. By default, both ``growroot`` and
-``cc_growpart`` will check for the existence of this file and will not run if
-it is present. However, this file can be ignored for ``cc_growpart`` by setting
-``ignore_growroot_disabled`` to ``true``. For more information on
-``cloud-initramfs-tools`` see: https://launchpad.net/cloud-initramfs-tools
-
-On FreeBSD, there is also the ``growfs`` service, which has a lot of overlap
-with ``cc_growpart`` and ``cc_resizefs``, but only works on the root partition.
-In that configuration, we use it, otherwise, we fall back to ``gpart``.
-
-Note however, that ``growfs`` may insert a swap partition, if none is present,
-unless instructed not to via ``growfs_swap_size=0`` in either ``kenv(1)``, or
-``rc.conf(5)``.
-
-Growpart is enabled by default on the root partition. The default config for
-growpart is::
-
-    growpart:
-      mode: auto
-      devices: ["/"]
-      ignore_growroot_disabled: false
 """
 frequency = PER_ALWAYS
 meta: MetaSchema = {
     "id": "cc_growpart",
-    "name": "Growpart",
-    "title": "Grow partitions",
-    "description": MODULE_DESCRIPTION,
     "distros": [ALL_DISTROS],
     "frequency": frequency,
-    "examples": [
-        dedent(
-            """\
-            growpart:
-              mode: auto
-              devices: ["/"]
-              ignore_growroot_disabled: false
-            """
-        ),
-        dedent(
-            """\
-            growpart:
-              mode: growpart
-              devices:
-                - "/"
-                - "/dev/vdb1"
-              ignore_growroot_disabled: true
-            """
-        ),
-    ],
     "activate_by_schema_keys": [],
-}
-
-__doc__ = get_meta_doc(meta)
+}  # type: ignore
 
 DEFAULT_CONFIG = {
     "mode": "auto",
@@ -116,36 +54,6 @@ class RESIZE:
 
 
 LOG = logging.getLogger(__name__)
-
-
-def resizer_factory(mode: str, distro: Distro, devices: list):
-    resize_class = None
-    if mode == "auto":
-        for _name, resizer in RESIZERS:
-            cur = resizer(distro)
-            if cur.available(devices=devices):
-                resize_class = cur
-                break
-
-        if not resize_class:
-            raise ValueError("No resizers available")
-
-    else:
-        mmap = {}
-        for k, v in RESIZERS:
-            mmap[k] = v
-
-        if mode not in mmap:
-            raise TypeError("unknown resize mode %s" % mode)
-
-        mclass = mmap[mode](distro)
-        if mclass.available(devices=devices):
-            resize_class = mclass
-
-        if not resize_class:
-            raise ValueError("mode %s not available" % mode)
-
-    return resize_class
 
 
 class ResizeFailedException(Exception):
@@ -278,6 +186,36 @@ class ResizeGpart(Resizer):
             raise ResizeFailedException(e) from e
 
         return (before, get_size(partdev, fs))
+
+
+def resizer_factory(mode: str, distro: Distro, devices: list) -> Resizer:
+    resize_class = None
+    if mode == "auto":
+        for _name, resizer in RESIZERS:
+            cur = resizer(distro)
+            if cur.available(devices=devices):
+                resize_class = cur
+                break
+
+        if not resize_class:
+            raise ValueError("No resizers available")
+
+    else:
+        mmap = {}
+        for k, v in RESIZERS:
+            mmap[k] = v
+
+        if mode not in mmap:
+            raise TypeError("unknown resize mode %s" % mode)
+
+        mclass = mmap[mode](distro)
+        if mclass.available(devices=devices):
+            resize_class = mclass
+
+        if not resize_class:
+            raise ValueError("mode %s not available" % mode)
+
+    return resize_class
 
 
 def get_size(filename, fs) -> Optional[int]:
@@ -473,7 +411,7 @@ def _call_resizer(resizer, devent, disk, ptnum, blockdev, fs):
     return info
 
 
-def resize_devices(resizer, devices, distro: Distro):
+def resize_devices(resizer: Resizer, devices, distro: Distro):
     # returns a tuple of tuples containing (entry-in-devices, action, message)
     devices = copy.copy(devices)
     info = []
@@ -496,9 +434,14 @@ def resize_devices(resizer, devices, distro: Distro):
             continue
 
         LOG.debug("growpart found fs=%s", fs)
-        if fs == "zfs":
+        # TODO: This seems to be the wrong place for this. On Linux, we the
+        # `os.stat(blockdev)` call below will fail on a ZFS filesystem.
+        # We then delay resizing the FS until calling cc_resizefs. Yet
+        # the code here is to accommodate the FreeBSD `growfs` service.
+        # Ideally we would grow the FS for both OSes in the same module.
+        if fs == "zfs" and isinstance(resizer, ResizeGrowFS):
             info += _call_resizer(resizer, devent, disk, ptnum, blockdev, fs)
-            return info
+            continue
 
         try:
             statret = os.stat(blockdev)
@@ -600,7 +543,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if util.is_false(mode):
         if mode != "off":
             util.deprecate(
-                deprecated="Growpart's 'mode' key with value '{mode}'",
+                deprecated=f"Growpart's 'mode' key with value '{mode}'",
                 deprecated_version="22.2",
                 extra_message="Use 'off' instead.",
             )
