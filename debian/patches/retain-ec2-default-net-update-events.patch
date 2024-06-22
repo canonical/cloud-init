@@ -7,7 +7,7 @@ Last-Update: 2024-02-15
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/cloudinit/sources/DataSourceEc2.py
 +++ b/cloudinit/sources/DataSourceEc2.py
-@@ -108,13 +108,6 @@ class DataSourceEc2(sources.DataSource):
+@@ -106,13 +106,6 @@ class DataSourceEc2(sources.DataSource):
          }
      }
  
