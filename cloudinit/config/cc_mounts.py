@@ -13,110 +13,19 @@ import math
 import os
 import re
 from string import whitespace
-from textwrap import dedent
 
 from cloudinit import subp, type_utils, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_INSTANCE
-
-MODULE_DESCRIPTION = """\
-This module can add or remove mountpoints from ``/etc/fstab`` as well as
-configure swap. The ``mounts`` config key takes a list of fstab entries to add.
-Each entry is specified as a list of ``[ fs_spec, fs_file, fs_vfstype,
-fs_mntops, fs-freq, fs_passno ]``. For more information on these options,
-consult the manual for ``/etc/fstab``. When specifying the ``fs_spec``, if the
-device name starts with one of ``xvd``, ``sd``, ``hd``, or ``vd``, the leading
-``/dev`` may be omitted.
-
-Any mounts that do not appear to either an attached block device or network
-resource will be skipped with a log like "Ignoring nonexistent mount ...".
-
-Cloud-init will attempt to add the following mount directives if available and
-unconfigured in `/etc/fstab`::
-
-    mounts:
-        - ["ephemeral0", "/mnt", "auto",\
-"defaults,nofail,x-systemd.after=cloud-init.service", "0", "2"]
-        - ["swap", "none", "swap", "sw", "0", "0"]
-
-In order to remove a previously listed mount, an entry can be added to
-the `mounts` list containing ``fs_spec`` for the device to be removed but no
-mountpoint (i.e. ``[ swap ]`` or ``[ swap, null ]``).
-
-The ``mount_default_fields`` config key allows default values to be specified
-for the fields in a ``mounts`` entry that are not specified, aside from the
-``fs_spec`` and the ``fs_file`` fields. If specified, this must be a list
-containing 6 values. It defaults to::
-
-    mount_default_fields: [none, none, "auto",\
-"defaults,nofail,x-systemd.after=cloud-init.service", "0", "2"]
-
-Non-systemd init systems will vary in ``mount_default_fields``.
-
-Swap files can be configured by setting the path to the swap file to create
-with ``filename``, the size of the swap file with ``size`` maximum size of
-the swap file if using an ``size: auto`` with ``maxsize``. By default no
-swap file is created.
-
-.. note::
-    If multiple mounts are specified where a subsequent mount's mountpoint is
-    inside of a previously declared mount's mountpoint (i.e. the 1st mount has
-    a mountpoint of ``/abc`` and the 2nd mount has a mountpoint of
-    ``/abc/def``) then this will not work as expected - ``cc_mounts`` first
-    creates the directories for all the mountpoints **before** it starts to
-    perform any mounts and so the sub-mountpoint directory will not be created
-    correctly inside the parent mountpoint.
-
-    For systems using util-linux's ``mount`` program this issue can be
-    worked around by specifying ``X-mount.mkdir`` as part of a ``fs_mntops``
-    value for the subsequent mount entry.
-"""
-
-example = dedent(
-    """\
-    # Mount ephemeral0 with "noexec" flag, /dev/sdc with mount_default_fields,
-    # and /dev/xvdh with custom fs_passno "0" to avoid fsck on the mount.
-    # Also provide an automatically sized swap with a max size of 10485760
-    # bytes.
-    mounts:
-        - [ /dev/ephemeral0, /mnt, auto, "defaults,noexec" ]
-        - [ sdc, /opt/data ]
-        - [ xvdh, /opt/data, auto, "defaults,nofail", "0", "0" ]
-    mount_default_fields: [None, None, auto, "defaults,nofail", "0", "2"]
-    swap:
-        filename: /my/swapfile
-        size: auto
-        maxsize: 10485760
-    """
-)
-
-distros = ["all"]
 
 meta: MetaSchema = {
     "id": "cc_mounts",
-    "name": "Mounts",
-    "title": "Configure mount points and swap files",
-    "description": MODULE_DESCRIPTION,
-    "distros": distros,
-    "examples": [
-        example,
-        dedent(
-            """\
-        # Create a 2 GB swap file at /swapfile using human-readable values
-        swap:
-            filename: /swapfile
-            size: 2G
-            maxsize: 2G
-        """
-        ),
-    ],
+    "distros": ["all"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": [],
-}
-
-__doc__ = get_meta_doc(meta)
+}  # type: ignore
 
 # Shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1, sr0
 DEVICE_NAME_FILTER = r"^([x]{0,1}[shv]d[a-z][0-9]*|sr[0-9]+)$"

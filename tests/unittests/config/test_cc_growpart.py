@@ -440,21 +440,27 @@ class TestResizeZFS:
     def test_zroot(self, dev, expected, common_mocks):
         resize_calls = []
 
-        class myresizer:
+        class MyResizer(cc_growpart.ResizeGrowFS):
             def resize(self, diskdev, partnum, partdev, fs):
                 resize_calls.append((diskdev, partnum, partdev, fs))
                 if partdev == "zroot/ROOT/changed":
                     return (1024, 2048)
                 return (1024, 1024)  # old size, new size
 
-        def find(name, res):
-            for f in res:
-                if f[0] == name:
-                    return f
-            return None
+        def get_status_from_device(device_name, resize_results):
+            for result in resize_results:
+                if result[0] == device_name:
+                    return result[1]
+            raise ValueError(
+                f"Device {device_name} not found in {resize_results}"
+            )
 
-        resized = cc_growpart.resize_devices(myresizer(), [dev], self.distro)
-        assert expected == find(dev, resized)[1]
+        resized = cc_growpart.resize_devices(
+            resizer=MyResizer(distro=self.distro),
+            devices=[dev],
+            distro=self.distro,
+        )
+        assert expected == get_status_from_device(dev, resized)
 
 
 class TestGetSize:
@@ -772,7 +778,8 @@ class TestGrowpartSchema:
                         "Cloud config schema deprecations: "
                         "growpart.mode:  Changed in version 22.3. "
                         "Specifying a boolean ``false`` value for "
-                        "``mode`` is deprecated. Use ``off`` instead."
+                        "``mode`` is deprecated. Use the string ``'off'`` "
+                        "instead."
                     ),
                 ),
             ),

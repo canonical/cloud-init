@@ -405,6 +405,15 @@
               "description": "Sudo rule to use or false. Absence of a sudo value or ``null`` will result in no sudo rules added for this user."
             },
             {
+              "type": "array",
+              "items": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            {
               "type": "boolean",
               "changed": true,
               "changed_version": "22.2",
@@ -958,11 +967,11 @@
               },
               "minItems": 1,
               "uniqueItems": true,
-              "description": "Entries in the sources list can be disabled using ``disable_suites``, which takes a list of suites to be disabled. If the string ``$RELEASE`` is present in a suite in the ``disable_suites`` list, it will be replaced with the release name. If a suite specified in ``disable_suites`` is not present in ``sources.list`` it will be ignored. For convenience, several aliases are provided for`` disable_suites``:\n\n - ``updates`` => ``$RELEASE-updates``\n - ``backports`` => ``$RELEASE-backports``\n - ``security`` => ``$RELEASE-security``\n - ``proposed`` => ``$RELEASE-proposed``\n - ``release`` => ``$RELEASE``.\n\nWhen a suite is disabled using ``disable_suites``, its entry in ``sources.list`` is not deleted; it is just commented out."
+              "description": "Entries in the sources list can be disabled using ``disable_suites``, which takes a list of suites to be disabled. If the string ``$RELEASE`` is present in a suite in the ``disable_suites`` list, it will be replaced with the release name. If a suite specified in ``disable_suites`` is not present in ``sources.list`` it will be ignored. For convenience, several aliases are provided for`` disable_suites``:\n- ``updates`` => ``$RELEASE-updates``\n- ``backports`` => ``$RELEASE-backports``\n- ``security`` => ``$RELEASE-security``\n- ``proposed`` => ``$RELEASE-proposed``\n- ``release`` => ``$RELEASE``.\n\nWhen a suite is disabled using ``disable_suites``, its entry in ``sources.list`` is not deleted; it is just commented out."
             },
             "primary": {
               "$ref": "#/$defs/apt_configure.mirror",
-              "description": "The primary and security archive mirrors can be specified using the ``primary`` and ``security`` keys, respectively. Both the ``primary`` and ``security`` keys take a list of configs, allowing mirrors to be specified on a per-architecture basis. Each config is a dictionary which must have an entry for ``arches``, specifying which architectures that config entry is for. The keyword ``default`` applies to any architecture not explicitly listed. The mirror url can be specified with the ``uri`` key, or a list of mirrors to check can be provided in order, with the first mirror that can be resolved being selected. This allows the same configuration to be used in different environment, with different hosts used for a local APT mirror. If no mirror is provided by ``uri`` or ``search``, ``search_dns`` may be used to search for dns names in the format ``<distro>-mirror`` in each of the following:\n\n - fqdn of this host per cloud metadata,\n - localdomain,\n - domains listed in ``/etc/resolv.conf``.\n\nIf there is a dns entry for ``<distro>-mirror``, then it is assumed that there is a distro mirror at ``http://<distro>-mirror.<domain>/<distro>``. If the ``primary`` key is defined, but not the ``security`` key, then then configuration for ``primary`` is also used for ``security``. If ``search_dns`` is used for the ``security`` key, the search pattern will be ``<distro>-security-mirror``.\n\nEach mirror may also specify a key to import via any of the following optional keys:\n\n - ``keyid``: a key to import via shortid or fingerprint.\n - ``key``: a raw PGP key.\n - ``keyserver``: alternate keyserver to pull ``keyid`` key from.\n\nIf no mirrors are specified, or all lookups fail, then default mirrors defined in the datasource are used. If none are present in the datasource either the following defaults are used:\n\n - ``primary`` => ``http://archive.ubuntu.com/ubuntu``.\n - ``security`` => ``http://security.ubuntu.com/ubuntu``"
+              "description": "The primary and security archive mirrors can be specified using the ``primary`` and ``security`` keys, respectively. Both the ``primary`` and ``security`` keys take a list of configs, allowing mirrors to be specified on a per-architecture basis. Each config is a dictionary which must have an entry for ``arches``, specifying which architectures that config entry is for. The keyword ``default`` applies to any architecture not explicitly listed. The mirror url can be specified with the ``uri`` key, or a list of mirrors to check can be provided in order, with the first mirror that can be resolved being selected. This allows the same configuration to be used in different environment, with different hosts used for a local APT mirror. If no mirror is provided by ``uri`` or ``search``, ``search_dns`` may be used to search for dns names in the format ``<distro>-mirror`` in each of the following:\n- fqdn of this host per cloud metadata,\n- localdomain,\n- domains listed in ``/etc/resolv.conf``.\n\nIf there is a dns entry for ``<distro>-mirror``, then it is assumed that there is a distro mirror at ``http://<distro>-mirror.<domain>/<distro>``. If the ``primary`` key is defined, but not the ``security`` key, then then configuration for ``primary`` is also used for ``security``. If ``search_dns`` is used for the ``security`` key, the search pattern will be ``<distro>-security-mirror``.\n\nEach mirror may also specify a key to import via any of the following optional keys:\n- ``keyid``: a key to import via shortid or fingerprint.\n- ``key``: a raw PGP key.\n- ``keyserver``: alternate keyserver to pull ``keyid`` key from.\n\nIf no mirrors are specified, or all lookups fail, then default mirrors defined in the datasource are used. If none are present in the datasource either the following defaults are used:\n- ``primary`` => ``http://archive.ubuntu.com/ubuntu``.\n- ``security`` => ``http://security.ubuntu.com/ubuntu``"
             },
             "security": {
               "$ref": "#/$defs/apt_configure.mirror",
@@ -982,11 +991,11 @@
                   "type": "string"
                 }
               },
-              "description": "Debconf additional configurations can be specified as a dictionary under the ``debconf_selections`` config key, with each key in the dict representing a different set of configurations. The value of each key must be a string containing all the debconf configurations that must be applied. We will bundle all of the values and pass them to ``debconf-set-selections``. Therefore, each value line must be a valid entry for ``debconf-set-selections``, meaning that they must possess for distinct fields:\n\n``pkgname question type answer``\n\nWhere:\n\n - ``pkgname`` is the name of the package.\n - ``question`` the name of the questions.\n - ``type`` is the type of question.\n - ``answer`` is the value used to answer the question.\n\nFor example: ``ippackage ippackage/ip string 127.0.01``"
+              "description": "Debconf additional configurations can be specified as a dictionary under the ``debconf_selections`` config key, with each key in the dict representing a different set of configurations. The value of each key must be a string containing all the debconf configurations that must be applied. We will bundle all of the values and pass them to ``debconf-set-selections``. Therefore, each value line must be a valid entry for ``debconf-set-selections``, meaning that they must possess for distinct fields:\n\n``pkgname question type answer``\n\nWhere:\n- ``pkgname`` is the name of the package.\n- ``question`` the name of the questions.\n- ``type`` is the type of question.\n- ``answer`` is the value used to answer the question.\n\nFor example: ``ippackage ippackage/ip string 127.0.01``"
             },
             "sources_list": {
               "type": "string",
-              "description": "Specifies a custom template for rendering ``sources.list`` . If no ``sources_list`` template is given, cloud-init will use sane default. Within this template, the following strings will be replaced with the appropriate values:\n\n - ``$MIRROR``\n - ``$RELEASE``\n - ``$PRIMARY``\n - ``$SECURITY``\n - ``$KEY_FILE``"
+              "description": "Specifies a custom template for rendering ``sources.list`` . If no ``sources_list`` template is given, cloud-init will use sane default. Within this template, the following strings will be replaced with the appropriate values:\n- ``$MIRROR``\n- ``$RELEASE``\n- ``$PRIMARY``\n- ``$SECURITY``\n- ``$KEY_FILE``"
             },
             "conf": {
               "type": "string",
@@ -1039,7 +1048,7 @@
                   "minProperties": 1
                 }
               },
-              "description": "Source list entries can be specified as a dictionary under the ``sources`` config key, with each key in the dict representing a different source file. The key of each source entry will be used as an id that can be referenced in other config entries, as well as the filename for the source's configuration under ``/etc/apt/sources.list.d``. If the name does not end with ``.list``, it will be appended. If there is no configuration for a key in ``sources``, no file will be written, but the key may still be referred to as an id in other ``sources`` entries.\n\nEach entry under ``sources`` is a dictionary which may contain any of the following optional keys:\n - ``source``: a sources.list entry (some variable replacements apply).\n - ``keyid``: a key to import via shortid or fingerprint.\n - ``key``: a raw PGP key.\n - ``keyserver``: alternate keyserver to pull ``keyid`` key from.\n - ``filename``: specify the name of the list file.\n - ``append``: If ``true``, append to sources file, otherwise overwrite it. Default: ``true``.\n\nThe ``source`` key supports variable replacements for the following strings:\n\n - ``$MIRROR``\n - ``$PRIMARY``\n - ``$SECURITY``\n - ``$RELEASE``\n - ``$KEY_FILE``"
+              "description": "Source list entries can be specified as a dictionary under the ``sources`` config key, with each key in the dict representing a different source file. The key of each source entry will be used as an id that can be referenced in other config entries, as well as the filename for the source's configuration under ``/etc/apt/sources.list.d``. If the name does not end with ``.list``, it will be appended. If there is no configuration for a key in ``sources``, no file will be written, but the key may still be referred to as an id in other ``sources`` entries.\n\nEach entry under ``sources`` is a dictionary which may contain any of the following optional keys:\n- ``source``: a sources.list entry (some variable replacements apply).\n- ``keyid``: a key to import via shortid or fingerprint.\n- ``key``: a raw PGP key.\n- ``keyserver``: alternate keyserver to pull ``keyid`` key from.\n- ``filename``: specify the name of the list file.\n- ``append``: If ``true``, append to sources file, otherwise overwrite it. Default: ``true``.\n\nThe ``source`` key supports variable replacements for the following strings:\n- ``$MIRROR``\n- ``$PRIMARY``\n- ``$SECURITY``\n- ``$RELEASE``\n- ``$KEY_FILE``"
             }
           }
         }
@@ -1155,7 +1164,7 @@
               },
               "minItems": 1,
               "uniqueItems": true,
-              "description": "Create the necessary directories for chef to run. By default, it creates the following directories:\n\n - ``/etc/chef``\n - ``/var/log/chef``\n - ``/var/lib/chef``\n - ``/var/cache/chef``\n - ``/var/backups/chef``\n - ``/var/run/chef``"
+              "description": "Create the necessary directories for chef to run. By default, it creates the following directories:\n- ``/etc/chef``\n- ``/var/log/chef``\n- ``/var/lib/chef``\n- ``/var/cache/chef``\n- ``/var/backups/chef``\n- ``/var/run/chef``"
             },
             "validation_cert": {
               "type": "string",
@@ -1251,7 +1260,7 @@
             "ssl_verify_mode": {
               "type": "string",
               "default": ":verify_none",
-              "description": "Set the verify mode for HTTPS requests. We can have two possible values for this parameter:\n\n - ``:verify_none``: No validation of SSL certificates.\n - ``:verify_peer``: Validate all SSL certificates.\n\nBy default, the parameter is set as ``:verify_none``."
+              "description": "Set the verify mode for HTTPS requests. We can have two possible values for this parameter:\n- ``:verify_none``: No validation of SSL certificates.\n- ``:verify_peer``: Validate all SSL certificates.\n\nBy default, the parameter is set as ``:verify_none``."
             },
             "validation_name": {
               "type": "string",
@@ -1277,7 +1286,7 @@
                 "gems",
                 "omnibus"
               ],
-              "description": "The type of installation for chef. It can be one of the following values:\n\n - ``packages``\n - ``gems``\n - ``omnibus``"
+              "description": "The type of installation for chef. It can be one of the following values:\n- ``packages``\n- ``gems``\n- ``omnibus``"
             },
             "run_list": {
               "type": "array",
@@ -1494,7 +1503,7 @@
           "properties": {
             "mode": {
               "default": "auto",
-              "description": "The utility to use for resizing. Default: ``auto``\n\nPossible options:\n\n* ``auto`` - Use any available utility\n\n* ``growpart`` - Use growpart utility\n\n* ``gpart`` - Use BSD gpart utility\n\n* ``off`` - Take no action",
+              "description": "The utility to use for resizing. Default: ``auto``\n\nPossible options:\n\n* ``auto`` - Use any available utility\n\n* ``growpart`` - Use growpart utility\n\n* ``gpart`` - Use BSD gpart utility\n\n* ``'off'`` - Take no action",
               "oneOf": [
                 {
                   "enum": [
@@ -1510,7 +1519,7 @@
                   ],
                   "changed": true,
                   "changed_version": "22.3",
-                  "changed_description": "Specifying a boolean ``false`` value for ``mode`` is deprecated. Use ``off`` instead."
+                  "changed_description": "Specifying a boolean ``false`` value for ``mode`` is deprecated. Use the string ``'off'`` instead."
                 }
               ]
             },
@@ -2034,7 +2043,7 @@
                 "format": "hostname"
               },
               "uniqueItems": true,
-              "description": "List of ntp pools. If both pools and servers are\nempty, 4 default pool servers will be provided of\nthe format ``{0-3}.{distro}.pool.ntp.org``. NOTE:\nfor Alpine Linux when using the Busybox NTP client\nthis setting will be ignored due to the limited\nfunctionality of Busybox's ntpd."
+              "description": "List of ntp pools. If both pools and servers are empty, 4 default pool servers will be provided of the format ``{0-3}.{distro}.pool.ntp.org``. NOTE: for Alpine Linux when using the Busybox NTP client this setting will be ignored due to the limited functionality of Busybox's ntpd."
             },
             "servers": {
               "type": "array",
@@ -2043,7 +2052,7 @@
                 "format": "hostname"
               },
               "uniqueItems": true,
-              "description": "List of ntp servers. If both pools and servers are\nempty, 4 default pool servers will be provided with\nthe format ``{0-3}.{distro}.pool.ntp.org``."
+              "description": "List of ntp servers. If both pools and servers are empty, 4 default pool servers will be provided with the format ``{0-3}.{distro}.pool.ntp.org``."
             },
             "peers": {
               "type": "array",
@@ -2065,26 +2074,26 @@
             "ntp_client": {
               "type": "string",
               "default": "auto",
-              "description": "Name of an NTP client to use to configure system NTP.\nWhen unprovided or 'auto' the default client preferred\nby the distribution will be used. The following\nbuilt-in client names can be used to override existing\nconfiguration defaults: chrony, ntp, openntpd,\nntpdate, systemd-timesyncd."
+              "description": "Name of an NTP client to use to configure system NTP. When unprovided or 'auto' the default client preferred by the distribution will be used. The following built-in client names can be used to override existing configuration defaults: chrony, ntp, openntpd, ntpdate, systemd-timesyncd."
             },
             "enabled": {
               "type": "boolean",
               "default": true,
-              "description": "Attempt to enable ntp clients if set to True.  If set\nto False, ntp client will not be configured or\ninstalled"
+              "description": "Attempt to enable ntp clients if set to True.  If set to ``false``, ntp client will not be configured or installed"
             },
             "config": {
-              "description": "Configuration settings or overrides for the\n``ntp_client`` specified.",
+              "description": "Configuration settings or overrides for the ``ntp_client`` specified.",
               "type": "object",
               "minProperties": 1,
               "additionalProperties": false,
               "properties": {
                 "confpath": {
                   "type": "string",
-                  "description": "The path to where the ``ntp_client``\nconfiguration is written."
+                  "description": "The path to where the ``ntp_client`` configuration is written."
                 },
                 "check_exe": {
                   "type": "string",
-                  "description": "The executable name for the ``ntp_client``.\nFor example, ntp service ``check_exe`` is\n'ntpd' because it runs the ntpd binary."
+                  "description": "The executable name for the ``ntp_client``. For example, ntp service ``check_exe`` is 'ntpd' because it runs the ntpd binary."
                 },
                 "packages": {
                   "type": "array",
@@ -2092,15 +2101,15 @@
                     "type": "string"
                   },
                   "uniqueItems": true,
-                  "description": "List of packages needed to be installed for the\nselected ``ntp_client``."
+                  "description": "List of packages needed to be installed for the selected ``ntp_client``."
                 },
                 "service_name": {
                   "type": "string",
-                  "description": "The systemd or sysvinit service name used to\nstart and stop the ``ntp_client``\nservice."
+                  "description": "The systemd or sysvinit service name used to start and stop the ``ntp_client`` service."
                 },
                 "template": {
                   "type": "string",
-                  "description": "Inline template allowing users to customize their ``ntp_client`` configuration with the use of the Jinja templating engine.\nThe template content should start with ``## template:jinja``.\nWithin the template, you can utilize any of the following ntp module config keys: ``servers``, ``pools``, ``allow``, and ``peers``.\nEach cc_ntp schema config key and expected value type is defined above."
+                  "description": "Inline template allowing users to customize their ``ntp_client`` configuration with the use of the Jinja templating engine. The template content should start with ``## template:jinja``. Within the template, you can utilize any of the following ntp module config keys: ``servers``, ``pools``, ``allow``, and ``peers``. Each cc_ntp schema config key and expected value type is defined above."
                 }
               }
             }

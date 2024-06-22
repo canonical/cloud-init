@@ -1,0 +1,4 @@
+#cloud-config
+phone_home:
+  url: http://example.com/$INSTANCE_ID/
+  post: all

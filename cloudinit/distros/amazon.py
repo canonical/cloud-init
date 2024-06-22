@@ -20,5 +20,5 @@ class Distro(rhel.Distro):
     dhclient_lease_directory = "/var/lib/dhcp"
     dhclient_lease_file_regex = r"dhclient-[\w-]+\.lease"
 
-    def update_package_sources(self):
+    def update_package_sources(self, *, force=False):
         return None
