@@ -60,8 +60,8 @@ def mock_requests_session_request():
 
 
 @pytest.fixture(autouse=True)
-def mock_time():
-    with mock.patch.object(imds, "time", autospec=True) as m:
+def mock_time_monotonic():
+    with mock.patch.object(imds, "monotonic", autospec=True) as m:
         m.time_current = 0.0
         m.time_increment = 1.0
 

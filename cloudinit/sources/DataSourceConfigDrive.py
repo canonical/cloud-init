@@ -19,7 +19,6 @@ LOG = logging.getLogger(__name__)
 
 # Various defaults/constants...
 DEFAULT_IID = "iid-dsconfigdrive"
-DEFAULT_MODE = "pass"
 DEFAULT_METADATA = {
     "instance-id": DEFAULT_IID,
 }

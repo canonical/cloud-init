@@ -303,7 +303,6 @@ BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG = {
 
 DS_CFG_PATH = ["datasource", DS_NAME]
 DS_CFG_KEY_PRESERVE_NTFS = "never_destroy_ntfs"
-DEF_EPHEMERAL_LABEL = "Temporary Storage"
 
 # The redacted password fails to meet password complexity requirements
 # so we can safely use this to mask/redact the password in the ovf-env.xml

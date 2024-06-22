@@ -37,7 +37,7 @@ For example the following could be present in
 
   network:
     version: 2
-    ethernets: []
+    ethernets: {}
 
 It may also be provided in other locations including the
 :ref:`datasource_nocloud`. See :ref:`network_config` for other places.

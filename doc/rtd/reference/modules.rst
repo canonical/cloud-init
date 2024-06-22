@@ -21,43 +21,68 @@ date. A 5 year timeline may also be expected for changed keys.
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_apk_configure/data.yaml
    :template: modules.tmpl
-.. automodule:: cloudinit.config.cc_apt_configure
+.. datatemplate:yaml:: ../../module-docs/cc_apt_configure/data.yaml
+   :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_apt_pipelining/data.yaml
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_bootcmd/data.yaml
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_byobu/data.yaml
    :template: modules.tmpl
-.. automodule:: cloudinit.config.cc_ca_certs
-.. automodule:: cloudinit.config.cc_chef
-.. automodule:: cloudinit.config.cc_disable_ec2_metadata
+.. datatemplate:yaml:: ../../module-docs/cc_ca_certs/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_chef/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_disable_ec2_metadata/data.yaml
+   :template: modules.tmpl
 
 .. _mod-disk_setup:
 
-.. automodule:: cloudinit.config.cc_disk_setup
-.. automodule:: cloudinit.config.cc_fan
-.. automodule:: cloudinit.config.cc_final_message
-.. automodule:: cloudinit.config.cc_growpart
-.. automodule:: cloudinit.config.cc_grub_dpkg
-.. automodule:: cloudinit.config.cc_install_hotplug
-.. automodule:: cloudinit.config.cc_keyboard
-.. automodule:: cloudinit.config.cc_keys_to_console
-.. automodule:: cloudinit.config.cc_landscape
-.. automodule:: cloudinit.config.cc_locale
-.. automodule:: cloudinit.config.cc_lxd
-.. automodule:: cloudinit.config.cc_mcollective
-.. automodule:: cloudinit.config.cc_mounts
+.. datatemplate:yaml:: ../../module-docs/cc_disk_setup/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_fan/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_final_message/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_growpart/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_grub_dpkg/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_install_hotplug/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_keyboard/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_keys_to_console/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_landscape/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_locale/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_lxd/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_mcollective/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_mounts/data.yaml
+   :template: modules.tmpl
 
 .. _mod-ntp:
 
-.. automodule:: cloudinit.config.cc_ntp
-.. automodule:: cloudinit.config.cc_package_update_upgrade_install
-.. automodule:: cloudinit.config.cc_phone_home
-.. automodule:: cloudinit.config.cc_power_state_change
-.. automodule:: cloudinit.config.cc_puppet
-.. automodule:: cloudinit.config.cc_resizefs
-.. automodule:: cloudinit.config.cc_resolv_conf
-.. automodule:: cloudinit.config.cc_rh_subscription
+.. datatemplate:yaml:: ../../module-docs/cc_ntp/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_package_update_upgrade_install/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_phone_home/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_power_state_change/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_puppet/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_resizefs/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_resolv_conf/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_rh_subscription/data.yaml
+   :template: modules.tmpl
 
 .. _mod-rsyslog:
 

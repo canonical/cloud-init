@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 
 import random
 import tempfile
@@ -14,15 +15,13 @@ from cloudinit.config.schema import (
 from tests.unittests.helpers import (
     CiTestCase,
     ExitStack,
-    TestCase,
     mock,
     skipUnlessJsonSchema,
 )
 
 
-class TestIsDiskUsed(TestCase):
-    def setUp(self):
-        super(TestIsDiskUsed, self).setUp()
+class TestIsDiskUsed:
+    def setup_method(self):
         self.patches = ExitStack()
         mod_name = "cloudinit.config.cc_disk_setup"
         self.enumerate_disk = self.patches.enter_context(
@@ -32,14 +31,13 @@ class TestIsDiskUsed(TestCase):
             mock.patch("{0}.check_fs".format(mod_name))
         )
 
-    def tearDown(self):
-        super().tearDown()
+    def teardown_method(self):
         self.patches.close()
 
     def test_multiple_child_nodes_returns_true(self):
         self.enumerate_disk.return_value = (mock.MagicMock() for _ in range(2))
         self.check_fs.return_value = (mock.MagicMock(), None, mock.MagicMock())
-        self.assertTrue(cc_disk_setup.is_disk_used(mock.MagicMock()))
+        assert cc_disk_setup.is_disk_used(mock.MagicMock())
 
     def test_valid_filesystem_returns_true(self):
         self.enumerate_disk.return_value = (mock.MagicMock() for _ in range(1))
@@ -48,44 +46,29 @@ class TestIsDiskUsed(TestCase):
             "ext4",
             mock.MagicMock(),
         )
-        self.assertTrue(cc_disk_setup.is_disk_used(mock.MagicMock()))
+        assert cc_disk_setup.is_disk_used(mock.MagicMock())
 
     def test_one_child_nodes_and_no_fs_returns_false(self):
         self.enumerate_disk.return_value = (mock.MagicMock() for _ in range(1))
         self.check_fs.return_value = (mock.MagicMock(), None, mock.MagicMock())
-        self.assertFalse(cc_disk_setup.is_disk_used(mock.MagicMock()))
+        assert not cc_disk_setup.is_disk_used(mock.MagicMock())
 
 
-class TestGetMbrHddSize(TestCase):
-    def setUp(self):
-        super(TestGetMbrHddSize, self).setUp()
-        self.patches = ExitStack()
-        self.subp = self.patches.enter_context(
-            mock.patch.object(cc_disk_setup.subp, "subp")
-        )
-
-    def tearDown(self):
-        super().tearDown()
-        self.patches.close()
-
-    def _configure_subp_mock(self, hdd_size_in_bytes, sector_size_in_bytes):
-        def _subp(cmd, *args, **kwargs):
-            self.assertEqual(3, len(cmd))
-            if "--getsize64" in cmd:
-                return hdd_size_in_bytes, None
-            elif "--getss" in cmd:
-                return sector_size_in_bytes, None
-            raise RuntimeError("Unexpected blockdev command called")
-
-        self.subp.side_effect = _subp
-
+class TestGetMbrHddSize:
     def _test_for_sector_size(self, sector_size):
         size_in_bytes = random.randint(10000, 10000000) * 512
         size_in_sectors = size_in_bytes / sector_size
-        self._configure_subp_mock(size_in_bytes, sector_size)
-        self.assertEqual(
-            size_in_sectors, cc_disk_setup.get_hdd_size("/dev/sda1")
-        )
+
+        def _subp(cmd, *args, **kwargs):
+            assert 3 == len(cmd)
+            if "--getsize64" in cmd:
+                return size_in_bytes, None
+            elif "--getss" in cmd:
+                return sector_size, None
+            raise RuntimeError("Unexpected blockdev command called")
+
+        with mock.patch.object(cc_disk_setup.subp, "subp", _subp):
+            assert size_in_sectors == cc_disk_setup.get_hdd_size("/dev/sda1")
 
     def test_size_for_512_byte_sectors(self):
         self._test_for_sector_size(512)
@@ -100,36 +83,32 @@ class TestGetMbrHddSize(TestCase):
         self._test_for_sector_size(4096)
 
 
-class TestGetPartitionMbrLayout(TestCase):
+class TestGetPartitionMbrLayout:
     def test_single_partition_using_boolean(self):
-        self.assertEqual(
-            ",,83", cc_disk_setup.get_partition_mbr_layout(1000, True)
-        )
+        assert ",,83" == cc_disk_setup.get_partition_mbr_layout(1000, True)
 
     def test_single_partition_using_list(self):
         disk_size = random.randint(1000000, 1000000000000)
-        self.assertEqual(
-            ",,83", cc_disk_setup.get_partition_mbr_layout(disk_size, [100])
+        assert ",,83" == cc_disk_setup.get_partition_mbr_layout(
+            disk_size, [100]
         )
 
     def test_half_and_half(self):
         disk_size = random.randint(1000000, 1000000000000)
         expected_partition_size = int(float(disk_size) / 2)
-        self.assertEqual(
-            ",{0},83\n,,83".format(expected_partition_size),
-            cc_disk_setup.get_partition_mbr_layout(disk_size, [50, 50]),
-        )
+        assert ",{0},83\n,,83".format(
+            expected_partition_size
+        ) == cc_disk_setup.get_partition_mbr_layout(disk_size, [50, 50])
 
     def test_thirds_with_different_partition_type(self):
         disk_size = random.randint(1000000, 1000000000000)
         expected_partition_size = int(float(disk_size) * 0.33)
-        self.assertEqual(
-            ",{0},83\n,,82".format(expected_partition_size),
-            cc_disk_setup.get_partition_mbr_layout(disk_size, [33, [66, 82]]),
-        )
+        assert ",{0},83\n,,82".format(
+            expected_partition_size
+        ) == cc_disk_setup.get_partition_mbr_layout(disk_size, [33, [66, 82]])
 
 
-class TestUpdateFsSetupDevices(TestCase):
+class TestUpdateFsSetupDevices:
     def test_regression_1634678(self):
         # Cf. https://bugs.launchpad.net/cloud-init/+bug/1634678
         fs_setup = {
@@ -144,17 +123,14 @@ class TestUpdateFsSetupDevices(TestCase):
             [fs_setup], lambda device: device
         )
 
-        self.assertEqual(
-            {
-                "_origname": "/dev/xvdb1",
-                "partition": "auto",
-                "device": "/dev/xvdb1",
-                "overwrite": False,
-                "label": "test",
-                "filesystem": "ext4",
-            },
-            fs_setup,
-        )
+        assert {
+            "_origname": "/dev/xvdb1",
+            "partition": "auto",
+            "device": "/dev/xvdb1",
+            "overwrite": False,
+            "label": "test",
+            "filesystem": "ext4",
+        } == fs_setup
 
     def test_dotted_devname(self):
         fs_setup = {
@@ -168,17 +144,14 @@ class TestUpdateFsSetupDevices(TestCase):
             [fs_setup], lambda device: device
         )
 
-        self.assertEqual(
-            {
-                "_origname": "ephemeral0.0",
-                "_partition": "auto",
-                "partition": "0",
-                "device": "ephemeral0",
-                "label": "test2",
-                "filesystem": "xfs",
-            },
-            fs_setup,
-        )
+        assert {
+            "_origname": "ephemeral0.0",
+            "_partition": "auto",
+            "partition": "0",
+            "device": "ephemeral0",
+            "label": "test2",
+            "filesystem": "xfs",
+        } == fs_setup
 
     def test_dotted_devname_populates_partition(self):
         fs_setup = {
@@ -189,19 +162,16 @@ class TestUpdateFsSetupDevices(TestCase):
         cc_disk_setup.update_fs_setup_devices(
             [fs_setup], lambda device: device
         )
-        self.assertEqual(
-            {
-                "_origname": "ephemeral0.1",
-                "device": "ephemeral0",
-                "partition": "1",
-                "label": "test2",
-                "filesystem": "xfs",
-            },
-            fs_setup,
-        )
+        assert {
+            "_origname": "ephemeral0.1",
+            "device": "ephemeral0",
+            "partition": "1",
+            "label": "test2",
+            "filesystem": "xfs",
+        } == fs_setup
 
 
-class TestPurgeDisk(TestCase):
+class TestPurgeDisk:
     @mock.patch(
         "cloudinit.config.cc_disk_setup.read_parttbl", return_value=None
     )
@@ -215,7 +185,7 @@ class TestPurgeDisk(TestCase):
 
         expected = b"\0" * (1024 * 1024)
 
-        self.assertEqual(expected, actual)
+        assert expected == actual
 
 
 @mock.patch(
@@ -245,17 +215,15 @@ class TestMkfsCommandHandling(CiTestCase):
             }
         )
 
-        self.assertIn(
+        assert (
             "extra_opts "
             "ignored because cmd was specified: mkfs -t ext4 -L with_cmd "
-            "/dev/xdb1",
-            self.logs.getvalue(),
+            "/dev/xdb1" in self.logs.getvalue()
         )
-        self.assertIn(
+        assert (
             "overwrite "
             "ignored because cmd was specified: mkfs -t ext4 -L with_cmd "
-            "/dev/xdb1",
-            self.logs.getvalue(),
+            "/dev/xdb1" in self.logs.getvalue()
         )
 
         subp.assert_called_once_with(
@@ -304,10 +272,10 @@ class TestMkfsCommandHandling(CiTestCase):
             }
         )
 
-        self.assertEqual(
-            [mock.call("mkfs.swap"), mock.call("mkswap")],
-            m_which.call_args_list,
-        )
+        assert [
+            mock.call("mkfs.swap"),
+            mock.call("mkswap"),
+        ] == m_which.call_args_list
         subp.assert_called_once_with(
             ["/sbin/mkswap", "-L", "swap", "-f", "/dev/xdb1"], shell=False
         )
