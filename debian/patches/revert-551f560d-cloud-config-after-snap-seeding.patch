@@ -27,7 +27,7 @@ Last-Update: 2024-02-14
      def get_template_filename(self, name):
 --- a/cloudinit/config/cc_lxd.py
 +++ b/cloudinit/config/cc_lxd.py
-@@ -212,7 +212,6 @@ def handle(name: str, cfg: Config, cloud
+@@ -81,7 +81,6 @@ def handle(name: str, cfg: Config, cloud
              f" '{type(lxd_cfg).__name__}'"
          )
  
@@ -88,14 +88,16 @@ Last-Update: 2024-02-14
      result = get_mount_info(mount_point, get_mnt_opts=True)
 --- a/systemd/cloud-config.service.tmpl
 +++ b/systemd/cloud-config.service.tmpl
-@@ -3,6 +3,7 @@
+@@ -2,8 +2,8 @@
+ [Unit]
  # https://cloudinit.readthedocs.io/en/latest/explanation/boot.html
  Description=Cloud-init: Config Stage
- After=network-online.target cloud-config.target
-+After=snapd.seeded.service
- Before=systemd-user-sessions.service
+-After=network-online.target cloud-config.target
++After=network-online.target cloud-config.target snapd.seeded.service
  Wants=network-online.target cloud-config.target
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
+ ConditionKernelCommandLine=!cloud-init=disabled
+ ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
 --- a/tests/integration_tests/modules/test_frequency_override.py
 +++ b/tests/integration_tests/modules/test_frequency_override.py
 @@ -1,7 +1,6 @@

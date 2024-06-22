@@ -10,8 +10,8 @@ Last-Update: 2024-05-21
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/systemd/cloud-config.service.tmpl
 +++ b/systemd/cloud-config.service.tmpl
-@@ -6,7 +6,6 @@
- Wants=network-online.target cloud-config.target
+@@ -6,7 +6,6 @@ After=network-online.target cloud-config
+ Wants=network-online.target cloud-config.target snapd.seeded.service
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
 -ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
@@ -20,7 +20,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  Type=oneshot
 --- a/systemd/cloud-final.service.tmpl
 +++ b/systemd/cloud-final.service.tmpl
-@@ -9,7 +9,6 @@
+@@ -10,7 +10,6 @@ Before=apt-daily.service
  Wants=network-online.target cloud-config.service
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
@@ -30,7 +30,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  [Service]
 --- a/systemd/cloud-init-local.service.tmpl
 +++ b/systemd/cloud-init-local.service.tmpl
-@@ -28,7 +28,6 @@
+@@ -29,7 +29,6 @@ Conflicts=shutdown.target
  RequiresMountsFor=/var/lib/cloud
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
@@ -40,8 +40,8 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  Type=oneshot
 --- a/systemd/cloud-init.service.tmpl
 +++ b/systemd/cloud-init.service.tmpl
-@@ -41,7 +41,6 @@
- Before=systemd-user-sessions.service
+@@ -42,7 +42,6 @@ Conflicts=shutdown.target
+ {% endif %}
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
 -ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
@@ -50,7 +50,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  Type=oneshot
 --- a/systemd/cloud-init.target
 +++ b/systemd/cloud-init.target
-@@ -12,4 +12,3 @@
+@@ -12,4 +12,3 @@ Description=Cloud-init target
  After=multi-user.target
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
