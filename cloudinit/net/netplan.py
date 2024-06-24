@@ -534,9 +534,14 @@ class Renderer(renderer.Renderer):
             nscfg = {"addresses": nameservers, "search": searchdomains}
             for section in [ethernets, wifis, bonds, bridges, vlans]:
                 for _name, cfg in section.items():
-                    if "nameservers" in cfg or "addresses" not in cfg:
+                    if "addresses" not in cfg:
                         continue
-                    cfg.update({"nameservers": nscfg})
+                    if "nameservers" not in cfg:
+                        cfg["nameservers"] = nscfg.copy()
+                    else:
+                        for k, v in nscfg.items():
+                            if not cfg["nameservers"].get(k):
+                                cfg["nameservers"][k] = v
 
         # workaround yaml dictionary key sorting when dumping
         def _render_section(name, section):
