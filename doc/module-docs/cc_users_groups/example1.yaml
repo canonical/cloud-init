@@ -1,3 +1,2 @@
 #cloud-config
-users:
-- default
+users: [default]

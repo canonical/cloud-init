@@ -1,3 +1,2 @@
 #cloud-config
-ubuntu_pro:
-  token: <ubuntu_pro_token>
+ubuntu_pro: {token: <ubuntu_pro_token>}

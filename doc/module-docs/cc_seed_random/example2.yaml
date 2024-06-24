@@ -1,5 +1,5 @@
 #cloud-config
 random_seed:
-  file: /dev/urandom
-  command: ["pollinate", "--server=http://local.pollinate.server"]
+  command: [pollinate, '--server=http://local.pollinate.server']
   command_required: true
+  file: /dev/urandom

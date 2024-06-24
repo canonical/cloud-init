@@ -1,4 +1,2 @@
 #cloud-config
-vendor_data:
-  enabled: true
-  prefix: /usr/bin/ltrace
+vendor_data: {enabled: true, prefix: /usr/bin/ltrace}

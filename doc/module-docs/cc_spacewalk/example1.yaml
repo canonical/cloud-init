@@ -1,5 +1,2 @@
 #cloud-config
-spacewalk:
-  server: <url>
-  proxy: <proxy host>
-  activation_key: <key>
+spacewalk: {activation_key: <key>, proxy: <proxy host>, server: <url>}

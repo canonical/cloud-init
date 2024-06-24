@@ -1,3 +1,2 @@
 #cloud-config
-ssh_pwauth: true
-password: password1
+{password: password1, ssh_pwauth: true}

@@ -1,8 +1,7 @@
 #cloud-config
-# You can use a list of commands
 snap:
   commands:
-    - ['install', 'vlc']
-    - ['snap', 'install', 'vlc']
-    - snap install vlc
-    - 'snap install vlc'
+  - [install, vlc]
+  - [snap, install, vlc]
+  - snap install vlc
+  - snap install vlc
