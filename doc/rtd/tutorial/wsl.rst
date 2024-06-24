@@ -189,7 +189,7 @@ cloud-init. For more information, see the
 :ref:`documentation describing different formats<user_data_formats>`.
 
 The remaining lines, as per
-:ref:`the Write Files module docs<mod-write_files>`, creates a file
+:ref:`the Write Files module docs<mod_cc_write_files>`, creates a file
 ``/var/tmp/hello-world.txt`` with the content ``Hello from cloud-init`` and
 permissions allowing anybody on the system to read or write the file.
 
@@ -316,7 +316,7 @@ successfully!
 What's next?
 ============
 
-In this tutorial, we used the :ref:`Write Files module <mod-write_files>` to
+In this tutorial, we used the :ref:`Write Files module <mod_cc_write_files>` to
 write a file to our WSL instance. The full list of modules available can be
 found in our :ref:`modules documentation<modules>`.
 Each module contains examples of how to use it.
