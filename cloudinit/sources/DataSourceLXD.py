@@ -132,6 +132,11 @@ class LXDSocketAdapter(HTTPAdapter):
     def get_connection(self, url, proxies=None):
         return SocketConnectionPool(LXD_SOCKET_PATH)
 
+    # Fix for requests 2.32.2+:
+    # https://github.com/psf/requests/pull/6710
+    def get_connection_with_tls_context(self, request, verify, proxies=None, cert=None):
+        return self.get_connection(request.url, proxies)
+
 
 def _raw_instance_data_to_dict(metadata_type: str, metadata_value) -> dict:
     """Convert raw instance data from str, bytes, YAML to dict
