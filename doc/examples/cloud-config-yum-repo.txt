@@ -3,8 +3,9 @@
 #
 # Add yum repository configuration to the system
 #
-# The following example adds the file /etc/yum.repos.d/epel_testing.repo
+# The following example adds the file /etc/yum.repos.d/epel.repo
 # which can then subsequently be used by yum for later operations.
+# Either baseurl or metalink can be used but not both
 yum_repos:
   # The name of the repository
   epel-testing:
@@ -12,7 +13,8 @@ yum_repos:
     # See: man yum.conf
     #
     # This one is required!
-    baseurl: http://download.fedoraproject.org/pub/epel/testing/5/$basearch
+    #baseurl: http://download.fedoraproject.org/pub/epel/testing/5/$basearch
+    metalink: https://mirrors.fedoraproject.org/metalink?repo=epel-$releasever&arch=$basearch&infra=$infra&content=$contentdir
     enabled: false
     failovermethod: priority
     gpgcheck: true

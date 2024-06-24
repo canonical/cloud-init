@@ -211,7 +211,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 n_repo_config[k] = v
         repo_config = n_repo_config
         missing_required = 0
-        for req_field in ["baseurl"]:
+        for req_field in ["baseurl", "metalink"]:
             if req_field not in repo_config:
                 LOG.warning(
                     "Repository %s does not contain a %s"

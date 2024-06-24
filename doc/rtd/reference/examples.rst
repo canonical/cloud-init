@@ -116,15 +116,15 @@ Additional apt configuration and repositories
 =============================================
 
 .. literalinclude:: ../../examples/cloud-config-apt.txt
-    :language: yaml
-    :linenos:
+   :language: yaml
+   :linenos:
 
 Disk setup
 ==========
 
 .. literalinclude:: ../../examples/cloud-config-disk-setup.txt
-    :language: yaml
-    :linenos:
+   :language: yaml
+   :linenos:
 
 Configure data sources
 ======================
