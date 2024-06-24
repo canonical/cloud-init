@@ -1,26 +1,15 @@
 cc_write_files:
-  name: Write Files
-  title: Write arbitrary files
-  description: |
-    Write out arbitrary content to files, optionally setting permissions.
-    Parent folders in the path are created if absent. Content can be specified
-    in plain text or binary. Data encoded with either base64 or binary gzip
-    data can be specified and will be decoded before being written. For empty
-    file creation, content can be omitted.
-
-    .. note::
-       If multi-line data is provided, care should be taken to ensure it
-       follows YAML formatting standards. To specify binary data, use the YAML
-       option ``!!binary``.
-
-    .. note::
-       Do not write files under ``/tmp`` during boot because of a race with
-       ``systemd-tmpfiles-clean`` that can cause temporary files to be cleaned
-       during the early boot process. Use ``/run/somedir`` instead to avoid
-       a race LP \#1707222.
-
-    .. warning::
-       Existing files will be overridden.
+  description: "Write out arbitrary content to files, optionally setting permissions.\n\
+    Parent folders in the path are created if absent. Content can be specified\nin\
+    \ plain text or binary. Data encoded with either base64 or binary gzip\ndata can\
+    \ be specified and will be decoded before being written. For empty\nfile creation,\
+    \ content can be omitted.\n\n.. note::\n   If multi-line data is provided, care\
+    \ should be taken to ensure it\n   follows YAML formatting standards. To specify\
+    \ binary data, use the YAML\n   option ``!!binary``.\n\n.. note::\n   Do not write\
+    \ files under ``/tmp`` during boot because of a race with\n   ``systemd-tmpfiles-clean``\
+    \ that can cause temporary files to be cleaned\n   during the early boot process.\
+    \ Use ``/run/somedir`` instead to avoid\n   a race LP \\#1707222.\n\n.. warning::\n\
+    \   Existing files will be overridden.\n"
   examples:
   - comment: Write out base64-encoded content to ``/etc/sysconfig/selinux``.
     file: cc_write_files/example1.yaml
@@ -30,7 +19,12 @@ cc_write_files:
     file: cc_write_files/example3.yaml
   - comment: Create an empty file on the system
     file: cc_write_files/example4.yaml
-  - comment: |
-      Defer writing the file until after the package (Nginx) is installed and
+  - comment: 'Defer writing the file until after the package (Nginx) is installed
+      and
+
       its user is created
+
+      '
     file: cc_write_files/example5.yaml
+  name: Write Files
+  title: Write arbitrary files

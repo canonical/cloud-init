@@ -1,19 +1,29 @@
 cc_fan:
-  name: Fan
-  title: Configure ubuntu fan networking
-  description: |
-    This module installs, configures and starts the ubuntu fan network system.
+  description: 'This module installs, configures and starts the ubuntu fan network
+    system.
+
     For more information about Ubuntu Fan, see:
+
     ``https://wiki.ubuntu.com/FanNetworking``.
+
 
     If cloud-init sees a ``fan`` entry in cloud-config it will:
 
+
     - write ``config_path`` with the contents of the ``config`` key
+
     - install the package ``ubuntu-fan`` if it is not installed
+
     - ensure the service is started (or restarted if was previously running)
 
+
     Additionally, the ``ubuntu-fan`` package will be automatically installed
+
     if not present.
+
+    '
   examples:
-  - comment: ""
+  - comment: ''
     file: cc_fan/example1.yaml
+  name: Fan
+  title: Configure ubuntu fan networking

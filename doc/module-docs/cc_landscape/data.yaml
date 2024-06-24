@@ -1,35 +1,22 @@
 cc_landscape:
-  name: Landscape
-  title: Install and configure landscape client
-  description: |
-    This module installs and configures ``landscape-client``. The landscape
-    client will only be installed if the key ``landscape`` is present in
-    config. Landscape client configuration is given under the ``client`` key
-    under the main ``landscape`` config key. The config parameters are not
-    interpreted by cloud-init, but rather are converted into a ConfigObj
-    formatted file and written out to the `[client]` section in
-    ``/etc/landscape/client.conf``.
-
-    The following default client config is provided, but can be overridden::
-
-        landscape:
-            client:
-                log_level: "info"
-                url: "https://landscape.canonical.com/message-system"
-                ping_url: "http://landscape.canoncial.com/ping"
-                data_path: "/var/lib/landscape/client"
-
-    .. note::
-        see landscape documentation for client config keys
-
-    .. note::
-        if ``tags`` is defined, its contents should be a string delimited with
-        ``,`` rather than a list
+  description: "This module installs and configures ``landscape-client``. The landscape\n\
+    client will only be installed if the key ``landscape`` is present in\nconfig.\
+    \ Landscape client configuration is given under the ``client`` key\nunder the\
+    \ main ``landscape`` config key. The config parameters are not\ninterpreted by\
+    \ cloud-init, but rather are converted into a ConfigObj\nformatted file and written\
+    \ out to the `[client]` section in\n``/etc/landscape/client.conf``.\n\nThe following\
+    \ default client config is provided, but can be overridden::\n\n    landscape:\n\
+    \        client:\n            log_level: \"info\"\n            url: \"https://landscape.canonical.com/message-system\"\
+    \n            ping_url: \"http://landscape.canoncial.com/ping\"\n            data_path:\
+    \ \"/var/lib/landscape/client\"\n\n.. note::\n    see landscape documentation\
+    \ for client config keys\n\n.. note::\n    if ``tags`` is defined, its contents\
+    \ should be a string delimited with\n    ``,`` rather than a list\n"
   examples:
-  - comment: 
-      To discover additional supported client keys, run man landscape-config
+  - comment: To discover additional supported client keys, run man landscape-config
     file: cc_landscape/example1.yaml
   - comment: Minimum viable config requires account_name and computer_title
     file: cc_landscape/example2.yaml
   - comment: To install landscape-client from a PPA, specify apt.sources
     file: cc_landscape/example3.yaml
+  name: Landscape
+  title: Install and configure landscape client

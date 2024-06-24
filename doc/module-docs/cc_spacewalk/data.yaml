@@ -1,15 +1,21 @@
 cc_spacewalk:
-  name: Spacewalk
-  title: Install and configure spacewalk
-  description: |
-    This module installs Spacewalk and applies basic configuration. If the
+  description: 'This module installs Spacewalk and applies basic configuration. If
+    the
+
     Spacewalk config key is present, Spacewalk will be installed. The server
+
     to connect to after installation must be provided in the ``server`` in
+
     Spacewalk configuration. A proxy to connect through and an activation key
+
     may optionally be specified.
+
 
     For more details about spacewalk see https://fedorahosted.org/spacewalk/
 
+    '
   examples:
-  - comment: ""
+  - comment: ''
     file: cc_spacewalk/example1.yaml
+  name: Spacewalk
+  title: Install and configure spacewalk

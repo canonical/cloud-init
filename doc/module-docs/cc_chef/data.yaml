@@ -1,15 +1,23 @@
 cc_chef:
+  description: 'This module enables chef to be installed (from packages,
+
+    gems, or from omnibus). Before this occurs, chef configuration is
+
+    written to disk (validation.pem, client.pem, firstboot.json,
+
+    client.rb), and required directories are created (/etc/chef and
+
+    /var/log/chef and so-on). If configured, chef will be
+
+    installed and started in either daemon or non-daemon mode.
+
+    If run in non-daemon mode, post run actions are executed to do
+
+    finishing activities such as removing validation.pem.
+
+    '
+  examples:
+  - comment: ''
+    file: cc_chef/example1.yaml
   name: Chef
   title: module that configures, starts and installs chef
-  description: |
-    This module enables chef to be installed (from packages,
-    gems, or from omnibus). Before this occurs, chef configuration is
-    written to disk (validation.pem, client.pem, firstboot.json,
-    client.rb), and required directories are created (/etc/chef and
-    /var/log/chef and so-on). If configured, chef will be
-    installed and started in either daemon or non-daemon mode.
-    If run in non-daemon mode, post run actions are executed to do
-    finishing activities such as removing validation.pem.
-  examples:
-  - comment: ""
-    file: cc_chef/example1.yaml

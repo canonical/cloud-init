@@ -1,16 +1,15 @@
 cc_apk_configure:
-  name: APK Configure
-  title: Configure apk repositories file
-  description: |
-     This module handles configuration of the /etc/apk/repositories file.
-
-     .. note::
-       To ensure that apk configuration is valid yaml, any strings
-       containing special characters, especially ``:`` should be quoted.
+  description: "This module handles configuration of the /etc/apk/repositories file.\n\
+    \n.. note::\n  To ensure that apk configuration is valid yaml, any strings\n \
+    \ containing special characters, especially ``:`` should be quoted.\n"
   examples:
   - comment: Keep the existing /etc/apk/repositories file unaltered.
     file: cc_apk_configure/example1.yaml
-  - comment: Create repositories file for Alpine v3.12 main and community using default mirror site.
+  - comment: Create repositories file for Alpine v3.12 main and community using default
+      mirror site.
     file: cc_apk_configure/example2.yaml
-  - comment: Create repositories file for Alpine Edge main, community, and testing using a specified mirror site and also a local repo.
+  - comment: Create repositories file for Alpine Edge main, community, and testing
+      using a specified mirror site and also a local repo.
     file: cc_apk_configure/example3.yaml
+  name: APK Configure
+  title: Configure apk repositories file
