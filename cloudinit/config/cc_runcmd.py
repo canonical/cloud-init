@@ -29,9 +29,10 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["runcmd"],
-} # type: ignore
+}  # type: ignore
 
 LOG = logging.getLogger(__name__)
+
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if "runcmd" not in cfg:

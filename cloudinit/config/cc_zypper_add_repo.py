@@ -29,7 +29,7 @@ meta: MetaSchema = {
     ],
     "frequency": PER_ALWAYS,
     "activate_by_schema_keys": ["zypper"],
-}
+}  # type: ignore
 
 LOG = logging.getLogger(__name__)
 

@@ -24,7 +24,7 @@ meta: MetaSchema = {
         "timezone: US/Eastern",
     ],
     "activate_by_schema_keys": ["timezone"],
-}
+}  # type: ignore
 
 LOG = logging.getLogger(__name__)
 

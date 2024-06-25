@@ -22,9 +22,10 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": [],
-}
+}  # type:ignore
 
 LOG = logging.getLogger(__name__)
+
 
 def _split_hash(bin_hash):
     split_up = []

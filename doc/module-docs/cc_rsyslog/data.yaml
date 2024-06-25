@@ -1,18 +1,28 @@
 cc_rsyslog:
-  description: "This module configures remote system logging using rsyslog.\n\nConfiguration\
-    \ for remote servers can be specified in ``configs``, but for\nconvenience it\
-    \ can be specified as key-value pairs in ``remotes``.\n\nThis module can install\
-    \ rsyslog if not already present on the system using\nthe ``install_rsyslog``,\
-    \ ``packages``, and ``check_exe`` options.\nInstallation may not work on systems\
-    \ where this module runs before\nnetworking is up.\n\n.. note::\n   On BSD, cloud-init\
-    \ will attempt to disable and stop the base system\n   syslogd. This may fail\
-    \ on a first run. We recommend creating images\n   with ``service syslogd disable``.\n"
+  description: |
+    This module configures remote system logging using rsyslog.
+
+    Configuration for remote servers can be specified in ``configs``, but for
+    convenience it can be specified as key-value pairs in ``remotes``.
+
+    This module can install rsyslog if not already present on the system using
+    the ``install_rsyslog``, ``packages``, and ``check_exe`` options.
+    Installation may not work on systems where this module runs before
+    networking is up.
+
+    .. note::
+       On BSD, cloud-init will attempt to disable and stop the base system
+       syslogd. This may fail on a first run. We recommend creating images
+       with ``service syslogd disable``.
   examples:
-  - comment: ''
+  - comment: |
+      Example 1:
     file: cc_rsyslog/example1.yaml
-  - comment: ''
+  - comment: |
+      Example 2:
     file: cc_rsyslog/example2.yaml
-  - comment: Default (no) configuration with package installation on FreeBSD
+  - comment: |
+      Example 3: Default (no) configuration with package installation on FreeBSD.
     file: cc_rsyslog/example3.yaml
   name: Rsyslog
   title: Configure system logging via rsyslog

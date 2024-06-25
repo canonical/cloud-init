@@ -21,7 +21,7 @@ meta: MetaSchema = {
     "distros": ["all"],
     "frequency": PER_ALWAYS,
     "activate_by_schema_keys": ["manage_etc_hosts"],
-}
+}  # type: ignore
 
 LOG = logging.getLogger(__name__)
 

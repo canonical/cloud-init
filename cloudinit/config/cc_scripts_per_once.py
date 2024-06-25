@@ -22,11 +22,12 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": PER_ONCE,
     "activate_by_schema_keys": [],
-}
+}  # type: ignore
 
 LOG = logging.getLogger(__name__)
 
 SCRIPT_SUBDIR = "per-once"
+
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # Comes from the following:

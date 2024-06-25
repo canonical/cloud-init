@@ -1,14 +1,16 @@
 cc_keyboard:
-  description: Handle keyboard configuration
+  description: |
+    Handle keyboard configuration.
   examples:
-  - comment: Set keyboard layout to "us"
+  - comment: |
+      Example 1: Set keyboard layout to "us"
     file: cc_keyboard/example1.yaml
-  - comment: Set specific keyboard layout, model, variant, options
+  - comment: |
+      Example 2: Set specific keyboard layout, model, variant, options
     file: cc_keyboard/example2.yaml
-  - comment: 'For Alpine Linux set specific keyboard layout and variant, as used by
-      setup-keymap. Model and options are ignored.
-
-      '
+  - comment: >
+      Example 3: For Alpine Linux, set specific keyboard layout and variant,
+      as used by ``setup-keymap``. Model and options are ignored.
     file: cc_keyboard/example3.yaml
   name: Keyboard
   title: Set keyboard layout

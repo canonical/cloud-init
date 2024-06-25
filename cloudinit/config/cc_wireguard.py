@@ -17,7 +17,7 @@ meta: MetaSchema = {
     "distros": ["ubuntu"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["wireguard"],
-}
+}  # type: ignore
 
 LOG = logging.getLogger(__name__)
 

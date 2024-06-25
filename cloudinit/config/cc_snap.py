@@ -21,9 +21,10 @@ meta: MetaSchema = {
     "distros": ["ubuntu"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["snap"],
-}
+}  # type: ignore
 
 SNAP_CMD = "snap"
+
 
 def add_assertions(assertions, assertions_file):
     r"""Import list of assertions.

@@ -28,6 +28,7 @@ LOG = logging.getLogger(__name__)
 
 SCRIPT_SUBDIR = "per-instance"
 
+
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # Comes from the following:
     # https://forums.aws.amazon.com/thread.jspa?threadID=96918

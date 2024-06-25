@@ -29,7 +29,7 @@ meta: MetaSchema = {
     "distros": ["ubuntu"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["drivers"],
-}
+}  # type: ignore
 
 OLD_UBUNTU_DRIVERS_STDERR_NEEDLE = (
     "ubuntu-drivers: error: argument <command>: invalid choice: 'install'"

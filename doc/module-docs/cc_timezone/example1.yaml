@@ -1,2 +1,2 @@
 #cloud-config
-{timezone: US/Eastern}
+timezone: US/Eastern

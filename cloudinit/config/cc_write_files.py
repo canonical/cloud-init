@@ -27,7 +27,7 @@ meta: MetaSchema = {
     "distros": ["all"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["write_files"],
-}
+}  # type: ignore
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:

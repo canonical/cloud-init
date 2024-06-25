@@ -51,7 +51,7 @@ meta: MetaSchema = {
     ],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["yum_repos"],
-}
+}  # type: ignore
 
 
 LOG = logging.getLogger(__name__)

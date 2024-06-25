@@ -19,12 +19,13 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["salt_minion"],
-} # type: ignore
+}  # type: ignore
 
 LOG = logging.getLogger(__name__)
 
 # Note: see https://docs.saltstack.com/en/latest/topics/installation/
 # Note: see https://docs.saltstack.com/en/latest/ref/configuration/
+
 
 class SaltConstants:
     """

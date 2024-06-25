@@ -67,7 +67,7 @@ meta: MetaSchema = {
         ),
     ],
     "activate_by_schema_keys": ["rsyslog"],
-} # type: ignore
+}  # type: ignore
 
 RSYSLOG_CONFIG = {
     "config_dir": "/etc/rsyslog.d",

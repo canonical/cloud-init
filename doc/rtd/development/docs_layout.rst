@@ -11,6 +11,7 @@ directory:
     /doc/
         - examples/
         - man/
+        - module-docs/
         - rtd/
             - tutorial/
             - howto/
@@ -29,16 +30,49 @@ directory:
         - sources/
 
 
-``examples/``
-=============
+examples/
+=========
 
 
-``man/``
-========
+man/
+====
 
 This subdirectory contains the Linux man pages for the binaries provided
 by cloud-init.
 
+
+module-docs/
+============
+
+The documentation for modules is generated automatically using YAML files and
+templates. Each module has its own sub-directory, containing:
+
+- ``data.yaml`` file:
+  Contains the text and descriptions rendered on the
+  :ref:`modules documentation <modules>` page.
+- ``example*.yaml`` files:
+  These examples stand alone as valid cloud-config. They always start with
+  ``#cloud-config``, and ideally, should also have some accompanying discussion
+  or context in the ``comment`` field in the ``data.yaml`` file to explain
+  what's happening.
+
+Edit existing module docs
+-------------------------
+
+In the ``data.yaml`` file, the fields support reStructuredText markup in the
+``description`` and ``comment`` fields. With the pipe character (``|``)
+preceding these fields, the text will be preserved so that using rST directives
+(such as notes or code blocks) will render correctly in the documentation. If
+you don't need to use directives, you can use the greater-than character
+(``>``), which will fold broken lines together into paragraphs (while
+respecting empty lines).
+
+Create new module docs
+----------------------
+
+Creating documentation for a **new** module involves a little more work, and
+the process for that is outlined in the :ref:`contributing modules <modules>`
+page.
 
 ``rtd/``
 ========

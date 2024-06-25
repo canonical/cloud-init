@@ -1040,8 +1040,8 @@ class TestSchemaDocMarkdown:
         "frequency": "frequency",
         "distros": ["debian", "rhel"],
         "examples": [
-            'prop1:\n    [don\'t, expand, "this"]',
-            "prop2: true",
+            '\nExample 1:\nprop1:\n    [don\'t, expand, "this"]',
+            "\nExample 2:\nprop2: true",
         ],
     }
 
@@ -1090,10 +1090,10 @@ class TestSchemaDocMarkdown:
             "      * **prop1:** (array of integer) prop-description",
             "   .. tab-item:: Examples",
             "      ::",
-            "         # --- Example1 ---",
+            "         Example 1:",
             "         prop1:",
             '             [don\'t, expand, "this"]',
-            "         # --- Example2 ---",
+            "         Example 2:",
             "         prop2: true",
         ]
 
@@ -1141,10 +1141,10 @@ class TestSchemaDocMarkdown:
             "      * **prop2:** (boolean) prop2-description.",
             "   .. tab-item:: Examples",
             "      ::",
-            "         # --- Example1 ---",
+            "         Example 1:",
             "         prop1:",
+            "         Example 2:",
             '             [don\'t, expand, "this"]',
-            "         # --- Example2 ---",
             "         prop2: true",
         ]
 
@@ -1341,8 +1341,8 @@ class TestSchemaDocMarkdown:
         full_schema.update(
             {
                 "examples": [
-                    'ex1:\n    [don\'t, expand, "this"]',
-                    "ex2: true",
+                    'Example 1:\nex1:\n    [don\'t, expand, "this"]',
+                    "Example 2:\nex2: true",
                 ],
                 "properties": {
                     "prop1": {
@@ -1358,10 +1358,10 @@ class TestSchemaDocMarkdown:
             "      * **prop1:** (array of integer) prop-description.\n\n",
             "   .. tab-item:: Examples\n\n",
             "      ::\n\n\n",
-            "         # --- Example1 ---\n\n",
+            "         Example 1:\n",
             "         prop1:\n",
             '             [don\'t, expand, "this"]\n',
-            "         # --- Example2 ---\n\n",
+            "         Example 2:\n",
             "         prop2: true",
         ]
         assert "".join(expected) in get_meta_doc(self.meta, full_schema)
