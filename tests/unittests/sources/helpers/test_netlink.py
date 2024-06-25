@@ -44,7 +44,7 @@ class TestCreateBoundNetlinkSocket(CiTestCase):
     def test_socket_error_on_create(self, m_socket):
         """create_bound_netlink_socket catches socket creation exception"""
 
-        """NetlinkCreateSocketError is raised when socket creation errors."""
+        # NetlinkCreateSocketError is raised when socket creation errors.
         m_socket.side_effect = socket.error("Fake socket failure")
         with self.assertRaises(NetlinkCreateSocketError) as ctx_mgr:
             create_bound_netlink_socket()
