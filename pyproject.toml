@@ -16,8 +16,8 @@ skip = ["cloudinit/cmd/main.py", ".tox", "packages", "tools"]
 [tool.mypy]
 follow_imports = "silent"
 check_untyped_defs = true
-warn_redundant_casts = "true"
-warn_unused_ignores = "true"
+warn_redundant_casts = true
+warn_unused_ignores = true
 exclude = []
 
 [[tool.mypy.overrides]]
@@ -239,7 +239,7 @@ module = [
     "netplan_schema_check",
     "mock-meta",
 ]
-check_untyped_defs = "false"
+check_untyped_defs = false
 
 [tool.ruff]
 target-version = "py37"
