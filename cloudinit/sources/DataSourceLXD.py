@@ -134,7 +134,9 @@ class LXDSocketAdapter(HTTPAdapter):
 
     # Fix for requests 2.32.2+:
     # https://github.com/psf/requests/pull/6710
-    def get_connection_with_tls_context(self, request, verify, proxies=None, cert=None):
+    def get_connection_with_tls_context(
+        self, request, verify, proxies=None, cert=None
+    ):
         return self.get_connection(request.url, proxies)
 
 
