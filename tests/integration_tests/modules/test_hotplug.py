@@ -310,7 +310,7 @@ def test_multi_nic_hotplug_vpc(setup_image, session_cloud: IntegrationCloud):
     ) as client, session_cloud.launch() as bastion:
         ips_before = _get_ip_addr(client)
         primary_priv_ip4 = ips_before[1].ip4
-        primary_priv_ip6 = ips_before[1].ip6
+        # primary_priv_ip6 = ips_before[1].ip6
         client.instance.add_network_interface(ipv6_address_count=1)
 
         _wait_till_hotplug_complete(client)
@@ -343,10 +343,11 @@ def test_multi_nic_hotplug_vpc(setup_image, session_cloud: IntegrationCloud):
         assert r.ok, r.stdout
         r = bastion.execute(f"ping -c1 {secondary_priv_ip4}")
         assert r.ok, r.stdout
-        r = bastion.execute(f"ping -c1 {primary_priv_ip6}")
-        assert r.ok, r.stdout
-        r = bastion.execute(f"ping -c1 {secondary_priv_ip6}")
-        assert r.ok, r.stdout
+        # TODO: re-enable after #5373
+        # r = bastion.execute(f"ping -c1 {primary_priv_ip6}")
+        # assert r.ok, r.stdout
+        # r = bastion.execute(f"ping -c1 {secondary_priv_ip6}")
+        # assert r.ok, r.stdout
 
         # Remove new NIC
         client.instance.remove_network_interface(secondary_priv_ip4)
@@ -354,7 +355,8 @@ def test_multi_nic_hotplug_vpc(setup_image, session_cloud: IntegrationCloud):
 
         # ping to primary NIC works
         assert bastion.execute(f"ping -c1 {primary_priv_ip4}").ok
-        assert bastion.execute(f"ping -c1 {primary_priv_ip6}").ok
+        # TODO: re-enable after #5373
+        # assert bastion.execute(f"ping -c1 {primary_priv_ip6}").ok
 
         log_content = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log_content)
