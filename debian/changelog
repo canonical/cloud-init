@@ -1,8 +1,8 @@
-cloud-init (24.2~5g8c396a4b-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (24.2~5g8c396a4b-0ubuntu1) oracular; urgency=medium
 
   * Upstream snapshot based on upstream/main at 8c396a4b.
 
- -- Chad Smith <chad.smith@canonical.com>  Wed, 26 Jun 2024 12:30:25 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 26 Jun 2024 12:30:42 -0600
 
 cloud-init (24.2~4g5f40426f-0ubuntu1) oracular; urgency=medium
 
