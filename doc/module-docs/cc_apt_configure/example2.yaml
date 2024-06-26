@@ -1,0 +1,7 @@
+#cloud-config
+apt:
+    sources_list: |
+      Types: deb
+      URIs: http://archive.ubuntu.com/ubuntu/
+      Suites: $RELEASE
+      Components: main

@@ -1,0 +1,4 @@
+#cloud-config
+ntp:
+  enabled: true
+  ntp_client: chrony  # Uses cloud-init default chrony configuration

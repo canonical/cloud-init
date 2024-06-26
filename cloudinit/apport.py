@@ -68,10 +68,6 @@ KNOWN_CLOUD_NAMES = [
     "Other",
 ]
 
-# Potentially clear text collected logs
-CLOUDINIT_LOG = "/var/log/cloud-init.log"
-CLOUDINIT_OUTPUT_LOG = "/var/log/cloud-init-output.log"
-
 
 def _get_user_data_file() -> str:
     paths = read_cfg_paths()

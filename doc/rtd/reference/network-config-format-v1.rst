@@ -259,8 +259,7 @@ Users can specify a ``nameserver`` type. Nameserver dictionaries include
 the following keys:
 
 - ``address``: List of IPv4 or IPv6 address of nameservers.
-- ``search``: Optional. List of hostnames to include in the :file:`resolv.conf`
-  search path.
+- ``search``: Optional. List of hostnames to include in the search path.
 - ``interface``: Optional. Ties the nameserver definition to the specified
   interface. The value specified here must match the ``name`` of an interface
   defined in this config. If unspecified, this nameserver will be considered
@@ -306,10 +305,8 @@ Valid keys for ``subnets`` include the following:
 - ``broadcast`` : IPv4 broadcast address in dotted format. This is
   only rendered if :file:`/etc/network/interfaces` is used.
 - ``gateway``: IPv4 address of the default gateway for this subnet.
-- ``dns_nameservers``: Specify a list of IPv4 dns server IPs to end up in
-  :file:`resolv.conf`.
-- ``dns_search``: Specify a list of search paths to be included in
-  :file:`resolv.conf`.
+- ``dns_nameservers``: Specify a list of IPv4 DNS server IPs.
+- ``dns_search``: Specify a list of DNS search paths.
 - ``routes``: Specify a list of routes for a given interface.
 
 Subnet types are one of the following:

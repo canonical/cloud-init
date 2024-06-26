@@ -163,7 +163,7 @@ class MockDistro(distros.Distro):
     def package_command(self, command, args=None, pkgs=None):
         pass
 
-    def update_package_sources(self):
+    def update_package_sources(self, *, force=False):
         return (True, "yay")
 
     def do_as(self, command, args=None, **kwargs):
