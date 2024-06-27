@@ -20,6 +20,7 @@ from typing import List, Optional, Sequence, Set
 import pytest
 import yaml
 
+from cloudinit import features
 from cloudinit.config.schema import (
     VERSIONED_USERDATA_SCHEMA_FILE,
     MetaSchema,
@@ -2757,10 +2758,11 @@ class TestHandleSchemaArgs:
             assert expected_log in caplog.text
 
     @pytest.mark.parametrize(
-        "annotate, expected_output",
+        "annotate, deprecation_info_boundary, expected_output",
         [
-            (
+            pytest.param(
                 True,
+                "devel",
                 dedent(
                     """\
                     #cloud-config
@@ -2778,9 +2780,33 @@ class TestHandleSchemaArgs:
                     Valid schema {cfg_file}
                     """  # noqa: E501
                 ),
+                id="test_annotated_deprecation_info_boundary_devel_shows",
             ),
-            (
+            pytest.param(
+                True,
+                "22.1",
+                dedent(
+                    """\
+                    #cloud-config
+                    packages:
+                    - htop
+                    apt_update: true                # D1
+                    apt_upgrade: true               # D2
+                    apt_reboot_if_required: true            # D3
+
+                    # Deprecations: -------------
+                    # D1: Default: ``false``. Deprecated in version 22.2. Use ``package_update`` instead.
+                    # D2: Default: ``false``. Deprecated in version 22.2. Use ``package_upgrade`` instead.
+                    # D3: Default: ``false``. Deprecated in version 22.2. Use ``package_reboot_if_required`` instead.
+
+                    Valid schema {cfg_file}
+                    """  # noqa: E501
+                ),
+                id="test_annotated_deprecation_info_boundary_below_unredacted",
+            ),
+            pytest.param(
                 False,
+                "18.2",
                 dedent(
                     """\
                     Cloud config schema deprecations: \
@@ -2792,6 +2818,7 @@ apt_reboot_if_required: Default: ``false``. Deprecated in version 22.2.\
                     Valid schema {cfg_file}
                     """  # noqa: E501
                 ),
+                id="test_deprecation_info_boundary_does_unannotated_unredacted",
             ),
         ],
     )
@@ -2800,11 +2827,13 @@ apt_reboot_if_required: Default: ``false``. Deprecated in version 22.2.\
         self,
         read_cfg_paths,
         annotate,
+        deprecation_info_boundary,
         expected_output,
         paths,
         caplog,
         capsys,
         tmpdir,
+        mocker,
     ):
         paths.get_ipath = paths.get_ipath_cur
         read_cfg_paths.return_value = paths
@@ -2822,6 +2851,9 @@ apt_reboot_if_required: Default: ``false``. Deprecated in version 22.2.\
                     """
                 )
             )
+        mocker.patch.object(
+            features, "DEPRECATION_INFO_BOUNDARY", deprecation_info_boundary
+        )
         args = self.Args(
             config_file=str(user_data_fn),
             schema_type="cloud-config",
