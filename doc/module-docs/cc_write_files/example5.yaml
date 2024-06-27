@@ -1,0 +1,15 @@
+#cloud-config
+write_files:
+- path: /etc/nginx/conf.d/example.com.conf
+  content: |
+    server {
+        server_name example.com;
+        listen 80;
+        root /var/www;
+        location / {
+            try_files $uri $uri/ $uri.html =404;
+        }
+    }
+  owner: 'nginx:nginx'
+  permissions: '0640'
+  defer: true

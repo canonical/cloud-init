@@ -1,0 +1,8 @@
+#cloud-config
+zypper:
+  config: {download.use_deltarpm: true, reposdir: /etc/zypp/repos.dir, servicesdir: /etc/zypp/services.d}
+  repos:
+  - {autorefresh: 1, baseurl: 'http://dl.opensuse.org/dist/leap/v/repo/oss/', enabled: 1,
+    id: opensuse-oss, name: os-oss}
+  - {baseurl: 'http://dl.opensuse.org/dist/leap/v/update', id: opensuse-oss-update,
+    name: os-oss-up}

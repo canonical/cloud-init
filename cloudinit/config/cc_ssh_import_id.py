@@ -9,47 +9,25 @@
 
 import logging
 import pwd
-from textwrap import dedent
 
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ug_util
 from cloudinit.settings import PER_INSTANCE
 
 # https://launchpad.net/ssh-import-id
-distros = ["alpine", "cos", "debian", "ubuntu"]
 
 SSH_IMPORT_ID_BINARY = "ssh-import-id"
-MODULE_DESCRIPTION = """\
-This module imports SSH keys from either a public keyserver, usually launchpad
-or github using ``ssh-import-id``. Keys are referenced by the username they are
-associated with on the keyserver. The keyserver can be specified by prepending
-either ``lp:`` for launchpad or ``gh:`` for github to the username.
-"""
 
 meta: MetaSchema = {
     "id": "cc_ssh_import_id",
-    "name": "SSH Import ID",
-    "title": "Import SSH id",
-    "description": MODULE_DESCRIPTION,
-    "distros": distros,
+    "distros": ["alpine", "cos", "debian", "ubuntu"],
     "frequency": PER_INSTANCE,
-    "examples": [
-        dedent(
-            """\
-            ssh_import_id:
-             - user
-             - gh:user
-             - lp:user
-            """
-        )
-    ],
     "activate_by_schema_keys": [],
-}
+}  # type: ignore
 
-__doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
 

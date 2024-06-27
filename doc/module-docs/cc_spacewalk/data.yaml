@@ -1,0 +1,16 @@
+cc_spacewalk:
+  description: |
+    This module installs Spacewalk and applies basic configuration. If the
+    Spacewalk config key is present, Spacewalk will be installed. The server
+    to connect to after installation must be provided in the ``server`` in
+    Spacewalk configuration. A proxy to connect through and an activation key
+    may optionally be specified.
+
+    For more details about spacewalk see the
+    `Fedora documentation <https://fedorahosted.org/spacewalk/>`_.
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_spacewalk/example1.yaml
+  name: Spacewalk
+  title: Install and configure spacewalk

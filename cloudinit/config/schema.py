@@ -107,8 +107,6 @@ SCHEMA_LIST_ITEM_TMPL = (
     "{prefix}* Each object in **{prop_name}** list supports "
     "the following keys:"
 )
-SCHEMA_EXAMPLES_HEADER = ""
-SCHEMA_EXAMPLES_SPACER_TEMPLATE = "\n   # --- Example{example_count} ---\n\n"
 DEPRECATED_KEY = "deprecated"
 
 # user-data files typically must begin with a leading '#'
@@ -124,8 +122,8 @@ if TYPE_CHECKING:
     from typing_extensions import NotRequired, TypedDict
 
     class MetaSchema(TypedDict):
-        name: str
         id: str
+        name: str
         title: str
         description: str
         distros: typing.List[str]
@@ -1488,11 +1486,8 @@ def _get_examples(meta: MetaSchema) -> str:
     examples = meta.get("examples")
     if not examples:
         return ""
-    rst_content = SCHEMA_EXAMPLES_HEADER
-    for count, example in enumerate(examples, 1):
-        rst_content += SCHEMA_EXAMPLES_SPACER_TEMPLATE.format(
-            example_count=count
-        )
+    rst_content: str = ""
+    for example in examples:
         # FIXME(drop conditional when all mods have rtd/module-doc/*/data.yaml)
         if isinstance(example, dict):
             if example["comment"]:

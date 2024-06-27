@@ -7,76 +7,29 @@
 
 import logging
 import os
-from textwrap import dedent
 
 import configobj
 
 from cloudinit import util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_ALWAYS
 
-distros = [
-    "opensuse",
-    "opensuse-microos",
-    "opensuse-tumbleweed",
-    "opensuse-leap",
-    "sle_hpc",
-    "sle-micro",
-    "sles",
-]
-
-MODULE_DESCRIPTION = """\
-Zypper behavior can be configured using the ``config`` key, which will modify
-``/etc/zypp/zypp.conf``. The configuration writer will only append the
-provided configuration options to the configuration file. Any duplicate
-options will be resolved by the way the zypp.conf INI file is parsed.
-
-.. note::
-    Setting ``configdir`` is not supported and will be skipped.
-
-The ``repos`` key may be used to add repositories to the system. Beyond the
-required ``id`` and ``baseurl`` attributions, no validation is performed
-on the ``repos`` entries. It is assumed the user is familiar with the
-zypper repository file format. This configuration is also applicable for
-systems with transactional-updates.
-"""
 meta: MetaSchema = {
     "id": "cc_zypper_add_repo",
-    "name": "Zypper Add Repo",
-    "title": "Configure zypper behavior and add zypper repositories",
-    "description": MODULE_DESCRIPTION,
-    "distros": distros,
-    "examples": [
-        dedent(
-            """\
-        zypper:
-          repos:
-            - id: opensuse-oss
-              name: os-oss
-              baseurl: http://dl.opensuse.org/dist/leap/v/repo/oss/
-              enabled: 1
-              autorefresh: 1
-            - id: opensuse-oss-update
-              name: os-oss-up
-              baseurl: http://dl.opensuse.org/dist/leap/v/update
-              # any setting per
-              # https://en.opensuse.org/openSUSE:Standards_RepoInfo
-              # enable and autorefresh are on by default
-          config:
-            reposdir: /etc/zypp/repos.dir
-            servicesdir: /etc/zypp/services.d
-            download.use_deltarpm: true
-            # any setting in /etc/zypp/zypp.conf
-    """
-        )
+    "distros": [
+        "opensuse",
+        "opensuse-microos",
+        "opensuse-tumbleweed",
+        "opensuse-leap",
+        "sle_hpc",
+        "sle-micro",
+        "sles",
     ],
     "frequency": PER_ALWAYS,
     "activate_by_schema_keys": ["zypper"],
-}
-
-__doc__ = get_meta_doc(meta)
+}  # type: ignore
 
 LOG = logging.getLogger(__name__)
 

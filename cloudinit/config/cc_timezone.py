@@ -12,29 +12,20 @@ import logging
 from cloudinit import util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
-MODULE_DESCRIPTION = """\
-Sets the system `timezone <https://www.iana.org/time-zones>`_ based on the
-value provided.
-"""
-
 meta: MetaSchema = {
     "id": "cc_timezone",
-    "name": "Timezone",
-    "title": "Set the system timezone",
-    "description": MODULE_DESCRIPTION,
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
     "examples": [
         "timezone: US/Eastern",
     ],
     "activate_by_schema_keys": ["timezone"],
-}
+}  # type: ignore
 
-__doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
 
