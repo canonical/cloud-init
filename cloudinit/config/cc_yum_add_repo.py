@@ -211,24 +211,22 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 n_repo_config[k] = v
         repo_config = n_repo_config
         missing_required = 0
-        for req_field in ["baseurl"]:
+        req_fields = ["baseurl", "metalink"]
+        for req_field in req_fields:
             if req_field not in repo_config:
-                LOG.warning(
-                    "Repository %s does not contain a %s"
-                    " configuration 'required' entry",
-                    repo_id,
-                    req_field,
-                )
                 missing_required += 1
-        if not missing_required:
+
+        if missing_required == len(req_fields):
+            LOG.warning(
+                "Repository %s should contain atleast one of the"
+                " following configuration entries: %s, skipping!",
+                repo_id,
+                ", ".join(req_fields),
+            )
+        else:
             repo_configs[canon_repo_id] = repo_config
             repo_locations[canon_repo_id] = repo_fn_pth
-        else:
-            LOG.warning(
-                "Repository %s is missing %s required fields, skipping!",
-                repo_id,
-                missing_required,
-            )
+
     for (c_repo_id, path) in repo_locations.items():
         repo_blob = _format_repository_config(
             c_repo_id, repo_configs.get(c_repo_id)
