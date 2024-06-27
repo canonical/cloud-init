@@ -48,9 +48,10 @@ apt:
     deb-src $SECURITY $RELEASE-security multiverse
   sources:
     test_keyserver:
-      keyid: 110E21D8B0E2A1F0243AF6820856F197B892ACEA
+      keyid: 1BC30F715A3B861247A81A5E55FE7C8C0165013E
       keyserver: keyserver.ubuntu.com
-      source: "deb http://ppa.launchpad.net/canonical-kernel-team/ppa/ubuntu $RELEASE main"
+      # Hard-code noble as devel releases may not see new packages for some time
+      source: "deb http://ppa.launchpad.net/curtin-dev/daily/ubuntu noble main"
     test_ppa:
       keyid: 441614D8
       keyserver: keyserver.ubuntu.com
@@ -249,7 +250,7 @@ class TestApt:
         )
 
         assert (
-            "http://ppa.launchpad.net/canonical-kernel-team/ppa/ubuntu"
+            "http://ppa.launchpad.net/curtin-dev/daily/ubuntu"
             in test_keyserver_contents
         )
 
@@ -452,9 +453,10 @@ INSTALL_ANY_MISSING_RECOMMENDED_DEPENDENCIES = """\
 apt:
   sources:
     test_keyserver:
-      keyid: 110E21D8B0E2A1F0243AF6820856F197B892ACEA
+      keyid: 1BC30F715A3B861247A81A5E55FE7C8C0165013E
       keyserver: keyserver.ubuntu.com
-      source: "deb http://ppa.launchpad.net/canonical-kernel-team/ppa/ubuntu $RELEASE main"
+      # Hard-code noble as devel releases may not see new packages for some time
+      source: "deb http://ppa.launchpad.net/curtin-dev/daily/ubuntu noble main"
     test_ppa:
       keyid: 441614D8
       keyserver: keyserver.ubuntu.com
