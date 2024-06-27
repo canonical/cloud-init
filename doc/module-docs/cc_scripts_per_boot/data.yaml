@@ -1,0 +1,8 @@
+cc_scripts_per_boot:
+  description: |
+    Any scripts in the ``scripts/per-boot`` directory on the datasource will
+    be run every time the system boots. Scripts will be run in alphabetical
+    order. This module does not accept any config keys.
+  examples: []
+  name: Scripts Per Boot
+  title: Run per-boot scripts

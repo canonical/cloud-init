@@ -1,0 +1,94 @@
+cc_ssh:
+  description: |
+    This module handles most configuration for SSH, and for both host and
+    authorized SSH keys.
+
+    **Authorized keys**
+
+    Authorized keys are a list of public SSH keys that are allowed to connect
+    to a user account on a system. They are stored in ``.ssh/authorized_keys``
+    in that account's home directory. Authorized keys for the default user
+    defined in ``users`` can be specified using ``ssh_authorized_keys``. Keys
+    should be specified as a list of public keys.
+
+    .. note::
+       See the ``cc_set_passwords`` module documentation to enable/disable SSH
+       password authentication.
+
+    Root login can be enabled/disabled using the ``disable_root`` config key.
+    Root login options can be manually specified with ``disable_root_opts``.
+
+    Supported public key types for the ssh_authorized_keys are:
+
+    - rsa
+    - ecdsa
+    - ed25519
+    - ecdsa-sha2-nistp256-cert-v01@openssh.com
+    - ecdsa-sha2-nistp256
+    - ecdsa-sha2-nistp384-cert-v01@openssh.com
+    - ecdsa-sha2-nistp384
+    - ecdsa-sha2-nistp521-cert-v01@openssh.com
+    - ecdsa-sha2-nistp521
+    - sk-ecdsa-sha2-nistp256-cert-v01@openssh.com
+    - sk-ecdsa-sha2-nistp256@openssh.com
+    - sk-ssh-ed25519-cert-v01@openssh.com
+    - sk-ssh-ed25519@openssh.com
+    - ssh-ed25519-cert-v01@openssh.com
+    - ssh-ed25519
+    - ssh-rsa-cert-v01@openssh.com
+    - ssh-rsa
+    - ssh-xmss-cert-v01@openssh.com
+    - ssh-xmss@openssh.com
+
+    .. note::
+       This list has been filtered out from the supported key types of
+       `OpenSSH <https://github.com/openssh/openssh-portable/blob/master/sshkey.c>`_
+       source, where the ``sigonly`` keys are removed. See ``ssh_util`` for
+       more information.
+
+       ``rsa``, ``ecdsa`` and ``ed25519`` are added for legacy, as they are
+       valid public keys in some older distros. They may be removed in the
+       future when support for the older distros is dropped.
+
+    **Host keys**
+
+    Host keys are for authenticating a specific instance. Many images have
+    default host SSH keys, which can be removed using ``ssh_deletekeys``.
+
+    Host keys can be added using the ``ssh_keys`` configuration key.
+
+    When host keys are generated the output of the ``ssh-keygen`` command(s)
+    can be displayed on the console using the ``ssh_quiet_keygen``
+    configuration key.
+
+    .. note::
+       When specifying private host keys in cloud-config, take care to ensure
+       that communication between the data source and the instance is secure.
+    
+    If no host keys are specified using ``ssh_keys``, then keys will be
+    generated using ``ssh-keygen``. By default, one public/private pair of
+    each supported host key type will be generated. The key types to generate
+    can be specified using the ``ssh_genkeytypes`` config flag, which accepts a
+    list of host key types to use. For each host key type for which this module
+    has been instructed to create a keypair, if a key of the same type is
+    already present on the system (i.e. if ``ssh_deletekeys`` was set to
+    false), no key will be generated.
+
+    Supported host key types for the ``ssh_keys`` and the ``ssh_genkeytypes``
+    config flags are:
+
+    - ecdsa
+    - ed25519
+    - rsa
+
+    Unsupported host key types for the ``ssh_keys`` and the ``ssh_genkeytypes``
+    config flags are:
+    
+    - ecdsa-sk
+    - ed25519-sk
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_ssh/example1.yaml
+  name: SSH
+  title: Configure SSH and SSH keys

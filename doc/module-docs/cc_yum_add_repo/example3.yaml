@@ -1,0 +1,10 @@
+#cloud-config
+yum_repos:
+# The name of the repository
+ epel-testing:
+   baseurl: https://download.copr.fedorainfracloud.org/results/@cloud-init/cloud-init-dev/pubkey.gpg
+   enabled: false
+   failovermethod: priority
+   gpgcheck: true
+   gpgkey: file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL
+   name: Extra Packages for Enterprise Linux 5 - Testing
