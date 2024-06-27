@@ -11,8 +11,9 @@ yum_repos:
     # Any repository configuration options
     # See: man yum.conf
     #
-    # This one is required!
+    # At least one of 'baseurl' or 'metalink' is required!
     baseurl: http://download.fedoraproject.org/pub/epel/testing/5/$basearch
+    metalink: https://mirrors.fedoraproject.org/metalink?repo=epel-$releasever&arch=$basearch&infra=$infra&content=$contentdir
     enabled: false
     failovermethod: priority
     gpgcheck: true
