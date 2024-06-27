@@ -6,6 +6,7 @@ import datetime
 import io
 import logging
 import time
+from typing import cast
 
 from cloudinit import log, util
 from cloudinit.analyze.dump import CLOUD_INIT_ASCTIME_FMT
@@ -61,13 +62,20 @@ class TestCloudInitLogger(CiTestCase):
 
 class TestDeprecatedLogs:
     def test_deprecated_log_level(self, caplog):
-        logger = logging.getLogger()
+        logger = cast(log.CustomLoggerType, logging.getLogger())
         logger.deprecated("deprecated message")
         assert "DEPRECATED" == caplog.records[0].levelname
         assert "deprecated message" in caplog.text
 
+    def test_trace_log_level(self, caplog):
+        logger = cast(log.CustomLoggerType, logging.getLogger())
+        logger.setLevel(logging.NOTSET)
+        logger.trace("trace message")
+        assert "TRACE" == caplog.records[0].levelname
+        assert "trace message" in caplog.text
+
     def test_log_deduplication(self, caplog):
-        log.define_deprecation_logger()
+        log.define_extra_loggers()
         util.deprecate(
             deprecated="stuff",
             deprecated_version="19.1",
