@@ -127,6 +127,9 @@ def _klibc_to_config_entry(content, mac_addrs=None):
         else:
             proto = "none"
 
+    if proto in ("static", "off"):
+        proto = "none"
+
     if proto not in ("none", "dhcp", "dhcp6"):
         raise ValueError("Unexpected value for PROTO: %s" % proto)
 
