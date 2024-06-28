@@ -413,7 +413,7 @@ landscape:
     client:
       account_name: agenttest
       tags: wsl
-ubuntu_advantage:
+ubuntu_pro:
     token: testtoken"""
         )
 
@@ -437,7 +437,7 @@ ubuntu_advantage:
         )
         assert "wsl.conf" in userdata
         assert "packages" not in userdata
-        assert "ubuntu_advantage" in userdata
+        assert "ubuntu_pro" in userdata
         assert "landscape" in userdata
         assert "agenttest" in userdata
 
@@ -473,7 +473,7 @@ package_update: true"""
 
         assert "wsl.conf" not in userdata
         assert "packages" not in userdata
-        assert "ubuntu_advantage" in userdata
+        assert "ubuntu_pro" in userdata
         assert "package_update" in userdata, (
             "package_update entry should not be overriden by agent data"
             " nor ignored"
@@ -524,7 +524,7 @@ package_update: true"""
         # Make sure we don't crash if there are no tags anywhere.
         agent_file.write(
             """#cloud-config
-ubuntu_advantage:
+ubuntu_pro:
     token: up4w_token"""
         )
         # Run the datasource
@@ -556,7 +556,7 @@ ubuntu_advantage:
 landscape:
     server:
         port: 6554
-ubuntu_advantage:
+ubuntu_pro:
     token: up4w_token"""
         )
         # Run the datasource
