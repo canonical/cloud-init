@@ -16,7 +16,11 @@ cloud-init (24.1.3-0ubuntu1~20.04.4) UNRELEASED; urgency=medium
     those keys and emits warnings at systemctl status
   * d/p/revert-551f560d-cloud-config-after-snap-seeding.patch: retain systemd
     ordering cloud-config.service After=snapd.seeded.service
+  * d/p/add-deprecation-info-boundary.patch: Update
+    DEPRECATION_INFO_BOUNDARY to ensure new deprecations don't trigger
+    warnings.
   * refresh patches:
+    - d/p/cli-retain-file-argument-as-main-cmd-arg.patch
     - d/p/keep-dhclient-as-priority-client.patch
     - d/p/netplan99-cannot-use-default.patch
     - d/p/retain-ec2-default-net-update-events.patch
@@ -24,12 +28,6 @@ cloud-init (24.1.3-0ubuntu1~20.04.4) UNRELEASED; urgency=medium
     - d/p/retain-old-groups.patch
     - d/p/status-do-not-remove-duplicated-data.patch
     - d/p/status-retain-recoverable-error-exit-code.patch
-    - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
-  * Upstream snapshot based on upstream/main at db859451.
-  * refresh patches:
-    - d/p/cli-retain-file-argument-as-main-cmd-arg.patch
-    - d/p/drop-unsupported-systemd-condition-environment.patch
-    - d/p/netplan99-cannot-use-default.patch
     - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
   * Upstream snapshot based on upstream/main at debafbc9.
 
