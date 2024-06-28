@@ -3255,7 +3255,6 @@ def deprecate(
         "devel" != features.DEPRECATION_INFO_BOUNDARY
         and Version.from_str(features.DEPRECATION_INFO_BOUNDARY) < version
     ):
-        LOG.info(deprecate_msg)
         level = logging.INFO
     elif hasattr(LOG, "deprecated"):
         level = log.DEPRECATED
