@@ -1,0 +1,18 @@
+Description: Add deprecation boundary version
+ This version makes any deprecations added after this version
+ to be considered "new" deprecations and therefore get logged
+ at an INFO log level and not cause exit 2.
+ deprecations don't trigger warnings.
+Author: James Falcon <james.falcon@canonical.com>
+Last-Update: 2024-06-28
+--- a/cloudinit/features.py
++++ b/cloudinit/features.py
+@@ -87,7 +87,7 @@ On Debian and Ubuntu systems, cc_apt_configure will write a deb822 compatible
+ to write /etc/apt/sources.list directly.
+ """
+
+-DEPRECATION_INFO_BOUNDARY = "devel"
++DEPRECATION_INFO_BOUNDARY = "20.1"
+ """
+ DEPRECATION_INFO_BOUNDARY is used by distros to configure at which upstream
+ version to start logging deprecations at a level higher than INFO.
