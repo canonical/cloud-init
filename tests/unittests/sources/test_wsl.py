@@ -412,6 +412,7 @@ class TestWSLDataSource:
 landscape:
     client:
       account_name: agenttest
+      tags: wsl
 ubuntu_advantage:
     token: testtoken"""
         )
@@ -447,6 +448,7 @@ ubuntu_advantage:
 landscape:
   client:
     account_name: landscapetest
+    tags: tag_aiml, tag_dev
 package_update: true"""
         )
 
@@ -480,3 +482,103 @@ package_update: true"""
         assert (
             "landscapetest" not in userdata and "agenttest" in userdata
         ), "Landscape account name should have been overriden by agent data"
+        assert (
+            "tag_aiml" in userdata and "tag_dev" in userdata
+        ), "User-data should override agent data's Landscape computer tags"
+
+        # Set up some Landscape provided user data without tags
+        landscape_file.write(
+            """#cloud-config
+landscape:
+  client:
+    account_name: landscapetest
+package_update: true"""
+        )
+
+        # Run the datasource
+        ds = wsl.DataSourceWSL(
+            sys_cfg=SAMPLE_CFG,
+            distro=_get_distro("ubuntu"),
+            paths=paths,
+        )
+
+        assert ds.get_data() is True
+        ud = ds.get_userdata()
+
+        assert ud is not None
+        userdata = cast(
+            str,
+            join_payloads_from_content_type(
+                cast(MIMEMultipart, ud), "text/cloud-config"
+            ),
+        )
+
+        assert "landscape" in userdata
+        assert (
+            "landscapetest" not in userdata and "agenttest" in userdata
+        ), "Landscape account name should have been overriden by agent data"
+        assert (
+            "tags: wsl" in userdata
+        ), "Landscape computer tags should match UP4W agent's data defaults"
+
+        # Make sure we don't crash if there are no tags anywhere.
+        agent_file.write(
+            """#cloud-config
+ubuntu_advantage:
+    token: up4w_token"""
+        )
+        # Run the datasource
+        ds = wsl.DataSourceWSL(
+            sys_cfg=SAMPLE_CFG,
+            distro=_get_distro("ubuntu"),
+            paths=paths,
+        )
+
+        assert ds.get_data() is True
+        ud = ds.get_userdata()
+
+        assert ud is not None
+        userdata = cast(
+            str,
+            join_payloads_from_content_type(
+                cast(MIMEMultipart, ud), "text/cloud-config"
+            ),
+        )
+        assert "landscapetest" in userdata
+        assert "up4w_token" in userdata
+
+        # Make sure we don't crash if there is no client subkey.
+        # (That would be a bug in the agent as there is no other config
+        # value for landscape outside of landscape.client, so I'm making up
+        # some non-sense keys just to make sure we won't crash)
+        agent_file.write(
+            """#cloud-config
+landscape:
+    server:
+        port: 6554
+ubuntu_advantage:
+    token: up4w_token"""
+        )
+        # Run the datasource
+        ds = wsl.DataSourceWSL(
+            sys_cfg=SAMPLE_CFG,
+            distro=_get_distro("ubuntu"),
+            paths=paths,
+        )
+
+        assert ds.get_data() is True
+        ud = ds.get_userdata()
+
+        assert ud is not None
+        userdata = cast(
+            str,
+            join_payloads_from_content_type(
+                cast(MIMEMultipart, ud), "text/cloud-config"
+            ),
+        )
+        assert "landscapetest" not in userdata
+        assert (
+            "port: 6554" in userdata
+        ), "agent data should override the entire landscape config."
+
+        assert "up4w_token" in userdata
