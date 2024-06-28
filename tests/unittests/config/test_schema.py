@@ -815,12 +815,13 @@ class TestValidateCloudConfigSchema:
     def test_validateconfig_logs_deprecations(
         self, schema, config, expected_msg, log_deprecations, caplog
     ):
-        validate_cloudconfig_schema(
-            config,
-            schema=schema,
-            strict_metaschema=True,
-            log_deprecations=log_deprecations,
-        )
+        with mock.patch.object(features, "DEPRECATION_INFO_BOUNDARY", "devel"):
+            validate_cloudconfig_schema(
+                config,
+                schema=schema,
+                strict_metaschema=True,
+                log_deprecations=log_deprecations,
+            )
         if expected_msg is None:
             return
         log_record = (M_PATH[:-1], DEPRECATED_LOG_LEVEL, expected_msg)
