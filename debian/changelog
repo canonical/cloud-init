@@ -1,6 +1,7 @@
 cloud-init (24.1.3-0ubuntu3.1~24.04.1) UNRELEASED; urgency=medium
 
   * d/control: Remove netifaces
+  * d/p/deprecation-version-boundary.patch: Pin deprecation version to 24.1
   * Upstream snapshot based on upstream/main at debafbc9.
 
  -- Brett Holman <brett.holman@canonical.com>  Fri, 28 Jun 2024 10:06:03 -0600
