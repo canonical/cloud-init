@@ -9,75 +9,22 @@
 
 import logging
 import os
-from textwrap import dedent
 
 from cloudinit import util
 from cloudinit.atomic_helper import write_json
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
-frequency = PER_INSTANCE
-MODULE_DESCRIPTION = """\
-This module handles setting the system hostname and fully qualified domain
-name (FQDN). If ``preserve_hostname`` is set, then the hostname will not be
-altered.
-
-A hostname and FQDN can be provided by specifying a full domain name under the
-``FQDN`` key. Alternatively, a hostname can be specified using the ``hostname``
-key, and the FQDN of the cloud will be used. If a FQDN specified with the
-``hostname`` key, it will be handled properly, although it is better to use
-the ``fqdn`` config key. If both ``fqdn`` and ``hostname`` are set,
-the ``prefer_fqdn_over_hostname`` will force the use of FQDN in all distros
-when true, and when false it will force the short hostname. Otherwise, the
-hostname to use is distro-dependent.
-
-.. note::
-    cloud-init performs no hostname input validation before sending the
-    hostname to distro-specific tools, and most tools will not accept a
-    trailing dot on the FQDN.
-
-This module will run in the init-local stage before networking is configured
-if the hostname is set by metadata or user data on the local system.
-
-This will occur on datasources like nocloud and ovf where metadata and user
-data are available locally. This ensures that the desired hostname is applied
-before any DHCP requests are performed on these platforms where dynamic DNS is
-based on initial hostname.
-"""
-
 meta: MetaSchema = {
     "id": "cc_set_hostname",
-    "name": "Set Hostname",
-    "title": "Set hostname and FQDN",
-    "description": MODULE_DESCRIPTION,
     "distros": [ALL_DISTROS],
-    "frequency": frequency,
-    "examples": [
-        "preserve_hostname: true",
-        dedent(
-            """\
-            hostname: myhost
-            create_hostname_file: true
-            fqdn: myhost.example.com
-            prefer_fqdn_over_hostname: true
-            """
-        ),
-        dedent(
-            """\
-            # On a machine without an ``/etc/hostname`` file, don't create it
-            # In most clouds, this will result in a DHCP-configured hostname
-            # provided by the cloud
-            create_hostname_file: false
-            """
-        ),
-    ],
+    "frequency": PER_INSTANCE,
     "activate_by_schema_keys": [],
-}
+}  # type: ignore
 
-__doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
 

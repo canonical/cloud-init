@@ -1,0 +1,10 @@
+cc_ubuntu_drivers:
+  description: |
+    This module interacts with the ``ubuntu-drivers`` command to install third
+    party driver packages.
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_ubuntu_drivers/example1.yaml
+  name: Ubuntu Drivers
+  title: Interact with third party drivers in Ubuntu

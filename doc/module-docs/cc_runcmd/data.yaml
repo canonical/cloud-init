@@ -1,0 +1,27 @@
+cc_runcmd:
+  description: |
+    Run arbitrary commands at a ``rc.local``-like time-frame with output to the
+    console. Each item can be either a list or a string. The item type affects
+    how it is executed:
+
+    - If the item is a string, it will be interpreted by ``sh``.
+    - If the item is a list, the items will be executed as if passed to
+      ``execve(3)`` (with the first argument as the command).
+
+    The ``runcmd`` module only writes the script to be run later. The module
+    that actually runs the script is ``scripts_user`` in the
+    :ref:`Final boot stage <boot-Final>`.
+
+    .. note::
+       All commands must be proper YAML, so you must quote any characters YAML
+       would eat (":" can be problematic).
+
+    .. note::
+       When writing files, do not use ``/tmp`` dir as it races with
+       ``systemd-tmpfiles-clean`` (LP: #1707222). Use ``/run/somedir`` instead.
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_runcmd/example1.yaml
+  name: Runcmd
+  title: Run arbitrary commands

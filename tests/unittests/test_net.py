@@ -133,6 +133,37 @@ STATIC_EXPECTED_1 = {
     ],
 }
 
+STATIC_CONTENT_2 = """
+DEVICE='eth1'
+PROTO='static'
+IPV4ADDR='10.0.0.2'
+IPV4BROADCAST='10.0.0.255'
+IPV4NETMASK='255.255.255.0'
+IPV4GATEWAY='10.0.0.1'
+IPV4DNS0='10.0.1.1'
+IPV4DNS1='0.0.0.0'
+HOSTNAME='foohost'
+UPTIME='21'
+DHCPLEASETIME='3600'
+DOMAINSEARCH='foo.com'
+"""
+
+STATIC_CONTENT_3 = """
+DEVICE='eth1'
+PROTO='off'
+IPV4ADDR='10.0.0.2'
+IPV4BROADCAST='10.0.0.255'
+IPV4NETMASK='255.255.255.0'
+IPV4GATEWAY='10.0.0.1'
+IPV4DNS0='10.0.1.1'
+IPV4DNS1='0.0.0.0'
+HOSTNAME='foohost'
+UPTIME='21'
+DHCPLEASETIME='3600'
+DOMAINSEARCH='foo.com'
+"""
+
+
 V1_NAMESERVER_ALIAS = """
 config:
 -   id: eno1
@@ -3763,8 +3794,12 @@ class TestCmdlineConfigParsing:
         assert found == ("eno1", DHCP6_EXPECTED_1)
 
     def test_cmdline_convert_static(self):
-        found = cmdline._klibc_to_config_entry(STATIC_CONTENT_1)
-        assert found == ("eth1", STATIC_EXPECTED_1)
+        found1 = cmdline._klibc_to_config_entry(STATIC_CONTENT_1)
+        assert found1 == ("eth1", STATIC_EXPECTED_1)
+        found2 = cmdline._klibc_to_config_entry(STATIC_CONTENT_2)
+        assert found2 == ("eth1", STATIC_EXPECTED_1)
+        found3 = cmdline._klibc_to_config_entry(STATIC_CONTENT_3)
+        assert found3 == ("eth1", STATIC_EXPECTED_1)
 
     def test_config_from_cmdline_net_cfg(self):
         files = []

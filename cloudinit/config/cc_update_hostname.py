@@ -10,85 +10,20 @@
 
 import logging
 import os
-from textwrap import dedent
 
 from cloudinit import util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_ALWAYS
-
-MODULE_DESCRIPTION = """\
-This module will update the system hostname and fqdn. If ``preserve_hostname``
-is set ``true``, then the hostname will not be altered.
-
-.. note::
-    for instructions on specifying hostname and fqdn, see documentation for
-    ``cc_set_hostname``
-"""
-
-distros = ["all"]
 
 meta: MetaSchema = {
     "id": "cc_update_hostname",
-    "name": "Update Hostname",
-    "title": "Update hostname and fqdn",
-    "description": MODULE_DESCRIPTION,
-    "distros": distros,
-    "examples": [
-        dedent(
-            """\
-        # By default: when ``preserve_hostname`` is not specified cloud-init
-        # updates ``/etc/hostname`` per-boot based on the cloud provided
-        # ``local-hostname`` setting. If you manually change ``/etc/hostname``
-        # after boot cloud-init will no longer modify it.
-        #
-        # This default cloud-init behavior is equivalent to this cloud-config:
-        preserve_hostname: false
-        """
-        ),
-        dedent(
-            """\
-        # Prevent cloud-init from updating the system hostname.
-        preserve_hostname: true
-        """
-        ),
-        dedent(
-            """\
-        # Prevent cloud-init from updating ``/etc/hostname``
-        preserve_hostname: true
-        """
-        ),
-        dedent(
-            """\
-        # Set hostname to "external.fqdn.me" instead of "myhost"
-        fqdn: external.fqdn.me
-        hostname: myhost
-        prefer_fqdn_over_hostname: true
-        create_hostname_file: true
-        """
-        ),
-        dedent(
-            """\
-        # Set hostname to "external" instead of "external.fqdn.me" when
-        # cloud metadata provides the ``local-hostname``: "external.fqdn.me".
-        prefer_fqdn_over_hostname: false
-        """
-        ),
-        dedent(
-            """\
-        # On a machine without an ``/etc/hostname`` file, don't create it
-        # In most clouds, this will result in a DHCP-configured hostname
-        # provided by the cloud
-        create_hostname_file: false
-        """
-        ),
-    ],
+    "distros": ["all"],
     "frequency": PER_ALWAYS,
     "activate_by_schema_keys": [],
-}
+}  # type: ignore
 
-__doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
 

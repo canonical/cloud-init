@@ -1,0 +1,7 @@
+#cloud-config
+snap:
+  commands:
+    0: [install, vlc]
+    1: [snap, install, vlc]
+    2: snap install vlc
+    3: snap install vlc

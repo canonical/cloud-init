@@ -1,7 +1,5 @@
 #cloud-config
 growpart:
-  mode: growpart
-  devices:
-  - "/"
-  - "/dev/vdb1"
+  devices: [/, /dev/vdb1]
   ignore_growroot_disabled: true
+  mode: growpart

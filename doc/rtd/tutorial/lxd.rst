@@ -60,9 +60,9 @@ following file on your local filesystem at :file:`/tmp/my-user-data`:
 
 Here, we are defining our ``cloud-init`` user data in the
 :ref:`#cloud-config<user_data_formats>` format, using the
-:ref:`runcmd module <mod-runcmd>` to define a command to run. When applied, it
-will write ``Hello, World!`` to :file:`/var/tmp/hello-world.txt` (as we shall
-see later!).
+:ref:`runcmd module <mod_cc_runcmd>` to define a command to run. When applied,
+it will write ``Hello, World!`` to :file:`/var/tmp/hello-world.txt` (as we
+shall see later!).
 
 Launch a LXD container with our user data
 =========================================
@@ -163,7 +163,7 @@ We can then remove the container completely using:
 What's next?
 ============
 
-In this tutorial, we used the :ref:`runcmd module <mod-runcmd>` to execute a
+In this tutorial, we used the :ref:`runcmd module <mod_cc_runcmd>` to execute a
 shell command. The full list of modules available can be found in our
 :ref:`modules documentation<modules>`.
 Each module contains examples of how to use it.

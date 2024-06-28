@@ -188,8 +188,9 @@ include file.
   While creating users through cloud-init works as in any other platform, WSL
   has the concept of the *default user*, which is the user logged in by
   default. So, to create the default user with cloud-init, one must supply user
-  data to the :ref:`Users and Groups module <mod-users_groups>` and write the
-  entry in ``/etc/wsl.conf`` to make that user the default. See the example:
+  data to the :ref:`Users and Groups module <mod_cc_users_groups>` and write
+  the entry in ``/etc/wsl.conf`` to make that user the default. See the
+  example:
 
 .. code-block:: yaml
 
