@@ -362,7 +362,7 @@ def _validator(
 ):
     """Jsonschema validator for `deprecated` items.
 
-    It raises a instance of `error_type` if deprecated that must be handled,
+    It yields an instance of `error_type` if deprecated that must be handled,
     otherwise the instance is consider faulty.
     """
     if deprecated:
@@ -797,8 +797,9 @@ def validate_cloudconfig_schema(
         ):  # pylint: disable=W1116
             if (
                 "devel" != features.DEPRECATION_INFO_BOUNDARY
-                and Version.from_str(schema_error.version)
-                > Version.from_str(features.DEPRECATION_INFO_BOUNDARY)
+                and (schema_error.version == "devel"
+                or Version.from_str(schema_error.version)
+                > Version.from_str(features.DEPRECATION_INFO_BOUNDARY))
             ):
                 info_deprecations.append(
                     SchemaProblem(path, schema_error.message)
