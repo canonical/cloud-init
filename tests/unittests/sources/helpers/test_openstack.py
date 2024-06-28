@@ -200,7 +200,6 @@ class TestConvertNetJson:
                     "type": "bond",
                 },
                 {
-                    "mac_address": "xx:xx:xx:xx:xx:00",
                     "name": "bond0.123",
                     "subnets": [
                         {
