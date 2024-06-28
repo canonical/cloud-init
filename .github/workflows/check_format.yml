@@ -18,11 +18,8 @@ jobs:
       fail-fast: false
       matrix:
         env: [ruff, mypy, pylint, black, isort]
-        lint-with:
-          - {tip-versions: false, os: ubuntu-20.04}
-          - {tip-versions: true, os: ubuntu-latest}
-    name: Check ${{ matrix.lint-with.tip-versions && 'tip-' || '' }}${{ matrix.env }}
-    runs-on: ${{ matrix.lint-with.os }}
+    name: Check ${{ matrix.env }}
+    runs-on: ubuntu-20.04
     steps:
       - name: "Checkout #1"
         uses: actions/checkout@v3.0.0
@@ -41,16 +38,9 @@ jobs:
         run: python3 --version
 
       - name: Test
-        if: ${{ !matrix.lint-with.tip-versions }}
         env:
           # matrix env: not to be confused w/environment variables or testenv
           TOXENV: ${{ matrix.env }}
-        run: tox
-      - name: Test (tip versions)
-        if: matrix.lint-with.tip-versions
-        continue-on-error: true
-        env:
-          TOXENV: tip-${{ matrix.env }}
         run: tox
   schema-format:
     strategy:

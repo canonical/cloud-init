@@ -1,0 +1,15 @@
+vtnet0: flags=1008843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST,LOWER_UP> metric 0 mtu 1500
+	options=c00b8<VLAN_MTU,VLAN_HWTAGGING,JUMBO_MTU,VLAN_HWCSUM,VLAN_HWTSO,LINKSTATE>
+	ether 96:00:02:b1:49:68
+	inet 198.51.100.13/32 broadcast 198.51.100.13
+	inet6 fe80::9400:2ff:feb1:4968%vtnet0/64 scopeid 0x1
+	media: Ethernet autoselect (10Gbase-T <full-duplex>)
+	status: active
+	nd6 options=21<PERFORMNUD,AUTO_LINKLOCAL>
+lo0: flags=1008049<UP,LOOPBACK,RUNNING,MULTICAST,LOWER_UP> metric 0 mtu 16384
+	options=680003<RXCSUM,TXCSUM,LINKSTATE,RXCSUM_IPV6,TXCSUM_IPV6>
+	inet 127.0.0.1/8
+	inet6 ::1/128
+	inet6 fe80::1%lo0/64 scopeid 0x2
+	groups: lo
+	nd6 options=21<PERFORMNUD,AUTO_LINKLOCAL>

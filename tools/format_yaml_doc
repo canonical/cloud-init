@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+"""Rewrite YAML file using standard yaml.dump index of 2 and sorting keys.
+
+Useful when creating standard rtd/module-docs/*/data.yaml files.
+"""
+import argparse
+import yaml
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("yaml_file", help="YAML documentation file to reformat.")
+parser.add_argument(
+    "--cloud-config", 
+    action="store_true",
+    default=False,
+    help="Append #cloud-config header to rendered content"
+) 
+args = parser.parse_args()
+dump_kwargs = {
+    "indent": 2,
+    "sort_keys": True,
+}
+if args.cloud_config:
+    dump_kwargs["default_flow_style"] = None
+formatted_content = yaml.dump(
+    yaml.safe_load(open(args.yaml_file).read()), **dump_kwargs
+)
+with open(args.yaml_file, "w") as stream:
+    if args.cloud_config:
+        stream.write("#cloud-config\n")
+    stream.write(formatted_content)
+

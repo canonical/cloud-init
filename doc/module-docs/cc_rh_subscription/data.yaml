@@ -1,0 +1,25 @@
+cc_rh_subscription:
+  description: |
+    Register a Red Hat system, either by username and password **or** by
+    activation and org.
+    
+    Following a successful registration, you can:
+
+    - auto-attach subscriptions
+    - set the service level
+    - add subscriptions based on pool ID
+    - enable/disable yum repositories based on repo ID
+    - alter the ``rhsm_baseurl`` and ``server-hostname`` in
+      ``/etc/rhsm/rhs.conf``.
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_rh_subscription/example1.yaml
+  - comment: |
+      Example 2:
+    file: cc_rh_subscription/example2.yaml
+  - comment: |
+      Example 3:
+    file: cc_rh_subscription/example3.yaml
+  name: Red Hat Subscription
+  title: Register Red Hat Enterprise Linux-based system

@@ -10,12 +10,11 @@
 
 import logging
 import os
-from textwrap import dedent
 
 from cloudinit import util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
@@ -25,55 +24,12 @@ from cloudinit.settings import PER_INSTANCE
 # configuration options before actually attempting to deploy with said
 # configuration.
 
-
-MODULE_DESCRIPTION = """\
-Run arbitrary commands at a rc.local like time-frame with output to the
-console. Each item can be either a list or a string. The item type affects
-how it is executed:
-
-
-* If the item is a string, it will be interpreted by ``sh``.
-* If the item is a list, the items will be executed as if passed to execve(3)
-  (with the first arg as the command).
-
-Note that the ``runcmd`` module only writes the script to be run
-later. The module that actually runs the script is ``scripts_user``
-in the :ref:`Final<boot-Final>` boot stage.
-
-.. note::
-
-    all commands must be proper yaml, so you have to quote any characters
-    yaml would eat (':' can be problematic)
-
-.. note::
-
-    when writing files, do not use /tmp dir as it races with
-    systemd-tmpfiles-clean LP: #1707222. Use /run/somedir instead.
-"""
-
 meta: MetaSchema = {
     "id": "cc_runcmd",
-    "name": "Runcmd",
-    "title": "Run arbitrary commands",
-    "description": MODULE_DESCRIPTION,
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
-    "examples": [
-        dedent(
-            """\
-        runcmd:
-            - [ ls, -l, / ]
-            - [ sh, -xc, "echo $(date) ': hello world!'" ]
-            - [ sh, -c, echo "=========hello world'=========" ]
-            - ls -l /root
-            - [ wget, "http://example.org", -O, /tmp/index.html ]
-    """
-        )
-    ],
     "activate_by_schema_keys": ["runcmd"],
-}
-
-__doc__ = get_meta_doc(meta)
+}  # type: ignore
 
 LOG = logging.getLogger(__name__)
 

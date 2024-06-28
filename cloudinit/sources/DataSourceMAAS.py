@@ -179,7 +179,7 @@ def get_oauth_helper(cfg):
     """Return an oauth helper instance for values in cfg.
 
     @raises ValueError from OauthUrlHelper if some required fields have
-            true-ish values but others do not."""
+    true-ish values but others do not."""
     keys = ("consumer_key", "consumer_secret", "token_key", "token_secret")
     kwargs = dict([(r, cfg.get(r)) for r in keys])
     return url_helper.OauthUrlHelper(**kwargs)

@@ -3,7 +3,7 @@
 # Author: Carlos Nihelton <carlos.santanadeoliveira@canonical.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
-""" Datasource to support the Windows Subsystem for Linux platform. """
+"""Datasource to support the Windows Subsystem for Linux platform."""
 
 import logging
 import os
@@ -284,6 +284,7 @@ class DataSourceWSL(sources.DataSource):
             return False
 
         seed_dir = cloud_init_data_dir(user_home)
+        agent_data = None
         user_data: Optional[Union[dict, bytes]] = None
 
         # Load any metadata

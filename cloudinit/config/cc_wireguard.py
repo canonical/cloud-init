@@ -5,93 +5,19 @@
 
 import logging
 import re
-from textwrap import dedent
 
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_INSTANCE
-
-MODULE_DESCRIPTION = dedent(
-    """\
-Wireguard module provides a dynamic interface for configuring
-Wireguard (as a peer or server) in an easy way.
-
-This module takes care of:
-  - writing interface configuration files
-  - enabling and starting interfaces
-  - installing wireguard-tools package
-  - loading wireguard kernel module
-  - executing readiness probes
-
-What's a readiness probe?\n
-The idea behind readiness probes is to ensure Wireguard connectivity
-before continuing the cloud-init process. This could be useful if you
-need access to specific services like an internal APT Repository Server
-(e.g Landscape) to install/update packages.
-
-Example:\n
-An edge device can't access the internet but uses cloud-init modules which
-will install packages (e.g landscape, packages, ubuntu_advantage). Those
-modules will fail due to missing internet connection. The "wireguard" module
-fixes that problem as it waits until all readinessprobes (which can be
-arbitrary commands - e.g. checking if a proxy server is reachable over
-Wireguard network) are finished before continuing the cloud-init
-"config" stage.
-
-.. note::
-    In order to use DNS with Wireguard you have to install ``resolvconf``
-    package or symlink it to systemd's ``resolvectl``, otherwise ``wg-quick``
-    commands will throw an error message that executable ``resolvconf`` is
-    missing which leads wireguard module to fail.
-"""
-)
 
 meta: MetaSchema = {
     "id": "cc_wireguard",
-    "name": "Wireguard",
-    "title": "Module to configure Wireguard tunnel",
-    "description": MODULE_DESCRIPTION,
     "distros": ["ubuntu"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["wireguard"],
-    "examples": [
-        dedent(
-            """\
-    # Configure one or more WG interfaces and provide optional readinessprobes
-    wireguard:
-      interfaces:
-        - name: wg0
-          config_path: /etc/wireguard/wg0.conf
-          content: |
-            [Interface]
-            PrivateKey = <private_key>
-            Address = <address>
-            [Peer]
-            PublicKey = <public_key>
-            Endpoint = <endpoint_ip>:<endpoint_ip_port>
-            AllowedIPs = <allowedip1>, <allowedip2>, ...
-        - name: wg1
-          config_path: /etc/wireguard/wg1.conf
-          content: |
-            [Interface]
-            PrivateKey = <private_key>
-            Address = <address>
-            [Peer]
-            PublicKey = <public_key>
-            Endpoint = <endpoint_ip>:<endpoint_ip_port>
-            AllowedIPs = <allowedip1>
-      readinessprobe:
-        - 'systemctl restart service'
-        - 'curl https://webhook.endpoint/example'
-        - 'nc -zv some-service-fqdn 443'
-    """
-        ),
-    ],
-}
-
-__doc__ = get_meta_doc(meta)
+}  # type: ignore
 
 LOG = logging.getLogger(__name__)
 

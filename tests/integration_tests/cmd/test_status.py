@@ -8,7 +8,10 @@ from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, JAMMY
-from tests.integration_tests.util import wait_for_cloud_init
+from tests.integration_tests.util import (
+    push_and_enable_systemd_unit,
+    wait_for_cloud_init,
+)
 
 
 def _remove_nocloud_dir_and_reboot(client: IntegrationInstance):
@@ -83,17 +86,16 @@ def test_status_json_errors(client):
     assert "Deprecated cloud-config provided:\nca-certs:" in json.loads(
         status_json
     )["recoverable_errors"].get("DEPRECATED").pop(0)
-    assert "Invalid cloud-config provided" in json.loads(status_json)["init"][
-        "recoverable_errors"
-    ].get("WARNING").pop(0)
-    assert "Invalid cloud-config provided" in json.loads(status_json)[
+    assert "cloud-config failed schema validation" in json.loads(status_json)[
+        "init"
+    ]["recoverable_errors"].get("WARNING").pop(0)
+    assert "cloud-config failed schema validation" in json.loads(status_json)[
         "recoverable_errors"
     ].get("WARNING").pop(0)
 
 
 EARLY_BOOT_WAIT_USER_DATA = """\
 #cloud-config
-runcmd: [systemctl enable before-cloud-init-local.service]
 write_files:
 - path: /waitoncloudinit.sh
   permissions: '0755'
@@ -106,31 +108,32 @@ write_files:
     fi
     cloud-init status --wait --long > $1
     date +%s.%N > $MARKER_FILE
-- path: /lib/systemd/system/before-cloud-init-local.service
-  permissions: '0644'
-  content: |
-    [Unit]
-    Description=BEFORE cloud-init local
-    DefaultDependencies=no
-    After=systemd-remount-fs.service
-    Before=cloud-init-local.service
-    Before=shutdown.target
-    Before=sysinit.target
-    Conflicts=shutdown.target
-    RequiresMountsFor=/var/lib/cloud
-
-    [Service]
-    Type=simple
-    ExecStart=/waitoncloudinit.sh /before-local
-    RemainAfterExit=yes
-    TimeoutSec=0
-
-    # Output needs to appear in instance console output
-    StandardOutput=journal+console
-
-    [Install]
-    WantedBy=cloud-init.target
 """  # noqa: E501
+
+
+BEFORE_CLOUD_INIT_LOCAL = """\
+[Unit]
+Description=BEFORE cloud-init local
+DefaultDependencies=no
+After=systemd-remount-fs.service
+Before=cloud-init-local.service
+Before=shutdown.target
+Before=sysinit.target
+Conflicts=shutdown.target
+RequiresMountsFor=/var/lib/cloud
+
+[Service]
+Type=simple
+ExecStart=/waitoncloudinit.sh /before-local
+RemainAfterExit=yes
+TimeoutSec=0
+
+# Output needs to appear in instance console output
+StandardOutput=journal+console
+
+[Install]
+WantedBy=cloud-init.target
+"""
 
 
 @pytest.mark.user_data(EARLY_BOOT_WAIT_USER_DATA)
@@ -141,6 +144,9 @@ write_files:
 )
 def test_status_block_through_all_boot_status(client):
     """Assert early boot cloud-init status --wait does not exit early."""
+    push_and_enable_systemd_unit(
+        client, "before-cloud-init-local.service", BEFORE_CLOUD_INIT_LOCAL
+    )
     client.execute("cloud-init clean --logs --reboot")
     wait_for_cloud_init(client).stdout.strip()
     client.execute("cloud-init status --wait")

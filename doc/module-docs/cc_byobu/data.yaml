@@ -1,0 +1,26 @@
+cc_byobu:
+  description: |
+    This module controls whether Byobu is enabled or disabled system-wide and
+    for the default system user. If Byobu is to be enabled, this module will
+    ensure it is installed. Likewise, if Byobu is to be disabled, it will be
+    removed (if installed).
+
+    Valid configuration options for this module are:
+
+    - ``enable-system``: enable Byobu system-wide
+    - ``enable-user``: enable Byobu for the default user
+    - ``disable-system``: disable Byobu system-wide
+    - ``disable-user``: disable Byobu for the default user
+    - ``enable``: enable Byobu both system-wide and for the default user
+    - ``disable``: disable Byobu for all users
+    - ``user``: alias for ``enable-user``
+    - ``system``: alias for ``enable-system``
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_byobu/example1.yaml
+  - comment: |
+      Example 2:
+    file: cc_byobu/example2.yaml
+  name: Byobu
+  title: Enable/disable Byobu system-wide and for the default user

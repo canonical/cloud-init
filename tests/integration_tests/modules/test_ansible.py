@@ -1,8 +1,12 @@
 import pytest
 
+from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL
-from tests.integration_tests.util import verify_clean_log
+from tests.integration_tests.util import (
+    push_and_enable_systemd_unit,
+    verify_clean_log,
+)
 
 # This works by setting up a local repository and web server
 # daemon on the first boot. Second boot should succeed
@@ -20,40 +24,6 @@ packages:
   - git
   - python3-pip
 write_files:
-  - path: /etc/systemd/system/repo_server.service
-    content: |
-       [Unit]
-       Description=Serve a local git repo
-       Wants=repo_waiter.service
-       After=cloud-init-local.service
-       Before=cloud-config.service
-       Before=cloud-final.service
-
-       [Install]
-       WantedBy=cloud-init-local.service
-
-       [Service]
-       WorkingDirectory=/root/playbooks/.git
-       ExecStart=/usr/bin/env python3 -m http.server --bind 0.0.0.0 8000
-
-  - path: /etc/systemd/system/repo_waiter.service
-    content: |
-       [Unit]
-       Description=Block boot until repo is available
-       After=repo_server.service
-       Before=cloud-final.service
-
-       [Install]
-       WantedBy=cloud-init-local.service
-
-       # clone into temp directory to test that server is running
-       # sdnotify would be an alternative way to verify that the server is
-       # running and continue once it is up, but this is simple and works
-       [Service]
-       Type=oneshot
-       ExecStart=/bin/sh -c "while \
-            ! git clone http://0.0.0.0:8000/ $(mktemp -d); do sleep 0.1; done"
-
   - path: /root/playbooks/ubuntu.yml
     content: |
        ---
@@ -80,10 +50,40 @@ write_files:
              - "{{ item }}"
            state: latest
          loop: "{{ packages }}"
+"""
 
-runcmd:
-  - [systemctl, enable, repo_server.service]
-  - [systemctl, enable, repo_waiter.service]
+REPO_SERVER = """\
+[Unit]
+Description=Serve a local git repo
+Wants=repo_waiter.service
+After=cloud-init-local.service
+Before=cloud-config.service
+Before=cloud-final.service
+
+[Install]
+WantedBy=cloud-init-local.service
+
+[Service]
+WorkingDirectory=/root/playbooks/.git
+ExecStart=/usr/bin/env python3 -m http.server --bind 0.0.0.0 8000
+"""
+
+REPO_WAITER = """\
+[Unit]
+Description=Block boot until repo is available
+After=repo_server.service
+Before=cloud-final.service
+
+[Install]
+WantedBy=cloud-init-local.service
+
+# clone into temp directory to test that server is running
+# sdnotify would be an alternative way to verify that the server is
+# running and continue once it is up, but this is simple and works
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c "while \
+    ! git clone http://0.0.0.0:8000/ $(mktemp -d); do sleep 0.1; done"
 """
 
 INSTALL_METHOD = """
@@ -284,7 +284,9 @@ def _test_ansible_pull_from_local_server(my_client):
 @pytest.mark.user_data(
     USER_DATA + INSTALL_METHOD.format(package="ansible-core", method="pip")
 )
-def test_ansible_pull_pip(client):
+def test_ansible_pull_pip(client: IntegrationInstance):
+    push_and_enable_systemd_unit(client, "repo_server.service", REPO_SERVER)
+    push_and_enable_systemd_unit(client, "repo_waiter.service", REPO_WAITER)
     _test_ansible_pull_from_local_server(client)
 
 
@@ -300,6 +302,8 @@ def test_ansible_pull_pip(client):
     USER_DATA + INSTALL_METHOD.format(package="ansible", method="distro")
 )
 def test_ansible_pull_distro(client):
+    push_and_enable_systemd_unit(client, "repo_server.service", REPO_SERVER)
+    push_and_enable_systemd_unit(client, "repo_waiter.service", REPO_WAITER)
     _test_ansible_pull_from_local_server(client)
 
 

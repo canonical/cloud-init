@@ -1,0 +1,31 @@
+cc_disk_setup:
+  description: |
+    This module configures simple partition tables and filesystems.
+    
+    .. note::
+       For more detail about configuration options for disk setup, see the
+       disk setup example.
+
+    .. note::
+       If a swap partition is being created via ``disk_setup``, then an
+       ``fs_entry`` entry is also needed in order for ``mkswap`` to be run,
+       otherwise when swap activation is later attempted it will fail.
+    
+    For convenience, aliases can be specified for disks using the
+    ``device_aliases`` config key, which takes a dictionary of ``alias: path``
+    mappings. There are automatic aliases for ``swap`` and ``ephemeral<X>``,
+    where ``swap`` will always refer to the active swap partition and
+    ``ephemeral<X>`` will refer to the block device of the ephemeral image.
+
+    Disk partitioning is done using the ``disk_setup`` directive. This config
+    directive accepts a dictionary where each key is either a path to a
+    block device or an alias specified in ``device_aliases``, and each value is
+    the configuration options for the device. File system configuration is done
+    using the ``fs_setup`` directive. This config directive accepts a list of
+    filesystem configs.
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_disk_setup/example1.yaml
+  name: Disk Setup
+  title: Configure partitions and filesystems

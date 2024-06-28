@@ -10,82 +10,22 @@
 import logging
 import re
 from string import ascii_letters, digits
-from textwrap import dedent
 from typing import List
 
 from cloudinit import features, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS, Distro, ug_util
 from cloudinit.settings import PER_INSTANCE
 from cloudinit.ssh_util import update_ssh_config
 
-MODULE_DESCRIPTION = """\
-This module consumes three top-level config keys: ``ssh_pwauth``, ``chpasswd``
-and ``password``.
-
-The ``ssh_pwauth`` config key determines whether or not sshd will be configured
-to accept password authentication.
-
-The ``chpasswd`` config key accepts a dictionary containing either or both of
-``users`` and ``expire``. The ``users`` key is used to assign a password to a
-corresponding pre-existing user. The ``expire`` key is used to set
-whether to expire all user passwords specified by this module,
-such that a password will need to be reset on the user's next login.
-
-.. note::
-    Prior to cloud-init 22.3, the ``expire`` key only applies to plain text
-    (including ``RANDOM``) passwords. Post 22.3, the ``expire`` key applies to
-    both plain text and hashed passwords.
-
-``password`` config key is used to set the default user's password. It is
-ignored if the ``chpasswd`` ``users`` is used. Note: the ``list`` keyword is
-deprecated in favor of ``users``.
-"""
-
 meta: MetaSchema = {
     "id": "cc_set_passwords",
-    "name": "Set Passwords",
-    "title": "Set user passwords and enable/disable SSH password auth",
-    "description": MODULE_DESCRIPTION,
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
-    "examples": [
-        dedent(
-            """\
-            # Set a default password that would need to be changed
-            # at first login
-            ssh_pwauth: true
-            password: password1
-            """
-        ),
-        dedent(
-            """\
-            # Disable ssh password authentication
-            # Don't require users to change their passwords on next login
-            # Set the password for user1 to be 'password1' (OS does hashing)
-            # Set the password for user2 to a pre-hashed password
-            # Set the password for user3 to be a randomly generated password,
-            #   which will be written to the system console
-            ssh_pwauth: false
-            chpasswd:
-              expire: false
-              users:
-                - name: user1
-                  password: password1
-                  type: text
-                - name: user2
-                  password: $6$rounds=4096$5DJ8a9WMTEzIo5J4$Yms6imfeBvf3Yfu84mQBerh18l7OR1Wm1BJXZqFSpJ6BVas0AYJqIjP7czkOaAZHZi1kxQ5Y1IhgWN8K9NgxR1
-                - name: user3
-                  type: RANDOM
-            """  # noqa
-        ),
-    ],
     "activate_by_schema_keys": [],
-}
-
-__doc__ = get_meta_doc(meta)
+}  # type: ignore
 
 LOG = logging.getLogger(__name__)
 

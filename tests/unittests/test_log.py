@@ -1,11 +1,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""Tests for cloudinit.log """
+"""Tests for cloudinit.log"""
 
 import datetime
 import io
 import logging
 import time
+
+import pytest
 
 from cloudinit import log, util
 from cloudinit.analyze.dump import CLOUD_INIT_ASCTIME_FMT
@@ -65,6 +67,48 @@ class TestDeprecatedLogs:
         logger.deprecated("deprecated message")
         assert "DEPRECATED" == caplog.records[0].levelname
         assert "deprecated message" in caplog.text
+
+    @pytest.mark.parametrize(
+        "expected_log_level, deprecation_info_boundary",
+        (
+            pytest.param(
+                "DEPRECATED",
+                "19.2",
+                id="test_same_deprecation_info_boundary_is_deprecated_level",
+            ),
+            pytest.param(
+                "INFO",
+                "19.1",
+                id="test_lower_deprecation_info_boundary_is_info_level",
+            ),
+        ),
+    )
+    def test_deprecate_log_level_based_on_features(
+        self, expected_log_level, deprecation_info_boundary, caplog, mocker
+    ):
+        """Deprecation log level depends on key deprecation_version
+
+        When DEPRECATION_INFO_BOUNDARY is set to a version number, and a key
+        has a deprecated_version with a version greater than the boundary
+        the log level is INFO instead of DEPRECATED. If
+        DEPRECATION_INFO_BOUNDARY is set to the default, "devel", all
+        deprecated keys are logged at level DEPRECATED.
+        """
+        mocker.patch.object(
+            util.features,
+            "DEPRECATION_INFO_BOUNDARY",
+            deprecation_info_boundary,
+        )
+        util.deprecate(
+            deprecated="some key",
+            deprecated_version="19.2",
+            extra_message="dont use it",
+        )
+        assert expected_log_level == caplog.records[0].levelname
+        assert (
+            "some key is deprecated in 19.2 and scheduled to be removed in"
+            " 24.2" in caplog.text
+        )
 
     def test_log_deduplication(self, caplog):
         log.define_deprecation_logger()

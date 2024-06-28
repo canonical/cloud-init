@@ -1,0 +1,19 @@
+#cloud-config
+rh_subscription:
+  activation-key: foobar
+  org: 12345
+  auto-attach: true
+  service-level: self-support
+  add-pool:
+    - 1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a
+    - 2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b
+  enable-repo:
+    - repo-id-to-enable
+    - other-repo-id-to-enable
+  disable-repo:
+    - repo-id-to-disable
+    - other-repo-id-to-disable
+  # Alter the baseurl in /etc/rhsm/rhsm.conf
+  rhsm-baseurl: http://url
+  # Alter the server hostname in /etc/rhsm/rhsm.conf
+  server-hostname: foo.bar.com

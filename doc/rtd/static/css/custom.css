@@ -2,7 +2,7 @@
 /** Should be 100 for all headers, 400 for normal text  **/
 
 h1, h2, h3, h4, h5, h6, .sidebar-tree .current-page>.reference, button, input, optgroup, select, textarea, th.head {
-    font-weight: 300;
+    font-weight: 500;
 }
 
 .toc-title {
@@ -10,7 +10,7 @@ h1, h2, h3, h4, h5, h6, .sidebar-tree .current-page>.reference, button, input, o
 }
 
 div.page, li.scroll-current>.reference, dl.glossary dt, dl.simple dt, dl:not([class]) dt {
-    font-weight: 300;
+    font-weight: 400;
     line-height: 1.5;
     font-size: var(--font-size--normal);
 }
@@ -25,13 +25,13 @@ strong.command {
 
 /** Side bars (side-bar tree = left, toc-tree = right) **/
 div.sidebar-tree {
-    font-weight: 200;
+    font-weight: 400;
     line-height: 1.5;
     font-size: var(--font-size--normal);
 }
 
 div.toc-tree {
-    font-weight: 200;
+    font-weight: 400;
     font-size: var(--font-size--medium);
     line-height: 1.5;
 }
@@ -140,12 +140,12 @@ a.headerlink {
     border: 0;
     border-bottom: 2px solid var(--color-brand-primary);
     background-color: var(--color-sidebar-item-background--current);
-    font-weight:300;
+    font-weight:400;
 }
 
 .sphinx-tabs-tab{
     color: var(--color-brand-primary);
-    font-weight:300;
+    font-weight:400;
 }
 
 .sphinx-tabs-panel {

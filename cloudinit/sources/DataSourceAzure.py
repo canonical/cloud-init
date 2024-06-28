@@ -49,7 +49,7 @@ from cloudinit.sources.helpers.azure import (
 from cloudinit.url_helper import UrlError
 
 try:
-    import crypt
+    import crypt  # pylint: disable=W4901
 
     blowfish_hash: Any = functools.partial(
         crypt.crypt, salt=f"$6${util.rand_str(strlen=16)}"
@@ -303,7 +303,6 @@ BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG = {
 
 DS_CFG_PATH = ["datasource", DS_NAME]
 DS_CFG_KEY_PRESERVE_NTFS = "never_destroy_ntfs"
-DEF_EPHEMERAL_LABEL = "Temporary Storage"
 
 # The redacted password fails to meet password complexity requirements
 # so we can safely use this to mask/redact the password in the ovf-env.xml
@@ -1965,6 +1964,9 @@ def generate_network_config_from_instance_network_metadata(
         # addresses.
         nicname = "eth{idx}".format(idx=idx)
         dhcp_override = {"route-metric": (idx + 1) * 100}
+        # DNS resolution through secondary NICs is not supported, disable it.
+        if idx > 0:
+            dhcp_override["use-dns"] = False
         dev_config: Dict[str, Any] = {
             "dhcp4": True,
             "dhcp4-overrides": dhcp_override,

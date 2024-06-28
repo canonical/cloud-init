@@ -1,0 +1,5 @@
+#cloud-config
+phone_home:
+  post: [pub_key_rsa, pub_key_ecdsa, pub_key_ed25519, instance_id, hostname, fqdn]
+  tries: 5
+  url: http://example.com/$INSTANCE_ID/

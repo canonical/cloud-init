@@ -17,7 +17,7 @@ class Snap(PackageManager):
     def available(self) -> bool:
         return bool(subp.which("snap"))
 
-    def update_package_sources(self):
+    def update_package_sources(self, *, force=False):
         pass
 
     def install_packages(self, pkglist: Iterable) -> UninstalledPackages:

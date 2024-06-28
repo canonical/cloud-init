@@ -1,0 +1,28 @@
+cc_power_state_change:
+  description: |
+    This module handles shutdown/reboot after all config modules have been
+    run. By default it will take no action, and the system will keep running
+    unless a package installation/upgrade requires a system reboot (e.g.
+    installing a new kernel) and ``package_reboot_if_required`` is ``true``.
+
+    Using this module ensures that cloud-init is entirely finished with modules
+    that would be executed. An example to distinguish delay from timeout:
+
+    If you delay 5 (5 minutes) and have a timeout of 120 (2 minutes), the max
+    time until shutdown will be 7 minutes, though it could be as soon as 5
+    minutes. Cloud-init will invoke 'shutdown +5' after the process finishes,
+    or when 'timeout' seconds have elapsed.
+
+    .. note::
+       With Alpine Linux any message value specified is ignored as Alpine's
+       ``halt``, ``poweroff``, and ``reboot`` commands do not support
+       broadcasting a message.
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_power_state_change/example1.yaml
+  - comment: |
+      Example 2:
+    file: cc_power_state_change/example2.yaml
+  name: Power State Change
+  title: Change power state

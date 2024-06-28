@@ -3,28 +3,26 @@
 User data formats
 *****************
 
-User data that will be acted upon by ``cloud-init`` must be in one of the
-following types.
+User data is opaque configuration data provided by a platform to an instance at
+launch configure the instance. User data can be one of the following types.
 
 .. _user_data_formats-cloud_config:
 
 Cloud config data
 =================
 
-Cloud-config is the simplest way to accomplish some things via user data.
-Using cloud-config syntax, the user can specify certain things in a
-human-friendly format.
+Cloud-config is the preferred user data format. The cloud config format is a
+declarative syntax which uses `YAML version 1.1`_ with keys which describe
+desired instance state. Cloud-config can be used to define how an instance
+should be configured in a human-friendly format.
 
-These things include:
+These things may include:
 
-- ``apt upgrade`` should be run on first boot
-- a different ``apt`` mirror should be used
-- additional ``apt`` sources should be added
-- certain SSH keys should be imported
+- performing package upgrades on first boot
+- configuration of different package mirrors or sources
+- initial user or group setup
+- importing certain SSH keys or host keys
 - *and many more...*
-
-.. note::
-   This file must be valid YAML syntax.
 
 See the :ref:`yaml_examples` section for a commented set of examples of
 supported cloud config formats.
@@ -34,7 +32,7 @@ using a MIME archive.
 
 .. note::
    Cloud config data can also render cloud instance metadata variables using
-   jinja templating. See :ref:`instance_metadata` for more information.
+   :ref:`jinja templates <instancedata-Using>`.
 
 .. _user_data_script:
 
@@ -47,7 +45,7 @@ Begins with: ``#!`` or ``Content-Type: text/x-shellscript`` when using a MIME
 archive.
 
 User data scripts can optionally render cloud instance metadata variables using
-jinja templating. See :ref:`instance_metadata` for more information.
+:ref:`jinja templates <instancedata-Using>`.
 
 Example script
 --------------
@@ -70,7 +68,8 @@ Kernel command line
 
 When using the NoCloud datasource, users can pass user data via the kernel
 command line parameters. See the :ref:`NoCloud datasource<datasource_nocloud>`
-and :ref:`kernel_cmdline` documentation for more details.
+and :ref:`explanation/kernel-command-line:Kernel command line` documentation
+for more details.
 
 Gzip compressed content
 =======================
@@ -221,5 +220,6 @@ appliances. Setting ``allow_userdata: false`` in the configuration will disable
 ``cloud-init`` from processing user data.
 
 .. _make-mime: https://github.com/canonical/cloud-init/blob/main/cloudinit/cmd/devel/make_mime.py
+.. _YAML version 1.1: https://yaml.org/spec/1.1/current.html
 .. [#] See your cloud provider for applicable user-data size limitations...
 .. _this blog post: http://foss-boss.blogspot.com/2011/01/advanced-cloud-init-custom-handlers.html

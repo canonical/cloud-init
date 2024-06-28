@@ -18,6 +18,7 @@ class BSDRenderer(renderer.Renderer):
     rc_conf_fn = "etc/rc.conf"
     interface_routes = ""
     route_names = ""
+    route6_names = ""
 
     def get_rc_config_value(self, key):
         fn = subp.target_path(self.target, self.rc_conf_fn)

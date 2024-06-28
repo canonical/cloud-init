@@ -1,5 +1,3 @@
-.. _kernel_cmdline:
-
 Kernel command line
 *******************
 

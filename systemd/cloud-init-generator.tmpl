@@ -68,7 +68,7 @@ main() {
         if [ "$ds" = "1" ]; then
             debug 1 "cloud-init is enabled but no datasource found, disabling"
         else
-            debug 1 "cloud-init is disabled by kernel commandline or etc_file"
+            debug 1 "cloud-init is disabled by kernel command line or etc_file"
         fi
         if [ -f "$link_path" ]; then
             if rm -f "$link_path"; then

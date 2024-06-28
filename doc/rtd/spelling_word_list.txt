@@ -61,7 +61,7 @@ dotnet
 downstreams
 dpkg
 dropbearssh
-ds
+ds-identify
 dsa
 dsmode
 dsname
@@ -210,6 +210,7 @@ runcmd
 scaleway
 seedurl
 serverurl
+setup-keymap
 shortid
 sigonly
 sk

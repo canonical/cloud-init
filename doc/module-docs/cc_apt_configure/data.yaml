@@ -1,0 +1,34 @@
+cc_apt_configure:
+  description: |
+    This module handles configuration of advanced package tool (APT) options
+    and adding source lists. There are configuration options such as
+    `apt_get_wrapper`` and ``apt_get_command`` that control how cloud-init
+    invokes ``apt-get``. These configuration options are handled on a
+    per-distro basis, so consult documentation for cloud-init's distro support
+    for instructions on using these config options.
+    
+    By default, cloud-init will generate default APT sources information in
+    ``deb822`` format at :file:`/etc/apt/sources.list.d/<distro>.sources`. When
+    the value of ``sources_list`` does not appear to be ``deb822`` format, or
+    stable distribution releases disable ``deb822`` format,
+    :file:`/etc/apt/sources.list` will be written instead.
+    
+    .. note::
+       To ensure that APT configuration is valid YAML, any strings containing
+       special characters, especially colons, should be quoted (":").
+       
+    .. note::
+       For more information about APT configuration, see the "Additional APT
+       configuration" example.
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_apt_configure/example1.yaml
+  - comment: >
+      Example 2: Cloud-init version 23.4 will generate a ``deb822``-formatted
+      ``sources`` file at ``/etc/apt/sources.list.d/<distro>.sources`` instead
+      of ``/etc/apt/sources.list`` when ``sources_list`` content is in
+      ``deb822`` format.
+    file: cc_apt_configure/example2.yaml
+  name: Apt Configure
+  title: Configure APT for the user

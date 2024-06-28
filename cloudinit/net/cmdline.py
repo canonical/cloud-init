@@ -101,9 +101,9 @@ def _klibc_to_config_entry(content, mac_addrs=None):
     provided here.  There is no good documentation on this unfortunately.
 
     DEVICE=<name> is expected/required and PROTO should indicate if
-    this is 'none' (static) or 'dhcp' or 'dhcp6' (LP: #1621507).
-    note that IPV6PROTO is also written by newer code to address the
-    possibility of both ipv4 and ipv6 getting addresses.
+    this is 'none' (static) or 'dhcp' or 'dhcp6' (LP: #1621507) or 'static'
+    or 'off' (LP: 2065787). Note that IPV6PROTO is also written to address
+    the possibility of both ipv4 and ipv6 getting addresses.
 
     Full syntax is documented at:
     https://git.kernel.org/pub/scm/libs/klibc/klibc.git/plain/usr/kinit/ipconfig/README.ipconfig
@@ -126,6 +126,9 @@ def _klibc_to_config_entry(content, mac_addrs=None):
             proto = "dhcp"
         else:
             proto = "none"
+
+    if proto in ("static", "off"):
+        proto = "none"
 
     if proto not in ("none", "dhcp", "dhcp6"):
         raise ValueError("Unexpected value for PROTO: %s" % proto)
@@ -261,7 +264,7 @@ def _b64dgz(data):
         blob = base64.b64decode(data)
     except (TypeError, ValueError):
         LOG.error(
-            "Expected base64 encoded kernel commandline parameter"
+            "Expected base64 encoded kernel command line parameter"
             " network-config. Ignoring network-config=%s.",
             data,
         )

@@ -667,12 +667,19 @@ def convert_net_json(network_json=None, known_macs=None):
         if link["type"] in ["bond"]:
             params = {}
             if link_mac_addr:
-                params["mac_address"] = link_mac_addr
+                cfg.update({"mac_address": link_mac_addr})
             for k, v in link.items():
                 if k == "bond_links":
                     continue
                 elif k.startswith("bond"):
-                    params.update({k: v})
+                    # There is a difference in key name formatting for
+                    # bond parameters in the cloudinit and OpenStack
+                    # network schemas. The keys begin with 'bond-' in the
+                    # cloudinit schema but 'bond_' in OpenStack
+                    # network_data.json schema. Translate them to what
+                    # is expected by cloudinit.
+                    translated_key = "bond-{}".format(k.split("bond_", 1)[-1])
+                    params.update({translated_key: v})
 
             # openstack does not provide a name for the bond.
             # they do provide an 'id', but that is possibly non-sensical.
@@ -700,7 +707,6 @@ def convert_net_json(network_json=None, known_macs=None):
                 {
                     "name": name,
                     "vlan_id": link["vlan_id"],
-                    "mac_address": link["vlan_mac_address"],
                 }
             )
             link_updates.append((cfg, "vlan_link", "%s", link["vlan_link"]))

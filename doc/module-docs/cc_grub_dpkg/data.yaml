@@ -1,0 +1,20 @@
+cc_grub_dpkg:
+  description: |
+    Configure which device is used as the target for GRUB installation. This
+    module can be enabled/disabled using the ``enabled`` config key in the
+    ``grub_dpkg`` config dict. This module automatically selects a disk using
+    ``grub-probe`` if no installation device is specified.
+
+    The value placed into the debconf database is in the format expected by the
+    GRUB post-install script expects. Normally, this is a ``/dev/disk/by-id/``
+    value, but we do fallback to the plain disk name if a ``by-id`` name is not
+    present.
+
+    If this module is executed inside a container, then the debconf database is
+    seeded with empty values, and ``install_devices_empty`` is set to ``true``.
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_grub_dpkg/example1.yaml
+  name: GRUB dpkg
+  title: Configure GRUB debconf installation device

@@ -12,150 +12,27 @@ import logging
 import os
 import re
 import sys
-from textwrap import dedent
 from typing import List, Optional, Sequence
 
 from cloudinit import ssh_util, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS, ug_util
 from cloudinit.settings import PER_INSTANCE
-
-MODULE_DESCRIPTION = """\
-This module handles most configuration for SSH and both host and authorized SSH
-keys.
-
-**Authorized keys**
-
-Authorized keys are a list of public SSH keys that are allowed to connect to
-a user account on a system. They are stored in `.ssh/authorized_keys` in that
-account's home directory. Authorized keys for the default user defined in
-``users`` can be specified using ``ssh_authorized_keys``. Keys
-should be specified as a list of public keys.
-
-.. note::
-    See the ``cc_set_passwords`` module documentation to enable/disable SSH
-    password authentication.
-
-Root login can be enabled/disabled using the ``disable_root`` config key. Root
-login options can be manually specified with ``disable_root_opts``.
-
-Supported public key types for the ``ssh_authorized_keys`` are:
-
-    - rsa
-    - ecdsa
-    - ed25519
-    - ecdsa-sha2-nistp256-cert-v01@openssh.com
-    - ecdsa-sha2-nistp256
-    - ecdsa-sha2-nistp384-cert-v01@openssh.com
-    - ecdsa-sha2-nistp384
-    - ecdsa-sha2-nistp521-cert-v01@openssh.com
-    - ecdsa-sha2-nistp521
-    - sk-ecdsa-sha2-nistp256-cert-v01@openssh.com
-    - sk-ecdsa-sha2-nistp256@openssh.com
-    - sk-ssh-ed25519-cert-v01@openssh.com
-    - sk-ssh-ed25519@openssh.com
-    - ssh-ed25519-cert-v01@openssh.com
-    - ssh-ed25519
-    - ssh-rsa-cert-v01@openssh.com
-    - ssh-rsa
-    - ssh-xmss-cert-v01@openssh.com
-    - ssh-xmss@openssh.com
-
-.. note::
-    this list has been filtered out from the supported keytypes of
-    `OpenSSH`_ source, where the sigonly keys are removed. Please see
-    ``ssh_util`` for more information.
-
-    ``rsa``, ``ecdsa`` and ``ed25519`` are added for legacy,
-    as they are valid public keys in some old distros. They can possibly
-    be removed in the future when support for the older distros are dropped
-
-.. _OpenSSH: https://github.com/openssh/openssh-portable/blob/master/sshkey.c
-
-**Host keys**
-
-Host keys are for authenticating a specific instance. Many images have default
-host SSH keys, which can be removed using ``ssh_deletekeys``.
-
-Host keys can be added using the ``ssh_keys`` configuration key.
-
-When host keys are generated the output of the ssh-keygen command(s) can be
-displayed on the console using the ``ssh_quiet_keygen`` configuration key.
-
-.. note::
-    When specifying private host keys in cloud-config, care should be taken to
-    ensure that the communication between the data source and the instance is
-    secure.
-
-
-If no host keys are specified using ``ssh_keys``, then keys will be generated
-using ``ssh-keygen``. By default one public/private pair of each supported
-host key type will be generated. The key types to generate can be specified
-using the ``ssh_genkeytypes`` config flag, which accepts a list of host key
-types to use. For each host key type for which this module has been instructed
-to create a keypair, if a key of the same type is already present on the
-system (i.e. if ``ssh_deletekeys`` was false), no key will be generated.
-
-Supported host key types for the ``ssh_keys`` and the ``ssh_genkeytypes``
-config flags are:
-
-    - ecdsa
-    - ed25519
-    - rsa
-
-Unsupported host key types for the ``ssh_keys`` and the ``ssh_genkeytypes``
-config flags are:
-
-    - ecdsa-sk
-    - ed25519-sk
-"""
 
 # Note: We do not support *-sk key types because:
 # 1) In the autogeneration case user interaction with the device is needed
 # which does not fit with a cloud-context.
 # 2) This type of keys are user-based, not hostkeys.
 
-
 meta: MetaSchema = {
     "id": "cc_ssh",
-    "name": "SSH",
-    "title": "Configure SSH and SSH keys",
-    "description": MODULE_DESCRIPTION,
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
-    "examples": [
-        dedent(
-            """\
-            ssh_keys:
-              rsa_private: |
-                -----BEGIN RSA PRIVATE KEY-----
-                MIIBxwIBAAJhAKD0YSHy73nUgysO13XsJmd4fHiFyQ+00R7VVu2iV9Qco
-                ...
-                -----END RSA PRIVATE KEY-----
-              rsa_public: ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7Xd ...
-              rsa_certificate: |
-                ssh-rsa-cert-v01@openssh.com AAAAIHNzaC1lZDI1NTE5LWNlcnQt ...
-            ssh_authorized_keys:
-              - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEA3FSyQwBI6Z+nCSjUU ...
-              - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA3I7VUf2l5gSn5uavROsc5HRDpZ ...
-            ssh_deletekeys: true
-            ssh_genkeytypes: [rsa, ecdsa, ed25519]
-            disable_root: true
-            disable_root_opts: no-port-forwarding,no-agent-forwarding,no-X11-forwarding
-            allow_public_ssh_keys: true
-            ssh_quiet_keygen: true
-            ssh_publish_hostkeys:
-              enabled: true
-              blacklist: [rsa]
-            """  # noqa: E501
-        )
-    ],
     "activate_by_schema_keys": [],
-}
+}  # type:ignore
 
-__doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
 GENERATE_KEY_NAMES = ["rsa", "ecdsa", "ed25519"]
@@ -182,6 +59,42 @@ for k in GENERATE_KEY_NAMES:
     PRIV_TO_PUB[f"{k}_private"] = f"{k}_public"
 
 KEY_GEN_TPL = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
+
+
+def set_redhat_keyfile_perms(keyfile: str) -> None:
+    """
+    For fedora 37, centos 9 stream and below:
+     - sshd version is earlier than version 9.
+     - 'ssh_keys' group is present and owns the private keys.
+     - private keys have permission 0o640.
+    For fedora 38, centos 10 stream and above:
+     - ssh version is atleast version 9.
+     - 'ssh_keys' group is absent. 'root' group owns the keys.
+     - private keys have permission 0o600, same as upstream.
+    Public keys in all cases have permission 0o644.
+    """
+    permissions_public = 0o644
+    ssh_version = ssh_util.get_opensshd_upstream_version()
+    if ssh_version and ssh_version < util.Version(9, 0):
+        # fedora 37, centos 9 stream and below has sshd
+        # versions less than 9 and private key permissions are
+        # set to 0o640 from sshd-keygen.
+        # See sanitize permissions" section in sshd-keygen.
+        permissions_private = 0o640
+    else:
+        # fedora 38, centos 10 stream and above. sshd-keygen sets
+        # private key persmissions to 0o600.
+        permissions_private = 0o600
+
+    gid = util.get_group_id("ssh_keys")
+    if gid != -1:
+        # 'ssh_keys' group exists for fedora 37, centos 9 stream
+        # and below. On these distros, 'ssh_keys' group own the private
+        # keys. When 'ssh_keys' group is absent for newer distros,
+        # 'root' group owns the private keys which is the default.
+        os.chown(keyfile, -1, gid)
+    os.chmod(keyfile, permissions_private)
+    os.chmod(f"{keyfile}.pub", permissions_public)
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
@@ -280,16 +193,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                     ):
                         sys.stdout.write(util.decode_binary(out))
 
-                    gid = util.get_group_id("ssh_keys")
-                    if gid != -1:
-                        # perform same "sanitize permissions" as sshd-keygen
-                        permissions_private = 0o600
-                        ssh_version = ssh_util.get_opensshd_upstream_version()
-                        if ssh_version and ssh_version < util.Version(9, 0):
-                            permissions_private = 0o640
-                        os.chown(keyfile, -1, gid)
-                        os.chmod(keyfile, permissions_private)
-                        os.chmod(f"{keyfile}.pub", 0o644)
+                    if cloud.distro.osfamily == "redhat":
+                        set_redhat_keyfile_perms(keyfile)
                 except subp.ProcessExecutionError as e:
                     err = util.decode_binary(e.stderr).lower()
                     if e.exit_code == 1 and err.lower().startswith(

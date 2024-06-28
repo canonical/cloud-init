@@ -9,12 +9,11 @@
 """Disable EC2 Metadata: Disable AWS EC2 metadata."""
 
 import logging
-from textwrap import dedent
 
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_ALWAYS
 
@@ -25,21 +24,10 @@ LOG = logging.getLogger(__name__)
 
 meta: MetaSchema = {
     "id": "cc_disable_ec2_metadata",
-    "name": "Disable EC2 Metadata",
-    "title": "Disable AWS EC2 Metadata",
-    "description": dedent(
-        """\
-        This module can disable the ec2 datasource by rejecting the route to
-        ``169.254.169.254``, the usual route to the datasource. This module
-        is disabled by default."""
-    ),
     "distros": [ALL_DISTROS],
     "frequency": PER_ALWAYS,
-    "examples": ["disable_ec2_metadata: true"],
     "activate_by_schema_keys": ["disable_ec2_metadata"],
-}
-
-__doc__ = get_meta_doc(meta)
+}  # type: ignore
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:

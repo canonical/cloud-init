@@ -1,0 +1,52 @@
+.. -*- mode: rst -*-
+{% for mod_id, mod_cfg in data.items() %}
+{% set mod_meta = config.html_context[mod_id]['meta'] -%}
+
+.. _mod_{{ mod_id }}:
+
+{{ mod_cfg['name'] }}{% set name_len = mod_cfg['name']|length %}
+{{ '~' * name_len }}
+
+{{ mod_cfg['title'] }}
+
+.. tab-set::
+
+   .. tab-item:: Summary
+
+{% for line in mod_cfg['description'].splitlines() %}
+      {{ line -}}
+{% endfor %}
+
+      **Internal name:** ``{{ mod_id }}``
+
+      **Module frequency:** {{ mod_meta['frequency'] }}
+
+      **Supported distros:** {{ mod_meta['distros']|join(', ') }}
+
+{% if mod_meta['activate_by_schema_keys'] %}
+      **Activate only on keys:** ``{{ mod_meta['activate_by_schema_keys']|join('``, ``') }}``
+
+{% endif %}
+   .. tab-item:: Config schema
+
+{% for line2 in config.html_context[mod_id]['schema_doc'].splitlines() %}
+      {{ line2 }}
+{% endfor %}
+
+   .. tab-item:: Examples
+
+      {% if mod_cfg['examples'] %}
+          {% for example in mod_cfg['examples'] %}
+              {% for line in example["comment"].splitlines() %}
+              {{ line }} 
+              {% endfor %}
+
+              .. literalinclude:: ../../module-docs/{{ example["file"] }}
+                 :language: yaml
+
+          {% endfor %}
+          {% else %}
+              No examples for this module
+          {% endif %}
+
+{% endfor %}

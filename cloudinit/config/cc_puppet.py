@@ -13,7 +13,6 @@ import os
 import socket
 from contextlib import suppress
 from io import StringIO
-from textwrap import dedent
 from typing import List, Union
 
 import yaml
@@ -21,7 +20,7 @@ import yaml
 from cloudinit import helpers, subp, temp_utils, url_helper, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS, Distro, PackageInstallerError
 from cloudinit.settings import PER_INSTANCE
 
@@ -29,85 +28,12 @@ AIO_INSTALL_URL = "https://raw.githubusercontent.com/puppetlabs/install-puppet/m
 PUPPET_AGENT_DEFAULT_ARGS = ["--test"]
 PUPPET_PACKAGE_NAMES = ("puppet-agent", "puppet")
 
-MODULE_DESCRIPTION = """\
-This module handles puppet installation and configuration. If the ``puppet``
-key does not exist in global configuration, no action will be taken. If a
-config entry for ``puppet`` is present, then by default the latest version of
-puppet will be installed. If the ``puppet`` config key exists in the config
-archive, this module will attempt to start puppet even if no installation was
-performed.
-
-The module also provides keys for configuring the new puppet 4 paths and
-installing the puppet package from the puppetlabs repositories:
-https://docs.puppet.com/puppet/4.2/reference/whered_it_go.html
-The keys are ``package_name``, ``conf_file``, ``ssl_dir`` and
-``csr_attributes_path``. If unset, their values will default to
-ones that work with puppet 3.x and with distributions that ship modified
-puppet 4.x that uses the old paths.
-"""
-
 meta: MetaSchema = {
     "id": "cc_puppet",
-    "name": "Puppet",
-    "title": "Install, configure and start puppet",
-    "description": MODULE_DESCRIPTION,
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
-    "examples": [
-        dedent(
-            """\
-            puppet:
-                install: true
-                version: "7.7.0"
-                install_type: "aio"
-                collection: "puppet7"
-                aio_install_url: 'https://git.io/JBhoQ'
-                cleanup: true
-                conf_file: "/etc/puppet/puppet.conf"
-                ssl_dir: "/var/lib/puppet/ssl"
-                csr_attributes_path: "/etc/puppet/csr_attributes.yaml"
-                exec: true
-                exec_args: ['--test']
-                conf:
-                    agent:
-                        server: "puppetserver.example.org"
-                        certname: "%i.%f"
-                    ca_cert: |
-                        -----BEGIN CERTIFICATE-----
-                        MIICCTCCAXKgAwIBAgIBATANBgkqhkiG9w0BAQUFADANMQswCQYDVQQDDAJjYTAe
-                        Fw0xMDAyMTUxNzI5MjFaFw0xNTAyMTQxNzI5MjFaMA0xCzAJBgNVBAMMAmNhMIGf
-                        MA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCu7Q40sm47/E1Pf+r8AYb/V/FWGPgc
-                        b014OmNoX7dgCxTDvps/h8Vw555PdAFsW5+QhsGr31IJNI3kSYprFQcYf7A8tNWu
-                        1MASW2CfaEiOEi9F1R3R4Qlz4ix+iNoHiUDTjazw/tZwEdxaQXQVLwgTGRwVa+aA
-                        qbutJKi93MILLwIDAQABo3kwdzA4BglghkgBhvhCAQ0EKxYpUHVwcGV0IFJ1Ynkv
-                        T3BlblNTTCBHZW5lcmF0ZWQgQ2VydGlmaWNhdGUwDwYDVR0TAQH/BAUwAwEB/zAd
-                        BgNVHQ4EFgQUu4+jHB+GYE5Vxo+ol1OAhevspjAwCwYDVR0PBAQDAgEGMA0GCSqG
-                        SIb3DQEBBQUAA4GBAH/rxlUIjwNb3n7TXJcDJ6MMHUlwjr03BDJXKb34Ulndkpaf
-                        +GAlzPXWa7bO908M9I8RnPfvtKnteLbvgTK+h+zX1XCty+S2EQWk29i2AdoqOTxb
-                        hppiGMp0tT5Havu4aceCXiy2crVcudj3NFciy8X66SoECemW9UYDCb9T5D0d
-                        -----END CERTIFICATE-----
-                csr_attributes:
-                    custom_attributes:
-                        1.2.840.113549.1.9.7: 342thbjkt82094y0uthhor289jnqthpc2290
-                    extension_requests:
-                        pp_uuid: ED803750-E3C7-44F5-BB08-41A04433FE2E
-                        pp_image_name: my_ami_image
-                        pp_preshared_key: 342thbjkt82094y0uthhor289jnqthpc2290
-            """  # noqa: E501
-        ),
-        dedent(
-            """\
-            puppet:
-                install_type: "packages"
-                package_name: "puppet"
-                exec: false
-            """
-        ),
-    ],
     "activate_by_schema_keys": ["puppet"],
-}
-
-__doc__ = get_meta_doc(meta)
+}  # type: ignore
 
 LOG = logging.getLogger(__name__)
 

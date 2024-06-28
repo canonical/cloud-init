@@ -1,6 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-""" test_handler_apt_source_v1
+"""test_handler_apt_source_v1
 Testing various config variations of the apt_source config
 This calls all things with v1 format to stress the conversion code on top of
 the actually tested code.
@@ -42,7 +42,7 @@ ADD_APT_REPO_MATCH = r"^[\w-]+:\w"
 class FakeDistro:
     """Fake Distro helper object"""
 
-    def update_package_sources(self):
+    def update_package_sources(self, *, force=False):
         """Fake update_package_sources helper method"""
         return
 

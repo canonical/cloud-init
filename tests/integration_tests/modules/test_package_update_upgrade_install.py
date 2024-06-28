@@ -88,6 +88,7 @@ class TestPackageUpdateUpgradeInstall:
 
 
 HELLO_VERSIONS_BY_RELEASE = {
+    "oracular": "2.10-3build2",
     "noble": "2.10-3build1",
     "mantic": "2.10-3",
     "lunar": "2.10-3",

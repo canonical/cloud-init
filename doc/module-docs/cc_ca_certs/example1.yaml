@@ -1,0 +1,9 @@
+#cloud-config
+ca_certs:
+  remove_defaults: true
+  trusted:
+  - single_line_cert
+  - |
+    -----BEGIN CERTIFICATE-----
+    YOUR-ORGS-TRUSTED-CA-CERT-HERE
+    -----END CERTIFICATE-----

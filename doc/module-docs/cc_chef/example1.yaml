@@ -1,0 +1,17 @@
+#cloud-config
+chef:
+  directories: [/etc/chef, /var/log/chef]
+  encrypted_data_bag_secret: /etc/chef/encrypted_data_bag_secret
+  environment: _default
+  initial_attributes:
+    apache:
+      keepalive: false
+      prefork: {maxclients: 100}
+  install_type: omnibus
+  log_level: :auto
+  omnibus_url_retries: 2
+  run_list: ['recipe[apache2]', 'role[db]']
+  server_url: https://chef.yourorg.com:4000
+  ssl_verify_mode: :verify_peer
+  validation_cert: system
+  validation_name: yourorg-validator

@@ -201,8 +201,6 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
         # Ubuntu lxd storage
         "thinpool by default on Ubuntu due to LP #1982780",
         "WARNING]: Could not match supplied host pattern, ignoring:",
-        # https://bugs.launchpad.net/ubuntu/+source/netplan.io/+bug/2041727
-        "Cannot call Open vSwitch: ovsdb-server.service is not running.",
     ]
     traceback_texts = []
     if "install canonical-livepatch" in log:
@@ -213,10 +211,6 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
         )
     if "found network data from DataSourceNone" in log:
         warning_texts.append("Used fallback datasource")
-    if "['netplan', 'apply']" in log:
-        warning_texts.append(
-            "Falling back to a hard restart of systemd-networkd.service"
-        )
     if "oracle" in log:
         # LP: #1842752
         lease_exists_text = "Stderr: RTNETLINK answers: File exists"
@@ -310,16 +304,14 @@ def wait_for_cloud_init(client: "IntegrationInstance", num_retries: int = 30):
     for _ in range(num_retries):
         try:
             result = client.execute("cloud-init status")
-            if (
-                result
-                and result.ok
-                and ("running" not in result or "not started" not in result)
+            if result.return_code in (0, 2) and (
+                "running" not in result or "not started" not in result
             ):
                 return result
         except Exception as e:
             last_exception = e
         time.sleep(1)
-    raise Exception(
+    raise Exception(  # pylint: disable=W0719
         "cloud-init status did not return successfully."
     ) from last_exception
 
@@ -355,21 +347,21 @@ def get_feature_flag_value(client: "IntegrationInstance", key):
     return value
 
 
-def override_kernel_cmdline(ds_str: str, instance: "IntegrationInstance"):
-    """set the kernel commandline and reboot, return after boot done
+def override_kernel_command_line(ds_str: str, instance: "IntegrationInstance"):
+    """set the kernel command line and reboot, return after boot done
 
     This will not work with containers. This is only tested with lxd vms
     but in theory should work on any virtual machine using grub.
 
     ds_str: the string that will be inserted into /proc/cmdline
-    instance: instance to set kernel commandline for
+    instance: instance to set kernel command line for
     """
 
     # The final output in /etc/default/grub should be:
     #
     # GRUB_CMDLINE_LINUX="'ds=nocloud;s=http://my-url/'"
     #
-    # That ensures that the kernel commandline passed into
+    # That ensures that the kernel command line passed into
     # /boot/efi/EFI/ubuntu/grub.cfg will be properly single-quoted
     #
     # Example:
@@ -392,3 +384,12 @@ def override_kernel_cmdline(ds_str: str, instance: "IntegrationInstance"):
     ).ok
     assert instance.execute("cloud-init clean --logs").ok
     instance.restart()
+
+
+def push_and_enable_systemd_unit(
+    client: "IntegrationInstance", unit_name: str, content: str
+) -> None:
+    service_filename = f"/etc/systemd/system/{unit_name}"
+    client.write_to_file(service_filename, content)
+    client.execute(f"chmod 0644 {service_filename}", use_sudo=True)
+    client.execute(f"systemctl enable {unit_name}", use_sudo=True)

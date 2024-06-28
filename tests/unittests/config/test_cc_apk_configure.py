@@ -1,6 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-""" test_apk_configure
+"""test_apk_configure
 Test creation of repositories file
 """
 

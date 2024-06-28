@@ -742,14 +742,20 @@ class TestGenerateNetworkConfig:
                             "match": {"macaddress": "00:0d:3a:04:75:98"},
                             "dhcp6": False,
                             "dhcp4": True,
-                            "dhcp4-overrides": {"route-metric": 200},
+                            "dhcp4-overrides": {
+                                "route-metric": 200,
+                                "use-dns": False,
+                            },
                         },
                         "eth2": {
                             "set-name": "eth2",
                             "match": {"macaddress": "00:0d:3a:04:75:98"},
                             "dhcp6": False,
                             "dhcp4": True,
-                            "dhcp4-overrides": {"route-metric": 300},
+                            "dhcp4-overrides": {
+                                "route-metric": 300,
+                                "use-dns": False,
+                            },
                         },
                     },
                     "version": 2,
@@ -976,7 +982,7 @@ class TestNetworkConfig:
                     "dhcp6": False,
                     "match": {"macaddress": "00:0d:3a:04:75:98"},
                     "set-name": "eth0",
-                }
+                },
             },
             "version": 2,
         }
@@ -1557,7 +1563,7 @@ scbus-1 on xpt0 bus 0
                     "dhcp6": False,
                     "dhcp4": True,
                     "dhcp4-overrides": {"route-metric": 100},
-                }
+                },
             },
             "version": 2,
         }
@@ -1586,14 +1592,14 @@ scbus-1 on xpt0 bus 0
                     "match": {"macaddress": "22:0d:3a:04:75:98"},
                     "dhcp6": False,
                     "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 200},
+                    "dhcp4-overrides": {"route-metric": 200, "use-dns": False},
                 },
                 "eth2": {
                     "set-name": "eth2",
                     "match": {"macaddress": "33:0d:3a:04:75:98"},
                     "dhcp6": False,
                     "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 300},
+                    "dhcp4-overrides": {"route-metric": 300, "use-dns": False},
                 },
             },
             "version": 2,
@@ -1626,7 +1632,7 @@ scbus-1 on xpt0 bus 0
                     "dhcp6": False,
                     "dhcp4": True,
                     "dhcp4-overrides": {"route-metric": 100},
-                }
+                },
             },
             "version": 2,
         }
@@ -3770,7 +3776,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 timeout=30,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,
@@ -3849,7 +3855,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -3858,7 +3864,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/reprovisiondata?"
                 "api-version=2019-06-01",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 log_req_resp=False,
                 infinite=True,
                 timeout=30,
@@ -3867,7 +3873,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -3912,7 +3918,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -3921,7 +3927,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/reprovisiondata?"
                 "api-version=2019-06-01",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 log_req_resp=False,
                 infinite=True,
                 timeout=30,
@@ -3930,7 +3936,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4030,7 +4036,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4039,7 +4045,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/reprovisiondata?"
                 "api-version=2019-06-01",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 log_req_resp=False,
                 infinite=True,
                 timeout=30,
@@ -4048,7 +4054,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4188,7 +4194,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4197,7 +4203,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/reprovisiondata?"
                 "api-version=2019-06-01",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=False,
                 timeout=30,
@@ -4206,7 +4212,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4300,7 +4306,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4309,7 +4315,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/reprovisiondata?"
                 "api-version=2019-06-01",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=False,
                 timeout=30,
@@ -4318,7 +4324,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4426,7 +4432,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 exception_cb=mock.ANY,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 infinite=True,
                 log_req_resp=True,
                 timeout=30,
@@ -4489,7 +4495,7 @@ class TestProvisioning:
                 "http://169.254.169.254/metadata/instance?"
                 "api-version=2021-08-01&extended=true",
                 timeout=30,
-                headers={"Metadata": "true"},
+                headers_cb=imds.headers_cb,
                 exception_cb=mock.ANY,
                 infinite=True,
                 log_req_resp=True,

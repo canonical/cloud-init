@@ -28,6 +28,13 @@ class TestIfconfigParserFreeBSD(TestCase):
         ifs = Ifconfig().parse(self.ifs_txt)
         assert ifs["re0.33"].is_vlan
 
+    def test_netmask(self):
+        ifs = Ifconfig().parse(self.ifs_txt)
+        # netmasks are Normalized from non-contiguous hex bitmasks to
+        # contiguous decimal bitmasks
+        assert ifs["bridge0"].inet["192.168.1.1"]["netmask"] == "255.255.255.0"
+        assert ifs["lo0"].inet["127.0.0.1"]["netmask"] == "255.0.0.0"
+
     def test_description(self):
         """assert vnet0:11 is associated with jail: webirc"""
         ifs = Ifconfig().parse(self.ifs_txt)
@@ -53,6 +60,24 @@ class TestIfconfigParserFreeBSD(TestCase):
             ifs_by_mac["00:0d:3a:54:ad:1e"][0].name
             != ifs_by_mac["00:0d:3a:54:ad:1e"][1].name
         )
+
+
+class TestIfconfigParserFreeBSDCIDR(TestCase):
+    def setUp(self):
+        super(TestIfconfigParserFreeBSDCIDR, self).setUp()
+        self.ifs_txt = readResource("netinfo/freebsd-ifconfig-cidr-output")
+
+    def test_parse_freebsd(self):
+        """assert parsing works without any exceptions"""
+        Ifconfig().parse(self.ifs_txt)
+
+    def test_netmask(self):
+        ifs = Ifconfig().parse(self.ifs_txt)
+        # netmasks are Normalized from CIDR to contiguous decimal bitmasks
+        assert (
+            ifs["vtnet0"].inet["198.51.100.13"]["netmask"] == "255.255.255.255"
+        )
+        assert ifs["lo0"].inet["127.0.0.1"]["netmask"] == "255.0.0.0"
 
 
 class TestIfconfigParserOpenBSD(TestCase):

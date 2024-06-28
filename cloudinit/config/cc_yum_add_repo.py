@@ -4,44 +4,18 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"Yum Add Repo: Add yum repository configuration to the system"
+"""Yum Add Repo: Add yum repository configuration to the system"""
 
 import io
 import logging
 import os
 from configparser import ConfigParser
-from textwrap import dedent
 
 from cloudinit import util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_INSTANCE
-
-MODULE_DESCRIPTION = """\
-Add yum repository configuration to ``/etc/yum.repos.d``. Configuration files
-are named based on the opaque dictionary key under the ``yum_repos`` they are
-specified with. If a config file already exists with the same name as a config
-entry, the config entry will be skipped.
-"""
-
-distros = [
-    "almalinux",
-    "azurelinux",
-    "centos",
-    "cloudlinux",
-    "eurolinux",
-    "fedora",
-    "mariner",
-    "openeuler",
-    "OpenCloudOS",
-    "openmandriva",
-    "photon",
-    "rhel",
-    "rocky",
-    "TencentOS",
-    "virtuozzo",
-]
 
 COPR_BASEURL = (
     "https://download.copr.fedorainfracloud.org/results/@cloud-init/"
@@ -58,72 +32,28 @@ EPEL_TESTING_BASEURL = (
 
 meta: MetaSchema = {
     "id": "cc_yum_add_repo",
-    "name": "Yum Add Repo",
-    "title": "Add yum repository configuration to the system",
-    "description": MODULE_DESCRIPTION,
-    "distros": distros,
-    "examples": [
-        dedent(
-            """\
-            yum_repos:
-              my_repo:
-                baseurl: http://blah.org/pub/epel/testing/5/$basearch/
-            yum_repo_dir: /store/custom/yum.repos.d
-            """
-        ),
-        dedent(
-            f"""\
-            # Enable cloud-init upstream's daily testing repo for EPEL 8 to
-            # install latest cloud-init from tip of `main` for testing.
-            yum_repos:
-              cloud-init-daily:
-                name: Copr repo for cloud-init-dev owned by @cloud-init
-                baseurl: {COPR_BASEURL}
-                type: rpm-md
-                skip_if_unavailable: true
-                gpgcheck: true
-                gpgkey: {COPR_GPG_URL}
-                enabled_metadata: 1
-            """
-        ),
-        dedent(
-            f"""\
-            # Add the file /etc/yum.repos.d/epel_testing.repo which can then
-            # subsequently be used by yum for later operations.
-            yum_repos:
-            # The name of the repository
-             epel-testing:
-               baseurl: {EPEL_TESTING_BASEURL}
-               enabled: false
-               failovermethod: priority
-               gpgcheck: true
-               gpgkey: file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL
-               name: Extra Packages for Enterprise Linux 5 - Testing
-            """
-        ),
-        dedent(
-            """\
-            # Any yum repo configuration can be passed directly into
-            # the repository file created. See: man yum.conf for supported
-            # config keys.
-            #
-            # Write /etc/yum.conf.d/my-package-stream.repo with gpgkey checks
-            # on the repo data of the repository enabled.
-            yum_repos:
-              my package stream:
-                baseurl: http://blah.org/pub/epel/testing/5/$basearch/
-                mirrorlist: http://some-url-to-list-of-baseurls
-                repo_gpgcheck: 1
-                enable_gpgcheck: true
-                gpgkey: https://url.to.ascii-armored-gpg-key
-            """
-        ),
+    "distros": [
+        "almalinux",
+        "azurelinux",
+        "centos",
+        "cloudlinux",
+        "eurolinux",
+        "fedora",
+        "mariner",
+        "openeuler",
+        "OpenCloudOS",
+        "openmandriva",
+        "photon",
+        "rhel",
+        "rocky",
+        "TencentOS",
+        "virtuozzo",
     ],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["yum_repos"],
-}
+}  # type: ignore
 
-__doc__ = get_meta_doc(meta)
+
 LOG = logging.getLogger(__name__)
 
 
@@ -211,24 +141,22 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 n_repo_config[k] = v
         repo_config = n_repo_config
         missing_required = 0
-        for req_field in ["baseurl"]:
+        req_fields = ["baseurl", "metalink"]
+        for req_field in req_fields:
             if req_field not in repo_config:
-                LOG.warning(
-                    "Repository %s does not contain a %s"
-                    " configuration 'required' entry",
-                    repo_id,
-                    req_field,
-                )
                 missing_required += 1
-        if not missing_required:
+
+        if missing_required == len(req_fields):
+            LOG.warning(
+                "Repository %s should contain atleast one of the"
+                " following configuration entries: %s, skipping!",
+                repo_id,
+                ", ".join(req_fields),
+            )
+        else:
             repo_configs[canon_repo_id] = repo_config
             repo_locations[canon_repo_id] = repo_fn_pth
-        else:
-            LOG.warning(
-                "Repository %s is missing %s required fields, skipping!",
-                repo_id,
-                missing_required,
-            )
+
     for (c_repo_id, path) in repo_locations.items():
         repo_blob = _format_repository_config(
             c_repo_id, repo_configs.get(c_repo_id)

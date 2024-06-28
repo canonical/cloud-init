@@ -9,46 +9,20 @@
 """Locale: set system locale"""
 
 import logging
-from textwrap import dedent
 
 from cloudinit import util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_INSTANCE
-
-distros = ["all"]
 
 meta: MetaSchema = {
     "id": "cc_locale",
-    "name": "Locale",
-    "title": "Set system locale",
-    "description": dedent(
-        """\
-        Configure the system locale and apply it system wide. By default use
-        the locale specified by the datasource."""
-    ),
-    "distros": distros,
-    "examples": [
-        dedent(
-            """\
-            # Set the locale to ar_AE
-            locale: ar_AE
-            """
-        ),
-        dedent(
-            """\
-            # Set the locale to fr_CA in /etc/alternate_path/locale
-            locale: fr_CA
-            locale_configfile: /etc/alternate_path/locale
-            """
-        ),
-    ],
+    "distros": ["all"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": [],
-}
+}  # type: ignore
 
-__doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
 

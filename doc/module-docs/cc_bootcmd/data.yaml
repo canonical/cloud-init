@@ -1,0 +1,22 @@
+cc_bootcmd:
+  description: |
+    This module runs arbitrary commands very early in the boot process, only
+    slightly after a boothook would run. This is very similar to a boothook,
+    but more user friendly. The environment variable ``INSTANCE_ID`` will be
+    set to the current instance ID for all run commands. Commands can be
+    specified either as lists or strings. For invocation details, see
+    ``runcmd``.
+
+    .. note::
+       ``bootcmd`` should only be used for things that could not be done later
+       in the boot process.
+
+    .. note::
+       When writing files, do not use ``/tmp`` dir as it races with
+       ``systemd-tmpfiles-clean`` (LP: #1707222). Use ``/run/somedir`` instead.
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_bootcmd/example1.yaml
+  name: Bootcmd
+  title: Run arbitrary commands early in the boot process

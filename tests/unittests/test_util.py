@@ -1725,6 +1725,8 @@ class TestRedirectOutputPreexecFn:
             args = (test_string, None)
         elif request.param == "errfmt":
             args = (None, test_string)
+        else:
+            args = (None, None)
         with mock.patch(M_PATH + "subprocess.Popen") as m_popen:
             util.redirect_output(*args)
 
