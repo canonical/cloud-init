@@ -1,4 +1,5 @@
 import datetime
+import glob
 import os
 import sys
 
@@ -274,22 +275,27 @@ def render_nested_properties(prop_cfg, defs, prefix):
 
 
 def render_module_schemas():
-    from cloudinit.importer import find_module, import_module
+    from cloudinit.importer import import_module
 
     mod_docs = {}
     schema = get_schema()
     defs = schema.get("$defs", {})
-    for key in schema["$defs"]:
-        if key[:3] != "cc_":
-            continue
-        locs, _ = find_module(key, ["", "cloudinit.config"], ["meta"])
-        mod = import_module(locs[0])
-        mod_docs[key] = {
-            "schema_doc": render_nested_properties(
-                schema["$defs"][key], defs, ""
-            ),
+
+    for mod_path in glob.glob("../../cloudinit/config/cc_*py"):
+        mod_name = os.path.basename(mod_path).replace(".py", "")
+        mod = import_module(f"cloudinit.config.{mod_name}")
+        cc_key = mod.meta["id"]
+        mod_docs[cc_key] = {
             "meta": mod.meta,
         }
+        if cc_key in defs:
+            mod_docs[cc_key]["schema_doc"] = render_nested_properties(
+                defs[cc_key], defs, ""
+            )
+        else:
+            mod_docs[cc_key][
+                "schema_doc"
+            ] = "No schema definitions for this module"
     return mod_docs
 
 

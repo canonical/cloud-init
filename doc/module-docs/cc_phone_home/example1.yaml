@@ -1,4 +1,2 @@
 #cloud-config
-phone_home:
-  url: http://example.com/$INSTANCE_ID/
-  post: all
+phone_home: {post: all, url: 'http://example.com/$INSTANCE_ID/'}

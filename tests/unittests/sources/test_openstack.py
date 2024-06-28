@@ -20,6 +20,7 @@ from cloudinit.sources import DataSourceOpenStack as ds
 from cloudinit.sources import convert_vendordata
 from cloudinit.sources.helpers import openstack
 from tests.unittests import helpers as test_helpers
+from tests.unittests import util as test_util
 from tests.unittests.helpers import mock
 
 BASE_URL = "http://169.254.169.254"
@@ -503,7 +504,9 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             responses_mock=self.responses,
         )
         ds_os = ds.DataSourceOpenStack(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN,
+            test_util.MockDistro(),
+            helpers.Paths({"run_dir": self.tmp}),
         )
         crawled_data = ds_os._crawl_metadata()
         self.assertEqual(UNSET, ds_os.ec2_metadata)

@@ -1,0 +1,27 @@
+#cloud-config
+salt_minion:
+  conf:
+    file_client: local
+    fileserver_backend: [gitfs]
+    gitfs_remotes: ['https://github.com/_user_/_repo_.git']
+    master: salt.example.com
+  config_dir: /etc/salt
+  grains:
+    role: [web]
+  pkg_name: salt-minion
+  pki_dir: /etc/salt/pki/minion
+  private_key: '------BEGIN PRIVATE KEY------
+
+    <key data>
+
+    ------END PRIVATE KEY-------
+
+    '
+  public_key: '------BEGIN PUBLIC KEY-------
+
+    <key data>
+
+    ------END PUBLIC KEY-------
+
+    '
+  service_name: salt-minion

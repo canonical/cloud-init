@@ -49,6 +49,7 @@ from typing import (
     Generator,
     List,
     Mapping,
+    NamedTuple,
     Optional,
     Sequence,
     TypeVar,
@@ -61,6 +62,7 @@ import yaml
 from cloudinit import (
     features,
     importer,
+    log,
     mergers,
     net,
     settings,
@@ -87,6 +89,11 @@ FN_ALLOWED = "_-.()" + string.digits + string.ascii_letters
 
 TRUE_STRINGS = ("true", "1", "on", "yes")
 FALSE_STRINGS = ("off", "0", "no", "false")
+
+
+class DeprecationLog(NamedTuple):
+    log_level: int
+    message: str
 
 
 def kernel_version():
@@ -3209,8 +3216,8 @@ def deprecate(
     deprecated_version: str,
     extra_message: Optional[str] = None,
     schedule: int = 5,
-    return_log: bool = False,
-):
+    skip_log: bool = False,
+) -> DeprecationLog:
     """Mark a "thing" as deprecated. Deduplicated deprecations are
     logged.
 
@@ -3226,8 +3233,10 @@ def deprecate(
     @param schedule: Manually set the deprecation schedule. Defaults to
         5 years. Leave a comment explaining your reason for deviation if
         setting this value.
-    @param return_log: Return log text rather than logging it. Useful for
+    @param skip_log: Return log text rather than logging it. Useful for
         running prior to logging setup.
+    @return: NamedTuple containing log level and log message
+        DeprecationLog(level: int, message: str)
 
     Note: uses keyword-only arguments to improve legibility
     """
@@ -3242,14 +3251,20 @@ def deprecate(
         f"{deprecated_version} and scheduled to be removed in "
         f"{version_removed}. {message}"
     ).rstrip()
-    if return_log:
-        return deprecate_msg
-    if dedup not in deprecate._log:  # type: ignore
+    if (
+        "devel" != features.DEPRECATION_INFO_BOUNDARY
+        and Version.from_str(features.DEPRECATION_INFO_BOUNDARY) < version
+    ):
+        LOG.info(deprecate_msg)
+        level = logging.INFO
+    elif hasattr(LOG, "deprecated"):
+        level = log.DEPRECATED
+    else:
+        level = logging.WARN
+    if not skip_log and dedup not in deprecate._log:  # type: ignore
         deprecate._log.add(dedup)  # type: ignore
-        if hasattr(LOG, "deprecated"):
-            LOG.deprecated(deprecate_msg)  # type: ignore
-        else:
-            LOG.warning(deprecate_msg)
+        LOG.log(level, deprecate_msg)
+    return DeprecationLog(level, deprecate_msg)
 
 
 def deprecate_call(

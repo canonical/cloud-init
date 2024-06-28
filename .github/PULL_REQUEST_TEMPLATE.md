@@ -1,3 +1,23 @@
+<!--
+Thank you for submitting a PR to cloud-init!
+
+To ease the process of reviewing your PR, do make sure to complete the following checklist **before** submitting a pull request.
+
+- [ ] I have signed the CLA: https://ubuntu.com/legal/contributors
+- [ ] I have added my Github username to ``tools/.github-cla-signers``
+- [ ] I have included a comprehensive commit message using the guide below
+- [ ] I have added unit tests to cover the new behavior under ``tests/unittests/``
+  - Test files should map to source files i.e. a source file ``cloudinit/example.py`` should be tested by ``tests/unittests/test_example.py``
+  - Run unit tests with ``tox -e py3``
+- [ ] I have kept the change small, avoiding unnecessary whitespace or non-functional changes.
+- [ ] I have added a reference to issues that this PR relates to in the PR message (Refs GH-1234, Fixes GH-1234)
+- [ ] I have updated the documentation with the changed behavior.
+  - If the change doesn't change the user interface and is trivial, this step may be skipped.
+  - Cloud-config documentation is generated from the jsonschema.
+  - Generate docs with ``tox -e docs``.
+-->
+
+
 ## Proposed Commit Message
 <!-- Include a proposed commit message because PRs are squash merged
 by default.
@@ -34,12 +54,6 @@ this is a bug fix) this change on a live deployed system,
 including any necessary configuration files, user-data,
 setup, and teardown. Scripts used may be attached directly to this PR. -->
 
-## Checklist
-<!-- Go over all the following points, and put an `x` in all the boxes
-that apply. -->
-- [ ] My code follows the process laid out in [the documentation](https://cloudinit.readthedocs.io/en/latest/development/index.html)
-- [ ] I have updated or added any [unit tests](https://cloudinit.readthedocs.io/en/latest/development/testing.html) accordingly
-- [ ] I have updated or added any [documentation](https://cloudinit.readthedocs.io/en/latest/development/contribute_docs.html) accordingly
 
 ## Merge type
 

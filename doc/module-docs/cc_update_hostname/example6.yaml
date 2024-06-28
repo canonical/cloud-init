@@ -1,0 +1,2 @@
+#cloud-config
+create_hostname_file: false

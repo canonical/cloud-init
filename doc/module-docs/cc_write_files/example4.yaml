@@ -1,0 +1,3 @@
+#cloud-config
+write_files:
+- path: /root/CLOUD_INIT_WAS_HERE
