@@ -84,7 +84,12 @@ class TestDeprecatedLogs:
         ),
     )
     def test_deprecate_log_level_based_on_features(
-        self, expected_log_level, deprecation_info_boundary, caplog, mocker
+        self,
+        expected_log_level,
+        deprecation_info_boundary,
+        caplog,
+        mocker,
+        clear_deprecation_log,
     ):
         """Deprecation log level depends on key deprecation_version
 
