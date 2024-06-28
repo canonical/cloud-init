@@ -3210,6 +3210,18 @@ class Version(namedtuple("Version", ["major", "minor", "patch", "rev"])):
         return -1
 
 
+def should_log_deprecation(version: str) -> bool:
+    """Determine if a deprecation message should be logged.
+
+    :param version: The version in which the thing was deprecated.
+
+    :return: True if the message should be logged, else False.
+    """
+    return features.DEPRECATION_INFO_BOUNDARY == "devel" or Version.from_str(
+        version
+    ) <= Version.from_str(features.DEPRECATION_INFO_BOUNDARY)
+
+
 def deprecate(
     *,
     deprecated: str,
@@ -3251,10 +3263,7 @@ def deprecate(
         f"{deprecated_version} and scheduled to be removed in "
         f"{version_removed}. {message}"
     ).rstrip()
-    if (
-        "devel" != features.DEPRECATION_INFO_BOUNDARY
-        and Version.from_str(features.DEPRECATION_INFO_BOUNDARY) < version
-    ):
+    if not should_log_deprecation(deprecated_version):
         level = logging.INFO
     elif hasattr(LOG, "deprecated"):
         level = log.DEPRECATED

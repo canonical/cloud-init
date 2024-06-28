@@ -31,18 +31,18 @@ from typing import (
 
 import yaml
 
-from cloudinit import features, importer, safeyaml
+from cloudinit import importer, safeyaml
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers import INCLUSION_TYPES_MAP, type_from_starts_with
 from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceNotFoundException
 from cloudinit.temp_utils import mkdtemp
 from cloudinit.util import (
-    Version,
     error,
     get_modules_from_dir,
     load_text_file,
     load_yaml,
+    should_log_deprecation,
     write_file,
 )
 
@@ -795,16 +795,14 @@ def validate_cloudconfig_schema(
         if isinstance(
             schema_error, SchemaDeprecationError
         ):  # pylint: disable=W1116
-            if "devel" != features.DEPRECATION_INFO_BOUNDARY and (
-                schema_error.version == "devel"
-                or Version.from_str(schema_error.version)
-                > Version.from_str(features.DEPRECATION_INFO_BOUNDARY)
+            if schema_error.version == "devel" or should_log_deprecation(
+                schema_error.version
             ):
+                deprecations.append(SchemaProblem(path, schema_error.message))
+            else:
                 info_deprecations.append(
                     SchemaProblem(path, schema_error.message)
                 )
-            else:
-                deprecations.append(SchemaProblem(path, schema_error.message))
         else:
             errors.append(SchemaProblem(path, schema_error.message))
 

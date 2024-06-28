@@ -5,6 +5,7 @@ from typing import List
 import pytest
 
 from cloudinit import distros, ssh_util
+from cloudinit.util import should_log_deprecation
 from tests.unittests.helpers import mock
 from tests.unittests.util import abstract_to_concrete
 
@@ -142,7 +143,12 @@ class TestCreateUser:
         ]
         assert m_subp.call_args_list == expected
 
-        assert caplog.records[0].levelname in ["WARNING", "DEPRECATED"]
+        expected_levels = (
+            ["WARNING", "DEPRECATED"]
+            if should_log_deprecation("23.1")
+            else ["INFO"]
+        )
+        assert caplog.records[0].levelname in expected_levels
         assert (
             "The user foo_user has a 'groups' config value of type dict"
             in caplog.records[0].message
@@ -170,7 +176,12 @@ class TestCreateUser:
             mock.call(["passwd", "-l", USER]),
         ]
 
-        assert caplog.records[1].levelname in ["WARNING", "DEPRECATED"]
+        expected_levels = (
+            ["WARNING", "DEPRECATED"]
+            if should_log_deprecation("22.3")
+            else ["INFO"]
+        )
+        assert caplog.records[1].levelname in expected_levels
         assert (
             "The value of 'false' in user foo_user's 'sudo' "
             "config is deprecated in 22.3 and scheduled to be removed"
