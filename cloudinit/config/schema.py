@@ -795,11 +795,10 @@ def validate_cloudconfig_schema(
         if isinstance(
             schema_error, SchemaDeprecationError
         ):  # pylint: disable=W1116
-            if (
-                "devel" != features.DEPRECATION_INFO_BOUNDARY
-                and (schema_error.version == "devel"
+            if "devel" != features.DEPRECATION_INFO_BOUNDARY and (
+                schema_error.version == "devel"
                 or Version.from_str(schema_error.version)
-                > Version.from_str(features.DEPRECATION_INFO_BOUNDARY))
+                > Version.from_str(features.DEPRECATION_INFO_BOUNDARY)
             ):
                 info_deprecations.append(
                     SchemaProblem(path, schema_error.message)
