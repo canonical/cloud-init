@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 
 import cloudinit.config
-from cloudinit.util import is_true
+from cloudinit.util import is_true, should_log_deprecation
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
@@ -131,8 +131,20 @@ class TestCombined:
         """Check that deprecated key produces a log warning"""
         client = class_client
         log = client.read_from_file("/var/log/cloud-init.log")
-        assert "Deprecated cloud-config provided" in log
-        assert "The value of 'false' in user craig's 'sudo' config is " in log
+        version_boundary = get_feature_flag_value(
+            class_client, "DEPRECATION_INFO_BOUNDARY"
+        )
+        # the deprecation_version is 22.2 in schema for apt_* keys in
+        # user-data. Pass 22.2 in against the client's version_boundary.
+        if should_log_deprecation("22.2", version_boundary):
+            log_level = "DEPRECATED"
+        else:
+            log_level = "INFO"
+
+        assert (
+            f"[{log_level}]: The value of 'false' in user craig's 'sudo'"
+            " config is deprecated" in log
+        )
         assert 2 == log.count("DEPRECATE")
 
     def test_ntp_with_apt(self, class_client: IntegrationInstance):
