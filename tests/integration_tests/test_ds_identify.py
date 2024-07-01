@@ -29,8 +29,6 @@ def test_ds_identify(client: IntegrationInstance):
     assert client.execute("cloud-init status --wait")
 
     datasource = MAP_PLATFORM_TO_DATASOURCE.get(PLATFORM, PLATFORM)
-    if "lxd" == datasource and "focal" == OS_IMAGE:
-        datasource = "nocloud"
     cloud_id = client.execute("cloud-id")
     assert cloud_id.ok
     assert datasource == cloud_id.stdout.rstrip()
