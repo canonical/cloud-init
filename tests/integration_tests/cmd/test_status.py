@@ -3,14 +3,12 @@ import json
 
 import pytest
 
-from cloudinit.util import should_log_deprecation
 from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, JAMMY
 from tests.integration_tests.util import (
-    get_feature_flag_value,
     push_and_enable_systemd_unit,
     wait_for_cloud_init,
 )
@@ -65,8 +63,10 @@ def test_wait_when_no_datasource(session_cloud: IntegrationCloud, setup_image):
 
 USER_DATA = """\
 #cloud-config
+users:
+  - name: something
+    ssh-authorized-keys: ["something"]
 ca-certs:
-  remove_defaults: false
   invalid_key: true
 """
 
@@ -81,32 +81,23 @@ def test_status_json_errors(client):
         "DEPRECATED"
     )
 
-    status_json = json.loads(
-        client.execute("cloud-init status --format json").stdout
+    status_json = client.execute("cloud-init status --format json").stdout
+    assert (
+        "Deprecated cloud-config provided: users.0.ssh-authorized-keys"
+        in json.loads(status_json)["init"]["recoverable_errors"]
+        .get("DEPRECATED")
+        .pop(0)
     )
-    version_boundary = get_feature_flag_value(
-        client, "DEPRECATION_INFO_BOUNDARY"
+    assert (
+        "Deprecated cloud-config provided: users.0.ssh-authorized-keys:"
+        in json.loads(status_json)["recoverable_errors"]
+        .get("DEPRECATED")
+        .pop(0)
     )
-    # The deprecation_version is 22.3 in schema for ca-certs.
-    # Expect an extra deprecation level log in status if boundary > 22.3
-    if should_log_deprecation("22.3", version_boundary):
-        assert "Deprecated cloud-config provided: ca-certs" in status_json[
-            "init"
-        ]["recoverable_errors"].get("DEPRECATED").pop(0)
-        assert "Deprecated cloud-config provided: ca-certs" in status_json[
-            "recoverable_errors"
-        ].get("DEPRECATED").pop(0)
-
-    assert "Key 'ca-certs' is deprecated in 22.1" in status_json["init"][
-        "recoverable_errors"
-    ].get("DEPRECATED").pop(0)
-    assert "Key 'ca-certs' is deprecated in 22.1" in status_json[
-        "recoverable_errors"
-    ].get("DEPRECATED").pop(0)
-    assert "cloud-config failed schema validation" in status_json["init"][
-        "recoverable_errors"
-    ].get("WARNING").pop(0)
-    assert "cloud-config failed schema validation" in status_json[
+    assert "cloud-config failed schema validation" in json.loads(status_json)[
+        "init"
+    ]["recoverable_errors"].get("WARNING").pop(0)
+    assert "cloud-config failed schema validation" in json.loads(status_json)[
         "recoverable_errors"
     ].get("WARNING").pop(0)
 
