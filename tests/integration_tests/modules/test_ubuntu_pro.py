@@ -5,6 +5,7 @@ import os
 import pytest
 from pycloudlib.cloud import ImageType
 
+from cloudinit.util import should_log_deprecation
 from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.conftest import get_validated_source
 from tests.integration_tests.instances import (
@@ -19,7 +20,10 @@ from tests.integration_tests.releases import (
     IS_UBUNTU,
     JAMMY,
 )
-from tests.integration_tests.util import verify_clean_log
+from tests.integration_tests.util import (
+    get_feature_flag_value,
+    verify_clean_log,
+)
 
 LOG = logging.getLogger("integration_testing.test_ubuntu_pro")
 
@@ -135,12 +139,18 @@ class TestUbuntuAdvantage:
             "sed -i 's/ubuntu_pro$/ubuntu_advantage/' /etc/cloud/cloud.cfg"
         )
         client.restart()
-        status_resp = client.execute("cloud-init status --format json")
-        status = json.loads(status_resp.stdout)
-        assert (
-            "Module has been renamed from cc_ubuntu_advantage to cc_ubuntu_pro"
-            in "\n".join(status["recoverable_errors"]["DEPRECATED"])
+        version_boundary = get_feature_flag_value(
+            client, "DEPRECATION_INFO_BOUNDARY"
         )
+        # ubuntu_advantage key is deprecated in version 24.1
+        if should_log_deprecation("24.1", version_boundary):
+            log_level = "DEPRECATED"
+        else:
+            log_level = "INFO"
+        client.execute(
+            rf"grep \"{log_level}]: Module has been renamed from"
+            " cc_ubuntu_advantage to cc_ubuntu_pro /var/log/cloud-init.log"
+        ).ok
         assert is_attached(client)
 
     @pytest.mark.user_data(ATTACH.format(token=CLOUD_INIT_UA_TOKEN))
