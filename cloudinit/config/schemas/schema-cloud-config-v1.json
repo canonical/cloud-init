@@ -2535,8 +2535,18 @@
               "description": "The activation key to use. Must be used with ``org``. Should not be used with ``username`` or ``password``"
             },
             "org": {
-              "type": "integer",
-              "description": "The organization number to use. Must be used with ``activation-key``. Should not be used with ``username`` or ``password``"
+              "description": "The organization to use. Must be used with ``activation-key``. Should not be used with ``username`` or ``password``",
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer",
+                  "deprecated": true,
+                  "deprecated_version": "24.2",
+                  "deprecated_description": "Use of type integer for this value is deprecated. Use a string instead."
+                }
+              ]
             },
             "auto-attach": {
               "type": "boolean",
