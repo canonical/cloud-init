@@ -1,7 +1,7 @@
 """test that ds-identify works as expected"""
 
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.integration_settings import OS_IMAGE, PLATFORM
+from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.util import verify_clean_log, wait_for_cloud_init
 
 DATASOURCE_LIST_FILE = "/etc/cloud/cloud.cfg.d/90_dpkg.cfg"
