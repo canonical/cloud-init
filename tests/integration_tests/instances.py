@@ -8,6 +8,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Union
 
+from pycloudlib.lxd.instance import LXDInstance
 from pycloudlib.gce.instance import GceInstance
 from pycloudlib.instance import BaseInstance
 from pycloudlib.result import Result
@@ -289,7 +290,7 @@ class IntegrationInstance:
         try:
             # in some cases that ssh is not used, an address is not assigned
             if (
-                hasattr(self.instance, "execute_via_ssh")
+                isinstance(self.instance, LXDInstance)
                 and self.instance.execute_via_ssh
             ):
                 self._ip = self.instance.ip
