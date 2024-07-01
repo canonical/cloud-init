@@ -152,10 +152,10 @@ class TestApt:
         keys = class_client.execute(list_cmd + cc_apt_configure.APT_LOCAL_KEYS)
         files = class_client.execute(
             "ls " + cc_apt_configure.APT_TRUSTED_GPG_DIR
-        )
+        ).stdout
         for file in files.split():
             path = cc_apt_configure.APT_TRUSTED_GPG_DIR + file
-            keys += class_client.execute(list_cmd + path) or ""
+            keys += class_client.execute(list_cmd + path).stdout
         class_client.execute("gpgconf --homedir /root/tmpdir --kill all")
         return keys
 
