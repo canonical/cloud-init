@@ -5,7 +5,6 @@ import re
 import sys
 from collections import namedtuple
 
-import jsonschema
 import pytest
 
 from cloudinit import subp
@@ -27,6 +26,11 @@ from cloudinit.config.schema import (
 from cloudinit.util import Version
 from tests.unittests.helpers import does_not_raise, mock, skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
+
+try:
+    import jsonschema
+except ImportError:
+    jsonschema = None
 
 # Module path used in mocks
 MPATH = "cloudinit.config.cc_ubuntu_pro"
