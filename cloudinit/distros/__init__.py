@@ -847,7 +847,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 util.deprecate(
                     deprecated=f"The value of 'false' in user {name}'s "
                     "'sudo' config",
-                    deprecated_version="22.3",
+                    deprecated_version="22.2",
                     extra_message="Use 'null' instead.",
                 )
 
