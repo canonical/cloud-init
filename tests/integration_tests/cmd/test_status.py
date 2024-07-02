@@ -67,7 +67,7 @@ users:
   - name: something
     ssh-authorized-keys: ["something"]
   - default
-ca-certs:
+ca_certs:
   invalid_key: true
 """
 
