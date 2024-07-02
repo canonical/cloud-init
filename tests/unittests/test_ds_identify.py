@@ -1057,6 +1057,10 @@ class TestDsIdentify(DsIdentifyBase):
         """NWCS is identified in sys_vendor."""
         self._test_ds_found("NWCS")
 
+    def test_aeza_found(self):
+        """Aeza is identified in sys_vendor."""
+        self._test_ds_found("Aeza")
+
     def test_smartos_bhyve(self):
         """SmartOS cloud identified by SmartDC in dmi."""
         self._test_ds_found("SmartOS-bhyve")
@@ -2777,5 +2781,9 @@ VALID_CFG = {
                 "os_release_no_version_id"
             ],
         },
+    },
+    "Aeza": {
+        "ds": "Aeza",
+        "files": {P_SYS_VENDOR: "Aeza\n"},
     },
 }
