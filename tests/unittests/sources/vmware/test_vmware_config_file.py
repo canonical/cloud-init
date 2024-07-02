@@ -241,27 +241,45 @@ class TestVmwareConfigFile(CiTestCase):
             elif cfg.get("name") == nic2.get("name"):
                 nic2.update(cfg)
 
+        # Test NIC1
         self.assertEqual("physical", nic1.get("type"), "type of NIC1")
         self.assertEqual("NIC1", nic1.get("name"), "name of NIC1")
         self.assertEqual(
             "00:50:56:a6:8c:08", nic1.get("mac_address"), "mac address of NIC1"
         )
         subnets = nic1.get("subnets")
-        self.assertEqual(1, len(subnets), "number of subnets for NIC1")
-        subnet = subnets[0]
-        self.assertEqual("dhcp", subnet.get("type"), "DHCP type for NIC1")
-        self.assertEqual("auto", subnet.get("control"), "NIC1 Control type")
+        self.assertEqual(2, len(subnets), "number of subnets for NIC1")
+        subnet_ipv4 = subnets[0]
+        self.assertEqual(
+            "dhcp", subnet_ipv4.get("type"), "Ipv4 DHCP type for NIC1"
+        )
+        self.assertEqual(
+            "auto", subnet_ipv4.get("control"), "NIC1 Control type"
+        )
+        subnet_ipv6 = subnets[1]
+        self.assertEqual(
+            "dhcp6", subnet_ipv6.get("type"), "Ipv6 DHCP type for NIC1"
+        )
 
+        # Test NIC2
         self.assertEqual("physical", nic2.get("type"), "type of NIC2")
         self.assertEqual("NIC2", nic2.get("name"), "name of NIC2")
         self.assertEqual(
             "00:50:56:a6:5a:de", nic2.get("mac_address"), "mac address of NIC2"
         )
         subnets = nic2.get("subnets")
-        self.assertEqual(1, len(subnets), "number of subnets for NIC2")
-        subnet = subnets[0]
-        self.assertEqual("dhcp", subnet.get("type"), "DHCP type for NIC2")
-        self.assertEqual("auto", subnet.get("control"), "NIC2 Control type")
+        self.assertEqual(2, len(subnets), "number of subnets for NIC2")
+        subnet_ipv4 = subnets[0]
+        self.assertEqual(
+            "dhcp", subnet_ipv4.get("type"), "Ipv4 DHCP type for NIC2"
+        )
+        self.assertEqual(
+            "auto", subnet_ipv4.get("control"), "NIC2 Control type"
+        )
+        subnet_ipv6 = subnets[1]
+        self.assertEqual(
+            "dhcp6", subnet_ipv6.get("type"), "Ipv6 DHCP type for NIC2"
+        )
 
     def test_get_nics_list_static(self):
         """Tests if NicConfigurator properly calculates network subnets
@@ -286,6 +304,7 @@ class TestVmwareConfigFile(CiTestCase):
                 elif cfg.get("name") == nic2.get("name"):
                     nic2.update(cfg)
 
+        # Test NIC1
         self.assertEqual("physical", nic1.get("type"), "type of NIC1")
         self.assertEqual("NIC1", nic1.get("name"), "name of NIC1")
         self.assertEqual(
@@ -345,6 +364,7 @@ class TestVmwareConfigFile(CiTestCase):
             else:
                 self.assertEqual(True, False, "invalid gateway %s" % (gateway))
 
+        # Test NIC2
         self.assertEqual("physical", nic2.get("type"), "type of NIC2")
         self.assertEqual("NIC2", nic2.get("name"), "name of NIC2")
         self.assertEqual(
@@ -352,16 +372,18 @@ class TestVmwareConfigFile(CiTestCase):
         )
 
         subnets = nic2.get("subnets")
-        self.assertEqual(1, len(subnets), "Number of subnets for NIC2")
+        self.assertEqual(2, len(subnets), "Number of subnets for NIC2")
 
-        subnet = subnets[0]
-        self.assertEqual("static", subnet.get("type"), "Subnet type")
+        subnet_ipv4 = subnets[0]
+        self.assertEqual("static", subnet_ipv4.get("type"), "Subnet type")
         self.assertEqual(
-            "192.168.6.102", subnet.get("address"), "Subnet address"
+            "192.168.6.102", subnet_ipv4.get("address"), "Subnet address"
         )
         self.assertEqual(
-            "255.255.0.0", subnet.get("netmask"), "Subnet netmask"
+            "255.255.0.0", subnet_ipv4.get("netmask"), "Subnet netmask"
         )
+        subnet_ipv6 = subnets[1]
+        self.assertEqual("dhcp6", subnet_ipv6.get("type"), "Subnet type")
 
     def test_custom_script(self):
         cf = ConfigFile("tests/data/vmware/cust-dhcp-2nic.cfg")
@@ -448,7 +470,10 @@ class TestVmwareNetConfig(CiTestCase):
                             "type": "static",
                             "address": "10.20.87.154",
                             "netmask": "255.255.252.0",
-                        }
+                        },
+                        {
+                            "type": "dhcp6",
+                        },
                     ],
                 }
             ],
@@ -499,7 +524,10 @@ class TestVmwareNetConfig(CiTestCase):
                                     "metric": 10000,
                                 }
                             ],
-                        }
+                        },
+                        {
+                            "type": "dhcp6",
+                        },
                     ],
                 }
             ],
@@ -559,7 +587,10 @@ class TestVmwareNetConfig(CiTestCase):
                                     "metric": 10000,
                                 }
                             ],
-                        }
+                        },
+                        {
+                            "type": "dhcp6",
+                        },
                     ],
                 }
             ],
@@ -604,7 +635,10 @@ class TestVmwareNetConfig(CiTestCase):
                             "address": "10.20.87.154",
                             "netmask": "255.255.252.0",
                             "gateway": "10.20.87.253",
-                        }
+                        },
+                        {
+                            "type": "dhcp6",
+                        },
                     ],
                 }
             ],
