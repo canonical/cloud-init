@@ -331,7 +331,7 @@ class DataSourceAzure(sources.DataSource):
         )
         self._iso_dev = None
         self._network_config = None
-        self._ephemeral_dhcp_ctx = None
+        self._ephemeral_dhcp_ctx: Optional[EphemeralDHCPv4] = None
         self._route_configured_for_imds = False
         self._route_configured_for_wireserver = False
         self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
@@ -426,7 +426,7 @@ class DataSourceAzure(sources.DataSource):
             dhcp_log_func=dhcp_log_cb,
         )
 
-        lease = None
+        lease: Optional[Dict[str, Any]] = None
         start_time = monotonic()
         deadline = start_time + timeout_minutes * 60
         with events.ReportEventStack(
@@ -1252,7 +1252,7 @@ class DataSourceAzure(sources.DataSource):
     def _poll_imds(self) -> bytes:
         """Poll IMDs for reprovisiondata XML document data."""
         dhcp_attempts = 0
-        reprovision_data = None
+        reprovision_data: Optional[bytes] = None
         while not reprovision_data:
             if not self._is_ephemeral_networking_up():
                 dhcp_attempts += 1

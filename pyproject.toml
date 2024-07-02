@@ -18,13 +18,13 @@ follow_imports = "silent"
 check_untyped_defs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
+warn_unreachable = true
 exclude = []
 
 [[tool.mypy.overrides]]
 module = [
     "apport.*",
     "BaseHTTPServer",
-    "cloudinit.feature_overrides",
     "configobj",
     "debconf",
     "httplib",
@@ -32,7 +32,6 @@ module = [
     "paramiko.*",
     "pip.*",
     "pycloudlib.*",
-    "responses",
     "serial",
     "tests.integration_tests.user_settings",
     "uaclient.*",

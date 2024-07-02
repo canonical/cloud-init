@@ -815,12 +815,13 @@ class TestValidateCloudConfigSchema:
     def test_validateconfig_logs_deprecations(
         self, schema, config, expected_msg, log_deprecations, caplog
     ):
-        validate_cloudconfig_schema(
-            config,
-            schema=schema,
-            strict_metaschema=True,
-            log_deprecations=log_deprecations,
-        )
+        with mock.patch.object(features, "DEPRECATION_INFO_BOUNDARY", "devel"):
+            validate_cloudconfig_schema(
+                config,
+                schema=schema,
+                strict_metaschema=True,
+                log_deprecations=log_deprecations,
+            )
         if expected_msg is None:
             return
         log_record = (M_PATH[:-1], DEPRECATED_LOG_LEVEL, expected_msg)
@@ -1764,29 +1765,6 @@ class TestAnnotatedCloudconfigFile:
             content,
             schemamarks=schemamarks,
             schema_errors=[],
-        )
-
-    def test_annotated_cloudconfig_file_with_non_dict_cloud_config(self):
-        """Error when empty non-dict cloud-config is provided.
-
-        OurJSON validation when user-data is None type generates a bunch
-        schema validation errors of the format:
-        ('', "None is not of type 'object'"). Ignore those symptoms and
-        report the general problem instead.
-        """
-        content = "\n\n\n"
-        expected = "\n".join(
-            [
-                content,
-                "# Errors: -------------",
-                "# E1: Cloud-config is not a YAML dict.\n\n",
-            ]
-        )
-        assert expected == annotated_cloudconfig_file(
-            None,
-            content,
-            schemamarks={},
-            schema_errors=[SchemaProblem("", "None is not of type 'object'")],
         )
 
     def test_annotated_cloudconfig_file_schema_annotates_and_adds_footer(self):

@@ -63,8 +63,10 @@ def test_wait_when_no_datasource(session_cloud: IntegrationCloud, setup_image):
 
 USER_DATA = """\
 #cloud-config
+users:
+  - name: something
+    ssh-authorized-keys: ["something"]
 ca-certs:
-  remove_defaults: false
   invalid_key: true
 """
 
@@ -80,12 +82,18 @@ def test_status_json_errors(client):
     )
 
     status_json = client.execute("cloud-init status --format json").stdout
-    assert "Deprecated cloud-config provided:\nca-certs:" in json.loads(
-        status_json
-    )["init"]["recoverable_errors"].get("DEPRECATED").pop(0)
-    assert "Deprecated cloud-config provided:\nca-certs:" in json.loads(
-        status_json
-    )["recoverable_errors"].get("DEPRECATED").pop(0)
+    assert (
+        "Deprecated cloud-config provided: users.0.ssh-authorized-keys"
+        in json.loads(status_json)["init"]["recoverable_errors"]
+        .get("DEPRECATED")
+        .pop(0)
+    )
+    assert (
+        "Deprecated cloud-config provided: users.0.ssh-authorized-keys:"
+        in json.loads(status_json)["recoverable_errors"]
+        .get("DEPRECATED")
+        .pop(0)
+    )
     assert "cloud-config failed schema validation" in json.loads(status_json)[
         "init"
     ]["recoverable_errors"].get("WARNING").pop(0)
