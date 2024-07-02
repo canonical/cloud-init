@@ -656,6 +656,7 @@ def _get_variant(info):
         if linux_dist in (
             "almalinux",
             "alpine",
+            "aosc",
             "arch",
             "azurelinux",
             "centos",
