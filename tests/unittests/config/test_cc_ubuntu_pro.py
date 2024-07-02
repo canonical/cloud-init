@@ -30,7 +30,7 @@ from tests.unittests.util import get_cloud
 try:
     import jsonschema
 except ImportError:
-    jsonschema = None
+    jsonschema = None  # type: ignore
 
 # Module path used in mocks
 MPATH = "cloudinit.config.cc_ubuntu_pro"
