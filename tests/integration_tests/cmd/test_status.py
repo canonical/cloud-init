@@ -66,7 +66,8 @@ USER_DATA = """\
 users:
   - name: something
     ssh-authorized-keys: ["something"]
-ca-certs:
+  - default
+ca_certs:
   invalid_key: true
 """
 
