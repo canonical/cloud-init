@@ -27,7 +27,7 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
                     )
                 mtu = v.get("mtu")
                 if mtu:
-                    content += " mtu %d" % mtu
+                    content += "\nmtu %d" % mtu
                 content += "\n" + self.interface_routes
             util.write_file(fn, content)
 
