@@ -145,11 +145,13 @@ class NMConnection:
             "dhcp": "auto",
         }
 
-        # Ensure we got an [ipvX] section
-        self._set_default(family, "method", "disabled")
+        # Ensure we have an [ipvX] section, default to disabled
+        method = "disabled"
+        self._set_default(family, "method", method)
 
         try:
-            method = method_map[subnet_type]
+            if subnet_type:
+                method = method_map[subnet_type]
         except KeyError:
             # What else can we do
             method = "auto"
@@ -340,6 +342,17 @@ class NMConnection:
         found_dns_search = []
 
         # Deal with Layer 3 configuration
+        if not iface["subnets"]:
+            # If there is no L3 subnet config for a given connection,
+            # ensure it is disabled. Without this, the interface
+            # defaults to 'auto' which implies DHCP. This is problematic
+            # for certain configurations such as bonds where the root
+            # device itself may not have a subnet config and should be
+            # disabled while a separate VLAN interface on the bond holds
+            # the subnet information.
+            for family in ["ipv4", "ipv6"]:
+                self._set_ip_method(family, None)
+
         for subnet in iface["subnets"]:
             family = "ipv6" if subnet_is_ipv6(subnet) else "ipv4"
 
