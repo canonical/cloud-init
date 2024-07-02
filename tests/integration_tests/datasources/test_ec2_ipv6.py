@@ -4,11 +4,13 @@ import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import CURRENT_RELEASE, NOBLE
 
 
 def _test_crawl(client, ip):
-    assert client.execute("cloud-init clean --logs").ok
-    assert client.execute("cloud-init init --local").ok
+    result = 2 if CURRENT_RELEASE > NOBLE else 0
+    assert result == client.execute("cloud-init clean --logs").return_code
+    assert result == client.execute("cloud-init init --local").return_code
     log = client.read_from_file("/var/log/cloud-init.log")
     assert f"Using metadata source: '{ip}'" in log
     result = re.findall(r"Crawl of metadata service.* (\d+.\d+) seconds", log)

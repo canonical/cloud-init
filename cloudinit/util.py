@@ -495,6 +495,12 @@ def multi_log(
 
 @lru_cache()
 def is_Linux():
+    """deprecated: prefer Distro object's `is_linux` property
+
+    Multiple sources of truth is bad, and already know whether we are
+    working with Linux from the Distro class. Using Distro offers greater code
+    reusablity, cleaner code, and easier maintenance.
+    """
     return "Linux" in platform.system()
 
 

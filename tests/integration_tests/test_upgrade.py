@@ -14,7 +14,7 @@ from tests.integration_tests.releases import (
     IS_UBUNTU,
     MANTIC,
 )
-from tests.integration_tests.util import verify_clean_log
+from tests.integration_tests.util import verify_clean_boot, verify_clean_log
 
 LOG = logging.getLogger("integration_testing.test_upgrade")
 
@@ -81,11 +81,8 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
         pre_cloud_blame = instance.execute("cloud-init analyze blame")
 
         # Ensure no issues pre-upgrade
-        log = instance.read_from_file("/var/log/cloud-init.log")
-        assert not json.loads(pre_result)["v1"]["errors"]
-
         try:
-            verify_clean_log(log)
+            verify_clean_boot(instance)
         except AssertionError:
             LOG.warning(
                 "There were errors/warnings/tracebacks pre-upgrade. "
@@ -122,10 +119,7 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
         post_cloud_blame = instance.execute("cloud-init analyze blame")
 
         # Ensure no issues post-upgrade
-        assert not json.loads(pre_result)["v1"]["errors"]
-
-        log = instance.read_from_file("/var/log/cloud-init.log")
-        verify_clean_log(log)
+        verify_clean_boot(instance)
 
         # Ensure important things stayed the same
         assert pre_hostname == post_hostname
