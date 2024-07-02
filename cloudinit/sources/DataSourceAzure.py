@@ -553,6 +553,43 @@ class DataSourceAzure(sources.DataSource):
             or self._ephemeral_dhcp_ctx.lease is None
         )
 
+    def _check_azure_proxy_agent_status(self) -> None:
+        """Check if azure-proxy-agent is ready for communication with WS/IMDS.
+
+        If ProvisionGuestProxyAgent is true, query azure-proxy-agent status,
+        waiting up to 120 seconds for the proxy to negotiate with Wireserver
+        and configure an eBPF proxy.  Once azure-proxy-agent is ready,
+        it will exit with code 0 and cloud-init can then expect to be able to
+        communicate with these services.
+
+        Fail deployment if azure-proxy-agent is not found or otherwise returns
+        an error.
+
+        For more information, check out:
+        https://github.com/azure/guestproxyagent
+        """
+        try:
+            cmd = [
+                "azure-proxy-agent",
+                "--status",
+                "--wait",
+                "120",
+            ]
+            out, err = subp.subp(cmd)
+            report_diagnostic_event(
+                "Running azure-proxy-agent %s resulted"
+                "in stderr output: %s with stdout: %s" % (cmd, err, out),
+                logger_func=LOG.debug,
+            )
+        except FileNotFoundError:
+            error = errors.ReportableErrorProxyAgentNotFound()
+            self._report_failure(error)
+        except subp.ProcessExecutionError as error:
+            reportable_error = errors.ReportableErrorProxyAgentStatusFailure(
+                error
+            )
+            self._report_failure(reportable_error)
+
     @azure_ds_telemetry_reporter
     def crawl_metadata(self):
         """Walk all instance metadata sources returning a dict on success.
@@ -632,6 +669,10 @@ class DataSourceAzure(sources.DataSource):
 
         imds_md = {}
         if self._is_ephemeral_networking_up():
+            # check if azure-proxy-agent is enabled in the ovf-env.xml file.
+            if cfg.get("ProvisionGuestProxyAgent"):
+                self._check_azure_proxy_agent_status()
+
             imds_md = self.get_metadata_from_imds(report_failure=True)
 
         if not imds_md and ovf_source is None:
