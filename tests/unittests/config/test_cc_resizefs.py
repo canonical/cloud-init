@@ -113,10 +113,10 @@ class TestResizefs(CiTestCase):
         )
 
     @mock.patch("cloudinit.config.cc_resizefs.LOG")
-    def test_handle_warns_on_undiscoverable_root_path_in_commandline(
+    def test_handle_warns_on_undiscoverable_root_path_in_command_line(
         self, m_log
     ):
-        """handle noops when the root path is not found on the commandline."""
+        """handle noops when the root path is not found on the command line."""
         cfg = {"resize_rootfs": True}
         exists_mock_path = "cloudinit.config.cc_resizefs.os.path.exists"
 
@@ -421,8 +421,8 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
             self.logs.getvalue(),
         )
 
-    def test_maybe_get_writable_device_path_returns_cmdline_root(self):
-        """When root device is UUID in kernel commandline, update devpath."""
+    def test_maybe_get_writable_device_path_returns_command_line_root(self):
+        """When root device is UUID in kernel command_line, update devpath."""
         # XXX Long-term we want to use FilesystemMocking test to avoid
         # touching os.stat.
         FakeStat = namedtuple(

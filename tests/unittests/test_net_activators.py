@@ -1,3 +1,4 @@
+import logging
 from collections import namedtuple
 from contextlib import ExitStack
 from unittest.mock import patch
@@ -250,6 +251,23 @@ NETWORKD_BRING_UP_CALL_LIST: list = [
     ],
 )
 class TestActivatorsBringUp:
+    @patch("cloudinit.subp.subp", return_value=("", "Some warning condition"))
+    def test_bring_up_interface_log_level_on_stderr(
+        self, m_subp, activator, expected_call_list, available_mocks, caplog
+    ):
+        """Activator stderr logged debug for netplan and warning for others."""
+        if activator == NetplanActivator:
+            log_level = logging.DEBUG
+        else:
+            log_level = logging.WARNING
+        with caplog.at_level(log_level):
+            activator.bring_up_interface("eth0")
+        index = 0
+        for call in m_subp.call_args_list:
+            assert call == expected_call_list[index]
+            index += 1
+        assert "Received stderr output: Some warning condition" in caplog.text
+
     @patch("cloudinit.subp.subp", return_value=("", ""))
     def test_bring_up_interface(
         self, m_subp, activator, expected_call_list, available_mocks

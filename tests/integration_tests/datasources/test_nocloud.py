@@ -6,11 +6,13 @@ import pytest
 from pycloudlib.lxd.instance import LXDInstance
 
 from cloudinit.subp import subp
+from cloudinit.util import should_log_deprecation
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL
 from tests.integration_tests.util import (
-    override_kernel_cmdline,
+    get_feature_flag_value,
+    override_kernel_command_line,
     verify_clean_boot,
     verify_clean_log,
 )
@@ -193,9 +195,18 @@ class TestSmbios:
         assert client.execute("cloud-init clean --logs").ok
         client.restart()
         assert client.execute("test -f /var/tmp/smbios_test_file").ok
-        assert "'nocloud-net' datasource name is deprecated" in client.execute(
-            "cloud-init status --format json"
+        version_boundary = get_feature_flag_value(
+            client, "DEPRECATION_INFO_BOUNDARY"
         )
+        # nocloud-net deprecated in version 24.1
+        if should_log_deprecation("24.1", version_boundary):
+            log_level = "DEPRECATED"
+        else:
+            log_level = "INFO"
+        client.execute(
+            rf"grep \"{log_level}]: The 'nocloud-net' datasource name is"
+            ' deprecated" /var/log/cloud-init.log'
+        ).ok
 
 
 @pytest.mark.skipif(PLATFORM != "lxd_vm", reason="Modifies grub config")
@@ -223,7 +234,7 @@ class TestFTP:
         """configure an ftp server to start prior to network timeframe
         optionally install certs and make the server support only FTP over TLS
 
-        cmdline: a string containing the kernel commandline set on reboot
+        cmdline: a string containing the kernel command line set on reboot
         client: an instance to configure
         encrypted: a boolean which modifies the configured ftp server
         """
@@ -379,8 +390,8 @@ class TestFTP:
         )
         client.write_to_file("/vendor-data", "")
 
-        # set the kernel commandline, reboot with it
-        override_kernel_cmdline(cmdline, client)
+        # set the kernel command line, reboot with it
+        override_kernel_command_line(cmdline, client)
 
     def test_nocloud_ftp_unencrypted_server_succeeds(
         self, client: IntegrationInstance

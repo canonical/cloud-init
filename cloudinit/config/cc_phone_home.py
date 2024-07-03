@@ -9,16 +9,13 @@
 """Phone Home: Post data to url"""
 
 import logging
-from textwrap import dedent
 
 from cloudinit import templater, url_helper, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
-
-frequency = PER_INSTANCE
 
 POST_LIST_ALL = [
     "pub_key_rsa",
@@ -29,69 +26,13 @@ POST_LIST_ALL = [
     "fqdn",
 ]
 
-MODULE_DESCRIPTION = """\
-This module can be used to post data to a remote host after boot is complete.
-If the post url contains the string ``$INSTANCE_ID`` it will be replaced with
-the id of the current instance. Either all data can be posted or a list of
-keys to post. Available keys are:
-
-    - ``pub_key_rsa``
-    - ``pub_key_ecdsa``
-    - ``pub_key_ed25519``
-    - ``instance_id``
-    - ``hostname``
-    - ``fdqn``
-
-Data is sent as ``x-www-form-urlencoded`` arguments.
-
-**Example HTTP POST**:
-
-.. code-block:: http
-
-    POST / HTTP/1.1
-    Content-Length: 1337
-    User-Agent: Cloud-Init/21.4
-    Accept-Encoding: gzip, deflate
-    Accept: */*
-    Content-Type: application/x-www-form-urlencoded
-
-    pub_key_rsa=rsa_contents&pub_key_ecdsa=ecdsa_contents&pub_key_ed25519=ed25519_contents&instance_id=i-87018aed&hostname=myhost&fqdn=myhost.internal
-"""
-
 meta: MetaSchema = {
     "id": "cc_phone_home",
-    "name": "Phone Home",
-    "title": "Post data to url",
-    "description": MODULE_DESCRIPTION,
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
-    "examples": [
-        dedent(
-            """\
-            phone_home:
-                url: http://example.com/$INSTANCE_ID/
-                post: all
-            """
-        ),
-        dedent(
-            """\
-            phone_home:
-                url: http://example.com/$INSTANCE_ID/
-                post:
-                    - pub_key_rsa
-                    - pub_key_ecdsa
-                    - pub_key_ed25519
-                    - instance_id
-                    - hostname
-                    - fqdn
-                tries: 5
-            """
-        ),
-    ],
     "activate_by_schema_keys": ["phone_home"],
-}
+}  # type: ignore
 
-__doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 # phone_home:
 #  url: http://my.foo.bar/$INSTANCE/

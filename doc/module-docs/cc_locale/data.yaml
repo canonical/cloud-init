@@ -1,0 +1,13 @@
+cc_locale:
+  description: |
+    Configure the system locale and apply it system-wide. By default, use the
+    locale specified by the datasource.
+  examples:
+  - comment: |
+      Example 1: Set the locale to ``"ar_AE"``
+    file: cc_locale/example1.yaml
+  - comment: |
+      Example 2: Set the locale to ``"fr_CA"`` in ``/etc/alternate_path/locale``
+    file: cc_locale/example2.yaml
+  name: Locale
+  title: Set system locale

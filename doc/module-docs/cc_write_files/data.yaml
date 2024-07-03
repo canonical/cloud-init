@@ -1,0 +1,40 @@
+cc_write_files:
+  description: |
+    Write out arbitrary content to files, optionally setting permissions.
+    Parent folders in the path are created if absent. Content can be specified
+    in plain text or binary. Data encoded with either base64 or binary gzip
+    data can be specified and will be decoded before being written. For empty
+    file creation, content can be omitted.
+
+    .. note::
+       If multi-line data is provided, care should be taken to ensure it
+       follows YAML formatting standards. To specify binary data, use the YAML
+       option ``!!binary``.
+
+    .. note::
+       Do not write files under ``/tmp`` during boot because of a race with
+       ``systemd-tmpfiles-clean`` that can cause temporary files to be cleaned
+       during the early boot process. Use ``/run/somedir`` instead to avoid
+       a race (LP: #1707222).
+
+    .. warning::
+       Existing files will be overridden.
+  examples:
+  - comment: |
+      Example 1: Write out base64-encoded content to ``/etc/sysconfig/selinux``.
+    file: cc_write_files/example1.yaml
+  - comment: |
+      Example 2: Appending content to an existing file.
+    file: cc_write_files/example2.yaml
+  - comment: |
+      Example 3: Provide gzipped binary content
+    file: cc_write_files/example3.yaml
+  - comment: |
+      Example 4: Create an empty file on the system
+    file: cc_write_files/example4.yaml
+  - comment: >
+      Example 5: Defer writing the file until after the package (Nginx) is
+      installed and its user is created.
+    file: cc_write_files/example5.yaml
+  name: Write Files
+  title: Write arbitrary files

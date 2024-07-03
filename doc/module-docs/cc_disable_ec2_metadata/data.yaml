@@ -1,0 +1,11 @@
+cc_disable_ec2_metadata:
+  description: |
+    This module can disable the EC2 datasource by rejecting the route to
+    ``169.254.169.254``, the usual route to the datasource. This module is
+    disabled by default.
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_disable_ec2_metadata/example1.yaml
+  name: Disable EC2 Metadata
+  title: Disable AWS EC2 Metadata

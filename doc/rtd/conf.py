@@ -1,8 +1,15 @@
 import datetime
+import glob
 import os
 import sys
 
 from cloudinit import version
+from cloudinit.config.schema import (
+    flatten_schema_all_of,
+    flatten_schema_refs,
+    get_schema,
+)
+from cloudinit.handlers.jinja_template import render_jinja_payload
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -36,6 +43,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.viewcode",
+    "sphinxcontrib.datatemplates",
     "sphinxcontrib.spelling",
 ]
 
@@ -44,6 +52,7 @@ extensions = [
 # https://docs.ubuntu.com/styleguide/en/
 spelling_warning = True
 
+templates_path = ["templates"]
 # Uses case-independent spelling matches from doc/rtd/spelling_word_list.txt
 spelling_filters = ["spelling.WordListFilter"]
 
@@ -167,3 +176,127 @@ notfound_context = {
     "title": "Page not found",
     "body": notfound_body,
 }
+
+
+def get_types_str(prop_cfg):
+    """Return formatted string for all supported config types."""
+    types = ""
+
+    # When oneOf present, join each alternative with an '/'
+    types += "/".join(
+        get_types_str(oneof_cfg) for oneof_cfg in prop_cfg.get("oneOf", [])
+    )
+    if "items" in prop_cfg:
+        types = f"{prop_cfg['type']} of "
+        types += get_types_str(prop_cfg["items"])
+    elif "enum" in prop_cfg:
+        types += f"{'/'.join([f'``{enum}``' for enum in prop_cfg['enum']])}"
+    elif "type" in prop_cfg:
+        if isinstance(prop_cfg["type"], list):
+            types = "/".join(prop_cfg["type"])
+        else:
+            types = prop_cfg["type"]
+    return types
+
+
+def get_changed_str(prop_name, prop_cfg):
+    changed_cfg = {}
+    if prop_cfg.get("changed"):
+        changed_cfg = prop_cfg
+    for oneof_cfg in prop_cfg.get("oneOf", []):
+        if oneof_cfg.get("changed"):
+            changed_cfg = oneof_cfg
+            break
+    if changed_cfg:
+        with open("templates/property_changed.tmpl", "r") as stream:
+            content = "## template: jinja\n" + stream.read()
+        return render_jinja_payload(
+            content, f"changed_{prop_name}", changed_cfg
+        )
+    return ""
+
+
+def get_deprecated_str(prop_name, prop_cfg):
+    deprecated_cfg = {}
+    if prop_cfg.get("deprecated"):
+        deprecated_cfg = prop_cfg
+    for oneof_cfg in prop_cfg.get("oneOf", []):
+        if oneof_cfg.get("deprecated"):
+            deprecated_cfg = oneof_cfg
+            break
+    if deprecated_cfg:
+        with open("templates/property_deprecation.tmpl", "r") as stream:
+            content = "## template: jinja\n" + stream.read()
+        return render_jinja_payload(
+            content, f"deprecation_{prop_name}", deprecated_cfg
+        )
+    return ""
+
+
+def render_property_template(prop_name, prop_cfg, prefix=""):
+    if prop_cfg.get("description"):
+        description = f" {prop_cfg['description']}"
+    else:
+        description = ""
+    description += get_deprecated_str(prop_name, prop_cfg)
+    description += get_changed_str(prop_name, prop_cfg)
+    jinja_vars = {
+        "prefix": prefix,
+        "name": prop_name,
+        "description": description,
+        "types": get_types_str(prop_cfg),
+        "prop_cfg": prop_cfg,
+    }
+    with open("templates/module_property.tmpl", "r") as stream:
+        content = "## template: jinja\n" + stream.read()
+    return render_jinja_payload(content, f"doc_module_{prop_name}", jinja_vars)
+
+
+def render_nested_properties(prop_cfg, defs, prefix):
+    prop_str = ""
+    flatten_schema_refs(prop_cfg, defs)
+    if "items" in prop_cfg:
+        prop_str += render_nested_properties(prop_cfg["items"], defs, prefix)
+    if not set(["properties", "patternProperties"]).intersection(prop_cfg):
+        return prop_str
+    for prop_name, nested_cfg in prop_cfg.get("properties", {}).items():
+        flatten_schema_all_of(nested_cfg)
+        flatten_schema_refs(nested_cfg, defs)
+        prop_str += render_property_template(prop_name, nested_cfg, prefix)
+        prop_str += render_nested_properties(nested_cfg, defs, prefix + "  ")
+    for prop_name, nested_cfg in prop_cfg.get("patternProperties", {}).items():
+        flatten_schema_all_of(nested_cfg)
+        flatten_schema_refs(nested_cfg, defs)
+        if nested_cfg.get("label"):
+            prop_name = nested_cfg.get("label")
+        prop_str += render_property_template(prop_name, nested_cfg, prefix)
+        prop_str += render_nested_properties(nested_cfg, defs, prefix + "  ")
+    return prop_str
+
+
+def render_module_schemas():
+    from cloudinit.importer import import_module
+
+    mod_docs = {}
+    schema = get_schema()
+    defs = schema.get("$defs", {})
+
+    for mod_path in glob.glob("../../cloudinit/config/cc_*py"):
+        mod_name = os.path.basename(mod_path).replace(".py", "")
+        mod = import_module(f"cloudinit.config.{mod_name}")
+        cc_key = mod.meta["id"]
+        mod_docs[cc_key] = {
+            "meta": mod.meta,
+        }
+        if cc_key in defs:
+            mod_docs[cc_key]["schema_doc"] = render_nested_properties(
+                defs[cc_key], defs, ""
+            )
+        else:
+            mod_docs[cc_key][
+                "schema_doc"
+            ] = "No schema definitions for this module"
+    return mod_docs
+
+
+html_context = render_module_schemas()

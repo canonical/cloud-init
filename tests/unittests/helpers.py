@@ -273,11 +273,8 @@ class CiTestCase(TestCase):
         self.new_root = self.tmp_dir()
         if not sys_cfg:
             sys_cfg = {}
-        tmp_paths = {}
-        for var in ["templates_dir", "run_dir", "cloud_dir"]:
-            tmp_paths[var] = self.tmp_path(var, dir=self.new_root)
-            util.ensure_dir(tmp_paths[var])
-        self.paths = ch.Paths(tmp_paths)
+        MockPaths = get_mock_paths(self.new_root)
+        self.paths = MockPaths({})
         cls = distros.fetch(distro)
         mydist = cls(distro, sys_cfg, self.paths)
         myds = DataSourceNone.DataSourceNone(sys_cfg, mydist, self.paths)
@@ -462,6 +459,24 @@ class CiRequestsMock(responses.RequestsMock):
                 f"Expected URL '{url}' to be called {count} times. "
                 f"Called {call_count} times."
             )
+
+
+def get_mock_paths(temp_dir):
+    class MockPaths(ch.Paths):
+        def __init__(self, path_cfgs: dict, ds=None):
+            super().__init__(path_cfgs=path_cfgs, ds=ds)
+
+            self.cloud_dir: str = path_cfgs.get(
+                "cloud_dir", f"{temp_dir}/var/lib/cloud"
+            )
+            self.run_dir: str = path_cfgs.get(
+                "run_dir", f"{temp_dir}/run/cloud/"
+            )
+            self.template_dir: str = path_cfgs.get(
+                "templates_dir", f"{temp_dir}/etc/cloud/templates/"
+            )
+
+    return MockPaths
 
 
 class ResponsesTestCase(CiTestCase):

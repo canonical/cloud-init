@@ -184,7 +184,7 @@ class TestBadInput(CiTestCase):
         "rh_subscription": {
             "activation-key": "abcdef1234",
             "fookey": "bar",
-            "org": "123",
+            "org": "ABC",
         }
     }
 
@@ -329,6 +329,20 @@ class TestRhSubscriptionSchema:
             (
                 {"rh_subscription": {"disable-repo": "name"}},
                 "'name' is not of type 'array'",
+            ),
+            (
+                {
+                    "rh_subscription": {
+                        "activation-key": "foobar",
+                        "org": "ABC",
+                    }
+                },
+                None,
+            ),
+            (
+                {"rh_subscription": {"activation-key": "foobar", "org": 314}},
+                "Deprecated in version 24.2. Use of type integer for this"
+                " value is deprecated. Use a string instead.",
             ),
         ],
     )

@@ -1,0 +1,16 @@
+cc_ansible:
+  description: >
+    This module provides Ansible integration for augmenting cloud-init's
+    configuration of the local node.
+
+    This module installs ``ansible`` during boot and then uses ``ansible-pull``
+    to run the playbook repository at the remote URL.
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_ansible/example1.yaml
+  - comment: |
+      Example 2:
+    file: cc_ansible/example2.yaml
+  name: Ansible
+  title: Configure Ansible for instance

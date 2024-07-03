@@ -50,6 +50,7 @@ from cloudinit.distros.package_management.utils import known_package_managers
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 from cloudinit.net import activators, dhcp, renderers
+from cloudinit.net.netops import NetOps
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.net.renderer import Renderer
 
@@ -143,7 +144,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     # This is used by self.shutdown_command(), and can be overridden in
     # subclasses
     shutdown_options_map = {"halt": "-H", "poweroff": "-P", "reboot": "-r"}
-    net_ops = iproute2.Iproute2
+    net_ops: Type[NetOps] = iproute2.Iproute2
 
     _ci_pkl_version = 1
     prefer_fqdn = False
@@ -350,7 +351,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         except activators.NoActivatorException:
             return None
 
-    def _get_renderer(self) -> Renderer:
+    @property
+    def network_renderer(self) -> Renderer:
         priority = util.get_cfg_by_path(
             self._cfg, ("network", "renderers"), None
         )
@@ -396,7 +398,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # managers.
         raise NotImplementedError()
 
-    def update_package_sources(self):
+    def update_package_sources(self, *, force=False):
         for manager in self.package_managers:
             if not manager.available():
                 LOG.debug(
@@ -405,7 +407,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 )
                 continue
             try:
-                manager.update_package_sources()
+                manager.update_package_sources(force=force)
             except Exception as e:
                 LOG.error(
                     "Failed to update package using %s: %s", manager.name, e
@@ -443,7 +445,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         Returns True if any devices failed to come up, otherwise False.
         """
-        renderer = self._get_renderer()
+        renderer = self.network_renderer
         network_state = parse_net_config_data(netconfig, renderer=renderer)
         self._write_network_state(network_state, renderer)
 
@@ -846,7 +848,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 util.deprecate(
                     deprecated=f"The value of 'false' in user {name}'s "
                     "'sudo' config",
-                    deprecated_version="22.3",
+                    deprecated_version="22.2",
                     extra_message="Use 'null' instead.",
                 )
 
@@ -921,8 +923,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         if hashed:
             # Need to use the short option name '-e' instead of '--encrypted'
-            # (which would be more descriptive) since SLES 11 doesn't know
-            # about long names.
+            # (which would be more descriptive) since Busybox and SLES 11
+            # chpasswd don't know about long names.
             cmd.append("-e")
 
         try:
@@ -1018,9 +1020,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # it actually exists as a directory
         sudoers_contents = ""
         base_exists = False
+        system_sudo_base = "/usr/etc/sudoers"
         if os.path.exists(sudo_base):
             sudoers_contents = util.load_text_file(sudo_base)
             base_exists = True
+        elif os.path.exists(system_sudo_base):
+            sudoers_contents = util.load_text_file(system_sudo_base)
         found_include = False
         for line in sudoers_contents.splitlines():
             line = line.strip()
@@ -1045,7 +1050,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                         "#includedir %s" % (path),
                         "",
                     ]
-                    sudoers_contents = "\n".join(lines)
+                    if sudoers_contents:
+                        LOG.info("Using content from '%s'", system_sudo_base)
+                    sudoers_contents += "\n".join(lines)
                     util.write_file(sudo_base, sudoers_contents, 0o440)
                 else:
                     lines = [

@@ -4,10 +4,10 @@ NoCloud
 *******
 
 The data source ``NoCloud`` is a flexible datasource that can be used in
-multiple different ways. With NoCloud, the user can provide user data and
-metadata to the instance without running a network service (or even without
-having a network at all). Alternatively, one may use a custom webserver to
-provide configurations.
+multiple different ways. With NoCloud, one can provide configurations to
+the instance without running a network service (or even without having a
+network at all). Alternatively, one can use HTTP/HTTPS or FTP/FTPS to provide
+a configuration.
 
 Configuration Methods:
 ======================
@@ -21,8 +21,8 @@ Configuration Methods:
 Method 1: Labeled filesystem
 ----------------------------
 
-A labeled `vfat`_ or `iso9660` filesystem containing user data and metadata
-files may be used. The filesystem volume must be labelled ``CIDATA``.
+A labeled `vfat`_ or `iso9660` filesystem may be used. The filesystem volume
+must be labelled ``CIDATA``.
 
 
 Method 2: Custom webserver
@@ -30,7 +30,7 @@ Method 2: Custom webserver
 
 Configuration files can be provided to cloud-init over HTTP(s). To tell
 cloud-init the URI to use, arguments must be passed to the instance via the
-kernel commandline or SMBIOS serial number. This argument might look like: ::
+kernel command line or SMBIOS serial number. This argument might look like: ::
 
   ds=nocloud;s=https://10.42.42.42/cloud-init/configs/
 
@@ -40,47 +40,82 @@ kernel commandline or SMBIOS serial number. This argument might look like: ::
    Consider using single-quotes to avoid this pitfall. See: `GRUB quoting`_
    ds=nocloud;s=http://10.42.42.42/cloud-init/configs/
 
+Alternatively, this URI may be defined in a configuration in a file
+:file:`/etc/cloud/cloud.cfg.d/*.cfg` like this: ::
+
+  datasource:
+    NoCloud:
+      seedfrom: https://10.42.42.42/cloud-init/configs/
+
 Method 3: FTP Server
 --------------------
 
 Configuration files can be provided to cloud-init over unsecured FTP
 or alternatively with FTP over TLS. To tell cloud-init the URL to use,
-arguments must be passed to the instance via the kernel commandline or SMBIOS
+arguments must be passed to the instance via the kernel command line or SMBIOS
 serial number. This argument might look like: ::
 
   ds=nocloud;s=ftps://10.42.42.42/cloud-init/configs/
 
+Alternatively, this URI may be defined in a configuration in a file
+:file:`/etc/cloud/cloud.cfg.d/*.cfg` like this: ::
 
-Method 4: Local filesystem, kernel commandline or SMBIOS
---------------------------------------------------------
+  datasource:
+    NoCloud:
+      seedfrom: ftps://10.42.42.42/cloud-init/configs/
+
+Method 4: Local filesystem
+--------------------------
 
 Configuration files can be provided on the local filesystem at specific
-filesystem paths using kernel commandline arguments or SMBIOS serial number to
+filesystem paths using kernel command line arguments or SMBIOS serial number to
 tell cloud-init where on the filesystem to look.
 
 .. note::
    Unless arbitrary filesystem paths are required, one might prefer to use
    :ref:`DataSourceNone<datasource_none_example>`, since it does not require
-   modifying the kernel commandline or SMBIOS.
+   modifying the kernel command line or SMBIOS.
 
 This argument might look like: ::
 
-  ds=nocloud;s=file://path/to/directory/;h=node-42
+  ds=nocloud;s=file://path/to/directory/
+
+Alternatively, this URI may be defined in a configuration in a file
+:file:`/etc/cloud/cloud.cfg.d/*.cfg` like this: ::
+
+  datasource:
+    NoCloud:
+      seedfrom: file://10.42.42.42/cloud-init/configs/
+
 
 Permitted keys
 ==============
 
-The permitted keys are:
+Currently three keys (and their aliases) are permitted for configuring
+cloud-init.
 
-* ``h`` or ``local-hostname``
-* ``i`` or ``instance-id``
-* ``s`` or ``seedfrom``
+The only required key is:
 
-A valid ``seedfrom`` value consists of a URI which must contain a
-trailing ``/``.
+* ``seedfrom`` alias: ``s``
 
-HTTP and HTTPS
---------------
+A valid ``seedfrom`` value consists of a URI which must contain a trailing
+``/``.
+
+Some optional keys may be used, but their use is discouraged and may
+be removed in the future.
+
+* ``local-hostname`` alias: ``h`` (:ref:`cloud-config<mod_cc_set_hostname>`
+  preferred)
+* ``instance-id`` alias: ``i``  (set instance id  in :file:`meta-data` instead)
+
+.. note::
+
+   The aliases ``s`` , ``h`` and ``i`` are only supported by kernel
+   command line or SMBIOS. When configured in a ``*.cfg`` file, the long key
+   name is required.
+
+Seedfrom: HTTP and HTTPS
+------------------------
 
 The URI elements supported by NoCloud's HTTP and HTTPS implementations
 include: ::
@@ -90,8 +125,8 @@ include: ::
 Where ``scheme`` can be ``http`` or ``https`` and ``host`` can be an IP
 address or DNS name.
 
-FTP and FTP over TLS
---------------------
+Seedfrom: FTP and FTP over TLS
+------------------------------
 
 The URI elements supported by NoCloud's FTP and FTPS implementation
 include: ::
@@ -103,21 +138,29 @@ Where ``scheme`` can be ``ftp`` or ``ftps``, ``userinfo`` will be
 ``host`` can be an IP address or DNS name, and ``port`` is which network
 port to use (default is ``21``).
 
-Path Resource
--------------
+Seedfrom: Files
+---------------
 
-The path pointed to by the URI will contain the following files:
+The path pointed to by the URI can contain the following
+files:
 
 ``user-data`` (required)
 ``meta-data`` (required)
 ``vendor-data`` (optional)
+``network-config`` (optional)
+
+If the seedfrom URI doesn't contain the required files, this datasource
+will be skipped.
 
 The ``user-data`` file uses :ref:`user data format<user_data_formats>`. The
-``meta-data`` file is a YAML-formatted file. The vendor data file adheres to
-:ref:`user data formats<user_data_formats>` at the same base URL.
+``meta-data`` file is a YAML-formatted file.
 
-DMI-specific kernel commandline
-===============================
+The ``vendor-data`` file adheres to
+:ref:`user data formats<user_data_formats>`. The ``network-config`` file
+follows cloud-init's :ref:`Network Configuration Formats<network_config_v2>`.
+
+DMI-specific kernel command line
+================================
 
 Cloud-init performs variable expansion of the ``seedfrom`` URL for any DMI
 kernel variables present in :file:`/sys/class/dmi/id` (kenv on FreeBSD).

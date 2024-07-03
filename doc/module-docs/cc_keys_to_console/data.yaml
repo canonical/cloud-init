@@ -1,0 +1,26 @@
+cc_keys_to_console:
+  description: |
+    For security reasons it may be desirable not to write SSH host keys and
+    their fingerprints to the console. To avoid either of them being written
+    to the console, the ``emit_keys_to_console`` config key under the main
+    ``ssh`` config key can be used.
+
+    To avoid the fingerprint of types of SSH host keys being written to
+    console the ``ssh_fp_console_blacklist`` config key can be used. By
+    default, all types of keys will have their fingerprints written to console.
+
+    To avoid host keys of a key type being written to console the
+    ``ssh_key_console_blacklist`` config key can be used. By default,
+    all supported host keys are written to console.
+  examples:
+  - comment: |
+      Example 1: Do not print any SSH keys to system console
+    file: cc_keys_to_console/example1.yaml
+  - comment: |
+      Example 2: Do not print certain SSH key types to console
+    file: cc_keys_to_console/example2.yaml
+  - comment: |
+      Example 3: Do not print specific SSH key fingerprints to console
+    file: cc_keys_to_console/example3.yaml
+  name: Keys to Console
+  title: Control which SSH host keys may be written to console

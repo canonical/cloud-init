@@ -1,0 +1,4 @@
+#cloud-config
+rh_subscription:
+  activation-key: foobar
+  org: "ABC"

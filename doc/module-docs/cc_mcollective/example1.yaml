@@ -1,0 +1,13 @@
+#cloud-config
+mcollective:
+  conf:
+    loglevel: debug
+    plugin.stomp.host: dbhost
+    public-cert: |
+      -------BEGIN CERTIFICATE--------
+      <cert data>
+      -------END CERTIFICATE--------
+    private-cert: |
+      -------BEGIN CERTIFICATE--------
+      <cert data>
+      -------END CERTIFICATE--------

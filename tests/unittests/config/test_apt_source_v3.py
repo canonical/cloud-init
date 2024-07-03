@@ -65,8 +65,8 @@ class TestAptSourceConfig:
 
     @staticmethod
     def _add_apt_sources(cfg, cloud, gpg, **kwargs):
-        with mock.patch.object(cc_apt_configure, "update_packages"):
-            cc_apt_configure.add_apt_sources(cfg, cloud, gpg, **kwargs)
+        # with mock.patch.object(cloud.distro, "update_package_sources"):
+        cc_apt_configure.add_apt_sources(cfg, cloud, gpg, **kwargs)
 
     @staticmethod
     def _get_default_params():
@@ -89,7 +89,7 @@ class TestAptSourceConfig:
 
         self._add_apt_sources(
             cfg,
-            cloud=None,
+            cloud=mock.Mock(),
             gpg=gpg,
             template_params=params,
             aa_repo_match=self.matcher,
@@ -185,7 +185,7 @@ class TestAptSourceConfig:
         params = self._get_default_params()
         self._add_apt_sources(
             cfg,
-            cloud=None,
+            cloud=mock.Mock(),
             gpg=gpg,
             template_params=params,
             aa_repo_match=self.matcher,
@@ -261,10 +261,11 @@ class TestAptSourceConfig:
         """
         params = self._get_default_params()
 
+        cloud = get_cloud()
         with mock.patch.object(cc_apt_configure, "add_apt_key") as mockobj:
             self._add_apt_sources(
                 cfg,
-                cloud=None,
+                cloud=cloud,
                 gpg=gpg,
                 template_params=params,
                 aa_repo_match=self.matcher,
@@ -274,9 +275,9 @@ class TestAptSourceConfig:
         calls = []
         for key in cfg:
             if is_hardened is not None:
-                calls.append(call(cfg[key], None, gpg, hardened=is_hardened))
+                calls.append(call(cfg[key], cloud, gpg, hardened=is_hardened))
             else:
-                calls.append(call(cfg[key], None, gpg))
+                calls.append(call(cfg[key], cloud, gpg))
 
         mockobj.assert_has_calls(calls, any_order=True)
 
@@ -389,7 +390,7 @@ class TestAptSourceConfig:
         mockobj = mocker.patch.object(cc_apt_configure, "apt_key")
         self._add_apt_sources(
             cfg,
-            cloud=None,
+            cloud=mock.Mock(),
             gpg=m_gpg,
             template_params=params,
             aa_repo_match=self.matcher,
@@ -427,7 +428,7 @@ class TestAptSourceConfig:
         mockobj = mocker.patch.object(cc_apt_configure, "apt_key")
         self._add_apt_sources(
             cfg,
-            cloud=None,
+            cloud=mock.Mock(),
             gpg=m_gpg,
             template_params=params,
             aa_repo_match=self.matcher,
@@ -458,7 +459,7 @@ class TestAptSourceConfig:
             with mock.patch.object(cc_apt_configure, "apt_key") as mockobj:
                 self._add_apt_sources(
                     cfg,
-                    cloud=None,
+                    cloud=mock.Mock(),
                     gpg=m_gpg,
                     template_params=params,
                     aa_repo_match=self.matcher,
@@ -494,7 +495,7 @@ class TestAptSourceConfig:
             ) as mockgetkey:
                 self._add_apt_sources(
                     cfg,
-                    cloud=None,
+                    cloud=mock.Mock(),
                     gpg=gpg,
                     template_params=params,
                     aa_repo_match=self.matcher,
@@ -559,7 +560,7 @@ class TestAptSourceConfig:
         with mock.patch.object(cc_apt_configure, "add_apt_key_raw") as mockadd:
             self._add_apt_sources(
                 cfg,
-                cloud=None,
+                cloud=mock.Mock(),
                 gpg=m_gpg,
                 template_params=params,
                 aa_repo_match=self.matcher,
@@ -584,7 +585,7 @@ class TestAptSourceConfig:
         with mock.patch("cloudinit.subp.subp") as mockobj:
             self._add_apt_sources(
                 cfg,
-                cloud=None,
+                cloud=mock.Mock(),
                 gpg=m_gpg,
                 template_params=params,
                 aa_repo_match=self.matcher,
@@ -614,7 +615,7 @@ class TestAptSourceConfig:
         with mock.patch("cloudinit.subp.subp") as mockobj:
             self._add_apt_sources(
                 cfg,
-                cloud=None,
+                cloud=mock.Mock(),
                 gpg=m_gpg,
                 template_params=params,
                 aa_repo_match=self.matcher,

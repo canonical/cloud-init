@@ -15,7 +15,7 @@ from cloudinit import distros, helpers, subp, util
 from cloudinit.distros import PackageList
 from cloudinit.distros import rhel_util as rhutil
 from cloudinit.distros.parsers.hostname import HostnameConf
-from cloudinit.settings import PER_INSTANCE
+from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
@@ -26,8 +26,6 @@ class Distro(distros.Distro):
     init_cmd = ["service"]
     locale_conf_fn = "/etc/sysconfig/language"
     network_conf_fn = "/etc/sysconfig/network/config"
-    network_script_tpl = "/etc/sysconfig/network/ifcfg-%s"
-    route_conf_tpl = "/etc/sysconfig/network/ifroute-%s"
     systemd_hostname_conf_fn = "/etc/hostname"
     systemd_locale_conf_fn = "/etc/locale.conf"
     tz_local_fn = "/etc/localtime"
@@ -150,12 +148,12 @@ class Distro(distros.Distro):
             # This ensures that the correct tz will be used for the system
             util.copy(tz_file, self.tz_local_fn)
 
-    def update_package_sources(self):
+    def update_package_sources(self, *, force=False):
         self._runner.run(
             "update-sources",
             self.package_command,
             ["refresh"],
-            freq=PER_INSTANCE,
+            freq=PER_ALWAYS if force else PER_INSTANCE,
         )
 
     def _read_hostname(self, filename, default=None):

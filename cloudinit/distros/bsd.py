@@ -28,7 +28,7 @@ class BSD(distros.Distro):
     # There is no update/upgrade on OpenBSD
     pkg_cmd_update_prefix: Optional[List[str]] = None
     pkg_cmd_upgrade_prefix: Optional[List[str]] = None
-    net_ops = bsd_netops.BsdNetOps  # type: ignore
+    net_ops = bsd_netops.BsdNetOps
 
     def __init__(self, name, cfg, paths):
         super().__init__(name, cfg, paths)
@@ -121,6 +121,8 @@ class BSD(distros.Distro):
             if not self.pkg_cmd_upgrade_prefix:
                 return
             cmd = self.pkg_cmd_upgrade_prefix
+        else:
+            cmd = []
 
         if args and isinstance(args, str):
             cmd.append(args)
@@ -169,4 +171,5 @@ class BSD(distros.Distro):
             if m:
                 return m["dev"], m["part_slice"]
 
-        return distros.Distro.device_part_info(devpath)
+        # the input is bogus and we need to bail
+        raise ValueError(f"Invalid value for devpath: '{devpath}'")

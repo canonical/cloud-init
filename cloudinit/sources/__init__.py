@@ -317,7 +317,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self.sys_cfg = sys_cfg
         self.distro = distro
         self.paths = paths
-        self.userdata = None
+        self.userdata: Optional[Any] = None
         self.metadata: dict = {}
         self.userdata_raw: Optional[str] = None
         self.vendordata = None
@@ -359,7 +359,6 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         if not hasattr(self, "check_if_fallback_is_allowed"):
             setattr(self, "check_if_fallback_is_allowed", lambda: False)
-
         if hasattr(self, "userdata") and self.userdata is not None:
             # If userdata stores MIME data, on < python3.6 it will be
             # missing the 'policy' attribute that exists on >=python3.6.
@@ -386,7 +385,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def override_ds_detect(self) -> bool:
         """Override if either:
         - only a single datasource defined (nothing to fall back to)
-        - commandline argument is used (ci.ds=OpenStack)
+        - command line argument is used (ci.ds=OpenStack)
 
         Note: get_cmdline() is required for the general case - when ds-identify
         does not run, _something_ needs to detect the kernel command line
@@ -394,7 +393,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
         if self.dsname.lower() == parse_cmdline().lower():
             LOG.debug(
-                "Machine is configured by the kernel commandline to run on "
+                "Machine is configured by the kernel command line to run on "
                 "single datasource %s.",
                 self,
             )
@@ -484,6 +483,12 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
         self._dirty_cache = True
         return_value = self._check_and_get_data()
+        # TODO: verify that datasource types are what they are expected to be
+        # each datasource uses different logic to get userdata, metadata, etc
+        # and then the rest of the codebase assumes the types of this data
+        # it would be prudent to have a type check here that warns, when the
+        # datatype is incorrect, rather than assuming types and throwing
+        # exceptions later if/when they get used incorrectly.
         if not return_value:
             return return_value
         self.persist_instance_data()
@@ -725,10 +730,6 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         for f in filters:
             new_ud = f.apply(new_ud)
         return new_ud
-
-    @property
-    def is_disconnected(self):
-        return False
 
     def get_userdata_raw(self):
         return self.userdata_raw
@@ -1232,7 +1233,7 @@ def parse_cmdline_or_dmi(input: str) -> str:
         dsname = deprecated.group(1).strip()
         util.deprecate(
             deprecated=(
-                f"Defining the datasource on the commandline using "
+                f"Defining the datasource on the command line using "
                 f"ci.ds={dsname} or "
                 f"ci.datasource={dsname}"
             ),

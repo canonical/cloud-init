@@ -722,7 +722,7 @@ def _rename_interfaces(
     LOG.debug("Detected interfaces %s", cur_info)
 
     def update_byname(bymac):
-        return dict((data["name"], data) for data in cur_info.values())
+        return dict((data["name"], data) for data in bymac.values())
 
     ops = []
     errors = []

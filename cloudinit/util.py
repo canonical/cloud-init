@@ -49,6 +49,7 @@ from typing import (
     Generator,
     List,
     Mapping,
+    NamedTuple,
     Optional,
     Sequence,
     TypeVar,
@@ -61,6 +62,7 @@ import yaml
 from cloudinit import (
     features,
     importer,
+    log,
     mergers,
     net,
     settings,
@@ -87,6 +89,11 @@ FN_ALLOWED = "_-.()" + string.digits + string.ascii_letters
 
 TRUE_STRINGS = ("true", "1", "on", "yes")
 FALSE_STRINGS = ("off", "0", "no", "false")
+
+
+class DeprecationLog(NamedTuple):
+    log_level: int
+    message: str
 
 
 def kernel_version():
@@ -350,8 +357,6 @@ def read_conf(fname, *, instance_data_file=None) -> Dict:
                 config_file,
                 repr(e),
             )
-    if config_file is None:
-        return {}
     return load_yaml(config_file, default={})  # pyright: ignore
 
 
@@ -1042,7 +1047,7 @@ def load_yaml(blob, default=None, allowed=(dict,)):
     return loaded
 
 
-def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
+def read_seeded(base="", ext="", timeout=5, retries=10):
     if base.find("%s") >= 0:
         ud_url = base.replace("%s", "user-data" + ext)
         vd_url = base.replace("%s", "vendor-data" + ext)
@@ -3114,13 +3119,49 @@ def error(msg, rc=1, fmt="Error:\n{}", sys_exit=False):
 
 @total_ordering
 class Version(namedtuple("Version", ["major", "minor", "patch", "rev"])):
-    def __new__(cls, major=-1, minor=-1, patch=-1, rev=-1):
+    """A class for comparing versions.
+
+    Implemented as a named tuple with all ordering methods. Comparisons
+    between X.Y.N and X.Y always treats the more specific number as larger.
+
+    :param major: the most significant number in a version
+    :param minor: next greatest significant number after major
+    :param patch: next greatest significant number after minor
+    :param rev: the least significant number in a version
+
+    :raises TypeError: If invalid arguments are given.
+    :raises ValueError: If invalid arguments are given.
+
+    Examples:
+        >>> Version(2, 9) == Version.from_str("2.9")
+        True
+        >>> Version(2, 9, 1) > Version.from_str("2.9.1")
+        False
+        >>> Version(3, 10) > Version.from_str("3.9.9.9")
+        True
+        >>> Version(3, 7) >= Version.from_str("3.7")
+        True
+
+    """
+
+    def __new__(
+        cls, major: int = -1, minor: int = -1, patch: int = -1, rev: int = -1
+    ) -> "Version":
         """Default of -1 allows us to tiebreak in favor of the most specific
         number"""
         return super(Version, cls).__new__(cls, major, minor, patch, rev)
 
     @classmethod
-    def from_str(cls, version: str):
+    def from_str(cls, version: str) -> "Version":
+        """Create a Version object from a string.
+
+        :param version: A period-delimited version string, max 4 segments.
+
+        :raises TypeError: Raised if invalid arguments are given.
+        :raises ValueError: Raised if invalid arguments are given.
+
+        :return: A Version object.
+        """
         return cls(*(list(map(int, version.split(".")))))
 
     def __gt__(self, other):
@@ -3145,15 +3186,15 @@ class Version(namedtuple("Version", ["major", "minor", "patch", "rev"])):
     def __str__(self):
         return ".".join(self)
 
-    def _compare_version(self, other) -> int:
-        """
-        return values:
-            1: self > v2
-            -1: self < v2
-            0: self == v2
+    def __hash__(self):
+        return hash(str(self))
 
-        to break a tie between 3.1.N and 3.1, always treat the more
-        specific number as larger
+    def _compare_version(self, other: "Version") -> int:
+        """Compare this Version to another.
+
+        :param other: A Version object.
+
+        :return: -1 if self > other, 1 if self < other, else 0
         """
         if self == other:
             return 0
@@ -3168,14 +3209,27 @@ class Version(namedtuple("Version", ["major", "minor", "patch", "rev"])):
         return -1
 
 
+def should_log_deprecation(version: str, boundary_version: str) -> bool:
+    """Determine if a deprecation message should be logged.
+
+    :param version: The version in which the thing was deprecated.
+    :param boundary_version: The version at which deprecation level is logged.
+
+    :return: True if the message should be logged, else False.
+    """
+    return boundary_version == "devel" or Version.from_str(
+        version
+    ) <= Version.from_str(boundary_version)
+
+
 def deprecate(
     *,
     deprecated: str,
     deprecated_version: str,
     extra_message: Optional[str] = None,
     schedule: int = 5,
-    return_log: bool = False,
-):
+    skip_log: bool = False,
+) -> DeprecationLog:
     """Mark a "thing" as deprecated. Deduplicated deprecations are
     logged.
 
@@ -3191,13 +3245,15 @@ def deprecate(
     @param schedule: Manually set the deprecation schedule. Defaults to
         5 years. Leave a comment explaining your reason for deviation if
         setting this value.
-    @param return_log: Return log text rather than logging it. Useful for
+    @param skip_log: Return log text rather than logging it. Useful for
         running prior to logging setup.
+    @return: NamedTuple containing log level and log message
+        DeprecationLog(level: int, message: str)
 
     Note: uses keyword-only arguments to improve legibility
     """
-    if not hasattr(deprecate, "_log"):
-        deprecate._log = set()  # type: ignore
+    if not hasattr(deprecate, "log"):
+        setattr(deprecate, "log", set())
     message = extra_message or ""
     dedup = hash(deprecated + message + deprecated_version + str(schedule))
     version = Version.from_str(deprecated_version)
@@ -3207,14 +3263,19 @@ def deprecate(
         f"{deprecated_version} and scheduled to be removed in "
         f"{version_removed}. {message}"
     ).rstrip()
-    if return_log:
-        return deprecate_msg
-    if dedup not in deprecate._log:  # type: ignore
-        deprecate._log.add(dedup)  # type: ignore
-        if hasattr(LOG, "deprecated"):
-            LOG.deprecated(deprecate_msg)  # type: ignore
-        else:
-            LOG.warning(deprecate_msg)
+    if not should_log_deprecation(
+        deprecated_version, features.DEPRECATION_INFO_BOUNDARY
+    ):
+        level = logging.INFO
+    elif hasattr(LOG, "deprecated"):
+        level = log.DEPRECATED
+    else:
+        level = logging.WARN
+    log_cache = getattr(deprecate, "log")
+    if not skip_log and dedup not in log_cache:
+        log_cache.add(dedup)
+        LOG.log(level, deprecate_msg)
+    return DeprecationLog(level, deprecate_msg)
 
 
 def deprecate_call(

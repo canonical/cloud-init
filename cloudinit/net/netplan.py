@@ -6,7 +6,7 @@ import logging
 import os
 import textwrap
 from tempfile import SpooledTemporaryFile
-from typing import Optional, cast
+from typing import Callable, List, Optional
 
 from cloudinit import features, safeyaml, subp, util
 from cloudinit.net import (
@@ -48,7 +48,7 @@ def _get_params_dict_by_match(config, match):
     )
 
 
-def _extract_addresses(config: dict, entry: dict, ifname, features=None):
+def _extract_addresses(config: dict, entry: dict, ifname, features: Callable):
     """This method parse a cloudinit.net.network_state dictionary (config) and
        maps netstate keys/values into a dictionary (entry) to represent
        netplan yaml. (config v1 -> netplan)
@@ -98,8 +98,6 @@ def _extract_addresses(config: dict, entry: dict, ifname, features=None):
                 obj,
             ]
 
-    if features is None:
-        features = []
     addresses = []
     routes = []
     nameservers = []
@@ -142,7 +140,7 @@ def _extract_addresses(config: dict, entry: dict, ifname, features=None):
                 searchdomains += _listify(subnet.get("dns_search", []))
             if "mtu" in subnet:
                 mtukey = "mtu"
-                if subnet_is_ipv6(subnet) and "ipv6-mtu" in features:
+                if subnet_is_ipv6(subnet) and "ipv6-mtu" in features():
                     mtukey = "ipv6-mtu"
                 entry.update({mtukey: subnet.get("mtu")})
             for route in subnet.get("routes", []):
@@ -311,11 +309,10 @@ class Renderer(renderer.Renderer):
         self.netplan_header = config.get("netplan_header", None)
         self._postcmds = config.get("postcmds", False)
         self.clean_default = config.get("clean_default", True)
-        self._features = config.get("features", None)
+        self._features = config.get("features") or []
 
-    @property
-    def features(self):
-        if self._features is None:
+    def features(self) -> List[str]:
+        if not self._features:
             try:
                 info_blob, _err = subp.subp(self.NETPLAN_INFO, capture=True)
                 info = util.load_yaml(info_blob)
@@ -381,6 +378,9 @@ class Renderer(renderer.Renderer):
         if not run:
             LOG.debug("netplan net_setup_link postcmd disabled")
             return
+        elif "net.ifnames=0" in util.get_cmdline():
+            LOG.debug("Predictable interface names disabled.")
+            return
         setup_lnk = ["udevadm", "test-builtin", "net_setup_link"]
 
         # It's possible we can race a udev rename and attempt to run
@@ -405,7 +405,6 @@ class Renderer(renderer.Renderer):
             ) from last_exception
 
     def _render_content(self, network_state: NetworkState) -> str:
-
         # if content already in netplan format, pass it back
         if network_state.version == 2:
             LOG.debug("V2 to V2 passthrough")
@@ -455,13 +454,10 @@ class Renderer(renderer.Renderer):
                 bond_config = {}
                 # extract bond params and drop the bond_ prefix as it's
                 # redundant in v2 yaml format
-                v2_bond_map = cast(dict, NET_CONFIG_TO_V2.get("bond"))
-                # Previous cast is needed to help mypy to know that the key is
-                # present in `NET_CONFIG_TO_V2`. This could probably be removed
-                # by using `Literal` when supported.
+                v2_bond_map = NET_CONFIG_TO_V2["bond"]
                 for match in ["bond_", "bond-"]:
                     bond_params = _get_params_dict_by_match(ifcfg, match)
-                    for (param, value) in bond_params.items():
+                    for param, value in bond_params.items():
                         newname = v2_bond_map.get(param.replace("_", "-"))
                         if newname is None:
                             continue
@@ -479,9 +475,18 @@ class Renderer(renderer.Renderer):
 
             elif if_type == "bridge":
                 # required_keys = ['name', 'bridge_ports']
+                #
+                # Rather than raise an exception on `sorted(None)`, log a
+                # warning and skip this interface when invalid configuration is
+                # received.
                 bridge_ports = ifcfg.get("bridge_ports")
-                # mypy wrong error. `copy(None)` is supported:
-                ports = sorted(copy.copy(bridge_ports))  # type: ignore
+                if bridge_ports is None:
+                    LOG.warning(
+                        "Invalid config. The key",
+                        f"'bridge_ports' is required in {config}.",
+                    )
+                    continue
+                ports = sorted(copy.copy(bridge_ports))
                 bridge: dict = {
                     "interfaces": ports,
                 }
@@ -493,11 +498,8 @@ class Renderer(renderer.Renderer):
 
                 # v2 yaml uses different names for the keys
                 # and at least one value format change
-                v2_bridge_map = cast(dict, NET_CONFIG_TO_V2.get("bridge"))
-                # Previous cast is needed to help mypy to know that the key is
-                # present in `NET_CONFIG_TO_V2`. This could probably be removed
-                # by using `Literal` when supported.
-                for (param, value) in params.items():
+                v2_bridge_map = NET_CONFIG_TO_V2["bridge"]
+                for param, value in params.items():
                     newname = v2_bridge_map.get(param)
                     if newname is None:
                         continue

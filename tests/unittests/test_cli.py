@@ -21,14 +21,6 @@ Tmpdir = namedtuple("Tmpdir", ["tmpdir", "link_d", "data_d"])
 FakeArgs = namedtuple("FakeArgs", ["action", "local", "mode"])
 
 
-@pytest.fixture()
-def mock_get_user_data_file(mocker, tmpdir):
-    yield mocker.patch(
-        "cloudinit.cmd.devel.logs._get_user_data_file",
-        return_value=tmpdir.join("cloud"),
-    )
-
-
 @pytest.fixture(autouse=True, scope="module")
 def disable_setup_logging():
     # setup_basic_logging can change the logging level to WARNING, so
@@ -136,7 +128,9 @@ class TestCLI:
         """When running in init-local mode, status_wrapper honors cloud_dir."""
         cloud_dir = mock_status_wrapper.tmpdir.join("cloud")
         paths = helpers.Paths({"cloud_dir": str(cloud_dir)})
-        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
+        mocker.patch(
+            "cloudinit.config.schema.read_cfg_paths", return_value=paths
+        )
         data_d = mock_status_wrapper.data_d
         link_d = mock_status_wrapper.link_d
 
@@ -253,13 +247,11 @@ class TestCLI:
             "schema",
         ],
     )
-    @mock.patch("cloudinit.stages.Init._read_cfg", return_value={})
     def test_conditional_subcommands_from_entry_point_sys_argv(
         self,
-        m_read_cfg,
         subcommand,
         capsys,
-        mock_get_user_data_file,
+        m_log_paths,
         mock_status_wrapper,
     ):
         """Subcommands from entry-point are properly parsed from sys.argv."""
@@ -282,7 +274,7 @@ class TestCLI:
         ],
     )
     def test_subcommand_parser(
-        self, subcommand, mock_get_user_data_file, mock_status_wrapper
+        self, subcommand, m_log_paths, mock_status_wrapper
     ):
         """cloud-init `subcommand` calls its subparser."""
         # Provide -h param to `subcommand` to avoid having to mock behavior.
@@ -335,7 +327,7 @@ class TestCLI:
                     "sle_hpc, sle-micro, sles, TencentOS, ubuntu, virtuozzo",
                     " **resize_rootfs:** ",
                     "(``true``/``false``/``noblock``)",
-                    "runcmd:\n             - [ ls, -l, / ]\n",
+                    "runcmd:\n         - [ls, -l, /]\n",
                 ],
                 False,
                 id="all_spot_check",
@@ -368,7 +360,13 @@ class TestCLI:
     )
     @mock.patch("cloudinit.stages.Init._read_cfg", return_value={})
     def test_wb_schema_subcommand(
-        self, m_read_cfg, args, expected_doc_sections, is_error
+        self,
+        m_read_cfg,
+        args,
+        expected_doc_sections,
+        is_error,
+        mocker,
+        request,
     ):
         """Validate that doc content has correct values."""
 
@@ -381,6 +379,12 @@ class TestCLI:
             contextlib.redirect_stderr
             if is_error
             else contextlib.redirect_stdout
+        )
+        paths = helpers.Paths(
+            {"docs_dir": os.path.join(request.config.rootdir, "doc")}
+        )
+        mocker.patch(
+            "cloudinit.config.schema.read_cfg_paths", return_value=paths
         )
         with redirecter(out_or_err):
             self._call_main(["cloud-init", "schema", "--docs"] + args)

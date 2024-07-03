@@ -6,77 +6,21 @@
 """Red Hat Subscription: Register Red Hat Enterprise Linux based system"""
 
 import logging
-from textwrap import dedent
 
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
-MODULE_DESCRIPTION = """\
-Register a Red Hat system either by username and password *or* activation and
-org. Following a successful registration, you can:
-
- - auto-attach subscriptions
- - set the service level
- - add subscriptions based on pool id
- - enable/disable yum repositories based on repo id
- - alter the rhsm_baseurl and server-hostname in ``/etc/rhsm/rhs.conf``.
-"""
-
 meta: MetaSchema = {
     "id": "cc_rh_subscription",
-    "name": "Red Hat Subscription",
-    "title": "Register Red Hat Enterprise Linux based system",
-    "description": MODULE_DESCRIPTION,
     "distros": ["fedora", "rhel", "openeuler"],
     "frequency": PER_INSTANCE,
-    "examples": [
-        dedent(
-            """\
-            rh_subscription:
-                username: joe@foo.bar
-                ## Quote your password if it has symbols to be safe
-                password: '1234abcd'
-            """
-        ),
-        dedent(
-            """\
-            rh_subscription:
-                activation-key: foobar
-                org: 12345
-            """
-        ),
-        dedent(
-            """\
-            rh_subscription:
-                activation-key: foobar
-                org: 12345
-                auto-attach: true
-                service-level: self-support
-                add-pool:
-                  - 1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a
-                  - 2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b
-                enable-repo:
-                  - repo-id-to-enable
-                  - other-repo-id-to-enable
-                disable-repo:
-                  - repo-id-to-disable
-                  - other-repo-id-to-disable
-                # Alter the baseurl in /etc/rhsm/rhsm.conf
-                rhsm-baseurl: http://url
-                # Alter the server hostname in /etc/rhsm/rhsm.conf
-                server-hostname: foo.bar.com
-            """
-        ),
-    ],
     "activate_by_schema_keys": ["rh_subscription"],
-}
-
-__doc__ = get_meta_doc(meta)
+}  # type: ignore
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:

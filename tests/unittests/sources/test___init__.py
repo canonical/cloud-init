@@ -44,8 +44,8 @@ openstack_ds_name = ds.DataSourceOpenStack.dsname.lower()
         ("foo bonding.max_bonds=0 ds=nocloud-net bar", "nocloud-net"),
     ),
 )
-def test_ds_detect_kernel_commandline(m_cmdline, expected_ds):
-    """check commandline match"""
+def test_ds_detect_kernel_command_line(m_cmdline, expected_ds):
+    """check command line match"""
     with mock.patch(
         "cloudinit.util.get_cmdline",
         return_value=m_cmdline,

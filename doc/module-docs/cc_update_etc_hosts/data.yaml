@@ -1,0 +1,55 @@
+cc_update_etc_hosts:
+  description: |
+    This module will update the contents of the local hosts database (hosts
+    file, usually ``/etc/hosts``) based on the hostname/FQDN specified in
+    config. Management of the hosts file is controlled using
+    ``manage_etc_hosts``. If this is set to ``false``, cloud-init will not
+    manage the hosts file at all. This is the default behavior.
+
+    If set to ``true``, cloud-init will generate the hosts file using the
+    template located in ``/etc/cloud/templates/hosts.tmpl``. In the
+    ``/etc/cloud/templates/hosts.tmpl`` template, the strings ``$hostname``
+    and ``$fqdn`` will be replaced with the hostname and FQDN respectively.
+    
+    If ``manage_etc_hosts`` is set to ``localhost``, then cloud-init will not
+    rewrite the hosts file entirely, but rather will ensure that an entry for
+    the FQDN with a distribution-dependent IP is present (i.e.,
+    ``ping <hostname>`` will ping ``127.0.0.1`` or ``127.0.1.1`` or other IP).
+    
+    .. note::
+       If ``manage_etc_hosts`` is set to ``true``, the contents of the
+       ``hosts`` file will be updated every boot. To make any changes to the
+       ``hosts`` file persistent they must be made in
+       ``/etc/cloud/templates/hosts.tmpl``.
+       
+    .. note::
+       For instructions on specifying hostname and FQDN, see documentation for
+       the ``cc_set_hostname`` module.
+  examples:
+  - comment: >
+      Example 1: Do not update or manage ``/etc/hosts`` at all. This is the
+      default behavior. Whatever is present at instance boot time will be
+      present after boot. User changes will not be overwritten.
+    file: cc_update_etc_hosts/example1.yaml
+  - comment: >
+      Example 2: Manage ``/etc/hosts`` with cloud-init. On every boot,
+      ``/etc/hosts`` will be re-written from
+      ``/etc/cloud/templates/hosts.tmpl``.
+
+      The strings ``$hostname`` and ``$fqdn`` are replaced in the template
+      with the appropriate values, either from the config-config ``fqdn`` or
+      ``hostname`` if provided. When absent, the cloud metadata will be
+      checked for ``local-hostname`` which can be split into
+      ``<hostname>.<fqdn>``.
+
+      To make modifications persistent across a reboot, you must modify
+      ``/etc/cloud/templates/hosts.tmpl``.
+    file: cc_update_etc_hosts/example2.yaml
+  - comment: >
+      Example 3: Update ``/etc/hosts`` every boot, providing a "localhost"
+      ``127.0.1.1`` entry with the latest hostname and FQDN as provided by
+      either IMDS or cloud-config. All other entries will be left alone.
+      ``ping hostname`` will ping ``127.0.1.1``.
+    file: cc_update_etc_hosts/example3.yaml
+  name: Update Etc Hosts
+  title: Update the hosts file (usually ``/etc/hosts``)

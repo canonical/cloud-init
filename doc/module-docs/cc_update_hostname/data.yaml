@@ -1,0 +1,38 @@
+cc_update_hostname:
+  description: |
+    This module will update the system hostname and FQDN. If
+    ``preserve_hostname`` is set to ``true``, then the hostname will not be
+    altered.
+
+    .. note::
+       For instructions on specifying hostname and FQDN, see documentation for
+       the ``cc_set_hostname`` module.
+  examples:
+  - comment: >
+      Example 1: By default, when ``preserve_hostname`` is not specified,
+      cloud-init updates ``/etc/hostname`` per-boot based on the cloud provided
+      ``local-hostname`` setting. If you manually change ``/etc/hostname``
+      after boot cloud-init will no longer modify it.
+
+      This default cloud-init behavior is equivalent to this cloud-config:
+    file: cc_update_hostname/example1.yaml
+  - comment: |
+      Example 2: Prevent cloud-init from updating the system hostname.
+    file: cc_update_hostname/example2.yaml
+  - comment: |
+      Example 3: Prevent cloud-init from updating ``/etc/hostname``.
+    file: cc_update_hostname/example3.yaml
+  - comment: |
+      Example 4: Set hostname to ``external.fqdn.me`` instead of ``myhost``.
+    file: cc_update_hostname/example4.yaml
+  - comment: >
+      Example 5: Set hostname to ``external`` instead of ``external.fqdn.me`` when
+      cloud metadata provides the ``local-hostname``: ``external.fqdn.me``.
+    file: cc_update_hostname/example5.yaml
+  - comment: >
+      Example 6: On a machine without an ``/etc/hostname`` file, don''t create
+      it. In most clouds, this will result in a DHCP-configured hostname
+      provided by the cloud.
+    file: cc_update_hostname/example6.yaml
+  name: Update Hostname
+  title: Update hostname and FQDN

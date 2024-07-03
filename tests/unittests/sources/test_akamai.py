@@ -1,5 +1,5 @@
 from contextlib import suppress
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
 import pytest
 
@@ -17,7 +17,7 @@ class TestDataSourceAkamai:
     """
 
     def _get_datasource(
-        self, ds_cfg: Dict[str, Any] = None, local: bool = False
+        self, ds_cfg: Optional[Dict[str, Any]] = None, local: bool = False
     ) -> Union[DataSourceAkamai, DataSourceAkamaiLocal]:
         """
         Creates a test DataSource configured as provided
@@ -224,7 +224,7 @@ class TestDataSourceAkamai:
         get_interfaces_by_mac,
         local_stage: bool,
         ds_cfg: Dict[str, Any],
-        expected_manager_config: List[Tuple[Tuple[bool, bool], bool]],
+        expected_manager_config: List,
         expected_interface: str,
     ):
         """

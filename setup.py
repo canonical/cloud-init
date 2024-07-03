@@ -28,7 +28,6 @@ sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 # isort: off
 from setup_utils import (  # noqa: E402
     get_version,
-    in_virtualenv,
     is_f,
     is_generator,
     pkg_config_read,
@@ -266,13 +265,12 @@ class InitsysInstallData(install):
         self.distribution.reinitialize_command("install_data", True)
 
 
-if not in_virtualenv():
-    USR = "/" + USR
-    ETC = "/" + ETC
-    USR_LIB_EXEC = "/" + USR_LIB_EXEC
-    LIB = "/" + LIB
-    for k in INITSYS_ROOTS.keys():
-        INITSYS_ROOTS[k] = "/" + INITSYS_ROOTS[k]
+USR = "/" + USR
+ETC = "/" + ETC
+USR_LIB_EXEC = "/" + USR_LIB_EXEC
+LIB = "/" + LIB
+for k in INITSYS_ROOTS.keys():
+    INITSYS_ROOTS[k] = "/" + INITSYS_ROOTS[k]
 
 data_files = [
     (ETC + "/cloud", [render_tmpl("config/cloud.cfg.tmpl", is_yaml=True)]),
@@ -301,11 +299,14 @@ data_files = [
         USR + "/share/doc/cloud-init/examples/seed",
         [f for f in glob("doc/examples/seed/*") if is_f(f)],
     ),
+    (
+        USR + "/share/doc/cloud-init/module-docs",
+        [f for f in glob("doc/module-docs/*", recursive=True) if is_f(f)],
+    ),
 ]
 if not platform.system().endswith("BSD"):
     RULES_PATH = pkg_config_read("udev", "udevdir")
-    if not in_virtualenv():
-        RULES_PATH = "/" + RULES_PATH
+    RULES_PATH = "/" + RULES_PATH
 
     data_files.extend(
         [

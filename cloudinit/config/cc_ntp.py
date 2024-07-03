@@ -9,12 +9,11 @@
 import copy
 import logging
 import os
-from textwrap import dedent
 
 from cloudinit import subp, temp_utils, templater, type_utils, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
@@ -255,77 +254,10 @@ for distro in ("sle_hpc", "sle-micro"):
 
 meta: MetaSchema = {
     "id": "cc_ntp",
-    "name": "NTP",
-    "title": "enable and configure ntp",
-    "description": dedent(
-        """\
-        Handle ntp configuration. If ntp is not installed on the system and
-        ntp configuration is specified, ntp will be installed. If there is a
-        default ntp config file in the image or one is present in the
-        distro's ntp package, it will be copied to a file with ``.dist``
-        appended to the filename before any changes are made. A list of ntp
-        pools and ntp servers can be provided under the ``ntp`` config key.
-        If no ntp ``servers`` or ``pools`` are provided, 4 pools will be used
-        in the format ``{0-3}.{distro}.pool.ntp.org``."""
-    ),
     "distros": distros,
-    "examples": [
-        dedent(
-            """\
-        # Override ntp with chrony configuration on Ubuntu
-        ntp:
-          enabled: true
-          ntp_client: chrony  # Uses cloud-init default chrony configuration
-        """
-        ),
-        dedent(
-            """\
-        # Provide a custom ntp client configuration
-        ntp:
-          enabled: true
-          ntp_client: myntpclient
-          config:
-             confpath: /etc/myntpclient/myntpclient.conf
-             check_exe: myntpclientd
-             packages:
-               - myntpclient
-             service_name: myntpclient
-             template: |
-                 ## template:jinja
-                 # My NTP Client config
-                 {% if pools -%}# pools{% endif %}
-                 {% for pool in pools -%}
-                 pool {{pool}} iburst
-                 {% endfor %}
-                 {%- if servers %}# servers
-                 {% endif %}
-                 {% for server in servers -%}
-                 server {{server}} iburst
-                 {% endfor %}
-                 {% if peers -%}# peers{% endif %}
-                 {% for peer in peers -%}
-                 peer {{peer}}
-                 {% endfor %}
-                 {% if allow -%}# allow{% endif %}
-                 {% for cidr in allow -%}
-                 allow {{cidr}}
-                 {% endfor %}
-          pools: [0.int.pool.ntp.org, 1.int.pool.ntp.org, ntp.myorg.org]
-          servers:
-            - ntp.server.local
-            - ntp.ubuntu.com
-            - 192.168.23.2
-          allow:
-            - 192.168.23.0/32
-          peers:
-            - km001
-            - km002"""
-        ),
-    ],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["ntp"],
-}
-__doc__ = get_meta_doc(meta)
+}  # type: ignore
 
 
 REQUIRED_NTP_CONFIG_KEYS = frozenset(

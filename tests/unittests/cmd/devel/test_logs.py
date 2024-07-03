@@ -35,7 +35,9 @@ class TestCollectLogs:
             " Try sudo cloud-init collect-logs\n" == m_stderr.getvalue()
         )
 
-    def test_collect_logs_creates_tarfile(self, m_getuid, mocker, tmpdir):
+    def test_collect_logs_creates_tarfile(
+        self, m_getuid, m_log_paths, mocker, tmpdir
+    ):
         """collect-logs creates a tarfile with all related cloud-init info."""
         m_getuid.return_value = 100
         log1 = tmpdir.join("cloud-init.log")
@@ -46,12 +48,10 @@ class TestCollectLogs:
         write_file(log2, "cloud-init-output-log")
         log2_rotated = tmpdir.join("cloud-init-output.log.1.gz")
         write_file(log2_rotated, "cloud-init-output-log-rotated")
-        run_dir = tmpdir.join("run")
-        write_file(run_dir.join("results.json"), "results")
+        run_dir = m_log_paths.run_dir
+        write_file(str(run_dir / "results.json"), "results")
         write_file(
-            run_dir.join(
-                INSTANCE_JSON_SENSITIVE_FILE,
-            ),
+            str(m_log_paths.instance_data_sensitive),
             "sensitive",
         )
         output_tarfile = str(tmpdir.join("logs.tgz"))
@@ -108,7 +108,6 @@ class TestCollectLogs:
             M_PATH + "subprocess.call", side_effect=fake_subprocess_call
         )
         mocker.patch(M_PATH + "sys.stderr", fake_stderr)
-        mocker.patch(M_PATH + "CLOUDINIT_RUN_DIR", run_dir)
         mocker.patch(M_PATH + "INSTALLER_APPORT_FILES", [])
         mocker.patch(M_PATH + "INSTALLER_APPORT_SENSITIVE_FILES", [])
         logs.collect_logs(output_tarfile, include_userdata=False)
@@ -155,7 +154,7 @@ class TestCollectLogs:
         fake_stderr.write.assert_any_call("Wrote %s\n" % output_tarfile)
 
     def test_collect_logs_includes_optional_userdata(
-        self, m_getuid, mocker, tmpdir
+        self, m_getuid, mocker, tmpdir, m_log_paths
     ):
         """collect-logs include userdata when --include-userdata is set."""
         m_getuid.return_value = 0
@@ -163,12 +162,12 @@ class TestCollectLogs:
         write_file(log1, "cloud-init-log")
         log2 = tmpdir.join("cloud-init-output.log")
         write_file(log2, "cloud-init-output-log")
-        userdata = tmpdir.join("user-data.txt")
-        write_file(userdata, "user-data")
-        run_dir = tmpdir.join("run")
-        write_file(run_dir.join("results.json"), "results")
+        userdata = m_log_paths.userdata_raw
+        write_file(str(userdata), "user-data")
+        run_dir = m_log_paths.run_dir
+        write_file(str(run_dir / "results.json"), "results")
         write_file(
-            run_dir.join(INSTANCE_JSON_SENSITIVE_FILE),
+            str(m_log_paths.instance_data_sensitive),
             "sensitive",
         )
         output_tarfile = str(tmpdir.join("logs.tgz"))
@@ -223,23 +222,21 @@ class TestCollectLogs:
             M_PATH + "subprocess.call", side_effect=fake_subprocess_call
         )
         mocker.patch(M_PATH + "sys.stderr", fake_stderr)
-        mocker.patch(M_PATH + "CLOUDINIT_RUN_DIR", run_dir)
         mocker.patch(M_PATH + "INSTALLER_APPORT_FILES", [])
         mocker.patch(M_PATH + "INSTALLER_APPORT_SENSITIVE_FILES", [])
-        mocker.patch(M_PATH + "_get_user_data_file", return_value=userdata)
         logs.collect_logs(output_tarfile, include_userdata=True)
         # unpack the tarfile and check file contents
         subp(["tar", "zxvf", output_tarfile, "-C", str(tmpdir)])
         out_logdir = tmpdir.join(date_logdir)
         assert "user-data" == load_text_file(
-            os.path.join(out_logdir, "user-data.txt")
+            os.path.join(out_logdir, userdata.name)
         )
         assert "sensitive" == load_text_file(
             os.path.join(
                 out_logdir,
                 "run",
                 "cloud-init",
-                INSTANCE_JSON_SENSITIVE_FILE,
+                m_log_paths.instance_data_sensitive.name,
             )
         )
         fake_stderr.write.assert_any_call("Wrote %s\n" % output_tarfile)
@@ -382,7 +379,7 @@ class TestCollectInstallerLogs:
         mocker.patch(
             M_PATH + "INSTALLER_APPORT_SENSITIVE_FILES", apport_sensitive_files
         )
-        logs.collect_installer_logs(
+        logs._collect_installer_logs(
             log_dir=tmpdir.strpath,
             include_userdata=include_userdata,
             verbosity=0,
@@ -400,7 +397,9 @@ class TestCollectInstallerLogs:
 
 
 class TestParser:
-    def test_parser_help_has_userdata_file(self, mocker, tmpdir):
-        userdata = str(tmpdir.join("user-data.txt"))
-        mocker.patch(M_PATH + "_get_user_data_file", return_value=userdata)
-        assert userdata in re.sub(r"\s+", "", logs.get_parser().format_help())
+    def test_parser_help_has_userdata_file(self, m_log_paths, mocker, tmpdir):
+        # userdata = str(tmpdir.join("user-data.txt"))
+        userdata = m_log_paths.userdata_raw
+        assert str(userdata) in re.sub(
+            r"\s+", "", logs.get_parser().format_help()
+        )

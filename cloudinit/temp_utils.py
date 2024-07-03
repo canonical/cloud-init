@@ -10,7 +10,6 @@ import tempfile
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
-_TMPDIR = None
 _ROOT_TMPDIR = "/run/cloud-init/tmp"
 _EXE_ROOT_TMPDIR = "/var/tmp/cloud-init"
 
@@ -20,8 +19,6 @@ def get_tmp_ancestor(odir=None, needs_exe: bool = False):
         return odir
     if needs_exe:
         return _EXE_ROOT_TMPDIR
-    if _TMPDIR:
-        return _TMPDIR
     if os.getuid() == 0:
         return _ROOT_TMPDIR
     return os.environ.get("TMPDIR", "/tmp")
@@ -53,18 +50,11 @@ def _tempfile_dir_arg(odir=None, needs_exe: bool = False):
                 " mounted as noexec",
                 tdir,
             )
-
-    if odir is None and not needs_exe:
-        global _TMPDIR
-        _TMPDIR = tdir
-
     return tdir
 
 
 def ExtendedTemporaryFile(**kwargs):
-    kwargs["dir"] = _tempfile_dir_arg(
-        kwargs.pop("dir", None), kwargs.pop("needs_exe", False)
-    )
+    kwargs["dir"] = _tempfile_dir_arg()
     fh = tempfile.NamedTemporaryFile(**kwargs)
     # Replace its unlink with a quiet version
     # that does not raise errors when the

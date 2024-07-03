@@ -1,0 +1,42 @@
+cc_set_hostname:
+  description: |
+    This module handles setting the system hostname and fully qualified domain
+    name (FQDN). If ``preserve_hostname`` is set, then the hostname will not be
+    altered.
+    
+    A hostname and FQDN can be provided by specifying a full domain name under
+    the ``fqdn`` key. Alternatively, a hostname can be specified using the
+    ``hostname`` key, and the FQDN of the cloud will be used. If a FQDN is
+    specified with the ``hostname`` key, it will be handled properly, although
+    it is better to use the ``fqdn`` config key. If both ``fqdn`` and
+    ``hostname`` are set, then ``prefer_fqdn_over_hostname`` will force use of
+    FQDN in all distros when true, and when false it will force the short
+    hostname. Otherwise, the hostname to use is distro-dependent.
+
+    .. note::
+       Cloud-init performs no hostname input validation before sending the
+       hostname to distro-specific tools, and most tools will not accept a
+       trailing dot on the FQDN.
+    
+    This module will run in the init-local stage before networking is
+    configured if the hostname is set by metadata or user data on the local
+    system.
+    
+    This will occur on datasources like NoCloud and OVF where metadata and user
+    data are available locally. This ensures that the desired hostname is
+    applied before any DHCP requests are performed on these platforms where
+    dynamic DNS is based on initial hostname.
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_set_hostname/example1.yaml
+  - comment: |
+      Example 2:
+    file: cc_set_hostname/example2.yaml
+  - comment: >
+      Example 3: On a machine without an ``/etc/hostname`` file, don't create
+      it. In most clouds, this will result in a DHCP-configured hostname
+      provided by the cloud.
+    file: cc_set_hostname/example3.yaml
+  name: Set Hostname
+  title: Set hostname and FQDN

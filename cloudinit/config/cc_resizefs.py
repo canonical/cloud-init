@@ -13,13 +13,12 @@ import logging
 import os
 import re
 import stat
-from textwrap import dedent
 from typing import Optional
 
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_ALWAYS
 
@@ -27,30 +26,10 @@ NOBLOCK = "noblock"
 
 meta: MetaSchema = {
     "id": "cc_resizefs",
-    "name": "Resizefs",
-    "title": "Resize filesystem",
-    "description": dedent(
-        """\
-        Resize a filesystem to use all available space on partition. This
-        module is useful along with ``cc_growpart`` and will ensure that if the
-        root partition has been resized the root filesystem will be resized
-        along with it. By default, ``cc_resizefs`` will resize the root
-        partition and will block the boot process while the resize command is
-        running. Optionally, the resize operation can be performed in the
-        background while cloud-init continues running modules. This can be
-        enabled by setting ``resize_rootfs`` to ``noblock``. This module can be
-        disabled altogether by setting ``resize_rootfs`` to ``false``."""
-    ),
     "distros": [ALL_DISTROS],
-    "examples": [
-        "resize_rootfs: false  # disable root filesystem resize operation",
-        "resize_rootfs: noblock  # runs resize operation in the background",
-    ],
     "frequency": PER_ALWAYS,
     "activate_by_schema_keys": [],
-}
-
-__doc__ = get_meta_doc(meta)
+}  # type: ignore
 
 LOG = logging.getLogger(__name__)
 
@@ -193,7 +172,7 @@ def maybe_get_writable_device_path(devpath, info):
     @param info: String representing information about the requested device.
     @param log: Logger to which logs will be added upon error.
 
-    @returns devpath or updated devpath per kernel commandline if the device
+    @returns devpath or updated devpath per kernel command line if the device
         path is a writable block device, returns None otherwise.
     """
     container = util.is_container()

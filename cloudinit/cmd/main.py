@@ -236,17 +236,12 @@ def attempt_cmdline_url(path, network=True, cmdline=None) -> Tuple[int, str]:
                 is_cloud_cfg = False
             if is_cloud_cfg:
                 if cmdline_name == "url":
-                    return (
-                        log.DEPRECATED,
-                        str(
-                            util.deprecate(
-                                deprecated="The kernel command line key `url`",
-                                deprecated_version="22.3",
-                                extra_message=" Please use `cloud-config-url` "
-                                "kernel command line parameter instead",
-                                return_log=True,
-                            ),
-                        ),
+                    return util.deprecate(
+                        deprecated="The kernel command line key `url`",
+                        deprecated_version="22.3",
+                        extra_message=" Please use `cloud-config-url` "
+                        "kernel command line parameter instead",
+                        skip_log=True,
                     )
             else:
                 if cmdline_name == "cloud-config-url":
@@ -972,8 +967,8 @@ def main(sysv_args=None):
         deprecated="`init`",
         deprecated_version="24.1",
         extra_message="Use `cloud-init init` instead.",
-        return_log=True,
-    )
+        skip_log=True,
+    ).message
     parser_mod.add_argument(
         "--mode",
         "-m",
@@ -1091,7 +1086,7 @@ def main(sysv_args=None):
                 handle_collect_logs_args,
             )
 
-            logs_parser(parser_collect_logs)
+            logs_parser(parser=parser_collect_logs)
             parser_collect_logs.set_defaults(
                 action=("collect-logs", handle_collect_logs_args)
             )
