@@ -215,7 +215,7 @@ class TestNetworkStateParseConfigV2:
         In netplan targets we perform a passthrough and the warning is not
         needed.
         """
-        util.deprecate._log = set()  # type: ignore
+        util.deprecate.__dict__["log"] = set()
         ncfg = yaml.safe_load(
             cfg.format(
                 gateway4="gateway4: 10.54.0.1",

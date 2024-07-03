@@ -35,15 +35,6 @@ def pkg_config_read(library: str, var: str) -> str:
     return path
 
 
-def in_virtualenv() -> bool:
-    # TODO: sys.real_prefix doesn't exist on any currently supported
-    # version of python. This function can never return True
-    try:
-        return sys.real_prefix != sys.prefix
-    except AttributeError:
-        return False
-
-
 def version_to_pep440(version: str) -> str:
     # read-version can spit out something like 22.4-15-g7f97aee24
     # which is invalid under PEP 440. If we replace the first - with a +

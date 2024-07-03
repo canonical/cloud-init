@@ -1,0 +1,42 @@
+cc_snap:
+  description: |
+    This module provides a simple configuration namespace in cloud-init for
+    setting up snapd and installing snaps.
+    
+    Both ``assertions`` and ``commands`` values can be either a dictionary or a
+    list. If these configs are provided as a dictionary, the keys are only used
+    to order the execution of the assertions or commands and the dictionary is
+    merged with any vendor data the snap configuration provided. If a list is
+    provided by the user instead of a dict, any vendor data snap configuration
+    is ignored.
+    
+    The ``assertions`` configuration option is a dictionary or list of
+    properly-signed snap assertions, which will run before any snap commands.
+    They will be added to snapd's ``assertion`` database by invoking
+    ``snap ack <aggregate_assertion_file>``.
+    
+    Snap ``commands`` is a dictionary or list of individual snap commands to
+    run on the target system. These commands can be used to create snap users,
+    install snaps, and provide snap configuration.
+    
+    .. note::
+       If 'side-loading' private/unpublished snaps on an instance, it is best
+       to create a snap seed directory and ``seed.yaml`` manifest in
+       ``/var/lib/snapd/seed/`` which snapd automatically installs on startup.
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_snap/example1.yaml
+  - comment: >
+      Example 2: For convenience, the ``snap`` command can be omitted when
+      specifying commands as a list - ``snap`` will be automatically prepended.
+      The following commands are all equivalent:
+    file: cc_snap/example2.yaml
+  - comment: |
+      Example 3: You can use a list of commands.
+    file: cc_snap/example4.yaml
+  - comment: |
+      Example 4: You can also use a list of assertions.
+    file: cc_snap/example4.yaml
+  name: Snap
+  title: Install, configure and manage snapd and snap packages

@@ -1,0 +1,40 @@
+cc_set_passwords:
+  description: |
+    This module consumes three top-level config keys: ``ssh_pwauth``,
+    ``chpasswd`` and ``password``.
+    
+    The ``ssh_pwauth`` config key determines whether or not sshd will be
+    configured to accept password authentication.
+    
+    The ``chpasswd`` config key accepts a dictionary containing either (or
+    both) of ``users`` and ``expire``.
+    
+    - The ``users`` key is used to assign a password to a corresponding
+      pre-existing user.
+    - The ``expire`` key is used to set whether to expire all user passwords
+      specified by this module, such that a password will need to be reset on
+      the user's next login.
+    
+    .. note::
+       Prior to cloud-init 22.3, the ``expire`` key only applies to plain text
+       (including ``RANDOM``) passwords. Post-22.3, the ``expire`` key applies
+       to both plain text and hashed passwords.
+
+    The ``password`` config key is used to set the default user's password. It
+    is ignored if the ``chpasswd`` ``users`` is used. Note that the ``list``
+    keyword is deprecated in favor of ``users``.
+  examples:
+  - comment: |
+      Example 1: Set a default password, to be changed at first login.
+    file: cc_set_passwords/example1.yaml
+  - comment: |
+      Example 2:
+      - Disable SSH password authentication.
+      - Don't require users to change their passwords on next login.
+      - Set the password for user1 to be 'password1' (OS does hashing).
+      - Set the password for user2 to a pre-hashed password.
+      - Set the password for user3 to be a randomly generated password, which
+        will be written to the system console.
+    file: cc_set_passwords/example2.yaml
+  name: Set Passwords
+  title: Set user passwords and enable/disable SSH password auth

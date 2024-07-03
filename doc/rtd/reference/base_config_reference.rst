@@ -116,11 +116,11 @@ Both keys will be processed independently.
 
   - ``distro``: Name of distro being used.
   - ``default_user``: Defines the default user for the system using the same
-    user configuration as :ref:`Users and Groups<mod-users_groups>`. Note that
-    this CAN be overridden if a ``users`` configuration
+    user configuration as :ref:`Users and Groups<mod_cc_users_groups>`. Note
+    that this CAN be overridden if a ``users`` configuration
     is specified without a ``- default`` entry.
   - ``ntp_client``: The default NTP client for the distro. Takes the same
-    form as ``ntp_client`` defined in :ref:`NTP<mod-ntp>`.
+    form as ``ntp_client`` defined in :ref:`NTP<mod_cc_ntp>`.
   - ``package_mirrors``: Defines the package mirror info for apt.
   - ``ssh_svcname``: The SSH service name. For most distros this will be
     either ``ssh`` or ``sshd``.

@@ -1,0 +1,12 @@
+#cloud-config
+ubuntu_pro:
+  token: <ubuntu_pro_token>
+  config:
+    http_proxy: 'http://some-proxy:8088'
+    https_proxy: 'https://some-proxy:8088'
+    global_apt_https_proxy: 'https://some-global-apt-proxy:8088/'
+    global_apt_http_proxy: 'http://some-global-apt-proxy:8088/'
+    ua_apt_http_proxy: 'http://10.0.10.10:3128'
+    ua_apt_https_proxy: 'https://10.0.10.10:3128'
+  enable:
+  - fips

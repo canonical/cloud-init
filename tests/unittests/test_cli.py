@@ -327,7 +327,7 @@ class TestCLI:
                     "sle_hpc, sle-micro, sles, TencentOS, ubuntu, virtuozzo",
                     " **resize_rootfs:** ",
                     "(``true``/``false``/``noblock``)",
-                    "runcmd:\n             - [ ls, -l, / ]\n",
+                    "runcmd:\n         - [ls, -l, /]\n",
                 ],
                 False,
                 id="all_spot_check",
