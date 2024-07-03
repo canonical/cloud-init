@@ -6,8 +6,9 @@
 import logging
 
 from cloudinit import distros, helpers, subp, util
-from cloudinit.distros import PackageList, rhel_util
+from cloudinit.distros import PackageList
 from cloudinit.distros.parsers.hostname import HostnameConf
+from cloudinit.distros.parsers.sys_conf import SysConf
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
@@ -34,23 +35,12 @@ class Distro(distros.Distro):
         cfg["ssh_svcname"] = "sshd"
 
     def apply_locale(self, locale, out_fn=None):
-        if out_fn is not None and out_fn != "/etc/locale.conf":
-            LOG.warning(
-                "Invalid locale_configfile %s, only supported "
-                "value is /etc/locale.conf",
-                out_fn,
-            )
-        lines = [
-            util.make_header(),
-            # Hard-coding the charset isn't ideal, but there is no other way.
-            "%s UTF-8" % (locale),
-            "",
-        ]
-        util.write_file(self.locale_gen_fn, "\n".join(lines))
-        subp.subp(["locale-gen"], capture=False)
-        # In the future systemd can handle locale-gen stuff:
-        # https://github.com/systemd/systemd/pull/9864
-        subp.subp(["localectl", "set-locale", locale], capture=False)
+        if not out_fn:
+            out_fn = self.systemd_locale_conf_fn
+        locale_cfg = {
+            "LANG": locale,
+        }
+        update_locale_conf(out_fn, locale_cfg)
 
     def _write_hostname(self, hostname, filename):
         if filename.endswith("/previous-hostname"):
@@ -114,3 +104,35 @@ class Distro(distros.Distro):
             "refresh",
             freq=PER_INSTANCE,
         )
+
+
+def read_locale_conf(sys_path):
+    exists = False
+    try:
+        contents = util.load_text_file(sys_path).splitlines()
+        exists = True
+    except IOError:
+        contents = []
+    return (exists, SysConf(contents))
+
+
+def update_locale_conf(sys_path, locale_cfg):
+    if not locale_cfg:
+        return
+    (exists, contents) = read_locale_conf(sys_path)
+    updated_am = 0
+    for (k, v) in locale_cfg.items():
+        if v is None:
+            continue
+        v = str(v)
+        if len(v) == 0:
+            continue
+        contents[k] = v
+        updated_am += 1
+    if updated_am:
+        lines = [
+            str(contents),
+        ]
+        if not exists:
+            lines.insert(0, util.make_header())
+        util.write_file(sys_path, "\n".join(lines) + "\n", 0o644)
