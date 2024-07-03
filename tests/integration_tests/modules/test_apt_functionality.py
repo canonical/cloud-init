@@ -124,7 +124,7 @@ EXPECTED_REGEXES = [
     r"deb-src http://badsecurity.ubuntu.com/ubuntu [a-z]+-security multiverse",
 ]
 
-TEST_KEYSERVER_KEY = "110E 21D8 B0E2 A1F0 243A  F682 0856 F197 B892 ACEA"
+TEST_KEYSERVER_KEY = "1BC3 0F71 5A3B 8612 47A8  1A5E 55FE 7C8C 0165 013E"
 TEST_PPA_KEY = "3552 C902 B4DD F7BD 3842  1821 015D 28D7 4416 14D8"
 TEST_KEY = "1FF0 D853 5EF7 E719 E5C8  1B9C 083D 06FB E4D3 04DF"
 TEST_SIGNED_BY_KEY = "A2EB 2DEC 0BD7 519B 7B38  BE38 376A 290E C806 8B11"
@@ -152,10 +152,10 @@ class TestApt:
         keys = class_client.execute(list_cmd + cc_apt_configure.APT_LOCAL_KEYS)
         files = class_client.execute(
             "ls " + cc_apt_configure.APT_TRUSTED_GPG_DIR
-        )
+        ).stdout
         for file in files.split():
             path = cc_apt_configure.APT_TRUSTED_GPG_DIR + file
-            keys += class_client.execute(list_cmd + path) or ""
+            keys += class_client.execute(list_cmd + path).stdout
         class_client.execute("gpgconf --homedir /root/tmpdir --kill all")
         return keys
 

@@ -10,43 +10,43 @@
       ]
     },
     "dhcp-overrides": {
-        "type": "object",
-        "description": "DHCP behaviour overrides. Overrides will only have an effect if the corresponding DHCP type is enabled.",
-        "additionalProperties": false,
-        "properties": {
-          "hostname": {
-            "type": "string",
-            "description": "Unsupported  for dhcp6-overrides when used with the networkd renderer."
-          },
-          "route-metric": {
-            "type": "integer",
-            "description": "Unsupported  for dhcp6-overrides when used with the networkd renderer."
-          },
-          "send-hostname": {
-            "type": "boolean",
-            "description": "Unsupported  for dhcp6-overrides when used with the networkd renderer."
-          },
-          "use-dns": {
-            "type": "boolean"
-          },
-          "use-domains": {
-            "type": "string"
-          },
-          "use-hostname": {
-            "type": "boolean"
-          },
-          "use-mtu": {
-            "type": "boolean",
-            "description": "Unsupported  for dhcp6-overrides when used with the networkd renderer."
-          },
-          "use-ntp": {
-            "type": "boolean"
-          },
-          "use-routes": {
-            "type": "boolean",
-            "description": "Unsupported  for dhcp6-overrides when used with the networkd renderer."
-          }
+      "type": "object",
+      "description": "DHCP behaviour overrides. Overrides will only have an effect if the corresponding DHCP type is enabled.",
+      "additionalProperties": false,
+      "properties": {
+        "hostname": {
+          "type": "string",
+          "description": "Unsupported  for dhcp6-overrides when used with the networkd renderer."
+        },
+        "route-metric": {
+          "type": "integer",
+          "description": "Unsupported  for dhcp6-overrides when used with the networkd renderer."
+        },
+        "send-hostname": {
+          "type": "boolean",
+          "description": "Unsupported  for dhcp6-overrides when used with the networkd renderer."
+        },
+        "use-dns": {
+          "type": "boolean"
+        },
+        "use-domains": {
+          "type": "string"
+        },
+        "use-hostname": {
+          "type": "boolean"
+        },
+        "use-mtu": {
+          "type": "boolean",
+          "description": "Unsupported  for dhcp6-overrides when used with the networkd renderer."
+        },
+        "use-ntp": {
+          "type": "boolean"
+        },
+        "use-routes": {
+          "type": "boolean",
+          "description": "Unsupported  for dhcp6-overrides when used with the networkd renderer."
         }
+      }
     },
     "gateway": {
       "type": "string",
@@ -56,17 +56,33 @@
       "type": "object",
       "properties": {
         "renderer": {
-            "$ref": "#/$defs/renderer"
+          "$ref": "#/$defs/renderer"
         },
         "dhcp4": {
-          "type": ["boolean", "string"],
+          "type": [
+            "boolean",
+            "string"
+          ],
           "description": "Enable DHCP for IPv4. Off by default.",
-          "enum": ["yes", "no", true, false]
+          "enum": [
+            "yes",
+            "no",
+            true,
+            false
+          ]
         },
         "dhcp6": {
-          "type": ["boolean", "string"],
+          "type": [
+            "boolean",
+            "string"
+          ],
           "description": "Enable DHCP for IPv6. Off by default.",
-          "enum": ["yes", "no", true, false]
+          "enum": [
+            "yes",
+            "no",
+            true,
+            false
+          ]
         },
         "dhcp4-overrides": {
           "$ref": "#/$defs/dhcp-overrides"
@@ -89,7 +105,7 @@
         },
         "mtu": {
           "type": "integer",
-          "description": "The MTU key represents a device’s Maximum Transmission Unit, the largest size packet or frame, specified in octets (eight-bit bytes), that can be sent in a packet- or frame-based network. Specifying mtu is optional."
+          "description": "The MTU key represents a device\u2019s Maximum Transmission Unit, the largest size packet or frame, specified in octets (eight-bit bytes), that can be sent in a packet- or frame-based network. Specifying mtu is optional."
         },
         "nameservers": {
           "type": "object",
@@ -152,7 +168,7 @@
             },
             "macaddress": {
               "type": "string",
-              "description": "Device’s MAC address in the form xx:xx:xx:xx:xx:xx. Globs are not allowed. Letters must be lowercase."
+              "description": "Device\u2019s MAC address in the form xx:xx:xx:xx:xx:xx. Globs are not allowed. Letters must be lowercase."
             },
             "driver": {
               "type": "string",
@@ -162,7 +178,7 @@
         },
         "set-name": {
           "type": "string",
-          "description": "When matching on unique properties such as path or MAC, or with additional assumptions such as ''there will only ever be one wifi device'', match rules can be written so that they only match one device. Then this property can be used to give that device a more specific/desirable/nicer name than the default from udev’s ifnames. Any additional device that satisfies the match rules will then fail to get renamed and keep the original kernel name (and dmesg will show an error)."
+          "description": "When matching on unique properties such as path or MAC, or with additional assumptions such as ''there will only ever be one wifi device'', match rules can be written so that they only match one device. Then this property can be used to give that device a more specific/desirable/nicer name than the default from udev\u2019s ifnames. Any additional device that satisfies the match rules will then fail to get renamed and keep the original kernel name (and dmesg will show an error)."
         },
         "wakeonlan": {
           "type": "boolean",
@@ -257,7 +273,7 @@
               "description": "Configure how ARP replies are to be validated when using ARP link monitoring.",
               "enum": [
                 "none",
-                "active", 
+                "active",
                 "backup",
                 "all"
               ]
@@ -356,7 +372,7 @@
             },
             "stp": {
               "type": "boolean",
-              "description": "Define whether the bridge should use Spanning Tree Protocol. The default value is “true”, which means that Spanning Tree should be used."
+              "description": "Define whether the bridge should use Spanning Tree Protocol. The default value is \u201ctrue\u201d, which means that Spanning Tree should be used."
             }
           }
         }
@@ -393,13 +409,13 @@
           ]
         },
         "renderer": {
-            "$ref": "#/$defs/renderer"
+          "$ref": "#/$defs/renderer"
         },
         "ethernets": {
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/mapping_physical"
-          } 
+          }
         },
         "bonds": {
           "type": "object",

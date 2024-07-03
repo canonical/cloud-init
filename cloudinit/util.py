@@ -357,8 +357,6 @@ def read_conf(fname, *, instance_data_file=None) -> Dict:
                 config_file,
                 repr(e),
             )
-    if config_file is None:
-        return {}
     return load_yaml(config_file, default={})  # pyright: ignore
 
 
@@ -3210,6 +3208,19 @@ class Version(namedtuple("Version", ["major", "minor", "patch", "rev"])):
         return -1
 
 
+def should_log_deprecation(version: str, boundary_version: str) -> bool:
+    """Determine if a deprecation message should be logged.
+
+    :param version: The version in which the thing was deprecated.
+    :param boundary_version: The version at which deprecation level is logged.
+
+    :return: True if the message should be logged, else False.
+    """
+    return boundary_version == "devel" or Version.from_str(
+        version
+    ) <= Version.from_str(boundary_version)
+
+
 def deprecate(
     *,
     deprecated: str,
@@ -3240,8 +3251,8 @@ def deprecate(
 
     Note: uses keyword-only arguments to improve legibility
     """
-    if not hasattr(deprecate, "_log"):
-        deprecate._log = set()  # type: ignore
+    if not hasattr(deprecate, "log"):
+        setattr(deprecate, "log", set())
     message = extra_message or ""
     dedup = hash(deprecated + message + deprecated_version + str(schedule))
     version = Version.from_str(deprecated_version)
@@ -3251,18 +3262,17 @@ def deprecate(
         f"{deprecated_version} and scheduled to be removed in "
         f"{version_removed}. {message}"
     ).rstrip()
-    if (
-        "devel" != features.DEPRECATION_INFO_BOUNDARY
-        and Version.from_str(features.DEPRECATION_INFO_BOUNDARY) < version
+    if not should_log_deprecation(
+        deprecated_version, features.DEPRECATION_INFO_BOUNDARY
     ):
-        LOG.info(deprecate_msg)
         level = logging.INFO
     elif hasattr(LOG, "deprecated"):
         level = log.DEPRECATED
     else:
         level = logging.WARN
-    if not skip_log and dedup not in deprecate._log:  # type: ignore
-        deprecate._log.add(dedup)  # type: ignore
+    log_cache = getattr(deprecate, "log")
+    if not skip_log and dedup not in log_cache:
+        log_cache.add(dedup)
         LOG.log(level, deprecate_msg)
     return DeprecationLog(level, deprecate_msg)
 
