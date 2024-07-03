@@ -375,17 +375,68 @@ class TestFstabHandling:
             fstab_new_content = fd.read()
             assert fstab_expected_content == fstab_new_content
 
-    def test_swap_integrity(self):
-        """Ensure that the swap file is correctly created and can
-        swapon successfully. Fixing the corner case of:
-        kernel: swapon: swapfile has holes"""
+    @pytest.mark.parametrize(
+        "fstype, expected",
+        [
+            (
+                "btrfs",
+                [
+                    mock.call(["truncate", "-s", "0", "/swap.img"]),
+                    mock.call(["chattr", "+C", "/swap.img"]),
+                    mock.call(
+                        ["fallocate", "-l", "0M", "/swap.img"], capture=True
+                    ),
+                ],
+            ),
+            (
+                "xfs",
+                [
+                    mock.call(
+                        [
+                            "dd",
+                            "if=/dev/zero",
+                            "of=/swap.img",
+                            "bs=1M",
+                            "count=0",
+                        ],
+                        capture=True,
+                    )
+                ],
+            ),
+            (
+                "ext4",
+                [
+                    mock.call(
+                        ["fallocate", "-l", "0M", "/swap.img"], capture=True
+                    )
+                ],
+            ),
+        ],
+    )
+    def test_swap_creation_command(self, fstype, expected, mocker):
+        """Ensure that the swap file is correctly created.
+
+        Different filesystems require different methods.
+        """
+        mocker.patch(
+            "cloudinit.util.get_mount_info", return_value=["", fstype]
+        )
+        mocker.patch("cloudinit.util.kernel_version", return_value=(4, 17))
 
         fstab = "/swap.img swap swap defaults 0 0\n"
 
         with open(cc_mounts.FSTAB_PATH, "w") as fd:
             fd.write(fstab)
-        cc = {"swap": ["filename: /swap.img", "size: 512", "maxsize: 512"]}
+        cc = {
+            "swap": {"filename": "/swap.img", "size": "512", "maxsize": "512"}
+        }
         cc_mounts.handle(None, cc, self.mock_cloud, [])
+        assert self.m_subp.call_args_list == expected + [
+            mock.call(["mkswap", "/swap.img"]),
+            mock.call(["swapon", "-a"]),
+            mock.call(["mount", "-a"]),
+            mock.call(["systemctl", "daemon-reload"]),
+        ]
 
     def test_fstab_no_swap_device(self):
         """Ensure that cloud-init adds a discovered swap partition
@@ -450,15 +501,16 @@ class TestFstabHandling:
         fstab_original_content = (
             "LABEL=cloudimg-rootfs / ext4 defaults 0 0\n"
             "LABEL=UEFI /boot/efi vfat defaults 0 0\n"
-            "/dev/vdb /mnt auto defaults,noexec,comment=cloudconfig 0 2\n"
+            "/dev/vdb\t/mnt\tauto\tdefaults,noexec,comment=cloudconfig\t0\t2\n"
+            f"{self.swap_path}\tnone\tswap\tsw,comment=cloudconfig\t0\t0\n"
         )
         cc = {"mounts": [["/dev/vdb", "/mnt", "auto", "defaults,noexec"]]}
         with open(cc_mounts.FSTAB_PATH, "w") as fd:
             fd.write(fstab_original_content)
+        cc_mounts.handle(None, cc, self.mock_cloud, [])
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
             assert fstab_original_content == fstab_new_content
-        cc_mounts.handle(None, cc, self.mock_cloud, [])
         self.m_subp.assert_has_calls(
             [
                 mock.call(["mount", "-a"]),
