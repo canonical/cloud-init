@@ -27,7 +27,7 @@ Last-Update: 2024-02-14
      def get_template_filename(self, name):
 --- a/cloudinit/config/cc_lxd.py
 +++ b/cloudinit/config/cc_lxd.py
-@@ -81,7 +81,6 @@ def handle(name: str, cfg: Config, cloud
+@@ -79,7 +79,6 @@ def handle(name: str, cfg: Config, cloud
              f" '{type(lxd_cfg).__name__}'"
          )
  
@@ -37,7 +37,7 @@ Last-Update: 2024-02-14
      preseed_str = lxd_cfg.get("preseed", "")
 --- a/cloudinit/config/cc_snap.py
 +++ b/cloudinit/config/cc_snap.py
-@@ -191,7 +191,7 @@ def handle(name: str, cfg: Config, cloud
+@@ -102,7 +102,7 @@ def handle(name: str, cfg: Config, cloud
              "Skipping module named %s, no 'snap' key in configuration", name
          )
          return
@@ -58,7 +58,7 @@ Last-Update: 2024-02-14
      for snap_name in LIVE_INSTALLER_SNAPS:
 --- a/cloudinit/util.py
 +++ b/cloudinit/util.py
-@@ -70,7 +70,7 @@ from cloudinit import (
+@@ -72,7 +72,7 @@ from cloudinit import (
      url_helper,
      version,
  )
@@ -67,7 +67,7 @@ Last-Update: 2024-02-14
  
  if TYPE_CHECKING:
      # Avoid circular import
-@@ -3059,18 +3059,6 @@ def wait_for_files(flist, maxwait, naple
+@@ -3064,18 +3064,6 @@ def wait_for_files(flist, maxwait, naple
      return need
  
  
@@ -88,7 +88,7 @@ Last-Update: 2024-02-14
      result = get_mount_info(mount_point, get_mnt_opts=True)
 --- a/systemd/cloud-config.service.tmpl
 +++ b/systemd/cloud-config.service.tmpl
-@@ -2,8 +2,8 @@
+@@ -2,7 +2,7 @@
  [Unit]
  # https://cloudinit.readthedocs.io/en/latest/explanation/boot.html
  Description=Cloud-init: Config Stage
@@ -97,7 +97,6 @@ Last-Update: 2024-02-14
  Wants=network-online.target cloud-config.target
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
- ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
 --- a/tests/integration_tests/modules/test_frequency_override.py
 +++ b/tests/integration_tests/modules/test_frequency_override.py
 @@ -1,7 +1,6 @@
