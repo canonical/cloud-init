@@ -55,3 +55,23 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
 -ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
+--- a/systemd/cloud-init-hotplugd.service
++++ b/systemd/cloud-init-hotplugd.service
+@@ -16,7 +16,6 @@ After=cloud-init.target
+ Requires=cloud-init-hotplugd.socket
+ ConditionPathExists=!/etc/cloud/cloud-init.disabled
+ ConditionKernelCommandLine=!cloud-init=disabled
+-ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
+ 
+ [Service]
+ Type=oneshot
+--- a/systemd/cloud-init-hotplugd.socket
++++ b/systemd/cloud-init-hotplugd.socket
+@@ -8,7 +8,6 @@ Description=cloud-init hotplug hook sock
+ After=cloud-config.target
+ ConditionPathExists=!/etc/cloud/cloud-init.disabled
+ ConditionKernelCommandLine=!cloud-init=disabled
+-ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
+ 
+ [Socket]
+ ListenFIFO=/run/cloud-init/hook-hotplug-cmd
