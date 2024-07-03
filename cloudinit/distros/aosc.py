@@ -17,21 +17,31 @@ LOG = logging.getLogger(__name__)
 class Distro(distros.Distro):
     systemd_locale_conf_fn = "/etc/locale.conf"
     init_cmd = ["systemctl"]
-    network_conf_dir = "/etc/systemd/network/"
+    network_conf_dir = "/etc/sysconfig/network"
     resolve_conf_fn = "/etc/systemd/resolved.conf"
     tz_local_fn = "/etc/localtime"
 
+    dhclient_lease_directory = "/var/lib/NetworkManager"
+    dhclient_lease_file_regex = r"dhclient-[\w-]+\.lease"
+
     renderer_configs = {
-        "networkd": {
-            "resolv_conf_fn": resolve_conf_fn,
-            "network_conf_dir": network_conf_dir,
-        },
+        "sysconfig": {
+            "control": "etc/sysconfig/network",
+            "iface_templates": "%(base)s/network-scripts/ifcfg-%(name)s",
+            "route_templates": {
+                "ipv4": "%(base)s/network-scripts/route-%(name)s",
+                "ipv6": "%(base)s/network-scripts/route6-%(name)s",
+            },
+        }
     }
+
+    prefer_fqdn = False
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
         self._runner = helpers.Runners(paths)
         self.osfamily = "aosc"
+        self.default_locale = "en_US.UTF-8"
         cfg["ssh_svcname"] = "sshd"
 
     def apply_locale(self, locale, out_fn=None):
