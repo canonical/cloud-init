@@ -1,4 +1,4 @@
-cloud-init (24.1.3-0ubuntu1~20.04.4) UNRELEASED; urgency=medium
+cloud-init (24.2-0ubuntu1~20.04.1) UNRELEASED; urgency=medium
 
   * d/apport-general-hook.py: Move apport hook to main branch
   * d/cloud-init.logrotate: add logrotate config for cloud-init
@@ -27,9 +27,12 @@ cloud-init (24.1.3-0ubuntu1~20.04.4) UNRELEASED; urgency=medium
     - d/p/status-do-not-remove-duplicated-data.patch
     - d/p/status-retain-recoverable-error-exit-code.patch
     - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
-  * Upstream snapshot based on upstream/main at debafbc9.
+  * Upstream snapshot based on 24.2. (LP: #2071762).
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/24.2/ChangeLog
+  * drop all d/p/cpick-* files as they are included in upstream snapshot
 
- -- James Falcon <james.falcon@canonical.com>  Fri, 28 Jun 2024 11:17:04 -0500
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 02 Jul 2024 20:25:25 -0600
 
 cloud-init (24.1.3-0ubuntu1~20.04.5) focal; urgency=medium
 
