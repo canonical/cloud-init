@@ -27,7 +27,7 @@ Last-Update: 2024-02-14
      def get_template_filename(self, name):
 --- a/cloudinit/config/cc_lxd.py
 +++ b/cloudinit/config/cc_lxd.py
-@@ -81,7 +81,6 @@ def handle(name: str, cfg: Config, cloud
+@@ -79,7 +79,6 @@ def handle(name: str, cfg: Config, cloud
              f" '{type(lxd_cfg).__name__}'"
          )
  
@@ -67,7 +67,7 @@ Last-Update: 2024-02-14
  
  if TYPE_CHECKING:
      # Avoid circular import
-@@ -3066,18 +3066,6 @@ def wait_for_files(flist, maxwait, naple
+@@ -3064,18 +3064,6 @@ def wait_for_files(flist, maxwait, naple
      return need
  
  
