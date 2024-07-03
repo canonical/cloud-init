@@ -1,0 +1,4 @@
+#cloud-config
+groups:
+- admingroup: [root, sys]
+- cloud-users

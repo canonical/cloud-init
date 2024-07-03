@@ -1,0 +1,27 @@
+cc_seed_random:
+  description: |
+    All cloud instances started from the same image will produce similar data
+    when they are first booted as they are all starting with the same
+    seed for the kernel's entropy keyring. To avoid this, random seed data can
+    be provided to the instance, either as a string or by specifying a command
+    to run to generate the data.
+
+    Configuration for this module is under the ``random_seed`` config key. If
+    the cloud provides its own random seed data, it will be appended to
+    ``data`` before it is written to ``file``.
+
+    If the ``command`` key is specified, the given command will be executed.
+    This will happen after ``file`` has been populated. That command's
+    environment will contain the value of the ``file`` key as
+    ``RANDOM_SEED_FILE``. If a command is specified that cannot be run, no
+    error will be reported unless ``command_required`` is set to ``true``.
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_seed_random/example1.yaml
+  - comment: >
+      Example 2: Use ``pollinate`` to gather data from a remote entropy
+      server and write it to ``/dev/urandom``:
+    file: cc_seed_random/example2.yaml
+  name: Seed Random
+  title: Provide random seed data

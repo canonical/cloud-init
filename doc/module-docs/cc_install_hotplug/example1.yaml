@@ -1,4 +1,4 @@
 #cloud-config
 updates:
   network:
-    when: ["hotplug"]
+    when: [hotplug]

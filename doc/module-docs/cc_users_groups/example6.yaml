@@ -1,0 +1,4 @@
+#cloud-config
+users:
+- default
+- {name: nosshlogins, ssh_redirect_user: true}

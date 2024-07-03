@@ -1,0 +1,14 @@
+cc_ssh_authkey_fingerprints:
+  description: |
+    Write fingerprints of authorized keys for each user to log. This is enabled
+    by default, but can be disabled using ``no_ssh_fingerprints``. The hash
+    type for the keys can be specified, but defaults to ``sha256``.
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_ssh_authkey_fingerprints/example1.yaml
+  - comment: |
+      Example 2:
+    file: cc_ssh_authkey_fingerprints/example2.yaml
+  name: SSH AuthKey Fingerprints
+  title: Log fingerprints of user SSH keys

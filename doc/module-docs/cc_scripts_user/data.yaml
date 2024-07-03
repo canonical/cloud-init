@@ -1,0 +1,10 @@
+cc_scripts_user:
+  description: |
+    This module runs all user scripts present in the ``scripts`` directory in
+    the instance configuration. Any cloud-config parts with a ``#!`` will be
+    treated as a script and run. Scripts specified as cloud-config parts will
+    be run in the order they are specified in the configuration. This module
+    does not accept any config keys.
+  examples: []
+  name: Scripts User
+  title: Run user scripts

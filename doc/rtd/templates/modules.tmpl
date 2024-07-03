@@ -1,6 +1,9 @@
 .. -*- mode: rst -*-
 {% for mod_id, mod_cfg in data.items() %}
 {% set mod_meta = config.html_context[mod_id]['meta'] -%}
+
+.. _mod_{{ mod_id }}:
+
 {{ mod_cfg['name'] }}{% set name_len = mod_cfg['name']|length %}
 {{ '~' * name_len }}
 
@@ -32,15 +35,18 @@
 
    .. tab-item:: Examples
 
-   {% for example in mod_cfg['examples'] %}
-      {% for line in example["comment"].splitlines() %}
-      {{ line }}
-      {% endfor %}
+      {% if mod_cfg['examples'] %}
+          {% for example in mod_cfg['examples'] %}
+              {% for line in example["comment"].splitlines() %}
+              {{ line }} 
+              {% endfor %}
 
-      .. literalinclude:: ../../module-docs/{{ example["file"] }}
-          :language: yaml
+              .. literalinclude:: ../../module-docs/{{ example["file"] }}
+                 :language: yaml
 
-   {% endfor %}
-
+          {% endfor %}
+          {% else %}
+              No examples for this module
+          {% endif %}
 
 {% endfor %}

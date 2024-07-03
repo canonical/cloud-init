@@ -87,6 +87,35 @@ On Debian and Ubuntu systems, cc_apt_configure will write a deb822 compatible
 to write /etc/apt/sources.list directly.
 """
 
+DEPRECATION_INFO_BOUNDARY = "devel"
+"""
+DEPRECATION_INFO_BOUNDARY is used by distros to configure at which upstream
+version to start logging deprecations at a level higher than INFO.
+
+The default value "devel" tells cloud-init to log all deprecations higher
+than INFO. This value may be overriden by downstreams in order to maintain
+stable behavior across releases.
+
+Jsonschema key deprecations and inline logger deprecations include a
+deprecated_version key. When the variable below is set to a version,
+cloud-init will use that version as a demarcation point. Deprecations which
+are added after this version will be logged as at an INFO level. Deprecations
+which predate this version will be logged at the higher DEPRECATED level.
+Downstreams that want stable log behavior may set the variable below to the
+first version released in their stable distro. By doing this, they can expect
+that newly added deprecations will be logged at INFO level. The implication of
+the different log levels is that logs at DEPRECATED level result in a return
+code of 2 from `cloud-init status`.
+
+format:
+
+<value> :: = <default> | <version>
+<default> ::= "devel"
+<version> ::= <major> "." <minor> ["." <patch>]
+
+where <major>, <minor>, and <patch> are positive integers
+"""
+
 
 def get_features() -> Dict[str, bool]:
     """Return a dict of applicable features/overrides and their values."""

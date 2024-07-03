@@ -10,7 +10,7 @@ To ease the process of reviewing your PR, do make sure to complete the following
   - Test files should map to source files i.e. a source file ``cloudinit/example.py`` should be tested by ``tests/unittests/test_example.py``
   - Run unit tests with ``tox -e py3``
 - [ ] I have kept the change small, avoiding unnecessary whitespace or non-functional changes.
-- [ ] I have added a reference to issues that this PR relates to in the PR message (Refs #1234, Closes #1234)
+- [ ] I have added a reference to issues that this PR relates to in the PR message (Refs GH-1234, Fixes GH-1234)
 - [ ] I have updated the documentation with the changed behavior.
   - If the change doesn't change the user interface and is trivial, this step may be skipped.
   - Cloud-config documentation is generated from the jsonschema.

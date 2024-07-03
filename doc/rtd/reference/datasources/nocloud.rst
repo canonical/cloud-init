@@ -104,7 +104,7 @@ A valid ``seedfrom`` value consists of a URI which must contain a trailing
 Some optional keys may be used, but their use is discouraged and may
 be removed in the future.
 
-* ``local-hostname`` alias: ``h`` (:ref:`cloud-config<mod-set_hostname>`
+* ``local-hostname`` alias: ``h`` (:ref:`cloud-config<mod_cc_set_hostname>`
   preferred)
 * ``instance-id`` alias: ``i``  (set instance id  in :file:`meta-data` instead)
 
