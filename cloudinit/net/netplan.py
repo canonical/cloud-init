@@ -6,7 +6,7 @@ import logging
 import os
 import textwrap
 from tempfile import SpooledTemporaryFile
-from typing import Callable, List, Optional, cast
+from typing import Callable, List, Optional
 
 from cloudinit import features, safeyaml, subp, util
 from cloudinit.net import (
@@ -454,10 +454,7 @@ class Renderer(renderer.Renderer):
                 bond_config = {}
                 # extract bond params and drop the bond_ prefix as it's
                 # redundant in v2 yaml format
-                v2_bond_map = cast(dict, NET_CONFIG_TO_V2.get("bond"))
-                # Previous cast is needed to help mypy to know that the key is
-                # present in `NET_CONFIG_TO_V2`. This could probably be removed
-                # by using `Literal` when supported.
+                v2_bond_map = NET_CONFIG_TO_V2["bond"]
                 for match in ["bond_", "bond-"]:
                     bond_params = _get_params_dict_by_match(ifcfg, match)
                     for param, value in bond_params.items():
@@ -478,9 +475,18 @@ class Renderer(renderer.Renderer):
 
             elif if_type == "bridge":
                 # required_keys = ['name', 'bridge_ports']
+                #
+                # Rather than raise an exception on `sorted(None)`, log a
+                # warning and skip this interface when invalid configuration is
+                # received.
                 bridge_ports = ifcfg.get("bridge_ports")
-                # mypy wrong error. `copy(None)` is supported:
-                ports = sorted(copy.copy(bridge_ports))  # type: ignore
+                if bridge_ports is None:
+                    LOG.warning(
+                        "Invalid config. The key",
+                        f"'bridge_ports' is required in {config}.",
+                    )
+                    continue
+                ports = sorted(copy.copy(bridge_ports))
                 bridge: dict = {
                     "interfaces": ports,
                 }
@@ -492,10 +498,7 @@ class Renderer(renderer.Renderer):
 
                 # v2 yaml uses different names for the keys
                 # and at least one value format change
-                v2_bridge_map = cast(dict, NET_CONFIG_TO_V2.get("bridge"))
-                # Previous cast is needed to help mypy to know that the key is
-                # present in `NET_CONFIG_TO_V2`. This could probably be removed
-                # by using `Literal` when supported.
+                v2_bridge_map = NET_CONFIG_TO_V2["bridge"]
                 for param, value in params.items():
                     newname = v2_bridge_map.get(param)
                     if newname is None:

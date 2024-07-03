@@ -213,10 +213,6 @@ class DataSourceLXD(sources.DataSource):
             user_metadata = _raw_instance_data_to_dict(
                 "user.meta-data", user_metadata
             )
-        if not isinstance(self.metadata, dict):
-            self.metadata = util.mergemanydict(
-                [util.load_yaml(self.metadata), user_metadata]
-            )
         if "user-data" in self._crawled_metadata:
             self.userdata_raw = self._crawled_metadata["user-data"]
         if "network-config" in self._crawled_metadata:

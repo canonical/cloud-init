@@ -62,7 +62,6 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
     source = get_validated_source(session_cloud)
     if not source.installs_new_version():
         pytest.skip(UNSUPPORTED_INSTALL_METHOD_MSG.format(source))
-        return  # type checking doesn't understand that skip raises
     launch_kwargs = {
         "image_id": session_cloud.initial_image_id,
     }
@@ -194,7 +193,6 @@ def test_subsequent_boot_of_upgraded_package(session_cloud: IntegrationCloud):
             pytest.fail(UNSUPPORTED_INSTALL_METHOD_MSG.format(source))
         else:
             pytest.skip(UNSUPPORTED_INSTALL_METHOD_MSG.format(source))
-        return  # type checking doesn't understand that skip raises
 
     launch_kwargs = {"image_id": session_cloud.initial_image_id}
 

@@ -746,7 +746,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
         assert_file,
         cmdargs: MyArgs,
         expected_retcode: int,
-        expected_status: str,
+        expected_status: Union[str, dict],
         config: Config,
         capsys,
     ):

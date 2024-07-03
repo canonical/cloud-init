@@ -317,7 +317,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self.sys_cfg = sys_cfg
         self.distro = distro
         self.paths = paths
-        self.userdata = None
+        self.userdata: Optional[Any] = None
         self.metadata: dict = {}
         self.userdata_raw: Optional[str] = None
         self.vendordata = None
@@ -359,7 +359,6 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         if not hasattr(self, "check_if_fallback_is_allowed"):
             setattr(self, "check_if_fallback_is_allowed", lambda: False)
-
         if hasattr(self, "userdata") and self.userdata is not None:
             # If userdata stores MIME data, on < python3.6 it will be
             # missing the 'policy' attribute that exists on >=python3.6.
@@ -484,6 +483,12 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
         self._dirty_cache = True
         return_value = self._check_and_get_data()
+        # TODO: verify that datasource types are what they are expected to be
+        # each datasource uses different logic to get userdata, metadata, etc
+        # and then the rest of the codebase assumes the types of this data
+        # it would be prudent to have a type check here that warns, when the
+        # datatype is incorrect, rather than assuming types and throwing
+        # exceptions later if/when they get used incorrectly.
         if not return_value:
             return return_value
         self.persist_instance_data()

@@ -30,9 +30,7 @@ meta: MetaSchema = {
 }  # type: ignore
 
 
-def supplemental_schema_validation(
-    init_cfg: dict, bridge_cfg: dict, preseed_str: str
-):
+def supplemental_schema_validation(init_cfg, bridge_cfg, preseed_str):
     """Validate user-provided lxd network and bridge config option values.
 
     @raises: ValueError describing invalid values provided.

@@ -82,7 +82,9 @@ class NoDHCPLeaseMissingDhclientError(NoDHCPLeaseError):
     """Raised when unable to find dhclient."""
 
 
-def maybe_perform_dhcp_discovery(distro, nic=None, dhcp_log_func=None):
+def maybe_perform_dhcp_discovery(
+    distro, nic=None, dhcp_log_func=None
+) -> Dict[str, Any]:
     """Perform dhcp discovery if nic valid and dhclient command exists.
 
     If the nic is invalid or undiscoverable or dhclient command is not found,

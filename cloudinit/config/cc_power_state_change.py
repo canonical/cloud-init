@@ -78,8 +78,8 @@ def check_condition(cond):
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     try:
-        (args, timeout, condition) = load_power_state(cfg, cloud.distro)
-        if args is None:
+        (arg_list, timeout, condition) = load_power_state(cfg, cloud.distro)
+        if arg_list is None:
             LOG.debug("no power_state provided. doing nothing")
             return
     except Exception as e:
@@ -99,7 +99,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     devnull_fp = open(os.devnull, "w")
 
-    LOG.debug("After pid %s ends, will execute: %s", mypid, " ".join(args))
+    LOG.debug("After pid %s ends, will execute: %s", mypid, " ".join(arg_list))
 
     util.fork_cb(
         run_after_pid_gone,
@@ -108,7 +108,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         timeout,
         condition,
         execmd,
-        [args, devnull_fp],
+        [arg_list, devnull_fp],
     )
 
 
