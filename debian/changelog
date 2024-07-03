@@ -1,4 +1,4 @@
-cloud-init (24.1.3-0ubuntu1~23.10.7) UNRELEASED; urgency=medium
+cloud-init (24.2-0ubuntu1~23.10.1) UNRELEASED; urgency=medium
 
   * d/apport-general-hook.py: Move apport hook to main branch
   * d/cloud-init.maintscript: remove /etc/cloud/clean.d/README
@@ -18,9 +18,11 @@ cloud-init (24.1.3-0ubuntu1~23.10.7) UNRELEASED; urgency=medium
     - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
     - d/p/status-do-not-remove-duplicated-data.patch
     - d/p/status-retain-recoverable-error-exit-code.patch
-  * Upstream snapshot based on upstream/main at db859451.
+  * Upstream snapshot based on 24.2. (LP: #2071762).
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/24.2/ChangeLog
 
- -- Chad Smith <chad.smith@canonical.com>  Sat, 22 Jun 2024 15:00:12 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 02 Jul 2024 20:45:59 -0600
 
 cloud-init (24.1.3-0ubuntu1~23.10.6) mantic; urgency=medium
 
