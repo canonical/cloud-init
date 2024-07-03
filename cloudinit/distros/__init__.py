@@ -60,6 +60,7 @@ ALL_DISTROS = "all"
 
 OSFAMILIES = {
     "alpine": ["alpine"],
+    "aosc": ["aosc"],
     "arch": ["arch"],
     "debian": ["debian", "ubuntu"],
     "freebsd": ["freebsd", "dragonfly"],
