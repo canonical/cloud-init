@@ -39,6 +39,7 @@ module = [
 ignore_missing_imports = true
 no_implicit_optional = true
 
+# See GH-5445
 [[tool.mypy.overrides]]
 module = [
     "cloudinit.analyze",
@@ -118,7 +119,6 @@ module = [
     "cloudinit.temp_utils",
     "cloudinit.templater",
     "cloudinit.user_data",
-    "cloudinit.util",
     "tests.integration_tests.instances",
     "tests.unittests.analyze.test_show",
     "tests.unittests.cmd.devel.test_hotplug_hook",
