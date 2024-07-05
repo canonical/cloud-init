@@ -22,6 +22,7 @@ from struct import pack
 from cloudinit import sources, subp
 from cloudinit import url_helper as uhelp
 from cloudinit import util
+from cloudinit.event import EventScope, EventType
 from cloudinit.net import dhcp
 from cloudinit.sources.helpers import ec2
 
@@ -81,6 +82,13 @@ class DataSourceCloudStack(sources.DataSource):
     # Setup read_url parameters per get_url_params.
     url_max_wait = 120
     url_timeout = 50
+
+    default_update_events = {
+        EventScope.NETWORK: {
+            EventType.BOOT_NEW_INSTANCE,
+            EventType.BOOT,
+        }
+    }
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
