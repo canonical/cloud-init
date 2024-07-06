@@ -4,6 +4,7 @@
 import math
 import os.path
 import re
+import textwrap
 from collections import namedtuple
 from unittest import mock
 
@@ -498,11 +499,13 @@ class TestFstabHandling:
 
     def test_no_change_fstab_sets_needs_mount_all(self):
         """verify unchanged fstab entries are mounted if not call mount -a"""
-        fstab_original_content = (
-            "LABEL=cloudimg-rootfs / ext4 defaults 0 0\n"
-            "LABEL=UEFI /boot/efi vfat defaults 0 0\n"
-            "/dev/vdb\t/mnt\tauto\tdefaults,noexec,comment=cloudconfig\t0\t2\n"
-            f"{self.swap_path}\tnone\tswap\tsw,comment=cloudconfig\t0\t0\n"
+        fstab_original_content = textwrap.dedent(
+            f"""
+            LABEL=cloudimg-rootfs / ext4 defaults 0 0
+            LABEL=UEFI /boot/efi vfat defaults 0 0
+            /dev/vdb	/mnt	auto	defaults,noexec,comment=cloudconfig	0	2
+            {self.swap_path}	none	swap	sw,comment=cloudconfig	0	0
+            """  # noqa: E501
         )
         cc = {"mounts": [["/dev/vdb", "/mnt", "auto", "defaults,noexec"]]}
         with open(cc_mounts.FSTAB_PATH, "w") as fd:
@@ -516,6 +519,58 @@ class TestFstabHandling:
                 mock.call(["mount", "-a"]),
                 mock.call(["systemctl", "daemon-reload"]),
             ]
+        )
+
+    def test_fstab_mounts_combinations(self):
+        """Verify various combinations of mount entries in /etc/fstab."""
+        # First and third lines show that even with errors we keep fstab lines
+        # unedited unless they contain the cloudconfig comment.
+        # 2nd line shows we remove a line with a cloudconfig comment that
+        # can be added back in with the mounts config.
+        # 4th line shows we remove a line with a cloudconfig comment
+        # indiscriminately.
+        fstab_original_content = (
+            "LABEL=keepme	none	ext4	defaults	0	0\n"
+            "/dev/sda1	/a	auto	defaults,comment=cloudconfig	0	2\n"
+            "LABEL=UEFI\n"
+            "/dev/sda2	/b	auto	defaults,comment=cloudconfig	0	2\n"
+        )
+        with open(cc_mounts.FSTAB_PATH, "w") as fd:
+            fd.write(fstab_original_content)
+        cfg = {
+            "mounts": [
+                # Line that will be overridden due to later None value
+                ["/dev/sda3", "dontcare", "auto", "defaults", "0", "0"],
+                # Add the one missing default field to the end
+                ["/dev/sda4", "/mnt2", "auto", "nofail", "1"],
+                # Remove all "/dev/sda3"'s here and earlier
+                ["/dev/sda3", None],
+                # As long as we have two fields we get the rest of the defaults
+                ["/dev/sda5", "/mnt3"],
+                # Takes the place of the line that was removed from fstab
+                # with the cloudconfig comment
+                ["/dev/sda1", "/mnt", "xfs"],
+                # The line that survies after previous Nones
+                ["/dev/sda3", "/mnt4", "btrfs"],
+            ]
+        }
+        cc_mounts.handle(None, cfg, self.mock_cloud, [])
+        with open(cc_mounts.FSTAB_PATH, "r") as fd:
+            fstab_new_content = fd.read()
+
+        assert (
+            fstab_new_content.strip()
+            == textwrap.dedent(
+                """
+            LABEL=keepme	none	ext4	defaults	0	0
+            LABEL=UEFI
+            /dev/sda4	/mnt2	auto	nofail,comment=cloudconfig	1	2
+            /dev/sda5	/mnt3	auto	defaults,nofail,x-systemd.after=cloud-init.service,_netdev,comment=cloudconfig	0	2
+            /dev/sda1	/mnt	xfs	defaults,nofail,x-systemd.after=cloud-init.service,_netdev,comment=cloudconfig	0	2
+            /dev/sda3	/mnt4	btrfs	defaults,nofail,x-systemd.after=cloud-init.service,_netdev,comment=cloudconfig	0	2
+            /dev/sdb1	none	swap	sw,comment=cloudconfig	0	0
+            """  # noqa: E501
+            ).strip()
         )
 
 
