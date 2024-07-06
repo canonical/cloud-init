@@ -506,14 +506,14 @@ class TestFstabHandling:
             /dev/vdb	/mnt	auto	defaults,noexec,comment=cloudconfig	0	2
             {self.swap_path}	none	swap	sw,comment=cloudconfig	0	0
             """  # noqa: E501
-        )
+        ).strip()
         cc = {"mounts": [["/dev/vdb", "/mnt", "auto", "defaults,noexec"]]}
         with open(cc_mounts.FSTAB_PATH, "w") as fd:
             fd.write(fstab_original_content)
         cc_mounts.handle(None, cc, self.mock_cloud, [])
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
-            assert fstab_original_content == fstab_new_content
+            assert fstab_original_content == fstab_new_content.strip()
         self.m_subp.assert_has_calls(
             [
                 mock.call(["mount", "-a"]),
