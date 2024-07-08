@@ -326,7 +326,8 @@ class TestFTP:
                     'wget "https://github.com/FiloSottile/mkcert/releases/'
                     "download/${latest_ver}/mkcert-"
                     '${latest_ver}-linux-amd64"'
-                    " -O mkcert"
+                    " -O mkcert && "
+                    "chmod 755 mkcert"
                 ).ok
 
                 # giddyup
