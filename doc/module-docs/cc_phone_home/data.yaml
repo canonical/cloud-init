@@ -1,0 +1,40 @@
+cc_phone_home:
+  description: |
+    This module can be used to post data to a remote host after boot is
+    complete. If the post URL contains the string ``$INSTANCE_ID`` it will be
+    replaced with the ID of the current instance.
+
+    Either all data can be posted, or a list of keys to post.
+
+    Available keys are:
+    
+    - ``pub_key_rsa``
+    - ``pub_key_ecdsa``
+    - ``pub_key_ed25519``
+    - ``instance_id``
+    - ``hostname``
+    - ``fdqn``
+    
+    Data is sent as ``x-www-form-urlencoded`` arguments.
+    
+    **Example HTTP POST**:
+    
+    .. code-block:: http
+       
+       POST / HTTP/1.1
+       Content-Length: 1337
+       User-Agent: Cloud-Init/21.4
+       Accept-Encoding: gzip, deflate
+       Accept: */*
+       Content-Type: application/x-www-form-urlencoded
+       
+       pub_key_rsa=rsa_contents&pub_key_ecdsa=ecdsa_contents&pub_key_ed25519=ed25519_contents&instance_id=i-87018aed&hostname=myhost&fqdn=myhost.internal
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_phone_home/example1.yaml
+  - comment: |
+      Example 2:
+    file: cc_phone_home/example2.yaml
+  name: Phone Home
+  title: Post data to URL

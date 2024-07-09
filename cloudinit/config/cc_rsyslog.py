@@ -20,31 +20,12 @@ from textwrap import dedent
 from cloudinit import log, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS, Distro
 from cloudinit.settings import PER_INSTANCE
 
-MODULE_DESCRIPTION = """\
-This module configures remote system logging using rsyslog.
-
-Configuration for remote servers can be specified in ``configs``, but for
-convenience it can be specified as key value pairs in ``remotes``.
-
-This module can install rsyslog if not already present on the system using the
-``install_rsyslog``, ``packages``, and ``check_exe`` options. Installation
-may not work on systems where this module runs before networking is up.
-
-.. note::
-    On BSD cloud-init will attempt to disable and stop the base system syslogd.
-    This may fail on a first run.
-    We recommend creating images with ``service syslogd disable``.
-"""
-
 meta: MetaSchema = {
     "id": "cc_rsyslog",
-    "name": "Rsyslog",
-    "title": "Configure system logging via rsyslog",
-    "description": MODULE_DESCRIPTION,
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
     "examples": [
@@ -86,9 +67,7 @@ meta: MetaSchema = {
         ),
     ],
     "activate_by_schema_keys": ["rsyslog"],
-}
-
-__doc__ = get_meta_doc(meta)
+}  # type: ignore
 
 RSYSLOG_CONFIG = {
     "config_dir": "/etc/rsyslog.d",

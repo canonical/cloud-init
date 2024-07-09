@@ -11,7 +11,7 @@ import os
 import sys
 from collections import namedtuple
 from contextlib import suppress
-from typing import Dict, Iterable, List, Optional, Set
+from typing import Dict, Iterable, List, Optional, Set, Tuple, Union
 
 from cloudinit import (
     atomic_helper,
@@ -26,6 +26,7 @@ from cloudinit import (
     type_utils,
     util,
 )
+from cloudinit.config import Netv1, Netv2
 from cloudinit.event import EventScope, EventType, userdata_to_events
 
 # Default handlers (used if not overridden)
@@ -944,7 +945,7 @@ class Init:
         # Run the handlers
         self._do_handlers(user_data_msg, c_handlers_list, frequency)
 
-    def _get_network_key_contents(self, cfg) -> dict:
+    def _get_network_key_contents(self, cfg) -> Union[Netv1, Netv2, None]:
         """
         Network configuration can be passed as a dict under a "network" key, or
         optionally at the top level. In both cases, return the config.
@@ -953,7 +954,9 @@ class Init:
             return cfg["network"]
         return cfg
 
-    def _find_networking_config(self):
+    def _find_networking_config(
+        self,
+    ) -> Tuple[Union[Netv1, Netv2, None], Union[NetworkConfigSource, str]]:
         disable_file = os.path.join(
             self.paths.get_cpath("data"), "upgraded-network"
         )
@@ -978,7 +981,9 @@ class Init:
             order = sources.DataSource.network_config_sources
         for cfg_source in order:
             if not isinstance(cfg_source, NetworkConfigSource):
-                LOG.warning(
+                # This won't happen in the cloud-init codebase, but out-of-tree
+                # datasources might have an invalid type that mypy cannot know.
+                LOG.warning(  # type: ignore
                     "data source specifies an invalid network cfg_source: %s",
                     cfg_source,
                 )

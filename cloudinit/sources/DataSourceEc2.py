@@ -29,8 +29,6 @@ from cloudinit.sources.helpers import ec2
 
 LOG = logging.getLogger(__name__)
 
-SKIP_METADATA_URL_CODES = frozenset([uhelp.NOT_FOUND])
-
 STRICT_ID_PATH = ("datasource", "Ec2", "strict_id")
 STRICT_ID_DEFAULT = "warn"
 

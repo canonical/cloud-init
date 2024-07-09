@@ -12,7 +12,7 @@ from cloudinit.distros.package_management.package_manager import (
     PackageManager,
     UninstalledPackages,
 )
-from cloudinit.settings import PER_INSTANCE
+from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
@@ -108,12 +108,12 @@ class Apt(PackageManager):
     def available(self) -> bool:
         return bool(subp.which(self.apt_get_command[0]))
 
-    def update_package_sources(self):
+    def update_package_sources(self, *, force=False):
         self.runner.run(
             "update-sources",
             self.run_package_command,
             ["update"],
-            freq=PER_INSTANCE,
+            freq=PER_ALWAYS if force else PER_INSTANCE,
         )
 
     @functools.lru_cache(maxsize=1)
@@ -182,14 +182,12 @@ class Apt(PackageManager):
             },
         )
 
-    def _apt_lock_available(self, lock_files=None):
+    def _apt_lock_available(self):
         """Determines if another process holds any apt locks.
 
         If all locks are clear, return True else False.
         """
-        if lock_files is None:
-            lock_files = APT_LOCK_FILES
-        for lock in lock_files:
+        for lock in APT_LOCK_FILES:
             if not os.path.exists(lock):
                 # Only wait for lock files that already exist
                 continue
@@ -208,9 +206,9 @@ class Apt(PackageManager):
         short_cmd: Name of command like "upgrade" or "install"
         subp_kwargs: kwargs to pass to subp
         """
-        start_time = time.time()
+        start_time = time.monotonic()
         LOG.debug("Waiting for APT lock")
-        while time.time() - start_time < timeout:
+        while time.monotonic() - start_time < timeout:
             if not self._apt_lock_available():
                 time.sleep(1)
                 continue

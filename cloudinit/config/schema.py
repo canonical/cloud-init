@@ -31,7 +31,7 @@ from typing import (
 
 import yaml
 
-from cloudinit import importer, safeyaml
+from cloudinit import features, importer, safeyaml
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers import INCLUSION_TYPES_MAP, type_from_starts_with
 from cloudinit.helpers import Paths
@@ -42,6 +42,7 @@ from cloudinit.util import (
     get_modules_from_dir,
     load_text_file,
     load_yaml,
+    should_log_deprecation,
     write_file,
 )
 
@@ -101,16 +102,12 @@ SCHEMA_DOC_TMPL = """
 
 {examples}
 """
-SCHEMA_PROPERTY_HEADER = ""
 SCHEMA_PROPERTY_TMPL = "{prefix}* **{prop_name}:** ({prop_type}){description}"
 SCHEMA_LIST_ITEM_TMPL = (
     "{prefix}* Each object in **{prop_name}** list supports "
     "the following keys:"
 )
-SCHEMA_EXAMPLES_HEADER = ""
-SCHEMA_EXAMPLES_SPACER_TEMPLATE = "\n   # --- Example{example_count} ---\n\n"
 DEPRECATED_KEY = "deprecated"
-DEPRECATED_PREFIX = "DEPRECATED: "
 
 # user-data files typically must begin with a leading '#'
 USERDATA_VALID_HEADERS = sorted(
@@ -125,12 +122,12 @@ if TYPE_CHECKING:
     from typing_extensions import NotRequired, TypedDict
 
     class MetaSchema(TypedDict):
-        name: str
         id: str
+        name: str
         title: str
         description: str
         distros: typing.List[str]
-        examples: typing.List[str]
+        examples: typing.List[Union[dict, str]]
         frequency: str
         activate_by_schema_keys: NotRequired[List[str]]
 
@@ -139,7 +136,14 @@ else:
 
 
 class SchemaDeprecationError(ValidationError):
-    pass
+    def __init__(
+        self,
+        message: str,
+        version: str,
+        **kwargs,
+    ):
+        super().__init__(message, **kwargs)
+        self.version: str = version
 
 
 class SchemaProblem(NamedTuple):
@@ -358,14 +362,14 @@ def _validator(
 ):
     """Jsonschema validator for `deprecated` items.
 
-    It raises a instance of `error_type` if deprecated that must be handled,
+    It yields an instance of `error_type` if deprecated that must be handled,
     otherwise the instance is consider faulty.
     """
     if deprecated:
         msg = _add_deprecated_changed_or_new_msg(
             schema, annotate=True, filter_key=[filter_key]
         )
-        yield error_type(msg)
+        yield error_type(msg, schema.get("deprecated_version", "devel"))
 
 
 _validator_deprecated = partial(_validator, filter_key="deprecated")
@@ -681,15 +685,16 @@ def netplan_validate_network_schema(
             message = _format_schema_problems(
                 errors,
                 prefix=(
-                    f"Invalid {SchemaType.NETWORK_CONFIG.value} provided:\n"
+                    f"{SchemaType.NETWORK_CONFIG.value} failed "
+                    "schema validation!\n"
                 ),
                 separator="\n",
             )
         else:
             message = (
-                f"Invalid {SchemaType.NETWORK_CONFIG.value} provided: "
-                "Please run 'sudo cloud-init schema --system' to "
-                "see the schema errors."
+                f"{SchemaType.NETWORK_CONFIG.value} failed schema validation! "
+                "You may run 'sudo cloud-init schema --system' to "
+                "check the details."
             )
         LOG.warning(message)
     return True
@@ -771,6 +776,7 @@ def validate_cloudconfig_schema(
 
     errors: SchemaProblems = []
     deprecations: SchemaProblems = []
+    info_deprecations: SchemaProblems = []
     for schema_error in sorted(
         validator.iter_errors(config), key=lambda e: e.path
     ):
@@ -786,37 +792,49 @@ def validate_cloudconfig_schema(
             )
             if prop_match:
                 path = prop_match["name"]
-        problem = (SchemaProblem(path, schema_error.message),)
         if isinstance(
             schema_error, SchemaDeprecationError
         ):  # pylint: disable=W1116
-            deprecations += problem
+            if schema_error.version == "devel" or should_log_deprecation(
+                schema_error.version, features.DEPRECATION_INFO_BOUNDARY
+            ):
+                deprecations.append(SchemaProblem(path, schema_error.message))
+            else:
+                info_deprecations.append(
+                    SchemaProblem(path, schema_error.message)
+                )
         else:
-            errors += problem
+            errors.append(SchemaProblem(path, schema_error.message))
 
-    if log_deprecations and deprecations:
-        message = _format_schema_problems(
-            deprecations,
-            prefix="Deprecated cloud-config provided:\n",
-            separator="\n",
-        )
-        # This warning doesn't fit the standardized util.deprecated() utility
-        # format, but it is a deprecation log, so log it directly.
-        LOG.deprecated(message)  # type: ignore
-    if strict and (errors or deprecations):
-        raise SchemaValidationError(errors, deprecations)
+    if log_deprecations:
+        if info_deprecations:
+            message = _format_schema_problems(
+                info_deprecations,
+                prefix="Deprecated cloud-config provided: ",
+            )
+            LOG.info(message)
+        if deprecations:
+            message = _format_schema_problems(
+                deprecations,
+                prefix="Deprecated cloud-config provided: ",
+            )
+            # This warning doesn't fit the standardized util.deprecated()
+            # utility format, but it is a deprecation log, so log it directly.
+            LOG.deprecated(message)  # type: ignore
+    if strict and (errors or deprecations or info_deprecations):
+        raise SchemaValidationError(errors, deprecations + info_deprecations)
     if errors:
         if log_details:
             details = _format_schema_problems(
                 errors,
-                prefix=f"Invalid {schema_type.value} provided:\n",
+                prefix=f"{schema_type.value} failed schema validation!\n",
                 separator="\n",
             )
         else:
             details = (
-                f"Invalid {schema_type.value} provided: "
-                "Please run 'sudo cloud-init schema --system' to "
-                "see the schema errors."
+                f"{schema_type.value} failed schema validation! "
+                "You may run 'sudo cloud-init schema --system' to "
+                "check the details."
             )
         LOG.warning(details)
     return True
@@ -921,16 +939,6 @@ class _Annotator:
         if not schema_errors and not schema_deprecations:
             return self._original_content
         lines = self._original_content.split("\n")
-        if not isinstance(self._cloudconfig, dict):
-            # Return a meaningful message on empty cloud-config
-            return "\n".join(
-                lines
-                + [
-                    self._build_footer(
-                        "Errors", ["# E1: Cloud-config is not a YAML dict."]
-                    )
-                ]
-            )
         errors_by_line = self._build_errors_by_line(schema_errors)
         deprecations_by_line = self._build_errors_by_line(schema_deprecations)
         annotated_content = self._annotate_content(
@@ -996,7 +1004,7 @@ def process_merged_cloud_config_part_problems(
 def _get_config_type_and_rendered_userdata(
     config_path: str,
     content: str,
-    instance_data_path: str = None,
+    instance_data_path: Optional[str] = None,
 ) -> UserDataTypeAndDecodedContent:
     """
     Return tuple of user-data-type and rendered content.
@@ -1067,7 +1075,7 @@ def validate_cloudconfig_file(
     schema: dict,
     schema_type: SchemaType = SchemaType.CLOUD_CONFIG,
     annotate: bool = False,
-    instance_data_path: str = None,
+    instance_data_path: Optional[str] = None,
 ) -> bool:
     """Validate cloudconfig file adheres to a specific jsonschema.
 
@@ -1246,7 +1254,7 @@ def _get_property_type(property_dict: dict, defs: dict) -> str:
     """Return a string representing a property type from a given
     jsonschema.
     """
-    _flatten_schema_refs(property_dict, defs)
+    flatten_schema_refs(property_dict, defs)
     property_types = property_dict.get("type", [])
     if not isinstance(property_types, list):
         property_types = [property_types]
@@ -1308,7 +1316,7 @@ def _parse_description(description, prefix) -> str:
     return description
 
 
-def _flatten_schema_refs(src_cfg: dict, defs: dict):
+def flatten_schema_refs(src_cfg: dict, defs: dict):
     """Flatten schema: replace $refs in src_cfg with definitions from $defs."""
     if "$ref" in src_cfg:
         reference = src_cfg.pop("$ref").replace("#/$defs/", "")
@@ -1334,7 +1342,7 @@ def _flatten_schema_refs(src_cfg: dict, defs: dict):
             sub_schema.update(defs[reference])
 
 
-def _flatten_schema_all_of(src_cfg: dict):
+def flatten_schema_all_of(src_cfg: dict):
     """Flatten schema: Merge allOf.
 
     If a schema as allOf, then all of the sub-schemas must hold. Therefore
@@ -1404,8 +1412,8 @@ def _get_property_doc(schema: dict, defs: dict, prefix="   ") -> str:
 
     for prop_schema in property_schemas:
         for prop_key, prop_config in prop_schema.items():
-            _flatten_schema_refs(prop_config, defs)
-            _flatten_schema_all_of(prop_config)
+            flatten_schema_refs(prop_config, defs)
+            flatten_schema_all_of(prop_config)
             if prop_config.get("hidden") is True:
                 continue  # document nothing for this property
 
@@ -1423,7 +1431,7 @@ def _get_property_doc(schema: dict, defs: dict, prefix="   ") -> str:
             )
             items = prop_config.get("items")
             if items:
-                _flatten_schema_refs(items, defs)
+                flatten_schema_refs(items, defs)
                 if items.get("properties") or items.get("patternProperties"):
                     properties.append(
                         SCHEMA_LIST_ITEM_TMPL.format(
@@ -1466,12 +1474,9 @@ def _get_examples(meta: MetaSchema) -> str:
     examples = meta.get("examples")
     if not examples:
         return ""
-    rst_content = SCHEMA_EXAMPLES_HEADER
-    for count, example in enumerate(examples, 1):
-        rst_content += SCHEMA_EXAMPLES_SPACER_TEMPLATE.format(
-            example_count=count
-        )
-        # FIXME(no conditional needed when all modules in module-doc.yaml)
+    rst_content: str = ""
+    for example in examples:
+        # FIXME(drop conditional when all mods have rtd/module-doc/*/data.yaml)
         if isinstance(example, dict):
             if example["comment"]:
                 comment = f"# {example['comment']}\n"

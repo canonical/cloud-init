@@ -1,0 +1,8 @@
+#cloud-config
+manage_resolv_conf: true
+resolv_conf:
+  domain: example.com
+  nameservers: [8.8.8.8, 8.8.4.4]
+  options: {rotate: true, timeout: 1}
+  searchdomains: [foo.example.com, bar.example.com]
+  sortlist: [10.0.0.1/255, 10.0.0.2]

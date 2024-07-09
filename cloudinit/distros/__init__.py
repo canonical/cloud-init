@@ -50,6 +50,7 @@ from cloudinit.distros.package_management.utils import known_package_managers
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 from cloudinit.net import activators, dhcp, renderers
+from cloudinit.net.netops import NetOps
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.net.renderer import Renderer
 
@@ -59,6 +60,7 @@ ALL_DISTROS = "all"
 
 OSFAMILIES = {
     "alpine": ["alpine"],
+    "aosc": ["aosc"],
     "arch": ["arch"],
     "debian": ["debian", "ubuntu"],
     "freebsd": ["freebsd", "dragonfly"],
@@ -142,7 +144,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     # This is used by self.shutdown_command(), and can be overridden in
     # subclasses
     shutdown_options_map = {"halt": "-H", "poweroff": "-P", "reboot": "-r"}
-    net_ops = iproute2.Iproute2
+    net_ops: Type[NetOps] = iproute2.Iproute2
 
     _ci_pkl_version = 1
     prefer_fqdn = False
@@ -396,7 +398,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # managers.
         raise NotImplementedError()
 
-    def update_package_sources(self):
+    def update_package_sources(self, *, force=False):
         for manager in self.package_managers:
             if not manager.available():
                 LOG.debug(
@@ -405,7 +407,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 )
                 continue
             try:
-                manager.update_package_sources()
+                manager.update_package_sources(force=force)
             except Exception as e:
                 LOG.error(
                     "Failed to update package using %s: %s", manager.name, e
@@ -846,7 +848,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 util.deprecate(
                     deprecated=f"The value of 'false' in user {name}'s "
                     "'sudo' config",
-                    deprecated_version="22.3",
+                    deprecated_version="22.2",
                     extra_message="Use 'null' instead.",
                 )
 

@@ -1,0 +1,9 @@
+#cloud-config
+fan:
+  config: |
+    # fan 240
+    10.0.0.0/8 eth0/16 dhcp
+    10.0.0.0/8 eth1/16 dhcp off
+    # fan 241
+    241.0.0.0/8 eth0/16 dhcp
+  config_path: /etc/network/fan

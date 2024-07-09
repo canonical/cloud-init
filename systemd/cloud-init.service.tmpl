@@ -30,6 +30,7 @@ After=dbus.service
 Before=network-online.target
 Before=sshd-keygen.service
 Before=sshd.service
+Before=systemd-user-sessions.service
 {% if variant in ["ubuntu", "unknown", "debian"] %}
 Before=sysinit.target
 Before=shutdown.target

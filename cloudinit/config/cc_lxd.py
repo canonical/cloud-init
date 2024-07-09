@@ -8,7 +8,6 @@
 
 import logging
 import os
-from textwrap import dedent
 from typing import List, Tuple
 
 import yaml
@@ -16,154 +15,22 @@ import yaml
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
 _DEFAULT_NETWORK_NAME = "lxdbr0"
 
-
-MODULE_DESCRIPTION = """\
-This module configures lxd with user specified options using ``lxd init``.
-If lxd is not present on the system but lxd configuration is provided, then
-lxd will be installed. If the selected storage backend userspace utility is
-not installed, it will be installed. If network bridge configuration is
-provided, then lxd-bridge will be configured accordingly.
-"""
-
-distros = ["ubuntu"]
-
 meta: MetaSchema = {
     "id": "cc_lxd",
-    "name": "LXD",
-    "title": "Configure LXD with ``lxd init`` and optionally lxd-bridge",
-    "description": MODULE_DESCRIPTION,
-    "distros": distros,
-    "examples": [
-        dedent(
-            """\
-            # Simplest working directory backed LXD configuration
-            lxd:
-              init:
-                storage_backend: dir
-            """
-        ),
-        dedent(
-            """\
-            # LXD init showcasing cloud-init's LXD config options
-            lxd:
-              init:
-                network_address: 0.0.0.0
-                network_port: 8443
-                storage_backend: zfs
-                storage_pool: datapool
-                storage_create_loop: 10
-              bridge:
-                mode: new
-                mtu: 1500
-                name: lxdbr0
-                ipv4_address: 10.0.8.1
-                ipv4_netmask: 24
-                ipv4_dhcp_first: 10.0.8.2
-                ipv4_dhcp_last: 10.0.8.3
-                ipv4_dhcp_leases: 250
-                ipv4_nat: true
-                ipv6_address: fd98:9e0:3744::1
-                ipv6_netmask: 64
-                ipv6_nat: true
-                domain: lxd
-            """
-        ),
-        dedent(
-            """\
-            # For more complex non-iteractive LXD configuration of networks,
-            # storage_pools, profiles, projects, clusters and core config,
-            # `lxd:preseed` config will be passed as stdin to the command:
-            #  lxd init --preseed
-            # See https://documentation.ubuntu.com/lxd/en/latest/howto/initialize/#non-interactive-configuration or
-            # run: lxd init --dump to see viable preseed YAML allowed.
-            #
-            # Preseed settings configuring the LXD daemon for HTTPS connections
-            # on 192.168.1.1 port 9999, a nested profile which allows for
-            # LXD nesting on containers and a limited project allowing for
-            # RBAC approach when defining behavior for sub projects.
-            lxd:
-              preseed: |
-                config:
-                  core.https_address: 192.168.1.1:9999
-                networks:
-                  - config:
-                      ipv4.address: 10.42.42.1/24
-                      ipv4.nat: true
-                      ipv6.address: fd42:4242:4242:4242::1/64
-                      ipv6.nat: true
-                    description: ""
-                    name: lxdbr0
-                    type: bridge
-                    project: default
-                storage_pools:
-                  - config:
-                      size: 5GiB
-                      source: /var/snap/lxd/common/lxd/disks/default.img
-                    description: ""
-                    name: default
-                    driver: zfs
-                profiles:
-                  - config: {}
-                    description: Default LXD profile
-                    devices:
-                      eth0:
-                        name: eth0
-                        network: lxdbr0
-                        type: nic
-                      root:
-                        path: /
-                        pool: default
-                        type: disk
-                    name: default
-                  - config: {}
-                    security.nesting: true
-                    devices:
-                      eth0:
-                        name: eth0
-                        network: lxdbr0
-                        type: nic
-                      root:
-                        path: /
-                        pool: default
-                        type: disk
-                    name: nested
-                projects:
-                  - config:
-                      features.images: true
-                      features.networks: true
-                      features.profiles: true
-                      features.storage.volumes: true
-                    description: Default LXD project
-                    name: default
-                  - config:
-                      features.images: false
-                      features.networks: true
-                      features.profiles: false
-                      features.storage.volumes: false
-                    description: Limited Access LXD project
-                    name: limited
-
-
-            """  # noqa: E501
-        ),
-    ],
+    "distros": ["ubuntu"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["lxd"],
-}
-
-__doc__ = get_meta_doc(meta)
+}  # type: ignore
 
 
-def supplemental_schema_validation(
-    init_cfg: dict, bridge_cfg: dict, preseed_str: str
-):
+def supplemental_schema_validation(init_cfg, bridge_cfg, preseed_str):
     """Validate user-provided lxd network and bridge config option values.
 
     @raises: ValueError describing invalid values provided.

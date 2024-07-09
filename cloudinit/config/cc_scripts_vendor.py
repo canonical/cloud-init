@@ -7,60 +7,22 @@
 
 import logging
 import os
-from textwrap import dedent
 
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
-MODULE_DESCRIPTION = """\
-On select Datasources, vendors have a channel for the consumption
-of all supported user data types via a special channel called
-vendor data. Any scripts in the ``scripts/vendor`` directory in the datasource
-will be run when a new instance is first booted. Scripts will be run in
-alphabetical order. This module allows control over the execution of
-vendor data.
-"""
-
 meta: MetaSchema = {
     "id": "cc_scripts_vendor",
-    "name": "Scripts Vendor",
-    "title": "Run vendor scripts",
-    "description": MODULE_DESCRIPTION,
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
-    "examples": [
-        dedent(
-            """\
-            vendor_data:
-              enabled: true
-              prefix: /usr/bin/ltrace
-            """
-        ),
-        dedent(
-            """\
-            vendor_data:
-              enabled: true
-              prefix: [timeout, 30]
-            """
-        ),
-        dedent(
-            """\
-            # Vendor data will not be processed
-            vendor_data:
-              enabled: false
-            """
-        ),
-    ],
     "activate_by_schema_keys": [],
-}
+}  # type: ignore
 
-__doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
-
 
 SCRIPT_SUBDIR = "vendor"
 

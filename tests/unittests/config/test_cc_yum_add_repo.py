@@ -31,6 +31,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
             "yum_repos": {
                 "epel-testing": {
                     "name": "Extra Packages for Enterprise Linux 5 - Testing",
+                    # At least one of baseurl or metalink must be present.
                     # Missing this should cause the repo not to be written
                     # 'baseurl': 'http://blah.org/pub/epel/testing/5/$barch',
                     "enabled": False,
@@ -45,6 +46,43 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         self.assertRaises(
             IOError, util.load_text_file, "/etc/yum.repos.d/epel_testing.repo"
         )
+
+    def test_metalink_config(self):
+        cfg = {
+            "yum_repos": {
+                "epel-testing": {
+                    "name": "Extra Packages for Enterprise Linux 5 - Testing",
+                    "metalink": "http://blah.org/pub/epel/testing/5/$basearch",
+                    "enabled": False,
+                    "gpgcheck": True,
+                    "gpgkey": "file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL",
+                    "failovermethod": "priority",
+                },
+            },
+        }
+        self.patchUtils(self.tmp)
+        self.patchOS(self.tmp)
+        cc_yum_add_repo.handle("yum_add_repo", cfg, None, [])
+        contents = util.load_text_file("/etc/yum.repos.d/epel-testing.repo")
+        parser = configparser.ConfigParser()
+        parser.read_string(contents)
+        expected = {
+            "epel-testing": {
+                "name": "Extra Packages for Enterprise Linux 5 - Testing",
+                "failovermethod": "priority",
+                "gpgkey": "file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL",
+                "enabled": "0",
+                "metalink": "http://blah.org/pub/epel/testing/5/$basearch",
+                "gpgcheck": "1",
+            }
+        }
+        for section in expected:
+            self.assertTrue(
+                parser.has_section(section),
+                "Contains section {0}".format(section),
+            )
+            for k, v in expected[section].items():
+                self.assertEqual(parser.get(section, k), v)
 
     def test_write_config(self):
         cfg = {

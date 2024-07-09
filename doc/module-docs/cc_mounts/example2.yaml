@@ -1,0 +1,5 @@
+#cloud-config
+swap:
+  filename: /swapfile
+  size: 2G
+  maxsize: 2G

@@ -1,0 +1,10 @@
+#cloud-config
+yum_repos:
+  cloud-init-daily:
+    name: Copr repo for cloud-init-dev owned by @cloud-init
+    baseurl: https://download.copr.fedorainfracloud.org/results/@cloud-init/cloud-init-dev/epel-8-$basearch/
+    type: rpm-md
+    skip_if_unavailable: true
+    gpgcheck: true
+    gpgkey: https://download.copr.fedorainfracloud.org/results/@cloud-init/cloud-init-dev/pubkey.gpg
+    enabled_metadata: 1

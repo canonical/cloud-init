@@ -131,7 +131,7 @@ def load_userdata(ud_file_path):
 
     @returns: String of uncompressed userdata if possible, otherwise bytes.
     """
-    bdata = util.load_binary_file(ud_file_path)
+    bdata = util.load_binary_file(ud_file_path, quiet=True)
     try:
         return bdata.decode("utf-8")
     except UnicodeDecodeError:

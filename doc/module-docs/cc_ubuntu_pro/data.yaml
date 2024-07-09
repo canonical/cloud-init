@@ -1,0 +1,52 @@
+cc_ubuntu_pro:
+  description: |
+    Attach machine to an existing Ubuntu Pro support contract and enable or
+    disable support services such as Livepatch, ESM, FIPS and FIPS Updates.
+
+    When attaching a machine to Ubuntu Pro, one can also specify services to
+    enable. When the ``enable`` list is present, only named services will be
+    activated. If the ``enable`` list is not present, the contract's default
+    services will be enabled.
+
+    On Pro instances, when ``ubuntu_pro`` config is provided to cloud-init,
+    Pro's auto-attach feature will be disabled and cloud-init will perform
+    the Pro auto-attach, ignoring the ``token`` key. The ``enable`` and
+    ``enable_beta`` values will strictly determine what services will be
+    enabled, ignoring contract defaults.
+
+    Note that when enabling FIPS or FIPS updates you will need to schedule a
+    reboot to ensure the machine is running the FIPS-compliant kernel. See the
+    Power State Change module for information on how to configure cloud-init to
+    perform this reboot.
+  examples:
+  - comment: >
+      Example 1: Attach the machine to an Ubuntu Pro support contract with a
+      Pro contract token obtained from https://ubuntu.com/pro.
+    file: cc_ubuntu_pro/example1.yaml
+  - comment: >
+      Example 2: Attach the machine to an Ubuntu Pro support contract, enabling
+      only FIPS and ESM services. Services will only be enabled if the
+      environment supports that service. Otherwise, warnings will be logged for
+      incompatible services.
+    file: cc_ubuntu_pro/example2.yaml
+  - comment: >
+      Example 3: Attach the machine to an Ubuntu Pro support contract and
+      enable the FIPS service. Perform a reboot once cloud-init has completed.
+    file: cc_ubuntu_pro/example3.yaml
+  - comment: >
+      Example 4: Set a HTTP(s) proxy before attaching the machine to an Ubuntu
+      Pro support contract and enabling the FIPS service.
+    file: cc_ubuntu_pro/example4.yaml
+  - comment: >
+      Example 5: On Ubuntu Pro instances, auto-attach but don't enable any Pro
+      services.
+    file: cc_ubuntu_pro/example5.yaml
+  - comment: >
+      Example 6: Enable ESM and beta Real-time Ubuntu services in Ubuntu Pro
+      instances.
+    file: cc_ubuntu_pro/example6.yaml
+  - comment: >
+      Example 7: Disable auto-attach in Ubuntu Pro instances.
+    file: cc_ubuntu_pro/example7.yaml
+  name: Ubuntu Pro
+  title: Configure Ubuntu Pro support services

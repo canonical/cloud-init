@@ -132,6 +132,13 @@ class LXDSocketAdapter(HTTPAdapter):
     def get_connection(self, url, proxies=None):
         return SocketConnectionPool(LXD_SOCKET_PATH)
 
+    # Fix for requests 2.32.2+:
+    # https://github.com/psf/requests/pull/6710
+    def get_connection_with_tls_context(
+        self, request, verify, proxies=None, cert=None
+    ):
+        return self.get_connection(request.url, proxies)
+
 
 def _raw_instance_data_to_dict(metadata_type: str, metadata_value) -> dict:
     """Convert raw instance data from str, bytes, YAML to dict
@@ -205,10 +212,6 @@ class DataSourceLXD(sources.DataSource):
         if user_metadata:
             user_metadata = _raw_instance_data_to_dict(
                 "user.meta-data", user_metadata
-            )
-        if not isinstance(self.metadata, dict):
-            self.metadata = util.mergemanydict(
-                [util.load_yaml(self.metadata), user_metadata]
             )
         if "user-data" in self._crawled_metadata:
             self.userdata_raw = self._crawled_metadata["user-data"]

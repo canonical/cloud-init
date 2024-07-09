@@ -1,0 +1,25 @@
+cc_resizefs:
+  description: |
+    Resize a filesystem to use all available space on partition. This module is
+    useful along with ``cc_growpart`` and will ensure that if the root
+    partition has been resized, the root filesystem will be resized along with
+    it.
+
+    By default, ``cc_resizefs`` will resize the root partition and will block
+    the boot process while the ``resize`` command is running.
+
+    Optionally, the resize operation can be performed in the background
+    while cloud-init continues running modules. This can be enabled by setting
+    ``resize_rootfs`` to ``noblock``.
+
+    This module can be disabled altogether by setting ``resize_rootfs`` to
+    ``false``.
+  examples:
+  - comment: |
+      Example 1: Disable root filesystem resize operation.
+    file: cc_resizefs/example1.yaml
+  - comment: |
+      Example 2: Runs resize operation in the background.
+    file: cc_resizefs/example2.yaml
+  name: Resizefs
+  title: Resize filesystem

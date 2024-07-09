@@ -1,0 +1,8 @@
+#cloud-config
+yum_repos:
+  my package stream:
+    baseurl: http://blah.org/pub/epel/testing/5/$basearch/
+    mirrorlist: http://some-url-to-list-of-baseurls
+    repo_gpgcheck: 1
+    enable_gpgcheck: true
+    gpgkey: https://url.to.ascii-armored-gpg-key

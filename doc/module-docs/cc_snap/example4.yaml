@@ -1,0 +1,6 @@
+#cloud-config
+snap:
+  assertions:
+    - signed_assertion_blob_here
+    - |
+      signed_assertion_blob_here

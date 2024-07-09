@@ -1,0 +1,4 @@
+#cloud-config
+rsyslog:
+  remotes: {juju: 10.0.4.1, maas: 192.168.1.1}
+  service_reload_command: auto

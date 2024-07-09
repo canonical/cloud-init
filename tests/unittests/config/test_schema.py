@@ -20,6 +20,7 @@ from typing import List, Optional, Sequence, Set
 import pytest
 import yaml
 
+from cloudinit import features
 from cloudinit.config.schema import (
     VERSIONED_USERDATA_SCHEMA_FILE,
     MetaSchema,
@@ -448,8 +449,9 @@ class TestNetplanValidateNetworkSchema:
                     column=12,
                     message="incorrect YAML value: yes for dhcp value",
                 ),
-                r"Invalid network-config provided:.*format-l1.c12: Invalid"
-                " netplan schema. incorrect YAML value: yes for dhcp value",
+                r"network-config failed schema validation!.*format-l1.c12: "
+                "Invalid netplan schema. incorrect YAML value: yes for dhcp "
+                "value",
             ),
         ),
     )
@@ -513,8 +515,8 @@ class TestValidateCloudConfigSchema:
         assert "cloudinit.config.schema" == module
         assert logging.WARNING == log_level
         assert (
-            "Invalid cloud-config provided:\np1: -1 is not of type 'string'"
-            == log_msg
+            "cloud-config failed schema validation!\n"
+            "p1: -1 is not of type 'string'" == log_msg
         )
 
     @skipUnlessJsonSchema()
@@ -534,8 +536,9 @@ class TestValidateCloudConfigSchema:
         assert "cloudinit.config.schema" == module
         assert logging.WARNING == log_level
         assert (
-            "Invalid cloud-config provided: Please run 'sudo cloud-init "
-            "schema --system' to see the schema errors." == log_msg
+            "cloud-config failed schema validation! You may run "
+            "'sudo cloud-init schema --system' to check the details."
+            == log_msg
         )
 
     @skipUnlessJsonSchema()
@@ -627,7 +630,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"a-b": "asdf"},
-                "Deprecated cloud-config provided:\na-b: <desc> "
+                "Deprecated cloud-config provided: a-b: <desc> "
                 "Deprecated in version 22.1.",
             ),
             (
@@ -648,7 +651,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated cloud-config provided: x: <desc> "
                 "Deprecated in version 22.1.",
             ),
             (
@@ -669,7 +672,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "5"},
-                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated cloud-config provided: x: <desc> "
                 "Deprecated in version 22.1. <dep desc>",
             ),
             (
@@ -690,7 +693,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "5"},
-                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated cloud-config provided: x: <desc> "
                 "Deprecated in version 22.1.",
             ),
             (
@@ -706,7 +709,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated cloud-config provided: x: <desc> "
                 "Deprecated in version 22.1.",
             ),
             (
@@ -743,7 +746,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided:\nx: <desc> "
+                "Deprecated cloud-config provided: x: <desc> "
                 "Deprecated in version 32.3.",
             ),
             (
@@ -768,7 +771,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided:\nx:  Deprecated in "
+                "Deprecated cloud-config provided: x:  Deprecated in "
                 "version 27.2.",
             ),
             (
@@ -784,7 +787,7 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"a-b": "asdf"},
-                "Deprecated cloud-config provided:\na-b: <desc> "
+                "Deprecated cloud-config provided: a-b: <desc> "
                 "Deprecated in version 27.2.",
             ),
             pytest.param(
@@ -802,8 +805,8 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"a-b": "asdf"},
-                "Deprecated cloud-config provided:\na-b:  Deprecated "
-                "in version 27.2.\na-b:  Changed in version 22.2. "
+                "Deprecated cloud-config provided: a-b:  Deprecated "
+                "in version 27.2., a-b:  Changed in version 22.2. "
                 "Drop ballast.",
                 id="deprecated_pattern_property_without_description",
             ),
@@ -812,12 +815,13 @@ class TestValidateCloudConfigSchema:
     def test_validateconfig_logs_deprecations(
         self, schema, config, expected_msg, log_deprecations, caplog
     ):
-        validate_cloudconfig_schema(
-            config,
-            schema=schema,
-            strict_metaschema=True,
-            log_deprecations=log_deprecations,
-        )
+        with mock.patch.object(features, "DEPRECATION_INFO_BOUNDARY", "devel"):
+            validate_cloudconfig_schema(
+                config,
+                schema=schema,
+                strict_metaschema=True,
+                log_deprecations=log_deprecations,
+            )
         if expected_msg is None:
             return
         log_record = (M_PATH[:-1], DEPRECATED_LOG_LEVEL, expected_msg)
@@ -1038,8 +1042,8 @@ class TestSchemaDocMarkdown:
         "frequency": "frequency",
         "distros": ["debian", "rhel"],
         "examples": [
-            'prop1:\n    [don\'t, expand, "this"]',
-            "prop2: true",
+            '\nExample 1:\nprop1:\n    [don\'t, expand, "this"]',
+            "\nExample 2:\nprop2: true",
         ],
     }
 
@@ -1088,10 +1092,10 @@ class TestSchemaDocMarkdown:
             "      * **prop1:** (array of integer) prop-description",
             "   .. tab-item:: Examples",
             "      ::",
-            "         # --- Example1 ---",
+            "         Example 1:",
             "         prop1:",
             '             [don\'t, expand, "this"]',
-            "         # --- Example2 ---",
+            "         Example 2:",
             "         prop2: true",
         ]
 
@@ -1139,10 +1143,10 @@ class TestSchemaDocMarkdown:
             "      * **prop2:** (boolean) prop2-description.",
             "   .. tab-item:: Examples",
             "      ::",
-            "         # --- Example1 ---",
+            "         Example 1:",
             "         prop1:",
+            "         Example 2:",
             '             [don\'t, expand, "this"]',
-            "         # --- Example2 ---",
             "         prop2: true",
         ]
 
@@ -1339,8 +1343,8 @@ class TestSchemaDocMarkdown:
         full_schema.update(
             {
                 "examples": [
-                    'ex1:\n    [don\'t, expand, "this"]',
-                    "ex2: true",
+                    'Example 1:\nex1:\n    [don\'t, expand, "this"]',
+                    "Example 2:\nex2: true",
                 ],
                 "properties": {
                     "prop1": {
@@ -1356,10 +1360,10 @@ class TestSchemaDocMarkdown:
             "      * **prop1:** (array of integer) prop-description.\n\n",
             "   .. tab-item:: Examples\n\n",
             "      ::\n\n\n",
-            "         # --- Example1 ---\n\n",
+            "         Example 1:\n",
             "         prop1:\n",
             '             [don\'t, expand, "this"]\n',
-            "         # --- Example2 ---\n\n",
+            "         Example 2:\n",
             "         prop2: true",
         ]
         assert "".join(expected) in get_meta_doc(self.meta, full_schema)
@@ -1761,29 +1765,6 @@ class TestAnnotatedCloudconfigFile:
             content,
             schemamarks=schemamarks,
             schema_errors=[],
-        )
-
-    def test_annotated_cloudconfig_file_with_non_dict_cloud_config(self):
-        """Error when empty non-dict cloud-config is provided.
-
-        OurJSON validation when user-data is None type generates a bunch
-        schema validation errors of the format:
-        ('', "None is not of type 'object'"). Ignore those symptoms and
-        report the general problem instead.
-        """
-        content = "\n\n\n"
-        expected = "\n".join(
-            [
-                content,
-                "# Errors: -------------",
-                "# E1: Cloud-config is not a YAML dict.\n\n",
-            ]
-        )
-        assert expected == annotated_cloudconfig_file(
-            None,
-            content,
-            schemamarks={},
-            schema_errors=[SchemaProblem("", "None is not of type 'object'")],
         )
 
     def test_annotated_cloudconfig_file_schema_annotates_and_adds_footer(self):
@@ -2755,10 +2736,11 @@ class TestHandleSchemaArgs:
             assert expected_log in caplog.text
 
     @pytest.mark.parametrize(
-        "annotate, expected_output",
+        "annotate, deprecation_info_boundary, expected_output",
         [
-            (
+            pytest.param(
                 True,
+                "devel",
                 dedent(
                     """\
                     #cloud-config
@@ -2769,27 +2751,51 @@ class TestHandleSchemaArgs:
                     apt_reboot_if_required: true            # D3
 
                     # Deprecations: -------------
-                    # D1: Default: ``false``. Deprecated in version 22.2. Use ``package_update`` instead.
-                    # D2: Default: ``false``. Deprecated in version 22.2. Use ``package_upgrade`` instead.
-                    # D3: Default: ``false``. Deprecated in version 22.2. Use ``package_reboot_if_required`` instead.
+                    # D1: Deprecated in version 22.2. Use ``package_update`` instead.
+                    # D2: Deprecated in version 22.2. Use ``package_upgrade`` instead.
+                    # D3: Deprecated in version 22.2. Use ``package_reboot_if_required`` instead.
 
                     Valid schema {cfg_file}
                     """  # noqa: E501
                 ),
+                id="test_annotated_deprecation_info_boundary_devel_shows",
             ),
-            (
-                False,
+            pytest.param(
+                True,
+                "22.1",
                 dedent(
                     """\
-                    Cloud config schema deprecations: \
-apt_reboot_if_required: Default: ``false``. Deprecated in version 22.2.\
- Use ``package_reboot_if_required`` instead., apt_update: Default: \
-``false``. Deprecated in version 22.2. Use ``package_update`` instead.,\
- apt_upgrade: Default: ``false``. Deprecated in version 22.2. Use \
-``package_upgrade`` instead.\
+                    #cloud-config
+                    packages:
+                    - htop
+                    apt_update: true                # D1
+                    apt_upgrade: true               # D2
+                    apt_reboot_if_required: true            # D3
+
+                    # Deprecations: -------------
+                    # D1: Deprecated in version 22.2. Use ``package_update`` instead.
+                    # D2: Deprecated in version 22.2. Use ``package_upgrade`` instead.
+                    # D3: Deprecated in version 22.2. Use ``package_reboot_if_required`` instead.
+
                     Valid schema {cfg_file}
                     """  # noqa: E501
                 ),
+                id="test_annotated_deprecation_info_boundary_below_unredacted",
+            ),
+            pytest.param(
+                False,
+                "18.2",
+                dedent(
+                    """\
+                    Cloud config schema deprecations: \
+apt_reboot_if_required: Deprecated in version 22.2. Use\
+ ``package_reboot_if_required`` instead., apt_update: Deprecated in version\
+ 22.2. Use ``package_update`` instead., apt_upgrade: Deprecated in version\
+ 22.2. Use ``package_upgrade`` instead.\
+                    Valid schema {cfg_file}
+                    """  # noqa: E501
+                ),
+                id="test_deprecation_info_boundary_does_unannotated_unredacted",
             ),
         ],
     )
@@ -2798,11 +2804,13 @@ apt_reboot_if_required: Default: ``false``. Deprecated in version 22.2.\
         self,
         read_cfg_paths,
         annotate,
+        deprecation_info_boundary,
         expected_output,
         paths,
         caplog,
         capsys,
         tmpdir,
+        mocker,
     ):
         paths.get_ipath = paths.get_ipath_cur
         read_cfg_paths.return_value = paths
@@ -2820,6 +2828,9 @@ apt_reboot_if_required: Default: ``false``. Deprecated in version 22.2.\
                     """
                 )
             )
+        mocker.patch.object(
+            features, "DEPRECATION_INFO_BOUNDARY", deprecation_info_boundary
+        )
         args = self.Args(
             config_file=str(user_data_fn),
             schema_type="cloud-config",

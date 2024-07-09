@@ -25,7 +25,6 @@ class TestTempUtils(CiTestCase):
             {
                 "os.getuid": 1000,
                 "tempfile.mkdtemp": {"side_effect": fake_mkdtemp},
-                "_TMPDIR": {"new": None},
                 "os.path.isdir": True,
             },
             mkdtemp,
@@ -46,7 +45,6 @@ class TestTempUtils(CiTestCase):
             {
                 "os.getuid": 1000,
                 "tempfile.mkdtemp": {"side_effect": fake_mkdtemp},
-                "_TMPDIR": {"new": None},
                 "os.path.isdir": True,
                 "util.has_mount_opt": True,
             },
@@ -69,7 +67,6 @@ class TestTempUtils(CiTestCase):
             {
                 "os.getuid": 0,
                 "tempfile.mkdtemp": {"side_effect": fake_mkdtemp},
-                "_TMPDIR": {"new": None},
                 "os.path.isdir": True,
             },
             mkdtemp,
@@ -90,7 +87,6 @@ class TestTempUtils(CiTestCase):
             {
                 "os.getuid": 1000,
                 "tempfile.mkstemp": {"side_effect": fake_mkstemp},
-                "_TMPDIR": {"new": None},
                 "os.path.isdir": True,
             },
             mkstemp,
@@ -111,7 +107,6 @@ class TestTempUtils(CiTestCase):
             {
                 "os.getuid": 0,
                 "tempfile.mkstemp": {"side_effect": fake_mkstemp},
-                "_TMPDIR": {"new": None},
                 "os.path.isdir": True,
             },
             mkstemp,
