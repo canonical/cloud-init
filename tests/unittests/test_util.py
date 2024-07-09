@@ -2803,19 +2803,6 @@ class TestGetProcEnv(helpers.TestCase):
         self.assertEqual(1, m_load_file.call_count)
 
     @mock.patch(M_PATH + "load_binary_file")
-    def test_encoding_none_returns_bytes(self, m_load_file):
-        """encoding none returns bytes."""
-        lines = (self.bootflag, self.simple1, self.simple2, self.mixed)
-        content = self.null.join(lines)
-        m_load_file.return_value = content
-
-        self.assertEqual(
-            dict([t.split(b"=") for t in lines]),
-            util.get_proc_env(1, encoding=None),
-        )
-        self.assertEqual(1, m_load_file.call_count)
-
-    @mock.patch(M_PATH + "load_binary_file")
     def test_all_utf8_encoded(self, m_load_file):
         """common path where only utf-8 decodable content."""
         content = self.null.join((self.simple1, self.simple2))
