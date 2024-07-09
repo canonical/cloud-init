@@ -579,13 +579,7 @@ def convert_net_json(network_json=None, known_macs=None):
             "dns_nameservers",
             "dns_search",
         ],
-        "routes": [
-            "network",
-            "destination",
-            "netmask",
-            "gateway",
-            "metric"
-        ],
+        "routes": ["network", "destination", "netmask", "gateway", "metric"],
     }
 
     links = network_json.get("links", [])
@@ -628,17 +622,17 @@ def convert_net_json(network_json=None, known_macs=None):
 
             # Filter the route entries as they may contain extra elements such
             # as DNS which are required elsewhere by the cloudinit schema
-            subnet.update(
-                {
-                    "routes": [
-                        dict(
-                            (k, v) for k, v in route.items()
-                            if k in valid_keys["routes"]
-                        )
-                        for route in network.get("routes", [])
-                    ]
-                }
-            )
+            routes = [
+                dict(
+                    (k, v)
+                    for k, v in route.items()
+                    if k in valid_keys["routes"]
+                )
+                for route in network.get("routes", [])
+            ]
+
+            if routes:
+                subnet.update({"routes": routes})
 
             if network["type"] == "ipv4_dhcp":
                 subnet.update({"type": "dhcp4"})
@@ -666,14 +660,28 @@ def convert_net_json(network_json=None, known_macs=None):
                     }
                 )
 
-            dns_nameservers = [
-                service["address"]
-                for route in network.get("routes", [])
-                for service in route.get("services", [])
-                if service.get("type") == "dns"
-            ]
+            # Look for either subnet or network specific DNS servers
+            # and add them as subnet level DNS entries. Use a set to
+            # for accumulation to eliminate duplicates.
+            # Subnet specific nameservers
+            dns_nameservers = set(
+                [
+                    service["address"]
+                    for route in network.get("routes", [])
+                    for service in route.get("services", [])
+                    if service.get("type") == "dns"
+                ]
+            )
+            # Network specific nameservers
+            dns_nameservers.update(
+                [
+                    service["address"]
+                    for service in network.get("services", [])
+                    if service.get("type") == "dns"
+                ]
+            )
             if dns_nameservers:
-                subnet["dns_nameservers"] = dns_nameservers
+                subnet["dns_nameservers"] = list(dns_nameservers)
 
             # Enable accept_ra for stateful and legacy ipv6_dhcp types
             if network["type"] in ["ipv6_dhcpv6-stateful", "ipv6_dhcp"]:
