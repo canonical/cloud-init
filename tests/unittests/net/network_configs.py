@@ -2160,8 +2160,6 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
 
                 [bond]
                 mode=active-backup
-                miimon=100
-                xmit_hash_policy=layer3+4
 
                 [ipv6]
                 method=auto
@@ -3055,13 +3053,13 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 params:
                   bond-mode: active-backup
                   bond_miimon: 100
-                  bond-xmit-hash-policy: "layer3+4"
-                  bond-num-grat-arp: 5
+                  bond-xmit_hash_policy: "layer3+4"
+                  bond-num_grat_arp: 5
                   bond-downdelay: 10
                   bond-updelay: 20
-                  bond-fail-over-mac: active
+                  bond-fail_over_mac: active
                   bond-primary: bond0s0
-                  bond-primary-reselect: always
+                  bond-primary_reselect: always
                 subnets:
                   - type: static
                     address: 192.168.0.2/24
@@ -3138,27 +3136,27 @@ iface lo inet loopback
 auto bond0s0
 iface bond0s0 inet manual
     bond-downdelay 10
-    bond-fail-over-mac active
+    bond-fail_over_mac active
     bond-master bond0
     bond-mode active-backup
-    bond-num-grat-arp 5
+    bond-num_grat_arp 5
     bond-primary bond0s0
-    bond-primary-reselect always
+    bond-primary_reselect always
     bond-updelay 20
-    bond-xmit-hash-policy layer3+4
+    bond-xmit_hash_policy layer3+4
     bond_miimon 100
 
 auto bond0s1
 iface bond0s1 inet manual
     bond-downdelay 10
-    bond-fail-over-mac active
+    bond-fail_over_mac active
     bond-master bond0
     bond-mode active-backup
-    bond-num-grat-arp 5
+    bond-num_grat_arp 5
     bond-primary bond0s0
-    bond-primary-reselect always
+    bond-primary_reselect always
     bond-updelay 20
-    bond-xmit-hash-policy layer3+4
+    bond-xmit_hash_policy layer3+4
     bond_miimon 100
 
 auto bond0
@@ -3166,14 +3164,14 @@ iface bond0 inet static
     address 192.168.0.2/24
     gateway 192.168.0.1
     bond-downdelay 10
-    bond-fail-over-mac active
+    bond-fail_over_mac active
     bond-mode active-backup
-    bond-num-grat-arp 5
+    bond-num_grat_arp 5
     bond-primary bond0s0
-    bond-primary-reselect always
+    bond-primary_reselect always
     bond-slaves none
     bond-updelay 20
-    bond-xmit-hash-policy layer3+4
+    bond-xmit_hash_policy layer3+4
     bond_miimon 100
     hwaddress aa:bb:cc:dd:e8:ff
     mtu 9000
@@ -3199,12 +3197,8 @@ iface bond0 inet6 static
             "ifcfg-bond0": textwrap.dedent(
                 """\
         BONDING_MASTER=yes
-        BONDING_MODULE_OPTS="mode=active-backup xmit_hash_policy=layer3+4 """
-                """miimon=100 num_grat_arp=5 """
-                """downdelay=10 updelay=20 """
-                """fail_over_mac=active """
-                """primary=bond0s0 """
-                """primary_reselect=always"
+        BONDING_MODULE_OPTS="mode=active-backup miimon=100 """
+                """downdelay=10 updelay=20 primary=bond0s0"
         BONDING_SLAVE_0=bond0s0
         BONDING_SLAVE_1=bond0s1
         BOOTPROTO=static
@@ -3237,12 +3231,8 @@ iface bond0 inet6 static
             "ifcfg-bond0": textwrap.dedent(
                 """\
         BONDING_MASTER=yes
-        BONDING_OPTS="mode=active-backup xmit_hash_policy=layer3+4 """
-                """miimon=100 num_grat_arp=5 """
-                """downdelay=10 updelay=20 """
-                """fail_over_mac=active """
-                """primary=bond0s0 """
-                """primary_reselect=always"
+        BONDING_OPTS="mode=active-backup miimon=100 """
+                """downdelay=10 updelay=20 primary=bond0s0"
         BONDING_SLAVE0=bond0s0
         BONDING_SLAVE1=bond0s1
         BOOTPROTO=none
@@ -3361,7 +3351,6 @@ iface bond0 inet6 static
 
                 [bond]
                 mode=active-backup
-                miimon=100
                 xmit_hash_policy=layer3+4
                 num_grat_arp=5
                 downdelay=10
@@ -3716,8 +3705,6 @@ iface bond0 inet6 static
 
                 [bond]
                 mode=active-backup
-                miimon=100
-                xmit_hash_policy=layer3+4
                 num_grat_arp=5
                 downdelay=10
                 updelay=20
