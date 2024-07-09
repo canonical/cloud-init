@@ -14,8 +14,6 @@ from typing import Dict, List, Optional, Tuple, Union
 
 LOG = logging.getLogger(__name__)
 
-MAC_RE = r"""([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}"""
-
 
 class Ifstate:
     """

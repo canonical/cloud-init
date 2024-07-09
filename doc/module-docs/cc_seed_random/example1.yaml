@@ -1,0 +1,7 @@
+#cloud-config
+random_seed:
+  command: [sh, -c, dd if=/dev/urandom of=$RANDOM_SEED_FILE]
+  command_required: true
+  data: my random string
+  encoding: raw
+  file: /dev/urandom

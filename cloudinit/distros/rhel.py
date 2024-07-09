@@ -13,7 +13,7 @@ import os
 from cloudinit import distros, helpers, subp, util
 from cloudinit.distros import PackageList, rhel_util
 from cloudinit.distros.parsers.hostname import HostnameConf
-from cloudinit.settings import PER_INSTANCE
+from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
@@ -26,7 +26,6 @@ class Distro(distros.Distro):
     network_conf_fn = "/etc/sysconfig/network"
     hostname_conf_fn = "/etc/sysconfig/network"
     systemd_hostname_conf_fn = "/etc/hostname"
-    network_script_tpl = "/etc/sysconfig/network-scripts/ifcfg-%s"
     tz_local_fn = "/etc/localtime"
     usr_lib_exec = "/usr/libexec"
     # RHEL and derivatives use NetworkManager DHCP client by default.
@@ -209,10 +208,10 @@ class Distro(distros.Distro):
         # Allow the output of this to flow outwards (ie not be captured)
         subp.subp(cmd, capture=False)
 
-    def update_package_sources(self):
+    def update_package_sources(self, *, force=False):
         self._runner.run(
             "update-sources",
             self.package_command,
             ["makecache"],
-            freq=PER_INSTANCE,
+            freq=PER_ALWAYS if force else PER_INSTANCE,
         )

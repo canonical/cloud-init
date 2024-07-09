@@ -285,8 +285,8 @@ class EphemeralDHCPv4:
         dhcp_log_func=None,
     ):
         self.iface = iface
-        self._ephipv4 = None
-        self.lease = None
+        self._ephipv4: Optional[EphemeralIPv4Network] = None
+        self.lease: Optional[Dict[str, Any]] = None
         self.dhcp_log_func = dhcp_log_func
         self.connectivity_url_data = connectivity_url_data
         self.distro = distro

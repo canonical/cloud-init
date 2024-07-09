@@ -48,9 +48,10 @@ apt:
     deb-src $SECURITY $RELEASE-security multiverse
   sources:
     test_keyserver:
-      keyid: 110E21D8B0E2A1F0243AF6820856F197B892ACEA
+      keyid: 1BC30F715A3B861247A81A5E55FE7C8C0165013E
       keyserver: keyserver.ubuntu.com
-      source: "deb http://ppa.launchpad.net/canonical-kernel-team/ppa/ubuntu $RELEASE main"
+      # Hard-code noble as devel releases may not see new packages for some time
+      source: "deb http://ppa.launchpad.net/curtin-dev/daily/ubuntu noble main"
     test_ppa:
       keyid: 441614D8
       keyserver: keyserver.ubuntu.com
@@ -123,7 +124,7 @@ EXPECTED_REGEXES = [
     r"deb-src http://badsecurity.ubuntu.com/ubuntu [a-z]+-security multiverse",
 ]
 
-TEST_KEYSERVER_KEY = "110E 21D8 B0E2 A1F0 243A  F682 0856 F197 B892 ACEA"
+TEST_KEYSERVER_KEY = "1BC3 0F71 5A3B 8612 47A8  1A5E 55FE 7C8C 0165 013E"
 TEST_PPA_KEY = "3552 C902 B4DD F7BD 3842  1821 015D 28D7 4416 14D8"
 TEST_KEY = "1FF0 D853 5EF7 E719 E5C8  1B9C 083D 06FB E4D3 04DF"
 TEST_SIGNED_BY_KEY = "A2EB 2DEC 0BD7 519B 7B38  BE38 376A 290E C806 8B11"
@@ -151,10 +152,10 @@ class TestApt:
         keys = class_client.execute(list_cmd + cc_apt_configure.APT_LOCAL_KEYS)
         files = class_client.execute(
             "ls " + cc_apt_configure.APT_TRUSTED_GPG_DIR
-        )
+        ).stdout
         for file in files.split():
             path = cc_apt_configure.APT_TRUSTED_GPG_DIR + file
-            keys += class_client.execute(list_cmd + path) or ""
+            keys += class_client.execute(list_cmd + path).stdout
         class_client.execute("gpgconf --homedir /root/tmpdir --kill all")
         return keys
 
@@ -249,7 +250,7 @@ class TestApt:
         )
 
         assert (
-            "http://ppa.launchpad.net/canonical-kernel-team/ppa/ubuntu"
+            "http://ppa.launchpad.net/curtin-dev/daily/ubuntu"
             in test_keyserver_contents
         )
 
@@ -452,9 +453,10 @@ INSTALL_ANY_MISSING_RECOMMENDED_DEPENDENCIES = """\
 apt:
   sources:
     test_keyserver:
-      keyid: 110E21D8B0E2A1F0243AF6820856F197B892ACEA
+      keyid: 1BC30F715A3B861247A81A5E55FE7C8C0165013E
       keyserver: keyserver.ubuntu.com
-      source: "deb http://ppa.launchpad.net/canonical-kernel-team/ppa/ubuntu $RELEASE main"
+      # Hard-code noble as devel releases may not see new packages for some time
+      source: "deb http://ppa.launchpad.net/curtin-dev/daily/ubuntu noble main"
     test_ppa:
       keyid: 441614D8
       keyserver: keyserver.ubuntu.com

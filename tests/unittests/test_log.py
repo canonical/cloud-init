@@ -7,6 +7,8 @@ import io
 import logging
 import time
 
+import pytest
+
 from cloudinit import log, util
 from cloudinit.analyze.dump import CLOUD_INIT_ASCTIME_FMT
 from tests.unittests.helpers import CiTestCase
@@ -61,13 +63,58 @@ class TestCloudInitLogger(CiTestCase):
 
 class TestDeprecatedLogs:
     def test_deprecated_log_level(self, caplog):
-        logger = logging.getLogger()
-        logger.deprecated("deprecated message")
+        logging.getLogger().deprecated("deprecated message")
         assert "DEPRECATED" == caplog.records[0].levelname
         assert "deprecated message" in caplog.text
 
+    @pytest.mark.parametrize(
+        "expected_log_level, deprecation_info_boundary",
+        (
+            pytest.param(
+                "DEPRECATED",
+                "19.2",
+                id="test_same_deprecation_info_boundary_is_deprecated_level",
+            ),
+            pytest.param(
+                "INFO",
+                "19.1",
+                id="test_lower_deprecation_info_boundary_is_info_level",
+            ),
+        ),
+    )
+    def test_deprecate_log_level_based_on_features(
+        self,
+        expected_log_level,
+        deprecation_info_boundary,
+        caplog,
+        mocker,
+        clear_deprecation_log,
+    ):
+        """Deprecation log level depends on key deprecation_version
+
+        When DEPRECATION_INFO_BOUNDARY is set to a version number, and a key
+        has a deprecated_version with a version greater than the boundary
+        the log level is INFO instead of DEPRECATED. If
+        DEPRECATION_INFO_BOUNDARY is set to the default, "devel", all
+        deprecated keys are logged at level DEPRECATED.
+        """
+        mocker.patch.object(
+            util.features,
+            "DEPRECATION_INFO_BOUNDARY",
+            deprecation_info_boundary,
+        )
+        util.deprecate(
+            deprecated="some key",
+            deprecated_version="19.2",
+            extra_message="dont use it",
+        )
+        assert expected_log_level == caplog.records[0].levelname
+        assert (
+            "some key is deprecated in 19.2 and scheduled to be removed in"
+            " 24.2" in caplog.text
+        )
+
     def test_log_deduplication(self, caplog):
-        log.define_deprecation_logger()
         util.deprecate(
             deprecated="stuff",
             deprecated_version="19.1",
@@ -90,6 +137,5 @@ class TestDeprecatedLogs:
 def test_logger_prints_to_stderr(capsys):
     message = "to stdout"
     log.setup_basic_logging()
-    LOG = logging.getLogger()
-    LOG.warning(message)
+    logging.getLogger().warning(message)
     assert message in capsys.readouterr().err

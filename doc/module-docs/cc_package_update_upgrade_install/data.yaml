@@ -1,0 +1,13 @@
+cc_package_update_upgrade_install:
+  description: |
+    This module allows packages to be updated, upgraded or installed during
+    boot. If any packages are to be installed or an upgrade is to be performed
+    then the package cache will be updated first. If a package installation or
+    upgrade requires a reboot, then a reboot can be performed if
+    ``package_reboot_if_required`` is specified.
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_package_update_upgrade_install/example1.yaml
+  name: Package Update Upgrade Install
+  title: Update, upgrade, and install packages

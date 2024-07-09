@@ -824,11 +824,53 @@ class Renderer(renderer.Renderer):
 
     @staticmethod
     def _render_dns(network_state, existing_dns_path=None):
-        # skip writing resolv.conf if network_state doesn't include any input.
+
+        found_nameservers = []
+        found_dns_search = []
+
+        for iface in network_state.iter_interfaces():
+            for subnet in iface["subnets"]:
+                # Add subnet-level DNS
+                if "dns_nameservers" in subnet:
+                    found_nameservers.extend(subnet["dns_nameservers"])
+                if "dns_search" in subnet:
+                    found_dns_search.extend(subnet["dns_search"])
+
+            # Add interface-level DNS
+            if "dns" in iface:
+                found_nameservers += [
+                    dns
+                    for dns in iface["dns"]["nameservers"]
+                    if dns not in found_nameservers
+                ]
+                found_dns_search += [
+                    search
+                    for search in iface["dns"]["search"]
+                    if search not in found_dns_search
+                ]
+
+        # When both global and interface specific entries are present,
+        # use them both to generate /etc/resolv.conf eliminating duplicate
+        # entries. Otherwise use global or interface specific entries whichever
+        # is provided.
+        if network_state.dns_nameservers:
+            found_nameservers += [
+                nameserver
+                for nameserver in network_state.dns_nameservers
+                if nameserver not in found_nameservers
+            ]
+        if network_state.dns_searchdomains:
+            found_dns_search += [
+                search
+                for search in network_state.dns_searchdomains
+                if search not in found_dns_search
+            ]
+
+        # skip writing resolv.conf if no dns information is provided in conf.
         if not any(
             [
-                len(network_state.dns_nameservers),
-                len(network_state.dns_searchdomains),
+                len(found_nameservers),
+                len(found_dns_search),
             ]
         ):
             return None
@@ -837,9 +879,9 @@ class Renderer(renderer.Renderer):
             content = resolv_conf.ResolvConf(
                 util.load_text_file(existing_dns_path)
             )
-        for nameserver in network_state.dns_nameservers:
+        for nameserver in found_nameservers:
             content.add_nameserver(nameserver)
-        for searchdomain in network_state.dns_searchdomains:
+        for searchdomain in found_dns_search:
             content.add_search_domain(searchdomain)
         header = _make_header(";")
         content_str = str(content)

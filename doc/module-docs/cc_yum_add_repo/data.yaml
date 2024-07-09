@@ -1,0 +1,27 @@
+cc_yum_add_repo:
+  description: |
+    Add yum repository configuration to ``/etc/yum.repos.d``. Configuration
+    files are named based on the opaque dictionary key under the ``yum_repos``
+    they are specified with. If a config file already exists with the same
+    name as a config entry, the config entry will be skipped.
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_yum_add_repo/example1.yaml
+  - comment: >
+      Example 2: Enable cloud-init upstream's daily testing repo for EPEL 8 to
+      install the latest cloud-init from tip of ``main`` for testing.
+    file: cc_yum_add_repo/example2.yaml
+  - comment: >
+      Example 3: Add the file ``/etc/yum.repos.d/epel_testing.repo`` which can
+      then subsequently be used by yum for later operations.
+    file: cc_yum_add_repo/example3.yaml
+  - comment: >
+      Example 4: Any yum repo configuration can be passed directly into the
+      repository file created. See ``man yum.conf`` for supported config keys.
+
+      Write ``/etc/yum.conf.d/my-package-stream.repo`` with ``gpgkey`` checks
+      on the repo data of the repository enabled.
+    file: cc_yum_add_repo/example4.yaml
+  name: Yum Add Repo
+  title: Add yum repository configuration to the system

@@ -303,8 +303,8 @@ def test_invalid_network_v2_netplan(
             ) in client.execute("cloud-init schema --system")
         else:
             assert (
-                "Invalid network-config provided: Please run "
-                "'sudo cloud-init schema --system' to see the schema errors."
+                "network-config failed schema validation! You may run "
+                "'sudo cloud-init schema --system' to check the details."
             ) in client.execute("cloud-init status --format=json")
             assert (
                 "Invalid network-config /var/lib/cloud/instances/"

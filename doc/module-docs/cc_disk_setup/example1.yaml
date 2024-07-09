@@ -1,0 +1,24 @@
+#cloud-config
+device_aliases: {my_alias: /dev/sdb, swap_disk: /dev/sdc}
+disk_setup:
+  /dev/sdd: {layout: true, overwrite: true, table_type: mbr}
+  my_alias:
+    layout: [50, 50]
+    overwrite: true
+    table_type: gpt
+  swap_disk:
+    layout:
+    - [100, 82]
+    overwrite: true
+    table_type: gpt
+fs_setup:
+- {cmd: mkfs -t %(filesystem)s -L %(label)s %(device)s, device: my_alias.1, filesystem: ext4,
+  label: fs1}
+- {device: my_alias.2, filesystem: ext4, label: fs2}
+- {device: swap_disk.1, filesystem: swap, label: swap}
+- {device: /dev/sdd1, filesystem: ext4, label: fs3}
+mounts:
+- [my_alias.1, /mnt1]
+- [my_alias.2, /mnt2]
+- [swap_disk.1, none, swap, sw, '0', '0']
+- [/dev/sdd1, /mnt3]

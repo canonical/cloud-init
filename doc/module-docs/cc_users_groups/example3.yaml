@@ -1,0 +1,9 @@
+#cloud-config
+users:
+- gecos: Big Stuff
+  groups: users, admin
+  lock_passwd: true
+  name: newsuper
+  shell: /bin/bash
+  ssh_import_id: ['lp:falcojr', 'gh:TheRealFalcon']
+  sudo: ALL=(ALL) NOPASSWD:ALL

@@ -52,7 +52,7 @@ The settings that may be configured are:
 * :command:`disk_aliases`
 
   A dictionary defining which device paths should be interpreted as ephemeral
-  images. See :ref:`cc_disk_setup <mod-disk_setup>` module for more info.
+  images. See :ref:`cc_disk_setup <mod_cc_disk_setup>` module for more info.
 
 Configuration for the datasource can also be read from a ``dscfg`` entry in
 the ``LinuxProvisioningConfigurationSet``. Content in ``dscfg`` node is

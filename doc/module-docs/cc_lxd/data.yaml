@@ -1,0 +1,34 @@
+cc_lxd:
+  description: |
+    This module configures LXD with user-specified options using ``lxd init``.
+
+    - If ``lxd`` is not present on the system but LXD configuration is provided,
+      then ``lxd`` will be installed.
+    - If the selected storage backend userspace utility is not installed, it
+      will be installed.
+    - If network bridge configuration is provided, then ``lxd-bridge`` will be
+      configured accordingly.
+  examples:
+  - comment: |
+      Example 1: Simplest working directory-backed LXD configuration.
+    file: cc_lxd/example1.yaml
+  - comment: |
+      Example 2: ``lxd-init`` showcasing cloud-init's LXD config options.
+    file: cc_lxd/example2.yaml
+  - comment: >
+      Example 3: For more complex non-interactive LXD configuration of
+      networks, storage pools, profiles, projects, clusters and core config,
+      ``lxd:preseed`` config will be passed as stdin to the command:
+      ``lxd init --preseed``.
+
+      See the
+      `LXD non-interactive configuration <https://documentation.ubuntu.com/lxd/en/latest/howto/initialize/#non-interactive-configuration>`_
+      or run ``lxd init --dump`` to see viable preseed YAML allowed.
+
+      Preseed settings configuring the LXD daemon for HTTPS connections on
+      192.168.1.1 port 9999, a nested profile which allows for LXD nesting on
+      containers and a limited project allowing for RBAC approach when defining
+      behavior for sub-projects.
+    file: cc_lxd/example3.yaml
+  name: LXD
+  title: Configure LXD with ``lxd init`` and (optionally) ``lxd-bridge``

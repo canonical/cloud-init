@@ -1,0 +1,3 @@
+#cloud-config
+ssh_import_id: [chad.smith]
+user: {name: mynewdefault, sudo: null}

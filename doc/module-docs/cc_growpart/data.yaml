@@ -1,0 +1,56 @@
+cc_growpart:
+  description: |
+    Growpart resizes partitions to fill the available disk space. This is
+    useful for cloud instances with a larger amount of disk space available
+    than the pristine image uses, as it allows the instance to automatically
+    make use of the extra space.
+
+    Note that this only works if the partition to be resized is the last one
+    on a disk with classic partitioning scheme (MBR, BSD, GPT). LVM, Btrfs and
+    ZFS have no such restrictions.
+
+    The devices on which to run growpart are specified as a list under the
+    ``devices`` key.
+
+    There is some functionality overlap between this module and the
+    ``growroot`` functionality of ``cloud-initramfs-tools``. However, there
+    are some situations where one tool is able to function and the other is
+    not. The default configuration for both should work for most cloud
+    instances. To explicitly prevent ``cloud-initramfs-tools`` from running
+    ``growroot``, the file ``/etc/growroot-disabled`` can be created.
+
+    By default, both ``growroot`` and ``cc_growpart`` will check for the
+    existence of this file and will not run if it is present. However, this
+    file can be ignored for ``cc_growpart`` by setting
+    ``ignore_growroot_disabled`` to ``true``.
+    `Read more about <https://launchpad.net/cloud-initramfs-tools>`_
+    ``cloud-initramfs-tools``.
+
+    On FreeBSD, there is also the ``growfs`` service, which has a lot of
+    overlap with ``cc_growpart`` and ``cc_resizefs``, but only works on the
+    root partition. In that configuration, we use it, otherwise, we fall back
+    to ``gpart``.
+
+    .. note::
+       ``growfs`` may insert a swap partition, if none is present, unless
+       instructed not to via ``growfs_swap_size=0`` in either ``kenv(1)``, or
+       ``rc.conf(5)``.
+
+    Growpart is enabled by default on the root partition. The default config
+    for growpart is:
+
+    .. code-block:: yaml
+
+       growpart:
+         mode: auto
+         devices: [\"/\"]
+         ignore_growroot_disabled: false
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_growpart/example1.yaml
+  - comment: |
+      Example 2:
+    file: cc_growpart/example2.yaml
+  name: Growpart
+  title: Grow partitions

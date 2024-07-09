@@ -86,7 +86,7 @@ Define our user data
 Now we need to create our :file:`user-data` file. This user data cloud-config
 sets the password of the default user, and sets that password to never expire.
 For more details you can refer to the
-:ref:`Set Passwords module page<mod-set_passwords>`.
+:ref:`Set Passwords module page<mod_cc_set_passwords>`.
 
 Run the following command, which creates a file named :file:`user-data`
 containing our configuration data.
@@ -127,7 +127,7 @@ machine instance. Multiple different format types are supported by
 :ref:`documentation describing different formats<user_data_formats>`.
 
 The second line, ``password: password``, as per
-:ref:`the Users and Groups module docs<mod-users_groups>`, sets the default
+:ref:`the Users and Groups module docs<mod_cc_users_groups>`, sets the default
 user's password to ``password``.
 
 The third and fourth lines direct ``cloud-init`` to not require a password
