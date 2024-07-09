@@ -2454,14 +2454,16 @@ def is_lxd():
     return os.path.exists("/dev/lxd/sock")
 
 
-def get_proc_env(pid, encoding="utf-8", errors="replace"):
+def get_proc_env(
+    pid, encoding: str = "utf-8", errors: str = "replace"
+) -> Dict[str, str]:
     """
     Return the environment in a dict that a given process id was started with.
 
-    @param encoding: if true, then decoding will be done with
-                     .decode(encoding, errors) and text will be returned.
-                     if false then binary will be returned.
-    @param errors:   only used if encoding is true."""
+    @param encoding: decoding will be done with .decode(encoding, errors) and
+    text will be returned.
+    @param errors: passed through .decode(encoding, errors).
+    """
     fn = os.path.join("/proc", str(pid), "environ")
 
     contents: Union[str, bytes]
@@ -2471,20 +2473,13 @@ def get_proc_env(pid, encoding="utf-8", errors="replace"):
         return {}
 
     env = {}
-    null: Union[str, bytes]
-    equal: Union[str, bytes]
-    null, equal = (b"\x00", b"=")
-    if encoding:
-        null, equal = ("\x00", "=")
-        contents = contents.decode(encoding, errors)
+    null, equal = ("\x00", "=")
+    contents = contents.decode(encoding, errors)
 
-    # mypy doesn't know that the types of null, equal and contents are the same
-    # depending on the previous if branch, see:
-    # https://github.com/python/mypy/issues/6233
-    for tok in contents.split(null):  # type: ignore
+    for tok in contents.split(null):
         if not tok:
             continue
-        (name, val) = tok.split(equal, 1)  # type: ignore
+        (name, val) = tok.split(equal, 1)
         if name:
             env[name] = val
     return env
