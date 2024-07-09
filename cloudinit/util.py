@@ -1927,22 +1927,23 @@ def mounts():
             out = subp.subp("mount")
             mount_locs = out.stdout.splitlines()
             method = "mount"
-        mountre = r"^(/dev/[\S]+) on (/.*) \((.+), .+, (.+)\)$"
+        mountre = re.compile(r"^(/dev/[\S]+) on (/.*) \((.+), .+, (.+)\)$")
         for mpline in mount_locs:
             # Linux: /dev/sda1 on /boot type ext4 (rw,relatime,data=ordered)
             # FreeBSD: /dev/vtbd0p2 on / (ufs, local, journaled soft-updates)
-            try:
-                if method == "proc":
-                    (dev, mp, fstype, opts, _freq, _passno) = mpline.split()
-                else:
-                    m = re.search(mountre, mpline)
-                    # safe to type-ignore because of the try-except wrapping
-                    dev = m.group(1)  # type: ignore
-                    mp = m.group(2)  # type: ignore
-                    fstype = m.group(3)  # type: ignore
-                    opts = m.group(4)  # type: ignore
-            except Exception:
-                continue
+            if method == "proc":
+                words = mpline.split()
+                if len(words) != 6:
+                    continue
+                (dev, mp, fstype, opts, _freq, _passno) = words
+            else:
+                m = mountre.search(mpline)
+                if m is None or len(m.groups()) < 4:
+                    continue
+                dev = m.group(1)
+                mp = m.group(2)
+                fstype = m.group(3)
+                opts = m.group(4)
             # If the name of the mount point contains spaces these
             # can be escaped as '\040', so undo that..
             mp = mp.replace("\\040", " ")
