@@ -11,3 +11,11 @@ interface-name=encc000
 org.freedesktop.NetworkManager.origin=cloud-init
 
 [ethernet]
+
+[ipv4]
+method=disabled
+may-fail=false
+
+[ipv6]
+method=disabled
+may-fail=false
