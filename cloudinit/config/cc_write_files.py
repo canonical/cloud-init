@@ -10,7 +10,7 @@ import base64
 import logging
 import os
 
-from cloudinit import util
+from cloudinit import url_helper, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -86,8 +86,26 @@ def write_files(name, files, owner: str):
             )
             continue
         path = os.path.abspath(path)
-        extractions = canonicalize_extraction(f_info.get("encoding"))
-        contents = extract_contents(f_info.get("content", ""), extractions)
+        contents = ""
+        # Fetch file content from source URL, if provided
+        url = f_info.get("source", "")
+        use_url = bool(url)
+        if use_url:
+            # TODO: URL templating, probably. See cloudinit/config/cc_phone_home.py:126
+            try:
+                contents = url_helper.read_file_or_url(url)
+                # TODO: Proper kwargs
+            except Exception:
+                util.logexc(
+                    LOG, "Failed to retrieve contents from source \"%s\";"
+                    " falling back to data from \"contents\" key", url
+                )
+                use_url = False
+        if not use_url:
+            # NOTE: This is not simply an "else"! Notice that `use_url` can
+            # change in the previous "if" block
+            extractions = canonicalize_extraction(f_info.get("encoding"))
+            contents = extract_contents(f_info.get("content", ""), extractions)
         (u, g) = util.extract_usergroup(f_info.get("owner", owner))
         perms = decode_perms(f_info.get("permissions"), DEFAULT_PERMS)
         omode = "ab" if util.get_cfg_option_bool(f_info, "append") else "wb"
