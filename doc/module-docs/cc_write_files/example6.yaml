@@ -1,0 +1,5 @@
+#cloud-config
+write_files:
+- source: https://gitlab.example.com/some_ci_job/artifacts/hello
+  path: /usr/bin/hello
+  permissions: '0755'
