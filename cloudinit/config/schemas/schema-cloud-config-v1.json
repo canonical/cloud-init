@@ -3386,6 +3386,11 @@
                 "default": "''",
                 "description": "Optional content to write to the provided ``path``. When content is present and encoding is not 'text/plain', decode the content prior to writing. Default: ``''``"
               },
+              "source": {
+                "type": "string",
+                "default": "''",
+                "description": "Optional URI from which to fetch file content. If fetching fails repeatedly, ``content`` is used instead."
+              },
               "owner": {
                 "type": "string",
                 "default": "root:root",
