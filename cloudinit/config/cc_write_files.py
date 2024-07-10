@@ -14,6 +14,7 @@ from cloudinit import url_helper, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
+from cloudinit.helpers import Paths
 from cloudinit.settings import PER_INSTANCE
 
 DEFAULT_PERMS = 0o644
@@ -44,7 +45,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             name,
         )
         return
-    write_files(name, filtered_files, cloud.distro.default_owner)
+    write_files(name, filtered_files, cloud.distro.default_owner, cloud.paths)
 
 
 def canonicalize_extraction(encoding_type):
@@ -72,7 +73,7 @@ def canonicalize_extraction(encoding_type):
     return [TEXT_PLAIN_ENC]
 
 
-def write_files(name, files, owner: str):
+def write_files(name, files, owner: str, paths: Paths):
     if not files:
         return
 
@@ -93,8 +94,12 @@ def write_files(name, files, owner: str):
         if use_url:
             # TODO: URL templating, probably. See cloudinit/config/cc_phone_home.py:126
             try:
-                contents = url_helper.read_file_or_url(url)
-                # TODO: Proper kwargs
+                contents = url_helper.read_file_or_url(
+                    url,
+                    retries=3,
+                    sec_between=3,
+                    ssl_details=util.fetch_ssl_details(paths),
+                )
             except Exception:
                 util.logexc(
                     LOG, "Failed to retrieve contents from source \"%s\";"

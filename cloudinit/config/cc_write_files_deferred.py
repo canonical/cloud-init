@@ -39,4 +39,4 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             name,
         )
         return
-    write_files(name, filtered_files, cloud.distro.default_owner)
+    write_files(name, filtered_files, cloud.distro.default_owner, cloud.paths)
