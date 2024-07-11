@@ -153,9 +153,9 @@ examples that can be copy/pasted and adapted to your needs.
 Ubuntu installer cloud-config
 -----------------------------
 
-For the special case where your cloud-config file is will be consumed by the
+For the special case where your cloud-config file will be consumed by the
 Ubuntu live installer, you will need to include the ``autoinstall:`` top level
-key. The presence of this key will instruct cloud-init not to process
+key. The presence of this key instructs cloud-init not to process
 the user-data itself, but instead to pass it directly to the installer for
 processing.
 
