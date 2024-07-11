@@ -66,18 +66,6 @@ written in any order.
    The :ref:`Users and Groups <mod_cc_users_groups>` module is a special case
    where ordering matters if you want to add users to a group list.
 
-Cloud-config for the live installer
------------------------------------
-
-For the special case where your cloud-config file is will be consumed by the
-Ubuntu installer, you will need to include the the ``autoinstall:``
-top level key. The presence of this key will instruct cloud-init not to process
-the user-data itself, but instead to pass it directly to the installer for
-processing.
-
-For more detailed instructions for this case, refer to the installer
-documentation on using `cloud-init with the autoinstaller`_.
-
 Checking your cloud-config file
 ===============================
 
@@ -161,6 +149,18 @@ examples that can be copy/pasted and adapted to your needs.
      message: Rebooting after initial setup
      timeout: 30
      condition: True
+
+Ubuntu installer cloud-config
+-----------------------------
+
+For the special case where your cloud-config file is will be consumed by the
+Ubuntu live installer, you will need to include the ``autoinstall:`` top level
+key. The presence of this key will instruct cloud-init not to process
+the user-data itself, but instead to pass it directly to the installer for
+processing.
+
+For more detailed instructions for this case, refer to the installer
+documentation on using `cloud-init with the autoinstaller`_.
 
 .. LINKS
 .. _cloud-init with the autoinstaller: https://canonical-subiquity.readthedocs-hosted.com/en/latest/tutorial/providing-autoinstall.html#autoinstall-by-way-of-cloud-config
