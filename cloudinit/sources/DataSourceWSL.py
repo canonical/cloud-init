@@ -329,7 +329,9 @@ class DataSourceWSL(sources.DataSource):
         # That's the reason for not using util.mergemanydict().
         merged: dict = {}
         overridden_keys: typing.List[str] = []
-        user_tags = None
+        user_tags = (
+            user_data.get("landscape", {}).get("client", {}).get("tags")
+        )
         if user_data:
             merged = user_data
             user_tags = (
@@ -351,13 +353,12 @@ class DataSourceWSL(sources.DataSource):
                 )
             if user_tags:
                 LOG.debug(
-                    " Landscape client conf updated with user-data tags: %s",
+                    " Landscape client conf updated with user-data"
+                    " landscape.client.tags: %s",
                     user_tags,
                 )
-                # Does nothing if there is no "landscape"."client" key.
-                merged.get("landscape", {}).get("client", {}).update(
-                    {"tags": user_tags}
-                )
+                if merged.get("landscape", {}).get("client"):
+                    merged["landscape"]["client"]["tags"] = user_tags
 
         self.userdata_raw = "#cloud-config\n%s" % yaml.dump(merged)
         return True
