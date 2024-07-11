@@ -342,7 +342,7 @@ class NMConnection:
         found_dns_search = []
 
         # Deal with Layer 3 configuration
-        if not iface["subnets"]:
+        if if_type == "bond" and not iface["subnets"]:
             # If there is no L3 subnet config for a given connection,
             # ensure it is disabled. Without this, the interface
             # defaults to 'auto' which implies DHCP. This is problematic
