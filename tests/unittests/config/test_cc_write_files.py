@@ -167,6 +167,29 @@ class TestWriteFiles(FilesystemMockingTestCase):
             "Unknown encoding type text/plain", self.logs.getvalue()
         )
 
+    def test_file_uri(self):
+        self.patchUtils(self.tmp)
+        src_path = "/tmp/file-uri"
+        dst_path = "/tmp/file-uri-target"
+        content = "asdf"
+        util.write_file(src_path, content)
+        cfg = {
+            "write_files": [
+                {
+                    "source": "file://"+src_path,
+                    "path": dst_path,
+                }
+            ]
+        }
+        cc = self.tmp_cloud("ubuntu")
+        handle("ignored", cfg, cc, [])
+        self.assertEqual(
+            util.load_text_file(src_path), util.load_text_file(dst_path)
+        )
+
+    #TODO: Should probably test this with an HTTP(S) URL as well, but that's
+    # a bit more complicated.
+
     def test_deferred(self):
         self.patchUtils(self.tmp)
         file_path = "/tmp/deferred.file"
@@ -249,6 +272,7 @@ class TestWriteFilesSchema:
                     "write_files": [
                         {
                             "append": False,
+                            "source": "http://a.com/a",
                             "content": "a",
                             "encoding": "text/plain",
                             "owner": "jeff",
