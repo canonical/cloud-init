@@ -1,16 +1,8 @@
 cloud-init (24.2-0ubuntu1~20.04.1) UNRELEASED; urgency=medium
 
-  * d/apport-general-hook.py: Move apport hook to main branch
-  * d/cloud-init.logrotate: add logrotate config for cloud-init
-  * d/cloud-init.maintscript: remove /etc/cloud/clean.d/README
-  * d/cloud-init.postinst: change priority of hotplug rules.
-    Avoids LP #1946003 on upgraded systems. References:
-    [0] https://github.com/canonical/cloud-init/pull/4799
-    [1] commit/b519d861aff8b44a0610c176cb34adcbe28df144
-  * d/cloud-init.templates: enable WSL datasource by default
-  * d/control: remove netifaces
-  * drop d/p/do-not-block-user-login.patch: upstream 4981ea9 now orders
-    cloud-init.service Before=systemd-user-sessions.service
+  * d/control: remove netifaces due to GH-4634
+  * drop d/p/do-not-block-user-login.patch:
+    Upstream now has "Before=systemd-user-sessions" in cloud-init.service
   * d/p/drop-unsupported-systemd-condition-environment.patch:
     drop ConditionEnvironment from unit files because systemd 245.4 ignores
     those keys and emits warnings at systemctl status
