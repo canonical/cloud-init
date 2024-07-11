@@ -6,7 +6,7 @@ About the cloud-config file
 The ``#cloud-config`` file is a type of user data that cloud-init can consume
 to automatically set up various aspects of the system. It is the preferred way
 to pass this type of configuration to cloud-init, and is commonly referred to
-as "cloud config". 
+as "cloud config".
 
 Note that networks are not configurable via the ``#cloud-config`` file because
 :ref:`network configuration <network_config>` comes from the cloud.
@@ -32,7 +32,7 @@ to the config schema. It follows this general format:
 .. code-block:: yaml
 
    #cloud-config
-   top-level-key:   
+   top-level-key:
      config-key-1: config-value-1
      config-key-2: config-value-2
      list-key:
