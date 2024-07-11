@@ -329,6 +329,8 @@ class DataSourceWSL(sources.DataSource):
         # That's the reason for not using util.mergemanydict().
         merged: dict = {}
         overridden_keys: typing.List[str] = []
+        # We've already checked, this is just to please mypy.
+        assert user_data is not None
         user_tags = (
             user_data.get("landscape", {}).get("client", {}).get("tags")
         )
