@@ -859,6 +859,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             # if there is an ipv4 address in 'local-hostname', then
             # make up a hostname (LP: #475354) in format ip-xx.xx.xx.xx
             lhost = self.metadata["local-hostname"]
+            metadata_fqdn = self.metadata.get("fqdn", None)
             if net.is_ipv4_address(lhost):
                 toks = []
                 if resolve_ip:
@@ -868,6 +869,9 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
                     toks = str(toks).split(".")
                 else:
                     toks = ["ip-%s" % lhost.replace(".", "-")]
+            elif metadata_fqdn is not None:
+                # Use the fqdn which was specified in the cloud metadata
+                toks = metadata_fqdn.split(".")
             else:
                 toks = lhost.split(".")
 
