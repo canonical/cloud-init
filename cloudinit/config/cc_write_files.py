@@ -14,7 +14,6 @@ from cloudinit import url_helper, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
-from cloudinit.helpers import Paths
 from cloudinit.settings import PER_INSTANCE
 
 DEFAULT_PERMS = 0o644
@@ -45,7 +44,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             name,
         )
         return
-    write_files(name, filtered_files, cloud.distro.default_owner, cloud.paths)
+    ssl_details = util.fetch_ssl_details(cloud.paths)
+    write_files(name, filtered_files, cloud.distro.default_owner, ssl_details)
 
 
 def canonicalize_extraction(encoding_type):
@@ -73,7 +73,7 @@ def canonicalize_extraction(encoding_type):
     return [TEXT_PLAIN_ENC]
 
 
-def write_files(name, files, owner: str, paths: Paths):
+def write_files(name, files, owner: str, ssl_details: dict|None = None):
     if not files:
         return
 
@@ -98,7 +98,7 @@ def write_files(name, files, owner: str, paths: Paths):
                     url,
                     retries=3,
                     sec_between=3,
-                    ssl_details=util.fetch_ssl_details(paths),
+                    ssl_details=ssl_details,
                 )
             except Exception:
                 util.logexc(
