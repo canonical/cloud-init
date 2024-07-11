@@ -137,7 +137,7 @@ def sanitize_devname(startname, transformer, aliases=None):
 def sanitized_devname_is_valid(
     original: str, sanitized: Optional[str], fstab_devs: Dict[str, str]
 ) -> bool:
-    """Get if the device name is valid and log if not."""
+    """Get if the santizied device name is valid."""
     if sanitized != original:
         LOG.debug("changed %s => %s", original, sanitized)
     if sanitized is None:
