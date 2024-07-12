@@ -198,7 +198,13 @@ class TestWriteFiles(FilesystemMockingTestCase):
         cfg = {
             "write_files": [
                 {
-                    "source": {"uri": url},
+                    "source": {
+                        "uri": url,
+                        "headers": {
+                            "foo": "bar",
+                            "blah": "blah",
+                        },
+                    },
                     "path": path,
                 }
             ]
