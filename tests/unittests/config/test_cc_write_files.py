@@ -190,6 +190,26 @@ class TestWriteFiles(FilesystemMockingTestCase):
     #TODO: Should probably test this with an HTTP(S) URL as well, but that's
     # a bit more complicated.
 
+    def test_uri_fallback(self):
+        self.patchUtils(self.tmp)
+        src_path = "/tmp/INVALID"
+        dst_path = "/tmp/uri-fallback-target"
+        content = "asdf"
+        util.del_file(src_path)
+        cfg = {
+            "write_files": [
+                {
+                    "source": "file://"+src_path,
+                    "content": content,
+                    "encoding": "text/plain",
+                    "path": dst_path,
+                }
+            ]
+        }
+        cc = self.tmp_cloud("ubuntu")
+        handle("ignored", cfg, cc, [])
+        self.assertEqual(content, util.load_text_file(dst_path))
+
     def test_deferred(self):
         self.patchUtils(self.tmp)
         file_path = "/tmp/deferred.file"
