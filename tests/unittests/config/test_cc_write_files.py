@@ -9,6 +9,7 @@ import shutil
 import tempfile
 
 import pytest
+import responses
 
 from cloudinit import util
 from cloudinit.config.cc_write_files import decode_perms, handle, write_files
@@ -187,8 +188,24 @@ class TestWriteFiles(FilesystemMockingTestCase):
             util.load_text_file(src_path), util.load_text_file(dst_path)
         )
 
-    #TODO: Should probably test this with an HTTP(S) URL as well, but that's
-    # a bit more complicated.
+    @responses.activate
+    def test_http_uri(self):
+        self.patchUtils(self.tmp)
+        path = "/tmp/http-uri-target"
+        url = "http://hostname/path"
+        content = "more asdf"
+        responses.add(responses.GET, url, content)
+        cfg = {
+            "write_files": [
+                {
+                    "source": {"uri": url},
+                    "path": path,
+                }
+            ]
+        }
+        cc = self.tmp_cloud("ubuntu")
+        handle("ignored", cfg, cc, [])
+        self.assertEqual(content, util.load_text_file(path))
 
     def test_uri_fallback(self):
         self.patchUtils(self.tmp)
