@@ -92,14 +92,15 @@ def write_files(name, files, owner: str, ssl_details: dict|None = None):
         url = f_info.get("source", "")
         use_url = bool(url)
         if use_url:
-            # TODO: URL templating, probably. See cloudinit/config/cc_phone_home.py:126
             try:
-                contents = str(url_helper.read_file_or_url(
+                # NOTE: These retry parameters are arbitrarily chosen defaults.
+                # They have no significance, and may be changed if appropriate
+                contents = url_helper.read_file_or_url(
                     url,
                     retries=3,
                     sec_between=3,
                     ssl_details=ssl_details,
-                ))
+                ).contents
             except Exception:
                 util.logexc(
                     LOG, "Failed to retrieve contents from source \"%s\";"
