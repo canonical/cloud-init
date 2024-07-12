@@ -90,13 +90,17 @@ def write_files(name, files, owner: str, ssl_details: Optional[dict] = None):
         path = os.path.abspath(path)
         # Read content from provided URL, if any, or decode from inline
         contents = read_url_or_decode(
-            f_info.get("source", None), ssl_details,
-            f_info.get("content", None), f_info.get("encoding", None)
+            f_info.get("source", None),
+            ssl_details,
+            f_info.get("content", None),
+            f_info.get("encoding", None),
         )
         if contents == None:
             LOG.warning(
                 "No content could be loaded for entry %s in module %s;"
-                " skipping", i + 1, name
+                " skipping",
+                i + 1,
+                name,
             )
             continue
         # Only create the file if content exists. This will not happen, for
@@ -149,8 +153,10 @@ def read_url_or_decode(source, ssl_details, content, encoding):
             ).contents
         except Exception:
             util.logexc(
-                LOG, 'Failed to retrieve contents from source "%s";'
-                ' falling back to data from "contents" key', url
+                LOG,
+                'Failed to retrieve contents from source "%s"; falling back to'
+                ' data from "contents" key',
+                url,
             )
             use_url = False
     # If inline content is provided, and URL is not provided or is
