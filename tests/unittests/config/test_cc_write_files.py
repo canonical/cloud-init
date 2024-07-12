@@ -311,9 +311,9 @@ class TestWriteFilesSchema:
                             "append": False,
                             "source": {
                                 "uri": "http://a.com/a",
-                                "headers": [
-                                    {"Authorization": "Bearer SOME_TOKEN"}
-                                ],
+                                "headers": {
+                                    "Authorization": "Bearer SOME_TOKEN"
+                                },
                             },
                             "content": "a",
                             "encoding": "text/plain",

@@ -3384,7 +3384,7 @@
               "content": {
                 "type": "string",
                 "default": "''",
-                "description": "Content to write to the provided ``path``. When content is present and encoding is not 'text/plain', decode the content prior to writing. Default: ``''``"
+                "description": "Optional content to write to the provided ``path``. When content is present and encoding is not 'text/plain', decode the content prior to writing. Default: ``''``"
               },
               "source": {
                 "type": "object",
@@ -3397,13 +3397,9 @@
                     "description": "URI from which to load file content. If loading fails repeatedly, ``content`` is used instead."
                   },
                   "headers": {
-                    "type": "array",
+                    "type": "object",
                     "description": "Optional HTTP headers to accompany load request, if applicable",
-                    "items": {
-                      "type": "object",
-                      "additionalProperties": true
-                    },
-                    "minItems": 1
+                    "additionalProperties": true
                   }
                 },
                 "required": [
