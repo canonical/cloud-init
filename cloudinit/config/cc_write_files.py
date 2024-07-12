@@ -9,6 +9,7 @@
 import base64
 import logging
 import os
+from typing import Optional
 
 from cloudinit import url_helper, util
 from cloudinit.cloud import Cloud
@@ -73,7 +74,7 @@ def canonicalize_extraction(encoding_type):
     return [TEXT_PLAIN_ENC]
 
 
-def write_files(name, files, owner: str, ssl_details: dict|None = None):
+def write_files(name, files, owner: str, ssl_details: Optional[dict] = None):
     if not files:
         return
 
