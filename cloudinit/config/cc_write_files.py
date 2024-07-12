@@ -87,31 +87,11 @@ def write_files(name, files, owner: str, ssl_details: dict|None = None):
             )
             continue
         path = os.path.abspath(path)
-        contents = ""
-        # Fetch file content from source URL, if provided
-        url = f_info.get("source", "")
-        use_url = bool(url)
-        if use_url:
-            try:
-                # NOTE: These retry parameters are arbitrarily chosen defaults.
-                # They have no significance, and may be changed if appropriate
-                contents = url_helper.read_file_or_url(
-                    url,
-                    retries=3,
-                    sec_between=3,
-                    ssl_details=ssl_details,
-                ).contents
-            except Exception:
-                util.logexc(
-                    LOG, "Failed to retrieve contents from source \"%s\";"
-                    " falling back to data from \"contents\" key", url
-                )
-                use_url = False
-        if not use_url:
-            # NOTE: This is not simply an "else"! Notice that `use_url` can
-            # change in the previous "if" block
-            extractions = canonicalize_extraction(f_info.get("encoding"))
-            contents = extract_contents(f_info.get("content", ""), extractions)
+        # Read content from provided URL, if any, or decode from inline
+        contents = read_url_or_decode(
+            f_info.get("source", None), ssl_details,
+            f_info.get("content", None), f_info.get("encoding", None)
+        )
         (u, g) = util.extract_usergroup(f_info.get("owner", owner))
         perms = decode_perms(f_info.get("permissions"), DEFAULT_PERMS)
         omode = "ab" if util.get_cfg_option_bool(f_info, "append") else "wb"
@@ -140,6 +120,35 @@ def decode_perms(perm, default):
                 reps.append("%r" % r)
         LOG.warning("Undecodable permissions %s, returning default %s", *reps)
         return default
+
+
+def read_url_or_decode(url, ssl_details, content, encoding):
+    contents = None
+    # Fetch file content from source URL, if provided
+    use_url = bool(url)
+    if use_url:
+        try:
+            # NOTE: These retry parameters are arbitrarily chosen defaults.
+            # They have no significance, and may be changed if appropriate
+            contents = url_helper.read_file_or_url(
+                url,
+                retries=3,
+                sec_between=3,
+                ssl_details=ssl_details,
+            ).contents
+        except Exception:
+            util.logexc(
+                LOG, 'Failed to retrieve contents from source "%s";'
+                ' falling back to data from "contents" key', url
+            )
+            use_url = False
+    # If URL is not provided or fails, parse inline content
+    if not use_url:
+        # NOTE: This is not simply an "else"! Notice that `use_url` can change
+        # in the previous "if" block
+        extractions = canonicalize_extraction(encoding)
+        contents = extract_contents(content, extractions)
+    return contents
 
 
 def extract_contents(contents, extraction_types):
