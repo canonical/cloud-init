@@ -176,7 +176,7 @@ class TestWriteFiles(FilesystemMockingTestCase):
         cfg = {
             "write_files": [
                 {
-                    "source": "file://"+src_path,
+                    "source": {"uri": "file://"+src_path},
                     "path": dst_path,
                 }
             ]
@@ -199,7 +199,7 @@ class TestWriteFiles(FilesystemMockingTestCase):
         cfg = {
             "write_files": [
                 {
-                    "source": "file://"+src_path,
+                    "source": {"uri": "file://"+src_path},
                     "content": content,
                     "encoding": "text/plain",
                     "path": dst_path,
@@ -292,7 +292,10 @@ class TestWriteFilesSchema:
                     "write_files": [
                         {
                             "append": False,
-                            "source": "http://a.com/a",
+                            "source": {
+                                "uri": "http://a.com/a",
+                                "headers": [{"Authorization": "Bearer SOME_TOKEN"}],
+                            },
                             "content": "a",
                             "encoding": "text/plain",
                             "owner": "jeff",

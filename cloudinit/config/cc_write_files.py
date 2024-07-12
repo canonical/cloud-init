@@ -130,9 +130,10 @@ def decode_perms(perm, default):
         return default
 
 
-def read_url_or_decode(url, ssl_details, content, encoding):
+def read_url_or_decode(source, ssl_details, content, encoding):
     contents = None
     # Fetch file content from source URL, if provided
+    url = None if source == None else source.get("uri", None)
     use_url = bool(url)
     if use_url:
         try:
@@ -140,6 +141,7 @@ def read_url_or_decode(url, ssl_details, content, encoding):
             # They have no significance, and may be changed if appropriate
             contents = url_helper.read_file_or_url(
                 url,
+                headers=source.get("headers", None),
                 retries=3,
                 sec_between=3,
                 ssl_details=ssl_details,
