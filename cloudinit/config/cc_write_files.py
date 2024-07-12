@@ -92,6 +92,14 @@ def write_files(name, files, owner: str, ssl_details: dict|None = None):
             f_info.get("source", None), ssl_details,
             f_info.get("content", None), f_info.get("encoding", None)
         )
+        if contents == None:
+            LOG.warning(
+                "No content could be loaded for entry %s in module %s;"
+                " skipping", i + 1, name
+            )
+            continue
+        # Only create the file if content exists. This will not happen, for
+        # example, if the URL fails and no inline content was provided
         (u, g) = util.extract_usergroup(f_info.get("owner", owner))
         perms = decode_perms(f_info.get("permissions"), DEFAULT_PERMS)
         omode = "ab" if util.get_cfg_option_bool(f_info, "append") else "wb"
@@ -142,8 +150,9 @@ def read_url_or_decode(url, ssl_details, content, encoding):
                 ' falling back to data from "contents" key', url
             )
             use_url = False
-    # If URL is not provided or fails, parse inline content
-    if not use_url:
+    # If inline content is provided, and URL is not provided or is
+    # inaccessible, parse the former
+    if content != None and not use_url:
         # NOTE: This is not simply an "else"! Notice that `use_url` can change
         # in the previous "if" block
         extractions = canonicalize_extraction(encoding)
