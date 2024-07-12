@@ -96,6 +96,7 @@ import base64
 import json
 import logging
 import os
+from typing import Any, Callable, Dict, Optional, Tuple
 
 from cloudinit import atomic_helper, sources, subp, util
 from cloudinit.sources.helpers import openstack
@@ -176,7 +177,7 @@ class DataSourceIBMCloud(sources.DataSource):
             # environment handles networking configuration. Not cloud-init.
             return {"config": "disabled", "version": 1}
         if self._network_config is None:
-            if self.network_json is not None:
+            if self.network_json not in (sources.UNSET, None):
                 LOG.debug("network config provided via network_json")
                 self._network_config = openstack.convert_net_json(
                     self.network_json, known_macs=None
@@ -186,7 +187,12 @@ class DataSourceIBMCloud(sources.DataSource):
         return self._network_config
 
 
-def _read_system_uuid():
+def _read_system_uuid() -> Optional[str]:
+    """
+    Read the system uuid.
+
+    @return: the system uuid or None if not available.
+    """
     uuid_path = "/sys/hypervisor/uuid"
     if not os.path.isfile(uuid_path):
         return None
@@ -194,6 +200,9 @@ def _read_system_uuid():
 
 
 def _is_xen():
+    """
+    Return boolean indicating if this is a xen hypervisor.
+    """
     return os.path.exists("/proc/xen")
 
 
@@ -201,7 +210,7 @@ def _is_ibm_provisioning(
     prov_cfg="/root/provisioningConfiguration.cfg",
     inst_log="/root/swinstall.log",
     boot_ref="/proc/1/environ",
-):
+) -> bool:
     """Return boolean indicating if this boot is ibm provisioning boot."""
     if os.path.exists(prov_cfg):
         msg = "config '%s' exists." % prov_cfg
@@ -229,7 +238,7 @@ def _is_ibm_provisioning(
     return result
 
 
-def get_ibm_platform():
+def get_ibm_platform() -> Tuple[Optional[str], Optional[str]]:
     """Return a tuple (Platform, path)
 
     If this is Not IBM cloud, then the return value is (None, None).
@@ -242,7 +251,7 @@ def get_ibm_platform():
         return not_found
 
     # fslabels contains only the first entry with a given label.
-    fslabels = {}
+    fslabels: Dict[str, Dict] = {}
     try:
         devs = util.blkid()
     except subp.ProcessExecutionError as e:
@@ -289,7 +298,7 @@ def get_ibm_platform():
     return not_found
 
 
-def read_md():
+def read_md() -> Optional[Dict[str, Any]]:
     """Read data from IBM Cloud.
 
     @return: None if not running on IBM Cloud.
@@ -325,26 +334,38 @@ def read_md():
     return ret
 
 
-def metadata_from_dir(source_dir):
+def metadata_from_dir(source_dir: str) -> Dict[str, Any]:
     """Walk source_dir extracting standardized metadata.
 
     Certain metadata keys are renamed to present a standardized set of metadata
     keys.
 
     This function has a lot in common with ConfigDriveReader.read_v2 but
-    there are a number of inconsistencies, such key renames and as only
-    presenting a 'latest' version which make it an unlikely candidate to share
+    there are a number of inconsistencies, such as key renames and only 
+    presenting a 'latest' version, which make it an unlikely candidate to share
     code.
 
     @return: Dict containing translated metadata, userdata, vendordata,
         networkdata as present.
     """
 
-    def opath(fname):
+    def opath(fname: str) -> str:
         return os.path.join("openstack", "latest", fname)
 
-    def load_json_bytes(blob):
+    def load_json_bytes(blob: bytes) -> Dict[str, Any]:
         return json.loads(blob.decode("utf-8"))
+
+    def load_file(
+        path: str, translator: Optional[Callable[[bytes], Any]] = None
+    ) -> Any:
+        try:
+            raw = util.load_binary_file(path)
+            return translator(raw) if translator else raw
+        except IOError as e:
+            LOG.debug("Failed reading path '%s': %s", path, e)
+            return None
+        except Exception as e:
+            raise sources.BrokenMetadata(f"Failed decoding {path}: {e}")
 
     files = [
         # tuples of (results_name, path, translator)
@@ -354,54 +375,48 @@ def metadata_from_dir(source_dir):
         ("networkdata", opath("network_data.json"), load_json_bytes),
     ]
 
-    results = {}
-    for (name, path, transl) in files:
+    raw_results: Dict[str, Optional[bytes]] = {}
+    translated_results: Dict[str, Any] = {}
+
+    for name, path, transl in files:
         fpath = os.path.join(source_dir, path)
-        raw = None
-        try:
-            raw = util.load_binary_file(fpath)
-        except IOError as e:
-            LOG.debug("Failed reading path '%s': %s", fpath, e)
-
-        if raw is None or transl is None:
-            data = raw
+        raw_results[name] = load_file(fpath)
+        if raw_results[name] is not None and transl is not None:
+            translated_results[name] = load_file(fpath, transl)
         else:
-            try:
-                data = transl(raw)
-            except Exception as e:
-                raise sources.BrokenMetadata(
-                    "Failed decoding %s: %s" % (path, e)
-                )
+            translated_results[name] = raw_results[name]
 
-        results[name] = data
-
-    if results.get("metadata_raw") is None:
+    if raw_results["metadata_raw"] is None:
         raise sources.BrokenMetadata(
-            "%s missing required file 'meta_data.json'" % source_dir
+            "%s missing required file 'meta_data.json'",
+            source_dir,
         )
 
-    results["metadata"] = {}
+    translated_results["metadata"] = {}
 
-    md_raw = results["metadata_raw"]
-    md = results["metadata"]
+    md_raw = translated_results["metadata_raw"]
+    md = translated_results["metadata"]
+
     if "random_seed" in md_raw:
         try:
             md["random_seed"] = base64.b64decode(md_raw["random_seed"])
         except (ValueError, TypeError) as e:
             raise sources.BrokenMetadata(
-                "Badly formatted metadata random_seed entry: %s" % e
+                "Badly formatted metadata random_seed entry: %s",
+                e,
             )
 
-    renames = (
-        ("public_keys", "public-keys"),
-        ("hostname", "local-hostname"),
-        ("uuid", "instance-id"),
-    )
-    for mdname, newname in renames:
-        if mdname in md_raw:
-            md[newname] = md_raw[mdname]
+    renames = {
+        "public_keys": "public-keys",
+        "hostname": "local-hostname",
+        "uuid": "instance-id",
+    }
 
-    return results
+    for old_key, new_key in renames.items():
+        if old_key in md_raw:
+            md[new_key] = md_raw[old_key]
+
+    return translated_results
 
 
 # Used to match classes to dependencies

@@ -325,7 +325,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self.vendordata_raw = None
         self.vendordata2_raw = None
         self.metadata_address = None
-        self.network_json = UNSET
+        self.network_json: Optional[str] = UNSET
         self.ec2_metadata = UNSET
 
         self.ds_cfg = util.get_cfg_by_path(
