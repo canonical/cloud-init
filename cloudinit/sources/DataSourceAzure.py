@@ -582,14 +582,15 @@ class DataSourceAzure(sources.DataSource):
                 "in stderr output: %s with stdout: %s" % (cmd, err, out),
                 logger_func=LOG.debug,
             )
-        except FileNotFoundError:
-            error = errors.ReportableErrorProxyAgentNotFound()
-            self._report_failure(error)
         except subp.ProcessExecutionError as error:
-            reportable_error = errors.ReportableErrorProxyAgentStatusFailure(
-                error
-            )
-            self._report_failure(reportable_error)
+            if isinstance(error.reason, FileNotFoundError):
+                reportable_error = errors.ReportableErrorProxyAgentNotFound()
+                self._report_failure(reportable_error)
+            else:
+                reportable_error = (
+                    errors.ReportableErrorProxyAgentStatusFailure(error)
+                )
+                self._report_failure(reportable_error)
 
     @azure_ds_telemetry_reporter
     def crawl_metadata(self):

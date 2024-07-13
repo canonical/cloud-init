@@ -4741,7 +4741,10 @@ class TestCheckAzureProxyAgent:
         assert self.mock_wrapping_report_failure.mock_calls == []
 
     def test_check_azure_proxy_agent_status_notfound(self):
-        self.mock_subp_subp.side_effect = [FileNotFoundError]
+        exception = subp.ProcessExecutionError(reason=FileNotFoundError())
+        self.mock_subp_subp.side_effect = [
+            exception,
+        ]
         self.azure_ds._check_azure_proxy_agent_status()
         assert "azure-proxy-agent not found" in self.caplog.text
         assert self.mock_wrapping_report_failure.mock_calls == [
