@@ -357,15 +357,6 @@ def mock_util_mount_cb():
 
 
 @pytest.fixture
-def mock_report_failure():
-    with mock.patch(
-        MOCKPATH + "_report_failure",
-        autospec=True,
-    ) as m:
-        yield m
-
-
-@pytest.fixture
 def wrapped_util_write_file():
     with mock.patch.object(
         dsaz.util,
