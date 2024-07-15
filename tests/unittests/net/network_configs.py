@@ -1943,14 +1943,6 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 [ethernet]
                 mac-address=66:BB:9F:2C:E8:80
 
-                [ipv4]
-                method=disabled
-                may-fail=false
-
-                [ipv6]
-                method=disabled
-                may-fail=false
-
                 """
             ),
             "cloud-init-eth5.nmconnection": textwrap.dedent(
@@ -2066,14 +2058,6 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 [ethernet]
                 mac-address=98:BB:9F:2C:E8:80
 
-                [ipv4]
-                method=disabled
-                may-fail=false
-
-                [ipv6]
-                method=disabled
-                may-fail=false
-
                 """
             ),
             "cloud-init-eth1.nmconnection": textwrap.dedent(
@@ -2093,14 +2077,6 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
 
                 [ethernet]
                 mac-address=AA:D6:9F:2C:E8:80
-
-                [ipv4]
-                method=disabled
-                may-fail=false
-
-                [ipv6]
-                method=disabled
-                may-fail=false
 
                 """
             ),
@@ -2708,14 +2684,6 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
 
                 [ethernet]
                 mac-address=66:BB:9F:2C:E8:80
-
-                [ipv4]
-                method=disabled
-                may-fail=false
-
-                [ipv6]
-                method=disabled
-                may-fail=false
 
                 """
             ),
@@ -3710,14 +3678,6 @@ iface bond0 inet6 static
                 [ethernet]
                 mac-address=AA:BB:CC:DD:E8:00
 
-                [ipv4]
-                method=disabled
-                may-fail=false
-
-                [ipv6]
-                method=disabled
-                may-fail=false
-
                 """
             ),
             "cloud-init-bond0s1.nmconnection": textwrap.dedent(
@@ -3737,14 +3697,6 @@ iface bond0 inet6 static
 
                 [ethernet]
                 mac-address=AA:BB:CC:DD:E8:01
-
-                [ipv4]
-                method=disabled
-                may-fail=false
-
-                [ipv6]
-                method=disabled
-                may-fail=false
 
                 """
             ),
