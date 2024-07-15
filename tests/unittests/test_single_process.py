@@ -50,7 +50,9 @@ class Timeout:
 
 def test_single_process_times_out(tmp_path):
     """Verify that no "start" makes the protocol block"""
-    with mock.patch.object(ci_socket, "DEFAULT_RUN_DIR", tmp_path):
+    with mock.patch.object(
+        ci_socket, "DEFAULT_RUN_DIR", tmp_path
+    ), mock.patch.object(ci_socket, "sd_notify"):
         sync = ci_socket.SocketSync("first")
 
         try:
@@ -71,7 +73,9 @@ def test_single_process(tmp_path):
     After a socket has been been bound but before it has started listening
     """
     expected = b"done"
-    with mock.patch.object(ci_socket, "DEFAULT_RUN_DIR", tmp_path):
+    with mock.patch.object(
+        ci_socket, "DEFAULT_RUN_DIR", tmp_path
+    ), mock.patch.object(ci_socket, "sd_notify"):
         sync = ci_socket.SocketSync("first", "second", "third")
 
         # send all three syncs to the sockets
@@ -115,7 +119,9 @@ def test_single_process_threaded(tmp_path):
         time.sleep(0.001 * random.randint(0, max_sleep))
         sync_storage[index] = Sync(name, tmp_path)
 
-    with mock.patch.object(ci_socket, "DEFAULT_RUN_DIR", tmp_path):
+    with mock.patch.object(
+        ci_socket, "DEFAULT_RUN_DIR", tmp_path
+    ), mock.patch.object(ci_socket, "sd_notify"):
 
         sync = ci_socket.SocketSync(
             "first", "second", "third", "fourth", "fifth"

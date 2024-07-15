@@ -3,6 +3,7 @@
 import logging
 import os
 import socket
+import time
 from contextlib import suppress
 
 from cloudinit.settings import DEFAULT_RUN_DIR
@@ -90,7 +91,11 @@ class SocketSync:
 
         Once the message has been received, enter the context.
         """
-        LOG.debug("sync(%s): initial synchronization starting", self.stage)
+        sd_notify(
+            "STATUS=Waiting on external services to "
+            f"complete ({self.stage} stage)"
+        )
+        start_time = time.monotonic()
         # block until init system sends us data
         # the first value returned contains a message from the init system
         #     (should be "start")
@@ -111,7 +116,10 @@ class SocketSync:
             self.__exit__(None, None, None)
             raise ValueError(f"Unexpected path to unix socket: {self.remote}")
 
-        LOG.debug("sync(%s): initial synchronization complete", self.stage)
+        total = time.monotonic() - start_time
+        time_msg = f"took {total: .3f}s " if total > 0.1 else ""
+        sd_notify(f"STATUS=Running ({self.stage} stage)")
+        LOG.debug("sync(%s): synchronization %scomplete", self.stage, time_msg)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):

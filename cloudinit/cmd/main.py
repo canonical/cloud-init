@@ -1167,31 +1167,42 @@ def main(sysv_args=None):
         return sub_main(args)
     LOG.info("Running cloud-init in single process mode.")
 
-    # this _must_ be called before sd_notify is called otherwise netcat may
-    # attempt to send "start" before a socket exists
-    sync = socket.SocketSync("local", "network", "config", "final")
+    try:
+        # this _must_ be called before sd_notify is called otherwise netcat may
+        # attempt to send "start" before a socket exists
+        sync = socket.SocketSync("local", "network", "config", "final")
 
-    # notify systemd that this stage has completed
-    socket.sd_notify("READY=1")
+        # notify systemd that this stage has completed
+        socket.sd_notify("READY=1")
 
-    # wait for cloud-init-local.service to start
-    with sync("local"):
-        sub_main(parser.parse_args(args=["init", "--local"]))
+        # wait for cloud-init-local.service to start
+        with sync("local"):
+            # local stage
+            sub_main(parser.parse_args(args=["init", "--local"]))
 
-    # wait for cloud-init.service to start
-    with sync("network"):
-        # init stage
-        sub_main(parser.parse_args(args=["init"]))
+        # wait for cloud-init.service to start
+        with sync("network"):
+            # init stage
+            sub_main(parser.parse_args(args=["init"]))
 
-    # wait for cloud-config.service to start
-    with sync("config"):
-        # config stage
-        sub_main(parser.parse_args(args=["modules", "--mode=config"]))
+        # wait for cloud-config.service to start
+        with sync("config"):
+            # config stage
+            sub_main(parser.parse_args(args=["modules", "--mode=config"]))
 
-    with sync("final"):
-        # final stage
-        sub_main(parser.parse_args(args=["modules", "--mode=final"]))
-    socket.sd_notify(b"STOPPING=1")
+        with sync("final"):
+            # final stage
+            return_code = sub_main(
+                parser.parse_args(args=["modules", "--mode=final"])
+            )
+    except Exception as e:
+        LOG.fatal("Fatal exception: %s", e, exc_info=True)
+        status = traceback.format_exc().replace("\n", " ")
+        socket.sd_notify(f"STATUS={status}")
+        return_code = 1
+    socket.sd_notify("STATUS=Completed")
+    socket.sd_notify("STOPPING=1")
+    return return_code
 
 
 def sub_main(args):
