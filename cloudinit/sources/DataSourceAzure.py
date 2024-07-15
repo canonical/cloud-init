@@ -672,6 +672,7 @@ class DataSourceAzure(sources.DataSource):
         imds_md = {}
         if self._is_ephemeral_networking_up():
             # check if azure-proxy-agent is enabled in the ovf-env.xml file.
+            # azure-proxy-agent feature is opt-in and disabled by default.
             if cfg.get("ProvisionGuestProxyAgent"):
                 self._check_azure_proxy_agent_status()
 
