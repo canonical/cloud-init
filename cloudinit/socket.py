@@ -10,8 +10,11 @@ from cloudinit.settings import DEFAULT_RUN_DIR
 LOG = logging.getLogger(__name__)
 
 
-def sd_notify(message: bytes):
-    """Send a sd_notify message."""
+def sd_notify(message: str):
+    """Send a sd_notify message.
+
+    :param message: sd-notify message (must be valid ascii)
+    """
     LOG.info("Sending sd_notify(%s)", str(message))
     socket_path = os.environ.get("NOTIFY_SOCKET", "")
 
@@ -20,14 +23,14 @@ def sd_notify(message: bytes):
         socket_path.replace("@", "\0", 1)
 
     # unix domain
-    elif not socket_path[0] == "/":
+    elif socket_path[0] != "/":
         raise OSError("Unsupported socket type")
 
     with socket.socket(
         socket.AF_UNIX, socket.SOCK_DGRAM | socket.SOCK_CLOEXEC
     ) as sock:
         sock.connect(socket_path)
-        sock.sendall(message)
+        sock.sendall(message.encode("ascii"))
 
 
 class SocketSync:
@@ -77,6 +80,8 @@ class SocketSync:
             with sync("stage 2"):
                 pass
         """
+        if stage not in self.sockets:
+            raise ValueError(f"Invalid stage name: {stage}")
         self.stage = stage
         return self
 

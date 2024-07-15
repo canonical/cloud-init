@@ -964,7 +964,7 @@ def main(sysv_args=None):
         dest="single_process",
         action="store_true",
         help=(
-            "Run run the four stages as a single process as an optimization."
+            "Run cloud-init's stages as a single process as an optimization."
             "Requires init system integration."
         ),
         default=False,
@@ -1171,8 +1171,8 @@ def main(sysv_args=None):
     # attempt to send "start" before a socket exists
     sync = socket.SocketSync("local", "network", "config", "final")
 
-    # notify cloud-init-local.service that this stage has completed
-    socket.sd_notify(b"READY=1")
+    # notify systemd that this stage has completed
+    socket.sd_notify("READY=1")
 
     # wait for cloud-init-local.service to start
     with sync("local"):
