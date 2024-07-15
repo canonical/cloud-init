@@ -584,8 +584,8 @@ class DataSourceAzure(sources.DataSource):
             )
         except subp.ProcessExecutionError as error:
             if isinstance(error.reason, FileNotFoundError):
-                reportable_error = errors.ReportableErrorProxyAgentNotFound()
-                self._report_failure(reportable_error)
+                report_error = errors.ReportableErrorProxyAgentNotFound()
+                self._report_failure(report_error)
             else:
                 reportable_error = (
                     errors.ReportableErrorProxyAgentStatusFailure(error)
