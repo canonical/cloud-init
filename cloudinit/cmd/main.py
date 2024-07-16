@@ -368,8 +368,11 @@ def main_init(name, args):
     outfmt = None
     errfmt = None
     try:
-        close_stdin(lambda msg: early_logs.append((logging.DEBUG, msg)))
-        outfmt, errfmt = util.fixup_output(init.cfg, name)
+        if not args.skip_log_setup:
+            close_stdin(lambda msg: early_logs.append((logging.DEBUG, msg)))
+            outfmt, errfmt = util.fixup_output(init.cfg, name)
+        else:
+            outfmt, errfmt = util.get_output_cfg(init.cfg, name)
     except Exception:
         msg = "Failed to setup output redirection!"
         util.logexc(LOG, msg)
@@ -381,8 +384,9 @@ def main_init(name, args):
             "Logging being reset, this logger may no longer be active shortly"
         )
         log.reset_logging()
-    log.setup_logging(init.cfg)
-    apply_reporting_cfg(init.cfg)
+    if not args.skip_log_setup:
+        log.setup_logging(init.cfg)
+        apply_reporting_cfg(init.cfg)
 
     # Any log usage prior to setup_logging above did not have local user log
     # config applied.  We send the welcome message now, as stderr/out have
@@ -639,8 +643,9 @@ def main_modules(action_name, args):
     mods = Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 4
     try:
-        close_stdin()
-        util.fixup_output(mods.cfg, name)
+        if not args.skip_log_setup:
+            close_stdin()
+            util.fixup_output(mods.cfg, name)
     except Exception:
         util.logexc(LOG, "Failed to setup output redirection!")
     if args.debug:
@@ -649,8 +654,9 @@ def main_modules(action_name, args):
             "Logging being reset, this logger may no longer be active shortly"
         )
         log.reset_logging()
-    log.setup_logging(mods.cfg)
-    apply_reporting_cfg(init.cfg)
+    if not args.skip_log_setup:
+        log.setup_logging(mods.cfg)
+        apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
     welcome(name, msg=w_msg)
@@ -1163,6 +1169,7 @@ def main(sysv_args=None):
         parser.error("a subcommand is required")
 
     args = parser.parse_args(args=sysv_args)
+    setattr(args, "skip_log_setup", False)
     if not args.single_process:
         return sub_main(args)
     LOG.info("Running cloud-init in single process mode.")
@@ -1175,23 +1182,35 @@ def main(sysv_args=None):
     socket.sd_notify("READY=1")
     # wait for cloud-init-local.service to start
     with sync("local"):
+        # set up logger
+        args = parser.parse_args(args=["init", "--local"])
+        args.skip_log_setup = False
         # run local stage
-        sub_main(parser.parse_args(args=["init", "--local"]))
+        sub_main(args)
 
     # wait for cloud-init.service to start
     with sync("network"):
+        # skip re-setting up logger
+        args = parser.parse_args(args=["init"])
+        args.skip_log_setup = True
         # run init stage
-        sub_main(parser.parse_args(args=["init"]))
+        sub_main(args)
 
     # wait for cloud-config.service to start
     with sync("config"):
+        # skip re-setting up logger
+        args = parser.parse_args(args=["modules", "--mode=config"])
+        args.skip_log_setup = True
         # run config stage
-        sub_main(parser.parse_args(args=["modules", "--mode=config"]))
+        sub_main(args)
 
     # wait for cloud-final.service to start
     with sync("final"):
+        # skip re-setting up logger
+        args = parser.parse_args(args=["modules", "--mode=final"])
+        args.skip_log_setup = True
         # run final stage
-        sub_main(parser.parse_args(args=["modules", "--mode=final"]))
+        sub_main(args)
 
     # signal completion to cloud-init.service
     if sync.first_exception:
