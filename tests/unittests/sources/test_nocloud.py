@@ -98,6 +98,29 @@ class TestNoCloudDataSource(CiTestCase):
         self.assertEqual(dsrc.platform_type, "nocloud")
         self.assertEqual(dsrc.subplatform, "seed-dir (%s)" % seed_dir)
 
+    def test_nocloud_seedfrom(self, m_is_lxd):
+        """Check that a seedfrom triggers detection"""
+        assert dsNoCloud(
+            sys_cfg={"datasource": {"NoCloud": {"seedfrom": "somevalue"}}},
+            distro=None,
+            paths=self.paths,
+        ).ds_detect()
+
+    def test_nocloud_user_data_meta_data(self, m_is_lxd):
+        """Check that meta-data and user-data trigger detection"""
+        assert dsNoCloud(
+            sys_cfg={
+                "datasource": {
+                    "NoCloud": {
+                        "meta-data": "",
+                        "user-data": "#cloud-config\nsome-config",
+                    }
+                }
+            },
+            distro=None,
+            paths=self.paths,
+        ).ds_detect()
+
     def test_fs_label(self, m_is_lxd):
         # find_devs_with should not be called ff fs_label is None
         class PsuedoException(Exception):

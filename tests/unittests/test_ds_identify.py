@@ -867,6 +867,32 @@ class TestDsIdentify(DsIdentifyBase):
         mydata["files"][cfgpath] = 'datasource_list: ["Ec2", "None"]\n'
         self._check_via_dict(mydata, rc=RC_FOUND, dslist=["Ec2", DS_NONE])
 
+    def test_nocloud_seedfrom(self):
+        """Check seedfrom system config detects nocloud.
+
+        Verify that a cloud.cfg.d/ that contains more than two datasources in
+        its datasource_list will positively identify nocloud when a
+        datasource.NoCloud.seedfrom value exists
+        """
+        self._check_via_dict(
+            copy.deepcopy(VALID_CFG["NoCloud-seedfrom"]),
+            rc=RC_FOUND,
+            dslist=["NoCloud", DS_NONE],
+        )
+
+    def test_nocloud_userdata_and_metadata(self):
+        """Check seedfrom system config detects nocloud.
+
+        Verify that a cloud.cfg.d/ that contains more than two datasources in
+        its datasource_list will positively identify nocloud when both
+        datasource.NoCloud.{user-data,meta-data} value exists
+        """
+        self._check_via_dict(
+            copy.deepcopy(VALID_CFG["NoCloud-user-data-meta-data"]),
+            rc=RC_FOUND,
+            dslist=["NoCloud", DS_NONE],
+        )
+
     def test_aliyun_identified(self):
         """Test that Aliyun cloud is identified by product id."""
         self._test_ds_found("AliYun")
@@ -1962,6 +1988,41 @@ VALID_CFG = {
         "files": {
             os.path.join(P_SEED_DIR, "nocloud", "user-data"): "ud\n",
             os.path.join(P_SEED_DIR, "nocloud", "meta-data"): "md\n",
+        },
+    },
+    "NoCloud-seedfrom": {
+        "ds": "NoCloud",
+        "files": {
+            # Also include a datasource list of more than just
+            # [NoCloud, None], because that would automatically select
+            # NoCloud without checking
+            "etc/cloud/cloud.cfg.d/test.cfg": dedent(
+                """\
+                datasource_list: [ Azure, OpenStack, NoCloud, None ]
+                datasource:
+                  NoCloud:
+                    seedfrom: http://0.0.0.0/test
+                """
+            )
+        },
+    },
+    "NoCloud-user-data-meta-data": {
+        "ds": "NoCloud",
+        "files": {
+            # Also include a datasource list of more than just
+            # [NoCloud, None], because that would automatically select
+            # NoCloud without checking
+            "etc/cloud/cloud.cfg.d/test.cfg": dedent(
+                """\
+                datasource_list: [ Azure, OpenStack, NoCloud, None ]
+                datasource:
+                  NoCloud:
+                    meta-data: ""
+                    user-data: |
+                      #cloud-config
+                      <some-config>
+            """
+            )
         },
     },
     "NoCloud-seed-ubuntu-core": {

@@ -408,6 +408,17 @@ class DataSourceNoCloudNet(DataSourceNoCloud):
             if serial == "nocloud-net":
                 log_deprecated()
             return True
+        elif (
+            self.sys_cfg.get("datasource", {})
+            .get("NoCloud", {})
+            .key("seedfrom")
+        ):
+            LOG.debug(
+                "Machine is configured by system configuration to run on "
+                "single datasource %s.",
+                self,
+            )
+            return True
         return False
 
 
