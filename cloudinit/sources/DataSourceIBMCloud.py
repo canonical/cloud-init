@@ -401,13 +401,13 @@ def metadata_from_dir(source_dir: str) -> Dict[str, Any]:
                 e,
             )
 
-    renames = {
-        "public_keys": "public-keys",
-        "hostname": "local-hostname",
-        "uuid": "instance-id",
-    }
+    renames = (
+        ("public_keys", "public-keys"),
+        ("hostname", "local-hostname"),
+        ("uuid", "instance-id"),
+    )
 
-    for old_key, new_key in renames.items():
+    for old_key, new_key in renames:
         if old_key in md_raw:
             md[new_key] = md_raw[old_key]
 
