@@ -341,7 +341,7 @@ def metadata_from_dir(source_dir: str) -> Dict[str, Any]:
     keys.
 
     This function has a lot in common with ConfigDriveReader.read_v2 but
-    there are a number of inconsistencies, such as key renames and only 
+    there are a number of inconsistencies, such as key renames and only
     presenting a 'latest' version, which make it an unlikely candidate to share
     code.
 
@@ -356,11 +356,11 @@ def metadata_from_dir(source_dir: str) -> Dict[str, Any]:
         return json.loads(blob.decode("utf-8"))
 
     def load_file(
-        path: str, translator: Optional[Callable[[bytes], Any]] = None
+        path: str, translator: Callable[[bytes], Any]
     ) -> Any:
         try:
             raw = util.load_binary_file(path)
-            return translator(raw) if translator else raw
+            return translator(raw)
         except IOError as e:
             LOG.debug("Failed reading path '%s': %s", path, e)
             return None
@@ -370,32 +370,27 @@ def metadata_from_dir(source_dir: str) -> Dict[str, Any]:
     files = [
         # tuples of (results_name, path, translator)
         ("metadata_raw", opath("meta_data.json"), load_json_bytes),
-        ("userdata", opath("user_data"), None),
+        ("userdata", opath("user_data"), lambda x: x),
         ("vendordata", opath("vendor_data.json"), load_json_bytes),
         ("networkdata", opath("network_data.json"), load_json_bytes),
     ]
 
-    raw_results: Dict[str, Optional[bytes]] = {}
-    translated_results: Dict[str, Any] = {}
+    results: Dict[str, Any] = {}
 
     for name, path, transl in files:
         fpath = os.path.join(source_dir, path)
-        raw_results[name] = load_file(fpath)
-        if raw_results[name] is not None and transl is not None:
-            translated_results[name] = load_file(fpath, transl)
-        else:
-            translated_results[name] = raw_results[name]
+        results[name] = load_file(fpath, transl)
 
-    if raw_results["metadata_raw"] is None:
+    if results["metadata_raw"] is None:
         raise sources.BrokenMetadata(
             "%s missing required file 'meta_data.json'",
             source_dir,
         )
 
-    translated_results["metadata"] = {}
+    results["metadata"] = {}
 
-    md_raw = translated_results["metadata_raw"]
-    md = translated_results["metadata"]
+    md_raw = results["metadata_raw"]
+    md = results["metadata"]
 
     if "random_seed" in md_raw:
         try:
@@ -416,7 +411,7 @@ def metadata_from_dir(source_dir: str) -> Dict[str, Any]:
         if old_key in md_raw:
             md[new_key] = md_raw[old_key]
 
-    return translated_results
+    return results
 
 
 # Used to match classes to dependencies
