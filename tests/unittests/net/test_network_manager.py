@@ -130,6 +130,9 @@ class TestNetworkManagerRenderNetworkState:
                 [bond]
                 mode=802.3ad
 
+                [ethernet]
+                mtu=9000
+
                 """
             ),
             "/etc/NetworkManager/system-connections/cloud-init-bond0.123.nmconnection": textwrap.dedent(  # noqa: E501
@@ -275,6 +278,9 @@ class TestNetworkManagerRenderNetworkState:
 
                 [bond]
                 mode=802.3ad
+
+                [ethernet]
+                mtu=9000
 
                 """
             ),
