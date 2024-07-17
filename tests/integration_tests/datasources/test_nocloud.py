@@ -326,7 +326,8 @@ class TestFTP:
                     'wget "https://github.com/FiloSottile/mkcert/releases/'
                     "download/${latest_ver}/mkcert-"
                     '${latest_ver}-linux-amd64"'
-                    " -O mkcert"
+                    " -O mkcert && "
+                    "chmod 755 mkcert"
                 ).ok
 
                 # giddyup
@@ -426,6 +427,10 @@ class TestFTP:
                 "Attempted to connect to an insecure ftp server but used"
                 " a scheme of ftps://, which is not allowed. Use ftp:// "
                 "to allow connecting to insecure ftp servers.",
+            ],
+            ignore_tracebacks=[
+                'ftplib.error_perm: 500 Command "AUTH" not understood.',
+                "UrlError: Attempted to connect to an insecure ftp server",
             ],
         )
 

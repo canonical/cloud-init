@@ -294,6 +294,8 @@ class IntegrationInstance:
                 and self.instance.execute_via_ssh
             ):
                 self._ip = self.instance.ip
+            elif not isinstance(self.instance, LXDInstance):
+                self._ip = self.instance.ip
         except NotImplementedError:
             self._ip = "Unknown"
         return self._ip

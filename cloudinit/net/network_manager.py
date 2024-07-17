@@ -437,6 +437,10 @@ class NMConnection:
             self.config["vlan"]["parent"] = renderer.con_ref(
                 iface["vlan-raw-device"]
             )
+        if if_type == "bond" and ipv4_mtu is not None:
+            if "ethernet" not in self.config:
+                self.config["ethernet"] = {}
+            self.config["ethernet"]["mtu"] = str(ipv4_mtu)
         if if_type == "bridge":
             # Bridge is ass-backwards compared to bond
             for port in iface["bridge_ports"]:
