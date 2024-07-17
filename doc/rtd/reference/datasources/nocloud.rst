@@ -4,97 +4,237 @@ NoCloud
 *******
 
 The data source ``NoCloud`` is a flexible datasource that can be used in
-multiple different ways. With NoCloud, one can provide configurations to
-the instance without running a network service (or even without having a
-network at all). Alternatively, one can use HTTP/HTTPS or FTP/FTPS to provide
-a configuration.
+multiple different ways.
 
-Configuration Methods:
+With NoCloud, one can provide configuration to the instance locally (without
+network access) or alternatively NoCloud can fetch the configuration from a
+remote server.
+
+Much of the following documentation describes how to tell cloud-init where
+to get its configuration.
+
+Runtime configurations
 ======================
 
-.. warning::
-    User data placed under ``/etc/cloud/`` will **not** be recognized as a
-    source of configuration data by the NoCloud datasource. While it may
-    be acted upon by cloud-init, using
-    :ref:`DataSourceNone<datasource_none_example>` should be preferred.
+Cloud-init discovers four types of configuration at runtime. The source of
+these configuration types is configurable with a meta-configuration. This
+meta-configuration can be delivered to cloud-init in different ways, but is
+different from the configurations that cloud-init uses to configure the
+instance at runtime.
 
-Method 1: Labeled filesystem
+user-data
+---------
+
+User-data is a :ref:`configuration format<user_data_formats>` which allows a
+user to configure an instance.
+
+meta-data
+---------
+
+The ``meta-data`` file is a YAML-formatted file. This is a required
+configuration type.
+
+vendor-data (optional)
+----------------------
+
+Vendor-data may be used to provide default cloud-specific configurations which
+may be overriden by user-data. This may be useful, for example, configure an
+instance with a cloud provider's repository mirror for faster package
+installation.
+
+network-config (optional)
+-------------------------
+
+Network configuration typically comes from the cloud provider to set
+cloud-specific network configurations or a reasonable default is set by
+cloud-init (typically cloud-init brings up an interface using DHCP).
+
+Since NoCloud is a generic datasource, network configuration may be set the
+same way as user-data, meta-data, vendor-data.
+
+See the :ref:`network configuration<network_config>` documentation for
+information on network configuration formats.
+
+Meta-configuration
+==================
+
+The purpose of the meta-configuration is to tell cloud-init where it can find
+the runtime configurations described above.
+
+There are two methods for cloud-init to receive a meta-configuration.
+
+Method 1: Line configuration
 ----------------------------
 
-A labeled `vfat`_ or `iso9660` filesystem may be used. The filesystem volume
-must be labelled ``CIDATA``.
+The "line configuration" is a single string of text which is passed to an
+instance at boot time via either the kernel command line or in the serial
+number exposed via DMI (sometimes called SMBIOS).
 
+Example: ::
 
-Method 2: Custom webserver
+  ds=nocloud;s=https://10.42.42.42/configs/
+
+In the above line configuration, ``ds=nocloud`` tells cloud-init to use the
+NoCloud datasource, and ``s=https://10.42.42.42/configs/`` tells cloud-init to
+fetch configurations using ``https`` from the URI
+``https://10.42.42.42/configs/``.
+
+We will describe the possible values in a line configuration in the following
+sections.
+
+.. note::
+
+   If using kernel command line arguments with GRUB, note that an
+   unescaped semicolon is intepreted as the end of a statement.
+   See: `GRUB quoting`_
+
+Method 2: System configuration
+------------------------------
+
+System configurations are YAML-formatted files and have names that end in
+``.cfg``. These are located under :file:`/etc/cloud/cloud.cfg.d/`.
+
+Example:
+
+.. code-block:: yaml
+
+  datasource:
+    NoCloud:
+      seedfrom: https://10.42.42.42/configs/
+
+The above system configuration tells cloud-init that it is using NoCloud and
+that it can find configurations at ``https://10.42.42.42/configs/``.
+
+The scope of this section is limited to its use for selecting the source of
+its configuration, however it is worth mentioning that the system configuration
+provides more than just the meta-configuration.
+
+In addition to defining where cloud-init can find runtime configurations, the
+system configuration also controls many of cloud-init's default behaviors.
+Most users shouldn't need to modify these defaults, however it is worth noting
+that downstream distributions often use them to set reasonable default
+behaviors for cloud-init. This includes things such as which distro to behave
+as and which networking backend to use.
+
+The default values in :file:`/etc/cloud/cloud.cfg` may be overriden by drop-in
+files which are stored in :file:`/etc/cloud/cloud.cfg.d`.
+
+Configuration sources
+=====================
+
+User-data, meta-data, network-config (optional), and vendor-data
+(optional) may be sourced from one of several possible locations, either
+locally or remotely.
+
+Source 1: Local filesystem
 --------------------------
 
-Configuration files can be provided to cloud-init over HTTP(s). To tell
-cloud-init the URI to use, arguments must be passed to the instance via the
-kernel command line or SMBIOS serial number. This argument might look like: ::
+System configuration may provide cloud-init runtime configuration directly
+
+.. code-block:: yaml
+
+  datasource:
+    NoCloud:
+      meta-data: |
+        instance-id: l-eadfbe
+      user-data: |
+        #cloud-config
+        runcmd: [ echo "it worked!" > /tmp/example.txt ]
+
+Local filesystem: custom location
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Cloud-init makes it possible to find system configuration in a custom
+filesystem path for those that require more flexibility. This may be
+done with a line configuration: ::
+
+
+  ds=nocloud;s=file://path/to/directory/
+
+Or a system configuration:
+
+.. code-block:: yaml
+
+  datasource:
+    NoCloud:
+      seedfrom: file://path/to/directory
+
+Source 2: Drive with labeled filesystem
+---------------------------------------
+
+A labeled `vfat`_ or `iso9660` filesystem may be used. The filesystem volume
+must be labelled ``CIDATA``. The configuration files must be in the root
+directory of the filesystem.
+
+Source 3: Custom webserver
+--------------------------
+
+Configuration files can be provided to cloud-init over HTTP(S) using a
+line configuration: ::
 
   ds=nocloud;s=https://10.42.42.42/cloud-init/configs/
 
-.. note::
-   If using kernel command line arguments with GRUB, note that an
-   unescaped semicolon is intepreted as the end of a statement.
-   Consider using single-quotes to avoid this pitfall. See: `GRUB quoting`_
-   ds=nocloud;s=http://10.42.42.42/cloud-init/configs/
+or using system configuration:
 
-Alternatively, this URI may be defined in a configuration in a file
-:file:`/etc/cloud/cloud.cfg.d/*.cfg` like this: ::
+.. code-block:: yaml
 
   datasource:
     NoCloud:
       seedfrom: https://10.42.42.42/cloud-init/configs/
 
-Method 3: FTP Server
+Source 4: FTP Server
 --------------------
 
 Configuration files can be provided to cloud-init over unsecured FTP
-or alternatively with FTP over TLS. To tell cloud-init the URL to use,
-arguments must be passed to the instance via the kernel command line or SMBIOS
-serial number. This argument might look like: ::
+or alternatively with FTP over TLS using a line configuration ::
 
   ds=nocloud;s=ftps://10.42.42.42/cloud-init/configs/
 
-Alternatively, this URI may be defined in a configuration in a file
-:file:`/etc/cloud/cloud.cfg.d/*.cfg` like this: ::
+or using system configuration
+
+.. code-block:: yaml
 
   datasource:
     NoCloud:
       seedfrom: ftps://10.42.42.42/cloud-init/configs/
 
-Method 4: Local filesystem
---------------------------
+Source files
+------------
 
-Configuration files can be provided on the local filesystem at specific
-filesystem paths using kernel command line arguments or SMBIOS serial number to
-tell cloud-init where on the filesystem to look.
+The base path pointed to by the URI in the above sources can provide content
+using the following final path components:
 
-.. note::
-   Unless arbitrary filesystem paths are required, one might prefer to use
-   :ref:`DataSourceNone<datasource_none_example>`, since it does not require
-   modifying the kernel command line or SMBIOS.
+* ``user-data`` (required)
+* ``meta-data`` (required)
+* ``vendor-data`` (optional)
+* ``network-config`` (optional)
 
-This argument might look like: ::
+For example, if the ``seedfrom`` value of ``seedfrom`` is
+``https://10.42.42.42/``, then the following files will be fetched from the
+webserver at first boot:
 
-  ds=nocloud;s=file://path/to/directory/
+.. code-block:: sh
 
-Alternatively, this URI may be defined in a configuration in a file
-:file:`/etc/cloud/cloud.cfg.d/*.cfg` like this: ::
+    https://10.42.42.42/user-data
+    https://10.42.42.42/vendor-data
+    https://10.42.42.42/meta-data
+    https://10.42.42.42/network-config
 
-  datasource:
-    NoCloud:
-      seedfrom: file://10.42.42.42/cloud-init/configs/
+If the required files don't exist, this datasource will be skipped.
 
 
-Permitted keys
-==============
+Line configuration in detail
+============================
 
-Currently three keys (and their aliases) are permitted for configuring
-cloud-init.
+The line configuration has several options.
 
-The only required key is:
+Permitted keys (DMI and kernel command line)
+--------------------------------------------
+
+Currently three keys (and their aliases) are permitted in cloud-init's kernel
+command line and DMI (sometimes called SMBIOS) serial number.
+
+There is only one required key in a line configuration:
 
 * ``seedfrom`` alias: ``s``
 
@@ -108,11 +248,6 @@ be removed in the future.
   preferred)
 * ``instance-id`` alias: ``i``  (set instance id  in :file:`meta-data` instead)
 
-.. note::
-
-   The aliases ``s`` , ``h`` and ``i`` are only supported by kernel
-   command line or SMBIOS. When configured in a ``*.cfg`` file, the long key
-   name is required.
 
 Seedfrom: HTTP and HTTPS
 ------------------------
@@ -138,26 +273,41 @@ Where ``scheme`` can be ``ftp`` or ``ftps``, ``userinfo`` will be
 ``host`` can be an IP address or DNS name, and ``port`` is which network
 port to use (default is ``21``).
 
-Seedfrom: Files
----------------
+Meta-configuration considerations
+=================================
 
-The path pointed to by the URI can contain the following
-files:
+Above, we describe the two methods of providing meta-configuration (system
+configuration and line configuration). Two methods exist because there are
+advantages and disadvantages to each option, neither is clearly a better
+choice - so it is left to the user to decide.
 
-``user-data`` (required)
-``meta-data`` (required)
-``vendor-data`` (optional)
-``network-config`` (optional)
+Line configuration
+------------------
 
-If the seedfrom URI doesn't contain the required files, this datasource
-will be skipped.
+Advantages
+^^^^^^^^^^
 
-The ``user-data`` file uses :ref:`user data format<user_data_formats>`. The
-``meta-data`` file is a YAML-formatted file.
+* it may be possible to set kernel command line and DMI variables at boot time
+  without modifying the base image
 
-The ``vendor-data`` file adheres to
-:ref:`user data formats<user_data_formats>`. The ``network-config`` file
-follows cloud-init's :ref:`Network Configuration Formats<network_config_v2>`.
+Disadvantates
+^^^^^^^^^^^^^
+
+* requires control and modification of the hypervisor or the bootloader
+* DMI / SMBIOS is architecture specific
+
+System configuration
+--------------------
+
+Advantages
+^^^^^^^^^^
+
+* simple: requires only modifying a file
+
+Disadvantates
+^^^^^^^^^^^^^
+
+* requires modifying the filesystem prior to booting an instance
 
 DMI-specific kernel command line
 ================================
@@ -189,7 +339,7 @@ wanted.
     - ``dmi.system-uuid``
     - ``dmi.system-version``
 
-For example, you can pass this option to QEMU: ::
+For example, you can pass this line configuration to QEMU: ::
 
   -smbios type=1,serial=ds=nocloud;s=http://10.10.0.1:8000/__dmi.chassis-serial-number__/
 

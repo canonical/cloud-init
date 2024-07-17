@@ -41,7 +41,7 @@ datasource:
     # right here
     user-data: |
       # This is the user-data verbatim
-    meta-data:
+    meta-data: |
       instance-id: i-87018aed
       local-hostname: myhost.internal
 
