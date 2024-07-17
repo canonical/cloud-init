@@ -130,6 +130,12 @@ class DataSourceNoCloud(sources.DataSource):
 
         label = self.ds_cfg.get("fs_label", "cidata")
         if label is not None:
+            if label.lower() != "cidata":
+                util.deprecate(
+                    deprecated="Custom fs_label keys",
+                    deprecated_version="24.3",
+                    extra_message="This key isn't supported by ds-identify.",
+                )
             for dev in self._get_devices(label):
                 try:
                     LOG.debug("Attempting to use data from %s", dev)
