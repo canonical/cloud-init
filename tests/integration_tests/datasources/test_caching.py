@@ -10,9 +10,7 @@ def setup_custom_datasource(client: IntegrationInstance, datasource_name: str):
         f"datasource_list: [ {datasource_name}, None ]\n"
         "datasource_pkg_list: [ cisources ]",
     )
-    assert client.execute(
-        "mkdir -p /usr/lib/python3/dist-packages/cisources"
-    )
+    assert client.execute("mkdir -p /usr/lib/python3/dist-packages/cisources")
     client.push_file(
         util.ASSETS_DIR / f"DataSource{datasource_name}.py",
         "/usr/lib/python3/dist-packages/cisources/"
