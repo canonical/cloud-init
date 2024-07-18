@@ -191,11 +191,10 @@ datasource_list: [ $values ]
 EOF
    fi
 
-   # if there are maas settings pre-seeded apply them
-   handle_preseed_maas
-
    # fix issue where cloud-init misidentifies the location of grub
    fix_1336855
+
+   fix_lp1889555 "$2"
 
 fi
 
