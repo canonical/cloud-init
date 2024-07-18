@@ -3457,6 +3457,11 @@
                   "format": "uri",
                   "description": "Specifies a URL to a metalink file for the repomd.xml"
                 },
+                "mirrorlist": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "Specifies a URL to a file containing a baseurls list"
+                },
                 "name": {
                   "type": "string",
                   "description": "Optional human-readable name of the yum repo."
@@ -3493,6 +3498,11 @@
                 {
                   "required": [
                     "metalink"
+                  ]
+                },
+                {
+                  "required": [
+                    "mirrorlist"
                   ]
                 }
               ]
