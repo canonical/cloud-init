@@ -406,6 +406,7 @@ class Init:
                         ds,
                     )
                 else:
+                    util.del_file(self.paths.instance_link)
                     raise e
         self.datasource = ds
         # Ensure we adjust our path members datasource
