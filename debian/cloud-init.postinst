@@ -51,64 +51,6 @@ with open(fname, "w") as fp:
     fp.write(yaml.dump(cfg))' "$@"
 }
 
-handle_preseed_maas() {
-   local cfg_file="/etc/cloud/cloud.cfg.d/90_dpkg_maas.cfg"
-   local md_url="" creds_all="" c_key="" t_key="" t_sec="" c_sec="";
-
-   db_get "cloud-init/maas-metadata-url" && md_url="$RET" || :
-   db_get "cloud-init/maas-metadata-credentials" && creds_all="$RET" || :
-
-   # nothing to do
-   [ -n "$md_url" -o -n "$creds_all" ] || return 0
-
-   # change a url query string format into : delimited
-   if [ -n "$creds_all" -a "${creds_all#*&}" != "${creds_all}" ]; then
-      # the command here ends up looking like:
-      # python3 -c '...' 'oauth_consumer_key=v1&oauth_token_key=v2...' \
-      #   oauth_consumer_key oauth_token_key oauth_token_secret
-      creds_all=$(python3 -c 'from six.moves.urllib.parse import parse_qs;
-import sys;
-keys = parse_qs(sys.argv[1])
-for k in sys.argv[2:]:
-   sys.stdout.write("%s:" % keys.get(k,[""])[0])' "$creds_all" \
-   oauth_consumer_key oauth_token_key oauth_token_secret
-)
-   fi
-
-   # now, if non-empty creds_all is: consumer_key:token_key:token_secret
-   if [ -n "$creds_all" ]; then
-      OIFS="$IFS"; IFS=:; set -- $creds_all; IFS="$OIFS"
-      c_key=$1; t_key=$2; t_sec=$3
-   fi
-
-   if [ "$md_url" = "_" -a "${c_key}:${t_key}:${t_sec}" = "_:_:_" ]; then
-      # if all these values were '_', the delete value, just delete the file.
-      rm -f "$cfg_file"
-   else
-      local header="# written by cloud-init debian package per preseed entries
-# cloud-init/{maas-metadata-url,/maas-metadata-credentials}"
-
-      local pair="" k="" v="" pload="" orig_umask=""
-      for pair in "metadata_url:$md_url" "consumer_key:${c_key}" \
-         "token_key:${t_key}" "token_secret:$t_sec"; do
-         k=${pair%%:*}
-         v=${pair#${k}:}
-         [ -n "$v" ] && pload="${pload} $k: \"$v\","
-      done
-
-      # '_' would indicate "delete", otherwise, existing entries are left
-      orig_umask=$(umask)
-      umask 066
-      : >> "$cfg_file" && chmod 600 "$cfg_file"
-      update_cfg "$cfg_file" "$header" "datasource: { MAAS: { ${pload%,} } }" _
-      umask ${orig_umask}
-   fi
-
-   # now clear the database of the values, as they've been consumed
-   db_unregister "cloud-init/maas-metadata-url" || :
-   db_unregister "cloud-init/maas-metadata-credentials" || :
-}
-
 fix_1336855() {
   ### Begin fix for LP: 1336855
   # fix issue where cloud-init misidentifies the location of grub and
@@ -184,6 +126,48 @@ fix_1336855() {
 
 }
 
+fix_lp1889555() {
+    local oldver="$1" last_bad_ver="20.3-2-g371b392c-0ubuntu1"
+    dpkg --compare-versions "$oldver" le-nl "$last_bad_ver" || return 0
+
+    # if cloud-init's grub module did not run, then it did not break anything.
+    [ -f /var/lib/cloud/instance/sem/config_grub_dpkg ] || return 0
+
+    # Don't do anything unless we have grub
+    command -v grub-install > /dev/null || return 0
+
+    # Make sure that we are not chrooted.
+    [ "$(stat -c %d:%i /)" != "$(stat -c %d:%i /proc/1/root/.)" ] && return 0
+
+    # Check if we are in a container, i.e. LXC
+    if systemd-detect-virt --quiet --container || lxc-is-container 2>/dev/null; then
+        return 0
+    fi
+
+    # This bug only applies to NVMe devices
+    [ -e /dev/nvme0 ] || return 0
+
+    db_get grub-pc/install_devices && grub_cfg_dev=${RET} || return 0
+
+    # If the current setting is not the (potentially-incorrect) default we
+    # expect, this implies user intervention so leave things alone
+    [ "$grub_cfg_dev" = "/dev/sda" ] || return 0
+
+    correct_idev="$(python3 -c "import logging; from cloudinit.config.cc_grub_dpkg import fetch_idevs; print(fetch_idevs(logging.getLogger()))")" || return 0
+
+    # If correct_idev is the empty string, we failed to determine the correct
+    # install device; do nothing
+    [ -z "$correct_idev" ] && return 0
+
+    # If the correct_idev is already configured, do nothing
+    [ "$grub_cfg_dev" = "$correct_idev" ] && return 0
+
+    echo "Reconfiguring grub install device due to mismatch (LP: #1889555)"
+    echo "   grub should use $correct_idev but is configured for $grub_cfg_dev"
+    db_set grub-pc/install_devices "$correct_idev"
+    db_set grub-pc/install_devices_empty "false"
+}
+
 rename_hook_hotplug_udev_rule() {
     # Avoids LP: #1946003 see commit: b519d861aff8b44a0610c176cb34adcbe28df144
     if [ -f /etc/udev/rules.d/10-cloud-init-hook-hotplug.rules ]; then
@@ -209,9 +193,6 @@ EOF
 
    # if there are maas settings pre-seeded apply them
    handle_preseed_maas
-
-   # if there is generic cloud-config preseed, apply them
-   handle_preseed_local_cloud_config
 
    # fix issue where cloud-init misidentifies the location of grub
    fix_1336855
