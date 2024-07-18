@@ -136,7 +136,7 @@ def decode_perms(perm, default):
 
 
 def read_url_or_decode(source, ssl_details, content, encoding):
-    contents = None
+    result = None
     # Fetch file content from source URL, if provided
     url = None if source is None else source.get("uri", None)
     use_url = bool(url)
@@ -144,7 +144,7 @@ def read_url_or_decode(source, ssl_details, content, encoding):
         try:
             # NOTE: These retry parameters are arbitrarily chosen defaults.
             # They have no significance, and may be changed if appropriate
-            contents = url_helper.read_file_or_url(
+            result = url_helper.read_file_or_url(
                 url,
                 headers=source.get("headers", None),
                 retries=3,
@@ -165,8 +165,8 @@ def read_url_or_decode(source, ssl_details, content, encoding):
         # NOTE: This is not simply an "else"! Notice that `use_url` can change
         # in the previous "if" block
         extractions = canonicalize_extraction(encoding)
-        contents = extract_contents(content, extractions)
-    return contents
+        result = extract_contents(content, extractions)
+    return result
 
 
 def extract_contents(contents, extraction_types):
