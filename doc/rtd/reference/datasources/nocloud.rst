@@ -25,7 +25,7 @@ instance at runtime.
 user-data
 ---------
 
-User-data is a :ref:`configuration format<user_data_formats>` which allows a
+User-data is a :ref:`configuration format<user_data_formats>` that allows a
 user to configure an instance.
 
 meta-data
@@ -38,7 +38,7 @@ vendor-data (optional)
 ----------------------
 
 Vendor-data may be used to provide default cloud-specific configurations which
-may be overriden by user-data. This may be useful, for example, configure an
+may be overriden by user-data. This may be useful, for example, to configure an
 instance with a cloud provider's repository mirror for faster package
 installation.
 
@@ -46,7 +46,7 @@ network-config (optional)
 -------------------------
 
 Network configuration typically comes from the cloud provider to set
-cloud-specific network configurations or a reasonable default is set by
+cloud-specific network configurations, or a reasonable default is set by
 cloud-init (typically cloud-init brings up an interface using DHCP).
 
 Since NoCloud is a generic datasource, network configuration may be set the
@@ -98,9 +98,9 @@ Example:
 
 .. code-block:: yaml
 
-  datasource:
-    NoCloud:
-      seedfrom: https://10.42.42.42/configs/
+   datasource:
+     NoCloud:
+       seedfrom: https://10.42.42.42/configs/
 
 The above system configuration tells cloud-init that it is using NoCloud and
 that it can find configurations at ``https://10.42.42.42/configs/``.
@@ -133,13 +133,13 @@ System configuration may provide cloud-init runtime configuration directly
 
 .. code-block:: yaml
 
-  datasource:
-    NoCloud:
-      meta-data: |
-        instance-id: l-eadfbe
-      user-data: |
-        #cloud-config
-        runcmd: [ echo "it worked!" > /tmp/example.txt ]
+   datasource:
+     NoCloud:
+       meta-data: |
+         instance-id: l-eadfbe
+       user-data: |
+         #cloud-config
+         runcmd: [ echo "it worked!" > /tmp/example.txt ]
 
 Local filesystem: custom location
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -155,9 +155,9 @@ Or a system configuration:
 
 .. code-block:: yaml
 
-  datasource:
-    NoCloud:
-      seedfrom: file://path/to/directory
+   datasource:
+     NoCloud:
+       seedfrom: file://path/to/directory
 
 Source 2: Drive with labeled filesystem
 ---------------------------------------
@@ -284,14 +284,12 @@ choice - so it is left to the user to decide.
 Line configuration
 ------------------
 
-Advantages
-^^^^^^^^^^
+**Advantages**
 
 * it may be possible to set kernel command line and DMI variables at boot time
   without modifying the base image
 
-Disadvantates
-^^^^^^^^^^^^^
+**Disadvantages**
 
 * requires control and modification of the hypervisor or the bootloader
 * DMI / SMBIOS is architecture specific
@@ -299,13 +297,11 @@ Disadvantates
 System configuration
 --------------------
 
-Advantages
-^^^^^^^^^^
+**Advantages**
 
 * simple: requires only modifying a file
 
-Disadvantates
-^^^^^^^^^^^^^
+**Disadvantages**
 
 * requires modifying the filesystem prior to booting an instance
 
