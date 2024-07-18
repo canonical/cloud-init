@@ -85,6 +85,16 @@ class TestWriteFiles(FilesystemMockingTestCase):
         )
         self.assertEqual(util.load_text_file(filename), expected)
 
+    def test_empty(self):
+        self.patchUtils(self.tmp)
+        filename = "/tmp/my.file"
+        write_files(
+            "test_empty",
+            [{"path": filename}],
+            self.owner,
+        )
+        self.assertEqual(util.load_text_file(filename), "")
+
     def test_append(self):
         self.patchUtils(self.tmp)
         existing = "hello "

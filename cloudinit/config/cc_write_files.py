@@ -136,10 +136,13 @@ def decode_perms(perm, default):
 
 
 def read_url_or_decode(source, ssl_details, content, encoding):
-    result = None
-    # Fetch file content from source URL, if provided
     url = None if source is None else source.get("uri", None)
     use_url = bool(url)
+    # Special case: empty URL and content. Write a blank file
+    if content is None and not use_url:
+        return ""
+    # Fetch file content from source URL, if provided
+    result = None
     if use_url:
         try:
             # NOTE: These retry parameters are arbitrarily chosen defaults.
