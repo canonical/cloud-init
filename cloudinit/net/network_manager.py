@@ -239,7 +239,10 @@ class NMConnection:
         Extends the ipv[46].dns property with a name server.
         """
         family = "ipv6" if is_ipv6_address(dns) else "ipv4"
-        if self.config.has_section(family):
+        if (
+            self.config.has_section(family)
+            and self._get_config_option(family, "method") != "disabled"
+        ):
             self._set_default(family, "dns", "")
             self.config[family]["dns"] = self.config[family]["dns"] + dns + ";"
 
@@ -248,7 +251,10 @@ class NMConnection:
         Extends the ipv[46].dns-search property with a name server.
         """
         for family in ["ipv4", "ipv6"]:
-            if self.config.has_section(family):
+            if (
+                self.config.has_section(family)
+                and self._get_config_option(family, "method") != "disabled"
+            ):
                 self._set_default(family, "dns-search", "")
                 self.config[family]["dns-search"] = (
                     self.config[family]["dns-search"]
