@@ -95,7 +95,7 @@ def write_files(name, files, owner: str, ssl_details: Optional[dict] = None):
             f_info.get("content", None),
             f_info.get("encoding", None),
         )
-        if contents == None:
+        if contents is None:
             LOG.warning(
                 "No content could be loaded for entry %s in module %s;"
                 " skipping",
@@ -138,7 +138,7 @@ def decode_perms(perm, default):
 def read_url_or_decode(source, ssl_details, content, encoding):
     contents = None
     # Fetch file content from source URL, if provided
-    url = None if source == None else source.get("uri", None)
+    url = None if source is None else source.get("uri", None)
     use_url = bool(url)
     if use_url:
         try:
@@ -161,7 +161,7 @@ def read_url_or_decode(source, ssl_details, content, encoding):
             use_url = False
     # If inline content is provided, and URL is not provided or is
     # inaccessible, parse the former
-    if content != None and not use_url:
+    if content is not None and not use_url:
         # NOTE: This is not simply an "else"! Notice that `use_url` can change
         # in the previous "if" block
         extractions = canonicalize_extraction(encoding)
