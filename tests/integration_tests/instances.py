@@ -108,7 +108,7 @@ class IntegrationInstance:
         self.instance.push_file(str(local_path), tmp_path)
         assert self.execute(
             "mv {} {}".format(tmp_path, str(remote_path))
-        ).ok, f"Failed to push {tmp_path} to {remote_path}"
+        ), f"Failed to push {tmp_path} to {remote_path}"
 
     def read_from_file(self, remote_path) -> str:
         result = self.execute("cat {}".format(remote_path))

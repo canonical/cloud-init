@@ -12,7 +12,7 @@ def setup_custom_datasource(client: IntegrationInstance, datasource_name: str):
     )
     assert client.execute(
         "mkdir -p /usr/lib/python3/dist-packages/cisources"
-    ).ok
+    )
     client.push_file(
         util.ASSETS_DIR / f"DataSource{datasource_name}.py",
         "/usr/lib/python3/dist-packages/cisources/"
@@ -55,13 +55,13 @@ def test_no_cache_network_only(client: IntegrationInstance):
     setup_custom_datasource(client, "NoCacheNetworkOnly")
 
     # Run cloud-init as if first boot
-    assert client.execute("cloud-init clean --logs").ok
+    assert client.execute("cloud-init clean --logs")
     client.restart()
 
     verify_no_cache_boot(client)
 
     # Clear the log without clean and run cloud-init for subsequent boot
-    assert client.execute("echo '' > /var/log/cloud-init.log").ok
+    assert client.execute("echo '' > /var/log/cloud-init.log")
     client.restart()
 
     verify_no_cache_boot(client)
@@ -76,7 +76,7 @@ def test_no_cache_with_fallback(client: IntegrationInstance):
     setup_custom_datasource(client, "NoCacheWithFallback")
 
     # Run cloud-init as if first boot
-    assert client.execute("cloud-init clean --logs").ok
+    assert client.execute("cloud-init clean --logs")
     # Used by custom datasource
     client.execute("touch /ci-test-firstboot")
     client.restart()
@@ -96,7 +96,7 @@ def test_no_cache_with_fallback(client: IntegrationInstance):
     util.verify_clean_boot(client)
 
     # Clear the log without clean and run cloud-init for subsequent boot
-    assert client.execute("echo '' > /var/log/cloud-init.log").ok
+    assert client.execute("echo '' > /var/log/cloud-init.log")
     client.execute("rm /ci-test-firstboot")
     client.restart()
 
