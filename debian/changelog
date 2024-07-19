@@ -1,9 +1,9 @@
-cloud-init (24.3~1g6e4153b3-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (24.3~1g6e4153b3-0ubuntu1) oracular; urgency=medium
 
   * Upstream snapshot based on upstream/main at 6e4153b3.
     - Bugs fixed in this snapshot: (LP: #2065787)
 
- -- Alberto Contreras <alberto.contreras@canonical.com>  Fri, 19 Jul 2024 17:09:32 +0200
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Fri, 19 Jul 2024 17:09:53 +0200
 
 cloud-init (24.2~5g8c396a4b-0ubuntu1) oracular; urgency=medium
 
