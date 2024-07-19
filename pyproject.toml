@@ -18,13 +18,13 @@ follow_imports = "silent"
 check_untyped_defs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
+warn_unreachable = true
 exclude = []
 
 [[tool.mypy.overrides]]
 module = [
     "apport.*",
     "BaseHTTPServer",
-    "cloudinit.feature_overrides",
     "configobj",
     "debconf",
     "httplib",
@@ -32,7 +32,6 @@ module = [
     "paramiko.*",
     "pip.*",
     "pycloudlib.*",
-    "responses",
     "serial",
     "tests.integration_tests.user_settings",
     "uaclient.*",
@@ -40,6 +39,7 @@ module = [
 ignore_missing_imports = true
 no_implicit_optional = true
 
+# See GH-5445
 [[tool.mypy.overrides]]
 module = [
     "cloudinit.analyze",
@@ -119,7 +119,6 @@ module = [
     "cloudinit.temp_utils",
     "cloudinit.templater",
     "cloudinit.user_data",
-    "cloudinit.util",
     "tests.integration_tests.instances",
     "tests.unittests.analyze.test_show",
     "tests.unittests.cmd.devel.test_hotplug_hook",

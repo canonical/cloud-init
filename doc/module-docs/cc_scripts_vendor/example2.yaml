@@ -1,0 +1,4 @@
+#cloud-config
+vendor_data:
+  enabled: true
+  prefix: [timeout, 30]

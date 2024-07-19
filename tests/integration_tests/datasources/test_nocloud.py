@@ -6,10 +6,12 @@ import pytest
 from pycloudlib.lxd.instance import LXDInstance
 
 from cloudinit.subp import subp
+from cloudinit.util import should_log_deprecation
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL
 from tests.integration_tests.util import (
+    get_feature_flag_value,
     override_kernel_command_line,
     verify_clean_boot,
     verify_clean_log,
@@ -193,9 +195,18 @@ class TestSmbios:
         assert client.execute("cloud-init clean --logs").ok
         client.restart()
         assert client.execute("test -f /var/tmp/smbios_test_file").ok
-        assert "'nocloud-net' datasource name is deprecated" in client.execute(
-            "cloud-init status --format json"
+        version_boundary = get_feature_flag_value(
+            client, "DEPRECATION_INFO_BOUNDARY"
         )
+        # nocloud-net deprecated in version 24.1
+        if should_log_deprecation("24.1", version_boundary):
+            log_level = "DEPRECATED"
+        else:
+            log_level = "INFO"
+        client.execute(
+            rf"grep \"{log_level}]: The 'nocloud-net' datasource name is"
+            ' deprecated" /var/log/cloud-init.log'
+        ).ok
 
 
 @pytest.mark.skipif(PLATFORM != "lxd_vm", reason="Modifies grub config")
@@ -315,7 +326,8 @@ class TestFTP:
                     'wget "https://github.com/FiloSottile/mkcert/releases/'
                     "download/${latest_ver}/mkcert-"
                     '${latest_ver}-linux-amd64"'
-                    " -O mkcert"
+                    " -O mkcert && "
+                    "chmod 755 mkcert"
                 ).ok
 
                 # giddyup
@@ -415,6 +427,10 @@ class TestFTP:
                 "Attempted to connect to an insecure ftp server but used"
                 " a scheme of ftps://, which is not allowed. Use ftp:// "
                 "to allow connecting to insecure ftp servers.",
+            ],
+            ignore_tracebacks=[
+                'ftplib.error_perm: 500 Command "AUTH" not understood.',
+                "UrlError: Attempted to connect to an insecure ftp server",
             ],
         )
 

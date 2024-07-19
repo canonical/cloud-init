@@ -267,9 +267,9 @@
               "patternProperties": {
                 "^.+$": {
                   "label": "<group_name>",
-                  "description": "When providing an object for users.groups the ``<group_name>`` keys are the groups to add this user to",
                   "deprecated": true,
                   "deprecated_version": "23.1",
+                  "deprecated_description": "The use of ``object`` type is deprecated. Use ``string`` or ``array`` of ``string`` instead.",
                   "type": [
                     "null"
                   ],
@@ -292,9 +292,7 @@
           "type": "string"
         },
         "lock-passwd": {
-          "default": true,
           "type": "boolean",
-          "description": "Default: ``true``",
           "deprecated": true,
           "deprecated_version": "22.3",
           "deprecated_description": "Use ``lock_passwd`` instead."
@@ -304,15 +302,33 @@
           "description": "Disable password login. Default: ``true``",
           "type": "boolean"
         },
+        "no-create-home": {
+          "type": "boolean",
+          "deprecated": true,
+          "deprecated_version": "24.2",
+          "deprecated_description": "Use ``no_create_home`` instead."
+        },
         "no_create_home": {
           "default": false,
           "description": "Do not create home directory. Default: ``false``",
           "type": "boolean"
         },
+        "no-log-init": {
+          "type": "boolean",
+          "deprecated": true,
+          "deprecated_version": "24.2",
+          "deprecated_description": "Use ``no_log_init`` instead."
+        },
         "no_log_init": {
           "default": false,
           "description": "Do not initialize lastlog and faillog for user. Default: ``false``",
           "type": "boolean"
+        },
+        "no-user-group": {
+          "type": "boolean",
+          "deprecated": true,
+          "deprecated_version": "24.2",
+          "deprecated_description": "Use ``no_user_group`` instead."
         },
         "no_user_group": {
           "default": false,
@@ -323,23 +339,53 @@
           "description": "Hash of user password applied when user does not exist. This will NOT be applied if the user already exists. To generate this hash, run: ``mkpasswd --method=SHA-512 --rounds=500000`` **Note:** Your password might possibly be visible to unprivileged users on your system, depending on your cloud's security model. Check if your cloud's IMDS server is visible from an unprivileged user to evaluate risk.",
           "type": "string"
         },
+        "hashed-passwd": {
+          "type": "string",
+          "deprecated": true,
+          "deprecated_version": "24.2",
+          "deprecated_description": "Use ``hashed_passwd`` instead."
+        },
         "hashed_passwd": {
           "description": "Hash of user password to be applied. This will be applied even if the user is preexisting. To generate this hash, run: ``mkpasswd --method=SHA-512 --rounds=500000``. **Note:** Your password might possibly be visible to unprivileged users on your system, depending on your cloud's security model. Check if your cloud's IMDS server is visible from an unprivileged user to evaluate risk.",
           "type": "string"
         },
+        "plain-text-passwd": {
+          "type": "string",
+          "deprecated": true,
+          "deprecated_version": "24.2",
+          "deprecated_description": "Use ``plain_text_passwd`` instead."
+        },
         "plain_text_passwd": {
           "description": "Clear text of user password to be applied. This will be applied even if the user is preexisting. **Note:** SSH keys or certificates are a safer choice for logging in to your system. For local escalation, supplying a hashed password is a safer choice than plain text. Your password might possibly be visible to unprivileged users on your system, depending on your cloud's security model. An exposed plain text password is an immediate security concern. Check if your cloud's IMDS server is visible from an unprivileged user to evaluate risk.",
           "type": "string"
+        },
+        "create-groups": {
+          "type": "boolean",
+          "deprecated": true,
+          "deprecated_version": "24.2",
+          "deprecated_description": "Use ``create_groups`` instead."
         },
         "create_groups": {
           "default": true,
           "description": "Boolean set ``false`` to disable creation of specified user ``groups``. Default: ``true``.",
           "type": "boolean"
         },
+        "primary-group": {
+          "type": "string",
+          "deprecated": true,
+          "deprecated_version": "24.2",
+          "deprecated_description": "Use ``primary_group`` instead."
+        },
         "primary_group": {
           "default": "``<username>``",
           "description": "Primary group for user. Default: ``<username>``",
           "type": "string"
+        },
+        "selinux-user": {
+          "type": "string",
+          "deprecated": true,
+          "deprecated_version": "24.2",
+          "deprecated_description": "Use ``selinux_user`` instead."
         },
         "selinux_user": {
           "description": "SELinux user for user's login. Default: the default SELinux user.",
@@ -362,20 +408,24 @@
           "minItems": 1
         },
         "ssh-authorized-keys": {
-          "allOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1
-            },
-            {
-              "deprecated": true,
-              "deprecated_version": "18.3",
-              "deprecated_description": "Use ``ssh_authorized_keys`` instead."
-            }
-          ]
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "deprecated": true,
+          "deprecated_version": "18.3",
+          "deprecated_description": "Use ``ssh_authorized_keys`` instead."
+        },
+        "ssh-import-id": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "deprecated": true,
+          "deprecated_version": "24.2",
+          "deprecated_description": "Use ``ssh_import_id`` instead."
         },
         "ssh_import_id": {
           "description": "List of ssh ids to import for user. Can not be combined with ``ssh_redirect_user``. See the man page[1] for more details. [1] https://manpages.ubuntu.com/manpages/noble/en/man1/ssh-import-id.1.html",
@@ -384,6 +434,12 @@
             "type": "string"
           },
           "minItems": 1
+        },
+        "ssh-redirect-user": {
+          "type": "boolean",
+          "deprecated": true,
+          "deprecated_version": "24.2",
+          "deprecated_description": "Use ``ssh_redirect_user`` instead."
         },
         "ssh_redirect_user": {
           "type": "boolean",
@@ -487,7 +543,6 @@
       "properties": {
         "remove-defaults": {
           "type": "boolean",
-          "default": false,
           "deprecated": true,
           "deprecated_version": "22.3",
           "deprecated_description": "Use ``remove_defaults`` instead."
@@ -605,9 +660,9 @@
         },
         "system_info": {
           "type": "object",
-          "description": "System and/or distro specific settings. This is not intended to be overridden by user data or vendor data.",
           "deprecated": true,
-          "deprecated_version": "24.2"
+          "deprecated_version": "24.2",
+          "deprecated_description": "System and/or distro specific settings. This is not intended to be overridden by user data or vendor data."
         }
       }
     },
@@ -1580,7 +1635,6 @@
         },
         "grub-dpkg": {
           "type": "object",
-          "description": "An alias for ``grub_dpkg``",
           "deprecated": true,
           "deprecated_version": "22.2",
           "deprecated_description": "Use ``grub_dpkg`` instead."
@@ -2167,24 +2221,18 @@
         },
         "apt_update": {
           "type": "boolean",
-          "default": false,
-          "description": "Default: ``false``.",
           "deprecated": true,
           "deprecated_version": "22.2",
           "deprecated_description": "Use ``package_update`` instead."
         },
         "apt_upgrade": {
           "type": "boolean",
-          "default": false,
-          "description": "Default: ``false``.",
           "deprecated": true,
           "deprecated_version": "22.2",
           "deprecated_description": "Use ``package_upgrade`` instead."
         },
         "apt_reboot_if_required": {
           "type": "boolean",
-          "default": false,
-          "description": "Default: ``false``.",
           "deprecated": true,
           "deprecated_version": "22.2",
           "deprecated_description": "Use ``package_reboot_if_required`` instead."
@@ -2487,8 +2535,18 @@
               "description": "The activation key to use. Must be used with ``org``. Should not be used with ``username`` or ``password``"
             },
             "org": {
-              "type": "integer",
-              "description": "The organization number to use. Must be used with ``activation-key``. Should not be used with ``username`` or ``password``"
+              "description": "The organization to use. Must be used with ``activation-key``. Should not be used with ``username`` or ``password``",
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer",
+                  "deprecated": true,
+                  "deprecated_version": "24.2",
+                  "deprecated_description": "Use of type integer for this value is deprecated. Use a string instead."
+                }
+              ]
             },
             "auto-attach": {
               "type": "boolean",
@@ -2882,7 +2940,6 @@
                 }
               ],
               "minItems": 1,
-              "description": "List of ``username:password`` pairs. Each user will have the corresponding password set. A password can be randomly generated by specifying ``RANDOM`` or ``R`` as a user's password. A hashed password, created by a tool like ``mkpasswd``, can be specified. A regex (``r'\\$(1|2a|2y|5|6)(\\$.+){2}'``) is used to determine if a password value should be treated as a hash.",
               "deprecated": true,
               "deprecated_version": "22.2",
               "deprecated_description": "Use ``users`` instead."
@@ -3395,6 +3452,16 @@
                   "format": "uri",
                   "description": "URL to the directory where the yum repository's 'repodata' directory lives"
                 },
+                "metalink": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "Specifies a URL to a metalink file for the repomd.xml"
+                },
+                "mirrorlist": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "Specifies a URL to a file containing a baseurls list"
+                },
                 "name": {
                   "type": "string",
                   "description": "Optional human-readable name of the yum repo."
@@ -3422,8 +3489,22 @@
                   "description": "Any supported yum repository configuration options will be written to the yum repo config file. See: man yum.conf"
                 }
               },
-              "required": [
-                "baseurl"
+              "anyOf": [
+                {
+                  "required": [
+                    "baseurl"
+                  ]
+                },
+                {
+                  "required": [
+                    "metalink"
+                  ]
+                },
+                {
+                  "required": [
+                    "mirrorlist"
+                  ]
+                }
               ]
             }
           }

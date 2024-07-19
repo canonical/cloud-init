@@ -13,30 +13,17 @@ import os
 from cloudinit import subp
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_ONCE
 
-frequency = PER_ONCE
-MODULE_DESCRIPTION = """\
-Any scripts in the ``scripts/per-once`` directory on the datasource will be run
-only once. Changes to the instance will not force a re-run. The only way to
-re-run these scripts is to run the clean subcommand and reboot. Scripts will
-be run in alphabetical order. This module does not accept any config keys.
-"""
-
 meta: MetaSchema = {
     "id": "cc_scripts_per_once",
-    "name": "Scripts Per Once",
-    "title": "Run one time scripts",
-    "description": MODULE_DESCRIPTION,
     "distros": [ALL_DISTROS],
-    "frequency": frequency,
-    "examples": [],
+    "frequency": PER_ONCE,
     "activate_by_schema_keys": [],
-}
+}  # type: ignore
 
-__doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
 SCRIPT_SUBDIR = "per-once"

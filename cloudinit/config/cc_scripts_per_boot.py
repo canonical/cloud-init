@@ -13,30 +13,19 @@ import os
 from cloudinit import subp
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS
-MODULE_DESCRIPTION = """\
-Any scripts in the ``scripts/per-boot`` directory on the datasource will be run
-every time the system boots. Scripts will be run in alphabetical order. This
-module does not accept any config keys.
-"""
-
 
 meta: MetaSchema = {
     "id": "cc_scripts_per_boot",
-    "name": "Scripts Per Boot",
-    "title": "Run per boot scripts",
-    "description": MODULE_DESCRIPTION,
     "distros": [ALL_DISTROS],
     "frequency": frequency,
-    "examples": [],
     "activate_by_schema_keys": [],
-}
+}  # type: ignore
 
-__doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
 SCRIPT_SUBDIR = "per-boot"

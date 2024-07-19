@@ -1,4 +1,7 @@
 #cloud-config
+package_reboot_if_required: true
+package_update: true
+package_upgrade: true
 packages:
 - pwgen
 - pastebinit
@@ -7,8 +10,4 @@ packages:
   - certbot
   - [juju, --edge]
   - [lxd, --channel=5.15/stable]
-- apt:
-  - mg
-package_update: true
-package_upgrade: true
-package_reboot_if_required: true
+- apt: [mg]

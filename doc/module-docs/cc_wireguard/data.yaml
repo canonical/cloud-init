@@ -1,0 +1,43 @@
+cc_wireguard:
+  description: |
+    The WireGuard module provides a dynamic interface for configuring
+    WireGuard (as a peer or server) in a straightforward way.
+
+    This module takes care of;
+
+    - writing interface configuration files
+    - enabling and starting interfaces
+    - installing wireguard-tools package
+    - loading WireGuard kernel module
+    - executing readiness probes
+
+    **What is a readiness probe?**
+
+    The idea behind readiness probes is to ensure WireGuard connectivity before
+    continuing the cloud-init process. This could be useful if you need access
+    to specific services like an internal APT Repository Server (e.g.,
+    Landscape) to install/update packages.
+
+    **Example**
+
+    An edge device can't access the internet but uses cloud-init modules which
+    will install packages (e.g. ``landscape``, ``packages``,
+    ``ubuntu_advantage``). Those modules will fail due to missing internet
+    connection. The ``wireguard`` module fixes that problem as it waits until
+    all readiness probes (which can be arbitrary commands, e.g. checking if a
+    proxy server is reachable over WireGuard network) are finished, before
+    continuing the cloud-init ``config`` stage.
+
+    .. note::
+       In order to use DNS with WireGuard you have to install the
+       ``resolvconf`` package or symlink it to systemd's ``resolvectl``,
+       otherwise ``wg-quick`` commands will throw an error message that
+       executable ``resolvconf`` is missing, which leads the ``wireguard``
+       module to fail.
+  examples:
+  - comment: >
+      Configure one or more WireGuard interfaces and provide optional readiness
+      probes.
+    file: cc_wireguard/example1.yaml
+  name: Wireguard
+  title: Module to configure WireGuard tunnel

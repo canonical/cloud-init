@@ -279,7 +279,8 @@ class UrlResponse:
     @property
     def contents(self) -> bytes:
         if self._response.content is None:
-            return b""
+            # typeshed bug: https://github.com/python/typeshed/pull/12180
+            return b""  # type: ignore
         return self._response.content
 
     @property
@@ -559,7 +560,7 @@ def dual_stack(
     """
     return_result = None
     returned_address = None
-    last_exception = None
+    last_exception: Optional[BaseException] = None
     exceptions = []
     is_done = threading.Event()
 
@@ -619,7 +620,7 @@ def dual_stack(
             "Timed out waiting for addresses: %s, "
             "exception(s) raised while waiting: %s",
             " ".join(addresses),
-            " ".join(exceptions),  # type: ignore
+            " ".join(map(str, exceptions)),
         )
     finally:
         executor.shutdown(wait=False)

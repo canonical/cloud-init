@@ -10,6 +10,7 @@ from typing import Union
 
 from pycloudlib.gce.instance import GceInstance
 from pycloudlib.instance import BaseInstance
+from pycloudlib.lxd.instance import LXDInstance
 from pycloudlib.result import Result
 
 from tests.helpers import cloud_init_project_dir
@@ -105,7 +106,9 @@ class IntegrationInstance:
         # First push to a temporary directory because of permissions issues
         tmp_path = _get_tmp_path()
         self.instance.push_file(str(local_path), tmp_path)
-        assert self.execute("mv {} {}".format(tmp_path, str(remote_path))).ok
+        assert self.execute(
+            "mv {} {}".format(tmp_path, str(remote_path))
+        ), f"Failed to push {tmp_path} to {remote_path}"
 
     def read_from_file(self, remote_path) -> str:
         result = self.execute("cat {}".format(remote_path))
@@ -289,9 +292,11 @@ class IntegrationInstance:
         try:
             # in some cases that ssh is not used, an address is not assigned
             if (
-                hasattr(self.instance, "execute_via_ssh")
+                isinstance(self.instance, LXDInstance)
                 and self.instance.execute_via_ssh
             ):
+                self._ip = self.instance.ip
+            elif not isinstance(self.instance, LXDInstance):
                 self._ip = self.instance.ip
         except NotImplementedError:
             self._ip = "Unknown"
