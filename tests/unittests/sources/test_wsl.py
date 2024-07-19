@@ -478,7 +478,7 @@ package_update: true"""
 landscape:
   client:
     account_name: landscapetest
-    tags: tag_aiml, tag_dev
+    tags: tag_aiml,tag_dev
 locale: en_GB.UTF-8"""
         )
 
@@ -537,7 +537,7 @@ ubuntu_pro:
 landscape:
   client:
     account_name: landscapetest
-    tags: tag_aiml, tag_dev
+    tags: tag_aiml,tag_dev
 package_update: true"""
         )
 
@@ -572,6 +572,7 @@ package_update: true"""
         assert (
             "tag_aiml" in userdata and "tag_dev" in userdata
         ), "User-data should override agent data's Landscape computer tags"
+        assert "wsl" not in userdata
 
     @mock.patch("cloudinit.util.get_linux_distro")
     def test_with_landscape_no_tags(self, m_get_linux_dist, tmpdir, paths):
