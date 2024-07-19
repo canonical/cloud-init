@@ -28,21 +28,21 @@ user-data
 User-data is a :ref:`configuration format<user_data_formats>` that allows a
 user to configure an instance.
 
-meta-data
+meta data
 ---------
 
 The ``meta-data`` file is a YAML-formatted file. This is a required
 configuration type.
 
-vendor-data (optional)
+vendor data (optional)
 ----------------------
 
-Vendor-data may be used to provide default cloud-specific configurations which
+Vendor data may be used to provide default cloud-specific configurations which
 may be overriden by user-data. This may be useful, for example, to configure an
 instance with a cloud provider's repository mirror for faster package
 installation.
 
-network-config (optional)
+network config (optional)
 -------------------------
 
 Network configuration typically comes from the cloud provider to set
@@ -50,7 +50,7 @@ cloud-specific network configurations, or a reasonable default is set by
 cloud-init (typically cloud-init brings up an interface using DHCP).
 
 Since NoCloud is a generic datasource, network configuration may be set the
-same way as user-data, meta-data, vendor-data.
+same way as user-data, meta data, vendor data.
 
 See the :ref:`network configuration<network_config>` documentation for
 information on network configuration formats.
@@ -122,7 +122,7 @@ files which are stored in :file:`/etc/cloud/cloud.cfg.d`.
 Configuration sources
 =====================
 
-User-data, meta-data, network-config (optional), and vendor-data
+User-data, meta data, network config (optional), and vendor data
 (optional) may be sourced from one of several possible locations, either
 locally or remotely.
 
