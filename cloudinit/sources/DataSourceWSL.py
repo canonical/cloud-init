@@ -353,14 +353,13 @@ class DataSourceWSL(sources.DataSource):
                         ", ".join(overridden_keys)
                     )
                 )
-            if user_tags:
+            if user_tags and merged.get("landscape", {}).get("client"):
                 LOG.debug(
-                    " Landscape client conf updated with user-data"
+                    "Landscape client conf updated with user-data"
                     " landscape.client.tags: %s",
                     user_tags,
                 )
-                if merged.get("landscape", {}).get("client"):
-                    merged["landscape"]["client"]["tags"] = user_tags
+                merged["landscape"]["client"]["tags"] = user_tags
 
         self.userdata_raw = "#cloud-config\n%s" % yaml.dump(merged)
         return True
