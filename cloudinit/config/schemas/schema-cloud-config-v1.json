@@ -3399,7 +3399,9 @@
                   "headers": {
                     "type": "object",
                     "description": "Optional HTTP headers to accompany load request, if applicable",
-                    "additionalProperties": true
+                    "additionalProperties": {
+                      "type": "string"
+                    }
                   }
                 },
                 "required": [
