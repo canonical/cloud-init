@@ -420,9 +420,13 @@ class TestWSLDataSource:
         agent_file.write(
             """#cloud-config
 landscape:
+    host:
+        url: landscape.canonical.com:6554
     client:
-      account_name: agenttest
-      tags: wsl
+        account_name: agenttest
+        url: https://landscape.canonical.com/message-system
+        ping_url: https://landscape.canonical.com/ping
+        tags: wsl
 ubuntu_pro:
     token: testtoken"""
         )
@@ -462,9 +466,14 @@ ubuntu_pro:
         user_file.write(
             """#cloud-config
 landscape:
-  client:
-    account_name: user
-    tags: usertags
+    host:
+        url: landscape.canonical.com:6554
+    client:
+        computer_title: MLMachine
+        account_name: user
+        url: https://landscape.canonical.com/message-system
+        ping_url: https://landscape.canonical.com/ping
+        tags: usertags
 package_update: true"""
         )
 
@@ -475,9 +484,14 @@ package_update: true"""
         agent_file.write(
             """#cloud-config
 landscape:
+    host:
+        url: hosted.com:6554
     client:
-      account_name: agenttest
-      tags: wsl
+        account_name: agenttest
+        url: https://hosted.com/message-system
+        ping_url: https://hosted.com/ping
+        ssl_public_key: C:\\Users\\User\\server.pem
+        tags: wsl
 ubuntu_pro:
     token: testtoken"""
         )
@@ -544,9 +558,13 @@ package_update: true"""
         agent_file.write(
             """#cloud-config
 landscape:
+    host:
+        url: landscape.canonical.com:6554
     client:
-      account_name: agenttest
-      tags: wsl
+        account_name: agenttest
+        url: https://landscape.canonical.com/message-system
+        ping_url: https://landscape.canonical.com/ping
+        tags: wsl
 ubuntu_pro:
     token: testtoken"""
         )
