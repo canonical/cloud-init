@@ -8,7 +8,7 @@ jinja2
 oauthlib
 
 # This is only needed for places where we need to support configs in a manner
-# that the built-in config parser is not sufficent (ie
+# that the built-in config parser is not sufficient (ie
 # when we need to preserve comments, or do not have a top-level
 # section)...
 configobj>=5.0.2
