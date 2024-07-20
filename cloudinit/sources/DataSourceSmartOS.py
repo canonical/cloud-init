@@ -31,8 +31,6 @@ import random
 import re
 import socket
 
-import serial
-
 from cloudinit import atomic_helper, dmi, sources, subp, util
 from cloudinit.event import EventScope, EventType
 
@@ -576,6 +574,12 @@ class JoyentMetadataSerialClient(JoyentMetadataClient):
 
     def open_transport(self):
         if self.fp is None:
+            try:
+                import serial
+            except ImportError as e:
+                raise NotImplementedError(
+                    "serial support is not available"
+                ) from e
             ser = serial.Serial(self.device, timeout=self.timeout)
             if not ser.isOpen():
                 raise SystemError("Unable to open %s" % self.device)
