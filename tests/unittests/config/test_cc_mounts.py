@@ -549,7 +549,7 @@ class TestFstabHandling:
                 ["/dev/sda5", "/mnt3"],
                 # Takes the place of the line that was removed from fstab
                 # with the cloudconfig comment
-                ["/dev/sda1", "/mnt", "xfs"],
+                ["/dev/sda1", "/mnt", "xfs", "auto", None, "2"],
                 # The line that survies after previous Nones
                 ["/dev/sda3", "/mnt4", "btrfs"],
             ]
@@ -566,7 +566,7 @@ class TestFstabHandling:
             LABEL=UEFI
             /dev/sda4	/mnt2	auto	nofail,comment=cloudconfig	1	2
             /dev/sda5	/mnt3	auto	defaults,nofail,x-systemd.after=cloud-init.service,_netdev,comment=cloudconfig	0	2
-            /dev/sda1	/mnt	xfs	defaults,nofail,x-systemd.after=cloud-init.service,_netdev,comment=cloudconfig	0	2
+            /dev/sda1	/mnt	xfs	auto,comment=cloudconfig	0	2
             /dev/sda3	/mnt4	btrfs	defaults,nofail,x-systemd.after=cloud-init.service,_netdev,comment=cloudconfig	0	2
             /dev/sdb1	none	swap	sw,comment=cloudconfig	0	0
             """  # noqa: E501

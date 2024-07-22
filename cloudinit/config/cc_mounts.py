@@ -137,7 +137,7 @@ def sanitize_devname(startname, transformer, aliases=None):
 def sanitized_devname_is_valid(
     original: str, sanitized: Optional[str], fstab_devs: Dict[str, str]
 ) -> bool:
-    """Get if the santizied device name is valid."""
+    """Get if the sanitized device name is valid."""
     if sanitized != original:
         LOG.debug("changed %s => %s", original, sanitized)
     if sanitized is None:
@@ -411,11 +411,14 @@ def sanitize_mounts_configuration(
             updated_line = line
 
         # Ensure all tokens are strings as users may not have quoted them
-        updated_line = [
-            str(token) for token in updated_line if token is not None
-        ]
+        # If token is None, replace it with the default value
+        for index, token in enumerate(updated_line):
+            if token is None:
+                updated_line[index] = default_fields[index]
+            else:
+                updated_line[index] = str(updated_line[index])
 
-        # fill in values with defaults from defvals above
+        # fill remaining values with defaults from defvals above
         updated_line += default_fields[len(updated_line) :]
 
         updated_lines.append(updated_line)
@@ -503,13 +506,12 @@ def mount_if_needed(
     if changes_made:
         do_mount = True
     else:
-        mount_points = [
-            v["mountpoint"]
-            for k, v in util.mounts().items()
-            if "mountpoint" in v
-        ]
-        if [d for d in dirs if d not in mount_points]:
-            do_mount = True
+        mount_points = {
+            val["mountpoint"]
+            for val in util.mounts().values()
+            if "mountpoint" in val
+        }
+        do_mount = bool(set(dirs).difference(mount_points))
 
     if do_mount:
         subp.subp(["mount", "-a"])
