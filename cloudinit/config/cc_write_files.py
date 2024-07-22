@@ -9,8 +9,9 @@
 import base64
 import logging
 import os
+from typing import Optional
 
-from cloudinit import util
+from cloudinit import url_helper, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -44,7 +45,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             name,
         )
         return
-    write_files(name, filtered_files, cloud.distro.default_owner)
+    ssl_details = util.fetch_ssl_details(cloud.paths)
+    write_files(name, filtered_files, cloud.distro.default_owner, ssl_details)
 
 
 def canonicalize_extraction(encoding_type):
@@ -72,7 +74,7 @@ def canonicalize_extraction(encoding_type):
     return [TEXT_PLAIN_ENC]
 
 
-def write_files(name, files, owner: str):
+def write_files(name, files, owner: str, ssl_details: Optional[dict] = None):
     if not files:
         return
 
@@ -86,8 +88,23 @@ def write_files(name, files, owner: str):
             )
             continue
         path = os.path.abspath(path)
-        extractions = canonicalize_extraction(f_info.get("encoding"))
-        contents = extract_contents(f_info.get("content", ""), extractions)
+        # Read content from provided URL, if any, or decode from inline
+        contents = read_url_or_decode(
+            f_info.get("source", None),
+            ssl_details,
+            f_info.get("content", None),
+            f_info.get("encoding", None),
+        )
+        if contents is None:
+            LOG.warning(
+                "No content could be loaded for entry %s in module %s;"
+                " skipping",
+                i + 1,
+                name,
+            )
+            continue
+        # Only create the file if content exists. This will not happen, for
+        # example, if the URL fails and no inline content was provided
         (u, g) = util.extract_usergroup(f_info.get("owner", owner))
         perms = decode_perms(f_info.get("permissions"), DEFAULT_PERMS)
         omode = "ab" if util.get_cfg_option_bool(f_info, "append") else "wb"
@@ -116,6 +133,43 @@ def decode_perms(perm, default):
                 reps.append("%r" % r)
         LOG.warning("Undecodable permissions %s, returning default %s", *reps)
         return default
+
+
+def read_url_or_decode(source, ssl_details, content, encoding):
+    url = None if source is None else source.get("uri", None)
+    use_url = bool(url)
+    # Special case: empty URL and content. Write a blank file
+    if content is None and not use_url:
+        return ""
+    # Fetch file content from source URL, if provided
+    result = None
+    if use_url:
+        try:
+            # NOTE: These retry parameters are arbitrarily chosen defaults.
+            # They have no significance, and may be changed if appropriate
+            result = url_helper.read_file_or_url(
+                url,
+                headers=source.get("headers", None),
+                retries=3,
+                sec_between=3,
+                ssl_details=ssl_details,
+            ).contents
+        except Exception:
+            util.logexc(
+                LOG,
+                'Failed to retrieve contents from source "%s"; falling back to'
+                ' data from "contents" key',
+                url,
+            )
+            use_url = False
+    # If inline content is provided, and URL is not provided or is
+    # inaccessible, parse the former
+    if content is not None and not use_url:
+        # NOTE: This is not simply an "else"! Notice that `use_url` can change
+        # in the previous "if" block
+        extractions = canonicalize_extraction(encoding)
+        result = extract_contents(content, extractions)
+    return result
 
 
 def extract_contents(contents, extraction_types):
