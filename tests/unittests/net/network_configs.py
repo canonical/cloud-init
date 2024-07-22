@@ -3374,6 +3374,9 @@ iface bond0 inet6 static
                 route1=2001:67c::/32,2001:67c:1562::1
                 route2=3001:67c::/32,3001:67c:15::1
 
+                [ethernet]
+                mtu=9000
+
                 """
             ),
         },
