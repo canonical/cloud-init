@@ -196,6 +196,8 @@ EOF
 
    fix_lp1889555 "$2"
 
+   rename_hook_hotplug_udev_rule
+
 fi
 
 #DEBHELPER#
