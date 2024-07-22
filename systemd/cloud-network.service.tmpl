@@ -46,13 +46,12 @@ ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
 
 [Service]
 Type=oneshot
-ExecStart=nc.openbsd -Uu -W1 /run/cloud-init/share/network.sock -s /run/cloud-init/share/network-return.sock
+ExecStart=sh -c 'echo "start" | nc.openbsd -Uu -W1 /run/cloud-init/share/network.sock -s /run/cloud-init/share/network-return.sock | sh'
 RemainAfterExit=yes
 TimeoutSec=0
 
 # Output needs to appear in instance console output
 StandardOutput=journal+console
-StandardInputText=start
 
 [Install]
 WantedBy=cloud-init.target

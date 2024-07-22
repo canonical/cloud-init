@@ -37,13 +37,12 @@ ExecStartPre=/bin/mkdir -p /run/cloud-init
 ExecStartPre=/sbin/restorecon /run/cloud-init
 ExecStartPre=/usr/bin/touch /run/cloud-init/enabled
 {% endif %}
-ExecStart=nc.openbsd -Uu -W1 /run/cloud-init/share/local.sock -s /run/cloud-init/share/local-return.sock
+ExecStart=sh -c 'echo "start" | nc.openbsd -Uu -W1 /run/cloud-init/share/local.sock -s /run/cloud-init/share/local-return.sock | sh'
 RemainAfterExit=yes
 TimeoutSec=0
 
 # Output needs to appear in instance console output
 StandardOutput=journal+console
-StandardInputText=start
 
 [Install]
 WantedBy=cloud-init.target

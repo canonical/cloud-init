@@ -10,7 +10,7 @@ ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
 
 [Service]
 Type=oneshot
-ExecStart=nc.openbsd -Uu -W1 /run/cloud-init/share/config.sock -s /run/cloud-init/share/config-return.sock
+ExecStart=sh -c 'echo "start" | nc.openbsd -Uu -W1 /run/cloud-init/share/config.sock -s /run/cloud-init/share/config-return.sock | sh'
 RemainAfterExit=yes
 TimeoutSec=0
 

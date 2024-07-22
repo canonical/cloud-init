@@ -22,7 +22,7 @@ class Sync:
 
     def receive(self):
         """receive 5 bytes from the socket"""
-        received = self.sock.recv(5)
+        received = self.sock.recv(4096)
         self.sock.close()
         return received
 
@@ -72,7 +72,7 @@ def test_single_process(tmp_path):
 
     After a socket has been been bound but before it has started listening
     """
-    expected = b"done"
+    expected = b"echo 'done'; exit 0;"
     with mock.patch.object(
         ci_socket, "DEFAULT_RUN_DIR", tmp_path
     ), mock.patch.object(ci_socket, "sd_notify"):
@@ -108,7 +108,7 @@ def test_single_process_threaded(tmp_path):
     max_sleep = 100
     # initialize random number generator
     random.seed(time.time())
-    expected = b"done"
+    expected = b"echo 'done'; exit 0;"
     sync_storage = {}
 
     def syncer(index: int, name: str):
@@ -168,3 +168,24 @@ def test_single_process_threaded(tmp_path):
 
         # check that the fifth sync returned
         assert expected == sync_storage[5].receive()
+
+
+def test_single_process_exception(tmp_path):
+    """Verify that exceptions log messages produce a valid warning message"""
+    with mock.patch.object(
+        ci_socket, "DEFAULT_RUN_DIR", tmp_path
+    ), mock.patch.object(ci_socket, "sd_notify"):
+        sync = ci_socket.SocketSync("first", "second", "third")
+
+        # send all three syncs to the sockets
+        first = Sync("first", tmp_path)
+
+        # "wait" on the first sync event
+        with sync("first"):
+            # verify that an exception in context doesn't raise
+            1 / 0  # type: ignore
+
+        assert (
+            b'echo \'fatal error, run "systemctl cloud-init.service" for '
+            b"more details'; exit 1;" == first.receive()
+        )

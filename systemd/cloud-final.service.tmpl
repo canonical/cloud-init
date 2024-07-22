@@ -15,7 +15,7 @@ ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
 
 [Service]
 Type=oneshot
-ExecStart=nc.openbsd -Uu -W1 /run/cloud-init/share/final.sock -s /run/cloud-init/share/final-return.sock
+ExecStart=sh -c 'echo "start" | nc.openbsd -Uu -W1 /run/cloud-init/share/final.sock -s /run/cloud-init/share/final-return.sock | sh'
 RemainAfterExit=yes
 TimeoutSec=0
 {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
@@ -31,7 +31,6 @@ TasksMax=infinity
 
 # Output needs to appear in instance console output
 StandardOutput=journal+console
-StandardInputText=start
 
 [Install]
 WantedBy=cloud-init.target

@@ -51,6 +51,7 @@ class SocketSync:
         """
         self.stage = ""
         self.remote = ""
+        self.first_exception = ""
         self.sockets = {
             name: socket.socket(
                 socket.AF_UNIX, socket.SOCK_DGRAM | socket.SOCK_CLOEXEC
@@ -124,7 +125,32 @@ class SocketSync:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Notify the socket that this stage is complete."""
+        message = "done"
+        systemd_exit_code = "0"
+        if exc_type:
+            # handle exception thrown in context
+            systemd_exit_code = "1"
+            status = f"{repr(exc_val)} in {exc_tb.tb_frame}"
+            message = (
+                'fatal error, run "systemctl cloud-init.service" for more '
+                "details"
+            )
+            if not self.first_exception:
+                self.first_exception = message
+            LOG.fatal(status)
+            sd_notify(f"STATUS={status}")
+
         sock = self.sockets[self.stage]
         sock.connect(self.remote)
-        sock.sendall(b"done")
+
+        # the returned message will be executed in a subshell
+        # hardcode this message rather than sending a more informative message
+        # to avoid having to sanitize inputs (to prevent escaping the shell)
+        sock.sendall(f"echo '{message}'; exit {systemd_exit_code};".encode())
         sock.close()
+
+        # suppress exception - the exception was logged and the init system
+        # notified of stage completion (and the exception received as a status
+        # message). Raising an exception would block the rest of boot, so carry
+        # on in a degraded state.
+        return True
