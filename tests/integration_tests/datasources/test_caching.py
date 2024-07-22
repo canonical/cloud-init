@@ -25,7 +25,7 @@ def verify_no_cache_boot(client: IntegrationInstance):
             "No local datasource found",
             "running 'init'",
             "no cache found",
-            "Detected platform",
+            "Detected DataSource",
             "TEST _get_data called",
         ],
         text=log,
@@ -83,7 +83,7 @@ def test_no_cache_with_fallback(client: IntegrationInstance):
     util.verify_ordered_items_in_text(
         [
             "no cache found",
-            "Detected platform",
+            "Detected DataSource",
             "TEST _get_data called",
             "running 'init'",
             "restored from cache with run check",
@@ -102,7 +102,7 @@ def test_no_cache_with_fallback(client: IntegrationInstance):
     util.verify_ordered_items_in_text(
         [
             "cache invalid in datasource",
-            "Detected platform",
+            "Detected DataSource",
             "Restored fallback datasource from checked cache",
             "running 'init'",
             "restored from cache with run check",
