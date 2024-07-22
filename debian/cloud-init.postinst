@@ -51,80 +51,6 @@ with open(fname, "w") as fp:
     fp.write(yaml.dump(cfg))' "$@"
 }
 
-handle_preseed_maas() {
-   local cfg_file="/etc/cloud/cloud.cfg.d/90_dpkg_maas.cfg"
-   local md_url="" creds_all="" c_key="" t_key="" t_sec="" c_sec="";
-
-   db_get "cloud-init/maas-metadata-url" && md_url="$RET" || :
-   db_get "cloud-init/maas-metadata-credentials" && creds_all="$RET" || :
-
-   # nothing to do
-   [ -n "$md_url" -o -n "$creds_all" ] || return 0
-
-   # change a url query string format into : delimited
-   if [ -n "$creds_all" -a "${creds_all#*&}" != "${creds_all}" ]; then
-      # the command here ends up looking like:
-      # python3 -c '...' 'oauth_consumer_key=v1&oauth_token_key=v2...' \
-      #   oauth_consumer_key oauth_token_key oauth_token_secret
-      creds_all=$(python3 -c 'from six.moves.urllib.parse import parse_qs;
-import sys;
-keys = parse_qs(sys.argv[1])
-for k in sys.argv[2:]:
-   sys.stdout.write("%s:" % keys.get(k,[""])[0])' "$creds_all" \
-   oauth_consumer_key oauth_token_key oauth_token_secret
-)
-   fi
-
-   # now, if non-empty creds_all is: consumer_key:token_key:token_secret
-   if [ -n "$creds_all" ]; then
-      OIFS="$IFS"; IFS=:; set -- $creds_all; IFS="$OIFS"
-      c_key=$1; t_key=$2; t_sec=$3
-   fi
-
-   if [ "$md_url" = "_" -a "${c_key}:${t_key}:${t_sec}" = "_:_:_" ]; then
-      # if all these values were '_', the delete value, just delete the file.
-      rm -f "$cfg_file"
-   else
-      local header="# written by cloud-init debian package per preseed entries
-# cloud-init/{maas-metadata-url,/maas-metadata-credentials}"
-
-      local pair="" k="" v="" pload="" orig_umask=""
-      for pair in "metadata_url:$md_url" "consumer_key:${c_key}" \
-         "token_key:${t_key}" "token_secret:$t_sec"; do
-         k=${pair%%:*}
-         v=${pair#${k}:}
-         [ -n "$v" ] && pload="${pload} $k: \"$v\","
-      done
-
-      # '_' would indicate "delete", otherwise, existing entries are left
-      orig_umask=$(umask)
-      umask 066
-      : >> "$cfg_file" && chmod 600 "$cfg_file"
-      update_cfg "$cfg_file" "$header" "datasource: { MAAS: { ${pload%,} } }" _
-      umask ${orig_umask}
-   fi
-
-   # now clear the database of the values, as they've been consumed
-   db_unregister "cloud-init/maas-metadata-url" || :
-   db_unregister "cloud-init/maas-metadata-credentials" || :
-}
-
-handle_preseed_local_cloud_config() {
-   local ccfg="" debconf_name="cloud-init/local-cloud-config"
-   local cfg_file="/etc/cloud/cloud.cfg.d/90_dpkg_local_cloud_config.cfg"
-   local header="# written by cloud-init debian package per preseed entry
-# $debconf_name"
-
-   db_get "${debconf_name}" && ccfg="$RET" || :
-
-   if [ "$ccfg" = "_" ]; then
-      rm -f "$cfg_file"
-   elif [ -n "$ccfg" ]; then
-      { echo "$header"; echo "$ccfg"; } > "$cfg_file"
-   fi
-   db_unregister "${debconf_name}" || :
-}
-
 fix_1336855() {
   ### Begin fix for LP: 1336855
   # fix issue where cloud-init misidentifies the location of grub and
@@ -200,107 +126,6 @@ fix_1336855() {
 
 }
 
-cleanup_lp1552999() {
-    local oldver="$1" last_bad_ver="0.7.7~bzr1178"
-    dpkg --compare-versions "$oldver" le "$last_bad_ver" || return 0
-    local edir="/etc/systemd/system/multi-user.target.wants"
-    rm -f "$edir/cloud-config.service" "$edir/cloud-final.service" \
-        "$edir/cloud-init-local.service" "$edir/cloud-init.service"
-}
-
-remove_deprecated_cloud_config_modules() {
-    local oldver="$1" last_bad_ver="22.1-14-g2e17a0d6-0ubuntu1~22.04.5"
-    if dpkg --compare-versions "$oldver" le "$last_bad_ver"; then
-      if grep -q emit_upstart /etc/cloud/cloud.cfg; then
-         # Redact emit_upstart if present in locally modified cloud.cfg:
-         # 1. "- emit_upstart" on a single line as defined in upstream
-         # 2. upstart_dir config which is no longer used
-         sed -i -e '/- emit_upstart/d' -e '/upstart_dir/d' /etc/cloud/cloud.cfg || true
-         if grep -q emit_upstart /etc/cloud/cloud.cfg; then
-             echo "DEPRECATION: unable to remove emit_upstart from /etc/cloud/cloud.cfg."
-             echo "This module is deprecated, you may remove it to eliminate warnings in cloud-init logs."
-         fi
-      fi
-    fi
-}
-
-disable_network_config_on_upgrade() {
-    local oldver="$1" last_without_net="0.7.7~bzr1182-0ubuntu1"
-    if [ ! -f /var/lib/cloud/instance/obj.pkl ]; then
-        # this is a fresh system not one that has been booted.
-        return 0
-    fi
-    if dpkg --compare-versions "$oldver" le "$last_without_net"; then
-        echo "dpkg upgrade from $oldver" > /var/lib/cloud/data/upgraded-network
-    fi
-}
-
-fix_azure_upgrade_1611074() {
-    # adjust /etc/fstab on azure so boot after resize does not mount
-    # /mnt as ntfs and stop re-formatting.
-    local fixed_ver="0.7.8-49-1" dspath="/var/lib/cloud/instance/datasource"
-    local oldver="$1" tmpf="" r="" wmsg="" me="cloud-init postinst"
-
-    # if not on azure, or not booted with instance/ skip out.
-    if [ ! -e "$dspath" ]; then
-        debug "no $dspath"
-        return 0
-    fi
-    if ! grep -qi azure "$dspath"; then
-        debug "not on azure per $dspath"
-        return 0
-    fi
-
-    # if there is no /etc/fstab, then nothing to fix.
-    if [ ! -e /etc/fstab ]; then
-        debug "no /etc/fstab"
-        return 0
-    fi
-
-    if dpkg --compare-versions "$oldver" ge "$fixed_ver"; then
-        debug "previous version was fixed"
-        return 0
-    fi
-
-    wmsg="WARN: $me failed."
-    wmsg="$wmsg Subsequent resize may not update ephemeral correctly."
-    tmpf=$(mktemp "${TMPDIR:-/tmp}/cloud-init-upgrade.XXXXXX") || {
-        echo "$wmsg (mktemp failed with $?)" 1>&2
-        return 0;
-    }
-
-    awk '{
-        if ($4 !~ /x-systemd.requires/ && $4 ~ /comment=cloudconfig/) {
-            sub(/comment=cloudconfig/, "x-systemd.requires=cloud-init.service,comment=cloudconfig")
-        }
-        printf("%s\n", $0)}' /etc/fstab > "$tmpf" || {
-            echo "$wmsg (awk reading of /etc/fstab failed with $?)" 1>&2
-            rm -f "$tmpf"
-            return 0;
-        }
-    if cmp /etc/fstab "$tmpf" >/dev/null 2>&1; then
-        debug "no changes needed."
-    else
-        cat "$tmpf" > /etc/fstab || {
-            r=$?
-            echo "$wmsg (cp $tmpf /etc/fstab failed with $r)"
-            echo ==== expected to write the following to /etc/fstab =====
-            cat "$tmpf"
-            echo ========================================================
-            return $r
-        } 1>&2
-        echo "$me fixed /etc/fstab for x-systemd.requires" 1>&2
-    fi
-    rm "$tmpf" || :
-}
-
-cleanup_ureadahead() {
-    local oldver="$1" last_bad_ver="0.7.9-243-ge74d775-0ubuntu2~"
-    dpkg --compare-versions "$oldver" le "$last_bad_ver" || return 0
-    dpkg-divert --package cloud-init --remove --rename --divert \
-        /etc/init/ureadahead.conf.disabled /etc/init/ureadahead.conf
-}
-
 fix_lp1889555() {
     local oldver="$1" last_bad_ver="20.3-2-g371b392c-0ubuntu1"
     dpkg --compare-versions "$oldver" le-nl "$last_bad_ver" || return 0
@@ -343,22 +168,6 @@ fix_lp1889555() {
     db_set grub-pc/install_devices_empty "false"
 }
 
-change_cloud_init_output_log_permissions() {
-    # As a consequence of LP: #1918303
-    local oldver="$1" last_bad_ver="21.1-0ubuntu1"
-    dpkg --compare-versions "$oldver" le-nl "$last_bad_ver" || return 0
-
-    output_file="/var/log/cloud-init-output.log"
-    if [ -f "$output_file" ]; then
-        if getent group adm > /dev/null; then
-            chown root:adm $output_file
-        else
-            chown root $output_file
-        fi
-        chmod 640 $output_file
-    fi
-}
-
 rename_hook_hotplug_udev_rule() {
     # Avoids LP: #1946003 see commit: b519d861aff8b44a0610c176cb34adcbe28df144
     if [ -f /etc/udev/rules.d/10-cloud-init-hook-hotplug.rules ]; then
@@ -366,6 +175,7 @@ rename_hook_hotplug_udev_rule() {
             /etc/udev/rules.d/90-cloud-init-hook-hotplug.rules
     fi
 }
+
 
 if [ "$1" = "configure" ]; then
    if db_get cloud-init/datasources; then
@@ -381,32 +191,13 @@ datasource_list: [ $values ]
 EOF
    fi
 
-   # if there are maas settings pre-seeded apply them
-   handle_preseed_maas
-
-   # if there is generic cloud-config preseed, apply them
-   handle_preseed_local_cloud_config
-
    # fix issue where cloud-init misidentifies the location of grub
    fix_1336855
 
-   # make upgrades disable network changes by cloud-init
-   disable_network_config_on_upgrade "$2"
-
-   remove_deprecated_cloud_config_modules "$2"
-
-   fix_azure_upgrade_1611074 "$2"
-
-   cleanup_ureadahead "$2"
    fix_lp1889555 "$2"
-   change_cloud_init_output_log_permissions "$2"
 
    rename_hook_hotplug_udev_rule
+
 fi
 
 #DEBHELPER#
-
-if [ "$1" = "configure" ]; then
-   oldver="$2"
-   cleanup_lp1552999 "$oldver"
-fi
