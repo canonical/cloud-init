@@ -241,7 +241,10 @@ class NMConnection:
         Extends the ipv[46].dns property with a name server.
         """
         family = "ipv6" if is_ipv6_address(dns) else "ipv4"
-        if self.config.has_section(family):
+        if (
+            self.config.has_section(family)
+            and self._get_config_option(family, "method") != "disabled"
+        ):
             self._set_default(family, "dns", "")
             self.config[family]["dns"] = self.config[family]["dns"] + dns + ";"
 
@@ -250,7 +253,10 @@ class NMConnection:
         Extends the ipv[46].dns-search property with a name server.
         """
         for family in ["ipv4", "ipv6"]:
-            if self.config.has_section(family):
+            if (
+                self.config.has_section(family)
+                and self._get_config_option(family, "method") != "disabled"
+            ):
                 self._set_default(family, "dns-search", "")
                 self.config[family]["dns-search"] = (
                     self.config[family]["dns-search"]
@@ -444,6 +450,10 @@ class NMConnection:
             self.config["vlan"]["parent"] = renderer.con_ref(
                 iface["vlan-raw-device"]
             )
+        if if_type == "bond" and ipv4_mtu is not None:
+            if "ethernet" not in self.config:
+                self.config["ethernet"] = {}
+            self.config["ethernet"]["mtu"] = str(ipv4_mtu)
         if if_type == "bridge":
             # Bridge is ass-backwards compared to bond
             for port in iface["bridge_ports"]:

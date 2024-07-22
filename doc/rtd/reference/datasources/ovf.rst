@@ -3,8 +3,34 @@
 OVF
 ***
 
-The OVF datasource provides a datasource for reading data from an
+The OVF datasource provides a generic datasource for reading data from an
 `Open Virtualization Format`_ ISO transport.
+
+What platforms support OVF
+--------------------------
+
+OFV is an open standard which is supported by various virtualization
+platforms, including (but not limited to):
+
+GCP
+OpenShift
+Proxmox
+vSphere
+VirtualBox
+Xen
+
+While these (and many more) platforms support OVF, in some cases cloud-init
+has alternative datasources which provide better platform integration.
+Make sure to check whether another datasource is exists which is specific to
+your platform of choice before trying to use OVF.
+
+Configuration
+-------------
+
+Cloud-init gets configurations from an OVF XML file. User-data and network
+configuration are provided by properties in the XML which contain key / value
+pairs. The user-data is provided by a key named ``user-data``, and network
+configuration is provided by a key named ``network-config``.
 
 Graceful rpctool fallback
 -------------------------

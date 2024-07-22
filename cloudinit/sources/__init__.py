@@ -393,14 +393,13 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
         if self.dsname.lower() == parse_cmdline().lower():
             LOG.debug(
-                "Machine is configured by the kernel command line to run on "
-                "single datasource %s.",
+                "Kernel command line set to use a single datasource %s.",
                 self,
             )
             return True
         elif self.sys_cfg.get("datasource_list", []) == [self.dsname]:
             LOG.debug(
-                "Machine is configured to run on single datasource %s.", self
+                "Datasource list set to use a single datasource %s.", self
             )
             return True
         return False
@@ -411,12 +410,12 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             return self._get_data()
         elif self.ds_detect():
             LOG.debug(
-                "Detected platform: %s. Checking for active instance data",
+                "Detected %s",
                 self,
             )
             return self._get_data()
         else:
-            LOG.debug("Datasource type %s is not detected.", self)
+            LOG.debug("Did not detect %s", self)
             return False
 
     def _get_standardized_metadata(self, instance_data):

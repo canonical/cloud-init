@@ -36,8 +36,17 @@ class DataSourceNoCloud(sources.DataSource):
         self._network_eni = None
 
     def __str__(self):
-        root = sources.DataSource.__str__(self)
-        return "%s [seed=%s][dsmode=%s]" % (root, self.seed, self.dsmode)
+        """append seed and dsmode info when they contain non-default values"""
+        return (
+            super().__str__()
+            + " "
+            + (f"[seed={self.seed}]" if self.seed else "")
+            + (
+                f"[dsmode={self.dsmode}]"
+                if self.dsmode != sources.DSMODE_NETWORK
+                else ""
+            )
+        )
 
     def _get_devices(self, label):
         fslist = util.find_devs_with("TYPE=vfat")
@@ -121,6 +130,12 @@ class DataSourceNoCloud(sources.DataSource):
 
         label = self.ds_cfg.get("fs_label", "cidata")
         if label is not None:
+            if label.lower() != "cidata":
+                util.deprecate(
+                    deprecated="Custom fs_label keys",
+                    deprecated_version="24.3",
+                    extra_message="This key isn't supported by ds-identify.",
+                )
             for dev in self._get_devices(label):
                 try:
                     LOG.debug("Attempting to use data from %s", dev)
@@ -167,7 +182,7 @@ class DataSourceNoCloud(sources.DataSource):
                     seedfound = proto
                     break
             if not seedfound:
-                LOG.debug("Seed from %s not supported by %s", seedfrom, self)
+                self._log_unusable_seedfrom(seedfrom)
                 return False
             # check and replace instances of known dmi.<dmi_keys> such as
             # chassis-serial-number or baseboard-product-name
@@ -214,6 +229,16 @@ class DataSourceNoCloud(sources.DataSource):
         if not self._platform_type:
             self._platform_type = "lxd" if util.is_lxd() else "nocloud"
         return self._platform_type
+
+    def _log_unusable_seedfrom(self, seedfrom: str):
+        """Stage-specific level and message."""
+        LOG.info(
+            "%s only uses seeds starting with %s - will try to use %s "
+            "in the network stage.",
+            self,
+            self.supported_seed_starts,
+            seedfrom,
+        )
 
     def _get_cloud_name(self):
         """Return unknown when 'cloud-name' key is absent from metadata."""
@@ -374,6 +399,15 @@ class DataSourceNoCloudNet(DataSourceNoCloud):
             "ftps://",
         )
 
+    def _log_unusable_seedfrom(self, seedfrom: str):
+        """Stage-specific level and message."""
+        LOG.warning(
+            "%s only uses seeds starting with %s - %s is not valid.",
+            self,
+            self.supported_seed_starts,
+            seedfrom,
+        )
+
     def ds_detect(self):
         """Check dmi and kernel command line for dsname
 
@@ -407,6 +441,17 @@ class DataSourceNoCloudNet(DataSourceNoCloud):
             )
             if serial == "nocloud-net":
                 log_deprecated()
+            return True
+        elif (
+            self.sys_cfg.get("datasource", {})
+            .get("NoCloud", {})
+            .key("seedfrom")
+        ):
+            LOG.debug(
+                "Machine is configured by system configuration to run on "
+                "single datasource %s.",
+                self,
+            )
             return True
         return False
 

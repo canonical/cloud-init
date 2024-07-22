@@ -578,8 +578,8 @@ def convert_net_json(network_json=None, known_macs=None):
             "scope",
             "dns_nameservers",
             "dns_search",
-            "routes",
         ],
+        "routes": ["network", "destination", "netmask", "gateway", "metric"],
     }
 
     links = network_json.get("links", [])
@@ -620,6 +620,20 @@ def convert_net_json(network_json=None, known_macs=None):
                 (k, v) for k, v in network.items() if k in valid_keys["subnet"]
             )
 
+            # Filter the route entries as they may contain extra elements such
+            # as DNS which are required elsewhere by the cloudinit schema
+            routes = [
+                dict(
+                    (k, v)
+                    for k, v in route.items()
+                    if k in valid_keys["routes"]
+                )
+                for route in network.get("routes", [])
+            ]
+
+            if routes:
+                subnet.update({"routes": routes})
+
             if network["type"] == "ipv4_dhcp":
                 subnet.update({"type": "dhcp4"})
             elif network["type"] == "ipv6_dhcp":
@@ -646,11 +660,22 @@ def convert_net_json(network_json=None, known_macs=None):
                     }
                 )
 
+            # Look for either subnet or network specific DNS servers
+            # and add them as subnet level DNS entries.
+            # Subnet specific nameservers
             dns_nameservers = [
                 service["address"]
-                for service in network.get("services", [])
+                for route in network.get("routes", [])
+                for service in route.get("services", [])
                 if service.get("type") == "dns"
             ]
+            # Network specific nameservers
+            for service in network.get("services", []):
+                if service.get("type") != "dns":
+                    continue
+                if service["address"] in dns_nameservers:
+                    continue
+                dns_nameservers.append(service["address"])
             if dns_nameservers:
                 subnet["dns_nameservers"] = dns_nameservers
 

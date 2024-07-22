@@ -40,7 +40,9 @@ from contextlib import contextmanager, suppress
 from errno import ENOENT
 from functools import lru_cache, total_ordering
 from pathlib import Path
+from types import ModuleType
 from typing import (
+    IO,
     TYPE_CHECKING,
     Any,
     Callable,
@@ -54,6 +56,7 @@ from typing import (
     Sequence,
     TypeVar,
     Union,
+    cast,
 )
 from urllib import parse
 
@@ -190,6 +193,7 @@ class SeLinuxGuard:
     def __init__(self, path, recursive=False):
         # Late import since it might not always
         # be possible to use this
+        self.selinux: Optional[ModuleType]
         try:
             self.selinux = importer.import_module("selinux")
         except ImportError:
@@ -495,6 +499,12 @@ def multi_log(
 
 @lru_cache()
 def is_Linux():
+    """deprecated: prefer Distro object's `is_linux` property
+
+    Multiple sources of truth is bad, and already know whether we are
+    working with Linux from the Distro class. Using Distro offers greater code
+    reusablity, cleaner code, and easier maintenance.
+    """
     return "Linux" in platform.system()
 
 
@@ -630,7 +640,7 @@ def get_linux_distro():
         dist = ("", "", "")
         try:
             # Was removed in 3.8
-            dist = platform.dist()  # pylint: disable=W1505,E1101
+            dist = platform.dist()  # type: ignore  # pylint: disable=W1505,E1101
         except Exception:
             pass
         finally:
@@ -835,7 +845,9 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
                 stdin=subprocess.PIPE,
                 preexec_fn=set_subprocess_umask_and_gid,
             )
-            new_fp = proc.stdin
+            # As stdin is PIPE, then proc.stdin is IO[bytes]
+            # https://docs.python.org/3/library/subprocess.html#subprocess.Popen.stdin
+            new_fp = cast(IO[Any], proc.stdin)
         else:
             raise TypeError("Invalid type for output format: %s" % outfmt)
 
@@ -862,7 +874,9 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
                 stdin=subprocess.PIPE,
                 preexec_fn=set_subprocess_umask_and_gid,
             )
-            new_fp = proc.stdin
+            # As stdin is PIPE, then proc.stdin is IO[bytes]
+            # https://docs.python.org/3/library/subprocess.html#subprocess.Popen.stdin
+            new_fp = cast(IO[Any], proc.stdin)
         else:
             raise TypeError("Invalid type for error format: %s" % errfmt)
 
@@ -1696,8 +1710,8 @@ def chownbyname(fname, user=None, group=None):
 #     output: "| logger -p"
 #     error: "> /dev/null"
 # this returns the specific 'mode' entry, cleanly formatted, with value
-def get_output_cfg(cfg, mode):
-    ret = [None, None]
+def get_output_cfg(cfg, mode) -> List[Optional[str]]:
+    ret: List[Optional[str]] = [None, None]
     if not cfg or "output" not in cfg:
         return ret
 
@@ -1736,10 +1750,10 @@ def get_output_cfg(cfg, mode):
         ret[1] = ret[0]
 
     swlist = [">>", ">", "|"]
-    for i in range(len(ret)):
-        if not ret[i]:
+    for i, r in enumerate(ret):
+        if not r:
             continue
-        val = ret[i].lstrip()
+        val = r.lstrip()
         found = False
         for s in swlist:
             if val.startswith(s):
@@ -1759,7 +1773,7 @@ def get_config_logfiles(cfg):
 
     @param cfg: The cloud-init merged configuration dictionary.
     """
-    logs = []
+    logs: List = []
     rotated_logs = []
     if not cfg or not isinstance(cfg, dict):
         return logs
@@ -1919,21 +1933,23 @@ def mounts():
             out = subp.subp("mount")
             mount_locs = out.stdout.splitlines()
             method = "mount"
-        mountre = r"^(/dev/[\S]+) on (/.*) \((.+), .+, (.+)\)$"
+        mountre = re.compile(r"^(/dev/[\S]+) on (/.*) \((.+), .+, (.+)\)$")
         for mpline in mount_locs:
             # Linux: /dev/sda1 on /boot type ext4 (rw,relatime,data=ordered)
             # FreeBSD: /dev/vtbd0p2 on / (ufs, local, journaled soft-updates)
-            try:
-                if method == "proc":
-                    (dev, mp, fstype, opts, _freq, _passno) = mpline.split()
-                else:
-                    m = re.search(mountre, mpline)
-                    dev = m.group(1)
-                    mp = m.group(2)
-                    fstype = m.group(3)
-                    opts = m.group(4)
-            except Exception:
-                continue
+            if method == "proc":
+                words = mpline.split()
+                if len(words) != 6:
+                    continue
+                (dev, mp, fstype, opts, _freq, _passno) = words
+            else:
+                m = mountre.search(mpline)
+                if m is None or len(m.groups()) < 4:
+                    continue
+                dev = m.group(1)
+                mp = m.group(2)
+                fstype = m.group(3)
+                opts = m.group(4)
             # If the name of the mount point contains spaces these
             # can be escaped as '\040', so undo that..
             mp = mp.replace("\\040", " ")
@@ -2445,26 +2461,27 @@ def is_lxd():
     return os.path.exists("/dev/lxd/sock")
 
 
-def get_proc_env(pid, encoding="utf-8", errors="replace"):
+def get_proc_env(
+    pid, encoding: str = "utf-8", errors: str = "replace"
+) -> Dict[str, str]:
     """
     Return the environment in a dict that a given process id was started with.
 
-    @param encoding: if true, then decoding will be done with
-                     .decode(encoding, errors) and text will be returned.
-                     if false then binary will be returned.
-    @param errors:   only used if encoding is true."""
+    @param encoding: decoding will be done with .decode(encoding, errors) and
+    text will be returned.
+    @param errors: passed through .decode(encoding, errors).
+    """
     fn = os.path.join("/proc", str(pid), "environ")
 
+    contents: Union[str, bytes]
     try:
         contents = load_binary_file(fn)
     except (IOError, OSError):
         return {}
 
     env = {}
-    null, equal = (b"\x00", b"=")
-    if encoding:
-        null, equal = ("\x00", "=")
-        contents = contents.decode(encoding, errors)
+    null, equal = ("\x00", "=")
+    contents = contents.decode(encoding, errors)
 
     for tok in contents.split(null):
         if not tok:
@@ -2529,7 +2546,7 @@ def parse_mount_info(path, mountinfo_lines, log=LOG, get_mnt_opts=False):
     devpth = None
     fs_type = None
     match_mount_point = None
-    match_mount_point_elements = None
+    match_mount_point_elements: Optional[List[str]] = None
     for i, line in enumerate(mountinfo_lines):
         parts = line.split()
 
@@ -2668,7 +2685,7 @@ def parse_mount(path, get_mnt_opts=False):
     devpth = None
     mount_point = None
     match_mount_point = None
-    match_mount_point_elements = None
+    match_mount_point_elements: Optional[List[str]] = None
     for line in mountoutput.splitlines():
         m = re.search(regex, line)
         if not m:

@@ -79,17 +79,36 @@ def print_exc(msg=""):
     sys.stderr.write("\n")
 
 
-def log_ppid():
-    if util.is_Linux():
+DEPRECATE_BOOT_STAGE_MESSAGE = (
+    "Triggering cloud-init boot stages outside of intial system boot is not a"
+    " fully supported operation which can lead to incomplete or incorrect"
+    " configuration. As such, cloud-init is deprecating this feature in the"
+    " future. If you currently use cloud-init in this way,"
+    " please file an issue describing in detail your use case so that"
+    " cloud-init can better support your needs:"
+    " https://github.com/canonical/cloud-init/issues/new"
+)
+
+
+def log_ppid(distro, bootstage_name):
+    if distro.is_linux:
         ppid = os.getppid()
-        LOG.info("PID [%s] started cloud-init.", ppid)
+        if 1 != ppid and distro.uses_systemd():
+            util.deprecate(
+                deprecated=(
+                    "Unsupported configuration: boot stage called "
+                    f"by PID [{ppid}] outside of systemd"
+                ),
+                deprecated_version="24.3",
+                extra_message=DEPRECATE_BOOT_STAGE_MESSAGE,
+            )
+    LOG.info("PID [%s] started cloud-init '%s'.", ppid, bootstage_name)
 
 
 def welcome(action, msg=None):
     if not msg:
         msg = welcome_format(action)
     util.multi_log("%s\n" % (msg), console=False, stderr=True, log=LOG)
-    log_ppid()
     return msg
 
 
@@ -333,10 +352,8 @@ def main_init(name, args):
     #    objects config as it may be different from init object
     # 10. Run the modules for the 'init' stage
     # 11. Done!
-    if not args.local:
-        w_msg = welcome_format(name)
-    else:
-        w_msg = welcome_format("%s-local" % (name))
+    bootstage_name = "init-local" if args.local else "init"
+    w_msg = welcome_format(bootstage_name)
     init = stages.Init(ds_deps=deps, reporter=args.reporter)
     # Stage 1
     init.read_cfg(extract_fns(args))
@@ -364,6 +381,7 @@ def main_init(name, args):
     # config applied.  We send the welcome message now, as stderr/out have
     # been redirected and log now configured.
     welcome(name, msg=w_msg)
+    log_ppid(init.distro, bootstage_name)
 
     # re-play early log messages before logging was setup
     for lvl, msg in early_logs:
@@ -591,7 +609,8 @@ def main_modules(action_name, args):
     #    the modules objects configuration
     # 5. Run the modules for the given stage name
     # 6. Done!
-    w_msg = welcome_format("%s:%s" % (action_name, name))
+    bootstage_name = "%s:%s" % (action_name, name)
+    w_msg = welcome_format(bootstage_name)
     init = stages.Init(ds_deps=[], reporter=args.reporter)
     # Stage 1
     init.read_cfg(extract_fns(args))
@@ -628,6 +647,7 @@ def main_modules(action_name, args):
 
     # now that logging is setup and stdout redirected, send welcome
     welcome(name, msg=w_msg)
+    log_ppid(init.distro, bootstage_name)
 
     if name == "init":
         util.deprecate(
