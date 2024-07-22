@@ -39,4 +39,5 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             name,
         )
         return
-    write_files(name, filtered_files, cloud.distro.default_owner)
+    ssl_details = util.fetch_ssl_details(cloud.paths)
+    write_files(name, filtered_files, cloud.distro.default_owner, ssl_details)

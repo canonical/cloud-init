@@ -3,8 +3,9 @@ cc_write_files:
     Write out arbitrary content to files, optionally setting permissions.
     Parent folders in the path are created if absent. Content can be specified
     in plain text or binary. Data encoded with either base64 or binary gzip
-    data can be specified and will be decoded before being written. For empty
-    file creation, content can be omitted.
+    data can be specified and will be decoded before being written. Data can
+    also be loaded from an arbitrary URI. For empty file creation, content can
+    be omitted.
 
     .. note::
        If multi-line data is provided, care should be taken to ensure it
@@ -36,5 +37,10 @@ cc_write_files:
       Example 5: Defer writing the file until after the package (Nginx) is
       installed and its user is created.
     file: cc_write_files/example5.yaml
+  - comment: >
+      Example 6: Retrieve file contents from a URI source, rather than inline.
+      Especially useful with an external config-management repo, or for large
+      binaries.
+    file: cc_write_files/example6.yaml
   name: Write Files
   title: Write arbitrary files

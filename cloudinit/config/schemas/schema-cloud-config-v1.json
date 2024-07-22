@@ -3386,6 +3386,28 @@
                 "default": "''",
                 "description": "Optional content to write to the provided ``path``. When content is present and encoding is not 'text/plain', decode the content prior to writing. Default: ``''``"
               },
+              "source": {
+                "type": "object",
+                "description": "Optional specification for content loading from an arbitrary URI",
+                "additionalProperties": false,
+                "properties": {
+                  "uri": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "URI from which to load file content. If loading fails repeatedly, ``content`` is used instead."
+                  },
+                  "headers": {
+                    "type": "object",
+                    "description": "Optional HTTP headers to accompany load request, if applicable",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "uri"
+                ]
+              },
               "owner": {
                 "type": "string",
                 "default": "root:root",
