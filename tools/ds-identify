@@ -1696,7 +1696,7 @@ dscheck_VMware() {
 
 WSL_path() {
     local params="$1" path="$2" val=""
-    val="$(wslpath "$params" "$1")"
+    val="$(wslpath "$params" "$path")"
     _RET="$val"
 }
 
