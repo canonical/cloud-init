@@ -320,13 +320,24 @@ class DataSourceWSL(sources.DataSource):
         if not any([user_data, agent_data]):
             return False
 
-        # If we cannot reliably model data files as dicts, then we cannot merge
-        # ourselves, so we can pass the data in ascending order as a list for
-        # cloud-init to handle internally
-        if isinstance(agent_data, bytes) or isinstance(user_data, bytes):
+        # If we cannot reliably model both data files as dicts, then we cannot
+        # merge them ourselves, so we can pass the data in ascending order as
+        # a list of binary contents for cloud-init to handle internally
+        if isinstance(agent_data, bytes) and isinstance(user_data, bytes):
             self.userdata_raw = cast(Any, [user_data, agent_data])
             return True
 
+        if isinstance(user_data, bytes):
+            self.userdata_raw = cast(
+                Any, [user_data, "#cloud-config\n%s" % yaml.dump(agent_data)]
+            )
+            return True
+
+        if isinstance(agent_data, bytes):
+            self.userdata_raw = cast(
+                Any, ["#cloud-config\n%s" % yaml.dump(user_data), agent_data]
+            )
+            return True
         # We only care about overriding modules entirely, so we can just
         # iterate over the top level keys and write over them if the agent
         # provides them instead.
