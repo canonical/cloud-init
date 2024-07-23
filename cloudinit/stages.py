@@ -506,7 +506,10 @@ class Init:
 
         self._write_to_cache()
         if already_instancified and previous_ds == ds:
-            LOG.info("Not re-loading configuration, instance id and datasource have not changed.")
+            LOG.info(
+                "Not re-loading configuration, instance "
+                "id and datasource have not changed."
+            )
             # Ensure needed components are regenerated
             # after change of instance which may cause
             # change of configuration
