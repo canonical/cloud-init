@@ -3,6 +3,7 @@
 import logging
 import os
 import socket
+import sys
 import time
 from contextlib import suppress
 
@@ -16,11 +17,14 @@ def sd_notify(message: str):
 
     :param message: sd-notify message (must be valid ascii)
     """
-    LOG.info("Sending sd_notify(%s)", str(message))
     socket_path = os.environ.get("NOTIFY_SOCKET", "")
 
-    # abstract
-    if socket_path[0] == "@":
+    if not socket_path:
+        # not running under systemd, no-op
+        return
+
+    elif socket_path[0] == "@":
+        # abstract
         socket_path.replace("@", "\0", 1)
 
     # unix domain
@@ -30,6 +34,7 @@ def sd_notify(message: str):
     with socket.socket(
         socket.AF_UNIX, socket.SOCK_DGRAM | socket.SOCK_CLOEXEC
     ) as sock:
+        LOG.info("Sending sd_notify(%s)", str(message))
         sock.connect(socket_path)
         sock.sendall(message.encode("ascii"))
 
@@ -92,6 +97,9 @@ class SocketSync:
 
         Once the message has been received, enter the context.
         """
+        if os.isatty(sys.stdin.fileno()):
+            LOG.info("Not syncing, stdin is a tty.")
+            return
         sd_notify(
             "STATUS=Waiting on external services to "
             f"complete ({self.stage} stage)"

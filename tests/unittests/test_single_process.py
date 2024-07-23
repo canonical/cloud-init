@@ -5,6 +5,7 @@ import time
 from threading import Thread
 from unittest import mock
 
+
 from cloudinit import socket as ci_socket
 
 
@@ -52,7 +53,11 @@ def test_single_process_times_out(tmp_path):
     """Verify that no "start" makes the protocol block"""
     with mock.patch.object(
         ci_socket, "DEFAULT_RUN_DIR", tmp_path
-    ), mock.patch.object(ci_socket, "sd_notify"):
+    ), mock.patch.object(ci_socket, "sd_notify"), mock.patch.object(
+        ci_socket.os, "isatty", return_value=False
+    ), mock.patch.object(
+        ci_socket.sys.stdin, "fileno"
+    ):
         sync = ci_socket.SocketSync("first")
 
         try:
@@ -75,7 +80,11 @@ def test_single_process(tmp_path):
     expected = b"echo 'done'; exit 0;"
     with mock.patch.object(
         ci_socket, "DEFAULT_RUN_DIR", tmp_path
-    ), mock.patch.object(ci_socket, "sd_notify"):
+    ), mock.patch.object(ci_socket, "sd_notify"), mock.patch.object(
+        ci_socket.os, "isatty", return_value=False
+    ), mock.patch.object(
+        ci_socket.sys.stdin, "fileno"
+    ):
         sync = ci_socket.SocketSync("first", "second", "third")
 
         # send all three syncs to the sockets
@@ -121,7 +130,11 @@ def test_single_process_threaded(tmp_path):
 
     with mock.patch.object(
         ci_socket, "DEFAULT_RUN_DIR", tmp_path
-    ), mock.patch.object(ci_socket, "sd_notify"):
+    ), mock.patch.object(ci_socket, "sd_notify"), mock.patch.object(
+        ci_socket.os, "isatty", return_value=False
+    ), mock.patch.object(
+        ci_socket.sys.stdin, "fileno"
+    ):
 
         sync = ci_socket.SocketSync(
             "first", "second", "third", "fourth", "fifth"
@@ -174,7 +187,11 @@ def test_single_process_exception(tmp_path):
     """Verify that exceptions log messages produce a valid warning message"""
     with mock.patch.object(
         ci_socket, "DEFAULT_RUN_DIR", tmp_path
-    ), mock.patch.object(ci_socket, "sd_notify"):
+    ), mock.patch.object(ci_socket, "sd_notify"), mock.patch.object(
+        ci_socket.os, "isatty", return_value=False
+    ), mock.patch.object(
+        ci_socket.sys.stdin, "fileno"
+    ):
         sync = ci_socket.SocketSync("first", "second", "third")
 
         # send all three syncs to the sockets
@@ -183,7 +200,7 @@ def test_single_process_exception(tmp_path):
         # "wait" on the first sync event
         with sync("first"):
             # verify that an exception in context doesn't raise
-            1 / 0  # type: ignore
+            1 / 0  # pylint: disable=W0104
 
         assert (
             b'echo \'fatal error, run "systemctl cloud-init.service" for '
