@@ -1696,7 +1696,7 @@ dscheck_VMware() {
 
 WSL_path() {
     local params="$1" path="$2" val=""
-    val="$(wslpath "$params" "$1")"
+    val="$(wslpath "$params" "$path")"
     _RET="$val"
 }
 
@@ -1776,7 +1776,7 @@ dscheck_WSL() {
 
     # Then we can check for any .cloud-init folders for the user
     if [ ! -d "$profile_dir/.cloud-init/" ] && [ ! -d "$profile_dir/.ubuntupro/.cloud-init/" ]; then
-        debug 1 "No .cloud-init directories found"
+        debug 1 "No .cloud-init directories found in $profile_dir"
         return "${DS_NOT_FOUND}"
     fi
 
