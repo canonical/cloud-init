@@ -150,6 +150,10 @@ def load_yaml_or_bin(data_path: str) -> Optional[Union[dict, bytes]]:
     """
     try:
         bin_data = util.load_binary_file(data_path)
+        # If the file is empty, return an empty dict instead of empty bytes.
+        if len(bin_data) == 0:
+            return dict()
+
         dict_data = util.load_yaml(bin_data)
         if dict_data is None:
             return bin_data

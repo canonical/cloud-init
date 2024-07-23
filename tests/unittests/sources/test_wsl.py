@@ -575,6 +575,57 @@ package_update: true"""
         assert "wsl" not in userdata
 
     @mock.patch("cloudinit.util.get_linux_distro")
+    def test_landscape_empty_data(self, m_get_linux_dist, tmpdir, paths):
+        """Asserts that Pro for WSL data is present when Landscape is empty"""
+
+        m_get_linux_dist.return_value = SAMPLE_LINUX_DISTRO
+
+        ubuntu_pro_tmp = tmpdir.join(".ubuntupro", ".cloud-init")
+        os.makedirs(ubuntu_pro_tmp, exist_ok=True)
+
+        agent_file = ubuntu_pro_tmp.join("agent.yaml")
+        agent_file.write(
+            """#cloud-config
+landscape:
+    host:
+        url: hosted.com:6554
+    client:
+        account_name: agent_test
+        url: https://hosted.com/message-system
+        ping_url: https://hosted.com/ping
+        ssl_public_key: C:\\Users\\User\\server.pem
+        tags: wsl
+ubuntu_pro:
+    token: agent_token"""
+        )
+
+        landscape_file = ubuntu_pro_tmp.join("%s.user-data" % INSTANCE_NAME)
+        landscape_file.write("")
+
+        # Run the datasource
+        ds = wsl.DataSourceWSL(
+            sys_cfg=SAMPLE_CFG,
+            distro=_get_distro("ubuntu"),
+            paths=paths,
+        )
+
+        # Assert Landscape and Agent combine, with Agent taking precedence
+        assert ds.get_data() is True
+        ud = ds.get_userdata()
+
+        assert ud is not None
+        userdata = cast(
+            str,
+            join_payloads_from_content_type(
+                cast(MIMEMultipart, ud), "text/cloud-config"
+            ),
+        )
+
+        assert (
+            "agent_test" in userdata and "agent_token" in userdata
+        ), "Agent data should be present"
+
+    @mock.patch("cloudinit.util.get_linux_distro")
     def test_with_landscape_no_tags(self, m_get_linux_dist, tmpdir, paths):
         """Validates the Pro For WSL default Landscape tags are applied"""
 
