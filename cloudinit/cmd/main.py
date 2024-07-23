@@ -966,12 +966,12 @@ def main(sysv_args=None):
     )
 
     parser.add_argument(
-        "--single-process",
-        dest="single_process",
+        "--all-stages",
+        dest="all_stages",
         action="store_true",
         help=(
-            "Run cloud-init's stages as a single process as an optimization."
-            "Requires init system integration."
+            "Run cloud-init's stages under a single process using a "
+            "syncronization protocol. This is not intended for CLI usage."
         ),
         default=False,
     )
@@ -1170,7 +1170,7 @@ def main(sysv_args=None):
 
     args = parser.parse_args(args=sysv_args)
     setattr(args, "skip_log_setup", False)
-    if not args.single_process:
+    if not args.all_stages:
         return sub_main(args)
     LOG.info("Running cloud-init in single process mode.")
 

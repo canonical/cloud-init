@@ -35,7 +35,7 @@ ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
 
 [Service]
 Type=notify
-ExecStart=/usr/bin/cloud-init --single-process
+ExecStart=/usr/bin/cloud-init --all-stages
 KillMode=process
 TasksMax=infinity
 TimeoutStartSec=infinity
