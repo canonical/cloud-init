@@ -78,8 +78,8 @@ Boot the cloud image with our configuration, :file:`seed.img`, to QEMU:
 .. code-block:: shell-session
 
     $ qemu-system-x86_64 -m 1024 -net nic -net user \
-        -hda jammy-server-cloudimg-amd64.img \
-        -hdb seed.img
+        -drive file=jammy-server-cloudimg-amd64.img,index=0,format=qcow2,media=disk \
+        -drive file=seed.img,index=1,media=cdrom
 
 The now-booted image will allow for login using the password provided above.
 
