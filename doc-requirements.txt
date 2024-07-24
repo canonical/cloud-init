@@ -9,4 +9,5 @@ sphinx-design
 sphinx-copybutton
 sphinx-notfound-page
 sphinxcontrib.datatemplates
+sphinxcontrib-mermaid
 sphinxcontrib-spelling
