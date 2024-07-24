@@ -2,4 +2,5 @@ documentation:
 - changed-files:
   - any-glob-to-any-file:
     - 'doc/*'
+    - 'cloudinit/config/schema/*'
 - base-branch: 'main'
