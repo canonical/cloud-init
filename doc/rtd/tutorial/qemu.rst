@@ -203,7 +203,6 @@ take a few moments to complete.
         -net nic                                                    \
         -net user                                                   \
         -machine accel=kvm:tcg                                      \
-        -cpu host                                                   \
         -m 512                                                      \
         -nographic                                                  \
         -hda jammy-server-cloudimg-amd64.img                        \
