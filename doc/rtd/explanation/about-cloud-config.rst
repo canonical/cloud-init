@@ -56,6 +56,11 @@ are the various configuration options for the module shown as key-value pairs:
 A full list of modules can be found :ref:`on our modules page <modules>`. This
 list also shows the valid schema keys for every module, and YAML examples.
 
+.. note::
+   When a module declares no `Activate only on keys:` section, that module will
+   attempt to run regardless of specific schema keys.
+
+
 Module ordering
 ---------------
 
@@ -89,17 +94,6 @@ examples that can be copy/pasted and adapted to your needs.
    hostname: example-host
    fqdn: example-host.example.com
 
-   # Configure storage
-   storage:
-     files:
-       - path: /etc/example_file.txt
-         content: |
-           Some text to be stored in the file
-       - path: /etc/example_script.txt
-         content: |
-           #!/bin/bash
-           echo "Some text to be run in the script"
-
    # User setup configuration
    users:
      - name: exampleuser
@@ -111,9 +105,11 @@ examples that can be copy/pasted and adapted to your needs.
        ssh_authorized_keys:
          - ssh-rsa AAAAB3...restofpublickey user@host
 
-   # Change passwords using chpasswd
+   # Change passwords for exampleuser using chpasswd
    chpasswd:
-     exampleuser: terriblepassword12345
+     expire: false
+     users:
+     - {name: exampleuser, password: terriblepassword12345, type: text}
 
    # Package management
    package_update: true
