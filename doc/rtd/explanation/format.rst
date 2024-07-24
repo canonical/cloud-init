@@ -27,6 +27,8 @@ These things may include:
 See the :ref:`yaml_examples` section for a commented set of examples of
 supported cloud config formats.
 
+Begins with: ``#cloud-config``.
+
 .. note::
    Cloud config data can also render cloud instance metadata variables using
    :ref:`jinja templates <instancedata-Using>`.
@@ -38,8 +40,7 @@ User data script
 
 Typically used by those who just want to execute a shell script.
 
-Begins with: ``#!`` or ``Content-Type: text/x-shellscript`` when using a MIME
-archive.
+Begins with: ``#!``.
 
 User data scripts can optionally render cloud instance metadata variables using
 :ref:`jinja templates <instancedata-Using>`.
@@ -48,8 +49,6 @@ Example script
 --------------
 
 Create a script file :file:`myscript.sh` that contains the following:
-
-Begins with: ``#!``.
 
 .. code-block::
 
@@ -61,11 +60,6 @@ Now run:
 .. code-block:: shell-session
 
    $ euca-run-instances --key mykey --user-data-file myscript.sh ami-a07d95c9
-
-.. note::
-   User data scripts can optionally render cloud instance metadata variables using
-   jinja templating. See :ref:`instance_metadata` for more information.
-
 
 Kernel command line
 ===================
@@ -111,13 +105,22 @@ Include 3 files:
 ``cloud-boothook``
 ==================
 
-This content is `boothook` data.
-This is a valid script(bash, python etc.) that runs during every boot.
+One line ``#cloud-boothook`` header and then executable payload.
 
-This is the earliest `hook`_ to run,
-it runs during the :ref:`Network boot stage<boot-Network>`.
+This is run very early on the boot process, during the
+:ref:`Network boot stage<boot-Network>`, even before ``cc_bootcmd``.
 
-You can use this to configure some network configuration during boot.
+This can be used when something has to be configured very early on boot,
+potentially on every boot, with less convenience as ``cc_bootcmd`` but more
+flexibility.
+
+.. note::
+   Boothooks are execute on every boot.
+   The environment variable ``INSTANCE_ID`` will be set to the current instance
+   ID. ``INSTANCE_ID`` can be used to implement a `once-per-instance` type of
+   functionality.
+
+Begins with: ``#cloud-boothook``.
 
 Example with simple script
 --------------------------
@@ -126,23 +129,7 @@ Example with simple script
 
    #cloud-boothook
    #!/bin/sh
-
-   sudo ufw enable
-   sudo ufw logging on
-
-   sudo ufw allow http
-   sudo ufw allow "OpenSSH"
-
-   sudo iptables -I DOCKER-USER -j ACCEPT
-
-Note, there is no mechanism provided for running only once. The
-`boothook` must take care of this itself.
-
-It is provided with the instance id in the environment variable
-``INSTANCE_ID``. This could be made use of to provide a 'once-per-instance'
-type of functionality. An example of a `once-per-instance` script:
-
-Begins with: ``#cloud-boothook``.
+   echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts
 
 Example of once-per-instance script
 -----------------------------------
@@ -152,23 +139,16 @@ Example of once-per-instance script
    #cloud-boothook
    #!/bin/sh
 
+   PERSIST_ID=/var/lib/cloud/first-instance-id
    _id=""
-   if [ -r /var/lib/my-instance-id ]
-     then
-       _id=$(cat /var/lib/my-instance-id)
+   if [ -r $PERSIST_ID ]; then
+     _id=$(cat /var/lib/cloud/first-instance-id)
    fi
 
-   if [ -z $_id ]  || [ $INSTANCE_ID != $_id ]
-       then
-          sudo ufw enable
-          sudo ufw logging on
-
-          sudo ufw allow http
-          sudo ufw allow "OpenSSH"
-
-          sudo iptables -I DOCKER-USER -j ACCEPT
+   if [ -z $_id ]  || [ $INSTANCE_ID != $_id ]; then
+     echo 192.168.1.130 us.archive.ubuntu.com >> /etc/hosts
    fi
-   sudo echo $INSTANCE_ID > /var/lib/my-instance-id
+   sudo echo $INSTANCE_ID > $PERSIST_ID
 
 MIME multi-part archive
 =======================
@@ -327,5 +307,4 @@ appliances. Setting ``allow_userdata: false`` in the configuration will disable
 .. _make-mime: https://github.com/canonical/cloud-init/blob/main/cloudinit/cmd/devel/make_mime.py
 .. _YAML version 1.1: https://yaml.org/spec/1.1/current.html
 .. [#] See your cloud provider for applicable user-data size limitations...
-.. _hook: https://en.wikipedia.org/wiki/Hooking
 .. _this blog post: http://foss-boss.blogspot.com/2011/01/advanced-cloud-init-custom-handlers.html
