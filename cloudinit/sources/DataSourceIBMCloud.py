@@ -191,7 +191,7 @@ def _read_system_uuid() -> Optional[str]:
     """
     Read the system uuid.
 
-    @return: the system uuid or None if not available.
+    :return: the system uuid or None if not available.
     """
     uuid_path = "/sys/hypervisor/uuid"
     if not os.path.isfile(uuid_path):
@@ -202,6 +202,8 @@ def _read_system_uuid() -> Optional[str]:
 def _is_xen():
     """
     Return boolean indicating if this is a xen hypervisor.
+
+    :return: True if this is a xen hypervisor, False otherwise.
     """
     return os.path.exists("/proc/xen")
 
@@ -301,7 +303,7 @@ def get_ibm_platform() -> Tuple[Optional[str], Optional[str]]:
 def read_md() -> Optional[Dict[str, Any]]:
     """Read data from IBM Cloud.
 
-    @return: None if not running on IBM Cloud.
+    :return: None if not running on IBM Cloud.
              dictionary with guaranteed fields: metadata, version
              and optional fields: userdata, vendordata, networkdata.
     Also includes the system uuid from /sys/hypervisor/uuid."""
@@ -345,7 +347,7 @@ def metadata_from_dir(source_dir: str) -> Dict[str, Any]:
     presenting a 'latest' version, which make it an unlikely candidate to share
     code.
 
-    @return: Dict containing translated metadata, userdata, vendordata,
+    :return: Dict containing translated metadata, userdata, vendordata,
         networkdata as present.
     """
 
@@ -353,6 +355,15 @@ def metadata_from_dir(source_dir: str) -> Dict[str, Any]:
         return os.path.join("openstack", "latest", fname)
 
     def load_json_bytes(blob: bytes) -> Dict[str, Any]:
+        """
+        Load JSON from a byte string.
+
+        This technically could return a list or a str, but we are only
+        assuming a dict here.
+
+        :param blob: The byte string to load JSON from.
+        :return: The loaded JSON object.
+        """
         return json.loads(blob.decode("utf-8"))
 
     def load_file(
@@ -383,8 +394,7 @@ def metadata_from_dir(source_dir: str) -> Dict[str, Any]:
 
     if results["metadata_raw"] is None:
         raise sources.BrokenMetadata(
-            "%s missing required file 'meta_data.json'",
-            source_dir,
+            f"{source_dir} missing required file 'meta_data.json'",
         )
 
     results["metadata"] = {}
@@ -397,8 +407,7 @@ def metadata_from_dir(source_dir: str) -> Dict[str, Any]:
             md["random_seed"] = base64.b64decode(md_raw["random_seed"])
         except (ValueError, TypeError) as e:
             raise sources.BrokenMetadata(
-                "Badly formatted metadata random_seed entry: %s",
-                e,
+                f"Badly formatted metadata random_seed entry: {e}"
             )
 
     renames = (
