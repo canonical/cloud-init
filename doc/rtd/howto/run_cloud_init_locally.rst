@@ -71,10 +71,10 @@ Download an Ubuntu image to run:
     wget https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
 
 .. note::
-   The example is written for x86. It works on non-x86 but is slower as it
-   will need to be emulated. You can change the image type and
-   :spelling:ignore:`qemu-system-<arch>` to your architecture to make it
-   faster for you.
+   This example uses emulated CPU instructions on non-x86 hosts, so it may be
+   slow. To make it faster on non-x86 architectures, one can change the image
+   type and :spelling:ignore:`qemu-system-<arch>` command name to match the
+   architecture of your host machine.
 
 Boot the image with the ISO attached
 ------------------------------------
