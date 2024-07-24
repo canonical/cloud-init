@@ -3,26 +3,21 @@
 Boot stages
 ***********
 
-There are five stages to boot:
+There are five stages to boot which are run seqentially: ``Detect``, ``Local``,
+``Network``, ``Config`` and ``Final``
 
-1. Detect
-2. Local
-3. Network
-4. Config
-5. Final
-
-Visual representation:
+Visual representation of cloud-init boot stages with respect to network config
+and system accessibility:
 
 .. mermaid::
 
-  graph LR
+  graph TB
 
-    D[Detect] ---> L
+    D["<a href='#detect'>Detect</a>"] ---> L
 
     L --> NU([Network up])
     L & NU --> N
-    subgraph L[Local]
-        direction TB
+    subgraph L["<a href='#local'>Local</a>"]
         FI[Fetch IMDS]
     end
 
@@ -31,20 +26,17 @@ Visual representation:
     N --> S([SSH])
     N --> Login([Login])
 
-    subgraph N[Network]
-        direction TB
+    subgraph N["<a href='#network'>Network</a>"]
         cloud_init_modules
     end
     %% cloud_config_modules
 
-    subgraph C[Config]
-        direction TB
+    subgraph C["<a href='#config'>Config</a>"]
         cloud_config_modules
     end
 
     C --> F
-    subgraph F[Final]
-        direction TB
+    subgraph F["<a href='#final'>Final</a>"]
         cloud_final_modules
     end
 
@@ -120,7 +112,7 @@ Network
 +---------+--------+----------------------------------------------------------+
 | runs             | after local stage and configured networking is up        |
 +---------+--------+----------------------------------------------------------+
-| blocks           | as much of remaining boot as possible                    |
+| blocks           | majority of remaining boot (e.g. SSH and console login)  |
 +---------+--------+----------------------------------------------------------+
 | modules          | *cloud_init_modules* in ``/etc/cloud/cloud.cfg``         |
 +---------+--------+----------------------------------------------------------+
@@ -147,6 +139,9 @@ necessary for cloud-init to run should not be done until after this stage.
 
 A part-handler and :ref:`boothooks<explanation/format:\`\`cloud-boothook\`\`>`
 will run at this stage.
+
+After this stage completes, expect to be able to access the system via serial
+console login or SSH.
 
 .. _boot-Config:
 
