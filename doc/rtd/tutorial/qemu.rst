@@ -80,6 +80,12 @@ server image using :command:`wget`:
 
     $ wget https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
 
+.. note::
+   This example uses emulated CPU instructions on non-x86 hosts, so it may be
+   slow. To make it faster on non-x86 architectures, one can change the image
+   type and :spelling:ignore:`qemu-system-<arch>` command name to match the
+   architecture of your host machine.
+
 Define our user data
 ====================
 
@@ -203,7 +209,6 @@ take a few moments to complete.
         -net nic                                                    \
         -net user                                                   \
         -machine accel=kvm:tcg                                      \
-        -cpu host                                                   \
         -m 512                                                      \
         -nographic                                                  \
         -hda jammy-server-cloudimg-amd64.img                        \
