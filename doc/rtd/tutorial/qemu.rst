@@ -80,6 +80,11 @@ server image using :command:`wget`:
 
     $ wget https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
 
+.. note::
+   Please be aware, the example is written for x86. It works on non-x86 but
+   is slower as it will need to be emulated. You can change the image type and
+   qemu-system variant to your architecture to make it faster for you.
+
 Define our user data
 ====================
 
