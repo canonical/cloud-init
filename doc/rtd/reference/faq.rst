@@ -20,7 +20,7 @@ Having trouble? We would like to help!
 
 Other projects, such as `Subiquity autoinstaller`_, use cloud-init to implement
 a subset of their features and have a YAML configuration format which combines
-``cloud-init``'s cloud-config with additional autoinstall-specific keys.
+``cloud-init``'s cloud-config with additional keys.
 
 If you are an autoinstall user, please direct questions to their IRC channel
 (``#ubuntu-server`` on Libera) or Discourse.
