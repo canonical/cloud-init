@@ -1352,7 +1352,12 @@
             },
             "chef_license": {
               "type": "string",
-              "description": "string that indicates if user accepts or not license related to some of chef products"
+              "description": "string that indicates if user accepts or not license related to some of chef products. See https://docs.chef.io/licensing/accept/",
+              "enum": [
+                "accept",
+                "accept-silent",
+                "accept-no-persist"
+              ]
             }
           }
         }
