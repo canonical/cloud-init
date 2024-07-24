@@ -11,6 +11,43 @@ There are five stages to boot:
 4. Config
 5. Final
 
+Visual representation:
+
+.. mermaid::
+
+  graph LR
+
+    D[Detect] ---> L
+
+    L --> NU([Network up])
+    L & NU --> N
+    subgraph L[Local]
+        direction TB
+        FI[Fetch IMDS]
+    end
+
+    N --> NO([Network online])
+    N & NO --> C
+    N --> S([SSH])
+    N --> Login([Login])
+
+    subgraph N[Network]
+        direction TB
+        cloud_init_modules
+    end
+    %% cloud_config_modules
+
+    subgraph C[Config]
+        direction TB
+        cloud_config_modules
+    end
+
+    C --> F
+    subgraph F[Final]
+        direction TB
+        cloud_final_modules
+    end
+
 .. _boot-Detect:
 
 Detect

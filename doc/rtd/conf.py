@@ -44,6 +44,7 @@ extensions = [
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.viewcode",
     "sphinxcontrib.datatemplates",
+    "sphinxcontrib.mermaid",
     "sphinxcontrib.spelling",
 ]
 
