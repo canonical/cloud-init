@@ -162,7 +162,7 @@ class TestSmbios:
                 """\
                 [Unit]
                 Description=Serve a local webserver
-                Before=cloud-init.service
+                Before=cloud-init-network.service
                 Wants=cloud-init-local.service
                 DefaultDependencies=no
                 After=systemd-networkd-wait-online.service
@@ -354,7 +354,7 @@ class TestFTP:
                 # and NoCloud operates in network timeframe
                 After=systemd-networkd-wait-online.service
                 After=networking.service
-                Before=cloud-init.service
+                Before=cloud-init-network.service
 
                 [Service]
                 Type=exec

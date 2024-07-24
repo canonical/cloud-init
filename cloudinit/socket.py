@@ -98,11 +98,13 @@ class SocketSync:
         Once the message has been received, enter the context.
         """
         if os.isatty(sys.stdin.fileno()):
-            LOG.info("Not syncing, stdin is a tty.")
+            LOG.info(
+                "Stdin is a tty, so skipping stage synchronization protocol"
+            )
             return
         sd_notify(
             "STATUS=Waiting on external services to "
-            f"complete ({self.stage} stage)"
+            f"complete before starting the {self.stage} stage."
         )
         start_time = time.monotonic()
         # block until init system sends us data
@@ -126,7 +128,7 @@ class SocketSync:
             raise ValueError(f"Unexpected path to unix socket: {self.remote}")
 
         total = time.monotonic() - start_time
-        time_msg = f"took {total: .3f}s " if total > 0.1 else ""
+        time_msg = f"took {total: .3f}s to " if total > 0.01 else ""
         sd_notify(f"STATUS=Running ({self.stage} stage)")
         LOG.debug("sync(%s): synchronization %scomplete", self.stage, time_msg)
         return self
@@ -140,8 +142,8 @@ class SocketSync:
             systemd_exit_code = "1"
             status = f"{repr(exc_val)} in {exc_tb.tb_frame}"
             message = (
-                'fatal error, run "systemctl cloud-init.service" for more '
-                "details"
+                'fatal error, run "systemctl status cloud-init-main.service" '
+                'and "cloud-init status --long" for more details'
             )
             if not self.first_exception:
                 self.first_exception = message

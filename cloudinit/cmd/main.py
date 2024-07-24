@@ -1172,6 +1172,11 @@ def main(sysv_args=None):
     setattr(args, "skip_log_setup", False)
     if not args.all_stages:
         return sub_main(args)
+    return all_stages(parser)
+
+
+def all_stages(parser):
+    """Run all stages in a single process using an ordering protocol."""
     LOG.info("Running cloud-init in single process mode.")
 
     # this _must_ be called before sd_notify is called otherwise netcat may
@@ -1188,7 +1193,7 @@ def main(sysv_args=None):
         # run local stage
         sub_main(args)
 
-    # wait for cloud-init.service to start
+    # wait for cloud-init-network.service to start
     with sync("network"):
         # skip re-setting up logger
         args = parser.parse_args(args=["init"])
@@ -1212,7 +1217,7 @@ def main(sysv_args=None):
         # run final stage
         sub_main(args)
 
-    # signal completion to cloud-init.service
+    # signal completion to cloud-init-main.service
     if sync.first_exception:
         socket.sd_notify(
             "STATUS=Completed with failure, first exception received: "

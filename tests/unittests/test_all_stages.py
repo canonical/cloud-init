@@ -202,6 +202,7 @@ def test_all_stages_exception(tmp_path):
             1 / 0  # pylint: disable=W0104
 
         assert (
-            b'echo \'fatal error, run "systemctl cloud-init.service" for '
+            b"echo 'fatal error, run \"systemctl status cloud-init-main."
+            b'service" and "cloud-init status --long" for '
             b"more details'; exit 1;" == first.receive()
         )
