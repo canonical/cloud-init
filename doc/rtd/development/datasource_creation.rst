@@ -170,6 +170,8 @@ Datasources included in upstream cloud-init benefit from ongoing maintenance,
 compatibility with the rest of the codebase, and security fixes by the upstream
 development team.
 
+If this is not possible, one can add
+:ref:`custom out-of-tree datasources to cloud-init<custom_datasource>`.
 
 .. _make-mime: https://cloudinit.readthedocs.io/en/latest/explanation/instancedata.html#storage-locations
 .. _DMI: https://www.dmtf.org/sites/default/files/standards/documents/DSP0005.pdf

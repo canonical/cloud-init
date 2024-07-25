@@ -221,6 +221,8 @@ Other keys
 The :ref:`network configuration<network_config>` to be applied to this
 instance.
 
+.. _base_config_datasource_pkg_list:
+
 ``datasource_pkg_list``
 ^^^^^^^^^^^^^^^^^^^^^^^
 
