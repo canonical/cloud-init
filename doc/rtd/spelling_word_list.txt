@@ -24,6 +24,7 @@ bigstep
 boolean
 bootcmd
 boothook
+boothooks
 btrfs
 busybox
 byobu
