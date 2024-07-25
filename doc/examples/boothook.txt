@@ -1,0 +1,3 @@
+#cloud-boothook
+#!/bin/sh
+echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts

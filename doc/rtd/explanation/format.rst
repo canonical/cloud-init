@@ -157,17 +157,50 @@ a MIME archive.
 ``cloud-boothook``
 ==================
 
-This content is `boothook` data. It is stored in a file under
-:file:`/var/lib/cloud` and executed immediately. This is the earliest `hook`
-available. Note, that there is no mechanism provided for running only once. The
-`boothook` must take care of this itself.
+One line ``#cloud-boothook`` header and then executable payload.
 
-It is provided with the instance id in the environment variable
-``INSTANCE_ID``. This could be made use of to provide a 'once-per-instance'
-type of functionality.
+This is run very early on the boot process, during the
+:ref:`Network boot stage<boot-Network>`, even before ``cc_bootcmd``.
 
-Begins with: ``#cloud-boothook`` or ``Content-Type: text/cloud-boothook`` when
-using a MIME archive.
+This can be used when something has to be configured very early on boot,
+potentially on every boot, with less convenience as ``cc_bootcmd`` but more
+flexibility.
+
+.. note::
+   Boothooks are execute on every boot.
+   The environment variable ``INSTANCE_ID`` will be set to the current instance
+   ID. ``INSTANCE_ID`` can be used to implement a `once-per-instance` type of
+   functionality.
+
+Begins with: ``#cloud-boothook``.
+
+Example with simple script
+--------------------------
+
+.. code-block:: bash
+
+   #cloud-boothook
+   #!/bin/sh
+   echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts
+
+Example of once-per-instance script
+-----------------------------------
+
+.. code-block:: bash
+
+   #cloud-boothook
+   #!/bin/sh
+
+   PERSIST_ID=/var/lib/cloud/first-instance-id
+   _id=""
+   if [ -r $PERSIST_ID ]; then
+     _id=$(cat /var/lib/cloud/first-instance-id)
+   fi
+
+   if [ -z $_id ]  || [ $INSTANCE_ID != $_id ]; then
+     echo 192.168.1.130 us.archive.ubuntu.com >> /etc/hosts
+   fi
+   sudo echo $INSTANCE_ID > $PERSIST_ID
 
 Part-handler
 ============
