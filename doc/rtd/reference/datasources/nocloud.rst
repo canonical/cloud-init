@@ -54,11 +54,11 @@ same way as user-data, meta data, vendor data.
 See the :ref:`network configuration<network_config>` documentation for
 information on network configuration formats.
 
-Meta-configuration
-==================
+Discovery configuration
+=======================
 
-The purpose of the meta-configuration is to tell cloud-init where it can find
-the runtime configurations described above.
+The purpose of the discovery configuration is to tell cloud-init where it can
+find the runtime configurations described above.
 
 There are two methods for cloud-init to receive a meta-configuration.
 
@@ -79,7 +79,8 @@ fetch configurations using ``https`` from the URI
 ``https://10.42.42.42/configs/``.
 
 We will describe the possible values in a line configuration in the following
-sections.
+sections. See :ref:`this section<line_config_detail>` for more details on line
+configuration.
 
 .. note::
 
@@ -121,9 +122,8 @@ files which are stored in :file:`/etc/cloud/cloud.cfg.d`.
 Configuration sources
 =====================
 
-User-data, meta data, network config (optional), and vendor data
-(optional) may be sourced from one of several possible locations, either
-locally or remotely.
+User-data, meta data, network config, and vendor data may be sourced from one
+of several possible locations, either locally or remotely.
 
 Source 1: Local filesystem
 --------------------------
@@ -162,8 +162,8 @@ Source 2: Drive with labeled filesystem
 ---------------------------------------
 
 A labeled `vfat`_ or `iso9660` filesystem may be used. The filesystem volume
-must be labelled ``CIDATA``. The configuration files must be in the root
-directory of the filesystem.
+must be labelled ``CIDATA``. The :ref:`configuration files<source_files>` must
+be in the root directory of the filesystem.
 
 Source 3: Custom webserver
 --------------------------
@@ -197,6 +197,8 @@ or using system configuration
     NoCloud:
       seedfrom: ftps://10.42.42.42/cloud-init/configs/
 
+.. _source_files:
+
 Source files
 ------------
 
@@ -221,6 +223,7 @@ webserver at first boot:
 
 If the required files don't exist, this datasource will be skipped.
 
+.. _line_config_detail:
 
 Line configuration in detail
 ============================
@@ -272,10 +275,10 @@ Where ``scheme`` can be ``ftp`` or ``ftps``, ``userinfo`` will be
 ``host`` can be an IP address or DNS name, and ``port`` is which network
 port to use (default is ``21``).
 
-Meta-configuration considerations
-=================================
+Discovery configuration considerations
+======================================
 
-Above, we describe the two methods of providing meta-configuration (system
+Above, we describe the two methods of providing discovery configuration (system
 configuration and line configuration). Two methods exist because there are
 advantages and disadvantages to each option, neither is clearly a better
 choice - so it is left to the user to decide.
@@ -442,8 +445,8 @@ See an example below. Note specifically that this file does not
 have a top level ``network`` key as it is already assumed to
 be network configuration based on the filename.
 
-Example config
---------------
+Example ``network-config``
+--------------------------
 
 .. code-block:: yaml
 
