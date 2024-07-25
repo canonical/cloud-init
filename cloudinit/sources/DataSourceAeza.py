@@ -4,7 +4,11 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
+
 from cloudinit import sources, dmi, util
+
+LOG = logging.getLogger(__name__)
 
 BUILTIN_DS_CONFIG = {
     "metadata_url": "http://77.221.156.49/v1/cloudinit/{id}/",
@@ -44,6 +48,22 @@ class DataSourceAeza(sources.DataSource):
             timeout=self.timeout_seconds,
             retries=self.retries,
         )
+
+        if md is None:
+            LOG.warn(
+                "Failed to read metadata from %s",
+                self.metadata_address,
+            )
+            return False
+        if not isinstance(md.get("instance-id"), str):
+            LOG.warn(
+                "Metadata does not contain instance-id",
+            )
+            return False
+        if not isinstance(ud, bytes):
+            LOG.warn("Userdata is not bytes")
+            return False
+
         self.metadata, self.userdata_raw, self.vendordata_raw = md, ud, vd
 
         return True
