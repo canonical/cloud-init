@@ -60,7 +60,7 @@ Discovery configuration
 The purpose of the discovery configuration is to tell cloud-init where it can
 find the runtime configurations described above.
 
-There are two methods for cloud-init to receive a meta-configuration.
+There are two methods for cloud-init to receive a discovery configuration.
 
 Method 1: Line configuration
 ----------------------------
@@ -107,7 +107,7 @@ that it can find configurations at ``https://10.42.42.42/configs/``.
 
 The scope of this section is limited to its use for selecting the source of
 its configuration, however it is worth mentioning that the system configuration
-provides more than just the meta-configuration.
+provides more than just the discovery configuration.
 
 In addition to defining where cloud-init can find runtime configurations, the
 system configuration also controls many of cloud-init's default behaviors.
