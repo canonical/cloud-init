@@ -23,7 +23,7 @@ a subset of their features and have a YAML configuration format which combines
 ``cloud-init``'s cloud-config with additional keys.
 
 If you are an autoinstall user, please direct questions to their IRC channel
-(``#ubuntu-server`` on Libera) or Discourse.
+(``#ubuntu-server`` on Libera).
 
 Can I use cloud-init as a library?
 ==================================
@@ -77,7 +77,6 @@ Whitepapers:
 
 .. _mailing list: https://launchpad.net/~cloud-init
 .. _IRC channel on Libera: https://kiwiirc.com/nextclient/irc.libera.chat/cloud-init
-.. _discourse page: https://discourse.charmhub.io
 .. _do: https://github.com/canonical/ubuntu-pro-client/blob/9b46480b9e4b88e918bac5ced0d4b8edb3cbbeab/lib/auto_attach.py#L35
 
 .. _cloud-init - The Good Parts: https://www.youtube.com/watch?v=2_m6EUo6VOI
@@ -99,4 +98,3 @@ Whitepapers:
 .. _cloud-init Summit 2018: https://powersj.io/post/cloud-init-summit18/
 .. _cloud-init Summit 2017: https://powersj.io/post/cloud-init-summit17/
 .. _Subiquity autoinstaller: https://ubuntu.com/server/docs/install/autoinstall
-.. _discourse page: https://discourse.charmhub.io
