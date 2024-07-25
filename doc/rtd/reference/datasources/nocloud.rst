@@ -31,19 +31,18 @@ user to configure an instance.
 meta data
 ---------
 
-The ``meta-data`` file is a YAML-formatted file. This is a required
-configuration type.
+The ``meta-data`` file is a YAML-formatted file.
 
-vendor data (optional)
-----------------------
+vendor data
+-----------
 
 Vendor data may be used to provide default cloud-specific configurations which
 may be overriden by user-data. This may be useful, for example, to configure an
 instance with a cloud provider's repository mirror for faster package
 installation.
 
-network config (optional)
--------------------------
+network config
+--------------
 
 Network configuration typically comes from the cloud provider to set
 cloud-specific network configurations, or a reasonable default is set by
@@ -201,13 +200,13 @@ or using system configuration
 Source files
 ------------
 
-The base path pointed to by the URI in the above sources can provide content
+The base path pointed to by the URI in the above sources provides content
 using the following final path components:
 
-* ``user-data`` (required)
-* ``meta-data`` (required)
-* ``vendor-data`` (optional)
-* ``network-config`` (optional)
+* ``user-data``
+* ``meta-data``
+* ``vendor-data``
+* ``network-config``
 
 For example, if the ``seedfrom`` value of ``seedfrom`` is
 ``https://10.42.42.42/``, then the following files will be fetched from the
