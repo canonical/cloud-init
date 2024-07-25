@@ -5,9 +5,9 @@ User data formats
 
 User data is configuration data provided by a user of a cloud platform to an
 instance at launch. User data can be passed to cloud-init in any of many
-formats documented here. Each format will document a required header or
-content-type that must be present in the user data to be recognized as that
-format.
+formats documented here. Most formats include a header or
+content-type that must be present in the user data to be recognized
+by cloud-init.
 
 Configuration types
 ===================
