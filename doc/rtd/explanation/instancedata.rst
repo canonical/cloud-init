@@ -165,7 +165,10 @@ Storage locations
   unredacted JSON blob.
 * :file:`/run/cloud-init/combined-cloud-config.json`: root-readable
   unredacted JSON blob. Any meta-data, vendor-data and user-data overrides
-  are applied to the :file:`/run/cloud-init/combined-cloud-config.json` config values.
+  are applied to the :file:`/run/cloud-init/combined-cloud-config.json` config
+  values.
+
+.. _instance_metadata-keys:
 
 :file:`instance-data.json` top level keys
 -----------------------------------------

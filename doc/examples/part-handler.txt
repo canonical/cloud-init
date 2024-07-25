@@ -1,22 +1,58 @@
 #part-handler
 
+"""This is a trivial example part-handler that creates a file with the path
+specified in the payload. It performs no input checking or error handling.
+
+To use it, first save the file you are currently viewing into your current
+working directory. Then run the following:
+```
+$ echo '/var/tmp/my_path' > part
+$ cloud-init devel make-mime -a part-handler.py:part-handler -a part:x-my-path --force > user-data
+```
+
+This will create a mime file with the contents of 'part' and the
+part-handler. You can now pass 'user-data' to your cloud of choice.
+
+When run, cloud-init will have created an empty file at /var/tmp/my_path.
+"""
+
+import pathlib
+from typing import Any
+
+from cloudinit.cloud import Cloud
+
+
 def list_types():
-    # return a list of mime-types that are handled by this module
-    return(["text/plain", "text/go-cubs-go"])
+    """Return a list of mime-types that are handled by this module."""
+    return ["text/x-my-path"]
 
-def handle_part(data, ctype, filename, payload):
-    # data: the cloudinit object
-    # ctype: '__begin__', '__end__', or the specific mime-type of the part
-    # filename: the filename for the part, or dynamically generated part if
-    #           no filename is given attribute is present
-    # payload: the content of the part (empty for begin or end)
+
+def handle_part(data: Cloud, ctype: str, filename: str, payload: Any):
+    """Handle a part with the given mime-type.
+
+    This function will get called mulltiple times. The first time is
+    to allow any initial setup needed to handle parts. It will then get
+    called once for each part matching the mime-type returned by `list_types`.
+    Finally, it will get called one last time to allow for any final
+    teardown.
+
+    :data: A `Cloud` instance. This will be the same instance for each call
+        to handle_part.
+    :ctype: '__begin__', '__end__', or the mime-type
+        (for this example 'text/x-my-path') of the part
+    :filename: The filename for the part as defined in the MIME archive,
+        or dynamically generated part if no filename is given
+    :payload: The content of the part. This will be
+        `None` when `ctype` is '__begin__' or '__end__'.
+    """
     if ctype == "__begin__":
-       print("my handler is beginning")
-       return
-    if ctype == "__end__":
-       print("my handler is ending")
-       return
+        # Any custom setup needed before handling payloads
+        return
 
-    print(f"==== received ctype={ctype} filename={filename} ====")
-    print(payload)
-    print(f"==== end ctype={ctype} filename={filename}")
+    if ctype == "__end__":
+        # Any custom teardown needed after handling payloads can happen here
+        return
+
+    # If we've made it here, we're dealing with a real payload, so handle
+    # it appropriately
+    pathlib.Path(payload.strip()).touch()
