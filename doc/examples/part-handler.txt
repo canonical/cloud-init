@@ -30,7 +30,7 @@ def list_types():
 def handle_part(data: Cloud, ctype: str, filename: str, payload: Any):
     """Handle a part with the given mime-type.
 
-    This function will get called mulltiple times. The first time is
+    This function will get called multiple times. The first time is
     to allow any initial setup needed to handle parts. It will then get
     called once for each part matching the mime-type returned by `list_types`.
     Finally, it will get called one last time to allow for any final

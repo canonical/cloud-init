@@ -94,8 +94,8 @@ User data script
 **Explanation**
 
 A user data script is a single shell script to be executed once per instance.
-User data scripts are run relatively late in the boot process, after most
-other cloud-init modules have run.
+User data scripts are run relatively late in the boot process, during the
+'modules:final' stage as part of the "cc_scripts_user" module.
 
 .. _user_data_formats-cloud_boothook:
 
@@ -136,7 +136,8 @@ Cloud boothook
 A cloud boothook is similar to a :ref:`user data script<user_data_script>`
 in that it is a shell script run on boot. The boothook is different in that:
 
-* It is run very early in boot, even before the ``cc_bootcmd`` module
+* It is run very early in boot, during the 'init' stage, before any
+  cloud-init modules are run.
 * It is run on every boot
 * The environment variable ``INSTANCE_ID`` is set to the current instance ID
   for use within the script.
@@ -247,11 +248,11 @@ Cloud config archive
 
     #cloud-config-archive
     - type: "text/cloud-boothook"
-    content: |
+      content: |
         #!/bin/sh
         echo "this is from a boothook." > /var/tmp/boothook.txt
     - type: "text/cloud-config"
-    content: |
+      content: |
         bootcmd:
         - echo "this is from a cloud-config." > /var/tmp/bootcmd.txt
 
@@ -259,7 +260,7 @@ Cloud config archive
 
 A cloud-config-archive is a way to specify more than one type of data
 using YAML. It can be seen as an alternative to building a MIME multi-part
-archive manually.
+archive for those that would prefer to use YAML.
 
 The format is a list of dictionaries.
 
