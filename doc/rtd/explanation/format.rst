@@ -46,8 +46,7 @@ Cloud config data
 | **Header:** #cloud-config
 | **Content-Type:** text/cloud-config
 
-Example
--------
+**Example**
 
 .. code-block:: yaml
 
@@ -56,8 +55,7 @@ Example
     chpasswd:
     expire: False
 
-Explanation
------------
+**Explanation**
 
 Cloud-config can be used to define how an instance should be configured
 in a human-friendly format. The cloud config format uses `YAML`_ with
@@ -86,16 +84,14 @@ User data script
 | **Header:** #!
 | **Content-Type:** text/x-shellscript
 
-Example
--------
+**Example**
 
 .. code-block:: shell
 
     #!/bin/sh
     echo "Hello World" > /var/tmp/output.txt
 
-Explanation
------------
+**Explanation**
 
 A user data script is a single shell script to be executed once per instance.
 User data scripts are run relatively late in the boot process, after most
@@ -109,8 +105,7 @@ Cloud boothook
 | **Header:** #cloud-boothook
 | **Content-Type:** text/cloud-boothook
 
-Simple Example
--------
+**Simple Example**
 
 .. code-block:: shell
 
@@ -118,8 +113,7 @@ Simple Example
    #!/bin/sh
    echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts
 
-Example of once-per-instance script
------------------------------------
+**Example of once-per-instance script**
 
 .. code-block:: bash
 
@@ -137,8 +131,7 @@ Example of once-per-instance script
    fi
    sudo echo $INSTANCE_ID > $PERSIST_ID
 
-Explanation
------------
+**Explanation**
 
 A cloud boothook is similar to a :ref:`user data script<user_data_script>`
 in that it is a shell script run on boot. The boothook is different in that:
@@ -154,8 +147,7 @@ MIME multi-part archive
 | **Header:** Content-Type: multipart/mixed;
 | **Content-Type:** multipart/mixed
 
-Example
--------
+**Example**
 
 .. code-block::
 
@@ -182,8 +174,7 @@ Example
     - echo "this is from a cloud-config." > /var/tmp/bootcmd.txt
     --===============2389165605550749110==--
 
-Explanation
------------
+**Explanation**
 
 Using a MIME multi-part file, the user can specify more than one type of data.
 
@@ -224,8 +215,7 @@ The :command:`make-mime` subcommand takes pairs of (filename, "text/" mime
 subtype) separated by a colon (e.g., ``config.yaml:cloud-config``) and emits a
 MIME multipart message to :file:`stdout`.
 
-Examples
-^^^^^^^^
+**MIME subcommand Examples**
 
 Create user data containing both a cloud-config (:file:`config.yaml`)
 and a shell script (:file:`script.sh`)
@@ -251,8 +241,7 @@ Cloud config archive
 | **Header:** #cloud-config-archive
 | **Content-Type:** text/cloud-config-archive
 
-Example
--------
+**Example**
 
 .. code-block:: shell
 
@@ -266,8 +255,7 @@ Example
         bootcmd:
         - echo "this is from a cloud-config." > /var/tmp/bootcmd.txt
 
-Explanation
------------
+**Explanation**
 
 A cloud-config-archive is a way to specify more than one type of data
 using YAML. It can be seen as an alternative to building a MIME multi-part
@@ -294,8 +282,7 @@ Jinja template
 | **Header:** ## template: jinja
 | **Content-Type:** text/jinja
 
-Example cloud-config
---------------------
+**Example cloud-config**
 
 .. code-block:: yaml
 
@@ -304,8 +291,7 @@ Example cloud-config
    runcmd:
      - echo 'Running on {{ v1.cloud_name }}' > /var/tmp/cloud_name
 
-Example user data script
-------------------------
+**Example user data script**
 
 .. code-block:: shell
 
@@ -313,8 +299,7 @@ Example user data script
    #!/bin/sh
    echo 'Current instance id: {{ v1.instance_id }}' > /var/tmp/instance_id
 
-Explanation
------------
+**Explanation**
 
 `Jinja templating <https://jinja.palletsprojects.com/>`_ may be used for
 cloud-config and user data scripts. Any
@@ -335,8 +320,7 @@ Include file
 | **Header:** #include
 | **Content-Type:** text/x-include-url
 
-Example
--------
+**Example**
 
 .. code-block:: text
 
@@ -344,8 +328,7 @@ Example
     https://raw.githubusercontent.com/canonical/cloud-init/403f70b930e3ce0f05b9b6f0e1a38d383d058b53/doc/examples/cloud-config-run-cmds.txt
     https://raw.githubusercontent.com/canonical/cloud-init/403f70b930e3ce0f05b9b6f0e1a38d383d058b53/doc/examples/cloud-config-boot-cmds.txt
 
-Explanation
------------
+**Explanation**
 
 An include file contains a list of URLs, one per line. Each of the URLs will
 be read and their content can be any kind of user data format, both base
@@ -369,15 +352,13 @@ Part handler
 | **Header:** #part-handler
 | **Content-Type:** text/part-handler
 
-Example
--------
+**Example**
 
 .. literalinclude:: ../../examples/part-handler.txt
    :language: python
    :linenos:
 
-Explanation
------------
+**Explanation**
 
 A part handler contains custom code for either supporting new
 mime-types in multi-part user data or for overriding the existing handlers for
