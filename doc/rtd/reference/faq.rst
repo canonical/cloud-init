@@ -77,7 +77,6 @@ Whitepapers:
 
 .. _mailing list: https://launchpad.net/~cloud-init
 .. _IRC channel on Libera: https://kiwiirc.com/nextclient/irc.libera.chat/cloud-init
-.. _Juju: https://ubuntu.com/blog/topics/juju
 .. _discourse page: https://discourse.charmhub.io
 .. _do: https://github.com/canonical/ubuntu-pro-client/blob/9b46480b9e4b88e918bac5ced0d4b8edb3cbbeab/lib/auto_attach.py#L35
 
@@ -100,5 +99,4 @@ Whitepapers:
 .. _cloud-init Summit 2018: https://powersj.io/post/cloud-init-summit18/
 .. _cloud-init Summit 2017: https://powersj.io/post/cloud-init-summit17/
 .. _Subiquity autoinstaller: https://ubuntu.com/server/docs/install/autoinstall
-.. _juju_project: https://discourse.charmhub.io/t/model-config-cloudinit-userdata/512
 .. _discourse page: https://discourse.charmhub.io
