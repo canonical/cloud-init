@@ -28,6 +28,8 @@ distribution supported by ``cloud-init``.
 Base configuration keys
 =======================
 
+.. _base_config_module_keys:
+
 Module keys
 -----------
 
