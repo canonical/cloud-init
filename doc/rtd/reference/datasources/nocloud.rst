@@ -238,7 +238,7 @@ command line and DMI (sometimes called SMBIOS) serial number.
 
 There is only one required key in a line configuration:
 
-* ``seedfrom`` alias: ``s``
+* ``seedfrom`` (alternatively ``s``)
 
 A valid ``seedfrom`` value consists of a URI which must contain a trailing
 ``/``.
@@ -246,10 +246,11 @@ A valid ``seedfrom`` value consists of a URI which must contain a trailing
 Some optional keys may be used, but their use is discouraged and may
 be removed in the future.
 
-* ``local-hostname`` alias: ``h`` (:ref:`cloud-config<mod_cc_set_hostname>`
-  preferred)
-* ``instance-id`` alias: ``i``  (set instance id  in :file:`meta-data` instead)
 
+* ``local-hostname`` (alternatively ``h``)
+* ``instance-id`` (alternatively ``i``)
+
+Both of these can be set in :file:`meta-data` instead.
 
 Seedfrom: HTTP and HTTPS
 ------------------------
@@ -439,7 +440,7 @@ Network configuration can also be provided to ``cloud-init`` in either
 :ref:`network_config_v1` or :ref:`network_config_v2` by providing that
 YAML formatted data in a file named :file:`network-config`.
 
-Example:
+Example network v1:
 
 .. code-block:: yaml
 
@@ -454,6 +455,8 @@ Example:
              netmask: 255.255.255.0
              gateway: 192.168.1.254
 
+
+Example network v2:
 
 .. code-block:: yaml
 
