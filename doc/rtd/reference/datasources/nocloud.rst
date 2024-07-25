@@ -17,9 +17,9 @@ Runtime configurations
 ======================
 
 Cloud-init discovers four types of configuration at runtime. The source of
-these configuration types is configurable with a meta-configuration. This
-meta-configuration can be delivered to cloud-init in different ways, but is
-different from the configurations that cloud-init uses to configure the
+these configuration types is configurable with a discovery configuration. This
+discovery configuration can be delivered to cloud-init in different ways, but
+is different from the configurations that cloud-init uses to configure the
 instance at runtime.
 
 user data
@@ -416,14 +416,10 @@ sufficient disk by following the following example.
    user data you will also have to change the ``instance-id``, or start the
    disk fresh.
 
-Also, you can inject an :file:`/etc/network/interfaces` file by providing the
-content for that file in the ``network-interfaces`` field of
-:file:`meta-data`.
-
 Example ``meta-data``
 ---------------------
 
-::
+.. code-block:: yaml
 
     instance-id: iid-abcdefg
     network-interfaces: |
@@ -436,17 +432,14 @@ Example ``meta-data``
     hostname: myhost
 
 
+``network-config``
+------------------
+
 Network configuration can also be provided to ``cloud-init`` in either
 :ref:`network_config_v1` or :ref:`network_config_v2` by providing that
-YAML formatted data in a file named :file:`network-config`. If found,
-this file will override a :file:`network-interfaces` file.
+YAML formatted data in a file named :file:`network-config`.
 
-See an example below. Note specifically that this file does not
-have a top level ``network`` key as it is already assumed to
-be network configuration based on the filename.
-
-Example ``network-config``
---------------------------
+Example:
 
 .. code-block:: yaml
 
