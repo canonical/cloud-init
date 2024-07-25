@@ -167,7 +167,7 @@ potentially on every boot, with less convenience as ``cc_bootcmd`` but more
 flexibility.
 
 .. note::
-   Boothooks are execute on every boot.
+   Boothooks are executed on every boot.
    The environment variable ``INSTANCE_ID`` will be set to the current instance
    ID. ``INSTANCE_ID`` can be used to implement a `once-per-instance` type of
    functionality.
