@@ -17,6 +17,9 @@ version ``22.1`` (the first release in 2022) it is scheduled to be removed in
 the logs. If a key's expected value changes, the key will be marked
 ``changed`` with a date. A 5 year timeline also applies to changed keys.
 
+Modules
+=======
+
 .. datatemplate:yaml:: ../../module-docs/cc_ansible/data.yaml
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_apk_configure/data.yaml
