@@ -62,7 +62,7 @@ All possible configuration values are defined in
 `tests/integration_tests/integration_settings.py`_. Look in this file for
 the full list of variables that are available and for context on what each
 variable does and what the default values are.
-by supplying values in :file:`tests/integration_tests/user_settings.py` or by
+Defaults can be overriden by supplying values in :file:`tests/integration_tests/user_settings.py` or by
 providing an environment variable of the same name prepended with
 ``CLOUD_INIT_``. For example, to set the ``PLATFORM`` setting:
 
@@ -132,8 +132,6 @@ By default, the logs are collected to the ``/tmp/cloud_init_test_logs``
 directory. To change the directory, set the ``LOCAL_LOG_PATH`` variable to
 the desired path.
 
-TODO: can the collect log path be set to a relative path?
-
 .. tab-set::
 
     .. tab-item:: Inline environment variable
@@ -177,18 +175,6 @@ Addtionally, for profiling the integration tests, set the ``INCLUDE_PROFILE``
 variable to ``True``. This will generate a profile report for the integration
 test run, and the report will be stored in the directory specified by
 ``LOCAL_LOG_PATH``.
-# We default our coverage to False because it involves modifying the
-# cloud-init systemd services, which is too intrusive of a change to
-# enable by default. If changed to true, the test directory corresponding
-# to the test run under LOCAL_LOG_PATH defined above will contain an
-# `html` directory with the coverage report.
-INCLUDE_COVERAGE = False
-
-# We default our profile to False because it involves modifying the
-# cloud-init systemd services, which is too intrusive of a change to
-# enable by default. If changed to true, the test directory corresponding
-# to the test run under LOCAL_LOG_PATH defined above will contain a report
-INCLUDE_PROFILE = False
 
 .. tab-set::
 
@@ -273,10 +259,10 @@ tests against the image in question. If it's a RHEL8 image, then we
 would expect Ubuntu-specific tests to fail (and vice versa).
 
 To address this, a full image specification can be given. This is of
-the form: ``<image_id>[::<os>[::<release>]]`` where ``image_id`` is a
+the form: ``<image_id>[::<os>::<release>::<version>]`` where ``image_id`` is a
 cloud's image ID, ``os`` is the OS name, and ``release`` is the OS
 release name. So, for example, Ubuntu 18.04 (Bionic Beaver) on LXD is
-``ubuntu:bionic::ubuntu::bionic`` or RHEL8 on Amazon is
+``ubuntu:jammy::ubuntu::jammy::22.04`` or RHEL8 on Amazon is
 ``ami-justanexample::rhel::8``. When a full specification is given,
 only tests which are intended for use on that OS and release will be
 executed.
@@ -364,7 +350,7 @@ The ``client`` fixture should be used for most test cases. It ensures:
 ``module_client`` and ``class_client`` fixtures also exist for the
 purpose of running multiple tests against a single launched instance.
 They provide the exact same functionality as ``client``, but are
-scoped to the module or class respectively.
+scoped to the module or class respectively.ci
 
 ``session_cloud``
 -----------------
