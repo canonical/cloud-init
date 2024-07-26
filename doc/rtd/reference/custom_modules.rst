@@ -6,13 +6,6 @@ custom / out-of-tree functionality.
 
 .. _custom_formats:
 
-Custom Formats
-==============
-
-One can define custom data formats by presenting a
-:ref:`#part-handler<user_data_formats-part_handler>`
-config via user-data or vendor-data.
-
 -----
 
 .. toctree::
@@ -22,3 +15,4 @@ config via user-data or vendor-data.
    custom_modules/custom_configuration_module.rst
    custom_modules/custom_datasource.rst
    custom_modules/custom_mergers.rst
+   custom_modules/custom_part_handlers.rst

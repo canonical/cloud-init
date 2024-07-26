@@ -135,6 +135,8 @@ The boothook is different in that:
   cloud-init modules are run.
 * It is run on every boot
 
+.. _user_data_formats-mime_archive:
+
 MIME multi-part archive
 =======================
 
@@ -333,6 +335,7 @@ Example
    :language: python
    :linenos:
 
+
 Explanation
 -----------
 
@@ -340,22 +343,10 @@ A part handler contains custom code for either supporting new
 mime-types in multi-part user data or for overriding the existing handlers for
 supported mime-types.
 
-This must be Python code that contains a ``list_types`` function and a
-``handle_part`` function.
+See the :ref:`custom part handler<custom_part_handler>` reference documentation
+for details on writing custom handlers along with an annotated example.
 
-The ``list_types`` function must return a list
-of :ref:`content types<user_data_formats-content_types>` that this
-`part-handler` handles. Since MIME parts are
-processed in order, a `part-handler` part must precede any parts with
-mime-types it is expected to handle in the same user data.
-
-``Cloud-init`` will then call the ``handle_part`` function once before it
-handles any parts, once per part received, and once after all parts have been
-handled. These additional calls allow for  initialisation or teardown before
-or after receiving any parts.
-
-The provided example can be used as a template for creating a custom part
-handler. `This blog post`_ offers another example for more advanced usage.
+`This blog post`_ offers another example for more advanced usage.
 
 .. _user_data_formats-content_types:
 
