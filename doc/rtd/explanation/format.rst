@@ -5,31 +5,22 @@ User data formats
 
 User data is configuration data provided by a user of a cloud platform to an
 instance at launch. User data can be passed to cloud-init in any of many
-formats documented here. Most formats include a header or
-content-type that must be present in the user data to be recognized
-by cloud-init.
+formats documented here.
 
 Configuration types
 ===================
 
-User data can be categorized into **base config**
-or **meta config**.
+User data formats can be categorized into those that directly configure the
+instance, and those that serve as a container, template, or means to obtain
+or modify another configuration.
 
-Base config
------------
-
-Any of the base configs will be used to directly configure the instance.
-These include:
+Formats that directly configure the instance:
 
 - `Cloud config data`_
 - `User data script`_
 - `Cloud boothook`_
 
-Meta config
------------
-
-Meta configs serve as a container, template, or means to obtain or modify
-a base config. These include
+Formats that deal with other user data formats:
 
 - `MIME multi-part archive`_
 - `Cloud config archive`_
@@ -42,9 +33,6 @@ a base config. These include
 
 Cloud config data
 =================
-
-| **Header:** #cloud-config
-| **Content-Type:** text/cloud-config
 
 Example
 -------
@@ -83,9 +71,6 @@ supported cloud config formats.
 User data script
 ================
 
-| **Header:** #!
-| **Content-Type:** text/x-shellscript
-
 Example
 -------
 
@@ -99,15 +84,14 @@ Explanation
 
 A user data script is a single shell script to be executed once per instance.
 User data scripts are run relatively late in the boot process, during the
-'modules:final' stage as part of the "cc_scripts_user" module.
+cloud-init's final stage as part of the "cc_scripts_user" module. When run,
+the environment variable ``INSTANCE_ID`` is set to the current instance ID
+for use within the script.
 
 .. _user_data_formats-cloud_boothook:
 
 Cloud boothook
 ==============
-
-| **Header:** #cloud-boothook
-| **Content-Type:** text/cloud-boothook
 
 Simple Example
 --------------
@@ -141,19 +125,18 @@ Explanation
 -----------
 
 A cloud boothook is similar to a :ref:`user data script<user_data_script>`
-in that it is a shell script run on boot. The boothook is different in that:
+in that it is a shell script run on boot. When run,
+the environment variable ``INSTANCE_ID`` is set to the current instance ID
+for use within the script.
+
+The boothook is different in that:
 
 * It is run very early in boot, during the 'init' stage, before any
   cloud-init modules are run.
 * It is run on every boot
-* The environment variable ``INSTANCE_ID`` is set to the current instance ID
-  for use within the script.
 
 MIME multi-part archive
 =======================
-
-| **Header:** Content-Type: multipart/mixed;
-| **Content-Type:** multipart/mixed
 
 Example
 -------
@@ -191,29 +174,14 @@ Using a MIME multi-part file, the user can specify more than one type of data.
 For example, both a user data script and a cloud-config type could be
 specified.
 
-Supported content-types are listed from the ``cloud-init`` subcommand
+Each part must specify a valid
+:ref:`content types<user_data_formats-content_types>`. Supported content-types
+may also be listed from the ``cloud-init`` subcommand
 :command:`make-mime`:
 
 .. code-block:: shell-session
 
     $ cloud-init devel make-mime --list-types
-
-Example output:
-
-.. code-block::
-
-    cloud-boothook
-    cloud-config
-    cloud-config-archive
-    cloud-config-jsonp
-    jinja2
-    part-handler
-    x-include-once-url
-    x-include-url
-    x-shellscript
-    x-shellscript-per-boot
-    x-shellscript-per-instance
-    x-shellscript-per-once
 
 Helper subcommand to generate MIME messages
 -------------------------------------------
@@ -248,9 +216,6 @@ Create user data containing 3 shell scripts:
 Cloud config archive
 ====================
 
-| **Header:** #cloud-config-archive
-| **Content-Type:** text/cloud-config-archive
-
 Example
 -------
 
@@ -270,29 +235,30 @@ Explanation
 -----------
 
 A cloud-config-archive is a way to specify more than one type of data
-using YAML. It can be seen as an alternative to building a MIME multi-part
-archive for those that would prefer to use YAML.
+using YAML. Since building a MIME multipart archive can be somewhat unwieldly
+to build by hand or requires using a cloud-init helper utility, the
+cloud-config-archive provides a simpler alternative to building the MIME
+multi-part archive for those that would prefer to use YAML.
 
 The format is a list of dictionaries.
 
 Required fields:
 
-* ``type``: The content type of the MIME part
-* ``content``: The configuration for the MIME part
+* ``type``: The :ref:`Content-Type<user_data_formats-content_types>`
+  identifier for the type of user data in content
+* ``content``: The user data configuration
 
 Optional fields:
 
-* ``launch-index``: The EC2 Launch-Index header in the MIME part
-* ``filename``: The filename of the Content-Disposition header in the MIME
-  part. This does not correspond to any local system file.
+* ``launch-index``: The EC2 Launch-Index (if applicable)
+* ``filename``: This field is only used if using a user data format that
+  requires a filename in a MIME part. This is unrelated to any local system
+  file.
 
-All other fields will be added unedited to the MIME part as headers.
+All other fields will be interpreted as a MIME part header.
 
 Jinja template
 ==============
-
-| **Header:** ## template: jinja
-| **Content-Type:** text/jinja
 
 Example cloud-config
 --------------------
@@ -332,9 +298,6 @@ the original header along with the new jinja header above it.
 Include file
 ============
 
-| **Header:** #include
-| **Content-Type:** text/x-include-url
-
 Example
 -------
 
@@ -355,9 +318,6 @@ will not be read.
 Gzip compressed content
 =======================
 
-| **Header** n/a
-| **Content-Type** n/a
-
 Content found to be gzip compressed will be uncompressed.
 The uncompressed data will then be used as if it were not compressed.
 This is typically useful because user data size may be limited based on
@@ -365,9 +325,6 @@ cloud platform.
 
 Part handler
 ============
-
-| **Header:** #part-handler
-| **Content-Type:** text/part-handler
 
 Example
 -------
@@ -387,7 +344,8 @@ This must be Python code that contains a ``list_types`` function and a
 ``handle_part`` function.
 
 The ``list_types`` function must return a list
-of mime-types that this `part-handler` handles. Since MIME parts are
+of :ref:`content types<user_data_formats-content_types>` that this
+`part-handler` handles. Since MIME parts are
 processed in order, a `part-handler` part must precede any parts with
 mime-types it is expected to handle in the same user data.
 
@@ -398,6 +356,42 @@ or after receiving any parts.
 
 The provided example can be used as a template for creating a custom part
 handler. `This blog post`_ offers another example for more advanced usage.
+
+.. _user_data_formats-content_types:
+
+Headers and content types
+=========================
+
+In order for cloud-init to recognize which user data format is being used,
+the user data must contain a header. Additionally, if the user data
+is being passed as a multi-part message, such as MIME, cloud-config-archive,
+or part-handler, the content-type for each part must also be set
+appropriately.
+
+The table below lists the headers and content types for each user data format.
+Note that gzip compressed content is not represented here as it gets passed
+as binary data and so may be processed automatically.
+
++--------------------+-----------------------------+-------------------------+
+|User data format    |Header                       |Content-Type             |
++====================+=============================+=========================+
+|Cloud config data   |#cloud-config                |text/cloud-config        |
++--------------------+-----------------------------+-------------------------+
+|User data script    |#!                           |text/x-shellscript       |
++--------------------+-----------------------------+-------------------------+
+|Cloud boothook      |#cloud-boothook              |text/cloud-boothook      |
++--------------------+-----------------------------+-------------------------+
+|MIME multi-part     |Content-Type: multipart/mixed|multipart/mixed          |
++--------------------+-----------------------------+-------------------------+
+|Cloud config archive|#cloud-config-archive        |text/cloud-config-archive|
++--------------------+-----------------------------+-------------------------+
+|Jinja template      |## template: jinja           |text/jinja               |
++--------------------+-----------------------------+-------------------------+
+|Include file        |#include                     |text/x-include-url       |
++--------------------+-----------------------------+-------------------------+
+|Part handler        |#part-handler                |text/part-handler        |
++--------------------+-----------------------------+-------------------------+
+
 
 .. _make-mime: https://github.com/canonical/cloud-init/blob/main/cloudinit/cmd/devel/make_mime.py
 .. _YAML: https://yaml.org/spec/1.1/current.html
