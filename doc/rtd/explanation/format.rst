@@ -202,6 +202,8 @@ Example of once-per-instance script
    fi
    sudo echo $INSTANCE_ID > $PERSIST_ID
 
+.. _user_data_formats-part_handler:
+
 Part-handler
 ============
 

@@ -28,6 +28,8 @@ distribution supported by ``cloud-init``.
 Base configuration keys
 =======================
 
+.. _base_config_module_keys:
+
 Module keys
 -----------
 
@@ -220,6 +222,8 @@ Other keys
 
 The :ref:`network configuration<network_config>` to be applied to this
 instance.
+
+.. _base_config_datasource_pkg_list:
 
 ``datasource_pkg_list``
 ^^^^^^^^^^^^^^^^^^^^^^^
