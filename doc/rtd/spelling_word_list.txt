@@ -212,6 +212,7 @@ scaleway
 seedurl
 serverurl
 setup-keymap
+shellscript
 shortid
 sigonly
 sk
