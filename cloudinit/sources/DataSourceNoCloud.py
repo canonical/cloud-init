@@ -271,6 +271,13 @@ class DataSourceNoCloud(sources.DataSource):
     def network_config(self):
         if self._network_config is None:
             if self._network_eni is not None:
+                util.deprecate(
+                    deprecated="Eni network configuration in NoCloud",
+                    deprecated_version="24.3",
+                    extra_message=(
+                        "You can use network v1 or network v2 instead"
+                    ),
+                )
                 self._network_config = eni.convert_eni_data(self._network_eni)
         return self._network_config
 

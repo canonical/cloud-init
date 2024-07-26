@@ -176,6 +176,14 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
             elif self.network_eni is not None:
                 self._network_config = eni.convert_eni_data(self.network_eni)
                 LOG.debug("network config provided via converted eni data")
+                util.deprecate(
+                    deprecated="Eni network configuration in ConfigDrive",
+                    deprecated_version="24.3",
+                    extra_message=(
+                        "You can use openstack's network "
+                        "configuration format instead"
+                    ),
+                )
             else:
                 LOG.debug("no network configuration available")
         return self._network_config
