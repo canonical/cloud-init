@@ -3,12 +3,9 @@
 Custom Mergers
 **************
 
-TODO adapt and backreference
-
-Because the default
-:ref:`merging<merging_user_data>`
-algorithms and stragies may not always be desired,
-the concept of customised merging was introduced through `merge classes`.
+It is possible for users to inject their own :ref:`merging<merging_user_data>`
+files to handle specific types of merging as they choose (the
+basic ones included will handle lists, dicts, and strings).
 
 A `merge class` is a class definition providing functions that can be used
 to merge a given type with another given type.
@@ -47,7 +44,7 @@ An example of one of these `merging classes` is the following:
                    merged[k] = v
            return merged
 
-As you can see, there is an ``_on_dict`` method here that will be given a
+There is an ``_on_dict`` method here that will be given a
 source value, and a value to merge with. The result will be the merged object.
 
 This code itself is called by another merging class which "directs" the
@@ -56,10 +53,7 @@ find a known object that will merge that type. An example of this can be found
 in the :file:`mergers/__init__.py` file (see ``LookupMerger`` and
 ``UnknownMerger``).
 
-So, following the typical ``cloud-init`` approach of allowing source code to
-be downloaded and used dynamically, it is possible for users to inject their
-own merging files to handle specific types of merging as they choose (the
-basic ones included will handle lists, dicts, and strings). Note how each
+Note how each
 merge can have options associated with it, which affect how the merging is
 performed. For example, a dictionary merger can be told to overwrite instead
 of attempting to merge, or a string merger can be told to append strings

@@ -1,9 +1,8 @@
 Custom Modules
 **************
 
-Our reference section contains support information for ``cloud-init``.
-This includes details on the network requirements, API definitions, support
-matrices and so on.
+This includes reference documentation on how to extend cloud-init with
+custom / out-of-tree functionality.
 
 -----
 

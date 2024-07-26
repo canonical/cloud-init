@@ -10,7 +10,7 @@ Custom 3rd-party out-of-tree DataSources can be added to cloud-init by:
 #. Place that file in as a single Python module or package in folder included
    in ``$PYTHONPATH``.
 
-#. Extend the :ref:`base-configuration<base_config_reference>`'s
+#. Extend the base configuration's
    :ref:`datasource_pkg_list<base_config_datasource_pkg_list>` to include the
    Python package where the DataSource is located.
 
