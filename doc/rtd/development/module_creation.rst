@@ -172,7 +172,7 @@ compatibility with the rest of the codebase, and security fixes by the upstream
 development team.
 
 If this is not possible, one can add
-:ref:`custom out-of-tree config module<custom_configuration_module>`
+:ref:`custom out-of-tree config modules<custom_configuration_module>`
 to cloud-init.
 
 .. _MetaSchema: https://github.com/canonical/cloud-init/blob/3bcffacb216d683241cf955e4f7f3e89431c1491/cloudinit/config/schema.py#L58

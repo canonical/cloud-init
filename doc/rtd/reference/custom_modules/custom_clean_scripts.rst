@@ -1,7 +1,7 @@
-.. _custom_cleaners:
+.. _custom_clean_scripts:
 
-Custom Cleaners
-***************
+Custom Clean Scripts
+********************
 
 Cloud-init provides the directory :file:`/etc/cloud/clean.d/` for third party
 applications which need additional configuration artifact cleanup from
