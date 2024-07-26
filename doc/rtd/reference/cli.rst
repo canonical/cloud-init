@@ -83,7 +83,7 @@ re-run all stages as it did on first boot.
 
 .. note::
 
-   What `clean` cleans can be supplemented / customized. See:
+   The operations performed by `clean` can be supplemented / customized. See:
    :ref:`custom_cleaners`.
 
 .. _cli_collect_logs:
