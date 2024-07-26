@@ -281,6 +281,56 @@ def render_nested_properties(prop_cfg, defs, prefix):
     return prop_str
 
 
+def debug_module_docs(
+    module_id: str, mod_docs: dict, debug_file_path: str = None
+):
+    """Print rendered RST module docs during build.
+
+    The intent is to make rendered RST inconsistencies easier to see when
+    modifying jinja template files or JSON schema as white-space and format
+    inconsistencies can lead to significant sphinx rendering issues in RTD.
+
+    To trigger this inline print of rendered docs, set the environment
+    variable CLOUD_INIT_DEBUG_MODULE_DOC.
+
+    :param module_id: A specific 'cc_*' module name to print rendered RST for,
+        or provide 'all' to print out all rendered module docs.
+    :param mod_docs: A dict represnting doc metadata for each config module.
+        The dict is keyed on config module id (cc_*) and each value is a dict
+        with values such as: title, name, examples, schema_doc.
+    :param debug_file_path: A specific file to write the rendered RST content.
+        When unset,
+    """
+    from cloudinit.util import load_text_file, load_yaml
+
+    if not module_id:
+        return
+    if module_id == "all":
+        module_ids = mod_docs.keys()
+    else:
+        module_ids = [module_id]
+    rendered_content = ""
+    for mod_id in module_ids:
+        try:
+            data = load_yaml(
+                load_text_file(f"../module-docs/{mod_id}/data.yaml")
+            )
+        except FileNotFoundError:
+            continue
+        with open("templates/modules.tmpl", "r") as stream:
+            tmpl_content = "## template: jinja\n" + stream.read()
+            params = {"data": data, "config": {"html_context": mod_docs}}
+            rendered_content += render_jinja_payload(
+                tmpl_content, "changed_modules_page", params
+            )
+    if debug_file_path:
+        print(f"--- Writing rendered module docs: {debug_file_path} ---")
+        with open(debug_file_path, "w") as stream:
+            stream.write(rendered_content)
+    else:
+        print(rendered_content)
+
+
 def render_module_schemas():
     from cloudinit.importer import import_module
 
@@ -303,6 +353,11 @@ def render_module_schemas():
             mod_docs[cc_key][
                 "schema_doc"
             ] = "No schema definitions for this module"
+    debug_module_docs(
+        os.environ.get("CLOUD_INIT_DEBUG_MODULE_DOC"),
+        mod_docs,
+        debug_file_path=os.environ.get("CLOUD_INIT_DEBUG_MODULE_DOC_FILE"),
+    )
     return mod_docs
 
 
