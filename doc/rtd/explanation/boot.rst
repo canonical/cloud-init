@@ -137,7 +137,7 @@ mounted, including ones that have stale (previous instance) references in
 :file:`/etc/fstab`. As such, entries in :file:`/etc/fstab` other than those
 necessary for cloud-init to run should not be done until after this stage.
 
-A part-handler and :ref:`boothooks<explanation/format:\`\`cloud-boothook\`\`>`
+A part-handler and :ref:`boothooks<user_data_formats-cloud_boothook>`
 will run at this stage.
 
 After this stage completes, expect to be able to access the system via serial

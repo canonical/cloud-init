@@ -267,6 +267,14 @@ Format is a dict with ``enabled`` and ``prefix`` keys:
   ``vendor_data``.
 * ``prefix``: A path to prepend to any ``vendor_data``-provided script.
 
+``allow_userdata``
+^^^^^^^^^^^^^^^^^^
+
+A boolean value to disable the use of user data.
+This allows custom images to prevent users from accidentally breaking closed
+appliances. Setting ``allow_userdata: false`` in the configuration will disable
+``cloud-init`` from processing user data.
+
 ``manual_cache_clean``
 ^^^^^^^^^^^^^^^^^^^^^^
 
