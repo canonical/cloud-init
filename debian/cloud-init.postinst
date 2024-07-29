@@ -7,54 +7,12 @@ set -e
 set -f # disable pathname expansion
 db_capb escape # to support carriage return / multi-line values
 
-debug() {
-   [ "${_CI_UPGRADE_DEBUG:-0}" = "0" ] && return 0
-   echo "$@" 1>&2 || :
-}
-
-update_cfg() {
-   # takes filename, header, new object (in yaml), optionally 'remover'
-   # and merges new into existing object in filename, and then updates file
-   # remover a string that means "delete existing entry"
-   python3 -c '
-import sys, yaml
-
-def update(src, cand):
-    if not (isinstance(src, dict) and isinstance(cand, dict)):
-        return cand
-    for k, v in cand.items():
-        # if the candidate has _ as value, delete source
-        if v == REMOVER:
-            if k in src:
-                del src[k]
-            continue
-        if k not in src:
-            src[k] = v
-        else:
-            src[k] = update(src[k], v)
-    return src
-
-(fname, header, newyaml) = sys.argv[1:4]
-REMOVER = object
-if len(sys.argv) == 5:
-   REMOVER = sys.argv[4]
-newcfg = yaml.safe_load(newyaml)
-
-with open(fname, "r") as fp:
-    cfg = yaml.safe_load(fp)
-if not cfg: cfg = {}
-
-cfg = update(cfg, newcfg)
-
-with open(fname, "w") as fp:
-    fp.write(header + "\n")
-    fp.write(yaml.dump(cfg))' "$@"
-}
-
 fix_1336855() {
   ### Begin fix for LP: 1336855
-  # fix issue where cloud-init misidentifies the location of grub and
+  # fix issue where cloud-init misidentified the location of grub and
   # where grub misidentifies the location of the device
+  local oldver="$1" last_bad_ver="24.3~1g6e4153b3-0ubuntu1"
+  dpkg --compare-versions "$oldver" le-nl "$last_bad_ver" || return 0
 
   # if cloud-init's grub module did not run, then it did not break anything.
   [ -f /var/lib/cloud/instance/sem/config_grub_dpkg ] || return 0
@@ -169,6 +127,8 @@ fix_lp1889555() {
 }
 
 rename_hook_hotplug_udev_rule() {
+    local oldver="$1" last_bad_ver="24.3~1g6e4153b3-0ubuntu1"
+    dpkg --compare-versions "$oldver" le-nl "$last_bad_ver" || return 0
     # Avoids LP: #1946003 see commit: b519d861aff8b44a0610c176cb34adcbe28df144
     if [ -f /etc/udev/rules.d/10-cloud-init-hook-hotplug.rules ]; then
         mv -f /etc/udev/rules.d/10-cloud-init-hook-hotplug.rules \
@@ -176,8 +136,9 @@ rename_hook_hotplug_udev_rule() {
     fi
 }
 
-
-if [ "$1" = "configure" ]; then
+update_maas_spelling(){
+   local oldver="$1" last_bad_ver="24.3~1g6e4153b3-0ubuntu1"
+   dpkg --compare-versions "$oldver" le-nl "$last_bad_ver" || return 0
    if db_get cloud-init/datasources; then
       values="$RET"
       if [ "${values#*MaaS}" != "${values}" ]; then
@@ -190,13 +151,14 @@ if [ "$1" = "configure" ]; then
 datasource_list: [ $values ]
 EOF
    fi
+}
 
-   # fix issue where cloud-init misidentifies the location of grub
-   fix_1336855
+if [ "$1" = "configure" ]; then
 
+   update_maas_spelling "$2"
+   fix_1336855 "$2"
    fix_lp1889555 "$2"
-
-   rename_hook_hotplug_udev_rule
+   rename_hook_hotplug_udev_rule "$2"
 
 fi
 
