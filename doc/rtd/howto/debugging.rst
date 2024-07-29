@@ -55,7 +55,7 @@ Cloud-init did not run
 
    .. code-block::
 
-      systemctl status cloud-init-local.service cloud-init.service\
+      systemctl status cloud-init-local.service cloud-init-network.service\
          cloud-config.service cloud-final.service
 
    Cloud-init may have started to run, but not completed. This shows how many,
