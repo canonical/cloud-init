@@ -22,12 +22,12 @@ Formats that directly configure the instance:
 
 Formats that deal with other user data formats:
 
+- `Include file`_
+- `Jinja template`_
 - `MIME multi-part archive`_
 - `Cloud config archive`_
-- `Jinja template`_
-- `Include file`_
-- `Gzip compressed content`_
 - `Part handler`_
+- `Gzip compressed content`_
 
 .. _user_data_formats-cloud_config:
 
@@ -42,7 +42,7 @@ Example
     #cloud-config
     password: password
     chpasswd:
-    expire: False
+      expire: False
 
 Explanation
 -----------
@@ -63,8 +63,9 @@ Many modules are available to process cloud-config data. These modules
 may run once per instance, every boot, or once ever. See the associated
 module to determine the run frequency.
 
-See the :ref:`yaml_examples` section for a set of commented examples of
-supported cloud config formats.
+For more information, see the cloud config
+:ref:`example configurations <yaml_examples>` or the cloud config
+:ref:`modules reference<modules>`.
 
 .. _user_data_script:
 
@@ -82,9 +83,10 @@ Example
 Explanation
 -----------
 
-A user data script is a single shell script to be executed once per instance.
-User data scripts are run relatively late in the boot process, during the
-cloud-init's final stage as part of the "cc_scripts_user" module. When run,
+A user data script is a single script to be executed once per instance.
+User data scripts are run relatively late in the boot process, during
+cloud-init's :ref:`final stage<boot-Final>` as part of the
+:ref:`cc_scripts_user<mod_cc_scripts_user>` module. When run,
 the environment variable ``INSTANCE_ID`` is set to the current instance ID
 for use within the script.
 
@@ -125,15 +127,71 @@ Explanation
 -----------
 
 A cloud boothook is similar to a :ref:`user data script<user_data_script>`
-in that it is a shell script run on boot. When run,
+in that it is a script run on boot. When run,
 the environment variable ``INSTANCE_ID`` is set to the current instance ID
 for use within the script.
 
 The boothook is different in that:
 
-* It is run very early in boot, during the 'init' stage, before any
-  cloud-init modules are run.
+* It is run very early in boot, during the :ref:`network<boot-Network>` stage,
+  before any cloud-init modules are run.
 * It is run on every boot
+
+Include file
+============
+
+Example
+-------
+
+.. code-block:: text
+
+    #include
+    https://raw.githubusercontent.com/canonical/cloud-init/403f70b930e3ce0f05b9b6f0e1a38d383d058b53/doc/examples/cloud-config-run-cmds.txt
+    https://raw.githubusercontent.com/canonical/cloud-init/403f70b930e3ce0f05b9b6f0e1a38d383d058b53/doc/examples/cloud-config-boot-cmds.txt
+
+Explanation
+-----------
+
+An include file contains a list of URLs, one per line. Each of the URLs will
+be read and their content can be any kind of user data format, both base
+config and meta config. If an error occurs reading a file the remaining files
+will not be read.
+
+Jinja template
+==============
+
+Example cloud-config
+--------------------
+
+.. code-block:: yaml
+
+   ## template: jinja
+   #cloud-config
+   runcmd:
+     - echo 'Running on {{ v1.cloud_name }}' > /var/tmp/cloud_name
+
+Example user data script
+------------------------
+
+.. code-block:: shell
+
+   ## template: jinja
+   #!/bin/sh
+   echo 'Current instance id: {{ v1.instance_id }}' > /var/tmp/instance_id
+
+Explanation
+-----------
+
+`Jinja templating <https://jinja.palletsprojects.com/>`_ may be used for
+cloud-config and user data scripts. Any
+:ref:`instance-data variables<instance_metadata-keys>` may be used
+as jinja template variables. Any jinja templated configuration must contain
+the original header along with the new jinja header above it.
+
+.. note::
+    Use of Jinja templates is ONLY supported for cloud-config and user data
+    scripts. Jinja templates are not supported for cloud-boothooks or
+    meta configs.
 
 .. _user_data_formats-mime_archive:
 
@@ -259,71 +317,7 @@ Optional fields:
 
 All other fields will be interpreted as a MIME part header.
 
-Jinja template
-==============
-
-Example cloud-config
---------------------
-
-.. code-block:: yaml
-
-   ## template: jinja
-   #cloud-config
-   runcmd:
-     - echo 'Running on {{ v1.cloud_name }}' > /var/tmp/cloud_name
-
-Example user data script
-------------------------
-
-.. code-block:: shell
-
-   ## template: jinja
-   #!/bin/sh
-   echo 'Current instance id: {{ v1.instance_id }}' > /var/tmp/instance_id
-
-Explanation
------------
-
-`Jinja templating <https://jinja.palletsprojects.com/>`_ may be used for
-cloud-config and user data scripts. Any
-:ref:`instance-data variables<instance_metadata-keys>` may be used
-as jinja template variables. Any jinja templated configuration must contain
-the original header along with the new jinja header above it.
-
-.. note::
-    Use of Jinja templates is ONLY supported for cloud-config and user data
-    scripts. Jinja templates are not supported for cloud-boothooks or
-    meta configs.
-
 .. _user_data_formats-part_handler:
-
-Include file
-============
-
-Example
--------
-
-.. code-block:: text
-
-    #include
-    https://raw.githubusercontent.com/canonical/cloud-init/403f70b930e3ce0f05b9b6f0e1a38d383d058b53/doc/examples/cloud-config-run-cmds.txt
-    https://raw.githubusercontent.com/canonical/cloud-init/403f70b930e3ce0f05b9b6f0e1a38d383d058b53/doc/examples/cloud-config-boot-cmds.txt
-
-Explanation
------------
-
-An include file contains a list of URLs, one per line. Each of the URLs will
-be read and their content can be any kind of user data format, both base
-config and meta config. If an error occurs reading a file the remaining files
-will not be read.
-
-Gzip compressed content
-=======================
-
-Content found to be gzip compressed will be uncompressed.
-The uncompressed data will then be used as if it were not compressed.
-This is typically useful because user data size may be limited based on
-cloud platform.
 
 Part handler
 ============
@@ -347,6 +341,14 @@ See the :ref:`custom part handler<custom_part_handler>` reference documentation
 for details on writing custom handlers along with an annotated example.
 
 `This blog post`_ offers another example for more advanced usage.
+
+Gzip compressed content
+=======================
+
+Content found to be gzip compressed will be uncompressed.
+The uncompressed data will then be used as if it were not compressed.
+This is typically useful because user data size may be limited based on
+cloud platform.
 
 .. _user_data_formats-content_types:
 
