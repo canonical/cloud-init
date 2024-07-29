@@ -16,6 +16,7 @@ from cloudinit.net.dhcp import (
     Dhcpcd,
     InvalidDHCPLeaseFileError,
     IscDhclient,
+    NetworkManagerDhcpClient,
     NoDHCPLeaseError,
     NoDHCPLeaseInterfaceError,
     NoDHCPLeaseMissingDhclientError,
@@ -423,7 +424,7 @@ class TestDHCPDiscoveryClean:
             subp.ProcessExecutionError(exit_code=-5),
         ]
 
-        m_which.side_effect = [False, False, False, False]
+        m_which.side_effect = [False, False, False, False, False]
         with pytest.raises(NoDHCPLeaseError):
             maybe_perform_dhcp_discovery(Distro("somename", {}, None))
 
@@ -1412,6 +1413,50 @@ class TestDhcpcd:
                 ),
             ]
         )
+
+
+class TestNetworkManagerDhcpClient:
+    def test_parse_lease_dump(self):
+        lease = dedent(
+            """
+            DHCP4.OPTION[1]:dhcp_client_identifier = 01:fa:16:3e:db:dc:bf
+            DHCP4.OPTION[2]:dhcp_lease_time = 3600
+            DHCP4.OPTION[3]:dhcp_server_identifier = 192.168.0.1
+            DHCP4.OPTION[4]:domain_name_servers = 192.168.0.2
+            DHCP4.OPTION[5]:expiry = 1722039992
+            DHCP4.OPTION[6]:interface_mtu = 9001
+            DHCP4.OPTION[7]:ip_address = 192.168.0.212
+            DHCP4.OPTION[8]:requested_broadcast_address = 1
+            DHCP4.OPTION[9]:requested_domain_name = 1
+            DHCP4.OPTION[10]:requested_domain_name_servers = 1
+            DHCP4.OPTION[11]:requested_domain_search = 1
+            DHCP4.OPTION[12]:requested_host_name = 1
+            DHCP4.OPTION[13]:requested_interface_mtu = 1
+            DHCP4.OPTION[14]:requested_ms_classless_static_routes = 1
+            DHCP4.OPTION[15]:requested_nis_domain = 1
+            DHCP4.OPTION[16]:requested_nis_servers = 1
+            DHCP4.OPTION[17]:requested_ntp_servers = 1
+            DHCP4.OPTION[18]:requested_rfc3442_classless_static_routes = 1
+            DHCP4.OPTION[19]:requested_root_path = 1
+            DHCP4.OPTION[20]:requested_routers = 1
+            DHCP4.OPTION[21]:requested_static_routes = 1
+            DHCP4.OPTION[22]:requested_subnet_mask = 1
+            DHCP4.OPTION[23]:requested_time_offset = 1
+            DHCP4.OPTION[24]:requested_wpad = 1
+            DHCP4.OPTION[25]:routers = 192.168.0.1
+            DHCP4.OPTION[26]:subnet_mask = 255.255.240.0
+            """
+        )
+        with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
+            parsed_lease = (
+                NetworkManagerDhcpClient.parse_network_manager_lease(
+                    lease, "eth0"
+                )
+            )
+        assert "eth0" == parsed_lease["interface"]
+        assert "192.168.0.212" == parsed_lease["fixed-address"]
+        assert "255.255.240.0" == parsed_lease["subnet-mask"]
+        assert "192.168.0.1" == parsed_lease["routers"]
 
 
 class TestMaybePerformDhcpDiscovery:
