@@ -308,7 +308,7 @@ def read_md() -> Optional[Dict[str, Any]]:
              and optional fields: userdata, vendordata, networkdata.
     Also includes the system uuid from /sys/hypervisor/uuid."""
     platform, path = get_ibm_platform()
-    if platform is None:
+    if platform is None or path is None:
         LOG.debug("This is not an IBMCloud platform.")
         return None
     elif platform in PROVISIONING:
@@ -366,9 +366,7 @@ def metadata_from_dir(source_dir: str) -> Dict[str, Any]:
         """
         return json.loads(blob.decode("utf-8"))
 
-    def load_file(
-        path: str, translator: Callable[[bytes], Any]
-    ) -> Any:
+    def load_file(path: str, translator: Callable[[bytes], Any]) -> Any:
         try:
             raw = util.load_binary_file(path)
             return translator(raw)
