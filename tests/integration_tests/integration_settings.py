@@ -37,7 +37,7 @@ INSTANCE_TYPE: Optional[str] = None
 # <image_id>[::<os>::<release>::<version>].  If given, os and release should
 # describe the image specified by image_id.  (Ubuntu releases are converted
 # to this format internally; in this case, to "None::ubuntu::focal::20.04".)
-OS_IMAGE = "jammy"
+OS_IMAGE = "focal"
 
 # Populate if you want to use a pre-launched instance instead of
 # creating a new one. The exact contents will be platform dependent
@@ -69,7 +69,7 @@ EXISTING_INSTANCE_ID: Optional[str] = None
 #   Install from a PPA. It MUST start with 'ppa:'
 # <file path>
 #   A path to a valid package to be uploaded and installed
-CLOUD_INIT_SOURCE = "IN_PLACE"
+CLOUD_INIT_SOURCE = "NONE"
 
 # Before an instance is torn down, we run `cloud-init collect-logs`
 # and transfer them locally. These settings specify when to collect these
