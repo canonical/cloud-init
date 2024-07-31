@@ -793,6 +793,41 @@ class Init:
         finally:
             finalize_handlers()
 
+    def _consume_userdata_if_enabled(self, frequency: str) -> None:
+        """Consume userdata if not disabled in base config.
+
+        Base config can have a definition like:
+          user_data:
+            enabled: false
+            require_pgp: true
+        or a deprecated `allow_userdata` key.
+
+        Parse them and maybe consume userdata accordingly.
+        """
+        user_data_cfg = self.cfg.get("user_data", {})
+        enabled = user_data_cfg.get("enabled", True)
+
+        if "allow_userdata" in self.cfg:
+            lifecycle.deprecate(
+                deprecated="Key 'allow_userdata'",
+                deprecated_version="24.3",
+                extra_message="Use 'user_data.enabled' instead.",
+            )
+            if "enabled" in user_data_cfg:
+                LOG.warning(
+                    "Both 'allow_userdata' and 'user_data.enabled' are set."
+                    " 'allow_userdata' will be ignored."
+                )
+            else:
+                enabled = util.get_cfg_option_bool(self.cfg, "allow_userdata")
+
+        if enabled:
+            self._consume_userdata(frequency)
+        else:
+            LOG.debug(
+                "User data disabled in base config: discarding user-data"
+            )
+
     def consume_data(self, frequency=PER_INSTANCE):
         # Consume the userdata first, because we need want to let the part
         # handlers run first (for merging stuff)
@@ -801,10 +836,7 @@ class Init:
             "reading and applying user-data",
             parent=self.reporter,
         ):
-            if util.get_cfg_option_bool(self.cfg, "allow_userdata", True):
-                self._consume_userdata(frequency)
-            else:
-                LOG.debug("allow_userdata = False: discarding user-data")
+            self._consume_userdata_if_enabled(frequency)
 
         with events.ReportEventStack(
             "consume-vendor-data",
