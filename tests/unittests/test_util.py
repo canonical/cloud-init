@@ -2452,16 +2452,23 @@ class TestReadSeeded:
     def test_unicode_not_messed_up(self, tmpdir):
         ud = b"userdatablob"
         vd = b"vendordatablob"
+        network = b"test: 'true'"
         helpers.populate_dir(
             tmpdir.strpath,
-            {"meta-data": "key1: val1", "user-data": ud, "vendor-data": vd},
+            {
+                "meta-data": "key1: val1",
+                "user-data": ud,
+                "vendor-data": vd,
+                "network-config": network,
+            },
         )
-        (found_md, found_ud, found_vd) = util.read_seeded(
+        found_md, found_ud, found_vd, found_network = util.read_seeded(
             tmpdir.strpath + os.path.sep
         )
         assert found_md == {"key1": "val1"}
         assert found_ud == ud
         assert found_vd == vd
+        assert found_network == {"test": "true"}
 
     @pytest.mark.parametrize(
         "base, feature_flag, req_urls",
@@ -2470,6 +2477,7 @@ class TestReadSeeded:
                 "http://10.0.0.1/%s?qs=1",
                 True,
                 [
+                    "http://10.0.0.1/network-config?qs=1",
                     "http://10.0.0.1/meta-data?qs=1",
                     "http://10.0.0.1/user-data?qs=1",
                     "http://10.0.0.1/vendor-data?qs=1",
@@ -2480,6 +2488,7 @@ class TestReadSeeded:
                 "https://10.0.0.1:8008/",
                 True,
                 [
+                    "https://10.0.0.1:8008/network-config",
                     "https://10.0.0.1:8008/meta-data",
                     "https://10.0.0.1:8008/user-data",
                     "https://10.0.0.1:8008/vendor-data",
@@ -2490,6 +2499,7 @@ class TestReadSeeded:
                 "https://10.0.0.1:8008",
                 True,
                 [
+                    "https://10.0.0.1:8008/network-config",
                     "https://10.0.0.1:8008/meta-data",
                     "https://10.0.0.1:8008/user-data",
                     "https://10.0.0.1:8008/vendor-data",
@@ -2500,6 +2510,7 @@ class TestReadSeeded:
                 "https://10.0.0.1:8008",
                 False,
                 [
+                    "https://10.0.0.1:8008network-config",
                     "https://10.0.0.1:8008meta-data",
                     "https://10.0.0.1:8008user-data",
                     "https://10.0.0.1:8008vendor-data",
@@ -2510,6 +2521,7 @@ class TestReadSeeded:
                 "https://10.0.0.1:8008?qs=",
                 True,
                 [
+                    "https://10.0.0.1:8008?qs=network-config",
                     "https://10.0.0.1:8008?qs=meta-data",
                     "https://10.0.0.1:8008?qs=user-data",
                     "https://10.0.0.1:8008?qs=vendor-data",
@@ -2540,12 +2552,15 @@ class TestReadSeeded:
             "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH",
             feature_flag,
         ):
-            (found_md, found_ud, found_vd) = util.read_seeded(base)
+            found_md, found_ud, found_vd, found_network = util.read_seeded(
+                base
+            )
         # Meta-data treated as YAML
         assert found_md == {"/meta-data": 1}
         # user-data, vendor-data read raw. It could be scripts or other format
         assert found_ud == "/user-data: 1"
         assert found_vd == "/vendor-data: 1"
+        assert found_network == {"/network-config": 1}
         assert [
             mock.call(req_url, timeout=5, retries=10) for req_url in req_urls
         ] == m_read.call_args_list
@@ -2560,15 +2575,22 @@ class TestReadSeededWithoutVendorData(helpers.TestCase):
     def test_unicode_not_messed_up(self):
         ud = b"userdatablob"
         vd = None
+        network = b"test: 'true'"
         helpers.populate_dir(
-            self.tmp, {"meta-data": "key1: val1", "user-data": ud}
+            self.tmp,
+            {
+                "meta-data": "key1: val1",
+                "user-data": ud,
+                "network-config": network,
+            },
         )
         sdir = self.tmp + os.path.sep
-        (found_md, found_ud, found_vd) = util.read_seeded(sdir)
+        found_md, found_ud, found_vd, found_network = util.read_seeded(sdir)
 
         self.assertEqual(found_md, {"key1": "val1"})
         self.assertEqual(found_ud, ud)
         self.assertEqual(found_vd, vd)
+        self.assertEqual(found_network, {"test": "true"})
 
 
 class TestEncode(helpers.TestCase):

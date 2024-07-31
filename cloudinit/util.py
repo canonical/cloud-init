@@ -977,10 +977,11 @@ def read_optional_seed(fill, base="", ext="", timeout=5):
     'meta-data' entries
     """
     try:
-        md, ud, vd = read_seeded(base=base, ext=ext, timeout=timeout)
+        md, ud, vd, network = read_seeded(base=base, ext=ext, timeout=timeout)
         fill["user-data"] = ud
         fill["vendor-data"] = vd
         fill["meta-data"] = md
+        fill["network-config"] = md
         return True
     except url_helper.UrlError as e:
         if e.code == url_helper.NOT_FOUND:
@@ -1066,6 +1067,7 @@ def read_seeded(base="", ext="", timeout=5, retries=10):
         ud_url = base.replace("%s", "user-data" + ext)
         vd_url = base.replace("%s", "vendor-data" + ext)
         md_url = base.replace("%s", "meta-data" + ext)
+        network_url = base.replace("%s", "network-config" + ext)
     else:
         if features.NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH:
             if base[-1] != "/" and parse.urlparse(base).query == "":
@@ -1074,12 +1076,19 @@ def read_seeded(base="", ext="", timeout=5, retries=10):
         ud_url = "%s%s%s" % (base, "user-data", ext)
         vd_url = "%s%s%s" % (base, "vendor-data", ext)
         md_url = "%s%s%s" % (base, "meta-data", ext)
+        network_url = "%s%s%s" % (base, "network-config", ext)
+    network_resp = url_helper.read_file_or_url(
+        network_url, timeout=timeout, retries=retries
+    )
+    network = None
+    if network_resp.ok():
+        network = load_yaml(network_resp.contents)
     md_resp = url_helper.read_file_or_url(
         md_url, timeout=timeout, retries=retries
     )
     md = None
     if md_resp.ok():
-        md = load_yaml(decode_binary(md_resp.contents), default={})
+        md = load_yaml(md_resp.contents, default={})
 
     ud_resp = url_helper.read_file_or_url(
         ud_url, timeout=timeout, retries=retries
@@ -1101,7 +1110,7 @@ def read_seeded(base="", ext="", timeout=5, retries=10):
         else:
             LOG.debug("Error in vendor-data response")
 
-    return (md, ud, vd)
+    return md, ud, vd, network
 
 
 def read_conf_d(confd, *, instance_data_file=None) -> dict:
