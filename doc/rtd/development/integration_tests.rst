@@ -27,32 +27,30 @@ Test execution
 ==============
 
 Test execution happens via ``pytest``. A ``tox`` definition exists to run
-integration tests. To run all integration tests, you would run:
+integration tests. When using this, normal ``pytest`` arguments can be
+passed to the ``tox`` command by appending them after the ``--``. See the
+following commands for examples.
 
-.. code-block:: bash
+.. tab-set::
 
-    tox -e integration-tests
+    .. tab-item:: All integration tests
 
-``pytest`` arguments may also be passed.
+        .. code-block:: bash
 
-Or, specify a path to run all tests inside the given file or directory:
+            tox -e integration-tests
 
-.. code-block:: bash
+    .. tab-item:: Tests inside file or directory
 
-    tox -e integration-tests tests/integration_tests/modules/test_combined.py
+        .. code-block:: bash
 
+            tox -e integration-tests tests/integration_tests/modules/test_combined.py
 
-.. code-block:: bash
+    .. tab-item:: A specific test
 
-    tox -e integration-tests tests/integration_tests/modules
+        .. code-block:: bash
 
-Or, run a specific test:
+            tox -e integration-tests tests/integration_tests/modules/test_combined.py::test_bootcmd
 
-.. code-block:: bash
-
-    tox -e integration-tests tests/integration_tests/modules/test_combined.py::test_bootcmd
-
-TODO: Maybe make these 3 commands in one tab group??
 
 
 Configuration
@@ -62,7 +60,8 @@ All possible configuration values are defined in
 `tests/integration_tests/integration_settings.py`_. Look in this file for
 the full list of variables that are available and for context on what each
 variable does and what the default values are.
-Defaults can be overriden by supplying values in :file:`tests/integration_tests/user_settings.py` or by
+Defaults can be overriden by supplying values in
+:file:`tests/integration_tests/user_settings.py` or by
 providing an environment variable of the same name prepended with
 ``CLOUD_INIT_``. For example, to set the ``PLATFORM`` setting:
 
@@ -262,10 +261,28 @@ To address this, a full image specification can be given. This is of
 the form: ``<image_id>[::<os>::<release>::<version>]`` where ``image_id`` is a
 cloud's image ID, ``os`` is the OS name, and ``release`` is the OS
 release name. So, for example, Ubuntu 18.04 (Bionic Beaver) on LXD is
-``ubuntu:jammy::ubuntu::jammy::22.04`` or RHEL8 on Amazon is
+``ubuntu::jammy::ubuntu::jammy::22.04`` or RHEL8 on Amazon is
 ``ami-justanexample::rhel::8``. When a full specification is given,
 only tests which are intended for use on that OS and release will be
 executed.
+
+To run integration tests on a specific image, modify the ``OS_IMAGE``
+variable to be the desired image specification.
+
+.. tab-set::
+
+    .. tab-item:: Inline environment variable
+
+        .. code-block:: bash
+
+            CLOUD_INIT_OS_IMAGE='jammy' tox -e integration_tests
+
+    .. tab-item:: user_settings.py file
+
+        .. code-block:: python
+
+            OS_IMAGE = 'jammy'
+
 
 Image setup
 ===========
