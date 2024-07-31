@@ -121,6 +121,29 @@ def should_log_deprecation(version: str, boundary_version: str) -> bool:
     ) <= Version.from_str(boundary_version)
 
 
+def log_if_acceptable(
+    *, logger: logging.Logger, version: str, level: int, msg: str, args
+):
+    """Log a message at the requested level, if that is acceptable.
+
+    If the log level is too high due to the version boundary, log at DEBUG
+    level. Useful to add new warnings to previously unguarded code without
+    disrupting stable downstreams.
+
+    :param logger: Logger object to log with
+    :param version: Version string of the version that this log was introduced
+    :param level: Preferred level at which this message should be logged
+    :param msg: Message, as passed to the logger.
+    :param args: Message parameters
+
+    :return: True if the message should be logged, else False.
+    """
+    if should_log_deprecation(version, features.DEPRECATION_INFO_BOUNDARY):
+        logger.log(level, msg, args)
+    else:
+        logger.debug(msg, args)
+
+
 def deprecate(
     *,
     deprecated: str,
