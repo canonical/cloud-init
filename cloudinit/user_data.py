@@ -11,12 +11,13 @@
 import email
 import logging
 import os
+import pathlib
 from email.message import Message
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.nonmultipart import MIMENonMultipart
 from email.mime.text import MIMEText
-import pathlib
+from typing import Union
 
 from cloudinit import features, gpg, handlers, subp, util
 from cloudinit.settings import KEY_DIR
@@ -402,10 +403,14 @@ def message_from_string(string) -> Message:
     return email.message_from_string(string)
 
 
-# Coverts a raw string into a mime message
-def convert_string(raw_data, content_type=NOT_MULTIPART_TYPE) -> Message:
-    """convert a string (more likely bytes) or a message into
-    a mime message."""
+def convert_string(
+    raw_data: Union[str, bytes], content_type=NOT_MULTIPART_TYPE
+) -> Message:
+    """Convert the raw data into a mime message.
+
+    'raw_data' is the data as it was received from the user-data source.
+    It could be a string, bytes, or a gzip compressed version of either.
+    """
     if not raw_data:
         raw_data = b""
 

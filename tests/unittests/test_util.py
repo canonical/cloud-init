@@ -2451,12 +2451,6 @@ class TestMultiLog(helpers.FilesystemMockingTestCase):
         self.assertEqual((log_level, mock.ANY), logger.log.call_args[0])
 
 
-class TestMessageFromString(helpers.TestCase):
-    def test_unicode_not_messed_up(self):
-        roundtripped = util.message_from_string("\n").as_string()
-        self.assertNotIn("\x00", roundtripped)
-
-
 class TestReadOptionalSeed:
     @pytest.mark.parametrize(
         "seed_dir,expected_fill,retval",

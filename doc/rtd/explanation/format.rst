@@ -24,6 +24,7 @@ Formats that directly configure the instance:
 
 Formats that deal with other user data formats:
 
+- `PGP Message`_
 - `Include file`_
 - `Jinja template`_
 - `MIME multi-part archive`_
@@ -140,6 +141,64 @@ The boothook is different in that:
     Use of ``INSTANCE_ID`` variable within boothooks is deprecated.
     Use :ref:`jinja templates<user_data_formats-jinja>` with
     :ref:`v1.instance_id<v1_instance_id>` instead.
+
+.. _user_data_formats-pgp:
+
+PGP Message
+===========
+
+Example
+-------
+
+.. code-block:: text
+
+    -----BEGIN PGP MESSAGE-----
+
+    hF4DoKS6K1guBqsSAQdAE8bD7gGuKcGN91zGzW7SR+u6nnq9pyqjR8qJZl2sJRow
+    MgfxFaFaIw232BJvqwuoa0HGsmCaVyXmj6PFVJceBn2X7s8hXgHutlQxQf1Mju63
+    1OkBCQIQxJJj1X4dpQs44tcCjkGOWOO9XrSyAPhcR5sHIUYcsrd3cW9OUp6PUMb2
+    Ci2Lmz8gG+Z1pEAxJD6TdCIFy/+Emf6UaDPWbg6CRuWmu3BtagUmVVK8+yXZBa6j
+    hdy0a9FZDpZsemWwsGxHJg0HRcClE/AebMtjczftIosPFfn68/fUgwGcuQ28wWGn
+    HG9h09fgXoO1tlOjpz/pqDou465pDMk43gxOUoCtdBaOSgkHWUiD2s9WxoAi83OY
+    9uTdQCZ1EmaUQE7W/VFlcjapCtoiph/sBmQyumcMfUjJd5CCTK8q3iNcFnkulXl+
+    yRMFhm1w1SBogfKeo8bv0wO9SJZ4dBq0cDSXYGzFkWOzm1k0o7rJ4pghuU3EUFk+
+    Sr3QDTBlOz83BI2NPHLO+MqAwCwtao29YXA9iDYD3Cyz8fRLsWL0gLGE887s0W0Y
+    dh2fIhLR+5uufQWF6xj7Am3UBTbidgMmEch9FdSYZYpPamiWojMFg45jLyBBETIq
+    C2AAfHUYOkwZzf55yxwLEW4qyj9q+9rHF/M/XfI7t+RgBqODmNWoww4SOixEun1X
+    tP3W8DSp9p+PMqdfztf8Uo7HzijsolLlt4cxsUx5tN0Bz9UYtQ9VMog5IN1Oe5Vu
+    Wec6bO9qWdZUNV5Ty32DFycXvgmzI6w/9v4R7YKgKE/2AWOito4E3WpZZlj2mVJW
+    M9ZoSf3O9I3jqyCpI/pZ/F1egrydwLskM71FCx/3kkAHRRB4436TpQe0OpMFcfOp
+    6qflwEWygx9EzqEsfZJ4vYgXf2ivgsSpxGVE+5Tcg90Te+0of3E=
+    =T2Fh
+    -----END PGP MESSAGE-----
+
+Explanation
+-----------
+
+A PGP message is a message that has been encrypted and/or signed with one or
+multiple `PGP keys <https://datatracker.ietf.org/doc/html/rfc4880>`_, and then
+`ASCII armored <https://www.gnupg.org/gph/en/manual/r1290.html>`_. The message
+is decrypted and/or verified with keys contained in the image.
+The decrypted message is then processed as any other user data format.
+
+To support such data, cloud-init requires the decryption and signing keys
+to be present in the `/etc/cloud/keys` directory. To decrypt encrypted
+data, the private key corresponding to the public key that encrypted the data
+must be present. To verify signed data, the public key that corresponds
+to the private key that signed the data must be present.
+
+To ensure authenticity, cloud-init can restrict user data to be a PGP
+message only. To do so, the following
+:ref:`base configuration<base_config_user_data>` can be used:
+
+.. code-block:: yaml
+
+    user_data:
+      require_pgp: true
+
+
+For a detailed guide to creating the PGP message and image necessary for this
+user data format, see the :ref:`Use encrypted or signed user data<pgp>` page.
 
 Include file
 ============
@@ -383,6 +442,8 @@ as binary data and so may be processed automatically.
 |User data script    |#!                           |text/x-shellscript       |
 +--------------------+-----------------------------+-------------------------+
 |Cloud boothook      |#cloud-boothook              |text/cloud-boothook      |
++--------------------+-----------------------------+-------------------------+
+| PGP Message        |-----BEGIN PGP MESSAGE-----  |text/x-pgp-armored       |
 +--------------------+-----------------------------+-------------------------+
 |MIME multi-part     |Content-Type: multipart/mixed|multipart/mixed          |
 +--------------------+-----------------------------+-------------------------+
