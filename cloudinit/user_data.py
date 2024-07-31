@@ -84,16 +84,20 @@ class UserDataProcessor:
         self.paths = paths
         self.ssl_details = util.fetch_ssl_details(paths)
 
-    def process(self, blob):
+    def process(self, blob, require_pgp=False):
         accumulating_msg = MIMEMultipart()
         if isinstance(blob, list):
             for b in blob:
-                self._process_msg(convert_string(b), accumulating_msg)
+                self._process_msg(
+                    convert_string(b), accumulating_msg, require_pgp
+                )
         else:
-            self._process_msg(convert_string(blob), accumulating_msg)
+            self._process_msg(
+                convert_string(blob), accumulating_msg, require_pgp
+            )
         return accumulating_msg
 
-    def _process_msg(self, base_msg: Message, append_msg):
+    def _process_msg(self, base_msg: Message, append_msg, require_pgp=False):
         def find_ctype(payload):
             return handlers.type_from_starts_with(payload)
 
@@ -104,6 +108,7 @@ class UserDataProcessor:
             payload = util.fully_decoded_payload(part)
 
             ctype = part.get_content_type()
+
             # There are known cases where mime-type text/x-shellscript included
             # non shell-script content that was user-data instead.  It is safe
             # to check the true MIME type for x-shellscript type since all
@@ -111,6 +116,13 @@ class UserDataProcessor:
             # that cloud-init supports do not have the same guarantee.
             if ctype in TYPE_NEEDED + ["text/x-shellscript"]:
                 ctype = find_ctype(payload) or ctype
+
+            if require_pgp and ctype != ENCRYPT_TYPE:
+                error_message = (
+                    "'require_pgp' was set true in cloud-init's base "
+                    f"configuration, but content type is {ctype}."
+                )
+                raise RuntimeError(error_message)
 
             was_transformed = False
 
@@ -134,7 +146,7 @@ class UserDataProcessor:
                 elif ctype == ENCRYPT_TYPE and isinstance(payload, str):
                     with gpg.GPG() as gpg_context:
                         # Import all keys from the /etc/cloud/keys directory
-                        keys_dir = pathlib.Path("/etc/cloud/keys")
+                        keys_dir = pathlib.Path(KEY_DIR)
                         if keys_dir.is_dir():
                             for key_path in keys_dir.iterdir():
                                 gpg_context.import_key(key_path)
