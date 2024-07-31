@@ -1191,7 +1191,7 @@ def all_stages(parser):
         args = parser.parse_args(args=["init", "--local"])
         args.skip_log_setup = False
         # run local stage
-        sub_main(args)
+        sync.systemd_exit_code = sub_main(args)
 
     # wait for cloud-init-network.service to start
     with sync("network"):
@@ -1199,7 +1199,7 @@ def all_stages(parser):
         args = parser.parse_args(args=["init"])
         args.skip_log_setup = True
         # run init stage
-        sub_main(args)
+        sync.systemd_exit_code = sub_main(args)
 
     # wait for cloud-config.service to start
     with sync("config"):
@@ -1207,7 +1207,7 @@ def all_stages(parser):
         args = parser.parse_args(args=["modules", "--mode=config"])
         args.skip_log_setup = True
         # run config stage
-        sub_main(args)
+        sync.systemd_exit_code = sub_main(args)
 
     # wait for cloud-final.service to start
     with sync("final"):
@@ -1215,7 +1215,7 @@ def all_stages(parser):
         args = parser.parse_args(args=["modules", "--mode=final"])
         args.skip_log_setup = True
         # run final stage
-        sub_main(args)
+        sync.systemd_exit_code = sub_main(args)
 
     # signal completion to cloud-init-main.service
     if sync.first_exception:

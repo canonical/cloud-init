@@ -57,6 +57,7 @@ class SocketSync:
         self.stage = ""
         self.remote = ""
         self.first_exception = ""
+        self.systemd_exit_code = 0
         self.sockets = {
             name: socket.socket(
                 socket.AF_UNIX, socket.SOCK_DGRAM | socket.SOCK_CLOEXEC
@@ -102,6 +103,7 @@ class SocketSync:
                 "Stdin is a tty, so skipping stage synchronization protocol"
             )
             return
+        self.systemd_exit_code = 0
         sd_notify(
             "STATUS=Waiting on external services to "
             f"complete before starting the {self.stage} stage."
@@ -136,10 +138,9 @@ class SocketSync:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Notify the socket that this stage is complete."""
         message = "done"
-        systemd_exit_code = "0"
         if exc_type:
             # handle exception thrown in context
-            systemd_exit_code = "1"
+            self.systemd_exit_code = 1
             status = f"{repr(exc_val)} in {exc_tb.tb_frame}"
             message = (
                 'fatal error, run "systemctl status cloud-init-main.service" '
@@ -156,7 +157,7 @@ class SocketSync:
         # the returned message will be executed in a subshell
         # hardcode this message rather than sending a more informative message
         # to avoid having to sanitize inputs (to prevent escaping the shell)
-        sock.sendall(f"echo '{message}'; exit {systemd_exit_code};".encode())
+        sock.sendall(f"echo '{message}'; exit {self.systemd_exit_code};".encode())
         sock.close()
 
         # suppress exception - the exception was logged and the init system
