@@ -8,7 +8,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import atomic_helper, log, util
+from cloudinit import atomic_helper, lifecycle, log, util
 from cloudinit.cmd.devel import logs
 from cloudinit.gpg import GPG
 from tests.hypothesis import HAS_HYPOTHESIS
@@ -152,7 +152,7 @@ def clear_deprecation_log():
     # Since deprecations are de-duped, the existance (or non-existance) of
     # a deprecation warning in a previous test can cause the next test to
     # fail.
-    setattr(util.deprecate, "log", set())
+    setattr(lifecycle.deprecate, "log", set())
 
 
 PYTEST_VERSION_TUPLE = tuple(map(int, pytest.__version__.split(".")))

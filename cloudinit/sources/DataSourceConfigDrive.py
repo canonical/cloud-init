@@ -9,7 +9,7 @@
 import logging
 import os
 
-from cloudinit import sources, subp, util
+from cloudinit import lifecycle, sources, subp, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import eni
 from cloudinit.sources.DataSourceIBMCloud import get_ibm_platform
@@ -176,7 +176,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
             elif self.network_eni is not None:
                 self._network_config = eni.convert_eni_data(self.network_eni)
                 LOG.debug("network config provided via converted eni data")
-                util.deprecate(
+                lifecycle.deprecate(
                     deprecated="Eni network configuration in ConfigDrive",
                     deprecated_version="24.3",
                     extra_message=(

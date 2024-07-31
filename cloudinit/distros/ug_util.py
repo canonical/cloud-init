@@ -11,7 +11,7 @@
 
 import logging
 
-from cloudinit import type_utils, util
+from cloudinit import lifecycle, type_utils, util
 
 LOG = logging.getLogger(__name__)
 
@@ -175,7 +175,7 @@ def normalize_users_groups(cfg, distro):
         # Translate it into a format that will be more useful going forward
         if isinstance(old_user, str):
             old_user = {"name": old_user}
-            util.deprecate(
+            lifecycle.deprecate(
                 deprecated="'user' of type string",
                 deprecated_version="22.2",
                 extra_message="Use 'users' list instead.",
@@ -208,7 +208,7 @@ def normalize_users_groups(cfg, distro):
 
     base_users = cfg.get("users", [])
     if isinstance(base_users, (dict, str)):
-        util.deprecate(
+        lifecycle.deprecate(
             deprecated=f"'users' of type {type(base_users)}",
             deprecated_version="22.2",
             extra_message="Use 'users' as a list.",

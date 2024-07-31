@@ -22,7 +22,15 @@ from urllib.parse import urlparse
 import pytest
 import yaml
 
-from cloudinit import atomic_helper, features, importer, subp, url_helper, util
+from cloudinit import (
+    atomic_helper,
+    features,
+    importer,
+    lifecycle,
+    subp,
+    url_helper,
+    util,
+)
 from cloudinit.distros import Distro
 from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceHostname
@@ -3073,9 +3081,13 @@ class TestVersion:
     )
     def test_eq(self, v1, v2, eq):
         if eq:
-            assert util.Version.from_str(v1) == util.Version.from_str(v2)
+            assert lifecycle.Version.from_str(
+                v1
+            ) == lifecycle.Version.from_str(v2)
         if not eq:
-            assert util.Version.from_str(v1) != util.Version.from_str(v2)
+            assert lifecycle.Version.from_str(
+                v1
+            ) != lifecycle.Version.from_str(v2)
 
     @pytest.mark.parametrize(
         ("v1", "v2", "gt"),
@@ -3089,11 +3101,15 @@ class TestVersion:
     )
     def test_gt(self, v1, v2, gt):
         if gt:
-            assert util.Version.from_str(v1) > util.Version.from_str(v2)
-        if not gt:
-            assert util.Version.from_str(v1) < util.Version.from_str(
+            assert lifecycle.Version.from_str(v1) > lifecycle.Version.from_str(
                 v2
-            ) or util.Version.from_str(v1) == util.Version.from_str(v2)
+            )
+        if not gt:
+            assert lifecycle.Version.from_str(v1) < lifecycle.Version.from_str(
+                v2
+            ) or lifecycle.Version.from_str(v1) == lifecycle.Version.from_str(
+                v2
+            )
 
     @pytest.mark.parametrize(
         ("version"),
@@ -3107,31 +3123,31 @@ class TestVersion:
     )
     def test_to_version_and_back_to_str(self, version):
         """Verify __str__, __iter__, and Version.from_str()"""
-        assert version == str(util.Version.from_str(version))
+        assert version == str(lifecycle.Version.from_str(version))
 
     @pytest.mark.parametrize(
         ("str_ver", "cls_ver"),
         (
             (
                 "0.0.0.0",
-                util.Version(0, 0, 0, 0),
+                lifecycle.Version(0, 0, 0, 0),
             ),
             (
                 "1.0.0.0",
-                util.Version(1, 0, 0, 0),
+                lifecycle.Version(1, 0, 0, 0),
             ),
             (
                 "1.0.2.0",
-                util.Version(1, 0, 2, 0),
+                lifecycle.Version(1, 0, 2, 0),
             ),
             (
                 "9.8.2.0",
-                util.Version(9, 8, 2, 0),
+                lifecycle.Version(9, 8, 2, 0),
             ),
         ),
     )
     def test_from_str(self, str_ver, cls_ver):
-        assert util.Version.from_str(str_ver) == cls_ver
+        assert lifecycle.Version.from_str(str_ver) == cls_ver
 
 
 @pytest.mark.allow_dns_lookup

@@ -12,7 +12,7 @@ import pwd
 from contextlib import suppress
 from typing import List, Sequence, Tuple
 
-from cloudinit import subp, util
+from cloudinit import lifecycle, subp, util
 
 LOG = logging.getLogger(__name__)
 
@@ -671,7 +671,7 @@ def get_opensshd_upstream_version():
     upstream_version = "9.0"
     full_version = get_opensshd_version()
     if full_version is None:
-        return util.Version.from_str(upstream_version)
+        return lifecycle.Version.from_str(upstream_version)
     if "p" in full_version:
         upstream_version = full_version[: full_version.find("p")]
     elif " " in full_version:
@@ -679,7 +679,7 @@ def get_opensshd_upstream_version():
     else:
         upstream_version = full_version
     try:
-        upstream_version = util.Version.from_str(upstream_version)
+        upstream_version = lifecycle.Version.from_str(upstream_version)
         return upstream_version
     except (ValueError, TypeError):
         LOG.warning("Could not parse sshd version: %s", upstream_version)
