@@ -58,6 +58,7 @@ class SocketSync:
         self.remote = ""
         self.first_exception = ""
         self.systemd_exit_code = 0
+        self.experienced_any_error = False
         self.sockets = {
             name: socket.socket(
                 socket.AF_UNIX, socket.SOCK_DGRAM | socket.SOCK_CLOEXEC
@@ -141,6 +142,7 @@ class SocketSync:
         if exc_type:
             # handle exception thrown in context
             self.systemd_exit_code = 1
+            self.experienced_any_error = True
             status = f"{repr(exc_val)} in {exc_tb.tb_frame}"
             message = (
                 'fatal error, run "systemctl status cloud-init-main.service" '
@@ -151,6 +153,9 @@ class SocketSync:
             LOG.fatal(status)
             sd_notify(f"STATUS={status}")
 
+        self.experienced_any_error = self.experienced_any_error or bool(
+            self.systemd_exit_code
+        )
         sock = self.sockets[self.stage]
         sock.connect(self.remote)
 

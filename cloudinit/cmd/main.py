@@ -1218,11 +1218,13 @@ def all_stages(parser):
         sync.systemd_exit_code = sub_main(args)
 
     # signal completion to cloud-init-main.service
-    if sync.first_exception:
+    if sync.experienced_any_error:
+        message = "a stage of cloud-init exited non-zero"
+        if sync.first_exception:
+            message = "first exception received: {sync.first_exception}"
         socket.sd_notify(
-            "STATUS=Completed with failure, first exception received: "
-            f"{sync.first_exception}. Run 'cloud-init status --long' for more "
-            "details."
+            f"STATUS=Completed with failure, {message}. Run 'cloud-init status"
+            "--long' for more details."
         )
         socket.sd_notify("STOPPING=1")
         # exit 1 for a fatal failure in any stage
