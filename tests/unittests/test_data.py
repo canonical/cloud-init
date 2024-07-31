@@ -2,14 +2,12 @@
 
 """Tests for handling of userdata within cloud init."""
 
-import gzip
 import logging
 import os
 from email import encoders
 from email.mime.application import MIMEApplication
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
-from io import BytesIO
 from pathlib import Path
 from unittest import mock
 
@@ -19,33 +17,12 @@ import responses
 
 from cloudinit import handlers
 from cloudinit import helpers as c_helpers
-from cloudinit import safeyaml, stages
-from cloudinit import user_data as ud
-from cloudinit import util
+from cloudinit import safeyaml, stages, util
 from cloudinit.config.modules import Modules
 from cloudinit.settings import DEFAULT_RUN_DIR, PER_INSTANCE
-from tests.unittests import helpers
-from tests.unittests.util import FakeDataSource
+from tests.unittests.util import FakeDataSource, gzip_text
 
 MPATH = "cloudinit.stages"
-
-
-def count_messages(root):
-    am = 0
-    for m in root.walk():
-        if ud.is_skippable(m):
-            continue
-        am += 1
-    return am
-
-
-def gzip_text(text):
-    contents = BytesIO()
-    f = gzip.GzipFile(fileobj=contents, mode="wb")
-    f.write(util.encode_text(text))
-    f.flush()
-    f.close()
-    return contents.getvalue()
 
 
 @pytest.fixture(scope="function")
@@ -770,53 +747,6 @@ class TestConsumeUserDataHttp:
         cc = util.load_yaml(cc_contents)
         assert cc.get("bad") is None
         assert cc.get("included") is True
-
-
-class TestUDProcess(helpers.ResourceUsingTestCase):
-    def test_bytes_in_userdata(self):
-        msg = b"#cloud-config\napt_update: True\n"
-        ud_proc = ud.UserDataProcessor(self.getCloudPaths())
-        message = ud_proc.process(msg)
-        self.assertTrue(count_messages(message) == 1)
-
-    def test_string_in_userdata(self):
-        msg = "#cloud-config\napt_update: True\n"
-
-        ud_proc = ud.UserDataProcessor(self.getCloudPaths())
-        message = ud_proc.process(msg)
-        self.assertTrue(count_messages(message) == 1)
-
-    def test_compressed_in_userdata(self):
-        msg = gzip_text("#cloud-config\napt_update: True\n")
-
-        ud_proc = ud.UserDataProcessor(self.getCloudPaths())
-        message = ud_proc.process(msg)
-        self.assertTrue(count_messages(message) == 1)
-
-
-class TestConvertString(helpers.TestCase):
-    def test_handles_binary_non_utf8_decodable(self):
-        """Printable unicode (not utf8-decodable) is safely converted."""
-        blob = b"#!/bin/bash\necho \xc3\x84\n"
-        msg = ud.convert_string(blob)
-        self.assertEqual(blob, msg.get_payload(decode=True))
-
-    def test_handles_binary_utf8_decodable(self):
-        blob = b"\x32\x32"
-        msg = ud.convert_string(blob)
-        self.assertEqual(blob, msg.get_payload(decode=True))
-
-    def test_handle_headers(self):
-        text = "hi mom"
-        msg = ud.convert_string(text)
-        self.assertEqual(text, msg.get_payload(decode=False))
-
-    def test_handle_mime_parts(self):
-        """Mime parts are properly returned as a mime message."""
-        message = MIMEBase("text", "plain")
-        message.set_payload("Just text")
-        msg = ud.convert_string(str(message))
-        self.assertEqual("Just text", msg.get_payload(decode=False))
 
 
 class TestFetchBaseConfig:
