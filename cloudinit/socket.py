@@ -157,7 +157,9 @@ class SocketSync:
         # the returned message will be executed in a subshell
         # hardcode this message rather than sending a more informative message
         # to avoid having to sanitize inputs (to prevent escaping the shell)
-        sock.sendall(f"echo '{message}'; exit {self.systemd_exit_code};".encode())
+        sock.sendall(
+            f"echo '{message}'; exit {self.systemd_exit_code};".encode()
+        )
         sock.close()
 
         # suppress exception - the exception was logged and the init system
