@@ -149,7 +149,7 @@ class SocketSync:
                 'and "cloud-init status --long" for more details'
             )
             if not self.first_exception:
-                self.first_exception = message
+                self.first_exception = status
             LOG.fatal(status)
             sd_notify(f"STATUS={status}")
 

@@ -816,9 +816,10 @@ def status_wrapper(name, args):
         )
 
     v1[mode]["start"] = float(util.uptime())
-    preexisting_recoverable_errors = next(
+    handler = next(
         filter(lambda h: isinstance(h, log.LogExporter), root_logger.handlers)
-    ).export_logs()
+    )
+    preexisting_recoverable_errors = handler.export_logs()
 
     # Write status.json prior to running init / module code
     atomic_helper.write_json(status_path, status)
@@ -859,11 +860,13 @@ def status_wrapper(name, args):
         v1["stage"] = None
 
         # merge new recoverable errors into existing recoverable error list
-        new_recoverable_errors = next(
+        handler = next(
             filter(
                 lambda h: isinstance(h, log.LogExporter), root_logger.handlers
             )
-        ).export_logs()
+        )
+        new_recoverable_errors  = handler.export_logs()
+        handler.clean_logs()
         for key in new_recoverable_errors.keys():
             if key in preexisting_recoverable_errors:
                 v1[mode]["recoverable_errors"][key] = list(
@@ -1221,10 +1224,10 @@ def all_stages(parser):
     if sync.experienced_any_error:
         message = "a stage of cloud-init exited non-zero"
         if sync.first_exception:
-            message = "first exception received: {sync.first_exception}"
+            message = f"first exception received: {sync.first_exception}"
         socket.sd_notify(
             f"STATUS=Completed with failure, {message}. Run 'cloud-init status"
-            "--long' for more details."
+            " --long' for more details."
         )
         socket.sd_notify("STOPPING=1")
         # exit 1 for a fatal failure in any stage
