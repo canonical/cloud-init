@@ -865,7 +865,7 @@ def status_wrapper(name, args):
                 lambda h: isinstance(h, log.LogExporter), root_logger.handlers
             )
         )
-        new_recoverable_errors  = handler.export_logs()
+        new_recoverable_errors = handler.export_logs()
         handler.clean_logs()
         for key in new_recoverable_errors.keys():
             if key in preexisting_recoverable_errors:
