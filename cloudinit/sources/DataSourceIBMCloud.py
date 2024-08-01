@@ -308,10 +308,10 @@ def read_md() -> Optional[Dict[str, Any]]:
              and optional fields: userdata, vendordata, networkdata.
     Also includes the system uuid from /sys/hypervisor/uuid."""
     platform, path = get_ibm_platform()
-    if platform is None or path is None:
+    if platform is None:
         LOG.debug("This is not an IBMCloud platform.")
         return None
-    elif platform in PROVISIONING:
+    elif platform in PROVISIONING or path is None: 
         LOG.debug("Cloud-init is disabled during provisioning: %s.", platform)
         return None
 
