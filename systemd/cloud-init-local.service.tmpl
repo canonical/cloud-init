@@ -7,7 +7,6 @@ DefaultDependencies=no
 {% endif %}
 Wants=network-pre.target
 After=hv_kvp_daemon.service
-After=systemd-remount-fs.service
 {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
 Requires=dbus.socket
 After=dbus.socket
@@ -38,7 +37,14 @@ ExecStartPre=/bin/mkdir -p /run/cloud-init
 ExecStartPre=/sbin/restorecon /run/cloud-init
 ExecStartPre=/usr/bin/touch /run/cloud-init/enabled
 {% endif %}
-ExecStart=/usr/bin/cloud-init init --local
+# This service is a shim which preserves systemd ordering while allowing a
+# single Python process to run cloud-init's logic. This works by communicating
+# with the cloud-init process over a unix socket to tell the process that this
+# stage can start, and then wait on a return socket until the cloud-init
+# process has completed this stage. The output from the return socket is piped
+# into a shell so that the process can send a completion message (defaults to
+# "done", otherwise includes an error message) and an exit code to systemd.
+ExecStart=sh -c 'echo "start" | nc.openbsd -Uu -W1 /run/cloud-init/share/local.sock -s /run/cloud-init/share/local-return.sock | sh'
 RemainAfterExit=yes
 TimeoutSec=0
 
