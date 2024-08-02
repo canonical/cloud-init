@@ -121,8 +121,13 @@ def should_log_deprecation(version: str, boundary_version: str) -> bool:
     ) <= Version.from_str(boundary_version)
 
 
-def log_if_acceptable(
-    *, logger: logging.Logger, version: str, level: int, msg: str, args
+def log_with_downgradable_level(
+    *,
+    logger: logging.Logger,
+    version: str,
+    requested_level: int,
+    msg: str,
+    args,
 ):
     """Log a message at the requested level, if that is acceptable.
 
@@ -134,12 +139,12 @@ def log_if_acceptable(
     :param version: Version string of the version that this log was introduced
     :param level: Preferred level at which this message should be logged
     :param msg: Message, as passed to the logger.
-    :param args: Message parameters
+    :param args: Message formatting args, ass passed to the logger
 
     :return: True if the message should be logged, else False.
     """
     if should_log_deprecation(version, features.DEPRECATION_INFO_BOUNDARY):
-        logger.log(level, msg, args)
+        logger.log(requested_level, msg, args)
     else:
         logger.debug(msg, args)
 
@@ -155,21 +160,21 @@ def deprecate(
     """Mark a "thing" as deprecated. Deduplicated deprecations are
     logged.
 
-    @param deprecated: Noun to be deprecated. Write this as the start
+    :param deprecated: Noun to be deprecated. Write this as the start
         of a sentence, with no period. Version and extra message will
         be appended.
-    @param deprecated_version: The version in which the thing was
+    :param deprecated_version: The version in which the thing was
         deprecated
-    @param extra_message: A remedy for the user's problem. A good
+    :param extra_message: A remedy for the user's problem. A good
         message will be actionable and specific (i.e., don't use a
         generic "Use updated key." if the user used a deprecated key).
         End the string with a period.
-    @param schedule: Manually set the deprecation schedule. Defaults to
+    :param schedule: Manually set the deprecation schedule. Defaults to
         5 years. Leave a comment explaining your reason for deviation if
         setting this value.
-    @param skip_log: Return log text rather than logging it. Useful for
+    :param skip_log: Return log text rather than logging it. Useful for
         running prior to logging setup.
-    @return: NamedTuple containing log level and log message
+    :return: NamedTuple containing log level and log message
         DeprecationLog(level: int, message: str)
 
     Note: uses keyword-only arguments to improve legibility
@@ -206,13 +211,13 @@ def deprecate_call(
     """Mark a "thing" as deprecated. Deduplicated deprecations are
     logged.
 
-    @param deprecated_version: The version in which the thing was
+    :param deprecated_version: The version in which the thing was
         deprecated
-    @param extra_message: A remedy for the user's problem. A good
+    :param extra_message: A remedy for the user's problem. A good
         message will be actionable and specific (i.e., don't use a
         generic "Use updated key." if the user used a deprecated key).
         End the string with a period.
-    @param schedule: Manually set the deprecation schedule. Defaults to
+    :param schedule: Manually set the deprecation schedule. Defaults to
         5 years. Leave a comment explaining your reason for deviation if
         setting this value.
 
