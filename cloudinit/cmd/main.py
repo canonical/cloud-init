@@ -31,6 +31,7 @@ from cloudinit import version
 from cloudinit import warnings
 from cloudinit import reporting
 from cloudinit import atomic_helper
+from cloudinit import lifecycle
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.config import cc_set_hostname
 from cloudinit.config.modules import Modules
@@ -94,7 +95,7 @@ def log_ppid(distro, bootstage_name):
     if distro.is_linux:
         ppid = os.getppid()
         if 1 != ppid and distro.uses_systemd():
-            util.deprecate(
+            lifecycle.deprecate(
                 deprecated=(
                     "Unsupported configuration: boot stage called "
                     f"by PID [{ppid}] outside of systemd"
@@ -255,7 +256,7 @@ def attempt_cmdline_url(path, network=True, cmdline=None) -> Tuple[int, str]:
                 is_cloud_cfg = False
             if is_cloud_cfg:
                 if cmdline_name == "url":
-                    return util.deprecate(
+                    return lifecycle.deprecate(
                         deprecated="The kernel command line key `url`",
                         deprecated_version="22.3",
                         extra_message=" Please use `cloud-config-url` "
@@ -650,7 +651,7 @@ def main_modules(action_name, args):
     log_ppid(init.distro, bootstage_name)
 
     if name == "init":
-        util.deprecate(
+        lifecycle.deprecate(
             deprecated="`--mode init`",
             deprecated_version="24.1",
             extra_message="Use `cloud-init init` instead.",
@@ -983,7 +984,7 @@ def main(sysv_args=None):
     parser_mod = subparsers.add_parser(
         "modules", help="Activate modules using a given configuration key."
     )
-    extra_help = util.deprecate(
+    extra_help = lifecycle.deprecate(
         deprecated="`init`",
         deprecated_version="24.1",
         extra_message="Use `cloud-init init` instead.",

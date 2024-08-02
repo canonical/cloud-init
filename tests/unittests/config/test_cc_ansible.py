@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 from pytest import mark, param, raises
 
-from cloudinit import util
+from cloudinit import lifecycle
 from cloudinit.config import cc_ansible
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -292,7 +292,7 @@ class TestAnsible:
         mocker.patch(M_PATH + "AnsiblePull.check_deps")
         mocker.patch(
             M_PATH + "AnsiblePull.get_version",
-            return_value=cc_ansible.Version(2, 7, 1),
+            return_value=cc_ansible.lifecycle.Version(2, 7, 1),
         )
         mocker.patch(
             M_PATH + "AnsiblePullDistro.is_installed",
@@ -415,7 +415,7 @@ class TestAnsible:
         """Verify that the expected version is returned"""
         assert cc_ansible.AnsiblePullDistro(
             get_cloud().distro
-        ).get_version() == util.Version(2, 10, 8)
+        ).get_version() == lifecycle.Version(2, 10, 8)
 
     @mock.patch("cloudinit.subp.subp", side_effect=[(pip_version, "")])
     def test_parse_version_pip(self, m_subp):
@@ -424,7 +424,7 @@ class TestAnsible:
         distro.do_as = MagicMock(return_value=(pip_version, ""))
         pip = cc_ansible.AnsiblePullPip(distro, "root")
         received = pip.get_version()
-        expected = util.Version(2, 13, 2)
+        expected = lifecycle.Version(2, 13, 2)
         assert received == expected
 
     @mock.patch(M_PATH + "subp.subp", return_value=("stdout", "stderr"))

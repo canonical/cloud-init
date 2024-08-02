@@ -22,6 +22,7 @@ from cloudinit import (
     handlers,
     helpers,
     importer,
+    lifecycle,
     net,
     sources,
     type_utils,
@@ -914,7 +915,7 @@ class Init:
             return
 
         if isinstance(enabled, str):
-            util.deprecate(
+            lifecycle.deprecate(
                 deprecated=f"Use of string '{enabled}' for "
                 "'vendor_data:enabled' field",
                 deprecated_version="23.1",

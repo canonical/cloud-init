@@ -15,7 +15,7 @@ import re
 import stat
 from typing import Optional
 
-from cloudinit import subp, util
+from cloudinit import lifecycle, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -56,8 +56,8 @@ def _resize_btrfs(mount_point, devpth):
     # btrfs has exclusive operations and resize may fail if btrfs is busy
     # doing one of the operations that prevents resize. As of btrfs 5.10
     # the resize operation can be queued
-    btrfs_with_queue = util.Version.from_str("5.10")
-    system_btrfs_ver = util.Version.from_str(
+    btrfs_with_queue = lifecycle.Version.from_str("5.10")
+    system_btrfs_ver = lifecycle.Version.from_str(
         subp.subp(["btrfs", "--version"])[0].split("v")[-1].strip()
     )
     if system_btrfs_ver >= btrfs_with_queue:

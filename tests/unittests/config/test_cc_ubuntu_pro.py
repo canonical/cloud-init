@@ -7,7 +7,7 @@ from collections import namedtuple
 
 import pytest
 
-from cloudinit import subp
+from cloudinit import lifecycle, subp
 from cloudinit.config.cc_ubuntu_pro import (
     _attach,
     _auto_attach,
@@ -23,7 +23,6 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from cloudinit.util import Version
 from tests.unittests.helpers import does_not_raise, mock, skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
@@ -452,8 +451,10 @@ class TestUbuntuProSchema:
                 # we're using a high enough version of jsonschema to not need
                 # to skip this test.
                 JSONSCHEMA_SKIP_REASON
-                if Version.from_str(getattr(jsonschema, "__version__", "999"))
-                < Version(4)
+                if lifecycle.Version.from_str(
+                    getattr(jsonschema, "__version__", "999")
+                )
+                < lifecycle.Version(4)
                 else "",
                 id="deprecation_of_ubuntu_advantage_skip_old_json",
             ),
