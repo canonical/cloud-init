@@ -17,7 +17,7 @@ import shutil
 from textwrap import indent
 from typing import Dict, Iterable, List, Mapping
 
-from cloudinit import features, subp, templater, util
+from cloudinit import features, lifecycle, subp, templater, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -745,7 +745,7 @@ def add_apt_sources(
 def convert_v1_to_v2_apt_format(srclist):
     """convert v1 apt format to v2 (dict in apt_sources)"""
     srcdict = {}
-    util.deprecate(
+    lifecycle.deprecate(
         deprecated="Config key 'apt_sources'",
         deprecated_version="22.1",
         extra_message="Use 'apt' instead",
@@ -824,7 +824,7 @@ def convert_v2_to_v3_apt_format(oldcfg):
     # no old config, so no new one to be created
     if not needtoconvert:
         return oldcfg
-    util.deprecate(
+    lifecycle.deprecate(
         deprecated=f"The following config key(s): {needtoconvert}",
         deprecated_version="22.1",
     )
@@ -832,7 +832,7 @@ def convert_v2_to_v3_apt_format(oldcfg):
     # if old AND new config are provided, prefer the new one (LP #1616831)
     newaptcfg = oldcfg.get("apt", None)
     if newaptcfg is not None:
-        util.deprecate(
+        lifecycle.deprecate(
             deprecated="Support for combined old and new apt module keys",
             deprecated_version="22.1",
         )

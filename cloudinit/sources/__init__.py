@@ -19,7 +19,7 @@ from collections import namedtuple
 from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from cloudinit import atomic_helper, dmi, importer, net, type_utils
+from cloudinit import atomic_helper, dmi, importer, lifecycle, net, type_utils
 from cloudinit import user_data as ud
 from cloudinit import util
 from cloudinit.atomic_helper import write_json
@@ -1230,7 +1230,7 @@ def parse_cmdline_or_dmi(input: str) -> str:
     deprecated = ds_parse_1 or ds_parse_2
     if deprecated:
         dsname = deprecated.group(1).strip()
-        util.deprecate(
+        lifecycle.deprecate(
             deprecated=(
                 f"Defining the datasource on the command line using "
                 f"ci.ds={dsname} or "

@@ -13,7 +13,7 @@ import stat
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from cloudinit import distros, helpers, subp, util
+from cloudinit import distros, helpers, lifecycle, subp, util
 from cloudinit.distros.parsers.hostname import HostnameConf
 from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
 
@@ -248,7 +248,7 @@ class Distro(distros.Distro):
             if isinstance(groups, str):
                 groups = groups.split(",")
             elif isinstance(groups, dict):
-                util.deprecate(
+                lifecycle.deprecate(
                     deprecated=f"The user {name} has a 'groups' config value "
                     "of type dict",
                     deprecated_version="22.3",

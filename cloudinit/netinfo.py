@@ -15,7 +15,7 @@ from copy import copy, deepcopy
 from ipaddress import IPv4Network
 from typing import Dict, List, Union
 
-from cloudinit import subp, util
+from cloudinit import lifecycle, subp, util
 from cloudinit.net.network_state import net_prefix_to_ipv4_mask
 from cloudinit.simpletable import SimpleTable
 
@@ -95,7 +95,7 @@ def _netdev_info_iproute_json(ipaddr_json):
     return devs
 
 
-@util.deprecate_call(
+@lifecycle.deprecate_call(
     deprecated_version="22.1",
     extra_message="Required by old iproute2 versions that don't "
     "support ip json output. Consider upgrading to a more recent version.",

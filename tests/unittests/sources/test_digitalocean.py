@@ -165,7 +165,7 @@ class TestDataSourceDigitalOcean(CiTestCase):
         self.assertTrue(m_read_sysinfo.called)
 
     @mock.patch("cloudinit.sources.helpers.digitalocean.read_metadata")
-    @mock.patch("cloudinit.sources.util.deprecate")
+    @mock.patch("cloudinit.sources.lifecycle.deprecate")
     def test_deprecation_log_on_init(self, mock_deprecate, _mock_readmd):
         ds = self.get_ds()
         self.assertTrue(ds.get_data())
@@ -176,7 +176,7 @@ class TestDataSourceDigitalOcean(CiTestCase):
         )
 
     @mock.patch("cloudinit.sources.helpers.digitalocean.read_metadata")
-    @mock.patch("cloudinit.sources.util.deprecate")
+    @mock.patch("cloudinit.sources.lifecycle.deprecate")
     def test_deprecation_log_on_unpick(self, mock_deprecate, _mock_readmd):
         ds = self.get_ds()
         self.assertTrue(ds.get_data())

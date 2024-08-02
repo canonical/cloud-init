@@ -13,7 +13,7 @@ import logging
 import os
 from functools import partial
 
-from cloudinit import dmi, sources, util
+from cloudinit import dmi, lifecycle, sources, util
 from cloudinit.net import eni
 
 LOG = logging.getLogger(__name__)
@@ -131,7 +131,7 @@ class DataSourceNoCloud(sources.DataSource):
         label = self.ds_cfg.get("fs_label", "cidata")
         if label is not None:
             if label.lower() != "cidata":
-                util.deprecate(
+                lifecycle.deprecate(
                     deprecated="Custom fs_label keys",
                     deprecated_version="24.3",
                     extra_message="This key isn't supported by ds-identify.",
@@ -272,7 +272,7 @@ class DataSourceNoCloud(sources.DataSource):
     def network_config(self):
         if self._network_config is None:
             if self._network_eni is not None:
-                util.deprecate(
+                lifecycle.deprecate(
                     deprecated="Eni network configuration in NoCloud",
                     deprecated_version="24.3",
                     extra_message=(
@@ -424,7 +424,7 @@ class DataSourceNoCloudNet(DataSourceNoCloud):
         For backwards compatiblity, check for that dsname.
         """
         log_deprecated = partial(
-            util.deprecate,
+            lifecycle.deprecate,
             deprecated="The 'nocloud-net' datasource name",
             deprecated_version="24.1",
             extra_message=(

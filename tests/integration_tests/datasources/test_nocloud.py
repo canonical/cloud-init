@@ -5,8 +5,8 @@ from textwrap import dedent
 import pytest
 from pycloudlib.lxd.instance import LXDInstance
 
+from cloudinit import lifecycle
 from cloudinit.subp import subp
-from cloudinit.util import should_log_deprecation
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL
@@ -199,7 +199,7 @@ class TestSmbios:
             client, "DEPRECATION_INFO_BOUNDARY"
         )
         # nocloud-net deprecated in version 24.1
-        if should_log_deprecation("24.1", version_boundary):
+        if lifecycle.should_log_deprecation("24.1", version_boundary):
             log_level = "DEPRECATED"
         else:
             log_level = "INFO"
