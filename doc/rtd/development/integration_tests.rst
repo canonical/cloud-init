@@ -102,8 +102,9 @@ Use in-place cloud-init source code
 The simplest way to test an integraton test using your current cloud-init
 changes is to set the ``CLOUD_INIT_SOURCE`` to ``IN_PLACE``. This works ONLY
 on LXD containers. This will mount the source code as-is directly into
-the container to override the pre-existing cloudinit module. This
-won't work for non-local LXD remotes and won't run any installation code.
+the container to override the pre-existing cloud-init code within the
+container. This won't work for non-local LXD remotes and won't run any
+installation code since the source code is mounted directly.
 
 .. tab-set::
 
@@ -260,8 +261,8 @@ would expect Ubuntu-specific tests to fail (and vice versa).
 To address this, a full image specification can be given. This is of
 the form: ``<image_id>[::<os>::<release>::<version>]`` where ``image_id`` is a
 cloud's image ID, ``os`` is the OS name, and ``release`` is the OS
-release name. So, for example, Ubuntu 18.04 (Bionic Beaver) on LXD is
-``ubuntu::jammy::ubuntu::jammy::22.04`` or RHEL8 on Amazon is
+release name. So, for example, Ubuntu 24.04 LTS (Noble Numbat) on LXD is
+``ubuntu:noble::ubuntu::noble::24.04`` or RHEL8 on Amazon is
 ``ami-justanexample::rhel::8``. When a full specification is given,
 only tests which are intended for use on that OS and release will be
 executed.
