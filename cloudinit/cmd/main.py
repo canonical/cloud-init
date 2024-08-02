@@ -860,11 +860,6 @@ def status_wrapper(name, args):
         v1["stage"] = None
 
         # merge new recoverable errors into existing recoverable error list
-        handler = next(
-            filter(
-                lambda h: isinstance(h, log.LogExporter), root_logger.handlers
-            )
-        )
         new_recoverable_errors = handler.export_logs()
         handler.clean_logs()
         for key in new_recoverable_errors.keys():
