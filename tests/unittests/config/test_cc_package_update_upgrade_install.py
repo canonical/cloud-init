@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
+import re
 from unittest import mock
 
 import pytest
@@ -299,26 +300,26 @@ class TestPackageUpdateUpgradeSchema:
             ({"packages": []}, SCHEMA_EMPTY_ERROR),
             (
                 {"apt_update": False},
-                (
+                re.escape(
                     "Cloud config schema deprecations: apt_update:  "
                     "Deprecated in version 22.2. "
-                    "Use ``package_update`` instead."
+                    "Use **package_update** instead."
                 ),
             ),
             (
                 {"apt_upgrade": False},
-                (
+                re.escape(
                     "Cloud config schema deprecations: apt_upgrade:  "
                     "Deprecated in version 22.2. "
-                    "Use ``package_upgrade`` instead."
+                    "Use **package_upgrade** instead."
                 ),
             ),
             (
                 {"apt_reboot_if_required": False},
-                (
+                re.escape(
                     "Cloud config schema deprecations: "
                     "apt_reboot_if_required:  Deprecated in version 22.2. Use "
-                    "``package_reboot_if_required`` instead."
+                    "**package_reboot_if_required** instead."
                 ),
             ),
         ],
