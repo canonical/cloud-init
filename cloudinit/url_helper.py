@@ -844,7 +844,8 @@ def wait_for_url(
                         "IMDS returned 503 error code. Retrying in %s",
                         current_sleep_time,
                     )
-                raise response
+                else:
+                    raise response
             elif isinstance(response, Exception):
                 raise response
             else:
