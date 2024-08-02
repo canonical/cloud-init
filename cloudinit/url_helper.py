@@ -353,6 +353,7 @@ def _get_ssl_args(url, ssl_details):
 
 def readurl(
     url,
+    *,
     data=None,
     timeout=None,
     retries=0,
@@ -630,6 +631,7 @@ def dual_stack(
 
 def wait_for_url(
     urls,
+    *,
     max_wait: float = float("inf"),
     timeout: Optional[float] = None,
     status_cb: Callable = LOG.debug,  # some sources use different log levels
@@ -721,10 +723,10 @@ def wait_for_url(
 
     def read_url_handle_exceptions(
         url_reader_cb, urls, start_time, exc_cb, log_cb
-    ):
+    ) -> Tuple[str, Union[Exception, UrlResponse]]:
         """Execute request, handle response, optionally log exception"""
         reason = ""
-        url = None
+        url = ""
         try:
             url, response = url_reader_cb(urls)
             url_exc, reason = handle_url_response(response, url)
@@ -750,8 +752,9 @@ def wait_for_url(
             # in the future, for example this is what the MAAS datasource
             # does.
             exc_cb(msg=status_msg, exception=url_exc)
+        return (url, url_exc)
 
-    def read_url_cb(url, timeout):
+    def read_url_cb(url: str, timeout: int) -> UrlResponse:
         return readurl(
             url,
             headers={} if headers_cb is None else headers_cb(url),
@@ -761,19 +764,21 @@ def wait_for_url(
             request_method=request_method,
         )
 
-    def read_url_serial(start_time, timeout, exc_cb, log_cb):
+    def read_url_serial(
+        start_time, timeout, exc_cb, log_cb
+    ) -> Optional[Tuple[str, Union[Exception, UrlResponse]]]:
         """iterate over list of urls, request each one and handle responses
         and thrown exceptions individually per url
         """
 
-        def url_reader_serial(url):
+        def url_reader_serial(url: str):
             return (url, read_url_cb(url, timeout))
 
         for url in urls:
             now = time.monotonic()
             if loop_n != 0:
                 if timeup(max_wait, start_time):
-                    return
+                    return None
                 if (
                     max_wait is not None
                     and timeout
@@ -787,8 +792,11 @@ def wait_for_url(
             )
             if out:
                 return out
+        return None
 
-    def read_url_parallel(start_time, timeout, exc_cb, log_cb):
+    def read_url_parallel(
+        start_time, timeout, exc_cb, log_cb
+    ) -> Optional[Tuple[str, Union[Exception, UrlResponse]]]:
         """pass list of urls to dual_stack which sends requests in parallel
         handle response and exceptions of the first endpoint to respond
         """
@@ -827,7 +835,14 @@ def wait_for_url(
         url = do_read_url(start_time, timeout, exception_cb, status_cb)
         if url:
             address, response = url
-            return (address, response.contents)
+            if isinstance(response, UrlError) and 503 == response.code:
+                # server isn't available, so retry
+                LOG.warning(
+                    "IMDS returned 503 error code. Retrying in %s",
+                    current_sleep_time,
+                )
+            elif isinstance(response, UrlResponse):
+                return (address, response.contents)
 
         if timeup(max_wait, start_time, current_sleep_time):
             break
