@@ -524,7 +524,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
     uses_systemd = cloud.distro.uses_systemd()
     default_mount_options = (
-        "defaults,nofail,x-systemd.after=cloud-init.service,_netdev"
+        "defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev"
         if uses_systemd
         else "defaults,nobootwait"
     )

@@ -13,7 +13,9 @@ from cloudinit.cmd import main
 from cloudinit.util import ensure_dir, load_text_file, write_file
 from tests.unittests.helpers import FilesystemMockingTestCase, wrap_and_call
 
-MyArgs = namedtuple("MyArgs", "debug files force local reporter subcommand")
+MyArgs = namedtuple(
+    "MyArgs", "debug files force local reporter subcommand skip_log_setup"
+)
 
 
 class TestMain(FilesystemMockingTestCase):
@@ -76,6 +78,7 @@ class TestMain(FilesystemMockingTestCase):
             local=False,
             reporter=None,
             subcommand="init",
+            skip_log_setup=False,
         )
         (_item1, item2) = wrap_and_call(
             "cloudinit.cmd.main",
@@ -122,6 +125,7 @@ class TestMain(FilesystemMockingTestCase):
             local=False,
             reporter=None,
             subcommand="init",
+            skip_log_setup=False,
         )
 
         def set_hostname(name, cfg, cloud, args):

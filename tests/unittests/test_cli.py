@@ -160,9 +160,7 @@ class TestCLI:
 
     def test_no_arguments_shows_error_message(self, capsys):
         exit_code = self._call_main()
-        missing_subcommand_message = (
-            "the following arguments are required: subcommand"
-        )
+        missing_subcommand_message = "a subcommand is required"
         _out, err = capsys.readouterr()
         assert (
             missing_subcommand_message in err

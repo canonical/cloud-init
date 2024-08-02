@@ -18,7 +18,7 @@ cc_mounts:
     .. code-block:: yaml
 
        mounts:
-       - ["ephemeral0", "/mnt", "auto", "defaults,nofail,x-systemd.after=cloud-init.service", "0", "2"]
+       - ["ephemeral0", "/mnt", "auto", "defaults,nofail,x-systemd.after=cloud-init-network.service", "0", "2"]
        - ["swap", "none", "swap", "sw", "0", "0"]
 
     In order to remove a previously-listed mount, an entry can be added to the
@@ -32,7 +32,7 @@ cc_mounts:
 
     .. code-block:: yaml
 
-       mount_default_fields: [none, none, "auto", "defaults,nofail,x-systemd.after=cloud-init.service", "0", "2"]
+       mount_default_fields: [none, none, "auto", "defaults,nofail,x-systemd.after=cloud-init-network.service", "0", "2"]
 
     Non-systemd init systems will vary in ``mount_default_fields``.
 

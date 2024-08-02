@@ -24,6 +24,7 @@ from typing import Tuple, Callable
 from cloudinit import netinfo
 from cloudinit import signal_handler
 from cloudinit import sources
+from cloudinit import socket
 from cloudinit import stages
 from cloudinit import url_helper
 from cloudinit import util
@@ -38,7 +39,12 @@ from cloudinit.config.modules import Modules
 from cloudinit.config.schema import validate_cloudconfig_schema
 from cloudinit import log
 from cloudinit.reporting import events
-from cloudinit.settings import PER_INSTANCE, PER_ALWAYS, PER_ONCE, CLOUD_CONFIG
+from cloudinit.settings import (
+    PER_INSTANCE,
+    PER_ALWAYS,
+    PER_ONCE,
+    CLOUD_CONFIG,
+)
 
 # Welcome message template
 WELCOME_MSG_TPL = (
@@ -362,8 +368,11 @@ def main_init(name, args):
     outfmt = None
     errfmt = None
     try:
-        close_stdin(lambda msg: early_logs.append((logging.DEBUG, msg)))
-        outfmt, errfmt = util.fixup_output(init.cfg, name)
+        if not args.skip_log_setup:
+            close_stdin(lambda msg: early_logs.append((logging.DEBUG, msg)))
+            outfmt, errfmt = util.fixup_output(init.cfg, name)
+        else:
+            outfmt, errfmt = util.get_output_cfg(init.cfg, name)
     except Exception:
         msg = "Failed to setup output redirection!"
         util.logexc(LOG, msg)
@@ -375,8 +384,9 @@ def main_init(name, args):
             "Logging being reset, this logger may no longer be active shortly"
         )
         log.reset_logging()
-    log.setup_logging(init.cfg)
-    apply_reporting_cfg(init.cfg)
+    if not args.skip_log_setup:
+        log.setup_logging(init.cfg)
+        apply_reporting_cfg(init.cfg)
 
     # Any log usage prior to setup_logging above did not have local user log
     # config applied.  We send the welcome message now, as stderr/out have
@@ -633,8 +643,9 @@ def main_modules(action_name, args):
     mods = Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 4
     try:
-        close_stdin()
-        util.fixup_output(mods.cfg, name)
+        if not args.skip_log_setup:
+            close_stdin()
+            util.fixup_output(mods.cfg, name)
     except Exception:
         util.logexc(LOG, "Failed to setup output redirection!")
     if args.debug:
@@ -643,8 +654,9 @@ def main_modules(action_name, args):
             "Logging being reset, this logger may no longer be active shortly"
         )
         log.reset_logging()
-    log.setup_logging(mods.cfg)
-    apply_reporting_cfg(init.cfg)
+    if not args.skip_log_setup:
+        log.setup_logging(mods.cfg)
+        apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
     welcome(name, msg=w_msg)
@@ -804,9 +816,10 @@ def status_wrapper(name, args):
         )
 
     v1[mode]["start"] = float(util.uptime())
-    preexisting_recoverable_errors = next(
+    handler = next(
         filter(lambda h: isinstance(h, log.LogExporter), root_logger.handlers)
-    ).export_logs()
+    )
+    preexisting_recoverable_errors = handler.export_logs()
 
     # Write status.json prior to running init / module code
     atomic_helper.write_json(status_path, status)
@@ -847,11 +860,8 @@ def status_wrapper(name, args):
         v1["stage"] = None
 
         # merge new recoverable errors into existing recoverable error list
-        new_recoverable_errors = next(
-            filter(
-                lambda h: isinstance(h, log.LogExporter), root_logger.handlers
-            )
-        ).export_logs()
+        new_recoverable_errors = handler.export_logs()
+        handler.clean_logs()
         for key in new_recoverable_errors.keys():
             if key in preexisting_recoverable_errors:
                 v1[mode]["recoverable_errors"][key] = list(
@@ -953,9 +963,19 @@ def main(sysv_args=None):
         default=False,
     )
 
+    parser.add_argument(
+        "--all-stages",
+        dest="all_stages",
+        action="store_true",
+        help=(
+            "Run cloud-init's stages under a single process using a "
+            "syncronization protocol. This is not intended for CLI usage."
+        ),
+        default=False,
+    )
+
     parser.set_defaults(reporter=None)
     subparsers = parser.add_subparsers(title="Subcommands", dest="subcommand")
-    subparsers.required = True
 
     # Each action and its sub-options (if any)
     parser_init = subparsers.add_parser(
@@ -1143,8 +1163,76 @@ def main(sysv_args=None):
 
             status_parser(parser_status)
             parser_status.set_defaults(action=("status", handle_status_args))
+    else:
+        parser.error("a subcommand is required")
 
     args = parser.parse_args(args=sysv_args)
+    setattr(args, "skip_log_setup", False)
+    if not args.all_stages:
+        return sub_main(args)
+    return all_stages(parser)
+
+
+def all_stages(parser):
+    """Run all stages in a single process using an ordering protocol."""
+    LOG.info("Running cloud-init in single process mode.")
+
+    # this _must_ be called before sd_notify is called otherwise netcat may
+    # attempt to send "start" before a socket exists
+    sync = socket.SocketSync("local", "network", "config", "final")
+
+    # notify systemd that this stage has completed
+    socket.sd_notify("READY=1")
+    # wait for cloud-init-local.service to start
+    with sync("local"):
+        # set up logger
+        args = parser.parse_args(args=["init", "--local"])
+        args.skip_log_setup = False
+        # run local stage
+        sync.systemd_exit_code = sub_main(args)
+
+    # wait for cloud-init-network.service to start
+    with sync("network"):
+        # skip re-setting up logger
+        args = parser.parse_args(args=["init"])
+        args.skip_log_setup = True
+        # run init stage
+        sync.systemd_exit_code = sub_main(args)
+
+    # wait for cloud-config.service to start
+    with sync("config"):
+        # skip re-setting up logger
+        args = parser.parse_args(args=["modules", "--mode=config"])
+        args.skip_log_setup = True
+        # run config stage
+        sync.systemd_exit_code = sub_main(args)
+
+    # wait for cloud-final.service to start
+    with sync("final"):
+        # skip re-setting up logger
+        args = parser.parse_args(args=["modules", "--mode=final"])
+        args.skip_log_setup = True
+        # run final stage
+        sync.systemd_exit_code = sub_main(args)
+
+    # signal completion to cloud-init-main.service
+    if sync.experienced_any_error:
+        message = "a stage of cloud-init exited non-zero"
+        if sync.first_exception:
+            message = f"first exception received: {sync.first_exception}"
+        socket.sd_notify(
+            f"STATUS=Completed with failure, {message}. Run 'cloud-init status"
+            " --long' for more details."
+        )
+        socket.sd_notify("STOPPING=1")
+        # exit 1 for a fatal failure in any stage
+        return 1
+    else:
+        socket.sd_notify("STATUS=Completed")
+        socket.sd_notify("STOPPING=1")
+
+
+def sub_main(args):
 
     # Subparsers.required = True and each subparser sets action=(name, functor)
     (name, functor) = args.action

@@ -152,6 +152,9 @@ class LogExporter(logging.StreamHandler):
     def export_logs(self):
         return copy.deepcopy(self.holder)
 
+    def clean_logs(self):
+        self.holder = defaultdict(list)
+
     def flush(self):
         pass
 
