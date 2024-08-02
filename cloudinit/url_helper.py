@@ -698,7 +698,7 @@ def wait_for_url(
             time.monotonic() - start_time + sleep_time > max_wait
         )
 
-    def handle_url_response(response, url):
+    def handle_url_response(response, url) -> Tuple[Optional[Exception], str]:
         """Map requests response code/contents to internal "UrlError" type"""
         if not response.contents:
             reason = "empty response [%s]" % (response.code)
@@ -752,7 +752,7 @@ def wait_for_url(
             # in the future, for example this is what the MAAS datasource
             # does.
             exc_cb(msg=status_msg, exception=url_exc)
-        return (url, url_exc)
+        return url, url_exc
 
     def read_url_cb(url: str, timeout: int) -> UrlResponse:
         return readurl(
@@ -835,14 +835,20 @@ def wait_for_url(
         url = do_read_url(start_time, timeout, exception_cb, status_cb)
         if url:
             address, response = url
-            if isinstance(response, UrlError) and 503 == response.code:
-                # server isn't available, so retry
-                LOG.warning(
-                    "IMDS returned 503 error code. Retrying in %s",
-                    current_sleep_time,
-                )
-            elif isinstance(response, UrlResponse):
+            if isinstance(response, UrlResponse):
                 return (address, response.contents)
+            elif isinstance(response, UrlError):
+                if 503 == response.code:
+                    # server isn't available, so retry
+                    LOG.warning(
+                        "IMDS returned 503 error code. Retrying in %s",
+                        current_sleep_time,
+                    )
+                raise response
+            elif isinstance(response, Exception):
+                raise response
+            else:
+                raise TypeError("Unexpected return type: %s", repr(response))
 
         if timeup(max_wait, start_time, current_sleep_time):
             break
