@@ -76,7 +76,7 @@ def test_all_stages(tmp_path):
 
     After a socket has been been bound but before it has started listening
     """
-    expected = b"echo 'done'; exit 0;"
+    expected = "echo 'Completed socket interaction for boot stage {}'; exit 0;"
     with mock.patch.object(
         ci_socket, "DEFAULT_RUN_DIR", tmp_path
     ), mock.patch.object(ci_socket, "sd_notify"), mock.patch.object(
@@ -96,17 +96,17 @@ def test_all_stages(tmp_path):
             pass
 
         # check that the first sync returned
-        assert expected == first.receive()
+        assert expected.format("first").encode() == first.receive()
         # "wait" on the second sync event
         with sync("second"):
             pass
         # check that the second sync returned
-        assert expected == second.receive()
+        assert expected.format("second").encode() == second.receive()
         # "wait" on the third sync event
         with sync("third"):
             pass
         # check that the third sync returned
-        assert expected == third.receive()
+        assert expected.format("third").encode() == third.receive()
 
 
 def test_all_stages_threaded(tmp_path):
@@ -116,7 +116,7 @@ def test_all_stages_threaded(tmp_path):
     max_sleep = 100
     # initialize random number generator
     random.seed(time.time())
-    expected = b"echo 'done'; exit 0;"
+    expected = "echo 'Completed socket interaction for boot stage {}'; exit 0;"
     sync_storage = {}
 
     def syncer(index: int, name: str):
@@ -154,32 +154,32 @@ def test_all_stages_threaded(tmp_path):
             pass
 
         # check that the first sync returned
-        assert expected == sync_storage[1].receive()
+        assert expected.format("first").encode() == sync_storage[1].receive()
 
         # wait on the second sync event
         with sync("second"):
             pass
 
         # check that the second sync returned
-        assert expected == sync_storage[2].receive()
+        assert expected.format("second").encode() == sync_storage[2].receive()
 
         # wait on the third sync event
         with sync("third"):
             pass
 
         # check that the third sync returned
-        assert expected == sync_storage[3].receive()
+        assert expected.format("third").encode() == sync_storage[3].receive()
         with sync("fourth"):
             pass
 
         # check that the fourth sync returned
-        assert expected == sync_storage[4].receive()
+        assert expected.format("fourth").encode() == sync_storage[4].receive()
 
         with sync("fifth"):
             pass
 
         # check that the fifth sync returned
-        assert expected == sync_storage[5].receive()
+        assert expected.format("fifth").encode() == sync_storage[5].receive()
 
 
 def test_all_stages_exception(tmp_path):
