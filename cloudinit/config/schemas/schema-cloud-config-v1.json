@@ -295,7 +295,7 @@
           "type": "boolean",
           "deprecated": true,
           "deprecated_version": "22.3",
-          "deprecated_description": "Use ``lock_passwd`` instead."
+          "deprecated_description": "Use **lock_passwd** instead."
         },
         "lock_passwd": {
           "default": true,
@@ -306,7 +306,7 @@
           "type": "boolean",
           "deprecated": true,
           "deprecated_version": "24.2",
-          "deprecated_description": "Use ``no_create_home`` instead."
+          "deprecated_description": "Use **no_create_home** instead."
         },
         "no_create_home": {
           "default": false,
@@ -317,7 +317,7 @@
           "type": "boolean",
           "deprecated": true,
           "deprecated_version": "24.2",
-          "deprecated_description": "Use ``no_log_init`` instead."
+          "deprecated_description": "Use **no_log_init** instead."
         },
         "no_log_init": {
           "default": false,
@@ -328,7 +328,7 @@
           "type": "boolean",
           "deprecated": true,
           "deprecated_version": "24.2",
-          "deprecated_description": "Use ``no_user_group`` instead."
+          "deprecated_description": "Use **no_user_group** instead."
         },
         "no_user_group": {
           "default": false,
@@ -343,7 +343,7 @@
           "type": "string",
           "deprecated": true,
           "deprecated_version": "24.2",
-          "deprecated_description": "Use ``hashed_passwd`` instead."
+          "deprecated_description": "Use **hashed_passwd** instead."
         },
         "hashed_passwd": {
           "description": "Hash of user password to be applied. This will be applied even if the user is preexisting. To generate this hash, run: ``mkpasswd --method=SHA-512 --rounds=500000``. **Note:** Your password might possibly be visible to unprivileged users on your system, depending on your cloud's security model. Check if your cloud's IMDS server is visible from an unprivileged user to evaluate risk.",
@@ -353,7 +353,7 @@
           "type": "string",
           "deprecated": true,
           "deprecated_version": "24.2",
-          "deprecated_description": "Use ``plain_text_passwd`` instead."
+          "deprecated_description": "Use **plain_text_passwd** instead."
         },
         "plain_text_passwd": {
           "description": "Clear text of user password to be applied. This will be applied even if the user is preexisting. **Note:** SSH keys or certificates are a safer choice for logging in to your system. For local escalation, supplying a hashed password is a safer choice than plain text. Your password might possibly be visible to unprivileged users on your system, depending on your cloud's security model. An exposed plain text password is an immediate security concern. Check if your cloud's IMDS server is visible from an unprivileged user to evaluate risk.",
@@ -363,7 +363,7 @@
           "type": "boolean",
           "deprecated": true,
           "deprecated_version": "24.2",
-          "deprecated_description": "Use ``create_groups`` instead."
+          "deprecated_description": "Use **create_groups** instead."
         },
         "create_groups": {
           "default": true,
@@ -374,7 +374,7 @@
           "type": "string",
           "deprecated": true,
           "deprecated_version": "24.2",
-          "deprecated_description": "Use ``primary_group`` instead."
+          "deprecated_description": "Use **primary_group** instead."
         },
         "primary_group": {
           "default": "``<username>``",
@@ -385,7 +385,7 @@
           "type": "string",
           "deprecated": true,
           "deprecated_version": "24.2",
-          "deprecated_description": "Use ``selinux_user`` instead."
+          "deprecated_description": "Use **selinux_user** instead."
         },
         "selinux_user": {
           "description": "SELinux user for user's login. Default: the default SELinux user.",
@@ -400,7 +400,7 @@
           "type": "string"
         },
         "ssh_authorized_keys": {
-          "description": "List of SSH keys to add to user's authkeys file. Can not be combined with ``ssh_redirect_user``.",
+          "description": "List of SSH keys to add to user's authkeys file. Can not be combined with **ssh_redirect_user**.",
           "type": "array",
           "items": {
             "type": "string"
@@ -415,7 +415,7 @@
           "minItems": 1,
           "deprecated": true,
           "deprecated_version": "18.3",
-          "deprecated_description": "Use ``ssh_authorized_keys`` instead."
+          "deprecated_description": "Use **ssh_authorized_keys** instead."
         },
         "ssh-import-id": {
           "type": "array",
@@ -425,10 +425,10 @@
           "minItems": 1,
           "deprecated": true,
           "deprecated_version": "24.2",
-          "deprecated_description": "Use ``ssh_import_id`` instead."
+          "deprecated_description": "Use **ssh_import_id** instead."
         },
         "ssh_import_id": {
-          "description": "List of ssh ids to import for user. Can not be combined with ``ssh_redirect_user``. See the man page[1] for more details. [1] https://manpages.ubuntu.com/manpages/noble/en/man1/ssh-import-id.1.html.",
+          "description": "List of ssh ids to import for user. Can not be combined with **ssh_redirect_user**. See the man page[1] for more details. [1] https://manpages.ubuntu.com/manpages/noble/en/man1/ssh-import-id.1.html.",
           "type": "array",
           "items": {
             "type": "string"
@@ -439,12 +439,12 @@
           "type": "boolean",
           "deprecated": true,
           "deprecated_version": "24.2",
-          "deprecated_description": "Use ``ssh_redirect_user`` instead."
+          "deprecated_description": "Use **ssh_redirect_user** instead."
         },
         "ssh_redirect_user": {
           "type": "boolean",
           "default": false,
-          "description": "Boolean set to true to disable SSH logins for this user. When specified, all cloud meta-data public SSH keys will be set up in a disabled state for this username. Any SSH login as this username will timeout and prompt with a message to login instead as the ``default_username`` for this instance. Default: ``false``. This key can not be combined with ``ssh_import_id`` or ``ssh_authorized_keys``."
+          "description": "Boolean set to true to disable SSH logins for this user. When specified, all cloud meta-data public SSH keys will be set up in a disabled state for this username. Any SSH login as this username will timeout and prompt with a message to login instead as the **default_username** for this instance. Default: ``false``. This key can not be combined with **ssh_import_id** or **ssh_authorized_keys**."
         },
         "system": {
           "description": "Optional. Create user as system user with no home directory. Default: ``false``.",
@@ -545,7 +545,7 @@
           "type": "boolean",
           "deprecated": true,
           "deprecated_version": "22.3",
-          "deprecated_description": "Use ``remove_defaults`` instead."
+          "deprecated_description": "Use **remove_defaults** instead."
         },
         "remove_defaults": {
           "description": "Remove default CA certificates if true. Default: ``false``.",
@@ -961,7 +961,7 @@
             "preserve_repositories": {
               "type": "boolean",
               "default": false,
-              "description": "By default, cloud-init will generate a new repositories file ``/etc/apk/repositories`` based on any valid configuration settings specified within a apk_repos section of cloud config. To disable this behavior and preserve the repositories file from the pristine image, set ``preserve_repositories`` to ``true``.\nThe ``preserve_repositories`` option overrides all other config keys that would alter ``/etc/apk/repositories``."
+              "description": "By default, cloud-init will generate a new repositories file ``/etc/apk/repositories`` based on any valid configuration settings specified within a apk_repos section of cloud config. To disable this behavior and preserve the repositories file from the pristine image, set **preserve_repositories** to ``true``.\nThe **preserve_repositories** option overrides all other config keys that would alter ``/etc/apk/repositories``."
             },
             "alpine_repo": {
               "type": [
@@ -1013,7 +1013,7 @@
             "preserve_sources_list": {
               "type": "boolean",
               "default": false,
-              "description": "By default, cloud-init will generate a new sources list in ``/etc/apt/sources.list.d`` based on any changes specified in cloud config. To disable this behavior and preserve the sources list from the pristine image, set ``preserve_sources_list`` to ``true``.\n\nThe ``preserve_sources_list`` option overrides all other config keys that would alter ``sources.list`` or ``sources.list.d``, **except** for additional sources to be added to ``sources.list.d``."
+              "description": "By default, cloud-init will generate a new sources list in ``/etc/apt/sources.list.d`` based on any changes specified in cloud config. To disable this behavior and preserve the sources list from the pristine image, set **preserve_sources_list** to ``true``.\n\nThe **preserve_sources_list** option overrides all other config keys that would alter ``sources.list`` or ``sources.list.d``, **except** for additional sources to be added to ``sources.list.d``."
             },
             "disable_suites": {
               "type": "array",
@@ -1022,11 +1022,11 @@
               },
               "minItems": 1,
               "uniqueItems": true,
-              "description": "Entries in the sources list can be disabled using ``disable_suites``, which takes a list of suites to be disabled. If the string ``$RELEASE`` is present in a suite in the ``disable_suites`` list, it will be replaced with the release name. If a suite specified in ``disable_suites`` is not present in ``sources.list`` it will be ignored. For convenience, several aliases are provided for`` disable_suites``:\n- ``updates`` => ``$RELEASE-updates``\n- ``backports`` => ``$RELEASE-backports``\n- ``security`` => ``$RELEASE-security``\n- ``proposed`` => ``$RELEASE-proposed``\n- ``release`` => ``$RELEASE``.\n\nWhen a suite is disabled using ``disable_suites``, its entry in ``sources.list`` is not deleted; it is just commented out."
+              "description": "Entries in the sources list can be disabled using **disable_suites**, which takes a list of suites to be disabled. If the string ``$RELEASE`` is present in a suite in the **disable_suites** list, it will be replaced with the release name. If a suite specified in **disable_suites** is not present in ``sources.list`` it will be ignored. For convenience, several aliases are provided for **disable_suites**:\n- ``updates`` => ``$RELEASE-updates``\n- ``backports`` => ``$RELEASE-backports``\n- ``security`` => ``$RELEASE-security``\n- ``proposed`` => ``$RELEASE-proposed``\n- ``release`` => ``$RELEASE``.\n\nWhen a suite is disabled using **disable_suites**, its entry in ``sources.list`` is not deleted; it is just commented out."
             },
             "primary": {
               "$ref": "#/$defs/apt_configure.mirror",
-              "description": "The primary and security archive mirrors can be specified using the ``primary`` and ``security`` keys, respectively. Both the ``primary`` and ``security`` keys take a list of configs, allowing mirrors to be specified on a per-architecture basis. Each config is a dictionary which must have an entry for ``arches``, specifying which architectures that config entry is for. The keyword ``default`` applies to any architecture not explicitly listed. The mirror url can be specified with the ``uri`` key, or a list of mirrors to check can be provided in order, with the first mirror that can be resolved being selected. This allows the same configuration to be used in different environment, with different hosts used for a local APT mirror. If no mirror is provided by ``uri`` or ``search``, ``search_dns`` may be used to search for dns names in the format ``<distro>-mirror`` in each of the following:\n- fqdn of this host per cloud metadata,\n- localdomain,\n- domains listed in ``/etc/resolv.conf``.\n\nIf there is a dns entry for ``<distro>-mirror``, then it is assumed that there is a distro mirror at ``http://<distro>-mirror.<domain>/<distro>``. If the ``primary`` key is defined, but not the ``security`` key, then then configuration for ``primary`` is also used for ``security``. If ``search_dns`` is used for the ``security`` key, the search pattern will be ``<distro>-security-mirror``.\n\nEach mirror may also specify a key to import via any of the following optional keys:\n- ``keyid``: a key to import via shortid or fingerprint.\n- ``key``: a raw PGP key.\n- ``keyserver``: alternate keyserver to pull ``keyid`` key from.\n\nIf no mirrors are specified, or all lookups fail, then default mirrors defined in the datasource are used. If none are present in the datasource either the following defaults are used:\n- ``primary`` => ``http://archive.ubuntu.com/ubuntu``.\n- ``security`` => ``http://security.ubuntu.com/ubuntu``."
+              "description": "The primary and security archive mirrors can be specified using the **primary** and **security** keys, respectively. Both the **primary** and **security** keys take a list of configs, allowing mirrors to be specified on a per-architecture basis. Each config is a dictionary which must have an entry for **arches**, specifying which architectures that config entry is for. The keyword ``default`` applies to any architecture not explicitly listed. The mirror url can be specified with the **uri** key, or a list of mirrors to check can be provided in order, with the first mirror that can be resolved being selected. This allows the same configuration to be used in different environment, with different hosts used for a local APT mirror. If no mirror is provided by **uri** or **search**, **search_dns** may be used to search for dns names in the format ``<distro>-mirror`` in each of the following:\n- fqdn of this host per cloud metadata,\n- localdomain,\n- domains listed in ``/etc/resolv.conf``.\n\nIf there is a dns entry for ``<distro>-mirror``, then it is assumed that there is a distro mirror at ``http://<distro>-mirror.<domain>/<distro>``. If the **primary** key is defined, but not the **security** key, then then configuration for **primary** is also used for **security**. If **search_dns** is used for the **security** key, the search pattern will be ``<distro>-security-mirror``.\n\nEach mirror may also specify a key to import via any of the following optional keys:\n- **keyid**: a key to import via shortid or fingerprint.\n- **key**: a raw PGP key.\n- **keyserver**: alternate keyserver to pull **keyid** key from.\n\nIf no mirrors are specified, or all lookups fail, then default mirrors defined in the datasource are used. If none are present in the datasource either the following defaults are used:\n- **primary** => ``http://archive.ubuntu.com/ubuntu``.\n- **security** => ``http://security.ubuntu.com/ubuntu``."
             },
             "security": {
               "$ref": "#/$defs/apt_configure.mirror",
@@ -1035,7 +1035,7 @@
             "add_apt_repo_match": {
               "type": "string",
               "default": "^[\\w-]+:\\w",
-              "description": "All source entries in ``apt-sources`` that match regex in ``add_apt_repo_match`` will be added to the system using ``add-apt-repository``. If ``add_apt_repo_match`` is not specified, it defaults to ``^[\\w-]+:\\w``."
+              "description": "All source entries in ``apt-sources`` that match regex in **add_apt_repo_match** will be added to the system using ``add-apt-repository``. If **add_apt_repo_match** is not specified, it defaults to ``^[\\w-]+:\\w``."
             },
             "debconf_selections": {
               "type": "object",
@@ -1046,11 +1046,11 @@
                   "type": "string"
                 }
               },
-              "description": "Debconf additional configurations can be specified as a dictionary under the ``debconf_selections`` config key, with each key in the dict representing a different set of configurations. The value of each key must be a string containing all the debconf configurations that must be applied. We will bundle all of the values and pass them to ``debconf-set-selections``. Therefore, each value line must be a valid entry for ``debconf-set-selections``, meaning that they must possess for distinct fields:\n\n``pkgname question type answer``\n\nWhere:\n- ``pkgname`` is the name of the package.\n- ``question`` the name of the questions.\n- ``type`` is the type of question.\n- ``answer`` is the value used to answer the question.\n\nFor example: ``ippackage ippackage/ip string 127.0.01``."
+              "description": "Debconf additional configurations can be specified as a dictionary under the **debconf_selections** config key, with each key in the dict representing a different set of configurations. The value of each key must be a string containing all the debconf configurations that must be applied. We will bundle all of the values and pass them to **debconf-set-selections**. Therefore, each value line must be a valid entry for ``debconf-set-selections``, meaning that they must possess for distinct fields:\n\n``pkgname question type answer``\n\nWhere:\n- ``pkgname`` is the name of the package.\n- ``question`` the name of the questions.\n- ``type`` is the type of question.\n- ``answer`` is the value used to answer the question.\n\nFor example: ``ippackage ippackage/ip string 127.0.01``."
             },
             "sources_list": {
               "type": "string",
-              "description": "Specifies a custom template for rendering ``sources.list`` . If no ``sources_list`` template is given, cloud-init will use sane default. Within this template, the following strings will be replaced with the appropriate values:\n- ``$MIRROR``\n- ``$RELEASE``\n- ``$PRIMARY``\n- ``$SECURITY``\n- ``$KEY_FILE``"
+              "description": "Specifies a custom template for rendering ``sources.list`` . If no **sources_list** template is given, cloud-init will use sane default. Within this template, the following strings will be replaced with the appropriate values:\n- ``$MIRROR``\n- ``$RELEASE``\n- ``$PRIMARY``\n- ``$SECURITY``\n- ``$KEY_FILE``"
             },
             "conf": {
               "type": "string",
@@ -1103,7 +1103,7 @@
                   "minProperties": 1
                 }
               },
-              "description": "Source list entries can be specified as a dictionary under the ``sources`` config key, with each key in the dict representing a different source file. The key of each source entry will be used as an id that can be referenced in other config entries, as well as the filename for the source's configuration under ``/etc/apt/sources.list.d``. If the name does not end with ``.list``, it will be appended. If there is no configuration for a key in ``sources``, no file will be written, but the key may still be referred to as an id in other ``sources`` entries.\n\nEach entry under ``sources`` is a dictionary which may contain any of the following optional keys:\n- ``source``: a sources.list entry (some variable replacements apply).\n- ``keyid``: a key to import via shortid or fingerprint.\n- ``key``: a raw PGP key.\n- ``keyserver``: alternate keyserver to pull ``keyid`` key from.\n- ``filename``: specify the name of the list file.\n- ``append``: If ``true``, append to sources file, otherwise overwrite it. Default: ``true``.\n\nThe ``source`` key supports variable replacements for the following strings:\n- ``$MIRROR``\n- ``$PRIMARY``\n- ``$SECURITY``\n- ``$RELEASE``\n- ``$KEY_FILE``"
+              "description": "Source list entries can be specified as a dictionary under the **sources** config key, with each key in the dict representing a different source file. The key of each source entry will be used as an id that can be referenced in other config entries, as well as the filename for the source's configuration under ``/etc/apt/sources.list.d``. If the name does not end with ``.list``, it will be appended. If there is no configuration for a key in **sources**, no file will be written, but the key may still be referred to as an id in other **sources** entries.\n\nEach entry under **sources** is a dictionary which may contain any of the following optional keys:\n- **source**: a sources.list entry (some variable replacements apply).\n- **keyid**: a key to import via shortid or fingerprint.\n- **key**: a raw PGP key.\n- **keyserver**: alternate keyserver to pull **keyid** key from.\n- **filename**: specify the name of the list file.\n- **append**: If ``true``, append to sources file, otherwise overwrite it. Default: ``true``.\n\nThe **source** key supports variable replacements for the following strings:\n- ``$MIRROR``\n- ``$PRIMARY``\n- ``$SECURITY``\n- ``$RELEASE``\n- ``$KEY_FILE``"
             }
           }
         }
@@ -1131,7 +1131,7 @@
                 {
                   "deprecated": true,
                   "deprecated_version": "22.4",
-                  "deprecated_description": "Use ``os`` instead.",
+                  "deprecated_description": "Use **os** instead.",
                   "enum": [
                     "none",
                     "unchanged"
@@ -1198,7 +1198,7 @@
             {
               "deprecated": true,
               "deprecated_version": "22.3",
-              "deprecated_description": "Use ``ca_certs`` instead."
+              "deprecated_description": "Use **ca_certs** instead."
             }
           ]
         }
@@ -1470,7 +1470,7 @@
               },
               "device": {
                 "type": "string",
-                "description": "Specified either as a path or as an alias in the format ``<alias name>.<y>`` where ``<y>`` denotes the partition number on the device. If specifying device using the ``<alias name>.<partition number>`` format, the value of ``partition`` will be overwritten."
+                "description": "Specified either as a path or as an alias in the format ``<alias name>.<y>`` where ``<y>`` denotes the partition number on the device. If specifying device using the ``<alias name>.<partition number>`` format, the value of **partition** will be overwritten."
               },
               "partition": {
                 "type": [
@@ -1487,15 +1487,15 @@
                     ]
                   }
                 ],
-                "description": "The partition can be specified by setting ``partition`` to the desired partition number. The ``partition`` option may also be set to ``auto``, in which this module will search for the existence of a filesystem matching the ``label``, ``filesystem`` and ``device`` of the ``fs_setup`` entry and will skip creating the filesystem if one is found. The ``partition`` option may also be set to ``any``, in which case any filesystem that matches ``filesystem`` and ``device`` will cause this module to skip filesystem creation for the ``fs_setup`` entry, regardless of ``label`` matching or not. To write a filesystem directly to a device, use ``partition: none``. ``partition: none`` will **always** write the filesystem, even when the ``label`` and ``filesystem`` are matched, and ``overwrite`` is ``false``."
+                "description": "The partition can be specified by setting **partition** to the desired partition number. The **partition** option may also be set to ``auto``, in which this module will search for the existence of a filesystem matching the **label**, **filesystem** and **device** of the **fs_setup** entry and will skip creating the filesystem if one is found. The **partition** option may also be set to ``any``, in which case any filesystem that matches **filesystem** and **device** will cause this module to skip filesystem creation for the **fs_setup** entry, regardless of **label** matching or not. To write a filesystem directly to a device, use ``partition: none``. ``partition: none`` will **always** write the filesystem, even when the **label** and **filesystem** are matched, and ``overwrite`` is ``false``."
               },
               "overwrite": {
                 "type": "boolean",
-                "description": "If ``true``, overwrite any existing filesystem. Using ``overwrite: true`` for filesystems is **dangerous** and can lead to data loss, so double check the entry in ``fs_setup``. Default: ``false``."
+                "description": "If ``true``, overwrite any existing filesystem. Using ``overwrite: true`` for filesystems is **dangerous** and can lead to data loss, so double check the entry in **fs_setup**. Default: ``false``."
               },
               "replace_fs": {
                 "type": "string",
-                "description": "Ignored unless ``partition`` is ``auto`` or ``any``. Default ``false``."
+                "description": "Ignored unless **partition** is ``auto`` or ``any``. Default ``false``."
               },
               "extra_opts": {
                 "type": [
@@ -1505,7 +1505,7 @@
                 "items": {
                   "type": "string"
                 },
-                "description": "Optional options to pass to the filesystem creation command. Ignored if you using ``cmd`` directly."
+                "description": "Optional options to pass to the filesystem creation command. Ignored if you using **cmd** directly."
               },
               "cmd": {
                 "type": [
@@ -1515,7 +1515,7 @@
                 "items": {
                   "type": "string"
                 },
-                "description": "Optional command to run to create the filesystem. Can include string substitutions of the other ``fs_setup`` config keys. This is only necessary if you need to override the default command."
+                "description": "Optional command to run to create the filesystem. Can include string substitutions of the other **fs_setup** config keys. This is only necessary if you need to override the default command."
               }
             }
           }
@@ -1579,7 +1579,7 @@
                   ],
                   "changed": true,
                   "changed_version": "22.3",
-                  "changed_description": "Specifying a boolean ``false`` value for ``mode`` is deprecated. Use the string ``'off'`` instead."
+                  "changed_description": "Specifying a boolean ``false`` value for **mode** is deprecated. Use the string ``'off'`` instead."
                 }
               ]
             },
@@ -1619,7 +1619,7 @@
               "description": "Device to use as target for grub installation. If unspecified, ``grub-probe`` of ``/boot`` will be used to find the device."
             },
             "grub-pc/install_devices_empty": {
-              "description": "Sets values for ``grub-pc/install_devices_empty``. If unspecified, will be set to ``true`` if ``grub-pc/install_devices`` is empty, otherwise ``false``.",
+              "description": "Sets values for **grub-pc/install_devices_empty**. If unspecified, will be set to ``true`` if **grub-pc/install_devices** is empty, otherwise ``false``.",
               "oneOf": [
                 {
                   "type": "boolean"
@@ -1642,7 +1642,7 @@
           "type": "object",
           "deprecated": true,
           "deprecated_version": "22.2",
-          "deprecated_description": "Use ``grub_dpkg`` instead."
+          "deprecated_description": "Use **grub_dpkg** instead."
         }
       }
     },
@@ -1844,7 +1844,7 @@
             "init": {
               "type": "object",
               "additionalProperties": false,
-              "description": "LXD init configuration values to provide to `lxd init --auto` command. Can not be combined with ``lxd.preseed``.",
+              "description": "LXD init configuration values to provide to `lxd init --auto` command. Can not be combined with **lxd.preseed**.",
               "properties": {
                 "network_address": {
                   "type": "string",
@@ -1889,11 +1889,11 @@
                 "mode"
               ],
               "additionalProperties": false,
-              "description": "LXD bridge configuration provided to setup the host lxd bridge. Can not be combined with ``lxd.preseed``.",
+              "description": "LXD bridge configuration provided to setup the host lxd bridge. Can not be combined with **lxd.preseed**.",
               "properties": {
                 "mode": {
                   "type": "string",
-                  "description": "Whether to setup LXD bridge, use an existing bridge by ``name`` or create a new bridge. `none` will avoid bridge setup, `existing` will configure lxd to use the bring matching ``name`` and `new` will create a new bridge.",
+                  "description": "Whether to setup LXD bridge, use an existing bridge by **name** or create a new bridge. `none` will avoid bridge setup, `existing` will configure lxd to use the bring matching **name** and `new` will create a new bridge.",
                   "enum": [
                     "none",
                     "existing",
@@ -1913,19 +1913,19 @@
                 },
                 "ipv4_address": {
                   "type": "string",
-                  "description": "IPv4 address for the bridge. If set, ``ipv4_netmask`` key required."
+                  "description": "IPv4 address for the bridge. If set, **ipv4_netmask** key required."
                 },
                 "ipv4_netmask": {
                   "type": "integer",
-                  "description": "Prefix length for the ``ipv4_address`` key. Required when ``ipv4_address`` is set."
+                  "description": "Prefix length for the **ipv4_address** key. Required when **ipv4_address** is set."
                 },
                 "ipv4_dhcp_first": {
                   "type": "string",
-                  "description": "First IPv4 address of the DHCP range for the network created. This value will combined with ``ipv4_dhcp_last`` key to set LXC ``ipv4.dhcp.ranges``."
+                  "description": "First IPv4 address of the DHCP range for the network created. This value will combined with **ipv4_dhcp_last** key to set LXC **ipv4.dhcp.ranges**."
                 },
                 "ipv4_dhcp_last": {
                   "type": "string",
-                  "description": "Last IPv4 address of the DHCP range for the network created. This value will combined with ``ipv4_dhcp_first`` key to set LXC ``ipv4.dhcp.ranges``."
+                  "description": "Last IPv4 address of the DHCP range for the network created. This value will combined with **ipv4_dhcp_first** key to set LXC **ipv4.dhcp.ranges**."
                 },
                 "ipv4_dhcp_leases": {
                   "type": "integer",
@@ -1938,11 +1938,11 @@
                 },
                 "ipv6_address": {
                   "type": "string",
-                  "description": "IPv6 address for the bridge (CIDR notation). When set, ``ipv6_netmask`` key is required. When absent, no IPv6 will be configured."
+                  "description": "IPv6 address for the bridge (CIDR notation). When set, **ipv6_netmask** key is required. When absent, no IPv6 will be configured."
                 },
                 "ipv6_netmask": {
                   "type": "integer",
-                  "description": "Prefix length for ``ipv6_address`` provided. Required when ``ipv6_address`` is set."
+                  "description": "Prefix length for **ipv6_address** provided. Required when **ipv6_address** is set."
                 },
                 "ipv6_nat": {
                   "type": "boolean",
@@ -1957,7 +1957,7 @@
             },
             "preseed": {
               "type": "string",
-              "description": "Opaque LXD preseed YAML config passed via stdin to the command: lxd init --preseed. See: https://documentation.ubuntu.com/lxd/en/latest/howto/initialize/#non-interactive-configuration or lxd init --dump for viable config. Can not be combined with either ``lxd.init`` or ``lxd.bridge``."
+              "description": "Opaque LXD preseed YAML config passed via stdin to the command: lxd init --preseed. See: https://documentation.ubuntu.com/lxd/en/latest/howto/initialize/#non-interactive-configuration or lxd init --dump for viable config. Can not be combined with either **lxd.init** or **lxd.bridge**."
             }
           }
         }
@@ -2017,7 +2017,7 @@
             "minItems": 1,
             "maxItems": 6
           },
-          "description": "List of lists. Each inner list entry is a list of ``/etc/fstab`` mount declarations of the format: [ fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno ]. A mount declaration with less than 6 items will get remaining values from ``mount_default_fields``. A mount declaration with only `fs_spec` and no `fs_file` mountpoint will be skipped.",
+          "description": "List of lists. Each inner list entry is a list of ``/etc/fstab`` mount declarations of the format: [ fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno ]. A mount declaration with less than 6 items will get remaining values from **mount_default_fields**. A mount declaration with only `fs_spec` and no `fs_file` mountpoint will be skipped.",
           "minItems": 1
         },
         "mount_default_fields": {
@@ -2141,18 +2141,18 @@
               "description": "Attempt to enable ntp clients if set to True.  If set to ``false``, ntp client will not be configured or installed."
             },
             "config": {
-              "description": "Configuration settings or overrides for the ``ntp_client`` specified.",
+              "description": "Configuration settings or overrides for the **ntp_client** specified.",
               "type": "object",
               "minProperties": 1,
               "additionalProperties": false,
               "properties": {
                 "confpath": {
                   "type": "string",
-                  "description": "The path to where the ``ntp_client`` configuration is written."
+                  "description": "The path to where the **ntp_client** configuration is written."
                 },
                 "check_exe": {
                   "type": "string",
-                  "description": "The executable name for the ``ntp_client``. For example, ntp service ``check_exe`` is 'ntpd' because it runs the ntpd binary."
+                  "description": "The executable name for the **ntp_client**. For example, ntp service **check_exe** is 'ntpd' because it runs the ntpd binary."
                 },
                 "packages": {
                   "type": "array",
@@ -2160,15 +2160,15 @@
                     "type": "string"
                   },
                   "uniqueItems": true,
-                  "description": "List of packages needed to be installed for the selected ``ntp_client``."
+                  "description": "List of packages needed to be installed for the selected **ntp_client**."
                 },
                 "service_name": {
                   "type": "string",
-                  "description": "The systemd or sysvinit service name used to start and stop the ``ntp_client`` service."
+                  "description": "The systemd or sysvinit service name used to start and stop the **ntp_client** service."
                 },
                 "template": {
                   "type": "string",
-                  "description": "Inline template allowing users to customize their ``ntp_client`` configuration with the use of the Jinja templating engine. The template content should start with ``## template:jinja``. Within the template, you can utilize any of the following ntp module config keys: ``servers``, ``pools``, ``allow``, and ``peers``. Each cc_ntp schema config key and expected value type is defined above."
+                  "description": "Inline template allowing users to customize their **ntp_client** configuration with the use of the Jinja templating engine. The template content should start with ``## template:jinja``. Within the template, you can utilize any of the following ntp module config keys: **servers**, **pools**, **allow**, and **peers**. Each cc_ntp schema config key and expected value type is defined above."
                 }
               }
             }
@@ -2228,19 +2228,19 @@
           "type": "boolean",
           "deprecated": true,
           "deprecated_version": "22.2",
-          "deprecated_description": "Use ``package_update`` instead."
+          "deprecated_description": "Use **package_update** instead."
         },
         "apt_upgrade": {
           "type": "boolean",
           "deprecated": true,
           "deprecated_version": "22.2",
-          "deprecated_description": "Use ``package_upgrade`` instead."
+          "deprecated_description": "Use **package_upgrade** instead."
         },
         "apt_reboot_if_required": {
           "type": "boolean",
           "deprecated": true,
           "deprecated_version": "22.2",
-          "deprecated_description": "Use ``package_reboot_if_required`` instead."
+          "deprecated_description": "Use **package_reboot_if_required** instead."
         }
       }
     },
@@ -2388,37 +2388,37 @@
             },
             "collection": {
               "type": "string",
-              "description": "Puppet collection to install if ``install_type`` is ``aio``. This can be set to one of ``puppet`` (rolling release), ``puppet6``, ``puppet7`` (or their nightly counterparts) in order to install specific release streams."
+              "description": "Puppet collection to install if **install_type** is ``aio``. This can be set to one of ``puppet`` (rolling release), ``puppet6``, ``puppet7`` (or their nightly counterparts) in order to install specific release streams."
             },
             "aio_install_url": {
               "type": "string",
-              "description": "If ``install_type`` is ``aio``, change the url of the install script."
+              "description": "If **install_type** is ``aio``, change the url of the install script."
             },
             "cleanup": {
               "type": "boolean",
               "default": true,
-              "description": "Whether to remove the puppetlabs repo after installation if ``install_type`` is ``aio`` Default: ``true``."
+              "description": "Whether to remove the puppetlabs repo after installation if **install_type** is ``aio`` Default: ``true``."
             },
             "conf_file": {
               "type": "string",
-              "description": "The path to the puppet config file. Default depends on ``install_type``."
+              "description": "The path to the puppet config file. Default depends on **install_type**."
             },
             "ssl_dir": {
               "type": "string",
-              "description": "The path to the puppet SSL directory. Default depends on ``install_type``."
+              "description": "The path to the puppet SSL directory. Default depends on **install_type**."
             },
             "csr_attributes_path": {
               "type": "string",
-              "description": "The path to the puppet csr attributes file. Default depends on ``install_type``."
+              "description": "The path to the puppet csr attributes file. Default depends on **install_type**."
             },
             "package_name": {
               "type": "string",
-              "description": "Name of the package to install if ``install_type`` is ``packages``. Default: ``puppet``."
+              "description": "Name of the package to install if **install_type** is ``packages``. Default: ``puppet``."
             },
             "exec": {
               "type": "boolean",
               "default": false,
-              "description": "Whether or not to run puppet after configuration finishes. A single manual run can be triggered by setting ``exec`` to ``true``, and additional arguments can be passed to ``puppet agent`` via the ``exec_args`` key (by default the agent will execute with the ``--test`` flag). Default: ``false``."
+              "description": "Whether or not to run puppet after configuration finishes. A single manual run can be triggered by setting **exec** to ``true``, and additional arguments can be passed to ``puppet agent`` via the **exec_args** key (by default the agent will execute with the ``--test`` flag). Default: ``false``."
             },
             "exec_args": {
               "type": "array",
@@ -2430,7 +2430,7 @@
             "start_service": {
               "type": "boolean",
               "default": true,
-              "description": "By default, the puppet service will be automatically enabled after installation and set to automatically start on boot. To override this in favor of manual puppet execution set ``start_service`` to ``false``."
+              "description": "By default, the puppet service will be automatically enabled after installation and set to automatically start on boot. To override this in favor of manual puppet execution set **start_service** to ``false``."
             },
             "conf": {
               "type": "object",
@@ -2490,7 +2490,7 @@
         "manage_resolv_conf": {
           "type": "boolean",
           "default": false,
-          "description": "Whether to manage the resolv.conf file. ``resolv_conf`` block will be ignored unless this is set to ``true``. Default: ``false``."
+          "description": "Whether to manage the resolv.conf file. **resolv_conf** block will be ignored unless this is set to ``true``. Default: ``false``."
         },
         "resolv_conf": {
           "type": "object",
@@ -2529,18 +2529,18 @@
           "properties": {
             "username": {
               "type": "string",
-              "description": "The username to use. Must be used with password. Should not be used with ``activation-key`` or ``org``."
+              "description": "The username to use. Must be used with password. Should not be used with **activation-key** or **org**."
             },
             "password": {
               "type": "string",
-              "description": "The password to use. Must be used with username. Should not be used with ``activation-key`` or ``org``."
+              "description": "The password to use. Must be used with username. Should not be used with **activation-key** or **org**."
             },
             "activation-key": {
               "type": "string",
-              "description": "The activation key to use. Must be used with ``org``. Should not be used with ``username`` or ``password``."
+              "description": "The activation key to use. Must be used with **org**. Should not be used with **username** or **password**."
             },
             "org": {
-              "description": "The organization to use. Must be used with ``activation-key``. Should not be used with ``username`` or ``password``.",
+              "description": "The organization to use. Must be used with **activation-key**. Should not be used with **username** or **password**.",
               "oneOf": [
                 {
                   "type": "string"
@@ -2611,7 +2611,7 @@
             },
             "configs": {
               "type": "array",
-              "description": "Each entry in ``configs`` is either a string or an object. Each config entry contains a configuration string and a file to write it to. For config entries that are an object, ``filename`` sets the target filename and ``content`` specifies the config string to write. For config entries that are only a string, the string is used as the config string to write. If the filename to write the config to is not specified, the value of the ``config_filename`` key is used. A file with the selected filename will be written inside the directory specified by ``config_dir``.",
+              "description": "Each entry in **configs** is either a string or an object. Each config entry contains a configuration string and a file to write it to. For config entries that are an object, **filename** sets the target filename and **content** specifies the config string to write. For config entries that are only a string, the string is used as the config string to write. If the filename to write the config to is not specified, the value of the **config_filename** key is used. A file with the selected filename will be written inside the directory specified by **config_dir**.",
               "items": {
                 "oneOf": [
                   {
@@ -2670,7 +2670,7 @@
                 "type": "string"
               },
               "uniqueItems": true,
-              "description": "List of packages needed to be installed for rsyslog. This is only used if ``install_rsyslog`` is ``true``. Default: ``[rsyslog]``."
+              "description": "List of packages needed to be installed for rsyslog. This is only used if **install_rsyslog** is ``true``. Default: ``[rsyslog]``."
             }
           }
         }
@@ -2797,7 +2797,7 @@
             },
             "data": {
               "type": "string",
-              "description": "This data will be written to ``file`` before data from the datasource. When using a multi-line value or specifying binary data, be sure to follow YAML syntax and use the ``|`` and ``!binary`` YAML format specifiers when appropriate."
+              "description": "This data will be written to **file** before data from the datasource. When using a multi-line value or specifying binary data, be sure to follow YAML syntax and use the ``|`` and ``!binary`` YAML format specifiers when appropriate."
             },
             "encoding": {
               "type": "string",
@@ -2809,19 +2809,19 @@
                 "gzip",
                 "gz"
               ],
-              "description": "Used to decode ``data`` provided. Allowed values are ``raw``, ``base64``, ``b64``, ``gzip``, or ``gz``.  Default: ``raw``."
+              "description": "Used to decode **data** provided. Allowed values are ``raw``, ``base64``, ``b64``, ``gzip``, or ``gz``.  Default: ``raw``."
             },
             "command": {
               "type": "array",
               "items": {
                 "type": "string"
               },
-              "description": "Execute this command to seed random. The command will have RANDOM_SEED_FILE in its environment set to the value of ``file`` above."
+              "description": "Execute this command to seed random. The command will have RANDOM_SEED_FILE in its environment set to the value of **file** above."
             },
             "command_required": {
               "type": "boolean",
               "default": false,
-              "description": "If true, and ``command`` is not available to be run then an exception is raised and cloud-init will record failure. Otherwise, only debug error is mentioned. Default: ``false``."
+              "description": "If true, and **command** is not available to be run then an exception is raised and cloud-init will record failure. Otherwise, only debug error is mentioned. Default: ``false``."
             }
           }
         }
@@ -2881,7 +2881,7 @@
               "description": "Whether to expire all user passwords such that a password will need to be reset on the user's next login. Default: ``true``."
             },
             "users": {
-              "description": "This key represents a list of existing users to set passwords for. Each item under users contains the following required keys: ``name`` and ``password`` or in the case of a randomly generated password, ``name`` and ``type``. The ``type`` key has a default value of ``hash``, and may alternatively be set to ``text`` or ``RANDOM``. Randomly generated passwords may be insecure, use at your own risk.",
+              "description": "This key represents a list of existing users to set passwords for. Each item under users contains the following required keys: **name** and **password** or in the case of a randomly generated password, **name** and **type**. The **type** key has a default value of ``hash``, and may alternatively be set to ``text`` or ``RANDOM``. Randomly generated passwords may be insecure, use at your own risk.",
               "type": "array",
               "items": {
                 "minItems": 1,
@@ -2947,13 +2947,13 @@
               "minItems": 1,
               "deprecated": true,
               "deprecated_version": "22.2",
-              "deprecated_description": "Use ``users`` instead."
+              "deprecated_description": "Use **users** instead."
             }
           }
         },
         "password": {
           "type": "string",
-          "description": "Set the default user's password. Ignored if ``chpasswd`` ``list`` is used."
+          "description": "Set the default user's password. Ignored if **chpasswd** ``list`` is used."
         }
       }
     },
@@ -2966,7 +2966,7 @@
           "additionalProperties": false,
           "properties": {
             "assertions": {
-              "description": "Properly-signed snap assertions which will run before and snap ``commands``.",
+              "description": "Properly-signed snap assertions which will run before and snap **commands**.",
               "type": [
                 "object",
                 "array"
@@ -3077,7 +3077,7 @@
       "properties": {
         "ssh_keys": {
           "type": "object",
-          "description": "A dictionary entries for the public and private host keys of each desired key type. Entries in the ``ssh_keys`` config dict should have keys in the format ``<key type>_private``, ``<key type>_public``, and, optionally, ``<key type>_certificate``, e.g. ``rsa_private: <key>``, ``rsa_public: <key>``, and ``rsa_certificate: <key>``. Not all key types have to be specified, ones left unspecified will not be used. If this config option is used, then separate keys will not be automatically generated. In order to specify multi-line private host keys and certificates, use YAML multi-line syntax. **Note:** Your ssh keys might possibly be visible to unprivileged users on your system, depending on your cloud's security model.",
+          "description": "A dictionary entries for the public and private host keys of each desired key type. Entries in the **ssh_keys** config dict should have keys in the format ``<key type>_private``, ``<key type>_public``, and, optionally, ``<key type>_certificate``, e.g. ``rsa_private: <key>``, ``rsa_public: <key>``, and ``rsa_certificate: <key>``. Not all key types have to be specified, ones left unspecified will not be used. If this config option is used, then separate keys will not be automatically generated. In order to specify multi-line private host keys and certificates, use YAML multi-line syntax. **Note:** Your ssh keys might possibly be visible to unprivileged users on your system, depending on your cloud's security model.",
           "additionalProperties": false,
           "patternProperties": {
             "^(ecdsa|ed25519|rsa)_(public|private|certificate)$": {
@@ -3125,7 +3125,7 @@
         "disable_root_opts": {
           "type": "string",
           "default": "``no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command=\"echo 'Please login as the user \\\"$USER\\\" rather than the user \\\"$DISABLE_USER\\\".';echo;sleep 10;exit 142\"``",
-          "description": "Disable root login options.  If ``disable_root_opts`` is specified and contains the string ``$USER``, it will be replaced with the username of the default user. Default: ``no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command=\"echo 'Please login as the user \\\"$USER\\\" rather than the user \\\"$DISABLE_USER\\\".';echo;sleep 10;exit 142\"``."
+          "description": "Disable root login options.  If **disable_root_opts** is specified and contains the string ``$USER``, it will be replaced with the username of the default user. Default: ``no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command=\"echo 'Please login as the user \\\"$USER\\\" rather than the user \\\"$DISABLE_USER\\\".';echo;sleep 10;exit 142\"``."
         },
         "allow_public_ssh_keys": {
           "type": "boolean",
@@ -3204,7 +3204,7 @@
           "$ref": "#/$defs/ubuntu_pro.properties",
           "deprecated": true,
           "deprecated_version": "24.1",
-          "deprecated_description": "Use ``ubuntu_pro`` instead."
+          "deprecated_description": "Use **ubuntu_pro** instead."
         }
       }
     },
@@ -3226,7 +3226,7 @@
               "enum": [
                 "template"
               ],
-              "changed_description": "Use of ``template`` is deprecated, use ``true`` instead.",
+              "changed_description": "Use of **template** is deprecated, use ``true`` instead.",
               "changed": true,
               "changed_version": "22.3"
             }
@@ -3234,11 +3234,11 @@
         },
         "fqdn": {
           "type": "string",
-          "description": "Optional fully qualified domain name to use when updating ``/etc/hosts``. Preferred over ``hostname`` if both are provided. In absence of ``hostname`` and ``fqdn`` in cloud-config, the ``local-hostname`` value will be used from datasource metadata."
+          "description": "Optional fully qualified domain name to use when updating ``/etc/hosts``. Preferred over **hostname** if both are provided. In absence of **hostname** and **fqdn** in cloud-config, the ``local-hostname`` value will be used from datasource metadata."
         },
         "hostname": {
           "type": "string",
-          "description": "Hostname to set when rendering ``/etc/hosts``. If ``fqdn`` is set, the hostname extracted from ``fqdn`` overrides ``hostname``."
+          "description": "Hostname to set when rendering ``/etc/hosts``. If **fqdn** is set, the hostname extracted from **fqdn** overrides **hostname**."
         }
       }
     },
@@ -3253,7 +3253,7 @@
         "prefer_fqdn_over_hostname": {
           "type": "boolean",
           "default": null,
-          "description": "By default, it is distro-dependent whether cloud-init uses the short hostname or fully qualified domain name when both ``local-hostname` and ``fqdn`` are both present in instance metadata. When set ``true``, use fully qualified domain name if present as hostname instead of short hostname. When set ``false``, use ``hostname`` config value if present, otherwise fallback to ``fqdn``."
+          "description": "By default, it is distro-dependent whether cloud-init uses the short hostname or fully qualified domain name when both ``local-hostname` and ``fqdn`` are both present in instance metadata. When set ``true``, use fully qualified domain name if present as hostname instead of short hostname. When set ``false``, use **hostname** config value if present, otherwise fallback to **fqdn**."
         },
         "create_hostname_file": {
           "type": "boolean",
@@ -3294,7 +3294,7 @@
               "$ref": "#/$defs/users_groups.user"
             }
           ],
-          "description": "The ``user`` dictionary values override the ``default_user`` configuration from ``/etc/cloud/cloud.cfg``. The ``user`` dictionary keys supported for the default_user are the same as the ``users`` schema."
+          "description": "The **user** dictionary values override the **default_user** configuration from ``/etc/cloud/cloud.cfg``. The **user** dictionary keys supported for the default_user are the same as the **users** schema."
         },
         "users": {
           "type": [
@@ -3384,12 +3384,12 @@
             "properties": {
               "path": {
                 "type": "string",
-                "description": "Path of the file to which ``content`` is decoded and written."
+                "description": "Path of the file to which **content** is decoded and written."
               },
               "content": {
                 "type": "string",
                 "default": "''",
-                "description": "Optional content to write to the provided ``path``. When content is present and encoding is not 'text/plain', decode the content prior to writing. Default: ``''``."
+                "description": "Optional content to write to the provided **path**. When content is present and encoding is not 'text/plain', decode the content prior to writing. Default: ``''``."
               },
               "source": {
                 "type": "object",
@@ -3399,7 +3399,7 @@
                   "uri": {
                     "type": "string",
                     "format": "uri",
-                    "description": "URI from which to load file content. If loading fails repeatedly, ``content`` is used instead."
+                    "description": "URI from which to load file content. If loading fails repeatedly, **content** is used instead."
                   },
                   "headers": {
                     "type": "object",
@@ -3421,7 +3421,7 @@
               "permissions": {
                 "type": "string",
                 "default": "'0o644'",
-                "description": "Optional file permissions to set on ``path`` represented as an octal string '0###'. Default: ``0o644``."
+                "description": "Optional file permissions to set on **path** represented as an octal string '0###'. Default: ``0o644``."
               },
               "encoding": {
                 "type": "string",
@@ -3442,7 +3442,7 @@
               "append": {
                 "type": "boolean",
                 "default": false,
-                "description": "Whether to append ``content`` to existing file if ``path`` exists. Default: ``false``."
+                "description": "Whether to append **content** to existing file if **path** exists. Default: ``false``."
               },
               "defer": {
                 "type": "boolean",

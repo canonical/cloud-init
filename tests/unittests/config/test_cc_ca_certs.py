@@ -390,10 +390,12 @@ class TestCACertsSchema:
             # Valid, yet deprecated schemas
             (
                 {"ca-certs": {"remove-defaults": True}},
-                "Cloud config schema deprecations: ca-certs:  "
-                "Deprecated in version 22.3. Use ``ca_certs`` instead.,"
-                " ca-certs.remove-defaults:  Deprecated in version 22.3"
-                ". Use ``remove_defaults`` instead.",
+                re.escape(
+                    "Cloud config schema deprecations: ca-certs:  "
+                    "Deprecated in version 22.3. Use **ca_certs** instead.,"
+                    " ca-certs.remove-defaults:  Deprecated in version 22.3"
+                    ". Use **remove_defaults** instead."
+                ),
             ),
             # Invalid schemas
             (

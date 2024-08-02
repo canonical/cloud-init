@@ -302,7 +302,7 @@ class TestGrubDpkgSchema:
                     match=(
                         "Cloud config schema deprecations: grub-dpkg:"
                         "  Deprecated in version 22.2. Use "
-                        "``grub_dpkg`` instead."
+                        "\*\*grub_dpkg\*\* instead."
                     ),
                 ),
                 False,
