@@ -17,6 +17,7 @@ from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 from cloudinit import safeyaml, subp
 from cloudinit.cmd.devel import read_cfg_paths
+from cloudinit.cmd.main import STAGE_NAME
 from cloudinit.distros import uses_systemd
 from cloudinit.helpers import Paths
 from cloudinit.util import get_cmdline, load_json, load_text_file
@@ -430,6 +431,15 @@ def get_latest_event(status_v1):
     return latest_event
 
 
+def get_not_started_errors(status_v1) -> List[str]:
+    """Return a list of errors from status_v1 that are not started."""
+    return [
+        f"Failed to start stage: {stage_name}"
+        for stage_name, stage_info in status_v1.items()
+        if stage_name in STAGE_NAME.keys() and stage_info.get("start") is None
+    ]
+
+
 def get_errors(status_v1) -> Tuple[List, Dict]:
     """Return a list of errors and recoverable_errors from status_v1."""
     errors = []
@@ -451,6 +461,7 @@ def get_errors(status_v1) -> Tuple[List, Dict]:
                     recoverable_errors[err_type].extend(
                         current_recoverable_errors[err_type]
                     )
+    errors.extend(get_not_started_errors(status_v1)) 
     return errors, recoverable_errors
 
 
