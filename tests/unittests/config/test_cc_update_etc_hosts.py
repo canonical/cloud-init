@@ -87,10 +87,10 @@ class TestUpdateEtcHosts:
                 {"manage_etc_hosts": "template"},
                 pytest.raises(
                     SchemaValidationError,
-                    match=(
+                    match=re.escape(
                         "Cloud config schema deprecations: "
                         "manage_etc_hosts:  Changed in version 22.3. "
-                        "Use of ``template`` is deprecated, use "
+                        "Use of **template** is deprecated, use "
                         "``true`` instead."
                     ),
                 ),
