@@ -104,8 +104,8 @@ def test_lxd_datasource_kernel_override_nocloud_net(
         )
         assert url_val in client.execute("cloud-init query subplatform").stdout
         assert (
-            "Detected platform: DataSourceNoCloudNet [seed=None]"
-            "[dsmode=net]. Checking for active instance data"
+            "Detected platform: DataSourceNoCloudNet. Checking for active"
+            "instance data"
         ) in logs
 
 

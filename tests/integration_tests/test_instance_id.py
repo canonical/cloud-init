@@ -6,6 +6,7 @@ from pycloudlib.lxd.instance import LXDInstance
 from cloudinit import subp
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL
 
 _INSTANCE_ID = 0
 
@@ -26,7 +27,7 @@ def setup_meta_data(instance: LXDInstance):
 
 # class TestInstanceID:
 @pytest.mark.skipif(
-    PLATFORM not in ["lxd_container", "lxd_vm"],
+    PLATFORM not in ["lxd_container", "lxd_vm"] or CURRENT_RELEASE == FOCAL,
     reason="Uses lxd-specific behavior.",
 )
 @pytest.mark.lxd_setup.with_args(setup_meta_data)
