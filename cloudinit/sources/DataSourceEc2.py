@@ -655,17 +655,24 @@ class DataSourceEc2(sources.DataSource):
         """
         if isinstance(exception, uhelp.UrlError):
             # requests.ConnectionError will have exception.code == None
-            if exception.code and exception.code >= 400:
+            if exception.code:
                 if exception.code == 403:
                     LOG.warning(
                         "Ec2 IMDS endpoint returned a 403 error. "
                         "HTTP endpoint is disabled. Aborting."
                     )
-                else:
+                    raise exception
+                elif exception.code == 503:
+                    LOG.warning(
+                        "Ec2 IMDS endpoint returned a 503 error. "
+                        "HTTP endpoint is overloaded. Retrying."
+                    )
+                    return
+                elif exception.code >= 400:
                     LOG.warning(
                         "Fatal error while requesting Ec2 IMDSv2 API tokens"
                     )
-                raise exception
+                    raise exception
 
     def _get_headers(self, url=""):
         """Return a dict of headers for accessing a url.
