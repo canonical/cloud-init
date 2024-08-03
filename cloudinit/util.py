@@ -1069,12 +1069,16 @@ def read_seeded(base="", ext="", timeout=5, retries=10):
         vd_url = "%s%s%s" % (base, "vendor-data", ext)
         md_url = "%s%s%s" % (base, "meta-data", ext)
         network_url = "%s%s%s" % (base, "network-config", ext)
-    network_resp = url_helper.read_file_or_url(
-        network_url, timeout=timeout, retries=retries
-    )
     network = None
-    if network_resp.ok():
-        network = load_yaml(network_resp.contents)
+    try:
+        network_resp = url_helper.read_file_or_url(
+            network_url, timeout=timeout, retries=retries
+        )
+    except url_helper.UrlError as e:
+        LOG.debug("No network config provided: %s", e)
+    else:
+        if network_resp.ok():
+            network = load_yaml(network_resp.contents)
     md_resp = url_helper.read_file_or_url(
         md_url, timeout=timeout, retries=retries
     )

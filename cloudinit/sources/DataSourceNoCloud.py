@@ -481,7 +481,8 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)
     seedfrom = argv[1]
-    md_seed, ud, vd = util.read_seeded(seedfrom)
+    md_seed, ud, vd, network = util.read_seeded(seedfrom)
     print(f"seeded: {md_seed}")
     print(f"ud: {ud}")
     print(f"vd: {vd}")
+    print(f"network: {network}")
