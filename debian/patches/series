@@ -8,3 +8,4 @@ status-retain-recoverable-error-exit-code.patch
 retain-ec2-default-net-update-events.patch
 cli-retain-file-argument-as-main-cmd-arg.patch
 deprecation-version-boundary.patch
+no-single-process.patch
