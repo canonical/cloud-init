@@ -83,30 +83,8 @@ re-run all stages as it did on first boot.
 
 .. note::
 
-   Cloud-init provides the directory :file:`/etc/cloud/clean.d/` for third party
-   applications which need additional configuration artifact cleanup from
-   the filesystem when the `clean` command is invoked.
-
-   The :command:`clean` operation is typically performed by image creators
-   when preparing a golden image for clone and redeployment. The clean command
-   removes any cloud-init semaphores, allowing cloud-init to treat the next
-   boot of this image as the "first boot". When the image is next booted
-   cloud-init will performing all initial configuration based on any valid
-   datasource meta-data and user-data.
-
-   Any executable scripts in this subdirectory will be invoked in lexicographical
-   order with run-parts when running the :command:`clean` command.
-
-   Typical format of such scripts would be a ##-<some-app> like the following:
-   :file:`/etc/cloud/clean.d/99-live-installer`
-
-   An example of a script is:
-
-   .. code-block:: bash
-
-      sudo rm -rf /var/lib/installer_imgs/
-      sudo rm -rf /var/log/installer/
-
+   The operations performed by `clean` can be supplemented / customized. See:
+   :ref:`custom_clean_scripts`.
 
 .. _cli_collect_logs:
 
@@ -212,9 +190,10 @@ Example output:
 
 Generally run by OS init systems to execute ``cloud-init``'s stages:
 *init* and *init-local*. See :ref:`boot_stages` for more info.
-Can be run on the command line, but is generally gated to run only once
-due to semaphores in :file:`/var/lib/cloud/instance/sem/` and
-:file:`/var/lib/cloud/sem`.
+Can be run on the command line, but is deprecated, because incomplete
+configuration can be applied when run later in boot. The boot stages are
+generally gated to run only once due to semaphores in
+:file:`/var/lib/cloud/instance/sem/` and :file:`/var/lib/cloud/sem`.
 
 * :command:`--local`: Run *init-local* stage instead of *init*.
 * :command:`--file` : Use additional yaml configuration files.
@@ -226,16 +205,19 @@ due to semaphores in :file:`/var/lib/cloud/instance/sem/` and
 
 Generally run by OS init systems to execute ``modules:config`` and
 ``modules:final`` boot stages. This executes cloud config :ref:`modules`
-configured to run in the Init, Config and Final stages. The modules are
-declared to run in various boot stages in the file
+configured to run in the Init, Config and Final stages. Can be run on the
+command line, but this is not recommended and will generate a warning because
+incomplete configuration can be applied when run later in boot.
+The modules are declared to run in various boot stages in the file
 :file:`/etc/cloud/cloud.cfg` under keys:
 
 * ``cloud_init_modules``
 * ``cloud_config_modules``
 * ``cloud_final_modules``
 
-Can be run on the command line, but each module is gated to run only once due
-to semaphores in :file:`/var/lib/cloud/`.
+Can be run on the command line, but is deprecated, because incomplete
+configuration can be applied when run later in boot. Each module is gated to
+run only once due to semaphores in :file:`/var/lib/cloud/`.
 
 * :command:`--mode [init|config|final]`: Run ``modules:init``,
   ``modules:config`` or ``modules:final`` ``cloud-init`` stages.

@@ -9,7 +9,7 @@ import functools
 import logging
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
-from cloudinit import safeyaml, util
+from cloudinit import lifecycle, safeyaml, util
 from cloudinit.net import (
     find_interface_name_from_mac,
     get_interfaces_by_mac,
@@ -86,7 +86,7 @@ NET_CONFIG_TO_V2: Dict[str, Dict[str, Any]] = {
 def warn_deprecated_all_devices(dikt: dict) -> None:
     """Warn about deprecations of v2 properties for all devices"""
     if "gateway4" in dikt or "gateway6" in dikt:
-        util.deprecate(
+        lifecycle.deprecate(
             deprecated="The use of `gateway4` and `gateway6`",
             deprecated_version="22.4",
             extra_message="For more info check out: "

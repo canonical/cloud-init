@@ -107,6 +107,11 @@ that newly added deprecations will be logged at INFO level. The implication of
 the different log levels is that logs at DEPRECATED level result in a return
 code of 2 from `cloud-init status`.
 
+This may may also be used in some limited cases where new error messages may be
+logged which increase the risk of regression in stable downstreams where the
+error was previously unreported yet downstream users expected stable behavior
+across new cloud-init releases.
+
 format:
 
 <value> :: = <default> | <version>

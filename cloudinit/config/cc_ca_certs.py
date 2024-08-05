@@ -7,7 +7,7 @@
 import logging
 import os
 
-from cloudinit import subp, util
+from cloudinit import lifecycle, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -23,6 +23,13 @@ DEFAULT_CONFIG = {
     "ca_cert_update_cmd": ["update-ca-certificates"],
 }
 DISTRO_OVERRIDES = {
+    "aosc": {
+        "ca_cert_path": "/etc/ssl/certs/",
+        "ca_cert_local_path": "/etc/ssl/certs/",
+        "ca_cert_filename": "cloud-init-ca-cert-{cert_index}.pem",
+        "ca_cert_config": "/etc/ca-certificates/conf.d/cloud-init.conf",
+        "ca_cert_update_cmd": ["update-ca-bundle"],
+    },
     "fedora": {
         "ca_cert_path": "/etc/pki/ca-trust/",
         "ca_cert_local_path": "/usr/share/pki/ca-trust-source/",
@@ -71,6 +78,7 @@ for distro in (
 
 distros = [
     "almalinux",
+    "aosc",
     "cloudlinux",
     "alpine",
     "debian",
@@ -149,7 +157,7 @@ def disable_default_ca_certs(distro_name, distro_cfg):
     """
     if distro_name in ["rhel", "photon"]:
         remove_default_ca_certs(distro_cfg)
-    elif distro_name in ["alpine", "debian", "ubuntu"]:
+    elif distro_name in ["alpine", "aosc", "debian", "ubuntu"]:
         disable_system_ca_certs(distro_cfg)
 
         if distro_name in ["debian", "ubuntu"]:
@@ -223,7 +231,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     @param args: Any module arguments from cloud.cfg
     """
     if "ca-certs" in cfg:
-        util.deprecate(
+        lifecycle.deprecate(
             deprecated="Key 'ca-certs'",
             deprecated_version="22.1",
             extra_message="Use 'ca_certs' instead.",
@@ -246,7 +254,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # If there is a remove_defaults option set to true, disable the system
     # default trusted CA certs first.
     if "remove-defaults" in ca_cert_cfg:
-        util.deprecate(
+        lifecycle.deprecate(
             deprecated="Key 'remove-defaults'",
             deprecated_version="22.1",
             extra_message="Use 'remove_defaults' instead.",

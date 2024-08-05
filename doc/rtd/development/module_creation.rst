@@ -163,6 +163,17 @@ in the correct location based on dependencies. If your module has no particular
 dependencies or is not necessary for a later boot stage, it should be placed
 in the ``cloud_final_modules`` section before the ``final-message`` module.
 
+Benefits of including your config module in upstream cloud-init
+===============================================================
+
+Config modules included in upstream cloud-init benefit from ongoing
+maintenance,
+compatibility with the rest of the codebase, and security fixes by the upstream
+development team.
+
+If this is not possible, one can add
+:ref:`custom out-of-tree config modules<custom_configuration_module>`
+to cloud-init.
 
 .. _MetaSchema: https://github.com/canonical/cloud-init/blob/3bcffacb216d683241cf955e4f7f3e89431c1491/cloudinit/config/schema.py#L58
 .. _OSFAMILIES: https://github.com/canonical/cloud-init/blob/3bcffacb216d683241cf955e4f7f3e89431c1491/cloudinit/distros/__init__.py#L35

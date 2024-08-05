@@ -4,8 +4,7 @@ from typing import List
 
 import pytest
 
-from cloudinit import distros, features, ssh_util
-from cloudinit.util import should_log_deprecation
+from cloudinit import distros, features, lifecycle, ssh_util
 from tests.unittests.helpers import mock
 from tests.unittests.util import abstract_to_concrete
 
@@ -145,7 +144,7 @@ class TestCreateUser:
 
         expected_levels = (
             ["WARNING", "DEPRECATED"]
-            if should_log_deprecation(
+            if lifecycle.should_log_deprecation(
                 "23.1", features.DEPRECATION_INFO_BOUNDARY
             )
             else ["INFO"]
@@ -180,7 +179,7 @@ class TestCreateUser:
 
         expected_levels = (
             ["WARNING", "DEPRECATED"]
-            if should_log_deprecation(
+            if lifecycle.should_log_deprecation(
                 "22.2", features.DEPRECATION_INFO_BOUNDARY
             )
             else ["INFO"]

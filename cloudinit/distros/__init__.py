@@ -36,6 +36,7 @@ import cloudinit.net.netops.iproute2 as iproute2
 from cloudinit import (
     helpers,
     importer,
+    lifecycle,
     net,
     persistence,
     ssh_util,
@@ -60,6 +61,7 @@ ALL_DISTROS = "all"
 
 OSFAMILIES = {
     "alpine": ["alpine"],
+    "aosc": ["aosc"],
     "arch": ["arch"],
     "debian": ["debian", "ubuntu"],
     "freebsd": ["freebsd", "dragonfly"],
@@ -170,6 +172,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self.package_managers: List[PackageManager] = []
         self._dhcp_client = None
         self._fallback_interface = None
+        self.is_linux = True
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         """Perform deserialization fixes for Distro."""
@@ -186,6 +189,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             self._dhcp_client = None
         if not hasattr(self, "_fallback_interface"):
             self._fallback_interface = None
+        if not hasattr(self, "is_linux"):
+            self.is_linux = True
 
     def _validate_entry(self, entry):
         if isinstance(entry, str):
@@ -706,7 +711,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 groups = groups.split(",")
 
             if isinstance(groups, dict):
-                util.deprecate(
+                lifecycle.deprecate(
                     deprecated=f"The user {name} has a 'groups' config value "
                     "of type dict",
                     deprecated_version="22.3",
@@ -844,7 +849,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if kwargs["sudo"]:
                 self.write_sudo_rules(name, kwargs["sudo"])
             elif kwargs["sudo"] is False:
-                util.deprecate(
+                lifecycle.deprecate(
                     deprecated=f"The value of 'false' in user {name}'s "
                     "'sudo' config",
                     deprecated_version="22.2",

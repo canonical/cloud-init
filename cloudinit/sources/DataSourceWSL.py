@@ -328,9 +328,13 @@ class DataSourceWSL(sources.DataSource):
         # provides them instead.
         # That's the reason for not using util.mergemanydict().
         merged: dict = {}
+        user_tags: str = ""
         overridden_keys: typing.List[str] = []
         if user_data:
             merged = user_data
+            user_tags = (
+                merged.get("landscape", {}).get("client", {}).get("tags", "")
+            )
         if agent_data:
             if user_data:
                 LOG.debug("Merging both user_data and agent.yaml configs.")
@@ -345,6 +349,13 @@ class DataSourceWSL(sources.DataSource):
                         ", ".join(overridden_keys)
                     )
                 )
+            if user_tags and merged.get("landscape", {}).get("client"):
+                LOG.debug(
+                    "Landscape client conf updated with user-data"
+                    " landscape.client.tags: %s",
+                    user_tags,
+                )
+                merged["landscape"]["client"]["tags"] = user_tags
 
         self.userdata_raw = "#cloud-config\n%s" % yaml.dump(merged)
         return True

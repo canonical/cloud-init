@@ -318,8 +318,9 @@ def systemd_failed(wait: bool) -> bool:
     for service in [
         "cloud-final.service",
         "cloud-config.service",
-        "cloud-init.service",
+        "cloud-init-network.service",
         "cloud-init-local.service",
+        "cloud-init-main.service",
     ]:
         try:
             stdout = query_systemctl(

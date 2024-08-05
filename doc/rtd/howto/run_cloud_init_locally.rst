@@ -70,6 +70,12 @@ Download an Ubuntu image to run:
 
     wget https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
 
+.. note::
+   This example uses emulated CPU instructions on non-x86 hosts, so it may be
+   slow. To make it faster on non-x86 architectures, one can change the image
+   type and :spelling:ignore:`qemu-system-<arch>` command name to match the
+   architecture of your host machine.
+
 Boot the image with the ISO attached
 ------------------------------------
 
@@ -78,8 +84,9 @@ Boot the cloud image with our configuration, :file:`seed.img`, to QEMU:
 .. code-block:: shell-session
 
     $ qemu-system-x86_64 -m 1024 -net nic -net user \
-        -hda jammy-server-cloudimg-amd64.img \
-        -hdb seed.img
+        -drive file=jammy-server-cloudimg-amd64.img,index=0,format=qcow2,media=disk \
+        -drive file=seed.img,index=1,media=cdrom \
+        -machine accel=kvm:tcg
 
 The now-booted image will allow for login using the password provided above.
 

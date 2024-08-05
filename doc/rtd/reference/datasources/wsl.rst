@@ -66,7 +66,10 @@ following paths:
    the Ubuntu Pro for WSL agent. If this file is present, its modules will be
    merged with (1), overriding any conflicting modules. If (1) is not provided,
    then this file will be merged with any valid user-provided configuration
-   instead.
+   instead. Exception is made for Landscape client config computer tags. If
+   user provided data contains a value for ``landscape.client.tags`` it will be
+   used instead of the one provided by the ``agent.yaml``, which is treated as
+   a default.
 
 Then, if a file from (1) is not found, a user-provided configuration will be
 looked for instead in the following order:

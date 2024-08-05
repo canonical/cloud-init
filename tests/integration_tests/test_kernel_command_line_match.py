@@ -22,7 +22,7 @@ log = logging.getLogger("integration_testing")
     (
         (
             "ds=nocloud;s=http://my-url/;h=hostname",
-            "DataSourceNoCloud [seed=None][dsmode=net]",
+            "DataSourceNoCloud",
             True,
         ),
         ("ci.ds=openstack", "DataSourceOpenStack", True),
@@ -49,17 +49,14 @@ def test_lxd_datasource_kernel_override(
     override_kernel_command_line(ds_str, client)
     if cmdline_configured:
         assert (
-            "Machine is configured by the kernel command line to run on single"
+            "Kernel command line set to use a single"
             f" datasource {configured}"
         ) in client.execute("cat /var/log/cloud-init.log")
     else:
         # verify that no plat
         log = client.execute("cat /var/log/cloud-init.log")
-        assert (f"Detected platform: {configured}") in log
-        assert (
-            "Machine is configured by the kernel "
-            "command line to run on single "
-        ) not in log
+        assert f"Detected {configured}" in log
+        assert "Kernel command line set to use a single" not in log
 
 
 GH_REPO_PATH = "https://raw.githubusercontent.com/canonical/cloud-init/main/"
@@ -107,8 +104,8 @@ def test_lxd_datasource_kernel_override_nocloud_net(
         )
         assert url_val in client.execute("cloud-init query subplatform").stdout
         assert (
-            "Detected platform: DataSourceNoCloudNet [seed=None]"
-            "[dsmode=net]. Checking for active instance data"
+            "Detected platform: DataSourceNoCloudNet. Checking for active"
+            "instance data"
         ) in logs
 
 
