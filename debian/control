@@ -33,6 +33,7 @@ Architecture: all
 Depends: cloud-guest-utils | cloud-utils,
          dhcpcd-base,
          iproute2,
+         netcat-openbsd,
          netplan.io,
          procps,
          python3,
