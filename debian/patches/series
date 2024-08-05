@@ -13,3 +13,4 @@ cli-retain-file-argument-as-main-cmd-arg.patch
 drop-unsupported-systemd-condition-environment.patch
 deprecation-version-boundary.patch
 no-single-process.patch
+no-nocloud-network.patch
