@@ -435,12 +435,12 @@ def get_not_started_errors(status_v1) -> List[str]:
     """Return a list of errors from status_v1 that are not started."""
     return [
         f"Failed to start stage: {stage_name}"
-        for stage_name, stage_info in status_v1.items()
-        if stage_name in STAGE_NAME.keys() and stage_info.get("start") is None
+        for stage_name in STAGE_NAME
+        if status_v1.get(stage_name, {}).get("start") is None
     ]
 
 
-def get_errors(status_v1) -> Tuple[List, Dict]:
+def get_errors(status_v1, running_status: RunningStatus) -> Tuple[List, Dict]:
     """Return a list of errors and recoverable_errors from status_v1."""
     errors = []
     recoverable_errors = {}
@@ -461,7 +461,8 @@ def get_errors(status_v1) -> Tuple[List, Dict]:
                     recoverable_errors[err_type].extend(
                         current_recoverable_errors[err_type]
                     )
-    errors.extend(get_not_started_errors(status_v1)) 
+    if running_status == RunningStatus.DONE:
+        errors.extend(get_not_started_errors(status_v1))
     return errors, recoverable_errors
 
 
@@ -496,15 +497,15 @@ def get_status_details(
         else ""
     )
 
-    errors, recoverable_errors = get_errors(status_v1)
+    running_status = get_running_status(
+        status_file, result_file, boot_status_code, latest_event
+    )
+
+    errors, recoverable_errors = get_errors(status_v1, running_status)
     if errors:
         condition_status = ConditionStatus.ERROR
     elif recoverable_errors:
         condition_status = ConditionStatus.DEGRADED
-
-    running_status = get_running_status(
-        status_file, result_file, boot_status_code, latest_event
-    )
 
     if (
         running_status == RunningStatus.RUNNING
