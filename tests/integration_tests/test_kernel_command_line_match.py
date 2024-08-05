@@ -103,10 +103,7 @@ def test_lxd_datasource_kernel_override_nocloud_net(
             == client.execute("cloud-init query platform").stdout.strip()
         )
         assert url_val in client.execute("cloud-init query subplatform").stdout
-        assert (
-            "Detected platform: DataSourceNoCloudNet. Checking for active"
-            "instance data"
-        ) in logs
+        assert "Detected DataSourceNoCloudNet" in logs
 
 
 @pytest.mark.skipif(PLATFORM != "lxd_vm", reason="Modifies grub config")
@@ -116,7 +113,7 @@ def test_lxd_disable_cloud_init_cmdline(client: IntegrationInstance):
 
     override_kernel_command_line("cloud-init=disabled", client)
     assert "Active: inactive (dead)" in client.execute(
-        "systemctl status cloud-init"
+        "systemctl status cloud-init.target"
     )
 
 
@@ -128,7 +125,7 @@ def test_lxd_disable_cloud_init_file(client: IntegrationInstance):
     client.execute("cloud-init --clean")
     client.restart()
     assert "Active: inactive (dead)" in client.execute(
-        "systemctl status cloud-init"
+        "systemctl status cloud-init.target"
     )
 
 
@@ -142,5 +139,5 @@ def test_lxd_disable_cloud_init_env(client: IntegrationInstance):
     client.execute("cloud-init --clean")
     client.restart()
     assert "Active: inactive (dead)" in client.execute(
-        "systemctl status cloud-init"
+        "systemctl status cloud-init.target"
     )
