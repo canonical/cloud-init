@@ -141,7 +141,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 n_repo_config[k] = v
         repo_config = n_repo_config
         missing_required = 0
-        req_fields = ["baseurl", "metalink"]
+        req_fields = ["baseurl", "metalink", "mirrorlist"]
         for req_field in req_fields:
             if req_field not in repo_config:
                 missing_required += 1

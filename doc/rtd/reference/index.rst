@@ -25,3 +25,4 @@ matrices and so on.
    ubuntu_stable_release_updates.rst
    breaking_changes.rst
    user_files.rst
+   custom_modules.rst

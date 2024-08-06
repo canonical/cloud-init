@@ -18,7 +18,7 @@ meta: MetaSchema = {
 
 LOG = logging.getLogger(__name__)
 
-distros = ["redhat", "fedora"]
+distros = ["redhat", "fedora", "openeuler"]
 required_packages = ["rhn-setup"]
 def_ca_cert_path = "/usr/share/rhn/RHN-ORG-TRUSTED-SSL-CERT"
 

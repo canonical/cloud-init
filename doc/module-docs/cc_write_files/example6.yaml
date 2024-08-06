@@ -1,0 +1,9 @@
+#cloud-config
+write_files:
+- source:
+    uri: https://gitlab.example.com/some_ci_job/artifacts/hello
+    headers:
+      Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==
+      User-Agent: cloud-init on myserver.example.com
+  path: /usr/bin/hello
+  permissions: '0755'

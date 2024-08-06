@@ -19,7 +19,7 @@ from collections import namedtuple
 from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from cloudinit import atomic_helper, dmi, importer, net, type_utils
+from cloudinit import atomic_helper, dmi, importer, lifecycle, net, type_utils
 from cloudinit import user_data as ud
 from cloudinit import util
 from cloudinit.atomic_helper import write_json
@@ -393,14 +393,13 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
         if self.dsname.lower() == parse_cmdline().lower():
             LOG.debug(
-                "Machine is configured by the kernel command line to run on "
-                "single datasource %s.",
+                "Kernel command line set to use a single datasource %s.",
                 self,
             )
             return True
         elif self.sys_cfg.get("datasource_list", []) == [self.dsname]:
             LOG.debug(
-                "Machine is configured to run on single datasource %s.", self
+                "Datasource list set to use a single datasource %s.", self
             )
             return True
         return False
@@ -411,12 +410,12 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             return self._get_data()
         elif self.ds_detect():
             LOG.debug(
-                "Detected platform: %s. Checking for active instance data",
+                "Detected %s",
                 self,
             )
             return self._get_data()
         else:
-            LOG.debug("Datasource type %s is not detected.", self)
+            LOG.debug("Did not detect %s", self)
             return False
 
     def _get_standardized_metadata(self, instance_data):
@@ -1231,7 +1230,7 @@ def parse_cmdline_or_dmi(input: str) -> str:
     deprecated = ds_parse_1 or ds_parse_2
     if deprecated:
         dsname = deprecated.group(1).strip()
-        util.deprecate(
+        lifecycle.deprecate(
             deprecated=(
                 f"Defining the datasource on the command line using "
                 f"ci.ds={dsname} or "

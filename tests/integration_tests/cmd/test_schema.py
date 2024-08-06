@@ -3,7 +3,7 @@ from textwrap import dedent
 
 import pytest
 
-from cloudinit.util import should_log_deprecation
+from cloudinit import lifecycle
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.releases import CURRENT_RELEASE, MANTIC
 from tests.integration_tests.util import (
@@ -71,7 +71,7 @@ class TestSchemaDeprecations:
         )
         # the deprecation_version is 22.2 in schema for apt_* keys in
         # user-data. Pass 22.2 in against the client's version_boundary.
-        if should_log_deprecation("22.2", version_boundary):
+        if lifecycle.should_log_deprecation("22.2", version_boundary):
             log_level = "DEPRECATED"
         else:
             log_level = "INFO"

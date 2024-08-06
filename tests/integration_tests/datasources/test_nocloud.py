@@ -5,8 +5,8 @@ from textwrap import dedent
 import pytest
 from pycloudlib.lxd.instance import LXDInstance
 
+from cloudinit import lifecycle
 from cloudinit.subp import subp
-from cloudinit.util import should_log_deprecation
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL
@@ -162,7 +162,7 @@ class TestSmbios:
                 """\
                 [Unit]
                 Description=Serve a local webserver
-                Before=cloud-init.service
+                Before=cloud-init-network.service
                 Wants=cloud-init-local.service
                 DefaultDependencies=no
                 After=systemd-networkd-wait-online.service
@@ -199,7 +199,7 @@ class TestSmbios:
             client, "DEPRECATION_INFO_BOUNDARY"
         )
         # nocloud-net deprecated in version 24.1
-        if should_log_deprecation("24.1", version_boundary):
+        if lifecycle.should_log_deprecation("24.1", version_boundary):
             log_level = "DEPRECATED"
         else:
             log_level = "INFO"
@@ -326,7 +326,8 @@ class TestFTP:
                     'wget "https://github.com/FiloSottile/mkcert/releases/'
                     "download/${latest_ver}/mkcert-"
                     '${latest_ver}-linux-amd64"'
-                    " -O mkcert"
+                    " -O mkcert && "
+                    "chmod 755 mkcert"
                 ).ok
 
                 # giddyup
@@ -353,7 +354,7 @@ class TestFTP:
                 # and NoCloud operates in network timeframe
                 After=systemd-networkd-wait-online.service
                 After=networking.service
-                Before=cloud-init.service
+                Before=cloud-init-network.service
 
                 [Service]
                 Type=exec
@@ -426,6 +427,10 @@ class TestFTP:
                 "Attempted to connect to an insecure ftp server but used"
                 " a scheme of ftps://, which is not allowed. Use ftp:// "
                 "to allow connecting to insecure ftp servers.",
+            ],
+            ignore_tracebacks=[
+                'ftplib.error_perm: 500 Command "AUTH" not understood.',
+                "UrlError: Attempted to connect to an insecure ftp server",
             ],
         )
 
