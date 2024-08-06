@@ -1,6 +1,9 @@
 cloud-init (24.2-0ubuntu1~22.04.2) UNRELEASED; urgency=medium
 
   * Upstream snapshot based on upstream/main at f93a6b5a.
+  * refresh patches:
+    - d/p/cli-retain-file-argument-as-main-cmd-arg.patch
+    - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
 
  -- James Falcon <james.falcon@canonical.com>  Tue, 06 Aug 2024 12:36:24 -0500
 
