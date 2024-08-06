@@ -311,7 +311,7 @@ def read_md() -> Optional[Dict[str, Any]]:
     if platform is None:
         LOG.debug("This is not an IBMCloud platform.")
         return None
-    elif platform in PROVISIONING or path is None: 
+    elif platform in PROVISIONING or path is None:
         LOG.debug("Cloud-init is disabled during provisioning: %s.", platform)
         return None
 
