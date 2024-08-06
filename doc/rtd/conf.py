@@ -44,6 +44,7 @@ extensions = [
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.viewcode",
     "sphinxcontrib.datatemplates",
+    "sphinxcontrib.mermaid",
     "sphinxcontrib.spelling",
 ]
 
@@ -55,6 +56,7 @@ spelling_warning = True
 templates_path = ["templates"]
 # Uses case-independent spelling matches from doc/rtd/spelling_word_list.txt
 spelling_filters = ["spelling.WordListFilter"]
+spelling_word_list_filename = "spelling_word_list.txt"
 
 # The suffix of source filenames.
 source_suffix = ".rst"

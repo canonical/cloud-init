@@ -160,9 +160,7 @@ class TestCLI:
 
     def test_no_arguments_shows_error_message(self, capsys):
         exit_code = self._call_main()
-        missing_subcommand_message = (
-            "the following arguments are required: subcommand"
-        )
+        missing_subcommand_message = "a subcommand is required"
         _out, err = capsys.readouterr()
         assert (
             missing_subcommand_message in err
@@ -319,7 +317,8 @@ class TestCLI:
                 ["all"],
                 [
                     "**Supported distros:** all",
-                    "**Supported distros:** almalinux, alpine, azurelinux, "
+                    "**Supported distros:** "
+                    "almalinux, alpine, aosc, azurelinux, "
                     "centos, cloudlinux, cos, debian, eurolinux, fedora, "
                     "freebsd, mariner, miraclelinux, openbsd, openeuler, "
                     "OpenCloudOS, openmandriva, opensuse, opensuse-microos, "

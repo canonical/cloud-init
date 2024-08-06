@@ -17,7 +17,8 @@ from pycloudlib.ec2.instance import EC2Instance
 from pycloudlib.gce.instance import GceInstance
 
 import cloudinit.config
-from cloudinit.util import is_true, should_log_deprecation
+from cloudinit import lifecycle
+from cloudinit.util import is_true
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
@@ -138,7 +139,7 @@ class TestCombined:
         )
         # the changed_version is 22.2 in schema for user.sudo key in
         # user-data. Pass 22.2 in against the client's version_boundary.
-        if should_log_deprecation("22.2", version_boundary):
+        if lifecycle.should_log_deprecation("22.2", version_boundary):
             log_level = "DEPRECATED"
             deprecation_count = 2
         else:

@@ -17,7 +17,7 @@ import os
 import re
 from textwrap import dedent
 
-from cloudinit import log, subp, util
+from cloudinit import lifecycle, log, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -153,7 +153,7 @@ def load_config(cfg: dict, distro: Distro) -> dict:
     distro_config = distro_default_rsyslog_config(distro)
 
     if isinstance(cfg.get("rsyslog"), list):
-        util.deprecate(
+        lifecycle.deprecate(
             deprecated="The rsyslog key with value of type 'list'",
             deprecated_version="22.2",
         )

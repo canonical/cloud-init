@@ -77,6 +77,13 @@ Run commands on first boot
    :language: yaml
    :linenos:
 
+Run commands on very early at every boot
+========================================
+
+.. literalinclude:: ../../examples/boothook.txt
+   :language: bash
+   :linenos:
+
 Install arbitrary packages
 ==========================
 

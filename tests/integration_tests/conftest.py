@@ -191,7 +191,7 @@ def _collect_profile(instance: IntegrationInstance, log_dir: Path):
             log_dir / "profile" / "local.stats",
         )
         instance.pull_file(
-            "/var/log/cloud-init.service.stats",
+            "/var/log/cloud-init-network.service.stats",
             log_dir / "profile" / "network.stats",
         )
         instance.pull_file(

@@ -1352,7 +1352,12 @@
             },
             "chef_license": {
               "type": "string",
-              "description": "string that indicates if user accepts or not license related to some of chef products"
+              "description": "string that indicates if user accepts or not license related to some of chef products. See https://docs.chef.io/licensing/accept/",
+              "enum": [
+                "accept",
+                "accept-silent",
+                "accept-no-persist"
+              ]
             }
           }
         }
@@ -2017,12 +2022,12 @@
         },
         "mount_default_fields": {
           "type": "array",
-          "description": "Default mount configuration for any mount entry with less than 6 options provided. When specified, 6 items are required and represent ``/etc/fstab`` entries. Default: ``defaults,nofail,x-systemd.after=cloud-init.service,_netdev``",
+          "description": "Default mount configuration for any mount entry with less than 6 options provided. When specified, 6 items are required and represent ``/etc/fstab`` entries. Default: ``defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev``",
           "default": [
             null,
             null,
             "auto",
-            "defaults,nofail,x-systemd.after=cloud-init.service",
+            "defaults,nofail,x-systemd.after=cloud-init-network.service",
             "0",
             "2"
           ],
@@ -3386,6 +3391,28 @@
                 "default": "''",
                 "description": "Optional content to write to the provided ``path``. When content is present and encoding is not 'text/plain', decode the content prior to writing. Default: ``''``"
               },
+              "source": {
+                "type": "object",
+                "description": "Optional specification for content loading from an arbitrary URI",
+                "additionalProperties": false,
+                "properties": {
+                  "uri": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "URI from which to load file content. If loading fails repeatedly, ``content`` is used instead."
+                  },
+                  "headers": {
+                    "type": "object",
+                    "description": "Optional HTTP headers to accompany load request, if applicable",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "uri"
+                ]
+              },
               "owner": {
                 "type": "string",
                 "default": "root:root",
@@ -3452,6 +3479,16 @@
                   "format": "uri",
                   "description": "URL to the directory where the yum repository's 'repodata' directory lives"
                 },
+                "metalink": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "Specifies a URL to a metalink file for the repomd.xml"
+                },
+                "mirrorlist": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "Specifies a URL to a file containing a baseurls list"
+                },
                 "name": {
                   "type": "string",
                   "description": "Optional human-readable name of the yum repo."
@@ -3479,8 +3516,22 @@
                   "description": "Any supported yum repository configuration options will be written to the yum repo config file. See: man yum.conf"
                 }
               },
-              "required": [
-                "baseurl"
+              "anyOf": [
+                {
+                  "required": [
+                    "baseurl"
+                  ]
+                },
+                {
+                  "required": [
+                    "metalink"
+                  ]
+                },
+                {
+                  "required": [
+                    "mirrorlist"
+                  ]
+                }
               ]
             }
           }

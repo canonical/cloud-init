@@ -301,6 +301,7 @@ def test_multi_nic_hotplug(setup_image, session_cloud: IntegrationCloud):
 
 @pytest.mark.skipif(CURRENT_RELEASE <= FOCAL, reason="See LP: #2055397")
 @pytest.mark.skipif(PLATFORM != "ec2", reason="test is ec2 specific")
+@pytest.mark.skip(reason="IMDS race, see GH-5373. Unskip when fixed.")
 def test_multi_nic_hotplug_vpc(setup_image, session_cloud: IntegrationCloud):
     """Tests that additional secondary NICs are routable from local
     networks after the hotplug hook is executed when network updates

@@ -20,19 +20,7 @@ caveats:
    required for the instance to run, then vendor data should not be used.
 4. User-supplied cloud-config is merged over cloud-config from vendor data.
 
-Users providing cloud-config data can use the ``#cloud-config-jsonp`` method
-to more finely control their modifications to the vendor-supplied
-cloud-config. For example, if both vendor and user have provided ``runcmd``
-then the default merge handler will cause the user's ``runcmd`` to override
-the one provided by the vendor. To append to ``runcmd``, the user could better
-provide multi-part input with a ``cloud-config-jsonp`` part like:
-
-.. code:: yaml
-
-   #cloud-config-jsonp
-   [{ "op": "add", "path": "/runcmd", "value": ["my", "command", "here"]}]
-
-Further, we strongly advise vendors to not "be evil". By evil, we mean any
+Further, we strongly advise vendors to ensure you protect against any
 action that could compromise a system. Since users trust you, please take
 care to make sure that any vendor data is safe, atomic, idempotent and does
 not put your users at risk.

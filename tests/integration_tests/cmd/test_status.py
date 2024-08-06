@@ -117,7 +117,7 @@ write_files:
     fi
     cloud-init status --wait --long > $1
     date +%s.%N > $MARKER_FILE
-"""  # noqa: E501
+"""
 
 
 BEFORE_CLOUD_INIT_LOCAL = """\
@@ -162,7 +162,7 @@ def test_status_block_through_all_boot_status(client):
 
     # Assert that before-cloud-init-local.service started before
     # cloud-init-local.service could create status.json
-    client.execute("test -f /before-local.start-hasstatusjson").failed
+    assert client.execute("test -f /before-local.start-hasstatusjson").failed
 
     early_unit_timestamp = retry_read_from_file(
         client, "/before-local.start-nostatusjson"
