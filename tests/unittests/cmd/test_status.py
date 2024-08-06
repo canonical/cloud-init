@@ -355,10 +355,12 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                         "blah": {"finished": 123.456},
                         "init": {
                             "errors": [],
-                            "start": 124.567,
-                            "finished": 125.678,
+                            "start": 12.3,
+                            "finished": 12.4,
                         },
-                        "init-local": {"start": 123.45, "finished": 123.46},
+                        "init-local": {"start": 12.1, "finished": 12.2},
+                        "modules-config": {"start": 12.5, "finished": 12.6},
+                        "modules-final": {"start": 12.7, "finished": 12.8},
                     }
                 },
                 None,
@@ -379,8 +381,10 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                             "[seed=/var/.../seed/nocloud-net]"
                             "[dsmode=net]"
                         ),
-                        "init": {"start": 124.567, "finished": 125.678},
-                        "init-local": {"start": 123.45, "finished": 123.46},
+                        "init": {"start": 12.3, "finished": 12.4},
+                        "init-local": {"start": 12.1, "finished": 12.2},
+                        "modules-config": {"start": 12.5, "finished": 12.6},
+                        "modules-final": {"start": 12.7, "finished": 12.8},
                     }
                 },
                 None,
@@ -391,7 +395,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                     status: done
                     extended_status: done
                     boot_status_code: enabled-by-generator
-                    last_update: Thu, 01 Jan 1970 00:02:05 +0000
+                    last_update: Thu, 01 Jan 1970 00:00:12 +0000
                     detail: DataSourceNoCloud [seed=/var/.../seed/nocloud-net][dsmode=net]
                     errors: []
                     recoverable_errors: {}
@@ -409,10 +413,12 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                         "blah": {"errors": [], "finished": 123.456},
                         "init": {
                             "errors": ["error1"],
-                            "start": 124.567,
-                            "finished": 125.678,
+                            "start": 12.3,
+                            "finished": 12.4,
                         },
-                        "init-local": {"start": 123.45, "finished": 123.46},
+                        "init-local": {"start": 12.1, "finished": 12.2},
+                        "modules-config": {"start": 12.5, "finished": 12.6},
+                        "modules-final": {"start": 12.7, "finished": 12.8},
                     }
                 },
                 None,
@@ -420,6 +426,29 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                 1,
                 "status: error\n",
                 id="on_errors",
+            ),
+            # Reports error when any stage not present.
+            pytest.param(
+                lambda config: config.result_file,
+                status.EnabledStatus.ENABLED_BY_GENERATOR,
+                {
+                    "v1": {
+                        "stage": None,
+                        "init": {
+                            "errors": [],
+                            "start": None,
+                            "finished": None,
+                        },
+                        "init-local": {"start": 12.1, "finished": 12.2},
+                        "modules-config": {"start": 12.5, "finished": 12.6},
+                        "modules-final": {"start": 12.7, "finished": 12.8},
+                    }
+                },
+                None,
+                MyArgs(long=False, wait=False, format="tabular"),
+                1,
+                "status: error\n",
+                id="missing_stage_error",
             ),
             # Long format of error status includes all error messages.
             pytest.param(
@@ -797,6 +826,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                 "stage": None,
                 "init": {"start": 124.456, "finished": 125.678},
                 "init-local": {"start": 123.45, "finished": 123.46},
+                "modules-config": {"start": 123.56, "finished": 123.57},
+                "modules-final": {"start": 123.67, "finished": 123.68},
             }
         }
 
