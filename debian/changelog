@@ -1,10 +1,10 @@
 cloud-init (24.2-0ubuntu1~24.04.2) UNRELEASED; urgency=medium
 
-  * Upstream snapshot based on upstream/main at b7b11bc0.
   * d/p/no-single-process.patch: Remove single process optimization
   * d/p/no-nocloud-network.patch: Remove nocloud network feature
+  * Upstream snapshot based on upstream/main at acf04d61.
 
- -- Brett Holman <brett.holman@canonical.com>  Mon, 05 Aug 2024 11:56:59 -0600
+ -- James Falcon <james.falcon@canonical.com>  Wed, 07 Aug 2024 10:46:12 -0500
 
 cloud-init (24.2-0ubuntu1~24.04.1) noble; urgency=medium
 
