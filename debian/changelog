@@ -3,6 +3,7 @@ cloud-init (24.2-0ubuntu1~22.04.1) jammy; urgency=medium
   * d/control: remove netifaces due to GH-4634
   * d/p/deprecation-version-boundary.patch: Pin deprecation version to 22.1
   * d/p/no-single-process.patch: Remove single process optimization
+  * d/p/no-nocloud-network.patch: Remove nocloud network feature
   * drop d/p/do-not-block-user-login.patch: upstream 4981ea9 now orders
     cloud-init.service Before=systemd-user-sessions.service
   * refresh patches:
