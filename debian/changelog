@@ -1,12 +1,10 @@
 cloud-init (24.2-0ubuntu1~22.04.2) UNRELEASED; urgency=medium
 
-  * Upstream snapshot based on upstream/main at f93a6b5a.
+  * d/p/no-single-process.patch: Remove single process optimization
+  * d/p/no-nocloud-network.patch: Remove nocloud network feature
   * refresh patches:
     - d/p/cli-retain-file-argument-as-main-cmd-arg.patch
     - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
-  * refresh patches:
-    - d/p/no-nocloud-network.patch
-    - d/p/no-single-process.patch
   * Upstream snapshot based on upstream/main at edd92b71.
 
  -- Chad Smith <chad.smith@canonical.com>  Wed, 07 Aug 2024 16:36:13 -0600
@@ -15,8 +13,6 @@ cloud-init (24.2-0ubuntu1~22.04.1) jammy; urgency=medium
 
   * d/control: remove netifaces due to GH-4634
   * d/p/deprecation-version-boundary.patch: Pin deprecation version to 22.1
-  * d/p/no-single-process.patch: Remove single process optimization
-  * d/p/no-nocloud-network.patch: Remove nocloud network feature
   * drop d/p/do-not-block-user-login.patch: upstream 4981ea9 now orders
     cloud-init.service Before=systemd-user-sessions.service
   * refresh patches:
