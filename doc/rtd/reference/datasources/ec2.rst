@@ -96,7 +96,7 @@ The maximum amount of clock time in seconds that should be spent searching
 ``metadata_urls``. A value less than zero will result in only one request
 being made, to the first in the list.
 
-Default: 120
+Default: 240
 
 ``timeout``
 -----------
@@ -126,7 +126,7 @@ An example configuration with the default values is provided below:
    datasource:
      Ec2:
        metadata_urls: ["http://169.254.169.254:80", "http://instance-data:8773"]
-       max_wait: 120
+       max_wait: 240
        timeout: 50
        apply_full_imds_network_config: true
 

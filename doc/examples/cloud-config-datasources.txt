@@ -9,7 +9,7 @@ datasource:
     # The length in seconds to wait before giving up on the metadata
     # service.  The actual total wait could be up to 
     #   len(resolvable_metadata_urls)*timeout
-    max_wait : 120
+    max_wait : 240
 
     #metadata_url: a list of URLs to check for metadata services
     metadata_urls:

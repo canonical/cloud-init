@@ -88,7 +88,7 @@ class DataSourceEc2(sources.DataSource):
     ]
 
     # Setup read_url parameters per get_url_params.
-    url_max_wait = 120
+    url_max_wait = 240
     url_timeout = 50
 
     _api_token = None  # API token for accessing the metadata service
