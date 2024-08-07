@@ -973,7 +973,7 @@ def read_optional_seed(fill, base="", ext="", timeout=5):
         fill["user-data"] = ud
         fill["vendor-data"] = vd
         fill["meta-data"] = md
-        fill["network-config"] = md
+        fill["network-config"] = network
         return True
     except url_helper.UrlError as e:
         if e.code == url_helper.NOT_FOUND:
