@@ -267,6 +267,8 @@ class TestFTP:
                 #!/usr/bin/python3
                 import logging
 
+                from systemd.daemon import notify
+
                 from pyftpdlib.authorizers import DummyAuthorizer
                 from pyftpdlib.handlers import FTPHandler, TLS_FTPHandler
                 from pyftpdlib.servers import FTPServer
@@ -297,6 +299,9 @@ class TestFTP:
                 handler.authorizer = authorizer
                 handler.abstracted_fs = UnixFilesystem
                 server = FTPServer(("localhost", 2121), handler)
+
+                # tell systemd to proceed
+                notify("READY=1")
 
                 # start the ftp server
                 server.serve_forever()
@@ -357,7 +362,7 @@ class TestFTP:
                 Before=cloud-init-network.service
 
                 [Service]
-                Type=exec
+                Type=notify
                 ExecStart=/server.py
 
                 [Install]
