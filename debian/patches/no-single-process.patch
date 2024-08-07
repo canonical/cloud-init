@@ -6,7 +6,7 @@ Last-Update: 2024-08-02
 
 --- a/systemd/cloud-config.service.tmpl
 +++ b/systemd/cloud-config.service.tmpl
-@@ -10,14 +10,7 @@
+@@ -10,14 +10,7 @@ ConditionEnvironment=!KERNEL_CMDLINE=clo
  
  [Service]
  Type=oneshot
@@ -24,7 +24,7 @@ Last-Update: 2024-08-02
  
 --- a/systemd/cloud-final.service.tmpl
 +++ b/systemd/cloud-final.service.tmpl
-@@ -15,16 +15,10 @@
+@@ -15,16 +15,10 @@ ConditionEnvironment=!KERNEL_CMDLINE=clo
  
  [Service]
  Type=oneshot
@@ -45,7 +45,7 @@ Last-Update: 2024-08-02
  ExecStartPost=/bin/sh -c 'u=NetworkManager.service; \
 --- a/systemd/cloud-init-local.service.tmpl
 +++ b/systemd/cloud-init-local.service.tmpl
-@@ -7,6 +7,7 @@
+@@ -7,6 +7,7 @@ DefaultDependencies=no
  {% endif %}
  Wants=network-pre.target
  After=hv_kvp_daemon.service
@@ -53,7 +53,7 @@ Last-Update: 2024-08-02
  {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
  Requires=dbus.socket
  After=dbus.socket
-@@ -37,14 +38,7 @@
+@@ -37,14 +38,7 @@ ExecStartPre=/bin/mkdir -p /run/cloud-in
  ExecStartPre=/sbin/restorecon /run/cloud-init
  ExecStartPre=/usr/bin/touch /run/cloud-init/enabled
  {% endif %}
