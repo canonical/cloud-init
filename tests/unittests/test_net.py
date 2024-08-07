@@ -200,7 +200,7 @@ config:
         bond-miimon: 100
         bond-mode: 802.3ad
         bond-updelay: 0
-        bond-xmit-hash-policy: layer3+4
+        bond-xmit_hash_policy: layer3+4
     subnets:
     -   address: 10.101.10.47/23
         gateway: 10.101.11.254
@@ -254,7 +254,7 @@ config:
         bond-miimon: 100
         bond-mode: 802.3ad
         bond-updelay: 0
-        bond-xmit-hash-policy: layer3+4
+        bond-xmit_hash_policy: layer3+4
     subnets:
     -   type: manual
     type: bond
@@ -296,7 +296,7 @@ config:
         bond-miimon: 100
         bond-mode: 802.3ad
         bond-updelay: 0
-        bond-xmit-hash-policy: layer3+4
+        bond-xmit_hash_policy: layer3+4
     subnets:
     -   address: 10.101.8.65/26
         routes:
