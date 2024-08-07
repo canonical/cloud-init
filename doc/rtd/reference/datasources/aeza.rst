@@ -19,7 +19,7 @@ Aeza's datasource can be configured as follows: ::
 * ``metadata_url``
 
   Specifies the URL to retrieve the VPS meta-data. (optional)
-  Default: ``http://http://77.221.156.49/v1/cloudinit/{id}/``
+  Default: ``http://77.221.156.49/v1/cloudinit/{id}/``
 
 .. note::
    ``{id}`` in URLs is system-uuid DMI value.
