@@ -2456,6 +2456,66 @@ class TestMessageFromString(helpers.TestCase):
         self.assertNotIn("\x00", roundtripped)
 
 
+class TestReadOptionalSeed:
+    @pytest.mark.parametrize(
+        "seed_dir,expected_fill,retval",
+        (
+            ({}, {}, False),
+            ({"meta-data": "md"}, {}, False),
+            (
+                {"meta-data": "md: val", "user-data": "ud"},
+                {
+                    "meta-data": {"md": "val"},
+                    "user-data": b"ud",
+                    "network-config": None,
+                    "vendor-data": None,
+                },
+                True,
+            ),
+            (
+                {
+                    "meta-data": "md: val",
+                    "user-data": "ud",
+                    "network-config": "net: cfg",
+                },
+                {
+                    "meta-data": {"md": "val"},
+                    "user-data": b"ud",
+                    "network-config": {"net": "cfg"},
+                    "vendor-data": None,
+                },
+                True,
+            ),
+            (
+                {
+                    "meta-data": "md: val",
+                    "user-data": "ud",
+                    "vendor-data": "vd",
+                },
+                {
+                    "meta-data": {"md": "val"},
+                    "user-data": b"ud",
+                    "network-config": None,
+                    "vendor-data": b"vd",
+                },
+                True,
+            ),
+        ),
+    )
+    def test_read_optional_seed_sets_fill_on_success(
+        self, seed_dir, expected_fill, retval, tmpdir
+    ):
+        """Set fill dict values based on seed files present."""
+        if seed_dir is not None:
+            helpers.populate_dir(tmpdir.strpath, seed_dir)
+        fill = {}
+        assert (
+            util.read_optional_seed(fill, tmpdir.strpath + os.path.sep)
+            is retval
+        )
+        assert fill == expected_fill
+
+
 class TestReadSeeded:
     def test_unicode_not_messed_up(self, tmpdir):
         ud = b"userdatablob"
