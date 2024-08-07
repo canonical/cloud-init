@@ -122,7 +122,7 @@ class TestRebootIfRequired:
 
         caplog.set_level(logging.WARNING)
         with mock.patch(
-            "cloudinit.subp.subp", return_value=("fakeout", "fakeerr")
+            "cloudinit.subp.subp", return_value=SubpResult("{}", "fakeerr")
         ) as m_subp:
             with mock.patch("os.path.isfile", side_effect=_isfile):
                 with mock.patch(M_PATH + "time.sleep") as m_sleep:
