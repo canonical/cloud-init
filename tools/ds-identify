@@ -131,7 +131,7 @@ DI_DSNAME=""
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean Vultr AliYun Ec2 GCE OpenNebula OpenStack \
 OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud VMware \
-LXD NWCS Akamai WSL"
+LXD NWCS Akamai WSL Aeza"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -1559,6 +1559,11 @@ dscheck_Hetzner() {
 
 dscheck_NWCS() {
     dmi_sys_vendor_is NWCS && return ${DS_FOUND}
+    return ${DS_NOT_FOUND}
+}
+
+dscheck_Aeza() {
+    dmi_sys_vendor_is Aeza && return ${DS_FOUND}
     return ${DS_NOT_FOUND}
 }
 
