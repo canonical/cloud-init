@@ -302,7 +302,7 @@ class TestPackageUpdateUpgradeSchema:
                 (
                     "Cloud config schema deprecations: apt_update:  "
                     "Deprecated in version 22.2. "
-                    "Use ``package_update`` instead."
+                    "Use \*\*package_update\*\* instead."
                 ),
             ),
             (
@@ -310,7 +310,7 @@ class TestPackageUpdateUpgradeSchema:
                 (
                     "Cloud config schema deprecations: apt_upgrade:  "
                     "Deprecated in version 22.2. "
-                    "Use ``package_upgrade`` instead."
+                    "Use \*\*package_upgrade\*\* instead."
                 ),
             ),
             (
@@ -318,7 +318,7 @@ class TestPackageUpdateUpgradeSchema:
                 (
                     "Cloud config schema deprecations: "
                     "apt_reboot_if_required:  Deprecated in version 22.2. Use "
-                    "``package_reboot_if_required`` instead."
+                    "\*\*package_reboot_if_required\*\* instead."
                 ),
             ),
         ],

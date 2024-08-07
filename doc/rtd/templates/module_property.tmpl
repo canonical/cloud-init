@@ -6,7 +6,17 @@
 {{prefix ~ '  '}}{{ line }}
 {% endfor -%}
 {%- endmacro -%}
-{% if prop_cfg.get('items', {}).get('type') == 'object' %}
-{% set description = description ~ " Each object in **" ~ name ~ "** list supports the following keys:" %}
-{% endif %}
-{{ print_prop(name, types, description, prefix ) }}
+{% set ns = namespace(is_obj_type=false) -%}
+{% if ('properties' in prop_cfg or 'patternProperties' in prop_cfg) %}{% set ns.is_obj_type = true -%}{% endif -%}
+{% for key, val in prop_cfg.get('items', {}).items() -%}
+  {% if key in ('properties', 'patternProperties') -%}{% set ns.is_obj_type = true -%}{% endif -%}
+  {% if key == 'oneOf' -%}
+    {% for oneOf in val -%}
+      {% if ('properties' in oneOf or 'patternProperties' in oneOf ) -%}{% set ns.is_obj_type = true -%}{% endif -%}
+    {% endfor -%}
+  {% endif -%}
+{% endfor -%}
+{% if ns.is_obj_type -%}
+{% set description = description ~ " Each object in **" ~ name ~ "** list supports the following keys:" -%}
+{% endif -%}
+{{ print_prop(name, types, description, prefix ) -}}

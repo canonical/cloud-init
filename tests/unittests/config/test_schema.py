@@ -2751,9 +2751,9 @@ class TestHandleSchemaArgs:
                     apt_reboot_if_required: true            # D3
 
                     # Deprecations: -------------
-                    # D1: Deprecated in version 22.2. Use ``package_update`` instead.
-                    # D2: Deprecated in version 22.2. Use ``package_upgrade`` instead.
-                    # D3: Deprecated in version 22.2. Use ``package_reboot_if_required`` instead.
+                    # D1: Deprecated in version 22.2. Use **package_update** instead.
+                    # D2: Deprecated in version 22.2. Use **package_upgrade** instead.
+                    # D3: Deprecated in version 22.2. Use **package_reboot_if_required** instead.
 
                     Valid schema {cfg_file}
                     """  # noqa: E501
@@ -2773,9 +2773,9 @@ class TestHandleSchemaArgs:
                     apt_reboot_if_required: true            # D3
 
                     # Deprecations: -------------
-                    # D1: Deprecated in version 22.2. Use ``package_update`` instead.
-                    # D2: Deprecated in version 22.2. Use ``package_upgrade`` instead.
-                    # D3: Deprecated in version 22.2. Use ``package_reboot_if_required`` instead.
+                    # D1: Deprecated in version 22.2. Use **package_update** instead.
+                    # D2: Deprecated in version 22.2. Use **package_upgrade** instead.
+                    # D3: Deprecated in version 22.2. Use **package_reboot_if_required** instead.
 
                     Valid schema {cfg_file}
                     """  # noqa: E501
@@ -2789,9 +2789,9 @@ class TestHandleSchemaArgs:
                     """\
                     Cloud config schema deprecations: \
 apt_reboot_if_required: Deprecated in version 22.2. Use\
- ``package_reboot_if_required`` instead., apt_update: Deprecated in version\
- 22.2. Use ``package_update`` instead., apt_upgrade: Deprecated in version\
- 22.2. Use ``package_upgrade`` instead.\
+ **package_reboot_if_required** instead., apt_update: Deprecated in version\
+ 22.2. Use **package_update** instead., apt_upgrade: Deprecated in version\
+ 22.2. Use **package_upgrade** instead.\
                     Valid schema {cfg_file}
                     """  # noqa: E501
                 ),

@@ -374,7 +374,7 @@ class TestUsersGroupsSchema:
                     match=(
                         "Cloud config schema deprecations: "
                         "users.0.lock-passwd:  Deprecated in version 22.3."
-                        " Use ``lock_passwd`` instead."
+                        " Use \*\*lock_passwd\*\* instead."
                     ),
                 ),
                 False,
@@ -386,7 +386,7 @@ class TestUsersGroupsSchema:
                     match=(
                         "Cloud config schema deprecations: "
                         "users.0.no-create-home:  Deprecated in version 24.2."
-                        " Use ``no_create_home`` instead."
+                        " Use \*\*no_create_home\*\* instead."
                     ),
                 ),
                 False,
@@ -530,7 +530,7 @@ class TestUsersGroupsSchema:
                         "Cloud config schema deprecations: "
                         "users.0.ssh-authorized-keys: "
                         " Deprecated in version 18.3."
-                        " Use ``ssh_authorized_keys`` instead."
+                        " Use \*\*ssh_authorized_keys\*\* instead."
                         ", "
                         "users.0.uid: "
                         " Changed in version 22.3."
