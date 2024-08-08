@@ -3,14 +3,17 @@
 Performance
 ***********
 
-The :command:`analyze` subcommand was added to ``cloud-init`` to help analyze
-``cloud-init`` boot time performance. It is loosely based on
-``systemd-analyze``, where there are four subcommands:
+The :command:`analyze` subcommand helps to analyze ``cloud-init`` boot time
+performance. It is loosely based on ``systemd-analyze``, where there are four
+subcommands:
 
 - :command:`blame`
 - :command:`show`
 - :command:`dump`
 - :command:`boot`
+
+The analyze subcommand works by parsing the cloud-init log file for timestamps
+associated with specific events.
 
 Usage
 =====

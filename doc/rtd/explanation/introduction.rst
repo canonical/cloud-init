@@ -113,6 +113,6 @@ and how it works, you will probably want to
 
 You can also read in more detail about what cloud-init does
 :ref:`during the different boot stages<boot_stages>`, and the
-:ref:`types of configuration<configuration>` you can pass to cloud-init and
+:ref:`types of configuration<user_data_formats>` you can pass to cloud-init and
 how they're used.
 
