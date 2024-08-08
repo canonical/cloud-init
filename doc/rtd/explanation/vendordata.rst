@@ -29,9 +29,10 @@ Input formats
 =============
 
 ``Cloud-init`` will download and cache to filesystem any vendor data that it
-finds. Vendor data is handled exactly like user data. This means that the
-vendor can supply multi-part input and have those parts acted on in the same
-way as with user data.
+finds. Vendor data is handled exactly like
+:ref:`user data<user_data_formats>`. This means that the vendor can supply
+multi-part input and have those parts acted on in the same way as with user
+data.
 
 The only differences are:
 
