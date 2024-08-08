@@ -65,7 +65,6 @@ Using ``instance-data``
 
 ``instance-data`` can be used in:
 
-* :ref:`User data scripts<user_data_script>`.
 * :ref:`Cloud-config data<user_data_formats>`.
 * :ref:`Base configuration<configuration>`.
 * Command line interface via :command:`cloud-init query` or

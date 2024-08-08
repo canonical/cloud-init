@@ -979,7 +979,10 @@ def main(sysv_args=None):
 
     # Each action and its sub-options (if any)
     parser_init = subparsers.add_parser(
-        "init", help="Initialize cloud-init and perform initial modules."
+        "init",
+        help=(
+            "DEPRECATED: Initialize cloud-init and perform initial modules."
+        ),
     )
     parser_init.add_argument(
         "--local",
@@ -1002,7 +1005,8 @@ def main(sysv_args=None):
 
     # These settings are used for the 'config' and 'final' stages
     parser_mod = subparsers.add_parser(
-        "modules", help="Activate modules using a given configuration key."
+        "modules",
+        help=("DEPRECATED: Activate modules using a given configuration key."),
     )
     extra_help = lifecycle.deprecate(
         deprecated="`init`",
@@ -1033,7 +1037,11 @@ def main(sysv_args=None):
 
     # This subcommand allows you to run a single module
     parser_single = subparsers.add_parser(
-        "single", help="Run a single module."
+        "single",
+        help=(
+            "Manually run a single module. Useful for "
+            "testing during development."
+        ),
     )
     parser_single.add_argument(
         "--name",

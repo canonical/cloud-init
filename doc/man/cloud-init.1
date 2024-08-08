@@ -4,7 +4,7 @@
 cloud-init \- Cloud instance initialization
 
 .SH SYNOPSIS
-.BR "cloud-init" " [-h] [-d] [-f FILES] [--force] [-v] [SUBCOMMAND]"
+.BR "cloud-init" " [-h] [-d] [--force] [-v] [SUBCOMMAND]"
 
 .SH DESCRIPTION
 Cloud-init provides a mechanism for cloud instance initialization.
@@ -12,26 +12,18 @@ This is done by identifying the cloud platform that is in use, reading
 provided cloud metadata and optional vendor and user
 data, and then initializing the instance as requested.
 
-Generally, this command is not normally meant to be run directly by
-the user. However, some subcommands may useful for development or
-debug of deployments.
-
 .SH OPTIONS
 .TP
 .B "-h, --help"
 Show help message and exit.
 
 .TP
-.B "-d, --debug"
-Show additional pre-action logging (default: False).
-
-.TP
-.B "--force"
-Force running even if no datasource is found (use at your own risk).
-
-.TP
 .B "-v, --version"
 Show program's version number and exit.
+
+.TP
+.B "--all-stages"
+INTERNAL: Run cloud-init's stages under a single process using a syncronization protocol. This is not intended for CLI usage.
 
 .SH SUBCOMMANDS
 Please see the help output for each subcommand for additional details,
@@ -58,14 +50,6 @@ Run development tools. See help output for subcommand details.
 List defined features.
 
 .TP
-.B "init"
-Initialize cloud-init and execute initial modules.
-
-.TP
-.B "modules"
-Activate modules using a given configuration key.
-
-.TP
 .B "query"
 Query standardized instance metadata from the command line.
 
@@ -75,11 +59,29 @@ Validate cloud-config files using jsonschema.
 
 .TP
 .B "single"
-Run a single module.
+Manually run a single module. Useful for testing during development.
 
 .TP
 .B "status"
 Report cloud-init status or wait on completion.
+
+.SH DEPRECATED
+
+.TP
+.B "-d, --debug"
+Show additional pre-action logging (default: False).
+
+.TP
+.B "--force"
+Force running even if no datasource is found (use at your own risk).
+
+.TP
+.B "init"
+Initialize cloud-init and execute initial modules.
+
+.TP
+.B "modules"
+Activate modules using a given configuration key.
 
 .SH EXIT STATUS
 
@@ -95,4 +97,4 @@ Report cloud-init status or wait on completion.
 Copyright (C) 2020 Canonical Ltd. License GPL-3 or Apache-2.0
 
 .SH SEE ALSO
-Full documentation at: <https://cloudinit.readthedocs.io>
+Full documentation at: <https://docs.cloud-init.io>

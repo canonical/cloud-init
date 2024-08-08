@@ -389,7 +389,7 @@ this datasource using the GuestInfo keys transport:
 
    Otherwise ``cloud-init`` may not run in first-boot mode. For more
    information on how the boot mode is determined, please see the
-   :ref:`First Boot Documentation <boot-First_boot_determination>`.
+   :ref:`first boot documentation <First_boot_determination>`.
 
    .. raw:: html
 

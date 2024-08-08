@@ -66,9 +66,10 @@ Hotplug
 =======
 
 When the ``hotplug`` event is supported by the datasource and configured in
-user data, ``cloud-init`` will respond to the addition or removal of network
-interfaces to the system. In addition to fetching and updating the system
-metadata, ``cloud-init`` will also bring up/down the newly added interface.
+:ref:`user data<mod_cc_install_hotplug>`, ``cloud-init`` will respond to the
+addition or removal of network interfaces to the system. In addition to
+fetching and updating the system metadata, ``cloud-init`` will also bring
+up/down the newly added interface.
 
 .. warning::
    Due to its use of ``systemd`` sockets, ``hotplug`` functionality is

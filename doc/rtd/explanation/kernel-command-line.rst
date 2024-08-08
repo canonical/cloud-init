@@ -2,18 +2,12 @@ Kernel command line
 *******************
 
 Providing configuration data via the kernel command line is somewhat of a last
-resort, since this method only supports
-:ref:`cloud config<user_data_formats-cloud_config>` starting with
-`#cloud-config`, and many datasources do not support injecting kernel
-command line arguments without modifying the bootloader.
-
-Despite the limitations of using the kernel command line, cloud-init supports
-some use-cases.
+resort, since many datasources do not support injecting kernel command line
+arguments without modifying the bootloader.
 
 Note that this page describes kernel command line behavior that applies
-to all clouds. To provide a local configuration with an image using kernel
-command line, see :ref:`datasource NoCloud<datasource_nocloud>` which provides
-more configuration options.
+to all clouds. The :ref:`NoCloud datasource<datasource_nocloud>` provides more
+configuration options.
 
 .. _kernel_datasource_override:
 

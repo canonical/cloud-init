@@ -64,33 +64,10 @@ a result.
 
 .. _partially_rerun_cloud_init:
 
-How to partially re-run cloud-init
-==================================
-
-If the behavior you are testing runs on every boot, there are a couple
-of ways to test this behavior.
-
-Manually run cloud-init stages
-------------------------------
-
-Note that during normal boot of cloud-init, the init system runs these
-stages at specific points during boot. This means that running the code
-manually after booting the system may cause the code to interact with
-the system in a different way than it does while it boots.
-
-.. code-block:: shell-session
-
-   cloud-init init --local
-   cloud-init init
-   cloud-init modules --mode=config
-   cloud-init modules --mode=final
-
 Reboot the instance
 -------------------
 
-Rebooting the instance will take a little bit longer, however it will
-make cloud-init stages run at the correct times during boot, so it will
-behave more correctly.
+Rebooting the instance will re-run any parts of cloud-init that run per-boot.
 
 .. code-block:: shell-session
 
