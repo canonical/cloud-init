@@ -167,6 +167,7 @@ passno
 passthrough
 passw
 pem
+pgp
 pid
 pipelining
 pki
