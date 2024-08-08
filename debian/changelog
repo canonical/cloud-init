@@ -1,4 +1,4 @@
-cloud-init (23.1.2-0ubuntu0~18.04.2) UNRELEASED; urgency=medium
+cloud-init (23.1.2-0ubuntu0~18.04.2) bionic; urgency=medium
 
   * d/patches/backport-ubuntu-pro-rename.patch: Backport deprecation
     of ubuntu_advantage key in favor of ubuntu_pro in cloud-config user_data
