@@ -171,6 +171,20 @@ class NMConnection:
             self._set_default("ipv4", "method", "disabled")
 
         self.config[family]["method"] = method
+
+        # Network Manager sets the value of `may-fail` to `True` by default.
+        # Please see https://www.networkmanager.dev/docs/api/1.32.10/settings-ipv6.html.
+        # Therefore, when no configuration for ipv4 or ipv6 is specified,
+        # `may-fail = True` applies. When the user explicitly configures ipv4
+        # or ipv6, `may-fail` is set to `False`. This is so because it is
+        # assumed that a network failure with the user provided configuration
+        # is unexpected. In other words, we think that the user knows what
+        # works in their target environment and what does not and they have
+        # correctly configured cloud-init network configuration such that
+        # it works in that environment. When no such configuration is
+        # specified, we do not know what would work and what would not in
+        # user's environment. Therefore, we are more conservative in assuming
+        # that failure with ipv4 or ipv6 can be expected or tolerated.
         self._set_default(family, "may-fail", "false")
 
     def _get_next_numbered_section(self, section, key_prefix) -> str:
