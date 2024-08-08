@@ -255,25 +255,37 @@ There are a few reasons to modify the ``datasource_list``:
    that the key and its contents, a list, must share a single line - no
    newlines.
 
+.. _base_config_user_data:
+
+``user_data``
+^^^^^^^^^^^^^
+
+Allows the user to set options for processing user data.
+
+Format is a dict with the following keys:
+
+* ``enabled``: A boolean value to enable or disable the use of user data.
+  One use case is to prevent users from accidentally breaking closed
+  appliances. Default: ``true``.
+* ``require_pgp``: A boolean indicating whether to require PGP verification
+  of the user data. Default: ``false``. This should be true if
+  using :ref:`signed user data<user_data_formats-pgp>`.
+
 ``vendor_data``/``vendor_data2``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Allows the user to disable ``vendor_data`` or ``vendor_data2`` along with
 providing a prefix for any executed scripts.
 
-Format is a dict with ``enabled`` and ``prefix`` keys:
+Format is a dict with the following keys:
 
-* ``enabled``: A boolean indicating whether to enable or disable the
-  ``vendor_data``.
-* ``prefix``: A path to prepend to any ``vendor_data``-provided script.
-
-``allow_userdata``
-^^^^^^^^^^^^^^^^^^
-
-A boolean value to disable the use of user data.
-This allows custom images to prevent users from accidentally breaking closed
-appliances. Setting ``allow_userdata: false`` in the configuration will disable
-``cloud-init`` from processing user data.
+* ``enabled``: A boolean indicating whether to enable or disable the vendor
+  data. Default: ``true``.
+* ``require_pgp``: A boolean indicating whether to require PGP verification
+  of the vendor data. Default: ``false``.
+* ``prefix``: A path to a binary to prefix to any executed scripts.
+  An example of usage would be to prefix a script with ``strace`` to
+  debug a script.
 
 ``manual_cache_clean``
 ^^^^^^^^^^^^^^^^^^^^^^

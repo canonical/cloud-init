@@ -1,7 +1,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import gzip
+from io import BytesIO
 from unittest import mock
 
-from cloudinit import cloud, distros, helpers
+from cloudinit import cloud, distros, helpers, util
 from cloudinit.net.dhcp import IscDhclient
 from cloudinit.sources import DataSource, DataSourceHostname
 from cloudinit.sources.DataSourceNone import DataSourceNone
@@ -46,6 +48,15 @@ def abstract_to_concrete(abclass):
 
     concreteCls.__abstractmethods__ = frozenset()
     return type("DummyConcrete" + abclass.__name__, (concreteCls,), {})
+
+
+def gzip_text(text):
+    contents = BytesIO()
+    f = gzip.GzipFile(fileobj=contents, mode="wb")
+    f.write(util.encode_text(text))
+    f.flush()
+    f.close()
+    return contents.getvalue()
 
 
 class DataSourceTesting(DataSourceNone):
