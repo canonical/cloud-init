@@ -48,8 +48,7 @@ Detect
 A platform identification tool called ``ds-identify`` runs in the first stage.
 This tool detects which platform the instance is running on. This tool is
 integrated into the init system to disable cloud-init when no platform is
-found, and enable cloud-init when a valid platform is detected. This stage
-might not be present for every installation of cloud-init.
+found, and enable cloud-init when a valid platform is detected.
 
 .. _boot-Local:
 
@@ -88,10 +87,9 @@ is rendered. This includes clearing of all previous (stale) configuration
 including persistent device naming with old MAC addresses.
 
 This stage must block network bring-up or any stale configuration that might
-have already been applied. Otherwise, that could have negative effects such
-as DHCP hooks or broadcast of an old hostname. It would also put the system
-in an odd state to recover from, as it may then have to restart network
-devices.
+have already been applied. Otherwise, that could have negative effects such as
+broadcast of an old hostname. It would also put the system in an odd state to
+recover from, as it may then have to restart network devices.
 
 ``Cloud-init`` then exits and expects for the continued boot of the operating
 system to bring network configuration up as configured.
