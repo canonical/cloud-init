@@ -1,6 +1,7 @@
 # Copyright (C) 2017 Canonical Ltd.
 #
 # Author: Chad Smith <chad.smith@canonical.com>
+# Author: Lubomir Rintel <lkundrak@v3.sk>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
@@ -1011,4 +1012,228 @@ class Udhcpc(DhcpClient):
         return []
 
 
-ALL_DHCP_CLIENTS = [Dhcpcd, IscDhclient, Udhcpc]
+class NetworkManagerDhcpClient(DhcpClient):
+    client_name = "nmcli"
+
+    def __init__(self):
+        super().__init__()
+        self.lease_file = None
+
+        try:
+            running = subp.subp(
+                [
+                    self.dhcp_client_path,
+                    "--terse",
+                    "--get-values",
+                    "RUNNING",
+                    "general",
+                    "status",
+                ]
+            ).stdout.strip()
+            if not running == "running":
+                raise NoDHCPLeaseMissingDhclientError()
+        except subp.ProcessExecutionError as error:
+            LOG.debug(
+                "nmcli exited with code: %s stderr: %r stdout: %r",
+                error.exit_code,
+                error.stderr,
+                error.stdout,
+            )
+            raise NoDHCPLeaseMissingDhclientError() from error
+
+    def dhcp_discovery(
+        self,
+        interface: str,
+        dhcp_log_func: Optional[Callable] = None,
+        distro=None,
+    ) -> Dict[str, Any]:
+        """Configure an interface with DHCP using NetworkManager.
+
+        @param interface: Name of the network interface which to configure
+            with NetworkManager
+        @param dhcp_log_func: A callable accepting the client output and
+            error streams.
+        @return: dict of lease options representing the most recent lease
+            NetworkManager obtained via DHCP
+        """
+        LOG.debug("Connecting interface %s", interface)
+
+        try:
+            ac = subp.subp(
+                [
+                    self.dhcp_client_path,
+                    "--get-values",
+                    "GENERAL.CON-PATH",
+                    "device",
+                    "show",
+                    interface,
+                ]
+            ).stdout.strip()
+
+            if not ac == "":
+                orig_uuid = subp.subp(
+                    [
+                        self.dhcp_client_path,
+                        "--get-values",
+                        "GENERAL.UUID",
+                        "connection",
+                        "show",
+                        ac,
+                    ]
+                ).stdout.strip()
+                if orig_uuid == "":
+                    orig_uuid = None
+                else:
+                    LOG.debug("connection %s is already active", orig_uuid)
+
+            conn_uuid = "cd4ac1c3-888b-433f-8cbd-2634df28c36d"
+            conn_type = (
+                "infiniband"
+                if is_ib_interface(interface)
+                else "802-3-ethernet"
+            )
+
+            LOG.debug("adding connection %s", conn_uuid)
+            out, err = subp.subp(
+                [
+                    self.dhcp_client_path,
+                    "connection",
+                    "add",
+                    "save",
+                    "no",
+                    "connection.uuid",
+                    conn_uuid,
+                    "connection.type",
+                    conn_type,
+                    "connection.interface-name",
+                    interface,
+                    "connection.autoconnect",
+                    "no",
+                    "ipv4.may-fail",
+                    "no",
+                    "ipv6.method",
+                    "ignore",
+                ]
+            )
+            if dhcp_log_func is not None:
+                dhcp_log_func(out, err)
+
+            LOG.debug("activating connection %s", conn_uuid)
+            out, err = subp.subp(
+                [self.dhcp_client_path, "connection", "up", conn_uuid]
+            )
+            if dhcp_log_func is not None:
+                dhcp_log_func(out, err)
+
+        except subp.ProcessExecutionError as error:
+            LOG.debug(
+                "nmcli exited with code: %s stderr: %r stdout: %r",
+                error.exit_code,
+                error.stderr,
+                error.stdout,
+            )
+            raise NoDHCPLeaseMissingDhclientError() from error
+
+        lease = self.get_newest_lease(interface)
+
+        if orig_uuid is not None:
+            LOG.debug("triggering reactivation of connection %s", orig_uuid)
+            out, err = subp.subp(
+                [
+                    self.dhcp_client_path,
+                    "--wait",
+                    "0",
+                    "connection",
+                    "up",
+                    orig_uuid,
+                ],
+                rcs=[0, 1],
+            )
+            if dhcp_log_func is not None:
+                dhcp_log_func(out, err)
+
+        LOG.debug("removing connection %s", conn_uuid)
+        out, err = subp.subp(
+            [self.dhcp_client_path, "connection", "del", conn_uuid]
+        )
+        if dhcp_log_func is not None:
+            dhcp_log_func(out, err)
+
+        return lease
+
+    @staticmethod
+    def parse_network_manager_lease(lease_dump: str, interface: str) -> Dict:
+        """parse the DHCP lease from nmcli
+
+        map names to the datastructure we create from nmcli via
+        "nmcli --terse --fields DHCP4 device show eth0":
+
+        example output:
+
+        DHCP4.OPTION[1]:dhcp_client_identifier = 01:fa:16:3e:db:dc:bf
+        DHCP4.OPTION[2]:dhcp_lease_time = 43200
+        DHCP4.OPTION[3]:dhcp_server_identifier = 10.0.215.254
+        DHCP4.OPTION[4]:domain_name_servers = 10.11.5.160 10.2.70.215
+        DHCP4.OPTION[5]:expiry = 1722039992
+        DHCP4.OPTION[6]:interface_mtu = 1500
+        DHCP4.OPTION[7]:ip_address = 10.0.215.164
+        DHCP4.OPTION[8]:requested_broadcast_address = 1
+        ...
+        """
+        LOG.debug("Parsing lease for interface %s: %r", interface, lease_dump)
+
+        lease = {"interface": interface}
+        for line in lease_dump.strip().splitlines():
+            line = line.split(":", maxsplit=1)[1]
+            key, value = line.split(" = ", maxsplit=1)
+            if not key.startswith("requested_"):
+                key = key.replace("_", "-")
+                lease[key] = value
+        lease["fixed-address"] = lease.pop("ip-address")
+        return lease
+
+    def get_newest_lease(self, interface: str) -> Dict[str, Any]:
+        """Get the most recent lease from the ephemeral phase as a dict.
+
+        Return a dict of dhcp options. The dict contains key value
+        pairs from the most recent lease.
+
+        @param interface: an interface name
+        @raises: InvalidDHCPLeaseFileError on empty or unparseable lease
+            file content.
+        """
+        try:
+            return self.parse_network_manager_lease(
+                subp.subp(
+                    [
+                        self.dhcp_client_path,
+                        "--terse",
+                        "--fields",
+                        "DHCP4",
+                        "device",
+                        "show",
+                        interface,
+                    ]
+                ).stdout,
+                interface,
+            )
+
+        except subp.ProcessExecutionError as error:
+            LOG.debug(
+                "nmcli exited with code: %s stderr: %r stdout: %r",
+                error.exit_code,
+                error.stderr,
+                error.stdout,
+            )
+            raise NoDHCPLeaseError from error
+
+    @staticmethod
+    def parse_static_routes(routes: str) -> List[Tuple[str, str]]:
+        static_routes = routes.split()
+        if static_routes:
+            # format: dest1/mask gw1 ... destn/mask gwn
+            return [i for i in zip(static_routes[::2], static_routes[1::2])]
+        return []
+
+
+ALL_DHCP_CLIENTS = [Dhcpcd, IscDhclient, Udhcpc, NetworkManagerDhcpClient]

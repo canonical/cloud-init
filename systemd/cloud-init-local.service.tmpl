@@ -11,7 +11,7 @@ After=hv_kvp_daemon.service
 Requires=dbus.socket
 After=dbus.socket
 {% endif %}
-Before=NetworkManager.service
+After=NetworkManager.service
 {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
 Before=network.service
 {% endif %}
