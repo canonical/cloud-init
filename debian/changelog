@@ -1,8 +1,11 @@
-cloud-init (21.1-19-gbad84ad4-0ubuntu1~16.04.4+esm1) xenial; urgency=medium
+cloud-init (21.1-19-gbad84ad4-0ubuntu1~16.04.5) xenial; urgency=medium
 
-  * Add +esm1 version suffix for uploads to xenial-infra-security PPA
+  * d/patches/backport-ubuntu-pro-rename.patch: Backport deprecation
+    of ubuntu_advantage key in favor of ubuntu_pro in cloud-config user_data
+    in order to standardize Ubuntu Pro-related configuration keys on all
+    maintained Ubuntu series. (LP: #2067660)
 
- -- Chad Smith <chad.smith@canonical.com>  Tue, 25 Apr 2023 20:13:29 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 08 Aug 2024 22:03:52 -0600
 
 cloud-init (21.1-19-gbad84ad4-0ubuntu1~16.04.4) xenial; urgency=medium
 
