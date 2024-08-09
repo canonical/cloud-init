@@ -4728,7 +4728,10 @@ class TestCheckAzureProxyAgent:
             subp.SubpResult("Guest Proxy Agent running", ""),
         ]
         self.azure_ds._check_azure_proxy_agent_status()
-        assert "Running azure-proxy-agent" in self.caplog.text
+        assert (
+            "Executing ['azure-proxy-agent', '--status', '--wait', '120']"
+            in self.caplog.text
+        )
         assert self.mock_wrapping_report_failure.mock_calls == []
 
     def test_check_azure_proxy_agent_status_notfound(self):
