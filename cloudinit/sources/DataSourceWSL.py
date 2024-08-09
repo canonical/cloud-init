@@ -9,7 +9,7 @@ import logging
 import os
 import typing
 from pathlib import PurePath
-from typing import Any, List, Optional, Tuple, Union, cast
+from typing import List, Optional, Tuple
 
 import yaml
 
@@ -143,26 +143,35 @@ def candidate_user_data_file_names(instance_name) -> List[str]:
     ]
 
 
-def load_yaml_or_bin(data_path: str) -> Optional[Union[dict, bytes]]:
-    """
-    Tries to load a YAML file as a dict, otherwise returns the file's raw
-    binary contents as `bytes`. Returns `None` if no file is found.
-    """
-    try:
-        bin_data = util.load_binary_file(data_path)
-        # If the file is empty, return an empty dict instead of empty bytes.
-        if len(bin_data) == 0:
-            return dict()
+class ConfigData:
+    """Models a piece of configuration data as a dict if possible, while
+    retaining its raw representation alongside its file path"""
 
-        dict_data = util.load_yaml(bin_data)
-        if dict_data is None:
-            return bin_data
+    def __init__(self, path: PurePath):
+        if not os.path.isfile(path.as_posix()):
+            raise FileNotFoundError(f"Config file {path} not found")
 
-        return dict_data
-    except FileNotFoundError:
-        LOG.debug("No data found at %s, ignoring.", data_path)
+        self._raw_data: str = util.load_binary_file(path).decode("utf-8")
+        self._raw_data = self._raw_data.lstrip()
+        self.path: PurePath = path
 
-    return None
+        self._data: Optional[dict] = None
+        if len(self._raw_data) == 0:
+            self._data = dict()
+            return
+
+        if self._raw_data.startswith("#cloud-config"):
+            self._data = util.load_yaml(self._raw_data)
+
+    def is_dict(self) -> bool:
+        return self._data is not None
+
+    def as_dict(self) -> dict:
+        assert self._data is not None
+        return self._data
+
+    def raw(self) -> str:
+        return self._raw_data
 
 
 def load_instance_metadata(
@@ -200,7 +209,7 @@ def load_instance_metadata(
 
 def load_ubuntu_pro_data(
     user_home: PurePath,
-) -> Tuple[Union[dict, bytes, None], Union[dict, bytes, None]]:
+) -> Tuple[Optional[ConfigData], Optional[ConfigData]]:
     """
     Read .ubuntupro user-data if present and return a tuple of agent and
     landscape user-data.
@@ -209,10 +218,18 @@ def load_ubuntu_pro_data(
     if not os.path.isdir(pro_dir):
         return None, None
 
-    landscape_data = load_yaml_or_bin(
+    landscape_path = PurePath(
         os.path.join(pro_dir, LANDSCAPE_DATA_FILE % instance_name())
     )
-    agent_data = load_yaml_or_bin(os.path.join(pro_dir, AGENT_DATA_FILE))
+    landscape_data = None
+    if os.path.isfile(landscape_path):
+        landscape_data = ConfigData(landscape_path)
+
+    agent_path = PurePath(os.path.join(pro_dir, AGENT_DATA_FILE))
+    agent_data = None
+    if os.path.isfile(agent_path):
+        agent_data = ConfigData(agent_path)
+
     return agent_data, landscape_data
 
 
@@ -288,8 +305,8 @@ class DataSourceWSL(sources.DataSource):
             return False
 
         seed_dir = cloud_init_data_dir(user_home)
-        agent_data = None
-        user_data: Optional[Union[dict, bytes]] = None
+        agent_data: Optional[ConfigData] = None
+        user_data: Optional[ConfigData] = None
 
         # Load any metadata
         try:
@@ -307,8 +324,8 @@ class DataSourceWSL(sources.DataSource):
         # Load regular user configs
         try:
             if user_data is None and seed_dir is not None:
-                file = self.find_user_data_file(seed_dir)
-                user_data = load_yaml_or_bin(file.as_posix())
+                user_data = ConfigData(self.find_user_data_file(seed_dir))
+
         except (ValueError, IOError) as err:
             LOG.error(
                 "Unable to load any user-data file in %s: %s",
@@ -320,24 +337,37 @@ class DataSourceWSL(sources.DataSource):
         if not any([user_data, agent_data]):
             return False
 
-        # If we cannot reliably model both data files as dicts, then we cannot
-        # merge them ourselves, so we can pass the data in ascending order as
-        # a list of binary contents for cloud-init to handle internally
-        if isinstance(agent_data, bytes) and isinstance(user_data, bytes):
-            self.userdata_raw = cast(Any, [user_data, agent_data])
+        # If only user_data was found
+        if agent_data is None:
+            assert user_data is not None
+            self.userdata_raw = user_data.raw()
             return True
 
-        if isinstance(user_data, bytes):
-            self.userdata_raw = cast(
-                Any, [user_data, "#cloud-config\n%s" % yaml.dump(agent_data)]
+        # If only agent data was found
+        if user_data is None:
+            assert agent_data is not None
+            self.userdata_raw = agent_data.raw()
+            return True
+
+        # If both are found but we cannot reliably model both data files as
+        # cloud-config dicts, then we cannot merge them ourselves, so we should
+        # pass the data as if the user had written an include file
+        # for cloud-init to handle internally. We explicitely prioritize the
+        # agent data, to ensure cloud-init would handle it even in the presence
+        # of syntax errors in user data (agent data is autogenerated).
+        # It's possible that the effects caused by the user data would override
+        # the agent data, but that's the user's ultimately responsibility.
+        # The alternative of writing the user data first would make it possible
+        # for the agent data to be skipped in the presence of syntax errors in
+        # user data.
+        assert user_data is not None and agent_data is not None
+        if not agent_data.is_dict() or not user_data.is_dict():
+            self.userdata_raw = "#include\n%s\n%s\n" % (
+                agent_data.path.as_posix(),
+                user_data.path.as_posix(),
             )
             return True
 
-        if isinstance(agent_data, bytes):
-            self.userdata_raw = cast(
-                Any, ["#cloud-config\n%s" % yaml.dump(user_data), agent_data]
-            )
-            return True
         # We only care about overriding modules entirely, so we can just
         # iterate over the top level keys and write over them if the agent
         # provides them instead.
@@ -346,17 +376,18 @@ class DataSourceWSL(sources.DataSource):
         user_tags: str = ""
         overridden_keys: typing.List[str] = []
         if user_data:
-            merged = user_data
+            merged = user_data.as_dict()
             user_tags = (
                 merged.get("landscape", {}).get("client", {}).get("tags", "")
             )
         if agent_data:
             if user_data:
                 LOG.debug("Merging both user_data and agent.yaml configs.")
-            for key in agent_data:
+            agent = agent_data.as_dict()
+            for key in agent:
                 if key in merged:
                     overridden_keys.append(key)
-                merged[key] = agent_data[key]
+                merged[key] = agent[key]
             if overridden_keys:
                 LOG.debug(
                     (
