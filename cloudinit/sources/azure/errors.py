@@ -199,9 +199,7 @@ class ReportableErrorUnhandledException(ReportableError):
 
 class ReportableErrorProxyAgentNotFound(ReportableError):
     def __init__(self) -> None:
-        super().__init__(
-            "azure-proxy-agent not found"
-        )
+        super().__init__("azure-proxy-agent not found")
 
 
 class ReportableErrorProxyAgentStatusFailure(ReportableError):
