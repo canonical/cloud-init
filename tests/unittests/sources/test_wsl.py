@@ -246,7 +246,7 @@ def join_payloads_from_content_type(
     content = ""
     for p in part.walk():
         if p.get_content_type() == content_type:
-            content = content + str(p.get_payload(decode=True))
+            content = content + str(p.get_payload())
 
     return content
 
@@ -352,6 +352,38 @@ class TestWSLDataSource:
             ),
         )
         assert COMMAND in userdata
+
+    @mock.patch("cloudinit.util.lsb_release")
+    def test_get_data_jinja(self, m_lsb_release, paths, tmpdir):
+        """Assert we don't mistakenly treat jinja as final cloud-config"""
+        m_lsb_release.return_value = SAMPLE_LINUX_DISTRO
+        data_path = tmpdir.join(".cloud-init", f"{INSTANCE_NAME}.user-data")
+        data_path.dirpath().mkdir()
+        data_path.write(
+            """## template: jinja
+#cloud-config
+write_files:
+- path: /etc/{{ v1.instance_name }}.conf
+"""
+        )
+
+        ds = wsl.DataSourceWSL(
+            sys_cfg=SAMPLE_CFG,
+            distro=_get_distro("ubuntu"),
+            paths=paths,
+        )
+
+        assert ds.get_data() is True
+        ud = ds.get_userdata(True)
+        print(ud)
+
+        assert ud is not None
+        assert "write_files" in join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/jinja2"
+        ), "Jinja should not be treated as final cloud-config"
+        assert "write_files" not in join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/cloud-config"
+        ), "No cloud-config part should exist"
 
     @mock.patch("cloudinit.util.get_linux_distro")
     def test_data_precedence(self, m_get_linux_dist, tmpdir, paths):
