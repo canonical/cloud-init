@@ -584,13 +584,15 @@ class DataSourceAzure(sources.DataSource):
         except subp.ProcessExecutionError as error:
             if isinstance(error.reason, FileNotFoundError):
                 LOG.error(
-                    "Failed to activate Azure Guest Proxy Agent: azure-proxy-agent not found"
+                    "Failed to activate Azure Guest Proxy Agent: "
+                    "azure-proxy-agent not found"
                 )
                 report_error = errors.ReportableErrorProxyAgentNotFound()
                 self._report_failure(report_error)
             else:
                 report_diagnostic_event(
-                    "Failed to activate Azure Guest Proxy Agent: status check failed "
+                    "Failed to activate Azure Guest Proxy Agent: "
+                    "status check failed "
                     "cmd=%r stderr=%r stdout=%r exit_code=%s"
                     % (
                         error.cmd,
