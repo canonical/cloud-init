@@ -12,7 +12,7 @@ import sys
 from collections import namedtuple
 from contextlib import suppress
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 
 from cloudinit import (
     atomic_helper,
@@ -139,7 +139,7 @@ class Init:
         else:
             self.ds_deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
         # Created on first use
-        self._cfg: Dict = {}
+        self._cfg: Dict[str, Any] = {}
         self._paths: Optional[helpers.Paths] = None
         self._distro: Optional[distros.Distro] = None
         # Changed only when a fetch occurs
