@@ -200,7 +200,6 @@ class ReportableErrorUnhandledException(ReportableError):
 class ReportableErrorProxyAgentNotFound(ReportableError):
     def __init__(self) -> None:
         super().__init__(
-            "Unable to activate Azure Guest Proxy Agent."
             "azure-proxy-agent not found"
         )
 
