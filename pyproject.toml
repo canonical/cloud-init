@@ -6,7 +6,6 @@ build-backend = "setuptools.build_meta"
 line-length = 79
 include = '(brpm|bddeb|\.py)$'
 
-
 [tool.isort]
 profile = "black"
 line_length = 79
