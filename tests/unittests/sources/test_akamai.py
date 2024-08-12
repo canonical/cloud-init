@@ -38,9 +38,9 @@ class TestDataSourceAkamai:
             return_value="",
         ):
             if local:
-                ds: Union[
-                    DataSourceAkamai, DataSourceAkamaiLocal
-                ] = DataSourceAkamaiLocal(sys_cfg, None, None)
+                ds: Union[DataSourceAkamai, DataSourceAkamaiLocal] = (
+                    DataSourceAkamaiLocal(sys_cfg, None, None)
+                )
             else:
                 ds = DataSourceAkamai(sys_cfg, None, None)
 

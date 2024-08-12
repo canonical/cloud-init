@@ -450,12 +450,14 @@ class TestUbuntuProSchema:
                 # If __version__ no longer exists on jsonschema, that means
                 # we're using a high enough version of jsonschema to not need
                 # to skip this test.
-                JSONSCHEMA_SKIP_REASON
-                if lifecycle.Version.from_str(
-                    getattr(jsonschema, "__version__", "999")
-                )
-                < lifecycle.Version(4)
-                else "",
+                (
+                    JSONSCHEMA_SKIP_REASON
+                    if lifecycle.Version.from_str(
+                        getattr(jsonschema, "__version__", "999")
+                    )
+                    < lifecycle.Version(4)
+                    else ""
+                ),
                 id="deprecation_of_ubuntu_advantage_skip_old_json",
             ),
             # Strict keys
@@ -1121,9 +1123,9 @@ class TestShouldAutoAttach:
         m_should_auto_attach.should_auto_attach.side_effect = (
             FakeUserFacingError("Some error")  # noqa: E501
         )
-        sys.modules[
-            "uaclient.api.u.pro.attach.auto.should_auto_attach.v1"
-        ] = m_should_auto_attach
+        sys.modules["uaclient.api.u.pro.attach.auto.should_auto_attach.v1"] = (
+            m_should_auto_attach
+        )
         assert not _should_auto_attach({})
         assert "Error during `should_auto_attach`: Some error" in caplog.text
         assert (
@@ -1145,9 +1147,9 @@ class TestShouldAutoAttach:
         self, ua_section, expected_result, caplog, fake_uaclient
     ):
         m_should_auto_attach = mock.Mock()
-        sys.modules[
-            "uaclient.api.u.pro.attach.auto.should_auto_attach.v1"
-        ] = m_should_auto_attach
+        sys.modules["uaclient.api.u.pro.attach.auto.should_auto_attach.v1"] = (
+            m_should_auto_attach
+        )
         should_auto_attach_value = object()
         m_should_auto_attach.should_auto_attach.return_value.should_auto_attach = (  # noqa: E501
             should_auto_attach_value
@@ -1174,9 +1176,9 @@ class TestAutoAttach:
         m_full_auto_attach.full_auto_attach.side_effect = FakeUserFacingError(
             "Some error"
         )
-        sys.modules[
-            "uaclient.api.u.pro.attach.auto.full_auto_attach.v1"
-        ] = m_full_auto_attach
+        sys.modules["uaclient.api.u.pro.attach.auto.full_auto_attach.v1"] = (
+            m_full_auto_attach
+        )
         expected_msg = "Error during `full_auto_attach`: Some error"
         with pytest.raises(RuntimeError, match=re.escape(expected_msg)):
             _auto_attach(self.ua_section)
@@ -1185,9 +1187,9 @@ class TestAutoAttach:
     def test_happy_path(self, caplog, mocker, fake_uaclient):
         mocker.patch.dict("sys.modules")
         sys.modules["uaclient.config"] = mock.Mock()
-        sys.modules[
-            "uaclient.api.u.pro.attach.auto.full_auto_attach.v1"
-        ] = mock.Mock()
+        sys.modules["uaclient.api.u.pro.attach.auto.full_auto_attach.v1"] = (
+            mock.Mock()
+        )
         _auto_attach(self.ua_section)
         assert "Attaching to Ubuntu Pro took" in caplog.text
 

@@ -131,7 +131,7 @@ def update_locale_conf(sys_path, locale_cfg):
         return
     (exists, contents) = read_locale_conf(sys_path)
     updated_am = 0
-    for (k, v) in locale_cfg.items():
+    for k, v in locale_cfg.items():
         if v is None:
             continue
         v = str(v)

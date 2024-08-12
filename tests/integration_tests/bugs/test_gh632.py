@@ -3,6 +3,7 @@
 Verify that if cloud-init is using DataSourceRbxCloud, there is
 no traceback if the metadata disk cannot be found.
 """
+
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance

@@ -76,7 +76,7 @@ class DataSourceHetzner(sources.DataSource):
                     sec_between=self.wait_retry,
                     retries=self.retries,
                 )
-        except (NoDHCPLeaseError) as e:
+        except NoDHCPLeaseError as e:
             LOG.error("Bailing, DHCP Exception: %s", e)
             raise
 

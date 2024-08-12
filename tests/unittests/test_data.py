@@ -362,9 +362,9 @@ run:
  - morestuff
 """
         message2 = MIMEBase("text", "cloud-config")
-        message2[
-            "X-Merge-Type"
-        ] = "dict(recurse_array,recurse_str)+list(append)+str(append)"
+        message2["X-Merge-Type"] = (
+            "dict(recurse_array,recurse_str)+list(append)+str(append)"
+        )
         message2.set_payload(blob2)
 
         blob3 = """

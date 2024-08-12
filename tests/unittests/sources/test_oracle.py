@@ -1076,9 +1076,9 @@ class TestNetworkConfig:
         """
 
         if configure_secondary_nics is not None:
-            oracle_ds.ds_cfg[
-                "configure_secondary_nics"
-            ] = configure_secondary_nics
+            oracle_ds.ds_cfg["configure_secondary_nics"] = (
+                configure_secondary_nics
+            )
 
         oracle_ds._vnics_data = "DummyData"
         with mock.patch.object(

@@ -4,6 +4,7 @@ TODO:
 * This module assumes that the "ubuntu" user will be created when "default" is
   specified; this will need modification to run on other OSes.
 """
+
 import re
 
 import pytest

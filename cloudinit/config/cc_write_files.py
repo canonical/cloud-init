@@ -78,7 +78,7 @@ def write_files(name, files, owner: str, ssl_details: Optional[dict] = None):
     if not files:
         return
 
-    for (i, f_info) in enumerate(files):
+    for i, f_info in enumerate(files):
         path = f_info.get("path")
         if not path:
             LOG.warning(

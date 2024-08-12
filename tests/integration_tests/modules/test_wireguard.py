@@ -1,4 +1,5 @@
 """Integration test for the wireguard module."""
+
 import pytest
 from pycloudlib.lxd.instance import LXDInstance
 

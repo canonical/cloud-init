@@ -290,7 +290,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         return
 
     fstype_lc = fs_type.lower()
-    for (pfix, root_cmd) in RESIZE_FS_PREFIXES_CMDS:
+    for pfix, root_cmd in RESIZE_FS_PREFIXES_CMDS:
         if fstype_lc.startswith(pfix):
             resizer = root_cmd
             break

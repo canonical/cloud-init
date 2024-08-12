@@ -9,6 +9,7 @@ This test checks that cloud-init believes it has successfully applied the
 network configuration, and confirms that the bridge can be used to ping the
 default gateway.
 """
+
 import pytest
 
 from tests.integration_tests import random_mac_address

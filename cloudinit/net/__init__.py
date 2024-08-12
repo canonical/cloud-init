@@ -668,7 +668,7 @@ def _get_current_rename_info(check_downable=True):
          }}
     """
     cur_info = {}
-    for (name, mac, driver, device_id) in get_interfaces():
+    for name, mac, driver, device_id in get_interfaces():
         cur_info[name] = {
             "downable": None,
             "device_id": device_id,

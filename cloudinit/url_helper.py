@@ -462,7 +462,7 @@ def readurl(
 
         req_args["headers"] = headers
         filtered_req_args = {}
-        for (k, v) in req_args.items():
+        for k, v in req_args.items():
             if k == "data":
                 continue
             if k == "headers" and headers_redact:

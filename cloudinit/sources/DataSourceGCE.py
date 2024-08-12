@@ -292,7 +292,7 @@ def read_md(address=None, url_params=None, platform_check=True):
     )
     md = {}
     # Iterate over url_map keys to get metadata items.
-    for (mkey, paths, required, is_text, is_recursive) in url_map:
+    for mkey, paths, required, is_text, is_recursive in url_map:
         value = None
         for path in paths:
             new_value = metadata_fetcher.get_value(path, is_text, is_recursive)

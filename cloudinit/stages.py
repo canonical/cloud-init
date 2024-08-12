@@ -81,9 +81,9 @@ def update_event_enabled(
     case, we only have the data source's `default_update_events`,
     so an event that should be enabled in userdata may be denied.
     """
-    default_events: Dict[
-        EventScope, Set[EventType]
-    ] = datasource.default_update_events
+    default_events: Dict[EventScope, Set[EventType]] = (
+        datasource.default_update_events
+    )
     user_events: Dict[EventScope, Set[EventType]] = userdata_to_events(
         cfg.get("updates", {})
     )
@@ -985,9 +985,9 @@ class Init:
         }
 
         if self.datasource and hasattr(self.datasource, "network_config"):
-            available_cfgs[
-                NetworkConfigSource.DS
-            ] = self.datasource.network_config
+            available_cfgs[NetworkConfigSource.DS] = (
+                self.datasource.network_config
+            )
 
         if self.datasource:
             order = self.datasource.network_config_sources

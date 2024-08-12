@@ -1557,9 +1557,9 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
             LOG.warning("Unable to render property_doc due to invalid schema")
             meta_copy["property_doc"] = ""
     if not meta_copy.get("property_doc", ""):
-        meta_copy[
-            "property_doc"
-        ] = "      No schema definitions for this module"
+        meta_copy["property_doc"] = (
+            "      No schema definitions for this module"
+        )
     meta_copy["examples"] = textwrap.indent(_get_examples(meta), "      ")
     if not meta_copy["examples"]:
         meta_copy["examples"] = "         No examples for this module"

@@ -1,4 +1,5 @@
 """Tests for `cloud-init status`"""
+
 import json
 
 import pytest

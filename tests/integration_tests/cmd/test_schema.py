@@ -1,4 +1,5 @@
 """Tests for `cloud-init status`"""
+
 from textwrap import dedent
 
 import pytest

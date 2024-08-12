@@ -225,7 +225,7 @@ class TestRandomSeed:
 
 def apply_patches(patches):
     ret = []
-    for (ref, name, replace) in patches:
+    for ref, name, replace in patches:
         if replace is None:
             continue
         orig = getattr(ref, name)
