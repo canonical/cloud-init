@@ -107,7 +107,7 @@ class Distro(distros.Distro):
     def install_packages(self, pkglist: PackageList):
         self.package_command("install", pkgs=pkglist)
 
-    def update_package_sources(self):
+    def update_package_sources(self, *, force=False):
         self._runner.run(
             "update-sources",
             self.package_command,

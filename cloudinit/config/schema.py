@@ -46,9 +46,7 @@ from cloudinit.util import (
 )
 
 try:
-    from jsonschema import ValidationError as _ValidationError
-
-    ValidationError = _ValidationError
+    from jsonschema import ValidationError
 except ImportError:
     ValidationError = Exception  # type: ignore
 

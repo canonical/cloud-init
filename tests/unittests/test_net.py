@@ -3551,14 +3551,12 @@ class TestNetplanNetRendering:
         )
 
         if network_cfg is None:
-            network_cfg = net.generate_fallback_config()
+            parsed_cfg = net.generate_fallback_config()
         else:
-            network_cfg = yaml.safe_load(network_cfg)
-        assert isinstance(network_cfg, dict)
+            parsed_cfg = yaml.safe_load(network_cfg)
+        assert isinstance(parsed_cfg, dict)
 
-        ns = network_state.parse_net_config_data(
-            network_cfg, skip_broken=False
-        )
+        ns = network_state.parse_net_config_data(parsed_cfg, skip_broken=False)
 
         render_dir = os.path.join(tmp_dir, "render")
         os.makedirs(render_dir)

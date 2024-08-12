@@ -293,8 +293,7 @@ class UrlResponse:
     @property
     def contents(self) -> bytes:
         if self._response.content is None:
-            # typeshed bug: https://github.com/python/typeshed/pull/12180
-            return b""  # type: ignore
+            return b""
         return self._response.content
 
     @property
