@@ -599,11 +599,16 @@ def skipIfAptPkg():
 
 
 try:
+    import importlib.metadata
+
     import jsonschema
 
     assert jsonschema  # avoid pyflakes error F401: import unused
     _jsonschema_version = tuple(
-        int(part) for part in jsonschema.__version__.split(".")  # type: ignore
+        int(part)
+        for part in importlib.metadata.metadata("jsonschema")
+        .get("Version", "")
+        .split(".")
     )
     _missing_jsonschema_dep = False
 except ImportError:

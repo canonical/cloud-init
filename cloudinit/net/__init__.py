@@ -555,10 +555,8 @@ def find_fallback_nic_on_linux() -> Optional[str]:
     return None
 
 
-def generate_fallback_config(config_driver=None):
+def generate_fallback_config(config_driver=None) -> Optional[dict]:
     """Generate network cfg v2 for dhcp on the NIC most likely connected."""
-    if not config_driver:
-        config_driver = False
 
     target_name = find_fallback_nic()
     if not target_name:
@@ -572,16 +570,16 @@ def generate_fallback_config(config_driver=None):
         match = {
             "macaddress": read_sys_net_safe(target_name, "address").lower()
         }
+    if config_driver:
+        driver = device_driver(target_name)
+        if driver:
+            match["driver"] = driver
     cfg = {
         "dhcp4": True,
         "dhcp6": True,
         "set-name": target_name,
         "match": match,
     }
-    if config_driver:
-        driver = device_driver(target_name)
-        if driver:
-            cfg["match"]["driver"] = driver
     nconf = {"ethernets": {target_name: cfg}, "version": 2}
     return nconf
 
