@@ -193,7 +193,7 @@ Last-Update: 2024-08-02
 -WantedBy=cloud-init.target
 --- /dev/null
 +++ b/systemd/cloud-init.service.tmpl
-@@ -0,0 +1,57 @@
+@@ -0,0 +1,56 @@
 +## template:jinja
 +[Unit]
 +# https://cloudinit.readthedocs.io/en/latest/explanation/boot.html
