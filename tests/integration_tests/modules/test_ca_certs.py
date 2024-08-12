@@ -6,6 +6,7 @@ TODO:
 * Mark this as running on Debian and Alpine (once we have marks for that)
 * Implement testing for the RHEL-specific paths
 """
+
 import os.path
 
 import pytest

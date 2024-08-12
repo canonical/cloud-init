@@ -112,7 +112,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     hash_meth = util.get_cfg_option_str(cfg, "authkey_hash", "sha256")
     (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
-    for (user_name, _cfg) in users.items():
+    for user_name, _cfg in users.items():
         if _cfg.get("no_create_home") or _cfg.get("system"):
             LOG.debug(
                 "Skipping printing of ssh fingerprints for user '%s' because "

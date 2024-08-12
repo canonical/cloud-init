@@ -21,7 +21,7 @@ def count_messages(root):
 class TestLaunchFilter(helpers.ResourceUsingTestCase):
     def assertCounts(self, message, expected_counts):
         orig_message = copy.deepcopy(message)
-        for (index, count) in expected_counts.items():
+        for index, count in expected_counts.items():
             index = util.safe_int(index)
             filtered_message = launch_index.Filter(index).apply(message)
             self.assertEqual(count_messages(filtered_message), count)

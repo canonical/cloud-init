@@ -85,7 +85,7 @@ def fake_filesystem(mocker, tmpdir):
     # exists, but then it fails because of the retargeting that happens here.
     tmpdir.mkdir("tmp")
 
-    for (mod, funcs) in FS_FUNCS.items():
+    for mod, funcs in FS_FUNCS.items():
         for f, nargs in funcs:
             func = getattr(mod, f)
             trap_func = retarget_many_wrapper(str(tmpdir), nargs, func)

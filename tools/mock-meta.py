@@ -280,7 +280,7 @@ class MetaDataHandler:
                 return result
             else:
                 contents = []
-                for (i, key_id) in enumerate(key_ids):
+                for i, key_id in enumerate(key_ids):
                     contents.append("%s=%s" % (i, key_id))
                 return "\n".join(contents)
         elif action == "placement":
