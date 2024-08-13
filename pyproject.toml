@@ -95,7 +95,6 @@ module = [
     "cloudinit.sources.DataSourceExoscale",
     "cloudinit.sources.DataSourceGCE",
     "cloudinit.sources.DataSourceHetzner",
-    "cloudinit.sources.DataSourceIBMCloud",
     "cloudinit.sources.DataSourceMAAS",
     "cloudinit.sources.DataSourceNoCloud",
     "cloudinit.sources.DataSourceOVF",

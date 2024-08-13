@@ -10,7 +10,7 @@ from typing import cast
 
 import pytest
 
-from cloudinit import log, util
+from cloudinit import lifecycle, log, util
 from cloudinit.analyze.dump import CLOUD_INIT_ASCTIME_FMT
 from tests.unittests.helpers import CiTestCase
 
@@ -112,7 +112,7 @@ class TestDeprecatedLogs:
             "DEPRECATION_INFO_BOUNDARY",
             deprecation_info_boundary,
         )
-        util.deprecate(
+        lifecycle.deprecate(
             deprecated="some key",
             deprecated_version="19.2",
             extra_message="dont use it",
@@ -125,17 +125,17 @@ class TestDeprecatedLogs:
 
     def test_log_deduplication(self, caplog):
         log.define_extra_loggers()
-        util.deprecate(
+        lifecycle.deprecate(
             deprecated="stuff",
             deprecated_version="19.1",
             extra_message=":)",
         )
-        util.deprecate(
+        lifecycle.deprecate(
             deprecated="stuff",
             deprecated_version="19.1",
             extra_message=":)",
         )
-        util.deprecate(
+        lifecycle.deprecate(
             deprecated="stuff",
             deprecated_version="19.1",
             extra_message=":)",

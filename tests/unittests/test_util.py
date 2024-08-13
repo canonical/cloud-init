@@ -22,7 +22,15 @@ from urllib.parse import urlparse
 import pytest
 import yaml
 
-from cloudinit import atomic_helper, features, importer, subp, url_helper, util
+from cloudinit import (
+    atomic_helper,
+    features,
+    importer,
+    lifecycle,
+    subp,
+    url_helper,
+    util,
+)
 from cloudinit.distros import Distro
 from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceHostname
@@ -2448,20 +2456,87 @@ class TestMessageFromString(helpers.TestCase):
         self.assertNotIn("\x00", roundtripped)
 
 
+class TestReadOptionalSeed:
+    @pytest.mark.parametrize(
+        "seed_dir,expected_fill,retval",
+        (
+            ({}, {}, False),
+            ({"meta-data": "md"}, {}, False),
+            (
+                {"meta-data": "md: val", "user-data": "ud"},
+                {
+                    "meta-data": {"md": "val"},
+                    "user-data": b"ud",
+                    "network-config": None,
+                    "vendor-data": None,
+                },
+                True,
+            ),
+            (
+                {
+                    "meta-data": "md: val",
+                    "user-data": "ud",
+                    "network-config": "net: cfg",
+                },
+                {
+                    "meta-data": {"md": "val"},
+                    "user-data": b"ud",
+                    "network-config": {"net": "cfg"},
+                    "vendor-data": None,
+                },
+                True,
+            ),
+            (
+                {
+                    "meta-data": "md: val",
+                    "user-data": "ud",
+                    "vendor-data": "vd",
+                },
+                {
+                    "meta-data": {"md": "val"},
+                    "user-data": b"ud",
+                    "network-config": None,
+                    "vendor-data": b"vd",
+                },
+                True,
+            ),
+        ),
+    )
+    def test_read_optional_seed_sets_fill_on_success(
+        self, seed_dir, expected_fill, retval, tmpdir
+    ):
+        """Set fill dict values based on seed files present."""
+        if seed_dir is not None:
+            helpers.populate_dir(tmpdir.strpath, seed_dir)
+        fill = {}
+        assert (
+            util.read_optional_seed(fill, tmpdir.strpath + os.path.sep)
+            is retval
+        )
+        assert fill == expected_fill
+
+
 class TestReadSeeded:
     def test_unicode_not_messed_up(self, tmpdir):
         ud = b"userdatablob"
         vd = b"vendordatablob"
+        network = b"test: 'true'"
         helpers.populate_dir(
             tmpdir.strpath,
-            {"meta-data": "key1: val1", "user-data": ud, "vendor-data": vd},
+            {
+                "meta-data": "key1: val1",
+                "user-data": ud,
+                "vendor-data": vd,
+                "network-config": network,
+            },
         )
-        (found_md, found_ud, found_vd) = util.read_seeded(
+        found_md, found_ud, found_vd, found_network = util.read_seeded(
             tmpdir.strpath + os.path.sep
         )
         assert found_md == {"key1": "val1"}
         assert found_ud == ud
         assert found_vd == vd
+        assert found_network == {"test": "true"}
 
     @pytest.mark.parametrize(
         "base, feature_flag, req_urls",
@@ -2470,6 +2545,7 @@ class TestReadSeeded:
                 "http://10.0.0.1/%s?qs=1",
                 True,
                 [
+                    "http://10.0.0.1/network-config?qs=1",
                     "http://10.0.0.1/meta-data?qs=1",
                     "http://10.0.0.1/user-data?qs=1",
                     "http://10.0.0.1/vendor-data?qs=1",
@@ -2480,6 +2556,7 @@ class TestReadSeeded:
                 "https://10.0.0.1:8008/",
                 True,
                 [
+                    "https://10.0.0.1:8008/network-config",
                     "https://10.0.0.1:8008/meta-data",
                     "https://10.0.0.1:8008/user-data",
                     "https://10.0.0.1:8008/vendor-data",
@@ -2490,6 +2567,7 @@ class TestReadSeeded:
                 "https://10.0.0.1:8008",
                 True,
                 [
+                    "https://10.0.0.1:8008/network-config",
                     "https://10.0.0.1:8008/meta-data",
                     "https://10.0.0.1:8008/user-data",
                     "https://10.0.0.1:8008/vendor-data",
@@ -2500,6 +2578,7 @@ class TestReadSeeded:
                 "https://10.0.0.1:8008",
                 False,
                 [
+                    "https://10.0.0.1:8008network-config",
                     "https://10.0.0.1:8008meta-data",
                     "https://10.0.0.1:8008user-data",
                     "https://10.0.0.1:8008vendor-data",
@@ -2510,6 +2589,7 @@ class TestReadSeeded:
                 "https://10.0.0.1:8008?qs=",
                 True,
                 [
+                    "https://10.0.0.1:8008?qs=network-config",
                     "https://10.0.0.1:8008?qs=meta-data",
                     "https://10.0.0.1:8008?qs=user-data",
                     "https://10.0.0.1:8008?qs=vendor-data",
@@ -2540,12 +2620,15 @@ class TestReadSeeded:
             "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH",
             feature_flag,
         ):
-            (found_md, found_ud, found_vd) = util.read_seeded(base)
+            found_md, found_ud, found_vd, found_network = util.read_seeded(
+                base
+            )
         # Meta-data treated as YAML
         assert found_md == {"/meta-data": 1}
         # user-data, vendor-data read raw. It could be scripts or other format
         assert found_ud == "/user-data: 1"
         assert found_vd == "/vendor-data: 1"
+        assert found_network == {"/network-config": 1}
         assert [
             mock.call(req_url, timeout=5, retries=10) for req_url in req_urls
         ] == m_read.call_args_list
@@ -2560,15 +2643,22 @@ class TestReadSeededWithoutVendorData(helpers.TestCase):
     def test_unicode_not_messed_up(self):
         ud = b"userdatablob"
         vd = None
+        network = b"test: 'true'"
         helpers.populate_dir(
-            self.tmp, {"meta-data": "key1: val1", "user-data": ud}
+            self.tmp,
+            {
+                "meta-data": "key1: val1",
+                "user-data": ud,
+                "network-config": network,
+            },
         )
         sdir = self.tmp + os.path.sep
-        (found_md, found_ud, found_vd) = util.read_seeded(sdir)
+        found_md, found_ud, found_vd, found_network = util.read_seeded(sdir)
 
         self.assertEqual(found_md, {"key1": "val1"})
         self.assertEqual(found_ud, ud)
         self.assertEqual(found_vd, vd)
+        self.assertEqual(found_network, {"test": "true"})
 
 
 class TestEncode(helpers.TestCase):
@@ -3073,9 +3163,13 @@ class TestVersion:
     )
     def test_eq(self, v1, v2, eq):
         if eq:
-            assert util.Version.from_str(v1) == util.Version.from_str(v2)
+            assert lifecycle.Version.from_str(
+                v1
+            ) == lifecycle.Version.from_str(v2)
         if not eq:
-            assert util.Version.from_str(v1) != util.Version.from_str(v2)
+            assert lifecycle.Version.from_str(
+                v1
+            ) != lifecycle.Version.from_str(v2)
 
     @pytest.mark.parametrize(
         ("v1", "v2", "gt"),
@@ -3089,11 +3183,15 @@ class TestVersion:
     )
     def test_gt(self, v1, v2, gt):
         if gt:
-            assert util.Version.from_str(v1) > util.Version.from_str(v2)
-        if not gt:
-            assert util.Version.from_str(v1) < util.Version.from_str(
+            assert lifecycle.Version.from_str(v1) > lifecycle.Version.from_str(
                 v2
-            ) or util.Version.from_str(v1) == util.Version.from_str(v2)
+            )
+        if not gt:
+            assert lifecycle.Version.from_str(v1) < lifecycle.Version.from_str(
+                v2
+            ) or lifecycle.Version.from_str(v1) == lifecycle.Version.from_str(
+                v2
+            )
 
     @pytest.mark.parametrize(
         ("version"),
@@ -3107,31 +3205,31 @@ class TestVersion:
     )
     def test_to_version_and_back_to_str(self, version):
         """Verify __str__, __iter__, and Version.from_str()"""
-        assert version == str(util.Version.from_str(version))
+        assert version == str(lifecycle.Version.from_str(version))
 
     @pytest.mark.parametrize(
         ("str_ver", "cls_ver"),
         (
             (
                 "0.0.0.0",
-                util.Version(0, 0, 0, 0),
+                lifecycle.Version(0, 0, 0, 0),
             ),
             (
                 "1.0.0.0",
-                util.Version(1, 0, 0, 0),
+                lifecycle.Version(1, 0, 0, 0),
             ),
             (
                 "1.0.2.0",
-                util.Version(1, 0, 2, 0),
+                lifecycle.Version(1, 0, 2, 0),
             ),
             (
                 "9.8.2.0",
-                util.Version(9, 8, 2, 0),
+                lifecycle.Version(9, 8, 2, 0),
             ),
         ),
     )
     def test_from_str(self, str_ver, cls_ver):
-        assert util.Version.from_str(str_ver) == cls_ver
+        assert lifecycle.Version.from_str(str_ver) == cls_ver
 
 
 @pytest.mark.allow_dns_lookup

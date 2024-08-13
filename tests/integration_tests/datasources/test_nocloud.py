@@ -5,8 +5,8 @@ from textwrap import dedent
 import pytest
 from pycloudlib.lxd.instance import LXDInstance
 
+from cloudinit import lifecycle
 from cloudinit.subp import subp
-from cloudinit.util import should_log_deprecation
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL
@@ -162,7 +162,7 @@ class TestSmbios:
                 """\
                 [Unit]
                 Description=Serve a local webserver
-                Before=cloud-init.service
+                Before=cloud-init-network.service
                 Wants=cloud-init-local.service
                 DefaultDependencies=no
                 After=systemd-networkd-wait-online.service
@@ -199,7 +199,7 @@ class TestSmbios:
             client, "DEPRECATION_INFO_BOUNDARY"
         )
         # nocloud-net deprecated in version 24.1
-        if should_log_deprecation("24.1", version_boundary):
+        if lifecycle.should_log_deprecation("24.1", version_boundary):
             log_level = "DEPRECATED"
         else:
             log_level = "INFO"
@@ -267,6 +267,8 @@ class TestFTP:
                 #!/usr/bin/python3
                 import logging
 
+                from systemd.daemon import notify
+
                 from pyftpdlib.authorizers import DummyAuthorizer
                 from pyftpdlib.handlers import FTPHandler, TLS_FTPHandler
                 from pyftpdlib.servers import FTPServer
@@ -297,6 +299,9 @@ class TestFTP:
                 handler.authorizer = authorizer
                 handler.abstracted_fs = UnixFilesystem
                 server = FTPServer(("localhost", 2121), handler)
+
+                # tell systemd to proceed
+                notify("READY=1")
 
                 # start the ftp server
                 server.serve_forever()
@@ -354,10 +359,10 @@ class TestFTP:
                 # and NoCloud operates in network timeframe
                 After=systemd-networkd-wait-online.service
                 After=networking.service
-                Before=cloud-init.service
+                Before=cloud-init-network.service
 
                 [Service]
-                Type=exec
+                Type=notify
                 ExecStart=/server.py
 
                 [Install]

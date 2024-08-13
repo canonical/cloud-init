@@ -92,7 +92,7 @@ class DataSourceOVF(sources.DataSource):
                 LOG.debug("Seed from %s not supported by %s", seedfrom, self)
                 return False
 
-            (md_seed, ud, vd) = util.read_seeded(seedfrom, timeout=None)
+            (md_seed, ud, vd, _) = util.read_seeded(seedfrom, timeout=None)
             LOG.debug("Using seeded cache data from %s", seedfrom)
 
             md = util.mergemanydict([md, md_seed])

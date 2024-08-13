@@ -140,6 +140,8 @@ def read_ftps(url: str, timeout: float = 5.0, **kwargs: dict) -> "FtpResponse":
                     user=user,
                     passwd=url_parts.password or "",
                 )
+                LOG.debug("Creating a secure connection")
+                ftp_tls.prot_p()
             except ftplib.error_perm as e:
                 LOG.warning(
                     "Attempted to connect to an insecure ftp server but used "
@@ -156,26 +158,13 @@ def read_ftps(url: str, timeout: float = 5.0, **kwargs: dict) -> "FtpResponse":
                     headers=None,
                     url=url,
                 ) from e
-            LOG.debug("Creating a secure connection")
-            ftp_tls.prot_p()
-            LOG.debug("Reading file: %s", url_parts.path)
-            ftp_tls.retrbinary(f"RETR {url_parts.path}", callback=buffer.write)
-
-            response = FtpResponse(buffer.getvalue(), url)
-            LOG.debug("Closing connection")
-            ftp_tls.close()
-            return response
-        else:
             try:
-                ftp = ftplib.FTP()
-                LOG.debug(
-                    "Attempting to connect to %s via port %s.", url, port
+                LOG.debug("Reading file: %s", url_parts.path)
+                ftp_tls.retrbinary(
+                    f"RETR {url_parts.path}", callback=buffer.write
                 )
-                ftp.connect(
-                    host=url_parts.hostname,
-                    port=port,
-                    timeout=timeout or 5.0,  # uses float internally
-                )
+
+                return FtpResponse(buffer.getvalue(), url)
             except ftplib.all_errors as e:
                 code = ftp_get_return_code_from_exception(e)
                 raise UrlError(
@@ -187,17 +176,42 @@ def read_ftps(url: str, timeout: float = 5.0, **kwargs: dict) -> "FtpResponse":
                     headers=None,
                     url=url,
                 ) from e
-            LOG.debug("Attempting to login with user [%s]", user)
-            ftp.login(
-                user=user,
-                passwd=url_parts.password or "",
-            )
-            LOG.debug("Reading file: %s", url_parts.path)
-            ftp.retrbinary(f"RETR {url_parts.path}", callback=buffer.write)
-            response = FtpResponse(buffer.getvalue(), url)
-            LOG.debug("Closing connection")
-            ftp.close()
-            return response
+            finally:
+                LOG.debug("Closing connection")
+                ftp_tls.close()
+        else:
+            try:
+                ftp = ftplib.FTP()
+                LOG.debug(
+                    "Attempting to connect to %s via port %s.", url, port
+                )
+                ftp.connect(
+                    host=url_parts.hostname,
+                    port=port,
+                    timeout=timeout or 5.0,  # uses float internally
+                )
+                LOG.debug("Attempting to login with user [%s]", user)
+                ftp.login(
+                    user=user,
+                    passwd=url_parts.password or "",
+                )
+                LOG.debug("Reading file: %s", url_parts.path)
+                ftp.retrbinary(f"RETR {url_parts.path}", callback=buffer.write)
+                return FtpResponse(buffer.getvalue(), url)
+            except ftplib.all_errors as e:
+                code = ftp_get_return_code_from_exception(e)
+                raise UrlError(
+                    cause=(
+                        "Reading file from ftp server"
+                        f" failed for url {url} [{code}]"
+                    ),
+                    code=code,
+                    headers=None,
+                    url=url,
+                ) from e
+            finally:
+                LOG.debug("Closing connection")
+                ftp.close()
 
 
 def _read_file(path: str, **kwargs) -> "FileResponse":
@@ -739,7 +753,7 @@ def wait_for_url(
         time_taken = int(time.monotonic() - start_time)
         max_wait_str = "%ss" % max_wait if max_wait else "unlimited"
         status_msg = "Calling '%s' failed [%s/%s]: %s" % (
-            url or getattr(url_exc, "url", "url ? None"),
+            url or getattr(url_exc, "url", "url"),
             time_taken,
             max_wait_str,
             reason,

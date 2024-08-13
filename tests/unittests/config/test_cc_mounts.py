@@ -506,14 +506,14 @@ class TestFstabHandling:
             /dev/vdb	/mnt	auto	defaults,noexec,comment=cloudconfig	0	2
             {self.swap_path}	none	swap	sw,comment=cloudconfig	0	0
             """  # noqa: E501
-        )
+        ).strip()
         cc = {"mounts": [["/dev/vdb", "/mnt", "auto", "defaults,noexec"]]}
         with open(cc_mounts.FSTAB_PATH, "w") as fd:
             fd.write(fstab_original_content)
         cc_mounts.handle(None, cc, self.mock_cloud, [])
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
-            assert fstab_original_content == fstab_new_content
+            assert fstab_original_content == fstab_new_content.strip()
         self.m_subp.assert_has_calls(
             [
                 mock.call(["mount", "-a"]),
@@ -549,7 +549,7 @@ class TestFstabHandling:
                 ["/dev/sda5", "/mnt3"],
                 # Takes the place of the line that was removed from fstab
                 # with the cloudconfig comment
-                ["/dev/sda1", "/mnt", "xfs"],
+                ["/dev/sda1", "/mnt", "xfs", "auto", None, "2"],
                 # The line that survies after previous Nones
                 ["/dev/sda3", "/mnt4", "btrfs"],
             ]
@@ -565,9 +565,9 @@ class TestFstabHandling:
             LABEL=keepme	none	ext4	defaults	0	0
             LABEL=UEFI
             /dev/sda4	/mnt2	auto	nofail,comment=cloudconfig	1	2
-            /dev/sda5	/mnt3	auto	defaults,nofail,x-systemd.after=cloud-init.service,_netdev,comment=cloudconfig	0	2
-            /dev/sda1	/mnt	xfs	defaults,nofail,x-systemd.after=cloud-init.service,_netdev,comment=cloudconfig	0	2
-            /dev/sda3	/mnt4	btrfs	defaults,nofail,x-systemd.after=cloud-init.service,_netdev,comment=cloudconfig	0	2
+            /dev/sda5	/mnt3	auto	defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev,comment=cloudconfig	0	2
+            /dev/sda1	/mnt	xfs	auto,comment=cloudconfig	0	2
+            /dev/sda3	/mnt4	btrfs	defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev,comment=cloudconfig	0	2
             /dev/sdb1	none	swap	sw,comment=cloudconfig	0	0
             """  # noqa: E501
             ).strip()

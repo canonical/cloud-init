@@ -5,7 +5,7 @@ from unittest import mock
 import pytest
 import yaml
 
-from cloudinit import util
+from cloudinit import lifecycle
 from cloudinit.net import network_state
 from cloudinit.net.netplan import Renderer as NetplanRenderer
 from cloudinit.net.renderers import NAME_TO_RENDERER
@@ -215,7 +215,7 @@ class TestNetworkStateParseConfigV2:
         In netplan targets we perform a passthrough and the warning is not
         needed.
         """
-        util.deprecate.__dict__["log"] = set()
+        lifecycle.deprecate.__dict__["log"] = set()
         ncfg = yaml.safe_load(
             cfg.format(
                 gateway4="gateway4: 10.54.0.1",

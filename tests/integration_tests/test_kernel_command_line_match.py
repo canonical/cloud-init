@@ -22,7 +22,7 @@ log = logging.getLogger("integration_testing")
     (
         (
             "ds=nocloud;s=http://my-url/;h=hostname",
-            "DataSourceNoCloud [seed=None][dsmode=net]",
+            "DataSourceNoCloud",
             True,
         ),
         ("ci.ds=openstack", "DataSourceOpenStack", True),
@@ -49,17 +49,14 @@ def test_lxd_datasource_kernel_override(
     override_kernel_command_line(ds_str, client)
     if cmdline_configured:
         assert (
-            "Machine is configured by the kernel command line to run on single"
+            "Kernel command line set to use a single"
             f" datasource {configured}"
         ) in client.execute("cat /var/log/cloud-init.log")
     else:
         # verify that no plat
         log = client.execute("cat /var/log/cloud-init.log")
-        assert (f"Detected platform: {configured}") in log
-        assert (
-            "Machine is configured by the kernel "
-            "command line to run on single "
-        ) not in log
+        assert f"Detected {configured}" in log
+        assert "Kernel command line set to use a single" not in log
 
 
 GH_REPO_PATH = "https://raw.githubusercontent.com/canonical/cloud-init/main/"
@@ -106,10 +103,7 @@ def test_lxd_datasource_kernel_override_nocloud_net(
             == client.execute("cloud-init query platform").stdout.strip()
         )
         assert url_val in client.execute("cloud-init query subplatform").stdout
-        assert (
-            "Detected platform: DataSourceNoCloudNet [seed=None]"
-            "[dsmode=net]. Checking for active instance data"
-        ) in logs
+        assert "Detected DataSourceNoCloudNet" in logs
 
 
 @pytest.mark.skipif(PLATFORM != "lxd_vm", reason="Modifies grub config")
@@ -119,7 +113,7 @@ def test_lxd_disable_cloud_init_cmdline(client: IntegrationInstance):
 
     override_kernel_command_line("cloud-init=disabled", client)
     assert "Active: inactive (dead)" in client.execute(
-        "systemctl status cloud-init"
+        "systemctl status cloud-init.target"
     )
 
 
@@ -131,7 +125,7 @@ def test_lxd_disable_cloud_init_file(client: IntegrationInstance):
     client.execute("cloud-init --clean")
     client.restart()
     assert "Active: inactive (dead)" in client.execute(
-        "systemctl status cloud-init"
+        "systemctl status cloud-init.target"
     )
 
 
@@ -145,5 +139,5 @@ def test_lxd_disable_cloud_init_env(client: IntegrationInstance):
     client.execute("cloud-init --clean")
     client.restart()
     assert "Active: inactive (dead)" in client.execute(
-        "systemctl status cloud-init"
+        "systemctl status cloud-init.target"
     )
