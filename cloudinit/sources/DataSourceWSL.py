@@ -15,6 +15,7 @@ import yaml
 
 from cloudinit import sources, subp, util
 from cloudinit.distros import Distro
+from cloudinit.handlers import type_from_starts_with
 from cloudinit.helpers import Paths
 
 LOG = logging.getLogger(__name__)
@@ -149,7 +150,6 @@ class ConfigData:
 
     def __init__(self, path: PurePath):
         self._raw_data: str = util.load_binary_file(path).decode("utf-8")
-        self._raw_data = self._raw_data.lstrip()
         self.path: PurePath = path
 
         self._data: Optional[dict] = None
@@ -157,7 +157,7 @@ class ConfigData:
             self._data = dict()
             return
 
-        if self._raw_data.startswith("#cloud-config"):
+        if "text/cloud-config" == type_from_starts_with(self._raw_data):
             self._data = util.load_yaml(self._raw_data)
 
     def is_dict(self) -> bool:
