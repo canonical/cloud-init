@@ -495,11 +495,11 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
     @mock.patch("cloudinit.config.cc_resizefs.os.path.isdir")
     @mock.patch("cloudinit.subp.subp")
     def test_resize_btrfs_version(self, m_subp, m_is_dir, m_is_rw):
-        """Queue the resize request if btrfs >= 5.10"""
+        """Queue the resize request if btrfs >= 6.10"""
         m_is_rw.return_value = True
         m_is_dir.return_value = True
         m_subp.return_value = SubpResult(
-            "btrfs-progs v5.10 \n\n-EXPERIMENTAL -INJECT -STATIC +LZO +ZSTD "
+            "btrfs-progs v6.10 \n\n-EXPERIMENTAL -INJECT -STATIC +LZO +ZSTD "
             "+UDEV +FSVERITY +ZONED CRYPTO=libgcrypt",
             "",
         )
