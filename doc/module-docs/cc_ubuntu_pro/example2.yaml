@@ -1,4 +1,4 @@
 #cloud-config
 ubuntu_pro:
-  enable: [fips, livepatch]
+  enable: [fips-updates, livepatch]
   token: <ubuntu_pro_token>
