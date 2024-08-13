@@ -1,4 +1,4 @@
 #cloud-config
 ubuntu_pro:
-  enable: [esm]
+  enable: [esm-infra, esm-apps]
   enable_beta: [realtime-kernel]
