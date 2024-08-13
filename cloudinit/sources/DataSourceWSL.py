@@ -148,9 +148,6 @@ class ConfigData:
     retaining its raw representation alongside its file path"""
 
     def __init__(self, path: PurePath):
-        if not os.path.isfile(path.as_posix()):
-            raise FileNotFoundError(f"Config file {path} not found")
-
         self._raw_data: str = util.load_binary_file(path).decode("utf-8")
         self._raw_data = self._raw_data.lstrip()
         self.path: PurePath = path
