@@ -1,6 +1,17 @@
 Contribute to the code
 **********************
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   testing.rst
+   integration_tests.rst
+   module_creation.rst
+   datasource_creation.rst
+   dir_layout.rst
+   feature_flags.rst
+
 For a run-through of the entire process, the following pages will be your best
 starting point:
 
@@ -16,34 +27,6 @@ Testing
 
 Submissions to cloud-init must include testing. Unit testing and integration
 testing are integral parts of contributing code.
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   testing.rst
-   integration_tests.rst
-
-* :doc:`Unit testing overview and design principles<testing>`
-* :doc:`Integration testing<integration_tests>`
-
-Popular contributions
-=====================
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   module_creation.rst
-   datasource_creation.rst
-
-The two most popular contributions we receive are new cloud config
-:doc:`modules <module_creation>` and new
-:doc:`datasources <datasource_creation>`; these pages will provide instructions
-on how to create them.
-
-Note that any new modules should use underscores in any new config options and
-not hyphens (e.g. ``new_option`` and *not* ``new-option``).
 
 Code style and design
 =====================
@@ -86,22 +69,6 @@ The cloud-init codebase uses Python's annotation support for storing type
 annotations in the style specified by `PEP-484`_ and `PEP-526`_. Their use in
 the codebase is encouraged.
 
-Other resources
-===============
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   dir_layout.rst
-
-* :doc:`Explanation of the directory structure<dir_layout>`
-
-Feature flags
--------------
-
-.. automodule:: cloudinit.features
-   :members:
 
 .. LINKS:
 .. include:: ../links.txt
