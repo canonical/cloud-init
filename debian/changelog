@@ -1,9 +1,9 @@
-cloud-init (24.4~1gedd92b71-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (24.4~1gedd92b71-0ubuntu1) oracular; urgency=medium
 
   * Add netcat dependency
   * Upstream snapshot based on edd92b71.
 
- -- Chad Smith <chad.smith@canonical.com>  Tue, 13 Aug 2024 06:38:03 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 13 Aug 2024 06:38:07 -0600
 
 cloud-init (24.3~1g6e4153b3-0ubuntu1) oracular; urgency=medium
 
