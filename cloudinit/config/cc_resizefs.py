@@ -58,7 +58,10 @@ def _resize_btrfs(mount_point, devpth):
     # the resize operation can be queued
     btrfs_with_queue = lifecycle.Version.from_str("5.10")
     system_btrfs_ver = lifecycle.Version.from_str(
-        subp.subp(["btrfs", "--version"])[0].split("v")[-1].strip()
+        subp.subp(["btrfs", "--version"])
+        .stdout.split("\n")[0]
+        .split("v")[-1]
+        .strip()
     )
     if system_btrfs_ver >= btrfs_with_queue:
         idx = cmd.index("resize")
