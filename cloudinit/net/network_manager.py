@@ -333,16 +333,18 @@ class NMConnection:
 
         # These are the interface properties that map nicely
         # to NetworkManager properties
+        # NOTE: Please ensure these items are formatted so as
+        # to match the schema in schema-network-config-v1.json
         _prop_map = {
             "bond": {
                 "mode": "bond-mode",
-                "miimon": "bond_miimon",
-                "xmit_hash_policy": "bond-xmit-hash-policy",
-                "num_grat_arp": "bond-num-grat-arp",
+                "miimon": "bond-miimon",
+                "xmit_hash_policy": "bond-xmit_hash_policy",
+                "num_grat_arp": "bond-num_grat_arp",
                 "downdelay": "bond-downdelay",
                 "updelay": "bond-updelay",
-                "fail_over_mac": "bond-fail-over-mac",
-                "primary_reselect": "bond-primary-reselect",
+                "fail_over_mac": "bond-fail_over_mac",
+                "primary_reselect": "bond-primary_reselect",
                 "primary": "bond-primary",
             },
             "bridge": {

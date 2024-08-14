@@ -129,6 +129,8 @@ class TestNetworkManagerRenderNetworkState:
 
                 [bond]
                 mode=802.3ad
+                miimon=100
+                xmit_hash_policy=layer3+4
 
                 [ipv4]
                 method=disabled
@@ -286,6 +288,8 @@ class TestNetworkManagerRenderNetworkState:
 
                 [bond]
                 mode=802.3ad
+                miimon=100
+                xmit_hash_policy=layer3+4
 
                 [ipv4]
                 method=disabled
