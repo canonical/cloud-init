@@ -53,6 +53,29 @@ GOOD_MOUNTS = {
 SAMPLE_LINUX_DISTRO = ("ubuntu", "24.04", "noble")
 SAMPLE_LINUX_DISTRO_NO_VERSION_ID = ("debian", "", "trixie")
 
+AGENT_SAMPLE = """\
+#cloud-config
+landscape:
+    host:
+        url: landscape.canonical.com:6554
+    client:
+        account_name: agenttest
+        url: https://landscape.canonical.com/message-system
+        ping_url: https://landscape.canonical.com/ping
+        tags: wsl
+ubuntu_pro:
+    token: testtoken
+"""
+
+LANDSCAPE_SAMPLE = """\
+#cloud-config
+landscape:
+  client:
+    account_name: landscapetest
+    tags: tag_aiml,tag_dev
+locale: en_GB.UTF-8
+"""
+
 
 class TestWSLHelperFunctions:
     @mock.patch("cloudinit.util.subp.subp")
@@ -249,6 +272,58 @@ def join_payloads_from_content_type(
             content = content + str(p.get_payload())
 
     return content
+
+
+class TestMergeAgentLandscapeData:
+    @pytest.mark.parametrize(
+        "agent_yaml,landscape_user_data,expected",
+        (
+            pytest.param(
+                None, None, None, id="none_when_both_agent_and_ud_none"
+            ),
+            pytest.param(
+                None, "", None, id="none_when_agent_none_and_ud_empty"
+            ),
+            pytest.param(
+                "", None, None, id="none_when_agent_empty_and_ud_none"
+            ),
+            pytest.param("", "", None, id="none_when_both_agent_and_ud_empty"),
+            pytest.param(
+                AGENT_SAMPLE, "", AGENT_SAMPLE, id="agent_only_when_ud_empty"
+            ),
+            pytest.param(
+                "",
+                LANDSCAPE_SAMPLE,
+                LANDSCAPE_SAMPLE,
+                id="ud_only_when_agent_empty",
+            ),
+            pytest.param(
+                "#cloud-config\nlandscape:\n client: {account_name: agent}\n",
+                LANDSCAPE_SAMPLE,
+                "#cloud-config\n# WSL datasouce Merged agent.yaml and "
+                "user_data\n"
+                + "\n".join(LANDSCAPE_SAMPLE.splitlines()[1:]).replace(
+                    "landscapetest", "agent"
+                ),
+                id="merge_agent_and_landscape_ud_when_both_present",
+            ),
+        ),
+    )
+    def test_merged_data_excludes_empty_or_none(
+        self, agent_yaml, landscape_user_data, expected, tmpdir
+    ):
+        agent_data = user_data = None
+        if agent_yaml is not None:
+            agent_path = tmpdir.join("agent.yaml")
+            agent_path.write(agent_yaml)
+            agent_data = wsl.ConfigData(agent_path)
+        if landscape_user_data is not None:
+            landscape_ud_path = tmpdir.join("instance_name.user_data")
+            landscape_ud_path.write(landscape_user_data)
+            user_data = wsl.ConfigData(landscape_ud_path)
+        assert expected == wsl.merge_agent_landscape_data(
+            agent_data, user_data
+        )
 
 
 class TestWSLDataSource:
@@ -505,14 +580,7 @@ package_update: true"""
         ubuntu_pro_tmp = tmpdir.join(".ubuntupro", ".cloud-init")
         os.makedirs(ubuntu_pro_tmp, exist_ok=True)
         landscape_file = ubuntu_pro_tmp.join("%s.user-data" % INSTANCE_NAME)
-        landscape_file.write(
-            """#cloud-config
-landscape:
-  client:
-    account_name: landscapetest
-    tags: tag_aiml,tag_dev
-locale: en_GB.UTF-8"""
-        )
+        landscape_file.write(LANDSCAPE_SAMPLE)
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
