@@ -18,7 +18,7 @@ INSTANCE_JSON_SENSITIVE_FILE = "instance-data-sensitive.json"
 
 
 def fake_subp(cmd):
-    if cmd[0] == "tar" and cmd[1] == "czvf":
+    if cmd[0] == "tar" and cmd[1] == "czf":
         subp(cmd)  # Pass through tar cmd so we can check output
         return SubpResult("", "")
 
@@ -46,6 +46,7 @@ def fake_subprocess_call(cmd, stdout=None, stderr=None):
     expected_calls = {
         ("dmesg",): "dmesg-out\n",
         ("journalctl", "--boot=0", "-o", "short-precise"): "journal-out\n",
+        ("journalctl", "--boot=-1", "-o", "short-precise"): "journal-prev\n",
     }
     cmd_tuple = tuple(cmd)
     if cmd_tuple not in expected_calls:

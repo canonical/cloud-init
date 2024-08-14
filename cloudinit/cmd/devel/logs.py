@@ -21,7 +21,7 @@ from cloudinit import log
 from cloudinit.stages import Init
 from cloudinit.subp import ProcessExecutionError, subp
 from cloudinit.temp_utils import tempdir
-from cloudinit.util import chdir, copy, get_config_logfiles, write_file
+from cloudinit.util import copy, get_config_logfiles, write_file
 
 LOG = cast(log.CustomLoggerType, logging.getLogger(__name__))
 
@@ -238,6 +238,11 @@ def _collect_system_logs(
         file_path=log_dir / "journal.txt",
         msg="systemd journal of current boot",
     )
+    _stream_command_output_to_file(
+        cmd=["journalctl", "--boot=-1", "-o", "short-precise"],
+        file_path=pathlib.Path(log_dir, "journal-previous.txt"),
+        msg="systemd journal of previous boot",
+    )
 
 
 def _get_cloudinit_logs(
@@ -345,7 +350,7 @@ def collect_logs(
     dir_name = (
         datetime.now(timezone.utc).date().strftime("cloud-init-logs-%Y-%m-%d")
     )
-    with tempdir(dir="/tmp") as tmp_dir:
+    with tempdir(dir=run_dir) as tmp_dir:
         log_dir = pathlib.Path(tmp_dir, dir_name)
         _collect_logs_into_tmp_dir(
             log_dir=log_dir,
@@ -354,15 +359,15 @@ def collect_logs(
             cloud_dir=cloud_dir,
             include_sensitive=include_sensitive,
         )
-        with chdir(tmp_dir):
-            subp(
-                [
-                    "tar",
-                    "czvf",
-                    tarfile,
-                    str(log_dir).replace(f"{tmp_dir}/", ""),
-                ]
-            )
+        subp(
+            [
+                "tar",
+                "czf",
+                tarfile,
+                f"--directory={tmp_dir}",
+                str(log_dir).replace(f"{tmp_dir}/", ""),
+            ]
+        )
     LOG.info("Wrote %s", tarfile)
 
 
