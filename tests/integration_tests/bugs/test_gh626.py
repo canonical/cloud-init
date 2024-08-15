@@ -3,6 +3,7 @@
 Ensure if wakeonlan is specified in the network config that it is rendered
 in the /etc/network/interfaces or netplan config.
 """
+
 import pytest
 import yaml
 

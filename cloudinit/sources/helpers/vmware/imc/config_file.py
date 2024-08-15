@@ -66,7 +66,7 @@ class ConfigFile(ConfigSource, dict):
         for category in config.sections():
             logger.debug("FOUND CATEGORY = '%s'", category)
 
-            for (key, value) in config.items(category):
+            for key, value in config.items(category):
                 self._insertKey(category + "|" + key, value)
 
     def get_count_with_prefix(self, prefix):

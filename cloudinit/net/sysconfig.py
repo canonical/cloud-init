@@ -675,7 +675,7 @@ class Renderer(renderer.Renderer):
     @classmethod
     def _render_bonding_opts(cls, iface_cfg, iface, flavor):
         bond_opts = []
-        for (bond_key, value_tpl) in cls.bond_tpl_opts:
+        for bond_key, value_tpl in cls.bond_tpl_opts:
             # Seems like either dash or underscore is possible?
             bond_keys = [bond_key, bond_key.replace("_", "-")]
             for bond_key in bond_keys:

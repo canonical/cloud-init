@@ -4,6 +4,7 @@ This test redirects the output of a command to a file and then checks the file.
 
 (This is ported from
 ``tests/cloud_tests/testcases/main/command_output_simple.yaml``.)"""
+
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance

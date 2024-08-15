@@ -129,6 +129,16 @@ class TestNetworkManagerRenderNetworkState:
 
                 [bond]
                 mode=802.3ad
+                miimon=100
+                xmit_hash_policy=layer3+4
+
+                [ipv4]
+                method=disabled
+                may-fail=false
+
+                [ipv6]
+                method=disabled
+                may-fail=false
 
                 [ethernet]
                 mtu=9000
@@ -278,6 +288,16 @@ class TestNetworkManagerRenderNetworkState:
 
                 [bond]
                 mode=802.3ad
+                miimon=100
+                xmit_hash_policy=layer3+4
+
+                [ipv4]
+                method=disabled
+                may-fail=false
+
+                [ipv6]
+                method=disabled
+                may-fail=false
 
                 [ethernet]
                 mtu=9000

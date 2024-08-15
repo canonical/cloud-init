@@ -30,9 +30,9 @@ class DataSourceVultr(sources.DataSource):
 
     dsname = "Vultr"
 
-    sensitive_metadata_keys: Tuple[
-        str, ...
-    ] = sources.DataSource.sensitive_metadata_keys + ("startup-script",)
+    sensitive_metadata_keys: Tuple[str, ...] = (
+        sources.DataSource.sensitive_metadata_keys + ("startup-script",)
+    )
 
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceVultr, self).__init__(sys_cfg, distro, paths)

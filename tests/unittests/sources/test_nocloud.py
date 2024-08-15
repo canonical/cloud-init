@@ -384,7 +384,7 @@ class TestParseCommandLineData(CiTestCase):
             ),
         )
 
-        for (fmt, expected) in pairs:
+        for fmt, expected in pairs:
             fill = {}
             cmdline = fmt % {"ds_id": ds_id}
             ret = parse_cmdline_data(ds_id=ds_id, fill=fill, cmdline=cmdline)

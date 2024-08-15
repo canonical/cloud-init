@@ -943,9 +943,11 @@ def _build_nic_order(
                     _get_key_as_int_or(
                         mmd[1], "device-number", float("infinity")
                     ),
-                    mmd[2]
-                    if fallback_nic_order == NicOrder.NIC_NAME
-                    else mmd[0],
+                    (
+                        mmd[2]
+                        if fallback_nic_order == NicOrder.NIC_NAME
+                        else mmd[0]
+                    ),
                 ),
             )
         )

@@ -95,7 +95,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         "pub_key_ed25519": "/etc/ssh/ssh_host_ed25519_key.pub",
     }
 
-    for (n, path) in pubkeys.items():
+    for n, path in pubkeys.items():
         try:
             all_keys[n] = util.load_text_file(path)
         except Exception:
@@ -117,7 +117,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     # Get them read to be posted
     real_submit_keys = {}
-    for (k, v) in submit_keys.items():
+    for k, v in submit_keys.items():
         if v is None:
             real_submit_keys[k] = "N/A"
         else:

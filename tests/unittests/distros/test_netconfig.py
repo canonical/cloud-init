@@ -313,11 +313,11 @@ class TestNetCfgDistroBase(FilesystemMockingTestCase):
         b1 = dict(SysConf(blob1.strip().splitlines()))
         b2 = dict(SysConf(blob2.strip().splitlines()))
         self.assertEqual(b1, b2)
-        for (k, v) in b1.items():
+        for k, v in b1.items():
             self.assertIn(k, b2)
-        for (k, v) in b2.items():
+        for k, v in b2.items():
             self.assertIn(k, b1)
-        for (k, v) in b1.items():
+        for k, v in b1.items():
             self.assertEqual(v, b2[k])
 
 

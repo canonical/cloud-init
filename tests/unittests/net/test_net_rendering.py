@@ -24,6 +24,7 @@ Before adding a test here, check that it is not already represented
 in `unittests/test_net.py`. While that file contains similar tests, it has
 become too large to be maintainable.
 """
+
 import glob
 from enum import Flag, auto
 from pathlib import Path
