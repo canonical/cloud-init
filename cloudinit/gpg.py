@@ -23,6 +23,10 @@ LOG = logging.getLogger(__name__)
 HOME = "GNUPGHOME"
 
 
+class GpgVerificationError(Exception):
+    """GpgVerificationError is raised when a signature verification fails."""
+
+
 class GPG:
     def __init__(self):
         self.gpg_started = False
@@ -87,7 +91,7 @@ class GPG:
         except subp.ProcessExecutionError as error:
             LOG.warning("Failed to import key %s: %s", key, error)
 
-    def decrypt(self, data: str) -> str:
+    def decrypt(self, data: str, *, require_signature=False) -> str:
         """Process data using gpg.
 
         This can be used to decrypt encrypted data, verify signed data,
@@ -97,14 +101,19 @@ class GPG:
         :return: decrypted data
         :raises: ProcessExecutionError if gpg fails to decrypt data
         """
-        return subp.subp(
+        result = subp.subp(
             [
                 "gpg",
                 "--decrypt",
             ],
             data=data,
             update_env=self.env,
-        ).stdout
+        )
+        if require_signature and "gpg: Good signature" not in result.stderr:
+            raise GpgVerificationError(
+                "Signature verification required, but no signature found"
+            )
+        return result.stdout
 
     def dearmor(self, key: str) -> str:
         """Dearmor gpg key, dearmored key gets returned

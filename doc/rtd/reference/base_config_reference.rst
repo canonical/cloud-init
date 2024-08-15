@@ -267,8 +267,9 @@ Format is a dict with the following keys:
 * ``enabled``: A boolean value to enable or disable the use of user data.
   One use case is to prevent users from accidentally breaking closed
   appliances. Default: ``true``.
-* ``require_pgp``: A boolean indicating whether to require PGP verification
-  of the user data. Default: ``false``. This should be true if
+* ``require_signature``: A boolean indicating whether to require a PGP
+  signed message for user data. Default: ``false``.
+  This should be true if
   using :ref:`signed user data<user_data_formats-pgp>`.
 
 ``vendor_data``/``vendor_data2``
@@ -281,8 +282,8 @@ Format is a dict with the following keys:
 
 * ``enabled``: A boolean indicating whether to enable or disable the vendor
   data. Default: ``true``.
-* ``require_pgp``: A boolean indicating whether to require PGP verification
-  of the vendor data. Default: ``false``.
+* ``require_signature``: A boolean indicating whether to require a PGP
+  signed message for vendor data. Default: ``false``.
 * ``prefix``: A path to a binary to prefix to any executed scripts.
   An example of usage would be to prefix a script with ``strace`` to
   debug a script.

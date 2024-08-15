@@ -646,34 +646,34 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return URLParams(max_wait, timeout, retries, sec_between_retries)
 
     def get_userdata(self, apply_filter=False):
-        require_pgp = self.sys_cfg.get("user_data", {}).get(
-            "require_pgp", False
+        require_signature = self.sys_cfg.get("user_data", {}).get(
+            "require_signature", False
         )
         if self.userdata is None:
             self.userdata = self.ud_proc.process(
-                self.get_userdata_raw(), require_pgp
+                self.get_userdata_raw(), require_signature
             )
         if apply_filter:
             return self._filter_xdata(self.userdata)
         return self.userdata
 
     def get_vendordata(self):
-        require_pgp = self.sys_cfg.get("vendor_data", {}).get(
-            "require_pgp", False
+        require_signature = self.sys_cfg.get("vendor_data", {}).get(
+            "require_signature", False
         )
         if self.vendordata is None:
             self.vendordata = self.ud_proc.process(
-                self.get_vendordata_raw(), require_pgp
+                self.get_vendordata_raw(), require_signature
             )
         return self.vendordata
 
     def get_vendordata2(self):
-        require_pgp = self.sys_cfg.get("vendor_data2", {}).get(
-            "require_pgp", False
+        require_signature = self.sys_cfg.get("vendor_data2", {}).get(
+            "require_signature", False
         )
         if self.vendordata2 is None:
             self.vendordata2 = self.ud_proc.process(
-                self.get_vendordata2_raw(), require_pgp
+                self.get_vendordata2_raw(), require_signature
             )
         return self.vendordata2
 

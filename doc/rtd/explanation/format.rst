@@ -194,7 +194,7 @@ message only. To do so, the following
 .. code-block:: yaml
 
     user_data:
-      require_pgp: true
+      require_signature: true
 
 
 For a detailed guide to creating the PGP message and image necessary for this

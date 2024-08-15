@@ -85,20 +85,22 @@ class UserDataProcessor:
         self.paths = paths
         self.ssl_details = util.fetch_ssl_details(paths)
 
-    def process(self, blob, require_pgp=False):
+    def process(self, blob, require_signature=False):
         accumulating_msg = MIMEMultipart()
         if isinstance(blob, list):
             for b in blob:
                 self._process_msg(
-                    convert_string(b), accumulating_msg, require_pgp
+                    convert_string(b), accumulating_msg, require_signature
                 )
         else:
             self._process_msg(
-                convert_string(blob), accumulating_msg, require_pgp
+                convert_string(blob), accumulating_msg, require_signature
             )
         return accumulating_msg
 
-    def _process_msg(self, base_msg: Message, append_msg, require_pgp=False):
+    def _process_msg(
+        self, base_msg: Message, append_msg, require_signature=False
+    ):
         def find_ctype(payload):
             return handlers.type_from_starts_with(payload)
 
@@ -118,9 +120,9 @@ class UserDataProcessor:
             if ctype in TYPE_NEEDED + ["text/x-shellscript"]:
                 ctype = find_ctype(payload) or ctype
 
-            if require_pgp and ctype != ENCRYPT_TYPE:
+            if require_signature and ctype != ENCRYPT_TYPE:
                 error_message = (
-                    "'require_pgp' was set true in cloud-init's base "
+                    "'require_signature' was set true in cloud-init's base "
                     f"configuration, but content type is {ctype}."
                 )
                 raise RuntimeError(error_message)
@@ -152,7 +154,9 @@ class UserDataProcessor:
                             for key_path in keys_dir.iterdir():
                                 gpg_context.import_key(key_path)
                         try:
-                            payload = gpg_context.decrypt(payload)
+                            payload = gpg_context.decrypt(
+                                payload, require_signature=require_signature
+                            )
                         except subp.ProcessExecutionError as e:
                             raise RuntimeError(
                                 "Failed decrypting user data payload of type "

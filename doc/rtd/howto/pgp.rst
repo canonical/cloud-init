@@ -93,8 +93,8 @@ cloud-config file:
 
 Save this file to your working directory as `cloud-config.yaml`.
 
-Encrypt the user data using the public key of the encrypting user and the
-private key of the signing user:
+Encrypt the user data using the public key of the encrypting user and
+sign it using the private key of the signing user:
 
 .. code-block:: bash
 
@@ -134,8 +134,7 @@ While it is more steps to export the keys in this way as opposed to
 using the existing key ring in the snapshot, we do this for a few reasons:
 
 * Users may not want these keys in any key ring by default on a new instance
-* Keys may be exported from any system without needing to be concerned with
-  the implementation details of the gpg implementation
+* Exporting keys is easier than copying key rings
 
 Note that on launch, cloud-init will import there keys into a temporary
 key ring that is removed after the user data is processed. The default
@@ -151,7 +150,7 @@ require that cloud-init only process PGP messages. To do so, create a file
 .. code-block:: text
 
     user_data:
-      require_pgp: true
+      require_signature: true
 
 Retrieve our encrypted and signed user data
 ===========================================

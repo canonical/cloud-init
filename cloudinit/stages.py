@@ -799,7 +799,7 @@ class Init:
         Base config can have a definition like:
           user_data:
             enabled: false
-            require_pgp: true
+            require_signature: true
         or a deprecated `allow_userdata` key.
 
         Parse them and maybe consume userdata accordingly.

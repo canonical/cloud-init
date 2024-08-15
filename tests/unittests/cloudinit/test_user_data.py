@@ -114,7 +114,7 @@ class TestPgpData:
     def test_pgp_required(self, mocker):
         mocker.patch("cloudinit.subp.subp", side_effect=my_subp)
         ud_proc = user_data.UserDataProcessor({})
-        message = ud_proc.process(GOOD_MESSAGE, require_pgp=True)
+        message = ud_proc.process(GOOD_MESSAGE, require_signature=True)
         parts = [p for p in message.walk() if not user_data.is_skippable(p)]
         assert len(parts) == 1
         part = parts[0]
@@ -126,4 +126,4 @@ class TestPgpData:
         with pytest.raises(
             RuntimeError, match="content type is text/cloud-config"
         ):
-            ud_proc.process(CLOUD_CONFIG, require_pgp=True)
+            ud_proc.process(CLOUD_CONFIG, require_signature=True)

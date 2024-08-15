@@ -316,9 +316,10 @@ def test_unparseable_userdata(
 
 
 @pytest.mark.user_data(USER_DATA.format("no"))
-def test_pgp_required(client: IntegrationInstance):
+def test_signature_required(client: IntegrationInstance):
     client.write_to_file(
-        "/etc/cloud/cloud.cfg.d/99_pgp.cfg", "user_data:\n  require_pgp: true"
+        "/etc/cloud/cloud.cfg.d/99_pgp.cfg",
+        "user_data:\n  require_signature: true",
     )
     client.execute("cloud-init clean --logs")
     client.restart()
@@ -326,6 +327,32 @@ def test_pgp_required(client: IntegrationInstance):
     result = client.execute("cloud-init status --format=json")
     assert result.failed
     assert (
-        "'require_pgp' was set true in cloud-init's base configuration, but "
-        "content type is text/cloud-config"
+        "'require_signature' was set true in cloud-init's base configuration, "
+        "but content type is text/cloud-config"
     ) in result.stdout
+
+
+@pytest.mark.parametrize(
+    "pgp_client", [("encrypted_userdata", "valid_keys_image")], indirect=True
+)
+def test_encrypted_message_but_required_signature(
+    pgp_client: IntegrationInstance,
+):
+    """Ensure fail if we require signature but only have encrypted message."""
+    client = pgp_client
+    assert client.execute("test -f /var/tmp/encrypted")
+    verify_clean_boot(client)
+
+    client.write_to_file(
+        "/etc/cloud/cloud.cfg.d/99_pgp.cfg",
+        "user_data:\n  require_signature: true",
+    )
+    client.execute("cloud-init clean --logs")
+    client.restart()
+
+    result = client.execute("cloud-init status --format=json")
+    assert result.failed
+    assert (
+        "Signature verification required, but no signature found"
+        in result.stdout
+    )
