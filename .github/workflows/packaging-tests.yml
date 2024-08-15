@@ -36,6 +36,12 @@ jobs:
 
       - name: 'Daily recipe: quilt patches apply successfully and tests run'
         run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git remote add upstream https://git.launchpad.net/cloud-init
+          git fetch upstream main
+          git checkout upstream/main
+          git merge ${{ github.sha }}
           quilt push -a
           tox -e py3
           quilt pop -a
