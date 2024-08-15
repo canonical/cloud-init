@@ -1706,16 +1706,45 @@ def chownbyname(fname, user=None, group=None):
     chownbyid(fname, uid, gid)
 
 
-# Always returns well formatted values
-# cfg is expected to have an entry 'output' in it, which is a dictionary
-# that includes entries for 'init', 'config', 'final' or 'all'
-#   init: /var/log/cloud.out
-#   config: [ ">> /var/log/cloud-config.out", /var/log/cloud-config.err ]
-#   final:
-#     output: "| logger -p"
-#     error: "> /dev/null"
-# this returns the specific 'mode' entry, cleanly formatted, with value
-def get_output_cfg(cfg, mode) -> List[Optional[str]]:
+def get_output_cfg(
+    cfg: Dict[str, Any], mode: Optional[str]
+) -> List[Optional[str]]:
+    """Get the output configuration for a given mode.
+
+    The output config is a dictionary that specifies how to deal with stdout
+    and stderr for the cloud-init modules. It is a (frustratingly) flexible
+    format that can take multiple forms such as:
+        output: { all: "| tee -a /var/log/cloud-init-output.log" }
+    or
+        output:
+            init:
+                output: "> /var/log/cloud-init.out"
+                error: "> /var/log/cloud-init.err"
+            config: "tee -a /var/log/cloud-config.log"
+            final:
+                - ">> /var/log/cloud-final.out"
+                - "/var/log/cloud-final.err"
+
+    Mode can be one of the configuration stages. If you pass a
+    non-existent mode, it will assume the "all" mode configuration if
+    defined.
+
+    Stderr can be specified as &1 to indicate that it should
+    be the same as stdout.
+
+    If a file is specified with no redirection, it will default to
+    appending to the file.
+
+    If not overridden, output is provided in
+    '/etc/cloud/config/cloud.cfg.d/05_logging.cfg' and defaults to:
+        {"all": "| tee -a /var/log/cloud-init-output.log"}
+
+    :param cfg: The base configuration that may or may not contain the
+        'output' configuration dictionary
+    :param mode: The mode to get the output configuration for.
+    :return: A list of two strings (or Nones), the first for stdout for the
+        specified mode and the second for stderr.
+    """
     ret: List[Optional[str]] = [None, None]
     if not cfg or "output" not in cfg:
         return ret
@@ -1724,6 +1753,8 @@ def get_output_cfg(cfg, mode) -> List[Optional[str]]:
     if mode in outcfg:
         modecfg = outcfg[mode]
     else:
+        # TODO: This makes no sense. If they ask for "junk" mode we give
+        # them back "all" if it exists?
         if "all" not in outcfg:
             return ret
         # if there is a 'all' item in the output list
@@ -1741,7 +1772,7 @@ def get_output_cfg(cfg, mode) -> List[Optional[str]]:
         if len(modecfg) > 1:
             ret[1] = modecfg[1]
 
-    # if it is a dictionary, expect 'out' and 'error'
+    # if it is a dictionary, expect 'output' and 'error'
     # items, which indicate out and error
     if isinstance(modecfg, dict):
         if "output" in modecfg:
@@ -1773,8 +1804,18 @@ def get_output_cfg(cfg, mode) -> List[Optional[str]]:
     return ret
 
 
-def get_config_logfiles(cfg):
+def get_config_logfiles(cfg: Dict[str, Any]):
     """Return a list of log file paths from the configuration dictionary.
+
+    Obtains the paths from the 'def_log_file' and 'output' configuration
+    defined in the base configuration.
+
+    If not provided in base configuration, 'def_log_file' is specified in
+    'cloudinit/settings.py' and defaults to:
+        /var/log/cloud-init.log
+    If not overridden, output is provided in
+    '/etc/cloud/config/cloud.cfg.d/05_logging.cfg' and defaults to:
+        {"all": "| tee -a /var/log/cloud-init-output.log"}
 
     @param cfg: The cloud-init merged configuration dictionary.
     """
