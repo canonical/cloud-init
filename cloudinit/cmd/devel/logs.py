@@ -364,7 +364,8 @@ def collect_logs(
                 "tar",
                 "czf",
                 tarfile,
-                f"--directory={tmp_dir}",
+                "-C",
+                tmp_dir,
                 str(log_dir).replace(f"{tmp_dir}/", ""),
             ]
         )
