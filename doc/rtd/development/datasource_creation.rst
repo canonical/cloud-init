@@ -158,10 +158,11 @@ packaging configuration.
 Add documentation for your datasource
 -------------------------------------
 
-You should add a new file in
-:file:`doc/rtd/reference/datasources/<cloudplatform>.rst`
-and reference it in
-:file:`doc/rtd/reference/datasources.rst`
+You should update the following docs:
+1. Add a new file in :file:`doc/rtd/reference/datasources/<cloudplatform>.rst`
+2. Reference `<cloudplatform>.rst` in :file:`doc/rtd/reference/datasources.rst`
+3. Add an alphebetized dsname entry in representing your datasource
+:file:`doc/rtd/reference/datasource_dsname_map.rst`
 
 Benefits of including your datasource in upstream cloud-init
 ============================================================
