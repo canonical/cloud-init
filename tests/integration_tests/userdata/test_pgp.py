@@ -1,4 +1,5 @@
 """Test PGP signed and encrypted userdata."""
+
 import pytest
 
 from cloudinit import subp

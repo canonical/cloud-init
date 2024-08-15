@@ -85,7 +85,7 @@ Fail:AMockWillFailToDecryptMe
 def my_subp(*args, **kwargs):
     if args[0][0] == "gpg":
         if "Pass:" in kwargs["data"]:
-            return subp.SubpResult(CLOUD_CONFIG, "")
+            return subp.SubpResult(CLOUD_CONFIG, "gpg: Good signature")
         elif "Fail:" in kwargs["data"]:
             raise subp.ProcessExecutionError(
                 "", "gpg: public key decryption failed", 2, args[0]
