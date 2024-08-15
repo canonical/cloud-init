@@ -229,7 +229,9 @@ def load_ubuntu_pro_data(
 def merge_agent_landscape_data(
     agent_data: Optional[ConfigData], user_data: Optional[ConfigData]
 ) -> Optional[str]:
-    """Merge agent.yaml and <instance>.user-data provided by WSL and Landscape.
+    """Merge agent.yaml data provided by Ubuntu Pro for WSL
+    and user data provided either by Landscape or the local user,
+    according to the UP4W specific rules.
 
     When merging is not possible, provide #include directive to allow
     cloud-init to merge separate parts.
