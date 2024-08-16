@@ -4102,6 +4102,8 @@ class TestProvisioning:
 
         self.azure_ds._check_and_get_data()
 
+        assert self.mock_subp_subp.mock_calls == []
+
         assert self.mock_readurl.mock_calls == [
             mock.call(
                 "http://169.254.169.254/metadata/instance?"
@@ -4350,6 +4352,8 @@ class TestProvisioning:
         self.mock_azure_get_metadata_from_fabric.return_value = []
 
         self.azure_ds._check_and_get_data()
+
+        assert self.mock_subp_subp.mock_calls == []
 
         assert self.mock_readurl.mock_calls == [
             mock.call(
