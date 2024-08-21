@@ -30,6 +30,13 @@ class DataSourceCloudCIX(sources.DataSource):
         self._metadata_url = None
         self._net_cfg = None
 
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        super()._unpickle(ci_pkl_version)
+        if not hasattr(self, "_metadata_url"):
+            setattr(self, "_metadata_url", None)
+        if not hasattr(self, "_net_cfg"):
+            setattr(self, "_net_cfg", None)
+
     def _get_data(self):
         """
         Fetch the user data and the metadata
