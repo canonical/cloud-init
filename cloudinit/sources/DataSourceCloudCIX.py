@@ -13,34 +13,22 @@ LOG = logging.getLogger(__name__)
 METADATA_URLS = ["http://169.254.169.254"]
 METADATA_VERSION = 1
 
-BUILTIN_DS_CONFIG = {
-    "retries": 3,
-    "timeout": 5,
-    "wait": 5,
-}
-
-
 CLOUDCIX_DMI_NAME = "CloudCIX"
 
 
 class DataSourceCloudCIX(sources.DataSource):
 
     dsname = "CloudCIX"
+    # Setup read_url parameters through get_url_params()
+    url_retries = 3
+    url_timeout = 5
+    url_sec_between_retries = 5
 
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceCloudCIX, self).__init__(sys_cfg, distro, paths)
         self.distro = distro
-        self.ds_cfg = util.mergemanydict(
-            [
-                util.get_cfg_by_path(sys_cfg, ["datasource", "CloudCIX"], {}),
-                BUILTIN_DS_CONFIG,
-            ]
-        )
         self._metadata_url = None
         self._net_cfg = None
-        self.url_retries = self.ds_cfg.get("retries")
-        self.url_timeout = self.ds_cfg.get("timeout")
-        self.url_sec_between_retries = self.ds_cfg.get("wait")
 
     def _get_data(self):
         """
@@ -52,12 +40,13 @@ class DataSourceCloudCIX(sources.DataSource):
                 interface=net.find_fallback_nic(),
                 ipv6=True,
                 ipv4=True,
-            ):
-                crawled_data = util.log_time(
-                    logfunc=LOG.debug,
-                    msg="Crawl of metadata service",
-                    func=self.crawl_metadata_service,
-                )
+            ) as netw:
+                  state_msg = f" {netw.state_msg}" if netw.state_msg else ""
+                  crawled_data = util.log_time(
+                      logfunc=LOG.debug,
+                      msg=f"Crawl of metadata service{state_msg}",
+                      func=self.crawl_metadata_service,
+                  )
         except NoDHCPLeaseError as e:
             LOG.error("Bailing, DHCP exception: %s", e)
             return False

@@ -3,7 +3,7 @@
 CloudCIX
 ========
 
-CloudCIX serves metadata through an internal server, accessible at
+`CloudCIX`_ serves metadata through an internal server, accessible at
 ``http://169.254.169.254/v1``. The metadata and userdata can be fetched at
 the ``/metadata`` and ``/userdata`` paths respectively.
 
@@ -20,7 +20,7 @@ CloudCIX datasource has the following config options:
     CloudCIX:
       retries: 3
       timeout: 2
-      wait_retry: 2
+      sec_between_retries: 2
 
 
 - *retries*: The number of times the datasource should try to connect to the
@@ -30,4 +30,4 @@ CloudCIX datasource has the following config options:
 - *wait*: How long in seconds to wait between consecutive requests to the
   metadata service
 
-.. vi: textwidth=78
+_CloudCIX: https://www.cloudcix.com/
