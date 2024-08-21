@@ -50,6 +50,12 @@ class MockImds:
         return 200, response.headers, USERDATA.encode()
 
 
+class MockEphemeralIPNetworkWithStateMsg:
+    @property
+    def state_msg(self):
+        return "Mock state"
+
+
 class TestDataSourceCloudCIX(ResponsesTestCase):
     """
     Test reading the meta-data
@@ -73,14 +79,13 @@ class TestDataSourceCloudCIX(ResponsesTestCase):
         self.add_patch(
             "cloudinit.net.ephemeral.EphemeralIPNetwork.__enter__",
             "_m_EphemeralIPNetwork_enter",
-            return_value=None,
+            return_value=MockEphemeralIPNetworkWithStateMsg(),
         )
         self.add_patch(
             "cloudinit.net.ephemeral.EphemeralIPNetwork.__exit__",
             "_m_EphemeralIPNetwork_exit",
-            return_value=None,
+            return_value=MockEphemeralIPNetworkWithStateMsg(),
         )
-
 
     def _get_ds(self):
         distro_cls = distros.fetch("ubuntu")
@@ -111,6 +116,7 @@ class TestDataSourceCloudCIX(ResponsesTestCase):
         cix_options = {
             "timeout": 1234,
             "retries": 5678,
+            "sec_between_retries": 9012,
         }
         sys_cfg = {
             "datasource": {
@@ -124,8 +130,16 @@ class TestDataSourceCloudCIX(ResponsesTestCase):
         new_ds = ds_mod.DataSourceCloudCIX(
             sys_cfg=sys_cfg, distro=distro, paths=self.paths
         )
-        self.assertEqual(new_ds.url_timeout, cix_options["timeout"])
-        self.assertEqual(new_ds.url_retries, cix_options["retries"])
+        self.assertEqual(
+            new_ds.get_url_params().timeout_seconds, cix_options["timeout"]
+        )
+        self.assertEqual(
+            new_ds.get_url_params().num_retries, cix_options["retries"]
+        )
+        self.assertEqual(
+            new_ds.get_url_params().sec_between_retries,
+            cix_options["sec_between_retries"],
+        )
 
     def test_determine_md_url(self):
         base_url = ds_mod.METADATA_URLS[0]

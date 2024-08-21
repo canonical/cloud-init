@@ -21,7 +21,7 @@ class DataSourceCloudCIX(sources.DataSource):
     dsname = "CloudCIX"
     # Setup read_url parameters through get_url_params()
     url_retries = 3
-    url_timeout = 5
+    url_timeout_seconds = 5
     url_sec_between_retries = 5
 
     def __init__(self, sys_cfg, distro, paths):
@@ -35,18 +35,18 @@ class DataSourceCloudCIX(sources.DataSource):
         Fetch the user data and the metadata
         """
         try:
-            with EphemeralIPNetwork(
+            netw = EphemeralIPNetwork(
                 self.distro,
                 interface=net.find_fallback_nic(),
                 ipv6=True,
                 ipv4=True,
-            ) as netw:
-                  state_msg = f" {netw.state_msg}" if netw.state_msg else ""
-                  crawled_data = util.log_time(
-                      logfunc=LOG.debug,
-                      msg=f"Crawl of metadata service{state_msg}",
-                      func=self.crawl_metadata_service,
-                  )
+            )
+            state_msg = f" {netw.state_msg}" if netw.state_msg else ""
+            crawled_data = util.log_time(
+                logfunc=LOG.debug,
+                msg=f"Crawl of metadata service{state_msg}",
+                func=self.crawl_metadata_service,
+            )
         except NoDHCPLeaseError as e:
             LOG.error("Bailing, DHCP exception: %s", e)
             return False
