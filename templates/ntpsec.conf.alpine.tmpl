@@ -1,0 +1,69 @@
+# /etc/ntp.conf
+# Sensible default NTPsec configuration file.
+# See ntp.conf(5) man page for help.
+# More examples can be found at https://gitlab.com/NTPsec/ntpsec/-/tree/master/etc/ntp.d
+
+# If you have no other local chimers to help NTP perform sanity checks
+# then you can use some public chimers from the NTP public pool:
+# http://www.pool.ntp.org/en/
+#
+# iburst tells it to send the first few requests at 2 second intervals rather
+# than wait for the poll interval, which defaults to 64 seconds. That greatly
+# speeds up the time for ntpd to set the system time and start responding to
+# requests.
+#
+# You can speed up initialization, and spread the load better, by
+# using a country-specific potion of the pool, e.g. something like
+#
+# us.pool.ntp.org
+#
+# If you are not in the USA, then it will probably work to
+# change the 'us' to your two letter country code.
+#
+# Major Internet-using countries with pools include:
+# us de fr uk nl ch ru ca au cn za br
+#
+# If you don't know your country code, find it at
+#
+# https://en.wikipedia.org/wiki/ISO_3166-1
+#
+# and then try prepending it to ".pool.ntp.org" and pinging that.
+# hostname. If you get a response, you can use it.
+#
+# Alternatively, if you are running Linux your distribution may have
+# a designated pool disparcher, e.g. ubuntu.pool.ntp.org
+#
+{% if pools %}# pools
+{% endif %}
+{% for pool in pools -%}
+pool {{pool}} iburst
+{% endfor %}
+{%- if servers %}# servers
+{% endif %}
+{% for server in servers -%}
+server {{server}} iburst
+{% endfor %}
+{% for peer in peers -%}
+peer {{peer}}
+{% endfor %}
+
+# The following setting reduces the maximum number of sources to not use more
+# than four servers from the pool.ntp.org pool.  If you have specified other
+# servers, you can increase the maxclock number accordingly.
+tos maxclock 5
+
+# Exchange time with everybody, but don't allow configuration.
+# This is the right security setup for 99% of deployments.
+restrict default kod limited nomodify noquery
+restrict -6 default kod limited nomodify noquery
+
+# Local users may interrogate the NTP server more closely.
+restrict 127.0.0.1
+restrict -6 ::1
+
+# Minimal logging - we declare a drift file and that's it.
+driftfile /var/lib/ntp/ntp.drift
+
+# We don't log any statistics by default, but the directory
+# still needs to exist
+statsdir /var/log/ntpstats/

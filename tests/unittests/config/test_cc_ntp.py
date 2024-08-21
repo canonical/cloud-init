@@ -265,7 +265,9 @@ class TestNtp:
 
         return expected_servers
 
-    @pytest.mark.parametrize("client", ("ntp", "systemd-timesyncd", "chrony"))
+    @pytest.mark.parametrize(
+        "client", ("ntp", "ntpsec", "systemd-timesyncd", "chrony")
+    )
     def test_ntp_handler_real_distro_ntp_templates(self, client, tmpdir):
         """Test ntp handler renders the shipped distro ntp client templates."""
         pools = ["0.mycompany.pool.ntp.org", "3.mycompany.pool.ntp.org"]
@@ -858,6 +860,18 @@ class TestNTPSchema:
                 "Cloud config schema errors: "
                 "ntp.allow.1: None is not of type 'string',*"
                 ", ntp.peers.0: 123 is not of type 'string'",
+            ),
+            (
+                {
+                    "ntp": {
+                        "ntp_client": "bogus",
+                    }
+                },
+                re.escape(
+                    "Cloud config schema errors: ntp.ntp_client: 'bogus' is"
+                    " not one of ['auto', 'chrony', 'ntp', 'ntpdate',"
+                    " 'ntpsec', 'openntpd', 'systemd-timesyncd']"
+                ),
             ),
         ),
     )

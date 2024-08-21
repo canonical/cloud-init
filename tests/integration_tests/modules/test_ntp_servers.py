@@ -18,7 +18,7 @@ from tests.integration_tests.instances import IntegrationInstance
 USER_DATA = """\
 #cloud-config
 ntp:
-  ntp_client: ntp
+  ntp_client: ntpsec
   servers:
       - 172.16.15.14
       - 172.16.17.18
@@ -46,13 +46,17 @@ class TestNtpServers:
         (This test is skipped on all currently supported Ubuntu releases, so
         may not actually be needed any longer.)
         """
-        if class_client.execute("test -e /etc/ntp.conf.dist").failed:
-            pytest.skip("/etc/ntp.conf.dist does not exist")
-        dist_file = class_client.read_from_file("/etc/ntp.conf.dist")
+        if class_client.execute(
+            "test -e /etc/ntpsec/ntp.conf.dpkg-dist"
+        ).failed:
+            pytest.skip("/etc/ntpsec/ntp.conf.dpkg-dist does not exist")
+        dist_file = class_client.read_from_file(
+            "/etc/ntpsec/ntp.conf.dpkg-dist"
+        )
         assert 0 == len(dist_file.strip().splitlines())
 
     def test_ntp_entries(self, class_client: IntegrationInstance):
-        ntp_conf = class_client.read_from_file("/etc/ntp.conf")
+        ntp_conf = class_client.read_from_file("/etc/ntpsec/ntp.conf")
         for expected_server in EXPECTED_SERVERS:
             assert re.search(
                 r"^server {} iburst".format(expected_server),
@@ -114,7 +118,7 @@ def test_timesyncd(client: IntegrationInstance):
 EMPTY_NTP = """\
 #cloud-config
 ntp:
-  ntp_client: ntp
+  ntp_client: ntpsec
   pools: []
   servers: []
 """
@@ -123,7 +127,7 @@ ntp:
 @pytest.mark.user_data(EMPTY_NTP)
 def test_empty_ntp(client: IntegrationInstance):
     assert client.execute("ntpd --version").ok
-    assert client.execute("test -f /etc/ntp.conf.dist").failed
+    assert client.execute("test -f /etc/ntpsec/ntp.conf.dist").failed
     assert "pool.ntp.org iburst" in client.execute(
-        'grep -v "^#" /etc/ntp.conf'
+        'grep -v "^#" /etc/ntpsec/ntp.conf'
     )

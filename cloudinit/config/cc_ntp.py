@@ -20,6 +20,7 @@ LOG = logging.getLogger(__name__)
 
 frequency = PER_INSTANCE
 NTP_CONF = "/etc/ntp.conf"
+NTPSEC_CONF = "/etc/ntpsec/ntp.conf"
 NR_POOL_SERVERS = 4
 distros = [
     "almalinux",
@@ -79,6 +80,14 @@ NTP_CLIENT_CONFIG = {
         "template_name": "ntp.conf.{distro}",
         "template": None,
     },
+    "ntpsec": {
+        "check_exe": "ntpd",
+        "confpath": NTPSEC_CONF,
+        "packages": ["ntpsec"],
+        "service_name": "ntpsec",
+        "template_name": "ntpsec.conf.{distro}",
+        "template": None,
+    },
     "openntpd": {
         "check_exe": "ntpd",
         "confpath": "/etc/ntpd.conf",
@@ -105,9 +114,14 @@ DISTRO_CLIENT_CONFIG = {
             "service_name": "chronyd",
         },
         "ntp": {
-            "confpath": "/etc/ntp.conf",
+            "confpath": NTP_CONF,
             "packages": [],
             "service_name": "ntpd",
+        },
+        "ntpsec": {
+            "confpath": NTP_CONF,
+            "packages": [],
+            "service_name": "ntpsec",
         },
     },
     "aosc": {
@@ -129,6 +143,7 @@ DISTRO_CLIENT_CONFIG = {
         "ntp": {
             "service_name": "ntpd",
         },
+        "ntpsec": {"service_name": "ntpd", "confpath": NTP_CONF},
         "chrony": {
             "service_name": "chronyd",
         },
@@ -146,7 +161,7 @@ DISTRO_CLIENT_CONFIG = {
     },
     "freebsd": {
         "ntp": {
-            "confpath": "/etc/ntp.conf",
+            "confpath": NTP_CONF,
             "service_name": "ntpd",
             "template_name": "ntp.conf.{distro}",
         },
@@ -181,7 +196,7 @@ DISTRO_CLIENT_CONFIG = {
             "service_name": "chronyd",
         },
         "ntp": {
-            "confpath": "/etc/ntp.conf",
+            "confpath": NTP_CONF,
             "service_name": "ntpd",
         },
         "systemd-timesyncd": {
@@ -193,9 +208,10 @@ DISTRO_CLIENT_CONFIG = {
             "service_name": "chronyd",
         },
         "ntp": {
-            "confpath": "/etc/ntp.conf",
+            "confpath": NTP_CONF,
             "service_name": "ntpd",
         },
+        "ntpsec": {"service_name": "ntpd", "confpath": NTP_CONF},
         "systemd-timesyncd": {
             "check_exe": "/usr/lib/systemd/systemd-timesyncd",
         },
@@ -204,7 +220,8 @@ DISTRO_CLIENT_CONFIG = {
         "chrony": {
             "service_name": "chronyd",
         },
-        "ntp": {"service_name": "ntpd", "confpath": "/etc/ntp.conf"},
+        "ntp": {"service_name": "ntpd", "confpath": NTP_CONF},
+        "ntpsec": {"service_name": "ntpd", "confpath": NTP_CONF},
         "systemd-timesyncd": {
             "check_exe": "/usr/lib/systemd/systemd-timesyncd",
             "confpath": "/etc/systemd/timesyncd.conf",
@@ -214,6 +231,7 @@ DISTRO_CLIENT_CONFIG = {
         "ntp": {
             "service_name": "ntpd",
         },
+        "ntpsec": {"service_name": "ntpd", "confpath": NTP_CONF},
         "chrony": {
             "service_name": "chronyd",
         },
@@ -223,9 +241,10 @@ DISTRO_CLIENT_CONFIG = {
             "service_name": "chronyd",
         },
         "ntp": {
-            "confpath": "/etc/ntp.conf",
+            "confpath": NTP_CONF,
             "service_name": "ntpd",
         },
+        "ntpsec": {"service_name": "ntpd", "confpath": NTP_CONF},
         "systemd-timesyncd": {
             "check_exe": "/usr/lib/systemd/systemd-timesyncd",
         },

@@ -2133,6 +2133,15 @@
             "ntp_client": {
               "type": "string",
               "default": "auto",
+              "enum": [
+                "auto",
+                "chrony",
+                "ntp",
+                "ntpdate",
+                "ntpsec",
+                "openntpd",
+                "systemd-timesyncd"
+              ],
               "description": "Name of an NTP client to use to configure system NTP. When unprovided or 'auto' the default client preferred by the distribution will be used. The following built-in client names can be used to override existing configuration defaults: chrony, ntp, openntpd, ntpdate, systemd-timesyncd."
             },
             "enabled": {

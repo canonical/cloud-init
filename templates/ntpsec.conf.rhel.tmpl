@@ -1,0 +1,35 @@
+## template:jinja
+
+# For more information about this file, see the ntp.conf(5) man page.
+
+# Use public servers from the pool.ntp.org project.
+# Please consider joining the pool (https://www.pool.ntp.org/join.html).
+{% if pools %}# pools
+{% endif %}
+{% for pool in pools -%}
+pool {{pool}} iburst
+{% endfor %}
+{%- if servers %}# servers
+{% endif %}
+{% for server in servers -%}
+server {{server}} iburst
+{% endfor %}
+{% for peer in peers -%}
+peer {{peer}}
+{% endfor %}
+
+# Reduce the maximum number of servers used from the pool.
+tos maxclock 5
+
+# Record the frequency of the system clock.
+driftfile /var/lib/ntp/drift
+
+# Disable configuration and monitoring access by default.
+restrict default nomodify noquery
+
+# Enable all access for localhost.
+restrict 127.0.0.1
+restrict ::1
+
+# Enable writing of statistics records.
+#statistics clockstats cryptostats loopstats peerstats
