@@ -1,0 +1,13 @@
+cc_ssh_import_id:
+  description: |
+    This module imports SSH keys from either a public keyserver (usually
+    Launchpad), or GitHub, using ``ssh-import-id``. Keys are referenced by the
+    username they are associated with on the keyserver. The keyserver can be
+    specified by prepending either ``lp:`` for Launchpad or ``gh:`` for
+    GitHub to the username.
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_ssh_import_id/example1.yaml
+  name: SSH Import ID
+  title: Import SSH ID

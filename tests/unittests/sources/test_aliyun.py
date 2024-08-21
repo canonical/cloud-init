@@ -4,6 +4,7 @@ import functools
 import os
 from unittest import mock
 
+import pytest
 import responses
 
 from cloudinit import helpers
@@ -186,6 +187,7 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
     @mock.patch("cloudinit.net.find_fallback_nic")
     @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
+    @pytest.mark.usefixtures("disable_netdev_info")
     def test_aliyun_local_with_mock_server(
         self,
         m_is_bsd,

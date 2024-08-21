@@ -16,14 +16,15 @@ import argparse
 import json
 import os
 import sys
-import time
 import traceback
 import logging
-from typing import Tuple
+import yaml
+from typing import Tuple, Callable
 
 from cloudinit import netinfo
 from cloudinit import signal_handler
 from cloudinit import sources
+from cloudinit import socket
 from cloudinit import stages
 from cloudinit import url_helper
 from cloudinit import util
@@ -31,14 +32,19 @@ from cloudinit import version
 from cloudinit import warnings
 from cloudinit import reporting
 from cloudinit import atomic_helper
+from cloudinit import lifecycle
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.config import cc_set_hostname
 from cloudinit.config.modules import Modules
 from cloudinit.config.schema import validate_cloudconfig_schema
 from cloudinit import log
 from cloudinit.reporting import events
-from cloudinit.safeyaml import load
-from cloudinit.settings import PER_INSTANCE, PER_ALWAYS, PER_ONCE, CLOUD_CONFIG
+from cloudinit.settings import (
+    PER_INSTANCE,
+    PER_ALWAYS,
+    PER_ONCE,
+    CLOUD_CONFIG,
+)
 
 # Welcome message template
 WELCOME_MSG_TPL = (
@@ -57,6 +63,14 @@ FREQ_SHORT_NAMES = {
     "once": PER_ONCE,
 }
 
+# https://cloudinit.readthedocs.io/en/latest/explanation/boot.html
+STAGE_NAME = {
+    "init-local": "Local Stage",
+    "init": "Network Stage",
+    "modules-config": "Config Stage",
+    "modules-final": "Final Stage",
+}
+
 LOG = logging.getLogger(__name__)
 
 
@@ -72,17 +86,36 @@ def print_exc(msg=""):
     sys.stderr.write("\n")
 
 
-def log_ppid():
-    if util.is_Linux():
+DEPRECATE_BOOT_STAGE_MESSAGE = (
+    "Triggering cloud-init boot stages outside of intial system boot is not a"
+    " fully supported operation which can lead to incomplete or incorrect"
+    " configuration. As such, cloud-init is deprecating this feature in the"
+    " future. If you currently use cloud-init in this way,"
+    " please file an issue describing in detail your use case so that"
+    " cloud-init can better support your needs:"
+    " https://github.com/canonical/cloud-init/issues/new"
+)
+
+
+def log_ppid(distro, bootstage_name):
+    if distro.is_linux:
         ppid = os.getppid()
-        LOG.info("PID [%s] started cloud-init.", ppid)
+        if 1 != ppid and distro.uses_systemd():
+            lifecycle.deprecate(
+                deprecated=(
+                    "Unsupported configuration: boot stage called "
+                    f"by PID [{ppid}] outside of systemd"
+                ),
+                deprecated_version="24.3",
+                extra_message=DEPRECATE_BOOT_STAGE_MESSAGE,
+            )
+    LOG.info("PID [%s] started cloud-init '%s'.", ppid, bootstage_name)
 
 
 def welcome(action, msg=None):
     if not msg:
         msg = welcome_format(action)
     util.multi_log("%s\n" % (msg), console=False, stderr=True, log=LOG)
-    log_ppid()
     return msg
 
 
@@ -93,6 +126,20 @@ def welcome_format(action):
         timestamp=util.time_rfc2822(),
         action=action,
     )
+
+
+def close_stdin(logger: Callable[[str], None] = LOG.debug):
+    """
+    reopen stdin as /dev/null to ensure no side effects
+
+    logger: a function for logging messages
+    """
+    if not os.isatty(sys.stdin.fileno()):
+        logger("Closing stdin")
+        with open(os.devnull) as fp:
+            os.dup2(fp.fileno(), sys.stdin.fileno())
+    else:
+        logger("Not closing stdin, stdin is a tty.")
 
 
 def extract_fns(args):
@@ -215,17 +262,12 @@ def attempt_cmdline_url(path, network=True, cmdline=None) -> Tuple[int, str]:
                 is_cloud_cfg = False
             if is_cloud_cfg:
                 if cmdline_name == "url":
-                    return (
-                        log.DEPRECATED,
-                        str(
-                            util.deprecate(
-                                deprecated="The kernel command line key `url`",
-                                deprecated_version="22.3",
-                                extra_message=" Please use `cloud-config-url` "
-                                "kernel command line parameter instead",
-                                return_log=True,
-                            ),
-                        ),
+                    return lifecycle.deprecate(
+                        deprecated="The kernel command line key `url`",
+                        deprecated_version="22.3",
+                        extra_message=" Please use `cloud-config-url` "
+                        "kernel command line parameter instead",
+                        skip_log=True,
                     )
             else:
                 if cmdline_name == "cloud-config-url":
@@ -317,10 +359,8 @@ def main_init(name, args):
     #    objects config as it may be different from init object
     # 10. Run the modules for the 'init' stage
     # 11. Done!
-    if not args.local:
-        w_msg = welcome_format(name)
-    else:
-        w_msg = welcome_format("%s-local" % (name))
+    bootstage_name = "init-local" if args.local else "init"
+    w_msg = welcome_format(bootstage_name)
     init = stages.Init(ds_deps=deps, reporter=args.reporter)
     # Stage 1
     init.read_cfg(extract_fns(args))
@@ -328,9 +368,11 @@ def main_init(name, args):
     outfmt = None
     errfmt = None
     try:
-        early_logs.append((logging.DEBUG, "Closing stdin."))
-        util.close_stdin()
-        (outfmt, errfmt) = util.fixup_output(init.cfg, name)
+        if not args.skip_log_setup:
+            close_stdin(lambda msg: early_logs.append((logging.DEBUG, msg)))
+            outfmt, errfmt = util.fixup_output(init.cfg, name)
+        else:
+            outfmt, errfmt = util.get_output_cfg(init.cfg, name)
     except Exception:
         msg = "Failed to setup output redirection!"
         util.logexc(LOG, msg)
@@ -342,13 +384,15 @@ def main_init(name, args):
             "Logging being reset, this logger may no longer be active shortly"
         )
         log.reset_logging()
-    log.setup_logging(init.cfg)
-    apply_reporting_cfg(init.cfg)
+    if not args.skip_log_setup:
+        log.setup_logging(init.cfg)
+        apply_reporting_cfg(init.cfg)
 
     # Any log usage prior to setup_logging above did not have local user log
     # config applied.  We send the welcome message now, as stderr/out have
     # been redirected and log now configured.
     welcome(name, msg=w_msg)
+    log_ppid(init.distro, bootstage_name)
 
     # re-play early log messages before logging was setup
     for lvl, msg in early_logs:
@@ -481,7 +525,7 @@ def main_init(name, args):
     cloud_cfg_path = init.paths.get_ipath_cur("cloud_config")
     if os.path.exists(cloud_cfg_path) and os.stat(cloud_cfg_path).st_size != 0:
         validate_cloudconfig_schema(
-            config=load(util.load_text_file(cloud_cfg_path)),
+            config=yaml.safe_load(util.load_text_file(cloud_cfg_path)),
             strict=False,
             log_details=False,
             log_deprecations=True,
@@ -576,7 +620,8 @@ def main_modules(action_name, args):
     #    the modules objects configuration
     # 5. Run the modules for the given stage name
     # 6. Done!
-    w_msg = welcome_format("%s:%s" % (action_name, name))
+    bootstage_name = "%s:%s" % (action_name, name)
+    w_msg = welcome_format(bootstage_name)
     init = stages.Init(ds_deps=[], reporter=args.reporter)
     # Stage 1
     init.read_cfg(extract_fns(args))
@@ -598,9 +643,9 @@ def main_modules(action_name, args):
     mods = Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 4
     try:
-        LOG.debug("Closing stdin")
-        util.close_stdin()
-        util.fixup_output(mods.cfg, name)
+        if not args.skip_log_setup:
+            close_stdin()
+            util.fixup_output(mods.cfg, name)
     except Exception:
         util.logexc(LOG, "Failed to setup output redirection!")
     if args.debug:
@@ -609,14 +654,16 @@ def main_modules(action_name, args):
             "Logging being reset, this logger may no longer be active shortly"
         )
         log.reset_logging()
-    log.setup_logging(mods.cfg)
-    apply_reporting_cfg(init.cfg)
+    if not args.skip_log_setup:
+        log.setup_logging(mods.cfg)
+        apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
     welcome(name, msg=w_msg)
+    log_ppid(init.distro, bootstage_name)
 
     if name == "init":
-        util.deprecate(
+        lifecycle.deprecate(
             deprecated="`--mode init`",
             deprecated_version="24.1",
             extra_message="Use `cloud-init init` instead.",
@@ -667,8 +714,7 @@ def main_single(name, args):
         mod_freq = FREQ_SHORT_NAMES.get(mod_freq)
     # Stage 4
     try:
-        LOG.debug("Closing stdin")
-        util.close_stdin()
+        close_stdin()
         util.fixup_output(mods.cfg, None)
     except Exception:
         util.logexc(LOG, "Failed to setup output redirection!")
@@ -697,12 +743,10 @@ def main_single(name, args):
         return 0
 
 
-def status_wrapper(name, args, data_d=None, link_d=None):
-    if data_d is None:
-        paths = read_cfg_paths()
-        data_d = paths.get_cpath("data")
-    if link_d is None:
-        link_d = os.path.normpath("/run/cloud-init")
+def status_wrapper(name, args):
+    paths = read_cfg_paths()
+    data_d = paths.get_cpath("data")
+    link_d = os.path.normpath(paths.run_dir)
 
     status_path = os.path.join(data_d, "status.json")
     status_link = os.path.join(link_d, "status.json")
@@ -729,18 +773,26 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     else:
         raise ValueError("unknown name: %s" % name)
 
-    modes = (
-        "init",
-        "init-local",
-        "modules-config",
-        "modules-final",
-    )
-    if mode not in modes:
+    if mode not in STAGE_NAME:
         raise ValueError(
             "Invalid cloud init mode specified '{0}'".format(mode)
         )
 
-    status = None
+    nullstatus = {
+        "errors": [],
+        "recoverable_errors": {},
+        "start": None,
+        "finished": None,
+    }
+    status = {
+        "v1": {
+            "datasource": None,
+            "init": nullstatus.copy(),
+            "init-local": nullstatus.copy(),
+            "modules-config": nullstatus.copy(),
+            "modules-final": nullstatus.copy(),
+        }
+    }
     if mode == "init-local":
         for f in (status_link, result_link, status_path, result_path):
             util.del_file(f)
@@ -750,26 +802,24 @@ def status_wrapper(name, args, data_d=None, link_d=None):
         except Exception:
             pass
 
-    nullstatus = {
-        "errors": [],
-        "start": None,
-        "finished": None,
-    }
-
-    if status is None:
-        status = {"v1": {}}
-        status["v1"]["datasource"] = None
-
-    for m in modes:
-        if m not in status["v1"]:
-            status["v1"][m] = nullstatus.copy()
+    if mode not in status["v1"]:
+        # this should never happen, but leave it just to be safe
+        status["v1"][mode] = nullstatus.copy()
 
     v1 = status["v1"]
     v1["stage"] = mode
-    v1[mode]["start"] = time.time()
-    v1[mode]["recoverable_errors"] = next(
+    if v1[mode]["start"] and not v1[mode]["finished"]:
+        # This stage was restarted, which isn't expected.
+        LOG.warning(
+            "Unexpected start time found for %s. Was this stage restarted?",
+            STAGE_NAME[mode],
+        )
+
+    v1[mode]["start"] = float(util.uptime())
+    handler = next(
         filter(lambda h: isinstance(h, log.LogExporter), root_logger.handlers)
-    ).export_logs()
+    )
+    preexisting_recoverable_errors = handler.export_logs()
 
     # Write status.json prior to running init / module code
     atomic_helper.write_json(status_path, status)
@@ -786,27 +836,53 @@ def status_wrapper(name, args, data_d=None, link_d=None):
         else:
             errors = ret
 
-        v1[mode]["errors"] = [str(e) for e in errors]
-
+        v1[mode]["errors"].extend([str(e) for e in errors])
     except Exception as e:
-        util.logexc(LOG, "failed stage %s", mode)
+        LOG.exception("failed stage %s", mode)
         print_exc("failed run of stage %s" % mode)
-        v1[mode]["errors"] = [str(e)]
+        v1[mode]["errors"].append(str(e))
+    except SystemExit as e:
+        # All calls to sys.exit() resume running here.
+        # silence a pylint false positive
+        # https://github.com/pylint-dev/pylint/issues/9556
+        if e.code:  # pylint: disable=using-constant-test
+            # Only log errors when sys.exit() is called with a non-zero
+            # exit code
+            LOG.exception("failed stage %s", mode)
+            print_exc("failed run of stage %s" % mode)
+            v1[mode]["errors"].append(f"sys.exit({str(e.code)}) called")
+    finally:
+        # Before it exits, cloud-init will:
+        # 1) Write status.json (and result.json if in Final stage).
+        # 2) Write the final log message containing module run time.
+        # 3) Flush any queued reporting event handlers.
+        v1[mode]["finished"] = float(util.uptime())
+        v1["stage"] = None
 
-    v1[mode]["finished"] = time.time()
-    v1["stage"] = None
+        # merge new recoverable errors into existing recoverable error list
+        new_recoverable_errors = handler.export_logs()
+        handler.clean_logs()
+        for key in new_recoverable_errors.keys():
+            if key in preexisting_recoverable_errors:
+                v1[mode]["recoverable_errors"][key] = list(
+                    set(
+                        preexisting_recoverable_errors[key]
+                        + new_recoverable_errors[key]
+                    )
+                )
+            else:
+                v1[mode]["recoverable_errors"][key] = new_recoverable_errors[
+                    key
+                ]
 
-    # Write status.json after running init / module code
-    v1[mode]["recoverable_errors"] = next(
-        filter(lambda h: isinstance(h, log.LogExporter), root_logger.handlers)
-    ).export_logs()
-    atomic_helper.write_json(status_path, status)
+        # Write status.json after running init / module code
+        atomic_helper.write_json(status_path, status)
 
     if mode == "modules-final":
         # write the 'finished' file
         errors = []
-        for m in modes:
-            if v1[m]["errors"]:
+        for m in v1.keys():
+            if isinstance(v1[m], dict) and v1[m].get("errors"):
                 errors.extend(v1[m].get("errors", []))
 
         atomic_helper.write_json(
@@ -873,27 +949,43 @@ def main(sysv_args=None):
         "--debug",
         "-d",
         action="store_true",
-        help="Show additional pre-action logging (default: %(default)s).",
+        help=(
+            "DEPRECATED: Show additional pre-action "
+            "logging (default: %(default)s)."
+        ),
         default=False,
     )
     parser.add_argument(
         "--force",
         action="store_true",
         help=(
-            "Force running even if no datasource is"
+            "DEPRECATED: Force running even if no datasource is"
             " found (use at your own risk)."
         ),
         dest="force",
         default=False,
     )
 
+    parser.add_argument(
+        "--all-stages",
+        dest="all_stages",
+        action="store_true",
+        help=(
+            "Run cloud-init's stages under a single process using a "
+            "syncronization protocol. This is not intended for CLI usage."
+        ),
+        default=False,
+    )
+
     parser.set_defaults(reporter=None)
     subparsers = parser.add_subparsers(title="Subcommands", dest="subcommand")
-    subparsers.required = True
 
     # Each action and its sub-options (if any)
     parser_init = subparsers.add_parser(
-        "init", help="Initialize cloud-init and perform initial modules."
+        "init",
+        help=(
+            "DEPRECATED: Initialize cloud-init and perform initial modules."
+        ),
     )
     parser_init.add_argument(
         "--local",
@@ -916,14 +1008,15 @@ def main(sysv_args=None):
 
     # These settings are used for the 'config' and 'final' stages
     parser_mod = subparsers.add_parser(
-        "modules", help="Activate modules using a given configuration key."
+        "modules",
+        help=("DEPRECATED: Activate modules using a given configuration key."),
     )
-    extra_help = util.deprecate(
+    extra_help = lifecycle.deprecate(
         deprecated="`init`",
         deprecated_version="24.1",
         extra_message="Use `cloud-init init` instead.",
-        return_log=True,
-    )
+        skip_log=True,
+    ).message
     parser_mod.add_argument(
         "--mode",
         "-m",
@@ -947,7 +1040,11 @@ def main(sysv_args=None):
 
     # This subcommand allows you to run a single module
     parser_single = subparsers.add_parser(
-        "single", help="Run a single module."
+        "single",
+        help=(
+            "Manually run a single module. Useful for "
+            "testing during development."
+        ),
     )
     parser_single.add_argument(
         "--name",
@@ -1041,7 +1138,7 @@ def main(sysv_args=None):
                 handle_collect_logs_args,
             )
 
-            logs_parser(parser_collect_logs)
+            logs_parser(parser=parser_collect_logs)
             parser_collect_logs.set_defaults(
                 action=("collect-logs", handle_collect_logs_args)
             )
@@ -1077,8 +1174,76 @@ def main(sysv_args=None):
 
             status_parser(parser_status)
             parser_status.set_defaults(action=("status", handle_status_args))
+    else:
+        parser.error("a subcommand is required")
 
     args = parser.parse_args(args=sysv_args)
+    setattr(args, "skip_log_setup", False)
+    if not args.all_stages:
+        return sub_main(args)
+    return all_stages(parser)
+
+
+def all_stages(parser):
+    """Run all stages in a single process using an ordering protocol."""
+    LOG.info("Running cloud-init in single process mode.")
+
+    # this _must_ be called before sd_notify is called otherwise netcat may
+    # attempt to send "start" before a socket exists
+    sync = socket.SocketSync("local", "network", "config", "final")
+
+    # notify systemd that this stage has completed
+    socket.sd_notify("READY=1")
+    # wait for cloud-init-local.service to start
+    with sync("local"):
+        # set up logger
+        args = parser.parse_args(args=["init", "--local"])
+        args.skip_log_setup = False
+        # run local stage
+        sync.systemd_exit_code = sub_main(args)
+
+    # wait for cloud-init-network.service to start
+    with sync("network"):
+        # skip re-setting up logger
+        args = parser.parse_args(args=["init"])
+        args.skip_log_setup = True
+        # run init stage
+        sync.systemd_exit_code = sub_main(args)
+
+    # wait for cloud-config.service to start
+    with sync("config"):
+        # skip re-setting up logger
+        args = parser.parse_args(args=["modules", "--mode=config"])
+        args.skip_log_setup = True
+        # run config stage
+        sync.systemd_exit_code = sub_main(args)
+
+    # wait for cloud-final.service to start
+    with sync("final"):
+        # skip re-setting up logger
+        args = parser.parse_args(args=["modules", "--mode=final"])
+        args.skip_log_setup = True
+        # run final stage
+        sync.systemd_exit_code = sub_main(args)
+
+    # signal completion to cloud-init-main.service
+    if sync.experienced_any_error:
+        message = "a stage of cloud-init exited non-zero"
+        if sync.first_exception:
+            message = f"first exception received: {sync.first_exception}"
+        socket.sd_notify(
+            f"STATUS=Completed with failure, {message}. Run 'cloud-init status"
+            " --long' for more details."
+        )
+        socket.sd_notify("STOPPING=1")
+        # exit 1 for a fatal failure in any stage
+        return 1
+    else:
+        socket.sd_notify("STATUS=Completed")
+        socket.sd_notify("STOPPING=1")
+
+
+def sub_main(args):
 
     # Subparsers.required = True and each subparser sets action=(name, functor)
     (name, functor) = args.action

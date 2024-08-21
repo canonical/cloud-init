@@ -5,134 +5,24 @@
 import json
 import logging
 import re
-from textwrap import dedent
 from typing import Any, List
 from urllib.parse import urlparse
 
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_INSTANCE
 
 PRO_URL = "https://ubuntu.com/pro"
-
-distros = ["ubuntu"]
-
 DEPRECATED_KEYS = set(["ubuntu-advantage", "ubuntu_advantage"])
 
 meta: MetaSchema = {
     "id": "cc_ubuntu_pro",
-    "name": "Ubuntu Pro",
-    "title": "Configure Ubuntu Pro support services",
-    "description": dedent(
-        """\
-        Attach machine to an existing Ubuntu Pro support contract and
-        enable or disable support services such as Livepatch, ESM,
-        FIPS and FIPS Updates. When attaching a machine to Ubuntu Pro,
-        one can also specify services to enable. When the 'enable'
-        list is present, only named services will be activated. Whereas
-        if the 'enable' list is not present, the contract's default
-        services will be enabled.
-
-        On Pro instances, when ``ubuntu_pro`` config is provided to
-        cloud-init, Pro's auto-attach feature will be disabled and cloud-init
-        will perform the Pro auto-attach ignoring the ``token`` key.
-        The ``enable`` and ``enable_beta`` values will strictly determine what
-        services will be enabled, ignoring contract defaults.
-
-        Note that when enabling FIPS or FIPS updates you will need to schedule
-        a reboot to ensure the machine is running the FIPS-compliant kernel.
-        See `Power State Change`_ for information on how to configure
-        cloud-init to perform this reboot.
-        """
-    ),
-    "distros": distros,
-    "examples": [
-        dedent(
-            """\
-        # Attach the machine to an Ubuntu Pro support contract with a
-        # Pro contract token obtained from %s.
-        ubuntu_pro:
-          token: <ubuntu_pro_token>
-    """
-            % PRO_URL
-        ),
-        dedent(
-            """\
-        # Attach the machine to an Ubuntu Pro support contract enabling
-        # only fips and esm services. Services will only be enabled if
-        # the environment supports said service. Otherwise warnings will
-        # be logged for incompatible services specified.
-        ubuntu_pro:
-          token: <ubuntu_pro_token>
-          enable:
-          - fips
-          - esm
-    """
-        ),
-        dedent(
-            """\
-        # Attach the machine to an Ubuntu Pro support contract and enable
-        # the FIPS service.  Perform a reboot once cloud-init has
-        # completed.
-        power_state:
-          mode: reboot
-        ubuntu_pro:
-          token: <ubuntu_pro_token>
-          enable:
-          - fips
-        """
-        ),
-        dedent(
-            """\
-        # Set a http(s) proxy before attaching the machine to an
-        # Ubuntu Pro support contract and enabling the FIPS service.
-        ubuntu_pro:
-          token: <ubuntu_pro_token>
-          config:
-            http_proxy: 'http://some-proxy:8088'
-            https_proxy: 'https://some-proxy:8088'
-            global_apt_https_proxy: 'https://some-global-apt-proxy:8088/'
-            global_apt_http_proxy: 'http://some-global-apt-proxy:8088/'
-            ua_apt_http_proxy: 'http://10.0.10.10:3128'
-            ua_apt_https_proxy: 'https://10.0.10.10:3128'
-          enable:
-          - fips
-        """
-        ),
-        dedent(
-            """\
-        # On Ubuntu PRO instances, auto-attach but enable no PRO services.
-        ubuntu_pro:
-          enable: []
-          enable_beta: []
-        """
-        ),
-        dedent(
-            """\
-        # Enable esm and beta realtime-kernel services in Ubuntu Pro instances.
-        ubuntu_pro:
-          enable:
-          - esm
-          enable_beta:
-          - realtime-kernel
-        """
-        ),
-        dedent(
-            """\
-        # Disable auto-attach in Ubuntu Pro instances.
-        ubuntu_pro:
-          features:
-            disable_auto_attach: True
-        """
-        ),
-    ],
+    "distros": ["ubuntu"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["ubuntu_pro"] + list(DEPRECATED_KEYS),
-}
-
-__doc__ = get_meta_doc(meta)
+}  # type: ignore
 
 LOG = logging.getLogger(__name__)
 REDACTED = "REDACTED"
@@ -261,7 +151,7 @@ def set_pro_config(pro_config: Any = None):
 
 
 def configure_pro(token, enable=None):
-    """Call ua commandline client to attach and/or enable services."""
+    """Call ua command line client to attach and/or enable services."""
     if enable is None:
         enable = []
     elif isinstance(enable, str):

@@ -1,4 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+
+# TODO: Importing this file without first importing
+# cloudinit.sources.azure.errors will result in a circular import.
 import base64
 import json
 import logging
@@ -10,8 +13,8 @@ from contextlib import contextmanager
 from datetime import datetime
 from time import sleep, time
 from typing import Callable, List, Optional, TypeVar, Union
-from xml.etree import ElementTree
-from xml.sax.saxutils import escape
+from xml.etree import ElementTree  # nosec B405
+from xml.sax.saxutils import escape  # nosec B406
 
 from cloudinit import distros, subp, temp_utils, url_helper, util, version
 from cloudinit.reporting import events
@@ -360,7 +363,7 @@ class GoalState:
         self.azure_endpoint_client = azure_endpoint_client
 
         try:
-            self.root = ElementTree.fromstring(unparsed_xml)
+            self.root = ElementTree.fromstring(unparsed_xml)  # nosec B314
         except ElementTree.ParseError as e:
             report_diagnostic_event(
                 "Failed to parse GoalState XML: %s" % e,
@@ -476,7 +479,7 @@ class OpenSSLManager:
 
     @azure_ds_telemetry_reporter
     def _get_fingerprint_from_cert(self, certificate):
-        """openssl x509 formats fingerprints as so:
+        r"""openssl x509 formats fingerprints as so:
         'SHA1 Fingerprint=07:3E:19:D1:4D:1C:79:92:24:C6:A0:FD:8D:DA:\
         B6:A8:BF:27:D4:73\n'
 
@@ -493,7 +496,9 @@ class OpenSSLManager:
         """Decrypt the certificates XML document using the our private key;
         return the list of certs and private keys contained in the doc.
         """
-        tag = ElementTree.fromstring(certificates_xml).find(".//Data")
+        tag = ElementTree.fromstring(certificates_xml).find(  # nosec B314
+            ".//Data"
+        )
         certificates_content = tag.text
         lines = [
             b"MIME-Version: 1.0",
@@ -1001,7 +1006,7 @@ class OvfEnvXml:
                 unparsable or invalid.
         """
         try:
-            root = ElementTree.fromstring(ovf_env_xml)
+            root = ElementTree.fromstring(ovf_env_xml)  # nosec B314
         except ElementTree.ParseError as e:
             raise errors.ReportableErrorOvfParsingException(exception=e) from e
 
@@ -1134,6 +1139,7 @@ class OvfEnvXml:
         self.provision_guest_proxy_agent = self._parse_property(
             platform_settings,
             "ProvisionGuestProxyAgent",
+            parse_bool=True,
             default=False,
             required=False,
         )

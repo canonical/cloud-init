@@ -2,49 +2,23 @@
 """Spacewalk: Install and configure spacewalk"""
 
 import logging
-from textwrap import dedent
 
 from cloudinit import subp
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_INSTANCE
-
-MODULE_DESCRIPTION = """\
-This module installs spacewalk and applies basic configuration. If the
-``spacewalk`` config key is present spacewalk will be installed. The server to
-connect to after installation must be provided in the ``server`` in spacewalk
-configuration. A proxy to connect through and a activation key may optionally
-be specified.
-
-For more information about spacewalk see: https://fedorahosted.org/spacewalk/
-"""
 
 meta: MetaSchema = {
     "id": "cc_spacewalk",
-    "name": "Spacewalk",
-    "title": "Install and configure spacewalk",
-    "description": MODULE_DESCRIPTION,
     "distros": ["rhel", "fedora", "openeuler"],
     "frequency": PER_INSTANCE,
-    "examples": [
-        dedent(
-            """\
-            spacewalk:
-              server: <url>
-              proxy: <proxy host>
-              activation_key: <key>
-            """
-        )
-    ],
     "activate_by_schema_keys": ["spacewalk"],
-}
+}  # type: ignore
 
-__doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
-
-distros = ["redhat", "fedora"]
+distros = ["redhat", "fedora", "openeuler"]
 required_packages = ["rhn-setup"]
 def_ca_cert_path = "/usr/share/rhn/RHN-ORG-TRUSTED-SSL-CERT"
 

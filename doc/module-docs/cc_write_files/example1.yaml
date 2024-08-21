@@ -1,0 +1,7 @@
+#cloud-config
+write_files:
+- encoding: b64
+  content: CiMgVGhpcyBmaWxlIGNvbnRyb2xzIHRoZSBzdGF0ZSBvZiBTRUxpbnV4...
+  owner: root:root
+  path: /etc/sysconfig/selinux
+  permissions: '0644'

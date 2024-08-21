@@ -4,7 +4,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 #
 """Hetzner Cloud API Documentation
-   https://docs.hetzner.cloud/"""
+https://docs.hetzner.cloud/"""
 
 import logging
 
@@ -76,7 +76,7 @@ class DataSourceHetzner(sources.DataSource):
                     sec_between=self.wait_retry,
                     retries=self.retries,
                 )
-        except (NoDHCPLeaseError) as e:
+        except NoDHCPLeaseError as e:
             LOG.error("Bailing, DHCP Exception: %s", e)
             raise
 

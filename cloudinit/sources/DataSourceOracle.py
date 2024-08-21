@@ -123,7 +123,6 @@ class DataSourceOracle(sources.DataSource):
         sources.NetworkConfigSource.INITRAMFS,
     )
 
-    _network_config: dict = {"config": [], "version": 1}
     perform_dhcp_setup = True
 
     # Careful...these can be overridden in __init__
@@ -141,6 +140,7 @@ class DataSourceOracle(sources.DataSource):
             ]
         )
         self._network_config_source = KlibcOracleNetworkConfigSource()
+        self._network_config: dict = {"config": [], "version": 1}
 
         url_params = self.get_url_params()
         self.url_max_wait = url_params.max_wait_seconds
@@ -156,6 +156,8 @@ class DataSourceOracle(sources.DataSource):
                 "_network_config_source",
                 KlibcOracleNetworkConfigSource(),
             )
+        if not hasattr(self, "_network_config"):
+            self._network_config = {"config": [], "version": 1}
 
     def _has_network_config(self) -> bool:
         return bool(self._network_config.get("config", []))
@@ -407,7 +409,7 @@ def read_opc_metadata(
         METADATA_PATTERN.format(version=2, path="instance"),
         METADATA_PATTERN.format(version=1, path="instance"),
     ]
-    start_time = time.time()
+    start_time = time.monotonic()
     instance_url, instance_response = wait_for_url(
         urls,
         max_wait=max_wait,
@@ -429,7 +431,7 @@ def read_opc_metadata(
         # like a worthwhile tradeoff rather than having incomplete metadata.
         vnics_url, vnics_response = wait_for_url(
             [METADATA_PATTERN.format(version=metadata_version, path="vnics")],
-            max_wait=max_wait - (time.time() - start_time),
+            max_wait=max_wait - (time.monotonic() - start_time),
             timeout=timeout,
             headers_cb=_headers_cb,
             sleep_time=0,

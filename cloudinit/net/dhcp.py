@@ -82,7 +82,9 @@ class NoDHCPLeaseMissingDhclientError(NoDHCPLeaseError):
     """Raised when unable to find dhclient."""
 
 
-def maybe_perform_dhcp_discovery(distro, nic=None, dhcp_log_func=None):
+def maybe_perform_dhcp_discovery(
+    distro, nic=None, dhcp_log_func=None
+) -> Dict[str, Any]:
     """Perform dhcp discovery if nic valid and dhclient command exists.
 
     If the nic is invalid or undiscoverable or dhclient command is not found,
@@ -453,13 +455,26 @@ class IscDhclient(DhcpClient):
         ("0.0.0.0/0", "192.168.128.1")
         ]
 
+        # unknown-121 option format
+        sr3 = parse_static_routes(\
+        "0:a:0:0:1:20:a8:3f:81:10:a:0:0:1:20:a9:fe:a9:fe:a:0:0:1")
+        sr3 = [
+            ("0.0.0.0/0", "10.0.0.1"),
+            ("168.63.129.16/32", "10.0.0.1"),
+            ("169.254.169.254/32", "10.0.0.1"),
+        ]
+
         Python version of isc-dhclient's hooks:
            /etc/dhcp/dhclient-exit-hooks.d/rfc3442-classless-routes
         """
         # raw strings from dhcp lease may end in semi-colon
         rfc3442 = routes.rstrip(";")
-        tokens = [tok for tok in re.split(r"[, .]", rfc3442) if tok]
+        tokens = [tok for tok in re.split(r"[, . :]", rfc3442) if tok]
         static_routes: List[Tuple[str, str]] = []
+
+        # Handle unknown-121 format by converting hex to base 10.
+        if ":" in rfc3442:
+            tokens = [str(int(tok, 16)) for tok in tokens]
 
         def _trunc_error(cidr, required, remain):
             msg = (
@@ -596,6 +611,7 @@ class IscDhclient(DhcpClient):
 
 class Dhcpcd(DhcpClient):
     client_name = "dhcpcd"
+    timeout = 300
 
     def dhcp_discovery(
         self,
@@ -782,14 +798,29 @@ class Dhcpcd(DhcpClient):
         subnet_cidr='20'
         subnet_mask='255.255.240.0'
         """
+        LOG.debug(
+            "Parsing dhcpcd lease for interface %s: %r", interface, lease_dump
+        )
 
         # create a dict from dhcpcd dump output - remove single quotes
-        lease = dict(
-            [
-                a.split("=")
-                for a in lease_dump.strip().replace("'", "").split("\n")
-            ]
-        )
+        try:
+            lease = dict(
+                [
+                    a.split("=", maxsplit=1)
+                    for a in lease_dump.strip().replace("'", "").split("\n")
+                    if "=" in a
+                ]
+            )
+            if not lease:
+                msg = (
+                    "No valid DHCP lease configuration "
+                    "found in dhcpcd lease: %r"
+                )
+                LOG.error(msg, lease_dump)
+                raise InvalidDHCPLeaseFileError(msg % lease_dump)
+        except ValueError as error:
+            LOG.error("Error parsing dhcpcd lease: %r", lease_dump)
+            raise InvalidDHCPLeaseFileError from error
 
         # this is expected by cloud-init's code
         lease["interface"] = interface

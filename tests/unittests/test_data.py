@@ -23,7 +23,7 @@ from cloudinit import safeyaml, stages
 from cloudinit import user_data as ud
 from cloudinit import util
 from cloudinit.config.modules import Modules
-from cloudinit.settings import PER_INSTANCE
+from cloudinit.settings import DEFAULT_RUN_DIR, PER_INSTANCE
 from tests.unittests import helpers
 from tests.unittests.util import FakeDataSource
 
@@ -362,9 +362,9 @@ run:
  - morestuff
 """
         message2 = MIMEBase("text", "cloud-config")
-        message2[
-            "X-Merge-Type"
-        ] = "dict(recurse_array,recurse_str)+list(append)+str(append)"
+        message2["X-Merge-Type"] = (
+            "dict(recurse_array,recurse_str)+list(append)+str(append)"
+        )
         message2.set_payload(blob2)
 
         blob3 = """
@@ -482,6 +482,7 @@ c: 4
         ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES=True,
         EXPIRE_APPLIES_TO_HASHED_USERS=False,
         NETPLAN_CONFIG_ROOT_READ_ONLY=True,
+        DEPRECATION_INFO_BOUNDARY="devel",
         NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH=False,
         APT_DEB822_SOURCE_LIST_FILE=True,
     )
@@ -513,6 +514,7 @@ c: 4
                 "ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES": True,
                 "EXPIRE_APPLIES_TO_HASHED_USERS": False,
                 "NETPLAN_CONFIG_ROOT_READ_ONLY": True,
+                "DEPRECATION_INFO_BOUNDARY": "devel",
                 "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH": False,
                 "APT_DEB822_SOURCE_LIST_FILE": True,
             },
@@ -826,7 +828,7 @@ class TestFetchBaseConfig:
     def test_only_builtin_gets_builtin(self, mocker):
         mocker.patch(f"{MPATH}.read_runtime_config", return_value={})
         mocker.patch(f"{MPATH}.util.read_conf_with_confd")
-        config = stages.fetch_base_config()
+        config = stages.fetch_base_config(DEFAULT_RUN_DIR)
         assert util.get_builtin_cfg() == config
 
     def test_conf_d_overrides_defaults(self, mocker):
@@ -839,7 +841,7 @@ class TestFetchBaseConfig:
             return_value={test_key: test_value},
         )
         mocker.patch(f"{MPATH}.read_runtime_config", return_value={})
-        config = stages.fetch_base_config()
+        config = stages.fetch_base_config(DEFAULT_RUN_DIR)
         assert config.get(test_key) == test_value
         builtin[test_key] = test_value
         assert config == builtin
@@ -853,7 +855,7 @@ class TestFetchBaseConfig:
         mocker.patch("cloudinit.stages.CLOUD_CONFIG", cfg_path)
         mocker.patch(f"{MPATH}.util.get_builtin_cfg", return_value={})
         config = stages.fetch_base_config(
-            instance_data_file=instance_data_path
+            DEFAULT_RUN_DIR, instance_data_file=instance_data_path
         )
         assert config == {"key": "template_value"}
 
@@ -869,7 +871,7 @@ class TestFetchBaseConfig:
             return_value=cmdline,
         )
         mocker.patch(f"{MPATH}.read_runtime_config")
-        config = stages.fetch_base_config()
+        config = stages.fetch_base_config(DEFAULT_RUN_DIR)
         assert config.get(test_key) == test_value
         builtin[test_key] = test_value
         assert config == builtin
@@ -888,7 +890,7 @@ class TestFetchBaseConfig:
             return_value=cmdline,
         )
 
-        config = stages.fetch_base_config()
+        config = stages.fetch_base_config(DEFAULT_RUN_DIR)
         assert config == {"key1": "value1", "key2": "other2", "key3": "other3"}
 
     def test_order_precedence_is_builtin_system_runtime_cmdline(self, mocker):
@@ -905,7 +907,7 @@ class TestFetchBaseConfig:
         )
         mocker.patch(f"{MPATH}.read_runtime_config", return_value=runtime)
 
-        config = stages.fetch_base_config()
+        config = stages.fetch_base_config(DEFAULT_RUN_DIR)
 
         assert config == {
             "key1": "cmdline1",

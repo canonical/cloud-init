@@ -4,7 +4,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""Define 'status' utility and handler as part of cloud-init commandline."""
+"""Define 'status' utility and handler as part of cloud-init command line."""
 
 import argparse
 import enum
@@ -48,11 +48,11 @@ class EnabledStatus(enum.Enum):
     """Enum representing user-visible cloud-init boot status codes."""
 
     DISABLED_BY_GENERATOR = "disabled-by-generator"
-    DISABLED_BY_KERNEL_CMDLINE = "disabled-by-kernel-cmdline"
+    DISABLED_BY_KERNEL_CMDLINE = "disabled-by-kernel-command-line"
     DISABLED_BY_MARKER_FILE = "disabled-by-marker-file"
     DISABLED_BY_ENV_VARIABLE = "disabled-by-environment-variable"
     ENABLED_BY_GENERATOR = "enabled-by-generator"
-    ENABLED_BY_KERNEL_CMDLINE = "enabled-by-kernel-cmdline"
+    ENABLED_BY_KERNEL_CMDLINE = "enabled-by-kernel-command-line"
     ENABLED_BY_SYSVINIT = "enabled-by-sysvinit"
     UNKNOWN = "unknown"
 
@@ -318,8 +318,9 @@ def systemd_failed(wait: bool) -> bool:
     for service in [
         "cloud-final.service",
         "cloud-config.service",
-        "cloud-init.service",
+        "cloud-init-network.service",
         "cloud-init-local.service",
+        "cloud-init-main.service",
     ]:
         try:
             stdout = query_systemctl(

@@ -1,8 +1,8 @@
 ## template:jinja
 [Unit]
-Description=Apply the settings specified in cloud-config
+# https://cloudinit.readthedocs.io/en/latest/explanation/boot.html
+Description=Cloud-init: Config Stage
 After=network-online.target cloud-config.target
-Before=systemd-user-sessions.service
 Wants=network-online.target cloud-config.target
 ConditionPathExists=!/etc/cloud/cloud-init.disabled
 ConditionKernelCommandLine=!cloud-init=disabled
@@ -10,7 +10,14 @@ ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/cloud-init modules --mode=config
+# This service is a shim which preserves systemd ordering while allowing a
+# single Python process to run cloud-init's logic. This works by communicating
+# with the cloud-init process over a unix socket to tell the process that this
+# stage can start, and then wait on a return socket until the cloud-init
+# process has completed this stage. The output from the return socket is piped
+# into a shell so that the process can send a completion message (defaults to
+# "done", otherwise includes an error message) and an exit code to systemd.
+ExecStart=sh -c 'echo "start" | nc.openbsd -Uu -W1 /run/cloud-init/share/config.sock -s /run/cloud-init/share/config-return.sock | sh'
 RemainAfterExit=yes
 TimeoutSec=0
 

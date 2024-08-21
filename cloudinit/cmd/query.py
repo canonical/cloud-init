@@ -131,7 +131,7 @@ def load_userdata(ud_file_path):
 
     @returns: String of uncompressed userdata if possible, otherwise bytes.
     """
-    bdata = util.load_binary_file(ud_file_path)
+    bdata = util.load_binary_file(ud_file_path, quiet=True)
     try:
         return bdata.decode("utf-8")
     except UnicodeDecodeError:
@@ -281,7 +281,7 @@ def handle_args(name, args):
         try:
             rendered_payload = render_jinja_payload(
                 payload=payload,
-                payload_fn="query commandline",
+                payload_fn="query command line",
                 instance_data=instance_data,
                 debug=True if args.debug else False,
             )

@@ -1,0 +1,4 @@
+#cloud-config
+ubuntu_pro:
+  enable: [fips, esm]
+  token: <ubuntu_pro_token>

@@ -1,0 +1,9 @@
+name: PR Labeler
+on:
+- pull_request_target
+
+jobs:
+  labeler:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/labeler@v5

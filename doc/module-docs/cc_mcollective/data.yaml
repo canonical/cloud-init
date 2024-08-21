@@ -1,0 +1,26 @@
+cc_mcollective:
+  description: |
+    This module installs, configures and starts MCollective. If the
+    ``mcollective`` key is present in config, then MCollective will be
+    installed and started.
+    
+    Configuration for ``mcollective`` can be specified in the ``conf`` key
+    under ``mcollective``. Each config value consists of a key-value pair and
+    will be written to ``/etc/mcollective/server.cfg``. The ``public-cert``
+    and ``private-cert`` keys, if present in conf may be used to specify the
+    public and private certificates for MCollective. Their values will be
+    written to ``/etc/mcollective/ssl/server-public.pem`` and
+    ``/etc/mcollective/ssl/server-private.pem``.
+
+    .. warning::
+       The EC2 metadata service is a network service and thus is readable by
+       non-root users on the system (i.e., ``ec2metadata --user-data``). If
+       security is a concern, use ``include-once`` and SSL URLS.
+  examples:
+  - comment: >
+      Example 1: Provide server private and public key, and provide the
+      ``loglevel: debug`` and ``plugin.stomp.host: dbhost`` config settings in
+      ``/etc/mcollective/server.cfg:``
+    file: cc_mcollective/example1.yaml
+  name: MCollective
+  title: Install, configure and start MCollective

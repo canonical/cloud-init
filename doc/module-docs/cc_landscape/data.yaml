@@ -1,0 +1,46 @@
+cc_landscape:
+  description: |
+    This module installs and configures ``landscape-client``. The Landscape
+    client will only be installed if the key ``landscape`` is present in
+    config.
+
+    Landscape client configuration is given under the ``client`` key under the
+    main ``landscape`` config key. The config parameters are not interpreted by
+    cloud-init, but rather are converted into a ``ConfigObj``-formatted file
+    and written out to the ``[client]`` section in
+    ``/etc/landscape/client.conf``. The following default client config is
+    provided, but can be overridden
+    
+    .. code-block:: yaml
+
+       landscape:
+         client:
+           log_level: "info"
+           url: "https://landscape.canonical.com/message-system"
+           ping_url: "http://landscape.canoncial.com/ping"
+           data_path: "/var/lib/landscape/client"
+
+    .. note::
+       See `Landscape documentation <https://ubuntu.com/landscape/docs>`_ for
+       client config keys.
+
+    .. note::
+       If ``tags`` is defined, its contents should be a string delimited with
+       a comma (",") rather than a list.
+  examples:
+  - comment: >
+      To discover additional supported client keys, run
+      ``man landscape-config``.
+
+      Example 1:
+    file: cc_landscape/example1.yaml
+  - comment: >
+      Example 2: Minimum viable config requires ``account_name`` and
+      ``computer_title``.
+    file: cc_landscape/example2.yaml
+  - comment: >
+      Example 3: To install ``landscape-client`` from a PPA, specify
+      ``apt.sources``.
+    file: cc_landscape/example3.yaml
+  name: Landscape
+  title: Install and configure Landscape client

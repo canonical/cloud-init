@@ -1,0 +1,19 @@
+cc_scripts_vendor:
+  description: |
+    On select Datasources, vendors have a channel for the consumption of all
+    supported user data types via a special channel called vendor data. Any
+    scripts in the ``scripts/vendor`` directory in the datasource will be run
+    when a new instance is first booted. Scripts will be run in alphabetical
+    order. This module allows control over the execution of vendor data.
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_scripts_vendor/example1.yaml
+  - comment: |
+      Example 2:
+    file: cc_scripts_vendor/example2.yaml
+  - comment: |
+      Example 3: Vendor data will not be processed.
+    file: cc_scripts_vendor/example3.yaml
+  name: Scripts Vendor
+  title: Run vendor scripts

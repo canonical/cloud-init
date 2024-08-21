@@ -7,6 +7,7 @@ Unix family of operating systems. See the complete list below.
 
 * AlmaLinux
 * Alpine Linux
+* AOSC OS
 * Arch Linux
 * CentOS
 * CloudLinux

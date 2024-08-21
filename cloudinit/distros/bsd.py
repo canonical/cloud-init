@@ -1,5 +1,6 @@
 import logging
 import platform
+import re
 from typing import List, Optional
 
 import cloudinit.net.netops.bsd_netops as bsd_netops
@@ -27,7 +28,7 @@ class BSD(distros.Distro):
     # There is no update/upgrade on OpenBSD
     pkg_cmd_update_prefix: Optional[List[str]] = None
     pkg_cmd_upgrade_prefix: Optional[List[str]] = None
-    net_ops = bsd_netops.BsdNetOps  # type: ignore
+    net_ops = bsd_netops.BsdNetOps
 
     def __init__(self, name, cfg, paths):
         super().__init__(name, cfg, paths)
@@ -39,6 +40,13 @@ class BSD(distros.Distro):
         cfg["rsyslog_svcname"] = "rsyslogd"
         self.osfamily = platform.system().lower()
         self.net_ops = bsd_netops.BsdNetOps
+        self.is_linux = False
+
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        super()._unpickle(ci_pkl_version)
+
+        # this needs to be after the super class _unpickle to override it
+        self.is_linux = False
 
     def _read_system_hostname(self):
         sys_hostname = self._read_hostname(self.hostname_conf_fn)
@@ -120,6 +128,8 @@ class BSD(distros.Distro):
             if not self.pkg_cmd_upgrade_prefix:
                 return
             cmd = self.pkg_cmd_upgrade_prefix
+        else:
+            cmd = []
 
         if args and isinstance(args, str):
             cmd.append(args)
@@ -149,3 +159,24 @@ class BSD(distros.Distro):
         """
         ppid, _ = subp.subp(["ps", "-oppid=", "-p", str(pid)])
         return int(ppid.strip())
+
+    @staticmethod
+    def get_mapped_device(blockdev: str) -> Optional[str]:
+        return None
+
+    @staticmethod
+    def device_part_info(devpath: str) -> tuple:
+        # FreeBSD doesn't know of sysfs so just get everything we need from
+        # the device, like /dev/vtbd0p2.
+        part = util.find_freebsd_part(devpath)
+        if part:
+            fpart = f"/dev/{part}"
+            # Handle both GPT partitions and MBR slices with partitions
+            m = re.search(
+                r"^(?P<dev>/dev/.+)[sp](?P<part_slice>\d+[a-z]*)$", fpart
+            )
+            if m:
+                return m["dev"], m["part_slice"]
+
+        # the input is bogus and we need to bail
+        raise ValueError(f"Invalid value for devpath: '{devpath}'")

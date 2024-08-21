@@ -12,9 +12,9 @@ from tests.integration_tests.releases import (
     CURRENT_RELEASE,
     FOCAL,
     IS_UBUNTU,
-    NOBLE,
+    MANTIC,
 )
-from tests.integration_tests.util import verify_clean_log
+from tests.integration_tests.util import verify_clean_boot, verify_clean_log
 
 LOG = logging.getLogger("integration_testing.test_upgrade")
 
@@ -62,7 +62,6 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
     source = get_validated_source(session_cloud)
     if not source.installs_new_version():
         pytest.skip(UNSUPPORTED_INSTALL_METHOD_MSG.format(source))
-        return  # type checking doesn't understand that skip raises
     launch_kwargs = {
         "image_id": session_cloud.initial_image_id,
     }
@@ -82,11 +81,8 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
         pre_cloud_blame = instance.execute("cloud-init analyze blame")
 
         # Ensure no issues pre-upgrade
-        log = instance.read_from_file("/var/log/cloud-init.log")
-        assert not json.loads(pre_result)["v1"]["errors"]
-
         try:
-            verify_clean_log(log)
+            verify_clean_boot(instance)
         except AssertionError:
             LOG.warning(
                 "There were errors/warnings/tracebacks pre-upgrade. "
@@ -123,10 +119,7 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
         post_cloud_blame = instance.execute("cloud-init analyze blame")
 
         # Ensure no issues post-upgrade
-        assert not json.loads(pre_result)["v1"]["errors"]
-
-        log = instance.read_from_file("/var/log/cloud-init.log")
-        verify_clean_log(log)
+        verify_clean_boot(instance)
 
         # Ensure important things stayed the same
         assert pre_hostname == post_hostname
@@ -143,18 +136,15 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
                 assert post_json["v1"]["datasource"].startswith(
                     "DataSourceAzure"
                 )
-        if PLATFORM in ["gce", "qemu"] and CURRENT_RELEASE < NOBLE:
-            # GCE regenerates network config per boot AND
-            # GCE uses fallback config AND
-            # #4474 changed fallback configuration.
-            # Once the baseline includes #4474, this can be removed
-            pre_network = yaml.load(pre_network, Loader=yaml.Loader)
-            post_network = yaml.load(post_network, Loader=yaml.Loader)
-            for values in post_network["network"]["ethernets"].values():
-                values.pop("dhcp6")
-            assert yaml.dump(pre_network) == yaml.dump(post_network)
-        else:
+        if CURRENT_RELEASE < MANTIC:
+            # Assert the full content is preserved including header comment
+            # since cloud-init writes the file directly and does not use
+            # netplan API to write 50-cloud-init.yaml.
             assert pre_network == post_network
+        else:
+            # Mantic and later Netplan API is used and doesn't allow
+            # cloud-init to write header comments in network config
+            assert yaml.safe_load(pre_network) == yaml.safe_load(post_network)
 
         # Calculate and log all the boot numbers
         pre_analyze_totals = [
@@ -197,7 +187,6 @@ def test_subsequent_boot_of_upgraded_package(session_cloud: IntegrationCloud):
             pytest.fail(UNSUPPORTED_INSTALL_METHOD_MSG.format(source))
         else:
             pytest.skip(UNSUPPORTED_INSTALL_METHOD_MSG.format(source))
-        return  # type checking doesn't understand that skip raises
 
     launch_kwargs = {"image_id": session_cloud.initial_image_id}
 

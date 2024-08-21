@@ -1,0 +1,457 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$defs": {
+    "renderer": {
+      "type": "string",
+      "description": "Use the given networking backend for this definition.  Default is networkd.",
+      "enum": [
+        "networkd",
+        "NetworkManager"
+      ]
+    },
+    "dhcp-overrides": {
+      "type": "object",
+      "description": "DHCP behaviour overrides. Overrides will only have an effect if the corresponding DHCP type is enabled.",
+      "additionalProperties": false,
+      "properties": {
+        "hostname": {
+          "type": "string",
+          "description": "Unsupported  for dhcp6-overrides when used with the networkd renderer."
+        },
+        "route-metric": {
+          "type": "integer",
+          "description": "Unsupported  for dhcp6-overrides when used with the networkd renderer."
+        },
+        "send-hostname": {
+          "type": "boolean",
+          "description": "Unsupported  for dhcp6-overrides when used with the networkd renderer."
+        },
+        "use-dns": {
+          "type": "boolean"
+        },
+        "use-domains": {
+          "type": "string"
+        },
+        "use-hostname": {
+          "type": "boolean"
+        },
+        "use-mtu": {
+          "type": "boolean",
+          "description": "Unsupported  for dhcp6-overrides when used with the networkd renderer."
+        },
+        "use-ntp": {
+          "type": "boolean"
+        },
+        "use-routes": {
+          "type": "boolean",
+          "description": "Unsupported  for dhcp6-overrides when used with the networkd renderer."
+        }
+      }
+    },
+    "gateway": {
+      "type": "string",
+      "description": "Deprecated, see Netplan#default-routes. Set default gateway for IPv4/6, for manual address configuration. This requires setting addresses too. Gateway IPs must be in a form recognised by inet_pton(3)."
+    },
+    "mapping": {
+      "type": "object",
+      "properties": {
+        "renderer": {
+          "$ref": "#/$defs/renderer"
+        },
+        "dhcp4": {
+          "type": [
+            "boolean",
+            "string"
+          ],
+          "description": "Enable DHCP for IPv4. Off by default.",
+          "enum": [
+            "yes",
+            "no",
+            true,
+            false
+          ]
+        },
+        "dhcp6": {
+          "type": [
+            "boolean",
+            "string"
+          ],
+          "description": "Enable DHCP for IPv6. Off by default.",
+          "enum": [
+            "yes",
+            "no",
+            true,
+            false
+          ]
+        },
+        "dhcp4-overrides": {
+          "$ref": "#/$defs/dhcp-overrides"
+        },
+        "dhcp6-overrides": {
+          "$ref": "#/$defs/dhcp-overrides"
+        },
+        "addresses": {
+          "type": "array",
+          "description": "Add static addresses to the interface in addition to the ones received through DHCP or RA. Each sequence entry is in CIDR notation, i.e., of the form addr/prefixlen. addr is an IPv4 or IPv6 address as recognised by inet_pton(3) and prefixlen the number of bits of the subnet.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "gateway4": {
+          "$ref": "#/$defs/gateway"
+        },
+        "gateway6": {
+          "$ref": "#/$defs/gateway"
+        },
+        "mtu": {
+          "type": "integer",
+          "description": "The MTU key represents a device\u2019s Maximum Transmission Unit, the largest size packet or frame, specified in octets (eight-bit bytes), that can be sent in a packet- or frame-based network. Specifying mtu is optional."
+        },
+        "nameservers": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Set DNS servers and search domains, for manual address configuration. There are two supported fields: addresses: is a list of IPv4 or IPv6 addresses similar to gateway*, and search: is a list of search domains.",
+          "properties": {
+            "search": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "addresses": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "routes": {
+          "type": "array",
+          "description": "",
+          "items": {
+            "type": "object",
+            "required": [
+              "to"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "to": {
+                "type": "string"
+              },
+              "via": {
+                "type": "string"
+              },
+              "metric": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
+    },
+    "mapping_physical": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/mapping"
+        }
+      ],
+      "properties": {
+        "match": {
+          "type": "object",
+          "description": "This selects a subset of available physical devices by various hardware properties. The following configuration will then apply to all matching devices, as soon as they appear. All specified properties must match.",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Current interface name. Globs are supported, and the primary use case for matching on names, as selecting one fixed name can be more easily achieved with having no match: at all and just using the ID (see above). Note that currently only networkd supports globbing, NetworkManager does not."
+            },
+            "macaddress": {
+              "type": "string",
+              "description": "Device\u2019s MAC address in the form xx:xx:xx:xx:xx:xx. Globs are not allowed. Letters must be lowercase."
+            },
+            "driver": {
+              "type": "string",
+              "description": "Kernel driver name, corresponding to the DRIVER udev property. Globs are supported. Matching on driver is only supported with networkd."
+            }
+          }
+        },
+        "set-name": {
+          "type": "string",
+          "description": "When matching on unique properties such as path or MAC, or with additional assumptions such as ''there will only ever be one wifi device'', match rules can be written so that they only match one device. Then this property can be used to give that device a more specific/desirable/nicer name than the default from udev\u2019s ifnames. Any additional device that satisfies the match rules will then fail to get renamed and keep the original kernel name (and dmesg will show an error)."
+        },
+        "wakeonlan": {
+          "type": "boolean",
+          "description": "Enable wake on LAN. Off by default."
+        }
+      }
+    },
+    "mapping_bond": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/mapping"
+        }
+      ],
+      "properties": {
+        "interfaces": {
+          "type": "array",
+          "description": "All devices matching this ID list will be added to the bond.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Customisation parameters for special bonding options. Time values are specified in seconds unless otherwise specified.",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "description": "Set the bonding mode used for the interfaces. The default is balance-rr (round robin).",
+              "enum": [
+                "balance-rr",
+                "active-backup",
+                "balance-xor",
+                "broadcast",
+                "802.3ad",
+                "balance-tlb",
+                "balance-alb"
+              ]
+            },
+            "lacp-rate": {
+              "type": "string",
+              "description": "Set the rate at which LACPDUs are transmitted. This is only useful in 802.3ad mode. Possible values are slow (30 seconds, default), and fast (every second).",
+              "enum": [
+                "fast",
+                "slow"
+              ]
+            },
+            "mii-monitor-interval": {
+              "type": "string",
+              "description": "Specifies the interval for MII monitoring (verifying if an interface of the bond has carrier). The default is 0; which disables MII monitoring."
+            },
+            "min-links": {
+              "type": "integer",
+              "description": "The minimum number of links up in a bond to consider the bond interface to be up."
+            },
+            "transmit-hash-policy": {
+              "type": "string",
+              "description": "Specifies the transmit hash policy for the selection of slaves. This is only useful in balance-xor, 802.3ad and balance-tlb modes.",
+              "enum": [
+                "layer2",
+                "layer3+4",
+                "layer2+3",
+                "encap2+3",
+                "encap3+4"
+              ]
+            },
+            "ad-select": {
+              "type": "string",
+              "description": "Set the aggregation selection mode. This option is only used in 802.3ad mode.",
+              "enum": [
+                "stable",
+                "bandwidth",
+                "count"
+              ]
+            },
+            "all-slaves-active": {
+              "type": "boolean",
+              "description": "If the bond should drop duplicate frames received on inactive ports, set this option to false. If they should be delivered, set this option to true. The default value is false, and is the desirable behaviour in most situations."
+            },
+            "arp-interval": {
+              "type": "integer",
+              "description": "Set the interval value for how frequently ARP link monitoring should happen. The default value is 0, which disables ARP monitoring."
+            },
+            "arp-ip-targets": {
+              "type": "array",
+              "description": "IPs of other hosts on the link which should be sent ARP requests in order to validate that a slave is up. This option is only used when arp-interval is set to a value other than 0. At least one IP address must be given for ARP link monitoring to function. Only IPv4 addresses are supported. You can specify up to 16 IP addresses. The default value is an empty list.",
+              "items": {
+                "type": "string"
+              }
+            },
+            "arp-validate": {
+              "type": "string",
+              "description": "Configure how ARP replies are to be validated when using ARP link monitoring.",
+              "enum": [
+                "none",
+                "active",
+                "backup",
+                "all"
+              ]
+            },
+            "arp-all-targets": {
+              "type": "string",
+              "description": "Specify whether to use any ARP IP target being up as sufficient for a slave to be considered up; or if all the targets must be up. This is only used for active-backup mode when arp-validate is enabled.",
+              "enum": [
+                "any",
+                "all"
+              ]
+            },
+            "up-delay": {
+              "type": "integer",
+              "description": "Specify the delay before enabling a link once the link is physically up. The default value is 0."
+            },
+            "down-delay": {
+              "type": "integer",
+              "description": "Specify the delay before enabling a link once the link has been lost. The default value is 0."
+            },
+            "fail-over-mac-policy": {
+              "type": "string",
+              "description": "Set whether to set all slaves to the same MAC address when adding them to the bond, or how else the system should handle MAC addresses.",
+              "enum": [
+                "none",
+                "active",
+                "follow"
+              ]
+            },
+            "gratuitous-arp": {
+              "type": "integer",
+              "description": "Specify how many ARP packets to send after failover. Once a link is up on a new slave, a notification is sent and possibly repeated if this value is set to a number greater than 1. The default value is 1 and valid values are between 1 and 255. This only affects active-backup mode."
+            },
+            "packets-per-slave": {
+              "type": "integer",
+              "description": "In balance-rr mode, specifies the number of packets to transmit on a slave before switching to the next. When this value is set to 0, slaves are chosen at random. Allowable values are between 0 and 65535. The default value is 1. This setting is only used in balance-rr mode."
+            },
+            "primary-reselect-policy": {
+              "type": "string",
+              "description": "Set the reselection policy for the primary slave. On failure of the active slave, the system will use this policy to decide how the new active slave will be chosen and how recovery will be handled.",
+              "enum": [
+                "always",
+                "better",
+                "failure"
+              ]
+            },
+            "learn-packet-interval": {
+              "type": "string",
+              "description": "Specify the interval between sending Learning packets to each slave. The value range is between 1 and 0x7fffffff. The default value is 1. This option only affects balance-tlb and balance-alb modes."
+            }
+          }
+        }
+      }
+    },
+    "mapping_bridge": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/mapping"
+        }
+      ],
+      "properties": {
+        "interfaces": {
+          "type": "array",
+          "description": "All devices matching this ID list will be added to the bridge.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Customisation parameters for special bridging options. Time values are specified in seconds unless otherwise stated.",
+          "properties": {
+            "ageing-time": {
+              "type": "integer",
+              "description": "Set the period of time to keep a MAC address in the forwarding database after a packet is received."
+            },
+            "priority": {
+              "type": "integer",
+              "description": "Set the priority value for the bridge. This value should be a number between 0 and 65535. Lower values mean higher priority. The bridge with the higher priority will be elected as the root bridge."
+            },
+            "forward-delay": {
+              "type": "integer",
+              "description": "Specify the period of time the bridge will remain in Listening and Learning states before getting to the Forwarding state. This value should be set in seconds for the systemd backend, and in milliseconds for the NetworkManager backend."
+            },
+            "hello-time": {
+              "type": "integer",
+              "description": "Specify the interval between two hello packets being sent out from the root and designated bridges. Hello packets communicate information about the network topology."
+            },
+            "max-age": {
+              "type": "integer",
+              "description": "Set the maximum age of a hello packet. If the last hello packet is older than that value, the bridge will attempt to become the root bridge."
+            },
+            "path-cost": {
+              "type": "integer",
+              "description": "Set the cost of a path on the bridge. Faster interfaces should have a lower cost. This allows a finer control on the network topology so that the fastest paths are available whenever possible."
+            },
+            "stp": {
+              "type": "boolean",
+              "description": "Define whether the bridge should use Spanning Tree Protocol. The default value is \u201ctrue\u201d, which means that Spanning Tree should be used."
+            }
+          }
+        }
+      }
+    },
+    "mapping_vlan": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/mapping"
+        }
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "VLAN ID, a number between 0 and 4094."
+        },
+        "link": {
+          "type": "string",
+          "description": "ID of the underlying device definition on which this VLAN gets created."
+        }
+      }
+    },
+    "network_config_version2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version"
+      ],
+      "properties": {
+        "version": {
+          "type": "integer",
+          "enum": [
+            2
+          ]
+        },
+        "renderer": {
+          "$ref": "#/$defs/renderer"
+        },
+        "ethernets": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/mapping_physical"
+          }
+        },
+        "bonds": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/mapping_bond"
+          }
+        },
+        "bridges": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/mapping_bridge"
+          }
+        },
+        "vlans": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/mapping_vlan"
+          }
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/network_config_version2"
+    },
+    {
+      "required": [
+        "network"
+      ],
+      "properties": {
+        "network": {
+          "$ref": "#/$defs/network_config_version2"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

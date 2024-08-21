@@ -23,8 +23,8 @@ Remove the logs and cache, then reboot
 --------------------------------------
 
 This method will reboot the system as if cloud-init never ran. This
-command does not remove all cloud-init artefacts from previous runs of
-cloud-init, but it will clean enough artefacts to allow cloud-init to
+command does not remove all cloud-init artifacts from previous runs of
+cloud-init, but it will clean enough artifacts to allow cloud-init to
 think that it hasn't run yet. It will then re-run after a reboot.
 
 .. code-block:: shell-session
@@ -64,33 +64,31 @@ a result.
 
 .. _partially_rerun_cloud_init:
 
-How to partially re-run cloud-init
-==================================
-
-If the behavior you are testing runs on every boot, there are a couple
-of ways to test this behavior.
-
 Manually run cloud-init stages
 ------------------------------
 
-Note that during normal boot of cloud-init, the init system runs these
-stages at specific points during boot. This means that running the code
-manually after booting the system may cause the code to interact with
-the system in a different way than it does while it boots.
+During normal boot of cloud-init, the init system runs the following command
+command:
 
 .. code-block:: shell-session
 
-   cloud-init init --local
-   cloud-init init
-   cloud-init modules --mode=config
-   cloud-init modules --mode=final
+   cloud-init --all-stages
+
+Keep in mind that running this manually may not behave the same as cloud-init
+behaves when it is started by the init system. The first reason for this is
+that cloud-init's stages are intended to run before and after specific events
+in the boot order, so there are no guarantees that it will do the right thing
+when running out of order. The second reason is that cloud-init will skip its
+normal synchronization protocol when it detects that stdin is a tty for purpose
+of debugging and development.
+
+This command cannot be expected to be stable when executed outside of the init
+system due to its ordering requirements.
 
 Reboot the instance
 -------------------
 
-Rebooting the instance will take a little bit longer, however it will
-make cloud-init stages run at the correct times during boot, so it will
-behave more correctly.
+Rebooting the instance will re-run any parts of cloud-init that run per-boot.
 
 .. code-block:: shell-session
 

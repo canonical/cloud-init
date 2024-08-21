@@ -1,0 +1,5 @@
+#cloud-config
+puppet:
+  install_type: "packages"
+  package_name: "puppet"
+  exec: false

@@ -15,15 +15,11 @@ LOG = logging.getLogger(__name__)
 
 # http://man7.org/linux/man-pages/man7/netlink.7.html
 RTMGRP_LINK = 1
-NLMSG_NOOP = 1
-NLMSG_ERROR = 2
-NLMSG_DONE = 3
 RTM_NEWLINK = 16
 RTM_DELLINK = 17
 RTM_GETLINK = 18
 RTM_SETLINK = 19
 MAX_SIZE = 65535
-RTA_DATA_OFFSET = 32
 MSG_TYPE_OFFSET = 16
 SELECT_TIMEOUT = 60
 

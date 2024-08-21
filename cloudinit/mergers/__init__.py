@@ -127,7 +127,7 @@ def default_mergers():
 
 def construct(parsed_mergers):
     mergers_to_be = []
-    for (m_name, m_ops) in parsed_mergers:
+    for m_name, m_ops in parsed_mergers:
         if not m_name.startswith(MERGER_PREFIX):
             m_name = MERGER_PREFIX + str(m_name)
         merger_locs, looked_locs = importer.find_module(
@@ -147,6 +147,6 @@ def construct(parsed_mergers):
     # Now form them...
     mergers = []
     root = LookupMerger(mergers)
-    for (attr, opts) in mergers_to_be:
+    for attr, opts in mergers_to_be:
         mergers.append(attr(root, opts))
     return root

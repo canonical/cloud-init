@@ -1,0 +1,26 @@
+cc_ntp:
+  description: |
+    Handle Network Time Protocol (NTP) configuration. If ``ntp`` is not
+    installed on the system and NTP configuration is specified, ``ntp`` will
+    be installed.
+
+    If there is a default NTP config file in the image or one is present in the
+    distro's ``ntp`` package, it will be copied to a file with ``.dist``
+    appended to the filename before any changes are made.
+
+    A list of NTP pools and NTP servers can be provided under the ``ntp``
+    config key.
+
+    If no NTP ``servers`` or ``pools`` are provided, 4 pools will be used
+    in the format:
+
+    ``{0-3}.{distro}.pool.ntp.org``
+  examples:
+  - comment: |
+      Example 1: Override NTP with chrony configuration on Ubuntu.
+    file: cc_ntp/example1.yaml
+  - comment: |
+      Example 2: Provide a custom NTP client configuration.
+    file: cc_ntp/example2.yaml
+  name: NTP
+  title: Enable and configure NTP

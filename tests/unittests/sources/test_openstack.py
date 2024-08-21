@@ -20,6 +20,7 @@ from cloudinit.sources import DataSourceOpenStack as ds
 from cloudinit.sources import convert_vendordata
 from cloudinit.sources.helpers import openstack
 from tests.unittests import helpers as test_helpers
+from tests.unittests import util as test_util
 from tests.unittests.helpers import mock
 
 BASE_URL = "http://169.254.169.254"
@@ -98,7 +99,7 @@ def _register_uris(version, ec2_files, ec2_meta, os_files, *, responses_mock):
             return (200, headers, ec2_files.get(path))
         if path == "latest/meta-data/":
             buf = StringIO()
-            for (k, v) in ec2_meta.items():
+            for k, v in ec2_meta.items():
                 if isinstance(v, (list, tuple)):
                     buf.write("%s/" % (k))
                 else:
@@ -322,6 +323,7 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
     @test_helpers.mock.patch(
         "cloudinit.net.ephemeral.maybe_perform_dhcp_discovery"
     )
+    @pytest.mark.usefixtures("disable_netdev_info")
     def test_local_datasource(self, m_dhcp, m_net):
         """OpenStackLocal calls EphemeralDHCPNetwork and gets instance data."""
         _register_uris(
@@ -502,7 +504,9 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             responses_mock=self.responses,
         )
         ds_os = ds.DataSourceOpenStack(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN,
+            test_util.MockDistro(),
+            helpers.Paths({"run_dir": self.tmp}),
         )
         crawled_data = ds_os._crawl_metadata()
         self.assertEqual(UNSET, ds_os.ec2_metadata)

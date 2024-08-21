@@ -31,7 +31,7 @@ def _old_mergedict(src, cand):
     Nested dictionaries are merged recursively.
     """
     if isinstance(src, dict) and isinstance(cand, dict):
-        for (k, v) in cand.items():
+        for k, v in cand.items():
             if k not in src:
                 src[k] = v
             else:
@@ -145,10 +145,10 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
         paths = c_helpers.Paths({})
         cc_handler = cloud_config.CloudConfigPartHandler(paths)
         cc_handler.cloud_fn = None
-        for (payloads, (expected_merge, expected_fn)) in tests:
+        for payloads, (expected_merge, expected_fn) in tests:
             cc_handler.handle_part(None, CONTENT_START, None, None, None, None)
             merging_fns = []
-            for (fn, contents) in payloads:
+            for fn, contents in payloads:
                 cc_handler.handle_part(
                     None, None, "%s.yaml" % (fn), contents, None, {}
                 )

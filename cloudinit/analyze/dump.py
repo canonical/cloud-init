@@ -2,7 +2,7 @@
 
 import calendar
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 from cloudinit import atomic_helper, subp, util
 
@@ -36,13 +36,16 @@ def parse_timestamp(timestampstr):
         if "." in timestampstr:
             FMT = CLOUD_INIT_JOURNALCTL_FMT
         dt = datetime.strptime(
-            timestampstr + " " + str(datetime.now().year), FMT
-        )
-        timestamp = dt.strftime("%s.%f")
+            timestampstr + " " + str(datetime.now().year),
+            FMT,
+        ).replace(tzinfo=timezone.utc)
+        timestamp = dt.timestamp()
     elif "," in timestampstr:
         # 2016-09-12 14:39:20,839
-        dt = datetime.strptime(timestampstr, CLOUD_INIT_ASCTIME_FMT)
-        timestamp = dt.strftime("%s.%f")
+        dt = datetime.strptime(timestampstr, CLOUD_INIT_ASCTIME_FMT).replace(
+            tzinfo=timezone.utc
+        )
+        timestamp = dt.timestamp()
     else:
         # allow GNU date(1) to handle other formats we don't expect
         # This may throw a ValueError if no GNU date can be found
@@ -51,18 +54,27 @@ def parse_timestamp(timestampstr):
     return float(timestamp)
 
 
+def has_gnu_date():
+    """GNU date includes a string containing the word GNU in it in
+    help output. Posix date does not. Use this to indicate on Linux
+    systems without GNU date that the extended parsing is not
+    available.
+    """
+    return "GNU" in subp.subp(["date", "--help"]).stdout
+
+
 def parse_timestamp_from_date(timestampstr):
-    cmd = "date"
-    if not util.is_Linux():
-        if subp.which("gdate"):
-            cmd = "gdate"
-        else:
-            raise ValueError(
-                f"Unable to parse timestamp without GNU date: [{timestampstr}]"
-            )
-    out, _ = subp.subp([cmd, "+%s.%3N", "-d", timestampstr])
-    timestamp = out.strip()
-    return float(timestamp)
+    if not util.is_Linux() and subp.which("gdate"):
+        date = "gdate"
+    elif has_gnu_date():
+        date = "date"
+    else:
+        raise ValueError(
+            f"Unable to parse timestamp without GNU date: [{timestampstr}]"
+        )
+    return float(
+        subp.subp([date, "-u", "+%s.%3N", "-d", timestampstr]).stdout.strip()
+    )
 
 
 def parse_ci_logline(line):

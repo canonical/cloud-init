@@ -1,4 +1,5 @@
 """Test installation configuration of puppet module."""
+
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance

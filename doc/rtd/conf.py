@@ -1,8 +1,15 @@
 import datetime
+import glob
 import os
 import sys
 
 from cloudinit import version
+from cloudinit.config.schema import (
+    flatten_schema_all_of,
+    flatten_schema_refs,
+    get_schema,
+)
+from cloudinit.handlers.jinja_template import render_jinja_payload
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -36,6 +43,8 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.viewcode",
+    "sphinxcontrib.datatemplates",
+    "sphinxcontrib.mermaid",
     "sphinxcontrib.spelling",
 ]
 
@@ -44,8 +53,10 @@ extensions = [
 # https://docs.ubuntu.com/styleguide/en/
 spelling_warning = True
 
+templates_path = ["templates"]
 # Uses case-independent spelling matches from doc/rtd/spelling_word_list.txt
 spelling_filters = ["spelling.WordListFilter"]
+spelling_word_list_filename = "spelling_word_list.txt"
 
 # The suffix of source filenames.
 source_suffix = ".rst"
@@ -73,7 +84,8 @@ show_authors = False
 # Sphinx-copybutton config options: 1) prompt to be stripped from copied code.
 # 2) Set to copy all lines (not just prompt lines) to ensure multiline snippets
 # can be copied even if they don't contain an EOF line.
-copybutton_prompt_text = "$ "
+copybutton_prompt_text = r"\$ |PS> "
+copybutton_prompt_is_regexp = True
 copybutton_only_copy_prompt_lines = False
 
 # -- Options for HTML output --------------------------------------------------
@@ -166,3 +178,187 @@ notfound_context = {
     "title": "Page not found",
     "body": notfound_body,
 }
+
+
+def get_types_str(prop_cfg):
+    """Return formatted string for all supported config types."""
+    types = ""
+
+    # When oneOf present, join each alternative with an '/'
+    types += "/".join(
+        get_types_str(oneof_cfg) for oneof_cfg in prop_cfg.get("oneOf", [])
+    )
+    if "items" in prop_cfg:
+        types = f"{prop_cfg['type']} of "
+        types += get_types_str(prop_cfg["items"])
+    elif "enum" in prop_cfg:
+        types += f"{'/'.join([f'``{enum}``' for enum in prop_cfg['enum']])}"
+    elif "type" in prop_cfg:
+        if isinstance(prop_cfg["type"], list):
+            types = "/".join(prop_cfg["type"])
+        else:
+            types = prop_cfg["type"]
+    return types
+
+
+def get_changed_str(prop_name, prop_cfg):
+    changed_cfg = {}
+    if prop_cfg.get("changed"):
+        changed_cfg = prop_cfg
+    for oneof_cfg in prop_cfg.get("oneOf", []):
+        if oneof_cfg.get("changed"):
+            changed_cfg = oneof_cfg
+            break
+    if changed_cfg:
+        with open("templates/property_changed.tmpl", "r") as stream:
+            content = "## template: jinja\n" + stream.read()
+        return render_jinja_payload(
+            content, f"changed_{prop_name}", changed_cfg
+        )
+    return ""
+
+
+def get_deprecated_str(prop_name, prop_cfg):
+    deprecated_cfg = {}
+    if prop_cfg.get("deprecated"):
+        deprecated_cfg = prop_cfg
+    for oneof_cfg in prop_cfg.get("oneOf", []):
+        if oneof_cfg.get("deprecated"):
+            deprecated_cfg = oneof_cfg
+            break
+    if deprecated_cfg:
+        with open("templates/property_deprecation.tmpl", "r") as stream:
+            content = "## template: jinja\n" + stream.read()
+        return render_jinja_payload(
+            content, f"deprecation_{prop_name}", deprecated_cfg
+        )
+    return ""
+
+
+def render_property_template(prop_name, prop_cfg, prefix=""):
+    if prop_cfg.get("description"):
+        description = f" {prop_cfg['description']}"
+    else:
+        description = ""
+    description += get_deprecated_str(prop_name, prop_cfg)
+    description += get_changed_str(prop_name, prop_cfg)
+    jinja_vars = {
+        "prefix": prefix,
+        "name": prop_name,
+        "description": description,
+        "types": get_types_str(prop_cfg),
+        "prop_cfg": prop_cfg,
+    }
+    with open("templates/module_property.tmpl", "r") as stream:
+        content = "## template: jinja\n" + stream.read()
+    return render_jinja_payload(content, f"doc_module_{prop_name}", jinja_vars)
+
+
+def render_nested_properties(prop_cfg, defs, prefix):
+    prop_str = ""
+    prop_types = set(["properties", "patternProperties"])
+    flatten_schema_refs(prop_cfg, defs)
+    if "items" in prop_cfg:
+        prop_str += render_nested_properties(prop_cfg["items"], defs, prefix)
+        for alt_schema in prop_cfg["items"].get("oneOf", []):
+            if prop_types.intersection(alt_schema):
+                prop_str += render_nested_properties(alt_schema, defs, prefix)
+
+    for hidden_key in prop_cfg.get("hidden", []):
+        prop_cfg.pop(hidden_key, None)
+
+    # Render visible property types
+    for prop_type in prop_types.intersection(prop_cfg):
+        for prop_name, nested_cfg in prop_cfg.get(prop_type, {}).items():
+            flatten_schema_all_of(nested_cfg)
+            flatten_schema_refs(nested_cfg, defs)
+            if nested_cfg.get("label"):
+                prop_name = nested_cfg.get("label")
+            prop_str += render_property_template(prop_name, nested_cfg, prefix)
+            prop_str += render_nested_properties(
+                nested_cfg, defs, prefix + "  "
+            )
+    return prop_str
+
+
+def debug_module_docs(
+    module_id: str, mod_docs: dict, debug_file_path: str = None
+):
+    """Print rendered RST module docs during build.
+
+    The intent is to make rendered RST inconsistencies easier to see when
+    modifying jinja template files or JSON schema as white-space and format
+    inconsistencies can lead to significant sphinx rendering issues in RTD.
+
+    To trigger this inline print of rendered docs, set the environment
+    variable CLOUD_INIT_DEBUG_MODULE_DOC.
+
+    :param module_id: A specific 'cc_*' module name to print rendered RST for,
+        or provide 'all' to print out all rendered module docs.
+    :param mod_docs: A dict represnting doc metadata for each config module.
+        The dict is keyed on config module id (cc_*) and each value is a dict
+        with values such as: title, name, examples, schema_doc.
+    :param debug_file_path: A specific file to write the rendered RST content.
+        When unset,
+    """
+    from cloudinit.util import load_text_file, load_yaml
+
+    if not module_id:
+        return
+    if module_id == "all":
+        module_ids = mod_docs.keys()
+    else:
+        module_ids = [module_id]
+    rendered_content = ""
+    for mod_id in module_ids:
+        try:
+            data = load_yaml(
+                load_text_file(f"../module-docs/{mod_id}/data.yaml")
+            )
+        except FileNotFoundError:
+            continue
+        with open("templates/modules.tmpl", "r") as stream:
+            tmpl_content = "## template: jinja\n" + stream.read()
+            params = {"data": data, "config": {"html_context": mod_docs}}
+            rendered_content += render_jinja_payload(
+                tmpl_content, "changed_modules_page", params
+            )
+    if debug_file_path:
+        print(f"--- Writing rendered module docs: {debug_file_path} ---")
+        with open(debug_file_path, "w") as stream:
+            stream.write(rendered_content)
+    else:
+        print(rendered_content)
+
+
+def render_module_schemas():
+    from cloudinit.importer import import_module
+
+    mod_docs = {}
+    schema = get_schema()
+    defs = schema.get("$defs", {})
+
+    for mod_path in glob.glob("../../cloudinit/config/cc_*py"):
+        mod_name = os.path.basename(mod_path).replace(".py", "")
+        mod = import_module(f"cloudinit.config.{mod_name}")
+        cc_key = mod.meta["id"]
+        mod_docs[cc_key] = {
+            "meta": mod.meta,
+        }
+        if cc_key in defs:
+            mod_docs[cc_key]["schema_doc"] = render_nested_properties(
+                defs[cc_key], defs, ""
+            )
+        else:
+            mod_docs[cc_key][
+                "schema_doc"
+            ] = "No schema definitions for this module"
+    debug_module_docs(
+        os.environ.get("CLOUD_INIT_DEBUG_MODULE_DOC"),
+        mod_docs,
+        debug_file_path=os.environ.get("CLOUD_INIT_DEBUG_MODULE_DOC_FILE"),
+    )
+    return mod_docs
+
+
+html_context = render_module_schemas()

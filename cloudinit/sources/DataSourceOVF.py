@@ -17,9 +17,11 @@ import base64
 import logging
 import os
 import re
-from xml.dom import minidom
+from xml.dom import minidom  # nosec B408
 
-from cloudinit import safeyaml, sources, subp, util
+import yaml
+
+from cloudinit import sources, subp, util
 
 LOG = logging.getLogger(__name__)
 
@@ -90,7 +92,7 @@ class DataSourceOVF(sources.DataSource):
                 LOG.debug("Seed from %s not supported by %s", seedfrom, self)
                 return False
 
-            (md_seed, ud, vd) = util.read_seeded(seedfrom, timeout=None)
+            (md_seed, ud, vd, _) = util.read_seeded(seedfrom, timeout=None)
             LOG.debug("Using seeded cache data from %s", seedfrom)
 
             md = util.mergemanydict([md, md_seed])
@@ -353,7 +355,7 @@ def find_child(node, filter_func):
 
 
 def get_properties(contents):
-    dom = minidom.parseString(contents)
+    dom = minidom.parseString(contents)  # nosec B318
     if dom.documentElement.localName != "Environment":
         raise XmlError("No Environment Node")
 
@@ -408,4 +410,4 @@ def safeload_yaml_or_dict(data):
     """
     if not data:
         return {}
-    return safeyaml.load(data)
+    return yaml.safe_load(data)

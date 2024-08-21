@@ -11,10 +11,10 @@ import os
 import os.path
 import re
 import socket
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # nosec B405
 from enum import Enum
 from pathlib import Path
-from time import sleep, time
+from time import monotonic, sleep, time
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -49,7 +49,7 @@ from cloudinit.sources.helpers.azure import (
 from cloudinit.url_helper import UrlError
 
 try:
-    import crypt
+    import crypt  # pylint: disable=W4901
 
     blowfish_hash: Any = functools.partial(
         crypt.crypt, salt=f"$6${util.rand_str(strlen=16)}"
@@ -303,7 +303,6 @@ BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG = {
 
 DS_CFG_PATH = ["datasource", DS_NAME]
 DS_CFG_KEY_PRESERVE_NTFS = "never_destroy_ntfs"
-DEF_EPHEMERAL_LABEL = "Temporary Storage"
 
 # The redacted password fails to meet password complexity requirements
 # so we can safely use this to mask/redact the password in the ovf-env.xml
@@ -332,7 +331,7 @@ class DataSourceAzure(sources.DataSource):
         )
         self._iso_dev = None
         self._network_config = None
-        self._ephemeral_dhcp_ctx = None
+        self._ephemeral_dhcp_ctx: Optional[EphemeralDHCPv4] = None
         self._route_configured_for_imds = False
         self._route_configured_for_wireserver = False
         self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
@@ -427,8 +426,8 @@ class DataSourceAzure(sources.DataSource):
             dhcp_log_func=dhcp_log_cb,
         )
 
-        lease = None
-        start_time = time()
+        lease: Optional[Dict[str, Any]] = None
+        start_time = monotonic()
         deadline = start_time + timeout_minutes * 60
         with events.ReportEventStack(
             name="obtain-dhcp-lease",
@@ -445,7 +444,7 @@ class DataSourceAzure(sources.DataSource):
                     )
                     self._report_failure(
                         errors.ReportableErrorDhcpInterfaceNotFound(
-                            duration=time() - start_time
+                            duration=monotonic() - start_time
                         ),
                         host_only=True,
                     )
@@ -464,7 +463,7 @@ class DataSourceAzure(sources.DataSource):
                     )
                     self._report_failure(
                         errors.ReportableErrorDhcpLease(
-                            duration=time() - start_time, interface=iface
+                            duration=monotonic() - start_time, interface=iface
                         ),
                         host_only=True,
                     )
@@ -483,7 +482,7 @@ class DataSourceAzure(sources.DataSource):
                     )
 
                 # Sleep before retrying, otherwise break if past deadline.
-                if lease is None and time() + retry_sleep < deadline:
+                if lease is None and monotonic() + retry_sleep < deadline:
                     sleep(retry_sleep)
                 else:
                     break
@@ -553,6 +552,44 @@ class DataSourceAzure(sources.DataSource):
             self._ephemeral_dhcp_ctx is None
             or self._ephemeral_dhcp_ctx.lease is None
         )
+
+    def _check_azure_proxy_agent_status(self) -> None:
+        """Check if azure-proxy-agent is ready for communication with WS/IMDS.
+
+        If ProvisionGuestProxyAgent is true, query azure-proxy-agent status,
+        waiting up to 120 seconds for the proxy to negotiate with Wireserver
+        and configure an eBPF proxy.  Once azure-proxy-agent is ready,
+        it will exit with code 0 and cloud-init can then expect to be able to
+        communicate with these services.
+
+        Fail deployment if azure-proxy-agent is not found or otherwise returns
+        an error.
+
+        For more information, check out:
+        https://github.com/azure/guestproxyagent
+        """
+        try:
+            cmd = [
+                "azure-proxy-agent",
+                "--status",
+                "--wait",
+                "120",
+            ]
+            out, err = subp.subp(cmd)
+            report_diagnostic_event(
+                "Running azure-proxy-agent %s resulted"
+                "in stderr output: %s with stdout: %s" % (cmd, err, out),
+                logger_func=LOG.debug,
+            )
+        except subp.ProcessExecutionError as error:
+            if isinstance(error.reason, FileNotFoundError):
+                report_error = errors.ReportableErrorProxyAgentNotFound()
+                self._report_failure(report_error)
+            else:
+                reportable_error = (
+                    errors.ReportableErrorProxyAgentStatusFailure(error)
+                )
+                self._report_failure(reportable_error)
 
     @azure_ds_telemetry_reporter
     def crawl_metadata(self):
@@ -633,6 +670,11 @@ class DataSourceAzure(sources.DataSource):
 
         imds_md = {}
         if self._is_ephemeral_networking_up():
+            # check if azure-proxy-agent is enabled in the ovf-env.xml file.
+            # azure-proxy-agent feature is opt-in and disabled by default.
+            if cfg.get("ProvisionGuestProxyAgent"):
+                self._check_azure_proxy_agent_status()
+
             imds_md = self.get_metadata_from_imds(report_failure=True)
 
         if not imds_md and ovf_source is None:
@@ -766,7 +808,7 @@ class DataSourceAzure(sources.DataSource):
 
     @azure_ds_telemetry_reporter
     def get_metadata_from_imds(self, report_failure: bool) -> Dict:
-        start_time = time()
+        start_time = monotonic()
         retry_deadline = start_time + 300
 
         # As a temporary workaround to support Azure Stack implementations
@@ -785,7 +827,7 @@ class DataSourceAzure(sources.DataSource):
             )
         except UrlError as error:
             error_string = str(error)
-            duration = time() - start_time
+            duration = monotonic() - start_time
             error_report = errors.ReportableErrorImdsUrlError(
                 exception=error, duration=duration
             )
@@ -1253,7 +1295,7 @@ class DataSourceAzure(sources.DataSource):
     def _poll_imds(self) -> bytes:
         """Poll IMDs for reprovisiondata XML document data."""
         dhcp_attempts = 0
-        reprovision_data = None
+        reprovision_data: Optional[bytes] = None
         while not reprovision_data:
             if not self._is_ephemeral_networking_up():
                 dhcp_attempts += 1
@@ -1799,7 +1841,7 @@ def write_files(datadir, files, dirmode=None):
     def _redact_password(cnt, fname):
         """Azure provides the UserPassword in plain text. So we redact it"""
         try:
-            root = ET.fromstring(cnt)
+            root = ET.fromstring(cnt)  # nosec B314
             for elem in root.iter():
                 if (
                     "UserPassword" in elem.tag
@@ -1965,6 +2007,9 @@ def generate_network_config_from_instance_network_metadata(
         # addresses.
         nicname = "eth{idx}".format(idx=idx)
         dhcp_override = {"route-metric": (idx + 1) * 100}
+        # DNS resolution through secondary NICs is not supported, disable it.
+        if idx > 0:
+            dhcp_override["use-dns"] = False
         dev_config: Dict[str, Any] = {
             "dhcp4": True,
             "dhcp4-overrides": dhcp_override,

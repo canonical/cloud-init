@@ -1,11 +1,16 @@
 """Tests for `cloud-init status`"""
+
 from textwrap import dedent
 
 import pytest
 
+from cloudinit import lifecycle
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.releases import CURRENT_RELEASE, MANTIC
-from tests.integration_tests.util import verify_clean_log
+from tests.integration_tests.util import (
+    get_feature_flag_value,
+    verify_clean_log,
+)
 
 USER_DATA = """\
 #cloud-config
@@ -62,10 +67,19 @@ class TestSchemaDeprecations:
     def test_clean_log(self, class_client: IntegrationInstance):
         log = class_client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log, ignore_deprecations=True)
-        assert "DEPRECATED]: Deprecated cloud-config provided:" in log
-        assert "apt_reboot_if_required: Default: ``false``. Deprecated " in log
-        assert "apt_update: Default: ``false``. Deprecated in version" in log
-        assert "apt_upgrade: Default: ``false``. Deprecated in version" in log
+        version_boundary = get_feature_flag_value(
+            class_client, "DEPRECATION_INFO_BOUNDARY"
+        )
+        # the deprecation_version is 22.2 in schema for apt_* keys in
+        # user-data. Pass 22.2 in against the client's version_boundary.
+        if lifecycle.should_log_deprecation("22.2", version_boundary):
+            log_level = "DEPRECATED"
+        else:
+            log_level = "INFO"
+        assert f"{log_level}]: Deprecated cloud-config provided:" in log
+        assert "apt_reboot_if_required:  Deprecated " in log
+        assert "apt_update:  Deprecated in version" in log
+        assert "apt_upgrade:  Deprecated in version" in log
 
     def test_network_config_schema_validation(
         self, class_client: IntegrationInstance
@@ -99,14 +113,14 @@ class TestSchemaDeprecations:
             # No netplan API available skips validation
             content_responses[NET_CFG_V2] = {
                 "out": (
-                    "Skipping network-config schema validation."
-                    " No network schema for version: 2"
+                    "Skipping network-config schema validation for version: 2."
+                    " No netplan API available."
                 )
             }
             content_responses[NET_CFG_V2_INVALID] = {
                 "out": (
-                    "Skipping network-config schema validation."
-                    " No network schema for version: 2"
+                    "Skipping network-config schema validation for version: 2."
+                    " No netplan API available."
                 )
             }
 
@@ -139,17 +153,10 @@ class TestSchemaDeprecations:
         ), "`schema` cmd must return 0 even with deprecated configs"
         assert not result.stderr
         assert "Cloud config schema deprecations:" in result.stdout
+        assert "apt_update:  Deprecated in version" in result.stdout
+        assert "apt_upgrade:  Deprecated in version" in result.stdout
         assert (
-            "apt_update: Default: ``false``. Deprecated in version"
-            in result.stdout
-        )
-        assert (
-            "apt_upgrade: Default: ``false``. Deprecated in version"
-            in result.stdout
-        )
-        assert (
-            "apt_reboot_if_required: Default: ``false``. Deprecated in version"
-            in result.stdout
+            "apt_reboot_if_required:  Deprecated in version" in result.stdout
         )
 
         annotated_result = class_client.execute(
@@ -167,9 +174,9 @@ class TestSchemaDeprecations:
             apt_reboot_if_required: false\t\t# D3
 
             # Deprecations: -------------
-            # D1: Default: ``false``. Deprecated in version 22.2. Use ``package_update`` instead.
-            # D2: Default: ``false``. Deprecated in version 22.2. Use ``package_upgrade`` instead.
-            # D3: Default: ``false``. Deprecated in version 22.2. Use ``package_reboot_if_required`` instead.
+            # D1:  Deprecated in version 22.2. Use **package_update** instead.
+            # D2:  Deprecated in version 22.2. Use **package_upgrade** instead.
+            # D3:  Deprecated in version 22.2. Use **package_reboot_if_required** instead.
 
 
             Valid schema /root/user-data"""  # noqa: E501

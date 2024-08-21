@@ -23,6 +23,23 @@ from typing import DefaultDict
 
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
 DEPRECATED = 35
+TRACE = logging.DEBUG - 5
+
+
+class CustomLoggerType(logging.Logger):
+    """A hack to get mypy to stop complaining about custom logging methods.
+
+    When using deprecated or trace logging, rather than:
+        LOG = logging.getLogger(__name__)
+    Instead do:
+        LOG = cast(CustomLoggerType, logging.getLogger(__name__))
+    """
+
+    def trace(self, *args, **kwargs):
+        pass
+
+    def deprecated(self, *args, **kwargs):
+        pass
 
 
 def setup_basic_logging(level=logging.DEBUG, formatter=None):
@@ -45,14 +62,20 @@ def flush_loggers(root):
     flush_loggers(root.parent)
 
 
-def define_deprecation_logger(lvl=DEPRECATED):
-    logging.addLevelName(lvl, "DEPRECATED")
+def define_extra_loggers() -> None:
+    """Add DEPRECATED and TRACE log levels to the logging module."""
 
-    def deprecated(self, message, *args, **kwargs):
-        if self.isEnabledFor(lvl):
-            self._log(lvl, message, args, **kwargs)
+    def new_logger(level):
+        def log_at_level(self, message, *args, **kwargs):
+            if self.isEnabledFor(level):
+                self._log(level, message, args, **kwargs)
 
-    logging.Logger.deprecated = deprecated
+        return log_at_level
+
+    logging.addLevelName(DEPRECATED, "DEPRECATED")
+    logging.addLevelName(TRACE, "TRACE")
+    setattr(logging.Logger, "deprecated", new_logger(DEPRECATED))
+    setattr(logging.Logger, "trace", new_logger(TRACE))
 
 
 def setup_logging(cfg=None):
@@ -129,6 +152,9 @@ class LogExporter(logging.StreamHandler):
     def export_logs(self):
         return copy.deepcopy(self.holder)
 
+    def clean_logs(self):
+        self.holder = defaultdict(list)
+
     def flush(self):
         pass
 
@@ -150,7 +176,7 @@ def setup_backup_logging():
     which may ease debugging.
     """
     fallback_handler = logging.StreamHandler(sys.stderr)
-    fallback_handler.handleError = lambda record: None
+    setattr(fallback_handler, "handleError", lambda record: None)
     fallback_handler.setFormatter(
         logging.Formatter(
             "FALLBACK: %(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
@@ -163,7 +189,7 @@ def setup_backup_logging():
             fallback_handler.handle(record)
             fallback_handler.flush()
 
-    logging.Handler.handleError = handleError
+    setattr(logging.Handler, "handleError", handleError)
 
 
 class CloudInitLogRecord(logging.LogRecord):
@@ -183,7 +209,7 @@ def configure_root_logger():
 
     # Always format logging timestamps as UTC time
     logging.Formatter.converter = time.gmtime
-    define_deprecation_logger()
+    define_extra_loggers()
     setup_backup_logging()
     reset_logging()
 

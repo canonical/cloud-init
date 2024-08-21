@@ -54,6 +54,41 @@ SCHEMA_EMPTY_ERROR = (
     "(is too short|should be non-empty|does not have enough properties)"
 )
 
+example_netdev = {
+    "eth0": {
+        "hwaddr": "00:16:3e:16:db:54",
+        "ipv4": [
+            {
+                "bcast": "10.85.130.255",
+                "ip": "10.85.130.116",
+                "mask": "255.255.255.0",
+                "scope": "global",
+            }
+        ],
+        "ipv6": [
+            {
+                "ip": "fd42:baa2:3dd:17a:216:3eff:fe16:db54/64",
+                "scope6": "global",
+            },
+            {"ip": "fe80::216:3eff:fe16:db54/64", "scope6": "link"},
+        ],
+        "up": True,
+    },
+    "lo": {
+        "hwaddr": "",
+        "ipv4": [
+            {
+                "bcast": "",
+                "ip": "127.0.0.1",
+                "mask": "255.0.0.0",
+                "scope": "host",
+            }
+        ],
+        "ipv6": [{"ip": "::1/128", "scope6": "host"}],
+        "up": True,
+    },
+}
+
 
 # Makes the old path start
 # with new base instead of whatever
@@ -238,11 +273,8 @@ class CiTestCase(TestCase):
         self.new_root = self.tmp_dir()
         if not sys_cfg:
             sys_cfg = {}
-        tmp_paths = {}
-        for var in ["templates_dir", "run_dir", "cloud_dir"]:
-            tmp_paths[var] = self.tmp_path(var, dir=self.new_root)
-            util.ensure_dir(tmp_paths[var])
-        self.paths = ch.Paths(tmp_paths)
+        MockPaths = get_mock_paths(self.new_root)
+        self.paths = MockPaths({})
         cls = distros.fetch(distro)
         mydist = cls(distro, sys_cfg, self.paths)
         myds = DataSourceNone.DataSourceNone(sys_cfg, mydist, self.paths)
@@ -281,7 +313,7 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
     def replicateTestRoot(self, example_root, target_root):
         real_root = resourceLocation()
         real_root = os.path.join(real_root, "roots", example_root)
-        for (dir_path, _dirnames, filenames) in os.walk(real_root):
+        for dir_path, _dirnames, filenames in os.walk(real_root):
             real_path = dir_path
             make_path = rebase_path(real_path[len(real_root) :], target_root)
             util.ensure_dir(make_path)
@@ -308,8 +340,8 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
                 ("write_json", 1),
             ],
         }
-        for (mod, funcs) in patch_funcs.items():
-            for (f, am) in funcs:
+        for mod, funcs in patch_funcs.items():
+            for f, am in funcs:
                 func = getattr(mod, f)
                 trap_func = retarget_many_wrapper(new_root, am, func)
                 self.patched_funcs.enter_context(
@@ -356,7 +388,7 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
             # py27 does not have scandir
             patch_funcs[os].append(("scandir", 1))
 
-        for (mod, funcs) in patch_funcs.items():
+        for mod, funcs in patch_funcs.items():
             for f, nargs in funcs:
                 func = getattr(mod, f)
                 trap_func = retarget_many_wrapper(new_root, nargs, func)
@@ -429,6 +461,24 @@ class CiRequestsMock(responses.RequestsMock):
             )
 
 
+def get_mock_paths(temp_dir):
+    class MockPaths(ch.Paths):
+        def __init__(self, path_cfgs: dict, ds=None):
+            super().__init__(path_cfgs=path_cfgs, ds=ds)
+
+            self.cloud_dir: str = path_cfgs.get(
+                "cloud_dir", f"{temp_dir}/var/lib/cloud"
+            )
+            self.run_dir: str = path_cfgs.get(
+                "run_dir", f"{temp_dir}/run/cloud/"
+            )
+            self.template_dir: str = path_cfgs.get(
+                "templates_dir", f"{temp_dir}/etc/cloud/templates/"
+            )
+
+    return MockPaths
+
+
 class ResponsesTestCase(CiTestCase):
     def setUp(self):
         super().setUp()
@@ -461,7 +511,7 @@ def populate_dir(path, files):
     if not os.path.exists(path):
         os.makedirs(path)
     ret = []
-    for (name, content) in files.items():
+    for name, content in files.items():
         p = os.path.sep.join([path, name])
         util.ensure_dir(os.path.dirname(p))
         with open(p, "wb") as fp:
@@ -549,11 +599,16 @@ def skipIfAptPkg():
 
 
 try:
+    import importlib.metadata
+
     import jsonschema
 
     assert jsonschema  # avoid pyflakes error F401: import unused
     _jsonschema_version = tuple(
-        int(part) for part in jsonschema.__version__.split(".")  # type: ignore
+        int(part)
+        for part in importlib.metadata.metadata("jsonschema")
+        .get("Version", "")
+        .split(".")
     )
     _missing_jsonschema_dep = False
 except ImportError:

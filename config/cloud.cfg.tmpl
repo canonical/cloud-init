@@ -11,7 +11,7 @@
                  "netbsd": "NetBSD", "openbsd": "openBSD",
                  "openmandriva": "OpenMandriva admin", "photon": "PhotonOS",
                  "ubuntu": "Ubuntu", "unknown": "Ubuntu"}) %}
-{% set groups = ({"alpine": "adm, wheel", "arch": "wheel, users",
+{% set groups = ({"alpine": "adm, wheel", "aosc": "wheel", "arch": "wheel, users",
                   "azurelinux": "wheel",
                   "debian": "adm, audio, cdrom, dialout, dip, floppy, netdev, plugdev, sudo, video",
                   "gentoo": "users, wheel", "mariner": "wheel",
@@ -62,7 +62,7 @@ disable_root: true
                    "openmandriva", "photon", "TencentOS"] or is_rhel %}
 
 {% if is_rhel %}
-mount_default_fields: [~, ~, 'auto', 'defaults,nofail,x-systemd.requires=cloud-init.service,_netdev', '0', '2']
+mount_default_fields: [~, ~, 'auto', 'defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev', '0', '2']
 {% else %}
 mount_default_fields: [~, ~, 'auto', 'defaults,nofail', '0', '2']
 {% endif %}
@@ -137,6 +137,7 @@ cloud_init_modules:
   - rsyslog
   - users_groups
   - ssh
+  - set_passwords
 
 # The modules that run in the 'config' stage
 cloud_config_modules:
@@ -156,7 +157,6 @@ cloud_config_modules:
 {% endif %}
   - locale
 {% endif %}
-  - set_passwords
 {% if variant == "alpine" %}
   - apk_configure
 {% elif variant in ["debian", "ubuntu", "unknown"] %}
@@ -220,7 +220,7 @@ cloud_final_modules:
 # (not accessible to handlers/transforms)
 system_info:
   # This will affect which distro class gets used
-{% if variant in ["alpine", "amazon", "arch", "azurelinux", "debian", "fedora",
+{% if variant in ["alpine", "amazon", "aosc", "arch", "azurelinux", "debian", "fedora",
                   "freebsd", "gentoo", "mariner", "netbsd", "openbsd",
                   "OpenCloudOS", "openeuler", "openmandriva", "photon", "suse",
                   "TencentOS", "ubuntu"] or is_rhel %}
@@ -238,7 +238,7 @@ system_info:
 {% else %}
     name: {{ variant }}
 {% endif %}
-{% if variant in ["alpine", "amazon", "arch", "azurelinux", "debian", "fedora",
+{% if variant in ["alpine", "amazon", "aosc", "arch", "azurelinux", "debian", "fedora",
                   "gentoo", "mariner", "OpenCloudOS", "openeuler",
                   "openmandriva", "photon", "suse", "TencentOS", "ubuntu",
                   "unknown"]
@@ -308,7 +308,7 @@ system_info:
     activators: ['netplan', 'eni', 'network-manager', 'networkd']
 {% elif is_rhel %}
   network:
-    renderers: ['sysconfig', 'eni', 'netplan', 'network-manager', 'networkd']
+    renderers: ['eni', 'netplan', 'network-manager', 'sysconfig', 'networkd']
 {% endif %}
 {% if variant == "photon" %}
   # If set to true, cloud-init will not use fallback network config.
@@ -320,7 +320,7 @@ system_info:
   # Automatically discover the best ntp_client
   ntp_client: auto
 {% endif %}
-{% if variant in ["alpine", "amazon", "arch", "azurelinux", "debian", "fedora",
+{% if variant in ["alpine", "amazon", "aosc", "arch", "azurelinux", "debian", "fedora",
                   "gentoo", "mariner", "OpenCloudOS", "openeuler",
                   "openmandriva", "photon", "suse", "TencentOS", "ubuntu",
                   "unknown"]
@@ -331,7 +331,7 @@ system_info:
     templates_dir: /etc/cloud/templates/
 {% elif is_bsd %}
   paths:
-    run_dir: /var/run/
+    run_dir: /var/run/cloud-init/
 {% endif %}
 {% if variant == "debian" %}
   package_mirrors:
@@ -368,7 +368,7 @@ system_info:
 {% endif %}
 {% if variant in ["debian", "ubuntu", "unknown"] %}
   ssh_svcname: ssh
-{% elif variant in ["alpine", "amazon", "arch", "azurelinux", "fedora",
+{% elif variant in ["alpine", "amazon", "aosc", "arch", "azurelinux", "fedora",
                     "gentoo", "mariner", "OpenCloudOS", "openeuler",
                     "openmandriva", "photon", "suse", "TencentOS"]
                    or is_rhel %}

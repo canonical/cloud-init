@@ -1,0 +1,2 @@
+#cloud-config
+byobu_by_default: disable-system

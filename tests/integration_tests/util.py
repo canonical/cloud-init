@@ -1,3 +1,4 @@
+import json
 import logging
 import multiprocessing
 import os
@@ -8,11 +9,14 @@ from contextlib import contextmanager
 from functools import lru_cache
 from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING, Set
+from typing import TYPE_CHECKING, List, Optional, Set, Union
 
 import pytest
 
 from cloudinit.subp import subp
+from tests.integration_tests.integration_settings import PLATFORM
+
+LOG = logging.getLogger("integration_testing.util")
 
 if TYPE_CHECKING:
     # instances.py has imports util.py, so avoid circular import
@@ -42,6 +46,228 @@ def verify_ordered_items_in_text(to_verify: list, text: str):
         index = matched.start()
 
 
+def _format_found(header: str, items: list) -> str:
+    """Helper function to format assertion message"""
+
+    # do nothing, allows this formatter to be "stackable"
+    if not items:
+        return ""
+
+    # if only one error put the header and the error message on a single line
+    if 1 == len(items):
+        return f"\n{header}: {items.pop(0)}"
+
+    # otherwise make a list after header
+    else:
+        return f"\n{header}:\n\t- " + "\n\t- ".join(items)
+
+
+def verify_clean_boot(
+    instance: "IntegrationInstance",
+    ignore_warnings: Optional[Union[List[str], bool]] = None,
+    ignore_errors: Optional[Union[List[str], bool]] = None,
+    ignore_tracebacks: Optional[Union[List[str], bool]] = None,
+    require_warnings: Optional[list] = None,
+    require_errors: Optional[list] = None,
+):
+    """raise assertions if the client experienced unexpected warnings or errors
+
+    Fail when a required error isn't found.
+    Expected warnings and errors are defined in this function.
+
+    This function is similar to verify_clean_log, hence the similar name.
+
+    differences from verify_clean_log:
+
+    - more expressive syntax
+    - extensible (can be easily extended for other log levels)
+    - less resource intensive (no log copying required)
+    - nice error formatting
+
+    instance: test instance
+    ignored_warnings: list of expected warnings to ignore,
+        or true to ignore all
+    ignored_errors: list of expected errors to ignore, or true to ignore all
+    require_warnings: Optional[list] = None,
+    require_errors: Optional[list] = None,
+    fail_when_expected_not_found: optional list of expected errors
+    """
+
+    def append_or_create_list(
+        maybe_list: Optional[Union[List[str], bool]], value: str
+    ) -> Optional[Union[List[str], bool]]:
+        """handle multiple types"""
+        if isinstance(maybe_list, list):
+            maybe_list.append(value)
+        elif maybe_list is True:
+            return True  # Ignoring all texts, so no need to append.
+        elif maybe_list in (None, False):
+            maybe_list = [value]
+        return maybe_list
+
+    traceback_texts = []
+    # Define exceptions by matrix of platform and Ubuntu release
+    if "azure" == PLATFORM:
+        # Consistently on all Azure launches:
+        ignore_warnings = append_or_create_list(
+            ignore_warnings, "No lease found; using default endpoint"
+        )
+    elif "lxd_vm" == PLATFORM:
+        # Ubuntu lxd storage
+        ignore_warnings = append_or_create_list(
+            ignore_warnings, "thinpool by default on Ubuntu due to LP #1982780"
+        )
+        ignore_warnings = append_or_create_list(
+            ignore_warnings,
+            "Could not match supplied host pattern, ignoring:",
+        )
+    elif "oracle" == PLATFORM:
+        # LP: #1842752
+        ignore_errors = append_or_create_list(
+            ignore_warnings, "Stderr: RTNETLINK answers: File exists"
+        )
+        traceback_texts.append("Stderr: RTNETLINK answers: File exists")
+        # LP: #1833446
+        ignore_warnings = append_or_create_list(
+            ignore_warnings,
+            "UrlError: 404 Client Error: Not Found for url: "
+            "http://169.254.169.254/latest/meta-data/",
+        )
+        traceback_texts.append(
+            "UrlError: 404 Client Error: Not Found for url: "
+            "http://169.254.169.254/latest/meta-data/"
+        )
+        # Oracle has a file in /etc/cloud/cloud.cfg.d that contains
+        # users:
+        # - default
+        # - name: opc
+        #   ssh_redirect_user: true
+        # This can trigger a warning about opc having no public key
+        ignore_warnings = append_or_create_list(
+            ignore_warnings,
+            "Unable to disable SSH logins for opc given ssh_redirect_user",
+        )
+
+    _verify_clean_boot(
+        instance,
+        ignore_warnings=ignore_warnings,
+        ignore_errors=ignore_errors,
+        ignore_tracebacks=ignore_tracebacks,
+        require_warnings=require_warnings,
+        require_errors=require_errors,
+    )
+
+
+def _verify_clean_boot(
+    instance: "IntegrationInstance",
+    ignore_warnings: Optional[Union[List[str], bool]] = None,
+    ignore_errors: Optional[Union[List[str], bool]] = None,
+    ignore_tracebacks: Optional[Union[List[str], bool]] = None,
+    require_warnings: Optional[list] = None,
+    require_errors: Optional[list] = None,
+):
+    ignore_errors = ignore_errors or []
+    ignore_warnings = ignore_warnings or []
+    require_errors = require_errors or []
+    require_warnings = require_warnings or []
+    status = json.loads(instance.execute("cloud-init status --format=json"))
+
+    unexpected_errors = set()
+    unexpected_warnings = set()
+
+    required_warnings_found = set()
+    required_errors_found = set()
+
+    for current_error in status["errors"]:
+
+        # check for required errors
+        for expected in require_errors:
+            if expected in current_error:
+                required_errors_found.add(expected)
+
+        if ignore_errors is True:
+            continue
+        # check for unexpected errors
+        for expected in [*ignore_errors, *require_errors]:
+            if expected in current_error:
+                break
+        else:
+            unexpected_errors.add(current_error)
+
+    # check for unexpected warnings
+    for current_warning in status["recoverable_errors"].get("WARNING", []):
+
+        # check for required warnings
+        for expected in require_warnings:
+            if expected in current_warning:
+                required_warnings_found.add(expected)
+
+        if ignore_warnings is True:
+            continue
+        # check for unexpected warnings
+        for expected in [*ignore_warnings, *require_warnings]:
+            if expected in current_warning:
+                break
+        else:
+            unexpected_warnings.add(current_warning)
+
+    required_errors_not_found = set(require_errors) - required_errors_found
+    required_warnings_not_found = (
+        set(require_warnings) - required_warnings_found
+    )
+
+    errors = [
+        *unexpected_errors,
+        *required_errors_not_found,
+        *unexpected_warnings,
+        *required_warnings_not_found,
+    ]
+    if errors:
+        message = ""
+        # if there is only one message, don't include the generic header
+        # so that the user can read the exact message in the pytest summary
+        if len(errors) > 1:
+            # more than one error, so include a generic message
+            message += "Unexpected warnings or errors found"
+
+        # errors are probably more important, order them first
+        message += _format_found(
+            "Found unexpected errors", list(unexpected_errors)
+        )
+        message += _format_found(
+            "Required errors not found", list(required_errors_not_found)
+        )
+        message += _format_found(
+            "Found unexpected warnings", list(unexpected_warnings)
+        )
+        message += _format_found(
+            "Required warnings not found", list(required_warnings_not_found)
+        )
+        assert not errors, message
+
+    if ignore_tracebacks is True:
+        return
+    # assert no unexpected Tracebacks
+    expected_traceback_count = 0
+    traceback_count = int(
+        instance.execute(
+            "grep --count Traceback /var/log/cloud-init.log"
+        ).stdout.strip()
+    )
+    if ignore_tracebacks:
+        for expected_traceback in ignore_tracebacks:
+            expected_traceback_count += int(
+                instance.execute(
+                    f"grep --count '{expected_traceback}'"
+                    " /var/log/cloud-init.log"
+                ).stdout.strip()
+            )
+    assert expected_traceback_count == traceback_count, (
+        f"{traceback_count - expected_traceback_count} unexpected traceback(s)"
+        " found in /var/log/cloud-init.log"
+    )
+
+
 def verify_clean_log(log: str, ignore_deprecations: bool = True):
     """Assert no unexpected tracebacks or warnings in logs"""
     if ignore_deprecations:
@@ -57,6 +283,10 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
         raise AssertionError(
             "Found unexpected errors: %s" % "\n".join(error_logs)
         )
+    if re.findall("Cloud-init.*received SIG", log):
+        raise AssertionError(
+            "Found unexpected signal termination: %s" % "\n".join(error_logs)
+        )
 
     warning_count = log.count("[WARNING]")
     expected_warnings = 0
@@ -70,8 +300,6 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
         # Ubuntu lxd storage
         "thinpool by default on Ubuntu due to LP #1982780",
         "WARNING]: Could not match supplied host pattern, ignoring:",
-        # https://bugs.launchpad.net/ubuntu/+source/netplan.io/+bug/2041727
-        "Cannot call Open vSwitch: ovsdb-server.service is not running.",
     ]
     traceback_texts = []
     if "install canonical-livepatch" in log:
@@ -82,9 +310,6 @@ def verify_clean_log(log: str, ignore_deprecations: bool = True):
         )
     if "found network data from DataSourceNone" in log:
         warning_texts.append("Used fallback datasource")
-        warning_texts.append(
-            "Falling back to a hard restart of systemd-networkd.service"
-        )
     if "oracle" in log:
         # LP: #1842752
         lease_exists_text = "Stderr: RTNETLINK answers: File exists"
@@ -178,16 +403,14 @@ def wait_for_cloud_init(client: "IntegrationInstance", num_retries: int = 30):
     for _ in range(num_retries):
         try:
             result = client.execute("cloud-init status")
-            if (
-                result
-                and result.ok
-                and ("running" not in result or "not started" not in result)
+            if result.return_code in (0, 2) and (
+                "running" not in result or "not started" not in result
             ):
                 return result
         except Exception as e:
             last_exception = e
         time.sleep(1)
-    raise Exception(
+    raise Exception(  # pylint: disable=W0719
         "cloud-init status did not return successfully."
     ) from last_exception
 
@@ -197,6 +420,8 @@ def get_console_log(client: "IntegrationInstance"):
         console_log = client.instance.console_log()
     except NotImplementedError:
         pytest.skip("NotImplementedError when requesting console log")
+    if console_log is None:
+        pytest.skip("Console log has not been setup")
     if console_log.lower().startswith("no console output"):
         pytest.fail("no console output")
     return console_log
@@ -219,3 +444,51 @@ def get_feature_flag_value(client: "IntegrationInstance", key):
     if "NameError" in value:
         raise NameError(f"name '{key}' is not defined")
     return value
+
+
+def override_kernel_command_line(ds_str: str, instance: "IntegrationInstance"):
+    """set the kernel command line and reboot, return after boot done
+
+    This will not work with containers. This is only tested with lxd vms
+    but in theory should work on any virtual machine using grub.
+
+    ds_str: the string that will be inserted into /proc/cmdline
+    instance: instance to set kernel command line for
+    """
+
+    # The final output in /etc/default/grub should be:
+    #
+    # GRUB_CMDLINE_LINUX="'ds=nocloud;s=http://my-url/'"
+    #
+    # That ensures that the kernel command line passed into
+    # /boot/efi/EFI/ubuntu/grub.cfg will be properly single-quoted
+    #
+    # Example:
+    #
+    # linux /boot/vmlinuz-5.15.0-1030-kvm ro 'ds=nocloud;s=http://my-url/'
+    #
+    # Not doing this will result in a semicolon-delimited ds argument
+    # terminating the kernel arguments prematurely.
+    assert instance.execute(
+        'printf "GRUB_CMDLINE_LINUX=\\"" >> /etc/default/grub'
+    ).ok
+    assert instance.execute('printf "\'" >> /etc/default/grub').ok
+    assert instance.execute(f"printf '{ds_str}' >> /etc/default/grub").ok
+    assert instance.execute('printf "\'\\"" >> /etc/default/grub').ok
+
+    # We should probably include non-systemd distros at some point. This should
+    # most likely be as simple as updating the output path for grub-mkconfig
+    assert instance.execute(
+        "grub-mkconfig -o /boot/efi/EFI/ubuntu/grub.cfg"
+    ).ok
+    assert instance.execute("cloud-init clean --logs").ok
+    instance.restart()
+
+
+def push_and_enable_systemd_unit(
+    client: "IntegrationInstance", unit_name: str, content: str
+) -> None:
+    service_filename = f"/etc/systemd/system/{unit_name}"
+    client.write_to_file(service_filename, content)
+    client.execute(f"chmod 0644 {service_filename}", use_sudo=True)
+    client.execute(f"systemctl enable {unit_name}", use_sudo=True)

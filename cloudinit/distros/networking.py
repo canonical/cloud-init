@@ -4,6 +4,7 @@ import os
 
 from cloudinit import net, subp, util
 from cloudinit.distros.parsers import ifconfig
+from cloudinit.net.netops.iproute2 import Iproute2
 
 LOG = logging.getLogger(__name__)
 
@@ -299,5 +300,5 @@ class LinuxNetworking(Networking):
         """Try setting the link to up explicitly and return if it is up.
         Not guaranteed to bring the interface up. The caller is expected to
         add wait times before retrying."""
-        subp.subp(["ip", "link", "set", devname, "up"])
+        Iproute2.link_up(devname)
         return self.is_up(devname)

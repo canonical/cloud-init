@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
+import re
 from unittest import mock
 
 import pytest
@@ -122,7 +123,7 @@ class TestRebootIfRequired:
 
         caplog.set_level(logging.WARNING)
         with mock.patch(
-            "cloudinit.subp.subp", return_value=("fakeout", "fakeerr")
+            "cloudinit.subp.subp", return_value=SubpResult("{}", "fakeerr")
         ) as m_subp:
             with mock.patch("os.path.isfile", side_effect=_isfile):
                 with mock.patch(M_PATH + "time.sleep") as m_sleep:
@@ -299,27 +300,26 @@ class TestPackageUpdateUpgradeSchema:
             ({"packages": []}, SCHEMA_EMPTY_ERROR),
             (
                 {"apt_update": False},
-                (
-                    "Cloud config schema deprecations: apt_update: "
-                    "Default: ``false``. Deprecated in version 22.2. "
-                    "Use ``package_update`` instead."
+                re.escape(
+                    "Cloud config schema deprecations: apt_update:  "
+                    "Deprecated in version 22.2. "
+                    "Use **package_update** instead."
                 ),
             ),
             (
                 {"apt_upgrade": False},
-                (
-                    "Cloud config schema deprecations: apt_upgrade: "
-                    "Default: ``false``. Deprecated in version 22.2. "
-                    "Use ``package_upgrade`` instead."
+                re.escape(
+                    "Cloud config schema deprecations: apt_upgrade:  "
+                    "Deprecated in version 22.2. "
+                    "Use **package_upgrade** instead."
                 ),
             ),
             (
                 {"apt_reboot_if_required": False},
-                (
+                re.escape(
                     "Cloud config schema deprecations: "
-                    "apt_reboot_if_required: Default: ``false``. "
-                    "Deprecated in version 22.2. Use "
-                    "``package_reboot_if_required`` instead."
+                    "apt_reboot_if_required:  Deprecated in version 22.2. Use "
+                    "**package_reboot_if_required** instead."
                 ),
             ),
         ],

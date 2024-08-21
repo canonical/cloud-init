@@ -12,7 +12,7 @@ from inspect import signature
 from types import ModuleType
 from typing import Dict, List, NamedTuple, Optional
 
-from cloudinit import config, importer, type_utils, util
+from cloudinit import config, importer, lifecycle, type_utils, util
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.helpers import ConfigMerger
 from cloudinit.reporting.events import ReportEventStack
@@ -194,7 +194,7 @@ class Modules:
             if not mod_name:
                 continue
             if freq and freq not in FREQUENCIES:
-                util.deprecate(
+                lifecycle.deprecate(
                     deprecated=(
                         f"Config specified module {raw_name} has an unknown"
                         f" frequency {freq}"
@@ -205,10 +205,10 @@ class Modules:
                 # default meta attribute "frequency" value is used.
                 freq = None
             if mod_name in RENAMED_MODULES:
-                util.deprecate(
+                lifecycle.deprecate(
                     deprecated=(
                         f"Module has been renamed from {mod_name} to "
-                        f"{RENAMED_MODULES[mod_name][1]}. Update any"
+                        f"{RENAMED_MODULES[mod_name]}. Update any"
                         " references in /etc/cloud/cloud.cfg"
                     ),
                     deprecated_version="24.1",
@@ -278,7 +278,7 @@ class Modules:
                     func_signature = signature(mod.handle)
                     func_params = func_signature.parameters
                     if len(func_params) == 5:
-                        util.deprecate(
+                        lifecycle.deprecate(
                             deprecated="Config modules with a `log` parameter",
                             deprecated_version="23.2",
                         )

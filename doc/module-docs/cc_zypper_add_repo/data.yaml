@@ -1,0 +1,23 @@
+cc_zypper_add_repo:
+  description: |
+    Zypper behavior can be configured using the ``config`` key, which will
+    modify ``/etc/zypp/zypp.conf``. The configuration writer will only append
+    the provided configuration options to the configuration file. Any duplicate
+    options will be resolved by the way the ``zypp.conf`` INI file is parsed.
+    
+    .. note::
+       Setting ``configdir`` is not supported and will be skipped.
+       
+    The ``repos`` key may be used to add repositories to the system. Beyond the
+    required ``id`` and ``baseurl`` attributions, no validation is performed on
+    the ``repos`` entries.
+
+    It is assumed the user is familiar with the Zypper repository file format.
+    This configuration is also applicable for systems with
+    transactional-updates.
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_zypper_add_repo/example1.yaml
+  name: Zypper Add Repo
+  title: Configure Zypper behavior and add Zypper repositories

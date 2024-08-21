@@ -4,7 +4,6 @@
 
 import logging
 import os
-from textwrap import dedent
 
 from cloudinit.cloud import Cloud
 from cloudinit.distros import Distro
@@ -20,37 +19,17 @@ except ImportError:
 
 from cloudinit import subp, temp_utils, type_utils, util
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
-distros = ["ubuntu"]
-
 meta: MetaSchema = {
     "id": "cc_ubuntu_drivers",
-    "name": "Ubuntu Drivers",
-    "title": "Interact with third party drivers in Ubuntu.",
-    "description": dedent(
-        """\
-        This module interacts with the 'ubuntu-drivers' command to install
-        third party driver packages."""
-    ),
-    "distros": distros,
-    "examples": [
-        dedent(
-            """\
-        drivers:
-          nvidia:
-            license-accepted: true
-        """
-        )
-    ],
+    "distros": ["ubuntu"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["drivers"],
-}
-
-__doc__ = get_meta_doc(meta)
+}  # type: ignore
 
 OLD_UBUNTU_DRIVERS_STDERR_NEEDLE = (
     "ubuntu-drivers: error: argument <command>: invalid choice: 'install'"

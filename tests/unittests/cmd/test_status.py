@@ -186,7 +186,7 @@ class TestStatus:
                 lambda config: f"Cloud-init disabled by {config.disable_file}",
                 id="true_on_disable_file",
             ),
-            # Not disabled when using systemd and enabled via commandline.
+            # Not disabled when using systemd and enabled via command line.
             pytest.param(
                 lambda config: config.disable_file,
                 True,
@@ -309,7 +309,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
             """\
             status: disabled
             extended_status: disabled
-            boot_status_code: disabled-by-kernel-cmdline
+            boot_status_code: disabled-by-kernel-command-line
             detail: disabled for some reason
             errors: []
             recoverable_errors: {}
@@ -452,7 +452,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                     """\
                 status: error
                 extended_status: error - running
-                boot_status_code: enabled-by-kernel-cmdline
+                boot_status_code: enabled-by-kernel-command-line
                 last_update: Thu, 01 Jan 1970 00:02:05 +0000
                 detail: DataSourceNoCloud [seed=/var/.../seed/nocloud-net][dsmode=net]
                 errors:
@@ -482,7 +482,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                     """\
                     status: running
                     extended_status: running
-                    boot_status_code: enabled-by-kernel-cmdline
+                    boot_status_code: enabled-by-kernel-command-line
                     last_update: Thu, 01 Jan 1970 00:02:04 +0000
                     detail: Running in stage: init
                     errors: []
@@ -507,7 +507,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                 dedent(
                     """\
                    ---
-                   boot_status_code: enabled-by-kernel-cmdline
+                   boot_status_code: enabled-by-kernel-command-line
                    datasource: ''
                    detail: 'Running in stage: init'
                    errors: []
@@ -542,7 +542,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                 MyArgs(long=False, wait=False, format="json"),
                 0,
                 {
-                    "boot_status_code": "enabled-by-kernel-cmdline",
+                    "boot_status_code": "enabled-by-kernel-command-line",
                     "datasource": "",
                     "detail": "Running in stage: init",
                     "errors": [],
@@ -583,7 +583,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                 MyArgs(long=False, wait=False, format="json"),
                 1,
                 {
-                    "boot_status_code": "enabled-by-kernel-cmdline",
+                    "boot_status_code": "enabled-by-kernel-command-line",
                     "datasource": "nocloud",
                     "detail": (
                         "DataSourceNoCloud [seed=/var/.../seed/"
@@ -666,7 +666,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                 MyArgs(long=False, wait=False, format="json"),
                 2,
                 {
-                    "boot_status_code": "enabled-by-kernel-cmdline",
+                    "boot_status_code": "enabled-by-kernel-command-line",
                     "datasource": "nocloud",
                     "detail": (
                         "DataSourceNoCloud [seed=/var/.../"
@@ -746,7 +746,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
         assert_file,
         cmdargs: MyArgs,
         expected_retcode: int,
-        expected_status: str,
+        expected_status: Union[str, dict],
         config: Config,
         capsys,
     ):

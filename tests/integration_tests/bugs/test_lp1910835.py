@@ -17,6 +17,7 @@ Once SSH'd in, we check that the two keys in .ssh/authorized_keys have the same
 material: if the Azure datasource has removed the CRLFs correctly, then they
 will match.
 """
+
 import pytest
 
 from tests.integration_tests.integration_settings import PLATFORM

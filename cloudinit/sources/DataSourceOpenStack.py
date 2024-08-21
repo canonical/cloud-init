@@ -17,7 +17,6 @@ from cloudinit.sources.helpers import openstack
 LOG = logging.getLogger(__name__)
 
 # Various defaults/constants...
-DEF_MD_URLS = ["http://[fe80::a9fe:a9fe]", "http://169.254.169.254"]
 DEFAULT_IID = "iid-dsopenstack"
 DEFAULT_METADATA = {
     "instance-id": DEFAULT_IID,
@@ -73,6 +72,12 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         return mstr
 
     def wait_for_metadata_service(self):
+        DEF_MD_URLS = [
+            "http://[fe80::a9fe:a9fe%25{iface}]".format(
+                iface=self.distro.fallback_interface
+            ),
+            "http://169.254.169.254",
+        ]
         urls = self.ds_cfg.get("metadata_urls", DEF_MD_URLS)
         filtered = [x for x in urls if util.is_resolvable_url(x)]
         if set(filtered) != set(urls):
@@ -94,7 +99,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             url2base[md_url] = url
 
         url_params = self.get_url_params()
-        start_time = time.time()
+        start_time = time.monotonic()
         avail_url, _response = url_helper.wait_for_url(
             urls=md_urls,
             max_wait=url_params.max_wait_seconds,
@@ -107,7 +112,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             LOG.debug(
                 "Giving up on OpenStack md from %s after %s seconds",
                 md_urls,
-                int(time.time() - start_time),
+                int(time.monotonic() - start_time),
             )
 
         self.metadata_address = url2base.get(avail_url)

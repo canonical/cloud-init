@@ -1,0 +1,5 @@
+#cloud-config
+apk_repos:
+  alpine_repo:
+    community_enabled: true
+    version: 'v3.12'

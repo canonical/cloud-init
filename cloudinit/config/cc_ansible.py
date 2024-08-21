@@ -1,4 +1,5 @@
 """ansible enables running on first boot either ansible-pull"""
+
 import abc
 import logging
 import os
@@ -6,61 +7,23 @@ import re
 import sys
 import sysconfig
 from copy import deepcopy
-from textwrap import dedent
 from typing import Optional
 
-from cloudinit import subp
+from cloudinit import lifecycle, subp
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS, Distro
 from cloudinit.settings import PER_INSTANCE
-from cloudinit.util import Version, get_cfg_by_path
+from cloudinit.util import get_cfg_by_path
 
 meta: MetaSchema = {
     "id": "cc_ansible",
-    "name": "Ansible",
-    "title": "Configure ansible for instance",
     "frequency": PER_INSTANCE,
     "distros": [ALL_DISTROS],
     "activate_by_schema_keys": ["ansible"],
-    "description": dedent(
-        """\
-        This module provides ``ansible`` integration for
-        augmenting cloud-init's configuration of the local
-        node.
+}  # type: ignore
 
-
-        This module installs ansible during boot and
-        then uses ``ansible-pull`` to run the playbook
-        repository at the remote URL.
-        """
-    ),
-    "examples": [
-        dedent(
-            """\
-            ansible:
-              package_name: ansible-core
-              install_method: distro
-              pull:
-                url: "https://github.com/holmanb/vmboot.git"
-                playbook_name: ubuntu.yml
-            """
-        ),
-        dedent(
-            """\
-            ansible:
-              package_name: ansible-core
-              install_method: pip
-              pull:
-                url: "https://github.com/holmanb/vmboot.git"
-                playbook_name: ubuntu.yml
-            """
-        ),
-    ],
-}
-
-__doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 CFG_OVERRIDE = "ansible_config"
 
@@ -77,13 +40,13 @@ class AnsiblePull(abc.ABC):
         # and cloud-init might not have that set, default: /root
         self.env["HOME"] = os.environ.get("HOME", "/root")
 
-    def get_version(self) -> Optional[Version]:
+    def get_version(self) -> Optional[lifecycle.Version]:
         stdout, _ = self.do_as(self.cmd_version)
         first_line = stdout.splitlines().pop(0)
         matches = re.search(r"([\d\.]+)", first_line)
         if matches:
             version = matches.group(0)
-            return Version.from_str(version)
+            return lifecycle.Version.from_str(version)
         return None
 
     def pull(self, *args) -> str:
@@ -248,7 +211,7 @@ def run_ansible_pull(pull: AnsiblePull, cfg: dict):
     v = pull.get_version()
     if not v:
         LOG.warning("Cannot parse ansible version")
-    elif v < Version(2, 7, 0):
+    elif v < lifecycle.Version(2, 7, 0):
         # diff was added in commit edaa0b52450ade9b86b5f63097ce18ebb147f46f
         if cfg.get("diff"):
             raise ValueError(

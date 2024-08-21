@@ -1,4 +1,4 @@
-""" Integration test for LP #1835584
+"""Integration test for LP #1835584
 
 Upstream linux kernels prior to 4.15 provide DMI product_uuid in uppercase.
 More recent kernels switched to lowercase for DMI product_uuid. Azure
@@ -25,6 +25,7 @@ seeing only one semaphore creation log entry of type:
 
 https://bugs.launchpad.net/cloud-init/+bug/1835584
 """
+
 import re
 
 import pytest

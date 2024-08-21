@@ -27,30 +27,169 @@ Test execution
 ==============
 
 Test execution happens via ``pytest``. A ``tox`` definition exists to run
-integration tests. To run all integration tests, you would run:
+integration tests. When using this, normal ``pytest`` arguments can be
+passed to the ``tox`` command by appending them after the ``--``. See the
+following commands for examples.
 
-.. code-block:: bash
+.. tab-set::
 
-    $ tox -e integration-tests
+    .. tab-item:: All integration tests
 
-``pytest`` arguments may also be passed. For example:
+        .. code-block:: bash
 
-.. code-block:: bash
+            tox -e integration-tests
 
-    $ tox -e integration-tests tests/integration_tests/modules/test_combined.py
+    .. tab-item:: Tests inside file or directory
+
+        .. code-block:: bash
+
+            tox -e integration-tests tests/integration_tests/modules/test_combined.py
+
+    .. tab-item:: A specific test
+
+        .. code-block:: bash
+
+            tox -e integration-tests tests/integration_tests/modules/test_combined.py::test_bootcmd
+
+
 
 Configuration
 =============
 
 All possible configuration values are defined in
-`tests/integration_tests/integration_settings.py`_. Defaults can be overridden
-by supplying values in :file:`tests/integration_tests/user_settings.py` or by
+`tests/integration_tests/integration_settings.py`_. Look in this file for
+the full list of variables that are available and for context on what each
+variable does and what the default values are.
+Defaults can be overriden by supplying values in
+:file:`tests/integration_tests/user_settings.py` or by
 providing an environment variable of the same name prepended with
 ``CLOUD_INIT_``. For example, to set the ``PLATFORM`` setting:
 
 .. code-block:: bash
 
-    CLOUD_INIT_PLATFORM='ec2' pytest tests/integration_tests/
+    CLOUD_INIT_PLATFORM='ec2' tox -e integration_tests -- tests/integration_tests/
+
+
+Common integration test run configurations
+==========================================
+
+
+Keep instance after test run
+-------------------------------
+
+By default, the test instance is torn down after the test run. To keep
+the instance running after the test run, set the ``KEEP_INSTANCE`` variable
+to ``True``.
+
+.. tab-set::
+
+    .. tab-item:: Inline environment variable
+
+        .. code-block:: bash
+
+            CLOUD_INIT_KEEP_INSTANCE=True tox -e integration_tests
+
+    .. tab-item:: user_settings.py file
+
+        .. code-block:: python
+
+            KEEP_INSTANCE = True
+
+
+Use in-place cloud-init source code
+-------------------------------------
+
+The simplest way to test an integraton test using your current cloud-init
+changes is to set the ``CLOUD_INIT_SOURCE`` to ``IN_PLACE``. This works ONLY
+on LXD containers. This will mount the source code as-is directly into
+the container to override the pre-existing cloud-init code within the
+container. This won't work for non-local LXD remotes and won't run any
+installation code since the source code is mounted directly.
+
+.. tab-set::
+
+    .. tab-item:: Inline environment variable
+
+        .. code-block:: bash
+
+            CLOUD_INIT_CLOUD_INIT_SOURCE=IN_PLACE tox -e integration_tests
+
+    .. tab-item:: user_settings.py file
+
+        .. code-block:: python
+
+            CLOUD_INIT_SOURCE = 'IN_PLACE'
+
+
+Collecting logs after test run
+-------------------------------
+
+By default, logs are collected only when a test fails, by running ``cloud-init
+collect-logs`` on the instance. To collect logs after every test run, set the
+``COLLECT_LOGS`` variable to ``ALWAYS``.
+
+By default, the logs are collected to the ``/tmp/cloud_init_test_logs``
+directory. To change the directory, set the ``LOCAL_LOG_PATH`` variable to
+the desired path.
+
+.. tab-set::
+
+    .. tab-item:: Inline environment variable
+
+        .. code-block:: bash
+
+            CLOUD_INIT_COLLECT_LOGS=ALWAYS CLOUD_INIT_LOCAL_LOG_PATH=/tmp/your-local-directory tox -e integration_tests
+
+    .. tab-item:: user_settings.py file
+
+        .. code-block:: python
+
+            COLLECT_LOGS = "ALWAYS"
+            LOCAL_LOG_PATH = "/tmp/logs"
+
+
+Advanced test reporting and profiling
+-------------------------------------
+
+For advanced test reporting, set the ``INCLUDE_COVERAGE`` variable to ``True``.
+This will generate a coverage report for the integration test run, and the
+report will be stored in an ``html`` directory inside the directory specified
+by ``LOCAL_LOG_PATH``.
+
+.. tab-set::
+
+    .. tab-item:: Inline environment variable
+
+        .. code-block:: bash
+
+            CLOUD_INIT_INCLUDE_COVERAGE=True tox -e integration_tests
+
+    .. tab-item:: user_settings.py file
+
+        .. code-block:: python
+
+            INCLUDE_COVERAGE = True
+
+
+Addtionally, for profiling the integration tests, set the ``INCLUDE_PROFILE``
+variable to ``True``. This will generate a profile report for the integration
+test run, and the report will be stored in the directory specified by
+``LOCAL_LOG_PATH``.
+
+.. tab-set::
+
+    .. tab-item:: Inline environment variable
+
+        .. code-block:: bash
+
+            CLOUD_INIT_INCLUDE_PROFILE=True tox -e integration_tests
+
+    .. tab-item:: user_settings.py file
+
+        .. code-block:: python
+
+            INCLUDE_PROFILE = True
+
 
 Cloud interaction
 =================
@@ -64,6 +203,39 @@ For a minimal setup using LXD, write the following to
 .. code-block:: toml
 
     [lxd]
+
+
+For more information on configuring pycloudlib, see the
+`pycloudlib configuration documentation`_.
+
+To specify a specific cloud to test against, first, ensure that your pycloudlib
+configuration is set up correctly. Then, modify the ``PLATFORM`` variable to be
+on of:
+
+- ``azure``: Microsoft Azure
+- ``ec2``: Amazon EC2
+- ``gce``: Google Compute Engine
+- ``ibm``: IBM Cloud
+- ``lxd_container``: LXD container
+- ``lxd_vm``: LXD VM
+- ``oci``: Oracle Cloud Infrastructure
+- ``openstack``: OpenStack
+- ``qemu``: QEMU
+
+.. tab-set::
+
+    .. tab-item:: Inline environment variable
+
+        .. code-block:: bash
+
+            CLOUD_INIT_PLATFORM='lxd_container' tox -e integration_tests
+
+    .. tab-item:: user_settings.py file
+
+        .. code-block:: python
+
+            PLATFORM = 'lxd_container'
+
 
 Image selection
 ===============
@@ -87,13 +259,31 @@ tests against the image in question. If it's a RHEL8 image, then we
 would expect Ubuntu-specific tests to fail (and vice versa).
 
 To address this, a full image specification can be given. This is of
-the form: ``<image_id>[::<os>[::<release>]]`` where ``image_id`` is a
+the form: ``<image_id>[::<os>::<release>::<version>]`` where ``image_id`` is a
 cloud's image ID, ``os`` is the OS name, and ``release`` is the OS
-release name. So, for example, Ubuntu 18.04 (Bionic Beaver) on LXD is
-``ubuntu:bionic::ubuntu::bionic`` or RHEL8 on Amazon is
+release name. So, for example, Ubuntu 24.04 LTS (Noble Numbat) on LXD is
+``ubuntu:noble::ubuntu::noble::24.04`` or RHEL8 on Amazon is
 ``ami-justanexample::rhel::8``. When a full specification is given,
 only tests which are intended for use on that OS and release will be
 executed.
+
+To run integration tests on a specific image, modify the ``OS_IMAGE``
+variable to be the desired image specification.
+
+.. tab-set::
+
+    .. tab-item:: Inline environment variable
+
+        .. code-block:: bash
+
+            CLOUD_INIT_OS_IMAGE='jammy' tox -e integration_tests
+
+    .. tab-item:: user_settings.py file
+
+        .. code-block:: python
+
+            OS_IMAGE = 'jammy'
+
 
 Image setup
 ===========
@@ -107,6 +297,29 @@ via fixture. Image setup roughly follows these steps:
   resemble "out of the box" behaviour.
 * Take a snapshot of the instance to be used as a new image from
   which new instances can be launched.
+
+
+Keep image after test run
+--------------------------
+
+By default, the image created during the test run is torn down after
+the test run. If further debugging is needed, you can keep the image snapshot
+for further use by setting the ``KEEP_IMAGE`` variable to ``True``.
+
+.. tab-set::
+
+    .. tab-item:: Inline environment variable
+
+        .. code-block:: bash
+
+            CLOUD_INIT_KEEP_IMAGE=True tox -e integration_tests
+
+    .. tab-item:: user_settings.py file
+
+        .. code-block:: python
+
+            KEEP_IMAGE = True
+
 
 Test setup
 ==========
@@ -155,7 +368,7 @@ The ``client`` fixture should be used for most test cases. It ensures:
 ``module_client`` and ``class_client`` fixtures also exist for the
 purpose of running multiple tests against a single launched instance.
 They provide the exact same functionality as ``client``, but are
-scoped to the module or class respectively.
+scoped to the module or class respectively.ci
 
 ``session_cloud``
 -----------------
@@ -213,3 +426,4 @@ Customizing the launch arguments before launching an instance manually:
 .. _first be configured: https://pycloudlib.readthedocs.io/en/latest/configuration.html#configuration
 .. _Pytest marks: https://github.com/canonical/cloud-init/blob/af7eb1deab12c7208853c5d18b55228e0ba29c4d/tests/integration_tests/conftest.py#L220-L224
 .. _IntegrationCloud: https://github.com/canonical/cloud-init/blob/af7eb1deab12c7208853c5d18b55228e0ba29c4d/tests/integration_tests/clouds.py#L102
+.. _pycloudlib configuration documentation: https://pycloudlib.readthedocs.io/en/latest/configuration.html

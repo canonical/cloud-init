@@ -1,6 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-""" test_apk_configure
+"""test_apk_configure
 Test creation of repositories file
 """
 
@@ -10,7 +10,7 @@ import textwrap
 
 import pytest
 
-from cloudinit import cloud, helpers, temp_utils, util
+from cloudinit import cloud, helpers, util
 from cloudinit.config import cc_apk_configure
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -51,7 +51,7 @@ class TestNoConfig(FilesystemMockingTestCase):
 
 class TestConfig(FilesystemMockingTestCase):
     def setUp(self):
-        super(TestConfig, self).setUp()
+        super().setUp()
         self.new_root = self.tmp_dir()
         self.new_root = self.reRoot(root=self.new_root)
         for dirname in ["tmp", "etc/apk"]:
@@ -60,11 +60,14 @@ class TestConfig(FilesystemMockingTestCase):
         self.name = "apk_configure"
         self.cloud = cloud.Cloud(None, self.paths, None, None, None)
         self.args = []
-        temp_utils._TMPDIR = self.new_root
+        self.mock = mock.patch(
+            "cloudinit.temp_utils.get_tmp_ancestor", lambda *_: self.new_root
+        )
+        self.mock.start()
 
     def tearDown(self):
+        self.mock.stop()
         super().tearDown()
-        temp_utils._TMPDIR = None
 
     @mock.patch(CC_APK + "._write_repositories_file")
     def test_no_repo_settings(self, m_write_repos):

@@ -7,10 +7,10 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import atomic_helper, log, util
+from cloudinit import atomic_helper, lifecycle, log, util
 from cloudinit.gpg import GPG
 from tests.hypothesis import HAS_HYPOTHESIS
-from tests.unittests.helpers import retarget_many_wrapper
+from tests.unittests.helpers import example_netdev, retarget_many_wrapper
 
 
 @pytest.fixture
@@ -83,7 +83,7 @@ def fake_filesystem(mocker, tmpdir):
     # exists, but then it fails because of the retargeting that happens here.
     tmpdir.mkdir("tmp")
 
-    for (mod, funcs) in FS_FUNCS.items():
+    for mod, funcs in FS_FUNCS.items():
         for f, nargs in funcs:
             func = getattr(mod, f)
             trap_func = retarget_many_wrapper(str(tmpdir), nargs, func)
@@ -99,6 +99,15 @@ def disable_sysfs_net(tmpdir_factory):
         "cloudinit.net.get_sys_class_path", return_value=mock_sysfs
     ):
         yield mock_sysfs
+
+
+@pytest.fixture(scope="class")
+def disable_netdev_info(request):
+    """Avoid tests which read the underlying host's /syc/class/net."""
+    with mock.patch(
+        "cloudinit.netinfo.netdev_info", return_value=example_netdev
+    ) as mock_netdev:
+        yield mock_netdev
 
 
 @pytest.fixture(autouse=True)
@@ -141,7 +150,7 @@ def clear_deprecation_log():
     # Since deprecations are de-duped, the existance (or non-existance) of
     # a deprecation warning in a previous test can cause the next test to
     # fail.
-    util.deprecate._log = set()
+    setattr(lifecycle.deprecate, "log", set())
 
 
 PYTEST_VERSION_TUPLE = tuple(map(int, pytest.__version__.split(".")))

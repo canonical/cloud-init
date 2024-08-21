@@ -9,6 +9,7 @@ import shutil
 import tempfile
 
 import pytest
+import responses
 
 from cloudinit import util
 from cloudinit.config.cc_write_files import decode_perms, handle, write_files
@@ -84,6 +85,16 @@ class TestWriteFiles(FilesystemMockingTestCase):
         )
         self.assertEqual(util.load_text_file(filename), expected)
 
+    def test_empty(self):
+        self.patchUtils(self.tmp)
+        filename = "/tmp/my.file"
+        write_files(
+            "test_empty",
+            [{"path": filename}],
+            self.owner,
+        )
+        self.assertEqual(util.load_text_file(filename), "")
+
     def test_append(self):
         self.patchUtils(self.tmp)
         existing = "hello "
@@ -127,13 +138,14 @@ class TestWriteFiles(FilesystemMockingTestCase):
             b64 = (base64.b64encode(data), b64_aliases)
             for content, aliases in (gz, gz_b64, b64):
                 for enc in aliases:
+                    path = "/tmp/file-%s-%s" % (name, enc)
                     cur = {
                         "content": content,
-                        "path": "/tmp/file-%s-%s" % (name, enc),
+                        "path": path,
                         "encoding": enc,
                     }
                     files.append(cur)
-                    expected.append((cur["path"], data))
+                    expected.append((path, data))
 
         write_files("test_decoding", files, self.owner)
 
@@ -166,6 +178,71 @@ class TestWriteFiles(FilesystemMockingTestCase):
         self.assertNotIn(
             "Unknown encoding type text/plain", self.logs.getvalue()
         )
+
+    def test_file_uri(self):
+        self.patchUtils(self.tmp)
+        src_path = "/tmp/file-uri"
+        dst_path = "/tmp/file-uri-target"
+        content = "asdf"
+        util.write_file(src_path, content)
+        cfg = {
+            "write_files": [
+                {
+                    "source": {"uri": "file://" + src_path},
+                    "path": dst_path,
+                }
+            ]
+        }
+        cc = self.tmp_cloud("ubuntu")
+        handle("ignored", cfg, cc, [])
+        self.assertEqual(
+            util.load_text_file(src_path), util.load_text_file(dst_path)
+        )
+
+    @responses.activate
+    def test_http_uri(self):
+        self.patchUtils(self.tmp)
+        path = "/tmp/http-uri-target"
+        url = "http://hostname/path"
+        content = "more asdf"
+        responses.add(responses.GET, url, content)
+        cfg = {
+            "write_files": [
+                {
+                    "source": {
+                        "uri": url,
+                        "headers": {
+                            "foo": "bar",
+                            "blah": "blah",
+                        },
+                    },
+                    "path": path,
+                }
+            ]
+        }
+        cc = self.tmp_cloud("ubuntu")
+        handle("ignored", cfg, cc, [])
+        self.assertEqual(content, util.load_text_file(path))
+
+    def test_uri_fallback(self):
+        self.patchUtils(self.tmp)
+        src_path = "/tmp/INVALID"
+        dst_path = "/tmp/uri-fallback-target"
+        content = "asdf"
+        util.del_file(src_path)
+        cfg = {
+            "write_files": [
+                {
+                    "source": {"uri": "file://" + src_path},
+                    "content": content,
+                    "encoding": "text/plain",
+                    "path": dst_path,
+                }
+            ]
+        }
+        cc = self.tmp_cloud("ubuntu")
+        handle("ignored", cfg, cc, [])
+        self.assertEqual(content, util.load_text_file(dst_path))
 
     def test_deferred(self):
         self.patchUtils(self.tmp)
@@ -249,6 +326,12 @@ class TestWriteFilesSchema:
                     "write_files": [
                         {
                             "append": False,
+                            "source": {
+                                "uri": "http://a.com/a",
+                                "headers": {
+                                    "Authorization": "Bearer SOME_TOKEN"
+                                },
+                            },
                             "content": "a",
                             "encoding": "text/plain",
                             "owner": "jeff",

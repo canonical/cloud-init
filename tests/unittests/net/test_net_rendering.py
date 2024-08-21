@@ -24,13 +24,14 @@ Before adding a test here, check that it is not already represented
 in `unittests/test_net.py`. While that file contains similar tests, it has
 become too large to be maintainable.
 """
+
 import glob
 from enum import Flag, auto
 from pathlib import Path
 
 import pytest
+import yaml
 
-from cloudinit import safeyaml
 from cloudinit.net.netplan import Renderer as NetplanRenderer
 from cloudinit.net.network_manager import Renderer as NetworkManagerRenderer
 from cloudinit.net.network_state import NetworkState, parse_net_config_data
@@ -55,7 +56,7 @@ def _check_netplan(
     if network_state.version == 2:
         renderer = NetplanRenderer(config={"netplan_path": netplan_path})
         renderer.render_network_state(network_state)
-        assert safeyaml.load(netplan_path.read_text()) == expected_config, (
+        assert yaml.safe_load(netplan_path.read_text()) == expected_config, (
             f"Netplan config generated at {netplan_path} does not match v2 "
             "config defined for this test."
         )
@@ -89,7 +90,7 @@ def _check_network_manager(network_state: NetworkState, tmp_path: Path):
     [("no_matching_mac_v2", Renderer.Netplan | Renderer.NetworkManager)],
 )
 def test_convert(test_name, renderers, tmp_path):
-    network_config = safeyaml.load(
+    network_config = yaml.safe_load(
         Path(ARTIFACT_DIR, f"{test_name}.yaml").read_text()
     )
     network_state = parse_net_config_data(network_config["network"])

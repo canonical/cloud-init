@@ -93,7 +93,7 @@ class JinjaTemplatePartHandler(handlers.Handler):
 def render_jinja_payload_from_file(
     payload, payload_fn, instance_data_file, debug=False
 ):
-    """Render a jinja template payload sourcing variables from jinja_vars_path.
+    r"""Render a jinja template sourcing variables from jinja_vars_path.
 
     @param payload: String of jinja template content. Should begin with
         ## template: jinja\n.

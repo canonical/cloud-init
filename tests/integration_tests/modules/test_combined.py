@@ -13,13 +13,16 @@ import uuid
 from pathlib import Path
 
 import pytest
+from pycloudlib.ec2.instance import EC2Instance
+from pycloudlib.gce.instance import GceInstance
 
 import cloudinit.config
+from cloudinit import lifecycle
 from cloudinit.util import is_true
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
-from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
+from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, MANTIC
 from tests.integration_tests.util import (
     get_feature_flag_value,
     get_inactive_modules,
@@ -68,6 +71,7 @@ rsyslog:
     me: "127.0.0.1"
 runcmd:
   - echo 'hello world' > /var/tmp/runcmd_output
+  - echo '💩' > /var/tmp/unicode_data
 
   - #
   - logger "My test log"
@@ -89,6 +93,14 @@ class TestCombined:
         """
         Test that netplan config file is generated with proper permissions
         """
+        log = class_client.read_from_file("/var/log/cloud-init.log")
+        if CURRENT_RELEASE < MANTIC:
+            assert (
+                "No netplan python module. Fallback to write"
+                " /etc/netplan/50-cloud-init.yaml" in log
+            )
+        else:
+            assert "Rendered netplan config using netplan python API" in log
         file_perms = class_client.execute(
             "stat -c %a /etc/netplan/50-cloud-init.yaml"
         )
@@ -122,9 +134,26 @@ class TestCombined:
         """Check that deprecated key produces a log warning"""
         client = class_client
         log = client.read_from_file("/var/log/cloud-init.log")
-        assert "Deprecated cloud-config provided" in log
-        assert "The value of 'false' in user craig's 'sudo' config is " in log
-        assert 2 == log.count("DEPRECATE")
+        version_boundary = get_feature_flag_value(
+            class_client, "DEPRECATION_INFO_BOUNDARY"
+        )
+        # the changed_version is 22.2 in schema for user.sudo key in
+        # user-data. Pass 22.2 in against the client's version_boundary.
+        if lifecycle.should_log_deprecation("22.2", version_boundary):
+            log_level = "DEPRECATED"
+            deprecation_count = 2
+        else:
+            # Expect the distros deprecated call to be redacted.
+            # jsonschema still emits deprecation log due to changed_version
+            # instead of deprecated_version
+            log_level = "INFO"
+            deprecation_count = 1
+
+        assert (
+            f"[{log_level}]: The value of 'false' in user craig's 'sudo'"
+            " config is deprecated" in log
+        )
+        assert deprecation_count == log.count("DEPRECATE")
 
     def test_ntp_with_apt(self, class_client: IntegrationInstance):
         """LP #1628337.
@@ -452,6 +481,9 @@ class TestCombined:
             "/run/cloud-init/cloud-id-aws"
         )
         assert v1_data["subplatform"].startswith("metadata")
+
+        # type narrow since availability_zone is not a BaseInstance attribute
+        assert isinstance(client.instance, EC2Instance)
         assert (
             v1_data["availability_zone"] == client.instance.availability_zone
         )
@@ -474,6 +506,9 @@ class TestCombined:
             "/run/cloud-init/cloud-id-gce"
         )
         assert v1_data["subplatform"].startswith("metadata")
+        # type narrow since zone and instance_id are not BaseInstance
+        # attributes
+        assert isinstance(client.instance, GceInstance)
         assert v1_data["availability_zone"] == client.instance.zone
         assert v1_data["instance_id"] == client.instance.instance_id
         assert v1_data["local_hostname"] == client.instance.name
@@ -497,6 +532,10 @@ class TestCombined:
         client.restart()
         assert client.execute(f"test -f /run/cloud-init/{cloud_file}").ok
         assert client.execute("test -f /run/cloud-init/cloud-id").ok
+
+    def test_unicode(self, class_client: IntegrationInstance):
+        client = class_client
+        assert "💩" == client.read_from_file("/var/tmp/unicode_data")
 
 
 @pytest.mark.user_data(USER_DATA)

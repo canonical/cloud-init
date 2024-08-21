@@ -1,0 +1,33 @@
+cc_resolv_conf:
+  description: |
+    You should not use this module unless manually editing
+    :file:`/etc/resolv.conf` is the correct way to manage nameserver
+    information on your operating system.
+    
+    Many distros have moved away from manually editing ``resolv.conf`` so
+    please verify that this is the preferred nameserver management method for
+    your distro before using this module. Note that using :ref:`network_config`
+    is preferred, rather than using this module, when possible.
+
+    This module is intended to manage ``resolv.conf`` in environments where
+    early configuration of ``resolv.conf`` is necessary for further
+    bootstrapping and/or where configuration management such as Puppet or Chef
+    own DNS configuration.
+
+    When using a :ref:`datasource_config_drive` and a RHEL-like system,
+    ``resolv.conf`` will also be managed automatically due to the available
+    information provided for DNS servers in the :ref:`network_config_v2`
+    format. For those who wish to have different settings, use this module.
+
+    For the ``resolv_conf`` section to be applied, ``manage_resolv_conf`` must
+    be set ``true``.
+
+    .. note::
+       For Red Hat with ``sysconfig``, be sure to set ``PEERDNS=no`` for all
+       DHCP-enabled NICs.
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_resolv_conf/example1.yaml
+  name: Resolv Conf
+  title: Configure ``resolv.conf``

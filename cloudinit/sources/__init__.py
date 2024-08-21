@@ -19,7 +19,7 @@ from collections import namedtuple
 from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from cloudinit import atomic_helper, dmi, importer, net, type_utils
+from cloudinit import atomic_helper, dmi, importer, lifecycle, net, type_utils
 from cloudinit import user_data as ud
 from cloudinit import util
 from cloudinit.atomic_helper import write_json
@@ -78,6 +78,16 @@ class NetworkConfigSource(Enum):
     SYSTEM_CFG = "system_cfg"
     FALLBACK = "fallback"
     INITRAMFS = "initramfs"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class NicOrder(Enum):
+    """Represents ways to sort NICs"""
+
+    MAC = "mac"
+    NIC_NAME = "nic_name"
 
     def __str__(self) -> str:
         return self.value
@@ -307,7 +317,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self.sys_cfg = sys_cfg
         self.distro = distro
         self.paths = paths
-        self.userdata = None
+        self.userdata: Optional[Any] = None
         self.metadata: dict = {}
         self.userdata_raw: Optional[str] = None
         self.vendordata = None
@@ -315,7 +325,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self.vendordata_raw = None
         self.vendordata2_raw = None
         self.metadata_address = None
-        self.network_json = UNSET
+        self.network_json: Optional[str] = UNSET
         self.ec2_metadata = UNSET
 
         self.ds_cfg = util.get_cfg_by_path(
@@ -347,6 +357,8 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if not hasattr(self, key):
                 setattr(self, key, value)
 
+        if not hasattr(self, "check_if_fallback_is_allowed"):
+            setattr(self, "check_if_fallback_is_allowed", lambda: False)
         if hasattr(self, "userdata") and self.userdata is not None:
             # If userdata stores MIME data, on < python3.6 it will be
             # missing the 'policy' attribute that exists on >=python3.6.
@@ -373,7 +385,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def override_ds_detect(self) -> bool:
         """Override if either:
         - only a single datasource defined (nothing to fall back to)
-        - commandline argument is used (ci.ds=OpenStack)
+        - command line argument is used (ci.ds=OpenStack)
 
         Note: get_cmdline() is required for the general case - when ds-identify
         does not run, _something_ needs to detect the kernel command line
@@ -381,14 +393,13 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
         if self.dsname.lower() == parse_cmdline().lower():
             LOG.debug(
-                "Machine is configured by the kernel commandline to run on "
-                "single datasource %s.",
+                "Kernel command line set to use a single datasource %s.",
                 self,
             )
             return True
         elif self.sys_cfg.get("datasource_list", []) == [self.dsname]:
             LOG.debug(
-                "Machine is configured to run on single datasource %s.", self
+                "Datasource list set to use a single datasource %s.", self
             )
             return True
         return False
@@ -399,12 +410,12 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             return self._get_data()
         elif self.ds_detect():
             LOG.debug(
-                "Detected platform: %s. Checking for active instance data",
+                "Detected %s",
                 self,
             )
             return self._get_data()
         else:
-            LOG.debug("Datasource type %s is not detected.", self)
+            LOG.debug("Did not detect %s", self)
             return False
 
     def _get_standardized_metadata(self, instance_data):
@@ -471,6 +482,12 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
         self._dirty_cache = True
         return_value = self._check_and_get_data()
+        # TODO: verify that datasource types are what they are expected to be
+        # each datasource uses different logic to get userdata, metadata, etc
+        # and then the rest of the codebase assumes the types of this data
+        # it would be prudent to have a type check here that warns, when the
+        # datatype is incorrect, rather than assuming types and throwing
+        # exceptions later if/when they get used incorrectly.
         if not return_value:
             return return_value
         self.persist_instance_data()
@@ -713,10 +730,6 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             new_ud = f.apply(new_ud)
         return new_ud
 
-    @property
-    def is_disconnected(self):
-        return False
-
     def get_userdata_raw(self):
         return self.userdata_raw
 
@@ -751,7 +764,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # we want to return the correct value for what will actually
         # exist in this instance
         mappings = {"sd": ("vd", "xvd", "vtb")}
-        for (nfrom, tlist) in mappings.items():
+        for nfrom, tlist in mappings.items():
             if not short_name.startswith(nfrom):
                 continue
             for nto in tlist:
@@ -926,6 +939,16 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # quickly (local check only) if self.instance_id is still
         return False
 
+    def check_if_fallback_is_allowed(self):
+        """check_if_fallback_is_allowed()
+        Checks if a cached ds is allowed to be restored when no valid ds is
+        found in local mode by checking instance-id and searching valid data
+        through ds list.
+
+        @return True if a ds allows fallback, False otherwise.
+        """
+        return False
+
     @staticmethod
     def _determine_dsmode(candidates, default=None, valid=None):
         # return the first candidate that is non None, warn if not valid
@@ -991,7 +1014,7 @@ def normalize_pubkey_data(pubkey_data):
         return list(pubkey_data)
 
     if isinstance(pubkey_data, (dict)):
-        for (_keyname, klist) in pubkey_data.items():
+        for _keyname, klist in pubkey_data.items():
             # lp:506332 uec metadata service responds with
             # data that makes boto populate a string for 'klist' rather
             # than a list.
@@ -1147,7 +1170,7 @@ class BrokenMetadata(IOError):
 def list_from_depends(depends, ds_list):
     ret_list = []
     depset = set(depends)
-    for (cls, deps) in ds_list:
+    for cls, deps in ds_list:
         if depset == set(deps):
             ret_list.append(cls)
     return ret_list
@@ -1207,9 +1230,9 @@ def parse_cmdline_or_dmi(input: str) -> str:
     deprecated = ds_parse_1 or ds_parse_2
     if deprecated:
         dsname = deprecated.group(1).strip()
-        util.deprecate(
+        lifecycle.deprecate(
             deprecated=(
-                f"Defining the datasource on the commandline using "
+                f"Defining the datasource on the command line using "
                 f"ci.ds={dsname} or "
                 f"ci.datasource={dsname}"
             ),

@@ -1,7 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 # pylint: disable=attribute-defined-outside-init
 
-""" test_apt_custom_sources_list
+"""test_apt_custom_sources_list
 Test templating of custom sources list
 """
 import stat

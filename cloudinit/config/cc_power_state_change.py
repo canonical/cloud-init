@@ -12,12 +12,11 @@ import os
 import re
 import subprocess
 import time
-from textwrap import dedent
 
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import MetaSchema, get_meta_doc
+from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
@@ -25,60 +24,13 @@ frequency = PER_INSTANCE
 
 EXIT_FAIL = 254
 
-MODULE_DESCRIPTION = """\
-This module handles shutdown/reboot after all config modules have been run. By
-default it will take no action, and the system will keep running unless a
-package installation/upgrade requires a system reboot (e.g. installing a new
-kernel) and ``package_reboot_if_required`` is true.
-
-Using this module ensures that cloud-init is entirely finished with
-modules that would be executed.
-
-An example to distinguish delay from timeout:
-
-If you delay 5 (5 minutes) and have a timeout of
-120 (2 minutes), then the max time until shutdown will be 7 minutes, though
-it could be as soon as 5 minutes. Cloud-init will invoke 'shutdown +5' after
-the process finishes, or when 'timeout' seconds have elapsed.
-
-.. note::
-    With Alpine Linux any message value specified is ignored as Alpine's halt,
-    poweroff, and reboot commands do not support broadcasting a message.
-
-"""
-
 meta: MetaSchema = {
     "id": "cc_power_state_change",
-    "name": "Power State Change",
-    "title": "Change power state",
-    "description": MODULE_DESCRIPTION,
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
-    "examples": [
-        dedent(
-            """\
-            power_state:
-                delay: now
-                mode: poweroff
-                message: Powering off
-                timeout: 2
-                condition: true
-            """
-        ),
-        dedent(
-            """\
-            power_state:
-                delay: 30
-                mode: reboot
-                message: Rebooting machine
-                condition: test -f /var/tmp/reboot_me
-            """
-        ),
-    ],
     "activate_by_schema_keys": ["power_state"],
-}
+}  # type: ignore
 
-__doc__ = get_meta_doc(meta)
 LOG = logging.getLogger(__name__)
 
 
@@ -126,8 +78,8 @@ def check_condition(cond):
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     try:
-        (args, timeout, condition) = load_power_state(cfg, cloud.distro)
-        if args is None:
+        (arg_list, timeout, condition) = load_power_state(cfg, cloud.distro)
+        if arg_list is None:
             LOG.debug("no power_state provided. doing nothing")
             return
     except Exception as e:
@@ -147,7 +99,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     devnull_fp = open(os.devnull, "w")
 
-    LOG.debug("After pid %s ends, will execute: %s", mypid, " ".join(args))
+    LOG.debug("After pid %s ends, will execute: %s", mypid, " ".join(arg_list))
 
     util.fork_cb(
         run_after_pid_gone,
@@ -156,7 +108,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         timeout,
         condition,
         execmd,
-        [args, devnull_fp],
+        [arg_list, devnull_fp],
     )
 
 
@@ -205,7 +157,7 @@ def doexit(sysexit):
 def execmd(exe_args, output=None, data_in=None):
     ret = 1
     try:
-        proc = subprocess.Popen(
+        proc = subprocess.Popen(  # nosec B603
             exe_args,
             stdin=subprocess.PIPE,
             stdout=output,
@@ -223,7 +175,7 @@ def run_after_pid_gone(pid, pidcmdline, timeout, condition, func, args):
     # is no longer alive.  After it is gone, or timeout has passed
     # execute func(args)
     msg = None
-    end_time = time.time() + timeout
+    end_time = time.monotonic() + timeout
 
     def fatal(msg):
         LOG.warning(msg)
@@ -232,7 +184,7 @@ def run_after_pid_gone(pid, pidcmdline, timeout, condition, func, args):
     known_errnos = (errno.ENOENT, errno.ESRCH)
 
     while True:
-        if time.time() > end_time:
+        if time.monotonic() > end_time:
             msg = "timeout reached before %s ended" % pid
             break
 

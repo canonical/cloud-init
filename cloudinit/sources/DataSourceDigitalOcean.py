@@ -9,7 +9,7 @@
 import logging
 
 import cloudinit.sources.helpers.digitalocean as do_helper
-from cloudinit import sources, util
+from cloudinit import lifecycle, sources, util
 
 LOG = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ class DataSourceDigitalOcean(sources.DataSource):
         self._deprecate()
 
     def _deprecate(self):
-        util.deprecate(
+        lifecycle.deprecate(
             deprecated="DataSourceDigitalOcean",
             deprecated_version="23.2",
             extra_message="Deprecated in favour of DataSourceConfigDrive.",
@@ -94,7 +94,7 @@ class DataSourceDigitalOcean(sources.DataSource):
         self.userdata_raw = md.get("user_data", None)
 
         if ipv4LL_nic:
-            do_helper.del_ipv4_link_local(ipv4LL_nic)
+            do_helper.del_ipv4_link_local(self.distro, ipv4LL_nic)
 
         return True
 

@@ -177,7 +177,7 @@ class DataSourceCloudStack(sources.DataSource):
                 self.metadata_address, "latest/meta-data/instance-id"
             )
         ]
-        start_time = time.time()
+        start_time = time.monotonic()
         url, _response = uhelp.wait_for_url(
             urls=urls,
             max_wait=url_params.max_wait_seconds,
@@ -192,7 +192,7 @@ class DataSourceCloudStack(sources.DataSource):
                 "Giving up on waiting for the metadata from %s"
                 " after %s seconds",
                 urls,
-                int(time.time() - start_time),
+                int(time.monotonic() - start_time),
             )
 
         return bool(url)
@@ -210,7 +210,7 @@ class DataSourceCloudStack(sources.DataSource):
         try:
             if not self.wait_for_metadata_service():
                 return False
-            start_time = time.time()
+            start_time = time.monotonic()
             self.userdata_raw = ec2.get_instance_userdata(
                 self.api_ver, self.metadata_address
             )
@@ -219,7 +219,7 @@ class DataSourceCloudStack(sources.DataSource):
             )
             LOG.debug(
                 "Crawl of metadata service took %s seconds",
-                int(time.time() - start_time),
+                int(time.monotonic() - start_time),
             )
             password_client = CloudStackPasswordServerClient(self.vr_addr)
             try:

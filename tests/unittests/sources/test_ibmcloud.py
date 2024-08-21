@@ -272,6 +272,8 @@ class TestReadMD(test_helpers.CiTestCase):
         )
 
         ret = ibm.read_md()
+        if ret is None:  # this is needed for mypy - ensures ret is not None
+            self.fail("read_md returned None unexpectedly")
         self.assertEqual(ibm.Platforms.TEMPLATE_LIVE_METADATA, ret["platform"])
         self.assertEqual(tmpdir, ret["source"])
         self.assertEqual(self.userdata, ret["userdata"])
@@ -298,6 +300,8 @@ class TestReadMD(test_helpers.CiTestCase):
         )
 
         ret = ibm.read_md()
+        if ret is None:  # this is needed for mypy - ensures ret is not None
+            self.fail("read_md returned None unexpectedly")
         self.assertEqual(ibm.Platforms.OS_CODE, ret["platform"])
         self.assertEqual(tmpdir, ret["source"])
         self.assertEqual(self.userdata, ret["userdata"])
@@ -320,6 +324,8 @@ class TestReadMD(test_helpers.CiTestCase):
         )
 
         ret = ibm.read_md()
+        if ret is None:  # this is needed for mypy - ensures ret is not None
+            self.fail("read_md returned None unexpectedly")
         self.assertEqual(ibm.Platforms.OS_CODE, ret["platform"])
         self.assertEqual(tmpdir, ret["source"])
         self.assertIsNone(ret["userdata"])

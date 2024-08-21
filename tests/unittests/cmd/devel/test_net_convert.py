@@ -3,8 +3,8 @@
 import itertools
 
 import pytest
+import yaml
 
-from cloudinit import safeyaml as yaml
 from cloudinit.cmd.devel import net_convert
 from cloudinit.distros.debian import NETWORK_FILE_HEADER
 from tests.unittests.helpers import mock
@@ -62,7 +62,6 @@ SAMPLE_SYSCONFIG_CONTENT = """\
 #
 BOOTPROTO=dhcp
 DEVICE=eth0
-NM_CONTROLLED=no
 ONBOOT=yes
 TYPE=Ethernet
 USERCTL=no
@@ -244,4 +243,4 @@ class TestNetConvert:
         with mock.patch("cloudinit.util.chownbyname"):
             net_convert.handle_args("somename", args)
         outfile = tmpdir.join("etc/netplan/50-cloud-init.yaml")
-        assert yaml.load(content) == yaml.load(outfile.read())
+        assert yaml.safe_load(content) == yaml.safe_load(outfile.read())

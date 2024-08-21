@@ -11,17 +11,28 @@ higher priority source overwrites the lower priority source.
 Base configuration
 ==================
 
+The base configuration format uses `YAML version 1.1`_, but may be
+declared as jinja templates which cloud-init will render at runtime with
+:ref:`instance data <instancedata-Using>` variables.
+
 From lowest priority to highest, configuration sources are:
 
-- **Hardcoded config**: Config_ that lives within the source of ``cloud-init``
+- **Hardcoded config** Config_ that lives within the source of ``cloud-init``
   and cannot be changed.
 - **Configuration directory**: Anything defined in :file:`/etc/cloud/cloud.cfg`
-  and :file:`/etc/cloud/cloud.cfg.d`.
+  and :file:`/etc/cloud/cloud.cfg.d/*.cfg`.
 - **Runtime config**: Anything defined in :file:`/run/cloud-init/cloud.cfg`.
 - **Kernel command line**: On the kernel command line, anything found between
   ``cc:`` and ``end_cc`` will be interpreted as cloud-config user data.
 
-These four sources make up the base configuration.
+These four sources make up the base configuration. The contents of this
+configuration are defined in the
+:ref:`base configuration reference page<base_config_reference>`.
+
+.. note::
+   Base configuration may contain
+   :ref:`cloud-config<explanation/format:Cloud config data>` which may be
+   overridden by vendor data and user data.
 
 Vendor and user data
 ====================
@@ -30,11 +41,6 @@ Added to the base configuration are :ref:`vendor data<vendordata>` and
 :ref:`user data<user_data_formats>` which are both provided by the datasource.
 
 These get fetched from the datasource and are defined at instance launch.
-
-.. note::
-   While much of what is defined in the base configuration can be overridden by
-   vendor data and user data, base configuration sources do not conform to
-   :ref:`#cloud-config<user_data_formats>`.
 
 Network configuration
 =====================
@@ -79,3 +85,4 @@ images.
 
 .. _Config: https://github.com/canonical/cloud-init/blob/b861ea8a5e1fd0eb33096f60f54eeff42d80d3bd/cloudinit/settings.py#L22
 .. _cloud.cfg template: https://github.com/canonical/cloud-init/blob/main/config/cloud.cfg.tmpl
+.. _YAML version 1.1: https://yaml.org/spec/1.1/current.html

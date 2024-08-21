@@ -138,16 +138,14 @@ class TestNtp(FilesystemMockingTestCase):
         servers = []
         pools = ["10.0.0.1", "10.0.0.2"]
         (confpath, template_fn) = self._generate_template()
-        mock_path = "cloudinit.config.cc_ntp.temp_utils._TMPDIR"
-        with mock.patch(mock_path, self.new_root):
-            cc_ntp.write_ntp_config_template(
-                "ubuntu",
-                servers=servers,
-                pools=pools,
-                path=confpath,
-                template_fn=template_fn,
-                template=None,
-            )
+        cc_ntp.write_ntp_config_template(
+            "ubuntu",
+            servers=servers,
+            pools=pools,
+            path=confpath,
+            template_fn=template_fn,
+            template=None,
+        )
         self.assertEqual(
             "servers []\npools ['10.0.0.1', '10.0.0.2']\n",
             util.load_text_file(confpath),
@@ -163,16 +161,14 @@ class TestNtp(FilesystemMockingTestCase):
         pools = cc_ntp.generate_server_names(distro)
         servers = []
         (confpath, template_fn) = self._generate_template()
-        mock_path = "cloudinit.config.cc_ntp.temp_utils._TMPDIR"
-        with mock.patch(mock_path, self.new_root):
-            cc_ntp.write_ntp_config_template(
-                distro,
-                servers=servers,
-                pools=pools,
-                path=confpath,
-                template_fn=template_fn,
-                template=None,
-            )
+        cc_ntp.write_ntp_config_template(
+            distro,
+            servers=servers,
+            pools=pools,
+            path=confpath,
+            template_fn=template_fn,
+            template=None,
+        )
         self.assertEqual(
             "servers []\npools {0}\n".format(pools),
             util.load_text_file(confpath),
@@ -249,6 +245,7 @@ class TestNtp(FilesystemMockingTestCase):
                     )
 
     def _get_expected_pools(self, pools, distro, client):
+        expected_pools = None
         if client in ["ntp", "chrony"]:
             if client == "ntp" and distro == "alpine":
                 # NTP for Alpine Linux is Busybox's ntp which does not
@@ -264,6 +261,7 @@ class TestNtp(FilesystemMockingTestCase):
         return expected_pools
 
     def _get_expected_servers(self, servers, distro, client):
+        expected_servers = None
         if client in ["ntp", "chrony"]:
             if client == "ntp" and distro == "alpine":
                 # NTP for Alpine Linux is Busybox's ntp which only supports
@@ -670,8 +668,8 @@ class TestNtp(FilesystemMockingTestCase):
         }
         for distro in cc_ntp.distros:
             mycloud = self._get_cloud(distro)
-            mock_path = "cloudinit.config.cc_ntp.temp_utils._TMPDIR"
-            with mock.patch(mock_path, self.new_root):
+            mock_path = "cloudinit.config.cc_ntp.temp_utils.get_tmp_ancestor"
+            with mock.patch(mock_path, lambda *_: self.new_root):
                 cc_ntp.handle("notimportant", cfg, mycloud, None)
             self.assertEqual(
                 "servers []\npools ['mypool.org']\n%s" % custom,
@@ -710,8 +708,8 @@ class TestNtp(FilesystemMockingTestCase):
             )
             confpath = ntpconfig["confpath"]
             m_select.return_value = ntpconfig
-            mock_path = "cloudinit.config.cc_ntp.temp_utils._TMPDIR"
-            with mock.patch(mock_path, self.new_root):
+            mock_path = "cloudinit.config.cc_ntp.temp_utils.get_tmp_ancestor"
+            with mock.patch(mock_path, lambda *_: self.new_root):
                 cc_ntp.handle("notimportant", {"ntp": cfg}, mycloud, None)
             self.assertEqual(
                 "servers []\npools ['mypool.org']\n%s" % custom,

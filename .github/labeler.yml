@@ -1,2 +1,7 @@
 documentation:
-- doc/*
+- all:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'doc/**'
+      - 'cloudinit/config/schemas/**'
+  - base-branch: ['main']

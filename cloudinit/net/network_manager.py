@@ -145,11 +145,13 @@ class NMConnection:
             "dhcp": "auto",
         }
 
-        # Ensure we got an [ipvX] section
-        self._set_default(family, "method", "disabled")
+        # Ensure we have an [ipvX] section, default to disabled
+        method = "disabled"
+        self._set_default(family, "method", method)
 
         try:
-            method = method_map[subnet_type]
+            if subnet_type:
+                method = method_map[subnet_type]
         except KeyError:
             # What else can we do
             method = "auto"
@@ -171,6 +173,20 @@ class NMConnection:
             self._set_default("ipv4", "method", "disabled")
 
         self.config[family]["method"] = method
+
+        # Network Manager sets the value of `may-fail` to `True` by default.
+        # Please see https://www.networkmanager.dev/docs/api/1.32.10/settings-ipv6.html.
+        # Therefore, when no configuration for ipv4 or ipv6 is specified,
+        # `may-fail = True` applies. When the user explicitly configures ipv4
+        # or ipv6, `may-fail` is set to `False`. This is so because it is
+        # assumed that a network failure with the user provided configuration
+        # is unexpected. In other words, we think that the user knows what
+        # works in their target environment and what does not and they have
+        # correctly configured cloud-init network configuration such that
+        # it works in that environment. When no such configuration is
+        # specified, we do not know what would work and what would not in
+        # user's environment. Therefore, we are more conservative in assuming
+        # that failure with ipv4 or ipv6 can be expected or tolerated.
         self._set_default(family, "may-fail", "false")
 
     def _get_next_numbered_section(self, section, key_prefix) -> str:
@@ -239,7 +255,10 @@ class NMConnection:
         Extends the ipv[46].dns property with a name server.
         """
         family = "ipv6" if is_ipv6_address(dns) else "ipv4"
-        if self.config.has_section(family):
+        if (
+            self.config.has_section(family)
+            and self._get_config_option(family, "method") != "disabled"
+        ):
             self._set_default(family, "dns", "")
             self.config[family]["dns"] = self.config[family]["dns"] + dns + ";"
 
@@ -248,7 +267,10 @@ class NMConnection:
         Extends the ipv[46].dns-search property with a name server.
         """
         for family in ["ipv4", "ipv6"]:
-            if self.config.has_section(family):
+            if (
+                self.config.has_section(family)
+                and self._get_config_option(family, "method") != "disabled"
+            ):
                 self._set_default(family, "dns-search", "")
                 self.config[family]["dns-search"] = (
                     self.config[family]["dns-search"]
@@ -311,16 +333,18 @@ class NMConnection:
 
         # These are the interface properties that map nicely
         # to NetworkManager properties
+        # NOTE: Please ensure these items are formatted so as
+        # to match the schema in schema-network-config-v1.json
         _prop_map = {
             "bond": {
                 "mode": "bond-mode",
-                "miimon": "bond_miimon",
-                "xmit_hash_policy": "bond-xmit-hash-policy",
-                "num_grat_arp": "bond-num-grat-arp",
+                "miimon": "bond-miimon",
+                "xmit_hash_policy": "bond-xmit_hash_policy",
+                "num_grat_arp": "bond-num_grat_arp",
                 "downdelay": "bond-downdelay",
                 "updelay": "bond-updelay",
-                "fail_over_mac": "bond-fail-over-mac",
-                "primary_reselect": "bond-primary-reselect",
+                "fail_over_mac": "bond-fail_over_mac",
+                "primary_reselect": "bond-primary_reselect",
                 "primary": "bond-primary",
             },
             "bridge": {
@@ -340,6 +364,17 @@ class NMConnection:
         found_dns_search = []
 
         # Deal with Layer 3 configuration
+        if if_type == "bond" and not iface["subnets"]:
+            # If there is no L3 subnet config for a given connection,
+            # ensure it is disabled. Without this, the interface
+            # defaults to 'auto' which implies DHCP. This is problematic
+            # for certain configurations such as bonds where the root
+            # device itself may not have a subnet config and should be
+            # disabled while a separate VLAN interface on the bond holds
+            # the subnet information.
+            for family in ["ipv4", "ipv6"]:
+                self._set_ip_method(family, None)
+
         for subnet in iface["subnets"]:
             family = "ipv6" if subnet_is_ipv6(subnet) else "ipv4"
 
@@ -431,6 +466,10 @@ class NMConnection:
             self.config["vlan"]["parent"] = renderer.con_ref(
                 iface["vlan-raw-device"]
             )
+        if if_type == "bond" and ipv4_mtu is not None:
+            if "ethernet" not in self.config:
+                self.config["ethernet"] = {}
+            self.config["ethernet"]["mtu"] = str(ipv4_mtu)
         if if_type == "bridge":
             # Bridge is ass-backwards compared to bond
             for port in iface["bridge_ports"]:

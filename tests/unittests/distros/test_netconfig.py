@@ -7,15 +7,9 @@ from io import StringIO
 from textwrap import dedent
 from unittest import mock
 
-from cloudinit import (
-    distros,
-    features,
-    helpers,
-    safeyaml,
-    settings,
-    subp,
-    util,
-)
+import yaml
+
+from cloudinit import distros, features, helpers, settings, subp, util
 from cloudinit.distros.parsers.sys_conf import SysConf
 from cloudinit.net.activators import IfUpDownActivator
 from tests.unittests.helpers import (
@@ -319,11 +313,11 @@ class TestNetCfgDistroBase(FilesystemMockingTestCase):
         b1 = dict(SysConf(blob1.strip().splitlines()))
         b2 = dict(SysConf(blob2.strip().splitlines()))
         self.assertEqual(b1, b2)
-        for (k, v) in b1.items():
+        for k, v in b1.items():
             self.assertIn(k, b2)
-        for (k, v) in b2.items():
+        for k, v in b2.items():
             self.assertIn(k, b1)
-        for (k, v) in b1.items():
+        for k, v in b1.items():
             self.assertEqual(v, b2[k])
 
 
@@ -723,7 +717,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 GATEWAY=192.168.1.254
                 IPADDR=192.168.1.5
                 NETMASK=255.255.255.0
-                NM_CONTROLLED=no
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
@@ -733,7 +726,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 """\
                 BOOTPROTO=dhcp
                 DEVICE=eth1
-                NM_CONTROLLED=no
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
@@ -764,7 +756,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 IPV6_AUTOCONF=no
                 IPV6_DEFAULTGW=2607:f0d0:1002:0011::1
                 IPV6_FORCE_ACCEPT_RA=no
-                NM_CONTROLLED=no
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
@@ -774,7 +765,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 """\
                 BOOTPROTO=dhcp
                 DEVICE=eth1
-                NM_CONTROLLED=no
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
@@ -821,7 +811,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 HWADDR=00:16:3e:60:7c:df
                 IPADDR=192.10.1.2
                 NETMASK=255.255.255.0
-                NM_CONTROLLED=no
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
@@ -833,7 +822,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 DEVICE=infra0
                 IPADDR=10.0.1.2
                 NETMASK=255.255.0.0
-                NM_CONTROLLED=no
                 ONBOOT=yes
                 PHYSDEV=eth0
                 USERCTL=no
@@ -869,7 +857,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 DEVICE=eth0
                 IPADDR=192.10.1.2
                 NETMASK=255.255.255.0
-                NM_CONTROLLED=no
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
@@ -881,7 +868,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 DEVICE=eth0.1001
                 IPADDR=10.0.1.2
                 NETMASK=255.255.0.0
-                NM_CONTROLLED=no
                 ONBOOT=yes
                 PHYSDEV=eth0
                 USERCTL=no
@@ -1156,7 +1142,7 @@ class TestNetCfgDistroPhoton(TestNetCfgDistroBase):
         [Address]
         Address=192.168.0.102/24"""
 
-        net_cfg = safeyaml.load(V1_NET_CFG_WITH_DUPS)
+        net_cfg = yaml.safe_load(V1_NET_CFG_WITH_DUPS)
 
         expected = self.create_conf_dict(expected.splitlines())
         expected_cfgs = {
@@ -1281,7 +1267,7 @@ class TestNetCfgDistroMariner(TestNetCfgDistroBase):
         [Address]
         Address=192.168.0.102/24"""
 
-        net_cfg = safeyaml.load(V1_NET_CFG_WITH_DUPS)
+        net_cfg = yaml.safe_load(V1_NET_CFG_WITH_DUPS)
 
         expected = self.create_conf_dict(expected.splitlines())
         expected_cfgs = {
@@ -1406,7 +1392,7 @@ class TestNetCfgDistroAzureLinux(TestNetCfgDistroBase):
         [Address]
         Address=192.168.0.102/24"""
 
-        net_cfg = safeyaml.load(V1_NET_CFG_WITH_DUPS)
+        net_cfg = yaml.safe_load(V1_NET_CFG_WITH_DUPS)
 
         expected = self.create_conf_dict(expected.splitlines())
         expected_cfgs = {

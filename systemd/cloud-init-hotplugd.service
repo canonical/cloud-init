@@ -10,14 +10,16 @@
 # cloud-init-hotplud.service will read args from file descriptor 3
 
 [Unit]
-Description=cloud-init hotplug hook daemon
+Description=Cloud-init: Hotplug Hook
 After=cloud-init-hotplugd.socket
+After=cloud-init.target
 Requires=cloud-init-hotplugd.socket
 ConditionPathExists=!/etc/cloud/cloud-init.disabled
 ConditionKernelCommandLine=!cloud-init=disabled
+ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
 
 [Service]
-Type=simple
+Type=oneshot
 ExecStart=/bin/bash -c 'read args <&3; echo "args=$args"; \
                         exec /usr/bin/cloud-init devel hotplug-hook $args; \
                         exit 0'

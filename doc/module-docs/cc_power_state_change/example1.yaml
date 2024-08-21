@@ -1,0 +1,7 @@
+#cloud-config
+power_state:
+  delay: now
+  mode: poweroff
+  message: Powering off
+  timeout: 2
+  condition: true
