@@ -193,7 +193,7 @@ def read_metadata(base_url, url_params):
 
 # Used to match classes to dependencies
 datasources = [
-    (DataSourceCloudCIX, (sources.DEP_FILESYSTEM,)),
+    (DataSourceCloudCIX, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 ]
 
 

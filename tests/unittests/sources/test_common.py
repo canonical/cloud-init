@@ -62,7 +62,6 @@ DEFAULT_LOCAL = [
     VMware.DataSourceVMware,
     NWCS.DataSourceNWCS,
     Akamai.DataSourceAkamaiLocal,
-    CloudCIX.DataSourceCloudCIX,
     WSL.DataSourceWSL,
 ]
 
@@ -83,6 +82,7 @@ DEFAULT_NETWORK = [
     UpCloud.DataSourceUpCloud,
     Akamai.DataSourceAkamai,
     VMware.DataSourceVMware,
+    CloudCIX.DataSourceCloudCIX,
 ]
 
 
