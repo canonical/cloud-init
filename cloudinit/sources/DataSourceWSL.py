@@ -318,7 +318,7 @@ class DataSourceWSL(sources.DataSource):
         super().__init__(sys_cfg, distro, paths, ud_proc)
         self.instance_name = ""
 
-    def find_user_data_file(self, seed_dir: PurePath) -> PurePath:
+    def find_user_data_file(self, seed_dir: PurePath) -> Optional[PurePath]:
         """
         Finds the most precendent of the candidate files that may contain
         user-data, if any, or None otherwise.
@@ -334,7 +334,8 @@ class DataSourceWSL(sources.DataSource):
             ef.name.casefold(): ef.path for ef in os.scandir(seed_dir)
         }
         if not existing_files:
-            raise IOError("%s directory is empty" % seed_dir)
+            LOG.debug("%s directory is empty", seed_dir)
+            return None
 
         folded_names = [
             f.casefold()
@@ -344,9 +345,10 @@ class DataSourceWSL(sources.DataSource):
             if filename in existing_files.keys():
                 return PurePath(existing_files[filename])
 
-        raise IOError(
-            "%s doesn't contain any of the expected user-data files" % seed_dir
+        LOG.debug(
+            "%s doesn't contain any of the expected user-data files", seed_dir
         )
+        return None
 
     def check_instance_id(self, sys_cfg) -> bool:
         # quickly (local check only) if self.metadata['instance_id']
@@ -402,8 +404,9 @@ class DataSourceWSL(sources.DataSource):
         # Load regular user configs
         try:
             if user_data is None and seed_dir is not None:
-                user_data = ConfigData(self.find_user_data_file(seed_dir))
-
+                user_data_file = self.find_user_data_file(seed_dir)
+                if user_data_file is not None:
+                    user_data = ConfigData(user_data_file)
         except (ValueError, IOError) as err:
             LOG.error(
                 "Unable to load any user-data file in %s: %s",
