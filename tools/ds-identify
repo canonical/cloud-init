@@ -14,7 +14,7 @@
 #   The format is:
 #        <mode>,found=value,maybe=value,notfound=value
 #   default setting is:
-#     search,found=all,maybe=all,notfound=disabled
+#     search,found=all,maybe=none,notfound=disabled
 #
 #   kernel command line option: ci.di.policy=<policy>
 #   example line in /etc/cloud/ds-identify.cfg:
@@ -40,7 +40,7 @@
 #         first: use the first found do no further checking
 #         all: enable all DS_FOUND
 #
-#      maybe: (default=all)
+#      maybe: (default=none)
 #       if nothing returned 'found', then how to handle maybe.
 #       no network sources are allowed to return 'maybe'.
 #         all: enable all DS_MAYBE
@@ -100,8 +100,8 @@ DI_MAIN=${DI_MAIN:-main}
 
 DI_BLKID_EXPORT_OUT=""
 DI_GEOM_LABEL_STATUS_OUT=""
-DI_DEFAULT_POLICY="search,found=all,maybe=all,notfound=${DI_DISABLED}"
-DI_DEFAULT_POLICY_NO_DMI="search,found=all,maybe=all,notfound=${DI_ENABLED}"
+DI_DEFAULT_POLICY="search,found=all,maybe=none,notfound=${DI_DISABLED}"
+DI_DEFAULT_POLICY_NO_DMI="search,found=all,maybe=none,notfound=${DI_ENABLED}"
 DI_DMI_BOARD_NAME=""
 DI_DMI_CHASSIS_ASSET_TAG=""
 DI_DMI_PRODUCT_NAME=""
