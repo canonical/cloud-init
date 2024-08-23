@@ -405,7 +405,8 @@ class DataSourceWSL(sources.DataSource):
                 user_data = ConfigData(self.find_user_data_file(seed_dir))
 
         except (ValueError, IOError) as err:
-            LOG.error(
+            log = LOG.info if agent_data else LOG.error
+            log(
                 "Unable to load any user-data file in %s: %s",
                 seed_dir,
                 str(err),
