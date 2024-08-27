@@ -52,6 +52,8 @@ User data can be supplied in any
 cloud-config files or shell scripts. At runtime, the WSL datasource looks for
 user data in the following locations inside the Windows host filesystem, in the
 order specified below.
+The WSL datasource will be enabled if cloud-init discovers at least one of the
+applicable config files described below.
 
 First, configurations from Ubuntu Pro/Landscape are checked for in the
 following paths:
@@ -71,8 +73,8 @@ following paths:
    used instead of the one provided by the ``agent.yaml``, which is treated as
    a default.
 
-Then, if a file from (1) is not found, a user-provided configuration will be
-looked for instead in the following order:
+Then, if a file from (1) is not found, optional user-provided configuration
+will be looked for in the following order:
 
 1. ``%USERPROFILE%\.cloud-init\<InstanceName>.user-data`` holds user data for a
    specific instance configuration. The datasource resolves the name attributed

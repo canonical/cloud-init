@@ -5,6 +5,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
 import os
+import re
 from copy import deepcopy
 from email.mime.multipart import MIMEMultipart
 from pathlib import PurePath
@@ -459,6 +460,52 @@ write_files:
         assert "write_files" not in join_payloads_from_content_type(
             cast(MIMEMultipart, ud), "text/cloud-config"
         ), "No cloud-config part should exist"
+
+    @pytest.mark.parametrize("with_agent_data", [True, False])
+    @mock.patch("cloudinit.util.lsb_release")
+    def test_get_data_x(
+        self, m_lsb_release, with_agent_data, caplog, paths, tmpdir
+    ):
+        """
+        Assert behavior of empty .cloud-config dir with and without agent data
+        """
+        m_lsb_release.return_value = SAMPLE_LINUX_DISTRO
+        data_path = tmpdir.join(".cloud-init", f"{INSTANCE_NAME}.user-data")
+        data_path.dirpath().mkdir()
+
+        if with_agent_data:
+            ubuntu_pro_tmp = tmpdir.join(".ubuntupro", ".cloud-init")
+            os.makedirs(ubuntu_pro_tmp, exist_ok=True)
+            agent_path = ubuntu_pro_tmp.join("agent.yaml")
+            agent_path.write(AGENT_SAMPLE)
+
+        ds = wsl.DataSourceWSL(
+            sys_cfg=SAMPLE_CFG,
+            distro=_get_distro("ubuntu"),
+            paths=paths,
+        )
+
+        assert ds.get_data() is with_agent_data
+        if with_agent_data:
+            assert ds.userdata_raw == AGENT_SAMPLE
+        else:
+            assert ds.userdata_raw is None
+
+        expected_log_level = logging.INFO if with_agent_data else logging.ERROR
+        regex = (
+            "Unable to load any user-data file in /[^:]*/.cloud-init:"
+            " /.*/.cloud-init directory is empty"
+        )
+        messages = [
+            x.message
+            for x in caplog.records
+            if x.levelno == expected_log_level and re.match(regex, x.message)
+        ]
+        assert (
+            len(messages) > 0
+        ), "Expected log message matching '{}' with log level '{}'".format(
+            regex, expected_log_level
+        )
 
     @mock.patch("cloudinit.util.get_linux_distro")
     def test_data_precedence(self, m_get_linux_dist, tmpdir, paths):
