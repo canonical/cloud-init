@@ -27,7 +27,8 @@ import os
 import socket
 import time
 
-from cloudinit import atomic_helper, dmi, log, net, netinfo, sources, util
+from cloudinit import atomic_helper, dmi, net, netinfo, sources, util
+from cloudinit.log import loggers
 from cloudinit.sources.helpers.vmware.imc import guestcust_util
 from cloudinit.subp import ProcessExecutionError, subp, which
 
@@ -1061,7 +1062,7 @@ def main():
     Executed when this file is used as a program.
     """
     try:
-        log.setup_basic_logging()
+        loggers.setup_basic_logging()
     except Exception:
         pass
     metadata = {

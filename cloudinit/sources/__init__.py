@@ -19,7 +19,15 @@ from collections import namedtuple
 from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from cloudinit import atomic_helper, dmi, importer, lifecycle, net, type_utils
+from cloudinit import (
+    atomic_helper,
+    dmi,
+    importer,
+    lifecycle,
+    net,
+    performance,
+    type_utils,
+)
 from cloudinit import user_data as ud
 from cloudinit import util
 from cloudinit.atomic_helper import write_json
@@ -475,6 +483,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if not attr_defaults:
             self._dirty_cache = False
 
+    @performance.timed("Getting metadata", log_mode="always")
     def get_data(self) -> bool:
         """Datasources implement _get_data to setup metadata and userdata_raw.
 

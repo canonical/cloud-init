@@ -7,8 +7,9 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import atomic_helper, lifecycle, log, util
+from cloudinit import atomic_helper, lifecycle, util
 from cloudinit.gpg import GPG
+from cloudinit.log import loggers
 from tests.hypothesis import HAS_HYPOTHESIS
 from tests.unittests.helpers import example_netdev, retarget_many_wrapper
 
@@ -135,12 +136,14 @@ def dhclient_exists():
         yield
 
 
-log.configure_root_logger()
+loggers.configure_root_logger()
 
 
 @pytest.fixture(autouse=True, scope="session")
 def disable_root_logger_setup():
-    with mock.patch("cloudinit.log.configure_root_logger", autospec=True):
+    with mock.patch(
+        "cloudinit.log.loggers.configure_root_logger", autospec=True
+    ):
         yield
 
 

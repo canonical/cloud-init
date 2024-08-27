@@ -25,7 +25,7 @@ FakeArgs = namedtuple("FakeArgs", ["action", "local", "mode"])
 def disable_setup_logging():
     # setup_basic_logging can change the logging level to WARNING, so
     # ensure it is always mocked
-    with mock.patch(f"{M_PATH}log.setup_basic_logging", autospec=True):
+    with mock.patch(f"{M_PATH}loggers.setup_basic_logging", autospec=True):
         yield
 
 
@@ -204,7 +204,7 @@ class TestCLI:
             ),
         ),
     )
-    @mock.patch("cloudinit.cmd.main.log.setup_basic_logging")
+    @mock.patch("cloudinit.cmd.main.loggers.setup_basic_logging")
     def test_subcommands_log_to_stderr_via_setup_basic_logging(
         self, setup_basic_logging, subcommand, log_to_stderr, mocks
     ):

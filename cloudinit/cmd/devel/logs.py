@@ -17,13 +17,13 @@ import sys
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterator, List, NamedTuple, Optional, cast
 
-from cloudinit import log
+from cloudinit.log import loggers
 from cloudinit.stages import Init
 from cloudinit.subp import ProcessExecutionError, subp
 from cloudinit.temp_utils import tempdir
 from cloudinit.util import copy, get_config_logfiles, write_file
 
-LOG = cast(log.CustomLoggerType, logging.getLogger(__name__))
+LOG = cast(loggers.CustomLoggerType, logging.getLogger(__name__))
 
 
 class ApportFile(NamedTuple):
@@ -378,13 +378,13 @@ def _setup_logger(verbosity: int) -> None:
     The verbosity controls which level gets printed to stderr. By default,
     DEBUG and TRACE are hidden.
     """
-    log.reset_logging()
+    loggers.reset_logging()
     if verbosity == 0:
         level = logging.INFO
     elif verbosity == 1:
         level = logging.DEBUG
     else:
-        level = log.TRACE
+        level = loggers.TRACE
     LOG.setLevel(level)
     handler = logging.StreamHandler()
     handler.setFormatter(logging.Formatter("%(message)s"))

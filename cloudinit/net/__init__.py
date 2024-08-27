@@ -488,8 +488,7 @@ def find_candidate_nics_on_linux() -> List[str]:
                 "Found unstable nic names: %s; calling udevadm settle",
                 unstable,
             )
-            msg = "Waiting for udev events to settle"
-            util.log_time(LOG.debug, msg, func=util.udevadm_settle)
+            util.udevadm_settle()
 
     # sort into interfaces with carrier, interfaces which could have carrier,
     # and ignore interfaces that are definitely disconnected

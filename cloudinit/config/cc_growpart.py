@@ -567,12 +567,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             raise e
         return
 
-    resized = util.log_time(
-        logfunc=LOG.debug,
-        msg="resize_devices",
-        func=resize_devices,
-        args=(resizer, devices, cloud.distro),
-    )
+    with performance.Timed("Resizing devices"):
+        resized = resize_devices(resizer, devices, cloud.distro)
     for entry, action, msg in resized:
         if action == RESIZE.CHANGED:
             LOG.info("'%s' resized: %s", entry, msg)

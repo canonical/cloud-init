@@ -315,20 +315,11 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         # Fork to a child that will run
         # the resize command
         util.fork_cb(
-            util.log_time,
-            logfunc=LOG.debug,
-            msg="backgrounded Resizing",
-            func=do_resize,
-            args=(resize_cmd,),
+            do_resize,
+            resize_cmd,
         )
     else:
-        util.log_time(
-            logfunc=LOG.debug,
-            msg="Resizing",
-            func=do_resize,
-            args=(resize_cmd,),
-        )
-
+        do_resize(resize_cmd)
     action = "Resized"
     if resize_root == NOBLOCK:
         action = "Resizing (via forking)"

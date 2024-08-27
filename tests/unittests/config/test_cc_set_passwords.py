@@ -36,7 +36,7 @@ SERVICE_RESTART_CALL = mock.call(
 @pytest.fixture(autouse=True)
 def common_fixtures(mocker):
     mocker.patch("cloudinit.distros.uses_systemd", return_value=True)
-    mocker.patch("cloudinit.util.write_to_console")
+    mocker.patch("cloudinit.log.log_util.write_to_console")
 
 
 class TestHandleSSHPwauth:
@@ -268,7 +268,7 @@ class TestSetPasswordsHandle:
     )
     def test_random_passwords(self, user_cfg, mocker, caplog):
         """handle parses command set random passwords."""
-        m_multi_log = mocker.patch(f"{MODPATH}util.multi_log")
+        m_multi_log = mocker.patch(f"{MODPATH}log_util.multi_log")
         mocker.patch(f"{MODPATH}subp.subp")
 
         cloud = get_cloud()

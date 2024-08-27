@@ -97,7 +97,7 @@ def mock_setup_logging():
     WARNING level, which would be a side-effect for future tests.
     It's behavior isn't checked in these tests, so mock it out.
     """
-    with mock.patch(f"{M_PATH}log.setup_basic_logging"):
+    with mock.patch(f"{M_PATH}loggers.setup_basic_logging"):
         yield
 
 

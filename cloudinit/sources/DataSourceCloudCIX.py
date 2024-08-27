@@ -32,11 +32,7 @@ class DataSourceCloudCIX(sources.DataSource):
         Fetch the user data and the metadata
         """
         try:
-            crawled_data = util.log_time(
-                logfunc=LOG.debug,
-                msg="Crawl of metadata service",
-                func=self.crawl_metadata_service,
-            )
+            crawled_data = self.crawl_metadata_service()
         except sources.InvalidMetaDataException as error:
             LOG.error(
                 "Failed to read data from CloudCIX datasource: %s", error

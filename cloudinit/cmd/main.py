@@ -28,16 +28,17 @@ from cloudinit import socket
 from cloudinit import stages
 from cloudinit import url_helper
 from cloudinit import util
+from cloudinit import performance
 from cloudinit import version
 from cloudinit import warnings
 from cloudinit import reporting
 from cloudinit import atomic_helper
 from cloudinit import lifecycle
+from cloudinit.log import log_util, loggers
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.config import cc_set_hostname
 from cloudinit.config.modules import Modules
 from cloudinit.config.schema import validate_cloudconfig_schema
-from cloudinit import log
 from cloudinit.reporting import events
 from cloudinit.settings import (
     PER_INSTANCE,
@@ -115,7 +116,7 @@ def log_ppid(distro, bootstage_name):
 def welcome(action, msg=None):
     if not msg:
         msg = welcome_format(action)
-    util.multi_log("%s\n" % (msg), console=False, stderr=True, log=LOG)
+    log_util.multi_log("%s\n" % (msg), console=False, stderr=True, log=LOG)
     return msg
 
 
@@ -383,9 +384,9 @@ def main_init(name, args):
         LOG.debug(
             "Logging being reset, this logger may no longer be active shortly"
         )
-        log.reset_logging()
+        loggers.reset_logging()
     if not args.skip_log_setup:
-        log.setup_logging(init.cfg)
+        loggers.setup_logging(init.cfg)
         apply_reporting_cfg(init.cfg)
 
     # Any log usage prior to setup_logging above did not have local user log
@@ -547,7 +548,7 @@ def main_init(name, args):
             (outfmt, errfmt) = util.fixup_output(mods.cfg, name)
     except Exception:
         util.logexc(LOG, "Failed to re-adjust output redirection!")
-    log.setup_logging(mods.cfg)
+    loggers.setup_logging(mods.cfg)
 
     # give the activated datasource a chance to adjust
     init.activate_datasource()
@@ -653,9 +654,9 @@ def main_modules(action_name, args):
         LOG.debug(
             "Logging being reset, this logger may no longer be active shortly"
         )
-        log.reset_logging()
+        loggers.reset_logging()
     if not args.skip_log_setup:
-        log.setup_logging(mods.cfg)
+        loggers.setup_logging(mods.cfg)
         apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
@@ -723,8 +724,8 @@ def main_single(name, args):
         LOG.debug(
             "Logging being reset, this logger may no longer be active shortly"
         )
-        log.reset_logging()
-    log.setup_logging(mods.cfg)
+        loggers.reset_logging()
+    loggers.setup_logging(mods.cfg)
     apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
@@ -817,7 +818,9 @@ def status_wrapper(name, args):
 
     v1[mode]["start"] = float(util.uptime())
     handler = next(
-        filter(lambda h: isinstance(h, log.LogExporter), root_logger.handlers)
+        filter(
+            lambda h: isinstance(h, loggers.LogExporter), root_logger.handlers
+        )
     )
     preexisting_recoverable_errors = handler.export_logs()
 
@@ -932,7 +935,7 @@ def main_features(name, args):
 
 
 def main(sysv_args=None):
-    log.configure_root_logger()
+    loggers.configure_root_logger()
     if not sysv_args:
         sysv_args = sys.argv
     parser = argparse.ArgumentParser(prog=sysv_args.pop(0))
@@ -1254,11 +1257,11 @@ def sub_main(args):
     #   - if --debug is passed, logging.DEBUG
     #   - if --debug is not passed, logging.WARNING
     if name not in ("init", "modules"):
-        log.setup_basic_logging(
+        loggers.setup_basic_logging(
             logging.DEBUG if args.debug else logging.WARNING
         )
     elif args.debug:
-        log.setup_basic_logging()
+        loggers.setup_basic_logging()
 
     # Setup signal handlers before running
     signal_handler.attach_handlers()
@@ -1300,13 +1303,8 @@ def sub_main(args):
     )
 
     with args.reporter:
-        retval = util.log_time(
-            logfunc=LOG.debug,
-            msg="cloud-init mode '%s'" % name,
-            get_uptime=True,
-            func=functor,
-            args=(name, args),
-        )
+        with performance.Timed(f"cloud-init stage: '{rname}'"):
+            retval = functor(name, args)
     reporting.flush_events()
 
     # handle return code for main_modules, as it is not wrapped by

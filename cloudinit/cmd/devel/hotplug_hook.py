@@ -10,9 +10,10 @@ import os
 import sys
 import time
 
-from cloudinit import log, reporting, stages, util
+from cloudinit import reporting, stages, util
 from cloudinit.config.cc_install_hotplug import install_hotplug
 from cloudinit.event import EventScope, EventType
+from cloudinit.log import loggers
 from cloudinit.net import read_sys_net_safe
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.reporting import events
@@ -288,7 +289,7 @@ def handle_args(name, args):
     hotplug_init = Init(ds_deps=[], reporter=hotplug_reporter)
     hotplug_init.read_cfg()
 
-    log.setup_logging(hotplug_init.cfg)
+    loggers.setup_logging(hotplug_init.cfg)
     if "reporting" in hotplug_init.cfg:
         reporting.update_configuration(hotplug_init.cfg.get("reporting"))
     # Logging isn't going to be setup until now

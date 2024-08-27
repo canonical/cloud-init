@@ -35,10 +35,10 @@ from cloudinit import features, importer, lifecycle, safeyaml
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers import INCLUSION_TYPES_MAP, type_from_starts_with
 from cloudinit.helpers import Paths
+from cloudinit.log.log_util import error
 from cloudinit.sources import DataSourceNotFoundException
 from cloudinit.temp_utils import mkdtemp
 from cloudinit.util import (
-    error,
     get_modules_from_dir,
     load_text_file,
     load_yaml,

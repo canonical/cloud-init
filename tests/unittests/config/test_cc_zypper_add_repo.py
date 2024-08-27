@@ -8,7 +8,6 @@ import os
 from cloudinit import util
 from cloudinit.config import cc_zypper_add_repo
 from tests.unittests import helpers
-from tests.unittests.helpers import mock
 
 LOG = logging.getLogger(__name__)
 
@@ -98,8 +97,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
             if item not in expected:
                 self.assertIsNone(item)
 
-    @mock.patch("cloudinit.log.logging")
-    def test_config_write_skip_configdir(self, mock_logging):
+    def test_config_write_skip_configdir(self):
         """Write configuration but skip writing 'configdir' setting"""
         cfg = {
             "config": {
