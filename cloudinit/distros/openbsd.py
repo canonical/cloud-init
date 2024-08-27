@@ -14,6 +14,16 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
     hostname_conf_fn = "/etc/myname"
     init_cmd = ["rcctl"]
 
+    # For OpenBSD (from https://man.openbsd.org/passwd.5) a password field
+    # of "" indicates no password, and password field values of either
+    # "*" or "*************" (13 "*") indicate differing forms of "locked"
+    # but with no password defined.
+    shadow_empty_locked_passwd_patterns = [
+        "^{username}::",
+        "^{username}:\*:",
+        "^{username}:\*\*\*\*\*\*\*\*\*\*\*\*\*:",
+    ]
+
     def _read_hostname(self, filename, default=None):
         return util.load_text_file(self.hostname_conf_fn)
 
@@ -44,25 +54,6 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
         }
         cmd = list(init_cmd) + list(cmds[action])
         return subp.subp(cmd, capture=True, rcs=rcs)
-
-    def _check_if_existing_password(self, username, shadow_file=None) -> bool:
-        """
-        Check whether ``username`` user has an existing password (regardless
-        of whether locked or not).
-
-        For OpenBSD (from https://man.openbsd.org/passwd.5) a password field
-        of "" indicates no password, and password field values of either
-        "*" or "*************" (13 "*") indicate differing forms of "locked"
-        but with no password defined.
-
-        Returns either 'True' to indicate a password present, or 'False'
-        for no password set.
-        """
-
-        status = not self._check_if_password_field_matches(
-            username, "::", ":*:", ":*************:", check_file=shadow_file
-        )
-        return status
 
     def lock_passwd(self, name):
         try:

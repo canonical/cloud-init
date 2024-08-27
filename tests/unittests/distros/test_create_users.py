@@ -1,10 +1,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from pathlib import Path
 from typing import List
 
 import pytest
 
 from cloudinit import distros, features, lifecycle, ssh_util
+from cloudinit.subp import SubpResult
+from tests.unittests.distros import _get_distro
 from tests.unittests.helpers import mock
 from tests.unittests.util import abstract_to_concrete
 
@@ -45,10 +48,14 @@ def _useradd2call(args: List[str]):
 @mock.patch("cloudinit.distros.subp.subp")
 class TestCreateUser:
     @pytest.fixture()
-    def dist(self):
-        return abstract_to_concrete(distros.Distro)(
+    def dist(self, tmpdir):
+        d = abstract_to_concrete(distros.Distro)(
             name="test", cfg=None, paths=None
         )
+        # Monkey patch /etc/shadow files to tmpdir
+        d.shadow_fn = tmpdir.join(d.shadow_fn).strpath
+        d.shadow_extrausers_fn = tmpdir.join(d.shadow_extrausers_fn).strpath
+        return d
 
     @pytest.mark.parametrize(
         "create_kwargs,expected",
@@ -134,12 +141,137 @@ class TestCreateUser:
         assert m_subp.call_args_list == expected
 
     @pytest.mark.parametrize(
+        "shadow_content,distro_name,is_snappy,expected_logs",
+        (
+            pytest.param(
+                {"/etc/shadow": f"dnsmasq:!:\n{USER}:!:"},
+                "ubuntu",
+                False,
+                [
+                    "Not unlocking blank password for existing user foo_user. 'lock_passwd: false' present in user-data but no existing password set and no 'plain_text_passwd'/'hashed_passwd' provided in user-data"
+                ],
+                id="no_unlock_on_locked_empty_user_passwd",
+            ),
+            pytest.param(
+                {"/var/lib/extrausers/shadow": f"dnsmasq::\n{USER}:!:"},
+                "ubuntu",
+                True,
+                ["Not unlocking blank password for existing user foo_user."],
+                id="no_unlock_in_snappy_on_empty_locked_user_passwd_in_extrausers",
+            ),
+            pytest.param(
+                {"/etc/shadow": f"dnsmasq::\n{USER}::"},
+                "alpine",
+                False,
+                ["Not unlocking blank password for existing user foo_user."],
+                id="no_unlock_on_empty_user_passwd_alpine",
+            ),
+            pytest.param(
+                {"/etc/master.passwd": f"dnsmasq::\n{USER}::"},
+                "freebsd",
+                False,
+                ["Not unlocking blank password for existing user foo_user."],
+                id="no_unlock_on_empty_user_passwd_freebsd",
+            ),
+            pytest.param(
+                {"/etc/master.passwd": f"dnsmasq::\n{USER}:*:"},
+                "freebsd",
+                False,
+                ["Not unlocking blank password for existing user foo_user."],
+                id="no_unlock_on_empty_locked_user_passwd_freebsd",
+            ),
+            pytest.param(
+                {"/etc/master.passwd": f"dnsmasq::\n{USER}:*LOCKED*:"},
+                "freebsd",
+                False,
+                ["Not unlocking blank password for existing user foo_user."],
+                id="no_unlock_on_empty_locked_user_passwd_freebsd",
+            ),
+            pytest.param(
+                {"/etc/master.passwd": f"dnsmasq::\n{USER}:*:"},
+                "freebsd",
+                False,
+                ["Not unlocking blank password for existing user foo_user."],
+                id="no_unlock_on_empty_locked_format2_user_passwd_freebsd",
+            ),
+            pytest.param(
+                {"/etc/master.passwd": f"dnsmasq::\n{USER}:*************:"},
+                "netbsd",
+                False,
+                ["Not unlocking blank password for existing user foo_user."],
+                id="no_unlock_on_empty_locked_user_passwd_netbsd",
+            ),
+            pytest.param(
+                {
+                    "/etc/master.passwd": f"dnsmasq::\n{USER}:*LOCKED**************:"
+                },
+                "netbsd",
+                False,
+                ["Not unlocking blank password for existing user foo_user."],
+                id="no_unlock_on_empty_locked_user_passwd_netbsd",
+            ),
+            pytest.param(
+                {"/etc/master.passwd": f"dnsmasq::\n{USER}:*:"},
+                "openbsd",
+                False,
+                ["Not unlocking blank password for existing user foo_user."],
+                id="no_unlock_on_empty_locked_user_passwd_openbsd",
+            ),
+            pytest.param(
+                {"/etc/master.passwd": f"dnsmasq::\n{USER}:*************:"},
+                "openbsd",
+                False,
+                ["Not unlocking blank password for existing user foo_user."],
+                id="no_unlock_on_empty_locked_format2_user_passwd_openbsd",
+            ),
+        ),
+    )
+    def test_avoid_unlock_preexisting_user_empty_password(
+        self,
+        m_subp,
+        shadow_content,
+        distro_name,
+        is_snappy,
+        expected_logs,
+        caplog,
+        mocker,
+        tmpdir,
+    ):
+        dist = _get_distro(distro_name)
+        dist.shadow_fn = tmpdir.join(dist.shadow_fn).strpath
+        dist.shadow_extrausers_fn = tmpdir.join(
+            dist.shadow_extrausers_fn
+        ).strpath
+
+        mocker.patch("cloudinit.distros.util.is_user", return_value=True)
+        mocker.patch(
+            "cloudinit.distros.util.system_is_snappy", return_value=is_snappy
+        )
+        for filename, content in shadow_content.items():
+            if dist.shadow_fn == tmpdir.join(filename).strpath:
+                shadow_file = Path(dist.shadow_fn)
+                shadow_file.parent.mkdir(parents=True, exist_ok=True)
+            elif dist.shadow_extrausers_fn == tmpdir.join(filename).strpath:
+                shadow_file = Path(dist.shadow_extrausers_fn)
+                shadow_file.parent.mkdir(parents=True, exist_ok=True)
+            else:
+                raise AssertionError(
+                    f"Shadow file path {filename} not defined for distro {dist.name}"
+                )
+            shadow_file.write_text(content)
+        unlock_passwd = mocker.patch.object(dist, "unlock_passwd")
+        dist.create_user(name=USER, lock_passwd=False)
+        for log in expected_logs:
+            assert log in caplog.text
+        unlock_passwd.assert_not_called()
+        assert m_subp.call_args_list == []
+
+    @pytest.mark.parametrize(
         "create_kwargs,expected,expected_logs",
         [
             pytest.param(
                 {"passwd": "$6$rounds=..."},
                 [
-                    _existing_shadow_grep(USER),
                     mock.call(["passwd", "-l", USER]),
                 ],
                 [
@@ -173,11 +305,13 @@ class TestCreateUser:
         self,
         m_is_user,
         m_subp,
-        dist,
         create_kwargs,
         expected,
         expected_logs,
+        dist,
         caplog,
+        tmpdir,
+        mocker,
     ):
         """When user exists, don't unlock on empty or locked passwords."""
         dist.create_user(name=USER, **create_kwargs)

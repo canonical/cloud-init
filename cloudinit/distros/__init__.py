@@ -137,6 +137,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"
     hostname_conf_fn = "/etc/hostname"
     shadow_fn = "/etc/shadow"
+    shadow_extrausers_fn = "/var/lib/extrausers/shadow"
+    # /etc/shadow match patterns indicating empty passwords
+    shadow_empty_locked_passwd_patterns = ["^{username}::", "^{username}:!:"]
     tz_zone_dir = "/usr/share/zoneinfo"
     default_owner = "root:root"
     init_cmd = ["service"]  # systemctl, service etc
@@ -804,61 +807,39 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         return username
 
-    def _check_if_password_field_matches(
-        self, username, pattern1, pattern2, pattern3=None, check_file=None
-    ) -> bool:
+    def _shadow_file_has_empty_user_password(self, username) -> bool:
         """
-        Check whether ``username`` user has a hashed password matching
-        either pattern.
+        Check whether username exists in shadow files with empty password.
 
-        FreeBSD, NetBSD, and OpenBSD use 3 patterns, others only use
-        2 patterns.
-
-        Returns either 'True' to indicate a match, otherwise 'False'.
+        Support reading /var/lib/extrausers/shadow on snappy systems.
         """
-
-        if not check_file:
-            check_file = self.shadow_fn
-
-        cmd = [
-            "grep",
-            "-q",
-            "-e",
-            "^%s%s" % (username, pattern1),
-            "-e",
-            "^%s%s" % (username, pattern2),
-        ]
-        if pattern3 is not None:
-            cmd.extend(["-e", "^%s%s" % (username, pattern3)])
-        cmd.append(check_file)
-        try:
-            subp.subp(cmd)
-        except subp.ProcessExecutionError as e:
-            if e.exit_code == 1:
-                # Exit code 1 means 'grep' didn't find empty password
-                return True
-            else:
-                util.logexc(
-                    LOG,
-                    "Failed to check the status of password for user %s",
-                    username,
-                )
-                raise e
-        return False
-
-    def _check_if_existing_password(self, username, shadow_file=None) -> bool:
-        """
-        Check whether ``username`` user has an existing password (regardless
-        of whether locked or not).
-
-        Returns either 'True' to indicate a password present, or 'False'
-        for no password set.
-        """
-
-        status = not self._check_if_password_field_matches(
-            username, "::", ":!:", check_file=shadow_file
+        if util.system_is_snappy():
+            shadow_files = [self.shadow_extrausers_fn, self.shadow_fn]
+        else:
+            shadow_files = [self.shadow_fn]
+        shadow_empty_passwd_re = "|".join(
+            [
+                pattern.format(username=username)
+                for pattern in self.shadow_empty_locked_passwd_patterns
+            ]
         )
-        return status
+        for shadow_file in shadow_files:
+            if not os.path.exists(shadow_file):
+                continue
+            shadow_content = util.load_text_file(shadow_file)
+            if not re.findall(rf"^{username}:", shadow_content, re.MULTILINE):
+                LOG.debug("User %s not found in %s", username, shadow_file)
+                continue
+            LOG.debug(
+                "User %s found in %s. Checking for empty password",
+                username,
+                shadow_file,
+            )
+            if re.findall(
+                shadow_empty_passwd_re, shadow_content, re.MULTILINE
+            ):
+                return True
+        return False
 
     def create_user(self, name, **kwargs):
         """
@@ -925,20 +906,10 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
                 # As no password specified for the existing user in user-data
                 # then check if the existing user's hashed password value is
-                # blank (whether locked or not).
-                if util.system_is_snappy():
-                    has_existing_password = self._check_if_existing_password(
-                        name, "/var/lib/extrausers/shadow"
-                    )
-                    if not has_existing_password:
-                        # Check /etc/shadow also
-                        has_existing_password = (
-                            self._check_if_existing_password(name)
-                        )
-                else:
-                    has_existing_password = self._check_if_existing_password(
-                        name
-                    )
+                # empty (whether locked or not).
+                has_existing_password = (
+                    not self._shadow_file_has_empty_user_password(name)
+                )
         else:
             if "passwd" in kwargs:
                 ud_password_specified = True

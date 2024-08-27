@@ -49,6 +49,17 @@ class NetBSD(cloudinit.distros.bsd.BSD):
     ci_sudoers_fn = "/usr/pkg/etc/sudoers.d/90-cloud-init-users"
     group_add_cmd_prefix = ["groupadd"]
 
+    # For NetBSD (from https://man.netbsd.org/passwd.5) a password field
+    # value of either "" or "*************" (13 "*") indicates no password,
+    # a password field prefixed with "*LOCKED*" indicates a locked
+    # password, and a password field of "*LOCKED*" followed by 13 "*"
+    # indicates a locked and blank password.
+    shadow_empty_locked_passwd_patterns = [
+        "^{username}::",
+        "^{username}:\*\*\*\*\*\*\*\*\*\*\*\*\*:",
+        "^{username}:\*LOCKED\*\*\*\*\*\*\*\*\*\*\*\*\*\*:",
+    ]
+
     def __init__(self, name, cfg, paths):
         super().__init__(name, cfg, paths)
         if os.path.exists("/usr/pkg/bin/pkgin"):
@@ -119,30 +130,6 @@ class NetBSD(cloudinit.distros.bsd.BSD):
 
         # Indicate that a new user was created
         return True
-
-    def _check_if_existing_password(self, username, shadow_file=None) -> bool:
-        """
-        Check whether ``username`` user has an existing password (regardless
-        of whether locked or not).
-
-        For NetBSD (from https://man.netbsd.org/passwd.5) a password field
-        value of either "" or "*************" (13 "*") indicates no password,
-        a password field prefixed with "*LOCKED*" indicates a locked
-        password, and a password field of "*LOCKED*" followed by 13 "*"
-        indicates a locked and blank password.
-
-        Returns either 'True' to indicate a password present, or 'False'
-        for no password set.
-        """
-
-        status = not self._check_if_password_field_matches(
-            username,
-            "::",
-            ":*************:",
-            ":*LOCKED**************:",
-            check_file=shadow_file,
-        )
-        return status
 
     def set_passwd(self, user, passwd, hashed=False):
         if hashed:

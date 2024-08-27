@@ -41,6 +41,17 @@ class Distro(cloudinit.distros.bsd.BSD):
     dhclient_lease_directory = "/var/db"
     dhclient_lease_file_regex = r"dhclient.leases.\w+"
 
+    # /etc/shadow match patterns indicating empty passwords
+    # For FreeBSD (from https://man.freebsd.org/cgi/man.cgi?passwd(5)) a
+    # password field of "" indicates no password, and a password
+    # field value of either "*" or "*LOCKED*" indicate differing forms of
+    # "locked" but with no password defined.
+    shadow_empty_locked_passwd_patterns = [
+        "^{username}::",
+        "^{username}:\*:",
+        "^{username}:\*LOCKED\*:",
+    ]
+
     @classmethod
     def reload_init(cls, rcs=None):
         """
@@ -147,25 +158,6 @@ class Distro(cloudinit.distros.bsd.BSD):
 
         # Indicate that a new user was created
         return True
-
-    def _check_if_existing_password(self, username, shadow_file=None) -> bool:
-        """
-        Check whether ``username`` user has an existing password (regardless
-        of whether locked or not).
-
-        For FreeBSD (from https://man.freebsd.org/cgi/man.cgi?passwd(5)) a
-        password field of "" indicates no password, and a password
-        field value of either "*" or "*LOCKED*" indicate differing forms of
-        "locked" but with no password defined.
-
-        Returns either 'True' to indicate a password present, or 'False'
-        for no password set.
-        """
-
-        status = not self._check_if_password_field_matches(
-            username, "::", ":*:", ":*LOCKED*:", check_file=shadow_file
-        )
-        return status
 
     def expire_passwd(self, user):
         try:

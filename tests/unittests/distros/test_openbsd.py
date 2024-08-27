@@ -20,27 +20,6 @@ class TestOpenBSD:
             )
         ] == m_subp.call_args_list
 
-    @mock.patch(M_PATH + "subp.subp")
-    def test_check_existing_password_for_user(self, m_subp, mocker):
-        mocker.patch.object(Distro, "networking_cls", spec=BSDNetworking)
-        distro = _get_distro("openbsd")
-        distro._check_if_existing_password("me2")
-        assert [
-            mock.call(
-                [
-                    "grep",
-                    "-q",
-                    "-e",
-                    "^me2::",
-                    "-e",
-                    "^me2:*:",
-                    "-e",
-                    "^me2:*************:",
-                    "/etc/master.passwd",
-                ]
-            )
-        ] == m_subp.call_args_list
-
     def test_unlock_passwd(self, mocker, caplog):
         mocker.patch.object(Distro, "networking_cls", spec=BSDNetworking)
         distro = _get_distro("openbsd")
