@@ -367,12 +367,10 @@ def get_cust_cfg_file(ds_cfg):
     # that required metadata and userdata files are now
     # present.
     max_wait = get_max_wait_from_cfg(ds_cfg)
-    cust_cfg_file_path = util.log_time(
-        logfunc=logger.debug,
-        msg="Waiting for VMware customization configuration file",
-        func=wait_for_cust_cfg_file,
-        args=("cust.cfg", max_wait),
-    )
+    with performance.Timed(
+        "Waiting for VMware customization configuration file"
+    ):
+        cust_cfg_file_path = wait_for_cust_cfg_file("cust.cfg", max_wait)
     if cust_cfg_file_path:
         logger.debug(
             "Found VMware customization configuration file at %s",

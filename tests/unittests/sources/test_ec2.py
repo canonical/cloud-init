@@ -945,7 +945,6 @@ class TestEc2:
             router="192.168.2.1",
             static_routes=None,
         )
-        assert "Crawl of metadata service " in caplog.text
 
     @responses.activate
     def test_get_instance_tags(self, mocker, tmpdir):

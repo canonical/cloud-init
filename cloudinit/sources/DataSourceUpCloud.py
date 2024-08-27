@@ -74,11 +74,7 @@ class DataSourceUpCloud(sources.DataSource):
                 nic = cloudnet.find_fallback_nic()
                 LOG.debug("Discovering metadata via DHCP interface %s", nic)
                 with EphemeralDHCPv4(self.distro, nic):
-                    md = util.log_time(
-                        logfunc=LOG.debug,
-                        msg="Reading from metadata service",
-                        func=self._read_metadata,
-                    )
+                    md = self._read_metadata()
             except (NoDHCPLeaseError, sources.InvalidMetaDataException) as e:
                 util.logexc(LOG, str(e))
                 return False
@@ -87,11 +83,7 @@ class DataSourceUpCloud(sources.DataSource):
                 LOG.debug(
                     "Discovering metadata without DHCP-configured networking"
                 )
-                md = util.log_time(
-                    logfunc=LOG.debug,
-                    msg="Reading from metadata service",
-                    func=self._read_metadata,
-                )
+                md = self._read_metadata()
             except sources.InvalidMetaDataException as e:
                 util.logexc(LOG, str(e))
                 LOG.info(

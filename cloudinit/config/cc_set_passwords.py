@@ -17,6 +17,7 @@ from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS, Distro, ug_util
+from cloudinit.log import log_util
 from cloudinit.settings import PER_INSTANCE
 from cloudinit.ssh_util import update_ssh_config
 
@@ -220,7 +221,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 "Set the following 'random' passwords\n",
                 "\n".join(randlist),
             )
-            util.multi_log(
+            log_util.multi_log(
                 "%s\n%s\n" % blurb, stderr=False, fallback_to_stdout=False
             )
 

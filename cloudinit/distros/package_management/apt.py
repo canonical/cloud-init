@@ -214,14 +214,7 @@ class Apt(PackageManager):
                 continue
             LOG.debug("APT lock available")
             try:
-                # Allow the output of this to flow outwards (not be captured)
-                log_msg = f'apt-{short_cmd} [{" ".join(subp_kwargs["args"])}]'
-                return util.log_time(
-                    logfunc=LOG.debug,
-                    msg=log_msg,
-                    func=subp.subp,
-                    kwargs=subp_kwargs,
-                )
+                return subp.subp(**subp_kwargs)
             except subp.ProcessExecutionError:
                 # Even though we have already waited for the apt lock to be
                 # available, it is possible that the lock was acquired by

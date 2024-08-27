@@ -909,11 +909,7 @@ class DataSourceAzure(sources.DataSource):
             LOG.warning("Failed to get system information: %s", e)
 
         try:
-            crawled_data = util.log_time(
-                logfunc=LOG.debug,
-                msg="Crawl of metadata service",
-                func=self.crawl_metadata,
-            )
+            crawled_data = self.crawl_metadata()
         except errors.ReportableError as error:
             self._report_failure(error)
             return False

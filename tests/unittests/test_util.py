@@ -33,6 +33,7 @@ from cloudinit import (
 )
 from cloudinit.distros import Distro
 from cloudinit.helpers import Paths
+from cloudinit.log import log_util
 from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import SubpResult
 from tests.unittests import helpers
@@ -2369,85 +2370,85 @@ class TestMultiLog(helpers.FilesystemMockingTestCase):
 
     def test_stderr_used_by_default(self):
         logged_string = "test stderr output"
-        util.multi_log(logged_string)
+        log_util.multi_log(logged_string)
         self.assertEqual(logged_string, self.stderr.getvalue())
 
     def test_stderr_not_used_if_false(self):
-        util.multi_log("should not see this", stderr=False)
+        log_util.multi_log("should not see this", stderr=False)
         self.assertEqual("", self.stderr.getvalue())
 
     def test_logs_go_to_console_by_default(self):
         self._createConsole(self.root)
         logged_string = "something very important"
-        util.multi_log(logged_string)
+        log_util.multi_log(logged_string)
         with open("/dev/console") as f:
             self.assertEqual(logged_string, f.read())
 
     def test_logs_dont_go_to_stdout_if_console_exists(self):
         self._createConsole(self.root)
-        util.multi_log("something")
+        log_util.multi_log("something")
         self.assertEqual("", self.stdout.getvalue())
 
     def test_logs_go_to_stdout_if_console_does_not_exist(self):
         logged_string = "something very important"
-        util.multi_log(logged_string)
+        log_util.multi_log(logged_string)
         self.assertEqual(logged_string, self.stdout.getvalue())
 
     def test_logs_dont_go_to_stdout_if_fallback_to_stdout_is_false(self):
-        util.multi_log("something", fallback_to_stdout=False)
+        log_util.multi_log("something", fallback_to_stdout=False)
         self.assertEqual("", self.stdout.getvalue())
 
     @mock.patch(
-        M_PATH + "write_to_console",
+        "cloudinit.log.log_util.write_to_console",
         mock.Mock(side_effect=OSError("Failed to write to console")),
     )
     def test_logs_go_to_stdout_if_writing_to_console_fails_and_fallback_true(
         self,
     ):
         self._createConsole(self.root)
-        util.multi_log("something", fallback_to_stdout=True)
+        log_util.multi_log("something", fallback_to_stdout=True)
         self.assertEqual(
             "Failed to write to /dev/console\nsomething",
             self.stdout.getvalue(),
         )
 
     @mock.patch(
-        M_PATH + "write_to_console",
+        "cloudinit.log.log_util.write_to_console",
         mock.Mock(side_effect=OSError("Failed to write to console")),
     )
     def test_logs_go_nowhere_if_writing_to_console_fails_and_fallback_false(
         self,
     ):
         self._createConsole(self.root)
-        util.multi_log("something", fallback_to_stdout=False)
+        log_util.multi_log("something", fallback_to_stdout=False)
         self.assertEqual(
             "Failed to write to /dev/console\n", self.stdout.getvalue()
         )
 
     def test_logs_go_to_log_if_given(self):
-        log = mock.MagicMock()
+        logger = mock.MagicMock()
         logged_string = "something very important"
-        util.multi_log(logged_string, log=log)
+        log_util.multi_log(logged_string, log=logger)
         self.assertEqual(
-            [((mock.ANY, logged_string), {})], log.log.call_args_list
+            [((mock.ANY, logged_string), {})], logger.log.call_args_list
         )
 
     def test_newlines_stripped_from_log_call(self):
-        log = mock.MagicMock()
+        logger = mock.MagicMock()
         expected_string = "something very important"
-        util.multi_log("{0}\n".format(expected_string), log=log)
-        self.assertEqual((mock.ANY, expected_string), log.log.call_args[0])
+        log_util.multi_log("{0}\n".format(expected_string), log=logger)
+        self.assertEqual((mock.ANY, expected_string), logger.log.call_args[0])
 
     def test_log_level_defaults_to_debug(self):
-        log = mock.MagicMock()
-        util.multi_log("message", log=log)
-        self.assertEqual((logging.DEBUG, mock.ANY), log.log.call_args[0])
+        logger = mock.MagicMock()
+        log_util.multi_log("message", log=logger)
+        self.assertEqual((logging.DEBUG, mock.ANY), logger.log.call_args[0])
 
     def test_given_log_level_used(self):
-        log = mock.MagicMock()
+        logger = mock.MagicMock()
         log_level = mock.Mock()
-        util.multi_log("message", log=log, log_level=log_level)
-        self.assertEqual((log_level, mock.ANY), log.log.call_args[0])
+        log_util.multi_log("message", log=logger, log_level=log_level)
+        self.assertEqual((log_level, mock.ANY), logger.log.call_args[0])
 
 
 class TestMessageFromString(helpers.TestCase):
