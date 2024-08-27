@@ -577,15 +577,31 @@ class DataSourceAzure(sources.DataSource):
             ]
             out, err = subp.subp(cmd)
             report_diagnostic_event(
-                "Running azure-proxy-agent %s resulted"
-                "in stderr output: %s with stdout: %s" % (cmd, err, out),
+                "Executing %s resulted "
+                "in stderr=%r with stdout=%r" % (cmd, err, out),
                 logger_func=LOG.debug,
             )
         except subp.ProcessExecutionError as error:
             if isinstance(error.reason, FileNotFoundError):
+                LOG.error(
+                    "Failed to activate Azure Guest Proxy Agent: "
+                    "azure-proxy-agent not found"
+                )
                 report_error = errors.ReportableErrorProxyAgentNotFound()
                 self._report_failure(report_error)
             else:
+                report_diagnostic_event(
+                    "Failed to activate Azure Guest Proxy Agent: "
+                    "status check failed "
+                    "cmd=%r stderr=%r stdout=%r exit_code=%s"
+                    % (
+                        error.cmd,
+                        error.stderr,
+                        error.stdout,
+                        error.exit_code,
+                    ),
+                    logger_func=LOG.error,
+                )
                 reportable_error = (
                     errors.ReportableErrorProxyAgentStatusFailure(error)
                 )
@@ -706,6 +722,9 @@ class DataSourceAzure(sources.DataSource):
                 self._wait_for_pps_unknown_reuse()
 
             md, userdata_raw, cfg, files = self._reprovision()
+            if cfg.get("ProvisionGuestProxyAgent"):
+                self._check_azure_proxy_agent_status()
+
             # fetch metadata again as it has changed after reprovisioning
             imds_md = self.get_metadata_from_imds(report_failure=True)
 
