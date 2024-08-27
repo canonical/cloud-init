@@ -477,9 +477,7 @@ write_files:
             ubuntu_pro_tmp = tmpdir.join(".ubuntupro", ".cloud-init")
             os.makedirs(ubuntu_pro_tmp, exist_ok=True)
             agent_path = ubuntu_pro_tmp.join("agent.yaml")
-            agent_path.write(
-                "#cloud-config\nlandscape:\n client: {account_name: agent}\n"
-            )
+            agent_path.write(AGENT_SAMPLE)
 
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
@@ -488,8 +486,10 @@ write_files:
         )
 
         assert ds.get_data() is with_agent_data
-        ud = ds.get_userdata(True)
-        print(ud)
+        if with_agent_data:
+            assert ds.userdata_raw == AGENT_SAMPLE
+        else:
+            assert ds.userdata_raw is None
 
         expected_log_level = logging.INFO if with_agent_data else logging.ERROR
         regex = (
@@ -506,7 +506,6 @@ write_files:
         ), "Expected log message matching '{}' with log level '{}'".format(
             regex, expected_log_level
         )
-        assert ud is not None
 
     @mock.patch("cloudinit.util.get_linux_distro")
     def test_data_precedence(self, m_get_linux_dist, tmpdir, paths):
