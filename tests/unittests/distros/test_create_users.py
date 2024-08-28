@@ -6,7 +6,6 @@ from typing import List
 import pytest
 
 from cloudinit import distros, features, lifecycle, ssh_util
-from cloudinit.subp import SubpResult
 from tests.unittests.distros import _get_distro
 from tests.unittests.helpers import mock
 from tests.unittests.util import abstract_to_concrete
