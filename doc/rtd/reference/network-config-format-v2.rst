@@ -151,13 +151,19 @@ Example: ::
 ``set-name: <(scalar)>``
 ------------------------
 
-When matching on unique properties such as path or MAC, or with additional
-assumptions such as "there will only ever be one wifi device", match rules
-can be written so that they only match one device. Then this property can be
+When matching on unique properties such as MAC, match rules
+can be written so that they match only one device. Then this property can be
 used to give that device a more specific/desirable/nicer name than the default
 from udev’s ``ifnames``. Any additional device that satisfies the match rules
 will then fail to get renamed and keep the original kernel name (and dmesg
 will show an error).
+
+While multiple properties can be used in a match, ``macaddress`` is
+**required** for cloud-init to perform the rename.
+
+.. note::
+    On a netplan-based system, cloud-init will perform the rename
+    independently and prior to netplan.
 
 ``wakeonlan: <(bool)>``
 -----------------------
