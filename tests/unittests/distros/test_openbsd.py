@@ -13,12 +13,13 @@ class TestOpenBSD:
     def test_add_user(self, m_subp, mocker):
         mocker.patch.object(Distro, "networking_cls", spec=BSDNetworking)
         distro = _get_distro("openbsd")
-        distro.add_user("me2", uid=1234, default=False)
+        user_created = distro.add_user("me2", uid=1234, default=False)
         assert [
             mock.call(
                 ["useradd", "-m", "me2"], logstring=["useradd", "-m", "me2"]
             )
         ] == m_subp.call_args_list
+        assert user_created == True
 
     def test_unlock_passwd(self, mocker, caplog):
         mocker.patch.object(Distro, "networking_cls", spec=BSDNetworking)

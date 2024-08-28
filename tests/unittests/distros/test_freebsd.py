@@ -15,7 +15,7 @@ class TestFreeBSD:
     def test_add_user(self, m_subp, mocker):
         mocker.patch.object(Distro, "networking_cls", spec=FreeBSDNetworking)
         distro = _get_distro("freebsd")
-        distro.add_user("me2", uid=1234, default=False)
+        user_created = distro.add_user("me2", uid=1234, default=False)
         assert [
             mock.call(
                 [
@@ -38,6 +38,7 @@ class TestFreeBSD:
                 ],
             )
         ] == m_subp.call_args_list
+        assert user_created == True
 
     def test_unlock_passwd(self, mocker, caplog):
         mocker.patch.object(Distro, "networking_cls", spec=FreeBSDNetworking)

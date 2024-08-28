@@ -19,13 +19,6 @@ def common_mocks(mocker):
     mocker.patch("cloudinit.distros.util.system_is_snappy", return_value=False)
 
 
-def _existing_shadow_grep(name: str):
-    """Return a mock of grep of /etc/shadow call based on username."""
-    return mock.call(
-        ["grep", "-q", "-e", f"^{name}::", "-e", f"^{name}:!:", "/etc/shadow"]
-    )
-
-
 def _chpasswdmock(name: str, password: str, hashed: bool = False):
     """Return a mock of chpasswd call based on args"""
     cmd = ["chpasswd", "-e"] if hashed else ["chpasswd"]
@@ -135,7 +128,7 @@ class TestCreateUser:
     )
     @mock.patch("cloudinit.distros.util.is_user", return_value=False)
     def test_create_options(
-        self, _is_user, m_subp, dist, create_kwargs, expected
+        self, m_is_user, m_subp, dist, create_kwargs, expected
     ):
         dist.create_user(name=USER, **create_kwargs)
         assert m_subp.call_args_list == expected
@@ -148,7 +141,11 @@ class TestCreateUser:
                 "ubuntu",
                 False,
                 [
-                    "Not unlocking blank password for existing user foo_user. 'lock_passwd: false' present in user-data but no existing password set and no 'plain_text_passwd'/'hashed_passwd' provided in user-data"
+                    "Not unlocking blank password for existing user "
+                    "foo_user. 'lock_passwd: false' present in user-data "
+                    "but no existing password set and no "
+                    "'plain_text_passwd'/'hashed_passwd' provided in "
+                    "user-data"
                 ],
                 id="no_unlock_on_locked_empty_user_passwd",
             ),
@@ -157,7 +154,7 @@ class TestCreateUser:
                 "ubuntu",
                 True,
                 ["Not unlocking blank password for existing user foo_user."],
-                id="no_unlock_in_snappy_on_empty_locked_user_passwd_in_extrausers",
+                id="no_unlock_in_snappy_on_locked_empty_user_passwd_in_extrausers",
             ),
             pytest.param(
                 {"/etc/shadow": f"dnsmasq::\n{USER}::"},
@@ -165,6 +162,27 @@ class TestCreateUser:
                 False,
                 ["Not unlocking blank password for existing user foo_user."],
                 id="no_unlock_on_empty_user_passwd_alpine",
+            ),
+            pytest.param(
+                {"/etc/master.passwd": f"dnsmasq::\n{USER}::"},
+                "dragonflybsd",
+                False,
+                ["Not unlocking blank password for existing user foo_user."],
+                id="no_unlock_on_empty_user_passwd_dragonflybsd",
+            ),
+            pytest.param(
+                {"/etc/master.passwd": f"dnsmasq::\n{USER}:*:"},
+                "dragonflybsd",
+                False,
+                ["Not unlocking blank password for existing user foo_user."],
+                id="no_unlock_on_locked_format1_empty_user_passwd_dragonflybsd",
+            ),
+            pytest.param(
+                {"/etc/master.passwd": f"dnsmasq::\n{USER}:*LOCKED*:"},
+                "dragonflybsd",
+                False,
+                ["Not unlocking blank password for existing user foo_user."],
+                id="no_unlock_on_locked_format2_empty_user_passwd_dragonflybsd",
             ),
             pytest.param(
                 {"/etc/master.passwd": f"dnsmasq::\n{USER}::"},
@@ -178,28 +196,28 @@ class TestCreateUser:
                 "freebsd",
                 False,
                 ["Not unlocking blank password for existing user foo_user."],
-                id="no_unlock_on_empty_locked_user_passwd_freebsd",
+                id="no_unlock_on_locked_format1_empty_user_passwd_freebsd",
             ),
             pytest.param(
                 {"/etc/master.passwd": f"dnsmasq::\n{USER}:*LOCKED*:"},
                 "freebsd",
                 False,
                 ["Not unlocking blank password for existing user foo_user."],
-                id="no_unlock_on_empty_locked_user_passwd_freebsd",
+                id="no_unlock_on_locked_format2_empty_user_passwd_freebsd",
             ),
             pytest.param(
-                {"/etc/master.passwd": f"dnsmasq::\n{USER}:*:"},
-                "freebsd",
+                {"/etc/master.passwd": f"dnsmasq::\n{USER}::"},
+                "netbsd",
                 False,
                 ["Not unlocking blank password for existing user foo_user."],
-                id="no_unlock_on_empty_locked_format2_user_passwd_freebsd",
+                id="no_unlock_on_empty_format1_user_passwd_netbsd",
             ),
             pytest.param(
                 {"/etc/master.passwd": f"dnsmasq::\n{USER}:*************:"},
                 "netbsd",
                 False,
                 ["Not unlocking blank password for existing user foo_user."],
-                id="no_unlock_on_empty_locked_user_passwd_netbsd",
+                id="no_unlock_on_empty_format2_user_passwd_netbsd",
             ),
             pytest.param(
                 {
@@ -208,21 +226,28 @@ class TestCreateUser:
                 "netbsd",
                 False,
                 ["Not unlocking blank password for existing user foo_user."],
-                id="no_unlock_on_empty_locked_user_passwd_netbsd",
+                id="no_unlock_on_locked_empty_user_passwd_netbsd",
+            ),
+            pytest.param(
+                {"/etc/master.passwd": f"dnsmasq::\n{USER}::"},
+                "openbsd",
+                False,
+                ["Not unlocking blank password for existing user foo_user."],
+                id="no_unlock_on_empty_user_passwd_openbsd",
             ),
             pytest.param(
                 {"/etc/master.passwd": f"dnsmasq::\n{USER}:*:"},
                 "openbsd",
                 False,
                 ["Not unlocking blank password for existing user foo_user."],
-                id="no_unlock_on_empty_locked_user_passwd_openbsd",
+                id="no_unlock_on_locked_format1_empty_user_passwd_openbsd",
             ),
             pytest.param(
                 {"/etc/master.passwd": f"dnsmasq::\n{USER}:*************:"},
                 "openbsd",
                 False,
                 ["Not unlocking blank password for existing user foo_user."],
-                id="no_unlock_on_empty_locked_format2_user_passwd_openbsd",
+                id="no_unlock_on_locked_format2_empty_user_passwd_openbsd",
             ),
         ),
     )
