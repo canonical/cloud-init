@@ -47,9 +47,9 @@ class Distro(cloudinit.distros.bsd.BSD):
     # field value of either "*" or "*LOCKED*" indicate differing forms of
     # "locked" but with no password defined.
     shadow_empty_locked_passwd_patterns = [
-        "^{username}::",
-        "^{username}:\*:",
-        "^{username}:\*LOCKED\*:",
+        r"^{username}::",
+        r"^{username}:\*:",
+        r"^{username}:\*LOCKED\*:",
     ]
 
     @classmethod

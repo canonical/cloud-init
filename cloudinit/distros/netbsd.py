@@ -55,9 +55,9 @@ class NetBSD(cloudinit.distros.bsd.BSD):
     # password, and a password field of "*LOCKED*" followed by 13 "*"
     # indicates a locked and blank password.
     shadow_empty_locked_passwd_patterns = [
-        "^{username}::",
-        "^{username}:\*\*\*\*\*\*\*\*\*\*\*\*\*:",
-        "^{username}:\*LOCKED\*\*\*\*\*\*\*\*\*\*\*\*\*\*:",
+        r"^{username}::",
+        r"^{username}:\*\*\*\*\*\*\*\*\*\*\*\*\*:",
+        r"^{username}:\*LOCKED\*\*\*\*\*\*\*\*\*\*\*\*\*\*:",
     ]
 
     def __init__(self, name, cfg, paths):

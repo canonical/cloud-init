@@ -19,9 +19,9 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
     # "*" or "*************" (13 "*") indicate differing forms of "locked"
     # but with no password defined.
     shadow_empty_locked_passwd_patterns = [
-        "^{username}::",
-        "^{username}:\*:",
-        "^{username}:\*\*\*\*\*\*\*\*\*\*\*\*\*:",
+        r"^{username}::",
+        r"^{username}:\*:",
+        r"^{username}:\*\*\*\*\*\*\*\*\*\*\*\*\*:",
     ]
 
     def _read_hostname(self, filename, default=None):

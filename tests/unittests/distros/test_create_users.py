@@ -220,7 +220,7 @@ class TestCreateUser:
             ),
             pytest.param(
                 {
-                    "/etc/master.passwd": f"dnsmasq::\n{USER}:*LOCKED**************:"
+                    "/etc/master.passwd": f"dnsmasq::\n{USER}:*LOCKED**************:"  # noqa: E501
                 },
                 "netbsd",
                 False,
@@ -280,7 +280,8 @@ class TestCreateUser:
                 shadow_file.parent.mkdir(parents=True, exist_ok=True)
             else:
                 raise AssertionError(
-                    f"Shadow file path {filename} not defined for distro {dist.name}"
+                    f"Shadow file path {filename} not defined for distro"
+                    f" {dist.name}"
                 )
             shadow_file.write_text(content)
         unlock_passwd = mocker.patch.object(dist, "unlock_passwd")

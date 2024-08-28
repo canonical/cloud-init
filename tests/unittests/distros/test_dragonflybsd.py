@@ -1,8 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import cloudinit.util
-from cloudinit.distros.dragonflybsd import Distro
-from cloudinit.distros.freebsd import FreeBSDNetworking
 from tests.unittests.distros import _get_distro
 from tests.unittests.helpers import mock
 
@@ -11,10 +9,9 @@ M_PATH = "cloudinit.distros."
 
 class TestDragonFlyBSD:
     @mock.patch(M_PATH + "subp.subp")
-    def test_add_user(self, m_subp, mocker):
-        mocker.patch.object(Distro, "networking_cls", spec=FreeBSDNetworking)
+    def test_add_user(self, m_subp):
         distro = _get_distro("dragonflybsd")
-        user_created = distro.add_user("me2", uid=1234, default=False)
+        assert True is distro.add_user("me2", uid=1234, default=False)
         assert [
             mock.call(
                 [
@@ -30,10 +27,8 @@ class TestDragonFlyBSD:
                 logstring=["pw", "useradd", "-n", "me2", "-d/home/me2", "-m"],
             )
         ] == m_subp.call_args_list
-        assert user_created == True
 
-    def test_unlock_passwd(self, mocker, caplog):
-        mocker.patch.object(Distro, "networking_cls", spec=FreeBSDNetworking)
+    def test_unlock_passwd(self, caplog):
         distro = _get_distro("dragonflybsd")
         distro.unlock_passwd("me2")
         assert (

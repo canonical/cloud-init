@@ -2,7 +2,6 @@
 
 import os
 
-from cloudinit.distros.freebsd import Distro, FreeBSDNetworking
 from cloudinit.util import find_freebsd_part, get_path_dev_freebsd
 from tests.unittests.distros import _get_distro
 from tests.unittests.helpers import CiTestCase, mock
@@ -12,10 +11,9 @@ M_PATH = "cloudinit.distros.freebsd."
 
 class TestFreeBSD:
     @mock.patch(M_PATH + "subp.subp")
-    def test_add_user(self, m_subp, mocker):
-        mocker.patch.object(Distro, "networking_cls", spec=FreeBSDNetworking)
+    def test_add_user(self, m_subp):
         distro = _get_distro("freebsd")
-        user_created = distro.add_user("me2", uid=1234, default=False)
+        assert True is distro.add_user("me2", uid=1234, default=False)
         assert [
             mock.call(
                 [
@@ -38,10 +36,8 @@ class TestFreeBSD:
                 ],
             )
         ] == m_subp.call_args_list
-        assert user_created == True
 
-    def test_unlock_passwd(self, mocker, caplog):
-        mocker.patch.object(Distro, "networking_cls", spec=FreeBSDNetworking)
+    def test_unlock_passwd(self, caplog):
         distro = _get_distro("freebsd")
         distro.unlock_passwd("me2")
         assert (
