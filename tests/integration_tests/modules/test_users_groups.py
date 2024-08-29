@@ -11,7 +11,7 @@ import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, JAMMY
-from tests.integration_tests.util import verify_clean_log
+from tests.integration_tests.util import verify_clean_boot, verify_clean_log
 
 USER_DATA = """\
 #cloud-config
@@ -36,6 +36,9 @@ AHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
     sudo: ALL=(ALL) NOPASSWD:ALL
     groups: [cloud-users, secret]
     lock_passwd: true
+  - name: nopassworduser
+    gecos: I do not like passwords
+    lock_passwd: false
   - name: cloudy
     gecos: Magic Cloud App Daemon User
     inactive: '0'
@@ -46,6 +49,10 @@ AHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
   - name: archivist
     uid: 1743
 """
+
+NEW_USER_EMPTY_PASSWD_WARNING = "Not unlocking password for user {username}. 'lock_passwd: false' present in user-data but no 'passwd'/'plain_text_passwd'/'hashed_passwd' provided in user-data"  # noqa: E501
+
+EXISTING_USER_EMPTY_PASSWD_WARNING = "Not unlocking blank password for existing user {username}. 'lock_passwd: false' present in user-data but no existing password set and no 'plain_text_passwd'/'hashed_passwd' provided in user-data"  # noqa E501
 
 
 @pytest.mark.ci
@@ -86,6 +93,8 @@ class TestUsersGroups:
             (["passwd", "eric"], r"eric:x:1742:"),
             # Test int uid
             (["passwd", "archivist"], r"archivist:x:1743:"),
+            # Test int uid
+            (["passwd", "nopassworduser"], r"nopassworduser:x:1744:"),
         ],
     )
     def test_users_groups(self, regex, getent_args, class_client):
@@ -106,6 +115,32 @@ class TestUsersGroups:
         _, groups_str = output.split(":", maxsplit=1)
         groups = groups_str.split()
         assert "secret" in groups
+
+    def test_nopassword_unlock_warnings(self, class_client):
+        """Verify warnings for empty passwords for new and existing users."""
+        verify_clean_boot(
+            class_client,
+            require_warnings=[
+                NEW_USER_EMPTY_PASSWD_WARNING.format(username="nopassworduser")
+            ],
+        )
+
+        # Fake admin clearing and unlocking and empty unlocked password foobar
+        # This will generate additional warnings about not unlocking passwords
+        # for pre-existing users which have an existing empty password
+        class_client.execute("passwd -d foobar")
+        class_client.instance.clean()
+        class_client.restart()
+        verify_clean_boot(
+            class_client,
+            ignore_warnings=True,  # ignore warnings about existing groups
+            require_warnings=[
+                EXISTING_USER_EMPTY_PASSWD_WARNING.format(
+                    username="nopassworduser"
+                ),
+                EXISTING_USER_EMPTY_PASSWD_WARNING.format(username="foobar"),
+            ],
+        )
 
 
 @pytest.mark.user_data(USER_DATA)
