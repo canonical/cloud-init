@@ -11,7 +11,7 @@ import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, JAMMY
-from tests.integration_tests.util import verify_clean_boot, verify_clean_log
+from tests.integration_tests.util import verify_clean_boot
 
 USER_DATA = """\
 #cloud-config
@@ -94,7 +94,10 @@ class TestUsersGroups:
             # Test int uid
             (["passwd", "archivist"], r"archivist:x:1743:"),
             # Test int uid
-            (["passwd", "nopassworduser"], r"nopassworduser:x:1744:"),
+            (
+                ["passwd", "nopassworduser"],
+                r"nopassworduser:x:[0-9]{4}:[0-9]{4}:I do not like passwords",
+            ),
         ],
     )
     def test_users_groups(self, regex, getent_args, class_client):
@@ -109,8 +112,12 @@ class TestUsersGroups:
 
     def test_user_root_in_secret(self, class_client):
         """Test root user is in 'secret' group."""
-        log = class_client.read_from_file("/var/log/cloud-init.log")
-        verify_clean_log(log)
+        verify_clean_boot(
+            class_client,
+            require_warnings=[
+                NEW_USER_EMPTY_PASSWD_WARNING.format(username="nopassworduser")
+            ],
+        )
         output = class_client.execute("groups root").stdout
         _, groups_str = output.split(":", maxsplit=1)
         groups = groups_str.split()
