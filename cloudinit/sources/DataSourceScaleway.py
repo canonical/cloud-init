@@ -367,9 +367,11 @@ class DataSourceScaleway(sources.DataSource):
                 if ip["address"] == self.ephemeral_fixed_address:
                     ip_cfg["dhcp4"] = True
                     # Force addition of a route to the metadata API
-                    ip_cfg["routes"] = [
-                        {"to": "169.254.42.42/32", "via": "62.210.0.1"}
-                    ]
+                    route = {"to": "169.254.42.42/32", "via": "62.210.0.1"}
+                    if "routes" in ip_cfg.keys():
+                        ip_cfg["routes"] += [route]
+                    else:
+                        ip_cfg["routes"] = [route]
                 else:
                     if "addresses" in ip_cfg.keys():
                         ip_cfg["addresses"] += (
