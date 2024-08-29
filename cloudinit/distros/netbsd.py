@@ -49,6 +49,17 @@ class NetBSD(cloudinit.distros.bsd.BSD):
     ci_sudoers_fn = "/usr/pkg/etc/sudoers.d/90-cloud-init-users"
     group_add_cmd_prefix = ["groupadd"]
 
+    # For NetBSD (from https://man.netbsd.org/passwd.5) a password field
+    # value of either "" or "*************" (13 "*") indicates no password,
+    # a password field prefixed with "*LOCKED*" indicates a locked
+    # password, and a password field of "*LOCKED*" followed by 13 "*"
+    # indicates a locked and blank password.
+    shadow_empty_locked_passwd_patterns = [
+        r"^{username}::",
+        r"^{username}:\*\*\*\*\*\*\*\*\*\*\*\*\*:",
+        r"^{username}:\*LOCKED\*\*\*\*\*\*\*\*\*\*\*\*\*\*:",
+    ]
+
     def __init__(self, name, cfg, paths):
         super().__init__(name, cfg, paths)
         if os.path.exists("/usr/pkg/bin/pkgin"):
@@ -63,7 +74,12 @@ class NetBSD(cloudinit.distros.bsd.BSD):
     def _get_add_member_to_group_cmd(self, member_name, group_name):
         return ["usermod", "-G", group_name, member_name]
 
-    def add_user(self, name, **kwargs):
+    def add_user(self, name, **kwargs) -> bool:
+        """
+        Add a user to the system using standard tools
+
+        Returns False if user already exists, otherwise True.
+        """
         if util.is_user(name):
             LOG.info("User %s already exists, skipping.", name)
             return False
@@ -111,6 +127,9 @@ class NetBSD(cloudinit.distros.bsd.BSD):
         passwd_val = kwargs.get("passwd", None)
         if passwd_val is not None:
             self.set_passwd(name, passwd_val, hashed=True)
+
+        # Indicate that a new user was created
+        return True
 
     def set_passwd(self, user, passwd, hashed=False):
         if hashed:
