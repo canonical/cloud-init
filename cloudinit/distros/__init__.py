@@ -907,8 +907,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 # As no password specified for the existing user in user-data
                 # then check if the existing user's hashed password value is
                 # empty (whether locked or not).
-                has_existing_password = not self._shadow_file_has_empty_user_password(
-                    name
+                has_existing_password = not (
+                    self._shadow_file_has_empty_user_password(name)
                 )
         else:
             if "passwd" in kwargs:
