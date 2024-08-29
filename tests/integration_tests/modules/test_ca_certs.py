@@ -92,8 +92,13 @@ class TestCaCerts:
 
     def test_cert_installed(self, class_client: IntegrationInstance):
         """Test that our specified cert has been installed"""
-        certs = class_client.execute("cat /etc/ssl/certs/ca-certificates.crt")
-        assert CERT_CONTENT in certs
+        checksum = class_client.execute(
+            "sha256sum /etc/ssl/certs/ca-certificates.crt"
+        )
+        assert (
+            "78e875f18c73c1aab9167ae0bd323391e52222cc2dbcda42d129537219300062"
+            in checksum
+        )
 
     def test_clean_log(self, class_client: IntegrationInstance):
         """Verify no errors, no deprecations and correct inactive modules in
