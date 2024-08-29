@@ -1,152 +1,53 @@
 .. _yaml_examples:
 
-Cloud config examples
-*********************
+Cloud config examples library
+*****************************
 
-Including users and groups
-==========================
+.. include:: yaml_examples/index_boot.rst
+   :end-before: .. TOC
 
-.. literalinclude:: ../../examples/cloud-config-user-groups.txt
-   :language: yaml
-   :linenos:
+.. include:: yaml_examples/index_security.rst
+   :end-before: .. TOC
 
-Writing out arbitrary files
-===========================
+.. include:: yaml_examples/index_fs.rst
+   :end-before: .. TOC
 
-.. literalinclude:: ../../examples/cloud-config-write-files.txt
-   :language: yaml
-   :linenos:
+.. include:: yaml_examples/index_users.rst
+   :end-before: .. TOC
 
-Adding a yum repository
-=======================
+.. include:: yaml_examples/index_hostname.rst
+   :end-before: .. TOC
 
-.. literalinclude:: ../../examples/cloud-config-yum-repo.txt
-   :language: yaml
-   :linenos:
+.. include:: yaml_examples/index_network.rst
+   :end-before: .. TOC
 
-Configure an instance's trusted CA certificates
-===============================================
+.. include:: yaml_examples/index_packages.rst
+   :end-before: .. TOC
 
-.. literalinclude:: ../../examples/cloud-config-ca-certs.txt
-   :language: yaml
-   :linenos:
+.. include:: yaml_examples/index_logging.rst
+   :end-before: .. TOC
 
-Install and run `chef`_ recipes
-===============================
+.. include:: yaml_examples/index_config_manager.rst
+   :end-before: .. TOC
 
-.. literalinclude:: ../../examples/cloud-config-chef.txt
-   :language: yaml
-   :linenos:
+.. include:: yaml_examples/index_distro.rst
+   :end-before: .. TOC
 
-Install and run `ansible-pull`
-===============================
+.. include:: yaml_examples/index_misc.rst
+   :end-before: .. TOC
 
-.. literalinclude:: ../../examples/cloud-config-ansible-pull.txt
-   :language: yaml
-   :linenos:
+.. toctree::
+    :hidden:
+    :titlesonly:
 
-Configure instance to be managed by Ansible
-===========================================
-
-.. literalinclude:: ../../examples/cloud-config-ansible-managed.txt
-   :language: yaml
-   :linenos:
-
-Configure instance to be an Ansible controller
-==============================================
-
-.. literalinclude:: ../../examples/cloud-config-ansible-controller.txt
-   :language: yaml
-   :linenos:
-
-Add primary apt repositories
-============================
-
-.. literalinclude:: ../../examples/cloud-config-add-apt-repos.txt
-   :language: yaml
-   :linenos:
-
-Run commands on first boot
-==========================
-
-.. literalinclude:: ../../examples/cloud-config-boot-cmds.txt
-   :language: yaml
-   :linenos:
-
-.. literalinclude:: ../../examples/cloud-config-run-cmds.txt
-   :language: yaml
-   :linenos:
-
-Run commands on very early at every boot
-========================================
-
-.. literalinclude:: ../../examples/boothook.txt
-   :language: bash
-   :linenos:
-
-Install arbitrary packages
-==========================
-
-.. literalinclude:: ../../examples/cloud-config-install-packages.txt
-   :language: yaml
-   :linenos:
-
-Update apt database on first boot
-=================================
-
-.. literalinclude:: ../../examples/cloud-config-update-apt.txt
-   :language: yaml
-   :linenos:
-
-Run apt or yum upgrade
-======================
-
-.. literalinclude:: ../../examples/cloud-config-update-packages.txt
-   :language: yaml
-   :linenos:
-
-Adjust mount points mounted
-===========================
-
-.. literalinclude:: ../../examples/cloud-config-mount-points.txt
-   :language: yaml
-   :linenos:
-
-``Configure instance's SSH keys``
-=================================
-
-.. literalinclude:: ../../examples/cloud-config-ssh-keys.txt
-   :language: yaml
-   :linenos:
-
-Additional apt configuration and repositories
-=============================================
-
-.. literalinclude:: ../../examples/cloud-config-apt.txt
-    :language: yaml
-    :linenos:
-
-Disk setup
-==========
-
-.. literalinclude:: ../../examples/cloud-config-disk-setup.txt
-    :language: yaml
-    :linenos:
-
-Configure data sources
-======================
-
-.. literalinclude:: ../../examples/cloud-config-datasources.txt
-   :language: yaml
-   :linenos:
-
-Create partitions and filesystems
-=================================
-
-.. literalinclude:: ../../examples/cloud-config-disk-setup.txt
-   :language: yaml
-   :linenos:
-
-.. _chef: http://www.chef.io/chef/
-.. _puppet: http://puppetlabs.com/
-.. _ansible: https://docs.ansible.com/ansible/latest/
+    yaml_examples/index_boot
+    yaml_examples/index_security
+    yaml_examples/index_fs
+    yaml_examples/index_users
+    yaml_examples/index_hostname
+    yaml_examples/index_network
+    yaml_examples/index_packages
+    yaml_examples/index_logging
+    yaml_examples/index_config_manager
+    yaml_examples/index_distro
+    yaml_examples/index_misc
