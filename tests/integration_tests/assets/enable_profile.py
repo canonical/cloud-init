@@ -2,7 +2,7 @@ from pathlib import Path
 
 services = [
     "cloud-init-local.service",
-    "cloud-init.service",
+    "cloud-init-network.service",
     "cloud-config.service",
     "cloud-final.service",
 ]

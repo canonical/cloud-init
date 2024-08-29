@@ -62,7 +62,7 @@ disable_root: true
                    "openmandriva", "photon", "TencentOS"] or is_rhel %}
 
 {% if is_rhel %}
-mount_default_fields: [~, ~, 'auto', 'defaults,nofail,x-systemd.after=cloud-init.service,_netdev', '0', '2']
+mount_default_fields: [~, ~, 'auto', 'defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev', '0', '2']
 {% else %}
 mount_default_fields: [~, ~, 'auto', 'defaults,nofail', '0', '2']
 {% endif %}

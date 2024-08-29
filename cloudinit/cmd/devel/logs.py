@@ -7,47 +7,23 @@
 """Define 'collect-logs' utility and handler to include in cloud-init cmd."""
 
 import argparse
+import itertools
 import logging
 import os
 import pathlib
-import shutil
+import stat
 import subprocess
 import sys
 from datetime import datetime, timezone
-from typing import List, NamedTuple, Optional, cast
+from typing import Any, Dict, Iterator, List, NamedTuple, Optional, cast
 
 from cloudinit import log
-from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.stages import Init
 from cloudinit.subp import ProcessExecutionError, subp
 from cloudinit.temp_utils import tempdir
-from cloudinit.util import (
-    chdir,
-    copy,
-    ensure_dir,
-    get_config_logfiles,
-    write_file,
-)
+from cloudinit.util import copy, get_config_logfiles, write_file
 
 LOG = cast(log.CustomLoggerType, logging.getLogger(__name__))
-
-
-class LogPaths(NamedTuple):
-    userdata_raw: str
-    cloud_data: str
-    run_dir: str
-    instance_data_sensitive: str
-
-
-def get_log_paths(init: Optional[Init] = None) -> LogPaths:
-    """Return a Paths object based on the system configuration on disk."""
-    paths = init.paths if init else read_cfg_paths()
-    return LogPaths(
-        userdata_raw=paths.get_ipath_cur("userdata_raw"),
-        cloud_data=paths.get_cpath("data"),
-        run_dir=paths.run_dir,
-        instance_data_sensitive=paths.lookups["instance_data_sensitive"],
-    )
 
 
 class ApportFile(NamedTuple):
@@ -140,22 +116,21 @@ def get_parser(
         action="store_true",
         dest="userdata",
         help=(
-            "Optionally include user-data from {0} which could contain"
-            " sensitive information.".format(get_log_paths().userdata_raw)
+            "DEPRECATED: This is default behavior and this flag does nothing"
+        ),
+    )
+    parser.add_argument(
+        "--redact-sensitive",
+        "-r",
+        default=False,
+        action="store_true",
+        help=(
+            "Redact potentially sensitive data from logs. Sensitive data "
+            "may include passwords or keys in user data and "
+            "root read-only files."
         ),
     )
     return parser
-
-
-def _get_copytree_ignore_files(paths: LogPaths) -> List[str]:
-    """Return a list of files to ignore for /run/cloud-init directory"""
-    ignored_files = [
-        "hook-hotplug-cmd",  # named pipe for hotplug
-    ]
-    if os.getuid() != 0:
-        # Ignore root-permissioned files
-        ignored_files.append(paths.instance_data_sensitive)
-    return ignored_files
 
 
 def _write_command_output_to_file(
@@ -196,131 +171,213 @@ def _stream_command_output_to_file(
         LOG.debug("collected %s to file '%s'", msg, file_path.stem)
 
 
-def _collect_file(path: str, out_dir: str) -> None:
-    if os.path.isfile(path):
-        copy(path, out_dir)
-        LOG.debug("collected file: %s", path)
+def _collect_file(
+    path: pathlib.Path, out_dir: pathlib.Path, include_sensitive: bool
+) -> None:
+    """Collect a file into what will be the tarball."""
+    if path.is_file():
+        if include_sensitive or path.stat().st_mode & stat.S_IROTH:
+            out_dir.mkdir(parents=True, exist_ok=True)
+            copy(path, out_dir)
+            LOG.debug("collected file: %s", path)
+        else:
+            LOG.trace("sensitive file %s was not collected", path)
     else:
         LOG.trace("file %s did not exist", path)
 
 
-def _collect_installer_logs(log_dir: str, include_userdata: bool) -> None:
+def _collect_installer_logs(
+    log_dir: pathlib.Path, include_sensitive: bool
+) -> None:
     """Obtain subiquity logs and config files."""
     for src_file in INSTALLER_APPORT_FILES:
-        destination_dir = pathlib.Path(log_dir + src_file.path).parent
-        if not destination_dir.exists():
-            ensure_dir(str(destination_dir))
-        _collect_file(src_file.path, str(destination_dir))
-    if include_userdata:
+        destination_dir = pathlib.Path(log_dir, src_file.path[1:]).parent
+        _collect_file(
+            pathlib.Path(src_file.path),
+            destination_dir,
+            include_sensitive=True,  # Because this function does check
+        )
+    if include_sensitive:
         for src_file in INSTALLER_APPORT_SENSITIVE_FILES:
-            destination_dir = pathlib.Path(log_dir + src_file.path).parent
-            if not destination_dir.exists():
-                ensure_dir(str(destination_dir))
-            _collect_file(src_file.path, str(destination_dir))
+            destination_dir = pathlib.Path(log_dir, src_file.path[1:]).parent
+            _collect_file(
+                pathlib.Path(src_file.path),
+                destination_dir,
+                include_sensitive=True,  # Because this function does check
+            )
 
 
-def _collect_version_info(log_dir: str) -> None:
+def _collect_version_info(log_dir: pathlib.Path) -> None:
+    """Include cloud-init version and dpkg version in the logs."""
     version = _write_command_output_to_file(
         cmd=["cloud-init", "--version"],
-        file_path=pathlib.Path(log_dir, "version"),
+        file_path=log_dir / "version",
         msg="cloud-init --version",
     )
     dpkg_ver = _write_command_output_to_file(
         cmd=["dpkg-query", "--show", "-f=${Version}\n", "cloud-init"],
-        file_path=pathlib.Path(log_dir, "dpkg-version"),
+        file_path=log_dir / "dpkg-version",
         msg="dpkg version",
     )
     if not version:
         version = dpkg_ver or "not-available"
 
 
-def _collect_system_logs(log_dir: str) -> None:
-    _stream_command_output_to_file(
-        cmd=["dmesg"],
-        file_path=pathlib.Path(log_dir, "dmesg.txt"),
-        msg="dmesg output",
-    )
+def _collect_system_logs(
+    log_dir: pathlib.Path, include_sensitive: bool
+) -> None:
+    """Include dmesg and journalctl output in the logs."""
+    if include_sensitive:
+        _stream_command_output_to_file(
+            cmd=["dmesg"],
+            file_path=log_dir / "dmesg.txt",
+            msg="dmesg output",
+        )
     _stream_command_output_to_file(
         cmd=["journalctl", "--boot=0", "-o", "short-precise"],
-        file_path=pathlib.Path(log_dir, "journal.txt"),
+        file_path=log_dir / "journal.txt",
         msg="systemd journal of current boot",
     )
+    _stream_command_output_to_file(
+        cmd=["journalctl", "--boot=-1", "-o", "short-precise"],
+        file_path=pathlib.Path(log_dir, "journal-previous.txt"),
+        msg="systemd journal of previous boot",
+    )
 
 
-def _collect_cloudinit_logs(
-    log_dir: str,
-    init: Init,
-    paths: LogPaths,
-    include_userdata: bool,
+def _get_cloudinit_logs(
+    log_cfg: Dict[str, Any],
+) -> Iterator[pathlib.Path]:
+    """Get paths for cloud-init.log and cloud-init-output.log."""
+    for path in get_config_logfiles(log_cfg):
+        yield pathlib.Path(path)
+
+
+def _get_etc_cloud(
+    etc_cloud_dir: pathlib.Path = pathlib.Path("/etc/cloud"),
+) -> Iterator[pathlib.Path]:
+    """Get paths for all files in /etc/cloud.
+
+    Excludes:
+      /etc/cloud/keys because it may contain non-useful sensitive data.
+      /etc/cloud/templates because we already know its contents
+    """
+    ignore = [
+        etc_cloud_dir / "keys",
+        etc_cloud_dir / "templates",
+        # Captured by the installer apport files
+        "99-installer.cfg",
+    ]
+    yield from (
+        path
+        for path in etc_cloud_dir.glob("**/*")
+        if path.name not in ignore and path.parent not in ignore
+    )
+
+
+def _get_var_lib_cloud(cloud_dir: pathlib.Path) -> Iterator[pathlib.Path]:
+    """Get paths for files in /var/lib/cloud.
+
+    Skip user-provided scripts, semaphores, and old instances.
+    """
+    return itertools.chain(
+        cloud_dir.glob("data/*"),
+        cloud_dir.glob("handlers/*"),
+        cloud_dir.glob("seed/*"),
+        (p for p in cloud_dir.glob("instance/*") if p.is_file()),
+        cloud_dir.glob("instance/handlers"),
+    )
+
+
+def _get_run_dir(run_dir: pathlib.Path) -> Iterator[pathlib.Path]:
+    """Get all paths under /run/cloud-init except for hook-hotplug-cmd.
+
+    Note that this only globs the top-level directory as there are currently
+    no relevant files within subdirectories.
+    """
+    return (p for p in run_dir.glob("*") if p.name != "hook-hotplug-cmd")
+
+
+def _collect_logs_into_tmp_dir(
+    log_dir: pathlib.Path,
+    log_cfg: Dict[str, Any],
+    run_dir: pathlib.Path,
+    cloud_dir: pathlib.Path,
+    include_sensitive: bool,
 ) -> None:
-    for logfile in get_config_logfiles(init.cfg):
-        _collect_file(logfile, log_dir)
-    if include_userdata:
-        user_data_file = paths.userdata_raw
-        _collect_file(user_data_file, log_dir)
+    """Collect all cloud-init logs into the provided directory."""
+    _collect_version_info(log_dir)
+    _collect_system_logs(log_dir, include_sensitive)
+    _collect_installer_logs(log_dir, include_sensitive)
+
+    for logfile in _get_cloudinit_logs(log_cfg):
+        # Even though log files are root read-only, the logs tarball
+        # would be useless without them and we've been careful to not
+        # include sensitive data in them.
+        _collect_file(
+            logfile,
+            log_dir / pathlib.Path(logfile).parent.relative_to("/"),
+            True,
+        )
+    for logfile in itertools.chain(
+        _get_etc_cloud(),
+        _get_var_lib_cloud(cloud_dir=cloud_dir),
+        _get_run_dir(run_dir=run_dir),
+    ):
+        _collect_file(
+            logfile,
+            log_dir / pathlib.Path(logfile).parent.relative_to("/"),
+            include_sensitive,
+        )
 
 
-def _collect_run_dir(log_dir: str, paths: LogPaths) -> None:
-    run_dir = os.path.join(log_dir, "run")
-    ensure_dir(run_dir)
-    if os.path.exists(paths.run_dir):
-        try:
-            shutil.copytree(
-                paths.run_dir,
-                os.path.join(run_dir, "cloud-init"),
-                ignore=lambda _, __: _get_copytree_ignore_files(paths),
-            )
-        except shutil.Error as e:
-            LOG.warning("Failed collecting file(s) due to error: %s", e)
-        LOG.debug("collected directory: %s", paths.run_dir)
-    else:
-        LOG.debug("directory '%s' did not exist", paths.run_dir)
-    if os.path.exists(os.path.join(paths.run_dir, "disabled")):
-        # Fallback to grab previous cloud/data
-        cloud_data_dir = pathlib.Path(paths.cloud_data)
-        if cloud_data_dir.exists():
-            shutil.copytree(
-                str(cloud_data_dir),
-                pathlib.Path(log_dir + str(cloud_data_dir)),
-            )
-
-
-def collect_logs(tarfile: str, include_userdata: bool) -> int:
+def collect_logs(
+    tarfile: str,
+    log_cfg: Dict[str, Any],
+    run_dir: pathlib.Path = pathlib.Path("/run/cloud-init"),
+    cloud_dir: pathlib.Path = pathlib.Path("/var/lib/cloud"),
+    include_sensitive: bool = True,
+) -> None:
     """Collect all cloud-init logs and tar them up into the provided tarfile.
 
-    @param tarfile: The path of the tar-gzipped file to create.
-    @param include_userdata: Boolean, true means include user-data.
-    @return: 0 on success, 1 on failure.
+    :param tarfile: The path of the tar-gzipped file to create.
+    :param log_cfg: The cloud-init base configuration containing logging cfg.
+    :param run_dir: The path to the cloud-init run directory.
+    :param cloud_dir: The path to the cloud-init cloud directory.
+    :param include_sensitive: Boolean, true means include sensitive data.
     """
-    if include_userdata and os.getuid() != 0:
-        LOG.error(
-            "To include userdata, root user is required. "
-            "Try sudo cloud-init collect-logs"
-        )
-        return 1
-
     tarfile = os.path.abspath(tarfile)
-    log_dir = (
+    dir_name = (
         datetime.now(timezone.utc).date().strftime("cloud-init-logs-%Y-%m-%d")
     )
-    with tempdir(dir="/tmp") as tmp_dir:
-        log_dir = os.path.join(tmp_dir, log_dir)
-        init = Init(ds_deps=[])
-        init.read_cfg()
-        paths = get_log_paths(init)
-
-        _collect_version_info(log_dir)
-        _collect_system_logs(log_dir)
-        _collect_cloudinit_logs(log_dir, init, paths, include_userdata)
-        _collect_installer_logs(log_dir, include_userdata)
-        _collect_run_dir(log_dir, paths)
-        with chdir(tmp_dir):
-            subp(["tar", "czvf", tarfile, log_dir.replace(f"{tmp_dir}/", "")])
+    with tempdir(dir=run_dir) as tmp_dir:
+        log_dir = pathlib.Path(tmp_dir, dir_name)
+        _collect_logs_into_tmp_dir(
+            log_dir=log_dir,
+            log_cfg=log_cfg,
+            run_dir=run_dir,
+            cloud_dir=cloud_dir,
+            include_sensitive=include_sensitive,
+        )
+        subp(
+            [
+                "tar",
+                "czf",
+                tarfile,
+                "-C",
+                tmp_dir,
+                str(log_dir).replace(f"{tmp_dir}/", ""),
+            ]
+        )
     LOG.info("Wrote %s", tarfile)
-    return 0
 
 
 def _setup_logger(verbosity: int) -> None:
+    """Set up the logger for CLI use.
+
+    The verbosity controls which level gets printed to stderr. By default,
+    DEBUG and TRACE are hidden.
+    """
     log.reset_logging()
     if verbosity == 0:
         level = logging.INFO
@@ -334,13 +391,56 @@ def _setup_logger(verbosity: int) -> None:
     LOG.addHandler(handler)
 
 
-def handle_collect_logs_args(_name: str, args: argparse.Namespace) -> int:
+def collect_logs_cli(
+    tarfile: str,
+    verbosity: int = 0,
+    redact_sensitive: bool = True,
+    include_userdata: bool = False,
+) -> None:
     """Handle calls to 'cloud-init collect-logs' as a subcommand."""
-    _setup_logger(args.verbosity)
-    return collect_logs(
-        tarfile=args.tarfile,
-        include_userdata=args.userdata,
+    _setup_logger(verbosity)
+    if os.getuid() != 0:
+        raise RuntimeError("This command must be run as root.")
+    if include_userdata:
+        LOG.warning(
+            "The --include-userdata flag is deprecated and does nothing."
+        )
+    init = Init(ds_deps=[])
+    init.read_cfg()
+
+    collect_logs(
+        tarfile=tarfile,
+        log_cfg=init.cfg,
+        run_dir=pathlib.Path(init.paths.run_dir),
+        cloud_dir=pathlib.Path(init.paths.cloud_dir),
+        include_sensitive=not redact_sensitive,
     )
+    if not redact_sensitive:
+        LOG.warning(
+            "WARNING:\n"
+            "Sensitive data may have been included in the collected logs.\n"
+            "Please review the contents of the tarball before sharing or\n"
+            "rerun with --redact-sensitive to redact sensitive data."
+        )
+
+
+def handle_collect_logs_args(_name: str, args: argparse.Namespace) -> int:
+    """Handle the CLI interface to the module.
+
+    Parse CLI args, redirect all exceptions to stderr, and return an exit code.
+    """
+    args = get_parser().parse_args()
+    try:
+        collect_logs_cli(
+            verbosity=args.verbosity,
+            tarfile=args.tarfile,
+            redact_sensitive=args.redact_sensitive,
+            include_userdata=args.userdata,
+        )
+        return 0
+    except Exception as e:
+        print(e, file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

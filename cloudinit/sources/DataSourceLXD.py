@@ -176,14 +176,15 @@ class DataSourceLXD(sources.DataSource):
     _network_config: Union[Dict, str] = sources.UNSET
     _crawled_metadata: Optional[Union[Dict, str]] = sources.UNSET
 
-    sensitive_metadata_keys: Tuple[
-        str, ...
-    ] = sources.DataSource.sensitive_metadata_keys + (
-        "user.meta-data",
-        "user.vendor-data",
-        "user.user-data",
-        "cloud-init.user-data",
-        "cloud-init.vendor-data",
+    sensitive_metadata_keys: Tuple[str, ...] = (
+        sources.DataSource.sensitive_metadata_keys
+        + (
+            "user.meta-data",
+            "user.vendor-data",
+            "user.user-data",
+            "cloud-init.user-data",
+            "cloud-init.vendor-data",
+        )
     )
 
     skip_hotplug_detect = True
@@ -210,8 +211,8 @@ class DataSourceLXD(sources.DataSource):
         config = self._crawled_metadata.get("config", {})
         user_metadata = config.get("user.meta-data", {})
         if user_metadata:
-            user_metadata = _raw_instance_data_to_dict(
-                "user.meta-data", user_metadata
+            self.metadata.update(
+                _raw_instance_data_to_dict("user.meta-data", user_metadata)
             )
         if "user-data" in self._crawled_metadata:
             self.userdata_raw = self._crawled_metadata["user-data"]

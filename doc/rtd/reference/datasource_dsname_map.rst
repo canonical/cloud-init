@@ -13,7 +13,7 @@ mapping between datasource module names and ``dsname`` in the table below.
 ..
     generate the following map with the following one-liner:
 
-    find cloudinit/sources -name 'DataSource*.py' \
+    find cloudinit/sources -name 'DataSource*.py' | sort -u \
     |  xargs grep 'dsname =' \
     | awk -F '[/:"]' 'BEGIN { print "**Datasource Module**, **dsname**" }\
       {print $3 ", " $5}'
@@ -23,32 +23,33 @@ mapping between datasource module names and ``dsname`` in the table below.
    :align: left
 
     **Datasource Module**, **dsname**
-    DataSourceRbxCloud.py, RbxCloud
-    DataSourceConfigDrive.py, ConfigDrive
-    DataSourceNoCloud.py, NoCloud
-    DataSourceVultr.py, Vultr
-    DataSourceEc2.py, Ec2
-    DataSourceOracle.py, Oracle
-    DataSourceMAAS.py, MAAS
-    DataSourceDigitalOcean.py, DigitalOcean
-    DataSourceNone.py, None
-    DataSourceSmartOS.py, Joyent
-    DataSourceHetzner.py, Hetzner
-    DataSourceLXD.py, LXD
-    DataSourceOpenNebula.py, OpenNebula
-    DataSourceAzure.py, Azure
-    DataSourceGCE.py, GCE
-    DataSourceScaleway.py, Scaleway
-    DataSourceAltCloud.py, AltCloud
-    DataSourceCloudSigma.py, CloudSigma
-    DataSourceBigstep.py, Bigstep
-    DataSourceIBMCloud.py, IBMCloud
-    DataSourceOVF.py, OVF
-    DataSourceUpCloud.py, UpCloud
-    DataSourceOpenStack.py, OpenStack
-    DataSourceVMware.py, VMware
-    DataSourceCloudStack.py, CloudStack
-    DataSourceExoscale.py, Exoscale
-    DataSourceAliYun.py, AliYun
-    DataSourceNWCS.py, NWCS
     DataSourceAkamai.py, Akamai
+    DataSourceAliYun.py, AliYun
+    DataSourceAltCloud.py, AltCloud
+    DataSourceAzure.py, Azure
+    DataSourceBigstep.py, Bigstep
+    DataSourceCloudSigma.py, CloudSigma
+    DataSourceCloudStack.py, CloudStack
+    DataSourceConfigDrive.py, ConfigDrive
+    DataSourceDigitalOcean.py, DigitalOcean
+    DataSourceEc2.py, Ec2
+    DataSourceExoscale.py, Exoscale
+    DataSourceGCE.py, GCE
+    DataSourceHetzner.py, Hetzner
+    DataSourceIBMCloud.py, IBMCloud
+    DataSourceLXD.py, LXD
+    DataSourceMAAS.py, MAAS
+    DataSourceNoCloud.py, NoCloud
+    DataSourceNone.py, None
+    DataSourceNWCS.py, NWCS
+    DataSourceOpenNebula.py, OpenNebula
+    DataSourceOpenStack.py, OpenStack
+    DataSourceOracle.py, Oracle
+    DataSourceOVF.py, OVF
+    DataSourceRbxCloud.py, RbxCloud
+    DataSourceScaleway.py, Scaleway
+    DataSourceSmartOS.py, Joyent
+    DataSourceUpCloud.py, UpCloud
+    DataSourceVMware.py, VMware
+    DataSourceVultr.py, Vultr
+    DataSourceWSL.py, WSL

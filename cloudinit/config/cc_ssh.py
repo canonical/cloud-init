@@ -14,7 +14,7 @@ import re
 import sys
 from typing import List, Optional, Sequence
 
-from cloudinit import ssh_util, subp, util
+from cloudinit import lifecycle, ssh_util, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -75,7 +75,7 @@ def set_redhat_keyfile_perms(keyfile: str) -> None:
     """
     permissions_public = 0o644
     ssh_version = ssh_util.get_opensshd_upstream_version()
-    if ssh_version and ssh_version < util.Version(9, 0):
+    if ssh_version and ssh_version < lifecycle.Version(9, 0):
         # fedora 37, centos 9 stream and below has sshd
         # versions less than 9 and private key permissions are
         # set to 0o640 from sshd-keygen.
@@ -111,7 +111,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if "ssh_keys" in cfg:
         # if there are keys and/or certificates in cloud-config, use them
         cert_config = []
-        for (key, val) in cfg["ssh_keys"].items():
+        for key, val in cfg["ssh_keys"].items():
             if key not in CONFIG_KEY_TO_FILE:
                 if pattern_unsupported_config_keys.match(key):
                     reason = "unsupported"

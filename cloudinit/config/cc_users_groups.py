@@ -37,10 +37,10 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     (default_user, _user_config) = ug_util.extract_default(users)
     cloud_keys = cloud.get_public_ssh_keys() or []
 
-    for (name, members) in groups.items():
+    for name, members in groups.items():
         cloud.distro.create_group(name, members)
 
-    for (user, config) in users.items():
+    for user, config in users.items():
 
         no_home = [key for key in NO_HOME if config.get(key)]
         need_home = [key for key in NEED_HOME if config.get(key)]

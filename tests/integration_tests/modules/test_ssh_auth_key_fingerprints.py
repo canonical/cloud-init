@@ -8,6 +8,7 @@ the second one verifies if the module is working as expected if enabled.
 ``tests/cloud_tests/testcases/modules/ssh_auth_key_fingerprints_disable.yaml``,
 ``tests/cloud_tests/testcases/modules/ssh_auth_key_fingerprints_enable.yaml``.
 )"""
+
 import re
 
 import pytest

@@ -11,7 +11,8 @@ import os
 import sys
 from collections import namedtuple
 from contextlib import suppress
-from typing import Dict, Iterable, List, Optional, Set, Tuple, Union
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 
 from cloudinit import (
     atomic_helper,
@@ -21,6 +22,7 @@ from cloudinit import (
     handlers,
     helpers,
     importer,
+    lifecycle,
     net,
     sources,
     type_utils,
@@ -79,9 +81,9 @@ def update_event_enabled(
     case, we only have the data source's `default_update_events`,
     so an event that should be enabled in userdata may be denied.
     """
-    default_events: Dict[
-        EventScope, Set[EventType]
-    ] = datasource.default_update_events
+    default_events: Dict[EventScope, Set[EventType]] = (
+        datasource.default_update_events
+    )
     user_events: Dict[EventScope, Set[EventType]] = userdata_to_events(
         cfg.get("updates", {})
     )
@@ -137,7 +139,7 @@ class Init:
         else:
             self.ds_deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
         # Created on first use
-        self._cfg: Dict = {}
+        self._cfg: Dict[str, Any] = {}
         self._paths: Optional[helpers.Paths] = None
         self._distro: Optional[distros.Distro] = None
         # Changed only when a fetch occurs
@@ -459,8 +461,13 @@ class Init:
         # Remove the old symlink and attach a new one so
         # that further reads/writes connect into the right location
         idir = self._get_ipath()
-        util.del_file(self.paths.instance_link)
-        util.sym_link(idir, self.paths.instance_link)
+        destination = Path(self.paths.instance_link).resolve().absolute()
+        already_instancified = destination == Path(idir).absolute()
+        if already_instancified:
+            LOG.info("Instance link already exists, not recreating it.")
+        else:
+            util.del_file(self.paths.instance_link)
+            util.sym_link(idir, self.paths.instance_link)
 
         # Ensures these dirs exist
         dir_list = []
@@ -499,10 +506,16 @@ class Init:
         )
 
         self._write_to_cache()
-        # Ensure needed components are regenerated
-        # after change of instance which may cause
-        # change of configuration
-        self._reset()
+        if already_instancified and previous_ds == ds:
+            LOG.info(
+                "Not re-loading configuration, instance "
+                "id and datasource have not changed."
+            )
+            # Ensure needed components are regenerated
+            # after change of instance which may cause
+            # change of configuration
+        else:
+            self._reset()
         return iid
 
     def previous_iid(self):
@@ -902,7 +915,7 @@ class Init:
             return
 
         if isinstance(enabled, str):
-            util.deprecate(
+            lifecycle.deprecate(
                 deprecated=f"Use of string '{enabled}' for "
                 "'vendor_data:enabled' field",
                 deprecated_version="23.1",
@@ -972,9 +985,9 @@ class Init:
         }
 
         if self.datasource and hasattr(self.datasource, "network_config"):
-            available_cfgs[
-                NetworkConfigSource.DS
-            ] = self.datasource.network_config
+            available_cfgs[NetworkConfigSource.DS] = (
+                self.datasource.network_config
+            )
 
         if self.datasource:
             order = self.datasource.network_config_sources

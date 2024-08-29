@@ -12,7 +12,7 @@ import re
 from string import ascii_letters, digits
 from typing import List
 
-from cloudinit import features, subp, util
+from cloudinit import features, lifecycle, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -71,7 +71,7 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
     cfg_name = "PasswordAuthentication"
 
     if isinstance(pw_auth, str):
-        util.deprecate(
+        lifecycle.deprecate(
             deprecated="Using a string value for the 'ssh_pwauth' key",
             deprecated_version="22.2",
             extra_message="Use a boolean value with 'ssh_pwauth'.",
@@ -128,7 +128,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         chfg = cfg["chpasswd"]
         users_list = util.get_cfg_option_list(chfg, "users", default=[])
         if "list" in chfg and chfg["list"]:
-            util.deprecate(
+            lifecycle.deprecate(
                 deprecated="Config key 'lists'",
                 deprecated_version="22.3",
                 extra_message="Use 'users' instead.",
@@ -137,7 +137,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 LOG.debug("Handling input for chpasswd as list.")
                 plist = util.get_cfg_option_list(chfg, "list", plist)
             else:
-                util.deprecate(
+                lifecycle.deprecate(
                     deprecated="The chpasswd multiline string",
                     deprecated_version="22.2",
                     extra_message="Use string type instead.",

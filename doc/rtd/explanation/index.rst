@@ -12,9 +12,10 @@ knowledge and become better at using and configuring ``cloud-init``.
 
    introduction.rst
    about-cloud-config.rst
+   format.rst
    configuration.rst
    boot.rst
-   format.rst
+   first_boot.rst
    events.rst
    instancedata.rst
    vendordata.rst

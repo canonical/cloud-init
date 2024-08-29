@@ -3,8 +3,8 @@
 # Used for untemplating any files or strings with parameters.
 jinja2
 
-# This one is currently only used by the MAAS datasource. If that
-# datasource is removed, this is no longer needed
+# This one is currently only used by the MAAS datasource and the Event
+# reporting feature when configured to use webhooks.
 oauthlib
 
 # This one is currently used only by the CloudSigma and SmartOS datasources.

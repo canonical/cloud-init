@@ -59,7 +59,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # import for cloudinit created users
     (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
     elist = []
-    for (user, user_cfg) in users.items():
+    for user, user_cfg in users.items():
         import_ids = []
         if user_cfg["default"]:
             import_ids = util.get_cfg_option_list(cfg, "ssh_import_id", [])

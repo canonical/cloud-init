@@ -20,7 +20,7 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Optional, Tuple
 
-from cloudinit import subp, temp_utils, util
+from cloudinit import lifecycle, subp, temp_utils, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -65,12 +65,10 @@ class Resizer(ABC):
         self._distro = distro
 
     @abstractmethod
-    def available(self, devices: list) -> bool:
-        ...
+    def available(self, devices: list) -> bool: ...
 
     @abstractmethod
-    def resize(self, diskdev, partnum, partdev, fs):
-        ...
+    def resize(self, diskdev, partnum, partdev, fs): ...
 
 
 class ResizeGrowPart(Resizer):
@@ -542,7 +540,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     mode = mycfg.get("mode", "auto")
     if util.is_false(mode):
         if mode != "off":
-            util.deprecate(
+            lifecycle.deprecate(
                 deprecated=f"Growpart's 'mode' key with value '{mode}'",
                 deprecated_version="22.2",
                 extra_message="Use 'off' instead.",

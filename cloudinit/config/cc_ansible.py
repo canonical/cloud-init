@@ -1,4 +1,5 @@
 """ansible enables running on first boot either ansible-pull"""
+
 import abc
 import logging
 import os
@@ -8,13 +9,13 @@ import sysconfig
 from copy import deepcopy
 from typing import Optional
 
-from cloudinit import subp
+from cloudinit import lifecycle, subp
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS, Distro
 from cloudinit.settings import PER_INSTANCE
-from cloudinit.util import Version, get_cfg_by_path
+from cloudinit.util import get_cfg_by_path
 
 meta: MetaSchema = {
     "id": "cc_ansible",
@@ -39,13 +40,13 @@ class AnsiblePull(abc.ABC):
         # and cloud-init might not have that set, default: /root
         self.env["HOME"] = os.environ.get("HOME", "/root")
 
-    def get_version(self) -> Optional[Version]:
+    def get_version(self) -> Optional[lifecycle.Version]:
         stdout, _ = self.do_as(self.cmd_version)
         first_line = stdout.splitlines().pop(0)
         matches = re.search(r"([\d\.]+)", first_line)
         if matches:
             version = matches.group(0)
-            return Version.from_str(version)
+            return lifecycle.Version.from_str(version)
         return None
 
     def pull(self, *args) -> str:
@@ -210,7 +211,7 @@ def run_ansible_pull(pull: AnsiblePull, cfg: dict):
     v = pull.get_version()
     if not v:
         LOG.warning("Cannot parse ansible version")
-    elif v < Version(2, 7, 0):
+    elif v < lifecycle.Version(2, 7, 0):
         # diff was added in commit edaa0b52450ade9b86b5f63097ce18ebb147f46f
         if cfg.get("diff"):
             raise ValueError(

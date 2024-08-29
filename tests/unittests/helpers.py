@@ -313,7 +313,7 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
     def replicateTestRoot(self, example_root, target_root):
         real_root = resourceLocation()
         real_root = os.path.join(real_root, "roots", example_root)
-        for (dir_path, _dirnames, filenames) in os.walk(real_root):
+        for dir_path, _dirnames, filenames in os.walk(real_root):
             real_path = dir_path
             make_path = rebase_path(real_path[len(real_root) :], target_root)
             util.ensure_dir(make_path)
@@ -340,8 +340,8 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
                 ("write_json", 1),
             ],
         }
-        for (mod, funcs) in patch_funcs.items():
-            for (f, am) in funcs:
+        for mod, funcs in patch_funcs.items():
+            for f, am in funcs:
                 func = getattr(mod, f)
                 trap_func = retarget_many_wrapper(new_root, am, func)
                 self.patched_funcs.enter_context(
@@ -388,7 +388,7 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
             # py27 does not have scandir
             patch_funcs[os].append(("scandir", 1))
 
-        for (mod, funcs) in patch_funcs.items():
+        for mod, funcs in patch_funcs.items():
             for f, nargs in funcs:
                 func = getattr(mod, f)
                 trap_func = retarget_many_wrapper(new_root, nargs, func)
@@ -511,7 +511,7 @@ def populate_dir(path, files):
     if not os.path.exists(path):
         os.makedirs(path)
     ret = []
-    for (name, content) in files.items():
+    for name, content in files.items():
         p = os.path.sep.join([path, name])
         util.ensure_dir(os.path.dirname(p))
         with open(p, "wb") as fp:
@@ -599,11 +599,16 @@ def skipIfAptPkg():
 
 
 try:
+    import importlib.metadata
+
     import jsonschema
 
     assert jsonschema  # avoid pyflakes error F401: import unused
     _jsonschema_version = tuple(
-        int(part) for part in jsonschema.__version__.split(".")  # type: ignore
+        int(part)
+        for part in importlib.metadata.metadata("jsonschema")
+        .get("Version", "")
+        .split(".")
     )
     _missing_jsonschema_dep = False
 except ImportError:

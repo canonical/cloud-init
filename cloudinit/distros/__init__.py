@@ -36,6 +36,7 @@ import cloudinit.net.netops.iproute2 as iproute2
 from cloudinit import (
     helpers,
     importer,
+    lifecycle,
     net,
     persistence,
     ssh_util,
@@ -710,7 +711,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 groups = groups.split(",")
 
             if isinstance(groups, dict):
-                util.deprecate(
+                lifecycle.deprecate(
                     deprecated=f"The user {name} has a 'groups' config value "
                     "of type dict",
                     deprecated_version="22.3",
@@ -848,7 +849,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if kwargs["sudo"]:
                 self.write_sudo_rules(name, kwargs["sudo"])
             elif kwargs["sudo"] is False:
-                util.deprecate(
+                lifecycle.deprecate(
                     deprecated=f"The value of 'false' in user {name}'s "
                     "'sudo' config",
                     deprecated_version="22.2",

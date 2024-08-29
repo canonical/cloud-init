@@ -2,6 +2,7 @@
 
 (This is ported from
 ``tests/cloud_tests/testcases/modules/keys_to_console.yaml``.)"""
+
 import pytest
 
 from tests.integration_tests.decorators import retry

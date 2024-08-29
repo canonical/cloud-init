@@ -63,10 +63,10 @@ provided to this instance. Non-root users referencing ``userdata`` or
 Using ``instance-data``
 =======================
 
-``instance-data`` can be used in:
+``instance-data`` can be used in the following configuration types:
 
 * :ref:`User data scripts<user_data_script>`.
-* :ref:`Cloud-config data<user_data_formats>`.
+* :ref:`Cloud-config<user_data_formats-cloud_config>`.
 * :ref:`Base configuration<configuration>`.
 * Command line interface via :command:`cloud-init query` or
   :command:`cloud-init devel render`.
@@ -165,7 +165,10 @@ Storage locations
   unredacted JSON blob.
 * :file:`/run/cloud-init/combined-cloud-config.json`: root-readable
   unredacted JSON blob. Any meta-data, vendor-data and user-data overrides
-  are applied to the :file:`/run/cloud-init/combined-cloud-config.json` config values.
+  are applied to the :file:`/run/cloud-init/combined-cloud-config.json` config
+  values.
+
+.. _instance_metadata-keys:
 
 :file:`instance-data.json` top level keys
 -----------------------------------------

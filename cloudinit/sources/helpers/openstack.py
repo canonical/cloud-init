@@ -87,7 +87,7 @@ class SourceMixin:
         if not self.ec2_metadata:
             return None
         bdm = self.ec2_metadata.get("block-device-mapping", {})
-        for (ent_name, device) in bdm.items():
+        for ent_name, device in bdm.items():
             if name == ent_name:
                 return device
         return None
@@ -266,7 +266,7 @@ class BaseReader(metaclass=abc.ABCMeta):
             "version": 2,
         }
         data = datafiles(self._find_working_version())
-        for (name, (path, required, translator)) in data.items():
+        for name, (path, required, translator) in data.items():
             path = self._path_join(self.base_path, path)
             data = None
             found = False
@@ -346,7 +346,7 @@ class BaseReader(metaclass=abc.ABCMeta):
         results["ec2-metadata"] = self._read_ec2_metadata()
 
         # Perform some misc. metadata key renames...
-        for (target_key, source_key, is_required) in KEY_COPIES:
+        for target_key, source_key, is_required in KEY_COPIES:
             if is_required and source_key not in metadata:
                 raise BrokenMetadata("No '%s' entry in metadata" % source_key)
             if source_key in metadata:
@@ -412,7 +412,7 @@ class ConfigDriveReader(BaseReader):
             raise NonReadable("%s: no files found" % (self.base_path))
 
         md = {}
-        for (name, (key, translator, default)) in FILES_V1.items():
+        for name, (key, translator, default) in FILES_V1.items():
             if name in found:
                 path = found[name]
                 try:

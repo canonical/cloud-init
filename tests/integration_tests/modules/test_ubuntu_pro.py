@@ -5,7 +5,7 @@ import os
 import pytest
 from pycloudlib.cloud import ImageType
 
-from cloudinit.util import should_log_deprecation
+from cloudinit import lifecycle
 from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.conftest import get_validated_source
 from tests.integration_tests.instances import (
@@ -143,7 +143,7 @@ class TestUbuntuAdvantage:
             client, "DEPRECATION_INFO_BOUNDARY"
         )
         # ubuntu_advantage key is deprecated in version 24.1
-        if should_log_deprecation("24.1", version_boundary):
+        if lifecycle.should_log_deprecation("24.1", version_boundary):
             log_level = "DEPRECATED"
         else:
             log_level = "INFO"

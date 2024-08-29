@@ -7,7 +7,7 @@
 import logging
 import os
 
-from cloudinit import subp, util
+from cloudinit import lifecycle, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -231,7 +231,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     @param args: Any module arguments from cloud.cfg
     """
     if "ca-certs" in cfg:
-        util.deprecate(
+        lifecycle.deprecate(
             deprecated="Key 'ca-certs'",
             deprecated_version="22.1",
             extra_message="Use 'ca_certs' instead.",
@@ -254,7 +254,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # If there is a remove_defaults option set to true, disable the system
     # default trusted CA certs first.
     if "remove-defaults" in ca_cert_cfg:
-        util.deprecate(
+        lifecycle.deprecate(
             deprecated="Key 'remove-defaults'",
             deprecated_version="22.1",
             extra_message="Use 'remove_defaults' instead.",

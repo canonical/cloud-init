@@ -10,7 +10,7 @@
 
 import logging
 
-from cloudinit import templater, util
+from cloudinit import lifecycle, templater, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -33,7 +33,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     if util.translate_bool(manage_hosts, addons=["template"]):
         if manage_hosts == "template":
-            util.deprecate(
+            lifecycle.deprecate(
                 deprecated="Value 'template' for key 'manage_etc_hosts'",
                 deprecated_version="22.2",
                 extra_message="Use 'true' instead.",

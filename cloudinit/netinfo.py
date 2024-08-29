@@ -15,7 +15,7 @@ from copy import copy, deepcopy
 from ipaddress import IPv4Network
 from typing import Dict, List, Union
 
-from cloudinit import subp, util
+from cloudinit import lifecycle, subp, util
 from cloudinit.net.network_state import net_prefix_to_ipv4_mask
 from cloudinit.simpletable import SimpleTable
 
@@ -95,7 +95,7 @@ def _netdev_info_iproute_json(ipaddr_json):
     return devs
 
 
-@util.deprecate_call(
+@lifecycle.deprecate_call(
     deprecated_version="22.1",
     extra_message="Required by old iproute2 versions that don't "
     "support ip json output. Consider upgrading to a more recent version.",
@@ -579,7 +579,7 @@ def netdev_pformat():
             return "\n"
         fields = ["Device", "Up", "Address", "Mask", "Scope", "Hw-Address"]
         tbl = SimpleTable(fields)
-        for (dev, data) in sorted(netdev.items()):
+        for dev, data in sorted(netdev.items()):
             for addr in data.get("ipv4"):
                 tbl.add_row(
                     (
@@ -635,7 +635,7 @@ def route_pformat():
                 "Flags",
             ]
             tbl_v4 = SimpleTable(fields_v4)
-            for (n, r) in enumerate(routes.get("ipv4")):
+            for n, r in enumerate(routes.get("ipv4")):
                 route_id = str(n)
                 try:
                     tbl_v4.add_row(
@@ -663,7 +663,7 @@ def route_pformat():
                 "Flags",
             ]
             tbl_v6 = SimpleTable(fields_v6)
-            for (n, r) in enumerate(routes.get("ipv6")):
+            for n, r in enumerate(routes.get("ipv6")):
                 route_id = str(n)
                 if r["iface"] == "lo":
                     continue

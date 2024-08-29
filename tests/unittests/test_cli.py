@@ -160,9 +160,7 @@ class TestCLI:
 
     def test_no_arguments_shows_error_message(self, capsys):
         exit_code = self._call_main()
-        missing_subcommand_message = (
-            "the following arguments are required: subcommand"
-        )
+        missing_subcommand_message = "a subcommand is required"
         _out, err = capsys.readouterr()
         assert (
             missing_subcommand_message in err
@@ -251,7 +249,6 @@ class TestCLI:
         self,
         subcommand,
         capsys,
-        m_log_paths,
         mock_status_wrapper,
     ):
         """Subcommands from entry-point are properly parsed from sys.argv."""
@@ -273,9 +270,7 @@ class TestCLI:
             "status",
         ],
     )
-    def test_subcommand_parser(
-        self, subcommand, m_log_paths, mock_status_wrapper
-    ):
+    def test_subcommand_parser(self, subcommand, mock_status_wrapper):
         """cloud-init `subcommand` calls its subparser."""
         # Provide -h param to `subcommand` to avoid having to mock behavior.
         out = io.StringIO()

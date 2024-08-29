@@ -31,7 +31,7 @@ from typing import (
 
 import yaml
 
-from cloudinit import features, importer, safeyaml
+from cloudinit import features, importer, lifecycle, safeyaml
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers import INCLUSION_TYPES_MAP, type_from_starts_with
 from cloudinit.helpers import Paths
@@ -42,14 +42,11 @@ from cloudinit.util import (
     get_modules_from_dir,
     load_text_file,
     load_yaml,
-    should_log_deprecation,
     write_file,
 )
 
 try:
-    from jsonschema import ValidationError as _ValidationError
-
-    ValidationError = _ValidationError
+    from jsonschema import ValidationError
 except ImportError:
     ValidationError = Exception  # type: ignore
 
@@ -795,8 +792,11 @@ def validate_cloudconfig_schema(
         if isinstance(
             schema_error, SchemaDeprecationError
         ):  # pylint: disable=W1116
-            if schema_error.version == "devel" or should_log_deprecation(
-                schema_error.version, features.DEPRECATION_INFO_BOUNDARY
+            if (
+                schema_error.version == "devel"
+                or lifecycle.should_log_deprecation(
+                    schema_error.version, features.DEPRECATION_INFO_BOUNDARY
+                )
             ):
                 deprecations.append(SchemaProblem(path, schema_error.message))
             else:
@@ -818,7 +818,7 @@ def validate_cloudconfig_schema(
                 deprecations,
                 prefix="Deprecated cloud-config provided: ",
             )
-            # This warning doesn't fit the standardized util.deprecated()
+            # This warning doesn't fit the standardized lifecycle.deprecated()
             # utility format, but it is a deprecation log, so log it directly.
             LOG.deprecated(message)  # type: ignore
     if strict and (errors or deprecations or info_deprecations):
@@ -1557,9 +1557,9 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
             LOG.warning("Unable to render property_doc due to invalid schema")
             meta_copy["property_doc"] = ""
     if not meta_copy.get("property_doc", ""):
-        meta_copy[
-            "property_doc"
-        ] = "      No schema definitions for this module"
+        meta_copy["property_doc"] = (
+            "      No schema definitions for this module"
+        )
     meta_copy["examples"] = textwrap.indent(_get_examples(meta), "      ")
     if not meta_copy["examples"]:
         meta_copy["examples"] = "         No examples for this module"

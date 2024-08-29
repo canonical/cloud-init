@@ -553,6 +553,60 @@ class DataSourceAzure(sources.DataSource):
             or self._ephemeral_dhcp_ctx.lease is None
         )
 
+    def _check_azure_proxy_agent_status(self) -> None:
+        """Check if azure-proxy-agent is ready for communication with WS/IMDS.
+
+        If ProvisionGuestProxyAgent is true, query azure-proxy-agent status,
+        waiting up to 120 seconds for the proxy to negotiate with Wireserver
+        and configure an eBPF proxy.  Once azure-proxy-agent is ready,
+        it will exit with code 0 and cloud-init can then expect to be able to
+        communicate with these services.
+
+        Fail deployment if azure-proxy-agent is not found or otherwise returns
+        an error.
+
+        For more information, check out:
+        https://github.com/azure/guestproxyagent
+        """
+        try:
+            cmd = [
+                "azure-proxy-agent",
+                "--status",
+                "--wait",
+                "120",
+            ]
+            out, err = subp.subp(cmd)
+            report_diagnostic_event(
+                "Executing %s resulted "
+                "in stderr=%r with stdout=%r" % (cmd, err, out),
+                logger_func=LOG.debug,
+            )
+        except subp.ProcessExecutionError as error:
+            if isinstance(error.reason, FileNotFoundError):
+                LOG.error(
+                    "Failed to activate Azure Guest Proxy Agent: "
+                    "azure-proxy-agent not found"
+                )
+                report_error = errors.ReportableErrorProxyAgentNotFound()
+                self._report_failure(report_error)
+            else:
+                report_diagnostic_event(
+                    "Failed to activate Azure Guest Proxy Agent: "
+                    "status check failed "
+                    "cmd=%r stderr=%r stdout=%r exit_code=%s"
+                    % (
+                        error.cmd,
+                        error.stderr,
+                        error.stdout,
+                        error.exit_code,
+                    ),
+                    logger_func=LOG.error,
+                )
+                reportable_error = (
+                    errors.ReportableErrorProxyAgentStatusFailure(error)
+                )
+                self._report_failure(reportable_error)
+
     @azure_ds_telemetry_reporter
     def crawl_metadata(self):
         """Walk all instance metadata sources returning a dict on success.
@@ -632,6 +686,11 @@ class DataSourceAzure(sources.DataSource):
 
         imds_md = {}
         if self._is_ephemeral_networking_up():
+            # check if azure-proxy-agent is enabled in the ovf-env.xml file.
+            # azure-proxy-agent feature is opt-in and disabled by default.
+            if cfg.get("ProvisionGuestProxyAgent"):
+                self._check_azure_proxy_agent_status()
+
             imds_md = self.get_metadata_from_imds(report_failure=True)
 
         if not imds_md and ovf_source is None:
@@ -663,6 +722,9 @@ class DataSourceAzure(sources.DataSource):
                 self._wait_for_pps_unknown_reuse()
 
             md, userdata_raw, cfg, files = self._reprovision()
+            if cfg.get("ProvisionGuestProxyAgent"):
+                self._check_azure_proxy_agent_status()
+
             # fetch metadata again as it has changed after reprovisioning
             imds_md = self.get_metadata_from_imds(report_failure=True)
 

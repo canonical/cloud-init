@@ -54,7 +54,7 @@ def _format_repository_config(repo_id, repo_config):
     to_be = configobj.ConfigObj()
     to_be[repo_id] = {}
     # Do basic translation of the items -> values
-    for (k, v) in repo_config.items():
+    for k, v in repo_config.items():
         # For now assume that people using this know the format
         # of zypper repos  and don't verify keys/values further
         to_be[repo_id][k] = _format_repo_value(v)
@@ -115,7 +115,7 @@ def _write_repos(repos, repo_base_path):
 
         valid_repos[repo_id] = (repo_fn_pth, repo_config)
 
-    for (repo_id, repo_data) in valid_repos.items():
+    for repo_id, repo_data in valid_repos.items():
         repo_blob = _format_repository_config(repo_id, repo_data[-1])
         util.write_file(repo_data[0], repo_blob)
 

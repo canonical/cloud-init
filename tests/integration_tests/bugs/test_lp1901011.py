@@ -4,6 +4,7 @@ Ensure an ephemeral disk exists after boot.
 
 See https://github.com/canonical/cloud-init/pull/800
 """
+
 import pytest
 
 from tests.integration_tests.clouds import IntegrationCloud

@@ -7,7 +7,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import ssh_util, util
+from cloudinit import lifecycle, ssh_util
 from cloudinit.config import cc_ssh
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -334,7 +334,7 @@ class TestHandleSsh:
         Otherwise, 600.
         """
         m_gid.return_value = 10 if ssh_keys_group_exists else -1
-        m_sshd_version.return_value = util.Version(sshd_version, 0)
+        m_sshd_version.return_value = lifecycle.Version(sshd_version, 0)
         key_path = cc_ssh.KEY_FILE_TPL % "rsa"
         cloud = get_cloud(distro="centos")
         cc_ssh.handle("name", {"ssh_genkeytypes": ["rsa"]}, cloud, [])

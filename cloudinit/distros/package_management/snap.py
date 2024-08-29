@@ -35,4 +35,23 @@ class Snap(PackageManager):
 
     @staticmethod
     def upgrade_packages():
-        subp.subp(["snap", "refresh"])
+        command = ["snap", "get", "system", "-d"]
+        snap_hold = None
+        try:
+            result = subp.subp(command)
+            snap_hold = (
+                util.load_json(result.stdout).get("refresh", {}).get("hold")
+            )
+        except subp.ProcessExecutionError as e:
+            LOG.info(
+                "Continuing to snap refresh. Unable to run command: %s: %s",
+                command,
+                e,
+            )
+        if snap_hold == "forever":
+            LOG.info(
+                "Skipping snap refresh because refresh.hold is set to '%s'",
+                snap_hold,
+            )
+        else:
+            subp.subp(["snap", "refresh"])

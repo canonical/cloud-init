@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import re
 from unittest import mock
 
 import pytest
@@ -299,10 +300,10 @@ class TestGrubDpkgSchema:
                 {"grub-dpkg": {"grub-pc/install_devices_empty": False}},
                 pytest.raises(
                     SchemaValidationError,
-                    match=(
+                    match=re.escape(
                         "Cloud config schema deprecations: grub-dpkg:"
                         "  Deprecated in version 22.2. Use "
-                        "``grub_dpkg`` instead."
+                        "**grub_dpkg** instead."
                     ),
                 ),
                 False,
