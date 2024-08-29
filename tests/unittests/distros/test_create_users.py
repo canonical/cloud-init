@@ -50,10 +50,11 @@ class TestCreateUser:
         return d
 
     @pytest.mark.parametrize(
-        "create_kwargs,expected",
+        "create_kwargs,is_snappy,expected",
         [
             pytest.param(
                 {},
+                False,
                 [
                     _useradd2call([USER, "-m"]),
                     mock.call(["passwd", "-l", USER]),
@@ -61,7 +62,17 @@ class TestCreateUser:
                 id="basic",
             ),
             pytest.param(
+                {},
+                True,
+                [
+                    _useradd2call([USER, "--extrausers", "-m"]),
+                    mock.call(["passwd", "-l", USER]),
+                ],
+                id="basic_snappy",
+            ),
+            pytest.param(
                 {"no_create_home": True},
+                False,
                 [
                     _useradd2call([USER, "-M"]),
                     mock.call(["passwd", "-l", USER]),
@@ -69,7 +80,17 @@ class TestCreateUser:
                 id="no_home",
             ),
             pytest.param(
+                {"no_create_home": True},
+                True,
+                [
+                    _useradd2call([USER, "--extrausers", "-M"]),
+                    mock.call(["passwd", "-l", USER]),
+                ],
+                id="no_home_snappy",
+            ),
+            pytest.param(
                 {"system": True},
+                False,
                 [
                     _useradd2call([USER, "--system", "-M"]),
                     mock.call(["passwd", "-l", USER]),
@@ -77,7 +98,17 @@ class TestCreateUser:
                 id="system_user",
             ),
             pytest.param(
+                {"system": True},
+                True,
+                [
+                    _useradd2call([USER, "--extrausers", "--system", "-M"]),
+                    mock.call(["passwd", "-l", USER]),
+                ],
+                id="system_user_snappy",
+            ),
+            pytest.param(
                 {"create_no_home": False},
+                False,
                 [
                     _useradd2call([USER, "-m"]),
                     mock.call(["passwd", "-l", USER]),
@@ -85,12 +116,29 @@ class TestCreateUser:
                 id="explicit_no_home_false",
             ),
             pytest.param(
+                {"create_no_home": False},
+                True,
+                [
+                    _useradd2call([USER, "--extrausers", "-m"]),
+                    mock.call(["passwd", "-l", USER]),
+                ],
+                id="explicit_no_home_false_snappy",
+            ),
+            pytest.param(
                 {"lock_passwd": False},
+                False,
                 [_useradd2call([USER, "-m"])],
                 id="unlocked",
             ),
             pytest.param(
+                {"lock_passwd": False},
+                True,
+                [_useradd2call([USER, "--extrausers", "-m"])],
+                id="unlocked_snappy",
+            ),
+            pytest.param(
                 {"passwd": "$6$rounds=..."},
+                False,
                 [
                     _useradd2call([USER, "--password", "$6$rounds=...", "-m"]),
                     mock.call(["passwd", "-l", USER]),
@@ -98,7 +146,25 @@ class TestCreateUser:
                 id="set_implicit_encrypted_password",
             ),
             pytest.param(
+                {"passwd": "$6$rounds=..."},
+                True,
+                [
+                    _useradd2call(
+                        [
+                            USER,
+                            "--extrausers",
+                            "--password",
+                            "$6$rounds=...",
+                            "-m",
+                        ]
+                    ),
+                    mock.call(["passwd", "-l", USER]),
+                ],
+                id="set_implicit_encrypted_password_snappy",
+            ),
+            pytest.param(
                 {"passwd": ""},
+                False,
                 [
                     _useradd2call([USER, "-m"]),
                     mock.call(["passwd", "-l", USER]),
@@ -106,7 +172,17 @@ class TestCreateUser:
                 id="set_empty_passwd_new_user",
             ),
             pytest.param(
+                {"passwd": ""},
+                True,
+                [
+                    _useradd2call([USER, "--extrausers", "-m"]),
+                    mock.call(["passwd", "-l", USER]),
+                ],
+                id="set_empty_passwd_new_user_snappy",
+            ),
+            pytest.param(
                 {"plain_text_passwd": "clearfoo"},
+                False,
                 [
                     _useradd2call([USER, "-m"]),
                     _chpasswdmock(USER, "clearfoo"),
@@ -115,7 +191,18 @@ class TestCreateUser:
                 id="set_plain_text_password",
             ),
             pytest.param(
+                {"plain_text_passwd": "clearfoo"},
+                True,
+                [
+                    _useradd2call([USER, "--extrausers", "-m"]),
+                    _chpasswdmock(USER, "clearfoo"),
+                    mock.call(["passwd", "-l", USER]),
+                ],
+                id="set_plain_text_password_snappy",
+            ),
+            pytest.param(
                 {"hashed_passwd": "$6$rounds=..."},
+                False,
                 [
                     _useradd2call([USER, "-m"]),
                     _chpasswdmock(USER, "$6$rounds=...", hashed=True),
@@ -123,12 +210,32 @@ class TestCreateUser:
                 ],
                 id="set_explicitly_hashed_password",
             ),
+            pytest.param(
+                {"hashed_passwd": "$6$rounds=..."},
+                True,
+                [
+                    _useradd2call([USER, "--extrausers", "-m"]),
+                    _chpasswdmock(USER, "$6$rounds=...", hashed=True),
+                    mock.call(["passwd", "-l", USER]),
+                ],
+                id="set_explicitly_hashed_password_snappy",
+            ),
         ],
     )
     @mock.patch("cloudinit.distros.util.is_user", return_value=False)
     def test_create_options(
-        self, m_is_user, m_subp, dist, create_kwargs, expected
+        self,
+        m_is_user,
+        m_subp,
+        dist,
+        create_kwargs,
+        is_snappy,
+        expected,
+        mocker,
     ):
+        mocker.patch(
+            "cloudinit.distros.util.system_is_snappy", return_value=is_snappy
+        )
         dist.create_user(name=USER, **create_kwargs)
         assert m_subp.call_args_list == expected
 
@@ -296,9 +403,7 @@ class TestCreateUser:
         [
             pytest.param(
                 {"passwd": "$6$rounds=..."},
-                [
-                    mock.call(["passwd", "-l", USER]),
-                ],
+                [mock.call(["passwd", "-l", USER])],
                 [
                     "'passwd' in user-data is ignored for existing user "
                     "foo_user"
@@ -345,7 +450,10 @@ class TestCreateUser:
         assert m_subp.call_args_list == expected
 
     @mock.patch("cloudinit.distros.util.is_group")
-    def test_group_added(self, m_is_group, m_subp, dist):
+    def test_group_added(self, m_is_group, m_subp, dist, mocker):
+        mocker.patch(
+            "cloudinit.distros.util.system_is_snappy", return_value=False
+        )
         m_is_group.return_value = False
         dist.create_user(USER, groups=["group1"])
         expected = [
@@ -356,7 +464,24 @@ class TestCreateUser:
         assert m_subp.call_args_list == expected
 
     @mock.patch("cloudinit.distros.util.is_group")
-    def test_only_new_group_added(self, m_is_group, m_subp, dist):
+    def test_snappy_group_added(self, m_is_group, m_subp, dist, mocker):
+        mocker.patch(
+            "cloudinit.distros.util.system_is_snappy", return_value=True
+        )
+        m_is_group.return_value = False
+        dist.create_user(USER, groups=["group1"])
+        expected = [
+            mock.call(["groupadd", "group1", "--extrausers"]),
+            _useradd2call([USER, "--extrausers", "--groups", "group1", "-m"]),
+            mock.call(["passwd", "-l", USER]),
+        ]
+        assert m_subp.call_args_list == expected
+
+    @mock.patch("cloudinit.distros.util.is_group")
+    def test_only_new_group_added(self, m_is_group, m_subp, dist, mocker):
+        mocker.patch(
+            "cloudinit.distros.util.system_is_snappy", return_value=False
+        )
         ex_groups = ["existing_group"]
         groups = ["group1", ex_groups[0]]
         m_is_group.side_effect = lambda m: m in ex_groups
@@ -369,10 +494,33 @@ class TestCreateUser:
         assert m_subp.call_args_list == expected
 
     @mock.patch("cloudinit.distros.util.is_group")
+    def test_snappy_only_new_group_added(
+        self, m_is_group, m_subp, dist, mocker
+    ):
+        mocker.patch(
+            "cloudinit.distros.util.system_is_snappy", return_value=True
+        )
+        ex_groups = ["existing_group"]
+        groups = ["group1", ex_groups[0]]
+        m_is_group.side_effect = lambda m: m in ex_groups
+        dist.create_user(USER, groups=groups)
+        expected = [
+            mock.call(["groupadd", "group1", "--extrausers"]),
+            _useradd2call(
+                [USER, "--extrausers", "--groups", ",".join(groups), "-m"]
+            ),
+            mock.call(["passwd", "-l", USER]),
+        ]
+        assert m_subp.call_args_list == expected
+
+    @mock.patch("cloudinit.distros.util.is_group")
     def test_create_groups_with_whitespace_string(
-        self, m_is_group, m_subp, dist
+        self, m_is_group, m_subp, dist, mocker
     ):
         # groups supported as a comma delimeted string even with white space
+        mocker.patch(
+            "cloudinit.distros.util.system_is_snappy", return_value=False
+        )
         m_is_group.return_value = False
         dist.create_user(USER, groups="group1, group2")
         expected = [
@@ -383,11 +531,34 @@ class TestCreateUser:
         ]
         assert m_subp.call_args_list == expected
 
+    @mock.patch("cloudinit.distros.util.is_group")
+    def test_snappy_create_groups_with_whitespace_string(
+        self, m_is_group, m_subp, dist, mocker
+    ):
+        # groups supported as a comma delimeted string even with white space
+        mocker.patch(
+            "cloudinit.distros.util.system_is_snappy", return_value=True
+        )
+        m_is_group.return_value = False
+        dist.create_user(USER, groups="group1, group2")
+        expected = [
+            mock.call(["groupadd", "group1", "--extrausers"]),
+            mock.call(["groupadd", "group2", "--extrausers"]),
+            _useradd2call(
+                [USER, "--extrausers", "--groups", "group1,group2", "-m"]
+            ),
+            mock.call(["passwd", "-l", USER]),
+        ]
+        assert m_subp.call_args_list == expected
+
     @mock.patch("cloudinit.distros.util.is_group", return_value=False)
     def test_create_groups_with_dict_deprecated(
-        self, m_is_group, m_subp, dist, caplog
+        self, m_is_group, m_subp, dist, caplog, mocker
     ):
         """users.groups supports a dict value, but emit deprecation log."""
+        mocker.patch(
+            "cloudinit.distros.util.system_is_snappy", return_value=False
+        )
         dist.create_user(USER, groups={"group1": None, "group2": None})
         expected = [
             mock.call(["groupadd", "group1"]),
@@ -412,8 +583,13 @@ class TestCreateUser:
         assert "Use a comma-delimited" in caplog.records[0].message
 
     @mock.patch("cloudinit.distros.util.is_group", return_value=False)
-    def test_create_groups_with_list(self, m_is_group, m_subp, dist, caplog):
+    def test_create_groups_with_list(
+        self, m_is_group, m_subp, dist, caplog, mocker
+    ):
         """users.groups supports a list value."""
+        mocker.patch(
+            "cloudinit.distros.util.system_is_snappy", return_value=False
+        )
         dist.create_user(USER, groups=["group1", "group2"])
         expected = [
             mock.call(["groupadd", "group1"]),
@@ -425,7 +601,31 @@ class TestCreateUser:
         assert "WARNING" not in caplog.text
         assert "DEPRECATED" not in caplog.text
 
-    def test_explicit_sudo_false(self, m_subp, dist, caplog):
+    @mock.patch("cloudinit.distros.util.is_group", return_value=False)
+    def test_snappy_create_groups_with_list(
+        self, m_is_group, m_subp, dist, caplog, mocker
+    ):
+        """users.groups supports a list value."""
+        mocker.patch(
+            "cloudinit.distros.util.system_is_snappy", return_value=True
+        )
+        dist.create_user(USER, groups=["group1", "group2"])
+        expected = [
+            mock.call(["groupadd", "group1", "--extrausers"]),
+            mock.call(["groupadd", "group2", "--extrausers"]),
+            _useradd2call(
+                [USER, "--extrausers", "--groups", "group1,group2", "-m"]
+            ),
+            mock.call(["passwd", "-l", USER]),
+        ]
+        assert m_subp.call_args_list == expected
+        assert "WARNING" not in caplog.text
+        assert "DEPRECATED" not in caplog.text
+
+    def test_explicit_sudo_false(self, m_subp, dist, caplog, mocker):
+        mocker.patch(
+            "cloudinit.distros.util.system_is_snappy", return_value=False
+        )
         dist.create_user(USER, sudo=False)
         assert m_subp.call_args_list == [
             _useradd2call([USER, "-m"]),
@@ -446,7 +646,10 @@ class TestCreateUser:
             " in 27.2. Use 'null' instead."
         ) in caplog.text
 
-    def test_explicit_sudo_none(self, m_subp, dist, caplog):
+    def test_explicit_sudo_none(self, m_subp, dist, caplog, mocker):
+        mocker.patch(
+            "cloudinit.distros.util.system_is_snappy", return_value=False
+        )
         dist.create_user(USER, sudo=None)
         assert m_subp.call_args_list == [
             _useradd2call([USER, "-m"]),
@@ -455,11 +658,26 @@ class TestCreateUser:
         assert "WARNING" not in caplog.text
         assert "DEPRECATED" not in caplog.text
 
+    def test_snappy_explicit_sudo_none(self, m_subp, dist, caplog, mocker):
+        mocker.patch(
+            "cloudinit.distros.util.system_is_snappy", return_value=True
+        )
+        dist.create_user(USER, sudo=None)
+        assert m_subp.call_args_list == [
+            _useradd2call([USER, "--extrausers", "-m"]),
+            mock.call(["passwd", "-l", USER]),
+        ]
+        assert "WARNING" not in caplog.text
+        assert "DEPRECATED" not in caplog.text
+
     @mock.patch("cloudinit.ssh_util.setup_user_keys")
     def test_setup_ssh_authorized_keys_with_string(
-        self, m_setup_user_keys, m_subp, dist
+        self, m_setup_user_keys, m_subp, dist, mocker
     ):
         """ssh_authorized_keys allows string and calls setup_user_keys."""
+        mocker.patch(
+            "cloudinit.distros.util.system_is_snappy", return_value=False
+        )
         dist.create_user(USER, ssh_authorized_keys="mykey")
         assert m_subp.call_args_list == [
             _useradd2call([USER, "-m"]),
@@ -468,13 +686,46 @@ class TestCreateUser:
         m_setup_user_keys.assert_called_once_with({"mykey"}, USER)
 
     @mock.patch("cloudinit.ssh_util.setup_user_keys")
+    def test_snappy_setup_ssh_authorized_keys_with_string(
+        self, m_setup_user_keys, m_subp, dist, mocker
+    ):
+        """ssh_authorized_keys allows string and calls setup_user_keys."""
+        mocker.patch(
+            "cloudinit.distros.util.system_is_snappy", return_value=True
+        )
+        dist.create_user(USER, ssh_authorized_keys="mykey")
+        assert m_subp.call_args_list == [
+            _useradd2call([USER, "--extrausers", "-m"]),
+            mock.call(["passwd", "-l", USER]),
+        ]
+        m_setup_user_keys.assert_called_once_with({"mykey"}, USER)
+
+    @mock.patch("cloudinit.ssh_util.setup_user_keys")
     def test_setup_ssh_authorized_keys_with_list(
-        self, m_setup_user_keys, m_subp, dist
+        self, m_setup_user_keys, m_subp, dist, mocker
     ):
         """ssh_authorized_keys allows lists and calls setup_user_keys."""
+        mocker.patch(
+            "cloudinit.distros.util.system_is_snappy", return_value=False
+        )
         dist.create_user(USER, ssh_authorized_keys=["key1", "key2"])
         assert m_subp.call_args_list == [
             _useradd2call([USER, "-m"]),
+            mock.call(["passwd", "-l", USER]),
+        ]
+        m_setup_user_keys.assert_called_once_with({"key1", "key2"}, USER)
+
+    @mock.patch("cloudinit.ssh_util.setup_user_keys")
+    def test_snappy_setup_ssh_authorized_keys_with_list(
+        self, m_setup_user_keys, m_subp, dist, mocker
+    ):
+        """ssh_authorized_keys allows lists and calls setup_user_keys."""
+        mocker.patch(
+            "cloudinit.distros.util.system_is_snappy", return_value=True
+        )
+        dist.create_user(USER, ssh_authorized_keys=["key1", "key2"])
+        assert m_subp.call_args_list == [
+            _useradd2call([USER, "--extrausers", "-m"]),
             mock.call(["passwd", "-l", USER]),
         ]
         m_setup_user_keys.assert_called_once_with({"key1", "key2"}, USER)
