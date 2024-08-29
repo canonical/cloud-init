@@ -533,6 +533,7 @@ class TestFstabHandling:
             "LABEL=keepme	none	ext4	defaults	0	0\n"
             "/dev/sda1	/a	auto	defaults,comment=cloudconfig	0	2\n"
             "LABEL=UEFI\n"
+            "\n"
             "/dev/sda2	/b	auto	defaults,comment=cloudconfig	0	2\n"
         )
         with open(cc_mounts.FSTAB_PATH, "w") as fd:
