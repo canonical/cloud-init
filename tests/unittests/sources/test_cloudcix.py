@@ -2,6 +2,7 @@
 import json
 
 import responses
+from unittest import mock
 
 from cloudinit import distros, helpers, sources
 from cloudinit import url_helper as uh
@@ -60,12 +61,14 @@ class TestDataSourceCloudCIX(ResponsesTestCase):
     """
     Test reading the meta-data
     """
+    allowed_subp = True
 
     def setUp(self):
         super(TestDataSourceCloudCIX, self).setUp()
         self.paths = helpers.Paths({"run_dir": self.tmp_dir()})
         self.datasource = self._get_ds()
-        self.allowed_subp = True
+        self.m_read_dmi_data = mock.MagicMock()
+
         self.add_patch(
             "cloudinit.dmi.read_dmi_data",
             "m_read_dmi_data",

@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from cloudinit import dmi, net, sources, url_helper, util
 from cloudinit.net.dhcp import NoDHCPLeaseError
@@ -130,7 +130,7 @@ class DataSourceCloudCIX(sources.DataSource):
         return self._net_cfg
 
     def _generate_net_cfg(self, metadata):
-        netcfg = {"version": 2, "ethernets": {}}
+        netcfg: Dict[str, Any] = {"version": 2, "ethernets": {}}
         macs_to_nics = net.get_interfaces_by_mac()
 
         for iface in metadata["network"]["interfaces"]:

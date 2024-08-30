@@ -43,6 +43,7 @@ The following is a list of documentation for each supported datasource:
    datasources/altcloud.rst
    datasources/ec2.rst
    datasources/azure.rst
+   datasources/cloudcix.rst
    datasources/cloudsigma.rst
    datasources/cloudstack.rst
    datasources/configdrive.rst
