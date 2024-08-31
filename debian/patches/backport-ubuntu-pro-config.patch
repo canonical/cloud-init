@@ -1,0 +1,2716 @@
+Description: Backport user-data schema renames ubuntu_advantage to ubuntu_pro
+ To allow for common Ubuntu Pro user-data config keys across all supported
+ Expanded Security Maintenance, backport support for ubuntu_pro config key to
+ ESM-maintained Ubuntu releases. This allows for use of common `ubuntu_pro`
+ key in #cloud-config on ESM-maintained releases, LTS releases and interim
+ releases.
+Author: Chad Smith <chad.smith@canonical.com>
+Origin: backport
+Last-Update: 2024-08-08
+--- a/cloudinit/config/cc_ubuntu_advantage.py
++++ /dev/null
+@@ -1,178 +0,0 @@
+-# This file is part of cloud-init. See LICENSE file for license information.
+-
+-"""ubuntu_advantage: Configure Ubuntu Advantage support services"""
+-
+-from textwrap import dedent
+-
+-from cloudinit.config.schema import (
+-    get_schema_doc, validate_cloudconfig_schema)
+-from cloudinit import log as logging
+-from cloudinit.settings import PER_INSTANCE
+-from cloudinit import subp
+-from cloudinit import util
+-
+-
+-UA_URL = 'https://ubuntu.com/advantage'
+-
+-distros = ['ubuntu']
+-
+-schema = {
+-    'id': 'cc_ubuntu_advantage',
+-    'name': 'Ubuntu Advantage',
+-    'title': 'Configure Ubuntu Advantage support services',
+-    'description': dedent("""\
+-        Attach machine to an existing Ubuntu Advantage support contract and
+-        enable or disable support services such as Livepatch, ESM,
+-        FIPS and FIPS Updates. When attaching a machine to Ubuntu Advantage,
+-        one can also specify services to enable.  When the 'enable'
+-        list is present, any named service will be enabled and all absent
+-        services will remain disabled.
+-
+-        Note that when enabling FIPS or FIPS updates you will need to schedule
+-        a reboot to ensure the machine is running the FIPS-compliant kernel.
+-        See :ref:`Power State Change` for information on how to configure
+-        cloud-init to perform this reboot.
+-        """),
+-    'distros': distros,
+-    'examples': [dedent("""\
+-        # Attach the machine to an Ubuntu Advantage support contract with a
+-        # UA contract token obtained from %s.
+-        ubuntu_advantage:
+-          token: <ua_contract_token>
+-    """ % UA_URL), dedent("""\
+-        # Attach the machine to an Ubuntu Advantage support contract enabling
+-        # only fips and esm services. Services will only be enabled if
+-        # the environment supports said service. Otherwise warnings will
+-        # be logged for incompatible services specified.
+-        ubuntu-advantage:
+-          token: <ua_contract_token>
+-          enable:
+-          - fips
+-          - esm
+-    """), dedent("""\
+-        # Attach the machine to an Ubuntu Advantage support contract and enable
+-        # the FIPS service.  Perform a reboot once cloud-init has
+-        # completed.
+-        power_state:
+-          mode: reboot
+-        ubuntu-advantage:
+-          token: <ua_contract_token>
+-          enable:
+-          - fips
+-        """)],
+-    'frequency': PER_INSTANCE,
+-    'type': 'object',
+-    'properties': {
+-        'ubuntu_advantage': {
+-            'type': 'object',
+-            'properties': {
+-                'enable': {
+-                    'type': 'array',
+-                    'items': {'type': 'string'},
+-                },
+-                'token': {
+-                    'type': 'string',
+-                    'description': (
+-                        'A contract token obtained from %s.' % UA_URL)
+-                }
+-            },
+-            'required': ['token'],
+-            'additionalProperties': False
+-        }
+-    }
+-}
+-
+-__doc__ = get_schema_doc(schema)  # Supplement python help()
+-
+-LOG = logging.getLogger(__name__)
+-
+-
+-def configure_ua(token=None, enable=None):
+-    """Call ua commandline client to attach or enable services."""
+-    error = None
+-    if not token:
+-        error = ('ubuntu_advantage: token must be provided')
+-        LOG.error(error)
+-        raise RuntimeError(error)
+-
+-    if enable is None:
+-        enable = []
+-    elif isinstance(enable, str):
+-        LOG.warning('ubuntu_advantage: enable should be a list, not'
+-                    ' a string; treating as a single enable')
+-        enable = [enable]
+-    elif not isinstance(enable, list):
+-        LOG.warning('ubuntu_advantage: enable should be a list, not'
+-                    ' a %s; skipping enabling services',
+-                    type(enable).__name__)
+-        enable = []
+-
+-    attach_cmd = ['ua', 'attach', token]
+-    LOG.debug('Attaching to Ubuntu Advantage. %s', ' '.join(attach_cmd))
+-    try:
+-        subp.subp(attach_cmd)
+-    except subp.ProcessExecutionError as e:
+-        msg = 'Failure attaching Ubuntu Advantage:\n{error}'.format(
+-            error=str(e))
+-        util.logexc(LOG, msg)
+-        raise RuntimeError(msg) from e
+-    enable_errors = []
+-    for service in enable:
+-        try:
+-            cmd = ['ua', 'enable', service]
+-            subp.subp(cmd, capture=True)
+-        except subp.ProcessExecutionError as e:
+-            enable_errors.append((service, e))
+-    if enable_errors:
+-        for service, error in enable_errors:
+-            msg = 'Failure enabling "{service}":\n{error}'.format(
+-                service=service, error=str(error))
+-            util.logexc(LOG, msg)
+-        raise RuntimeError(
+-            'Failure enabling Ubuntu Advantage service(s): {}'.format(
+-                ', '.join('"{}"'.format(service)
+-                          for service, _ in enable_errors)))
+-
+-
+-def maybe_install_ua_tools(cloud):
+-    """Install ubuntu-advantage-tools if not present."""
+-    if subp.which('ua'):
+-        return
+-    try:
+-        cloud.distro.update_package_sources()
+-    except Exception:
+-        util.logexc(LOG, "Package update failed")
+-        raise
+-    try:
+-        cloud.distro.install_packages(['ubuntu-advantage-tools'])
+-    except Exception:
+-        util.logexc(LOG, "Failed to install ubuntu-advantage-tools")
+-        raise
+-
+-
+-def handle(name, cfg, cloud, log, args):
+-    ua_section = None
+-    if 'ubuntu-advantage' in cfg:
+-        LOG.warning('Deprecated configuration key "ubuntu-advantage" provided.'
+-                    ' Expected underscore delimited "ubuntu_advantage"; will'
+-                    ' attempt to continue.')
+-        ua_section = cfg['ubuntu-advantage']
+-    if 'ubuntu_advantage' in cfg:
+-        ua_section = cfg['ubuntu_advantage']
+-    if ua_section is None:
+-        LOG.debug("Skipping module named %s,"
+-                  " no 'ubuntu_advantage' configuration found", name)
+-        return
+-    validate_cloudconfig_schema(cfg, schema)
+-    if 'commands' in ua_section:
+-        msg = (
+-            'Deprecated configuration "ubuntu-advantage: commands" provided.'
+-            ' Expected "token"')
+-        LOG.error(msg)
+-        raise RuntimeError(msg)
+-
+-    maybe_install_ua_tools(cloud)
+-    configure_ua(token=ua_section.get('token'),
+-                 enable=ua_section.get('enable'))
+-
+-# vi: ts=4 expandtab
+--- /dev/null
++++ b/cloudinit/config/cc_ubuntu_pro.py
+@@ -0,0 +1,627 @@
++# This file is part of cloud-init. See LICENSE file for license information.
++
++"""ubuntu_pro: Configure Ubuntu Pro support services"""
++
++import json
++import logging
++import re
++import sys
++from textwrap import dedent
++from typing import Any
++from urllib.parse import urlparse
++
++from cloudinit import subp, util
++from cloudinit.cloud import Cloud
++from cloudinit.config.schema import (
++    get_schema_doc, validate_cloudconfig_schema)
++from cloudinit.settings import PER_INSTANCE
++
++PRO_URL = "https://ubuntu.com/pro"
++DEPRECATED_KEYS = set(["ubuntu-advantage", "ubuntu_advantage"])
++
++pro_properties = {
++  "type": "object",
++  "additionalProperties": False,
++  "properties": {
++    "commands": {
++      "type": ["object", "array"],  # Array of strings or dict
++      "items": {
++        "oneOf": [
++          {"type": "array", "items": {"type": "string"}},
++          {"type": "string"}
++        ]
++      },
++      'additionalItems': False,  # Reject non-string & non-list
++      'minItems': 1,
++      'minProperties': 1,
++    },
++    "enable": {
++      "type": "array",
++      "items": {
++        "type": "string"
++      },
++      "description": "Optional list of Ubuntu Pro services to enable. Any of: cc-eal, cis, esm-infra, fips, fips-updates, livepatch. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled. In Ubuntu Pro instances, if this list is given, then only those services will be enabled, ignoring contract defaults. Passing beta services here will cause an error."
++    },
++    "enable_beta": {
++      "type": "array",
++      "items": {
++        "type": "string"
++      },
++      "description": "Optional list of Ubuntu Pro beta services to enable. By default, a given contract token will automatically enable a number of services, use this list to supplement which services should additionally be enabled. Any service unavailable on a given Ubuntu release or unentitled in a given contract will remain disabled. In Ubuntu Pro instances, if this list is given, then only those services will be enabled, ignoring contract defaults."
++    },
++    "token": {
++      "type": "string",
++      "description": "Contract token obtained from https://ubuntu.com/pro to attach. Required for non-Pro instances."
++    },
++    "features": {
++      "type": "object",
++      "description": "Ubuntu Pro features.",
++      "additionalProperties": False,
++      "properties": {
++        "disable_auto_attach": {
++          "type": "boolean",
++          "description": "Optional boolean for controlling if ua-auto-attach.service (in Ubuntu Pro instances) will be attempted each boot. Default: ``false``",
++          "default": False
++        }
++      }
++    },
++    "config": {
++      "type": "object",
++      "description": "Configuration settings or override Ubuntu Pro config.",
++      "additionalProperties": True,
++      "properties": {
++        "http_proxy": {
++          "type": [
++            "string",
++            "null"
++          ],
++          "format": "uri",
++          "description": "Ubuntu Pro HTTP Proxy URL or null to unset."
++        },
++        "https_proxy": {
++          "type": [
++            "string",
++            "null"
++          ],
++          "format": "uri",
++          "description": "Ubuntu Pro HTTPS Proxy URL or null to unset."
++        },
++        "global_apt_http_proxy": {
++          "type": [
++            "string",
++            "null"
++          ],
++          "format": "uri",
++          "description": "HTTP Proxy URL used for all APT repositories on a system or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
++        },
++        "global_apt_https_proxy": {
++          "type": [
++            "string",
++            "null"
++          ],
++          "format": "uri",
++          "description": "HTTPS Proxy URL used for all APT repositories on a system or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
++        },
++        "ua_apt_http_proxy": {
++          "type": [
++            "string",
++            "null"
++          ],
++          "format": "uri",
++          "description": "HTTP Proxy URL used only for Ubuntu Pro APT repositories or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
++        },
++        "ua_apt_https_proxy": {
++          "type": [
++            "string",
++            "null"
++          ],
++          "format": "uri",
++          "description": "HTTPS Proxy URL used only for Ubuntu Pro APT repositories or null to unset. Stored at ``/etc/apt/apt.conf.d/90ubuntu-advantage-aptproxy``"
++        }
++      }
++    }
++  }
++}
++schema = {
++    "id": "cc_ubuntu_pro",
++    "name": "Ubuntu Pro",
++    "title": "Configure Ubuntu Pro support services",
++    'description': dedent("""\
++        Attach machine to an existing Ubuntu Pro support contract and enable or
++        disable support services such as Livepatch, ESM, FIPS and FIPS Updates.
++
++        When attaching a machine to Ubuntu Pro, one can also specify services
++        to enable. When the ``enable`` list is present, only named services
++        will be activated. If the ``enable`` list is not present, the
++        contract's default services will be enabled.
++
++        On Pro instances, when ``ubuntu_pro`` config is provided to cloud-init,
++        Pro's auto-attach feature will be disabled and cloud-init will perform
++        the Pro auto-attach, ignoring the ``token`` key. The ``enable`` and
++        ``enable_beta`` values will strictly determine what services will be
++        enabled, ignoring contract defaults.
++
++        Note that when enabling FIPS or FIPS updates you will need to schedule
++        a reboot to ensure the machine is running the FIPS-compliant kernel.
++        See the Power State Change module for information on how to configure
++        cloud-init to perform this reboot.
++    """),
++    "distros": ["ubuntu"],
++    'examples': [dedent("""\
++        # Attach the machine to an Ubuntu Pro support contract with a Pro
++        # token obtained from https://ubuntu.pro
++        ubuntu_pro: {token: <token>}
++    """), dedent("""\
++        # Attach the machine to an Ubuntu Pro support contract, enabling
++        # only FIPS and ESM services.
++        ubuntu_pro:
++          enable: [fips, esm]
++          token: <token>
++    """), dedent("""\
++        # Attach the machine to an Ubuntu Pro support contract and enable the
++        # FIPS service. Perform a reboot once cloud-init has completed.
++        power_state: {mode: reboot}
++        ubuntu_pro:
++          enable: [fips]
++          token: <token>
++    """), dedent("""\
++        # Convenience: deprecated ubuntu_advantage.commands can be specified
++        # to directly interact with the ubuntu pro client to enable/disable
++        # various services.
++        ubuntu-advantage:
++            commands:
++                00: ubuntu-advantage attach <token>
++                01: ubuntu-advantage enable fips
++    """)],
++    "frequency": PER_INSTANCE,
++    "type": "object",
++    "properties": {
++        "ubuntu_pro": {
++          **pro_properties
++        },
++        "ubuntu_advantage": {
++          **pro_properties
++        },
++    },
++    "activate_by_schema_keys": ["ubuntu_pro"] + list(DEPRECATED_KEYS),
++}  # type: ignore
++
++LOG = logging.getLogger(__name__)
++REDACTED = "REDACTED"
++ERROR_MSG_SHOULD_AUTO_ATTACH = (
++    "Unable to determine if this is an Ubuntu Pro instance."
++    " Fallback to normal Pro attach."
++)
++KNOWN_PRO_CONFIG_PROPS = (
++    "http_proxy",
++    "https_proxy",
++    "global_apt_http_proxy",
++    "global_apt_https_proxy",
++    "ua_apt_http_proxy",
++    "ua_apt_https_proxy",
++)
++
++
++__doc__ = get_schema_doc(schema)  # Supplement python help()
++
++
++def run_commands(commands):
++    """Run the commands provided in ubuntu-advantage:commands config.
++
++     Commands are run individually. Any errors are collected and reported
++     after attempting all commands.
++
++     @param commands: A list or dict containing commands to run. Keys of a
++         dict will be used to order the commands provided as dict values.
++     """
++    if not commands:
++        return
++    LOG.debug('Running user-provided ubuntu-advantage commands')
++    if isinstance(commands, dict):
++        # Sort commands based on dictionary key
++        commands = [v for _, v in sorted(commands.items())]
++    elif not isinstance(commands, list):
++        raise TypeError(
++            'commands parameter was not a list or dict: {commands}'.format(
++                commands=commands))
++
++    fixed_ua_commands = subp.prepend_base_command('ubuntu-advantage', commands)
++
++    cmd_failures = []
++    for command in fixed_ua_commands:
++        shell = isinstance(command, str)
++        try:
++            subp.subp(command, shell=shell, status_cb=sys.stderr.write)
++        except subp.ProcessExecutionError as e:
++            cmd_failures.append(str(e))
++    if cmd_failures:
++        msg = (
++            'Failures running ubuntu-advantage commands:\n'
++            '{cmd_failures}'.format(
++                cmd_failures=cmd_failures))
++        util.logexc(LOG, msg)
++        raise RuntimeError(msg)
++
++
++def validate_schema_features(pro_section: dict):
++    if "features" not in pro_section:
++        return
++
++    # Validate ubuntu_pro.features type
++    features = pro_section["features"]
++    if not isinstance(features, dict):
++        msg = (
++            "'ubuntu_pro.features' should be a dict, not a %s" %
++            type(features).__name__
++        )
++        LOG.error(msg)
++        raise RuntimeError(msg)
++
++    # Validate ubuntu_pro.features.disable_auto_attach
++    if "disable_auto_attach" not in features:
++        return
++    disable_auto_attach = features["disable_auto_attach"]
++    if not isinstance(disable_auto_attach, bool):
++        msg = (
++            "'ubuntu_pro.features.disable_auto_attach' should be a bool"
++            ", not a %s" % type(disable_auto_attach).__name__
++        )
++        LOG.error(msg)
++        raise RuntimeError(msg)
++
++
++def supplemental_schema_validation(pro_config: dict):
++    """Validate user-provided ua:config option values.
++
++    This function supplements flexible jsonschema validation with specific
++    value checks to aid in triage of invalid user-provided configuration.
++
++    Note: It does not log/raise config values as they could be urls containing
++    sensitive auth info.
++
++    @param pro_config: Dictionary of config value under 'ubuntu_pro'.
++
++    @raises: ValueError describing invalid values provided.
++    """
++    errors = []
++    for key, value in sorted(pro_config.items()):
++        if key not in KNOWN_PRO_CONFIG_PROPS:
++            LOG.warning(
++                "Not validating unknown ubuntu_pro.config.%s property",
++                key,
++            )
++            continue
++        elif value is None:
++            # key will be unset. No extra validation needed.
++            continue
++        try:
++            parsed_url = urlparse(value)
++            if parsed_url.scheme not in ("http", "https"):
++                errors.append(
++                    "Expected URL scheme http/https for ua:config:%s" % key
++                )
++        except (AttributeError, ValueError):
++            errors.append("Expected a URL for ua:config:%s" % key)
++
++    if errors:
++        raise ValueError(
++            "Invalid ubuntu_pro configuration:\n{}".format("\n".join(errors))
++        )
++
++
++def set_pro_config(pro_config: Any = None):
++    if pro_config is None:
++        return
++    if not isinstance(pro_config, dict):
++        raise RuntimeError(
++            "ubuntu_pro: config should be a dict, not"
++            " a %s; skipping enabling config parameters" %
++            type(pro_config).__name__
++        )
++    supplemental_schema_validation(pro_config)
++
++    enable_errors = []
++    for key, value in sorted(pro_config.items()):
++        redacted_key_value = None
++        subp_kwargs = {}
++        if value is None:
++            LOG.debug("Disabling Pro config for %s", key)
++            config_cmd = ["pro", "config", "unset", key]
++        else:
++            redacted_key_value = "%s=REDACTED" % key
++            LOG.debug("Enabling Pro config %s", redacted_key_value)
++            if re.search(r"\s", value):
++                key_value = "%s=%s" % (key, re.escape(value))
++            else:
++                key_value = "%s=%s" % (key, value)
++            config_cmd = ["pro", "config", "set", key_value]
++            subp_kwargs = {"logstring": config_cmd[:-1] + [redacted_key_value]}
++        try:
++            subp.subp(config_cmd, **subp_kwargs)
++        except subp.ProcessExecutionError as e:
++            err_msg = str(e)
++            if redacted_key_value is not None:
++                err_msg = err_msg.replace(value, REDACTED)
++            enable_errors.append((key, err_msg))
++    if enable_errors:
++        for param, error in enable_errors:
++            LOG.warning('Failure enabling/disabling "%s":\n%s', param, error)
++        raise RuntimeError(
++            "Failure enabling/disabling Ubuntu Pro config(s): {}".format(
++                ", ".join('"{}"'.format(param) for param, _ in enable_errors)
++            )
++        )
++
++
++def configure_pro(token, enable=None):
++    """Call ua command line client to attach and/or enable services."""
++    if enable is None:
++        enable = []
++    elif isinstance(enable, str):
++        LOG.warning(
++            "ubuntu_pro: enable should be a list, not"
++            " a string; treating as a single enable"
++        )
++        enable = [enable]
++    elif not isinstance(enable, list):
++        LOG.warning(
++            "ubuntu_pro: enable should be a list, not"
++            " a %s; skipping enabling services",
++            type(enable).__name__,
++        )
++        enable = []
++
++    # Perform attach
++    if enable:
++        attach_cmd = ["pro", "attach", "--no-auto-enable", token]
++    else:
++        attach_cmd = ["pro", "attach", token]
++    redacted_cmd = attach_cmd[:-1] + [REDACTED]
++    LOG.debug("Attaching to Ubuntu Pro. %s", " ".join(redacted_cmd))
++    try:
++        # Allow `ua attach` to fail in already attached machines
++        subp.subp(attach_cmd, rcs={0, 2}, logstring=redacted_cmd)
++    except subp.ProcessExecutionError as e:
++        err = str(e).replace(token, REDACTED)
++        msg = "Failure attaching Ubuntu Pro:\n%s" % err
++        util.logexc(LOG, msg)
++        raise RuntimeError(msg) from e
++
++    # Enable services
++    if not enable:
++        return
++    cmd = ["pro", "enable", "--assume-yes", "--format", "json"] + enable
++    try:
++        enable_stdout, _ = subp.subp(cmd, capture=True, rcs={0, 1})
++    except subp.ProcessExecutionError as e:
++        raise RuntimeError(
++            "Error while enabling service(s): " + ", ".join(enable)
++        ) from e
++
++    try:
++        enable_resp = json.loads(enable_stdout)
++    except json.JSONDecodeError as e:
++        raise RuntimeError(
++            "Pro response was not json: %s" % enable_stdout
++        ) from e
++
++    # At this point we were able to load the json response from Pro. This
++    # response contains a list of errors under the key 'errors'. E.g.
++    #
++    #   {
++    #      "errors": [
++    #        {
++    #           "message": "UA Apps: ESM is already enabled ...",
++    #           "message_code": "service-already-enabled",
++    #           "service": "esm-apps",
++    #           "type": "service"
++    #        },
++    #        {
++    #           "message": "Cannot enable unknown service 'asdf' ...",
++    #           "message_code": "invalid-service-or-failure",
++    #           "service": null,
++    #           "type": "system"
++    #        }
++    #      ]
++    #   }
++    #
++    # From our pov there are two type of errors, service and non-service
++    # related. We can distinguish them by checking if `service` is non-null
++    # or null respectively.
++
++    enable_errors = []
++    for err in enable_resp.get("errors", []):
++        if err["message_code"] == "service-already-enabled":
++            LOG.debug("Service `%s` already enabled.", err["service"])
++            continue
++        enable_errors.append(err)
++
++    if enable_errors:
++        error_services = []
++        for err in enable_errors:
++            service = err.get("service")
++            if service is not None:
++                error_services.append(service)
++                msg = 'Failure enabling `%s`: %s' % (service, err["message"])
++            else:
++                msg = 'Failure of type `%s`: %s' % (
++                    err["type"], err["message"]
++                )
++            util.logexc(LOG, msg)
++
++        raise RuntimeError(
++            "Failure enabling Ubuntu Pro service(s): "
++            + ", ".join(error_services)
++        )
++
++
++def maybe_install_ua_tools(cloud: Cloud):
++    """Install ubuntu-advantage-tools if not present."""
++    if subp.which("pro"):
++        return
++    try:
++        cloud.distro.update_package_sources()
++    except Exception:
++        util.logexc(LOG, "Package update failed")
++        raise
++    try:
++        cloud.distro.install_packages(["ubuntu-advantage-tools"])
++    except Exception:
++        util.logexc(LOG, "Failed to install ubuntu-advantage-tools")
++        raise
++
++
++def _should_auto_attach(pro_section: dict) -> bool:
++    disable_auto_attach = bool(
++        pro_section.get("features", {}).get("disable_auto_attach", False)
++    )
++    if disable_auto_attach:
++        return False
++
++    # pylint: disable=import-error
++    from uaclient.api.exceptions import UserFacingError
++    from uaclient.api.u.pro.attach.auto.should_auto_attach.v1 import (
++        should_auto_attach,
++    )
++
++    # pylint: enable=import-error
++
++    try:
++        result = util.log_time(
++            logfunc=LOG.debug,
++            msg="Checking if the instance can be attached to Ubuntu Pro",
++            func=should_auto_attach,
++        )
++    except UserFacingError as ex:
++        LOG.debug("Error during `should_auto_attach`: %s", ex)
++        LOG.warning(ERROR_MSG_SHOULD_AUTO_ATTACH)
++        return False
++    return result.should_auto_attach
++
++
++def _attach(pro_section: dict):
++    token = pro_section.get("token")
++    if not token:
++        msg = "`ubuntu_pro.token` required in non-Pro Ubuntu instances."
++        LOG.error(msg)
++        raise RuntimeError(msg)
++    enable_beta = pro_section.get("enable_beta")
++    if enable_beta:
++        LOG.debug(
++            "Ignoring `ubuntu_pro.enable_beta` services in Pro attach: %s",
++            ", ".join(enable_beta),
++        )
++    configure_pro(token=token, enable=pro_section.get("enable"))
++
++
++def _auto_attach(pro_section: dict):
++
++    # pylint: disable=import-error
++    from uaclient.api.exceptions import AlreadyAttachedError, UserFacingError
++    from uaclient.api.u.pro.attach.auto.full_auto_attach.v1 import (
++        FullAutoAttachOptions,
++        full_auto_attach,
++    )
++
++    # pylint: enable=import-error
++
++    enable = pro_section.get("enable")
++    enable_beta = pro_section.get("enable_beta")
++    options = FullAutoAttachOptions(
++        enable=enable,
++        enable_beta=enable_beta,
++    )
++    try:
++        util.log_time(
++            logfunc=LOG.debug,
++            msg="Attaching to Ubuntu Pro",
++            func=full_auto_attach,
++            kwargs={"options": options},
++        )
++    except AlreadyAttachedError:
++        if enable_beta is not None or enable is not None:
++            # Only warn if the user defined some service to enable/disable.
++            LOG.warning(
++                "The instance is already attached to Pro. Leaving enabled"
++                " services untouched. Ignoring config directives"
++                " ubuntu_pro: enable and enable_beta"
++            )
++    except UserFacingError as ex:
++        msg = "Error during `full_auto_attach`: %s" % ex.msg
++        LOG.error(msg)
++        raise RuntimeError(msg) from ex
++
++
++def handle(
++    name: str, cfg: dict, cloud: Cloud, log: logging.Logger, args: list
++) -> None:
++    pro_section = None
++    deprecated = list(DEPRECATED_KEYS.intersection(cfg))
++    if deprecated:
++        if len(deprecated) > 1:
++            raise RuntimeError(
++                "Unable to configure Ubuntu Pro. Multiple deprecated config"
++                " keys provided: %s" % ", ".join(deprecated)
++            )
++        LOG.debug(
++            "Deprecated configuration key(s) provided: %s."
++            ' Expected "ubuntu_pro"; will attempt to continue.',
++            ", ".join(deprecated),
++        )
++        pro_section = cfg[deprecated[0]]
++    if "ubuntu_pro" in cfg:
++        # Prefer ubuntu_pro over any deprecated keys when both exist
++        if deprecated:
++            LOG.debug(
++                "Ignoring deprecated key %s and preferring ubuntu_pro config",
++                deprecated[0],
++            )
++        pro_section = cfg["ubuntu_pro"]
++    if pro_section is None:
++        LOG.debug(
++            "Skipping module named %s, no 'ubuntu_pro' configuration found",
++            name,
++        )
++        return
++    elif not isinstance(pro_section, dict):
++        msg = (
++            "'ubuntu_pro' should be a dict, not a"
++            " %s" % type(pro_section).__name__
++        )
++        LOG.error(msg)
++        raise RuntimeError(msg)
++    validate_cloudconfig_schema(cfg, schema)
++    maybe_install_ua_tools(cloud)
++    if "commands" in pro_section:
++        msg = (
++            'Deprecated configuration "ubuntu-advantage: commands" provided.'
++            ' Expected "token" or "enable"'
++        )
++        LOG.warning(msg)
++        run_commands(pro_section["commands"])
++        # If commands in user-data this is old cloud-config schema pre-backport
++        # and the only key supported in xenial at the time was 'commands'.
++        # No need to process any additional config for auto attach or features.
++        return
++    set_pro_config(pro_section.get("config"))
++
++    # ua-auto-attach.service had noop-ed as pro_section is not empty
++    validate_schema_features(pro_section)
++    LOG.debug(
++        "To discover more log info, please check /var/log/ubuntu-advantage.log"
++    )
++    if _should_auto_attach(pro_section):
++        _auto_attach(pro_section)
++
++    # If ua-auto-attach.service did noop, we did not auto-attach and more keys
++    # than `features` are given under `ubuntu_pro`, then try to attach.
++    # This supports the cases:
++    #
++    # 1) Previous attach behavior on non-pro instances.
++    # 2) Previous attach behavior on instances where ubuntu-advantage-tools
++    #    is < v28.0 (Pro apis for should_auto-attach and auto-attach are not
++    #    available.
++    # 3) The user wants to disable auto-attach and attach by giving:
++    #    `{"ubuntu_pro": "features": {"disable_auto_attach": True}}`
++    elif not pro_section.keys() <= {"features"}:
++        _attach(pro_section)
+--- a/cloudinit/config/tests/test_ubuntu_advantage.py
++++ /dev/null
+@@ -1,333 +0,0 @@
+-# This file is part of cloud-init. See LICENSE file for license information.
+-
+-from cloudinit.config.cc_ubuntu_advantage import (
+-    configure_ua, handle, maybe_install_ua_tools, schema)
+-from cloudinit.config.schema import validate_cloudconfig_schema
+-from cloudinit import subp
+-from cloudinit.tests.helpers import (
+-    CiTestCase, mock, SchemaTestCaseMixin, skipUnlessJsonSchema)
+-
+-
+-# Module path used in mocks
+-MPATH = 'cloudinit.config.cc_ubuntu_advantage'
+-
+-
+-class FakeCloud(object):
+-    def __init__(self, distro):
+-        self.distro = distro
+-
+-
+-class TestConfigureUA(CiTestCase):
+-
+-    with_logs = True
+-    allowed_subp = [CiTestCase.SUBP_SHELL_TRUE]
+-
+-    def setUp(self):
+-        super(TestConfigureUA, self).setUp()
+-        self.tmp = self.tmp_dir()
+-
+-    @mock.patch('%s.subp.subp' % MPATH)
+-    def test_configure_ua_attach_error(self, m_subp):
+-        """Errors from ua attach command are raised."""
+-        m_subp.side_effect = subp.ProcessExecutionError(
+-            'Invalid token SomeToken')
+-        with self.assertRaises(RuntimeError) as context_manager:
+-            configure_ua(token='SomeToken')
+-        self.assertEqual(
+-            'Failure attaching Ubuntu Advantage:\nUnexpected error while'
+-            ' running command.\nCommand: -\nExit code: -\nReason: -\n'
+-            'Stdout: Invalid token SomeToken\nStderr: -',
+-            str(context_manager.exception))
+-
+-    @mock.patch('%s.subp.subp' % MPATH)
+-    def test_configure_ua_attach_with_token(self, m_subp):
+-        """When token is provided, attach the machine to ua using the token."""
+-        configure_ua(token='SomeToken')
+-        m_subp.assert_called_once_with(['ua', 'attach', 'SomeToken'])
+-        self.assertEqual(
+-            'DEBUG: Attaching to Ubuntu Advantage. ua attach SomeToken\n',
+-            self.logs.getvalue())
+-
+-    @mock.patch('%s.subp.subp' % MPATH)
+-    def test_configure_ua_attach_on_service_error(self, m_subp):
+-        """all services should be enabled and then any failures raised"""
+-
+-        def fake_subp(cmd, capture=None):
+-            fail_cmds = [['ua', 'enable', svc] for svc in ['esm', 'cc']]
+-            if cmd in fail_cmds and capture:
+-                svc = cmd[-1]
+-                raise subp.ProcessExecutionError(
+-                    'Invalid {} credentials'.format(svc.upper()))
+-
+-        m_subp.side_effect = fake_subp
+-
+-        with self.assertRaises(RuntimeError) as context_manager:
+-            configure_ua(token='SomeToken', enable=['esm', 'cc', 'fips'])
+-        self.assertEqual(
+-            m_subp.call_args_list,
+-            [mock.call(['ua', 'attach', 'SomeToken']),
+-             mock.call(['ua', 'enable', 'esm'], capture=True),
+-             mock.call(['ua', 'enable', 'cc'], capture=True),
+-             mock.call(['ua', 'enable', 'fips'], capture=True)])
+-        self.assertIn(
+-            'WARNING: Failure enabling "esm":\nUnexpected error'
+-            ' while running command.\nCommand: -\nExit code: -\nReason: -\n'
+-            'Stdout: Invalid ESM credentials\nStderr: -\n',
+-            self.logs.getvalue())
+-        self.assertIn(
+-            'WARNING: Failure enabling "cc":\nUnexpected error'
+-            ' while running command.\nCommand: -\nExit code: -\nReason: -\n'
+-            'Stdout: Invalid CC credentials\nStderr: -\n',
+-            self.logs.getvalue())
+-        self.assertEqual(
+-            'Failure enabling Ubuntu Advantage service(s): "esm", "cc"',
+-            str(context_manager.exception))
+-
+-    @mock.patch('%s.subp.subp' % MPATH)
+-    def test_configure_ua_attach_with_empty_services(self, m_subp):
+-        """When services is an empty list, do not auto-enable attach."""
+-        configure_ua(token='SomeToken', enable=[])
+-        m_subp.assert_called_once_with(['ua', 'attach', 'SomeToken'])
+-        self.assertEqual(
+-            'DEBUG: Attaching to Ubuntu Advantage. ua attach SomeToken\n',
+-            self.logs.getvalue())
+-
+-    @mock.patch('%s.subp.subp' % MPATH)
+-    def test_configure_ua_attach_with_specific_services(self, m_subp):
+-        """When services a list, only enable specific services."""
+-        configure_ua(token='SomeToken', enable=['fips'])
+-        self.assertEqual(
+-            m_subp.call_args_list,
+-            [mock.call(['ua', 'attach', 'SomeToken']),
+-             mock.call(['ua', 'enable', 'fips'], capture=True)])
+-        self.assertEqual(
+-            'DEBUG: Attaching to Ubuntu Advantage. ua attach SomeToken\n',
+-            self.logs.getvalue())
+-
+-    @mock.patch('%s.maybe_install_ua_tools' % MPATH, mock.MagicMock())
+-    @mock.patch('%s.subp.subp' % MPATH)
+-    def test_configure_ua_attach_with_string_services(self, m_subp):
+-        """When services a string, treat as singleton list and warn"""
+-        configure_ua(token='SomeToken', enable='fips')
+-        self.assertEqual(
+-            m_subp.call_args_list,
+-            [mock.call(['ua', 'attach', 'SomeToken']),
+-             mock.call(['ua', 'enable', 'fips'], capture=True)])
+-        self.assertEqual(
+-            'WARNING: ubuntu_advantage: enable should be a list, not a'
+-            ' string; treating as a single enable\n'
+-            'DEBUG: Attaching to Ubuntu Advantage. ua attach SomeToken\n',
+-            self.logs.getvalue())
+-
+-    @mock.patch('%s.subp.subp' % MPATH)
+-    def test_configure_ua_attach_with_weird_services(self, m_subp):
+-        """When services not string or list, warn but still attach"""
+-        configure_ua(token='SomeToken', enable={'deffo': 'wont work'})
+-        self.assertEqual(
+-            m_subp.call_args_list,
+-            [mock.call(['ua', 'attach', 'SomeToken'])])
+-        self.assertEqual(
+-            'WARNING: ubuntu_advantage: enable should be a list, not a'
+-            ' dict; skipping enabling services\n'
+-            'DEBUG: Attaching to Ubuntu Advantage. ua attach SomeToken\n',
+-            self.logs.getvalue())
+-
+-
+-@skipUnlessJsonSchema()
+-class TestSchema(CiTestCase, SchemaTestCaseMixin):
+-
+-    with_logs = True
+-    schema = schema
+-
+-    @mock.patch('%s.maybe_install_ua_tools' % MPATH)
+-    @mock.patch('%s.configure_ua' % MPATH)
+-    def test_schema_warns_on_ubuntu_advantage_not_dict(self, _cfg, _):
+-        """If ubuntu_advantage configuration is not a dict, emit a warning."""
+-        validate_cloudconfig_schema({'ubuntu_advantage': 'wrong type'}, schema)
+-        self.assertEqual(
+-            "WARNING: Invalid config:\nubuntu_advantage: 'wrong type' is not"
+-            " of type 'object'\n",
+-            self.logs.getvalue())
+-
+-    @mock.patch('%s.maybe_install_ua_tools' % MPATH)
+-    @mock.patch('%s.configure_ua' % MPATH)
+-    def test_schema_disallows_unknown_keys(self, _cfg, _):
+-        """Unknown keys in ubuntu_advantage configuration emit warnings."""
+-        validate_cloudconfig_schema(
+-            {'ubuntu_advantage': {'token': 'winner', 'invalid-key': ''}},
+-            schema)
+-        self.assertIn(
+-            'WARNING: Invalid config:\nubuntu_advantage: Additional properties'
+-            " are not allowed ('invalid-key' was unexpected)",
+-            self.logs.getvalue())
+-
+-    @mock.patch('%s.maybe_install_ua_tools' % MPATH)
+-    @mock.patch('%s.configure_ua' % MPATH)
+-    def test_warn_schema_requires_token(self, _cfg, _):
+-        """Warn if ubuntu_advantage configuration lacks token."""
+-        validate_cloudconfig_schema(
+-            {'ubuntu_advantage': {'enable': ['esm']}}, schema)
+-        self.assertEqual(
+-            "WARNING: Invalid config:\nubuntu_advantage:"
+-            " 'token' is a required property\n", self.logs.getvalue())
+-
+-    @mock.patch('%s.maybe_install_ua_tools' % MPATH)
+-    @mock.patch('%s.configure_ua' % MPATH)
+-    def test_warn_schema_services_is_not_list_or_dict(self, _cfg, _):
+-        """Warn when ubuntu_advantage:enable config is not a list."""
+-        validate_cloudconfig_schema(
+-            {'ubuntu_advantage': {'enable': 'needslist'}}, schema)
+-        self.assertEqual(
+-            "WARNING: Invalid config:\nubuntu_advantage: 'token' is a"
+-            " required property\nubuntu_advantage.enable: 'needslist'"
+-            " is not of type 'array'\n",
+-            self.logs.getvalue())
+-
+-
+-class TestHandle(CiTestCase):
+-
+-    with_logs = True
+-
+-    def setUp(self):
+-        super(TestHandle, self).setUp()
+-        self.tmp = self.tmp_dir()
+-
+-    @mock.patch('%s.validate_cloudconfig_schema' % MPATH)
+-    def test_handle_no_config(self, m_schema):
+-        """When no ua-related configuration is provided, nothing happens."""
+-        cfg = {}
+-        handle('ua-test', cfg=cfg, cloud=None, log=self.logger, args=None)
+-        self.assertIn(
+-            "DEBUG: Skipping module named ua-test, no 'ubuntu_advantage'"
+-            ' configuration found',
+-            self.logs.getvalue())
+-        m_schema.assert_not_called()
+-
+-    @mock.patch('%s.configure_ua' % MPATH)
+-    @mock.patch('%s.maybe_install_ua_tools' % MPATH)
+-    def test_handle_tries_to_install_ubuntu_advantage_tools(
+-            self, m_install, m_cfg):
+-        """If ubuntu_advantage is provided, try installing ua-tools package."""
+-        cfg = {'ubuntu_advantage': {'token': 'valid'}}
+-        mycloud = FakeCloud(None)
+-        handle('nomatter', cfg=cfg, cloud=mycloud, log=self.logger, args=None)
+-        m_install.assert_called_once_with(mycloud)
+-
+-    @mock.patch('%s.configure_ua' % MPATH)
+-    @mock.patch('%s.maybe_install_ua_tools' % MPATH)
+-    def test_handle_passes_credentials_and_services_to_configure_ua(
+-            self, m_install, m_configure_ua):
+-        """All ubuntu_advantage config keys are passed to configure_ua."""
+-        cfg = {'ubuntu_advantage': {'token': 'token', 'enable': ['esm']}}
+-        handle('nomatter', cfg=cfg, cloud=None, log=self.logger, args=None)
+-        m_configure_ua.assert_called_once_with(
+-            token='token', enable=['esm'])
+-
+-    @mock.patch('%s.maybe_install_ua_tools' % MPATH, mock.MagicMock())
+-    @mock.patch('%s.configure_ua' % MPATH)
+-    def test_handle_warns_on_deprecated_ubuntu_advantage_key_w_config(
+-            self, m_configure_ua):
+-        """Warning when ubuntu-advantage key is present with new config"""
+-        cfg = {'ubuntu-advantage': {'token': 'token', 'enable': ['esm']}}
+-        handle('nomatter', cfg=cfg, cloud=None, log=self.logger, args=None)
+-        self.assertEqual(
+-            'WARNING: Deprecated configuration key "ubuntu-advantage"'
+-            ' provided. Expected underscore delimited "ubuntu_advantage";'
+-            ' will attempt to continue.',
+-            self.logs.getvalue().splitlines()[0])
+-        m_configure_ua.assert_called_once_with(
+-            token='token', enable=['esm'])
+-
+-    def test_handle_error_on_deprecated_commands_key_dashed(self):
+-        """Error when commands is present in ubuntu-advantage key."""
+-        cfg = {'ubuntu-advantage': {'commands': 'nogo'}}
+-        with self.assertRaises(RuntimeError) as context_manager:
+-            handle('nomatter', cfg=cfg, cloud=None, log=self.logger, args=None)
+-        self.assertEqual(
+-            'Deprecated configuration "ubuntu-advantage: commands" provided.'
+-            ' Expected "token"',
+-            str(context_manager.exception))
+-
+-    def test_handle_error_on_deprecated_commands_key_underscored(self):
+-        """Error when commands is present in ubuntu_advantage key."""
+-        cfg = {'ubuntu_advantage': {'commands': 'nogo'}}
+-        with self.assertRaises(RuntimeError) as context_manager:
+-            handle('nomatter', cfg=cfg, cloud=None, log=self.logger, args=None)
+-        self.assertEqual(
+-            'Deprecated configuration "ubuntu-advantage: commands" provided.'
+-            ' Expected "token"',
+-            str(context_manager.exception))
+-
+-    @mock.patch('%s.maybe_install_ua_tools' % MPATH, mock.MagicMock())
+-    @mock.patch('%s.configure_ua' % MPATH)
+-    def test_handle_prefers_new_style_config(
+-            self, m_configure_ua):
+-        """ubuntu_advantage should be preferred over ubuntu-advantage"""
+-        cfg = {
+-            'ubuntu-advantage': {'token': 'nope', 'enable': ['wrong']},
+-            'ubuntu_advantage': {'token': 'token', 'enable': ['esm']},
+-        }
+-        handle('nomatter', cfg=cfg, cloud=None, log=self.logger, args=None)
+-        self.assertEqual(
+-            'WARNING: Deprecated configuration key "ubuntu-advantage"'
+-            ' provided. Expected underscore delimited "ubuntu_advantage";'
+-            ' will attempt to continue.',
+-            self.logs.getvalue().splitlines()[0])
+-        m_configure_ua.assert_called_once_with(
+-            token='token', enable=['esm'])
+-
+-
+-class TestMaybeInstallUATools(CiTestCase):
+-
+-    with_logs = True
+-
+-    def setUp(self):
+-        super(TestMaybeInstallUATools, self).setUp()
+-        self.tmp = self.tmp_dir()
+-
+-    @mock.patch('%s.subp.which' % MPATH)
+-    def test_maybe_install_ua_tools_noop_when_ua_tools_present(self, m_which):
+-        """Do nothing if ubuntu-advantage-tools already exists."""
+-        m_which.return_value = '/usr/bin/ua'  # already installed
+-        distro = mock.MagicMock()
+-        distro.update_package_sources.side_effect = RuntimeError(
+-            'Some apt error')
+-        maybe_install_ua_tools(cloud=FakeCloud(distro))  # No RuntimeError
+-
+-    @mock.patch('%s.subp.which' % MPATH)
+-    def test_maybe_install_ua_tools_raises_update_errors(self, m_which):
+-        """maybe_install_ua_tools logs and raises apt update errors."""
+-        m_which.return_value = None
+-        distro = mock.MagicMock()
+-        distro.update_package_sources.side_effect = RuntimeError(
+-            'Some apt error')
+-        with self.assertRaises(RuntimeError) as context_manager:
+-            maybe_install_ua_tools(cloud=FakeCloud(distro))
+-        self.assertEqual('Some apt error', str(context_manager.exception))
+-        self.assertIn('Package update failed\nTraceback', self.logs.getvalue())
+-
+-    @mock.patch('%s.subp.which' % MPATH)
+-    def test_maybe_install_ua_raises_install_errors(self, m_which):
+-        """maybe_install_ua_tools logs and raises package install errors."""
+-        m_which.return_value = None
+-        distro = mock.MagicMock()
+-        distro.update_package_sources.return_value = None
+-        distro.install_packages.side_effect = RuntimeError(
+-            'Some install error')
+-        with self.assertRaises(RuntimeError) as context_manager:
+-            maybe_install_ua_tools(cloud=FakeCloud(distro))
+-        self.assertEqual('Some install error', str(context_manager.exception))
+-        self.assertIn(
+-            'Failed to install ubuntu-advantage-tools\n', self.logs.getvalue())
+-
+-    @mock.patch('%s.subp.which' % MPATH)
+-    def test_maybe_install_ua_tools_happy_path(self, m_which):
+-        """maybe_install_ua_tools installs ubuntu-advantage-tools."""
+-        m_which.return_value = None
+-        distro = mock.MagicMock()  # No errors raised
+-        maybe_install_ua_tools(cloud=FakeCloud(distro))
+-        distro.update_package_sources.assert_called_once_with()
+-        distro.install_packages.assert_called_once_with(
+-            ['ubuntu-advantage-tools'])
+-
+-# vi: ts=4 expandtab
+--- /dev/null
++++ b/cloudinit/config/tests/test_ubuntu_pro.py
+@@ -0,0 +1,1535 @@
++# This file is part of cloud-init. See LICENSE file for license information.
++import json
++import logging
++import re
++from six import StringIO
++import sys
++from collections import namedtuple
++
++try:
++    import jsonschema
++except ImportError:
++    jsonschema = None
++
++import pytest
++
++from cloudinit import subp
++from cloudinit.config.cc_ubuntu_pro import (
++    _attach,
++    _auto_attach,
++    _should_auto_attach,
++    configure_pro,
++    handle,
++    maybe_install_ua_tools,
++    run_commands,
++    set_pro_config,
++    validate_schema_features,
++)
++from cloudinit.config.schema import (
++    SchemaValidationError,
++    get_schema,
++    validate_cloudconfig_schema,
++)
++from cloudinit.tests.helpers import mock, skipUnlessJsonSchema
++from contextlib import ExitStack
++
++does_not_raise = ExitStack
++
++# Module path used in mocks
++MPATH = "cloudinit.config.cc_ubuntu_pro"
++LOG = logging.getLogger(__name__)
++
++
++class FakeUserFacingError(Exception):
++    def __init__(self, msg: str):
++        self.msg = msg
++
++
++class FakeAlreadyAttachedError(FakeUserFacingError):
++    pass
++
++
++class FakeAlreadyAttachedOnPROError(FakeUserFacingError):
++    pass
++
++uaclient_exceptions  = namedtuple(
++    "exceptions",
++    [
++        "UserFacingError",
++        "AlreadyAttachedError",
++    ],
++)(
++    FakeUserFacingError,
++    FakeAlreadyAttachedError,
++)
++
++
++@pytest.fixture
++def fake_uaclient():
++    """Mocks `uaclient` module"""
++    with ExitStack() as stack:
++        stack.enter_context(
++            mock.patch.dict("sys.modules")
++        )
++
++        sys.modules["uaclient"] = mock.Mock()
++
++        # Exceptions
++        sys.modules["uaclient.api.exceptions"] = uaclient_exceptions
++
++
++class TestRunCommands:
++
++    @mock.patch(MPATH + ".subp.subp")
++    def test_run_commands_on_empty_list(self, m_subp, caplog):
++        """When provided with an empty list, run_commands does nothing."""
++        run_commands([])
++        assert '' == caplog.text
++        m_subp.assert_not_called()
++
++    def test_run_commands_on_non_list_or_dict(self):
++        """When provided an invalid type, run_commands raises an error."""
++        with pytest.raises(TypeError) as context_manager:
++            run_commands(commands="I'm Not Valid")
++        assert (
++            "commands parameter was not a list or dict: I'm Not Valid" ==
++            str(context_manager.value)
++        )
++    @pytest.mark.allow_all_subp
++    def test_run_command_logs_commands_and_exit_codes_to_stderr(
++        self, tmpdir, capsys
++    ):
++        """All exit codes are logged to stderr."""
++     #  def fake_subp(cmd, capture=None, **kwargs):
++     #      if cmd == "bogus command":
++     #          raise subp.ProcessExecutionError(
++     #              "bogus: command not found", exit_code=127
++     #          )
++     #      return ("", "")
++     #  m_subp.side_effect = fake_subp
++
++        outfile = tmpdir.join("outfile.log").strpath
++        cmd1 = 'echo "HI" >> %s' % outfile
++        cmd2 = 'bogus command'
++        cmd3 = 'echo "MOM" >> %s' % outfile
++        commands = [cmd1, cmd2, cmd3]
++
++        mock_path = '%s.sys.stderr' % MPATH
++        with mock.patch(mock_path, new_callable=StringIO) as m_stderr:
++            with pytest.raises(RuntimeError) as context_manager:
++                run_commands(commands=commands)
++        assert re.search(r'bogus: not found', str(context_manager.value))
++        expected_stderr_log = '\n'.join([
++            'Begin run command: {cmd}'.format(cmd=cmd1),
++            'End run command: exit(0)',
++            'Begin run command: {cmd}'.format(cmd=cmd2),
++            'ERROR: End run command: exit(127)',
++            'Begin run command: {cmd}'.format(cmd=cmd3),
++            'End run command: exit(0)\n'])
++        assert expected_stderr_log == m_stderr.getvalue()
++
++    @mock.patch(MPATH + ".subp.subp")
++    def test_run_command_as_lists(self, m_subp, tmpdir, caplog):
++        """When commands are specified as a list, run them in order."""
++        cmd1 = 'echo "HI" >> %s' % tmpdir.strpath
++        cmd2 = 'echo "MOM" >> %s' % tmpdir.strpath
++        commands = [cmd1, cmd2]
++        run_commands(commands=commands)
++
++        assert [
++            mock.call(cmd1, shell=True, status_cb=sys.stderr.write),
++            mock.call(cmd2, shell=True, status_cb=sys.stderr.write),
++        ] == m_subp.call_args_list
++        assert (
++            'Running user-provided ubuntu-advantage commands' in
++            caplog.text
++        )
++        warnings = "\n".join(
++            [
++               rec.message
++               for rec in caplog.records if rec.levelno == logging.WARNING
++            ]
++        )
++        assert (
++            'Non-ubuntu-advantage commands in ubuntu-advantage'
++            ' config:' in warnings
++        )
++
++    @mock.patch(MPATH + ".subp.subp")
++    def test_run_command_dict_sorted_as_command_script(self, m_subp, tmpdir, caplog):
++        """When commands are a dict, sort them and run."""
++        cmd1 = 'echo "HI" >> %s' % tmpdir.strpath
++        cmd2 = 'echo "MOM" >> %s' % tmpdir.strpath
++        commands = {'02': cmd1, '01': cmd2}
++        run_commands(commands=commands)
++
++        expected_messages = [
++            'Running user-provided ubuntu-advantage commands'
++        ]
++        for message in expected_messages:
++            assert message in caplog.text
++        assert [
++            mock.call(cmd2, shell=True, status_cb=sys.stderr.write),
++            mock.call(cmd1, shell=True, status_cb=sys.stderr.write),
++        ] == m_subp.call_args_list
++
++
++@mock.patch(MPATH + ".subp.subp")
++class TestConfigurePro:
++    def test_configure_pro_attach_error(self, m_subp):
++        """Errors from pro attach command are raised."""
++        m_subp.side_effect = subp.ProcessExecutionError(
++            "Invalid token SomeToken"
++        )
++        match = (
++            "Failure attaching Ubuntu Pro:\nUnexpected error while"
++            " running command.\nCommand: -\nExit code: -\nReason: -\n"
++            "Stdout: Invalid token REDACTED\nStderr: -"
++        )
++        with pytest.raises(RuntimeError, match=match):
++            configure_pro(token="SomeToken")
++
++    @pytest.mark.parametrize(
++        "kwargs, call_args_list, log_record_tuples",
++        [
++            # When token is provided, attach to pro using the token.
++            (
++                {"token": "SomeToken"},
++                [
++                    mock.call(
++                        ["pro", "attach", "SomeToken"],
++                        logstring=["pro", "attach", "REDACTED"],
++                        rcs={0, 2},
++                    )
++                ],
++                [
++                    (
++                        MPATH,
++                        logging.DEBUG,
++                        "Attaching to Ubuntu Pro. pro attach REDACTED",
++                    )
++                ],
++            #   id="with_token",
++            ),
++            # When services is an empty list, do not auto-enable attach.
++            (
++                {"token": "SomeToken", "enable": []},
++                [
++                    mock.call(
++                        ["pro", "attach", "SomeToken"],
++                        logstring=["pro", "attach", "REDACTED"],
++                        rcs={0, 2},
++                    )
++                ],
++                [
++                    (
++                        MPATH,
++                        logging.DEBUG,
++                        "Attaching to Ubuntu Pro. pro attach REDACTED",
++                    )
++                ],
++            #   id="with_empty_services",
++            ),
++            # When services a list, only enable specific services.
++            (
++                {"token": "SomeToken", "enable": ["fips"]},
++                [
++                    mock.call(
++                        ["pro", "attach", "--no-auto-enable", "SomeToken"],
++                        logstring=[
++                            "pro",
++                            "attach",
++                            "--no-auto-enable",
++                            "REDACTED",
++                        ],
++                        rcs={0, 2},
++                    ),
++                    mock.call(
++                        [
++                            "pro",
++                            "enable",
++                            "--assume-yes",
++                            "--format",
++                            "json",
++                            "fips",
++                        ],
++                        capture=True,
++                        rcs={0, 1},
++                    ),
++                ],
++                [
++                    (
++                        MPATH,
++                        logging.DEBUG,
++                        "Attaching to Ubuntu Pro. pro attach"
++                        " --no-auto-enable REDACTED",
++                    )
++                ],
++            #   id="with_specific_services",
++            ),
++            # When services a string, treat as singleton list and warn
++            (
++                {"token": "SomeToken", "enable": "fips"},
++                [
++                    mock.call(
++                        ["pro", "attach", "--no-auto-enable", "SomeToken"],
++                        logstring=[
++                            "pro",
++                            "attach",
++                            "--no-auto-enable",
++                            "REDACTED",
++                        ],
++                        rcs={0, 2},
++                    ),
++                    mock.call(
++                        [
++                            "pro",
++                            "enable",
++                            "--assume-yes",
++                            "--format",
++                            "json",
++                            "fips",
++                        ],
++                        capture=True,
++                        rcs={0, 1},
++                    ),
++                ],
++                [
++                    (
++                        MPATH,
++                        logging.DEBUG,
++                        "Attaching to Ubuntu Pro. pro attach"
++                        " --no-auto-enable REDACTED",
++                    ),
++                    (
++                        MPATH,
++                        logging.WARNING,
++                        "ubuntu_pro: enable should be a list, not a "
++                        "string; treating as a single enable",
++                    ),
++                ],
++            #   id="with_string_services",
++            ),
++            # When services not string or list, warn but still attach
++            (
++                {"token": "SomeToken", "enable": {"deffo": "wont work"}},
++                [
++                    mock.call(
++                        ["pro", "attach", "SomeToken"],
++                        logstring=["pro", "attach", "REDACTED"],
++                        rcs={0, 2},
++                    )
++                ],
++                [
++                    (
++                        MPATH,
++                        logging.DEBUG,
++                        "Attaching to Ubuntu Pro. pro attach REDACTED",
++                    ),
++                    (
++                        MPATH,
++                        logging.WARNING,
++                        "ubuntu_pro: enable should be a list, not a"
++                        " dict; skipping enabling services",
++                    ),
++                ],
++            #   id="with_weird_services",
++            ),
++        ],
++    )
++    @mock.patch(MPATH +".maybe_install_ua_tools", mock.MagicMock())
++    def test_configure_pro_attach(
++        self, m_subp, kwargs, call_args_list, log_record_tuples, caplog
++    ):
++        m_subp.return_value = (json.dumps({"errors": []}), "")
++        configure_pro(**kwargs)
++        assert call_args_list == m_subp.call_args_list
++        for record_tuple in log_record_tuples:
++            assert record_tuple in caplog.record_tuples
++
++    def test_configure_pro_already_attached(self, m_subp, caplog):
++        """pro is already attached to an subscription"""
++        m_subp.rcs = 2
++        configure_pro(token="SomeToken")
++        assert m_subp.call_args_list == [
++            mock.call(
++                ["pro", "attach", "SomeToken"],
++                logstring=["pro", "attach", "REDACTED"],
++                rcs={0, 2},
++            )
++        ]
++        assert (
++            MPATH,
++            logging.DEBUG,
++            "Attaching to Ubuntu Pro. pro attach REDACTED",
++        ) in caplog.record_tuples
++
++    def test_configure_pro_attach_on_service_enabled(
++        self, m_subp, caplog, fake_uaclient
++    ):
++        """retry enabling an already enabled service"""
++
++        def fake_subp(cmd, capture=None, rcs=None, logstring=None):
++            fail_cmds = [
++                "pro",
++                "enable",
++                "--assume-yes",
++                "--format",
++                "json",
++                "livepatch",
++            ]
++            if cmd == fail_cmds and capture:
++                response = {
++                    "errors": [
++                        {
++                            "message": "Does not matter",
++                            "message_code": "service-already-enabled",
++                            "service": cmd[-1],
++                            "type": "service",
++                        }
++                    ]
++                }
++                return (json.dumps(response), "")
++
++        m_subp.side_effect = fake_subp
++
++        configure_pro(token="SomeToken", enable=["livepatch"])
++        assert m_subp.call_args_list == [
++            mock.call(
++                ["pro", "attach", "--no-auto-enable", "SomeToken"],
++                logstring=["pro", "attach", "--no-auto-enable", "REDACTED"],
++                rcs={0, 2},
++            ),
++            mock.call(
++                [
++                    "pro",
++                    "enable",
++                    "--assume-yes",
++                    "--format",
++                    "json",
++                    "livepatch",
++                ],
++                capture=True,
++                rcs={0, 1},
++            ),
++        ]
++        assert (
++            MPATH,
++            logging.DEBUG,
++            "Service `livepatch` already enabled.",
++        ) in caplog.record_tuples
++
++    def test_configure_pro_attach_on_service_error(self, m_subp, caplog):
++        """all services should be enabled and then any failures raised"""
++
++        def fake_subp(cmd, capture=None, rcs=None, logstring=None):
++            fail_cmd = [
++                "pro",
++                "enable",
++                "--assume-yes",
++                "--format",
++                "json",
++            ]
++            if cmd[: len(fail_cmd)] == fail_cmd and capture:
++                response = {
++                    "errors": [
++                        {
++                            "message": "Invalid %s credentials" % svc,
++                            "message_code": "some-code",
++                            "service": svc,
++                            "type": "service",
++                        }
++                        for svc in ["esm", "cc"]
++                    ]
++                    + [
++                        {
++                            "message": "Cannot enable unknown service 'asdf'",
++                            "message_code": "invalid-service-or-failure",
++                            "service": None,
++                            "type": "system",
++                        }
++                    ]
++                }
++                return (json.dumps(response), "")
++            return (json.dumps({"errors": []}), "")
++
++        m_subp.side_effect = fake_subp
++
++        with pytest.raises(
++            RuntimeError,
++            match=re.escape("Failure enabling Ubuntu Pro service(s): esm, cc"),
++        ):
++            configure_pro(
++                token="SomeToken", enable=["esm", "cc", "fips", "asdf"]
++            )
++        assert m_subp.call_args_list == [
++            mock.call(
++                ["pro", "attach", "--no-auto-enable", "SomeToken"],
++                logstring=["pro", "attach", "--no-auto-enable", "REDACTED"],
++                rcs={0, 2},
++            ),
++            mock.call(
++                [
++                    "pro",
++                    "enable",
++                    "--assume-yes",
++                    "--format",
++                    "json",
++                    "esm",
++                    "cc",
++                    "fips",
++                    "asdf",
++                ],
++                capture=True,
++                rcs={0, 1},
++            ),
++        ]
++        assert (
++            MPATH,
++            logging.WARNING,
++            "Failure enabling `esm`: Invalid esm credentials",
++        ) in caplog.record_tuples
++        assert (
++            MPATH,
++            logging.WARNING,
++            "Failure enabling `cc`: Invalid cc credentials",
++        ) in caplog.record_tuples
++        assert (
++            MPATH,
++            logging.WARNING,
++            "Failure of type `system`: Cannot enable unknown service 'asdf'",
++        ) in caplog.record_tuples
++        assert 'Failure enabling "fips"' not in caplog.text
++
++    def test_pro_enable_unexpected_error_codes(self, m_subp):
++        def fake_subp(cmd, capture=None, **kwargs):
++            if cmd[:2] == ["pro", "enable"] and capture:
++                raise subp.ProcessExecutionError(exit_code=255)
++            return (json.dumps({"errors": []}), "")
++
++        m_subp.side_effect = fake_subp
++
++        with pytest.raises(
++            RuntimeError,
++            match=re.escape("Error while enabling service(s): esm"),
++        ):
++            configure_pro(token="SomeToken", enable=["esm"])
++
++    def test_pro_enable_non_json_response(self, m_subp):
++        def fake_subp(cmd, capture=None, **kwargs):
++            if cmd[:2] == ["pro", "enable"] and capture:
++                return ("I dream to be a Json", "")
++            return (json.dumps({"errors": []}), "")
++
++        m_subp.side_effect = fake_subp
++
++        with pytest.raises(
++            RuntimeError,
++            match=re.escape("Pro response was not json: I dream to be a Json"),
++        ):
++            configure_pro(token="SomeToken", enable=["esm"])
++
++
++JSONSCHEMA_SKIP_REASON = (
++    "deprecation unraised as jsonschema ver can't merge $defs and inline keys"
++)
++
++
++class TestUbuntuProSchema:
++    @pytest.mark.parametrize(
++        "config, expectation, skip_reason",
++        [
++            ({"ubuntu_pro": {}}, does_not_raise(), ""),
++            # Strict keys
++            (
++                {"ubuntu_pro": {"token": "win", "invalidkey": ""}},
++                pytest.raises(
++                    SchemaValidationError,
++                    match=re.escape(
++                        "ubuntu_pro: Additional properties are not"
++                        " allowed ('invalidkey"
++                    ),
++                ),
++                "",
++            #   id="additional_properties",
++            ),
++            (
++                {"ubuntu_pro": {"features": {"disable_auto_attach": True}}},
++                does_not_raise(),
++                "",
++            #   id="disable_auto_attach",
++            ),
++            (
++                {
++                    "ubuntu_pro": {
++                        "features": {"disable_auto_attach": False},
++                        "enable": ["fips"],
++                        "enable_beta": ["realtime-kernel"],
++                        "token": "<token>",
++                    }
++                },
++                does_not_raise(),
++                "",
++            #   id="pro_custom_services",
++            ),
++            (
++                {
++                    "ubuntu_pro": {
++                        "enable": ["fips"],
++                        "enable_beta": ["realtime-kernel"],
++                        "token": "<token>",
++                    }
++                },
++                does_not_raise(),
++                "",
++            #   id="non_pro_beta_services",
++            ),
++            (
++                {
++                    "ubuntu_pro": {
++                        "features": {"asdf": False},
++                        "enable": ["fips"],
++                        "enable_beta": ["realtime-kernel"],
++                        "token": "<token>",
++                    }
++                },
++                pytest.raises(
++                    SchemaValidationError,
++                    match=re.escape(
++                        "ubuntu_pro.features: Additional properties are"
++                        " not allowed ('asdf'"
++                    ),
++                ),
++                "",
++            #   id="pro_additional_features",
++            ),
++            (
++                {
++                    "ubuntu_pro": {
++                        "enable": ["fips"],
++                        "token": "<token>",
++                        "config": {
++                            "http_proxy": "http://some-proxy:8088",
++                            "https_proxy": "https://some-proxy:8088",
++                            "global_apt_https_proxy": "https://some-global-apt-proxy:8088/",  # noqa: E501
++                            "global_apt_http_proxy": "http://some-global-apt-proxy:8088/",  # noqa: E501
++                            "ua_apt_http_proxy": "http://10.0.10.10:3128",
++                            "ua_apt_https_proxy": "https://10.0.10.10:3128",
++                        },
++                    }
++                },
++                does_not_raise(),
++                "",
++            #   id="pro_config_valid_set",
++            ),
++            (
++                {
++                    "ubuntu_pro": {
++                        "enable": ["fips"],
++                        "token": "<token>",
++                        "config": {
++                            "http_proxy": None,
++                            "https_proxy": None,
++                            "global_apt_https_proxy": None,
++                            "global_apt_http_proxy": None,
++                            "ua_apt_http_proxy": None,
++                            "ua_apt_https_proxy": None,
++                        },
++                    }
++                },
++                does_not_raise(),
++                "",
++            #   id="pro_config_valid_unset",
++            ),
++            (
++                {
++                    "ubuntu_pro": {
++                        "enable": ["fips"],
++                        "token": "<token>",
++                        "config": ["http_proxy=http://some-proxy:8088"],
++                    }
++                },
++                pytest.raises(
++                    SchemaValidationError,
++                    match=re.escape(
++                        "errors: ubuntu_pro.config:"
++                        " ['http_proxy=http://some-proxy:8088']"
++                    ),
++                ),
++                "",
++            #   id="pro_config_invalid_type",
++            ),
++            (
++                {
++                    "ubuntu_pro": {
++                        "enable": ["fips"],
++                        "token": "<token>",
++                        "config": {
++                            "http_proxy": 8888,
++                            "https_proxy": ["http://some-proxy:8088"],
++                        },
++                    }
++                },
++                pytest.raises(
++                    SchemaValidationError,
++                    match=re.escape(
++                        "errors: ubuntu_pro.config.http_proxy: 8888"
++                        " is not of type 'string', 'null',"
++                        " ubuntu_pro.config.https_proxy:"
++                        " ['http://some-proxy:8088']"
++                    ),
++                ),
++                "",
++            #   id="pro_config_invalid_proxy_type",
++            ),
++            (
++                {
++                    "ubuntu_pro": {
++                        "enable": ["fips"],
++                        "token": "<token>",
++                        "config": {
++                            "http_proxy": "http://some-proxy:8088",
++                            "hola": "adios",
++                        },
++                    }
++                },
++                does_not_raise(),
++                "",
++            #   id="pro_config_unknown_props_allowed",
++            ),
++        ],
++    )
++    @skipUnlessJsonSchema()
++    def test_schema_validation(self, config, expectation, skip_reason, caplog):
++        if skip_reason:
++            pytest.skip(skip_reason)
++        with expectation:
++            validate_cloudconfig_schema(config, get_schema(), strict=True)
++
++    @pytest.mark.parametrize(
++        "ua_section, expectation, log_msgs",
++        [
++            ({}, does_not_raise(), None),
++            ({"features": {}}, does_not_raise(), None),
++            (
++                {"features": {"disable_auto_attach": True}},
++                does_not_raise(),
++                None,
++            ),
++            (
++                {"features": {"disable_auto_attach": False}},
++                does_not_raise(),
++                None,
++            ),
++            (
++                {"features": [0, 1]},
++                pytest.raises(
++                    RuntimeError,
++                    match=(
++                        "'ubuntu_pro.features' should be a dict, not a list"
++                    ),
++                ),
++                ["'ubuntu_pro.features' should be a dict, not a list\n"],
++            ),
++            (
++                {"features": {"disable_auto_attach": [0, 1]}},
++                pytest.raises(
++                    RuntimeError,
++                    match=(
++                        "'ubuntu_pro.features.disable_auto_attach'"
++                        " should be a bool, not a list"
++                    ),
++                ),
++                [
++                    "'ubuntu_pro.features.disable_auto_attach' should be"
++                    " a bool, not a list\n"
++                ],
++            ),
++        ],
++    )
++    def test_validate_schema_features(
++        self, ua_section, expectation, log_msgs, caplog
++    ):
++        with expectation:
++            validate_schema_features(ua_section)
++        if log_msgs is not None:
++            for log_msg in log_msgs:
++                assert log_msg in caplog.text
++        else:
++            assert not caplog.text
++
++
++class TestHandle:
++
++    cloud = mock.MagicMock()
++
++    @pytest.mark.parametrize(
++        [
++            "cfg",
++            "cloud",
++            "log_record_tuples",
++            "maybe_install_call_args_list",
++            "set_pro_config_call_args_list",
++            "configure_pro_call_args_list",
++        ],
++        [
++            # When no ua-related configuration is provided, nothing happens.
++            (
++                {},
++                None,
++                [
++                    (
++                        MPATH,
++                        logging.DEBUG,
++                        "Skipping module named nomatter, no 'ubuntu_pro'"
++                        " configuration found",
++                    )
++                ],
++                [],
++                [],
++                [],
++            #   id="no_config",
++            ),
++            # If ubuntu_pro is provided, try installing ua-tools package.
++            (
++                {"ubuntu_pro": {"token": "valid"}},
++                cloud,
++                [],
++                [mock.call(cloud)],
++                [mock.call(None)],
++                None,
++            #   id="tries_to_install_ubuntu_advantage_tools",
++            ),
++            # If ubuntu_pro config provided, configure it.
++            (
++                {
++                    "ubuntu_pro": {
++                        "token": "valid",
++                        "config": {"http_proxy": "http://proxy.org"},
++                    }
++                },
++                cloud,
++                [],
++                None,
++                [mock.call({"http_proxy": "http://proxy.org"})],
++                None,
++            #   id="set_pro_config",
++            ),
++            # All ubuntu_pro config keys are passed to configure_pro.
++            (
++                {"ubuntu_pro": {"token": "token", "enable": ["esm"]}},
++                cloud,
++                [],
++                [mock.call(cloud)],
++                [mock.call(None)],
++                [mock.call(token="token", enable=["esm"])],
++            #   id="passes_credentials_and_services_to_configure_pro",
++            ),
++            # Warning when ubuntu-advantage key is present with new config
++            (
++                {"ubuntu-advantage": {"token": "token", "enable": ["esm"]}},
++                None,
++                [
++                    (
++                        MPATH,
++                        logging.DEBUG,
++                        "Deprecated configuration key(s) provided:"
++                        ' ubuntu-advantage. Expected "ubuntu_pro"; will'
++                        " attempt to continue.",
++                    ),
++                ],
++                None,
++                [mock.call(None)],
++                [mock.call(token="token", enable=["esm"])],
++            #   id="warns_on_deprecated_ubuntu_pro_key_w_config",
++            ),
++            # Warning with beta services during attach
++            (
++                {
++                    "ubuntu_pro": {
++                        "token": "token",
++                        "enable": ["esm"],
++                        "enable_beta": ["realtime-kernel"],
++                    }
++                },
++                None,
++                [
++                    (
++                        MPATH,
++                        logging.DEBUG,
++                        "Ignoring `ubuntu_pro.enable_beta` services in"
++                        " Pro attach: realtime-kernel",
++                    )
++                ],
++                None,
++                [mock.call(None)],
++                [mock.call(token="token", enable=["esm"])],
++            #   id="warns_on_enable_beta_in_attach",
++            ),
++            # ubuntu_pro should be preferred over ubuntu-advantage
++            (
++                {
++                    "ubuntu-advantage": {"token": "nope", "enable": ["wrong"]},
++                    "ubuntu_pro": {"token": "token", "enable": ["esm"]},
++                },
++                None,
++                [
++                    (
++                        MPATH,
++                        logging.DEBUG,
++                        "Deprecated configuration key(s) provided:"
++                        ' ubuntu-advantage. Expected "ubuntu_pro"; will'
++                        " attempt to continue.",
++                    ),
++                    (
++                        MPATH,
++                        logging.DEBUG,
++                        "Ignoring deprecated key ubuntu-advantage and"
++                        " preferring ubuntu_pro config",
++                    ),
++                ],
++                None,
++                [mock.call(None)],
++                [mock.call(token="token", enable=["esm"])],
++            #   id="prefers_new_style_config",
++            ),
++        ],
++    )
++    @mock.patch(MPATH + "._should_auto_attach", return_value=False)
++    @mock.patch(MPATH + "._auto_attach")
++    @mock.patch(MPATH + ".configure_pro")
++    @mock.patch(MPATH + ".set_pro_config")
++    @mock.patch(MPATH + ".maybe_install_ua_tools")
++    def test_handle_attach(
++        self,
++        m_maybe_install_ua_tools,
++        m_set_pro_config,
++        m_configure_pro,
++        m_auto_attach,
++        m_should_auto_attach,
++        cfg,
++        cloud,
++        log_record_tuples,
++        maybe_install_call_args_list,
++        set_pro_config_call_args_list,
++        configure_pro_call_args_list,
++        caplog,
++    ):
++        """Non-Pro schemas and instance."""
++        handle("nomatter", cfg=cfg, cloud=cloud, log=LOG, args=None)
++        for record_tuple in log_record_tuples:
++            assert record_tuple in caplog.record_tuples
++        if maybe_install_call_args_list is not None:
++            assert (
++                maybe_install_call_args_list
++                == m_maybe_install_ua_tools.call_args_list
++            )
++        if set_pro_config_call_args_list is not None:
++            assert (
++                set_pro_config_call_args_list
++                == m_set_pro_config.call_args_list
++            )
++        if configure_pro_call_args_list is not None:
++            assert (
++                configure_pro_call_args_list == m_configure_pro.call_args_list
++            )
++        assert [] == m_auto_attach.call_args_list
++
++    @pytest.mark.parametrize(
++        [
++            "cfg",
++            "cloud",
++            "log_record_tuples",
++            "auto_attach_side_effect",
++            "should_auto_attach",
++            "auto_attach_call_args_list",
++            "attach_call_args_list",
++            "expectation",
++        ],
++        [
++            # When auto_attach successes, no call to configure_pro.
++            (
++                {"ubuntu_pro": {"features": {"disable_auto_attach": False}}},
++                cloud,
++                [],
++                None,  # auto_attach successes
++                True,  # Pro instance
++                [
++                    mock.call({"features": {"disable_auto_attach": False}})
++                ],  # auto_attach_call_args_list
++                [],  # attach_call_args_list
++                does_not_raise(),
++            #   id="auto_attach_success",
++            ),
++            # When auto_attach fails in a Pro instance, no call to
++            # configure_pro.
++            (
++                {"ubuntu_pro": {"features": {"disable_auto_attach": False}}},
++                cloud,
++                [],
++                RuntimeError("Auto attach error"),
++                True,  # Pro instance
++                [
++                    mock.call({"features": {"disable_auto_attach": False}})
++                ],  # auto_attach_call_args_list
++                [],  # attach_call_args_list
++                pytest.raises(RuntimeError, match="Auto attach error"),
++            #   id="auto_attach_error",
++            ),
++            # In a non-Pro instance with token, fallback to normal attach.
++            (
++                {
++                    "ubuntu_pro": {
++                        "features": {"disable_auto_attach": False},
++                        "token": "token",
++                    }
++                },
++                cloud,
++                [],
++                None,
++                False,  # non-Pro instance
++                [],  # auto_attach_call_args_list
++                [
++                    mock.call(
++                        {
++                            "features": {"disable_auto_attach": False},
++                            "token": "token",
++                        },
++                    )
++                ],  # attach_call_args_list
++                does_not_raise(),
++            #   id="not_pro_with_token",
++            ),
++            # In a non-Pro instance with enable, fallback to normal attach.
++            (
++                {"ubuntu_pro": {"enable": ["esm"]}},
++                cloud,
++                [],
++                None,
++                False,  # non-Pro instance
++                [],  # auto_attach_call_args_list
++                [
++                    mock.call(
++                        {
++                            "enable": ["esm"],
++                        },
++                    )
++                ],  # attach_call_args_list
++                does_not_raise(),
++            #   id="not_pro_with_enable",
++            ),
++        ],
++    )
++    @mock.patch(MPATH + "._should_auto_attach")
++    @mock.patch(MPATH + "._auto_attach")
++    @mock.patch(MPATH + "._attach")
++    def test_handle_auto_attach_vs_attach(
++        self,
++        m_attach,
++        m_auto_attach,
++        m_should_auto_attach,
++        cfg,
++        cloud,
++        log_record_tuples,
++        auto_attach_side_effect,
++        should_auto_attach,
++        auto_attach_call_args_list,
++        attach_call_args_list,
++        expectation,
++        caplog,
++    ):
++        m_should_auto_attach.return_value = should_auto_attach
++        if auto_attach_side_effect is not None:
++            m_auto_attach.side_effect = auto_attach_side_effect
++
++        with expectation:
++            handle("nomatter", cfg=cfg, cloud=cloud, log=LOG, args=None)
++
++        for record_tuple in log_record_tuples:
++            assert record_tuple in caplog.record_tuples
++        if attach_call_args_list is not None:
++            assert attach_call_args_list == m_attach.call_args_list
++        else:
++            assert [] == m_attach.call_args_list
++        assert auto_attach_call_args_list == m_auto_attach.call_args_list
++
++    @pytest.mark.parametrize("is_pro", [False, True])
++    @pytest.mark.parametrize(
++        "cfg",
++        [
++            (
++                {
++                    "ubuntu_pro": {
++                        "features": {"disable_auto_attach": False},
++                    }
++                }
++            ),
++            (
++                {
++                    "ubuntu_pro": {
++                        "features": {"disable_auto_attach": True},
++                    }
++                }
++            ),
++        ],
++    )
++    @mock.patch(MPATH +"._should_auto_attach")
++    @mock.patch(MPATH +"._auto_attach")
++    @mock.patch(MPATH + "._attach")
++    def test_no_fallback_attach(
++        self,
++        m_attach,
++        m_auto_attach,
++        m_should_auto_attach,
++        cfg,
++        is_pro,
++    ):
++        """Checks that attach is not called in the case where we want only to
++        enable or disable pro auto-attach.
++        """
++        m_should_auto_attach.return_value = is_pro
++        handle("nomatter", cfg=cfg, cloud=self.cloud, log=LOG, args=None)
++        assert not m_attach.call_args_list
++
++    @pytest.mark.parametrize(
++        "cfg, expected_log",
++        [
++            (
++                {"ubuntu-advantage": {"commands": {"00": "token my-token"}}},
++                (
++                    'Deprecated configuration "ubuntu-advantage: commands" '
++                    'provided. Expected "token"'
++                ),
++            #   id="key_dashed",
++            ),
++        ],
++    )
++    @mock.patch("%s.configure_pro" % MPATH)
++    @mock.patch(MPATH + ".subp.subp")
++    def test_handle_supports_deprecated_commands(
++        self, m_subp, m_configure_pro, cfg, expected_log, caplog
++    ):
++        cloud = mock.MagicMock()
++        handle_kwargs = dict(cloud=cloud, log=LOG, args=None)
++        handle("nomatter", cfg=cfg, **handle_kwargs)
++        assert expected_log in caplog.text
++        assert 0 == m_configure_pro.call_count
++        assert [mock.call("token my-token", shell=True, status_cb=sys.stderr.write)] == m_subp.call_args_list
++
++    @pytest.mark.parametrize(
++        "cfg, match",
++        [
++            (
++                {"ubuntu_pro": [0, 1]},
++                "'ubuntu_pro' should be a dict, not a list",
++            #   id="on_non_dict_config",
++            ),
++            (
++                {"ubuntu_pro": {"features": [0, 1]}},
++                "'ubuntu_pro.features' should be a dict, not a list",
++            #   id="on_non_dict_ua_section",
++            ),
++        ],
++    )
++    def test_handle_errors(self, cfg, match):
++        with pytest.raises(RuntimeError, match=match):
++            handle(
++                "nomatter",
++                cfg=cfg,
++                cloud=self.cloud,
++                log=LOG,
++                args=None,
++            )
++
++    @mock.patch(MPATH + ".subp.subp")
++    def test_pro_config_error_invalid_url(self, m_subp, caplog):
++        """Errors from pro config command are raised."""
++        cfg = {
++            "ubuntu_pro": {
++                "token": "SomeToken",
++                "config": {"http_proxy": "not-a-valid-url"},
++            }
++        }
++        m_subp.side_effect = subp.ProcessExecutionError(
++            'Failure enabling "http_proxy"'
++        )
++        with pytest.raises(
++            ValueError,
++            match=re.escape(
++                "Invalid ubuntu_pro configuration:\nExpected URL scheme"
++                " http/https for ua:config:http_proxy"
++            ),
++        ):
++            handle(
++                "nomatter",
++                cfg=cfg,
++                cloud=self.cloud,
++                log=LOG,
++                args=None,
++            )
++        assert (
++            "Ignoring schema validation. python-jsonschema is not present"
++            in caplog.text
++        )
++
++    @mock.patch(MPATH + "._should_auto_attach", return_value=False)
++    @mock.patch(MPATH + ".subp.subp")
++    def test_fallback_to_attach_no_token(
++        self, m_subp, m_should_auto_attach, caplog
++    ):
++        cfg = {"ubuntu_pro": {"enable": ["esm"]}}
++        with pytest.raises(
++            RuntimeError,
++            match=re.escape(
++                "`ubuntu_pro.token` required in non-Pro Ubuntu instances."
++            ),
++        ):
++            handle(
++                "nomatter",
++                cfg=cfg,
++                cloud=self.cloud,
++                log=LOG,
++                args=None,
++            )
++        assert [] == m_subp.call_args_list
++        assert (
++            "`ubuntu_pro.token` required in non-Pro Ubuntu instances.\n"
++        ) in caplog.text
++
++
++class TestShouldAutoAttach:
++    def test_should_auto_attach_error(self, caplog):
++        with mock.patch.dict("sys.modules"):
++            sys.modules["uaclient.api.exceptions"] = uaclient_exceptions
++            m_should_auto_attach = mock.Mock()
++            m_should_auto_attach.should_auto_attach.side_effect = (
++                FakeUserFacingError("Some error")  # noqa: E501
++            )
++            sys.modules[
++                "uaclient.api.u.pro.attach.auto.should_auto_attach.v1"
++            ] = m_should_auto_attach
++            assert not _should_auto_attach({})
++            assert "Error during `should_auto_attach`: Some error" in caplog.text
++            assert (
++                "Unable to determine if this is an Ubuntu Pro instance."
++                " Fallback to normal Pro attach." in caplog.text
++            )
++
++    @pytest.mark.parametrize(
++        "ua_section, expected_result",
++        [
++            ({}, None),
++            ({"features": {"disable_auto_attach": False}}, None),
++            # The user explicitly disables auto-attach, therefore we do not do
++            # it:
++            ({"features": {"disable_auto_attach": True}}, False),
++        ],
++    )
++    def test_happy_path(
++        self, ua_section, expected_result, caplog
++    ):
++        with mock.patch.dict("sys.modules"):
++            sys.modules["uaclient"] = mock.Mock()
++
++            # Exceptions
++            sys.modules["uaclient.api.exceptions"] = uaclient_exceptions
++            m_should_auto_attach = mock.Mock()
++            sys.modules[
++                "uaclient.api.u.pro.attach.auto.should_auto_attach.v1"
++            ] = m_should_auto_attach
++            should_auto_attach_value = object()
++            m_should_auto_attach.should_auto_attach.return_value.should_auto_attach = (  # noqa: E501
++                should_auto_attach_value
++            )
++            if expected_result is None:  # Pro API does respond
++                assert should_auto_attach_value == _should_auto_attach(ua_section)
++                assert (
++                    "Checking if the instance can be attached to Ubuntu Pro took"
++                    in caplog.text
++                )
++            else:  # cloud-init does respond
++                assert expected_result == _should_auto_attach(ua_section)
++                assert not caplog.text
++
++
++class TestAutoAttach:
++
++    ua_section = {}
++
++    def test_full_auto_attach_error(self, caplog):
++        with mock.patch.dict("sys.modules"):
++            sys.modules["uaclient"] = mock.Mock()
++           #sys.modules["uaclient.config"] = mock.Mock()
++            sys.modules["uaclient.api.exceptions"] = uaclient_exceptions
++            m_auto_attach = mock.Mock()
++            m_auto_attach.full_auto_attach.side_effect = FakeUserFacingError(
++                "Some error"
++            )
++            sys.modules[
++                "uaclient.api.u.pro.attach.auto.full_auto_attach.v1"
++            ] = m_auto_attach
++            expected_msg = "Error during `full_auto_attach`: Some error"
++            sys.modules["uaclient.api.exceptions"] = uaclient_exceptions
++            with pytest.raises(RuntimeError, match=re.escape(expected_msg)):
++                _auto_attach(self.ua_section)
++            assert expected_msg in caplog.text
++
++    def test_happy_path(self, caplog):
++        with mock.patch.dict("sys.modules"):
++            sys.modules["uaclient.api.exceptions"] = uaclient_exceptions
++            sys.modules[
++                "uaclient.api.u.pro.attach.auto.full_auto_attach.v1"
++            ] = mock.Mock()
++            _auto_attach(self.ua_section)
++            assert "Attaching to Ubuntu Pro took" in caplog.text
++
++
++class TestAttach:
++    @mock.patch(MPATH +".configure_pro")
++    def test_attach_without_token_raises_error(self, m_configure_pro):
++        with pytest.raises(
++            RuntimeError,
++            match=("`ubuntu_pro.token` required in non-Pro Ubuntu instances."),
++        ):
++            _attach({"enable": ["esm"]})
++        assert [] == m_configure_pro.call_args_list
++
++
++@mock.patch(MPATH + ".subp.which")
++class TestMaybeInstallUATools:
++    @pytest.mark.parametrize(
++        [
++            "which_return",
++            "update_side_effect",
++            "install_side_effect",
++            "expectation",
++            "log_msg",
++        ],
++        [
++            # Do nothing if ubuntu-advantage-tools already exists.
++            (
++                "/usr/bin/ua",  # already installed
++                RuntimeError("Some apt error"),
++                None,
++                does_not_raise(),  # No RuntimeError
++                None,
++            #   id="noop_when_ua_tools_present",
++            ),
++            # logs and raises apt update errors
++            (
++                None,
++                RuntimeError("Some apt error"),
++                None,
++                pytest.raises(RuntimeError, match="Some apt error"),
++                "Package update failed\nTraceback",
++            #   id="raises_update_errors",
++            ),
++            # logs and raises package install errors
++            (
++                None,
++                None,
++                RuntimeError("Some install error"),
++                pytest.raises(RuntimeError, match="Some install error"),
++                "Failed to install ubuntu-advantage-tools\n",
++            #   id="raises_install_errors",
++            ),
++        ],
++    )
++    def test_maybe_install_ua_tools(
++        self,
++        m_which,
++        which_return,
++        update_side_effect,
++        install_side_effect,
++        expectation,
++        log_msg,
++        caplog,
++    ):
++        m_which.return_value = which_return
++        cloud = mock.MagicMock()
++        if install_side_effect is None:
++            cloud.distro.update_package_sources.side_effect = (
++                update_side_effect
++            )
++        else:
++            cloud.distro.update_package_sources.return_value = None
++            cloud.distro.install_packages.side_effect = install_side_effect
++        with expectation:
++            maybe_install_ua_tools(cloud=cloud)
++        if log_msg is not None:
++            assert log_msg in caplog.text
++
++    def test_maybe_install_ua_tools_happy_path(self, m_which):
++        """maybe_install_ua_tools installs ubuntu-advantage-tools."""
++        m_which.return_value = None
++        cloud = mock.MagicMock()  # No errors raised
++        maybe_install_ua_tools(cloud=cloud)
++        assert [
++            mock.call()
++        ] == cloud.distro.update_package_sources.call_args_list
++        assert [
++            mock.call(["ubuntu-advantage-tools"])
++        ] == cloud.distro.install_packages.call_args_list
++
++
++@mock.patch(MPATH + ".subp.subp")
++class TestSetProConfig:
++    def test_valid_config(self, m_subp, caplog):
++        pro_config = {
++            "http_proxy": "http://some-proxy:8088",
++            "https_proxy": "https://user:pass@some-proxy:8088",
++            "global_apt_https_proxy": "https://some-global-apt-proxy:8088/",
++            "global_apt_http_proxy": "http://some-global-apt-proxy:8088/",
++            "ua_apt_http_proxy": "http://10.0.10.10:3128",
++            "ua_apt_https_proxy": "https://10.0.10.10:3128",
++        }
++        set_pro_config(pro_config)
++        for ua_arg, redacted_arg in [
++            (
++                "http_proxy=http://some-proxy:8088",
++                "http_proxy=REDACTED",
++            ),
++            (
++                "https_proxy=https://user:pass@some-proxy:8088",
++                "https_proxy=REDACTED",
++            ),
++            (
++                "global_apt_https_proxy=https://some-global-apt-proxy:8088/",
++                "global_apt_https_proxy=REDACTED",
++            ),
++            (
++                "global_apt_http_proxy=http://some-global-apt-proxy:8088/",
++                "global_apt_http_proxy=REDACTED",
++            ),
++            (
++                "ua_apt_http_proxy=http://10.0.10.10:3128",
++                "ua_apt_http_proxy=REDACTED",
++            ),
++            (
++                "ua_apt_https_proxy=https://10.0.10.10:3128",
++                "ua_apt_https_proxy=REDACTED",
++            ),
++        ]:
++            assert (
++                mock.call(
++                    ["pro", "config", "set", ua_arg],
++                    logstring=["pro", "config", "set", redacted_arg],
++                )
++                in m_subp.call_args_list
++            )
++            assert "Enabling Pro config %s\n" % redacted_arg in caplog.text
++            assert ua_arg not in caplog.text
++
++        assert 6 == m_subp.call_count
++
++    def test_pro_config_unset(self, m_subp, caplog):
++        pro_config = {
++            "https_proxy": "https://user:pass@some-proxy:8088",
++            "http_proxy": None,
++        }
++        set_pro_config(pro_config)
++        for call in [
++            mock.call(["pro", "config", "unset", "http_proxy"]),
++            mock.call(
++                [
++                    "pro",
++                    "config",
++                    "set",
++                    "https_proxy=https://user:pass@some-proxy:8088",
++                ],
++                logstring=["pro", "config", "set", "https_proxy=REDACTED"],
++            ),
++        ]:
++            assert call in m_subp.call_args_list
++        assert 2 == m_subp.call_count
++        assert "Enabling Pro config https_proxy=REDACTED\n" in caplog.text
++        assert "https://user:pass@some-proxy:8088" not in caplog.text
++        assert "Disabling Pro config for http_proxy\n" in caplog.text
++
++    def test_pro_config_error_non_string_values(self, m_subp, caplog):
++        """ValueError raised for any values expected as string type."""
++        pro_config = {
++            "global_apt_http_proxy": "noscheme",
++            "http_proxy": ["no-proxy"],
++            "https_proxy": 3.14,
++        }
++        match = re.escape(
++            "Invalid ubuntu_pro configuration:\n"
++            "Expected URL scheme http/https for"
++            " ua:config:global_apt_http_proxy\n"
++            "Expected a URL for ua:config:http_proxy\n"
++            "Expected a URL for ua:config:https_proxy"
++        )
++        with pytest.raises(ValueError, match=match):
++            set_pro_config(pro_config)
++        assert 0 == m_subp.call_count
++        assert not caplog.text
++
++    def test_pro_config_unknown_prop(self, m_subp, caplog):
++        """On unknown config props, a log is issued and the prop is set."""
++        pro_config = {"asdf": "qwer"}
++        set_pro_config(pro_config)
++        assert [
++            mock.call(
++                ["pro", "config", "set", "asdf=qwer"],
++                logstring=["pro", "config", "set", "asdf=REDACTED"],
++            )
++        ] == m_subp.call_args_list
++        assert "qwer" not in caplog.text
++        assert (
++            "Not validating unknown ubuntu_pro.config.asdf property\n"
++            in caplog.text
++        )
++
++    def test_pro_config_wrong_type(self, m_subp, caplog):
++        pro_config = ["asdf", "qwer"]
++        with pytest.raises(
++            RuntimeError,
++            match=(
++                "ubuntu_pro: config should be a dict, not"
++                " a list; skipping enabling config parameters"
++            ),
++        ):
++            set_pro_config(pro_config)
++        assert 0 == m_subp.call_count
++        assert not caplog.text
++
++    def test_set_pro_config_error(self, m_subp, caplog):
++        pro_config = {
++            "https_proxy": "https://user:pass@some-proxy:8088",
++        }
++        # Simulate Pro error
++        m_subp.side_effect = subp.ProcessExecutionError(
++            "Invalid proxy: https://user:pass@some-proxy:8088"
++        )
++        with pytest.raises(
++            RuntimeError,
++            match=re.escape(
++                "Failure enabling/disabling Ubuntu Pro config(s):"
++                ' "https_proxy"'
++            ),
++        ):
++            set_pro_config(pro_config)
++        assert 1 == m_subp.call_count
++        assert "https://user:pass@some-proxy:8088" not in caplog.text
++        assert "Enabling Pro config https_proxy=REDACTED\n" in caplog.text
++        assert 'Failure enabling/disabling "https_proxy":\n' in caplog.text
++
++    def test_unset_pro_config_error(self, m_subp, caplog):
++        pro_config = {"https_proxy": None}
++        # Simulate Pro error
++        m_subp.side_effect = subp.ProcessExecutionError(
++            "Error unsetting https_proxy"
++        )
++        with pytest.raises(
++            RuntimeError,
++            match=re.escape(
++                "Failure enabling/disabling Ubuntu Pro config(s): "
++                '"https_proxy"'
++            ),
++        ):
++            set_pro_config(pro_config)
++        assert 1 == m_subp.call_count
++        assert "https://user:pass@some-proxy:8088" not in caplog.text
++        assert "Disabling Pro config for https_proxy\n" in caplog.text
++        assert 'Failure enabling/disabling "https_proxy":\n' in caplog.text
+--- a/tests/unittests/test_handler/test_schema.py
++++ b/tests/unittests/test_handler/test_schema.py
+@@ -32,7 +32,7 @@
+                 'cc_resizefs',
+                 'cc_runcmd',
+                 'cc_snap',
+-                'cc_ubuntu_advantage',
++                'cc_ubuntu_pro',
+                 'cc_ubuntu_drivers',
+                 'cc_write_files',
+                 'cc_zypper_add_repo',
+--- a/config/cloud.cfg.tmpl
++++ b/config/cloud.cfg.tmpl
+@@ -102,7 +102,7 @@
+  - apt-configure
+ {% endif %}
+ {% if variant in ["ubuntu"] %}
+- - ubuntu-advantage
++ - ubuntu_pro
+ {% endif %}
+ {% if variant in ["suse"] %}
+  - zypper-add-repo
