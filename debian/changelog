@@ -1,4 +1,4 @@
-cloud-init (21.1-19-gbad84ad4-0ubuntu1~16.04.5) UNRELEASED; urgency=medium
+cloud-init (21.1-19-gbad84ad4-0ubuntu1~16.04.5) xenial; urgency=medium
 
   * d/patches/ubuntu-advantage-revert-tip.patch: remove patch in favor
     or consolidated backport-ubuntu-pro-config.patch
