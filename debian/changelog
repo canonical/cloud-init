@@ -1,3 +1,14 @@
+cloud-init (21.1-19-gbad84ad4-0ubuntu1~16.04.5) UNRELEASED; urgency=medium
+
+  * d/patches/ubuntu-advantage-revert-tip.patch: remove patch in favor
+    or consolidated backport-ubuntu-pro-config.patch
+  * d/patches/backport-ubuntu-pro-config.patch: Backport deprecation
+    of ubuntu_advantage key in favor of ubuntu_pro in cloud-config user_data
+    in order to standardize Ubuntu Pro-related configuration keys on all
+    maintained Ubuntu series. (LP: #2067660)
+
+ -- Chad Smith <chad.smith@canonical.com>  Sat, 31 Aug 2024 15:22:49 -0600
+
 cloud-init (21.1-19-gbad84ad4-0ubuntu1~16.04.4) xenial; urgency=medium
 
   * d/patches/backport-redact-sensitive-json-keys-cloud-init-log-640.patch
