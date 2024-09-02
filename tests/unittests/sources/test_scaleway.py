@@ -1030,11 +1030,11 @@ class TestDataSourceScaleway(ResponsesTestCase):
                 fallback_nic.return_value: {
                     "dhcp4": True,
                     "routes": [
-                        {"to": "169.254.42.42/32", "via": "62.210.0.1"},
                         {
                             "via": "fe80::ffff:ffff:ffff:fff1",
                             "to": "::/0",
                         },
+                        {"to": "169.254.42.42/32", "via": "62.210.0.1"},
                     ],
                     "addresses": ("2001:aaa:aaaa:a:aaaa:aaaa:aaaa:1/64",),
                 },
