@@ -28,7 +28,7 @@ Vcs-Git: https://github.com/canonical/cloud-init -b ubuntu/devel
 Standards-Version: 4.5.0
 Rules-Requires-Root: no
 
-Package: cloud-init
+Package: cloud-init-base
 Architecture: all
 Depends: cloud-guest-utils | cloud-utils,
          dhcpcd-base,
@@ -44,6 +44,16 @@ Depends: cloud-guest-utils | cloud-utils,
          ${python3:Depends}
 Recommends: eatmydata, gdisk, gnupg, python3-apt, software-properties-common
 Suggests: openssh-server, ssh-import-id
+Replaces: cloud-init (<= 24.4~3+really24.3.1-0ubuntu4)
+Breaks: cloud-init (<= 24.4~3+really24.3.1-0ubuntu4)
+Description: initialization and customization tool for cloud instances
+ Cloud-init with minimal dependencies, refer to cloud-init for more
+ information.
+
+Package: cloud-init
+Architecture: all
+Depends: cloud-init-base,
+         ${misc:Depends},
 Description: initialization and customization tool for cloud instances
  Cloud-init is the industry standard multi-distribution method for
  cross-platform cloud instance initialization. It is supported across all major
@@ -62,3 +72,5 @@ Description: initialization and customization tool for cloud instances
  access key and many other aspects of a system. Later on the cloud-init will
  also parse and process any optional user or vendor data that was passed to
  the instance.
+ .
+ This is a metapackage that includes every cloud-init dependency.
