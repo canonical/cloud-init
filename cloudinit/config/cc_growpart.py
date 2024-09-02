@@ -20,7 +20,7 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Optional, Tuple
 
-from cloudinit import lifecycle, subp, temp_utils, util
+from cloudinit import lifecycle, performance, subp, temp_utils, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -318,7 +318,9 @@ def resize_encrypted(blockdev, partition) -> Tuple[str, str]:
     if not KEYDATA_PATH.exists():
         return (RESIZE.SKIPPED, "No encryption keyfile found")
     try:
-        with KEYDATA_PATH.open() as f:
+        with performance.Timed(
+            f"Reading {KEYDATA_PATH}"
+        ), KEYDATA_PATH.open() as f:
             keydata = json.load(f)
         key = keydata["key"]
         decoded_key = base64.b64decode(key)

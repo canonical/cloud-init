@@ -13,7 +13,7 @@ import time
 
 import yaml
 
-from cloudinit import subp, util
+from cloudinit import performance, subp, util
 
 from .config import Config
 from .config_custom_script import PostCustomScript, PreCustomScript
@@ -87,7 +87,9 @@ def get_nics_to_enable(nicsfilepath):
     if not os.path.exists(nicsfilepath):
         return None
 
-    with open(nicsfilepath, "r") as fp:
+    with performance.Timed(f"Reading {nicsfilepath}"), open(
+        nicsfilepath, "r"
+    ) as fp:
         nics = fp.read(NICS_SIZE)
 
     return nics

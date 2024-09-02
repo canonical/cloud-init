@@ -129,6 +129,7 @@ def welcome_format(action):
     )
 
 
+@performance.timed("Closing stdin")
 def close_stdin(logger: Callable[[str], None] = LOG.debug):
     """
     reopen stdin as /dev/null to ensure no side effects
@@ -311,7 +312,7 @@ def purge_cache_on_python_version_change(init):
         init.paths.get_cpath("data"), "python-version"
     )
     if os.path.exists(python_version_path):
-        cached_python_version = open(python_version_path).read()
+        cached_python_version = util.load_text_file(python_version_path)
         # The Python version has changed out from under us, anything that was
         # pickled previously is likely useless due to API changes.
         if cached_python_version != current_python_version:

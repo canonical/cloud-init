@@ -28,7 +28,7 @@ from urllib.parse import quote, urlparse, urlsplit, urlunparse
 import requests
 from requests import exceptions
 
-from cloudinit import util, version
+from cloudinit import performance, util, version
 
 LOG = logging.getLogger(__name__)
 
@@ -892,7 +892,9 @@ class OauthUrlHelper:
 
     def read_skew_file(self):
         if self.skew_data_file and os.path.isfile(self.skew_data_file):
-            with open(self.skew_data_file, mode="r") as fp:
+            with performance.Timed(f"Reading {self.skew_data_file}"), open(
+                self.skew_data_file, mode="r"
+            ) as fp:
                 return json.load(fp)
         return None
 
@@ -904,7 +906,9 @@ class OauthUrlHelper:
         if cur is None:
             cur = {}
         cur[host] = value
-        with open(self.skew_data_file, mode="w") as fp:
+        with performance.Timed(f"Writing {self.skew_data_file}"), open(
+            self.skew_data_file, mode="w"
+        ) as fp:
             fp.write(json.dumps(cur))
 
     def exception_cb(self, msg, exception):

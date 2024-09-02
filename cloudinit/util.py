@@ -147,6 +147,7 @@ def encode_text(text: Union[str, bytes], encoding="utf-8") -> bytes:
     return text if isinstance(text, bytes) else text.encode(encoding=encoding)
 
 
+@performance.timed("Base64 decoding")
 def maybe_b64decode(data: bytes) -> bytes:
     """base64 decode data
 
@@ -1557,16 +1558,18 @@ def load_binary_file(
     read_cb: Optional[Callable[[int], None]] = None,
     quiet: bool = False,
 ) -> bytes:
+    timer = performance.Timed("", log_mode="skip")
     LOG.debug("Reading from %s (quiet=%s)", fname, quiet)
-    with io.BytesIO() as ofh:
-        try:
-            with open(fname, "rb") as ifh:
-                pipe_in_out(ifh, ofh, chunk_cb=read_cb)
-        except FileNotFoundError:
-            if not quiet:
-                raise
-        contents = ofh.getvalue()
-    LOG.debug("Read %s bytes from %s", len(contents), fname)
+    with timer:
+        with io.BytesIO() as ofh:
+            try:
+                with open(fname, "rb") as ifh:
+                    pipe_in_out(ifh, ofh, chunk_cb=read_cb)
+            except FileNotFoundError:
+                if not quiet:
+                    raise
+            contents = ofh.getvalue()
+    LOG.debug("Reading %s bytes from %s%s", len(contents), fname, timer.output)
     return contents
 
 
@@ -1847,6 +1850,7 @@ def ensure_dirs(dirlist, mode=0o755):
         ensure_dir(d, mode)
 
 
+@performance.timed("Loading json")
 def load_json(text, root_types=(dict,)):
     decoded = json.loads(decode_binary(text))
     if not isinstance(decoded, tuple(root_types)):
@@ -2236,14 +2240,15 @@ def get_user_groups(username: str) -> List[str]:
     return groups
 
 
+@performance.timed("Writing file")
 def write_file(
     filename,
     content,
     mode=0o644,
     omode="wb",
-    preserve_mode=False,
+    preserve_mode: bool = False,
     *,
-    ensure_dir_exists=True,
+    ensure_dir_exists: bool = True,
     user=None,
     group=None,
 ):

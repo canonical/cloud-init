@@ -5,7 +5,7 @@ import re
 from collections import namedtuple
 from typing import Optional
 
-from cloudinit import subp
+from cloudinit import performance, subp
 from cloudinit.util import (
     is_container,
     is_DragonFlyBSD,
@@ -91,7 +91,9 @@ def _read_dmi_syspath(key: str) -> Optional[str]:
         return None
 
     try:
-        with open(dmi_key_path, "rb") as fp:
+        with performance.Timed(f"Reading {dmi_key_path}"), open(
+            dmi_key_path, "rb"
+        ) as fp:
             key_data = fp.read()
     except PermissionError:
         LOG.debug("Could not read %s", dmi_key_path)

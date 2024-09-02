@@ -2,7 +2,9 @@ import logging
 import os
 import sys
 
-from cloudinit.performance import Timed
+from cloudinit.performance import timed
+
+LOG = logging.getLogger(__name__)
 
 
 def logexc(
@@ -12,6 +14,7 @@ def logexc(
     log.debug(msg, exc_info=exc_info, *args)
 
 
+@timed("Writing to console")
 def write_to_console(conpath, text):
     with open(conpath, "w") as wfh:
         wfh.write(text)
