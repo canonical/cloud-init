@@ -10,3 +10,12 @@ _Description: Which data sources should be searched?
  Warning: Only select 'Ec2' if this system will be run on a system with
  the EC2 metadata service present.  Doing so incorrectly will result in
  a substantial timeout on boot.
+ .
+ Warning: If this system is intended to run on a cloud / platform
+ different than the original one, then make sure to install the correct
+ cloud-init package:
+ .
+ - Install a cloud-specific cloud-init package if the target platform
+   requires one.
+ - Install cloud-init, containing all dependencies, if the target is
+   unknown.

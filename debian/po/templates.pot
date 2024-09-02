@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cloud-init\n"
 "Report-Msgid-Bugs-To: cloud-init@packages.debian.org\n"
-"POT-Creation-Date: 2024-02-20 14:06-0700\n"
+"POT-Creation-Date: 2024-09-03 10:16+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -218,4 +218,23 @@ msgid ""
 "Warning: Only select 'Ec2' if this system will be run on a system with the "
 "EC2 metadata service present.  Doing so incorrectly will result in a "
 "substantial timeout on boot."
+msgstr ""
+
+#. Type: multiselect
+#. Description
+#: ../cloud-init-base.templates:1002
+msgid ""
+"Warning: If this system is intended to run on a cloud / platform different "
+"than the original one, then make sure to install the correct cloud-init "
+"package:"
+msgstr ""
+
+#. Type: multiselect
+#. Description
+#: ../cloud-init-base.templates:1002
+msgid ""
+"- Install a cloud-specific cloud-init package if the target platform\n"
+"  requires one.\n"
+"- Install cloud-init, containing all dependencies, if the target is\n"
+"  unknown."
 msgstr ""
