@@ -1,3 +1,15 @@
+cloud-init (24.4~2g2e4c39b7-0ubuntu2) UNRELEASED; urgency=medium
+
+  * d/cloud-init.lintian-overrides:
+    + Remove alien disabled tag:
+      E: cloud-init: alien-tag package-supports-alternative-init-but-no-init.d-script
+    + Fix disabled warning tag:
+      systemd-service-file-refers-to-unusual-wantedby-target,
+      to point to the correct path under /usr/lib instead of /lib and add
+      cloud-init-main.service.
+
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Mon, 02 Sep 2024 11:58:03 +0200
+
 cloud-init (24.4~2g2e4c39b7-0ubuntu1) oracular; urgency=medium
 
   * Upstream snapshot based on upstream/main at 2e4c39b7.
