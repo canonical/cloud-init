@@ -267,9 +267,10 @@ class DataSourceVMware(sources.DataSource):
         # read the file /sys/class/dmi/id/product_uuid for the instance ID.
         if self.metadata and "instance-id" in self.metadata:
             return self.metadata["instance-id"]
-        with open(PRODUCT_UUID_FILE_PATH, "r") as id_file:
-            self.metadata["instance-id"] = str(id_file.read()).rstrip().lower()
-            return self.metadata["instance-id"]
+        self.metadata["instance-id"] = (
+            util.load_text_file(PRODUCT_UUID_FILE_PATH).rstrip().lower()
+        )
+        return self.metadata["instance-id"]
 
     def check_if_fallback_is_allowed(self):
         if (

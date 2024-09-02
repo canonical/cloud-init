@@ -31,7 +31,7 @@ from typing import (
 
 import yaml
 
-from cloudinit import features, importer, lifecycle, safeyaml
+from cloudinit import features, importer, lifecycle, performance, safeyaml
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers import INCLUSION_TYPES_MAP, type_from_starts_with
 from cloudinit.helpers import Paths
@@ -697,6 +697,7 @@ def netplan_validate_network_schema(
     return True
 
 
+@performance.timed("Validating schema")
 def validate_cloudconfig_schema(
     config: dict,
     schema: Optional[dict] = None,

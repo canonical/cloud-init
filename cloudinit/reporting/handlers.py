@@ -14,7 +14,7 @@ from datetime import datetime
 from threading import Event
 from typing import Union
 
-from cloudinit import url_helper, util
+from cloudinit import performance, url_helper, util
 from cloudinit.registry import DictRegistry
 
 LOG = logging.getLogger(__name__)
@@ -310,7 +310,9 @@ class HyperVKvpReportingHandler(ReportingHandler):
         return {"key": k, "value": v}
 
     def _append_kvp_item(self, record_data):
-        with open(self._kvp_file_path, "ab") as f:
+        with performance.Timed(f"Appending {self._kvp_file_path}"), open(
+            self._kvp_file_path, "ab"
+        ) as f:
             fcntl.flock(f, fcntl.LOCK_EX)
             for data in record_data:
                 f.write(data)

@@ -20,6 +20,7 @@ from typing import Any
 
 from jinja2 import TemplateSyntaxError
 
+from cloudinit import performance
 from cloudinit import type_utils as tu
 from cloudinit import util
 from cloudinit.atomic_helper import write_file
@@ -103,6 +104,7 @@ class UndefinedJinjaVariable(JUndefined):
         )
 
 
+@performance.timed("Rendering basic template")
 def basic_render(content, params):
     """This does simple replacement of bash variable like templates.
 
@@ -146,15 +148,16 @@ def detect_template(text):
         # keep_trailing_newline is in jinja2 2.7+, not 2.6
         add = "\n" if content.endswith("\n") else ""
         try:
-            return (
-                JTemplate(
-                    content,
-                    undefined=UndefinedJinjaVariable,
-                    trim_blocks=True,
-                    extensions=["jinja2.ext.do"],
-                ).render(**params)
-                + add
-            )
+            with performance.Timed("Rendering jinja2 template"):
+                return (
+                    JTemplate(
+                        content,
+                        undefined=UndefinedJinjaVariable,
+                        trim_blocks=True,
+                        extensions=["jinja2.ext.do"],
+                    ).render(**params)
+                    + add
+                )
         except TemplateSyntaxError as template_syntax_error:
             template_syntax_error.lineno += 1
             raise JinjaSyntaxParsingException(
@@ -212,8 +215,7 @@ def render_string(content, params):
 
 
 def render_template(variant, template, output, is_yaml, prefix=None):
-    with open(template, "r") as fh:
-        contents = fh.read()
+    contents = util.load_text_file(template)
     tpl_params = {"variant": variant, "prefix": prefix}
     contents = (render_string(contents, tpl_params)).rstrip() + "\n"
     if is_yaml:

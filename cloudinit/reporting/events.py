@@ -9,10 +9,12 @@ The events here are designed to be used with reporting.
 They can be published to registered handlers with report_event.
 """
 import base64
+import logging
 import os.path
 import time
 from typing import List
 
+from cloudinit import performance
 from cloudinit.reporting import (
     available_handlers,
     instantiated_handler_registry,
@@ -23,6 +25,7 @@ FINISH_EVENT_TYPE = "finish"
 START_EVENT_TYPE = "start"
 
 DEFAULT_EVENT_ORIGIN = "cloudinit"
+LOG = logging.getLogger(__name__)
 
 
 class _nameset(set):
@@ -301,7 +304,9 @@ def _collect_file_info(files):
         if not os.path.isfile(fname):
             content = None
         else:
-            with open(fname, "rb") as fp:
+            with performance.Timed(f"Reading {fname}"), open(
+                fname, "rb"
+            ) as fp:
                 content = base64.b64encode(fp.read()).decode()
         ret.append({"path": fname, "content": content, "encoding": "base64"})
     return ret

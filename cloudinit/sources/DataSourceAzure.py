@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from cloudinit import net, sources, ssh_util, subp, util
+from cloudinit import net, performance, sources, ssh_util, subp, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import device_driver
 from cloudinit.net.dhcp import (
@@ -1995,7 +1995,7 @@ def load_azure_ds_dir(source_dir):
     if not os.path.isfile(ovf_file):
         raise NonAzureDataSource("No ovf-env file found")
 
-    with open(ovf_file, "rb") as fp:
+    with performance.Timed("Reading ovf-env.xml"), open(ovf_file, "rb") as fp:
         contents = fp.read()
 
     md, ud, cfg = read_azure_ovf(contents)
