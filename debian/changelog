@@ -1,8 +1,26 @@
 cloud-init (24.4~4gc9dce94d-0ubuntu1) UNRELEASED; urgency=medium
 
   * Upstream snapshot based on upstream/main at c9dce94d.
+  * debian: Rename cloud-init to cloud-init-base
+    + Add infrastructure to be able to express cloud-specific cloud-init
+      binary packages.
+    + Keep a cloud-init metapackage to install every possible dependency and
+      be able to operate on any platform
+    + Add `Breaks:` and `Replaces:` dependency with
+      cloud-init <= 24.4~2g2e4c39b7-0ubuntu1
+      to adopt and own files from cloud-init in cloud-init-base.
+  * d/cloud-init-base.{config,postinst}:
+    + Handle migration of debconf values migrating cloud-init/* values to
+      cloud-init-base/*.
+  * d/control: add cloud-sigma and smart-os packages
+    + Add cloud-init-cloud-sigma and cloud-init-smart-os binary packages
+    depending on cloud-init-base and python3-serial.
+    + Removes python3-serial from cloud-init-base and add it to cloud-init.
+  * d/cloud-init-base.templates:
+    + Add warning about image portability to dpkg-reconfigure.
+  * d/NEWS: add news about cloud-specific packages
 
- -- James Falcon <james.falcon@canonical.com>  Thu, 26 Sep 2024 10:37:10 -0500
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Fri, 27 Sep 2024 10:10:16 +0200
 
 cloud-init (24.4~3+really24.3.1-0ubuntu4) oracular; urgency=medium
 
