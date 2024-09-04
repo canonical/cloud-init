@@ -32,12 +32,19 @@ jobs:
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get -y install \
-            debhelper \
-            dh-python \
             fakeroot \
-            python3-setuptools \
             sbuild \
-            ubuntu-dev-tools
+            ubuntu-dev-tools \
+            tox \
+            wireguard \
+            $(\
+              ./tools/read-dependencies                   \
+                --requirements-file requirements.txt      \
+                --requirements-file test-requirements.txt \
+                --distro ubuntu                           \
+                --system-pkg-names 2> /dev/null           \
+                | tr '\n' ' '                             \
+            )
           sudo sbuild-adduser $USER
           cp /usr/share/doc/sbuild/examples/example.sbuildrc /home/$USER/.sbuildrc
           # Install all build and test dependencies
@@ -60,10 +67,6 @@ jobs:
       - name: Verify deb package
         run: |
           ls -hal cloud-init*.deb
-      - name: Prepare test tools
-        run: |
-          sudo DEBIAN_FRONTEND=noninteractive apt-get -y update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get -y install tox wireguard
       - name: Set up Pycloudlib
         run: |
           ssh-keygen -P "" -q -f ~/.ssh/id_rsa
