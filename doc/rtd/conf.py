@@ -256,24 +256,79 @@ def render_property_template(prop_name, prop_cfg, prefix=""):
 
 def render_nested_properties(prop_cfg, defs, prefix):
     prop_str = ""
+    prop_types = set(["properties", "patternProperties"])
     flatten_schema_refs(prop_cfg, defs)
     if "items" in prop_cfg:
         prop_str += render_nested_properties(prop_cfg["items"], defs, prefix)
-    if not set(["properties", "patternProperties"]).intersection(prop_cfg):
-        return prop_str
-    for prop_name, nested_cfg in prop_cfg.get("properties", {}).items():
-        flatten_schema_all_of(nested_cfg)
-        flatten_schema_refs(nested_cfg, defs)
-        prop_str += render_property_template(prop_name, nested_cfg, prefix)
-        prop_str += render_nested_properties(nested_cfg, defs, prefix + "  ")
-    for prop_name, nested_cfg in prop_cfg.get("patternProperties", {}).items():
-        flatten_schema_all_of(nested_cfg)
-        flatten_schema_refs(nested_cfg, defs)
-        if nested_cfg.get("label"):
-            prop_name = nested_cfg.get("label")
-        prop_str += render_property_template(prop_name, nested_cfg, prefix)
-        prop_str += render_nested_properties(nested_cfg, defs, prefix + "  ")
+        for alt_schema in prop_cfg["items"].get("oneOf", []):
+            if prop_types.intersection(alt_schema):
+                prop_str += render_nested_properties(alt_schema, defs, prefix)
+
+    for hidden_key in prop_cfg.get("hidden", []):
+        prop_cfg.pop(hidden_key, None)
+
+    # Render visible property types
+    for prop_type in prop_types.intersection(prop_cfg):
+        for prop_name, nested_cfg in prop_cfg.get(prop_type, {}).items():
+            flatten_schema_all_of(nested_cfg)
+            flatten_schema_refs(nested_cfg, defs)
+            if nested_cfg.get("label"):
+                prop_name = nested_cfg.get("label")
+            prop_str += render_property_template(prop_name, nested_cfg, prefix)
+            prop_str += render_nested_properties(
+                nested_cfg, defs, prefix + "  "
+            )
     return prop_str
+
+
+def debug_module_docs(
+    module_id: str, mod_docs: dict, debug_file_path: str = None
+):
+    """Print rendered RST module docs during build.
+
+    The intent is to make rendered RST inconsistencies easier to see when
+    modifying jinja template files or JSON schema as white-space and format
+    inconsistencies can lead to significant sphinx rendering issues in RTD.
+
+    To trigger this inline print of rendered docs, set the environment
+    variable CLOUD_INIT_DEBUG_MODULE_DOC.
+
+    :param module_id: A specific 'cc_*' module name to print rendered RST for,
+        or provide 'all' to print out all rendered module docs.
+    :param mod_docs: A dict represnting doc metadata for each config module.
+        The dict is keyed on config module id (cc_*) and each value is a dict
+        with values such as: title, name, examples, schema_doc.
+    :param debug_file_path: A specific file to write the rendered RST content.
+        When unset,
+    """
+    from cloudinit.util import load_text_file, load_yaml
+
+    if not module_id:
+        return
+    if module_id == "all":
+        module_ids = mod_docs.keys()
+    else:
+        module_ids = [module_id]
+    rendered_content = ""
+    for mod_id in module_ids:
+        try:
+            data = load_yaml(
+                load_text_file(f"../module-docs/{mod_id}/data.yaml")
+            )
+        except FileNotFoundError:
+            continue
+        with open("templates/modules.tmpl", "r") as stream:
+            tmpl_content = "## template: jinja\n" + stream.read()
+            params = {"data": data, "config": {"html_context": mod_docs}}
+            rendered_content += render_jinja_payload(
+                tmpl_content, "changed_modules_page", params
+            )
+    if debug_file_path:
+        print(f"--- Writing rendered module docs: {debug_file_path} ---")
+        with open(debug_file_path, "w") as stream:
+            stream.write(rendered_content)
+    else:
+        print(rendered_content)
 
 
 def render_module_schemas():
@@ -298,6 +353,11 @@ def render_module_schemas():
             mod_docs[cc_key][
                 "schema_doc"
             ] = "No schema definitions for this module"
+    debug_module_docs(
+        os.environ.get("CLOUD_INIT_DEBUG_MODULE_DOC"),
+        mod_docs,
+        debug_file_path=os.environ.get("CLOUD_INIT_DEBUG_MODULE_DOC_FILE"),
+    )
     return mod_docs
 
 

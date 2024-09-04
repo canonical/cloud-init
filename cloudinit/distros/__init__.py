@@ -136,6 +136,10 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     doas_fn = "/etc/doas.conf"
     ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"
     hostname_conf_fn = "/etc/hostname"
+    shadow_fn = "/etc/shadow"
+    shadow_extrausers_fn = "/var/lib/extrausers/shadow"
+    # /etc/shadow match patterns indicating empty passwords
+    shadow_empty_locked_passwd_patterns = ["^{username}::", "^{username}:!:"]
     tz_zone_dir = "/usr/share/zoneinfo"
     default_owner = "root:root"
     init_cmd = ["service"]  # systemctl, service etc
@@ -655,19 +659,21 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def get_default_user(self):
         return self.get_option("default_user")
 
-    def add_user(self, name, **kwargs):
+    def add_user(self, name, **kwargs) -> bool:
         """
         Add a user to the system using standard GNU tools
 
         This should be overridden on distros where useradd is not desirable or
         not available.
+
+        Returns False if user already exists, otherwise True.
         """
         # XXX need to make add_user idempotent somehow as we
         # still want to add groups or modify SSH keys on pre-existing
         # users in the image.
         if util.is_user(name):
             LOG.info("User %s already exists, skipping.", name)
-            return
+            return False
 
         if "create_groups" in kwargs:
             create_groups = kwargs.pop("create_groups")
@@ -771,6 +777,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             util.logexc(LOG, "Failed to create user %s", name)
             raise e
 
+        # Indicate that a new user was created
+        return True
+
     def add_snap_user(self, name, **kwargs):
         """
         Add a snappy user to the system using snappy tools
@@ -798,6 +807,40 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         return username
 
+    def _shadow_file_has_empty_user_password(self, username) -> bool:
+        """
+        Check whether username exists in shadow files with empty password.
+
+        Support reading /var/lib/extrausers/shadow on snappy systems.
+        """
+        if util.system_is_snappy():
+            shadow_files = [self.shadow_extrausers_fn, self.shadow_fn]
+        else:
+            shadow_files = [self.shadow_fn]
+        shadow_empty_passwd_re = "|".join(
+            [
+                pattern.format(username=username)
+                for pattern in self.shadow_empty_locked_passwd_patterns
+            ]
+        )
+        for shadow_file in shadow_files:
+            if not os.path.exists(shadow_file):
+                continue
+            shadow_content = util.load_text_file(shadow_file)
+            if not re.findall(rf"^{username}:", shadow_content, re.MULTILINE):
+                LOG.debug("User %s not found in %s", username, shadow_file)
+                continue
+            LOG.debug(
+                "User %s found in %s. Checking for empty password",
+                username,
+                shadow_file,
+            )
+            if re.findall(
+                shadow_empty_passwd_re, shadow_content, re.MULTILINE
+            ):
+                return True
+        return False
+
     def create_user(self, name, **kwargs):
         """
         Creates or partially updates the ``name`` user in the system.
@@ -824,20 +867,93 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             return self.add_snap_user(name, **kwargs)
 
         # Add the user
-        self.add_user(name, **kwargs)
+        pre_existing_user = not self.add_user(name, **kwargs)
 
-        # Set password if plain-text password provided and non-empty
-        if "plain_text_passwd" in kwargs and kwargs["plain_text_passwd"]:
-            self.set_passwd(name, kwargs["plain_text_passwd"])
+        has_existing_password = False
+        ud_blank_password_specified = False
+        ud_password_specified = False
+        password_key = None
 
-        # Set password if hashed password is provided and non-empty
-        if "hashed_passwd" in kwargs and kwargs["hashed_passwd"]:
-            self.set_passwd(name, kwargs["hashed_passwd"], hashed=True)
+        if "plain_text_passwd" in kwargs:
+            ud_password_specified = True
+            password_key = "plain_text_passwd"
+            if kwargs["plain_text_passwd"]:
+                # Set password if plain-text password provided and non-empty
+                self.set_passwd(name, kwargs["plain_text_passwd"])
+            else:
+                ud_blank_password_specified = True
 
-        # Default locking down the account.  'lock_passwd' defaults to True.
-        # lock account unless lock_password is False.
+        if "hashed_passwd" in kwargs:
+            ud_password_specified = True
+            password_key = "hashed_passwd"
+            if kwargs["hashed_passwd"]:
+                # Set password if hashed password is provided and non-empty
+                self.set_passwd(name, kwargs["hashed_passwd"], hashed=True)
+            else:
+                ud_blank_password_specified = True
+
+        if pre_existing_user:
+            if not ud_password_specified:
+                if "passwd" in kwargs:
+                    password_key = "passwd"
+                    # Only "plain_text_passwd" and "hashed_passwd"
+                    # are valid for an existing user.
+                    LOG.warning(
+                        "'passwd' in user-data is ignored for existing "
+                        "user %s",
+                        name,
+                    )
+
+                # As no password specified for the existing user in user-data
+                # then check if the existing user's hashed password value is
+                # empty (whether locked or not).
+                has_existing_password = not (
+                    self._shadow_file_has_empty_user_password(name)
+                )
+        else:
+            if "passwd" in kwargs:
+                ud_password_specified = True
+                password_key = "passwd"
+                if not kwargs["passwd"]:
+                    ud_blank_password_specified = True
+
+        # Default locking down the account. 'lock_passwd' defaults to True.
+        # Lock account unless lock_password is False in which case unlock
+        # account as long as a password (blank or otherwise) was specified.
         if kwargs.get("lock_passwd", True):
             self.lock_passwd(name)
+        elif has_existing_password or ud_password_specified:
+            # 'lock_passwd: False' and either existing account already with
+            # non-blank password or else existing/new account with password
+            # explicitly set in user-data.
+            if ud_blank_password_specified:
+                LOG.debug(
+                    "Allowing unlocking empty password for %s based on empty"
+                    " '%s' in user-data",
+                    name,
+                    password_key,
+                )
+
+            # Unlock the existing/new account
+            self.unlock_passwd(name)
+        elif pre_existing_user:
+            # Pre-existing user with no existing password and none
+            # explicitly set in user-data.
+            LOG.warning(
+                "Not unlocking blank password for existing user %s."
+                " 'lock_passwd: false' present in user-data but no existing"
+                " password set and no 'plain_text_passwd'/'hashed_passwd'"
+                " provided in user-data",
+                name,
+            )
+        else:
+            # No password (whether blank or otherwise) explicitly set
+            LOG.warning(
+                "Not unlocking password for user %s. 'lock_passwd: false'"
+                " present in user-data but no 'passwd'/'plain_text_passwd'/"
+                "'hashed_passwd' provided in user-data",
+                name,
+            )
 
         # Configure doas access
         if "doas" in kwargs:
@@ -914,6 +1030,50 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             util.logexc(LOG, "Failed to disable password for user %s", name)
             raise e
 
+    def unlock_passwd(self, name: str):
+        """
+        Unlock the password of a user, i.e., enable password logins
+        """
+        # passwd must use short '-u' due to SLES11 lacking long form '--unlock'
+        unlock_tools = (["passwd", "-u", name], ["usermod", "--unlock", name])
+        try:
+            cmd = next(tool for tool in unlock_tools if subp.which(tool[0]))
+        except StopIteration as e:
+            raise RuntimeError(
+                "Unable to unlock user account '%s'. No tools available. "
+                "  Tried: %s." % (name, [c[0] for c in unlock_tools])
+            ) from e
+        try:
+            _, err = subp.subp(cmd, rcs=[0, 3])
+        except Exception as e:
+            util.logexc(LOG, "Failed to enable password for user %s", name)
+            raise e
+        if err:
+            # if "passwd" or "usermod" are unable to unlock an account with
+            # an empty password then they display a message on stdout. In
+            # that case then instead set a blank password.
+            passwd_set_tools = (
+                ["passwd", "-d", name],
+                ["usermod", "--password", "''", name],
+            )
+            try:
+                cmd = next(
+                    tool for tool in passwd_set_tools if subp.which(tool[0])
+                )
+            except StopIteration as e:
+                raise RuntimeError(
+                    "Unable to set blank password for user account '%s'. "
+                    "No tools available. "
+                    "  Tried: %s." % (name, [c[0] for c in unlock_tools])
+                ) from e
+            try:
+                subp.subp(cmd)
+            except Exception as e:
+                util.logexc(
+                    LOG, "Failed to set blank password for user %s", name
+                )
+                raise e
+
     def expire_passwd(self, user):
         try:
             subp.subp(["passwd", "--expire", user])
@@ -948,6 +1108,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             )
             + "\n"
         )
+        # Need to use the short option name '-e' instead of '--encrypted'
+        # (which would be more descriptive) since Busybox and SLES 11
+        # chpasswd don't know about long names.
         cmd = ["chpasswd"] + (["-e"] if hashed else [])
         subp.subp(cmd, data=payload)
 

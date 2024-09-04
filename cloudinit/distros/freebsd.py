@@ -41,6 +41,17 @@ class Distro(cloudinit.distros.bsd.BSD):
     dhclient_lease_directory = "/var/db"
     dhclient_lease_file_regex = r"dhclient.leases.\w+"
 
+    # /etc/shadow match patterns indicating empty passwords
+    # For FreeBSD (from https://man.freebsd.org/cgi/man.cgi?passwd(5)) a
+    # password field of "" indicates no password, and a password
+    # field value of either "*" or "*LOCKED*" indicate differing forms of
+    # "locked" but with no password defined.
+    shadow_empty_locked_passwd_patterns = [
+        r"^{username}::",
+        r"^{username}:\*:",
+        r"^{username}:\*LOCKED\*:",
+    ]
+
     @classmethod
     def reload_init(cls, rcs=None):
         """
@@ -86,7 +97,12 @@ class Distro(cloudinit.distros.bsd.BSD):
     def _get_add_member_to_group_cmd(self, member_name, group_name):
         return ["pw", "usermod", "-n", member_name, "-G", group_name]
 
-    def add_user(self, name, **kwargs):
+    def add_user(self, name, **kwargs) -> bool:
+        """
+        Add a user to the system using standard tools
+
+        Returns False if user already exists, otherwise True.
+        """
         if util.is_user(name):
             LOG.info("User %s already exists, skipping.", name)
             return False
@@ -140,6 +156,9 @@ class Distro(cloudinit.distros.bsd.BSD):
         if passwd_val is not None:
             self.set_passwd(name, passwd_val, hashed=True)
 
+        # Indicate that a new user was created
+        return True
+
     def expire_passwd(self, user):
         try:
             subp.subp(["pw", "usermod", user, "-p", "01-Jan-1970"])
@@ -169,6 +188,13 @@ class Distro(cloudinit.distros.bsd.BSD):
         except Exception:
             util.logexc(LOG, "Failed to lock password login for user %s", name)
             raise
+
+    def unlock_passwd(self, name):
+        LOG.debug(
+            "Dragonfly BSD/FreeBSD password lock is not reversible, "
+            "ignoring unlock for user %s",
+            name,
+        )
 
     def apply_locale(self, locale, out_fn=None):
         # Adjust the locales value to the new value

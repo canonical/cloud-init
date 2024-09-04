@@ -1,3 +1,143 @@
+24.3.1
+ - test: add test coverage for iproute2 commands (#5651)
+ - fix(netops): fix ip addr flush command (#5651) (GH: 5648)
+
+24.3
+ - docs: Clarify v2 set-name behavior (#5639)
+ - fix: properly handle blank lines in fstab (#5643)
+ - fix: cc_user_groups incorrectly assumes "useradd" never locks password
+   field (#5355) [dermotbradley]
+ - tests: assert cloud-init user-data cert is the only root cert (#5641)
+ - feat: add automation for ubuntu/* branches asserting quilt patches apply
+   (#5622)
+ - fix(sources/wsl): no error with empty .cloud-init dir (SC-1862) (#5633)
+ - feat(azure): add PPS support for azure-proxy-agent (#5601)
+   [Ksenija Stanojevic]
+ - fix(tests): use instance.clean/restart instead of clean --reboot (#5636)
+ - test: fix cmd/test_schema int test (#5629)
+ - test: fix test_honor_cloud_dir int test (#5627)
+ - docs: alphabetize dsname lookup table. update comment to create the csv
+   (#5624)
+ - docs: new datasources should update reference/ds_dsname_map (#5624)
+ - test: fix ca_certs int test (#5626)
+ - chore: update schema docs to use RST bold for config key names (#5562)
+ - fix(doc): italics around deprecation prefix, description bolds key names
+   (#5562)
+ - feat(doc): add env vars to debug config module doc builds (#5562)
+ - fix(doc): doc of nested objects under JSON schema items.oneOf (#5562)
+ - fix(doc): object type check if patternProperties or properties (#5562)
+ - doc(schema): schema descriptions should end with trailing stop (#5562)
+ - fix(wsl): Properly assemble multipart data (#5538) [Carlos Nihelton]
+ - feat: collect-logs improvements (#5619)
+ - tests: fix test_ca_certs.py for gcp (#5621)
+ - fix(nm): Ensure bond property name formatting matches schema definition
+   (#5383) [Curt Moore]
+ - Update behavior of base bond interface with NetworkManager (#5385)
+   [Curt Moore]
+ - ci: Drop Python 3.6 and 3.7 (#5607)
+ - chore(black): Bump version (#5607)
+ - chore(mypy): Fix failures on newer versions of mypy (#5607)
+ - chore(tox.ini): Simplify configuration, fix minor bugs (#5607)
+ - chore(mypy): Lint log module (#5607)
+ - fix(systemd): Correct location of installed drop-in files(#5615)
+   [Noah Meyerhans]
+ - fix(btrfs): Version parsing (#5618)
+ - docs: Remove unnecessary section, add feature flag page (#5617)
+ - docs: Drop Python 3.6 and 3.7 support (#5617)
+ - chore: explain other use of oauth (#5616)
+ - chore(actions): add doc label for any doc related subdir file matches
+   (#5602)
+ - doc: Add misc links, improve wording (#5595)
+ - doc(boot): Make first boot a dedicated page (#5595)
+ - doc: Describe all stages in a single process (#5595)
+ - chore: Deprecate old commands in help output (#5595)
+ - chore: add comment explaining the NetworkManager may-fail setting
+   (#5598) [Ani Sinha]
+ - Revert "fix(vmware): Set IPv6 to dhcp when there is no IPv6 addr
+   (#5471)" (#5596) [PengpengSun]
+ - fix: read_optional_seed to set network-config when present (#5593)
+ - feat(snap): avoid refresh on package_upgrade: true and refresh.hold
+   (#5426)
+ - fix: Fix tests which have outdated strings (#5585)
+ - fix: Fix ftp failures (#5585)
+ - doc: improve integration testing configuration instructions (#5556)
+   [Alec Warren]
+ - azure: check azure-proxy-agent status (#5138) [Ksenija Stanojevic]
+ - refactor: refactor and fix mypy in DataSourceIBMCloud.py (#5509)
+   [Alec Warren]
+ - fix: Update default LXD meta-data with user meta-data (#5584)
+ - chore: Fix log message in url_helper.py (#5583)
+ - fix: nocloud no fail when network-config absent (#5580)
+ - feat: Single process optimization (#5489)
+ - chore: Add helper, refactor utilities into separate module (#5573)
+ - refactor: update handle function of cc_mounts (#5498)
+ - fix: Integration tests (#5576)
+ - fix(NoCloudNet): Add network-config support (#5566)
+ - feat: Eliminate redundant configuration reads (#5536)
+ - fix(actions): correct typo in cloudinit/config/schemas/ match (#5570)
+ - fix: add host template for AOSC (#5557) [Yuanhang Sun]
+ - chore(debian): Remove vestigial postinst and preinst code (#5569)
+ - fix(actions): doc labeler needs all clause instead of default any (#5568)
+ - docs: Overhaul user data formats documentation (#5551)
+ - chore: Deprecate ENI as an input configuration format (#5561)
+ - doc: improve drop-in custom modules (#5548)
+ - doc(NoCloud): Categorize the different configuration types (#5521)
+ - doc(autoinstall): Remove incorrect statements, be more direct (#5545)
+ - chore: remove unneeded doc-lint tox env config (#5547)
+ - fix(doc-spelling): config spelling_word_list_filename (#5547)
+ - doc(modules): add section to wrap modules' doc (#5550)
+ - doc: Update docs on boothooks (#5546)
+ - fix: doc auto label to consider schema json changes as doc PRs (#5543)
+ - feat(schema): add chef_license schema enum (#5543)
+ - doc: add diagram with boot stages (#5539)
+ - docs: improve qemu command line (#5540) [Christian Ehrhardt]
+ - fix: auto label doc PRs (#5542)
+ - fix(wsl): Put back the "path" argument to wsl_path in ds-identify
+   (#5537) [Carlos Nihelton]
+ - test: fix test_kernel_command_line_match (#5529)
+ - test: fix no ds cache tests (#5529)
+ - fix(azurelinux): Change default usr_lib_exec path (#5526) [Minghe Ren]
+ - feat: Support URI sources in `write_files` module (#5505)
+   [Lucas Ritzdorf]
+ - add openeuler to distros in cc_spacewalk.py (#5530) [sxt1001]
+ - feat(wsl): Special handling Landscape client config tags (#5460)
+   [Carlos Nihelton]
+ - chore: Deprecate partially supported system config (#5515)
+ - chore: Improve detection logging for user clarity (#5515)
+ - fix(ds-identify): Detect nocloud when seedfrom url exists (#5515)
+ - refactor: logs.py add typing and small misc refactors (#5414)
+ - refactor: logs.py pathlib changes (#5414)
+ - refactor: replace verbosity with log levels in logs.py (#5414)
+ - feat: Add trace-level logger (#5414)
+ - chore(formatting): fix squashed commit test formatting (#5524)
+ - fix: Clean cache if no datasource fallback (#5499)
+ - Support setting mirrorlist in yum repository config (#5522) [Ani Sinha]
+ - doc(OFV): Document how to configure cloud-init (#5519)
+ - fix: Update DNS behavior for NetworkManager interfaces (#5496)
+   [Curt Moore]
+ - Fix configuration of DNS servers via OpenStack (#5384) [Curt Moore]
+ - test: Unconditionally skip test_multi_nic_hotplug_vpc (#5503)
+ - tests: revert expectation of exit 2 from cloud-init init --local (#5504)
+ - fix(test): Fix ip printer for non-lxd (#5488)
+ - feat(systemd): convert warning level message to deprecation (#5209)
+ - test: allow verify_clean_boot to ignore all or specific tracebacks
+   (#5209)
+ - test: Don't fail tests which call cloud-init as a command (#5209)
+ - feat(systemd): Warn user of unexpected run mode (#5209)
+ - fix: add schema rules for 'baseurl' and 'metalink' in yum repo config
+   (#5501) [Ani Sinha]
+ - Set MTU for bond parent interface (#5495) [Curt Moore]
+ - refactor: util.mounts to handle errors (#5490)
+ - refactor: util.get_proc_env to work with strs (#5490)
+ - typing: fix check_untyped_defs in cloudinit.util (#5490)
+ - test: Add missing assert to test_status.py (#5494)
+ - test: Ensure mkcert executable in ftp tests (#5493)
+ - test: pytestify and cleanup test_cc_mounts.py (#5459)
+ - fix(vmware): Set IPv6 to dhcp when there is no IPv6 addr (#5471)
+   [PengpengSun]
+ - fix(openbsd): fix mtu on newline in hostname files (#5412) [Tobias Urdin]
+ - feat(aosc): Add 'AOSC OS' support (#5310) [Yuanhang Sun]
+
 24.2
  - test: Fix no default user in test_status.py (#5478)
  - fix: correct deprecated_version=22.2 for users.sudo

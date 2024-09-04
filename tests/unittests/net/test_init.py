@@ -836,7 +836,6 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "dev",
                     "eth0",
                 ],
-                update_env={"LANG": "C"},
             ),
         ]
         expected_teardown_calls = [
@@ -973,7 +972,6 @@ class TestEphemeralIPV4Network(CiTestCase):
                         "dev",
                         "eth0",
                     ],
-                    update_env={"LANG": "C"},
                 )
             ]
         )
@@ -992,7 +990,6 @@ class TestEphemeralIPV4Network(CiTestCase):
                         "dev",
                         "eth0",
                     ],
-                    update_env={"LANG": "C"},
                 )
             ]
         )
@@ -1023,7 +1020,6 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "dev",
                     "eth0",
                 ],
-                update_env={"LANG": "C"},
             ),
             mock.call(["ip", "route", "show", "0.0.0.0/0"]),
             mock.call(
@@ -1104,7 +1100,6 @@ class TestEphemeralIPV4Network(CiTestCase):
                     "dev",
                     "eth0",
                 ],
-                update_env={"LANG": "C"},
             ),
             mock.call(
                 [

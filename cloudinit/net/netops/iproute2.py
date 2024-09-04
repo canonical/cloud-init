@@ -130,7 +130,6 @@ class Iproute2(NetOps):
                 "dev",
                 interface,
             ],
-            update_env={"LANG": "C"},
         )
 
     @staticmethod
@@ -141,4 +140,4 @@ class Iproute2(NetOps):
 
     @staticmethod
     def flush_addr(interface: str):
-        subp.subp(["ip", "flush", "dev", interface])
+        subp.subp(["ip", "addr", "flush", "dev", interface])
