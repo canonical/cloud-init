@@ -63,6 +63,10 @@ jobs:
         with:
           # Fetch all tags for tools/read-version
           fetch-depth: 0
+      - name: Setup LXD
+        uses: canonical/setup-lxd@v0.1.1
+        with:
+          channel: latest/candidate
       - name: Retrieve cloud-init package
         uses: actions/download-artifact@v4
         with:
@@ -74,16 +78,13 @@ jobs:
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get -y update
           sudo DEBIAN_FRONTEND=noninteractive apt-get -y install tox wireguard
-      - name: Initialize LXD
+      - name: Initialize pycloudlib
         run: |
           ssh-keygen -P "" -q -f ~/.ssh/id_rsa
           echo "[lxd]" > /home/$USER/.config/pycloudlib.toml
-          sudo adduser $USER lxd
           # Jammy GH Action runners have docker installed, which edits iptables
           # in a way that is incompatible with lxd.
           # https://documentation.ubuntu.com/lxd/en/latest/howto/network_bridge_firewalld/#prevent-connectivity-issues-with-lxd-and-docker
-          sudo iptables -I DOCKER-USER -j ACCEPT
-          sudo lxd init --auto
       - name: Run integration Tests
         run: |
-          sg lxd -c 'CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls cloud-init*.deb)" tox -e integration-tests-ci'
+          'CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls cloud-init*.deb)" tox -e integration-tests-ci'
