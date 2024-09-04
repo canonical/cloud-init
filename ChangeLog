@@ -1,3 +1,7 @@
+24.3.1
+ - test: add test coverage for iproute2 commands (#5651)
+ - fix(netops): fix ip addr flush command (#5651) (GH: 5648)
+
 24.3
  - docs: Clarify v2 set-name behavior (#5639)
  - fix: properly handle blank lines in fstab (#5643)
