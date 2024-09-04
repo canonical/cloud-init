@@ -3,9 +3,9 @@
 CLI commands
 ************
 
-Cloud-init ships multiple binaries that are intended for user interaction.
+Cloud-init ships multiple executables that are intended for user interaction.
 
-These binaries are:
+These executables are:
 
 - `cloud-init`_
 - `cloud-id`_
