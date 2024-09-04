@@ -47,8 +47,6 @@ jobs:
             )
           sudo sbuild-adduser $USER
           cp /usr/share/doc/sbuild/examples/example.sbuildrc /home/$USER/.sbuildrc
-          # Install all build and test dependencies
-          ./tools/read-dependencies -r requirements.txt -r test-requirements.txt -d ubuntu -s -i
       - name: Build package
         run: |
           ./packages/bddeb -S -d --release ${{ env.RELEASE }}
@@ -66,11 +64,11 @@ jobs:
           channel: latest/candidate
       - name: Verify deb package
         run: |
-          ls -hal cloud-init*.deb
+          ls -hal '${{ runner.temp }}/cloud-init*.deb'
       - name: Set up Pycloudlib
         run: |
           ssh-keygen -P "" -q -f ~/.ssh/id_rsa
           echo "[lxd]" > /home/$USER/.config/pycloudlib.toml
       - name: Run integration Tests
         run: |
-          sh -c 'CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls cloud-init*.deb)" tox -e integration-tests-ci'
+          sh -c 'CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls ${{ runner.temp }}/cloud-init*.deb)" tox -e integration-tests-ci'
