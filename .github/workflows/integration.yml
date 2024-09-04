@@ -28,12 +28,6 @@ jobs:
         with:
           # Fetch all tags for tools/read-version
           fetch-depth: 0
-      - name: Inspect
-        run: |
-          free -h
-          cat /proc/mounts
-          df -h
-          sudo du -sh /var/lib/schroot | true
       - name: Prepare dependencies
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get update
