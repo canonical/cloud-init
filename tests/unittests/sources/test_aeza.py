@@ -59,6 +59,7 @@ class TestDataSourceAeza:
                         "http://77.221.156.49/v1/cloudinit/1dd9a779-uuid/%s",
                         timeout=10,
                         retries=5,
+                        ignore_files=["network-config"],
                     )
                 ],
                 id="default_sysconfig_ds_url_retry_and_timeout",
@@ -78,6 +79,7 @@ class TestDataSourceAeza:
                         "https://somethingelse/%s",
                         timeout=7,
                         retries=8,
+                        ignore_files=["network-config"],
                     )
                 ],
                 id="custom_sysconfig_ds_url_retry_and_timeout_overrides",
@@ -96,7 +98,7 @@ class TestDataSourceAeza:
         tmpdir,
     ):
         m_read_dmi_data.return_value = "1dd9a779-uuid"
-        m_read_seeded.return_value = (METADATA, USERDATA, VENDORDATA)
+        m_read_seeded.return_value = (METADATA, USERDATA, VENDORDATA, None)
 
         ds = aeza.DataSourceAeza(
             sys_cfg=sys_cfg, distro=mock.Mock(), paths=paths
@@ -135,7 +137,7 @@ class TestDataSourceAeza:
     ):
         """Assert get_data returns False for unexpected format conditions."""
         m_read_dmi_data.return_value = "1dd9a779-uuid"
-        m_read_seeded.return_value = (metadata, userdata, VENDORDATA)
+        m_read_seeded.return_value = (metadata, userdata, VENDORDATA, None)
 
         ds = aeza.DataSourceAeza(sys_cfg={}, distro=mock.Mock(), paths=paths)
         with pytest.raises(
