@@ -6,7 +6,7 @@
 
 import logging
 
-from cloudinit import sources, dmi, util
+from cloudinit import dmi, sources, util
 
 LOG = logging.getLogger(__name__)
 
@@ -24,45 +24,35 @@ class DataSourceAeza(sources.DataSource):
 
         self.ds_cfg = util.mergemanydict([self.ds_cfg, BUILTIN_DS_CONFIG])
 
-        url_params = self.get_url_params()
-        self.timeout_seconds = url_params.timeout_seconds
-        self.max_wait_seconds = url_params.max_wait_seconds
-        self.retries = url_params.num_retries
-        self.sec_between_retries = url_params.sec_between_retries
-
-        system_uuid = dmi.read_dmi_data("system-uuid")
-        self.metadata_address = (
-            self.ds_cfg["metadata_url"].format(
-                id=system_uuid,
-            )
-            + "%s"
-        )
-
     @staticmethod
     def ds_detect():
         return dmi.read_dmi_data("system-manufacturer") == "Aeza"
 
     def _get_data(self):
+        system_uuid = dmi.read_dmi_data("system-uuid")
+        metadata_address = (
+            self.ds_cfg["metadata_url"].format(
+                id=system_uuid,
+            )
+            + "%s"
+        )
+        url_params = self.get_url_params()
         md, ud, vd = util.read_seeded(
-            self.metadata_address,
-            timeout=self.timeout_seconds,
-            retries=self.retries,
+            metadata_address,
+            timeout=url_params.timeout_seconds,
+            retries=url_params.num_retries,
         )
 
         if md is None:
-            LOG.warn(
-                "Failed to read metadata from %s",
-                self.metadata_address,
+            raise sources.InvalidMetaDataException(
+                f"Failed to read metadata from {metadata_address}",
             )
-            return False
         if not isinstance(md.get("instance-id"), str):
-            LOG.warn(
-                "Metadata does not contain instance-id",
+            raise sources.InvalidMetaDataException(
+                f"Metadata does not contain instance-id: {md}"
             )
-            return False
         if not isinstance(ud, bytes):
-            LOG.warn("Userdata is not bytes")
-            return False
+            raise sources.InvalidMetaDataException("Userdata is not bytes")
 
         self.metadata, self.userdata_raw, self.vendordata_raw = md, ud, vd
 

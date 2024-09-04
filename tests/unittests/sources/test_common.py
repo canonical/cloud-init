@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from cloudinit import importer, settings, sources, type_utils
 from cloudinit.sources import DataSource
+from cloudinit.sources import DataSourceAeza as Aeza
 from cloudinit.sources import DataSourceAkamai as Akamai
 from cloudinit.sources import DataSourceAliYun as AliYun
 from cloudinit.sources import DataSourceAltCloud as AltCloud
@@ -34,7 +35,6 @@ from cloudinit.sources import DataSourceUpCloud as UpCloud
 from cloudinit.sources import DataSourceVMware as VMware
 from cloudinit.sources import DataSourceVultr as Vultr
 from cloudinit.sources import DataSourceWSL as WSL
-from cloudinit.sources import DataSourceAeza as Aeza
 from tests.unittests import helpers as test_helpers
 
 DEFAULT_LOCAL = [
