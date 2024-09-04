@@ -37,10 +37,11 @@ class DataSourceAeza(sources.DataSource):
             + "%s"
         )
         url_params = self.get_url_params()
-        md, ud, vd = util.read_seeded(
+        md, ud, vd, _network_config = util.read_seeded(
             metadata_address,
             timeout=url_params.timeout_seconds,
             retries=url_params.num_retries,
+            ignore_files=["network-config"],
         )
 
         if md is None:

@@ -1054,7 +1054,10 @@ def load_yaml(blob, default=None, allowed=(dict,)):
     return loaded
 
 
-def read_seeded(base="", ext="", timeout=5, retries=10):
+def read_seeded(base="", ext="", timeout=5, retries=10, ignore_files=None):
+    if ignore_files is None:
+        ignore_files = []
+
     if base.find("%s") >= 0:
         ud_url = base.replace("%s", "user-data" + ext)
         vd_url = base.replace("%s", "vendor-data" + ext)
@@ -1069,42 +1072,48 @@ def read_seeded(base="", ext="", timeout=5, retries=10):
         vd_url = "%s%s%s" % (base, "vendor-data", ext)
         md_url = "%s%s%s" % (base, "meta-data", ext)
         network_url = "%s%s%s" % (base, "network-config", ext)
-    network = None
-    try:
-        network_resp = url_helper.read_file_or_url(
-            network_url, timeout=timeout, retries=retries
-        )
-    except url_helper.UrlError as e:
-        LOG.debug("No network config provided: %s", e)
-    else:
-        if network_resp.ok():
-            network = load_yaml(network_resp.contents)
-    md_resp = url_helper.read_file_or_url(
-        md_url, timeout=timeout, retries=retries
-    )
-    md = None
-    if md_resp.ok():
-        md = load_yaml(md_resp.contents, default={})
 
-    ud_resp = url_helper.read_file_or_url(
-        ud_url, timeout=timeout, retries=retries
-    )
+    network = None
+    if "network-config" not in ignore_files:
+        try:
+            network_resp = url_helper.read_file_or_url(
+                network_url, timeout=timeout, retries=retries
+            )
+        except url_helper.UrlError as e:
+            LOG.debug("No network config provided: %s", e)
+        else:
+            if network_resp.ok():
+                network = load_yaml(network_resp.contents)
+
+    md = None
+    if "meta-data" in ignore_files:
+        md_resp = url_helper.read_file_or_url(
+            md_url, timeout=timeout, retries=retries
+        )
+        if md_resp.ok():
+            md = load_yaml(md_resp.contents, default={})
+
     ud = None
-    if ud_resp.ok():
-        ud = ud_resp.contents
+    if "user-data" in ignore_files:
+        ud_resp = url_helper.read_file_or_url(
+            ud_url, timeout=timeout, retries=retries
+        )
+        if ud_resp.ok():
+            ud = ud_resp.contents
 
     vd = None
-    try:
-        vd_resp = url_helper.read_file_or_url(
-            vd_url, timeout=timeout, retries=retries
-        )
-    except url_helper.UrlError as e:
-        LOG.debug("Error in vendor-data response: %s", e)
-    else:
-        if vd_resp.ok():
-            vd = vd_resp.contents
+    if "vendor-data" in ignore_files:
+        try:
+            vd_resp = url_helper.read_file_or_url(
+                vd_url, timeout=timeout, retries=retries
+            )
+        except url_helper.UrlError as e:
+            LOG.debug("Error in vendor-data response: %s", e)
         else:
-            LOG.debug("Error in vendor-data response")
+            if vd_resp.ok():
+                vd = vd_resp.contents
+            else:
+                LOG.debug("Error in vendor-data response")
 
     return md, ud, vd, network
 
