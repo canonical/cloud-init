@@ -266,6 +266,11 @@ def _verify_clean_boot(
         f"{traceback_count - expected_traceback_count} unexpected traceback(s)"
         " found in /var/log/cloud-init.log"
     )
+    schema = instance.execute("cloud-init schema --system --annotate")
+    assert schema.ok, (
+        f"Schema validation failed\nstdout:{schema.stdout}"
+        f"\nstderr:\n{schema.stderr}"
+    )
 
 
 def verify_clean_log(log: str, ignore_deprecations: bool = True):
