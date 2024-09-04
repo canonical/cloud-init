@@ -1,10 +1,10 @@
-cloud-init (24.4~+really24.3.1g337c6514-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (24.4~3+really24.3.1g337c6514-0ubuntu1) oracular; urgency=medium
 
   * Upstream snapshot based on 24.3.1.
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/24.3.1/ChangeLog
 
- -- Chad Smith <chad.smith@canonical.com>  Wed, 04 Sep 2024 14:31:15 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 04 Sep 2024 14:32:08 -0600
 
 cloud-init (24.4~2g2e4c39b7-0ubuntu1) oracular; urgency=medium
 
