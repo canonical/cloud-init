@@ -33,6 +33,7 @@ jobs:
           free -h
           cat /proc/mounts
           df -h
+          sudo du -sh /var/lib/schroot | true
       - name: Prepare dependencies
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get update
@@ -52,6 +53,15 @@ jobs:
             )
           sudo sbuild-adduser $USER
           cp /usr/share/doc/sbuild/examples/example.sbuildrc /home/$USER/.sbuildrc
+      - name: Create tmpfs for schroot
+        run: |
+          sudo tee -a /etc/fstab<<EOF
+          # for schroots overlay
+          none /var/lib/schroot/session        tmpfs uid=root,gid=root,mode=0755 0 0
+          none /var/lib/schroot/union/overlay  tmpfs uid=root,gid=root,mode=0755,size=85% 0 0
+          none /var/lib/sbuild/build           tmpfs uid=sbuild,gid=sbuild,mode=2770 0 0
+          EOF
+          sudo mount -a
       - name: Build package
         run: |
           ./packages/bddeb -S -d --release ${{ env.RELEASE }}
@@ -67,13 +77,6 @@ jobs:
         uses: canonical/setup-lxd@v0.1.1
         with:
           channel: latest/candidate
-
-      # this is really dumb, but I'm out of time for now
-      #      - name: Retrieve cloud-init package
-      #        uses: actions/download-artifact@v3
-      #        with:
-      #          name: 'cloud-init-${{ env.RELEASE }}-deb'
-
       - name: Verify deb package
         run: |
           ls -hal '${{ runner.temp }}'
