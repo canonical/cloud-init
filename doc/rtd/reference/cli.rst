@@ -3,6 +3,17 @@
 CLI commands
 ************
 
+Cloud-init ships multiple binaries that are intended for user interaction.
+
+These binaries are:
+
+- `cloud-init`_
+- `cloud-id`_
+- `cloud-init-per`_
+
+cloud-init
+==========
+
 For the latest list of subcommands and arguments use ``cloud-init``'s
 ``--help`` option. This can be used against ``cloud-init`` itself, or on any
 of its subcommands.
@@ -44,7 +55,7 @@ The rest of this document will give an overview of each of the subcommands.
 .. _cli_analyze:
 
 :command:`analyze`
-==================
+------------------
 
 Get detailed reports of where ``cloud-init`` spends its time during the boot
 process. For more complete reference see :ref:`analyze`.
@@ -62,7 +73,7 @@ Possible subcommands include:
 .. _cli_clean:
 
 :command:`clean`
-================
+----------------
 
 Remove ``cloud-init`` artifacts from :file:`/var/lib/cloud` and config files
 (best effort) to simulate a clean instance. On reboot, ``cloud-init`` will
@@ -89,7 +100,7 @@ re-run all stages as it did on first boot.
 .. _cli_collect_logs:
 
 :command:`collect-logs`
-=======================
+-----------------------
 
 Collect and tar ``cloud-init``-generated logs, data files, and system
 information for triage. This subcommand is integrated with apport.
@@ -111,7 +122,7 @@ Logs collected include:
 .. _cli_devel:
 
 :command:`devel`
-================
+----------------
 
 Collection of development tools under active development. These tools will
 likely be promoted to top-level subcommands when stable.
@@ -144,18 +155,18 @@ for debugging purposes.
 
 
 :command:`query`
-^^^^^^^^^^^^^^^^
+----------------
 
 Query if hotplug is enabled for a given subsystem.
 
 :command:`handle`
-^^^^^^^^^^^^^^^^^
+-----------------
 
 Respond to newly added system devices by retrieving updated system metadata
 and bringing up/down the corresponding device.
 
 :command:`enable`
-^^^^^^^^^^^^^^^^^
+-----------------
 
 Enable hotplug for a given subsystem. This is a last resort command for
 administrators to enable hotplug in running instances. The recommended
@@ -165,7 +176,7 @@ datasource.
 .. _cli_features:
 
 :command:`features`
-===================
+-------------------
 
 Print out each feature supported. If ``cloud-init`` does not have the
 :command:`features` subcommand, it also does not support any features
@@ -186,7 +197,7 @@ Example output:
 .. _cli_init:
 
 :command:`init` (deprecated)
-============================
+----------------------------
 
 Generally run by OS init systems to execute ``cloud-init``'s stages:
 *init* and *init-local*. See :ref:`boot_stages` for more info.
@@ -201,7 +212,7 @@ generally gated to run only once due to semaphores in
 .. _cli_modules:
 
 :command:`modules` (deprecated)
-===============================
+-------------------------------
 
 Generally run by OS init systems to execute ``modules:config`` and
 ``modules:final`` boot stages. This executes cloud config :ref:`modules`
@@ -231,7 +242,7 @@ run only once due to semaphores in :file:`/var/lib/cloud/`.
 .. _cli_query:
 
 :command:`query`
-================
+----------------
 
 Query standardised cloud instance metadata crawled by ``cloud-init`` and stored
 in :file:`/run/cloud-init/instance-data.json`. This is a convenience
@@ -332,7 +343,7 @@ and region:
 .. _cli_schema:
 
 :command:`schema`
-=================
+-----------------
 
 Validate cloud-config files using jsonschema.
 
@@ -359,7 +370,7 @@ errors on :file:`stdout`.
 .. _cli_single:
 
 :command:`single`
-=================
+-----------------
 
 Attempt to run a single, named, cloud config module.
 
@@ -384,7 +395,7 @@ module default frequency of ``instance``:
 .. _cli_status:
 
 :command:`status`
-=================
+-----------------
 
 Report cloud-init's current status.
 
@@ -486,5 +497,53 @@ Which would produce the following example output:
       "stage": null,
       "status": "done"
     }
+
+cloud-id
+========
+
+``cloud-id`` reports the canonical cloud-id for the instance.
+
+For example, on LXD, we'll see:
+
+.. code-block:: shell-session
+
+   $ cloud-id
+   lxd
+
+Whereas on AWS, we'll see:
+
+.. code-block:: shell-session
+
+   $ cloud-id
+   aws
+
+See the
+`cloud-id man page <https://manpages.ubuntu.com/manpages/noble/en/man1/cloud-id.1.html>`_
+for more details.
+
+.. _cloud-init-per:
+
+cloud-init-per
+==============
+
+``cloud-init-per`` will run a command with arguments at a specific frequency.
+
+For example, with the following command:
+
+.. code-block:: shell-session
+
+   $ cloud-init-per once hello bash -c 'echo "Hello, world!" >> /tmp/hello'
+
+You will find 'Hello, world!' in the file :file:`/tmp/hello`.
+
+If we run the same command again, it will not run, as it has already run once.
+:file:`/tmp/hello` still only contains one line rather than two.
+
+See the
+`cloud-init-per man page <https://manpages.ubuntu.com/manpages/noble/en/man1/cloud-init-per.1.html>`_
+for more details.
+
+
+
 
 .. _More details on machine-id: https://www.freedesktop.org/software/systemd/man/machine-id.html
