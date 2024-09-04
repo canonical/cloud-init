@@ -63,7 +63,6 @@ DEFAULT_LOCAL = [
     NWCS.DataSourceNWCS,
     Akamai.DataSourceAkamaiLocal,
     WSL.DataSourceWSL,
-    Aeza.DataSourceAeza,
 ]
 
 DEFAULT_NETWORK = [
@@ -83,6 +82,7 @@ DEFAULT_NETWORK = [
     UpCloud.DataSourceUpCloud,
     Akamai.DataSourceAkamai,
     VMware.DataSourceVMware,
+    Aeza.DataSourceAeza,
 ]
 
 
