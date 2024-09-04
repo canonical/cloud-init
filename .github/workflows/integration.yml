@@ -67,11 +67,18 @@ jobs:
         uses: canonical/setup-lxd@v0.1.1
         with:
           channel: latest/candidate
+
+      # this is really dumb, but I'm out of time for now
+      #      - name: Retrieve cloud-init package
+      #        uses: actions/download-artifact@v3
+      #        with:
+      #          name: 'cloud-init-${{ env.RELEASE }}-deb'
+
       - name: Verify deb package
         run: |
           ls -hal '${{ runner.temp }}'
-          echo '${{ runner.temp }}/cloud-init*.deb || true
-          ls -hal '${{ runner.temp }}/cloud-init*.deb' || true
+          echo ${{ runner.temp }}/cloud-init*.deb || true
+          ls -hal ${{ runner.temp }}/cloud-init*.deb || true
       - name: Set up Pycloudlib
         run: |
           ssh-keygen -P "" -q -f ~/.ssh/id_rsa
