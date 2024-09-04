@@ -91,8 +91,9 @@ cloud-init's :ref:`final stage<boot-Final>` as part of the
 :ref:`cc_scripts_user<mod_cc_scripts_user>` module.
 
 .. warning::
-    Use of ``INSTANCE_ID`` variable within boothooks is deprecated.
-    Use :ref:`cloud-init-per` instead.
+    Use of ``INSTANCE_ID`` variable within user data scripts is deprecated.
+    Use :ref:`jinja templates<user_data_formats-jinja>` with
+    :ref:`v1.instance_id<v1_instance_id>` instead.
 
 .. _user_data_formats-cloud_boothook:
 
@@ -135,7 +136,8 @@ The boothook is different in that:
 
 .. warning::
     Use of ``INSTANCE_ID`` variable within boothooks is deprecated.
-    Use :ref:`cloud-init-per` instead.
+    Use :ref:`jinja templates<user_data_formats-jinja>` with
+    :ref:`v1.instance_id<v1_instance_id>` instead.
 
 Include file
 ============
@@ -156,6 +158,8 @@ An include file contains a list of URLs, one per line. Each of the URLs will
 be read and their content can be any kind of user data format, both base
 config and meta config. If an error occurs reading a file the remaining files
 will not be read.
+
+.. _user_data_formats-jinja:
 
 Jinja template
 ==============
@@ -189,8 +193,8 @@ as jinja template variables. Any jinja templated configuration must contain
 the original header along with the new jinja header above it.
 
 .. note::
-    Use of Jinja templates is ONLY supported for cloud-config and user data
-    scripts. Jinja templates are not supported for cloud-boothooks or
+    Use of Jinja templates is supported for cloud-config, user data
+    scripts, and cloud-boothooks. Jinja templates are not supported for
     meta configs.
 
 .. _user_data_formats-mime_archive:

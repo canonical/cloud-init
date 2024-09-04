@@ -640,15 +640,20 @@ class Init:
         # TODO(harlowja) Hmmm, should we dynamically import these??
         cloudconfig_handler = CloudConfigPartHandler(**opts)
         shellscript_handler = ShellScriptPartHandler(**opts)
+        boothook_handler = BootHookPartHandler(**opts)
         def_handlers = [
             cloudconfig_handler,
             shellscript_handler,
             ShellScriptByFreqPartHandler(PER_ALWAYS, **opts),
             ShellScriptByFreqPartHandler(PER_INSTANCE, **opts),
             ShellScriptByFreqPartHandler(PER_ONCE, **opts),
-            BootHookPartHandler(**opts),
             JinjaTemplatePartHandler(
-                **opts, sub_handlers=[cloudconfig_handler, shellscript_handler]
+                **opts,
+                sub_handlers=[
+                    cloudconfig_handler,
+                    shellscript_handler,
+                    boothook_handler,
+                ],
             ),
         ]
         return def_handlers
