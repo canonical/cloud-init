@@ -28,6 +28,11 @@ jobs:
         with:
           # Fetch all tags for tools/read-version
           fetch-depth: 0
+      - name: Inspect
+        run: |
+          free -h
+          cat /proc/mounts
+          df -h
       - name: Prepare dependencies
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get update
@@ -64,7 +69,9 @@ jobs:
           channel: latest/candidate
       - name: Verify deb package
         run: |
-          ls -hal '${{ runner.temp }}/cloud-init*.deb'
+          ls -hal '${{ runner.temp }}'
+          echo '${{ runner.temp }}/cloud-init*.deb || true
+          ls -hal '${{ runner.temp }}/cloud-init*.deb' || true
       - name: Set up Pycloudlib
         run: |
           ssh-keygen -P "" -q -f ~/.ssh/id_rsa
