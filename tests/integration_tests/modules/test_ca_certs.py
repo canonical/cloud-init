@@ -51,8 +51,7 @@ RlJYdtRq5mccDtwT0GFyoJLLBZdHHMHJz0F9H7FNk2tTQQMhK5MVYwg+LIaee586
 CQVqfbscp7evlgjLW98H+5zylRHAgoH2G79aHljNKMp9BOuq6SnEglEsiWGVtu2l
 hnx8SB3sVJZHeer8f/UQQwqbAO+Kdy70NmbSaqaVtp8jOxLiidWkwSyRTsuU6D8i
 DiH5uEqBXExjrj0FslxcVKdVj5glVcSmkLwZKbEU1OKwleT/iXFhvooWhQ==
------END CERTIFICATE-----
-"""
+-----END CERTIFICATE-----"""
 
 USER_DATA = f"""\
 #cloud-config
@@ -93,8 +92,13 @@ class TestCaCerts:
 
     def test_cert_installed(self, class_client: IntegrationInstance):
         """Test that our specified cert has been installed"""
-        certs = class_client.execute("cat /etc/ssl/certs/ca-certificates.crt")
-        assert CERT_CONTENT in certs
+        checksum = class_client.execute(
+            "sha256sum /etc/ssl/certs/ca-certificates.crt"
+        )
+        assert (
+            "78e875f18c73c1aab9167ae0bd323391e52222cc2dbcda42d129537219300062"
+            in checksum
+        )
 
     def test_clean_log(self, class_client: IntegrationInstance):
         """Verify no errors, no deprecations and correct inactive modules in

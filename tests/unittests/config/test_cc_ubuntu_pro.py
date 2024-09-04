@@ -444,7 +444,7 @@ class TestUbuntuProSchema:
                     SchemaValidationError,
                     match=re.escape(
                         "ubuntu_advantage:  Deprecated in version 24.1."
-                        " Use ``ubuntu_pro`` instead"
+                        " Use **ubuntu_pro** instead"
                     ),
                 ),
                 # If __version__ no longer exists on jsonschema, that means

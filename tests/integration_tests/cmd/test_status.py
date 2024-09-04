@@ -19,9 +19,8 @@ def _remove_nocloud_dir_and_reboot(client: IntegrationInstance):
     # On Impish and below, NoCloud will be detected on an LXD container.
     # If we remove this directory, it will no longer be detected.
     client.execute("rm -rf /var/lib/cloud/seed/nocloud-net")
-    old_boot_id = client.instance.get_boot_id()
-    client.execute("cloud-init clean --logs --reboot")
-    client.instance._wait_for_execute(old_boot_id=old_boot_id)
+    client.instance.clean()
+    client.instance.restart()
 
 
 @retry(tries=30, delay=1)
@@ -157,7 +156,8 @@ def test_status_block_through_all_boot_status(client):
     push_and_enable_systemd_unit(
         client, "before-cloud-init-local.service", BEFORE_CLOUD_INIT_LOCAL
     )
-    client.execute("cloud-init clean --logs --reboot")
+    client.instance.clean()
+    client.instance.restart()
     wait_for_cloud_init(client).stdout.strip()
     client.execute("cloud-init status --wait")
 

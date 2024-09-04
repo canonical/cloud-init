@@ -374,8 +374,9 @@ def parse_fstab() -> Tuple[List[str], Dict[str, str], List[str]]:
                 fstab_removed.append(line)
                 continue
             toks = line.split()
-            fstab_devs[toks[0]] = line
-            fstab_lines.append(line)
+            if toks:
+                fstab_devs[toks[0]] = line
+                fstab_lines.append(line)
     return fstab_lines, fstab_devs, fstab_removed
 
 
