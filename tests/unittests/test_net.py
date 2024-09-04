@@ -2098,6 +2098,7 @@ USERCTL=no
             ("dhcpv6_stateful", "yaml"),
             ("wakeonlan_disabled", "yaml_v2"),
             ("wakeonlan_enabled", "yaml_v2"),
+            ("v2-bridges-set-name", "yaml"),
             pytest.param(
                 "v1-dns",
                 "yaml",

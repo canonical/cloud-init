@@ -5,6 +5,7 @@ import glob
 import logging
 import os
 import re
+from contextlib import suppress
 from typing import Optional
 
 from cloudinit import subp, util
@@ -421,6 +422,11 @@ class Renderer(renderer.Renderer):
         return content
 
     def _render_iface(self, iface, render_hwaddress=False):
+        iface = copy.deepcopy(iface)
+
+        # Remove irrelevant keys
+        with suppress(KeyError):
+            iface.pop("config_id")
         sections = []
         subnets = iface.get("subnets", {})
         accept_ra = iface.pop("accept-ra", None)

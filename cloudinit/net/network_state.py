@@ -411,6 +411,7 @@ class NetworkStateInterpreter:
             wakeonlan = util.is_true(wakeonlan)
         iface.update(
             {
+                "config_id": command.get("config_id"),
                 "name": command.get("name"),
                 "type": command.get("type"),
                 "mac_address": command.get("mac_address"),
@@ -424,7 +425,8 @@ class NetworkStateInterpreter:
                 "wakeonlan": wakeonlan,
             }
         )
-        self._network_state["interfaces"].update({command.get("name"): iface})
+        iface_key = command.get("config_id", command.get("name"))
+        self._network_state["interfaces"].update({iface_key: iface})
         self.dump_network_state()
 
     @ensure_command_keys(["name", "vlan_id", "vlan_link"])
@@ -712,6 +714,7 @@ class NetworkStateInterpreter:
 
         for eth, cfg in command.items():
             phy_cmd = {
+                "config_id": eth,
                 "type": "physical",
             }
             match = cfg.get("match", {})
@@ -800,26 +803,14 @@ class NetworkStateInterpreter:
     def _v2_common(self, cfg) -> None:
         LOG.debug("v2_common: handling config:\n%s", cfg)
         for iface, dev_cfg in cfg.items():
-            if "set-name" in dev_cfg:
-                set_name_iface = dev_cfg.get("set-name")
-                if set_name_iface:
-                    iface = set_name_iface
             if "nameservers" in dev_cfg:
                 search = dev_cfg.get("nameservers").get("search", [])
                 dns = dev_cfg.get("nameservers").get("addresses", [])
                 name_cmd = {"type": "nameserver"}
                 if len(search) > 0:
-                    name_cmd.update({"search": search})
+                    name_cmd["search"] = search
                 if len(dns) > 0:
-                    name_cmd.update({"address": dns})
-
-                mac_address: Optional[str] = dev_cfg.get("match", {}).get(
-                    "macaddress"
-                )
-                if mac_address:
-                    real_if_name = find_interface_name_from_mac(mac_address)
-                    if real_if_name:
-                        iface = real_if_name
+                    name_cmd["address"] = dns
 
                 self._handle_individual_nameserver(name_cmd, iface)
 

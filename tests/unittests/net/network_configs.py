@@ -4912,4 +4912,89 @@ iface bond0 inet6 static
             """
         ),
     },
+    "v2-bridges-set-name": {
+        "yaml": textwrap.dedent(
+            """\
+            version: 2
+            ethernets:
+              baremetalport:
+                match:
+                  macaddress: 52:54:00:bd:8f:cb
+                set-name: baremetal0
+              provisioningport:
+                match:
+                  macaddress: 52:54:00:25:ae:12
+                set-name: provisioning0
+            bridges:
+              baremetal:
+                addresses:
+                  - fc00:1:1::2/64
+                interfaces:
+                  - baremetalport
+              provisioning:
+                addresses:
+                  - fc00:1:2::2/64
+                interfaces:
+                  - provisioningport
+            """
+        ),
+        "expected_sysconfig_rhel": {
+            "ifcfg-baremetal": textwrap.dedent(
+                """\
+                # Created by cloud-init automatically, do not edit.
+                #
+                BOOTPROTO=none
+                DEVICE=baremetal
+                IPV6ADDR=fc00:1:1::2/64
+                IPV6INIT=yes
+                IPV6_AUTOCONF=no
+                IPV6_FORCE_ACCEPT_RA=no
+                ONBOOT=yes
+                TYPE=Bridge
+                USERCTL=no
+                """
+            ),
+            "ifcfg-baremetal0": textwrap.dedent(
+                """\
+                # Created by cloud-init automatically, do not edit.
+                #
+                BOOTPROTO=none
+                BRIDGE=baremetal
+                DEVICE=baremetal0
+                HWADDR=52:54:00:bd:8f:cb
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no
+                """
+            ),
+            "ifcfg-provisioning": textwrap.dedent(
+                """\
+                # Created by cloud-init automatically, do not edit.
+                #
+                BOOTPROTO=none
+                DEVICE=provisioning
+                IPV6ADDR=fc00:1:2::2/64
+                IPV6INIT=yes
+                IPV6_AUTOCONF=no
+                IPV6_FORCE_ACCEPT_RA=no
+                ONBOOT=yes
+                TYPE=Bridge
+                USERCTL=no
+                """
+            ),
+            "ifcfg-provisioning0": textwrap.dedent(
+                """\
+                # Created by cloud-init automatically, do not edit.
+                #
+                BOOTPROTO=none
+                BRIDGE=provisioning
+                DEVICE=provisioning0
+                HWADDR=52:54:00:25:ae:12
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no
+                """
+            ),
+        },
+    },
 }
