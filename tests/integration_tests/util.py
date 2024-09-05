@@ -64,16 +64,20 @@ def _format_found(header: str, items: list) -> str:
 
 def verify_clean_boot(
     instance: "IntegrationInstance",
+    *,
+    ignore_deprecations: Optional[Union[List[str], bool]] = None,
     ignore_warnings: Optional[Union[List[str], bool]] = None,
     ignore_errors: Optional[Union[List[str], bool]] = None,
     ignore_tracebacks: Optional[Union[List[str], bool]] = None,
+    require_deprecations: Optional[list] = None,
     require_warnings: Optional[list] = None,
     require_errors: Optional[list] = None,
 ):
-    """raise assertions if the client experienced unexpected warnings or errors
+    """Raise exception if the client experienced unexpected conditions.
 
-    Fail when a required error isn't found.
-    Expected warnings and errors are defined in this function.
+    Fail when a required error, warning, or deprecation isn't found.
+
+    Platform-specific conditions are defined in this function.
 
     This function is similar to verify_clean_log, hence the similar name.
 
@@ -84,13 +88,17 @@ def verify_clean_boot(
     - less resource intensive (no log copying required)
     - nice error formatting
 
-    instance: test instance
-    ignored_warnings: list of expected warnings to ignore,
-        or true to ignore all
-    ignored_errors: list of expected errors to ignore, or true to ignore all
-    require_warnings: Optional[list] = None,
-    require_errors: Optional[list] = None,
-    fail_when_expected_not_found: optional list of expected errors
+    :param instance: test instance
+    :param ignored_deprecations: list of deprecation messages to ignore, or
+        true to ignore all
+    :param ignored_warnings: list of expected warnings to ignore, or true to
+        ignore all
+    :param ignored_errors: list of expected errors to ignore, or true to ignore
+        all
+    :param require_deprecations: list of expected deprecation messages to
+        require
+    :param require_warnings: list of expected warning messages to require
+    :param require_errors: list of expected error messages to require
     """
 
     def append_or_create_list(
@@ -150,9 +158,11 @@ def verify_clean_boot(
 
     _verify_clean_boot(
         instance,
+        ignore_deprecations=ignore_deprecations,
         ignore_warnings=ignore_warnings,
         ignore_errors=ignore_errors,
         ignore_tracebacks=ignore_tracebacks,
+        require_deprecations=require_deprecations,
         require_warnings=require_warnings,
         require_errors=require_errors,
     )
@@ -160,21 +170,27 @@ def verify_clean_boot(
 
 def _verify_clean_boot(
     instance: "IntegrationInstance",
+    ignore_deprecations: Optional[Union[List[str], bool]] = None,
     ignore_warnings: Optional[Union[List[str], bool]] = None,
     ignore_errors: Optional[Union[List[str], bool]] = None,
     ignore_tracebacks: Optional[Union[List[str], bool]] = None,
+    require_deprecations: Optional[list] = None,
     require_warnings: Optional[list] = None,
     require_errors: Optional[list] = None,
 ):
+    ignore_deprecations = ignore_deprecations or []
     ignore_errors = ignore_errors or []
     ignore_warnings = ignore_warnings or []
+    require_deprecations = require_deprecations or []
     require_errors = require_errors or []
     require_warnings = require_warnings or []
     status = json.loads(instance.execute("cloud-init status --format=json"))
 
+    unexpected_deprecations = set()
     unexpected_errors = set()
     unexpected_warnings = set()
 
+    required_deprecations_found = set()
     required_warnings_found = set()
     required_errors_found = set()
 
@@ -211,16 +227,42 @@ def _verify_clean_boot(
         else:
             unexpected_warnings.add(current_warning)
 
+    # check for unexpected deprecations
+    for current_deprecation in status["recoverable_errors"].get(
+        "DEPRECATED", []
+    ):
+
+        # check for required deprecations
+        for expected in require_deprecations:
+            if expected in current_deprecation:
+                required_deprecations_found.add(expected)
+
+        if ignore_deprecations is True:
+            continue
+        # check for unexpected deprecations
+        for expected in [*ignore_deprecations, *require_deprecations]:
+            if expected in current_deprecation:
+                break
+        else:
+            unexpected_deprecations.add(current_deprecation)
+
     required_errors_not_found = set(require_errors) - required_errors_found
     required_warnings_not_found = (
         set(require_warnings) - required_warnings_found
     )
+    required_deprecations_not_found = (
+        set(require_deprecations) - required_deprecations_found
+    )
 
+    # ordered from most severe to least severe
+    # this allows the first message printed to be the most significant
     errors = [
         *unexpected_errors,
         *required_errors_not_found,
         *unexpected_warnings,
         *required_warnings_not_found,
+        *unexpected_deprecations,
+        *required_deprecations_not_found,
     ]
     if errors:
         message = ""
@@ -243,29 +285,79 @@ def _verify_clean_boot(
         message += _format_found(
             "Required warnings not found", list(required_warnings_not_found)
         )
+        message += _format_found(
+            "Required deprecations not found",
+            list(required_deprecations_not_found),
+        )
         assert not errors, message
 
-    if ignore_tracebacks is True:
-        return
     # assert no unexpected Tracebacks
-    expected_traceback_count = 0
-    traceback_count = int(
-        instance.execute(
-            "grep --count Traceback /var/log/cloud-init.log"
-        ).stdout.strip()
-    )
-    if ignore_tracebacks:
-        for expected_traceback in ignore_tracebacks:
-            expected_traceback_count += int(
-                instance.execute(
-                    f"grep --count '{expected_traceback}'"
-                    " /var/log/cloud-init.log"
-                ).stdout.strip()
-            )
-    assert expected_traceback_count == traceback_count, (
-        f"{traceback_count - expected_traceback_count} unexpected traceback(s)"
-        " found in /var/log/cloud-init.log"
-    )
+    if ignore_tracebacks is not True:
+        expected_traceback_count = 0
+        traceback_count = int(
+            instance.execute(
+                "grep --count Traceback /var/log/cloud-init.log"
+            ).stdout.strip()
+        )
+        if ignore_tracebacks:
+            for expected_traceback in ignore_tracebacks:
+                expected_traceback_count += int(
+                    instance.execute(
+                        f"grep --count '{expected_traceback}'"
+                        " /var/log/cloud-init.log"
+                    ).stdout.strip()
+                )
+        assert expected_traceback_count == traceback_count, (
+            f"{traceback_count - expected_traceback_count} unexpected "
+            "traceback(s) found in /var/log/cloud-init.log"
+        )
+
+    # check that the return code of cloud-init status is expected
+    if not any(
+        [
+            ignore_deprecations,
+            ignore_warnings,
+            ignore_errors,
+            ignore_tracebacks,
+            require_deprecations,
+            require_warnings,
+            require_errors,
+        ]
+    ):
+        # make sure that return code is 0 when all was good
+        out = instance.execute("cloud-init status --long")
+        assert out.ok, (
+            "Unexpected non-zero return code from "
+            f"`cloud-init status`: {out.return_code}\nstdout: "
+            f"{out.stdout}\nstderr: {out.stderr}"
+        )
+    elif any(
+        [
+            ignore_deprecations,
+            ignore_warnings,
+            ignore_errors,
+            ignore_tracebacks,
+        ]
+    ):
+        # Ignore is optional, so we can't be sure whether we will got a return
+        # code of 0 or 2. This makes this function more useful when writing
+        # tests that run on series with different behavior. In this case we
+        # cannot be sure whether it will return 0 or 2, but we never want to
+        # see a return code of 1, so assert that it isn't 1.
+        out = instance.execute("cloud-init status --long")
+        assert 1 != out.return_code, (
+            f"Unexpected return code from `cloud-init status`. Expected rc=0 "
+            f"or rc=2, received rc={out.return_code}\nstdout: "
+            f"{out.stdout}\nstderr: {out.stderr}"
+        )
+    else:
+        # we know that we should have a return code of 2
+        out = instance.execute("cloud-init status --long")
+        assert 2 == out.return_code, (
+            f"Unexpected return code from `cloud-init status`. "
+            f"Expected rc=2, received rc={out.return_code}\nstdout: "
+            f"{out.stdout}\nstderr: {out.stderr}"
+        )
     schema = instance.execute("cloud-init schema --system --annotate")
     assert schema.ok, (
         f"Schema validation failed\nstdout:{schema.stdout}"
