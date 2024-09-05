@@ -1,5 +1,6 @@
+## template: jinja
 #cloud-config
 
 phone_home:
- url: http://my.example.com/$INSTANCE_ID/
+ url: http://my.example.com/{{ v1.instance_id }}/
  post: [ pub_key_rsa, pub_key_ecdsa, instance_id ]

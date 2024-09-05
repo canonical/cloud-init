@@ -7,12 +7,13 @@ from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import verify_clean_log
 
 USER_DATA = """\
+## template: jinja
 #cloud-boothook
 #!/bin/sh
 # Error below will generate stderr
 BOOTHOOK/0
 echo BOOTHOOKstdout
-echo "BOOTHOOK: $INSTANCE_ID: is called every boot." >> /boothook.txt
+echo "BOOTHOOK: {{ v1.instance_id }}: is called every boot." >> /boothook.txt
 """
 
 
