@@ -4,7 +4,7 @@ import pytest
 
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, NOBLE
-from tests.integration_tests.util import verify_clean_log
+from tests.integration_tests.util import verify_clean_boot, verify_clean_log
 
 
 @pytest.mark.skipif(not IS_UBUNTU, reason="ubuntu-specific tests")
@@ -23,6 +23,7 @@ class TestDHCP:
         log = client.read_from_file("/var/log/cloud-init.log")
         assert "DHCP client selected: dhclient" in log
         verify_clean_log(log)
+        verify_clean_boot(client)
 
     @pytest.mark.xfail(
         reason=(
@@ -41,6 +42,7 @@ class TestDHCP:
             ", DHCP is still running" not in log
         ), "cloud-init leaked a dhcp daemon that is still running"
         verify_clean_log(log)
+        verify_clean_boot(client)
 
     @pytest.mark.skipif(
         CURRENT_RELEASE < NOBLE,
@@ -89,3 +91,4 @@ class TestDHCP:
             ), "Failed to get unknown option 245"
             assert "'unknown-245'" in log, "Failed to get unknown option 245"
         verify_clean_log(log)
+        verify_clean_boot(client)

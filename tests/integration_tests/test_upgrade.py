@@ -198,3 +198,4 @@ def test_subsequent_boot_of_upgraded_package(session_cloud: IntegrationCloud):
         log = instance.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
         assert instance.execute("cloud-init status --wait --long").ok
+        verify_clean_boot(instance)

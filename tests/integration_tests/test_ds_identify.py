@@ -2,7 +2,11 @@
 
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
-from tests.integration_tests.util import verify_clean_log, wait_for_cloud_init
+from tests.integration_tests.util import (
+    verify_clean_boot,
+    verify_clean_log,
+    wait_for_cloud_init,
+)
 
 DATASOURCE_LIST_FILE = "/etc/cloud/cloud.cfg.d/90_dpkg.cfg"
 MAP_PLATFORM_TO_DATASOURCE = {
@@ -26,6 +30,7 @@ def test_ds_identify(client: IntegrationInstance):
     client.restart()
     wait_for_cloud_init(client)
     verify_clean_log(client.execute("cat /var/log/cloud-init.log"))
+    verify_clean_boot(client)
     assert client.execute("cloud-init status --wait")
 
     datasource = MAP_PLATFORM_TO_DATASOURCE.get(PLATFORM, PLATFORM)

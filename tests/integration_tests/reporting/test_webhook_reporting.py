@@ -7,7 +7,11 @@ import json
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.util import ASSETS_DIR, verify_clean_log
+from tests.integration_tests.util import (
+    ASSETS_DIR,
+    verify_clean_boot,
+    verify_clean_log,
+)
 
 URL = "http://127.0.0.1:55555"
 
@@ -47,6 +51,7 @@ def test_webhook_reporting(client: IntegrationInstance):
         "cloud-init status --wait"
     )
     verify_clean_log(client.read_from_file("/var/log/cloud-init.log"))
+    verify_clean_boot(client)
 
     server_output = client.read_from_file(
         "/var/tmp/echo_server_output"

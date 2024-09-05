@@ -9,7 +9,7 @@ from cloudinit.subp import subp
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL, IS_UBUNTU
-from tests.integration_tests.util import verify_clean_log
+from tests.integration_tests.util import verify_clean_boot, verify_clean_log
 
 DISK_PATH = "/tmp/test_disk_setup_{}".format(uuid4())
 
@@ -69,6 +69,7 @@ class TestDeviceAliases:
         assert "changed my_alias.1 => /dev/sdb1" in log
         assert "changed my_alias.2 => /dev/sdb2" in log
         verify_clean_log(log)
+        verify_clean_boot(client)
 
         lsblk = json.loads(client.execute("lsblk --json"))
         sdb = [x for x in lsblk["blockdevices"] if x["name"] == "sdb"][0]
@@ -143,6 +144,7 @@ class TestPartProbeAvailability:
 
     def _verify_first_disk_setup(self, client, log):
         verify_clean_log(log)
+        verify_clean_boot(client)
         lsblk = json.loads(client.execute("lsblk --json"))
         sdb = [x for x in lsblk["blockdevices"] if x["name"] == "sdb"][0]
         assert len(sdb["children"]) == 2
@@ -200,6 +202,7 @@ class TestPartProbeAvailability:
 
         # Assert new setup works as expected
         verify_clean_log(log)
+        verify_clean_boot(client)
 
         lsblk = json.loads(client.execute("lsblk --json"))
         sdb = [x for x in lsblk["blockdevices"] if x["name"] == "sdb"][0]
