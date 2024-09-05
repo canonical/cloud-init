@@ -20,7 +20,7 @@ env:
   RELEASE: focal
 
 jobs:
-  package-build:
+  build-package-and-run-tests:
     runs-on: ubuntu-24.04
     steps:
       - name: "Checkout"
@@ -47,15 +47,6 @@ jobs:
             )
           sudo sbuild-adduser $USER
           cp /usr/share/doc/sbuild/examples/example.sbuildrc /home/$USER/.sbuildrc
-      - name: Create tmpfs for schroot
-        run: |
-          sudo tee -a /etc/fstab<<EOF
-          # for schroots overlay
-          none /var/lib/schroot/session        tmpfs uid=root,gid=root,mode=0755 0 0
-          none /var/lib/schroot/union/overlay  tmpfs uid=root,gid=root,mode=0755,size=85% 0 0
-          none /var/lib/sbuild/build           tmpfs uid=sbuild,gid=sbuild,mode=2770 0 0
-          EOF
-          sudo mount -a
       - name: Build package
         run: |
           ./packages/bddeb -S -d --release ${{ env.RELEASE }}
