@@ -5,10 +5,9 @@ CLI commands
 
 Cloud-init ships multiple executables that are intended for user interaction.
 
-These executables are:
+These executables include:
 
 - `cloud-init`_
-- `cloud-id`_
 - `cloud-init-per`_
 
 cloud-init
@@ -497,29 +496,6 @@ Which would produce the following example output:
       "stage": null,
       "status": "done"
     }
-
-cloud-id
-========
-
-``cloud-id`` reports the canonical cloud-id for the instance.
-
-For example, on LXD, we'll see:
-
-.. code-block:: shell-session
-
-   $ cloud-id
-   lxd
-
-Whereas on AWS, we'll see:
-
-.. code-block:: shell-session
-
-   $ cloud-id
-   aws
-
-See the
-`cloud-id man page <https://manpages.ubuntu.com/manpages/noble/en/man1/cloud-id.1.html>`_
-for more details.
 
 .. _cloud-init-per:
 
