@@ -372,7 +372,7 @@ if __name__ == "__main__":
         )
 
         subcmds = parser.add_subparsers(title="subcommands", dest="subcmd")
-        for (name, help) in (
+        for name, help in (
             ("crawl", "crawl the datasource"),
             ("get", "do a single GET of provided url"),
             ("check-seed", "read and verify seed at url"),

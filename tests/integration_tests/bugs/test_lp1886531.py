@@ -9,6 +9,7 @@ log: this indicates that the fstab parsing code has not failed.
 
 https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/1886531
 """
+
 import pytest
 
 from tests.integration_tests.util import verify_clean_log

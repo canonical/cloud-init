@@ -22,8 +22,7 @@ class PackageManager(ABC):
         """Return if package manager is installed on system."""
 
     @abstractmethod
-    def update_package_sources(self, *, force=False):
-        ...
+    def update_package_sources(self, *, force=False): ...
 
     @abstractmethod
     def install_packages(self, pkglist: Iterable) -> UninstalledPackages:

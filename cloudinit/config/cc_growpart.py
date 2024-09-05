@@ -65,12 +65,10 @@ class Resizer(ABC):
         self._distro = distro
 
     @abstractmethod
-    def available(self, devices: list) -> bool:
-        ...
+    def available(self, devices: list) -> bool: ...
 
     @abstractmethod
-    def resize(self, diskdev, partnum, partdev, fs):
-        ...
+    def resize(self, diskdev, partnum, partdev, fs): ...
 
 
 class ResizeGrowPart(Resizer):

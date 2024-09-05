@@ -312,7 +312,7 @@ if not platform.system().endswith("BSD"):
         [
             (RULES_PATH + "/rules.d", [f for f in glob("udev/*.rules")]),
             (
-                ETC + "/systemd/system/sshd-keygen@.service.d/",
+                INITSYS_ROOTS["systemd"] + "/sshd-keygen@.service.d/",
                 ["systemd/disable-sshd-keygen-if-cloud-init-active.conf"],
             ),
         ]

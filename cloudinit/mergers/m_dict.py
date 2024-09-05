@@ -61,7 +61,7 @@ class Merger:
             # Otherwise leave it be...
             return old_v
 
-        for (k, v) in merge_with.items():
+        for k, v in merge_with.items():
             if k in value:
                 if v is None and self._allow_delete:
                     value.pop(k)

@@ -205,16 +205,18 @@ class Distro(distros.Distro):
 
         return self._preferred_ntp_clients
 
-    def add_user(self, name, **kwargs):
+    def add_user(self, name, **kwargs) -> bool:
         """
         Add a user to the system using standard tools
 
         On Alpine this may use either 'useradd' or 'adduser' depending
         on whether the 'shadow' package is installed.
+
+        Returns False if user already exists, otherwise True.
         """
         if util.is_user(name):
             LOG.info("User %s already exists, skipping.", name)
-            return
+            return False
 
         if "selinux_user" in kwargs:
             LOG.warning("Ignoring selinux_user parameter for Alpine Linux")
@@ -418,6 +420,9 @@ class Distro(distros.Distro):
                 LOG, "Failed to update %s for user %s", shadow_file, name
             )
 
+        # Indicate that a new user was created
+        return True
+
     def lock_passwd(self, name):
         """
         Lock the password of a user, i.e., disable password logins
@@ -444,6 +449,36 @@ class Distro(distros.Distro):
                 return True
         except subp.ProcessExecutionError as e:
             util.logexc(LOG, "Failed to disable password for user %s", name)
+            raise e
+
+    def unlock_passwd(self, name: str):
+        """
+        Unlock the password of a user, i.e., enable password logins
+        """
+
+        # Check whether Shadow's or Busybox's version of 'passwd'.
+        # If Shadow's 'passwd' is available then use the generic
+        # lock_passwd function from __init__.py instead.
+        if not os.path.islink(
+            "/usr/bin/passwd"
+        ) or "bbsuid" not in os.readlink("/usr/bin/passwd"):
+            return super().unlock_passwd(name)
+
+        cmd = ["passwd", "-u", name]
+        # Busybox's 'passwd', unlike Shadow's 'passwd', errors
+        # if password is already unlocked:
+        #
+        #   "passwd: password for user2 is already unlocked"
+        #
+        # with exit code 1
+        #
+        # and also does *not* error if no password is set.
+        try:
+            _, err = subp.subp(cmd, rcs=[0, 1])
+            if re.search(r"is already unlocked", err):
+                return True
+        except subp.ProcessExecutionError as e:
+            util.logexc(LOG, "Failed to unlock password for user %s", name)
             raise e
 
     def expire_passwd(self, user):

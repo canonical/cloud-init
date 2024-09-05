@@ -593,7 +593,7 @@ def update_ssh_config_lines(lines, updates):
     # Keywords are case-insensitive and arguments are case-sensitive
     casemap = dict([(k.lower(), k) for k in updates.keys()])
 
-    for (i, line) in enumerate(lines, start=1):
+    for i, line in enumerate(lines, start=1):
         if not line.key:
             continue
         if line.key in casemap:

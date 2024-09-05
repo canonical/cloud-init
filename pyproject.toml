@@ -6,7 +6,6 @@ build-backend = "setuptools.build_meta"
 line-length = 79
 include = '(brpm|bddeb|\.py)$'
 
-
 [tool.isort]
 profile = "black"
 line_length = 79
@@ -32,6 +31,7 @@ module = [
     "paramiko.*",
     "pip.*",
     "pycloudlib.*",
+    "responses",
     "serial",
     "tests.integration_tests.user_settings",
     "uaclient.*",
@@ -69,7 +69,6 @@ module = [
     "cloudinit.distros.ubuntu",
     "cloudinit.distros.ug_util",
     "cloudinit.helpers",
-    "cloudinit.log",
     "cloudinit.mergers",
     "cloudinit.net",
     "cloudinit.net.cmdline",

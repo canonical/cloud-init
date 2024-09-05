@@ -25,6 +25,7 @@ seeing only one semaphore creation log entry of type:
 
 https://bugs.launchpad.net/cloud-init/+bug/1835584
 """
+
 import re
 
 import pytest

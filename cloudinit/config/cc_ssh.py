@@ -111,7 +111,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if "ssh_keys" in cfg:
         # if there are keys and/or certificates in cloud-config, use them
         cert_config = []
-        for (key, val) in cfg["ssh_keys"].items():
+        for key, val in cfg["ssh_keys"].items():
             if key not in CONFIG_KEY_TO_FILE:
                 if pattern_unsupported_config_keys.match(key):
                     reason = "unsupported"
