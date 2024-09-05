@@ -647,6 +647,7 @@ class Init:
             ShellScriptByFreqPartHandler(PER_ALWAYS, **opts),
             ShellScriptByFreqPartHandler(PER_INSTANCE, **opts),
             ShellScriptByFreqPartHandler(PER_ONCE, **opts),
+            boothook_handler,
             JinjaTemplatePartHandler(
                 **opts,
                 sub_handlers=[
