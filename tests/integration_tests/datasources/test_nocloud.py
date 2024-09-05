@@ -198,15 +198,18 @@ class TestSmbios:
         version_boundary = get_feature_flag_value(
             client, "DEPRECATION_INFO_BOUNDARY"
         )
+        message = (
+            "The 'nocloud-net' datasource name is "
+            'deprecated" /var/log/cloud-init.log'
+        )
         # nocloud-net deprecated in version 24.1
         if lifecycle.should_log_deprecation("24.1", version_boundary):
-            log_level = "DEPRECATED"
+            verify_clean_boot(client, require_deprecations=[message])
         else:
-            log_level = "INFO"
-        client.execute(
-            rf"grep \"{log_level}]: The 'nocloud-net' datasource name is"
-            ' deprecated" /var/log/cloud-init.log'
-        ).ok
+            client.execute(
+                r"grep \"INFO]: The 'nocloud-net' datasource name is"
+                ' deprecated" /var/log/cloud-init.log'
+            ).ok
 
 
 @pytest.mark.skipif(PLATFORM != "lxd_vm", reason="Modifies grub config")

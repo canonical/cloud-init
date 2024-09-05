@@ -18,7 +18,7 @@ from tests.integration_tests.releases import (
     MANTIC,
     NOBLE,
 )
-from tests.integration_tests.util import verify_clean_log
+from tests.integration_tests.util import verify_clean_boot, verify_clean_log
 
 # Older Ubuntu series didn't read cloud-init.* config keys
 LXD_NETWORK_CONFIG_KEY = (
@@ -339,6 +339,7 @@ def test_ec2_multi_nic_reboot(setup_image, session_cloud: IntegrationCloud):
 
         log_content = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log_content)
+        verify_clean_boot(client)
 
         # SSH over primary and secondary NIC works
         for ip in public_ips:
@@ -459,6 +460,7 @@ def test_ec2_multi_network_cards(setup_image, session_cloud: IntegrationCloud):
 
             log_content = client.read_from_file("/var/log/cloud-init.log")
             verify_clean_log(log_content)
+            verify_clean_boot(client)
 
             # SSH over secondary NICs works
             subp("nc -w 5 -zv " + allocation_1["PublicIp"] + " 22", shell=True)
