@@ -24,3 +24,100 @@ Last-Update: 2024-08-02
              found.append(seedfrom)
  
          # Now that we have exhausted any other places merge in the defaults
+--- a/cloudinit/util.py
++++ b/cloudinit/util.py
+@@ -1059,7 +1059,6 @@
+         ud_url = base.replace("%s", "user-data" + ext)
+         vd_url = base.replace("%s", "vendor-data" + ext)
+         md_url = base.replace("%s", "meta-data" + ext)
+-        network_url = base.replace("%s", "network-config" + ext)
+     else:
+         if features.NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH:
+             if base[-1] != "/" and parse.urlparse(base).query == "":
+@@ -1068,17 +1067,7 @@
+         ud_url = "%s%s%s" % (base, "user-data", ext)
+         vd_url = "%s%s%s" % (base, "vendor-data", ext)
+         md_url = "%s%s%s" % (base, "meta-data", ext)
+-        network_url = "%s%s%s" % (base, "network-config", ext)
+     network = None
+-    try:
+-        network_resp = url_helper.read_file_or_url(
+-            network_url, timeout=timeout, retries=retries
+-        )
+-    except url_helper.UrlError as e:
+-        LOG.debug("No network config provided: %s", e)
+-    else:
+-        if network_resp.ok():
+-            network = load_yaml(network_resp.contents)
+     md_resp = url_helper.read_file_or_url(
+         md_url, timeout=timeout, retries=retries
+     )
+--- a/tests/unittests/test_util.py
++++ b/tests/unittests/test_util.py
+@@ -2476,7 +2476,7 @@
+         assert found_md == {"key1": "val1"}
+         assert found_ud == ud
+         assert found_vd == vd
+-        assert found_network == {"test": "true"}
++        assert found_network is None
+ 
+     @pytest.mark.parametrize(
+         "base, feature_flag, req_urls",
+@@ -2485,7 +2485,6 @@
+                 "http://10.0.0.1/%s?qs=1",
+                 True,
+                 [
+-                    "http://10.0.0.1/network-config?qs=1",
+                     "http://10.0.0.1/meta-data?qs=1",
+                     "http://10.0.0.1/user-data?qs=1",
+                     "http://10.0.0.1/vendor-data?qs=1",
+@@ -2496,7 +2495,6 @@
+                 "https://10.0.0.1:8008/",
+                 True,
+                 [
+-                    "https://10.0.0.1:8008/network-config",
+                     "https://10.0.0.1:8008/meta-data",
+                     "https://10.0.0.1:8008/user-data",
+                     "https://10.0.0.1:8008/vendor-data",
+@@ -2507,7 +2505,6 @@
+                 "https://10.0.0.1:8008",
+                 True,
+                 [
+-                    "https://10.0.0.1:8008/network-config",
+                     "https://10.0.0.1:8008/meta-data",
+                     "https://10.0.0.1:8008/user-data",
+                     "https://10.0.0.1:8008/vendor-data",
+@@ -2518,7 +2515,6 @@
+                 "https://10.0.0.1:8008",
+                 False,
+                 [
+-                    "https://10.0.0.1:8008network-config",
+                     "https://10.0.0.1:8008meta-data",
+                     "https://10.0.0.1:8008user-data",
+                     "https://10.0.0.1:8008vendor-data",
+@@ -2529,7 +2525,6 @@
+                 "https://10.0.0.1:8008?qs=",
+                 True,
+                 [
+-                    "https://10.0.0.1:8008?qs=network-config",
+                     "https://10.0.0.1:8008?qs=meta-data",
+                     "https://10.0.0.1:8008?qs=user-data",
+                     "https://10.0.0.1:8008?qs=vendor-data",
+@@ -2568,7 +2563,7 @@
+         # user-data, vendor-data read raw. It could be scripts or other format
+         assert found_ud == "/user-data: 1"
+         assert found_vd == "/vendor-data: 1"
+-        assert found_network == {"/network-config": 1}
++        assert found_network is None
+         assert [
+             mock.call(req_url, timeout=5, retries=10) for req_url in req_urls
+         ] == m_read.call_args_list
+@@ -2598,7 +2593,7 @@
+         self.assertEqual(found_md, {"key1": "val1"})
+         self.assertEqual(found_ud, ud)
+         self.assertEqual(found_vd, vd)
+-        self.assertEqual(found_network, {"test": "true"})
++        self.assertIsNone(found_network)
+ 
+ 
+ class TestEncode(helpers.TestCase):
