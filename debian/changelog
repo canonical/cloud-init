@@ -2,11 +2,7 @@ cloud-init (24.4~3+really24.3.1-0ubuntu1) oracular; urgency=medium
 
   * d/cloud-init.lintian-overrides:
     + Remove alien disabled tag:
-      E: cloud-init: alien-tag package-supports-alternative-init-but-no-init.d-script
-    + Fix disabled warning tag:
-      systemd-service-file-refers-to-unusual-wantedby-target,
-      to point to the correct path under /usr/lib instead of /lib and add
-      cloud-init-main.service.
+      alien-tag package-supports-alternative-init-but-no-init.d-script
   * Upstream snapshot based on 24.3.1.
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/24.3.1/ChangeLog
