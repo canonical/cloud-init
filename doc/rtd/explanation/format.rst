@@ -117,6 +117,8 @@ Example of once-per-instance script
    #cloud-boothook
    #!/bin/sh
 
+   # Early exit 0 when script has already run for this instance-id,
+   # continue if new instance boot.
    cloud-init-per instance do-hosts /bin/false && exit 0
    echo 192.168.1.130 us.archive.ubuntu.com >> /etc/hosts
 
