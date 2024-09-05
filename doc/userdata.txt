@@ -56,7 +56,7 @@ finds.  However, certain types of user-data are handled specially.
    begins with #cloud-boothook or Content-Type: text/cloud-boothook
 
    This content is "boothook" data.  It is stored in a file under
-   /var/lib/cloud and then executed immediately.
+   ``/var/lib/cloud`` and then executed immediately.
 
    This is the earliest "hook" available.  Note, that there is no
    mechanism provided for running only once.  The boothook must take
