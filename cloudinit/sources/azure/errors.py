@@ -9,7 +9,7 @@ import traceback
 from datetime import datetime
 from io import StringIO
 from typing import Any, Dict, List, Optional, Tuple
-from xml.etree import ElementTree  # nosec B405
+from xml.etree import ElementTree as ET  # nosec B405
 
 import requests
 
@@ -177,7 +177,7 @@ class ReportableErrorOvfInvalidMetadata(ReportableError):
 
 
 class ReportableErrorOvfParsingException(ReportableError):
-    def __init__(self, *, exception: ElementTree.ParseError) -> None:
+    def __init__(self, *, exception: ET.ParseError) -> None:
         message = exception.msg
         super().__init__(f"error parsing ovf-env.xml: {message}")
 
