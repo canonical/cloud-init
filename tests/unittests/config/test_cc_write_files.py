@@ -138,13 +138,14 @@ class TestWriteFiles(FilesystemMockingTestCase):
             b64 = (base64.b64encode(data), b64_aliases)
             for content, aliases in (gz, gz_b64, b64):
                 for enc in aliases:
+                    path = "/tmp/file-%s-%s" % (name, enc)
                     cur = {
                         "content": content,
-                        "path": "/tmp/file-%s-%s" % (name, enc),
+                        "path": path,
                         "encoding": enc,
                     }
                     files.append(cur)
-                    expected.append((cur["path"], data))
+                    expected.append((path, data))
 
         write_files("test_decoding", files, self.owner)
 

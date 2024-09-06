@@ -579,7 +579,7 @@ def netdev_pformat():
             return "\n"
         fields = ["Device", "Up", "Address", "Mask", "Scope", "Hw-Address"]
         tbl = SimpleTable(fields)
-        for (dev, data) in sorted(netdev.items()):
+        for dev, data in sorted(netdev.items()):
             for addr in data.get("ipv4"):
                 tbl.add_row(
                     (
@@ -635,7 +635,7 @@ def route_pformat():
                 "Flags",
             ]
             tbl_v4 = SimpleTable(fields_v4)
-            for (n, r) in enumerate(routes.get("ipv4")):
+            for n, r in enumerate(routes.get("ipv4")):
                 route_id = str(n)
                 try:
                     tbl_v4.add_row(
@@ -663,7 +663,7 @@ def route_pformat():
                 "Flags",
             ]
             tbl_v6 = SimpleTable(fields_v6)
-            for (n, r) in enumerate(routes.get("ipv6")):
+            for n, r in enumerate(routes.get("ipv6")):
                 route_id = str(n)
                 if r["iface"] == "lo":
                     continue

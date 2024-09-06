@@ -1,4 +1,4 @@
-name: Verify Contributor License Agreement
+name: CLA Check
 
 on: [pull_request]
 

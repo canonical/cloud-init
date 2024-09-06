@@ -337,7 +337,7 @@ class DataSourceScaleway(sources.DataSource):
                         func=self._crawl_metadata,
                     )
                     self.metadata["net_in_use"] = "ipv6"
-            except (ConnectionError):
+            except ConnectionError:
                 return False
         return True
 

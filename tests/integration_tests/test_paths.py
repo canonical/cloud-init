@@ -1,5 +1,4 @@
 import os
-import re
 from datetime import datetime
 from typing import Iterator
 
@@ -45,12 +44,6 @@ class TestHonorCloudDir:
         assert custom_client.execute(f"test ! -d {DEFAULT_CLOUD_DIR}").ok
 
     def collect_logs(self, custom_client: IntegrationInstance):
-        help_result = custom_client.execute("cloud-init collect-logs -h")
-        assert help_result.ok, help_result.stderr
-        assert f"{NEW_CLOUD_DIR}/instance/user-data.txt" in re.sub(
-            r"\s+", "", help_result.stdout
-        ), "user-data file not correctly render in collect-logs -h"
-
         # Touch a couple of subiquity files to assert collected
         installer_files = (
             INSTALLER_APPORT_FILES[-1],
@@ -75,22 +68,22 @@ class TestHonorCloudDir:
         dirname = datetime.utcnow().date().strftime("cloud-init-logs-%Y-%m-%d")
         expected_logs = [
             f"{dirname}/",
-            f"{dirname}/cloud-init.log",
-            f"{dirname}/cloud-init-output.log",
             f"{dirname}/dmesg.txt",
-            f"{dirname}/user-data.txt",
-            f"{dirname}/version",
             f"{dirname}/dpkg-version",
             f"{dirname}/journal.txt",
             f"{dirname}/run/",
             f"{dirname}/run/cloud-init/",
-            f"{dirname}/run/cloud-init/result.json",
             f"{dirname}/run/cloud-init/.instance-id",
+            f"{dirname}/run/cloud-init/cloud-id",
             f"{dirname}/run/cloud-init/cloud-init-generator.log",
             f"{dirname}/run/cloud-init/enabled",
-            f"{dirname}/run/cloud-init/cloud-id",
-            f"{dirname}/run/cloud-init/instance-data.json",
             f"{dirname}/run/cloud-init/instance-data-sensitive.json",
+            f"{dirname}/run/cloud-init/instance-data.json",
+            f"{dirname}/run/cloud-init/result.json",
+            f"{dirname}/new-cloud-dir/instance/user-data.txt",
+            f"{dirname}/var/log/cloud-init-output.log",
+            f"{dirname}/var/log/cloud-init.log",
+            f"{dirname}/version",
             f"{dirname}{installer_files[0].path}",
             f"{dirname}{installer_files[1].path}",
         ]

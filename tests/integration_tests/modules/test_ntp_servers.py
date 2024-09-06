@@ -7,6 +7,7 @@ NTP servers are configured as expected.
 ``tests/cloud_tests/testcases/modules/ntp_pools.yaml``,
 and ``tests/cloud_tests/testcases/modules/ntp_chrony.yaml``)
 """
+
 import re
 
 import pytest

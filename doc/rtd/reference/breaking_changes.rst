@@ -11,6 +11,45 @@ releases.
     many operating system vendors patch out breaking changes in
     cloud-init to ensure consistent behavior on their platform.
 
+24.3
+====
+
+Single Process Optimization
+---------------------------
+
+As a performance optimization, cloud-init no longer runs as four seperate
+Python processes. Instead, it launches a single process and then
+communicates with the init system over a Unix socket to allow the init system
+to tell it when it should start each stage and to tell the init system when
+each stage has completed. Init system ordering is preserved.
+
+This should have no noticable affect for end users, besides a faster boot time.
+This is a breaking change for two reasons:
+
+1. a precaution to avoid unintentionally breaking users on stable distributions
+2. this change included renaming a systemd service:
+   ``cloud-init.service`` -> ``cloud-init-network.service``
+
+The now-deprecated command line arguments used to invoke each stage will still
+be supported for a period of time to allow for adoption and stabilization. Any
+systemd distribution that wants to revert this behavior may want to
+`patch this change`_.
+
+Support has not yet been added for non-systemd distributions, however it is
+possible to add support.
+
+Note that this change adds dependency on the openbsd netcat implementation,
+which is already on Ubuntu as part of ``ubuntu-minimal``.
+
+Addition of NoCloud network-config
+----------------------------------
+
+The NoCloud datasource now has support for providing network configuration
+using network-config. Any installation that doesn't provide this configuration
+file will experience a retry/timeout in boot. Adding an empty
+``network-config`` file should provide backwards compatibility with previous
+behavior.
+
 24.1
 ====
 
@@ -96,3 +135,6 @@ behavior as a result of this change.
 
 Workarounds include updating the kernel command line and optionally configuring
 a ``datasource_list`` in ``/etc/cloud/cloud.cfg.d/*.cfg``.
+
+
+.. _patch this change: https://github.com/canonical/cloud-init/blob/ubuntu/noble/debian/patches/no-single-process.patch

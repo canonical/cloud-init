@@ -24,7 +24,7 @@ class HostsConf:
     def get_entry(self, ip):
         self.parse()
         options = []
-        for (line_type, components) in self._contents:
+        for line_type, components in self._contents:
             if line_type == "option":
                 (pieces, _tail) = components
                 if len(pieces) and pieces[0] == ip:
@@ -34,7 +34,7 @@ class HostsConf:
     def del_entries(self, ip):
         self.parse()
         n_entries = []
-        for (line_type, components) in self._contents:
+        for line_type, components in self._contents:
             if line_type != "option":
                 n_entries.append((line_type, components))
                 continue
@@ -68,7 +68,7 @@ class HostsConf:
     def __str__(self):
         self.parse()
         contents = StringIO()
-        for (line_type, components) in self._contents:
+        for line_type, components in self._contents:
             if line_type == "blank":
                 contents.write("%s\n" % (components[0]))
             elif line_type == "all_comment":

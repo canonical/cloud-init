@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from typing import Optional
 
 from cloudinit.subp import SubpResult
@@ -5,14 +6,17 @@ from cloudinit.subp import SubpResult
 
 class NetOps:
     @staticmethod
+    @abstractmethod
     def link_up(interface: str) -> SubpResult:
         pass
 
     @staticmethod
+    @abstractmethod
     def link_down(interface: str) -> SubpResult:
         pass
 
     @staticmethod
+    @abstractmethod
     def link_rename(current_name: str, new_name: str):
         pass
 
@@ -41,6 +45,7 @@ class NetOps:
         pass
 
     @staticmethod
+    @abstractmethod
     def get_default_route() -> str:
         pass
 

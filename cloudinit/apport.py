@@ -9,7 +9,6 @@ import logging
 import os
 from typing import Dict
 
-from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.cmd.devel.logs import (
     INSTALLER_APPORT_FILES,
     INSTALLER_APPORT_SENSITIVE_FILES,
@@ -69,12 +68,7 @@ KNOWN_CLOUD_NAMES = [
 ]
 
 
-def _get_user_data_file() -> str:
-    paths = read_cfg_paths()
-    return paths.get_ipath_cur("userdata_raw")
-
-
-def attach_cloud_init_logs(report, ui=None):
+def attach_cloud_init_logs(report, ui=None, include_sensitive=False):
     """Attach cloud-init logs and tarfile from 'cloud-init collect-logs'."""
     attach_root_command_outputs(  # pyright: ignore
         report,
@@ -82,15 +76,18 @@ def attach_cloud_init_logs(report, ui=None):
             "cloud-init-log-warnings": (
                 'egrep -i "warn|error" /var/log/cloud-init.log'
             ),
-            "cloud-init-output.log.txt": "cat /var/log/cloud-init-output.log",
         },
     )
-    root_command_output(  # pyright: ignore
-        ["cloud-init", "collect-logs", "-t", "/tmp/cloud-init-logs.tgz"]
-    )
-    attach_file(  # pyright: ignore
-        report, "/tmp/cloud-init-logs.tgz", "logs.tgz"
-    )
+    command = [
+        "cloud-init",
+        "collect-logs",
+        "-t",
+        "/tmp/cloud-init-logs.tgz",
+    ]
+    if not include_sensitive:
+        command.append("--redact")
+    root_command_output(command)
+    attach_file(report, "/tmp/cloud-init-logs.tgz", "logs.tgz")
 
 
 def attach_hwinfo(report, ui=None):
@@ -104,47 +101,7 @@ def attach_hwinfo(report, ui=None):
         attach_root_command_outputs(report, {"lshw.txt": "lshw"})
 
 
-def attach_cloud_info(report, ui=None):
-    """Prompt for cloud details if instance-data unavailable.
-
-    When we have valid _get_instance_data, apport/generic-hooks/cloud_init.py
-    provides CloudName, CloudID, CloudPlatform and CloudSubPlatform.
-
-    Apport/generic-hooks are delivered by cloud-init's downstream branches
-    ubuntu/(devel|kinetic|jammy|focal|bionic) so they will not be represented
-    in upstream main.
-
-    In absence of viable instance-data.json format, prompt for the cloud below.
-    """
-
-    if ui:
-        paths = read_cfg_paths()
-        try:
-            with open(paths.get_runpath("instance_data")) as file:
-                instance_data = json.load(file)
-                assert instance_data.get("v1", {}).get("cloud_name")
-                return  # Valid instance-data means generic-hooks will report
-        except (IOError, json.decoder.JSONDecodeError, AssertionError):
-            pass
-
-        # No valid /run/cloud/instance-data.json on system. Prompt for cloud.
-        prompt = "Is this machine running in a cloud environment?"
-        response = ui.yesno(prompt)
-        if response is None:
-            raise StopIteration  # User cancelled
-        if response:
-            prompt = (
-                "Please select the cloud vendor or environment in which"
-                " this instance is running"
-            )
-            response = ui.choice(prompt, KNOWN_CLOUD_NAMES)
-            if response:
-                report["CloudName"] = KNOWN_CLOUD_NAMES[response[0]]
-            else:
-                report["CloudName"] = "None"
-
-
-def attach_installer_files(report, ui=None):
+def attach_installer_files(report, ui=None, include_sensitive=False):
     """Attach any subiquity installer logs config.
 
     To support decoupling apport integration from installer config/logs,
@@ -155,6 +112,10 @@ def attach_installer_files(report, ui=None):
     for apport_file in INSTALLER_APPORT_FILES:
         realpath = os.path.realpath(apport_file.path)
         attach_file_if_exists(report, realpath, apport_file.label)
+    if include_sensitive:
+        for apport_file in INSTALLER_APPORT_SENSITIVE_FILES:
+            realpath = os.path.realpath(apport_file.path)
+            attach_file_if_exists(report, realpath, apport_file.label)
 
 
 def attach_ubuntu_pro_info(report, ui=None):
@@ -168,27 +129,22 @@ def attach_ubuntu_pro_info(report, ui=None):
         report["Tags"] += "ubuntu-pro"
 
 
-def attach_user_data(report, ui=None):
+def can_attach_sensitive(report, ui=None) -> bool:
     """Optionally provide user-data if desired."""
-    if ui:
-        user_data_file = _get_user_data_file()
-        prompt = (
-            "Your user-data, cloud-config or autoinstall files can optionally "
-            " be provided from {0} and could be useful to developers when"
-            " addressing this bug. Do you wish to attach user-data to this"
-            " bug?".format(user_data_file)
-        )
-        response = ui.yesno(prompt)
-        if response is None:
-            raise StopIteration  # User cancelled
-        if response:
-            realpath = os.path.realpath(user_data_file)
-            attach_file(report, realpath, "user_data.txt")  # pyright: ignore
-            for apport_file in INSTALLER_APPORT_SENSITIVE_FILES:
-                realpath = os.path.realpath(apport_file.path)
-                attach_file_if_exists(  # pyright: ignore
-                    report, realpath, apport_file.label
-                )
+    if not ui:
+        return False
+    prompt = (
+        "Your user data, cloud-config, network config, or autoinstall "
+        "files can optionally be provided and could be useful to "
+        "developers when addressing this bug. However, this data should "
+        "not be included if it contains any sensitive data such as "
+        "passwords and secrets. Gathering it requires admin privileges. "
+        "Would you like to include this info?"
+    )
+    response = ui.yesno(prompt)
+    if response is None:
+        raise StopIteration  # User cancelled
+    return response
 
 
 def add_bug_tags(report):
@@ -222,11 +178,10 @@ def add_info(report, ui):
         raise RuntimeError(
             "No apport imports discovered. Apport functionality disabled"
         )
-    attach_cloud_init_logs(report, ui)
+    include_sensitive = can_attach_sensitive(report, ui)
+    attach_cloud_init_logs(report, ui, include_sensitive)
     attach_hwinfo(report, ui)
-    attach_cloud_info(report, ui)
-    attach_user_data(report, ui)
-    attach_installer_files(report, ui)
+    attach_installer_files(report, ui, include_sensitive)
     attach_ubuntu_pro_info(report, ui)
     add_bug_tags(report)
     return True

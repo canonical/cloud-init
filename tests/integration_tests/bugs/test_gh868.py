@@ -1,4 +1,5 @@
 """Ensure no Traceback when 'chef_license' is set"""
+
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance

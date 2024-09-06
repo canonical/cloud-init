@@ -207,7 +207,7 @@ class NicConfigurator:
         """
 
         if not nic.staticIpv6:
-            return ([{"type": "dhcp6"}], [])
+            return ([], [])
 
         subnet_list = []
         # Static Ipv6

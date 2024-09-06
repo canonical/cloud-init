@@ -137,9 +137,9 @@ class _CustomSafeLoaderWithMarks(yaml.SafeLoader):
 
     def __init__(self, stream):
         super().__init__(stream)
-        self.schemamarks_by_line: Dict[
-            int, List[SchemaPathMarks]
-        ] = defaultdict(list)
+        self.schemamarks_by_line: Dict[int, List[SchemaPathMarks]] = (
+            defaultdict(list)
+        )
 
     def _get_nested_path_prefix(self, node):
         if node.start_mark.line in self.schemamarks_by_line:
@@ -162,8 +162,8 @@ class _CustomSafeLoaderWithMarks(yaml.SafeLoader):
                     return f"{mark.path}."
         return ""
 
-    def construct_mapping(self, node):
-        mapping = super().construct_mapping(node)
+    def construct_mapping(self, node, deep=False):
+        mapping = super().construct_mapping(node, deep=deep)
         nested_path_prefix = self._get_nested_path_prefix(node)
         for key_node, value_node in node.value:
             node_key_path = f"{nested_path_prefix}{key_node.value}"

@@ -302,7 +302,7 @@ class TestUGNormalize(TestCase):
             ],
         }
         users, _groups = self._norm(ug_cfg, distro)
-        for (user, config) in users.items():
+        for user, config in users.items():
             print("user=%s config=%s" % (user, config))
             username = distro.create_user(user, **config)
 
@@ -322,7 +322,7 @@ class TestUGNormalize(TestCase):
             ],
         }
         users, _groups = self._norm(ug_cfg, distro)
-        for (user, config) in users.items():
+        for user, config in users.items():
             print("user=%s config=%s" % (user, config))
             username = distro.create_user(user, **config)
 
@@ -353,7 +353,7 @@ class TestUGNormalize(TestCase):
             ],
         }
         users, _groups = self._norm(ug_cfg, distro)
-        for (user, config) in users.items():
+        for user, config in users.items():
             print("user=%s config=%s" % (user, config))
             distro.add_user(user, **config)
 

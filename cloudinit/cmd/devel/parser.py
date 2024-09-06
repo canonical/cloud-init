@@ -39,7 +39,7 @@ def get_parser(parser=None):
             make_mime.handle_args,
         ),
     ]
-    for (subcmd, helpmsg, get_parser, handler) in subcmds:
+    for subcmd, helpmsg, get_parser, handler in subcmds:
         parser = subparsers.add_parser(subcmd, help=helpmsg)
         get_parser(parser)
         parser.set_defaults(action=(subcmd, handler))

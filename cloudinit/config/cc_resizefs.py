@@ -58,7 +58,10 @@ def _resize_btrfs(mount_point, devpth):
     # the resize operation can be queued
     btrfs_with_queue = lifecycle.Version.from_str("5.10")
     system_btrfs_ver = lifecycle.Version.from_str(
-        subp.subp(["btrfs", "--version"])[0].split("v")[-1].strip()
+        subp.subp(["btrfs", "--version"])
+        .stdout.split("\n")[0]
+        .split("v")[-1]
+        .strip()
     )
     if system_btrfs_ver >= btrfs_with_queue:
         idx = cmd.index("resize")
@@ -290,7 +293,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         return
 
     fstype_lc = fs_type.lower()
-    for (pfix, root_cmd) in RESIZE_FS_PREFIXES_CMDS:
+    for pfix, root_cmd in RESIZE_FS_PREFIXES_CMDS:
         if fstype_lc.startswith(pfix):
             resizer = root_cmd
             break

@@ -99,7 +99,7 @@ def _register_uris(version, ec2_files, ec2_meta, os_files, *, responses_mock):
             return (200, headers, ec2_files.get(path))
         if path == "latest/meta-data/":
             buf = StringIO()
-            for (k, v) in ec2_meta.items():
+            for k, v in ec2_meta.items():
                 if isinstance(v, (list, tuple)):
                     buf.write("%s/" % (k))
                 else:

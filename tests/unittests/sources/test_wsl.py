@@ -5,6 +5,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
 import os
+import re
 from copy import deepcopy
 from email.mime.multipart import MIMEMultipart
 from pathlib import PurePath
@@ -52,6 +53,29 @@ GOOD_MOUNTS = {
 }
 SAMPLE_LINUX_DISTRO = ("ubuntu", "24.04", "noble")
 SAMPLE_LINUX_DISTRO_NO_VERSION_ID = ("debian", "", "trixie")
+
+AGENT_SAMPLE = """\
+#cloud-config
+landscape:
+    host:
+        url: landscape.canonical.com:6554
+    client:
+        account_name: agenttest
+        url: https://landscape.canonical.com/message-system
+        ping_url: https://landscape.canonical.com/ping
+        tags: wsl
+ubuntu_pro:
+    token: testtoken
+"""
+
+LANDSCAPE_SAMPLE = """\
+#cloud-config
+landscape:
+  client:
+    account_name: landscapetest
+    tags: tag_aiml,tag_dev
+locale: en_GB.UTF-8
+"""
 
 
 class TestWSLHelperFunctions:
@@ -246,9 +270,61 @@ def join_payloads_from_content_type(
     content = ""
     for p in part.walk():
         if p.get_content_type() == content_type:
-            content = content + str(p.get_payload(decode=True))
+            content = content + str(p.get_payload())
 
     return content
+
+
+class TestMergeAgentLandscapeData:
+    @pytest.mark.parametrize(
+        "agent_yaml,landscape_user_data,expected",
+        (
+            pytest.param(
+                None, None, None, id="none_when_both_agent_and_ud_none"
+            ),
+            pytest.param(
+                None, "", None, id="none_when_agent_none_and_ud_empty"
+            ),
+            pytest.param(
+                "", None, None, id="none_when_agent_empty_and_ud_none"
+            ),
+            pytest.param("", "", None, id="none_when_both_agent_and_ud_empty"),
+            pytest.param(
+                AGENT_SAMPLE, "", AGENT_SAMPLE, id="agent_only_when_ud_empty"
+            ),
+            pytest.param(
+                "",
+                LANDSCAPE_SAMPLE,
+                LANDSCAPE_SAMPLE,
+                id="ud_only_when_agent_empty",
+            ),
+            pytest.param(
+                "#cloud-config\nlandscape:\n client: {account_name: agent}\n",
+                LANDSCAPE_SAMPLE,
+                "#cloud-config\n# WSL datasouce Merged agent.yaml and "
+                "user_data\n"
+                + "\n".join(LANDSCAPE_SAMPLE.splitlines()[1:]).replace(
+                    "landscapetest", "agent"
+                ),
+                id="merge_agent_and_landscape_ud_when_both_present",
+            ),
+        ),
+    )
+    def test_merged_data_excludes_empty_or_none(
+        self, agent_yaml, landscape_user_data, expected, tmpdir
+    ):
+        agent_data = user_data = None
+        if agent_yaml is not None:
+            agent_path = tmpdir.join("agent.yaml")
+            agent_path.write(agent_yaml)
+            agent_data = wsl.ConfigData(agent_path)
+        if landscape_user_data is not None:
+            landscape_ud_path = tmpdir.join("instance_name.user_data")
+            landscape_ud_path.write(landscape_user_data)
+            user_data = wsl.ConfigData(landscape_ud_path)
+        assert expected == wsl.merge_agent_landscape_data(
+            agent_data, user_data
+        )
 
 
 class TestWSLDataSource:
@@ -352,6 +428,84 @@ class TestWSLDataSource:
             ),
         )
         assert COMMAND in userdata
+
+    @mock.patch("cloudinit.util.lsb_release")
+    def test_get_data_jinja(self, m_lsb_release, paths, tmpdir):
+        """Assert we don't mistakenly treat jinja as final cloud-config"""
+        m_lsb_release.return_value = SAMPLE_LINUX_DISTRO
+        data_path = tmpdir.join(".cloud-init", f"{INSTANCE_NAME}.user-data")
+        data_path.dirpath().mkdir()
+        data_path.write(
+            """## template: jinja
+#cloud-config
+write_files:
+- path: /etc/{{ v1.instance_name }}.conf
+"""
+        )
+
+        ds = wsl.DataSourceWSL(
+            sys_cfg=SAMPLE_CFG,
+            distro=_get_distro("ubuntu"),
+            paths=paths,
+        )
+
+        assert ds.get_data() is True
+        ud = ds.get_userdata(True)
+        print(ud)
+
+        assert ud is not None
+        assert "write_files" in join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/jinja2"
+        ), "Jinja should not be treated as final cloud-config"
+        assert "write_files" not in join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/cloud-config"
+        ), "No cloud-config part should exist"
+
+    @pytest.mark.parametrize("with_agent_data", [True, False])
+    @mock.patch("cloudinit.util.lsb_release")
+    def test_get_data_x(
+        self, m_lsb_release, with_agent_data, caplog, paths, tmpdir
+    ):
+        """
+        Assert behavior of empty .cloud-config dir with and without agent data
+        """
+        m_lsb_release.return_value = SAMPLE_LINUX_DISTRO
+        data_path = tmpdir.join(".cloud-init", f"{INSTANCE_NAME}.user-data")
+        data_path.dirpath().mkdir()
+
+        if with_agent_data:
+            ubuntu_pro_tmp = tmpdir.join(".ubuntupro", ".cloud-init")
+            os.makedirs(ubuntu_pro_tmp, exist_ok=True)
+            agent_path = ubuntu_pro_tmp.join("agent.yaml")
+            agent_path.write(AGENT_SAMPLE)
+
+        ds = wsl.DataSourceWSL(
+            sys_cfg=SAMPLE_CFG,
+            distro=_get_distro("ubuntu"),
+            paths=paths,
+        )
+
+        assert ds.get_data() is with_agent_data
+        if with_agent_data:
+            assert ds.userdata_raw == AGENT_SAMPLE
+        else:
+            assert ds.userdata_raw is None
+
+        expected_log_level = logging.INFO if with_agent_data else logging.ERROR
+        regex = (
+            "Unable to load any user-data file in /[^:]*/.cloud-init:"
+            " /.*/.cloud-init directory is empty"
+        )
+        messages = [
+            x.message
+            for x in caplog.records
+            if x.levelno == expected_log_level and re.match(regex, x.message)
+        ]
+        assert (
+            len(messages) > 0
+        ), "Expected log message matching '{}' with log level '{}'".format(
+            regex, expected_log_level
+        )
 
     @mock.patch("cloudinit.util.get_linux_distro")
     def test_data_precedence(self, m_get_linux_dist, tmpdir, paths):
@@ -473,14 +627,7 @@ package_update: true"""
         ubuntu_pro_tmp = tmpdir.join(".ubuntupro", ".cloud-init")
         os.makedirs(ubuntu_pro_tmp, exist_ok=True)
         landscape_file = ubuntu_pro_tmp.join("%s.user-data" % INSTANCE_NAME)
-        landscape_file.write(
-            """#cloud-config
-landscape:
-  client:
-    account_name: landscapetest
-    tags: tag_aiml,tag_dev
-locale: en_GB.UTF-8"""
-        )
+        landscape_file.write(LANDSCAPE_SAMPLE)
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
@@ -573,6 +720,118 @@ package_update: true"""
             "tag_aiml" in userdata and "tag_dev" in userdata
         ), "User-data should override agent data's Landscape computer tags"
         assert "wsl" not in userdata
+
+    @mock.patch("cloudinit.util.get_linux_distro")
+    def test_landscape_empty_data(self, m_get_linux_dist, tmpdir, paths):
+        """Asserts that Pro for WSL data is present when Landscape is empty"""
+
+        m_get_linux_dist.return_value = SAMPLE_LINUX_DISTRO
+
+        ubuntu_pro_tmp = tmpdir.join(".ubuntupro", ".cloud-init")
+        os.makedirs(ubuntu_pro_tmp, exist_ok=True)
+
+        agent_file = ubuntu_pro_tmp.join("agent.yaml")
+        agent_file.write(
+            """#cloud-config
+landscape:
+    host:
+        url: hosted.com:6554
+    client:
+        account_name: agent_test
+        url: https://hosted.com/message-system
+        ping_url: https://hosted.com/ping
+        ssl_public_key: C:\\Users\\User\\server.pem
+        tags: wsl
+ubuntu_pro:
+    token: agent_token"""
+        )
+
+        landscape_file = ubuntu_pro_tmp.join("%s.user-data" % INSTANCE_NAME)
+        landscape_file.write("")
+
+        # Run the datasource
+        ds = wsl.DataSourceWSL(
+            sys_cfg=SAMPLE_CFG,
+            distro=_get_distro("ubuntu"),
+            paths=paths,
+        )
+
+        # Assert Landscape and Agent combine, with Agent taking precedence
+        assert ds.get_data() is True
+        ud = ds.get_userdata()
+
+        assert ud is not None
+        userdata = cast(
+            str,
+            join_payloads_from_content_type(
+                cast(MIMEMultipart, ud), "text/cloud-config"
+            ),
+        )
+
+        assert (
+            "agent_test" in userdata and "agent_token" in userdata
+        ), "Agent data should be present"
+
+    @mock.patch("cloudinit.util.get_linux_distro")
+    def test_landscape_shell_script(self, m_get_linux_dist, tmpdir, paths):
+        """Asserts that Pro for WSL and Landscape goes multipart"""
+
+        m_get_linux_dist.return_value = SAMPLE_LINUX_DISTRO
+
+        ubuntu_pro_tmp = tmpdir.join(".ubuntupro", ".cloud-init")
+        os.makedirs(ubuntu_pro_tmp, exist_ok=True)
+
+        agent_file = ubuntu_pro_tmp.join("agent.yaml")
+        agent_file.write(
+            """#cloud-config
+landscape:
+    host:
+        url: hosted.com:6554
+    client:
+        account_name: agent_test
+        url: https://hosted.com/message-system
+        ping_url: https://hosted.com/ping
+        ssl_public_key: C:\\Users\\User\\server.pem
+        tags: wsl
+ubuntu_pro:
+    token: agent_token"""
+        )
+
+        COMMAND = "echo Hello cloud-init on WSL!"
+        landscape_file = ubuntu_pro_tmp.join("%s.user-data" % INSTANCE_NAME)
+        landscape_file.write(f"#!/bin/sh\n{COMMAND}\n")
+
+        # Run the datasource
+        ds = wsl.DataSourceWSL(
+            sys_cfg=SAMPLE_CFG,
+            distro=_get_distro("ubuntu"),
+            paths=paths,
+        )
+
+        # Assert Landscape and Agent combine, with Agent taking precedence
+        assert ds.get_data() is True
+        ud = ds.get_userdata()
+
+        assert ud is not None
+        userdata = cast(
+            str,
+            join_payloads_from_content_type(
+                cast(MIMEMultipart, ud), "text/cloud-config"
+            ),
+        )
+
+        assert (
+            "agent_test" in userdata and "agent_token" in userdata
+        ), "Agent data should be present"
+
+        shell_script = cast(
+            str,
+            join_payloads_from_content_type(
+                cast(MIMEMultipart, ud), "text/x-shellscript"
+            ),
+        )
+
+        assert COMMAND in shell_script
 
     @mock.patch("cloudinit.util.get_linux_distro")
     def test_with_landscape_no_tags(self, m_get_linux_dist, tmpdir, paths):

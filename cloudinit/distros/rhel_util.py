@@ -22,7 +22,7 @@ def update_sysconfig_file(fn, adjustments, allow_empty=False):
         return
     (exists, contents) = read_sysconfig_file(fn)
     updated_am = 0
-    for (k, v) in adjustments.items():
+    for k, v in adjustments.items():
         if v is None:
             continue
         v = str(v)

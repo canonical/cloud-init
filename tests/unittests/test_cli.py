@@ -249,7 +249,6 @@ class TestCLI:
         self,
         subcommand,
         capsys,
-        m_log_paths,
         mock_status_wrapper,
     ):
         """Subcommands from entry-point are properly parsed from sys.argv."""
@@ -271,9 +270,7 @@ class TestCLI:
             "status",
         ],
     )
-    def test_subcommand_parser(
-        self, subcommand, m_log_paths, mock_status_wrapper
-    ):
+    def test_subcommand_parser(self, subcommand, mock_status_wrapper):
         """cloud-init `subcommand` calls its subparser."""
         # Provide -h param to `subcommand` to avoid having to mock behavior.
         out = io.StringIO()
