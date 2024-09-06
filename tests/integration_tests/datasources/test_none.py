@@ -1,4 +1,5 @@
 """DataSourceNone integration tests on LXD."""
+
 import json
 
 from tests.integration_tests.instances import IntegrationInstance

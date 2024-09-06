@@ -1,7 +1,6 @@
 import builtins
 import glob
 import os
-import pathlib
 import shutil
 from pathlib import Path
 from unittest import mock
@@ -9,7 +8,6 @@ from unittest import mock
 import pytest
 
 from cloudinit import atomic_helper, lifecycle, log, util
-from cloudinit.cmd.devel import logs
 from cloudinit.gpg import GPG
 from tests.hypothesis import HAS_HYPOTHESIS
 from tests.unittests.helpers import example_netdev, retarget_many_wrapper
@@ -85,7 +83,7 @@ def fake_filesystem(mocker, tmpdir):
     # exists, but then it fails because of the retargeting that happens here.
     tmpdir.mkdir("tmp")
 
-    for (mod, funcs) in FS_FUNCS.items():
+    for mod, funcs in FS_FUNCS.items():
         for f, nargs in funcs:
             func = getattr(mod, f)
             trap_func = retarget_many_wrapper(str(tmpdir), nargs, func)
@@ -169,19 +167,3 @@ if HAS_HYPOTHESIS:
 
     settings.register_profile("ci", max_examples=1000)
     settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "default"))
-
-
-@pytest.fixture
-def m_log_paths(mocker, tmp_path):
-    """Define logs.LogPaths for testing and mock get_log_paths with it."""
-    paths = logs.LogPaths(
-        userdata_raw=tmp_path / "userdata_raw",
-        cloud_data=tmp_path / "cloud_data",
-        run_dir=tmp_path / "run_dir",
-        instance_data_sensitive=tmp_path
-        / "run_dir"
-        / "instance_data_sensitive",
-    )
-    pathlib.Path(paths.run_dir).mkdir()
-    mocker.patch.object(logs, "get_log_paths", return_value=paths)
-    yield paths

@@ -208,7 +208,7 @@ def read_config_drive(source_dir):
         (reader.read_v1, [], {}),
     ]
     excps = []
-    for (functor, args, kwargs) in finders:
+    for functor, args, kwargs in finders:
         try:
             return functor(*args, **kwargs)
         except openstack.NonReadable as e:
@@ -244,7 +244,7 @@ def on_first_boot(data, distro=None, network=True):
 def write_injected_files(files):
     if files:
         LOG.debug("Writing %s injected files", len(files))
-        for (filename, content) in files.items():
+        for filename, content in files.items():
             if not filename.startswith(os.sep):
                 filename = os.sep + filename
             try:

@@ -11,9 +11,10 @@ knowledge and become better at using and configuring ``cloud-init``.
    :maxdepth: 1
 
    introduction.rst
+   format.rst
    configuration.rst
    boot.rst
-   format.rst
+   first_boot.rst
    events.rst
    instancedata.rst
    vendordata.rst

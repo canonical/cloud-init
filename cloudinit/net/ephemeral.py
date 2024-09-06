@@ -356,10 +356,10 @@ class EphemeralDHCPv4:
                 kwargs["prefix_or_mask"], kwargs["ip"]
             )
         if kwargs["static_routes"]:
-            kwargs[
-                "static_routes"
-            ] = self.distro.dhcp_client.parse_static_routes(
-                kwargs["static_routes"]
+            kwargs["static_routes"] = (
+                self.distro.dhcp_client.parse_static_routes(
+                    kwargs["static_routes"]
+                )
             )
         ephipv4 = EphemeralIPv4Network(
             self.distro,

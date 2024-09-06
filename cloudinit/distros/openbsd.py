@@ -14,6 +14,16 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
     hostname_conf_fn = "/etc/myname"
     init_cmd = ["rcctl"]
 
+    # For OpenBSD (from https://man.openbsd.org/passwd.5) a password field
+    # of "" indicates no password, and password field values of either
+    # "*" or "*************" (13 "*") indicate differing forms of "locked"
+    # but with no password defined.
+    shadow_empty_locked_passwd_patterns = [
+        r"^{username}::",
+        r"^{username}:\*:",
+        r"^{username}:\*\*\*\*\*\*\*\*\*\*\*\*\*:",
+    ]
+
     def _read_hostname(self, filename, default=None):
         return util.load_text_file(self.hostname_conf_fn)
 
@@ -53,7 +63,11 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
             raise
 
     def unlock_passwd(self, name):
-        pass
+        LOG.debug(
+            "OpenBSD password lock is not reversible, "
+            "ignoring unlock for user %s",
+            name,
+        )
 
     def _get_pkg_cmd_environ(self):
         """Return env vars used in OpenBSD package_command operations"""

@@ -1,4 +1,5 @@
 """Tests for `cloud-init status`"""
+
 from textwrap import dedent
 
 import pytest
@@ -173,9 +174,9 @@ class TestSchemaDeprecations:
             apt_reboot_if_required: false\t\t# D3
 
             # Deprecations: -------------
-            # D1:  Deprecated in version 22.2. Use ``package_update`` instead.
-            # D2:  Deprecated in version 22.2. Use ``package_upgrade`` instead.
-            # D3:  Deprecated in version 22.2. Use ``package_reboot_if_required`` instead.
+            # D1:  Deprecated in version 22.2. Use **package_update** instead.
+            # D2:  Deprecated in version 22.2. Use **package_upgrade** instead.
+            # D3:  Deprecated in version 22.2. Use **package_reboot_if_required** instead.
 
 
             Valid schema /root/user-data"""  # noqa: E501

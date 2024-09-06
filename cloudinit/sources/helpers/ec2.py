@@ -121,7 +121,7 @@ class MetadataMaterializer:
             child_blob = self._caller(child_url)
             child_contents[c] = self._materialize(child_blob, child_url)
         leaf_contents = {}
-        for (field, resource) in leaves.items():
+        for field, resource in leaves.items():
             leaf_url = url_helper.combine_url(base_url, resource)
             leaf_blob = self._caller(leaf_url)
             leaf_contents[field] = self._leaf_decoder(field, leaf_blob)

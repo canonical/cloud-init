@@ -7,6 +7,7 @@ Any imports that are performed at the top-level here must be installed wherever
 any of these tests run: that is to say, they must be listed in
 ``integration-requirements.txt`` and in ``test-requirements.txt``.
 """
+
 # If we don't import this early, lru_cache may get applied before we have the
 # chance to patch. This is also too early for the pytest-antilru plugin
 # to work.

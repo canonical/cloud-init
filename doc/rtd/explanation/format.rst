@@ -5,7 +5,9 @@ User data formats
 
 User data is configuration data provided by a user of a cloud platform to an
 instance at launch. User data can be passed to cloud-init in any of many
-formats documented here.
+formats documented here. User data is combined with the other
+:ref:`configuration sources<configuration>` to create a combined configuration
+which modifies an instance.
 
 Configuration types
 ===================
@@ -385,6 +387,11 @@ as binary data and so may be processed automatically.
 |Part handler        |#part-handler                |text/part-handler        |
 +--------------------+-----------------------------+-------------------------+
 
+Continued reading
+=================
+
+See the :ref:`configuration sources<configuration>` documentation for
+information about other sources of configuration for cloud-init.
 
 .. _make-mime: https://github.com/canonical/cloud-init/blob/main/cloudinit/cmd/devel/make_mime.py
 .. _YAML: https://yaml.org/spec/1.1/current.html

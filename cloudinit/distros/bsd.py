@@ -15,6 +15,7 @@ class BSD(distros.Distro):
     networking_cls = BSDNetworking
     hostname_conf_fn = "/etc/rc.conf"
     rc_conf_fn = "/etc/rc.conf"
+    shadow_fn = "/etc/master.passwd"
     default_owner = "root:wheel"
 
     # This differs from the parent Distro class, which has -P for

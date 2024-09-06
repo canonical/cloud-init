@@ -107,7 +107,7 @@ class Distro(distros.Distro):
     def install_packages(self, pkglist: PackageList):
         self.package_command("install", pkgs=pkglist)
 
-    def update_package_sources(self):
+    def update_package_sources(self, *, force=False):
         self._runner.run(
             "update-sources",
             self.package_command,
@@ -131,7 +131,7 @@ def update_locale_conf(sys_path, locale_cfg):
         return
     (exists, contents) = read_locale_conf(sys_path)
     updated_am = 0
-    for (k, v) in locale_cfg.items():
+    for k, v in locale_cfg.items():
         if v is None:
             continue
         v = str(v)

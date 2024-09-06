@@ -1,4 +1,5 @@
 """ansible enables running on first boot either ansible-pull"""
+
 import abc
 import logging
 import os

@@ -325,7 +325,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self.vendordata_raw = None
         self.vendordata2_raw = None
         self.metadata_address = None
-        self.network_json = UNSET
+        self.network_json: Optional[str] = UNSET
         self.ec2_metadata = UNSET
 
         self.ds_cfg = util.get_cfg_by_path(
@@ -764,7 +764,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # we want to return the correct value for what will actually
         # exist in this instance
         mappings = {"sd": ("vd", "xvd", "vtb")}
-        for (nfrom, tlist) in mappings.items():
+        for nfrom, tlist in mappings.items():
             if not short_name.startswith(nfrom):
                 continue
             for nto in tlist:
@@ -1014,7 +1014,7 @@ def normalize_pubkey_data(pubkey_data):
         return list(pubkey_data)
 
     if isinstance(pubkey_data, (dict)):
-        for (_keyname, klist) in pubkey_data.items():
+        for _keyname, klist in pubkey_data.items():
             # lp:506332 uec metadata service responds with
             # data that makes boto populate a string for 'klist' rather
             # than a list.
@@ -1170,7 +1170,7 @@ class BrokenMetadata(IOError):
 def list_from_depends(depends, ds_list):
     ret_list = []
     depset = set(depends)
-    for (cls, deps) in ds_list:
+    for cls, deps in ds_list:
         if depset == set(deps):
             ret_list.append(cls)
     return ret_list

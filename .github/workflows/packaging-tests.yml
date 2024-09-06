@@ -1,0 +1,47 @@
+name: Packaging Tests
+
+on:
+  pull_request:
+    branches:
+      - 'ubuntu/**'
+
+concurrency:
+  group: 'ci-${{ github.workflow }}-${{ github.ref }}'
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: sh -ex {0}
+
+env:
+  RELEASE: focal
+
+jobs:
+  check-patches:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          # Fetch all branches for merging
+          fetch-depth: 0
+      - name: Prepare dependencies
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -y install tox quilt
+      - name: Setup quilt environment
+        run: |
+          echo 'QUILT_PATCHES=debian/patches' >> ~/.quiltrc
+          echo 'QUILT_SERIES=debian/patches/series' >> ~/.quiltrc
+
+      - name: 'Daily recipe: quilt patches apply successfully and tests run'
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git remote add upstream https://git.launchpad.net/cloud-init
+          git fetch upstream main
+          git checkout upstream/main
+          git merge ${{ github.sha }}
+          quilt push -a
+          tox -e py3
+          quilt pop -a

@@ -86,6 +86,40 @@ class TestPackageUpdateUpgradeInstall:
         assert "curl" in output
         assert "postman" in output
 
+    def test_snap_refresh_not_called_when_refresh_hold_forever(
+        self, class_client
+    ):
+        """Assert snap refresh is not called when snap refresh --hold is set.
+
+        Certain network-limited or secure environments may opt to avoid
+        contacting snap API endpoints. In those scenarios, it is expected
+        that automated snap refresh is held for all snaps. Typically, this is
+        done with snap refresh --hold in those environments.
+
+        Assert cloud-init does not attempt to call snap refresh when
+        refresh.hold is forever.
+        """
+        assert class_client.execute(
+            [
+                "grep",
+                r"Running command \['snap', 'refresh'",
+                "/var/log/cloud-init.log",
+            ]
+        ).ok
+        assert class_client.execute("snap refresh --hold").ok
+        class_client.instance.clean()
+        class_client.restart()
+        assert class_client.execute(
+            [
+                "grep",
+                r"Running command \['snap', 'refresh']",
+                "/var/log/cloud-init.log",
+            ]
+        ).failed
+        assert class_client.execute(
+            "grep 'Skipping snap refresh' /var/log/cloud-init.log"
+        ).ok
+
 
 HELLO_VERSIONS_BY_RELEASE = {
     "oracular": "2.10-3build2",

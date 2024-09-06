@@ -13,7 +13,7 @@ from xml.etree import ElementTree  # nosec B405
 
 import requests
 
-from cloudinit import version
+from cloudinit import subp, version
 from cloudinit.sources.azure import identity
 from cloudinit.url_helper import UrlError
 
@@ -195,3 +195,17 @@ class ReportableErrorUnhandledException(ReportableError):
 
         self.supporting_data["exception"] = repr(exception)
         self.supporting_data["traceback_base64"] = trace_base64
+
+
+class ReportableErrorProxyAgentNotFound(ReportableError):
+    def __init__(self) -> None:
+        super().__init__("azure-proxy-agent not found")
+
+
+class ReportableErrorProxyAgentStatusFailure(ReportableError):
+    def __init__(self, exception: subp.ProcessExecutionError) -> None:
+        super().__init__("azure-proxy-agent status failure")
+
+        self.supporting_data["exit_code"] = exception.exit_code
+        self.supporting_data["stdout"] = exception.stdout
+        self.supporting_data["stderr"] = exception.stderr

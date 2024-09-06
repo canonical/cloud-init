@@ -15,20 +15,20 @@ Example output:
 
 .. code-block::
 
-   usage: cloud-init [-h] [--version] [--debug] [--force]
-                                                               {init,modules,single,query,features,analyze,devel,collect-logs,clean,status,schema} ...
+   usage: cloud-init [-h] [--version] [--debug] [--force] [--all-stages] {init,modules,single,query,features,analyze,devel,collect-logs,clean,status,schema} ...
 
     options:
       -h, --help            show this help message and exit
       --version, -v         Show program's version number and exit.
       --debug, -d           Show additional pre-action logging (default: False).
       --force               Force running even if no datasource is found (use at your own risk).
+      --all-stages          Run cloud-init's stages under a single process using a syncronization protocol. This is not intended for CLI usage.
 
     Subcommands:
       {init,modules,single,query,features,analyze,devel,collect-logs,clean,status,schema}
-        init                Initialize cloud-init and perform initial modules.
-        modules             Activate modules using a given configuration key.
-        single              Run a single module.
+        init                DEPRECATED: Initialize cloud-init and perform initial modules.
+        modules             DEPRECATED: Activate modules using a given configuration key.
+        single              Manually run a single module. Useful for testing during development.
         query               Query standardized instance metadata from the command line.
         features            List defined features.
         analyze             Devel tool: Analyze cloud-init logs and data.
@@ -185,8 +185,8 @@ Example output:
 
 .. _cli_init:
 
-:command:`init`
-===============
+:command:`init` (deprecated)
+============================
 
 Generally run by OS init systems to execute ``cloud-init``'s stages:
 *init* and *init-local*. See :ref:`boot_stages` for more info.
@@ -200,8 +200,8 @@ generally gated to run only once due to semaphores in
 
 .. _cli_modules:
 
-:command:`modules`
-==================
+:command:`modules` (deprecated)
+===============================
 
 Generally run by OS init systems to execute ``modules:config`` and
 ``modules:final`` boot stages. This executes cloud config :ref:`modules`
