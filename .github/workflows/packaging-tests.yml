@@ -42,6 +42,7 @@ jobs:
           git fetch upstream main
           git checkout upstream/main
           git merge ${{ github.sha }}
+          test -f debian/patches/series || echo "no patches, skipping" && exit 0
           quilt push -a
           tox -e py3
           quilt pop -a
