@@ -15,7 +15,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
 -ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
-
+ 
  [Service]
  Type=oneshot
 --- a/systemd/cloud-final.service.tmpl
@@ -25,8 +25,8 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
 -ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
-
-
+ 
+ 
  [Service]
 --- a/systemd/cloud-init-local.service.tmpl
 +++ b/systemd/cloud-init-local.service.tmpl
@@ -35,7 +35,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
 -ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
-
+ 
  [Service]
  Type=oneshot
 --- a/systemd/cloud-init.target
@@ -52,6 +52,6 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
 -ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
-
+ 
  [Service]
  Type=oneshot
