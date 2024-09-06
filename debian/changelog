@@ -1,4 +1,4 @@
-cloud-init (24.3.1-0ubuntu0~22.04.1) UNRELEASED; urgency=medium
+cloud-init (24.3.1-0ubuntu0~22.04.1) jammy; urgency=medium
 
   * d/p/no-single-process.patch: Remove single process optimization
   * d/p/no-nocloud-network.patch: Remove nocloud network feature
@@ -9,7 +9,7 @@ cloud-init (24.3.1-0ubuntu0~22.04.1) UNRELEASED; urgency=medium
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/24.3.1/ChangeLog
 
- -- Chad Smith <chad.smith@canonical.com>  Fri, 06 Sep 2024 10:00:47 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 06 Sep 2024 10:00:51 -0600
 
 cloud-init (24.2-0ubuntu1~22.04.1) jammy; urgency=medium
 
