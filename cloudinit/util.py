@@ -1086,7 +1086,7 @@ def read_seeded(base="", ext="", timeout=5, retries=10, ignore_files=None):
                 network = load_yaml(network_resp.contents)
 
     md = None
-    if "meta-data" in ignore_files:
+    if "meta-data" not in ignore_files:
         md_resp = url_helper.read_file_or_url(
             md_url, timeout=timeout, retries=retries
         )
@@ -1094,7 +1094,7 @@ def read_seeded(base="", ext="", timeout=5, retries=10, ignore_files=None):
             md = load_yaml(md_resp.contents, default={})
 
     ud = None
-    if "user-data" in ignore_files:
+    if "user-data" not in ignore_files:
         ud_resp = url_helper.read_file_or_url(
             ud_url, timeout=timeout, retries=retries
         )
@@ -1102,7 +1102,7 @@ def read_seeded(base="", ext="", timeout=5, retries=10, ignore_files=None):
             ud = ud_resp.contents
 
     vd = None
-    if "vendor-data" in ignore_files:
+    if "vendor-data" not in ignore_files:
         try:
             vd_resp = url_helper.read_file_or_url(
                 vd_url, timeout=timeout, retries=retries
