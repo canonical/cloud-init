@@ -2,8 +2,7 @@ cc_bootcmd:
   description: |
     This module runs arbitrary commands very early in the boot process, only
     slightly after a boothook would run. This is very similar to a boothook,
-    but more user friendly. The environment variable ``INSTANCE_ID`` will be
-    set to the current instance ID for all run commands. Commands can be
+    but more user friendly. Commands can be
     specified either as lists or strings. For invocation details, see
     ``runcmd``.
 
@@ -14,6 +13,10 @@ cc_bootcmd:
     .. note::
        When writing files, do not use ``/tmp`` dir as it races with
        ``systemd-tmpfiles-clean`` (LP: #1707222). Use ``/run/somedir`` instead.
+    .. warning::
+         Use of ``INSTANCE_ID`` variable within this module is deprecated.
+         Use :ref:`jinja templates<user_data_formats-jinja>` with
+         :ref:`v1.instance_id<v1_instance_id>` instead.
   examples:
   - comment: |
       Example 1:
