@@ -1,11 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import json
-from unittest.mock import PropertyMock
+from unittest import mock
 
 import pytest
 import responses
 
-from cloudinit import distros, helpers, sources
+from cloudinit import distros, sources
 from cloudinit import url_helper as uh
 from cloudinit.sources import DataSourceCloudCIX as ds_mod
 from cloudinit.sources import InvalidMetaDataException
@@ -62,33 +62,31 @@ class TestDataSourceCloudCIX:
     Test reading the meta-data
     """
 
-    allowed_subp = True
-
     @pytest.fixture(autouse=True)
-    def setup(self, mocker, tmp_path):
-        self.paths = helpers.Paths({"run_dir": tmp_path})
+    def setup(self, mocker, tmpdir, paths):
+        self.paths = paths
         self.datasource = self._get_ds()
         self.m_read_dmi_data = mocker.patch(
             "cloudinit.dmi.read_dmi_data",
-            new_callable=PropertyMock,
+            new_callable=mock.PropertyMock,
         )
         self.m_read_dmi_data.return_value = "CloudCIX"
 
         self._m_find_fallback_nic = mocker.patch(
             "cloudinit.net.find_fallback_nic",
-            new_callable=PropertyMock,
+            new_callable=mock.PropertyMock,
         )
         self._m_find_fallback_nic.return_value = "cixnic0"
         self._m_EphemeralIPNetwork_enter = mocker.patch(
             "cloudinit.net.ephemeral.EphemeralIPNetwork.__enter__",
-            new_callable=PropertyMock,
+            new_callable=mock.PropertyMock,
         )
         self._m_EphemeralIPNetwork_enter.return_value = (
             MockEphemeralIPNetworkWithStateMsg()
         )
         self._m_EphemeralIPNetwork_exit = mocker.patch(
             "cloudinit.net.ephemeral.EphemeralIPNetwork.__exit__",
-            new_callable=PropertyMock,
+            new_callable=mock.PropertyMock,
         )
         self._m_EphemeralIPNetwork_exit.return_value = (
             MockEphemeralIPNetworkWithStateMsg()
@@ -198,40 +196,46 @@ class TestDataSourceCloudCIX:
         assert self.datasource.userdata_raw == USERDATA
 
     @responses.activate
-    def test_failing_imds_endpoints(self):
-        # Make request before imds is set up
-        pytest.raises(
-            sources.InvalidMetaDataException,
-            self.datasource.crawl_metadata_service,
-        )
-
-        # Make imds respond to healthcheck
+    def test_failing_imds_endpoints(self, mocker):
+        sleep = mocker.patch("time.sleep")
         base_url = ds_mod.METADATA_URLS[0]
+        # Make request before imds is set up
+        with pytest.raises(
+            sources.InvalidMetaDataException,
+            match="Could not determine metadata URL",
+        ):
+            self.datasource.crawl_metadata_service()
+
+        # Make imds respond to healthcheck but fail v1/metadata
         responses.add_callback(
             responses.GET,
             base_url,
             callback=MockImds.base_response,
         )
-
-        pytest.raises(
-            sources.InvalidMetaDataException,
-            self.datasource.crawl_metadata_service,
-        )
-
-        # Make imds serve metadata
         version = ds_mod.METADATA_VERSION
+        with pytest.raises(
+            sources.InvalidMetaDataException,
+            match="Could not determine metadata URL",
+        ):
+            self.datasource.crawl_metadata_service()
+
+        # No sleep/retries when md_url returns 404. No viable IMDS found.
+        assert 0 == sleep.call_count
+
+        # Make imds serve metadata but ConnectionError on userdata
         responses.add_callback(
             responses.GET,
             uh.combine_url(base_url, f"v{version}", "metadata"),
             callback=MockImds.metadata_response,
         )
-
         pytest.raises(
             sources.InvalidMetaDataException,
             self.datasource.crawl_metadata_service,
         )
+        # Sleep called number of default datasource configured "retries"
+        assert [mock.call(5)] == sleep.call_args_list
 
-        # Make imds serve userdata
+        # Make IMDS serve userdata
         responses.add_callback(
             responses.GET,
             uh.combine_url(base_url, f"v{version}", "userdata"),
@@ -239,7 +243,10 @@ class TestDataSourceCloudCIX:
         )
 
         data = self.datasource.crawl_metadata_service()
-        assert data != dict()
+        assert data == {
+            "meta-data": METADATA,
+            "user-data": USERDATA.encode("utf-8"),
+        }
 
     @responses.activate
     def test_read_malformed_metadata(self):
@@ -262,15 +269,16 @@ class TestDataSourceCloudCIX:
             callback=MockImds.userdata_response,
         )
 
-        pytest.raises(
+        with pytest.raises(
             InvalidMetaDataException,
-            ds_mod.read_metadata,
-            versioned_url,
-            self.datasource.get_url_params(),
-        )
+            match="Invalid JSON at http://169.254.169.254/v1/metadata",
+            ):
+                ds_mod.read_metadata(
+                    versioned_url, self.datasource.get_url_params(),
+                )
 
     @responses.activate
-    def test_bad_response_code(self):
+    def test_bad_response_code(self, mocker):
         def bad_response(response):
             return 404, response.headers, ""
 
@@ -283,10 +291,12 @@ class TestDataSourceCloudCIX:
             uh.combine_url(versioned_url, "metadata"),
             callback=bad_response,
         )
-
-        pytest.raises(
+        sleep = mocker.patch("time.sleep")
+        with pytest.raises(
             InvalidMetaDataException,
-            ds_mod.read_metadata,
-            versioned_url,
-            self.datasource.get_url_params(),
-        )
+            match=f"Failed to fetch IMDS metadata: {versioned_url}",
+        ):
+            ds_mod.read_metadata(
+                versioned_url, self.datasource.get_url_params()
+            )
+        assert [mock.call(5)] == sleep.call_args_list

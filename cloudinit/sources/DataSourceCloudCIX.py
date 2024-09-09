@@ -5,8 +5,6 @@ import logging
 from typing import Any, Dict, Optional
 
 from cloudinit import dmi, net, sources, url_helper, util
-from cloudinit.net.dhcp import NoDHCPLeaseError
-from cloudinit.net.ephemeral import EphemeralIPNetwork
 
 LOG = logging.getLogger(__name__)
 
@@ -26,7 +24,6 @@ class DataSourceCloudCIX(sources.DataSource):
 
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceCloudCIX, self).__init__(sys_cfg, distro, paths)
-        self.distro = distro
         self._metadata_url = None
         self._net_cfg = None
 
@@ -42,21 +39,11 @@ class DataSourceCloudCIX(sources.DataSource):
         Fetch the user data and the metadata
         """
         try:
-            netw = EphemeralIPNetwork(
-                self.distro,
-                interface=net.find_fallback_nic(),
-                ipv6=True,
-                ipv4=True,
-            )
-            state_msg = f" {netw.state_msg}" if netw.state_msg else ""
             crawled_data = util.log_time(
                 logfunc=LOG.debug,
-                msg=f"Crawl of metadata service{state_msg}",
+                msg="Crawl of metadata service",
                 func=self.crawl_metadata_service,
             )
-        except NoDHCPLeaseError as e:
-            LOG.error("Bailing, DHCP exception: %s", e)
-            return False
         except sources.InvalidMetaDataException as error:
             LOG.debug(
                 "Failed to read data from CloudCIX datasource: %s", error
@@ -72,7 +59,7 @@ class DataSourceCloudCIX(sources.DataSource):
         md_url = self.determine_md_url()
         if md_url is None:
             raise sources.InvalidMetaDataException(
-                "Could not determine MetaData url"
+                "Could not determine metadata URL"
             )
 
         data = read_metadata(md_url, self.get_url_params())
@@ -93,7 +80,6 @@ class DataSourceCloudCIX(sources.DataSource):
             return None
 
         # Find the highest supported metadata version
-        md_url = None
         for version in range(METADATA_VERSION, 0, -1):
             url = url_helper.combine_url(
                 base_url, "v{0}".format(version), "metadata"
@@ -105,14 +91,13 @@ class DataSourceCloudCIX(sources.DataSource):
                 continue
 
             if response.ok():
-                md_url = url_helper.combine_url(
+                self._metadata_url = url_helper.combine_url(
                     base_url, "v{0}".format(version)
                 )
                 break
             else:
                 LOG.debug("No metadata found at URL %s", url)
 
-        self._metadata_url = md_url
         return self._metadata_url
 
     @staticmethod
@@ -137,7 +122,7 @@ class DataSourceCloudCIX(sources.DataSource):
             name = macs_to_nics.get(iface["mac_address"])
             if name is None:
                 LOG.warning(
-                    "Metadata mac address %s not found.", iface["mac_address"]
+                    "Metadata MAC address %s not found.", iface["mac_address"]
                 )
                 continue
             netcfg["ethernets"][name] = {
@@ -155,7 +140,19 @@ def is_platform_viable() -> bool:
     return dmi.read_dmi_data("system-product-name") == CLOUDCIX_DMI_NAME
 
 
-def read_metadata(base_url, url_params):
+def read_metadata(base_url: str, url_params):
+    """
+    Read metadata from metadata server at base_url
+
+    :returns: dictionary of retrieved metadata and user data containing the
+              following keys: meta-data, user-data
+    :param: base_url: meta data server's base URL
+    :param: url_params: dictionary of URL retrieval parameters. Valid keys are
+            `retries`, `sec_between` and `timeout`.
+    :raises: InvalidMetadataException upon network error connecting to metadata
+             URL, error response from meta data server or failure to
+             decode/parse metadata and userdata payload.
+    """
     md = {}
     leaf_key_format_callback = (
         ("metadata", "meta-data", util.load_json),
