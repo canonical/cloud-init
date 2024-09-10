@@ -117,9 +117,11 @@ class DataSourceCloudCIX(sources.DataSource):
     def _generate_net_cfg(self, metadata):
         netcfg: Dict[str, Any] = {"version": 2, "ethernets": {}}
         macs_to_nics = net.get_interfaces_by_mac()
+        nameservers = metadata["network"].get("nameservers", None)
 
         for iface in metadata["network"]["interfaces"]:
             name = macs_to_nics.get(iface["mac_address"])
+            routes = iface.get("routes", None)
             if name is None:
                 LOG.warning(
                     "Metadata MAC address %s not found.", iface["mac_address"]
@@ -132,6 +134,11 @@ class DataSourceCloudCIX(sources.DataSource):
                 },
                 "addresses": iface["addresses"],
             }
+
+            if nameservers is not None:
+                netcfg["ethernets"][name]["nameservers"] = nameservers
+            if routes is not None:
+                netcfg["ethernets"][name]["routes"] = routes
 
         return netcfg
 
