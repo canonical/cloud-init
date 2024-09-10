@@ -27,7 +27,7 @@ CloudCIX datasource has the following config options:
   metadata service
 - *timeout*: How long in seconds to wait for a response from the metadata
   service
-- *wait*: How long in seconds to wait between consecutive requests to the
-  metadata service
+- *sec_between_retries*: How long in seconds to wait between consecutive
+  requests to the metadata service
 
 _CloudCIX: https://www.cloudcix.com/
