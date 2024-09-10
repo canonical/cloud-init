@@ -7,15 +7,18 @@ import responses
 
 from cloudinit import distros, sources
 from cloudinit import url_helper as uh
+from cloudinit.atomic_helper import json_dumps
 from cloudinit.sources import DataSourceCloudCIX as ds_mod
 from cloudinit.sources import InvalidMetaDataException
 
 METADATA = {
     "instance_id": "12_34",
     "network": {
+        "nameservers": {"addresses": ["10.0.0.1"], "search": ["cloudcix.com"]},
         "interfaces": [
             {
                 "mac_address": "ab:cd:ef:00:01:02",
+                "routes": [{"to": "default", "via": "10.0.0.1"}],
                 "addresses": [
                     "10.0.0.2/24",
                     "192.168.0.2/24",
@@ -27,7 +30,42 @@ METADATA = {
                     "10.10.10.2/24",
                 ],
             },
-        ]
+        ],
+    },
+}
+
+# Expected network config resulting from METADATA
+NETWORK_CONFIG = {
+    "version": 2,
+    "ethernets": {
+        "enp1s0": {
+            "set-name": "enp1s0",
+            "addresses": [
+                "10.0.0.2/24",
+                "192.168.0.2/24",
+            ],
+            "match": {"macaddress": "ab:cd:ef:00:01:02"},
+            "nameservers": {
+                "addresses": ["10.0.0.1"],
+                "search": [
+                    "cloudcix.com",
+                ],
+            },
+            "routes": [{"to": "default", "via": "10.0.0.1"}],
+        },
+        "enp2s0": {
+            "set-name": "enp2s0",
+            "addresses": [
+                "10.10.10.2/24",
+            ],
+            "match": {"macaddress": "12:34:56:ab:cd:ef"},
+            "nameservers": {
+                "addresses": ["10.0.0.1"],
+                "search": [
+                    "cloudcix.com",
+                ],
+            },
+        },
     },
 }
 
@@ -51,12 +89,6 @@ class MockImds:
         return 200, response.headers, USERDATA.encode()
 
 
-class MockEphemeralIPNetworkWithStateMsg:
-    @property
-    def state_msg(self):
-        return "Mock state"
-
-
 class TestDataSourceCloudCIX:
     """
     Test reading the meta-data
@@ -77,20 +109,14 @@ class TestDataSourceCloudCIX:
             new_callable=mock.PropertyMock,
         )
         self._m_find_fallback_nic.return_value = "cixnic0"
-        self._m_EphemeralIPNetwork_enter = mocker.patch(
-            "cloudinit.net.ephemeral.EphemeralIPNetwork.__enter__",
+        self._m_get_interfaces_by_mac = mocker.patch(
+            "cloudinit.net.get_interfaces_by_mac",
             new_callable=mock.PropertyMock,
         )
-        self._m_EphemeralIPNetwork_enter.return_value = (
-            MockEphemeralIPNetworkWithStateMsg()
-        )
-        self._m_EphemeralIPNetwork_exit = mocker.patch(
-            "cloudinit.net.ephemeral.EphemeralIPNetwork.__exit__",
-            new_callable=mock.PropertyMock,
-        )
-        self._m_EphemeralIPNetwork_exit.return_value = (
-            MockEphemeralIPNetworkWithStateMsg()
-        )
+        self._m_get_interfaces_by_mac.return_value = {
+            "ab:cd:ef:00:01:02": "enp1s0",
+            "12:34:56:ab:cd:ef": "enp2s0",
+        }
 
     def _get_ds(self):
         distro_cls = distros.fetch("ubuntu")
@@ -194,6 +220,9 @@ class TestDataSourceCloudCIX:
         assert self.datasource.get_data()
         assert self.datasource.metadata == METADATA
         assert self.datasource.userdata_raw == USERDATA
+        assert json_dumps(
+            self.datasource._generate_net_cfg(METADATA)
+        ) == json_dumps(NETWORK_CONFIG)
 
     @responses.activate
     def test_failing_imds_endpoints(self, mocker):
@@ -272,10 +301,11 @@ class TestDataSourceCloudCIX:
         with pytest.raises(
             InvalidMetaDataException,
             match="Invalid JSON at http://169.254.169.254/v1/metadata",
-            ):
-                ds_mod.read_metadata(
-                    versioned_url, self.datasource.get_url_params(),
-                )
+        ):
+            ds_mod.read_metadata(
+                versioned_url,
+                self.datasource.get_url_params(),
+            )
 
     @responses.activate
     def test_bad_response_code(self, mocker):
