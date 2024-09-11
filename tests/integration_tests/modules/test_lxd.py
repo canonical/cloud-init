@@ -13,7 +13,7 @@ from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL
-from tests.integration_tests.util import verify_clean_log
+from tests.integration_tests.util import verify_clean_boot, verify_clean_log
 
 BRIDGE_USER_DATA = """\
 #cloud-config
@@ -166,6 +166,7 @@ class TestLxdBridge:
         """Check that the given bridge is configured"""
         cloud_init_log = class_client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(cloud_init_log)
+        verify_clean_boot(class_client)
 
         # The bridge should exist
         assert class_client.execute("ip addr show lxdbr0").ok
@@ -178,6 +179,7 @@ class TestLxdBridge:
 def validate_storage(validate_client, pkg_name, command):
     log = validate_client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log, ignore_deprecations=False)
+    verify_clean_boot(validate_client)
     return log
 
 
@@ -289,6 +291,7 @@ def test_basic_preseed(client):
     preseed_cfg = yaml.safe_load(preseed_cfg)
     cloud_init_log = client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(cloud_init_log)
+    verify_clean_boot(client)
     validate_preseed_profiles(client, preseed_cfg)
     validate_preseed_storage_pools(client, preseed_cfg)
     validate_preseed_projects(client, preseed_cfg)

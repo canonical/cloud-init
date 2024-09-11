@@ -3,7 +3,7 @@
 import base64
 import datetime
 from unittest import mock
-from xml.etree import ElementTree
+from xml.etree import ElementTree as ET
 
 import pytest
 import requests
@@ -211,8 +211,8 @@ def test_imds_metadata_parsing_exception():
 def test_ovf_parsing_exception():
     error = None
     try:
-        ElementTree.fromstring("<badxml")
-    except ElementTree.ParseError as exception:
+        ET.fromstring("<badxml")
+    except ET.ParseError as exception:
         error = errors.ReportableErrorOvfParsingException(exception=exception)
 
     assert (
