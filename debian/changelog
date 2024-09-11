@@ -1,3 +1,12 @@
+cloud-init (24.3.1-0ubuntu0~20.04.2) UNRELEASED; urgency=medium
+
+  * refresh patches:
+    - d/p/keep-dhclient-as-priority-client.patch
+    - d/p/no-single-process.patch
+  * Upstream snapshot based on upstream/main at 313390f8.
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 10 Sep 2024 21:42:49 -0600
+
 cloud-init (24.3.1-0ubuntu0~20.04.1) focal; urgency=medium
 
   * d/p/no-nocloud-network.patch: Remove nocloud network feature
