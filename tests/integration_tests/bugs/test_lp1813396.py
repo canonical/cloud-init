@@ -7,6 +7,7 @@ import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import (
+    verify_clean_boot,
     verify_clean_log,
     verify_ordered_items_in_text,
 )
@@ -33,6 +34,7 @@ def test_gpg_no_tty(client: IntegrationInstance):
     ]
     verify_ordered_items_in_text(to_verify, log)
     verify_clean_log(log)
+    verify_clean_boot(client)
     control_groups = client.execute(
         "systemd-cgls -u cloud-config.service 2>/dev/null | wc -l"
     ).stdout

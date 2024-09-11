@@ -27,6 +27,7 @@ from tests.integration_tests.util import (
     get_feature_flag_value,
     get_inactive_modules,
     lxd_has_nocloud,
+    verify_clean_boot,
     verify_clean_log,
     verify_ordered_items_in_text,
 )
@@ -137,23 +138,26 @@ class TestCombined:
         version_boundary = get_feature_flag_value(
             class_client, "DEPRECATION_INFO_BOUNDARY"
         )
+        deprecated_messages = ["users.1.sudo:  Changed in version 22.2."]
+        boundary_message = (
+            "The value of 'false' in user craig's 'sudo'"
+            " config is deprecated"
+        )
         # the changed_version is 22.2 in schema for user.sudo key in
         # user-data. Pass 22.2 in against the client's version_boundary.
         if lifecycle.should_log_deprecation("22.2", version_boundary):
-            log_level = "DEPRECATED"
-            deprecation_count = 2
+            deprecated_messages.append(boundary_message)
+            verify_clean_boot(
+                class_client, require_deprecations=deprecated_messages
+            )
         else:
             # Expect the distros deprecated call to be redacted.
             # jsonschema still emits deprecation log due to changed_version
             # instead of deprecated_version
-            log_level = "INFO"
-            deprecation_count = 1
-
-        assert (
-            f"[{log_level}]: The value of 'false' in user craig's 'sudo'"
-            " config is deprecated" in log
-        )
-        assert deprecation_count == log.count("DEPRECATE")
+            verify_clean_boot(
+                class_client, require_deprecations=deprecated_messages
+            )
+            assert f"[INFO]: {boundary_message}" in log
 
     def test_ntp_with_apt(self, class_client: IntegrationInstance):
         """LP #1628337.

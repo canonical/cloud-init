@@ -3,7 +3,7 @@
 import json
 
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.util import verify_clean_log
+from tests.integration_tests.util import verify_clean_boot, verify_clean_log
 
 DS_NONE_BASE_CFG = """\
 datasource_list: [None]
@@ -26,6 +26,7 @@ def test_datasource_none_discovery(client: IntegrationInstance):
     """
     log = client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log)
+    verify_clean_boot(client)
     # Limit datasource detection to DataSourceNone.
     client.write_to_file(
         "/etc/cloud/cloud.cfg.d/99-force-dsnone.cfg", DS_NONE_BASE_CFG
@@ -65,4 +66,5 @@ def test_datasource_none_discovery(client: IntegrationInstance):
         )
     log = client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log)
+    verify_clean_boot(client, require_warnings=expected_warnings)
     assert client.execute("test -f /var/tmp/success-with-datasource-none").ok

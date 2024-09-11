@@ -34,7 +34,8 @@ Then your user data could then be:
 
 .. code-block:: yaml
 
+        ## template: jinja
         #cloud-config
         phone_home:
-            url: http://example.com/$INSTANCE_ID/
+            url: http://example.com/{{ v1.instance_id }}/
             post: all

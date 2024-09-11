@@ -12,7 +12,7 @@ import pytest
 
 from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
-from tests.integration_tests.util import verify_clean_log
+from tests.integration_tests.util import verify_clean_boot, verify_clean_log
 
 USER_DATA = """\
 #cloud-config
@@ -146,6 +146,7 @@ def test_versioned_packages_are_installed(session_cloud: IntegrationCloud):
         user_data=VERSIONED_USER_DATA.format(pkg_version=pkg_version)
     ) as client:
         verify_clean_log(client.read_from_file("/var/log/cloud-init.log"))
+        verify_clean_boot(client)
         assert f"hello	{pkg_version}" == client.execute(
             "dpkg-query -W hello"
         ), (
