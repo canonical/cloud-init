@@ -71,7 +71,7 @@ Last-Update: 2024-08-02
  
 --- a/systemd/cloud-init-main.service.tmpl
 +++ /dev/null
-@@ -1,52 +0,0 @@
+@@ -1,51 +0,0 @@
 -## template:jinja
 -# systemd ordering resources
 -# ==========================
@@ -91,16 +91,15 @@ Last-Update: 2024-08-02
 -After=dbus.socket
 -Before=network.service
 -Before=firewalld.target
--Conflicts=shutdown.target
 -{% endif %}
 -{% if variant in ["ubuntu", "unknown", "debian"] %}
 -Before=sysinit.target
--Conflicts=shutdown.target
 -{% endif %}
 -
 -After=systemd-remount-fs.service
 -Before=sysinit.target
 -Before=cloud-init-local.service
+-Before=shutdown.target
 -Conflicts=shutdown.target
 -RequiresMountsFor=/var/lib/cloud
 -ConditionPathExists=!/etc/cloud/cloud-init.disabled
@@ -253,7 +252,7 @@ Last-Update: 2024-08-02
 +WantedBy=cloud-init.target
 --- a/cloudinit/cmd/status.py
 +++ b/cloudinit/cmd/status.py
-@@ -318,9 +318,8 @@
+@@ -321,9 +321,8 @@
      for service in [
          "cloud-final.service",
          "cloud-config.service",
