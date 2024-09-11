@@ -12,7 +12,7 @@ https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/1886531
 
 import pytest
 
-from tests.integration_tests.util import verify_clean_log
+from tests.integration_tests.util import verify_clean_boot, verify_clean_log
 
 USER_DATA = """\
 #cloud-config
@@ -26,3 +26,4 @@ class TestLp1886531:
     def test_lp1886531(self, client):
         log_content = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log_content)
+        verify_clean_boot(client)

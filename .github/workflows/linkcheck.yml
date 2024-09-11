@@ -8,15 +8,15 @@ concurrency:
 
 jobs:
   linkcheck:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     continue-on-error: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.failOnError == 'true') }}
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3.0.0
+        uses: actions/checkout@v4
 
       - name: "Install Python 3.10"
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10.8'
 

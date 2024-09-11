@@ -16,6 +16,7 @@ from tests.integration_tests.releases import (
 )
 from tests.integration_tests.util import (
     push_and_enable_systemd_unit,
+    verify_clean_boot,
     verify_clean_log,
     wait_for_cloud_init,
 )
@@ -256,6 +257,7 @@ def test_multi_nic_hotplug(setup_image, session_cloud: IntegrationCloud):
 
         log_content = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log_content)
+        verify_clean_boot(client)
 
         ips_after_add = _get_ip_addr(client)
 
@@ -297,6 +299,7 @@ def test_multi_nic_hotplug(setup_image, session_cloud: IntegrationCloud):
 
         log_content = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log_content)
+        verify_clean_boot(client)
 
 
 @pytest.mark.skipif(CURRENT_RELEASE <= FOCAL, reason="See LP: #2055397")
@@ -317,6 +320,7 @@ def test_multi_nic_hotplug_vpc(setup_image, session_cloud: IntegrationCloud):
         _wait_till_hotplug_complete(client)
         log_content = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log_content)
+        verify_clean_boot(client)
 
         netplan_cfg = client.read_from_file("/etc/netplan/50-cloud-init.yaml")
         config = yaml.safe_load(netplan_cfg)
@@ -359,6 +363,7 @@ def test_multi_nic_hotplug_vpc(setup_image, session_cloud: IntegrationCloud):
 
         log_content = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log_content)
+        verify_clean_boot(client)
 
 
 @pytest.mark.skipif(PLATFORM != "ec2", reason="test is ec2 specific")

@@ -5,7 +5,7 @@ import os
 import re
 import unittest
 from textwrap import dedent
-from xml.etree import ElementTree
+from xml.etree import ElementTree as ET
 from xml.sax.saxutils import escape, unescape
 
 import pytest
@@ -231,7 +231,7 @@ class TestGoalStateParsing(CiTestCase):
 
     def test_invalid_goal_state_xml_raises_parse_error(self):
         xml = "random non-xml data"
-        with self.assertRaises(ElementTree.ParseError):
+        with self.assertRaises(ET.ParseError):
             azure_helper.GoalState(xml, mock.MagicMock())
 
     def test_missing_container_id_in_goal_state_xml_raises_exc(self):
@@ -717,7 +717,7 @@ class TestGoalStateHealthReporter(CiTestCase):
 
         self.assertEqual(health_document, generated_health_document)
 
-        generated_xroot = ElementTree.fromstring(generated_health_document)
+        generated_xroot = ET.fromstring(generated_health_document)
         self.assertEqual(
             self._text_from_xpath_in_xroot(
                 generated_xroot, "./GoalStateIncarnation"
@@ -780,7 +780,7 @@ class TestGoalStateHealthReporter(CiTestCase):
 
         self.assertEqual(health_document, generated_health_document)
 
-        generated_xroot = ElementTree.fromstring(generated_health_document)
+        generated_xroot = ET.fromstring(generated_health_document)
         self.assertEqual(
             self._text_from_xpath_in_xroot(
                 generated_xroot, "./GoalStateIncarnation"
@@ -923,7 +923,7 @@ class TestGoalStateHealthReporter(CiTestCase):
             description=long_err_msg,
         )
 
-        generated_xroot = ElementTree.fromstring(generated_health_document)
+        generated_xroot = ET.fromstring(generated_health_document)
         generated_health_report_description = self._text_from_xpath_in_xroot(
             generated_xroot,
             "./Container/RoleInstanceList/Role/Health/Details/Description",
@@ -976,7 +976,7 @@ class TestGoalStateHealthReporter(CiTestCase):
             description=long_err_msg,
         )
 
-        generated_xroot = ElementTree.fromstring(generated_health_document)
+        generated_xroot = ET.fromstring(generated_health_document)
         generated_health_report_description = self._text_from_xpath_in_xroot(
             generated_xroot,
             "./Container/RoleInstanceList/Role/Health/Details/Description",

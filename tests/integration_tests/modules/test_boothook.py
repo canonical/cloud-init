@@ -4,15 +4,16 @@ import re
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.util import verify_clean_log
+from tests.integration_tests.util import verify_clean_boot, verify_clean_log
 
 USER_DATA = """\
+## template: jinja
 #cloud-boothook
 #!/bin/sh
 # Error below will generate stderr
 BOOTHOOK/0
 echo BOOTHOOKstdout
-echo "BOOTHOOK: $INSTANCE_ID: is called every boot." >> /boothook.txt
+echo "BOOTHOOK: {{ v1.instance_id }}: is called every boot." >> /boothook.txt
 """
 
 
@@ -25,6 +26,7 @@ def test_boothook_header_runs_part_per_instance(client: IntegrationInstance):
     RE_BOOTHOOK = f"BOOTHOOK: {instance_id}: is called every boot"
     log = client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log)
+    verify_clean_boot(client)
     output = client.read_from_file("/boothook.txt")
     assert 1 == len(re.findall(RE_BOOTHOOK, output))
     client.restart()

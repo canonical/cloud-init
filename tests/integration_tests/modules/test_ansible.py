@@ -5,6 +5,7 @@ from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL
 from tests.integration_tests.util import (
     push_and_enable_systemd_unit,
+    verify_clean_boot,
     verify_clean_log,
 )
 
@@ -267,6 +268,7 @@ def _test_ansible_pull_from_local_server(my_client):
     my_client.restart()
     log = my_client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log)
+    verify_clean_boot(my_client)
     output_log = my_client.read_from_file("/var/log/cloud-init-output.log")
     assert "ok=3" in output_log
     assert "SUCCESS: config-ansible ran successfully" in log
@@ -320,6 +322,7 @@ def test_ansible_pull_distro(client):
 def test_ansible_controller(client):
     log = client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log)
+    verify_clean_boot(client)
     content_ansible = client.execute(
         "lxc exec lxd-container-00 -- cat /home/ansible/ansible.txt"
     )

@@ -14,7 +14,11 @@ import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.releases import IS_UBUNTU
-from tests.integration_tests.util import get_inactive_modules, verify_clean_log
+from tests.integration_tests.util import (
+    get_inactive_modules,
+    verify_clean_boot,
+    verify_clean_log,
+)
 
 CERT_CONTENT = """\
 -----BEGIN CERTIFICATE-----
@@ -106,6 +110,7 @@ class TestCaCerts:
         """
         log = class_client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log, ignore_deprecations=False)
+        verify_clean_boot(class_client)
 
         expected_inactive = {
             "apt_pipelining",

@@ -1318,8 +1318,4 @@ def sub_main(args):
 
 
 if __name__ == "__main__":
-    if "TZ" not in os.environ:
-        os.environ["TZ"] = ":/etc/localtime"
-    return_value = main(sys.argv)
-    if return_value:
-        sys.exit(return_value)
+    sys.exit(main(sys.argv))
