@@ -5,3 +5,9 @@ documentation:
       - 'doc/*'
       - 'cloudinit/config/schemas/*'
   - base-branch: ['main']
+packaging:
+- any:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'debian/**'
+  - base-branch: ['ubuntu/**']
