@@ -179,8 +179,6 @@ def print_status(args, details: StatusDetails):
         **details.v1,
     }
     if args.format == "tabular":
-        prefix = "\n" if args.wait else ""
-
         # For backwards compatibility, don't report degraded status here,
         # extended_status key reports the complete status (includes degraded)
         state = details_dict["status"]
