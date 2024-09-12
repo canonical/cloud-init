@@ -7,7 +7,10 @@ import pytest
 import yaml
 
 from cloudinit.sources.DataSourceNoCloud import DataSourceNoCloud as dsNoCloud
-from cloudinit.sources.DataSourceNoCloud import parse_cmdline_data
+from cloudinit.sources.DataSourceNoCloud import (
+    DataSourceNoCloudNet,
+    parse_cmdline_data,
+)
 from tests.unittests.helpers import mock, populate_dir
 
 
@@ -86,13 +89,18 @@ class TestNoCloudDataSource:
         assert dsrc.platform_type == "nocloud"
         assert dsrc.subplatform == "seed-dir (%s)" % seed_dir
 
-    def test_nocloud_seedfrom(self, paths):
+    def test_nocloud_seedfrom(self, paths, caplog):
         """Check that a seedfrom triggers detection"""
-        assert dsNoCloud(
+        ds = DataSourceNoCloudNet(
             sys_cfg={"datasource": {"NoCloud": {"seedfrom": "somevalue"}}},
             distro=None,
             paths=paths,
-        ).ds_detect()
+        )
+        assert ds.ds_detect()
+        assert (
+            "Machine is configured by system configuration to run on "
+            "single datasource DataSourceNoCloudNet"
+        ) in caplog.text
 
     def test_nocloud_user_data_meta_data(self, paths):
         """Check that meta-data and user-data trigger detection"""
