@@ -1,3 +1,7 @@
+# Changes to labeler do not run in pull requests because this only runs against
+# the base branch by default
+#
+# https://github.com/actions/labeler/tree/main?tab=readme-ov-file#initial-set-up-of-the-labeler-action
 documentation:
 - all:
   - changed-files:
@@ -5,3 +9,10 @@ documentation:
       - 'doc/**'
       - 'cloudinit/config/schemas/**'
   - base-branch: ['main']
+packaging:
+- any:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'debian/**'
+  - base-branch: ['ubuntu/*']
+
