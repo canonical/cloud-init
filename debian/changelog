@@ -1,3 +1,11 @@
+cloud-init (24.4~3+really24.3.1-0ubuntu3) UNRELEASED; urgency=medium
+
+  * Bug fix release (LP: #2080688):
+    d/p/cpick-nocloudnet-seedfrom-sysconfig-fix.patch fix NoCloudNet
+    detection when seedfrom config provided in /etc/cloud/cloud.cfg/*.cfg
+
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 13 Sep 2024 14:44:45 -0600
+
 cloud-init (24.4~3+really24.3.1-0ubuntu2) oracular; urgency=medium
 
   * d/cloud-init.postinst: fix MAAS preseed provisioning by replacing
