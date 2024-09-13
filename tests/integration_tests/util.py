@@ -15,6 +15,7 @@ import pytest
 
 from cloudinit.subp import subp
 from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.releases import CURRENT_RELEASE, NOBLE
 
 LOG = logging.getLogger("integration_testing.util")
 
@@ -347,15 +348,23 @@ def _verify_clean_boot(
         out = instance.execute("cloud-init status --long")
         assert 1 != out.return_code, (
             f"Unexpected return code from `cloud-init status`. Expected rc=0 "
-            f"or rc=2, received rc={out.return_code}\nstdout: "
-            f"{out.stdout}\nstderr: {out.stderr}"
+            f"or rc=2, received rc={out.return_code}\nstdout:\n"
+            f"{out.stdout}\nstderr:\n{out.stderr}"
         )
     else:
         # we know that we should have a return code of 2
         out = instance.execute("cloud-init status --long")
-        assert 2 == out.return_code, (
+        rc = 2
+        if CURRENT_RELEASE < NOBLE and "main" != os.environ.get(
+            "GITHUB_BASE_REF"
+        ):
+            # Old releases return 0 for backwards compatibility
+            rc = 0
+        assert rc == out.return_code, (
+            # CI on main doen't patch out this behavior so despite running on
+            # old releases it behaves as tip of main does
             f"Unexpected return code from `cloud-init status`. "
-            f"Expected rc=2, received rc={out.return_code}\nstdout: "
+            f"Expected rc={rc}, received rc={out.return_code}\nstdout: "
             f"{out.stdout}\nstderr: {out.stderr}"
         )
     schema = instance.execute("cloud-init schema --system --annotate")
