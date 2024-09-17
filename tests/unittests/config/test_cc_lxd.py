@@ -89,10 +89,6 @@ class TestLxd(t_help.CiTestCase):
                 self.assertEqual(
                     [
                         mock.call(sem_file),
-                        mock.call(
-                            "/lib/modules/mykernel/"
-                            "kernel/drivers/md/dm-thin-pool.ko"
-                        ),
                     ],
                     exists.call_args_list,
                 )

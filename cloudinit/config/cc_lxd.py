@@ -119,11 +119,17 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             "trust_password",
         )
 
-        # Bug https://bugs.launchpad.net/ubuntu/+source/linux-kvm/+bug/1982780
-        kernel = util.system_info()["uname"][2]
-        if init_cfg["storage_backend"] == "lvm" and not os.path.exists(
-            f"/lib/modules/{kernel}/kernel/drivers/md/dm-thin-pool.ko"
-        ):
+        cmd = ["lxd", "init", "--auto"]
+        for k in init_keys:
+            if init_cfg.get(k):
+                cmd.extend(
+                    ["--%s=%s" % (k.replace("_", "-"), str(init_cfg[k]))]
+                )
+        try:
+            subp.subp(cmd)
+        except subp.ProcessExecutionError:
+            if init_cfg["storage_backend"] != "lvm":
+                raise
             LOG.warning(
                 "cloud-init doesn't use thinpool by default on Ubuntu due to "
                 "LP #1982780. This behavior will change in the future.",
@@ -145,14 +151,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             init_keys = tuple(
                 key for key in init_keys if key != "storage_backend"
             )
-
-        cmd = ["lxd", "init", "--auto"]
-        for k in init_keys:
-            if init_cfg.get(k):
-                cmd.extend(
-                    ["--%s=%s" % (k.replace("_", "-"), str(init_cfg[k]))]
-                )
-        subp.subp(cmd)
+            # Retry with thinpool in case of minimal image
+            # Bug https://bugs.launchpad.net/ubuntu/+source/linux-kvm/+bug/1982780
+            subp.subp(cmd)
 
     # Set up lxd-bridge if bridge config is given
     dconf_comm = "debconf-communicate"

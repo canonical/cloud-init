@@ -25,16 +25,7 @@ Type=oneshot
 ExecStart=sh -c 'echo "start" | netcat -Uu -W1 /run/cloud-init/share/final.sock -s /run/cloud-init/share/final-return.sock | sh'
 RemainAfterExit=yes
 TimeoutSec=0
-{% if variant in ["almalinux", "cloudlinux", "rhel"] %}
-# Restart NetworkManager if it is present and running.
-ExecStartPost=/bin/sh -c 'u=NetworkManager.service; \
- out=$(systemctl show --property=SubState $u) || exit; \
- [ "$out" = "SubState=running" ] || exit 0; \
- systemctl reload-or-try-restart $u'
-{% else %}
 TasksMax=infinity
-{% endif %}
-
 
 # Output needs to appear in instance console output
 StandardOutput=journal+console
