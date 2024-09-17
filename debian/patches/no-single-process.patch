@@ -7,7 +7,7 @@ Last-Update: 2024-08-02
 --- a/systemd/cloud-config.service.tmpl
 +++ b/systemd/cloud-config.service.tmpl
 @@ -10,14 +10,7 @@
- 
+
  [Service]
  Type=oneshot
 -# This service is a shim which preserves systemd ordering while allowing a
@@ -21,11 +21,11 @@ Last-Update: 2024-08-02
 +ExecStart=/usr/bin/cloud-init modules --mode=config
  RemainAfterExit=yes
  TimeoutSec=0
- 
+
 --- a/systemd/cloud-final.service.tmpl
 +++ b/systemd/cloud-final.service.tmpl
 @@ -15,16 +15,10 @@
- 
+
  [Service]
  Type=oneshot
 -# This service is a shim which preserves systemd ordering while allowing a
@@ -40,9 +40,9 @@ Last-Update: 2024-08-02
  RemainAfterExit=yes
  TimeoutSec=0
 +KillMode=process
- {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
- # Restart NetworkManager if it is present and running.
- ExecStartPost=/bin/sh -c 'u=NetworkManager.service; \
+ TasksMax=infinity
+
+ # Output needs to appear in instance console output
 --- a/systemd/cloud-init-local.service.tmpl
 +++ b/systemd/cloud-init-local.service.tmpl
 @@ -7,6 +7,7 @@
@@ -68,7 +68,7 @@ Last-Update: 2024-08-02
 +ExecStart=/usr/bin/cloud-init init --local
  RemainAfterExit=yes
  TimeoutSec=0
- 
+
 --- a/systemd/cloud-init-main.service.tmpl
 +++ /dev/null
 @@ -1,51 +0,0 @@
@@ -294,7 +294,7 @@ Last-Update: 2024-08-02
 --- a/systemd/cloud-config.target
 +++ b/systemd/cloud-config.target
 @@ -14,5 +14,5 @@
- 
+
  [Unit]
  Description=Cloud-config availability
 -Wants=cloud-init-local.service cloud-init-network.service
