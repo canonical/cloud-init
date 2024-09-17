@@ -14,23 +14,33 @@ from cloudinit.sources import InvalidMetaDataException
 METADATA = {
     "instance_id": "12_34",
     "network": {
-        "nameservers": {"addresses": ["10.0.0.1"], "search": ["cloudcix.com"]},
-        "interfaces": [
-            {
-                "mac_address": "ab:cd:ef:00:01:02",
-                "routes": [{"to": "default", "via": "10.0.0.1"}],
+        "version": 2,
+        "ethernets": {
+            "eth0": {
+                "set-name": "eth0",
+                "match": {"macaddress": "ab:cd:ef:00:01:02"},
                 "addresses": [
                     "10.0.0.2/24",
                     "192.168.0.2/24",
                 ],
+                "nameservers": {
+                    "addresses": ["10.0.0.1"],
+                    "search": ["cloudcix.com"],
+                },
+                "routes": [{"to": "default", "via": "10.0.0.1"}],
             },
-            {
-                "mac_address": "12:34:56:ab:cd:ef",
+            "eth1": {
+                "set-name": "eth1",
+                "match": {"macaddress": "12:34:56:ab:cd:ef"},
                 "addresses": [
                     "10.10.10.2/24",
                 ],
+                "nameservers": {
+                    "addresses": ["10.0.0.1"],
+                    "search": ["cloudcix.com"],
+                },
             },
-        ],
+        },
     },
 }
 
@@ -38,8 +48,8 @@ METADATA = {
 NETWORK_CONFIG = {
     "version": 2,
     "ethernets": {
-        "enp1s0": {
-            "set-name": "enp1s0",
+        "eth0": {
+            "set-name": "eth0",
             "addresses": [
                 "10.0.0.2/24",
                 "192.168.0.2/24",
@@ -53,8 +63,8 @@ NETWORK_CONFIG = {
             },
             "routes": [{"to": "default", "via": "10.0.0.1"}],
         },
-        "enp2s0": {
-            "set-name": "enp2s0",
+        "eth1": {
+            "set-name": "eth1",
             "addresses": [
                 "10.10.10.2/24",
             ],
@@ -109,14 +119,6 @@ class TestDataSourceCloudCIX:
             new_callable=mock.PropertyMock,
         )
         self._m_find_fallback_nic.return_value = "cixnic0"
-        self._m_get_interfaces_by_mac = mocker.patch(
-            "cloudinit.net.get_interfaces_by_mac",
-            new_callable=mock.PropertyMock,
-        )
-        self._m_get_interfaces_by_mac.return_value = {
-            "ab:cd:ef:00:01:02": "enp1s0",
-            "12:34:56:ab:cd:ef": "enp2s0",
-        }
 
     def _get_ds(self):
         distro_cls = distros.fetch("ubuntu")
@@ -220,9 +222,9 @@ class TestDataSourceCloudCIX:
         assert self.datasource.get_data()
         assert self.datasource.metadata == METADATA
         assert self.datasource.userdata_raw == USERDATA
-        assert json_dumps(
-            self.datasource._generate_net_cfg(METADATA)
-        ) == json_dumps(NETWORK_CONFIG)
+        assert json_dumps(self.datasource.network_config) == json_dumps(
+            NETWORK_CONFIG
+        )
 
     @responses.activate
     def test_failing_imds_endpoints(self, mocker):

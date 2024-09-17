@@ -2,9 +2,9 @@
 
 import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Optional
 
-from cloudinit import dmi, net, sources, url_helper, util
+from cloudinit import dmi, sources, url_helper, util
 
 LOG = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ class DataSourceCloudCIX(sources.DataSource):
                 func=self.crawl_metadata_service,
             )
         except sources.InvalidMetaDataException as error:
-            LOG.debug(
+            LOG.error(
                 "Failed to read data from CloudCIX datasource: %s", error
             )
             return False
@@ -111,36 +111,8 @@ class DataSourceCloudCIX(sources.DataSource):
 
         if not self.metadata:
             return None
-        self._net_cfg = self._generate_net_cfg(self.metadata)
+        self._net_cfg = self.metadata["network"]
         return self._net_cfg
-
-    def _generate_net_cfg(self, metadata):
-        netcfg: Dict[str, Any] = {"version": 2, "ethernets": {}}
-        macs_to_nics = net.get_interfaces_by_mac()
-        nameservers = metadata["network"].get("nameservers", None)
-
-        for iface in metadata["network"]["interfaces"]:
-            name = macs_to_nics.get(iface["mac_address"])
-            routes = iface.get("routes", None)
-            if name is None:
-                LOG.warning(
-                    "Metadata MAC address %s not found.", iface["mac_address"]
-                )
-                continue
-            netcfg["ethernets"][name] = {
-                "set-name": name,
-                "match": {
-                    "macaddress": iface["mac_address"].lower(),
-                },
-                "addresses": iface["addresses"],
-            }
-
-            if nameservers is not None:
-                netcfg["ethernets"][name]["nameservers"] = nameservers
-            if routes is not None:
-                netcfg["ethernets"][name]["routes"] = routes
-
-        return netcfg
 
 
 def is_platform_viable() -> bool:
