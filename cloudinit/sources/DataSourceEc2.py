@@ -508,21 +508,6 @@ class DataSourceEc2(sources.DataSource):
             return None
 
         result = None
-        no_network_metadata_on_aws = bool(
-            "network" not in self.metadata
-            and self.cloud_name == CloudNames.AWS
-        )
-        if no_network_metadata_on_aws:
-            LOG.debug(
-                "Metadata 'network' not present:"
-                " Refreshing stale metadata from prior to upgrade."
-            )
-            util.log_time(
-                logfunc=LOG.debug,
-                msg="Re-crawl of metadata service",
-                func=self.get_data,
-            )
-
         iface = self.distro.fallback_interface
         net_md = self.metadata.get("network")
         if isinstance(net_md, dict):
