@@ -184,6 +184,30 @@ class NetworkManagerActivator(NetworkActivator):
         cmd = ["nmcli", "device", "disconnect", device_name]
         return _alter_interface(cmd, device_name)
 
+    @classmethod
+    def bring_up_interfaces(cls, device_names: Iterable[str]) -> bool:
+        """Activate network
+
+        Return True on success
+        """
+        state = subp.subp(
+            [
+                "systemctl",
+                "show",
+                "--property=SubState",
+                "NetworkManager.service",
+            ]
+        ).stdout.rstrip()
+        if "SubState=running" != state:
+            LOG.warning(
+                "Expected NetworkManager SubState=running, but detected: %s",
+                state,
+            )
+        return _alter_interface(
+            ["systemctl", "reload-or-try-restart", "NetworkManager.service"],
+            "all",
+        )
+
 
 class NetplanActivator(NetworkActivator):
     NETPLAN_CMD = ["netplan", "apply"]

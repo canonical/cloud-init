@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 import yaml
 
+from cloudinit import subp
 from cloudinit.net.activators import (
     DEFAULT_PRIORITY,
     NAME_TO_ACTIVATOR,
@@ -234,6 +235,21 @@ NETWORK_MANAGER_BRING_UP_CALL_LIST: list = [
     ),
 ]
 
+NETWORK_MANAGER_BRING_UP_ALL_CALL_LIST: list = [
+    (
+        (
+            [
+                "systemctl",
+                "show",
+                "--property=SubState",
+                "NetworkManager.service",
+            ],
+        ),
+        {},
+    ),
+    ((["systemctl", "reload-or-try-restart", "NetworkManager.service"],), {}),
+]
+
 NETWORKD_BRING_UP_CALL_LIST: list = [
     ((["ip", "link", "set", "dev", "eth0", "up"],), {}),
     ((["ip", "link", "set", "dev", "eth1", "up"],), {}),
@@ -278,7 +294,18 @@ class TestActivatorsBringUp:
             assert call == expected_call_list[index]
             index += 1
 
-    @patch("cloudinit.subp.subp", return_value=("", ""))
+
+@pytest.mark.parametrize(
+    "activator, expected_call_list",
+    [
+        (IfUpDownActivator, IF_UP_DOWN_BRING_UP_CALL_LIST),
+        (NetplanActivator, NETPLAN_CALL_LIST),
+        (NetworkManagerActivator, NETWORK_MANAGER_BRING_UP_ALL_CALL_LIST),
+        (NetworkdActivator, NETWORKD_BRING_UP_CALL_LIST),
+    ],
+)
+class TestActivatorsBringUpAll:
+    @patch("cloudinit.subp.subp", return_value=subp.SubpResult("", ""))
     def test_bring_up_interfaces(
         self, m_subp, activator, expected_call_list, available_mocks
     ):
@@ -288,7 +315,7 @@ class TestActivatorsBringUp:
             assert call == expected_call_list[index]
             index += 1
 
-    @patch("cloudinit.subp.subp", return_value=("", ""))
+    @patch("cloudinit.subp.subp", return_value=subp.SubpResult("", ""))
     def test_bring_up_all_interfaces_v1(
         self, m_subp, activator, expected_call_list, available_mocks
     ):
@@ -297,7 +324,7 @@ class TestActivatorsBringUp:
         for call in m_subp.call_args_list:
             assert call in expected_call_list
 
-    @patch("cloudinit.subp.subp", return_value=("", ""))
+    @patch("cloudinit.subp.subp", return_value=subp.SubpResult("", ""))
     def test_bring_up_all_interfaces_v2(
         self, m_subp, activator, expected_call_list, available_mocks
     ):
