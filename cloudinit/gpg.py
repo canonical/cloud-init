@@ -101,6 +101,19 @@ class GPG:
         :return: decrypted data
         :raises: ProcessExecutionError if gpg fails to decrypt data
         """
+        if require_signature:
+            try:
+                subp.subp(
+                    ["gpg", "--verify"],
+                    data=data,
+                    update_env=self.env,
+                )
+            except subp.ProcessExecutionError as e:
+                if e.exit_code == 2:
+                    raise GpgVerificationError(
+                        "Signature verification failed"
+                    ) from e
+                raise
         result = subp.subp(
             [
                 "gpg",
@@ -109,10 +122,6 @@ class GPG:
             data=data,
             update_env=self.env,
         )
-        if require_signature and "gpg: Good signature" not in result.stderr:
-            raise GpgVerificationError(
-                "Signature verification required, but no signature found"
-            )
         return result.stdout
 
     def dearmor(self, key: str) -> str:

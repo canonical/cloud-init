@@ -353,7 +353,4 @@ def test_encrypted_message_but_required_signature(
 
     result = client.execute("cloud-init status --format=json")
     assert result.failed
-    assert (
-        "Signature verification required, but no signature found"
-        in result.stdout
-    )
+    assert "Signature verification failed" in result.stdout
