@@ -6,7 +6,7 @@ Last-Update: 2024-08-02
 
 --- a/systemd/cloud-config.service.tmpl
 +++ b/systemd/cloud-config.service.tmpl
-@@ -10,14 +10,7 @@
+@@ -10,14 +10,7 @@ ConditionEnvironment=!KERNEL_CMDLINE=clo
  
  [Service]
  Type=oneshot
@@ -24,7 +24,7 @@ Last-Update: 2024-08-02
  
 --- a/systemd/cloud-final.service.tmpl
 +++ b/systemd/cloud-final.service.tmpl
-@@ -15,16 +15,10 @@
+@@ -15,16 +15,10 @@ ConditionEnvironment=!KERNEL_CMDLINE=clo
  
  [Service]
  Type=oneshot
@@ -40,12 +40,12 @@ Last-Update: 2024-08-02
  RemainAfterExit=yes
  TimeoutSec=0
 +KillMode=process
- {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
- # Restart NetworkManager if it is present and running.
- ExecStartPost=/bin/sh -c 'u=NetworkManager.service; \
+ TasksMax=infinity
+ 
+ # Output needs to appear in instance console output
 --- a/systemd/cloud-init-local.service.tmpl
 +++ b/systemd/cloud-init-local.service.tmpl
-@@ -7,6 +7,7 @@
+@@ -7,6 +7,7 @@ DefaultDependencies=no
  {% endif %}
  Wants=network-pre.target
  After=hv_kvp_daemon.service
@@ -53,7 +53,7 @@ Last-Update: 2024-08-02
  {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
  Requires=dbus.socket
  After=dbus.socket
-@@ -37,14 +38,7 @@
+@@ -37,14 +38,7 @@ ExecStartPre=/bin/mkdir -p /run/cloud-in
  ExecStartPre=/sbin/restorecon /run/cloud-init
  ExecStartPre=/usr/bin/touch /run/cloud-init/enabled
  {% endif %}
@@ -252,7 +252,7 @@ Last-Update: 2024-08-02
 +WantedBy=cloud-init.target
 --- a/cloudinit/cmd/status.py
 +++ b/cloudinit/cmd/status.py
-@@ -318,9 +318,8 @@
+@@ -318,9 +318,8 @@ def systemd_failed(wait: bool) -> bool:
      for service in [
          "cloud-final.service",
          "cloud-config.service",
@@ -265,7 +265,7 @@ Last-Update: 2024-08-02
              stdout = query_systemctl(
 --- a/cloudinit/config/cc_mounts.py
 +++ b/cloudinit/config/cc_mounts.py
-@@ -525,7 +525,7 @@
+@@ -525,7 +525,7 @@ def handle(name: str, cfg: Config, cloud
      # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
      uses_systemd = cloud.distro.uses_systemd()
      default_mount_options = (
@@ -303,7 +303,7 @@ Last-Update: 2024-08-02
 +After=cloud-init-local.service cloud-init.service
 --- a/tests/unittests/config/test_cc_mounts.py
 +++ b/tests/unittests/config/test_cc_mounts.py
-@@ -566,9 +566,9 @@
+@@ -566,9 +566,9 @@ class TestFstabHandling:
              LABEL=keepme	none	ext4	defaults	0	0
              LABEL=UEFI
              /dev/sda4	/mnt2	auto	nofail,comment=cloudconfig	1	2
