@@ -29,17 +29,19 @@ cloud-init support.
 Technical requirements
 ----------------------
 
-A cloud needs to be able to identify itself to cloud-init at runtime, and that
-the cloud be able to provide configuration to the instance.
+A cloud needs to be able to identify itself to cloud-init at runtime and
+provide unique configuration to the instance.
 
-A mechanism for self-identification
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+A mechanism for identification
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Each cloud platform must positively identify itself to the guest. This allows
 the guest to make educated decisions based on the platform on which it is
 running. On the x86 and arm64 architectures, many clouds identify themselves
 through `DMI`_ data. For example, Oracle's public cloud provides the string
-``'OracleCloud.com'`` in the DMI chassis-asset field.
+``'OracleCloud.com'`` in the DMI chassis-asset field. Some platforms present
+attached devices with well known filesystem label, kernel command line flags or
+virtualization types which uniquely identify a particular cloud platform.
 
 ``Cloud-init``-enabled images produce a log file with details about the
 platform. Reading through this log in :file:`/run/cloud-init/ds-identify.log`
@@ -86,17 +88,35 @@ There are multiple ways to provide `user data`, `metadata`, and
 `vendor data`, and each cloud solution prefers its own way. A datasource
 abstract base class defines a single interface to interact with the different
 clouds. Each cloud implementation must inherit from this base class to use this
-shared functionality and interface. See :file:`cloud-init/sources/__init__.py`
+shared functionality and interface. See `cloudinit/sources/__init__.py`_
 to see this class.
 
 If you are interested in adding a new datasource for your cloud platform you
 will need to do all of the following:
 
+Update ``ds-identify``
+----------------------
+
+In ``systemd``, Alpine and BSD environments, ``ds-identify`` runs in early boot
+to detect which datasource should be enabled, or if ``cloud-init`` should run
+at all. You'll need to add early identification support for the platform via a
+``dscheck_<CloudPlatform>`` function in `tools/ds-identify`_.
+For example, see `NWCS support`_
+
+Add tests for ``ds-identify``
+-----------------------------
+
+Add relevant tests in a new class to
+`tests/unittests/test_ds_identify.py`_. Use ``TestOracle`` as an example.
+
 Add datasource module cloudinit/sources/DataSource<CloudPlatform>.py
 --------------------------------------------------------------------
 
-We suggest you start by copying one of the simpler datasources
-such as ``DataSourceHetzner``.
+Use one of the simpler datasources such as ``DataSourceHetzner`` as a guiding
+template for style and expectations. The DataSource module should implement a
+``ds_detect`` method validates the same identification conditions defined
+in ds-identify and returns ``True`` when met. This allows cloud-init to support
+environments without ds-identify run as part of the init system.
 
 Re-run datasource detection
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -104,7 +124,7 @@ Re-run datasource detection
 While developing a new datasource it may be helpful to manually run datasource
 detection without rebooting the system.
 
-To re-run datasource detection, you must first force :file:`ds-identify` to
+To re-run datasource detection, first force :file:`ds-identify` to
 re-run, then clean up any logs, and finally, re-run ``cloud-init``:
 
 .. code-block:: bash
@@ -118,33 +138,19 @@ Add tests for datasource module
 -------------------------------
 
 Add a new file with some tests for the module to
-:file:`cloudinit/sources/test_<yourplatform>.py`. For example, see
-:file:`cloudinit/sources/tests/test_oracle.py`
-
-Update ``ds-identify``
-----------------------
-
-In ``systemd`` systems, ``ds-identify`` is used to detect which datasource
-should be enabled, or if ``cloud-init`` should run at all. You'll need to
-make changes to :file:`tools/ds-identify`.
-
-Add tests for ``ds-identify``
------------------------------
-
-Add relevant tests in a new class to
-:file:`tests/unittests/test_ds_identify.py`. You can use ``TestOracle`` as
-an example.
+:file:`tests/unittests/sources/test_<cloudplatform>.py`. For example, see
+`tests/unittests/sources/test_oracle.py`_
 
 Add your datasource name to the built-in list of datasources
 ------------------------------------------------------------
 
-Add your datasource module name to the end of the ``datasource_list``
-entry in :file:`cloudinit/settings.py`.
+Add the new datasource module name to the end of the ``datasource_list``
+entry in `cloudinit/settings.py`_.
 
 Add your cloud platform to apport collection prompts
 ----------------------------------------------------
 
-Update the list of cloud platforms in :file:`cloudinit/apport.py`. This list
+Update the list of cloud platforms in `cloudinit/apport.py`_. This list
 will be provided to the user who invokes :command:`ubuntu-bug cloud-init`.
 
 Enable datasource by default in Ubuntu packaging branches
@@ -158,14 +164,14 @@ packaging configuration.
 Add documentation for your datasource
 -------------------------------------
 
-You should update the following docs:
+Update the following docs:
 1. Add a new file in :file:`doc/rtd/reference/datasources/<cloudplatform>.rst`
-2. Reference `<cloudplatform>.rst` in :file:`doc/rtd/reference/datasources.rst`
-3. Add an alphebetized dsname entry in representing your datasource
-:file:`doc/rtd/reference/datasource_dsname_map.rst`
+2. Reference `<cloudplatform>.rst` in `doc/rtd/reference/datasources.rst`_
+3. Add an alphabetized dsname entry in representing the datasource
+`doc/rtd/reference/datasource_dsname_map.rst`_
 
-Benefits of including your datasource in upstream cloud-init
-============================================================
+Benefits of including a datasource in upstream cloud-init
+=========================================================
 
 Datasources included in upstream cloud-init benefit from ongoing maintenance,
 compatibility with the rest of the codebase, and security fixes by the upstream
@@ -180,3 +186,12 @@ If this is not possible, one can add
 .. _Proxmox: https://pve.proxmox.com/wiki/Cloud-Init_Support
 .. _DatasourceNoCloud.py: https://github.com/canonical/cloud-init/blob/main/cloudinit/sources/DataSourceNoCloud.py
 .. _nocloud: https://cloudinit.readthedocs.io/en/latest/reference/datasources/nocloud.html
+.. _NWCS support: https://github.com/canonical/cloud-init/commit/d0cae67b
+.. _doc/rtd/reference/datasources.rst: https://github.com/canonical/cloud-init/tree/main/doc/reference/datasources.rst
+.. _doc/rtd/reference/datasource_dsname_map.rst: https://github.com/canonical/cloud-init/tree/main/doc/reference/datasource_dsname_map.rst
+.. _cloudinit/apport.py: https://github.com/canonical/cloud-init/tree/main/cloudinit/apport.py
+.. _cloudinit/settings.py: https://github.com/canonical/cloud-init/tree/main/cloudinit/settings.py
+.. _cloudinit/sources/__init__.py: https://github.com/canonical/cloud-init/tree/main/cloudinit/sources/__init__.py
+.. _tests/unittests/test_ds_identify.py: https://github.com/canonical/cloud-init/tree/main/tests/unittests/test_ds_identify.py
+.. _tests/unittests/sources/test_oracle.py:  https://github.com/canonical/cloud-init/tree/main/tests/unittests/sources/test_oracle.py
+.. _tools/ds-identify:  https://github.com/canonical/cloud-init/tree/main/tools/ds-identify
