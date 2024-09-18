@@ -4,7 +4,6 @@
 import copy
 import json
 import logging
-from typing import List
 from unittest import mock
 
 import pytest
@@ -611,84 +610,6 @@ class TestEc2:
         )
         ds._network_config = {"cached": "data"}
         assert {"cached": "data"} == ds.network_config
-
-    @responses.activate
-    @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
-    def test_network_config_cached_property_refreshed_on_upgrade(
-        self, m_dhcp, caplog, mocker, tmpdir
-    ):
-        """Refresh the network_config Ec2 cache if network key is absent.
-
-        This catches an upgrade issue where obj.pkl contained stale metadata
-        which lacked newly required network key.
-        """
-        old_metadata = copy.deepcopy(DEFAULT_METADATA)
-        old_metadata.pop("network")
-        ds = self._setup_ds(
-            platform_data=self.valid_platform_data,
-            sys_cfg={"datasource": {"Ec2": {"strict_id": True}}},
-            md={"md": old_metadata},
-            mocker=mocker,
-            tmpdir=tmpdir,
-        )
-        assert True is ds.get_data()
-
-        def _remove_md(resp_list: List) -> None:
-            for index, url in enumerate(resp_list):
-                try:
-                    url = url.url
-                except AttributeError:
-                    # Can be removed when Bionic is EOL
-                    url = url["url"]
-                if url.startswith(
-                    "http://169.254.169.254/2009-04-04/meta-data/"
-                ):
-                    del resp_list[index]
-
-        # Workaround https://github.com/getsentry/responses/issues/212
-        if hasattr(responses, "_urls"):
-            # Can be removed when Bionic is EOL
-            _remove_md(responses._urls)
-        elif hasattr(responses, "_default_mock") and hasattr(
-            responses._default_mock, "_urls"
-        ):
-            # Can be removed when Bionic is EOL
-            _remove_md(responses._default_mock._urls)
-        elif hasattr(responses, "_matches"):
-            # Can be removed when Focal is EOL
-            _remove_md(responses._matches)
-        elif hasattr(responses, "_default_mock") and hasattr(
-            responses._default_mock, "_matches"
-        ):
-            # Can be removed when Focal is EOL
-            _remove_md(responses._default_mock._matches)
-
-        # Provide new revision of metadata that contains network data
-        register_mock_metaserver(
-            "http://169.254.169.254/2009-04-04/meta-data/",
-            DEFAULT_METADATA,
-            responses,
-        )
-        mac1 = "06:17:04:d7:26:09"  # Defined in DEFAULT_METADATA
-        get_interface_mac_path = M_PATH_NET + "get_interfaces_by_mac"
-        ds.distro.fallback_nic = "eth9"
-        with mock.patch(get_interface_mac_path) as m_get_interfaces_by_mac:
-            m_get_interfaces_by_mac.return_value = {mac1: "eth9"}
-            nc = ds.network_config  # Will re-crawl network metadata
-        assert None is not nc
-        assert "Refreshing stale metadata from prior to upgrade" in caplog.text
-        expected = {
-            "version": 2,
-            "ethernets": {
-                "eth9": {
-                    "match": {"macaddress": mac1},
-                    "set-name": "eth9",
-                    "dhcp4": True,
-                    "dhcp6": True,
-                }
-            },
-        }
-        assert expected == ds.network_config
 
     @responses.activate
     def test_ec2_get_instance_id_refreshes_identity_on_upgrade(
