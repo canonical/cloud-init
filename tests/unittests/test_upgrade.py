@@ -47,6 +47,7 @@ class TestUpgrade:
             "seed",
             "seed_dir",
         },
+        "CloudCIX": {"_metadata_url", "_net_cfg"},
         "CloudSigma": {"cepko", "ssh_public_key"},
         "CloudStack": {
             "api_ver",
