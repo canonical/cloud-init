@@ -73,4 +73,4 @@ jobs:
           echo "[lxd]" > /home/$USER/.config/pycloudlib.toml
       - name: Run integration Tests
         run: |
-          sh -c 'CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls ${{ runner.temp }}/cloud-init*.deb)" tox -e integration-tests-ci'
+          CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls ${{ runner.temp }}/cloud-init*.deb)" tox -e integration-tests-ci -- --color=yes
