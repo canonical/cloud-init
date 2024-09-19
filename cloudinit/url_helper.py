@@ -268,9 +268,7 @@ class StringResponse:
         self.url = url
 
     def ok(self, *args, **kwargs):
-        if self.code != 200:
-            return False
-        return True
+        return self.code == 200
 
     def __str__(self):
         return self.contents.decode("utf-8")

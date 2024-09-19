@@ -1079,6 +1079,10 @@ class TestDsIdentify(DsIdentifyBase):
         """Hetzner cloud is identified in sys_vendor."""
         self._test_ds_found("Hetzner")
 
+    def test_cloudcix_found(self):
+        """CloudCIX cloud is identified in dmi product-name"""
+        self._test_ds_found("CloudCIX")
+
     def test_nwcs_found(self):
         """NWCS is identified in sys_vendor."""
         self._test_ds_found("NWCS")
@@ -1607,6 +1611,10 @@ VALID_CFG = {
             P_CHASSIS_ASSET_TAG: "No-match\n",
             os.path.join(P_SEED_DIR, "azure", "ovf-env.xml"): "present\n",
         },
+    },
+    "CloudCIX": {
+        "ds": "CloudCIX",
+        "files": {P_PRODUCT_NAME: "CloudCIX\n"},
     },
     "Azure-parse-invalid": {
         "ds": "Azure",
