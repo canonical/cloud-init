@@ -33,13 +33,12 @@ def disable_setup_logging():
 def mock_status_wrapper(mocker, tmpdir):
     link_d = os.path.join(tmpdir, "link")
     data_d = os.path.join(tmpdir, "data")
-    with mocker.patch(
+    mocker.patch(
         "cloudinit.cmd.main.read_cfg_paths",
         return_value=mock.Mock(get_cpath=lambda _: data_d),
-    ), mocker.patch(
-        "cloudinit.cmd.main.os.path.normpath", return_value=link_d
-    ):
-        yield Tmpdir(tmpdir, link_d, data_d)
+    )
+    mocker.patch("cloudinit.cmd.main.os.path.normpath", return_value=link_d)
+    yield Tmpdir(tmpdir, link_d, data_d)
 
 
 class TestCLI:
