@@ -2,7 +2,6 @@ Package management
 ==================
 
 * :ref:`cce-update-upgrade`
-* :ref:`cce-add-apt-repos`
 * :ref:`cce-apt`
 * :ref:`cce-apt-pipeline`
 
@@ -18,7 +17,6 @@ Package management
    :hidden:
 
    package_update_upgrade
-   apt_repos
    apt
    apt_pipeline
    apk_repo
