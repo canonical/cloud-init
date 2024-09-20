@@ -1,3 +1,12 @@
+cloud-init (24.4~3+really24.3.1-0ubuntu4) UNRELEASED; urgency=medium
+
+  * Bug fix release (LP: #2081124):
+    d/p/cpick-hotplugd-systemd-ordering-fix.patch: fix systemd ordering cycle
+    issues with network cloud-init-hotplugd.socket, NetworkManager and
+    dbus.socket by adding DefaultDependencies=no to cloud-init-hotplugd.socket.
+
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 20 Sep 2024 15:31:13 -0600
+
 cloud-init (24.4~3+really24.3.1-0ubuntu3) oracular; urgency=medium
 
   * Bug fix release (LP: #2080688):
