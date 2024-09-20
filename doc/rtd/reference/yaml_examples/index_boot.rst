@@ -3,8 +3,8 @@ System initialization and boot
 
 * :ref:`cce-boot-cmds` using ``bootcmd`` and ``runcmd``
 * :ref:`cce-scripts` on boot
-* :ref:`cce-disk-setup`
 * :ref:`cce-seed-random`
+* :ref:`cce-write-files`
 
 System configuration
 --------------------
@@ -20,8 +20,8 @@ System configuration
 
    boot_cmds
    scripts
-   disk_setup
    seed_random
+   write_files
 
 .. toctree::
    :titlesonly:

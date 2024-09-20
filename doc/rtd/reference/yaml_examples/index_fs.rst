@@ -1,13 +1,9 @@
-File systems
-============
+Disk and file system setup
+==========================
 
-For initial configuration of partitions and filesystems you may also want to
-refer to :ref:`cce-disk-setup`).
-
-* :ref:`cce-growpart`
+* :ref:`cce-disk-setup` - this includes initial disk and filesystem setup,
+  resizing the file system, and growing partitions
 * :ref:`cce-mounts`
-* :ref:`cce-resizefs`
-* :ref:`cce-write-files`
 * :ref:`cce-gluster`
 
 .. TOC
@@ -16,8 +12,6 @@ refer to :ref:`cce-disk-setup`).
    :titlesonly:
    :hidden:
 
-   growpart
+   disk_setup
    mounts
-   resizefs
-   write_files
    gluster
