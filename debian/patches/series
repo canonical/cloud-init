@@ -1,1 +1,2 @@
 cpick-nocloudnet-seedfrom-sysconfig-fix.patch
+cpick-hotplugd-systemd-ordering-fix.patch
