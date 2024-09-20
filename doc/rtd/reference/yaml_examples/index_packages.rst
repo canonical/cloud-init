@@ -17,7 +17,7 @@ Package management
    :titlesonly:
    :hidden:
 
-   update_upgrade
+   package_update_upgrade
    apt_repos
    apt
    apt_pipeline
