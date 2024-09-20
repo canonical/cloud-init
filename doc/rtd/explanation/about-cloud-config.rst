@@ -4,62 +4,63 @@ About the cloud-config file
 ***************************
 
 The ``#cloud-config`` file is a type of user data that cloud-init can consume
-to automatically set up various aspects of the system.
-
-It overrides all other types of user data, so if there is a conflict between
-the config you specify in other :ref:`user data formats <user_data_formats>`,
-the contents of the ``#cloud-config`` file will take precendence.
+to automatically set up various aspects of the system. It is commonly referred
+to as **cloud config**. Using cloud config to configure your machine leverages
+the best practices encoded into cloud-init's modules in a distribution-agnostic
+way.
 
 Note that networks are not configurable via the ``#cloud-config`` file because
-:ref:`network configuration <network_config>` occurs before user data is
-consumed and applied.
+:ref:`network configuration <network_config>` comes from the cloud.
 
 How do I create a cloud-config file?
 ====================================
 
-The cloud-config file can be written in any valid YAML but the first line
-**must start** with ``#cloud-config``. This line identifies the file to
-cloud-init and ensures that it will be processed as intended.
+The cloud-config file uses `YAML version 1.1`_. The file is composed of a
+**header** and one or more **modules**.
 
-After the first line, every aspect of the system's configuration is controlled
-through specific cloud-init **modules**. Each module included in the
-``cloud-config`` file can be thought of as a section.
+* **The header**:
+  The first line **must start** with ``#cloud-config``. This line identifies
+  the file to cloud-init and ensures that it will be processed as intended.
 
-Let us consider the example of the "keyboard" module. The module has a
-corresponding top-level key (``keyboard:``, in this case), and beneath that
-the various configuration parameters are defined:
+* **The modules**:
+  After the header, every aspect of the system's configuration is controlled
+  through specific cloud-init modules.
+
+Most modules are specified through the use of one or more **top-level keys**,
+and the configuration options are set using YAML key-value pairs or list types,
+according to the config schema. It follows this general format:
 
 .. code-block:: yaml
 
+   #cloud-config
+   top-level-key:
+     config-key-1: config-value-1
+     config-key-2: config-value-2
+     list-type:
+     - list-value-1
+       additional-list-value-1
+     - list-value-2
+
+The order of the top-level keys is unimportant -- they can be written in any
+order, and cloud-init handles the order of operations.
+
+Let us consider a real example using the :ref:`Keyboard <mod_cc_keyboard>`
+module. The top-level key for this module is ``keyboard:``, and beneath that
+are the various configuration options for the module shown as key-value pairs:
+
+.. code-block:: yaml
+
+   #cloud-config
    keyboard:
      layout: us
      model: pc105
      variant: nodeadkeys
      options: compose:rwin
 
-A full list of modules can be found :ref:`on our modules page <modules>`. This
-list also shows the valid schema keys for every module, and YAML examples.
-
-Module ordering
----------------
-
-The order of the different module "sections" is mostly unimportant and modules
-can be shown in any order -- except where there are dependencies. For example,
-if you want to create users and also put them in a specific group, then the
-``groups`` section must go before ``users`` so that the groups are created
-first.
-
-Cloud-config for the live installer
------------------------------------
-
-For the special case where your cloud-config file is will be consumed by the
-Ubuntu installer, you will need to include the the ``autoinstall:``
-top level key. The presence of this key will instruct cloud-init not to process
-the user-data itself, but instead to pass it directly to the installer for
-processing.
-
-For more detailed instructions for this case, refer to the installer
-documentation on using `cloud-init with the autoinstaller`_.
+Not all modules require a top-level key, and will run on the system anyway if
+certain conditions are met. A full list of modules can be found
+:ref:`on our modules page <modules>`. This list also shows the valid schema for
+every module, and simple YAML examples.
 
 Checking your cloud-config file
 ===============================
@@ -72,14 +73,69 @@ you of any errors.
 Example cloud-config file
 =========================
 
-The following code is an example of a working user data cloud-config file.
+The following code is an example of a complete user data cloud-config file.
 The :ref:`cloud-config example library <yaml_examples>` contains further
 examples that can be copy/pasted and adapted to your needs.
 
 .. code-block:: yaml
 
    #cloud-config
-   <put example cloud-config here>
+
+   # Basic system setup
+   hostname: example-host
+   fqdn: example-host.example.com
+
+   # User setup configuration
+   users:
+     - name: exampleuser
+       gecos: Example User
+       sudo: ['ALL=(ALL) NOPASSWD:ALL']
+       groups: sudo
+       homedir: /home/exampleuser
+       shell: /bin/bash
+       ssh_authorized_keys:
+         - ssh-rsa AAAAB3...restofpublickey user@host
+
+   # Change passwords for exampleuser using chpasswd
+   chpasswd:
+     expire: false
+     users:
+     - {name: exampleuser, password: terriblepassword12345, type: text}
+
+   # Package management
+   package_update: true
+   package_upgrade: true
+   packages:
+     - git
+     - nginx
+     - python3
+
+   # Commands to run at the end of the cloud-init process
+   runcmd:
+     - echo "Hello, world!" > /etc/motd
+     - systemctl restart nginx
+     - mkdir -p /var/www/html
+     - echo "<html><body><h1>Welcome to the party, pal!</h1></body></html>" > /var/www/html/index.html
+
+   # Write files to the instance
+   write_files:
+     - path: /etc/example_config.conf
+       content: |
+         [example-config]
+         key=value
+     - path: /etc/motd
+       content: |
+         Some text that will appear in your MOTD!
+
+   # Final message, shown after cloud-init completes
+   final_message: "The system is up, after $UPTIME seconds"
+
+   # Reboot the instance after configuration
+   power_state:
+     mode: reboot
+     message: Rebooting after initial setup
+     timeout: 30
+     condition: True
 
 .. LINKS
-.. _cloud-init with the autoinstaller: https://canonical-subiquity.readthedocs-hosted.com/en/latest/tutorial/providing-autoinstall.html#autoinstall-by-way-of-cloud-config
+.. _YAML version 1.1: https://yaml.org/spec/1.1/current.html
