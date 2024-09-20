@@ -4,7 +4,7 @@ Update, upgrade and install packages
 ************************************
 
 These examples show you how to install, update, and upgrade packages during
-boot. 
+boot.
 
 For a full list of keys, refer to the
 :ref:`package update upgrade install <mod_cc_package_update_upgrade_install>`
