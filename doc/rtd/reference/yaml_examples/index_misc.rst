@@ -8,8 +8,6 @@ Miscellaneous
 * :ref:`cce-power-state-change`
 * :ref:`cce-spacewalk`
 * :ref:`cce-datasources`
-* :ref:`cce-archive`
-* :ref:`cce-archive-launch-index`
 * :ref:`cce-launch-index`
 
 
@@ -26,7 +24,5 @@ Miscellaneous
    power_state_change
    spacewalk
    datasources
-   archive
-   archive_launch_index
    launch_index
 
