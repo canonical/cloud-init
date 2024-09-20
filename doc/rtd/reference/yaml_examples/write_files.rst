@@ -45,8 +45,8 @@ Create empty file on the system
 Defer writing content
 =====================
 
-This example shows how to fefer writing the file until after the Nginx package
-is installed and its user is created alongside.
+This example shows how to defer writing the file until after the packages have
+been installed and its user is created alongside.
 
 .. literalinclude:: ../../../module-docs/cc_write_files/example5.yaml
    :language: yaml
