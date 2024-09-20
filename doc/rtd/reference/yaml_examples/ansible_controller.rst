@@ -4,32 +4,25 @@ Configure instance to be an Ansible controller
 **********************************************
 
 This slightly more complex example demonstrates how to set up an Ansible
-controller host on boot. Here we break down each section, with the full and
-unbroken config at the end of the page.
-
-The example installs a playbook repository from a remote private repository
-and then runs two of the plays.
+controller host on boot. The example installs a playbook repository from a
+remote private repository and then runs two of the plays.
 
 For a full list of keys, refer to the `Ansible module`_ schema.
-
-Update, upgrade and install packages
-====================================
 
 .. code-block:: yaml
 
     #cloud-config
+
+    # Update, upgrade and install packages
+    # ------------------------------------
     package_update: true
     package_upgrade: true
     packages: ['git', 'python3-pip']
 
-Set up an Ansible user
-======================
-
-We give the local Ansible user password-less ``sudo`` so that Ansible can
-write to a local root-only file.
-
-.. code-block:: yaml
-
+    # Set up an Ansible user
+    # ----------------------
+    # We give the local Ansible user password-less ``sudo`` so that Ansible can
+    # write to a local root-only file.
     users:
     - name: ansible
       gecos: Ansible User
@@ -37,36 +30,25 @@ write to a local root-only file.
       groups: users,admin,wheel,lxd
       sudo: ALL=(ALL) NOPASSWD:ALL
 
-Initialize LXD using cloud-init
-===============================
-
-In our example, a LXD container is started (using Ansible) on boot, so we must
-initialize LXD.
-
-.. code-block:: yaml
-
+    # Initialize LXD using cloud-init
+    # -------------------------------
+    # A LXD container is started (using Ansible) on boot, so we must
+    # initialize LXD.
     lxd:
       init:
         storage_backend: dir
 
-Configure and run Ansible on boot
-=================================
-
-First we install Ansible using ``pip``, and ensure that the
-``community.general`` collection is installed (it is likely to be already
-installed by ``pip``).
-
-Then we use a deploy key to clone a remote private repository and run two
-playbooks:
-
-* The first playbook starts a LXD container and creates a new inventory file
-* The second playbook connects to and configures the container using Ansible
-
-The public version of the playbooks can be inspected at this URL:
-``https://github.com/holmanb/ansible-lxd-public``
-
-.. code-block:: yaml
-
+    # Configure and run Ansible on boot
+    # ---------------------------------
+    # First we install Ansible using ``pip``, and ensure that the
+    # ``community.general`` collection is installed (it is likely to be already
+    # installed by ``pip``).
+    # Then we use a deploy key to clone a remote private repository and run two
+    # playbooks:
+    # * The first starts a LXD container and creates a new inventory file
+    # * The second connects to and configures the container using Ansible
+    # The public version of the playbooks can be inspected at this URL:
+    # ``https://github.com/holmanb/ansible-lxd-public``
     ansible:
       install_method: pip
       package_name: ansible
@@ -91,15 +73,11 @@ The public version of the playbooks can be inspected at this URL:
             private_key: /home/ansible/.ssh/id_rsa
             inventory: new_ansible_hosts
 
-Write a deploy key to the filesystem for Ansible
-================================================
-
-This deploy key is tied to a `private GitHub repository`_. It exists to
-demonstrate how deploy keys are used in Ansible. A duplicate public copy of
-the repository `exists here`_.
-
-.. code-block:: yaml
-
+    # Write a deploy key to the filesystem for Ansible
+    # ------------------------------------------------
+    # This deploy key is tied to a `private GitHub repository`_. It exists to
+    # demonstrate how deploy keys are used in Ansible. A duplicate public copy
+    # of the repository `exists here`_.
     write_files:
       - path: /home/ansible/.ssh/known_hosts
         owner: ansible:ansible
