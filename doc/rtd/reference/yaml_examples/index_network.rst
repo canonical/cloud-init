@@ -5,7 +5,6 @@ Networking
 * :ref:`cce-resolv-conf`
 * :ref:`cce-wireguard`
 * :ref:`cce-update-etc-hosts`
-* :ref:`cce-fan`
 
 .. TOC
 
@@ -17,4 +16,4 @@ Networking
    resolv_conf
    wireguard
    update_etc_hosts
-   fan
+

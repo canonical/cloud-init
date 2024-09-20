@@ -2,6 +2,7 @@ Miscellaneous
 =============
 
 * :ref:`Configure LXD <cce-lxd>`
+* :ref:`cce-byobu` terminal multiplexer
 * :ref:`cce-install-hotplug`
 * :ref:`cce-mcollective`
 * :ref:`cce-phone-home`
@@ -18,6 +19,7 @@ Miscellaneous
    :hidden:
 
    lxd
+   byobu
    install_hotplug
    mcollective
    phone_home
