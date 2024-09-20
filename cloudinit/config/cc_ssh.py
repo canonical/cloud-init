@@ -11,8 +11,9 @@ import glob
 import logging
 import os
 import re
+import shutil
 import sys
-from typing import List, Optional, Sequence
+from typing import Iterable, List, Optional, Sequence
 
 from cloudinit import lifecycle, ssh_util, subp, util
 from cloudinit.cloud import Cloud
@@ -35,25 +36,28 @@ meta: MetaSchema = {
 
 LOG = logging.getLogger(__name__)
 
-GENERATE_KEY_NAMES = ["rsa", "ecdsa", "ed25519"]
+
 FIPS_UNSUPPORTED_KEY_NAMES = ["ed25519"]
 
 pattern_unsupported_config_keys = re.compile(
     "^(ecdsa-sk|ed25519-sk)_(private|public|certificate)$"
 )
-KEY_FILE_TPL = "/etc/ssh/ssh_host_%s_key"
+
 PUBLISH_HOST_KEYS = True
 # By default publish all supported hostkey types.
 HOST_KEY_PUBLISH_BLACKLIST: List[str] = []
 
 CONFIG_KEY_TO_FILE = {}
 PRIV_TO_PUB = {}
-for k in GENERATE_KEY_NAMES:
+for k in ssh_util.GENERATE_KEY_NAMES:
     CONFIG_KEY_TO_FILE.update(
         {
-            f"{k}_private": (KEY_FILE_TPL % k, 0o600),
-            f"{k}_public": (f"{KEY_FILE_TPL % k}.pub", 0o644),
-            f"{k}_certificate": (f"{KEY_FILE_TPL % k}-cert.pub", 0o644),
+            f"{k}_private": (ssh_util.KEY_FILE_TPL % k, 0o600),
+            f"{k}_public": (f"{ssh_util.KEY_FILE_TPL % k}.pub", 0o644),
+            f"{k}_certificate": (
+                f"{ssh_util.KEY_FILE_TPL % k}-cert.pub",
+                0o644,
+            ),
         }
     )
     PRIV_TO_PUB[f"{k}_private"] = f"{k}_public"
@@ -95,6 +99,31 @@ def set_redhat_keyfile_perms(keyfile: str) -> None:
         os.chown(keyfile, -1, gid)
     os.chmod(keyfile, permissions_private)
     os.chmod(f"{keyfile}.pub", permissions_public)
+
+
+def _fetch_early_keys(
+    key_names: Iterable[str], rundir: str, cfg: Config
+) -> List[str]:
+    early_keys: List[ssh_util.KeyPair] = (
+        ssh_util.wait_for_early_generated_keys(rundir)
+    )
+    if not early_keys or cfg.get("seed_random"):
+        return []
+    for keypair in early_keys:
+        if keypair.key_type in key_names:
+            priv_file = str(keypair.private_path)
+            pub_file = str(keypair.public_path)
+            LOG.debug(
+                "Using early generated key for %s from %s",
+                keypair.key_type,
+                priv_file,
+            )
+            shutil.move(priv_file, ssh_util.KEY_FILE_TPL % (keypair.key_type))
+            shutil.move(
+                pub_file,
+                f"{ssh_util.KEY_FILE_TPL % (keypair.key_type)}.pub",
+            )
+    return [key.key_type for key in early_keys]
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
@@ -155,31 +184,28 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 )
     else:
         # if not, generate them
-        genkeys = util.get_cfg_option_list(
-            cfg, "ssh_genkeytypes", GENERATE_KEY_NAMES
+        genkeys: List[str] = util.get_cfg_option_list(
+            cfg, "ssh_genkeytypes", ssh_util.GENERATE_KEY_NAMES
         )
-        # remove keys that are not supported in fips mode if its enabled
-        key_names = (
-            genkeys
-            if not util.fips_enabled()
-            else [
-                names
-                for names in genkeys
-                if names not in FIPS_UNSUPPORTED_KEY_NAMES
-            ]
-        )
-        skipped_keys = set(genkeys).difference(key_names)
-        if skipped_keys:
-            LOG.debug(
-                "skipping keys that are not supported in fips mode: %s",
-                ",".join(skipped_keys),
-            )
+        key_names = set(genkeys)
 
-        for keytype in key_names:
-            keyfile = KEY_FILE_TPL % (keytype)
+        # remove keys that are not supported in fips mode if its enabled
+        if util.fips_enabled():
+            key_names = key_names.difference(FIPS_UNSUPPORTED_KEY_NAMES)
+            skipped_keys = set(genkeys).difference(key_names)
+            if skipped_keys:
+                LOG.debug(
+                    "skipping keys that are not supported in fips mode: %s",
+                    ",".join(skipped_keys),
+                )
+
+        util.ensure_dir("/etc/ssh")
+        early_keys = _fetch_early_keys(key_names, cloud.paths.run_dir, cfg)
+        remaining_keys = key_names.difference(early_keys)
+        for keytype in remaining_keys:
+            keyfile = ssh_util.KEY_FILE_TPL % (keytype)
             if os.path.exists(keyfile):
                 continue
-            util.ensure_dir(os.path.dirname(keyfile))
             cmd = ["ssh-keygen", "-t", keytype, "-N", "", "-f", keyfile]
 
             # TODO(harlowja): Is this guard needed?
@@ -279,7 +305,7 @@ def get_public_host_keys(blacklist: Optional[Sequence[str]] = None):
     @returns: List of keys, each formatted as a two-element tuple.
         e.g. [('ssh-rsa', 'AAAAB3Nz...'), ('ssh-ed25519', 'AAAAC3Nx...')]
     """
-    public_key_file_tmpl = "%s.pub" % (KEY_FILE_TPL,)
+    public_key_file_tmpl = "%s.pub" % (ssh_util.KEY_FILE_TPL,)
     key_list = []
     blacklist_files = []
     if blacklist:

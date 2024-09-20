@@ -39,6 +39,8 @@ from cloudinit.config.modules import Modules
 from cloudinit.config.schema import validate_cloudconfig_schema
 from cloudinit import log
 from cloudinit.reporting import events
+from cloudinit.settings import PER_INSTANCE, PER_ALWAYS, PER_ONCE, CLOUD_CONFIG
+from cloudinit.ssh_util import start_early_generate_host_keys
 from cloudinit.settings import (
     PER_INSTANCE,
     PER_ALWAYS,
@@ -351,6 +353,7 @@ def main_init(name, args):
     # 2. Setup logging/output redirections with resultant config (if any)
     # 3. Initialize the cloud-init filesystem
     # 4. Check if we can stop early by looking for various files
+    # 4.1 Early SSH host key generation
     # 5. Fetch the datasource
     # 6. Connect to the current instance location + update the cache
     # 7. Consume the userdata (handlers get activated here)
@@ -407,6 +410,15 @@ def main_init(name, args):
     path_helper = init.paths
     purge_cache_on_python_version_change(init)
     mode = sources.DSMODE_LOCAL if args.local else sources.DSMODE_NETWORK
+
+    # Stage 4.1
+    if mode == sources.DSMODE_LOCAL:
+        try:
+            # Default should be patched to False on backport
+            if init.cfg.get("early_generate_host_keys", True):
+                start_early_generate_host_keys(init.paths.run_dir)
+        except Exception as e:
+            LOG.warning("Failed to generate host keys: %s", e)
 
     if mode == sources.DSMODE_NETWORK:
         existing = "trust"
