@@ -9,6 +9,7 @@
 import copy
 import logging
 import os
+from typing import Dict, Mapping
 
 from cloudinit import subp, temp_utils, templater, type_utils, util
 from cloudinit.cloud import Cloud
@@ -98,7 +99,7 @@ NTP_CLIENT_CONFIG = {
 }
 
 # This is Distro-specific configuration overrides of the base config
-DISTRO_CLIENT_CONFIG = {
+DISTRO_CLIENT_CONFIG: Dict[str, Dict] = {
     "alpine": {
         "chrony": {
             "confpath": "/etc/chrony/chrony.conf",
@@ -279,7 +280,7 @@ def distro_ntp_client_configs(distro):
     return cfg
 
 
-def select_ntp_client(ntp_client, distro):
+def select_ntp_client(ntp_client, distro) -> Mapping:
     """Determine which ntp client is to be used, consulting the distro
        for its preference.
 
@@ -318,7 +319,7 @@ def select_ntp_client(ntp_client, distro):
                 'Selected distro preferred NTP client "%s", not yet installed',
                 client,
             )
-            clientcfg = distro_cfg.get(client)
+            clientcfg = distro_cfg.get(client, {})
     else:
         LOG.debug(
             'Selected NTP client "%s" via distro system config',
@@ -565,7 +566,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     template_fn = None
     if not ntp_client_config.get("template"):
-        template_name = ntp_client_config.get("template_name").replace(
+        template_name = ntp_client_config["template_name"].replace(
             "{distro}", cloud.distro.name
         )
         template_fn = cloud.get_template_filename(template_name)
@@ -611,14 +612,14 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
         try:
             cloud.distro.manage_service(
-                "enable", ntp_client_config.get("service_name")
+                "enable", ntp_client_config["service_name"]
             )
         except subp.ProcessExecutionError as e:
             LOG.exception("Failed to enable ntp service: %s", e)
             raise
     try:
         cloud.distro.manage_service(
-            "reload", ntp_client_config.get("service_name")
+            "reload", ntp_client_config["service_name"]
         )
     except subp.ProcessExecutionError as e:
         LOG.exception("Failed to reload/start ntp service: %s", e)
