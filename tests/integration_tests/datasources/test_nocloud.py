@@ -198,17 +198,13 @@ class TestSmbios:
         version_boundary = get_feature_flag_value(
             client, "DEPRECATION_INFO_BOUNDARY"
         )
-        message = (
-            "The 'nocloud-net' datasource name is "
-            'deprecated" /var/log/cloud-init.log'
-        )
+        message = "The 'nocloud-net' datasource name is deprecated"
         # nocloud-net deprecated in version 24.1
         if lifecycle.should_log_deprecation("24.1", version_boundary):
             verify_clean_boot(client, require_deprecations=[message])
         else:
             client.execute(
-                r"grep \"INFO]: The 'nocloud-net' datasource name is"
-                ' deprecated" /var/log/cloud-init.log'
+                rf"grep \"INFO]: {message}\" /var/log/cloud-init.log"
             ).ok
 
 
