@@ -145,7 +145,7 @@ class Init:
         # Changed only when a fetch occurs
         self.datasource: Optional[sources.DataSource] = None
         self.ds_restored = False
-        self._previous_iid = None
+        self._previous_iid: Optional[str] = None
 
         if reporter is None:
             reporter = events.ReportEventStack(

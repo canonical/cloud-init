@@ -75,7 +75,7 @@ class LookupMerger(UnknownMerger):
 
 
 def dict_extract_mergers(config):
-    parsed_mergers = []
+    parsed_mergers: list = []
     raw_mergers = config.pop("merge_how", None)
     if raw_mergers is None:
         raw_mergers = config.pop("merge_type", None)
@@ -145,7 +145,7 @@ def construct(parsed_mergers):
             mod_attr = getattr(mod, MERGER_ATTR)
             mergers_to_be.append((mod_attr, m_ops))
     # Now form them...
-    mergers = []
+    mergers: list = []
     root = LookupMerger(mergers)
     for attr, opts in mergers_to_be:
         mergers.append(attr(root, opts))
