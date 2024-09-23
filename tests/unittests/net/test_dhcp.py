@@ -957,7 +957,7 @@ class TestUDHCPCDiscoveryClean(CiTestCase):
                 ),
                 mock.call(
                     [
-                        "/sbin/udhcpc",
+                        "udhcpc",
                         "-O",
                         "staticroutes",
                         "-i",
@@ -1026,7 +1026,7 @@ class TestUDHCPCDiscoveryClean(CiTestCase):
                 ),
                 mock.call(
                     [
-                        "/sbin/udhcpc",
+                        "udhcpc",
                         "-O",
                         "staticroutes",
                         "-i",
@@ -1354,7 +1354,7 @@ class TestDhcpcd:
                 ),
                 mock.call(
                     [
-                        "/sbin/dhcpcd",
+                        "dhcpcd",
                         "--ipv4only",
                         "--waitip",
                         "--persistent",
@@ -1400,7 +1400,7 @@ class TestDhcpcd:
                 ),
                 mock.call(
                     [
-                        "/sbin/dhcpcd",
+                        "dhcpcd",
                         "--ipv4only",
                         "--waitip",
                         "--persistent",

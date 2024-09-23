@@ -203,7 +203,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     dsname = "_undef"
 
     # Cached cloud_name as determined by _get_cloud_name
-    _cloud_name = None
+    _cloud_name: Optional[str] = None
 
     # Cached cloud platform api type: e.g. ec2, openstack, kvm, lxd, azure etc.
     _platform_type = None
@@ -332,7 +332,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self.vendordata2 = None
         self.vendordata_raw = None
         self.vendordata2_raw = None
-        self.metadata_address = None
+        self.metadata_address: Optional[str] = None
         self.network_json: Optional[str] = UNSET
         self.ec2_metadata = UNSET
 
