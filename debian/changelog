@@ -5,9 +5,9 @@ cloud-init (24.3.1-0ubuntu0~20.04.2) UNRELEASED; urgency=medium
     - d/p/no-nocloud-network.patch
     - d/p/no-single-process.patch
     - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
-  * Upstream snapshot based on upstream/main at c62d7f22.
+  * Upstream snapshot based on upstream/main at 1dd68506.
 
- -- James Falcon <james.falcon@canonical.com>  Wed, 18 Sep 2024 07:49:23 -0500
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 24 Sep 2024 07:02:06 -0600
 
 cloud-init (24.3.1-0ubuntu0~20.04.1) focal; urgency=medium
 
