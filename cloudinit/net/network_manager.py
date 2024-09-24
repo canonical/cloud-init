@@ -575,11 +575,13 @@ class Renderer(renderer.Renderer):
         # interfaces that have UUIDs that can be linked to from related
         # interfaces
         for iface in network_state.iter_interfaces():
-            self.connections[iface["name"]] = NMConnection(iface["name"])
+            conn_key = iface.get("config_id") or iface["name"]
+            self.connections[conn_key] = NMConnection(iface["name"])
 
         # Now render the actual interface configuration
         for iface in network_state.iter_interfaces():
-            conn = self.connections[iface["name"]]
+            conn_key = iface.get("config_id") or iface["name"]
+            conn = self.connections[conn_key]
             conn.render_interface(iface, network_state, self)
 
         # And finally write the files

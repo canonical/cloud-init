@@ -3062,6 +3062,7 @@ class TestNetworkManagerRendering:
             ("v2-dns-no-if-ips", "yaml"),
             ("v2-dns-no-dhcp", "yaml"),
             ("v2-route-no-gateway", "yaml"),
+            ("v2-bridges-set-name", "yaml"),
             pytest.param(
                 "large_v2",
                 "yaml",
