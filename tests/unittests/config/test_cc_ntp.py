@@ -48,8 +48,6 @@ class TestNtp:
         return path
 
     def _generate_template(self, templates_dir, template=NTP_TEMPLATE):
-        # templates_dir = os.path.join(templates_dir, "templates")
-        # os.makedirs(templates_dir, exist_ok=True)
         confpath = os.path.join(templates_dir, "client.conf")
         template_fn = os.path.join(templates_dir, "client.conf.tmpl")
         util.write_file(template_fn, content=template)
@@ -681,7 +679,7 @@ class TestNtp:
         }
         expected_merged_cfg = {
             "check_exe": "chronyd",
-            "confpath": "{tmpdir}/client.conf".format(tmpdir=tmpdir),
+            "confpath": f"{tmpdir}/client.conf",
             "template_name": "client.conf",
             "template": user_template,
             "service_name": "chrony",
