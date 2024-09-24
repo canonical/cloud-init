@@ -16,7 +16,7 @@ import os
 import re
 from typing import Dict, List, Optional, Tuple, cast
 
-from cloudinit import subp, util
+from cloudinit import performance, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -296,12 +296,8 @@ def setup_swapfile(fname, size=None, maxsize=None):
         LOG.debug("Not creating swap: suggested size was 0")
         return
 
-    util.log_time(
-        LOG.debug,
-        msg="Setting up swap file",
-        func=create_swapfile,
-        args=[fname, mibsize],
-    )
+    with performance.Timed("Setting up swap file"):
+        create_swapfile(fname, mibsize)
 
     return fname
 

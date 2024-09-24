@@ -4,7 +4,8 @@ import functools
 import logging
 from typing import NamedTuple, Optional
 
-from cloudinit import features, log
+from cloudinit import features
+from cloudinit.log import loggers
 
 LOG = logging.getLogger(__name__)
 
@@ -195,7 +196,7 @@ def deprecate(
     ):
         level = logging.INFO
     elif hasattr(LOG, "deprecated"):
-        level = log.DEPRECATED
+        level = loggers.DEPRECATED
     else:
         level = logging.WARN
     log_cache = getattr(deprecate, "log")

@@ -4,9 +4,9 @@ import logging
 import os
 import socket
 import sys
-import time
 from contextlib import suppress
 
+from cloudinit import performance
 from cloudinit.settings import DEFAULT_RUN_DIR
 
 LOG = logging.getLogger(__name__)
@@ -109,14 +109,14 @@ class SocketSync:
             "STATUS=Waiting on external services to "
             f"complete before starting the {self.stage} stage."
         )
-        start_time = time.monotonic()
         # block until init system sends us data
         # the first value returned contains a message from the init system
         #     (should be "start")
         # the second value contains the path to a unix socket on which to
         #     reply, which is expected to be /path/to/{self.stage}-return.sock
         sock = self.sockets[self.stage]
-        chunk, self.remote = sock.recvfrom(5)
+        with performance.Timed(f"Waiting to start stage {self.stage}"):
+            chunk, self.remote = sock.recvfrom(5)
 
         if b"start" != chunk:
             # The protocol expects to receive a command "start"
@@ -130,10 +130,7 @@ class SocketSync:
             self.__exit__(None, None, None)
             raise ValueError(f"Unexpected path to unix socket: {self.remote}")
 
-        total = time.monotonic() - start_time
-        time_msg = f"took {total: .3f}s to " if total > 0.01 else ""
         sd_notify(f"STATUS=Running ({self.stage} stage)")
-        LOG.debug("sync(%s): synchronization %scomplete", self.stage, time_msg)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):

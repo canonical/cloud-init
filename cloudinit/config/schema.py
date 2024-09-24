@@ -31,14 +31,14 @@ from typing import (
 
 import yaml
 
-from cloudinit import features, importer, lifecycle, safeyaml
+from cloudinit import features, importer, lifecycle, performance, safeyaml
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers import INCLUSION_TYPES_MAP, type_from_starts_with
 from cloudinit.helpers import Paths
+from cloudinit.log.log_util import error
 from cloudinit.sources import DataSourceNotFoundException
 from cloudinit.temp_utils import mkdtemp
 from cloudinit.util import (
-    error,
     get_modules_from_dir,
     load_text_file,
     load_yaml,
@@ -508,22 +508,13 @@ def get_jsonschema_validator():
     meta_schema["properties"]["label"] = {"type": "string"}
 
     validator_kwargs = {}
-    if hasattr(Draft4Validator, "TYPE_CHECKER"):  # jsonschema 3.0+
-        meta_schema["additionalProperties"] = False  # Unsupported in 2.6.0
-        type_checker = Draft4Validator.TYPE_CHECKER.redefine(
-            "string", is_schema_byte_string
-        )
-        validator_kwargs = {
-            "type_checker": type_checker,
-        }
-    else:  # jsonschema 2.6 workaround
-        # pylint:disable-next=no-member
-        types = Draft4Validator.DEFAULT_TYPES  # pylint: disable=E1101
-        # Allow bytes as well as string (and disable a spurious unsupported
-        # assignment-operation pylint warning which appears because this
-        # code path isn't written against the latest jsonschema).
-        types["string"] = (str, bytes)  # pylint: disable=E1137
-        validator_kwargs = {"default_types": types}
+    meta_schema["additionalProperties"] = False
+    type_checker = Draft4Validator.TYPE_CHECKER.redefine(
+        "string", is_schema_byte_string
+    )
+    validator_kwargs = {
+        "type_checker": type_checker,
+    }
 
     # Add deprecation handling
     validators = dict(Draft4Validator.VALIDATORS)
@@ -553,7 +544,9 @@ def get_jsonschema_validator():
         )
         return next(errors, None) is None
 
-    cloudinitValidator.is_valid = is_valid
+    # this _could_ be an error, but it's not in this case
+    # https://github.com/python/mypy/issues/2427#issuecomment-1419206807
+    cloudinitValidator.is_valid = is_valid  # type: ignore [method-assign]
 
     return (cloudinitValidator, FormatChecker)
 
@@ -697,6 +690,7 @@ def netplan_validate_network_schema(
     return True
 
 
+@performance.timed("Validating schema")
 def validate_cloudconfig_schema(
     config: dict,
     schema: Optional[dict] = None,
@@ -1917,7 +1911,7 @@ def handle_schema_args(name, args):
                 if args.config_file:
                     cfg = cfg_part.config_path
                 else:
-                    cfg = cfg_part.config_type
+                    cfg = str(cfg_part.config_type)
                 print(f"{nested_output_prefix}Valid schema {cfg!s}")
     if error_types:
         error(

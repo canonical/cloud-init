@@ -20,7 +20,7 @@ from typing import List, Optional, Sequence, Set
 import pytest
 import yaml
 
-from cloudinit import features
+from cloudinit import features, performance
 from cloudinit.config.schema import (
     VERSIONED_USERDATA_SCHEMA_FILE,
     MetaSchema,
@@ -815,7 +815,9 @@ class TestValidateCloudConfigSchema:
     def test_validateconfig_logs_deprecations(
         self, schema, config, expected_msg, log_deprecations, caplog
     ):
-        with mock.patch.object(features, "DEPRECATION_INFO_BOUNDARY", "devel"):
+        with mock.patch.object(
+            features, "DEPRECATION_INFO_BOUNDARY", "devel"
+        ), mock.patch.object(performance, "Timed"):
             validate_cloudconfig_schema(
                 config,
                 schema=schema,

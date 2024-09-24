@@ -10,8 +10,8 @@ import sys
 
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.cmd.status import RunningStatus, get_status_details
+from cloudinit.log import log_util
 from cloudinit.sources import METADATA_UNKNOWN, canonical_cloud_id
-from cloudinit.util import error
 
 NAME = "cloud-id"
 
@@ -77,12 +77,12 @@ def handle_args(name, args):
         with open(args.instance_data) as file:
             instance_data = json.load(file)
     except IOError:
-        return error(
+        return log_util.error(
             "File not found '%s'. Provide a path to instance data json file"
             " using --instance-data" % args.instance_data
         )
     except ValueError as e:
-        return error(
+        return log_util.error(
             "File '%s' is not valid json. %s" % (args.instance_data, e)
         )
     v1 = instance_data.get("v1", {})

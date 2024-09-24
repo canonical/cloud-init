@@ -19,7 +19,7 @@ from requests.exceptions import ConnectionError
 from urllib3.connection import HTTPConnection
 from urllib3.poolmanager import PoolManager
 
-from cloudinit import dmi, sources, url_helper, util
+from cloudinit import dmi, performance, sources, url_helper, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralDHCPv4, EphemeralIPv6Network
@@ -293,18 +293,12 @@ class DataSourceScaleway(sources.DataSource):
                     self.distro,
                     self.distro.fallback_interface,
                 ) as ipv4:
-                    util.log_time(
-                        logfunc=LOG.debug,
-                        msg="Set api-metadata URL depending on "
-                        "IPv4 availability",
-                        func=self._set_metadata_url,
-                        args=(self.metadata_urls,),
-                    )
-                    util.log_time(
-                        logfunc=LOG.debug,
-                        msg="Crawl of metadata service",
-                        func=self._crawl_metadata,
-                    )
+                    with performance.Timed(
+                        "Setting api-metadata URL "
+                        "depending on IPv4 availability"
+                    ):
+                        self._set_metadata_url(self.metadata_urls)
+                    self._crawl_metadata()
                     self.ephemeral_fixed_address = ipv4["fixed-address"]
                     self.metadata["net_in_use"] = "ipv4"
             except (
@@ -324,18 +318,12 @@ class DataSourceScaleway(sources.DataSource):
                     self.distro,
                     self.distro.fallback_interface,
                 ):
-                    util.log_time(
-                        logfunc=LOG.debug,
-                        msg="Set api-metadata URL depending on "
+                    with performance.Timed(
+                        "Setting api-metadata URL depending on "
                         "IPv6 availability",
-                        func=self._set_metadata_url,
-                        args=(self.metadata_urls,),
-                    )
-                    util.log_time(
-                        logfunc=LOG.debug,
-                        msg="Crawl of metadata service",
-                        func=self._crawl_metadata,
-                    )
+                    ):
+                        self._set_metadata_url(self.metadata_urls)
+                    self._crawl_metadata()
                     self.metadata["net_in_use"] = "ipv6"
             except ConnectionError:
                 return False
