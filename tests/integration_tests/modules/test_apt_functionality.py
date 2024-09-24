@@ -466,8 +466,8 @@ apt:
 
 
 RE_GPG_SW_PROPERTIES_INSTALLED = (
-    r"install"
-    r" (gnupg software-properties-common|software-properties-common gnupg)"
+    r"install', '(gnupg', 'software-properties-common|"
+    r"software-properties-common', 'gnupg)"
 )
 
 REMOVE_GPG_USERDATA = """
