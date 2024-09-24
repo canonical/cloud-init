@@ -71,6 +71,10 @@ EXISTING_INSTANCE_ID: Optional[str] = None
 #   A path to a valid package to be uploaded and installed
 CLOUD_INIT_SOURCE = "NONE"
 
+# cloud-init metapackage to install
+# Examples: cloud-init, cloud-init-base, cloud-init-smart-os
+CLOUD_INIT_PKG = "cloud-init"
+
 # Before an instance is torn down, we run `cloud-init collect-logs`
 # and transfer them locally. These settings specify when to collect these
 # logs and where to put them on the local filesystem
