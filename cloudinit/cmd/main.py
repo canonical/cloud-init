@@ -63,7 +63,7 @@ FREQ_SHORT_NAMES = {
     "once": PER_ONCE,
 }
 
-# https://cloudinit.readthedocs.io/en/latest/explanation/boot.html
+# https://docs.cloud-init.io/en/latest/explanation/boot.html
 STAGE_NAME = {
     "init-local": "Local Stage",
     "init": "Network Stage",
