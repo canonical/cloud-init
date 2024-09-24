@@ -9,7 +9,7 @@ topics covered at the event.
 
 We will soon link event highlights, presentation materials and maybe a couple
 of videos of presentations on our documentation site at:
-https://cloudinit.readthedocs.io/en/latest/development/summit.html
+https://docs.cloud-init.io/en/latest/development/summit.html
 
 For those who weren't able to attend, this meeting was Canonical's first
 hybrid attendance summit, with both physical and virtual participants.
@@ -73,7 +73,7 @@ Many thanks to all of our presenters and participants!
 
 Below is the wall-of-text transcribed from our shared meeting notes. A response
 will also be provided to this thread when we have published our distilled trip
-report to our documentation at https://cloudinit.readthedocs.io.
+report to our documentation at https://docs.cloud-init.io.
 
 Happy hacking,
 
