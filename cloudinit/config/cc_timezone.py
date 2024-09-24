@@ -58,14 +58,14 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         timezone = 'LOCAL'
 
     if exists('/etc/adjtime'):
-        log.debug("/etc/adjtime exists")
+        LOG.debug("/etc/adjtime exists")
         with open('/etc/adjtime', 'r') as file:
             # read a list of lines into data
             content = file.readlines()
 
         hwclock_tz = timezone + '\n'
 
-        log.debug("Setting hwclock to %s", hwclock_tz)
+        LOG.debug("Setting hwclock to %s", hwclock_tz)
 
         # now change the 3rd line
         content[2] = hwclock_tz
