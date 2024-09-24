@@ -104,14 +104,9 @@ class DataSourceGCE(sources.DataSource):
                 try:
                     with network_context:
                         try:
-                            ret = util.log_time(
-                                LOG.debug,
-                                "Crawl of GCE metadata service",
-                                read_md,
-                                kwargs={
-                                    "address": self.metadata_address,
-                                    "url_params": url_params,
-                                },
+                            ret = read_md(
+                                address=self.metadata_address,
+                                url_params=url_params,
                             )
                         except Exception as e:
                             LOG.debug(
@@ -131,15 +126,7 @@ class DataSourceGCE(sources.DataSource):
                     "Did not find a fallback interface on %s.", self.cloud_name
                 )
         else:
-            ret = util.log_time(
-                LOG.debug,
-                "Crawl of GCE metadata service",
-                read_md,
-                kwargs={
-                    "address": self.metadata_address,
-                    "url_params": url_params,
-                },
-            )
+            ret = read_md(address=self.metadata_address, url_params=url_params)
 
         if not ret["success"]:
             if ret["platform_reports_gce"]:

@@ -488,8 +488,7 @@ def find_candidate_nics_on_linux() -> List[str]:
                 "Found unstable nic names: %s; calling udevadm settle",
                 unstable,
             )
-            msg = "Waiting for udev events to settle"
-            util.log_time(LOG.debug, msg, func=util.udevadm_settle)
+            util.udevadm_settle()
 
     # sort into interfaces with carrier, interfaces which could have carrier,
     # and ignore interfaces that are definitely disconnected
@@ -765,7 +764,7 @@ def _rename_interfaces(
     for mac, new_name, driver, device_id in renames:
         if mac:
             mac = mac.lower()
-        cur_ops = []
+        cur_ops: list = []
         cur = find_entry(mac, driver, device_id)
         if not cur:
             if strict_present:
@@ -809,7 +808,7 @@ def _rename_interfaces(
                 else:
                     cur_ops.append(("down", mac, new_name, (new_name,)))
 
-            tmp_name = None
+            tmp_name: Optional[str] = None
             while tmp_name is None or tmp_name in cur_byname:
                 tmpi += 1
                 tmp_name = tmpname_fmt % tmpi
@@ -825,7 +824,7 @@ def _rename_interfaces(
         cur_byname = update_byname(cur_info)
         ops += cur_ops
 
-    opmap = {
+    opmap: Dict[str, Callable] = {
         "rename": Iproute2.link_rename,
         "down": Iproute2.link_down,
         "up": Iproute2.link_up,
@@ -845,7 +844,7 @@ def _rename_interfaces(
 
         for op, mac, new_name, params in ops + ups:
             try:
-                opmap.get(op)(*params)
+                opmap[op](*params)
             except Exception as e:
                 errors.append(
                     "[unknown] Error performing %s%s for %s, %s: %s"
@@ -1134,7 +1133,7 @@ def filter_hyperv_vf_with_synthetic_interface(
 def get_ib_hwaddrs_by_interface():
     """Build a dictionary mapping Infiniband interface names to their hardware
     address."""
-    ret = {}
+    ret: Dict[str, str] = {}
     for name, _, _, _ in get_interfaces():
         ib_mac = get_ib_interface_hwaddr(name, False)
         if ib_mac:

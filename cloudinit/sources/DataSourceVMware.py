@@ -27,7 +27,8 @@ import os
 import socket
 import time
 
-from cloudinit import atomic_helper, dmi, log, net, netinfo, sources, util
+from cloudinit import atomic_helper, dmi, net, netinfo, sources, util
+from cloudinit.log import loggers
 from cloudinit.sources.helpers.vmware.imc import guestcust_util
 from cloudinit.subp import ProcessExecutionError, subp, which
 
@@ -266,9 +267,10 @@ class DataSourceVMware(sources.DataSource):
         # read the file /sys/class/dmi/id/product_uuid for the instance ID.
         if self.metadata and "instance-id" in self.metadata:
             return self.metadata["instance-id"]
-        with open(PRODUCT_UUID_FILE_PATH, "r") as id_file:
-            self.metadata["instance-id"] = str(id_file.read()).rstrip().lower()
-            return self.metadata["instance-id"]
+        self.metadata["instance-id"] = (
+            util.load_text_file(PRODUCT_UUID_FILE_PATH).rstrip().lower()
+        )
+        return self.metadata["instance-id"]
 
     def check_if_fallback_is_allowed(self):
         if (
@@ -1061,7 +1063,7 @@ def main():
     Executed when this file is used as a program.
     """
     try:
-        log.setup_basic_logging()
+        loggers.setup_basic_logging()
     except Exception:
         pass
     metadata = {

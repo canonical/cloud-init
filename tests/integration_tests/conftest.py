@@ -315,6 +315,15 @@ def _client(
         yield instance
         test_failed = request.session.testsfailed - previous_failures > 0
         _collect_artifacts(instance, request.node.nodeid, test_failed)
+    # conflicting requirements:
+    # - pytest thinks that it can cleanup loggers after tests run
+    # - pycloudlib thinks that at garbage collection is a good place to tear
+    #   down sftp connections
+    # After the final test runs, pytest might clean up loggers which will cause
+    # paramiko to barf when it logs that the connection is being closed.
+    #
+    # Manually run __del__() to prevent this teardown mess.
+    instance.instance.__del__()
 
 
 @pytest.fixture

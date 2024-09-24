@@ -387,7 +387,6 @@ class Renderer(renderer.Renderer):
         # net_setup_link on a device that no longer exists. When this happens,
         # we don't know what the device was renamed to, so re-gather the
         # entire list of devices and try again.
-        last_exception = Exception
         for _ in range(5):
             try:
                 for iface in get_devicelist():
