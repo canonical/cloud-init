@@ -90,7 +90,7 @@ def warn_deprecated_all_devices(dikt: dict) -> None:
             deprecated="The use of `gateway4` and `gateway6`",
             deprecated_version="22.4",
             extra_message="For more info check out: "
-            "https://cloudinit.readthedocs.io/en/latest/topics/network-config-format-v2.html",  # noqa: E501
+            "https://docs.cloud-init.io/en/latest/topics/network-config-format-v2.html",  # noqa: E501
         )
 
 
