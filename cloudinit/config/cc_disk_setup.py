@@ -12,7 +12,7 @@ import os
 import shlex
 from pathlib import Path
 
-from cloudinit import subp, util
+from cloudinit import performance, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -51,13 +51,10 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 continue
 
             try:
-                LOG.debug("Creating new partition table/disk")
-                util.log_time(
-                    logfunc=LOG.debug,
-                    msg="Creating partition on %s" % disk,
-                    func=mkpart,
-                    args=(disk, definition),
-                )
+                with performance.Timed(
+                    f"Creating partition on {disk}",
+                ):
+                    mkpart(disk, definition)
             except Exception as e:
                 util.logexc(LOG, "Failed partitioning operation\n%s" % e)
 
@@ -71,14 +68,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 continue
 
             try:
-                LOG.debug("Creating new filesystem.")
-                device = definition.get("device")
-                util.log_time(
-                    logfunc=LOG.debug,
-                    msg="Creating fs for %s" % device,
-                    func=mkfs,
-                    args=(definition,),
-                )
+                with performance.Timed("Creating new filesystem"):
+                    mkfs(definition)
             except Exception as e:
                 util.logexc(LOG, "Failed during filesystem operation\n%s" % e)
 
@@ -983,7 +974,6 @@ def mkfs(fs_cfg):
         fs_cmd.append(device)
 
     LOG.debug("Creating file system %s on %s", label, device)
-    LOG.debug("     Using cmd: %s", str(fs_cmd))
     try:
         subp.subp(fs_cmd, shell=shell)
     except Exception as e:

@@ -7,15 +7,19 @@ import stat
 import tempfile
 from base64 import b64decode, b64encode
 
-from cloudinit import util
+from cloudinit import performance, util
 
 _DEF_PERMS = 0o644
 LOG = logging.getLogger(__name__)
 
 
+@performance.timed("Base64 decoding")
 def b64d(source):
-    # Base64 decode some data, accepting bytes or unicode/str, and returning
-    # str/unicode if the result is utf-8 compatible, otherwise returning bytes.
+    """base64 decode data
+
+    :param source: a bytes or str to decode
+    :return: base64 as a decoded str if utf-8 encoded, otherwise bytes
+    """
     decoded = b64decode(source)
     try:
         return decoded.decode("utf-8")
@@ -23,9 +27,13 @@ def b64d(source):
         return decoded
 
 
+@performance.timed("Base64 encoding")
 def b64e(source):
-    # Base64 encode some data, accepting bytes or unicode/str, and returning
-    # str/unicode if the result is utf-8 compatible, otherwise returning bytes.
+    """base64 encode data
+
+    :param source: a bytes or str to decode
+    :return: base64 encoded str
+    """
     if not isinstance(source, bytes):
         source = source.encode("utf-8")
     return b64encode(source).decode("utf-8")
@@ -34,8 +42,15 @@ def b64e(source):
 def write_file(
     filename, content, mode=_DEF_PERMS, omode="wb", preserve_mode=False
 ):
-    # open filename in mode 'omode', write content, set permissions to 'mode'
+    """open filename in mode omode, write content, set permissions to mode"""
 
+    with performance.Timed(f"Writing {filename}"):
+        return _write_file(filename, content, mode, omode, preserve_mode)
+
+
+def _write_file(
+    filename, content, mode=_DEF_PERMS, omode="wb", preserve_mode=False
+):
     if preserve_mode:
         try:
             file_stat = os.stat(filename)
@@ -75,6 +90,7 @@ def json_serialize_default(_obj):
         return "Warning: redacted unserializable type {0}".format(type(_obj))
 
 
+@performance.timed("Dumping json")
 def json_dumps(data):
     """Return data in nicely formatted json."""
     return json.dumps(

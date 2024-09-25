@@ -161,11 +161,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
                 with EphemeralDHCPv4(
                     self.distro, self.distro.fallback_interface
                 ):
-                    results = util.log_time(
-                        logfunc=LOG.debug,
-                        msg="Crawl of metadata service",
-                        func=self._crawl_metadata,
-                    )
+                    results = self._crawl_metadata()
             except (NoDHCPLeaseError, sources.InvalidMetaDataException) as e:
                 util.logexc(LOG, str(e))
                 return False
@@ -226,16 +222,11 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         url_params = self.get_url_params()
 
         try:
-            result = util.log_time(
-                LOG.debug,
-                "Crawl of openstack metadata service",
-                read_metadata_service,
-                args=[self.metadata_address],
-                kwargs={
-                    "ssl_details": self.ssl_details,
-                    "retries": url_params.num_retries,
-                    "timeout": url_params.timeout_seconds,
-                },
+            result = read_metadata_service(
+                self.metadata_address,
+                ssl_details=self.ssl_details,
+                retries=url_params.num_retries,
+                timeout=url_params.timeout_seconds,
             )
         except openstack.NonReadable as e:
             raise sources.InvalidMetaDataException(str(e))

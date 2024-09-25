@@ -13,7 +13,7 @@ import logging
 import re
 from copy import copy, deepcopy
 from ipaddress import IPv4Network
-from typing import Dict, List, Union
+from typing import Dict, List, TypedDict
 
 from cloudinit import lifecycle, subp, util
 from cloudinit.net.network_state import net_prefix_to_ipv4_mask
@@ -39,6 +39,13 @@ LOG = logging.getLogger(__name__)
 #         'ipv6': [{'ip': '::1/128', 'scope6': 'host'}],
 #         'up': True}}
 DEFAULT_NETDEV_INFO = {"ipv4": [], "ipv6": [], "hwaddr": "", "up": False}
+
+
+class Interface(TypedDict):
+    up: bool
+    hwaddr: str
+    ipv4: List[dict]
+    ipv6: List[dict]
 
 
 def _netdev_info_iproute_json(ipaddr_json):
@@ -285,7 +292,7 @@ def _netdev_info_ifconfig(ifconfig_data):
 
 def netdev_info(
     empty="",
-) -> Dict[str, Dict[str, Union[str, List[Dict[str, str]]]]]:
+) -> Dict[str, Dict[str, Interface]]:
     """return the instance's interfaces and interface data
 
     includes, interface name, link state, hardware address, and lists of ipv4

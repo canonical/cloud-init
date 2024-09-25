@@ -13,7 +13,7 @@ import time
 
 import yaml
 
-from cloudinit import subp, util
+from cloudinit import performance, subp, util
 
 from .config import Config
 from .config_custom_script import PostCustomScript, PreCustomScript
@@ -87,7 +87,9 @@ def get_nics_to_enable(nicsfilepath):
     if not os.path.exists(nicsfilepath):
         return None
 
-    with open(nicsfilepath, "r") as fp:
+    with performance.Timed(f"Reading {nicsfilepath}"), open(
+        nicsfilepath, "r"
+    ) as fp:
         nics = fp.read(NICS_SIZE)
 
     return nics
@@ -367,12 +369,10 @@ def get_cust_cfg_file(ds_cfg):
     # that required metadata and userdata files are now
     # present.
     max_wait = get_max_wait_from_cfg(ds_cfg)
-    cust_cfg_file_path = util.log_time(
-        logfunc=logger.debug,
-        msg="Waiting for VMware customization configuration file",
-        func=wait_for_cust_cfg_file,
-        args=("cust.cfg", max_wait),
-    )
+    with performance.Timed(
+        "Waiting for VMware customization configuration file"
+    ):
+        cust_cfg_file_path = wait_for_cust_cfg_file("cust.cfg", max_wait)
     if cust_cfg_file_path:
         logger.debug(
             "Found VMware customization configuration file at %s",

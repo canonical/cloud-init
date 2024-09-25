@@ -4,11 +4,16 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 from collections import defaultdict
 from itertools import chain
 from typing import Any, Dict, List, Tuple
 
 import yaml
+
+from cloudinit import performance
+
+LOG = logging.getLogger(__name__)
 
 
 # SchemaPathMarks track the path to an element within a loaded YAML file.
@@ -237,6 +242,7 @@ class NoAliasSafeDumper(yaml.dumper.SafeDumper):
         return True
 
 
+@performance.timed("Loading yaml")
 def load_with_marks(blob) -> Tuple[Any, Dict[str, int]]:
     """Perform YAML SafeLoad and track start and end marks during parse.
 
@@ -258,9 +264,9 @@ def load_with_marks(blob) -> Tuple[Any, Dict[str, int]]:
     return result, schemamarks
 
 
+@performance.timed("Dumping yaml")
 def dumps(obj, explicit_start=True, explicit_end=True, noalias=False):
     """Return data in nicely formatted yaml."""
-
     return yaml.dump(
         obj,
         line_break="\n",

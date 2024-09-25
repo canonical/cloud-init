@@ -19,6 +19,7 @@ from tests.integration_tests.releases import (
     FOCAL,
     IS_UBUNTU,
     JAMMY,
+    NOBLE,
 )
 from tests.integration_tests.util import (
     get_feature_flag_value,
@@ -236,7 +237,7 @@ def maybe_install_cloud_init(session_cloud: IntegrationCloud):
 
 
 @pytest.mark.skipif(
-    not all([IS_UBUNTU, CURRENT_RELEASE in [BIONIC, FOCAL, JAMMY]]),
+    CURRENT_RELEASE not in [BIONIC, FOCAL, JAMMY, NOBLE],
     reason="Test runs on Ubuntu LTS releases only",
 )
 @pytest.mark.skipif(

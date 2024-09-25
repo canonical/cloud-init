@@ -83,8 +83,11 @@ class TestSchemaDeprecations:
             messages += boundary_message
             verify_clean_boot(class_client, require_deprecations=messages)
         else:
-            verify_clean_boot(class_client, require_deprecations=messages)
-            assert boundary_message in log
+            verify_clean_boot(class_client)
+            assert f"INFO]: {boundary_message}" in log
+            assert "apt_reboot_if_required:  Deprecated " in log
+            assert "apt_update:  Deprecated in version" in log
+            assert "apt_upgrade:  Deprecated in version" in log
 
     def test_network_config_schema_validation(
         self, class_client: IntegrationInstance

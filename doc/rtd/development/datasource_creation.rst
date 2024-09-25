@@ -174,9 +174,9 @@ development team.
 If this is not possible, one can add
 :ref:`custom out-of-tree datasources<custom_datasource>` to cloud-init.
 
-.. _make-mime: https://cloudinit.readthedocs.io/en/latest/explanation/instancedata.html#storage-locations
+.. _make-mime: https://docs.cloud-init.io/en/latest/explanation/instancedata.html#storage-locations
 .. _DMI: https://www.dmtf.org/sites/default/files/standards/documents/DSP0005.pdf
 .. _Libvirt: https://github.com/virt-manager/virt-manager/blob/main/man/virt-install.rst#--cloud-init
 .. _Proxmox: https://pve.proxmox.com/wiki/Cloud-Init_Support
 .. _DatasourceNoCloud.py: https://github.com/canonical/cloud-init/blob/main/cloudinit/sources/DataSourceNoCloud.py
-.. _nocloud: https://cloudinit.readthedocs.io/en/latest/reference/datasources/nocloud.html
+.. _nocloud: https://docs.cloud-init.io/en/latest/reference/datasources/nocloud.html

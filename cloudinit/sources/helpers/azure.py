@@ -457,7 +457,9 @@ class OpenSSLManager:
                 ]
             )
             certificate = ""
-            for line in open(self.certificate_names["certificate"]):
+            for line in util.load_text_file(
+                self.certificate_names["certificate"]
+            ).splitlines():
                 if "CERTIFICATE" not in line:
                     certificate += line.rstrip()
             self.certificate = certificate

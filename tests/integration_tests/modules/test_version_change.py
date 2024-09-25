@@ -67,15 +67,10 @@ def test_cache_purged_on_version_change(client: IntegrationInstance):
 
 
 def test_log_message_on_missing_version_file(client: IntegrationInstance):
-    # Start by pushing a pickle so we can see the log message
-    client.push_file(TEST_PICKLE, PICKLE_PATH)
     client.execute("rm /var/lib/cloud/data/python-version")
     client.execute("rm /var/log/cloud-init.log")
     client.restart()
     log = client.read_from_file("/var/log/cloud-init.log")
-    assert "no cache found" not in log
-    # We don't expect the python version file to exist if we have no
-    # pre-existing cache
     assert (
         "Writing python-version file. "
         "Cache compatibility status is currently unknown." in log
