@@ -7,7 +7,7 @@ Origin: backport
 Last-Update: 2024-02-14
 --- a/cloudinit/cloud.py
 +++ b/cloudinit/cloud.py
-@@ -57,17 +57,6 @@
+@@ -57,17 +57,6 @@ class Cloud:
          return copy.deepcopy(self._cfg)
  
      def run(self, name, functor, args, freq=None, clear_on_fail=False):
@@ -27,7 +27,7 @@ Last-Update: 2024-02-14
      def get_template_filename(self, name):
 --- a/cloudinit/config/cc_lxd.py
 +++ b/cloudinit/config/cc_lxd.py
-@@ -79,7 +79,6 @@
+@@ -79,7 +79,6 @@ def handle(name: str, cfg: Config, cloud
              f" '{type(lxd_cfg).__name__}'"
          )
  
@@ -37,7 +37,7 @@ Last-Update: 2024-02-14
      preseed_str = lxd_cfg.get("preseed", "")
 --- a/cloudinit/config/cc_snap.py
 +++ b/cloudinit/config/cc_snap.py
-@@ -102,7 +102,7 @@
+@@ -102,7 +102,7 @@ def handle(name: str, cfg: Config, cloud
              "Skipping module named %s, no 'snap' key in configuration", name
          )
          return
@@ -48,7 +48,7 @@ Last-Update: 2024-02-14
          os.path.join(cloud.paths.get_ipath_cur(), "snapd.assertions"),
 --- a/cloudinit/config/cc_ubuntu_autoinstall.py
 +++ b/cloudinit/config/cc_ubuntu_autoinstall.py
-@@ -83,7 +83,6 @@
+@@ -83,7 +83,6 @@ def handle(name: str, cfg: Config, cloud
          )
          return
  
@@ -58,7 +58,7 @@ Last-Update: 2024-02-14
      for snap_name in LIVE_INSTALLER_SNAPS:
 --- a/cloudinit/util.py
 +++ b/cloudinit/util.py
-@@ -73,7 +73,7 @@
+@@ -73,7 +73,7 @@ from cloudinit import (
      version,
  )
  from cloudinit.log.log_util import logexc
@@ -67,7 +67,7 @@ Last-Update: 2024-02-14
  
  if TYPE_CHECKING:
      # Avoid circular import
-@@ -3024,18 +3024,6 @@
+@@ -3024,18 +3024,6 @@ def wait_for_files(flist, maxwait, naple
      return need
  
  
@@ -90,7 +90,7 @@ Last-Update: 2024-02-14
 +++ b/systemd/cloud-config.service.tmpl
 @@ -2,7 +2,7 @@
  [Unit]
- # https://cloudinit.readthedocs.io/en/latest/explanation/boot.html
+ # https://docs.cloud-init.io/en/latest/explanation/boot.html
  Description=Cloud-init: Config Stage
 -After=network-online.target cloud-config.target
 +After=network-online.target cloud-config.target snapd.seeded.service
@@ -107,7 +107,7 @@ Last-Update: 2024-02-14
  
  USER_DATA = """\
  #cloud-config
-@@ -18,17 +17,6 @@
+@@ -18,17 +17,6 @@ def test_frequency_override(client: Inte
          in client.read_from_file("/var/log/cloud-init.log")
      )
      assert client.read_from_file("/var/tmp/hi").strip().count("hi") == 1
@@ -127,7 +127,7 @@ Last-Update: 2024-02-14
      config = client.read_from_file("/etc/cloud/cloud.cfg")
 --- a/tests/unittests/config/test_cc_lxd.py
 +++ b/tests/unittests/config/test_cc_lxd.py
-@@ -11,8 +11,6 @@
+@@ -11,8 +11,6 @@ from cloudinit.config.schema import (
      get_schema,
      validate_cloudconfig_schema,
  )
@@ -136,7 +136,7 @@ Last-Update: 2024-02-14
  from tests.unittests import helpers as t_help
  from tests.unittests.util import get_cloud
  
-@@ -46,9 +44,7 @@
+@@ -46,9 +44,7 @@ class TestLxd(t_help.CiTestCase):
      )
      def test_lxd_init(self, maybe_clean, which, subp, exists, system_info):
          system_info.return_value = {"uname": [0, 1, "mykernel"]}
@@ -147,7 +147,7 @@ Last-Update: 2024-02-14
          install = cc.distro.install_packages
  
          for backend, cmd, package in BACKEND_DEF:
-@@ -85,22 +81,14 @@
+@@ -85,22 +81,14 @@ class TestLxd(t_help.CiTestCase):
                  subp.call_args_list,
              )
  
@@ -173,7 +173,7 @@ Last-Update: 2024-02-14
          cc.distro = mock.MagicMock()
          mock_subp.which.return_value = None
          cc_lxd.handle("cc_lxd", LXD_INIT_CFG, cc, [])
-@@ -114,7 +102,7 @@
+@@ -114,7 +102,7 @@ class TestLxd(t_help.CiTestCase):
      @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
      @mock.patch("cloudinit.config.cc_lxd.subp")
      def test_no_init_does_nothing(self, mock_subp, m_maybe_clean):
@@ -182,7 +182,7 @@ Last-Update: 2024-02-14
          cc.distro = mock.MagicMock()
          cc_lxd.handle("cc_lxd", {"lxd": {}}, cc, [])
          self.assertFalse(cc.distro.install_packages.called)
-@@ -124,17 +112,16 @@
+@@ -124,17 +112,16 @@ class TestLxd(t_help.CiTestCase):
      @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
      @mock.patch("cloudinit.config.cc_lxd.subp")
      def test_no_lxd_does_nothing(self, mock_subp, m_maybe_clean):
@@ -203,7 +203,7 @@ Last-Update: 2024-02-14
          cc.distro = mock.MagicMock()
          cc_lxd.handle(
              "cc_lxd",
-@@ -149,7 +136,6 @@
+@@ -149,7 +136,6 @@ class TestLxd(t_help.CiTestCase):
              ],
              mock_subp.subp.call_args_list,
          )
@@ -213,7 +213,7 @@ Last-Update: 2024-02-14
          data = {
 --- a/tests/unittests/config/test_cc_snap.py
 +++ b/tests/unittests/config/test_cc_snap.py
-@@ -301,11 +301,8 @@
+@@ -301,11 +301,8 @@ class TestSnapSchema:
  
  
  class TestHandle:
@@ -226,14 +226,14 @@ Last-Update: 2024-02-14
          """Any configured snap assertions are provided to add_assertions."""
          assert_file = os.path.join(
              fake_cloud.paths.get_ipath_cur(), "snapd.assertions"
-@@ -320,4 +317,3 @@
+@@ -320,4 +317,3 @@ class TestHandle:
          assert util.load_text_file(compare_file) == util.load_text_file(
              assert_file
          )
 -        wait_for_snap_seeded.assert_called_once_with(fake_cloud)
 --- a/tests/unittests/config/test_cc_ubuntu_autoinstall.py
 +++ b/tests/unittests/config/test_cc_ubuntu_autoinstall.py
-@@ -11,7 +11,6 @@
+@@ -11,7 +11,6 @@ from cloudinit.config.schema import (
      get_schema,
      validate_cloudconfig_schema,
  )
@@ -241,7 +241,7 @@ Last-Update: 2024-02-14
  from tests.unittests.helpers import skipUnlessJsonSchema
  from tests.unittests.util import get_cloud
  
-@@ -65,20 +64,18 @@
+@@ -65,20 +64,18 @@ class TestvalidateConfigSchema:
              cc_ubuntu_autoinstall.validate_config_schema(src_cfg)
  
  
@@ -263,7 +263,7 @@ Last-Update: 2024-02-14
                  id="skip_no_cfg",
              ),
              pytest.param(
-@@ -90,7 +87,6 @@
+@@ -90,7 +87,6 @@ class TestHandleAutoinstall:
                      " installer snap packages to be present: subiquity,"
                      " ubuntu-desktop-installer"
                  ],
@@ -271,7 +271,7 @@ Last-Update: 2024-02-14
                  id="valid_autoinstall_schema_checks_snaps",
              ),
              pytest.param(
-@@ -101,7 +97,6 @@
+@@ -101,7 +97,6 @@ class TestHandleAutoinstall:
                      "Valid autoinstall schema. Config will be processed by"
                      " subiquity"
                  ],
@@ -279,7 +279,7 @@ Last-Update: 2024-02-14
                  id="valid_autoinstall_schema_sees_subiquity",
              ),
              pytest.param(
-@@ -112,33 +107,19 @@
+@@ -112,33 +107,19 @@ class TestHandleAutoinstall:
                      "Valid autoinstall schema. Config will be processed by"
                      " ubuntu-desktop-installer"
                  ],
@@ -317,7 +317,7 @@ Last-Update: 2024-02-14
  class TestAutoInstallSchema:
 --- a/tests/unittests/util.py
 +++ b/tests/unittests/util.py
-@@ -33,9 +33,7 @@
+@@ -56,9 +56,7 @@ def get_cloud(
          myds.metadata.update(metadata)
      if paths:
          paths.datasource = myds

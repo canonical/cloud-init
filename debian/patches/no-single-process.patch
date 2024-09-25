@@ -6,7 +6,7 @@ Last-Update: 2024-08-02
 
 --- a/systemd/cloud-config.service.tmpl
 +++ b/systemd/cloud-config.service.tmpl
-@@ -10,14 +10,7 @@ ConditionEnvironment=!KERNEL_CMDLINE=clo
+@@ -9,14 +9,7 @@ ConditionKernelCommandLine=!cloud-init=d
  
  [Service]
  Type=oneshot
@@ -24,7 +24,7 @@ Last-Update: 2024-08-02
  
 --- a/systemd/cloud-final.service.tmpl
 +++ b/systemd/cloud-final.service.tmpl
-@@ -15,16 +15,10 @@ ConditionEnvironment=!KERNEL_CMDLINE=clo
+@@ -14,16 +14,10 @@ ConditionKernelCommandLine=!cloud-init=d
  
  [Service]
  Type=oneshot
@@ -53,7 +53,7 @@ Last-Update: 2024-08-02
  {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
  Requires=dbus.socket
  After=dbus.socket
-@@ -37,14 +38,7 @@ ExecStartPre=/bin/mkdir -p /run/cloud-in
+@@ -36,14 +37,7 @@ ExecStartPre=/bin/mkdir -p /run/cloud-in
  ExecStartPre=/sbin/restorecon /run/cloud-init
  ExecStartPre=/usr/bin/touch /run/cloud-init/enabled
  {% endif %}
@@ -195,7 +195,7 @@ Last-Update: 2024-08-02
 @@ -0,0 +1,57 @@
 +## template:jinja
 +[Unit]
-+# https://cloudinit.readthedocs.io/en/latest/explanation/boot.html
++# https://docs.cloud-init.io/en/latest/explanation/boot.html
 +Description=Cloud-init: Network Stage
 +{% if variant not in ["almalinux", "cloudlinux", "photon", "rhel"] %}
 +DefaultDependencies=no
@@ -252,7 +252,7 @@ Last-Update: 2024-08-02
 +WantedBy=cloud-init.target
 --- a/cloudinit/cmd/status.py
 +++ b/cloudinit/cmd/status.py
-@@ -318,9 +318,8 @@ def systemd_failed(wait: bool) -> bool:
+@@ -321,9 +321,8 @@ def systemd_failed(wait: bool) -> bool:
      for service in [
          "cloud-final.service",
          "cloud-config.service",
