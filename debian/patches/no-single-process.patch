@@ -6,7 +6,7 @@ Last-Update: 2024-08-02
 
 --- a/systemd/cloud-config.service.tmpl
 +++ b/systemd/cloud-config.service.tmpl
-@@ -9,14 +9,7 @@ ConditionKernelCommandLine=!cloud-init=d
+@@ -10,14 +10,7 @@ ConditionEnvironment=!KERNEL_CMDLINE=clo
  
  [Service]
  Type=oneshot
@@ -24,7 +24,7 @@ Last-Update: 2024-08-02
  
 --- a/systemd/cloud-final.service.tmpl
 +++ b/systemd/cloud-final.service.tmpl
-@@ -14,16 +14,10 @@ ConditionKernelCommandLine=!cloud-init=d
+@@ -15,16 +15,10 @@ ConditionEnvironment=!KERNEL_CMDLINE=clo
  
  [Service]
  Type=oneshot
@@ -53,7 +53,7 @@ Last-Update: 2024-08-02
  {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
  Requires=dbus.socket
  After=dbus.socket
-@@ -36,14 +37,7 @@ ExecStartPre=/bin/mkdir -p /run/cloud-in
+@@ -37,14 +38,7 @@ ExecStartPre=/bin/mkdir -p /run/cloud-in
  ExecStartPre=/sbin/restorecon /run/cloud-init
  ExecStartPre=/usr/bin/touch /run/cloud-init/enabled
  {% endif %}
@@ -128,7 +128,7 @@ Last-Update: 2024-08-02
 @@ -1,64 +0,0 @@
 -## template:jinja
 -[Unit]
--# https://cloudinit.readthedocs.io/en/latest/explanation/boot.html
+-# https://docs.cloud-init.io/en/latest/explanation/boot.html
 -Description=Cloud-init: Network Stage
 -{% if variant not in ["almalinux", "cloudlinux", "photon", "rhel"] %}
 -DefaultDependencies=no
@@ -252,7 +252,7 @@ Last-Update: 2024-08-02
 +WantedBy=cloud-init.target
 --- a/cloudinit/cmd/status.py
 +++ b/cloudinit/cmd/status.py
-@@ -321,9 +321,8 @@ def systemd_failed(wait: bool) -> bool:
+@@ -318,9 +318,8 @@ def systemd_failed(wait: bool) -> bool:
      for service in [
          "cloud-final.service",
          "cloud-config.service",
@@ -265,7 +265,7 @@ Last-Update: 2024-08-02
              stdout = query_systemctl(
 --- a/cloudinit/config/cc_mounts.py
 +++ b/cloudinit/config/cc_mounts.py
-@@ -525,7 +525,7 @@ def handle(name: str, cfg: Config, cloud
+@@ -521,7 +521,7 @@ def handle(name: str, cfg: Config, cloud
      # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
      uses_systemd = cloud.distro.uses_systemd()
      default_mount_options = (
@@ -276,7 +276,7 @@ Last-Update: 2024-08-02
      )
 --- a/cloudinit/config/schemas/schema-cloud-config-v1.json
 +++ b/cloudinit/config/schemas/schema-cloud-config-v1.json
-@@ -2022,12 +2022,12 @@
+@@ -2029,12 +2029,12 @@
          },
          "mount_default_fields": {
            "type": "array",
