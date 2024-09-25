@@ -39,7 +39,7 @@ request.
 ## Instructions for contributors
 
 The best way to get started is by checking out the
-["Development" section](https://cloudinit.readthedocs.io/en/latest/development/index.html)
+["Development" section](https://docs.cloud-init.io/en/latest/development/index.html)
 in our documentation. This covers everything; from how to find issues to work
 on, to how cloud-init is structured and useful resources, through to making your
 first PR and getting it accepted.
