@@ -15,7 +15,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 +    details_dict["_schema_version"] = "1"
 +
      if args.format == "tabular":
-         prefix = "\n" if args.wait else ""
+         prefix = ""
  
 --- a/tests/unittests/cmd/test_status.py
 +++ b/tests/unittests/cmd/test_status.py
