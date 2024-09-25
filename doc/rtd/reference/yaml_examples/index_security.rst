@@ -2,9 +2,12 @@ SSH and security
 ================
 
 * :ref:`cce-ssh`
-* :ref:`cce-ssh-authkey-fingerprints`
-* :ref:`cce-ssh-import-id`
-* :ref:`cce-keys-to-console`
+  There are four modules related to SSH keys and their configuration, all of
+  which are described in this page: :ref:`SSH <cce-ssh>`,
+  :ref:`SSH Import ID <cce-ssh-import-id>`,
+  :ref:`Keys to Console <cce-keys-to-console>`, and
+  :ref:`SSH AuthKey Fingerprints <cce-ssh-authkey-fingerprints>`.
+
 * :ref:`cce-ca-certs`
 * :ref:`cce-disable-ec2-metadata`
 
@@ -15,8 +18,5 @@ SSH and security
    :hidden:
 
    ssh
-   ssh_authkey_fingerprints
-   ssh_import_id
-   keys_to_console
    ca_certs
    disable_ec2_metadata
