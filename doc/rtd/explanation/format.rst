@@ -166,6 +166,8 @@ will not be read.
 Jinja template
 ==============
 
+.. _jinja-config:
+
 Example cloud-config
 --------------------
 
@@ -175,6 +177,8 @@ Example cloud-config
    #cloud-config
    runcmd:
      - echo 'Running on {{ v1.cloud_name }}' > /var/tmp/cloud_name
+
+.. _jinja-script:
 
 Example user data script
 ------------------------
