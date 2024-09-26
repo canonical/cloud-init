@@ -148,7 +148,7 @@ def analyze_boot(name, args):
         "functionality.\n"
         "You must be running a Kernel Telemetry supported "
         "distro.\nPlease check "
-        "https://cloudinit.readthedocs.io/en/latest"
+        "https://docs.cloud-init.io/en/latest"
         "/topics/analyze.html for more "
         "information on supported distros.\n"
     )

@@ -125,7 +125,7 @@ def networkd_load_leases(leases_d=None):
     if leases_d is None:
         leases_d = NETWORKD_LEASES_DIR
 
-    ret = {}
+    ret: Dict[str, dict] = {}
     if not os.path.isdir(leases_d):
         return ret
     for lfile in os.listdir(leases_d):
@@ -654,7 +654,7 @@ class Dhcpcd(DhcpClient):
             if is_ib_interface(interface):
                 infiniband_argument = ["--clientid"]
             command = [
-                self.dhcp_client_path,  # pyright: ignore
+                self.client_name,
                 "--ipv4only",  # only attempt configuring ipv4
                 "--waitip",  # wait for ipv4 to be configured
                 "--persistent",  # don't deconfigure when dhcpcd exits
@@ -860,7 +860,7 @@ class Dhcpcd(DhcpClient):
             return self.parse_dhcpcd_lease(
                 subp.subp(
                     [
-                        self.dhcp_client_path,
+                        self.client_name,
                         "--dumplease",
                         "--ipv4only",
                         interface,
@@ -914,7 +914,7 @@ class Udhcpc(DhcpClient):
 
     def __init__(self):
         super().__init__()
-        self.lease_file = None
+        self.lease_file = ""
 
     def dhcp_discovery(
         self,
@@ -944,7 +944,7 @@ class Udhcpc(DhcpClient):
         util.write_file(udhcpc_script, UDHCPC_SCRIPT, 0o755)
 
         cmd = [
-            self.dhcp_client_path,
+            self.client_name,
             "-O",
             "staticroutes",
             "-i",

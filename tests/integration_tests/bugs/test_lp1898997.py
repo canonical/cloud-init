@@ -15,7 +15,7 @@ import pytest
 from tests.integration_tests import random_mac_address
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL
-from tests.integration_tests.util import verify_clean_log
+from tests.integration_tests.util import verify_clean_boot, verify_clean_log
 
 MAC_ADDRESS = random_mac_address()
 
@@ -74,6 +74,7 @@ class TestInterfaceListingWithOpenvSwitch:
 
         # Confirm that the network configuration was applied successfully
         verify_clean_log(cloudinit_output)
+        verify_clean_boot(client)
         # Confirm that the applied network config created the OVS bridge
         assert "ovs-br" in client.execute("ip addr")
 

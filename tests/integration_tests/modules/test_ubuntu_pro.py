@@ -19,9 +19,11 @@ from tests.integration_tests.releases import (
     FOCAL,
     IS_UBUNTU,
     JAMMY,
+    NOBLE,
 )
 from tests.integration_tests.util import (
     get_feature_flag_value,
+    verify_clean_boot,
     verify_clean_log,
 )
 
@@ -142,21 +144,22 @@ class TestUbuntuAdvantage:
         version_boundary = get_feature_flag_value(
             client, "DEPRECATION_INFO_BOUNDARY"
         )
+        boundary_message = (
+            "Module has been renamed from cc_ubuntu_advantage "
+            "to cc_ubuntu_pro /var/log/cloud-init.log"
+        )
         # ubuntu_advantage key is deprecated in version 24.1
         if lifecycle.should_log_deprecation("24.1", version_boundary):
-            log_level = "DEPRECATED"
+            verify_clean_boot(client, require_deprecations=[boundary_message])
         else:
-            log_level = "INFO"
-        client.execute(
-            rf"grep \"{log_level}]: Module has been renamed from"
-            " cc_ubuntu_advantage to cc_ubuntu_pro /var/log/cloud-init.log"
-        ).ok
+            client.execute(rf"grep \"INFO]: {boundary_message}").ok
         assert is_attached(client)
 
     @pytest.mark.user_data(ATTACH.format(token=CLOUD_INIT_UA_TOKEN))
     def test_idempotency(self, client: IntegrationInstance):
         log = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
+        verify_clean_boot(client)
         assert is_attached(client)
 
         # Clean reboot to change instance-id and trigger cc_ua in next boot
@@ -165,6 +168,7 @@ class TestUbuntuAdvantage:
 
         log = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
+        verify_clean_boot(client)
         assert is_attached(client)
 
         # Assert service-already-enabled handling for esm-infra.
@@ -178,6 +182,7 @@ class TestUbuntuAdvantage:
         client.restart()
         log = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
+        verify_clean_boot(client)
         assert "Service `esm-infra` already enabled" in log
 
 
@@ -209,6 +214,7 @@ def maybe_install_cloud_init(session_cloud: IntegrationCloud):
     ) as client:
         log = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
+        verify_clean_boot(client)
 
         assert not is_attached(
             client
@@ -231,7 +237,7 @@ def maybe_install_cloud_init(session_cloud: IntegrationCloud):
 
 
 @pytest.mark.skipif(
-    not all([IS_UBUNTU, CURRENT_RELEASE in [BIONIC, FOCAL, JAMMY]]),
+    CURRENT_RELEASE not in [BIONIC, FOCAL, JAMMY, NOBLE],
     reason="Test runs on Ubuntu LTS releases only",
 )
 @pytest.mark.skipif(
@@ -247,6 +253,7 @@ class TestUbuntuAdvantagePro:
         ) as client:
             log = client.read_from_file("/var/log/cloud-init.log")
             verify_clean_log(log)
+            verify_clean_boot(client)
             assert_ua_service_noop(client)
             assert is_attached(client)
             services_status = get_services_status(client)

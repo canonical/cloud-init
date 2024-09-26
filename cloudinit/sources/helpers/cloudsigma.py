@@ -22,8 +22,6 @@ API Docs: http://cloudsigma-docs.readthedocs.org/en/latest/server_context.html
 import json
 import platform
 
-import serial
-
 # these high timeouts are necessary as read may read a lot of data.
 READ_TIMEOUT = 60
 WRITE_TIMEOUT = 10
@@ -67,6 +65,11 @@ class CepkoResult:
         self.result = self._marshal(self.raw_result)
 
     def _execute(self):
+        try:
+            import serial
+        except ImportError as e:
+            raise NotImplementedError("serial support is not available") from e
+
         connection = serial.Serial(
             port=SERIAL_PORT, timeout=READ_TIMEOUT, writeTimeout=WRITE_TIMEOUT
         )

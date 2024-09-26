@@ -9,6 +9,7 @@ from cloudinit.sources import DataSourceAliYun as AliYun
 from cloudinit.sources import DataSourceAltCloud as AltCloud
 from cloudinit.sources import DataSourceAzure as Azure
 from cloudinit.sources import DataSourceBigstep as Bigstep
+from cloudinit.sources import DataSourceCloudCIX as CloudCIX
 from cloudinit.sources import DataSourceCloudSigma as CloudSigma
 from cloudinit.sources import DataSourceCloudStack as CloudStack
 from cloudinit.sources import DataSourceConfigDrive as ConfigDrive
@@ -81,6 +82,7 @@ DEFAULT_NETWORK = [
     UpCloud.DataSourceUpCloud,
     Akamai.DataSourceAkamai,
     VMware.DataSourceVMware,
+    CloudCIX.DataSourceCloudCIX,
 ]
 
 

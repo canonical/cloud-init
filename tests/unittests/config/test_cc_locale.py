@@ -4,10 +4,8 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
-import os
-import shutil
-import tempfile
 from io import BytesIO
+from pathlib import Path
 
 import pytest
 from configobj import ConfigObj
@@ -19,22 +17,14 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import (
-    FilesystemMockingTestCase,
-    mock,
-    skipUnlessJsonSchema,
-)
+from tests.unittests.helpers import does_not_raise, mock, skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
 
-class TestLocale(FilesystemMockingTestCase):
-    def setUp(self):
-        super(TestLocale, self).setUp()
-        self.new_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.new_root)
-        self.patchUtils(self.new_root)
+@pytest.mark.usefixtures("fake_filesystem")
+class TestLocale:
 
     def test_set_locale_arch(self):
         locale = "en_GB.UTF-8"
@@ -56,97 +46,107 @@ class TestLocale(FilesystemMockingTestCase):
                 )
 
                 contents = util.load_text_file(cc.distro.locale_gen_fn)
-                self.assertIn("%s UTF-8" % locale, contents)
+                assert "%s UTF-8" % locale in contents
                 m_subp.assert_called_with(
                     ["localectl", "set-locale", locale], capture=False
                 )
 
-    def test_set_locale_sles(self):
-
-        cfg = {
-            "locale": "My.Locale",
-        }
-        cc = get_cloud("sles")
+    @pytest.mark.parametrize(
+        "distro_name,uses_systemd, cfg,expected_locale",
+        (
+            pytest.param(
+                "sles",
+                True,
+                {},
+                {"LANG": "en_US.UTF-8"},
+                id="sles_locale_defaults_systemd",
+            ),
+            pytest.param(
+                "sles",
+                False,
+                {},
+                {"RC_LANG": "en_US.UTF-8"},
+                id="sles_locale_defaults_not_systemd",
+            ),
+            pytest.param(
+                "sles",
+                True,
+                {"locale": "My.Locale"},
+                {"LANG": "My.Locale"},
+                id="custom_locale",
+            ),
+            pytest.param(
+                "rhel",
+                True,
+                {},
+                {"LANG": "en_US.UTF-8"},
+                id="test_rhel_default_locale",
+            ),
+        ),
+    )
+    def test_set_locale_sles(
+        self, distro_name, uses_systemd, cfg, expected_locale, mocker
+    ):
+        cc = get_cloud(distro_name)
+        mocker.patch.object(
+            cc.distro, "uses_systemd", return_value=uses_systemd
+        )
         cc_locale.handle("cc_locale", cfg, cc, [])
-        if cc.distro.uses_systemd():
+        if uses_systemd:
             locale_conf = cc.distro.systemd_locale_conf_fn
         else:
             locale_conf = cc.distro.locale_conf_fn
         contents = util.load_binary_file(locale_conf)
         n_cfg = ConfigObj(BytesIO(contents))
-        if cc.distro.uses_systemd():
-            self.assertEqual({"LANG": cfg["locale"]}, dict(n_cfg))
-        else:
-            self.assertEqual({"RC_LANG": cfg["locale"]}, dict(n_cfg))
+        assert expected_locale == dict(n_cfg)
 
-    def test_set_locale_sles_default(self):
-        cfg = {}
-        cc = get_cloud("sles")
-        cc_locale.handle("cc_locale", cfg, cc, [])
-
-        if cc.distro.uses_systemd():
-            locale_conf = cc.distro.systemd_locale_conf_fn
-            keyname = "LANG"
-        else:
-            locale_conf = cc.distro.locale_conf_fn
-            keyname = "RC_LANG"
-
-        contents = util.load_binary_file(locale_conf)
-        n_cfg = ConfigObj(BytesIO(contents))
-        self.assertEqual({keyname: "en_US.UTF-8"}, dict(n_cfg))
-
-    def test_locale_update_config_if_different_than_default(self):
+    def test_locale_update_config_if_different_than_default(self, tmpdir):
         """Test cc_locale writes updates conf if different than default"""
-        locale_conf = os.path.join(self.new_root, "etc/default/locale")
-        util.write_file(locale_conf, 'LANG="en_US.UTF-8"\n')
+        locale_conf = tmpdir.join("etc/default/locale")
+        Path(locale_conf).parent.mkdir(parents=True)
+        locale_conf.write('LANG="en_US.UTF-8"\n')
         cfg = {"locale": "C.UTF-8"}
         cc = get_cloud("ubuntu")
         with mock.patch("cloudinit.distros.debian.subp.subp") as m_subp:
             with mock.patch(
-                "cloudinit.distros.debian.LOCALE_CONF_FN", locale_conf
+                "cloudinit.distros.debian.LOCALE_CONF_FN", locale_conf.strpath
             ):
                 cc_locale.handle("cc_locale", cfg, cc, [])
                 m_subp.assert_called_with(
                     [
                         "update-locale",
-                        "--locale-file=%s" % locale_conf,
+                        "--locale-file=%s" % locale_conf.strpath,
                         "LANG=C.UTF-8",
                     ],
                     capture=False,
                 )
 
-    def test_locale_rhel_defaults_en_us_utf8(self):
-        """Test cc_locale gets en_US.UTF-8 from distro get_locale fallback"""
-        cfg = {}
-        cc = get_cloud("rhel")
-        update_sysconfig = "cloudinit.distros.rhel_util.update_sysconfig_file"
-        with mock.patch.object(cc.distro, "uses_systemd") as m_use_sd:
-            m_use_sd.return_value = True
-            with mock.patch(update_sysconfig) as m_update_syscfg:
-                cc_locale.handle("cc_locale", cfg, cc, [])
-                m_update_syscfg.assert_called_with(
-                    "/etc/locale.conf", {"LANG": "en_US.UTF-8"}
-                )
-
 
 class TestLocaleSchema:
     @pytest.mark.parametrize(
-        "config, error_msg",
+        "config, expectation",
         (
             # Valid schemas tested via meta['examples'] in test_schema.py
             # Invalid schemas
-            ({"locale": 1}, "locale: 1 is not of type 'string'"),
+            (
+                {"locale": 1},
+                pytest.raises(
+                    SchemaValidationError,
+                    match="locale: 1 is not of type 'string'",
+                ),
+            ),
             (
                 {"locale_configfile": 1},
-                "locale_configfile: 1 is not of type 'string'",
+                pytest.raises(
+                    SchemaValidationError,
+                    match="locale_configfile: 1 is not of type 'string'",
+                ),
             ),
+            ({"locale": False}, does_not_raise()),
         ),
     )
     @skipUnlessJsonSchema()
-    def test_schema_validation(self, config, error_msg):
+    def test_schema_validation(self, config, expectation):
         schema = get_schema()
-        if error_msg is None:
+        with expectation:
             validate_cloudconfig_schema(config, schema, strict=True)
-        else:
-            with pytest.raises(SchemaValidationError, match=error_msg):
-                validate_cloudconfig_schema(config, schema, strict=True)

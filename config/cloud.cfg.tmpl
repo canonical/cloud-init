@@ -171,7 +171,7 @@ cloud_config_modules:
 {% if is_rhel %}
   - rh_subscription
 {% endif %}
-{% if variant not in ["mariner", "photon"] %}
+{% if variant not in ["azurelinux", "mariner", "photon"] %}
   - spacewalk
 {% endif %}
   - yum_add_repo
@@ -180,7 +180,9 @@ cloud_config_modules:
 {% endif %}
   - ntp
   - timezone
+{% if variant not in ["azurelinux"] %}
   - disable_ec2_metadata
+{% endif %}
   - runcmd
 {% if variant in ["debian", "ubuntu", "unknown"] %}
   - byobu
@@ -198,12 +200,16 @@ cloud_final_modules:
   - ubuntu_drivers
 {% endif %}
   - write_files_deferred
+{% if variant not in ["azurelinux"] %}
   - puppet
   - chef
+{% endif %}
   - ansible
+{% if variant not in ["azurelinux"] %}
   - mcollective
   - salt_minion
   - reset_rmc
+{% endif %}
   - scripts_vendor
   - scripts_per_once
   - scripts_per_boot

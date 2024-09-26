@@ -310,6 +310,8 @@ Example output:
   - sles, 12.3, x86_64
   - ubuntu, 20.04, focal
 
+.. _v1_instance_id:
+
 ``v1.instance_id``
 ^^^^^^^^^^^^^^^^^^
 

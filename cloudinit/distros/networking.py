@@ -2,7 +2,7 @@ import abc
 import logging
 import os
 
-from cloudinit import net, subp, util
+from cloudinit import net, performance, subp, util
 from cloudinit.distros.parsers import ifconfig
 from cloudinit.net.netops.iproute2 import Iproute2
 
@@ -154,12 +154,8 @@ class Networking(metaclass=abc.ABCMeta):
                 # trigger a settle, unless this interface exists
                 devname = expected_ifaces[mac]
                 msg = "Waiting for settle or {} exists".format(devname)
-                util.log_time(
-                    LOG.debug,
-                    msg,
-                    func=self.settle,
-                    kwargs={"exists": devname},
-                )
+                with performance.Timed(msg, log_mode="always"):
+                    self.settle(exists=devname)
 
             # update present_macs after settles
             present_macs = self.get_interfaces_by_mac().keys()

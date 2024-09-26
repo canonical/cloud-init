@@ -117,7 +117,6 @@ runcmd:
 # This is very similar to runcmd above, but commands run very early
 # in the boot process, only slightly after a 'boothook' would run.
 #  - bootcmd will run on every boot
-#  - INSTANCE_ID variable will be set to the current instance ID
 #  - 'cloud-init-per' command can be used to make bootcmd run exactly once
 bootcmd:
  - echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts
@@ -315,15 +314,15 @@ final_message: "The system is finally up, after $UPTIME seconds"
 
 # phone_home: if this dictionary is present, then the phone_home
 # cloud-config module will post specified data back to the given
-# url
+# url. Note that this example requires a `## template: jinja` header
 # default: none
 # phone_home:
-#  url: http://my.foo.bar/$INSTANCE/
+#  url: http://my.foo.bar/{{ v1.instance_id }}/
 #  post: all
 #  tries: 10
 #
 phone_home:
-  url: http://my.example.com/$INSTANCE_ID/
+  url: http://my.example.com/{{ v1.instance_id }}/
   post: [ pub_key_rsa, pub_key_ecdsa, instance_id ]
 
 # timezone: set the timezone for this instance

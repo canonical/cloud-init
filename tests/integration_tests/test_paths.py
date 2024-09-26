@@ -10,7 +10,7 @@ from cloudinit.cmd.devel.logs import (
 )
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL
-from tests.integration_tests.util import verify_clean_log
+from tests.integration_tests.util import verify_clean_boot, verify_clean_log
 
 DEFAULT_CLOUD_DIR = "/var/lib/cloud"
 NEW_CLOUD_DIR = "/new-cloud-dir"
@@ -39,6 +39,7 @@ class TestHonorCloudDir:
     def verify_log_and_files(self, custom_client):
         log_content = custom_client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log_content)
+        verify_clean_boot(custom_client)
         assert NEW_CLOUD_DIR in log_content
         assert DEFAULT_CLOUD_DIR not in log_content
         assert custom_client.execute(f"test ! -d {DEFAULT_CLOUD_DIR}").ok

@@ -20,7 +20,7 @@ class TestHandle:
     should be expanded to cover the full functionality.
     """
 
-    @mock.patch("cloudinit.config.cc_keys_to_console.util.multi_log")
+    @mock.patch("cloudinit.config.cc_keys_to_console.log_util.multi_log")
     @mock.patch("cloudinit.config.cc_keys_to_console.os.path.exists")
     @mock.patch("cloudinit.config.cc_keys_to_console.subp.subp")
     @pytest.mark.parametrize(

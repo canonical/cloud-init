@@ -71,13 +71,6 @@ addition or removal of network interfaces to the system. In addition to
 fetching and updating the system metadata, ``cloud-init`` will also bring
 up/down the newly added interface.
 
-.. warning::
-   Due to its use of ``systemd`` sockets, ``hotplug`` functionality is
-   currently incompatible with SELinux on Linux distributions using systemd.
-   This issue is being `tracked in GitHub #3890`_. Additionally, ``hotplug``
-   support is considered experimental for non-Alpine and non-Debian-based
-   systems.
-
 Example
 =======
 

@@ -330,6 +330,7 @@ class TestAnsible:
         """assert exception not raised if package installed"""
         cc_ansible.AnsiblePullDistro(get_cloud().distro).check_deps()
 
+    @mark.serial
     @mock.patch(M_PATH + "subp.subp", return_value=("stdout", "stderr"))
     @mock.patch(M_PATH + "subp.which", return_value=False)
     def test_pip_bootstrap(self, m_which, m_subp):

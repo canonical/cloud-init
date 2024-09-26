@@ -13,6 +13,7 @@ from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
 from tests.integration_tests.util import (
     get_feature_flag_value,
+    verify_clean_boot,
     verify_clean_log,
 )
 
@@ -465,8 +466,8 @@ apt:
 
 
 RE_GPG_SW_PROPERTIES_INSTALLED = (
-    r"install"
-    r" (gnupg software-properties-common|software-properties-common gnupg)"
+    r"install', '(gnupg', 'software-properties-common|"
+    r"software-properties-common', 'gnupg)"
 )
 
 REMOVE_GPG_USERDATA = """
@@ -489,4 +490,5 @@ def test_install_missing_deps(setup_image, session_cloud: IntegrationCloud):
     ) as minimal_client:
         log = minimal_client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
+        verify_clean_boot(minimal_client)
         assert re.search(RE_GPG_SW_PROPERTIES_INSTALLED, log)

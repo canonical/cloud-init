@@ -25,7 +25,7 @@ FakeArgs = namedtuple("FakeArgs", ["action", "local", "mode"])
 def disable_setup_logging():
     # setup_basic_logging can change the logging level to WARNING, so
     # ensure it is always mocked
-    with mock.patch(f"{M_PATH}log.setup_basic_logging", autospec=True):
+    with mock.patch(f"{M_PATH}loggers.setup_basic_logging", autospec=True):
         yield
 
 
@@ -33,13 +33,12 @@ def disable_setup_logging():
 def mock_status_wrapper(mocker, tmpdir):
     link_d = os.path.join(tmpdir, "link")
     data_d = os.path.join(tmpdir, "data")
-    with mocker.patch(
+    mocker.patch(
         "cloudinit.cmd.main.read_cfg_paths",
         return_value=mock.Mock(get_cpath=lambda _: data_d),
-    ), mocker.patch(
-        "cloudinit.cmd.main.os.path.normpath", return_value=link_d
-    ):
-        yield Tmpdir(tmpdir, link_d, data_d)
+    )
+    mocker.patch("cloudinit.cmd.main.os.path.normpath", return_value=link_d)
+    yield Tmpdir(tmpdir, link_d, data_d)
 
 
 class TestCLI:
@@ -205,7 +204,7 @@ class TestCLI:
             ),
         ),
     )
-    @mock.patch("cloudinit.cmd.main.log.setup_basic_logging")
+    @mock.patch("cloudinit.cmd.main.loggers.setup_basic_logging")
     def test_subcommands_log_to_stderr_via_setup_basic_logging(
         self, setup_basic_logging, subcommand, log_to_stderr, mocks
     ):

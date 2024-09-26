@@ -35,12 +35,12 @@ meta: MetaSchema = {
 
 LOG = logging.getLogger(__name__)
 # phone_home:
-#  url: http://my.foo.bar/$INSTANCE/
+#  url: http://my.foo.bar/{{ v1.instance_id }}/
 #  post: all
 #  tries: 10
 #
 # phone_home:
-#  url: http://my.foo.bar/$INSTANCE_ID/
+#  url: http://my.foo.bar/{{ v1.instance_id }}/
 #  post: [ pub_key_rsa, pub_key_ecdsa, instance_id, hostname,
 #          fqdn ]
 #

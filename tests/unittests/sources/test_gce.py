@@ -418,7 +418,7 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         ds._get_data()
         assert m_dhcp.call_count == 1
 
-    @mock.patch(M_PATH + "util.log_time")
+    @mock.patch(M_PATH + "read_md")
     @mock.patch(
         M_PATH + "EphemeralDHCPv4",
         autospec=True,

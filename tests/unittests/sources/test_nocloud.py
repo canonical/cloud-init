@@ -3,36 +3,28 @@
 import os
 import textwrap
 
+import pytest
 import yaml
 
-from cloudinit import dmi, helpers, util
 from cloudinit.sources.DataSourceNoCloud import DataSourceNoCloud as dsNoCloud
-from cloudinit.sources.DataSourceNoCloud import parse_cmdline_data
-from tests.unittests.helpers import CiTestCase, ExitStack, mock, populate_dir
+from cloudinit.sources.DataSourceNoCloud import (
+    DataSourceNoCloudNet,
+    parse_cmdline_data,
+)
+from tests.unittests.helpers import mock, populate_dir
 
 
-@mock.patch("cloudinit.sources.DataSourceNoCloud.util.is_lxd")
-class TestNoCloudDataSource(CiTestCase):
-    def setUp(self):
-        super(TestNoCloudDataSource, self).setUp()
-        self.tmp = self.tmp_dir()
-        self.paths = helpers.Paths(
-            {"cloud_dir": self.tmp, "run_dir": self.tmp}
-        )
+@pytest.fixture(autouse=True)
+def common_mocks(mocker):
+    mocker.patch("cloudinit.sources.DataSourceNoCloud.util.is_lxd")
+    mocker.patch("cloudinit.util.get_cmdline", return_value="root=TESTCMDLINE")
+    mocker.patch("cloudinit.dmi.read_dmi_data", return_value=None)
 
-        self.cmdline = "root=TESTCMDLINE"
 
-        self.mocks = ExitStack()
-        self.addCleanup(self.mocks.close)
-
-        self.mocks.enter_context(
-            mock.patch.object(util, "get_cmdline", return_value=self.cmdline)
-        )
-        self.mocks.enter_context(
-            mock.patch.object(dmi, "read_dmi_data", return_value=None)
-        )
-
-    def _test_fs_config_is_read(self, fs_label, fs_label_to_search):
+class TestNoCloudDataSource:
+    def _test_fs_config_is_read(
+        self, fs_label, fs_label_to_search, mocker, paths
+    ):
         vfat_device = "device-1"
 
         def m_mount_cb(device, callback, mtype):
@@ -49,64 +41,68 @@ class TestNoCloudDataSource(CiTestCase):
             else:
                 return []
 
-        self.mocks.enter_context(
-            mock.patch.object(
-                util, "find_devs_with", side_effect=m_find_devs_with
-            )
+        mocker.patch(
+            "cloudinit.util.find_devs_with", side_effect=m_find_devs_with
         )
-        self.mocks.enter_context(
-            mock.patch.object(util, "mount_cb", side_effect=m_mount_cb)
-        )
+        mocker.patch("cloudinit.util.mount_cb", side_effect=m_mount_cb)
         sys_cfg = {"datasource": {"NoCloud": {"fs_label": fs_label_to_search}}}
-        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=self.paths)
+        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=paths)
         ret = dsrc.get_data()
 
-        self.assertEqual(dsrc.metadata.get("instance-id"), "IID")
-        self.assertTrue(ret)
+        assert dsrc.metadata.get("instance-id") == "IID"
+        assert ret
 
-    def test_nocloud_seed_dir_on_lxd(self, m_is_lxd):
+    def test_nocloud_seed_dir_on_lxd(self, paths):
         md = {"instance-id": "IID", "dsmode": "local"}
         ud = b"USER_DATA_HERE"
-        seed_dir = os.path.join(self.paths.seed_dir, "nocloud")
+        seed_dir = os.path.join(paths.seed_dir, "nocloud")
         populate_dir(
             seed_dir, {"user-data": ud, "meta-data": yaml.safe_dump(md)}
         )
 
         sys_cfg = {"datasource": {"NoCloud": {"fs_label": None}}}
 
-        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=self.paths)
+        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=paths)
         ret = dsrc.get_data()
-        self.assertEqual(dsrc.userdata_raw, ud)
-        self.assertEqual(dsrc.metadata, md)
-        self.assertEqual(dsrc.platform_type, "lxd")
-        self.assertEqual(dsrc.subplatform, "seed-dir (%s)" % seed_dir)
-        self.assertTrue(ret)
+        assert dsrc.userdata_raw == ud
+        assert dsrc.metadata == md
+        assert dsrc.platform_type == "lxd"
+        assert dsrc.subplatform == "seed-dir (%s)" % seed_dir
+        assert ret
 
-    def test_nocloud_seed_dir_non_lxd_platform_is_nocloud(self, m_is_lxd):
+    def test_nocloud_seed_dir_non_lxd_platform_is_nocloud(self, mocker, paths):
         """Non-lxd environments will list nocloud as the platform."""
-        m_is_lxd.return_value = False
+        mocker.patch(
+            "cloudinit.sources.DataSourceNoCloud.util.is_lxd",
+            return_value=False,
+        )
         md = {"instance-id": "IID", "dsmode": "local"}
-        seed_dir = os.path.join(self.paths.seed_dir, "nocloud")
+        seed_dir = os.path.join(paths.seed_dir, "nocloud")
         populate_dir(
             seed_dir, {"user-data": "", "meta-data": yaml.safe_dump(md)}
         )
 
         sys_cfg = {"datasource": {"NoCloud": {"fs_label": None}}}
 
-        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=self.paths)
-        self.assertTrue(dsrc.get_data())
-        self.assertEqual(dsrc.platform_type, "nocloud")
-        self.assertEqual(dsrc.subplatform, "seed-dir (%s)" % seed_dir)
+        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=paths)
+        assert dsrc.get_data()
+        assert dsrc.platform_type == "nocloud"
+        assert dsrc.subplatform == "seed-dir (%s)" % seed_dir
 
-    def test_nocloud_seedfrom(self, m_is_lxd):
+    def test_nocloud_seedfrom(self, paths, caplog):
         """Check that a seedfrom triggers detection"""
-        assert dsNoCloud(
+        ds = DataSourceNoCloudNet(
             sys_cfg={"datasource": {"NoCloud": {"seedfrom": "somevalue"}}},
             distro=None,
-            paths=self.paths,
-        ).ds_detect()
+            paths=paths,
+        )
+        assert ds.ds_detect()
+        assert (
+            "Machine is configured by system configuration to run on "
+            "single datasource DataSourceNoCloudNet"
+        ) in caplog.text
 
-    def test_nocloud_user_data_meta_data(self, m_is_lxd):
+    def test_nocloud_user_data_meta_data(self, paths):
         """Check that meta-data and user-data trigger detection"""
         assert dsNoCloud(
             sys_cfg={
@@ -118,51 +114,49 @@ class TestNoCloudDataSource(CiTestCase):
                 }
             },
             distro=None,
-            paths=self.paths,
+            paths=paths,
         ).ds_detect()
 
-    def test_fs_label(self, m_is_lxd):
+    def test_fs_label(self, paths, mocker):
         # find_devs_with should not be called ff fs_label is None
         class PsuedoException(Exception):
             pass
 
-        self.mocks.enter_context(
-            mock.patch.object(
-                util, "find_devs_with", side_effect=PsuedoException
-            )
+        mocker.patch(
+            "cloudinit.util.find_devs_with", side_effect=PsuedoException
         )
 
         # by default, NoCloud should search for filesystems by label
         sys_cfg = {"datasource": {"NoCloud": {}}}
-        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=self.paths)
-        self.assertRaises(PsuedoException, dsrc.get_data)
+        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=paths)
+        pytest.raises(PsuedoException, dsrc.get_data)
 
         # but disabling searching should just end up with None found
         sys_cfg = {"datasource": {"NoCloud": {"fs_label": None}}}
-        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=self.paths)
+        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=paths)
         ret = dsrc.get_data()
-        self.assertFalse(ret)
+        assert not ret
 
-    def test_fs_config_lowercase_label(self, m_is_lxd):
-        self._test_fs_config_is_read("cidata", "cidata")
+    def test_fs_config_lowercase_label(self, mocker, paths):
+        self._test_fs_config_is_read("cidata", "cidata", mocker, paths)
 
-    def test_fs_config_uppercase_label(self, m_is_lxd):
-        self._test_fs_config_is_read("CIDATA", "cidata")
+    def test_fs_config_uppercase_label(self, mocker, paths):
+        self._test_fs_config_is_read("CIDATA", "cidata", mocker, paths)
 
-    def test_fs_config_lowercase_label_search_uppercase(self, m_is_lxd):
-        self._test_fs_config_is_read("cidata", "CIDATA")
+    def test_fs_config_lowercase_label_search_uppercase(self, mocker, paths):
+        self._test_fs_config_is_read("cidata", "CIDATA", mocker, paths)
 
-    def test_fs_config_uppercase_label_search_uppercase(self, m_is_lxd):
-        self._test_fs_config_is_read("CIDATA", "CIDATA")
+    def test_fs_config_uppercase_label_search_uppercase(self, mocker, paths):
+        self._test_fs_config_is_read("CIDATA", "CIDATA", mocker, paths)
 
-    def test_no_datasource_expected(self, m_is_lxd):
+    def test_no_datasource_expected(self, paths):
         # no source should be found if no cmdline, config, and fs_label=None
         sys_cfg = {"datasource": {"NoCloud": {"fs_label": None}}}
 
-        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=self.paths)
-        self.assertFalse(dsrc.get_data())
+        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=paths)
+        assert not dsrc.get_data()
 
-    def test_seed_in_config(self, m_is_lxd):
+    def test_seed_in_config(self, paths):
         data = {
             "fs_label": None,
             "meta-data": yaml.safe_dump({"instance-id": "IID"}),
@@ -170,19 +164,19 @@ class TestNoCloudDataSource(CiTestCase):
         }
 
         sys_cfg = {"datasource": {"NoCloud": data}}
-        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=self.paths)
+        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=paths)
         ret = dsrc.get_data()
-        self.assertEqual(dsrc.userdata_raw, b"USER_DATA_RAW")
-        self.assertEqual(dsrc.metadata.get("instance-id"), "IID")
-        self.assertTrue(ret)
+        assert dsrc.userdata_raw == b"USER_DATA_RAW"
+        assert dsrc.metadata.get("instance-id") == "IID"
+        assert ret
 
-    def test_nocloud_seed_with_vendordata(self, m_is_lxd):
+    def test_nocloud_seed_with_vendordata(self, paths):
         md = {"instance-id": "IID", "dsmode": "local"}
         ud = b"USER_DATA_HERE"
         vd = b"THIS IS MY VENDOR_DATA"
 
         populate_dir(
-            os.path.join(self.paths.seed_dir, "nocloud"),
+            os.path.join(paths.seed_dir, "nocloud"),
             {
                 "user-data": ud,
                 "meta-data": yaml.safe_dump(md),
@@ -192,28 +186,28 @@ class TestNoCloudDataSource(CiTestCase):
 
         sys_cfg = {"datasource": {"NoCloud": {"fs_label": None}}}
 
-        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=self.paths)
+        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=paths)
         ret = dsrc.get_data()
-        self.assertEqual(dsrc.userdata_raw, ud)
-        self.assertEqual(dsrc.metadata, md)
-        self.assertEqual(dsrc.vendordata_raw, vd)
-        self.assertTrue(ret)
+        assert dsrc.userdata_raw == ud
+        assert dsrc.metadata == md
+        assert dsrc.vendordata_raw == vd
+        assert ret
 
-    def test_nocloud_no_vendordata(self, m_is_lxd):
+    def test_nocloud_no_vendordata(self, paths):
         populate_dir(
-            os.path.join(self.paths.seed_dir, "nocloud"),
+            os.path.join(paths.seed_dir, "nocloud"),
             {"user-data": b"ud", "meta-data": "instance-id: IID\n"},
         )
 
         sys_cfg = {"datasource": {"NoCloud": {"fs_label": None}}}
 
-        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=self.paths)
+        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=paths)
         ret = dsrc.get_data()
-        self.assertEqual(dsrc.userdata_raw, b"ud")
-        self.assertFalse(dsrc.vendordata)
-        self.assertTrue(ret)
+        assert dsrc.userdata_raw == b"ud"
+        assert not dsrc.vendordata
+        assert ret
 
-    def test_metadata_network_interfaces(self, m_is_lxd):
+    def test_metadata_network_interfaces(self, paths):
         gateway = "103.225.10.1"
         md = {
             "instance-id": "i-abcd",
@@ -233,19 +227,19 @@ class TestNoCloudDataSource(CiTestCase):
         }
 
         populate_dir(
-            os.path.join(self.paths.seed_dir, "nocloud"),
+            os.path.join(paths.seed_dir, "nocloud"),
             {"user-data": b"ud", "meta-data": yaml.dump(md) + "\n"},
         )
 
         sys_cfg = {"datasource": {"NoCloud": {"fs_label": None}}}
 
-        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=self.paths)
+        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=paths)
         ret = dsrc.get_data()
-        self.assertTrue(ret)
+        assert ret
         # very simple check just for the strings above
-        self.assertIn(gateway, str(dsrc.network_config))
+        assert gateway in str(dsrc.network_config)
 
-    def test_metadata_network_config(self, m_is_lxd):
+    def test_metadata_network_config(self, paths):
         # network-config needs to get into network_config
         netconf = {
             "version": 1,
@@ -258,7 +252,7 @@ class TestNoCloudDataSource(CiTestCase):
             ],
         }
         populate_dir(
-            os.path.join(self.paths.seed_dir, "nocloud"),
+            os.path.join(paths.seed_dir, "nocloud"),
             {
                 "user-data": b"ud",
                 "meta-data": "instance-id: IID\n",
@@ -268,12 +262,12 @@ class TestNoCloudDataSource(CiTestCase):
 
         sys_cfg = {"datasource": {"NoCloud": {"fs_label": None}}}
 
-        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=self.paths)
+        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=paths)
         ret = dsrc.get_data()
-        self.assertTrue(ret)
-        self.assertEqual(netconf, dsrc.network_config)
+        assert ret
+        assert netconf == dsrc.network_config
 
-    def test_metadata_network_config_over_interfaces(self, m_is_lxd):
+    def test_metadata_network_config_over_interfaces(self, paths):
         # network-config should override meta-data/network-interfaces
         gateway = "103.225.10.1"
         md = {
@@ -304,7 +298,7 @@ class TestNoCloudDataSource(CiTestCase):
             ],
         }
         populate_dir(
-            os.path.join(self.paths.seed_dir, "nocloud"),
+            os.path.join(paths.seed_dir, "nocloud"),
             {
                 "user-data": b"ud",
                 "meta-data": yaml.dump(md) + "\n",
@@ -314,24 +308,22 @@ class TestNoCloudDataSource(CiTestCase):
 
         sys_cfg = {"datasource": {"NoCloud": {"fs_label": None}}}
 
-        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=self.paths)
+        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=paths)
         ret = dsrc.get_data()
-        self.assertTrue(ret)
-        self.assertEqual(netconf, dsrc.network_config)
-        self.assertNotIn(gateway, str(dsrc.network_config))
+        assert ret
+        assert netconf == dsrc.network_config
+        assert gateway not in str(dsrc.network_config)
 
     @mock.patch("cloudinit.util.blkid")
-    def test_nocloud_get_devices_freebsd(self, m_is_lxd, fake_blkid):
+    def test_nocloud_get_devices_freebsd(self, fake_blkid, mocker, paths):
         populate_dir(
-            os.path.join(self.paths.seed_dir, "nocloud"),
+            os.path.join(paths.seed_dir, "nocloud"),
             {"user-data": b"ud", "meta-data": "instance-id: IID\n"},
         )
 
         sys_cfg = {"datasource": {"NoCloud": {"fs_label": None}}}
 
-        self.mocks.enter_context(
-            mock.patch.object(util, "is_FreeBSD", return_value=True)
-        )
+        mocker.patch("cloudinit.util.is_FreeBSD", return_value=True)
 
         def _mfind_devs_with_freebsd(
             criteria=None,
@@ -350,21 +342,18 @@ class TestNoCloudDataSource(CiTestCase):
                 return ["/dev/iso9660/foo"]
             return []
 
-        self.mocks.enter_context(
-            mock.patch.object(
-                util,
-                "find_devs_with_freebsd",
-                side_effect=_mfind_devs_with_freebsd,
-            )
+        mocker.patch(
+            "cloudinit.util.find_devs_with",
+            side_effect=_mfind_devs_with_freebsd,
         )
 
-        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=self.paths)
+        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=paths)
         ret = dsrc._get_devices("foo")
-        self.assertEqual(["/dev/msdosfs/foo", "/dev/iso9660/foo"], ret)
+        assert ["/dev/msdosfs/foo", "/dev/iso9660/foo"] == ret
         fake_blkid.assert_not_called()
 
 
-class TestParseCommandLineData(CiTestCase):
+class TestParseCommandLineData:
     def test_parse_cmdline_data_valid(self):
         ds_id = "ds=nocloud"
         pairs = (
@@ -388,8 +377,8 @@ class TestParseCommandLineData(CiTestCase):
             fill = {}
             cmdline = fmt % {"ds_id": ds_id}
             ret = parse_cmdline_data(ds_id=ds_id, fill=fill, cmdline=cmdline)
-            self.assertEqual(expected, fill)
-            self.assertTrue(ret)
+            assert expected == fill
+            assert ret
 
     def test_parse_cmdline_data_none(self):
         ds_id = "ds=foo"
@@ -405,5 +394,5 @@ class TestParseCommandLineData(CiTestCase):
         for cmdline in cmdlines:
             fill = {}
             ret = parse_cmdline_data(ds_id=ds_id, fill=fill, cmdline=cmdline)
-            self.assertEqual(fill, {})
-            self.assertFalse(ret)
+            assert fill == {}
+            assert not ret

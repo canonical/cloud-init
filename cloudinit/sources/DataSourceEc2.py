@@ -88,7 +88,7 @@ class DataSourceEc2(sources.DataSource):
     ]
 
     # Setup read_url parameters per get_url_params.
-    url_max_wait = 120
+    url_max_wait = 240
     url_timeout = 50
 
     _api_token = None  # API token for accessing the metadata service
@@ -159,22 +159,13 @@ class DataSourceEc2(sources.DataSource):
                     self.distro.fallback_interface,
                     ipv4=True,
                     ipv6=True,
-                ) as netw:
-                    state_msg = f" {netw.state_msg}" if netw.state_msg else ""
-                    self._crawled_metadata = util.log_time(
-                        logfunc=LOG.debug,
-                        msg=f"Crawl of metadata service{state_msg}",
-                        func=self.crawl_metadata,
-                    )
+                ):
+                    self._crawled_metadata = self.crawl_metadata()
 
             except NoDHCPLeaseError:
                 return False
         else:
-            self._crawled_metadata = util.log_time(
-                logfunc=LOG.debug,
-                msg="Crawl of metadata service",
-                func=self.crawl_metadata,
-            )
+            self._crawled_metadata = self.crawl_metadata()
         if not self._crawled_metadata:
             return False
         self.metadata = self._crawled_metadata.get("meta-data", None)
@@ -508,21 +499,6 @@ class DataSourceEc2(sources.DataSource):
             return None
 
         result = None
-        no_network_metadata_on_aws = bool(
-            "network" not in self.metadata
-            and self.cloud_name == CloudNames.AWS
-        )
-        if no_network_metadata_on_aws:
-            LOG.debug(
-                "Metadata 'network' not present:"
-                " Refreshing stale metadata from prior to upgrade."
-            )
-            util.log_time(
-                logfunc=LOG.debug,
-                msg="Re-crawl of metadata service",
-                func=self.get_data,
-            )
-
         iface = self.distro.fallback_interface
         net_md = self.metadata.get("network")
         if isinstance(net_md, dict):

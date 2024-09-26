@@ -10,7 +10,8 @@ import sys
 
 import yaml
 
-from cloudinit import distros, log, safeyaml
+from cloudinit import distros, safeyaml
+from cloudinit.log import loggers
 from cloudinit.net import (
     eni,
     netplan,
@@ -100,9 +101,9 @@ def handle_args(name, args):
         os.makedirs(args.directory)
 
     if args.debug:
-        log.setup_basic_logging(level=logging.DEBUG)
+        loggers.setup_basic_logging(level=logging.DEBUG)
     else:
-        log.setup_basic_logging(level=logging.WARN)
+        loggers.setup_basic_logging(level=logging.WARN)
     if args.mac:
         known_macs = {}
         for item in args.mac:

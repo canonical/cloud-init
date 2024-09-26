@@ -453,7 +453,7 @@ class DataSourceNoCloudNet(DataSourceNoCloud):
         elif (
             self.sys_cfg.get("datasource", {})
             .get("NoCloud", {})
-            .key("seedfrom")
+            .get("seedfrom")
         ):
             LOG.debug(
                 "Machine is configured by system configuration to run on "

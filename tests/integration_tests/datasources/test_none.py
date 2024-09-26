@@ -3,7 +3,7 @@
 import json
 
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.util import verify_clean_log
+from tests.integration_tests.util import verify_clean_boot, verify_clean_log
 
 DS_NONE_BASE_CFG = """\
 datasource_list: [None]
@@ -26,6 +26,7 @@ def test_datasource_none_discovery(client: IntegrationInstance):
     """
     log = client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log)
+    verify_clean_boot(client)
     # Limit datasource detection to DataSourceNone.
     client.write_to_file(
         "/etc/cloud/cloud.cfg.d/99-force-dsnone.cfg", DS_NONE_BASE_CFG
@@ -48,21 +49,10 @@ def test_datasource_none_discovery(client: IntegrationInstance):
     client.restart()
     status = json.loads(client.execute("cloud-init status --format=json"))
     assert [] == status["errors"]
-    expected_warnings = [
-        "Used fallback datasource",
+    ignore_warnings = [
         "Falling back to a hard restart of systemd-networkd.service",
     ]
-    unexpected_warnings = []
-    for current_warning in status["recoverable_errors"].get("WARNING", []):
-        if [w for w in expected_warnings if w in current_warning]:
-            # Found a matching expected_warning substring in current_warning
-            continue
-        unexpected_warnings.append(current_warning)
-
-    if unexpected_warnings:
-        raise AssertionError(
-            f"Unexpected recoverable errors: {list(unexpected_warnings)}"
-        )
     log = client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log)
+    verify_clean_boot(client, ignore_warnings=ignore_warnings)
     assert client.execute("test -f /var/tmp/success-with-datasource-none").ok
