@@ -40,7 +40,7 @@ jobs:
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git merge ${{ github.sha }}
+          git merge "${{ github.event.pull_request.head.sha }}"
 
       - name: Quilt patches apply successfully and tests run
         run: |
