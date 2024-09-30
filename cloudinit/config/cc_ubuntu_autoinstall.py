@@ -4,7 +4,6 @@
 
 import logging
 import re
-from textwrap import dedent
 
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
@@ -13,62 +12,17 @@ from cloudinit.config.schema import (
     MetaSchema,
     SchemaProblem,
     SchemaValidationError,
-    get_meta_doc,
 )
 from cloudinit.settings import PER_ONCE
 
 LOG = logging.getLogger(__name__)
 
-distros = ["ubuntu"]
-
 meta: MetaSchema = {
     "id": "cc_ubuntu_autoinstall",
-    "name": "Ubuntu Autoinstall",
-    "title": "Support Ubuntu live-server install syntax",
-    "description": dedent(
-        """\
-        Ubuntu's autoinstall YAML supports single-system automated installs
-        in either the live-server install, via the ``subiquity`` snap, or the
-        next generation desktop installer, via `ubuntu-desktop-install` snap.
-        When "autoinstall" directives are provided in either
-        ``#cloud-config`` user-data or ``/etc/cloud/cloud.cfg.d`` validate
-        minimal autoinstall schema adherence and emit a warning if the
-        live-installer is not present.
-
-        The live-installer will use autoinstall directives to seed answers to
-        configuration prompts during system install to allow for a
-        "touchless" or non-interactive Ubuntu system install.
-
-        For more details on Ubuntu's autoinstaller:
-            https://ubuntu.com/server/docs/install/autoinstall
-    """
-    ),
-    "distros": distros,
-    "examples": [
-        dedent(
-            """\
-            # Tell the live-server installer to provide dhcp6 network config
-            # and LVM on a disk matching the serial number prefix CT
-            autoinstall:
-              version: 1
-              network:
-                version: 2
-                ethernets:
-                  enp0s31f6:
-                    dhcp6: yes
-              storage:
-                layout:
-                  name: lvm
-                  match:
-                    serial: CT*
-        """
-        )
-    ],
+    "distros": ["ubuntu"],
     "frequency": PER_ONCE,
     "activate_by_schema_keys": ["autoinstall"],
 }
-
-__doc__ = get_meta_doc(meta)
 
 
 LIVE_INSTALLER_SNAPS = ("subiquity", "ubuntu-desktop-installer")

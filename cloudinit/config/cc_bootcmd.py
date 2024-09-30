@@ -27,7 +27,7 @@ meta: MetaSchema = {
     "distros": ["all"],
     "frequency": PER_ALWAYS,
     "activate_by_schema_keys": ["bootcmd"],
-}  # type: ignore
+}
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:

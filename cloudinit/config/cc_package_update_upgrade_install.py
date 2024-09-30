@@ -32,7 +32,7 @@ meta: MetaSchema = {
         "package_upgrade",
         "packages",
     ],
-}  # type: ignore
+}
 
 LOG = logging.getLogger(__name__)
 

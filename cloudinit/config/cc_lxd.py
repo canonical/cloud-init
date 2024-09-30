@@ -27,7 +27,7 @@ meta: MetaSchema = {
     "distros": ["ubuntu"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["lxd"],
-}  # type: ignore
+}
 
 
 def supplemental_schema_validation(init_cfg, bridge_cfg, preseed_str):

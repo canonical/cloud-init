@@ -258,7 +258,7 @@ meta: MetaSchema = {
     "distros": distros,
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["ntp"],
-}  # type: ignore
+}
 
 
 REQUIRED_NTP_CONFIG_KEYS = frozenset(
