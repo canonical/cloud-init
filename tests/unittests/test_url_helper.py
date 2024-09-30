@@ -663,8 +663,8 @@ class TestUrlHelper:
         # In practice a value such as 0.150 is used
         url, response_contents = wait_for_url(
             urls=addresses,
-            max_wait=1,
-            timeout=1,
+            max_wait=2,
+            timeout=0.3,
             connect_synchronously=False,
             async_delay=0.0,
         )
