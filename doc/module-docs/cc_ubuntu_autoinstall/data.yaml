@@ -8,7 +8,7 @@ cc_ubuntu_autoinstall:
     .. note::
       The installer may use the provided configuration to instrument
       cloud-init on the target system. See
-      `the Ubuntu installer documentation <https://canonical-subiquity.readthedocs-hosted.com/en/latest/reference/autoinstall-reference.html#ai-user-data>`_
+      `the Ubuntu installer documentation <https://canonical-subiquity.readthedocs-hosted.com/en/latest/reference/autoinstall-reference.html#user-data>`_
       for more information.
   examples:
     - comment: |
