@@ -15,7 +15,6 @@ import copy
 import logging
 import os
 import re
-from textwrap import dedent
 
 from cloudinit import lifecycle, subp, util
 from cloudinit.cloud import Cloud
