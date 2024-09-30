@@ -14,6 +14,8 @@ from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 
+# Since this module is undocumented, this variable is unused.
+# Keeping it here for documentation purposes
 MODULE_DESCRIPTION = """\
 Reset RMC module is IBM PowerVM Hypervisor specific
 
@@ -37,12 +39,8 @@ Prerequisite of using this module is to install RSCT packages.
 
 meta: MetaSchema = {
     "id": "cc_reset_rmc",
-    "name": "Reset RMC",
-    "title": "reset rsct node id",
-    "description": MODULE_DESCRIPTION,
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
-    "examples": [],
     "activate_by_schema_keys": [],
 }
 

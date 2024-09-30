@@ -22,7 +22,7 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": PER_ONCE,
     "activate_by_schema_keys": [],
-}  # type: ignore
+}
 
 LOG = logging.getLogger(__name__)
 

@@ -120,11 +120,7 @@ if TYPE_CHECKING:
 
     class MetaSchema(TypedDict):
         id: str
-        name: str
-        title: str
-        description: str
         distros: typing.List[str]
-        examples: typing.List[Union[dict, str]]
         frequency: str
         activate_by_schema_keys: NotRequired[List[str]]
 
@@ -1463,13 +1459,17 @@ def _get_property_doc(schema: dict, defs: dict, prefix="   ") -> str:
 
 def _get_examples(meta: MetaSchema) -> str:
     """Return restructured text describing the meta examples if present."""
+    # TODO: This function will always return an empty string.
+    # `examples` is no longer a key in the MetaSchema. It is a key in the
+    # module-docs/data.yaml file.
+    # GH: #5756
     paths = read_cfg_paths()
     module_docs_dir = os.path.join(paths.docs_dir, "module-docs")
     examples = meta.get("examples")
     if not examples:
         return ""
     rst_content: str = ""
-    for example in examples:
+    for example in examples:  # type: ignore
         # FIXME(drop conditional when all mods have rtd/module-doc/*/data.yaml)
         if isinstance(example, dict):
             if example["comment"]:
@@ -1500,7 +1500,11 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     @param schema: Optional module schema, if absent, read global schema.
     @raise KeyError: If metadata lacks an expected key.
     """
-
+    # TODO: This function currently never gets called as the newer
+    # module-docs do not get deployed with the cloud-init package.
+    # If it were to get called, it would raise a KeyError because
+    # the `MetaSchema` dict does not have the expected keys.
+    # GH: #5756
     if schema is None:
         schema = get_schema()
     if not meta or not schema:
@@ -1559,7 +1563,10 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
         meta_copy["examples"] = "         No examples for this module"
     meta_copy["distros"] = ", ".join(meta["distros"])
     # Need an underbar of the same length as the name
-    meta_copy["title_underbar"] = re.sub(r".", "-", meta["name"])
+    # TODO: The type ignore is a short-term fix for mypy. This entire function
+    # is questionable at this point.
+    # GH: #5756
+    meta_copy["title_underbar"] = re.sub(r".", "-", meta["name"])  # type: ignore
     meta_copy["activate_by_schema_keys"] = _get_activate_by_schema_keys_doc(
         meta
     )
