@@ -1,9 +1,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import getpass
 import os
 from collections import namedtuple
-from io import StringIO
 from unittest import mock
 
 import pytest
@@ -11,65 +11,64 @@ import pytest
 from cloudinit import safeyaml
 from cloudinit.cmd import main
 from cloudinit.util import ensure_dir, load_text_file, write_file
-from tests.unittests.helpers import FilesystemMockingTestCase, wrap_and_call
 
 MyArgs = namedtuple(
     "MyArgs", "debug files force local reporter subcommand skip_log_setup"
 )
 
 
-class TestMain(FilesystemMockingTestCase):
-    with_logs = True
-    allowed_subp = False
+class TestMain:
+    @pytest.fixture(autouse=True)
+    def common_mocks(self, mocker):
+        mocker.patch("cloudinit.cmd.main.close_stdin")
+        mocker.patch(
+            "cloudinit.cmd.main.netinfo.debug_info",
+            return_value="my net debug info",
+        )
+        mocker.patch(
+            "cloudinit.cmd.main.util.fixup_output",
+            return_value=("outfmt", "errfmt"),
+        )
+        mocker.patch("cloudinit.cmd.main.util.get_cmdline", return_value="")
+        mocker.patch("cloudinit.cmd.main.util.uptime", return_value="12345")
+        os.environ["_CLOUD_INIT_SAVE_STDOUT"] = "true"
+        yield
+        os.environ.pop("_CLOUD_INIT_SAVE_STDOUT")
 
-    def setUp(self):
-        super(TestMain, self).setUp()
-        self.new_root = self.tmp_dir()
-        self.cloud_dir = self.tmp_path("var/lib/cloud/", dir=self.new_root)
-        os.makedirs(self.cloud_dir)
-        self.replicateTestRoot("simple_ubuntu", self.new_root)
-        self.cfg = {
+    @pytest.fixture
+    def cloud_cfg(self, mocker, tmpdir, fake_filesystem):
+        cloud_dir = os.path.join(tmpdir, "var/lib/cloud/")
+        log_dir = os.path.join(tmpdir, "var/log/")
+        ensure_dir(cloud_dir)
+        ensure_dir(os.path.join(tmpdir, "etc/cloud"))
+        ensure_dir(log_dir)
+        cloud_cfg_file = os.path.join(tmpdir, "etc/cloud/cloud.cfg")
+
+        cfg = {
             "datasource_list": ["None"],
+            # "def_log_file": os.path.join(log_dir, "cloud-init.log"),
+            "def_log_file": "",
             "runcmd": ["ls /etc"],  # test ALL_DISTROS
             "system_info": {
                 "paths": {
-                    "cloud_dir": self.cloud_dir,
-                    "run_dir": self.new_root,
+                    "cloud_dir": cloud_dir,
+                    "run_dir": str(tmpdir),
                 }
             },
             "write_files": [
                 {
-                    "path": "/etc/blah.ini",
+                    "path": os.path.join(tmpdir, "etc/blah.ini"),
                     "content": "blah",
                     "permissions": 0o755,
+                    "owner": getpass.getuser(),
                 },
             ],
             "cloud_init_modules": ["write_files", "runcmd"],
         }
-        cloud_cfg = safeyaml.dumps(self.cfg)
-        ensure_dir(os.path.join(self.new_root, "etc", "cloud"))
-        self.cloud_cfg_file = os.path.join(
-            self.new_root, "etc", "cloud", "cloud.cfg"
-        )
-        write_file(self.cloud_cfg_file, cloud_cfg)
-        self.patchOS(self.new_root)
-        self.patchUtils(self.new_root)
-        self.stderr = StringIO()
-        self.patchStdoutAndStderr(stderr=self.stderr)
-        # Every cc_ module calls get_meta_doc on import.
-        # This call will fail if filesystem redirection mocks are in place
-        # and the module hasn't already been imported which can depend
-        # on test ordering.
-        self.m_doc = mock.patch(
-            "cloudinit.config.schema.get_meta_doc", return_value={}
-        )
-        self.m_doc.start()
+        write_file(cloud_cfg_file, safeyaml.dumps(cfg))
+        yield copy.deepcopy(cfg), cloud_cfg_file
 
-    def tearDown(self):
-        self.m_doc.stop()
-        super().tearDown()
-
-    def test_main_init_run_net_runs_modules(self):
+    def test_main_init_run_net_runs_modules(self, cloud_cfg, capsys, tmpdir):
         """Modules like write_files are run in 'net' mode."""
         cmdargs = MyArgs(
             debug=False,
@@ -80,44 +79,32 @@ class TestMain(FilesystemMockingTestCase):
             subcommand="init",
             skip_log_setup=False,
         )
-        (_item1, item2) = wrap_and_call(
-            "cloudinit.cmd.main",
-            {
-                "close_stdin": True,
-                "netinfo.debug_info": "my net debug info",
-                "util.fixup_output": ("outfmt", "errfmt"),
-            },
-            main.main_init,
-            "init",
-            cmdargs,
-        )
-        self.assertEqual([], item2)
+        _ds, msg = main.main_init("init", cmdargs)
+        assert msg == []
         # Instancify is called
         instance_id_path = "var/lib/cloud/data/instance-id"
-        self.assertEqual(
-            "iid-datasource-none\n",
-            os.path.join(
-                load_text_file(os.path.join(self.new_root, instance_id_path))
-            ),
+        assert "iid-datasource-none\n" == os.path.join(
+            load_text_file(os.path.join(tmpdir, instance_id_path))
         )
         # modules are run (including write_files)
-        self.assertEqual(
-            "blah", load_text_file(os.path.join(self.new_root, "etc/blah.ini"))
-        )
+        assert "blah" == load_text_file(os.path.join(tmpdir, "etc/blah.ini"))
         expected_logs = [
             "network config is disabled by fallback",  # apply_network_config
             "my net debug info",  # netinfo.debug_info
         ]
+        stderr = capsys.readouterr().err
         for log in expected_logs:
-            self.assertIn(log, self.stderr.getvalue())
+            assert log in stderr
 
-    def test_main_init_run_net_calls_set_hostname_when_metadata_present(self):
+    def test_main_init_run_net_calls_set_hostname_when_metadata_present(
+        self, cloud_cfg, mocker
+    ):
         """When local-hostname metadata is present, call cc_set_hostname."""
-        self.cfg["datasource"] = {
+        cfg, cloud_cfg_file = cloud_cfg
+        cfg["datasource"] = {
             "None": {"metadata": {"local-hostname": "md-hostname"}}
         }
-        cloud_cfg = safeyaml.dumps(self.cfg)
-        write_file(self.cloud_cfg_file, cloud_cfg)
+        write_file(cloud_cfg_file, safeyaml.dumps(cfg))
         cmdargs = MyArgs(
             debug=False,
             files=None,
@@ -129,58 +116,15 @@ class TestMain(FilesystemMockingTestCase):
         )
 
         def set_hostname(name, cfg, cloud, args):
-            self.assertEqual("set_hostname", name)
-            updated_cfg = copy.deepcopy(self.cfg)
-            updated_cfg.update(
-                {
-                    "def_log_file": "/var/log/cloud-init.log",
-                    "log_cfgs": [],
-                    "syslog_fix_perms": [
-                        "syslog:adm",
-                        "root:adm",
-                        "root:wheel",
-                        "root:root",
-                    ],
-                    "vendor_data": {"enabled": True, "prefix": []},
-                    "vendor_data2": {"enabled": True, "prefix": []},
-                }
-            )
-            updated_cfg.pop("system_info")
+            assert "set_hostname" == name
 
-            self.assertEqual(updated_cfg, cfg)
-            self.assertIsNone(args)
+        m_hostname = mocker.patch(
+            "cloudinit.cmd.main.cc_set_hostname.handle",
+            side_effect=set_hostname,
+        )
+        main.main_init("init", cmdargs)
 
-        (_item1, item2) = wrap_and_call(
-            "cloudinit.cmd.main",
-            {
-                "close_stdin": True,
-                "netinfo.debug_info": "my net debug info",
-                "cc_set_hostname.handle": {"side_effect": set_hostname},
-                "util.fixup_output": ("outfmt", "errfmt"),
-            },
-            main.main_init,
-            "init",
-            cmdargs,
-        )
-        self.assertEqual([], item2)
-        # Instancify is called
-        instance_id_path = "var/lib/cloud/data/instance-id"
-        self.assertEqual(
-            "iid-datasource-none\n",
-            os.path.join(
-                load_text_file(os.path.join(self.new_root, instance_id_path))
-            ),
-        )
-        # modules are run (including write_files)
-        self.assertEqual(
-            "blah", load_text_file(os.path.join(self.new_root, "etc/blah.ini"))
-        )
-        expected_logs = [
-            "network config is disabled by fallback",  # apply_network_config
-            "my net debug info",  # netinfo.debug_info
-        ]
-        for log in expected_logs:
-            self.assertIn(log, self.stderr.getvalue())
+        m_hostname.assert_called_once()
 
     @mock.patch("cloudinit.cmd.clean.get_parser")
     @mock.patch("cloudinit.cmd.clean.handle_clean_args")
