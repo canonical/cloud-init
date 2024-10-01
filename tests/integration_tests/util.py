@@ -367,12 +367,14 @@ def _verify_clean_boot(
         # On Jenkins, rc should be 0. But, on GH CI on runs that are not
         # not triggered from a pr event, we still want rc 2.
         if CURRENT_RELEASE < NOBLE:
-            base_ref = os.environ.get("GITHUB_BASE_REF")
-            if os.environ.get("JENKINS_HOME") or (
-                base_ref is not None and "main" != base_ref
-            ):
+            if os.environ.get("ON_JENKINS"):
+                # We are on Jenkins testing against full packages
                 # Old releases return 0 for backwards compatibility
                 rc = 0
+            elif os.environ.get("GITHUB_ACTION"):
+                # On GH actions, integrations tests run on LXD without quilt
+                # patches
+                rc = 2
         assert rc == out.return_code, (
             f"Unexpected return code from `cloud-init status`. "
             f"Expected rc={rc}, received rc={out.return_code}\nstdout: "
