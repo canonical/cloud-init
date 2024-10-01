@@ -20,12 +20,6 @@ MyArgs = namedtuple(
 class TestMain:
     @pytest.fixture(autouse=True)
     def common_mocks(self, mocker):
-        # cc_ubuntu_install module calls get_meta_doc on import.
-        # This call will fail if filesystem redirection mocks are in place
-        # and the module hasn't already been imported which can depend
-        # on test ordering.
-        mocker.patch("cloudinit.config.schema.get_meta_doc", return_value={})
-
         mocker.patch("cloudinit.cmd.main.close_stdin")
         mocker.patch(
             "cloudinit.cmd.main.netinfo.debug_info",
