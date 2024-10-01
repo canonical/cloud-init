@@ -13,7 +13,7 @@ from xml.etree import ElementTree as ET  # nosec B405
 
 import requests
 
-from cloudinit import subp, version
+from cloudinit import lifecycle, subp, version
 from cloudinit.sources.azure import identity
 from cloudinit.url_helper import UrlError
 
@@ -56,10 +56,17 @@ class ReportableError(Exception):
 
         try:
             self.vm_id = identity.query_vm_id()
+
         except (RuntimeError, OSError, ValueError) as e:
             self.vm_id = f"failed to read vm id: {e!r}"
         except Exception as e:
-            LOG.warning("Unhandled exception: %s", e)
+            lifecycle.log_with_downgradable_level(
+                logger=LOG,
+                version="24.4",
+                requested_level=logging.WARN,
+                msg="Unhandled exception while querying VM ID: %s",
+                args=e,
+            )
             self.vm_id = f"failed to read vm id: {e!r}"
 
     def as_encoded_report(

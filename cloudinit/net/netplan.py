@@ -273,10 +273,9 @@ def netplan_api_write_yaml_file(net_config_content: str) -> bool:
         )
         return False
     except Exception as e:
-        LOG.warning("Unhandled exception: %s")
         LOG.warning(
-            "Unable to render network config using netplan python module."
-            " Fallback to write %s. %s",
+            "Unhandled exception while rendering network config using "
+            "netplan python module. Fallback to write %s. %s",
             CLOUDINIT_NETPLAN_FILE,
             e,
         )

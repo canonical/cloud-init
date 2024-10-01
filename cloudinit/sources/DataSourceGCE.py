@@ -7,7 +7,7 @@ import json
 import logging
 from base64 import b64decode
 
-from cloudinit import dmi, net, sources, url_helper, util
+from cloudinit import dmi, lifecycle, net, sources, url_helper, util
 from cloudinit.distros import ug_util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import NoDHCPLeaseError
@@ -109,13 +109,18 @@ class DataSourceGCE(sources.DataSource):
                                 url_params=url_params,
                             )
                         except Exception as e:
-                            LOG.warning("Unhandled exception: %s", e)
-                            LOG.debug(
-                                "Error fetching IMD with candidate NIC %s: %s",
-                                candidate_nic,
-                                e,
+                            lifecycle.log_with_downgradable_level(
+                                logger=LOG,
+                                version="24.4",
+                                requested_level=logging.WARN,
+                                msg=(
+                                    "Error fetching IMD with candidate NIC "
+                                    f"{candidate_nic}: %s"
+                                ),
+                                args=e,
                             )
                             continue
+
                 except NoDHCPLeaseError:
                     continue
                 if ret["success"]:

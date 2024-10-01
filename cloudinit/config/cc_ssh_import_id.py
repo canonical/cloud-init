@@ -11,7 +11,7 @@ import logging
 import pwd
 from typing import List
 
-from cloudinit import subp, util
+from cloudinit import lifecycle, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -83,8 +83,12 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         try:
             import_ssh_ids(import_ids, user)
         except Exception as exc:
-            util.logexc(
-                LOG, "ssh-import-id failed for: %s %s", user, import_ids
+            lifecycle.log_with_downgradable_level(
+                logger=LOG,
+                version="24.4",
+                requested_level=logging.WARN,
+                msg=f"ssh-import-id failed for {user} {import_ids} with: %s",
+                args=exc,
             )
             elist.append(exc)
 

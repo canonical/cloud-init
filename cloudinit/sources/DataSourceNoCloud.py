@@ -370,7 +370,13 @@ def parse_cmdline_data(ds_id, fill, cmdline=None):
         try:
             (k, v) = item.split("=", 1)
         except Exception as e:
-            LOG.warning("Unhandled exception: %s", e)
+            lifecycle.log_with_downgradable_level(
+                logger=LOG,
+                version="24.4",
+                requested_level=logging.WARN,
+                msg="Unhandled exception: %s",
+                args=e,
+            )
             k = item
             v = None
         if k in s2l:

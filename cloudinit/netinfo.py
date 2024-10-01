@@ -582,7 +582,13 @@ def netdev_pformat():
             )
         )
     except Exception as e:
-        LOG.warning("Unhandled exception: %s", e)
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception: %s",
+            args=e,
+        )
         lines.append(
             util.center(
                 "Net device info failed ({error})".format(error=str(e)),
@@ -641,7 +647,13 @@ def route_pformat():
         )
         util.logexc(LOG, "Route info failed: %s" % e)
     except Exception as e:
-        LOG.warning("Unhandled exception: %s", e)
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception: %s",
+            args=e,
+        )
         lines.append(
             util.center(
                 "Route info failed ({error})".format(error=str(e)), "!", 80

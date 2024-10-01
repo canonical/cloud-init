@@ -14,7 +14,7 @@ import re
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
-from cloudinit import subp, util
+from cloudinit import lifecycle, subp, util
 from cloudinit.net.netops.iproute2 import Iproute2
 from cloudinit.url_helper import UrlError, readurl
 
@@ -209,8 +209,6 @@ def get_dev_features(devname):
         features = read_sys_net(devname, "device/features")
     except (OSError, UnicodeError):
         pass
-    except Exception as e:
-        LOG.warning("Unhandled exception: %s", e)
     return features
 
 
@@ -823,6 +821,16 @@ def _rename_interfaces(
                     % (op, params, mac, new_name, e)
                 )
             except Exception as e:
+                # This exception is later raised, but as a looser exception.
+                # Make sure to log a warning due to unexpected exception type
+                # on newer releases.
+                lifecycle.log_with_downgradable_level(
+                    logger=LOG,
+                    version="24.4",
+                    requested_level=logging.WARN,
+                    msg="Unhandled exception: %s",
+                    args=e,
+                )
                 errors.append(
                     "[unknown] Unexpected exception "
                     "performing %s%s for %s, %s: %s"

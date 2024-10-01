@@ -71,11 +71,7 @@ def check_condition(cond):
         else:
             LOG.warning("%sunexpected exit %s. do not apply change.", pre, ret)
             return False
-    except OSError as e:
-        LOG.warning("%sUnexpected error: %s", pre, e)
-        return False
     except Exception as e:
-        LOG.warning("Unhandled exception: %s", e)
         LOG.warning("%sUnexpected error: %s", pre, e)
         return False
 

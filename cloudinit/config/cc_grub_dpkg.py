@@ -125,7 +125,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     try:
         subp.subp(["debconf-set-selections"], data=dconf_sel)
-    except subp.ProcessExecutionError as e:
+    except Exception as e:
         util.logexc(
             LOG, "Failed to run debconf-set-selections for grub_dpkg: %s", e
         )

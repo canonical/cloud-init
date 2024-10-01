@@ -12,7 +12,7 @@ import os
 import shlex
 from pathlib import Path
 
-from cloudinit import performance, subp, util
+from cloudinit import lifecycle, performance, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -181,6 +181,17 @@ def enumerate_disk(device, nodeps=False):
     try:
         info, _err = subp.subp(lsblk_cmd)
     except subp.ProcessExecutionError as e:
+        raise RuntimeError(
+            "Failed during disk check for %s\n%s" % (device, e)
+        ) from e
+    except Exception as e:
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception: %s",
+            args=e,
+        )
         raise RuntimeError(
             "Failed during disk check for %s\n%s" % (device, e)
         ) from e
@@ -355,6 +366,15 @@ def get_hdd_size(device):
         sector_size, _ = subp.subp(["blockdev", "--getss", device])
     except subp.ProcessExecutionError as e:
         raise RuntimeError("Failed to get %s size\n%s" % (device, e)) from e
+    except Exception as e:
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception: %s",
+            args=e,
+        )
+        raise RuntimeError("Failed to get %s size\n%s" % (device, e)) from e
 
     return int(size_in_bytes) / int(sector_size)
 
@@ -373,6 +393,17 @@ def check_partition_mbr_layout(device, layout):
     try:
         out, _err = subp.subp(prt_cmd, data="%s\n" % layout)
     except subp.ProcessExecutionError as e:
+        raise RuntimeError(
+            "Error running partition command on %s\n%s" % (device, e)
+        ) from e
+    except Exception as e:
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception: %s",
+            args=e,
+        )
         raise RuntimeError(
             "Error running partition command on %s\n%s" % (device, e)
         ) from e
@@ -404,6 +435,17 @@ def check_partition_gpt_layout(device, layout):
     try:
         out, _err = subp.subp(prt_cmd, update_env=LANG_C_ENV)
     except subp.ProcessExecutionError as e:
+        raise RuntimeError(
+            "Error running partition command on %s\n%s" % (device, e)
+        ) from e
+    except Exception as e:
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception: %s",
+            args=e,
+        )
         raise RuntimeError(
             "Error running partition command on %s\n%s" % (device, e)
         ) from e
@@ -631,7 +673,7 @@ def read_parttbl(device):
     util.udevadm_settle()
     try:
         subp.subp(probe_cmd)
-    except subp.ProcessExecutionError as e:
+    except Exception as e:
         util.logexc(LOG, "Failed reading the partition table %s" % e)
 
     util.udevadm_settle()
@@ -647,6 +689,17 @@ def exec_mkpart_mbr(device, layout):
     try:
         subp.subp(prt_cmd, data="%s\n" % layout)
     except subp.ProcessExecutionError as e:
+        raise RuntimeError(
+            "Failed to partition device %s\n%s" % (device, e)
+        ) from e
+    except Exception as e:
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception: %s",
+            args=e,
+        )
         raise RuntimeError(
             "Failed to partition device %s\n%s" % (device, e)
         ) from e
@@ -985,4 +1038,13 @@ def mkfs(fs_cfg):
     try:
         subp.subp(fs_cmd, shell=shell)
     except subp.ProcessExecutionError as e:
+        raise RuntimeError("Failed to exec of '%s':\n%s" % (fs_cmd, e)) from e
+    except Exception as e:
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception: %s",
+            args=e,
+        )
         raise RuntimeError("Failed to exec of '%s':\n%s" % (fs_cmd, e)) from e

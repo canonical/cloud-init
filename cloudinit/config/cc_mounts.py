@@ -331,12 +331,10 @@ def handle_swapcfg(swapcfg):
                     LOG.debug("swap file %s already in use", fname)
                     return fname
             LOG.debug("swap file %s exists, but not in /proc/swaps", fname)
-        except OSError:
-            LOG.warning(
-                "swap file %s exists. Error reading /proc/swaps", fname
-            )
+        except OSError as e:
+            LOG.warning("Error reading /proc/swaps: %s", e)
         except Exception as e:
-            LOG.warning("Unhandled exception: %s", e)
+            LOG.warning("Unhandled exception while reading /proc/swaps: %s", e)
         return fname
 
     try:

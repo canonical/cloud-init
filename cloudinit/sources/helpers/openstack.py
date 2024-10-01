@@ -14,7 +14,7 @@ import json
 import logging
 import os
 
-from cloudinit import net, sources, subp, url_helper, util
+from cloudinit import lifecycle, net, sources, subp, url_helper, util
 from cloudinit.sources import BrokenMetadata
 from cloudinit.sources.helpers import ec2
 
@@ -190,11 +190,15 @@ class BaseReader(metaclass=abc.ABCMeta):
                 e,
             )
         except Exception as e:
-            LOG.warning("Unhandled exception: %s", e)
-            LOG.debug(
-                "Unable to read openstack versions from %s due to: %s",
-                self.base_path,
-                e,
+            lifecycle.log_with_downgradable_level(
+                logger=LOG,
+                version="24.4",
+                requested_level=logging.WARN,
+                msg=(
+                    "Unhandled exception while reading openstack version "
+                    f"from {self.base_path} due to: {e}"
+                ),
+                args=e,
             )
 
         # openstack.OS_VERSIONS is stored in chronological order, so
@@ -301,7 +305,13 @@ class BaseReader(metaclass=abc.ABCMeta):
                         "Failed to process path %s: %s" % (path, e)
                     ) from e
                 except Exception as e:
-                    LOG.warning("Unhandled exception: %s", e)
+                    lifecycle.log_with_downgradable_level(
+                        logger=LOG,
+                        version="24.4",
+                        requested_level=logging.WARN,
+                        msg=("Unhandled exception while decoding data: %s"),
+                        args=e,
+                    )
                     raise BrokenMetadata(
                         "Failed to process path %s: %s" % (path, e)
                     ) from e
@@ -318,7 +328,13 @@ class BaseReader(metaclass=abc.ABCMeta):
                     "Badly formatted metadata random_seed entry: %s" % e
                 ) from e
             except Exception as e:
-                LOG.warning("Unhandled exception: %s", e)
+                lifecycle.log_with_downgradable_level(
+                    logger=LOG,
+                    version="24.4",
+                    requested_level=logging.WARN,
+                    msg=("Unhandled exception while getting random seed: %s"),
+                    args=e,
+                )
                 raise BrokenMetadata(
                     "Badly formatted metadata random_seed entry: %s" % e
                 ) from e
@@ -413,7 +429,15 @@ class ConfigDriveReader(BaseReader):
                     "Failed to process path %s: %s" % (path, e)
                 ) from e
             except Exception as e:
-                LOG.warning("Unhandled exception: %s", e)
+                lifecycle.log_with_downgradable_level(
+                    logger=LOG,
+                    version="24.4",
+                    requested_level=logging.WARN,
+                    msg=(
+                        "Unhandled exception while reading meta-data.json: %s"
+                    ),
+                    args=e,
+                )
                 raise BrokenMetadata(
                     "Failed to process path %s: %s" % (path, e)
                 ) from e

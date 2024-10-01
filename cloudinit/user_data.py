@@ -17,7 +17,7 @@ from email.mime.text import MIMEText
 
 import yaml
 
-from cloudinit import features, handlers, util
+from cloudinit import features, handlers, lifecycle, util
 from cloudinit.url_helper import UrlError, read_file_or_url
 
 LOG = logging.getLogger(__name__)
@@ -182,7 +182,14 @@ class UserDataProcessor:
             except yaml.YAMLError:
                 pass
             except Exception as e:
-                LOG.warning("Unhandled exception: %s", e)
+                lifecycle.log_with_downgradable_level(
+                    logger=LOG,
+                    version="24.4",
+                    requested_level=logging.WARN,
+                    msg="Unhandled exception getting launch-index: %s",
+                    args=e,
+                )
+
         # Header overrides contents, for now (?) or the other way around?
         if header_idx is not None:
             payload_idx = header_idx

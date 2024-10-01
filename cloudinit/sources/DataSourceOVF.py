@@ -22,7 +22,7 @@ from xml.dom import minidom  # nosec B408
 
 import yaml
 
-from cloudinit import sources, subp, util
+from cloudinit import lifecycle, sources, subp, util
 
 LOG = logging.getLogger(__name__)
 
@@ -162,18 +162,27 @@ def read_ovf_environment(contents, read_network=False):
                 md[prop] = (yaml.safe_load(network_config) or {}).get(
                     "network"
                 )
-            except (binascii.Error, yaml.YAMLError):
-                LOG.debug("Ignore network-config in wrong format")
             except Exception as e:
-                LOG.warning("Unhandled exception: %s", e)
-                LOG.debug("Ignore network-config in wrong format")
+                lifecycle.log_with_downgradable_level(
+                    logger=LOG,
+                    version="24.4",
+                    requested_level=logging.WARN,
+                    msg="Ignore network-config in wrong format: %s",
+                    args=e,
+                )
         elif prop == "user-data":
             try:
                 ud = base64.b64decode(val.encode())
             except binascii.Error:
                 ud = val.encode()
             except Exception as e:
-                LOG.warning("Unhandled exception: %s", e)
+                lifecycle.log_with_downgradable_level(
+                    logger=LOG,
+                    version="24.4",
+                    requested_level=logging.WARN,
+                    msg="Error encoding user-data: %s",
+                    args=e,
+                )
                 ud = val.encode()
     return (md, ud, cfg)
 

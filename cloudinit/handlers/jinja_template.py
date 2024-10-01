@@ -7,7 +7,7 @@ import re
 from errno import EACCES
 from typing import Optional, Type
 
-from cloudinit import handlers
+from cloudinit import handlers, lifecycle
 from cloudinit.atomic_helper import b64d, json_dumps
 from cloudinit.helpers import Paths
 from cloudinit.settings import PER_ALWAYS
@@ -126,7 +126,14 @@ def render_jinja_payload_from_file(
     except (OSError, ValueError, TypeError) as e:
         raise JinjaLoadError("Loading Jinja instance data failed") from e
     except Exception as e:
-        LOG.warning("Unhandled exception: %s", e)
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception: %s",
+            args=e,
+        )
+
         raise JinjaLoadError("Loading Jinja instance data failed") from e
 
     rendered_payload = render_jinja_payload(

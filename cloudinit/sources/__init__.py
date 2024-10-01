@@ -1214,9 +1214,13 @@ def pkl_load(fname: str) -> Optional[DataSource]:
         if os.path.isfile(fname):
             LOG.warning("failed loading pickle in %s: %s", fname, e)
     except Exception as e:
-        LOG.warning("Unhandled exception: %s", e)
-        if os.path.isfile(fname):
-            LOG.warning("failed loading pickle in %s: %s", fname, e)
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception while reading pickle file: %s",
+            args=e,
+        )
 
     # This is allowed so just return nothing successfully loaded...
     if not pickle_contents:

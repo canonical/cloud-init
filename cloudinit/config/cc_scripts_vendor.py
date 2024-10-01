@@ -38,7 +38,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     try:
         subp.runparts(runparts_path, exe_prefix=prefix)
-    except RuntimeError:
+    except Exception:
         LOG.warning(
             "Failed to run module %s (%s in %s)",
             name,

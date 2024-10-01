@@ -64,6 +64,7 @@ import yaml
 from cloudinit import (
     features,
     importer,
+    lifecycle,
     mergers,
     net,
     performance,
@@ -414,7 +415,13 @@ def decomp_gzip(data, quiet=True, decode=True):
         else:
             raise DecompressionError(str(e)) from e
     except Exception as e:
-        LOG.warning("Unhandled exception: %s", e)
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception while decoding gzip data: %s",
+            args=e,
+        )
         if quiet:
             return data
         else:
@@ -596,7 +603,14 @@ def get_linux_distro():
         except AttributeError:
             pass
         except Exception as e:
-            LOG.warning("Unhandled exception: %s", e)
+            lifecycle.log_with_downgradable_level(
+                logger=LOG,
+                version="24.4",
+                requested_level=logging.WARN,
+                msg="Unhandled exception: %s",
+                args=e,
+            )
+
         finally:
             found = None
             for entry in dist:
@@ -1601,23 +1615,19 @@ def _get_cmdline():
             contents = load_text_file("/proc/1/cmdline")
             # replace nulls with space and drop trailing null
             cmdline = contents.replace("\x00", " ")[:-1]
-        except OSError as e:
-            LOG.warning("failed reading /proc/1/cmdline: %s", e)
-            cmdline = ""
         except Exception as e:
-            LOG.warning(
-                "Unhandled exception: %s",
-            )
             LOG.warning("failed reading /proc/1/cmdline: %s", e)
             cmdline = ""
     else:
         try:
             cmdline = load_text_file("/proc/cmdline").strip()
-        except OSError:
-            cmdline = ""
-        except Exception:
-            LOG.warning(
-                "Unhandled exception: %s",
+        except Exception as e:
+            lifecycle.log_with_downgradable_level(
+                logger=LOG,
+                version="24.4",
+                requested_level=logging.WARN,
+                msg="Unhandled exception while reading /proc/cmdline: %s",
+                args=e,
             )
             cmdline = ""
 
@@ -2122,10 +2132,14 @@ def copy(src, dest):
 def time_rfc2822():
     try:
         ts = time.strftime("%a, %d %b %Y %H:%M:%S %z", time.gmtime())
-    except ValueError:
-        ts = "??"
     except Exception as e:
-        LOG.warning("Unhandled exception: %s", e)
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception getting rfc2822 time {}: %s",
+            args=e,
+        )
         ts = "??"
     return ts
 

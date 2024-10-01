@@ -487,10 +487,15 @@ class Init:
             previous_ds = util.load_text_file(ds_fn, quiet=True).strip()
         except OSError:
             pass
-        except UnicodeDecodeError:
-            LOG.warning("Invalid previous datasource in file: %s", previous_ds)
         except Exception as e:
-            LOG.warning("Unhandled exception: %s", e)
+            lifecycle.log_with_downgradable_level(
+                logger=LOG,
+                version="24.4",
+                requested_level=logging.WARN,
+                msg=f"Unhandled error loading datasource file {ds_fn}: %s",
+                args=e,
+            )
+
         if not previous_ds:
             previous_ds = ds
         util.write_file(ds_fn, "%s\n" % ds)
@@ -533,10 +538,17 @@ class Init:
             self._previous_iid = util.load_text_file(iid_fn).strip()
         except OSError:
             pass
-        except UnicodeDecodeError:
-            LOG.warning("Invalid instance id in file: %s", iid_fn)
         except Exception as e:
-            LOG.warning("Unhandled exception: %s", e)
+            lifecycle.log_with_downgradable_level(
+                logger=LOG,
+                version="24.4",
+                requested_level=logging.WARN,
+                msg=(
+                    "Unhandled error loading previous instance id "
+                    f"{iid_fn}: %s"
+                ),
+                args=e,
+            )
 
         LOG.debug("previous iid found to be %s", self._previous_iid)
         return self._previous_iid
@@ -1042,7 +1054,7 @@ class Init:
             LOG.debug("applying net config names for %s", netcfg)
             self.distro.networking.apply_network_config_names(netcfg)
         except Exception as e:
-            util.logexc(LOG, "Failed to rename devices: %s", e)
+            LOG.warning(LOG, "Failed to rename devices: %s", e)
 
     def _get_per_boot_network_semaphore(self):
         return namedtuple("Semaphore", "semaphore args")(

@@ -28,7 +28,7 @@ from urllib.parse import quote, urlparse, urlsplit, urlunparse
 import requests
 from requests import exceptions
 
-from cloudinit import performance, util, version
+from cloudinit import lifecycle, performance, util, version
 
 LOG = logging.getLogger(__name__)
 
@@ -745,9 +745,16 @@ def wait_for_url(
             reason = "request error [%s]" % e
             url_exc = e
         except Exception as e:
-            LOG.warning("Unhandled exception: %s", e)
             reason = "unexpected error [%s]" % e
             url_exc = e
+            lifecycle.log_with_downgradable_level(
+                logger=LOG,
+                version="24.4",
+                requested_level=logging.WARN,
+                msg="Unhandled exception in url handler: %s",
+                args=e,
+            )
+
         time_taken = int(time.monotonic() - start_time)
         max_wait_str = "%ss" % max_wait if max_wait else "unlimited"
         status_msg = "Calling '%s' failed [%s/%s]: %s" % (
@@ -926,11 +933,7 @@ class OauthUrlHelper:
         date = exception.headers["date"]
         try:
             remote_time = time.mktime(parsedate(date))
-        except (ValueError, OverflowError) as e:
-            LOG.warning("Failed to convert datetime '%s': %s", date, e)
-            return
         except Exception as e:
-            LOG.warning("Unhandled exception: %s", e)
             LOG.warning("Failed to convert datetime '%s': %s", date, e)
             return
 
