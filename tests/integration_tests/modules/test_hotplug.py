@@ -278,7 +278,7 @@ def test_multi_nic_hotplug(setup_image, session_cloud: IntegrationCloud):
 
         # SSH over all public ips works
         for pub_ip in public_ips:
-            subp("nc -w 5 -zv " + pub_ip + " 22", shell=True)
+            subp("nc -w 10 -zv " + pub_ip + " 22", shell=True)
 
         # Remove new NIC
         client.instance.remove_network_interface(secondary_priv_ip)
@@ -287,7 +287,7 @@ def test_multi_nic_hotplug(setup_image, session_cloud: IntegrationCloud):
         public_ips = client.instance.public_ips
         assert len(public_ips) == 1
         # SSH over primary NIC works
-        subp("nc -w 1 -zv " + public_ips[0] + " 22", shell=True)
+        subp("nc -w 10 -zv " + public_ips[0] + " 22", shell=True)
 
         ips_after_remove = _get_ip_addr(client)
         assert len(ips_after_remove) == len(ips_before)
