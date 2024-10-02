@@ -337,16 +337,14 @@ class NMConnection:
         # to match the schema in schema-network-config-v1.json
         _prop_map = {
             "bond": {
-                "active_slave": "bond-active_slave",
-                "ad_actor_key": "bond-ad_actor_key",
-                "ad_actor_sys_prio": "bond-ad_actor_sys_prio",
-                "ad_actor_system": "bond-ad_actor_system",
-                "ad_aggregator": "bond-ad_aggregator",
-                "ad_num_ports": "bond-ad_num_ports",
-                "ad_partner_key": "bond-ad_partner_key",
-                "ad_partner_mac": "bond-ad_partner_mac",
-                "ad_select": "bond-ad_select",
-                "ad_user_port_key": "bond-ad_user_port_key",
+                ## Supported parameters
+                ## https://networkmanager.dev/docs/libnm/latest/NMSettingBond.html#NMSettingBond.other
+                ## https://www.kernel.org/doc/Documentation/networking/bonding.txt
+                "active_slave": "bond-active_slave",  # only in active-backup(1), balance-tlb(5), balance-alb(6)
+                "ad_actor_sys_prio": "bond-ad_actor_sys_prio",  # only in 802.3ad(4)
+                "ad_actor_system": "bond-ad_actor_system",  # only in 802.3ad(4)
+                "ad_select": "bond-ad_select",  # only in 802.3ad(4)
+                "ad_user_port_key": "bond-ad_user_port_key",  # only in 802.3ad(4)
                 "all_slaves_active": "bond-all_slaves_active",
                 "arp_all_targets": "bond-arp_all_targets",
                 "arp_interval": "bond-arp_interval",
@@ -354,25 +352,23 @@ class NMConnection:
                 "arp_validate": "bond-arp_validate",
                 "downdelay": "bond-downdelay",
                 "fail_over_mac": "bond-fail_over_mac",
-                "lacp_rate": "bond-lacp_rate",
-                "lp_interval": "bond-lp_interval",
-                "mii_status": "bond-mii_status",
+                "lacp_rate": "bond-lacp_rate",  # only in 802.3ad(4)
+                "lp_interval": "bond-lp_interval",  # only in balance-tlb(5), balance-alb(6)
                 "miimon": "bond-miimon",
-                "min_links": "bond-min_links",
+                "min_links": "bond-min_links",  # only in 802.3ad(4)
                 "mode": "bond-mode",
-                "num_grat_arp": "bond-num_grat_arp",
-                "num_unsol_na": "bond-num_unsol_na",
-                "packets_per_slave": "bond-packets_per_slave",
-                "peer_notif_delay": "bond-peer_notif_delay",
-                "primary": "bond-primary",
-                "primary_reselect": "bond-primary_reselect",
-                "queue_id": "bond-queue_id",
-                "resend_igpm": "bond-resend_igpm",
+                "num_grat_arp": "bond-num_grat_arp",  # only in active-backup(1)
+                "num_unsol_na": "bond-num_unsol_na",  # only in active-backup(1)
+                "packets_per_slave": "bond-packets_per_slave",  # only in balance-rr(0)
+                "peer_notif_delay": "bond-peer_notif_delay",  # only in active-backup(1)
+                "primary": "bond-primary",  # only in active-backup(1), balance-tlb(5), balance-alb(6)
+                "primary_reselect": "bond-primary_reselect",  # only in active-backup(1), balance-tlb(5), balance-alb(6)
+                "resend_igmp": "bond-resend_igmp",  # only in balance-rr(0), active-backup(1), balance-tlb(5), balance-alb(6)
                 "slaves": "bond-slaves",
-                "tlb_dynamic_lb": "bond-tlb_dynamic_lb",
+                "tlb_dynamic_lb": "bond-tlb_dynamic_lb",  # only in balance-tlb(5)
                 "updelay": "bond-updelay",
                 "use_carrier": "bond-use_carrier",
-                "xmit_hash_policy": "bond-xmit_hash_policy",
+                "xmit_hash_policy": "bond-xmit_hash_policy",  # only in balance-xor(2), 802.3ad(4), balance-tlb(5)
             },
             "bridge": {
                 "stp": "bridge_stp",
