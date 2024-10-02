@@ -3,18 +3,38 @@
 import copy
 import getpass
 import os
+import textwrap
 from collections import namedtuple
 from unittest import mock
 
 import pytest
 
-from cloudinit import safeyaml
+from cloudinit import safeyaml, util
 from cloudinit.cmd import main
+from cloudinit.subp import SubpResult
 from cloudinit.util import ensure_dir, load_text_file, write_file
 
 MyArgs = namedtuple(
     "MyArgs", "debug files force local reporter subcommand skip_log_setup"
 )
+
+FAKE_SERVICE_FILE = """\
+[Unit]
+Description=Wait for Network to be Configured
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/systemd/systemd-networkd-wait-online
+
+# /run/systemd/system/systemd-networkd-wait-online.service.d/10-netplan.conf
+[Unit]
+ConditionPathIsSymbolicLink=/run/systemd/generator/network-online.target.wants/systemd-networkd-wait-online.service
+
+[Service]
+ExecStart=
+ExecStart=/lib/systemd/systemd-networkd-wait-online -i eth0:degraded
+ExecStart=/lib/systemd/systemd-networkd-wait-online --any -o routable -i eth0
+"""  # noqa: E501
 
 
 EXTRA_CLOUD_CONFIG = """\
@@ -174,6 +194,174 @@ class TestMain:
         with mock.patch("sys.argv", ["cloudinit", "--debug", "clean"]):
             main.main()
         m_clean_get_parser.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "ds,userdata,expected",
+        [
+            # If we have no datasource, wait regardless
+            (None, None, True),
+            (None, "#!/bin/bash\n  - echo hello", True),
+            # Empty user data shouldn't wait
+            (mock.Mock(), "", False),
+            # Bootcmd always wait
+            (mock.Mock(), "#cloud-config\nbootcmd:\n  - echo hello", True),
+            # Bytes are valid too
+            (mock.Mock(), b"#cloud-config\nbootcmd:\n  - echo hello", True),
+            # write_files with 'source' wait
+            (
+                mock.Mock(),
+                textwrap.dedent(
+                    """\
+                    #cloud-config
+                    write_files:
+                    - source:
+                      uri: http://example.com
+                      headers:
+                        Authorization: Basic stuff
+                        User-Agent: me
+                    """
+                ),
+                True,
+            ),
+            # write_files without 'source' don't wait
+            (
+                mock.Mock(),
+                textwrap.dedent(
+                    """\
+                    #cloud-config
+                    write_files:
+                    - content: hello
+                      encoding: b64
+                      owner: root:root
+                      path: /etc/sysconfig/selinux
+                      permissions: '0644'
+                    """
+                ),
+                False,
+            ),
+            # random_seed with 'command' wait
+            (
+                mock.Mock(),
+                "#cloud-config\nrandom_seed:\n  command: true",
+                True,
+            ),
+            # random_seed without 'command' no wait
+            (
+                mock.Mock(),
+                textwrap.dedent(
+                    """\
+                    #cloud-config
+                    random_seed:
+                      data: 4
+                      encoding: raw
+                      file: /dev/urandom
+                    """
+                ),
+                False,
+            ),
+            # mounts always wait
+            (
+                mock.Mock(),
+                "#cloud-config\nmounts:\n  - [ /dev/sdb, /mnt, ext4 ]",
+                True,
+            ),
+            # Not parseable as yaml
+            (mock.Mock(), "#cloud-config\nbootcmd:\necho hello", True),
+            # Non-cloud-config
+            (mock.Mock(), "#!/bin/bash\n  - echo hello", True),
+            # Something that won't decode to utf-8
+            (mock.Mock(), os.urandom(100), True),
+            # Something small that shouldn't decode to utf-8
+            (mock.Mock(), os.urandom(5), True),
+        ],
+    )
+    def test_should_wait_on_network(self, ds, userdata, expected):
+        if ds:
+            ds.get_userdata_raw = mock.Mock(return_value=userdata)
+            ds.get_vendordata_raw = mock.Mock(return_value=None)
+            ds.get_vendordata2_raw = mock.Mock(return_value=None)
+        assert main._should_wait_on_network(ds) is expected
+
+        # Here we rotate our configs to ensure that any of userdata,
+        # vendordata, or vendordata2 can be the one that causes us to wait.
+        for _ in range(2):
+            if ds:
+                (
+                    ds.get_userdata_raw,
+                    ds.get_vendordata_raw,
+                    ds.get_vendordata2_raw,
+                ) = (
+                    ds.get_vendordata_raw,
+                    ds.get_vendordata2_raw,
+                    ds.get_userdata_raw,
+                )
+            assert main._should_wait_on_network(ds) is expected
+
+    @pytest.mark.parametrize(
+        "distro,should_wait,expected_add_wait",
+        [
+            ("ubuntu", True, True),
+            ("ubuntu", False, False),
+            ("debian", True, True),
+            ("debian", False, False),
+            ("centos", True, False),
+            ("rhel", False, False),
+            ("fedora", True, False),
+            ("suse", False, False),
+            ("gentoo", True, False),
+            ("arch", False, False),
+            ("alpine", False, False),
+        ],
+    )
+    def test_distro_wait_for_network(
+        self,
+        distro,
+        should_wait,
+        expected_add_wait,
+        cloud_cfg,
+        mocker,
+        fake_filesystem,
+    ):
+        def fake_subp(*args, **kwargs):
+            if args == (
+                ["systemctl", "cat", "systemd-networkd-wait-online.service"],
+            ):
+                return SubpResult(FAKE_SERVICE_FILE, "")
+            return SubpResult("", "")
+
+        m_nm = mocker.patch(
+            "cloudinit.net.network_manager.available", return_value=False
+        )
+        m_subp = mocker.patch("cloudinit.subp.subp", side_effect=fake_subp)
+        if should_wait:
+            util.write_file(".wait-on-network", "")
+
+        cfg, cloud_cfg_file = cloud_cfg
+        cfg["system_info"]["distro"] = distro
+        write_file(cloud_cfg_file, safeyaml.dumps(cfg))
+        cmdargs = MyArgs(
+            debug=False,
+            files=None,
+            force=False,
+            local=False,
+            reporter=None,
+            subcommand="init",
+            skip_log_setup=False,
+        )
+        main.main_init("init", cmdargs)
+        expected_subps = [
+            "/lib/systemd/systemd-networkd-wait-online -i eth0:degraded",
+            "/lib/systemd/systemd-networkd-wait-online --any -o routable -i eth0",  # noqa: E501
+        ]
+        if expected_add_wait:
+            m_nm.assert_called_once()
+            for expected_subp in expected_subps:
+                assert (
+                    mock.call(expected_subp.split()) in m_subp.call_args_list
+                )
+        else:
+            m_nm.assert_not_called()
+            m_subp.assert_not_called()
 
 
 class TestShouldBringUpInterfaces:

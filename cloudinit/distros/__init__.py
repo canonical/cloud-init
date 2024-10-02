@@ -1574,6 +1574,19 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # name in /dev/
         return diskdevpath, ptnum
 
+    def wait_for_network(self):
+        """Ensure that cloud-init has network connectivity.
+
+        For most distros, this is a no-op as cloud-init's network service is
+        ordered in boot to start after network connectivity has been achieved.
+        As an optimization, distros may opt to order cloud-init's network
+        service immediately after cloud-init's local service, and only
+        require network connectivity if it has been deemed necessary.
+        This method is a hook for distros to implement this optimization.
+        It is called during cloud-init's network stage if it was determined
+        that network connectivity is necessary in cloud-init's network stage.
+        """
+
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
     """

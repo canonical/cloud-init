@@ -351,6 +351,7 @@ class Paths(persistence.CloudInitPickleMixin):
             "vendor_scripts": "scripts/vendor",
             "warnings": "warnings",
             "hotplug.enabled": "hotplug.enabled",
+            ".wait-on-network": ".wait-on-network",
         }
         # Set when a datasource becomes active
         self.datasource = ds

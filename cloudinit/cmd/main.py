@@ -19,7 +19,7 @@ import sys
 import traceback
 import logging
 import yaml
-from typing import Tuple, Callable
+from typing import Optional, Tuple, Callable, Union
 
 from cloudinit import netinfo
 from cloudinit import signal_handler
@@ -39,6 +39,7 @@ from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.config import cc_set_hostname
 from cloudinit.config.modules import Modules
 from cloudinit.config.schema import validate_cloudconfig_schema
+from cloudinit.lifecycle import log_with_downgradable_level
 from cloudinit.reporting import events
 from cloudinit.settings import (
     PER_INSTANCE,
@@ -319,6 +320,68 @@ def _should_bring_up_interfaces(init, args):
     return not args.local
 
 
+def _should_wait_via_cloud_config(
+    raw_config: Optional[Union[str, bytes]]
+) -> bool:
+    if not raw_config:
+        return False
+
+    # If our header is anything other than #cloud-config, wait
+    possible_header: Union[bytes, str] = raw_config.strip()[:13]
+    if isinstance(possible_header, str):
+        decoded_header = possible_header
+    elif isinstance(possible_header, bytes):
+        try:
+            decoded_header = possible_header.decode("utf-8")
+        except UnicodeDecodeError:
+            return True
+    if not decoded_header.startswith("#cloud-config"):
+        return True
+
+    try:
+        userdata_yaml = yaml.safe_load(raw_config)
+    except Exception as e:
+        log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARNING,
+            msg="Unexpected failure parsing userdata: %s",
+            args=e,
+        )
+        return True
+
+    # These all have the potential to require network access, so we should wait
+    if "write_files" in userdata_yaml:
+        return any("source" in item for item in userdata_yaml["write_files"])
+    return bool(
+        userdata_yaml.get("bootcmd")
+        or userdata_yaml.get("random_seed", {}).get("command")
+        or userdata_yaml.get("mounts")
+    )
+
+
+def _should_wait_on_network(datasource: Optional[sources.DataSource]) -> bool:
+    """Determine if we should wait on network connectivity for cloud-init.
+
+    We need to wait if:
+    - We have no datasource
+    - We have user data that is anything other than cloud-config
+      - This can likely be further optimized in the future to include
+        other user data types
+    - We have user data that requires network access
+    """
+    if not datasource:
+        return True
+    return any(
+        _should_wait_via_cloud_config(config)
+        for config in [
+            datasource.get_userdata_raw(),
+            datasource.get_vendordata_raw(),
+            datasource.get_vendordata2_raw(),
+        ]
+    )
+
+
 def main_init(name, args):
     deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
     if args.local:
@@ -396,6 +459,9 @@ def main_init(name, args):
     mode = sources.DSMODE_LOCAL if args.local else sources.DSMODE_NETWORK
 
     if mode == sources.DSMODE_NETWORK:
+        if os.path.exists(init.paths.get_runpath(".wait-on-network")):
+            LOG.debug("Will wait for network connectivity before continuing")
+            init.distro.wait_for_network()
         existing = "trust"
         sys.stderr.write("%s\n" % (netinfo.debug_info()))
     else:
@@ -463,9 +529,22 @@ def main_init(name, args):
         # dhcp clients to advertize this hostname to any DDNS services
         # LP: #1746455.
         _maybe_set_hostname(init, stage="local", retry_stage="network")
+
     init.apply_network_config(bring_up=bring_up_interfaces)
 
     if mode == sources.DSMODE_LOCAL:
+        if _should_wait_on_network(init.datasource):
+            LOG.debug(
+                "Network connectivity determined necessary for "
+                "cloud-init's network stage"
+            )
+            util.write_file(init.paths.get_runpath(".wait-on-network"), "")
+        else:
+            LOG.debug(
+                "Network connectivity determined unnecessary for "
+                "cloud-init's network stage"
+            )
+
         if init.datasource.dsmode != mode:
             LOG.debug(
                 "[%s] Exiting. datasource %s not in local mode.",

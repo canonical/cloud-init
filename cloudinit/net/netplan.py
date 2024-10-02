@@ -13,6 +13,7 @@ from cloudinit.net import (
     IPV6_DYNAMIC_TYPES,
     SYS_CLASS_NET,
     get_devicelist,
+    network_manager,
     renderer,
     should_add_gateway_onlink_flag,
     subnet_is_ipv6,
@@ -570,3 +571,32 @@ def available(target=None):
         if not subp.which(p, search=search, target=target):
             return False
     return True
+
+
+def wait_for_network() -> None:
+    """On networkd systems, manually wait for systemd-networkd-wait-online"""
+    # At the moment, this is only supported using the networkd renderer.
+    if network_manager.available():
+        LOG.debug("NetworkManager is enabled, skipping networkd wait")
+        return
+    wait_online_def: str = subp.subp(
+        ["systemctl", "cat", "systemd-networkd-wait-online.service"]
+    ).stdout
+
+    # We need to extract the ExecStart= lines from the service definition.
+    # If we come across an ExecStart= line that is empty, that clears any
+    # previously found commands, which we should expect from the drop-in.
+    # Since the service is a oneshot, we can have multiple ExecStart= lines
+    # and systemd runs them in parallel. We'll run them serially since
+    # there's really no gain for us in running them in parallel.
+    wait_commands: List[List[str]] = []
+    for line in wait_online_def.splitlines():
+        if line.startswith("ExecStart="):
+            command_str = line.split("=", 1)[1].strip()
+            if not command_str:
+                wait_commands.clear()
+            else:
+                wait_commands.append(command_str.split())
+
+    for command in wait_commands:
+        subp.subp(command)
