@@ -17,9 +17,18 @@ MyArgs = namedtuple(
 )
 
 
+EXTRA_CLOUD_CONFIG = """\
+#cloud-config
+write_files
+- path: {tmpdir}/etc/blah.ini
+  content: override
+"""
+
+
 class TestMain:
     @pytest.fixture(autouse=True)
     def common_mocks(self, mocker):
+        mocker.patch("cloudinit.cmd.main.os.getppid", return_value=42)
         mocker.patch("cloudinit.cmd.main.close_stdin")
         mocker.patch(
             "cloudinit.cmd.main.netinfo.debug_info",
@@ -68,11 +77,37 @@ class TestMain:
         write_file(cloud_cfg_file, safeyaml.dumps(cfg))
         yield copy.deepcopy(cfg), cloud_cfg_file
 
-    def test_main_init_run_net_runs_modules(self, cloud_cfg, capsys, tmpdir):
+    @pytest.mark.parametrize(
+        "provide_file_arg,expected_file_content",
+        (
+            pytest.param(False, "blah", id="write_files_from_base_config"),
+            pytest.param(
+                True,
+                "override",
+                id="write_files_from_supplemental_file_arg",
+            ),
+        ),
+    )
+    def test_main_init_run_net_runs_modules(
+        self,
+        provide_file_arg,
+        expected_file_content,
+        cloud_cfg,
+        capsys,
+        tmpdir,
+    ):
         """Modules like write_files are run in 'net' mode."""
+        if provide_file_arg:
+            supplemental_config_file = tmpdir.join("custom.yaml")
+            supplemental_config_file.write(
+                EXTRA_CLOUD_CONFIG.format(tmpdir=tmpdir)
+            )
+            files = [open(supplemental_config_file)]
+        else:
+            files = None
         cmdargs = MyArgs(
             debug=False,
-            files=None,
+            files=files,
             force=False,
             local=False,
             reporter=None,
@@ -91,6 +126,7 @@ class TestMain:
         expected_logs = [
             "network config is disabled by fallback",  # apply_network_config
             "my net debug info",  # netinfo.debug_info
+            "PID [42] started cloud-init 'init'",
         ]
         stderr = capsys.readouterr().err
         for log in expected_logs:

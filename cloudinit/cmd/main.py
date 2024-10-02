@@ -98,21 +98,6 @@ DEPRECATE_BOOT_STAGE_MESSAGE = (
 )
 
 
-def log_ppid(distro, bootstage_name):
-    if distro.is_linux:
-        ppid = os.getppid()
-        if 1 != ppid and distro.uses_systemd():
-            lifecycle.deprecate(
-                deprecated=(
-                    "Unsupported configuration: boot stage called "
-                    f"by PID [{ppid}] outside of systemd"
-                ),
-                deprecated_version="24.3",
-                extra_message=DEPRECATE_BOOT_STAGE_MESSAGE,
-            )
-    LOG.info("PID [%s] started cloud-init '%s'.", ppid, bootstage_name)
-
-
 def welcome(action, msg=None):
     if not msg:
         msg = welcome_format(action)
@@ -394,7 +379,7 @@ def main_init(name, args):
     # config applied.  We send the welcome message now, as stderr/out have
     # been redirected and log now configured.
     welcome(name, msg=w_msg)
-    log_ppid(init.distro, bootstage_name)
+    LOG.info("PID [%s] started cloud-init '%s'.", os.getppid(), bootstage_name)
 
     # re-play early log messages before logging was setup
     for lvl, msg in early_logs:
@@ -662,7 +647,7 @@ def main_modules(action_name, args):
 
     # now that logging is setup and stdout redirected, send welcome
     welcome(name, msg=w_msg)
-    log_ppid(init.distro, bootstage_name)
+    LOG.info("PID [%s] started cloud-init '%s'.", os.getppid(), bootstage_name)
 
     if name == "init":
         lifecycle.deprecate(
