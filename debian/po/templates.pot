@@ -194,6 +194,12 @@ msgstr ""
 #. Type: multiselect
 #. Choices
 #: ../cloud-init-base.templates:1001
+msgid "CloudCIX: Reads from CloudCIX metadata service"
+msgstr ""
+
+#. Type: multiselect
+#. Choices
+#: ../cloud-init-base.templates:1001
 msgid "None: Failsafe datasource"
 msgstr ""
 
