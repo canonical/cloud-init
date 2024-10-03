@@ -19,6 +19,7 @@ cloud-init (24.4~4gc9dce94d-0ubuntu1) UNRELEASED; urgency=medium
   * d/cloud-init-base.templates:
     + Add warning about image portability to dpkg-reconfigure.
   * d/NEWS: add news about cloud-specific packages
+  * d/po/templates.pot and cloud-init.templates: enable CloudCIX by default.
 
  -- Alberto Contreras <alberto.contreras@canonical.com>  Fri, 27 Sep 2024 10:10:16 +0200
 
