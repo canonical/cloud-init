@@ -143,6 +143,12 @@ class TestNetworkManagerRenderNetworkState:
                 org.freedesktop.NetworkManager.origin=cloud-init
 
                 [bond]
+                mode=802.3ad
+                miimon=100
+                xmit_hash_policy=layer3+4
+                downdelay=0
+                updelay=0
+                fail_over_mac=xx:xx:xx:xx:xx:01
                 ad_actor_sys_prio=65535
                 ad_actor_system=00:00:00:00:00:00
                 ad_select=bandwidth
@@ -152,16 +158,9 @@ class TestNetworkManagerRenderNetworkState:
                 arp_interval=100
                 arp_ip_target=127.0.0.1
                 arp_validate=none
-                downdelay=0
-                fail_over_mac=xx:xx:xx:xx:xx:01
                 lacp_rate=slow
-                miimon=100
                 min_links=2
-                mode=802.3ad
-                slaves=none
-                updelay=0
                 use_carrier=1
-                xmit_hash_policy=layer3+4
 
                 [ipv4]
                 method=disabled
@@ -333,6 +332,12 @@ class TestNetworkManagerRenderNetworkState:
                 org.freedesktop.NetworkManager.origin=cloud-init
 
                 [bond]
+                mode=802.3ad
+                miimon=100
+                xmit_hash_policy=layer3+4
+                downdelay=0
+                updelay=0
+                fail_over_mac=xx:xx:xx:xx:xx:01
                 ad_actor_sys_prio=65535
                 ad_actor_system=00:00:00:00:00:00
                 ad_select=bandwidth
@@ -342,16 +347,9 @@ class TestNetworkManagerRenderNetworkState:
                 arp_interval=100
                 arp_ip_target=127.0.0.1
                 arp_validate=none
-                downdelay=0
-                fail_over_mac=xx:xx:xx:xx:xx:01
                 lacp_rate=slow
-                miimon=100
                 min_links=2
-                mode=802.3ad
-                slaves=none
-                updelay=0
                 use_carrier=1
-                xmit_hash_policy=layer3+4
 
                 [ipv4]
                 method=disabled
@@ -508,25 +506,24 @@ class TestNetworkManagerRenderNetworkState:
                 org.freedesktop.NetworkManager.origin=cloud-init
 
                 [bond]
+                mode=balance-tlb
+                miimon=100
+                xmit_hash_policy=layer3+4
+                downdelay=0
+                updelay=0
+                fail_over_mac=xx:xx:xx:xx:xx:01
+                primary_reselect=always
+                primary=ens1f0np0
                 active_slave=ens1f0np0
                 all_slaves_active=0
                 arp_all_targets=any
                 arp_interval=100
                 arp_ip_target=127.0.0.1
                 arp_validate=none
-                downdelay=0
-                fail_over_mac=xx:xx:xx:xx:xx:01
                 lp_interval=1
-                miimon=100
-                mode=balance-tlb
-                primary=ens1f0np0
-                primary_reselect=always
                 resend_igmp=1
-                slaves=none
                 tlb_dynamic_lb=1
-                updelay=0
                 use_carrier=1
-                xmit_hash_policy=layer3+4
 
                 [ipv4]
                 method=disabled
@@ -648,19 +645,18 @@ class TestNetworkManagerRenderNetworkState:
                 org.freedesktop.NetworkManager.origin=cloud-init
 
                 [bond]
+                mode=balance-tlb
+                miimon=100
+                downdelay=0
+                updelay=0
+                fail_over_mac=xx:xx:xx:xx:xx:01
                 all_slaves_active=0
                 arp_all_targets=any
                 arp_interval=100
                 arp_ip_target=127.0.0.1
                 arp_validate=none
-                downdelay=0
-                fail_over_mac=xx:xx:xx:xx:xx:01
-                miimon=100
-                mode=balance-tlb
                 packets_per_slave=1
                 resend_igmp=1
-                slaves=none
-                updelay=0
                 use_carrier=1
 
                 [ipv4]
@@ -785,21 +781,20 @@ class TestNetworkManagerRenderNetworkState:
                 org.freedesktop.NetworkManager.origin=cloud-init
 
                 [bond]
+                mode=balance-tlb
+                miimon=100
+                num_grat_arp=1
+                downdelay=0
+                updelay=0
+                fail_over_mac=xx:xx:xx:xx:xx:01
                 active_slave=ens1f0np0
                 all_slaves_active=0
                 arp_all_targets=any
                 arp_interval=100
                 arp_ip_target=127.0.0.1
                 arp_validate=none
-                downdelay=0
-                fail_over_mac=xx:xx:xx:xx:xx:01
-                miimon=100
-                mode=balance-tlb
-                num_grat_arp=1
                 num_unsol_na=1
                 resend_igmp=1
-                slaves=none
-                updelay=0
                 use_carrier=1
 
                 [ipv4]
