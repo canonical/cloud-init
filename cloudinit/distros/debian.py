@@ -15,7 +15,6 @@ from cloudinit import distros, subp, util
 from cloudinit.distros.package_management.apt import Apt
 from cloudinit.distros.package_management.package_manager import PackageManager
 from cloudinit.distros.parsers.hostname import HostnameConf
-from cloudinit.net import netplan
 from cloudinit.net.netplan import CLOUDINIT_NETPLAN_FILE
 
 LOG = logging.getLogger(__name__)
@@ -230,10 +229,6 @@ class Distro(distros.Distro):
         # if localectl can be used in the future, this line may still
         # be needed
         self.manage_service("restart", "console-setup")
-
-    def wait_for_network(self):
-        """Ensure that cloud-init's network service has network connectivity"""
-        netplan.wait_for_network()
 
 
 def _maybe_remove_legacy_eth0(path="/etc/network/interfaces.d/eth0.cfg"):

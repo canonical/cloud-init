@@ -349,15 +349,16 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         raise dhcp.NoDHCPLeaseMissingDhclientError()
 
     @property
-    def network_activator(self) -> Optional[Type[activators.NetworkActivator]]:
-        """Return the configured network activator for this environment."""
+    def network_activator(self) -> Type[activators.NetworkActivator]:
+        """Return the configured network activator for this environment.
+
+        :returns: The network activator class to use
+        "raises": NoActivatorException if no activator is found
+        """
         priority = util.get_cfg_by_path(
             self._cfg, ("network", "activators"), None
         )
-        try:
-            return activators.select_activator(priority=priority)
-        except activators.NoActivatorException:
-            return None
+        return activators.select_activator(priority=priority)
 
     @property
     def network_renderer(self) -> Renderer:
@@ -460,8 +461,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # Now try to bring them up
         if bring_up:
             LOG.debug("Bringing up newly configured network interfaces")
-            network_activator = self.network_activator
-            if not network_activator:
+            try:
+                network_activator = self.network_activator
+            except activators.NoActivatorException:
                 LOG.warning(
                     "No network activator found, not bringing up "
                     "network interfaces"

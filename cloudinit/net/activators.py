@@ -5,12 +5,9 @@ from functools import partial
 from typing import Callable, Dict, Iterable, List, Optional, Type, Union
 
 from cloudinit import subp, util
-from cloudinit.net.eni import available as eni_available
+from cloudinit.net import eni, netplan, network_manager, networkd
 from cloudinit.net.netops.iproute2 import Iproute2
-from cloudinit.net.netplan import available as netplan_available
-from cloudinit.net.network_manager import available as nm_available
 from cloudinit.net.network_state import NetworkState
-from cloudinit.net.networkd import available as networkd_available
 
 LOG = logging.getLogger(__name__)
 
@@ -88,6 +85,11 @@ class NetworkActivator(ABC):
             [i["name"] for i in network_state.iter_interfaces()]
         )
 
+    @staticmethod
+    def wait_for_network() -> None:
+        """Wait for network to come up."""
+        raise NotImplementedError()
+
 
 class IfUpDownActivator(NetworkActivator):
     # Note that we're not overriding bring_up_interfaces to pass something
@@ -97,7 +99,7 @@ class IfUpDownActivator(NetworkActivator):
     @staticmethod
     def available(target: Optional[str] = None) -> bool:
         """Return true if ifupdown can be used on this system."""
-        return eni_available(target=target)
+        return eni.available(target=target)
 
     @staticmethod
     def bring_up_interface(device_name: str) -> bool:
@@ -149,7 +151,7 @@ class NetworkManagerActivator(NetworkActivator):
     @staticmethod
     def available(target=None) -> bool:
         """Return true if NetworkManager can be used on this system."""
-        return nm_available(target=target)
+        return network_manager.available(target=target)
 
     @staticmethod
     def bring_up_interface(device_name: str) -> bool:
@@ -215,7 +217,7 @@ class NetplanActivator(NetworkActivator):
     @staticmethod
     def available(target=None) -> bool:
         """Return true if netplan can be used on this system."""
-        return netplan_available(target=target)
+        return netplan.available(target=target)
 
     @staticmethod
     def bring_up_interface(device_name: str) -> bool:
@@ -269,12 +271,21 @@ class NetplanActivator(NetworkActivator):
             NetplanActivator.NETPLAN_CMD, "all", warn_on_stderr=False
         )
 
+    @staticmethod
+    def wait_for_network() -> None:
+        """On networkd systems, wait for systemd-networkd-wait-online"""
+        # At the moment, this is only supported using the networkd renderer.
+        if network_manager.available():
+            LOG.debug("NetworkManager is enabled, skipping networkd wait")
+            return
+        NetworkdActivator.wait_for_network()
+
 
 class NetworkdActivator(NetworkActivator):
     @staticmethod
     def available(target=None) -> bool:
         """Return true if ifupdown can be used on this system."""
-        return networkd_available(target=target)
+        return networkd.available(target=target)
 
     @staticmethod
     def bring_up_interface(device_name: str) -> bool:
@@ -295,6 +306,31 @@ class NetworkdActivator(NetworkActivator):
         return _alter_interface_callable(
             partial(Iproute2.link_down, device_name)
         )
+
+    @staticmethod
+    def wait_for_network() -> None:
+        """Wait for systemd-networkd-wait-online."""
+        wait_online_def: str = subp.subp(
+            ["systemctl", "cat", "systemd-networkd-wait-online.service"]
+        ).stdout
+
+        # We need to extract the ExecStart= lines from the service definition.
+        # If we come across an ExecStart= line that is empty, that clears any
+        # previously found commands, which we should expect from the drop-in.
+        # Since the service is a oneshot, we can have multiple ExecStart= lines
+        # and systemd runs them in parallel. We'll run them serially since
+        # there's really no gain for us in running them in parallel.
+        wait_commands: List[List[str]] = []
+        for line in wait_online_def.splitlines():
+            if line.startswith("ExecStart="):
+                command_str = line.split("=", 1)[1].strip()
+                if not command_str:
+                    wait_commands.clear()
+                else:
+                    wait_commands.append(command_str.split())
+
+        for command in wait_commands:
+            subp.subp(command)
 
 
 # This section is mostly copied and pasted from renderers.py. An abstract
@@ -318,18 +354,22 @@ NAME_TO_ACTIVATOR: Dict[str, Type[NetworkActivator]] = {
 
 def search_activator(
     priority: List[str], target: Union[str, None]
-) -> List[Type[NetworkActivator]]:
+) -> Optional[Type[NetworkActivator]]:
+    """Returns the first available activator from the priority list or None."""
     unknown = [i for i in priority if i not in DEFAULT_PRIORITY]
     if unknown:
         raise ValueError(
-            "Unknown activators provided in priority list: %s" % unknown
+            f"Unknown activators provided in priority list: {unknown}"
         )
     activator_classes = [NAME_TO_ACTIVATOR[name] for name in priority]
-    return [
-        activator_cls
-        for activator_cls in activator_classes
-        if activator_cls.available(target)
-    ]
+    return next(
+        (
+            activator_cls
+            for activator_cls in activator_classes
+            if activator_cls.available(target)
+        ),
+        None,
+    )
 
 
 def select_activator(
@@ -337,16 +377,13 @@ def select_activator(
 ) -> Type[NetworkActivator]:
     if priority is None:
         priority = DEFAULT_PRIORITY
-    found = search_activator(priority, target)
-    if not found:
-        tmsg = ""
-        if target and target != "/":
-            tmsg = " in target=%s" % target
+    selected = search_activator(priority, target)
+    if not selected:
+        tmsg = f" in target={target}" if target and target != "/" else ""
         raise NoActivatorException(
-            "No available network activators found%s. Searched "
-            "through list: %s" % (tmsg, priority)
+            f"No available network activators found{tmsg}. "
+            f"Searched through list: {priority}"
         )
-    selected = found[0]
     LOG.debug(
         "Using selected activator: %s from priority: %s", selected, priority
     )

@@ -280,7 +280,7 @@ class TestMain:
             ds.get_userdata_raw = mock.Mock(return_value=userdata)
             ds.get_vendordata_raw = mock.Mock(return_value=None)
             ds.get_vendordata2_raw = mock.Mock(return_value=None)
-        assert main._should_wait_on_network(ds) is expected
+        assert main._should_wait_on_network(ds)[0] is expected
 
         # Here we rotate our configs to ensure that any of userdata,
         # vendordata, or vendordata2 can be the one that causes us to wait.
@@ -295,14 +295,14 @@ class TestMain:
                     ds.get_vendordata2_raw,
                     ds.get_userdata_raw,
                 )
-            assert main._should_wait_on_network(ds) is expected
+            assert main._should_wait_on_network(ds)[0] is expected
 
     @pytest.mark.parametrize(
         "distro,should_wait,expected_add_wait",
         [
             ("ubuntu", True, True),
             ("ubuntu", False, False),
-            ("debian", True, True),
+            ("debian", True, False),
             ("debian", False, False),
             ("centos", True, False),
             ("rhel", False, False),
@@ -329,6 +329,7 @@ class TestMain:
                 return SubpResult(FAKE_SERVICE_FILE, "")
             return SubpResult("", "")
 
+        mocker.patch("cloudinit.net.netplan.available", return_value=True)
         m_nm = mocker.patch(
             "cloudinit.net.network_manager.available", return_value=False
         )
