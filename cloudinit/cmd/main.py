@@ -110,7 +110,7 @@ def log_ppid(distro, bootstage_name):
                 deprecated_version="24.3",
                 extra_message=DEPRECATE_BOOT_STAGE_MESSAGE,
             )
-    LOG.info("PID [%s] started cloud-init '%s'.", ppid, bootstage_name)
+        LOG.info("PID [%s] started cloud-init '%s'.", ppid, bootstage_name)
 
 
 def welcome(action, msg=None):
