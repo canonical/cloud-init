@@ -205,7 +205,7 @@ class Route(ConfigMap):
                 )
                 metric_key = "METRIC" + index
                 if metric_key in self._conf:
-                    metric_value = str(self._conf["METRIC" + index])
+                    metric_value = str(self._conf[metric_key])
                     buf.write(
                         "%s=%s\n"
                         % ("METRIC" + str(reindex), _quote_value(metric_value))
@@ -548,7 +548,12 @@ class Renderer(renderer.Renderer):
             subnet_type = subnet.get("type")
             # metric may apply to both dhcp and static config
             if "metric" in subnet:
-                if flavor != "suse":
+                if flavor == "rhel":
+                    if subnet_is_ipv6(subnet):
+                        iface_cfg["IPV6_ROUTE_METRIC"] = subnet["metric"]
+                    else:
+                        iface_cfg["IPV4_ROUTE_METRIC"] = subnet["metric"]
+                elif flavor != "suse":
                     iface_cfg["METRIC"] = subnet["metric"]
             if subnet_type in ["dhcp", "dhcp4"]:
                 # On SUSE distros 'DHCLIENT_SET_DEFAULT_ROUTE' is a global
@@ -655,7 +660,17 @@ class Renderer(renderer.Renderer):
                             iface_cfg["GATEWAY"] = route["gateway"]
                             route_cfg.has_set_default_ipv4 = True
                     if "metric" in route:
-                        iface_cfg["METRIC"] = route["metric"]
+                        if flavor == "rhel":
+                            if subnet_is_ipv6(subnet):
+                                iface_cfg["IPV6_ROUTE_METRIC"] = route[
+                                    "metric"
+                                ]
+                            else:
+                                iface_cfg["IPV4_ROUTE_METRIC"] = route[
+                                    "metric"
+                                ]
+                        else:
+                            iface_cfg["METRIC"] = route["metric"]
 
                 else:
                     # add default routes only to ifcfg files, not
