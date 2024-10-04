@@ -514,7 +514,7 @@ class TestCombined:
         # attributes
         assert isinstance(client.instance, GceInstance)
         assert v1_data["availability_zone"] == client.instance.zone
-        assert v1_data["instance_id"] == client.instance.instance_id
+        assert v1_data["instance_id"] == client.instance.id
         assert v1_data["local_hostname"] == client.instance.name
 
     @pytest.mark.skipif(
