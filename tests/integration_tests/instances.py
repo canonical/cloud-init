@@ -83,10 +83,12 @@ class IntegrationInstance:
         log.info("Restarting instance and waiting for boot")
         self.instance.restart()
 
-    def execute(self, command, *, use_sudo=True) -> Result:
+    def execute(self, command, *, use_sudo=True, get_pty=False) -> Result:
         if self.instance.username == "root" and use_sudo is False:
             raise RuntimeError("Root user cannot run unprivileged")
-        return self.instance.execute(command, use_sudo=use_sudo)
+        return self.instance.execute(
+            command, use_sudo=use_sudo, get_pty=get_pty
+        )
 
     def pull_file(
         self,
