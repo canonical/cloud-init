@@ -11,6 +11,7 @@ import json
 import re
 import uuid
 from pathlib import Path
+from typing import List
 
 import pytest
 from pycloudlib.ec2.instance import EC2Instance
@@ -31,6 +32,26 @@ from tests.integration_tests.util import (
     verify_clean_log,
     verify_ordered_items_in_text,
 )
+
+UNWANTED_WORDS = [
+    "Traceback",
+    "DEPRECATED",
+    "WARNING",
+    "CRITICAL",
+    "ERROR",
+]
+UNWANTED_WORDS_DEPRECATED_EXPECTED = [
+    "Traceback",
+    "WARNING",
+    "CRITICAL",
+    "ERROR",
+]
+UNWANTED_WORDS_WARNING_EXPECTED = [
+    "Traceback",
+    "DEPRECATED",
+    "CRITICAL",
+    "ERROR",
+]
 
 USER_DATA = """\
 #cloud-config
@@ -541,6 +562,166 @@ class TestCombined:
         client = class_client
         assert "💩" == client.read_from_file("/var/tmp/unicode_data")
 
+    def test_cli(self, class_client: IntegrationInstance):
+        """Check that various commands work as expected
+
+        The following checks are pretty quick and check a couple of basic
+        expectations for the happy path of these commands. The strategy
+        employed is not to test every possible combination, but to test
+        each one individually as well as at least one call with a
+        combination of flags and arguments.
+        """
+
+        for command in [
+            # collect-logs generate file in expected location
+            (
+                "cloud-init collect-logs --redact-sensitive --tarfile "
+                "/root/redacted.tar.gz"
+            ),
+            "ls /root/redacted.tar.gz",
+            # single subcommands
+            "cloud-init single --name cc_write_files --frequency always",
+            "cloud-init single --name cc_write_files --frequency instance",
+            "cloud-init single --name cc_write_files --frequency once",
+            "cloud-init single --name cc_write_files --frequency once "
+            "--report",
+            # single subcommands
+            "cloud-init schema --system",
+            "cloud-init schema --system --annotate",
+            "cloud-init schema --config-file /dev/null",
+            "cloud-init schema --config-file /dev/null --annotate",
+            "cloud-init schema --config-file /dev/null --annotate "
+            "--instance-data /run/cloud-init/instance-data.json",
+            (
+                "cloud-init schema "
+                "--config-file /etc/netplan/50-cloud-init.yaml "
+                "--schema-type network-config"
+            ),
+            # analyze subcommands
+            "cloud-init analyze blame",
+            "cloud-init analyze show",
+            "cloud-init analyze dump",
+            # query subcommands
+            "cloud-init query userdata",
+            "cloud-init query --list-keys",
+            "cloud-init query --format '{{v1.cloud_name}}'",
+            (
+                "cloud-init query userdata --instance-data "
+                "/run/cloud-init/instance-data.json"
+            ),
+            (
+                "cloud-init query userdata --vendor-data "
+                "/var/lib/cloud/instance/vendor-data.txt"
+            ),
+            (
+                "cloud-init query userdata --user-data "
+                "/var/lib/cloud/instance/user-data.txt"
+            ),
+            (
+                "cloud-init query userdata --format '{{v1.cloud_name}}' "
+                "--instance-data /run/cloud-init/instance-data.json "
+                "--vendor-data /var/lib/cloud/instance/vendor-data.txt "
+                "--user-data /var/lib/cloud/instance/user-data.txt"
+            ),
+        ]:
+            check_for_unwanted(
+                class_client.execute(command),
+                command,
+                text=UNWANTED_WORDS,
+            )
+
+        # status subcommands
+        for command in [
+            "cloud-init status --long",
+            "cloud-init status --format json",
+            "cloud-init status --format yaml",
+            "cloud-init status --format tabular",
+            "cloud-init status --wait --long",
+            "cloud-init status",
+        ]:
+            # the user-data used in this test has deprecated keys, so assert 2
+            check_for_unwanted(
+                class_client.execute(command, get_pty=True),
+                command,
+                text=UNWANTED_WORDS_DEPRECATED_EXPECTED,
+                return_code=2,
+            )
+
+        # test new manual entry points
+        for command in [
+            "cloud-init --all-stages",
+        ]:
+            # test clean commands after running manual commands
+            check_for_unwanted(
+                class_client.execute(command),
+                command,
+                text=UNWANTED_WORDS_DEPRECATED_EXPECTED,
+                return_code=0,
+            )
+            # test clean commands after running manual commands
+            check_for_unwanted(
+                class_client.execute(command),
+                command,
+                text=UNWANTED_WORDS,
+                return_code=0,
+            )
+
+        # test clean commands after running manual entry point
+        for command in [
+            "cloud-init clean",
+            "cloud-init clean --logs",
+            "cloud-init clean --seed",
+            "cloud-init clean --machine-id",
+            "cloud-init clean --configs ssh_config",
+            "cloud-init clean --configs ssh_config",
+            "cloud-init clean --configs network",
+            "cloud-init clean --configs all",
+            "cloud-init clean --configs all --machine-id --seed --logs",
+        ]:
+            check_for_unwanted(
+                class_client.execute(command),
+                command,
+                text=UNWANTED_WORDS,
+                return_code=0,
+            )
+        # test old manual entry points
+        for command in [
+            "cloud-init init --local",
+            "cloud-init init",
+            "cloud-init modules --mode=config",
+            "cloud-init modules --mode=final",
+        ]:
+            # entry points always return 0
+            check_for_unwanted(
+                class_client.execute(command),
+                command,
+                text=UNWANTED_WORDS,
+                return_code=0,
+            )
+
+        # These commands include "WARNING", but it would be easier
+        # to test them if they just said "Warning!" or something like
+        # that because then we could just have one list above to test.
+        for command in [
+            "cloud-init collect-logs",
+            "cloud-init collect-logs --tarfile tmp",
+            "ls /root/tmp /root/cloud-init.tar.gz",
+        ]:
+            result = class_client.execute(command)
+            check_for_unwanted(
+                result,
+                command,
+                text=UNWANTED_WORDS_WARNING_EXPECTED,
+            )
+
+
+# TODO: add tests for commands as an unpriveledged user
+#
+# cloud-init schema -c file.yml
+# cloud-init devel render
+# cloud-init devel make-mime
+# cloud-init devel net-convert
+
 
 @pytest.mark.user_data(USER_DATA)
 class TestCombinedNoCI:
@@ -559,3 +740,22 @@ class TestCombinedNoCI:
         ssh_output = client.read_from_file("/home/ubuntu/.ssh/authorized_keys")
 
         assert "# ssh-import-id lp:smoser" in ssh_output
+
+
+def check_for_unwanted(
+    result, command: str, text: List[str], return_code: int = 0
+):
+    assert return_code == result.return_code, (
+        f"Unexpected return code ({result.return_code}) while running "
+        f"'{command}', expected {return_code}. Command produced stdout:"
+        f"\n{result.stdout}\nstderr:\n{result.stderr}"
+    )
+    for unwanted_text in text:
+        assert unwanted_text not in result.stdout, (
+            f"{command} resulted in unwanted text "
+            f"{unwanted_text} in stdout:\n{result.stdout}"
+        )
+        assert unwanted_text not in result.stderr, (
+            f"{command} resulted in unwanted text "
+            f"{unwanted_text} in stderr:\n{result.stderr}"
+        )
