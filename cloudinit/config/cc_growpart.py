@@ -35,7 +35,7 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": frequency,
     "activate_by_schema_keys": [],
-}  # type: ignore
+}
 
 DEFAULT_CONFIG = {
     "mode": "auto",

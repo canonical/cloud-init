@@ -276,7 +276,7 @@ class DataSourceAkamai(sources.DataSource):
             )
             self.userdata_raw = str(userdata)
             try:
-                self.userdata_raw = b64decode(self.userdata_raw).decode()
+                self.userdata_raw = b64decode(self.userdata_raw)
             except binascii.Error as e:
                 LOG.warning("Failed to base64 decode userdata due to %s", e)
         except url_helper.UrlError as e:

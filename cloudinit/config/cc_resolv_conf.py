@@ -43,7 +43,7 @@ meta: MetaSchema = {
     ],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["manage_resolv_conf"],
-}  # type: ignore
+}
 
 
 def generate_resolv_conf(template_fn, params, target_fname):

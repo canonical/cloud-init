@@ -13,11 +13,9 @@ Instance metadata
 What is ``instance-data?``
 ==========================
 
-Each cloud provider presents unique configuration metadata to a launched cloud
-instance. ``Cloud-init`` crawls this metadata and then caches and exposes this
-information as a standardised and versioned JSON object known as
-``instance-data``. This ``instance-data`` may then be queried or later used
-by ``cloud-init`` in templated configuration and scripts.
+``instance-data`` is a JSON object which contains instance-specific variables
+in a standardized format. These variables may be used in ``cloud-init``
+templated cloud-init configurations.
 
 An example of a small subset of instance-data on a launched EC2 instance:
 
@@ -42,10 +40,9 @@ An example of a small subset of instance-data on a launched EC2 instance:
 Discovery
 =========
 
-One way to easily explore which ``instance-data`` variables are available on
-your machine is to use the :ref:`cloud-init query<cli_query>` tool.
-Warnings or exceptions will be raised on invalid ``instance-data`` keys,
-paths or invalid syntax.
+``instance-data`` can be inspected on a launched instance using
+:ref:`cloud-init query<cli_query>`. Warnings or exceptions will be raised
+on invalid ``instance-data`` keys, paths, or invalid syntax.
 
 The :command:`query` command also publishes ``userdata`` and ``vendordata``
 keys to the root user which will contain the decoded user and vendor data

@@ -66,76 +66,6 @@ Example output:
 
 Reboot the system when prompted.
 
-Obtain the Ubuntu WSL image
-===========================
-
-Ubuntu 24.04 is the first Ubuntu version to support cloud-init in WSL,
-so that is the image that we'll use.
-
-We have two options to obtain the Ubuntu 24.04 WSL image: the Microsoft
-Store and the Ubuntu image server.
-
-Option #1: The Microsoft Store
-------------------------------
-
-If you have access to the Microsoft Store, you can download the
-`Ubuntu 24.04`_ WSL image from within the app.
-
-Click on the "Get" button to download the image.
-
-Once the image has downloaded, do **NOT** click open as that
-will start the instance before we have defined our cloud-init user data
-used to customize the instance.
-
-Once the image has downloaded, you can verify that it is available by
-running the following command:
-
-.. code-block:: doscon
-
-    PS> wsl --list
-
-Example output:
-
-.. code-block:: text
-
-    Windows Subsystem for Linux Distributions:
-    Ubuntu (Default)
-    Ubuntu-24.04
-
-It should show ``Ubuntu-24.04`` in the list of available WSL instances.
-
-Option #2: The Ubuntu image server
-----------------------------------
-
-If the Microsoft Store is not an option, we can instead download the
-Ubuntu 24.04 WSL image from the `Ubuntu image server`_.
-
-Create a directory under the user's home directory to store the
-WSL image and install data.
-
-.. code-block:: doscon
-
-    PS> mkdir ~\wsl-images
-
-Download the Ubuntu 24.04 WSL image.
-
-.. code-block:: doscon
-
-    PS> Invoke-WebRequest -Uri https://cloud-images.ubuntu.com/wsl/noble/current/ubuntu-noble-wsl-amd64-wsl.rootfs.tar.gz -OutFile wsl-images\ubuntu-noble-wsl-amd64-wsl.rootfs.tar.gz
-
-Import the image into WSL storing it in the ``wsl-images`` directory.
-
-.. code-block:: doscon
-
-    PS> wsl --import Ubuntu-24.04 wsl-images .\wsl-images\ubuntu-noble-wsl-amd64-wsl.rootfs.tar.gz
-
-Example output:
-
-.. code-block::
-
-    Import in progress, this may take a few minutes.
-    The operation completed successfully.
-
 Create our user data
 ====================
 
@@ -193,12 +123,71 @@ The remaining lines, as per
 ``/var/tmp/hello-world.txt`` with the content ``Hello from cloud-init`` and
 permissions allowing anybody on the system to read or write the file.
 
+Obtain the Ubuntu WSL image
+===========================
+
+Ubuntu 24.04 is the first Ubuntu version to support cloud-init in WSL,
+so that is the image that we'll use.
+
+We have two options to obtain the Ubuntu 24.04 WSL image: the Microsoft
+Store and the Ubuntu image server.
+
+Option #1: The Microsoft Store
+------------------------------
+
+If you have access to the Microsoft Store, you can download the
+`Ubuntu 24.04`_ WSL image from within the app.
+
+Click on the "Install" button to download the image.
+Then click "Open" to install the image.
+
+Alternatively, you can use the following command to download
+and install the image:
+
+.. code-block:: doscon
+
+    PS> wsl --install --distribution Ubuntu-24.04
+
+Option #2: The Ubuntu image server
+----------------------------------
+
+If the Microsoft Store is not an option, we can instead download the
+Ubuntu 24.04 WSL image from the `Ubuntu image server`_.
+
+Create a directory under the user's home directory to store the
+WSL image and install data.
+
+.. code-block:: doscon
+
+    PS> mkdir ~\wsl-images
+
+Download the Ubuntu 24.04 WSL image.
+
+.. code-block:: doscon
+
+    PS> Invoke-WebRequest -Uri https://cloud-images.ubuntu.com/wsl/noble/current/ubuntu-noble-wsl-amd64-wsl.rootfs.tar.gz -OutFile wsl-images\ubuntu-noble-wsl-amd64-wsl.rootfs.tar.gz
+
+Import the image into WSL storing it in the ``wsl-images`` directory.
+
+.. code-block:: doscon
+
+    PS> wsl --import Ubuntu-24.04 wsl-images .\wsl-images\ubuntu-noble-wsl-amd64-wsl.rootfs.tar.gz
+
+Example output:
+
+.. code-block::
+
+    Import in progress, this may take a few minutes.
+    The operation completed successfully.
+
 Start the Ubuntu WSL instance
-=============================
 
 .. code-block:: doscon
 
     PS> wsl --distribution Ubuntu-24.04
+
+Setup the Ubuntu WSL instance
+=============================
 
 The Ubuntu WSL instance will start, and you may be prompted for a username
 and password.
