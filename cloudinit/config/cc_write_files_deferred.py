@@ -19,7 +19,7 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["write_files"],
-}  # type: ignore
+}
 
 # This module is undocumented in our schema docs
 LOG = logging.getLogger(__name__)

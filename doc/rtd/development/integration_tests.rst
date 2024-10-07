@@ -263,7 +263,7 @@ the form: ``<image_id>[::<os>::<release>::<version>]`` where ``image_id`` is a
 cloud's image ID, ``os`` is the OS name, and ``release`` is the OS
 release name. So, for example, Ubuntu 24.04 LTS (Noble Numbat) on LXD is
 ``ubuntu:noble::ubuntu::noble::24.04`` or RHEL8 on Amazon is
-``ami-justanexample::rhel::8``. When a full specification is given,
+``ami-justanexample::rhel::9::9.3``. When a full specification is given,
 only tests which are intended for use on that OS and release will be
 executed.
 
@@ -284,6 +284,33 @@ variable to be the desired image specification.
 
             OS_IMAGE = 'jammy'
 
+
+To run integration tests on a specific type/family of image, modify the
+``OS_IMAGE_TYPE`` variable to be the desired image type. This comes from
+`pycloudlib's ImageType enum`_, which can take the following values:
+
+- "generic"
+- "minimal"
+- "Pro"
+- "Pro FIPS"
+
+.. tab-set::
+
+    .. tab-item:: Inline environment variable
+
+        .. code-block:: bash
+
+            CLOUD_INIT_PLATFORM=lxd_container CLOUD_INIT_OS_IMAGE=noble CLOUD_INIT_OS_IMAGE_TYPE=minimal tox -e integration_tests
+
+    .. tab-item:: user_settings.py file
+
+        .. code-block:: python
+
+            OS_PLATFORM = 'lxd_container'
+            OS_IMAGE = 'noble'
+            OS_IMAGE_TYPE = 'minimal'
+
+Note: Not all clouds and OSes support all image types
 
 Image setup
 ===========
@@ -427,3 +454,4 @@ Customizing the launch arguments before launching an instance manually:
 .. _Pytest marks: https://github.com/canonical/cloud-init/blob/af7eb1deab12c7208853c5d18b55228e0ba29c4d/tests/integration_tests/conftest.py#L220-L224
 .. _IntegrationCloud: https://github.com/canonical/cloud-init/blob/af7eb1deab12c7208853c5d18b55228e0ba29c4d/tests/integration_tests/clouds.py#L102
 .. _pycloudlib configuration documentation: https://pycloudlib.readthedocs.io/en/latest/configuration.html
+.. _pycloudlib's ImageType enum: https://github.com/canonical/pycloudlib/blob/1!10.0.0/pycloudlib/cloud.py#L28

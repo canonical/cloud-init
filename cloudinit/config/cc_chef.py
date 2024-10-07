@@ -99,7 +99,7 @@ meta: MetaSchema = {
     "distros": ["all"],
     "frequency": PER_ALWAYS,
     "activate_by_schema_keys": ["chef"],
-}  # type: ignore
+}
 
 
 def post_run_chef(chef_cfg):

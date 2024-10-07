@@ -275,6 +275,11 @@ class _LxdIntegrationCloud(IntegrationCloud):
     instance_tag: str
     cloud_instance: _BaseLXD
 
+    def _get_initial_image(self, **kwargs) -> str:
+        return super()._get_initial_image(
+            image_type=self._image_type, **kwargs
+        )
+
     def _get_or_set_profile_list(self, release):
         return None
 

@@ -159,8 +159,12 @@ class DataSourceEc2(sources.DataSource):
                     self.distro.fallback_interface,
                     ipv4=True,
                     ipv6=True,
-                ):
+                ) as netw:
                     self._crawled_metadata = self.crawl_metadata()
+                    LOG.debug(
+                        "Crawled metadata service%s",
+                        f" {netw.state_msg}" if netw.state_msg else "",
+                    )
 
             except NoDHCPLeaseError:
                 return False

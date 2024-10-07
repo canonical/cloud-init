@@ -45,8 +45,23 @@ class TestNetworkManagerRenderNetworkState:
                 mtu: 9000
                 name: bond0
                 params:
+                  bond-ad_actor_sys_prio: 65535
+                  bond-ad_actor_system: 00:00:00:00:00:00
+                  bond-ad_select: bandwidth
+                  bond-ad_user_port_key: 2
+                  bond-all_slaves_active: 0
+                  bond-arp_all_targets: any
+                  bond-arp_interval: 100
+                  bond-arp_ip_target: 127.0.0.1
+                  bond-arp_validate: none
+                  bond-downdelay: 0
+                  bond-fail_over_mac: xx:xx:xx:xx:xx:01
+                  bond-lacp_rate: slow
                   bond-miimon: 100
+                  bond-min_links: 2
                   bond-mode: 802.3ad
+                  bond-updelay: 0
+                  bond-use_carrier: 1
                   bond-xmit_hash_policy: layer3+4
                 subnets: []
                 type: bond
@@ -131,6 +146,21 @@ class TestNetworkManagerRenderNetworkState:
                 mode=802.3ad
                 miimon=100
                 xmit_hash_policy=layer3+4
+                downdelay=0
+                updelay=0
+                fail_over_mac=xx:xx:xx:xx:xx:01
+                ad_actor_sys_prio=65535
+                ad_actor_system=00:00:00:00:00:00
+                ad_select=bandwidth
+                ad_user_port_key=2
+                all_slaves_active=0
+                arp_all_targets=any
+                arp_interval=100
+                arp_ip_target=127.0.0.1
+                arp_validate=none
+                lacp_rate=slow
+                min_links=2
+                use_carrier=1
 
                 [ipv4]
                 method=disabled
@@ -204,8 +234,23 @@ class TestNetworkManagerRenderNetworkState:
                 mtu: 9000
                 name: bond0
                 params:
+                  bond-ad_actor_sys_prio: 65535
+                  bond-ad_actor_system: 00:00:00:00:00:00
+                  bond-ad_select: bandwidth
+                  bond-ad_user_port_key: 2
+                  bond-all_slaves_active: 0
+                  bond-arp_all_targets: any
+                  bond-arp_interval: 100
+                  bond-arp_ip_target: 127.0.0.1
+                  bond-arp_validate: none
+                  bond-downdelay: 0
+                  bond-fail_over_mac: xx:xx:xx:xx:xx:01
+                  bond-lacp_rate: slow
                   bond-miimon: 100
+                  bond-min_links: 2
                   bond-mode: 802.3ad
+                  bond-updelay: 0
+                  bond-use_carrier: 1
                   bond-xmit_hash_policy: layer3+4
                 subnets: []
                 type: bond
@@ -290,6 +335,21 @@ class TestNetworkManagerRenderNetworkState:
                 mode=802.3ad
                 miimon=100
                 xmit_hash_policy=layer3+4
+                downdelay=0
+                updelay=0
+                fail_over_mac=xx:xx:xx:xx:xx:01
+                ad_actor_sys_prio=65535
+                ad_actor_system=00:00:00:00:00:00
+                ad_select=bandwidth
+                ad_user_port_key=2
+                all_slaves_active=0
+                arp_all_targets=any
+                arp_interval=100
+                arp_ip_target=127.0.0.1
+                arp_validate=none
+                lacp_rate=slow
+                min_links=2
+                use_carrier=1
 
                 [ipv4]
                 method=disabled
@@ -331,6 +391,422 @@ class TestNetworkManagerRenderNetworkState:
                 [ipv4]
                 method=disabled
                 route1=0.0.0.0/0,0.0.0.1
+
+                """
+            ),
+        }
+        with mock.patch("cloudinit.net.get_interfaces_by_mac"):
+            ns = self._parse_network_state_from_config(config)
+            target = str(tmpdir)
+            network_manager.Renderer().render_network_state(ns, target=target)
+            rendered_content = dir2dict(target)
+            assert_equal_dict(expected_config, rendered_content)
+
+    def test_bond_balance_tlb_baseline(self, tmpdir):
+
+        config = textwrap.dedent(
+            """\
+            version: 1
+            config:
+              - mac_address: 'xx:xx:xx:xx:xx:00'
+                mtu: 9000
+                name: ens1f0np0
+                subnets: []
+                type: physical
+              - mac_address: 'xx:xx:xx:xx:xx:01'
+                mtu: 9000
+                name: ens1f1np1
+                subnets: []
+                type: physical
+              - bond_interfaces:
+                  - ens1f0np0
+                  - ens1f1np1
+                mac_address: 'xx:xx:xx:xx:xx:00'
+                mtu: 9000
+                name: bond0
+                params:
+                  bond-active_slave: ens1f0np0
+                  bond-all_slaves_active: 0
+                  bond-arp_all_targets: any
+                  bond-arp_interval: 100
+                  bond-arp_ip_target: 127.0.0.1
+                  bond-arp_validate: none
+                  bond-downdelay: 0
+                  bond-fail_over_mac: xx:xx:xx:xx:xx:01
+                  bond-lp_interval: 1
+                  bond-miimon: 100
+                  bond-mode: balance-tlb
+                  bond-primary: ens1f0np0
+                  bond-primary_reselect: always
+                  bond-resend_igmp: 1
+                  bond-tlb_dynamic_lb: 1
+                  bond-updelay: 0
+                  bond-use_carrier: 1
+                  bond-xmit_hash_policy: layer3+4
+                subnets: []
+                type: bond
+            """
+        )
+
+        expected_config = {
+            "/etc/NetworkManager/system-connections/cloud-init-ens1f0np0.nmconnection": textwrap.dedent(  # noqa: E501
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init ens1f0np0
+                uuid=99c4bf6c-1691-53c4-bfe8-abdcb90b278a
+                autoconnect-priority=120
+                type=ethernet
+                slave-type=bond
+                master=54317911-f840-516b-a10d-82cb4c1f075c
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [ethernet]
+                mtu=9000
+                mac-address=XX:XX:XX:XX:XX:00
+
+                """
+            ),
+            "/etc/NetworkManager/system-connections/cloud-init-ens1f1np1.nmconnection": textwrap.dedent(  # noqa: E501
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init ens1f1np1
+                uuid=2685ec2b-1c26-583d-a660-0ab24201fef3
+                autoconnect-priority=120
+                type=ethernet
+                slave-type=bond
+                master=54317911-f840-516b-a10d-82cb4c1f075c
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [ethernet]
+                mtu=9000
+                mac-address=XX:XX:XX:XX:XX:01
+
+                """
+            ),
+            "/etc/NetworkManager/system-connections/cloud-init-bond0.nmconnection": textwrap.dedent(  # noqa: E501
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init bond0
+                uuid=54317911-f840-516b-a10d-82cb4c1f075c
+                autoconnect-priority=120
+                type=bond
+                interface-name=bond0
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [bond]
+                mode=balance-tlb
+                miimon=100
+                xmit_hash_policy=layer3+4
+                downdelay=0
+                updelay=0
+                fail_over_mac=xx:xx:xx:xx:xx:01
+                primary_reselect=always
+                primary=ens1f0np0
+                active_slave=ens1f0np0
+                all_slaves_active=0
+                arp_all_targets=any
+                arp_interval=100
+                arp_ip_target=127.0.0.1
+                arp_validate=none
+                lp_interval=1
+                resend_igmp=1
+                tlb_dynamic_lb=1
+                use_carrier=1
+
+                [ipv4]
+                method=disabled
+                may-fail=false
+
+                [ipv6]
+                method=disabled
+                may-fail=false
+
+                [ethernet]
+                mtu=9000
+
+                """
+            ),
+        }
+        with mock.patch("cloudinit.net.get_interfaces_by_mac"):
+            ns = self._parse_network_state_from_config(config)
+            target = str(tmpdir)
+            network_manager.Renderer().render_network_state(ns, target=target)
+            rendered_content = dir2dict(target)
+            assert_equal_dict(expected_config, rendered_content)
+
+    def test_bond_balance_rr_baseline(self, tmpdir):
+
+        config = textwrap.dedent(
+            """\
+            version: 1
+            config:
+              - mac_address: 'xx:xx:xx:xx:xx:00'
+                mtu: 9000
+                name: ens1f0np0
+                subnets: []
+                type: physical
+              - mac_address: 'xx:xx:xx:xx:xx:01'
+                mtu: 9000
+                name: ens1f1np1
+                subnets: []
+                type: physical
+              - bond_interfaces:
+                  - ens1f0np0
+                  - ens1f1np1
+                mac_address: 'xx:xx:xx:xx:xx:00'
+                mtu: 9000
+                name: bond0
+                params:
+                  bond-all_slaves_active: 0
+                  bond-arp_all_targets: any
+                  bond-arp_interval: 100
+                  bond-arp_ip_target: 127.0.0.1
+                  bond-arp_validate: none
+                  bond-downdelay: 0
+                  bond-fail_over_mac: xx:xx:xx:xx:xx:01
+                  bond-miimon: 100
+                  bond-mode: balance-tlb
+                  bond-packets_per_slave: 1
+                  bond-resend_igmp: 1
+                  bond-updelay: 0
+                  bond-use_carrier: 1
+                subnets: []
+                type: bond
+            """
+        )
+
+        expected_config = {
+            "/etc/NetworkManager/system-connections/cloud-init-ens1f0np0.nmconnection": textwrap.dedent(  # noqa: E501
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init ens1f0np0
+                uuid=99c4bf6c-1691-53c4-bfe8-abdcb90b278a
+                autoconnect-priority=120
+                type=ethernet
+                slave-type=bond
+                master=54317911-f840-516b-a10d-82cb4c1f075c
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [ethernet]
+                mtu=9000
+                mac-address=XX:XX:XX:XX:XX:00
+
+                """
+            ),
+            "/etc/NetworkManager/system-connections/cloud-init-ens1f1np1.nmconnection": textwrap.dedent(  # noqa: E501
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init ens1f1np1
+                uuid=2685ec2b-1c26-583d-a660-0ab24201fef3
+                autoconnect-priority=120
+                type=ethernet
+                slave-type=bond
+                master=54317911-f840-516b-a10d-82cb4c1f075c
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [ethernet]
+                mtu=9000
+                mac-address=XX:XX:XX:XX:XX:01
+
+                """
+            ),
+            "/etc/NetworkManager/system-connections/cloud-init-bond0.nmconnection": textwrap.dedent(  # noqa: E501
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init bond0
+                uuid=54317911-f840-516b-a10d-82cb4c1f075c
+                autoconnect-priority=120
+                type=bond
+                interface-name=bond0
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [bond]
+                mode=balance-tlb
+                miimon=100
+                downdelay=0
+                updelay=0
+                fail_over_mac=xx:xx:xx:xx:xx:01
+                all_slaves_active=0
+                arp_all_targets=any
+                arp_interval=100
+                arp_ip_target=127.0.0.1
+                arp_validate=none
+                packets_per_slave=1
+                resend_igmp=1
+                use_carrier=1
+
+                [ipv4]
+                method=disabled
+                may-fail=false
+
+                [ipv6]
+                method=disabled
+                may-fail=false
+
+                [ethernet]
+                mtu=9000
+
+                """
+            ),
+        }
+        with mock.patch("cloudinit.net.get_interfaces_by_mac"):
+            ns = self._parse_network_state_from_config(config)
+            target = str(tmpdir)
+            network_manager.Renderer().render_network_state(ns, target=target)
+            rendered_content = dir2dict(target)
+            assert_equal_dict(expected_config, rendered_content)
+
+    def test_bond_active_backup_baseline(self, tmpdir):
+
+        config = textwrap.dedent(
+            """\
+            version: 1
+            config:
+              - mac_address: 'xx:xx:xx:xx:xx:00'
+                mtu: 9000
+                name: ens1f0np0
+                subnets: []
+                type: physical
+              - mac_address: 'xx:xx:xx:xx:xx:01'
+                mtu: 9000
+                name: ens1f1np1
+                subnets: []
+                type: physical
+              - bond_interfaces:
+                  - ens1f0np0
+                  - ens1f1np1
+                mac_address: 'xx:xx:xx:xx:xx:00'
+                mtu: 9000
+                name: bond0
+                params:
+                  bond-active_slave: ens1f0np0
+                  bond-all_slaves_active: 0
+                  bond-arp_all_targets: any
+                  bond-arp_interval: 100
+                  bond-arp_ip_target: 127.0.0.1
+                  bond-arp_validate: none
+                  bond-downdelay: 0
+                  bond-fail_over_mac: xx:xx:xx:xx:xx:01
+                  bond-miimon: 100
+                  bond-mode: balance-tlb
+                  bond-num_grat_arp: 1
+                  bond-num_unsol_na: 1
+                  bond-resend_igmp: 1
+                  bond-updelay: 0
+                  bond-use_carrier: 1
+                subnets: []
+                type: bond
+            """
+        )
+
+        expected_config = {
+            "/etc/NetworkManager/system-connections/cloud-init-ens1f0np0.nmconnection": textwrap.dedent(  # noqa: E501
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init ens1f0np0
+                uuid=99c4bf6c-1691-53c4-bfe8-abdcb90b278a
+                autoconnect-priority=120
+                type=ethernet
+                slave-type=bond
+                master=54317911-f840-516b-a10d-82cb4c1f075c
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [ethernet]
+                mtu=9000
+                mac-address=XX:XX:XX:XX:XX:00
+
+                """
+            ),
+            "/etc/NetworkManager/system-connections/cloud-init-ens1f1np1.nmconnection": textwrap.dedent(  # noqa: E501
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init ens1f1np1
+                uuid=2685ec2b-1c26-583d-a660-0ab24201fef3
+                autoconnect-priority=120
+                type=ethernet
+                slave-type=bond
+                master=54317911-f840-516b-a10d-82cb4c1f075c
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [ethernet]
+                mtu=9000
+                mac-address=XX:XX:XX:XX:XX:01
+
+                """
+            ),
+            "/etc/NetworkManager/system-connections/cloud-init-bond0.nmconnection": textwrap.dedent(  # noqa: E501
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init bond0
+                uuid=54317911-f840-516b-a10d-82cb4c1f075c
+                autoconnect-priority=120
+                type=bond
+                interface-name=bond0
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [bond]
+                mode=balance-tlb
+                miimon=100
+                num_grat_arp=1
+                downdelay=0
+                updelay=0
+                fail_over_mac=xx:xx:xx:xx:xx:01
+                active_slave=ens1f0np0
+                all_slaves_active=0
+                arp_all_targets=any
+                arp_interval=100
+                arp_ip_target=127.0.0.1
+                arp_validate=none
+                num_unsol_na=1
+                resend_igmp=1
+                use_carrier=1
+
+                [ipv4]
+                method=disabled
+                may-fail=false
+
+                [ipv6]
+                method=disabled
+                may-fail=false
+
+                [ethernet]
+                mtu=9000
 
                 """
             ),

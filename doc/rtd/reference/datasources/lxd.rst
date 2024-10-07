@@ -11,7 +11,6 @@ running LXD container and VM as ``/dev/lxd/sock`` and represents all
 instance-metadata as versioned HTTP routes such as:
 
   - 1.0/meta-data
-  - 1.0/config/user.meta-data
   - 1.0/config/user.vendor-data
   - 1.0/config/user.user-data
   - 1.0/config/user.<any-custom-key>
@@ -37,25 +36,28 @@ launched container, use either LXD profiles or
 ``lxc launch ... -c <key>="<value>"`` at initial container launch, by setting
 one of the following keys:
 
-- ``user.meta-data``: YAML metadata which will be appended to base metadata.
-- ``user.vendor-data``: YAML which overrides any metadata values.
-- ``user.network-config``: YAML representing either :ref:`network_config_v1` or
-  :ref:`network_config_v2` format.
-- ``user.user-data``: YAML which takes precedence and overrides both metadata
-  and vendor data values.
-- ``user.any-key``: Custom user configuration key and value pairs, which can be
-  passed to ``cloud-init``. Those keys/values will be present in instance-data
-  which can be used by both `#template: jinja` #cloud-config templates and
-  the :command:`cloud-init query` command.
+- ``cloud-init.vendor-data``: YAML which overrides any metadata values.
+- ``cloud-init.network-config``: YAML representing either
+  :ref:`network_config_v1` or :ref:`network_config_v2` format.
+- ``cloud-init.user-data``: YAML which takes precedence and overrides both
+  metadata and vendor data values.
+- ``user.<any-key>``: Keys prefixed with ``user.`` are included in
+  :ref:`instance data<instance_metadata>` under the ``ds.config`` key. These
+  key value pairs are used in jinja :ref:`cloud-config<jinja-config>`
+  and :ref:`user data scripts<jinja-script>`. These key-value pairs may be
+  inspected on a launched instance using ``cloud-init query ds.config``.
 
 .. note::
-   LXD version 4.22 introduced a new scope of config keys prefaced by
-   ``cloud-init.``, which are preferred above the related ``user.*`` keys:
 
-   - ``cloud-init.meta-data``
-   - ``cloud-init.vendor-data``
-   - ``cloud-init.network-config``
-   - ``cloud-init.user-data``
+    Periods (.) and hyphens (-) in Jinja2 have special meaning. Keys which contain a
+    period or hyphen cannot use dot notation to access nested values. To support dot
+    notation, cloud-init provides an alias by converting each hyphen (-) and period (.)
+    character to an underscore (_). This means that an instance launched with
+    ``-c user.special-key=1FE321`` can be queried using standard jinja notation,
+    ``cloud-init query --format "{{ds.config['user.special-key']}}"`` or may use the alias
+    notation ``cloud-init query --format "{{ds.config.user_special_key}}"`` or
+    ``cloud-init query ds.config.user_special_key``.
+
 
 Configuration
 =============

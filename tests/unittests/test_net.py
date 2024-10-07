@@ -2379,23 +2379,26 @@ USERCTL=no
                 }
             },
         }
-        expected = {
-            "ifcfg-eno1": textwrap.dedent(
-                """\
-                BOOTPROTO=dhcp
-                DEVICE=eno1
-                HWADDR=07-1c-c6-75-a4-be
-                METRIC=100
-                ONBOOT=yes
-                TYPE=Ethernet
-                USERCTL=no
-                """
-            ),
-        }
         for dhcp_ver in ("dhcp4", "dhcp6"):
+            expected = {
+                "ifcfg-eno1": textwrap.dedent(
+                    """\
+                    BOOTPROTO=dhcp
+                    DEVICE=eno1
+                    HWADDR=07-1c-c6-75-a4-be
+                    ONBOOT=yes
+                    TYPE=Ethernet
+                    USERCTL=no
+                    """
+                ),
+            }
             v2data = copy.deepcopy(v2base)
             if dhcp_ver == "dhcp6":
-                expected["ifcfg-eno1"] += "IPV6INIT=yes\nDHCPV6C=yes\n"
+                expected[
+                    "ifcfg-eno1"
+                ] += "IPV6INIT=yes\nDHCPV6C=yes\nIPV6_ROUTE_METRIC=100\n"
+            else:
+                expected["ifcfg-eno1"] += "IPV4_ROUTE_METRIC=100\n"
             v2data["ethernets"]["eno1"].update(
                 {dhcp_ver: True, "{0}-overrides".format(dhcp_ver): overrides}
             )

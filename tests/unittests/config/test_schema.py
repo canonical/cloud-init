@@ -1036,6 +1036,7 @@ class TestSchemaDocMarkdown:
         "frequency": "frequency",
         "distros": ["debian", "rhel"],
     }
+    # TODO: See GH #5756
     meta: MetaSchema = {
         "title": "title",
         "description": "description",
@@ -1047,7 +1048,7 @@ class TestSchemaDocMarkdown:
             '\nExample 1:\nprop1:\n    [don\'t, expand, "this"]',
             "\nExample 2:\nprop2: true",
         ],
-    }
+    }  # type: ignore
 
     @pytest.mark.parametrize(
         "meta_update",

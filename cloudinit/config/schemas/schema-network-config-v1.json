@@ -110,7 +110,7 @@
             },
             "bond-ad_select": {
               "type": "string",
-              "description": "Specifies active follower interface name for modes that support it (active-backup, balance-alb and balance-tlb)."
+              "description": "Specifies the 802.3ad aggregation selection logic to use"
             },
             "bond-ad_user_port_key": {
               "type": "string"
@@ -213,7 +213,7 @@
             "bond-queue_id": {
               "type": "string"
             },
-            "bond-resend_igpm": {
+            "bond-resend_igmp": {
               "type": "string"
             },
             "bond-slaves": {

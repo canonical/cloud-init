@@ -31,7 +31,7 @@ meta: MetaSchema = {
     "distros": ["ubuntu", "debian"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["apt_pipelining"],
-}  # type: ignore
+}
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
