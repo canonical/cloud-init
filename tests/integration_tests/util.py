@@ -14,7 +14,11 @@ from typing import TYPE_CHECKING, List, Optional, Set, Union
 import pytest
 
 from cloudinit.subp import subp
-from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.decorators import retry
+from tests.integration_tests.integration_settings import (
+    OS_IMAGE_TYPE,
+    PLATFORM,
+)
 from tests.integration_tests.releases import CURRENT_RELEASE, NOBLE
 
 LOG = logging.getLogger("integration_testing.util")
@@ -28,6 +32,14 @@ key_pair = namedtuple("key_pair", "public_key private_key")
 
 ASSETS_DIR = Path("tests/integration_tests/assets")
 KEY_PATH = ASSETS_DIR / "keys"
+
+HAS_CONSOLE_LOG = PLATFORM in (
+    "ec2",
+    "lxd_container",
+    "oci",
+    "openstack",
+    "qemu",
+)
 
 
 def verify_ordered_items_in_text(to_verify: list, text: str):
@@ -544,6 +556,15 @@ def get_console_log(client: "IntegrationInstance"):
     if console_log.lower().startswith("no console output"):
         pytest.fail("no console output")
     return console_log
+
+
+@retry(tries=5, delay=1)  # Retry on get_console_log failures
+def get_syslog_or_console(client: "IntegrationInstance") -> str:
+    """minimal OS_IMAGE_TYPE does not contain rsyslog"""
+    if OS_IMAGE_TYPE == "minimal" and HAS_CONSOLE_LOG:
+        return get_console_log(client)
+    else:
+        return client.read_from_file("/var/log/syslog")
 
 
 @lru_cache()
