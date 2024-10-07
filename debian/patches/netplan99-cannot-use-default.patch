@@ -31,7 +31,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                  via: 10.101.11.254
      vlans:
          bond0.3502:
-@@ -3239,9 +3239,9 @@ class TestNetplanNetRendering:
+@@ -3242,9 +3242,9 @@ class TestNetplanNetRendering:
                          macaddress: 00:11:22:33:44:55
                        set-name: interface0
                        routes:
@@ -43,7 +43,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                            via: 11.0.0.1
                  """,
                  id="physical_gateway46",
-@@ -3278,9 +3278,9 @@ class TestNetplanNetRendering:
+@@ -3281,9 +3281,9 @@ class TestNetplanNetRendering:
                        - eth0
                        - eth1
                        routes:
@@ -55,7 +55,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                            via: 11.0.0.1
                      eth0: {}
                      eth1: {}
-@@ -3317,9 +3317,9 @@ class TestNetplanNetRendering:
+@@ -3320,9 +3320,9 @@ class TestNetplanNetRendering:
                        interfaces:
                        - eth0
                        routes:
@@ -67,7 +67,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                            via: 11.0.0.1
                  """,
                  id="bridge_gateway46",
-@@ -3353,9 +3353,9 @@ class TestNetplanNetRendering:
+@@ -3356,9 +3356,9 @@ class TestNetplanNetRendering:
                        id: 101
                        link: eth0
                        routes:
@@ -79,7 +79,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                            via: 11.0.0.1
                  """,
                  id="vlan_gateway46",
-@@ -3404,7 +3404,7 @@ class TestNetplanNetRendering:
+@@ -3407,7 +3407,7 @@ class TestNetplanNetRendering:
                          - exemplary
                        set-name: interface0
                        routes:
@@ -88,7 +88,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                            via: 192.168.23.1
                  """,
                  id="nameserver_gateway4",
-@@ -3439,7 +3439,7 @@ class TestNetplanNetRendering:
+@@ -3442,7 +3442,7 @@ class TestNetplanNetRendering:
                        match:
                          macaddress: 00:11:22:33:44:55
                        routes:
@@ -97,7 +97,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                            via: 192.168.23.1
                        -   to: 10.176.0.0/24
                            via: 10.184.225.121
-@@ -3474,7 +3474,7 @@ class TestNetplanNetRendering:
+@@ -3477,7 +3477,7 @@ class TestNetplanNetRendering:
                        match:
                          macaddress: 00:11:22:33:44:55
                        routes:
@@ -106,7 +106,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                            via: 192.168.23.1
                        -   to: 192.167.225.122/24
                            via: 192.168.23.1
-@@ -3510,10 +3510,10 @@ class TestNetplanNetRendering:
+@@ -3513,10 +3513,10 @@ class TestNetplanNetRendering:
                        match:
                          macaddress: 00:11:22:33:44:55
                        routes:

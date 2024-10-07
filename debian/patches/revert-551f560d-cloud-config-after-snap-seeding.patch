@@ -48,7 +48,7 @@ Last-Update: 2024-02-14
          os.path.join(cloud.paths.get_ipath_cur(), "snapd.assertions"),
 --- a/cloudinit/config/cc_ubuntu_autoinstall.py
 +++ b/cloudinit/config/cc_ubuntu_autoinstall.py
-@@ -83,7 +83,6 @@ def handle(name: str, cfg: Config, cloud
+@@ -37,7 +37,6 @@ def handle(name: str, cfg: Config, cloud
          )
          return
  
