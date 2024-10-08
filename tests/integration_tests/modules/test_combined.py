@@ -21,7 +21,10 @@ from cloudinit import lifecycle
 from cloudinit.util import is_true
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.integration_settings import (
+    OS_IMAGE_TYPE,
+    PLATFORM,
+)
 from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, JAMMY
 from tests.integration_tests.util import (
     get_feature_flag_value,
@@ -183,14 +186,16 @@ class TestCombined:
         assert "LANG=en_GB.UTF-8" in default_locale
 
         locale_a = client.execute("locale -a")
-        verify_ordered_items_in_text(["en_GB.utf8", "en_US.utf8"], locale_a)
-
-        locale_gen = client.execute(
-            "cat /etc/locale.gen | grep -v '^#' | uniq"
-        )
-        verify_ordered_items_in_text(
-            ["en_GB.UTF-8", "en_US.UTF-8"], locale_gen
-        )
+        locale_gen = client.execute("grep -v '^#' /etc/locale.gen | uniq")
+        if OS_IMAGE_TYPE == "minimal":
+            # Minimal images don't have a en_US.utf8 locale
+            expected_locales = ["C.utf8", "en_GB.utf8"]
+            expected_locale_gen = ["en_GB.UTF-8", "UTF-8"]
+        else:
+            expected_locales = ["en_GB.utf8", "en_US.utf8"]
+            expected_locale_gen = ["en_GB.UTF-8", "en_US.UTF-8"]
+        verify_ordered_items_in_text(expected_locales, locale_a)
+        verify_ordered_items_in_text(expected_locale_gen, locale_gen)
 
     def test_random_seed_data(self, class_client: IntegrationInstance):
         """Integration test for the random seed module.

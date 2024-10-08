@@ -1,4 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+from unittest import mock
+
 import pytest
 
 from cloudinit import util
@@ -11,6 +13,10 @@ LOCALE_PATH = "/etc/default/locale"
 class TestDebianApplyLocale:
     @pytest.fixture
     def m_subp(self, mocker):
+        mocker.patch(
+            "cloudinit.distros.debian.subp.which",
+            return_value="/usr/bin/locale-gen",
+        )
         yield mocker.patch(
             "cloudinit.distros.debian.subp.subp", return_value=(None, None)
         )
@@ -26,15 +32,34 @@ class TestDebianApplyLocale:
         distro.apply_locale(locale, out_fn=LOCALE_PATH)
         m_subp.assert_not_called()
 
-    def test_no_regen_on_c_utf8(self, distro, m_subp):
-        """If locale is set to C.UTF8, do not attempt to call locale-gen"""
+    @pytest.mark.parametrize(
+        "which_response,install_pkgs",
+        (("", ["locales"]), ("/usr/bin/update-locale", [])),
+    )
+    def test_no_regen_on_c_utf8(
+        self, which_response, install_pkgs, distro, mocker, m_subp
+    ):
+        """If locale is set to C.UTF8, do not attempt to call locale-gen.
+
+        Install locales deb package if not present and update-locale is called.
+        """
+        m_which = mocker.patch(
+            "cloudinit.distros.debian.subp.which",
+            return_value=which_response,
+        )
         m_subp.return_value = (None, None)
         locale = "C.UTF-8"
         util.write_file(LOCALE_PATH, "LANG=%s\n" % "en_US.UTF-8", omode="w")
-        distro.apply_locale(locale, out_fn=LOCALE_PATH)
+        with mock.patch.object(distro, "install_packages") as m_install:
+            distro.apply_locale(locale, out_fn=LOCALE_PATH)
         assert [
             ["update-locale", f"--locale-file={LOCALE_PATH}", f"LANG={locale}"]
         ] == [p[0][0] for p in m_subp.call_args_list]
+        m_which.assert_called_with("update-locale")
+        if install_pkgs:
+            m_install.assert_called_once_with(install_pkgs)
+        else:
+            m_install.assert_not_called()
 
     def test_rerun_if_different(self, distro, m_subp, caplog):
         """If system has different locale, locale-gen should be called."""
@@ -59,10 +84,24 @@ class TestDebianApplyLocale:
             in caplog.text
         )
 
-    def test_rerun_if_no_file(self, distro, m_subp):
-        """If system has no locale file, locale-gen should be called."""
+    @pytest.mark.parametrize(
+        "which_response,install_pkgs",
+        (("", ["locales"]), ("/usr/bin/locale-gen", [])),
+    )
+    def test_rerun_if_no_file(
+        self, which_response, install_pkgs, mocker, distro, m_subp
+    ):
+        """If system has no locale file, locale-gen should be called.
+
+        Install locales package if absent and locale-gen called.
+        """
+        m_which = mocker.patch(
+            "cloudinit.distros.debian.subp.which",
+            return_value=which_response,
+        )
         locale = "en_US.UTF-8"
-        distro.apply_locale(locale, out_fn=LOCALE_PATH)
+        with mock.patch.object(distro, "install_packages") as m_install:
+            distro.apply_locale(locale, out_fn=LOCALE_PATH)
         assert [
             ["locale-gen", locale],
             [
@@ -71,6 +110,14 @@ class TestDebianApplyLocale:
                 f"LANG={locale}",
             ],
         ] == [p[0][0] for p in m_subp.call_args_list]
+        assert [
+            mock.call("locale-gen"),
+            mock.call("update-locale"),
+        ] == m_which.call_args_list
+        if install_pkgs:
+            m_install.assert_called_with(install_pkgs)
+        else:
+            m_install.assert_not_called()
 
     def test_rerun_on_unset_system_locale(self, distro, m_subp, caplog):
         """If system has unset locale, locale-gen should be called."""
