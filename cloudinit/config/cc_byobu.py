@@ -37,6 +37,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         LOG.debug("Skipping module named %s, no 'byobu' values found", name)
         return
 
+    if not subp.which("byobu"):
+        cloud.distro.install_packages(["byobu"])
+
     if value == "user" or value == "system":
         value = "enable-%s" % value
 
