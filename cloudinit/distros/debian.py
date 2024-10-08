@@ -109,7 +109,12 @@ class Distro(distros.Distro):
         need_conf = not conf_fn_exists or need_regen or sys_locale_unset
 
         if need_regen:
-            regenerate_locale(locale, out_fn, keyname=keyname)
+            regenerate_locale(
+                locale,
+                out_fn,
+                keyname=keyname,
+                install_function=self.install_packages,
+            )
         else:
             LOG.debug(
                 "System has '%s=%s' requested '%s', skipping regeneration.",
@@ -119,7 +124,12 @@ class Distro(distros.Distro):
             )
 
         if need_conf:
-            update_locale_conf(locale, out_fn, keyname=keyname)
+            update_locale_conf(
+                locale,
+                out_fn,
+                keyname=keyname,
+                install_function=self.install_packages,
+            )
             # once we've updated the system config, invalidate cache
             self.system_locale = None
 
@@ -267,11 +277,15 @@ def read_system_locale(sys_path=LOCALE_CONF_FN, keyname="LANG"):
     return sys_val
 
 
-def update_locale_conf(locale, sys_path, keyname="LANG"):
+def update_locale_conf(
+    locale, sys_path, keyname="LANG", install_function=None
+):
     """Update system locale config"""
     LOG.debug(
         "Updating %s with locale setting %s=%s", sys_path, keyname, locale
     )
+    if not subp.which("update-locale"):
+        install_function(["locales"])
     subp.subp(
         [
             "update-locale",
@@ -282,7 +296,7 @@ def update_locale_conf(locale, sys_path, keyname="LANG"):
     )
 
 
-def regenerate_locale(locale, sys_path, keyname="LANG"):
+def regenerate_locale(locale, sys_path, keyname="LANG", install_function=None):
     """
     Run locale-gen for the provided locale and set the default
     system variable `keyname` appropriately in the provided `sys_path`.
@@ -298,5 +312,7 @@ def regenerate_locale(locale, sys_path, keyname="LANG"):
         return
 
     # finally, trigger regeneration
+    if not subp.which("locale-gen"):
+        install_function(["locales"])
     LOG.debug("Generating locales for %s", locale)
     subp.subp(["locale-gen", locale], capture=False)
