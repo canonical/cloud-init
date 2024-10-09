@@ -299,6 +299,9 @@ def _verify_clean_boot(
             "Required warnings not found", list(required_warnings_not_found)
         )
         message += _format_found(
+            "Found unexpected deprecations", list(unexpected_deprecations)
+        )
+        message += _format_found(
             "Required deprecations not found",
             list(required_deprecations_not_found),
         )
@@ -364,29 +367,13 @@ def _verify_clean_boot(
             f"{out.stdout}\nstderr:\n{out.stderr}"
         )
     else:
-        # we know that we should have a return code of 2
+        # Look at the commit history before making changes here.
+        # Behavior on Jenkins, GH CI, and local runs must be considered
+        # for all series.
         out = instance.execute("cloud-init status --long")
         rc = 2
-        # CI on main doesn't patch out this behavior so despite running on
-        # old releases it behaves as tip of main does
-        #
-        # GITHUB_BASE_REF is not defined if
-        #  1. The event that triggers a workflow run on GH CI is not
-        #     pull_request or pull_request_target.
-        #  2. The integration tests aren't run on GH but on Jenkins or locally
-        #     on a developer's machine.
-        #
-        # On Jenkins, rc should be 0. But, on GH CI on runs that are not
-        # not triggered from a pr event, we still want rc 2.
         if CURRENT_RELEASE < NOBLE:
-            if os.environ.get("ON_JENKINS"):
-                # We are on Jenkins testing against full packages
-                # Old releases return 0 for backwards compatibility
-                rc = 0
-            elif os.environ.get("GITHUB_ACTION"):
-                # On GH actions, integrations tests run on LXD without quilt
-                # patches
-                rc = 2
+            rc = 0
         assert rc == out.return_code, (
             f"Unexpected return code from `cloud-init status`. "
             f"Expected rc={rc}, received rc={out.return_code}\nstdout: "
