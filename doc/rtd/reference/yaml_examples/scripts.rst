@@ -1,13 +1,10 @@
 .. _cce-scripts:
 
-Run vendor scripts
-******************
+Control vendor data use
+***********************
 
-Scripts can be run by cloud-init by ensuring that the scripts are placed in
-the correct directory on the datasource.
-
-Scripts in the ``scripts/vendor`` directory are run when a new instance is
-first booted, and in alphabetical order.
+The use of :ref:`vendor data <vendordata>` can be controlled by the user.
+Vendor data can be used (or disabled) with an optional prefix.
 
 For a full list of keys, refer to the
 :ref:`scripts vendor module <mod_cc_scripts_vendor>` docs.
