@@ -1,4 +1,5 @@
 from collections import namedtuple
+from typing import Any, NamedTuple
 from unittest import mock
 from unittest.mock import call
 
@@ -17,6 +18,13 @@ M_PATH = "cloudinit.cmd.devel.hotplug_hook."
 
 hotplug_args = namedtuple("hotplug_args", "udevaction, subsystem, devpath")
 FAKE_MAC = "11:22:33:44:55:66"
+
+
+class Mocks(NamedTuple):
+    m_init: Any
+    m_network_state: Any
+    m_activator: Any
+    m_sleep: Any
 
 
 @pytest.fixture
@@ -54,7 +62,7 @@ def mocks():
     parse_net.start()
     m_sleep = sleep.start()
 
-    yield namedtuple("mocks", "m_init m_network_state m_activator m_sleep")(
+    yield Mocks(
         m_init=m_init,
         m_network_state=m_network_state,
         m_activator=m_activator,
