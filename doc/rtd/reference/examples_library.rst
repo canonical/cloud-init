@@ -4,10 +4,10 @@ Cloud config examples library
 *****************************
 
 .. note::
-   This page is an index to all the cloud config yaml examples, which are
-   organised by operation or process. If you would prefer to use the
-   single-page summary containing all the cloud config yaml examples, refer
-   to the :ref:`all examples page <yaml_examples>`
+   This page is an index to all the cloud config YAML examples, organised by
+   operation or process. If you prefer to use a single-page summary containing
+   every cloud config yaml example, refer to the
+   :ref:`all examples page <yaml_examples>`.
 
 .. include:: yaml_examples/index_boot.rst
    :end-before: .. TOC
