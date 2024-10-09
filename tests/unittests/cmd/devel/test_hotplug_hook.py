@@ -20,7 +20,6 @@ hotplug_args = namedtuple("hotplug_args", "udevaction, subsystem, devpath")
 FAKE_MAC = "11:22:33:44:55:66"
 
 
-# Define the NamedTuple class
 class Mocks(NamedTuple):
     m_init: Any
     m_network_state: Any
