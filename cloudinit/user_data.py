@@ -403,10 +403,6 @@ def is_skippable(part):
     return False
 
 
-def message_from_string(string) -> Message:
-    return email.message_from_string(string)
-
-
 def convert_string(
     raw_data: Union[str, bytes], content_type=NOT_MULTIPART_TYPE
 ) -> Message:
@@ -430,7 +426,7 @@ def convert_string(
         bdata = raw_data
     bdata = util.decomp_gzip(bdata, decode=False)
     if b"mime-version:" in bdata[0:4096].lower():
-        msg = message_from_string(bdata.decode("utf-8"))
+        msg = email.message_from_string(bdata.decode("utf-8"))
     else:
         msg = create_binmsg(bdata, content_type)
 

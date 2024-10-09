@@ -3,6 +3,7 @@
 These are NOT general tests for user data processing.
 """
 
+import email
 from email.mime.base import MIMEBase
 
 import pytest
@@ -17,7 +18,7 @@ def count_messages(root):
 
 class TestMessageFromString:
     def test_unicode_not_messed_up(self):
-        roundtripped = user_data.message_from_string("\n").as_string()
+        roundtripped = email.message_from_string("\n").as_string()
         assert "\x00" not in roundtripped
 
 
