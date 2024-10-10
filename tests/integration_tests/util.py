@@ -538,10 +538,20 @@ def get_console_log(client: "IntegrationInstance"):
         console_log = client.instance.console_log()
     except NotImplementedError:
         pytest.skip("NotImplementedError when requesting console log")
+    except RuntimeError as e:
+        if "open : no such file or directory" in str(e):
+            if hasattr(client, "lxc_log"):
+                return client.lxc_log
+        raise e
     if console_log is None:
         pytest.skip("Console log has not been setup")
     if console_log.lower().startswith("no console output"):
         pytest.fail("no console output")
+    if PLATFORM in ("lxd_vm", "lxd_container"):
+        # Preserve non empty console log on lxc platforms because
+        # lxc console --show-log can be called once and the log is flushed.
+        # Multiple calls to --show-log error on "no such file or directory".
+        client.lxc_log = console_log  # type: ignore[attr-defined]
     return console_log
 
 
