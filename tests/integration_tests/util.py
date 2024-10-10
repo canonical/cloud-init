@@ -126,7 +126,8 @@ def verify_clean_boot(
             maybe_list = [value]
         return maybe_list
 
-    traceback_texts = []
+    if ignore_tracebacks is None:
+        ignore_tracebacks = []
     # Define exceptions by matrix of platform and Ubuntu release
     if "azure" == PLATFORM:
         # Consistently on all Azure launches:
@@ -147,17 +148,19 @@ def verify_clean_boot(
         ignore_errors = append_or_create_list(
             ignore_warnings, "Stderr: RTNETLINK answers: File exists"
         )
-        traceback_texts.append("Stderr: RTNETLINK answers: File exists")
+        if isinstance(ignore_tracebacks, list):
+            ignore_tracebacks.append("Stderr: RTNETLINK answers: File exists")
         # LP: #1833446
         ignore_warnings = append_or_create_list(
             ignore_warnings,
             "UrlError: 404 Client Error: Not Found for url: "
             "http://169.254.169.254/latest/meta-data/",
         )
-        traceback_texts.append(
-            "UrlError: 404 Client Error: Not Found for url: "
-            "http://169.254.169.254/latest/meta-data/"
-        )
+        if isinstance(ignore_tracebacks, list):
+            ignore_tracebacks.append(
+                "UrlError: 404 Client Error: Not Found for url: "
+                "http://169.254.169.254/latest/meta-data/"
+            )
         # Oracle has a file in /etc/cloud/cloud.cfg.d that contains
         # users:
         # - default
@@ -168,7 +171,7 @@ def verify_clean_boot(
             ignore_warnings,
             "Unable to disable SSH logins for opc given ssh_redirect_user",
         )
-
+    # Preserve platform-specific tracebacks expected
     _verify_clean_boot(
         instance,
         ignore_deprecations=ignore_deprecations,
