@@ -5,7 +5,7 @@
 import contextlib
 import logging
 from functools import partial
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import cloudinit.net as net
 import cloudinit.netinfo as netinfo
@@ -20,7 +20,7 @@ class EphemeralIPv4Network:
 
     No operations are performed if the provided interface already has the
     specified configuration.
-    This can be verified with the connectivity_url_data.
+    This can be verified with the connectivity_urls_data.
     If unconnected, bring up the interface with valid ip, prefix and broadcast.
     If router is provided setup a default route for that interface. Upon
     context exit, clean up the interface leaving no configuration behind.
@@ -281,26 +281,26 @@ class EphemeralDHCPv4:
         self,
         distro,
         iface=None,
-        connectivity_url_data: Optional[Dict[str, Any]] = None,
+        connectivity_urls_data: Optional[List[Dict[str, Any]]] = None,
         dhcp_log_func=None,
     ):
         self.iface = iface
         self._ephipv4: Optional[EphemeralIPv4Network] = None
         self.lease: Optional[Dict[str, Any]] = None
         self.dhcp_log_func = dhcp_log_func
-        self.connectivity_url_data = connectivity_url_data
+        self.connectivity_urls_data = connectivity_urls_data or []
         self.distro = distro
         self.interface_addrs_before_dhcp = netinfo.netdev_info()
 
     def __enter__(self):
         """Setup sandboxed dhcp context, unless connectivity_url can already be
         reached."""
-        if self.connectivity_url_data:
-            if net.has_url_connectivity(self.connectivity_url_data):
+        for url_data in self.connectivity_urls_data:
+            if net.has_url_connectivity(url_data):
                 LOG.debug(
                     "Skip ephemeral DHCP setup, instance has connectivity"
                     " to %s",
-                    self.connectivity_url_data,
+                    url_data,
                 )
                 return
         return self.obtain_lease()
@@ -404,13 +404,37 @@ class EphemeralIPNetwork:
         interface,
         ipv6: bool = False,
         ipv4: bool = True,
+        connectivity_urls_data: Optional[List[Dict[str, Any]]] = None,
+        ipv6_connectivity_check_callback: Optional[Callable] = None,
     ):
+        """
+        Args:
+            distro: The distro object
+            interface: The interface to bring up
+            ipv6: Whether to bring up an ipv6 network
+            ipv4: Whether to bring up an ipv4 network
+            connectivity_urls_data: List of url data to use for connectivity
+                check before bringing up DHCPv4 ephemeral network.
+            ipv6_connectivity_check_callback: A callback to check for ipv6
+                connectivity. If provided, it is assumed that ipv6 networking
+                is preferred and ipv4 networking will be skipped if ipv6
+                connectivity to IMDS is successful. This function should return
+                the url that was reached to verify ipv6 connectivity (if
+                successful - otherwise it should return None).
+        """
         self.interface = interface
         self.ipv4 = ipv4
         self.ipv6 = ipv6
         self.stack = contextlib.ExitStack()
         self.state_msg: str = ""
         self.distro = distro
+        self.connectivity_urls_data = connectivity_urls_data
+        self.ipv6_connectivity_check_callback = (
+            ipv6_connectivity_check_callback
+        )
+
+        # will be updated by the context manager
+        self.ipv6_reached_at_url = None
 
     def __enter__(self):
         if not (self.ipv4 or self.ipv6):
@@ -419,33 +443,37 @@ class EphemeralIPNetwork:
             return self
         exceptions = []
         ephemeral_obtained = False
-        if self.ipv4:
-            try:
-                self.stack.enter_context(
-                    EphemeralDHCPv4(
-                        self.distro,
-                        self.interface,
-                    )
-                )
-                ephemeral_obtained = True
-            except (ProcessExecutionError, NoDHCPLeaseError) as e:
-                LOG.info("Failed to bring up %s for ipv4.", self)
-                exceptions.append(e)
 
-        if self.ipv6:
-            try:
-                self.stack.enter_context(
-                    EphemeralIPv6Network(
-                        self.distro,
-                        self.interface,
-                    )
+        if self.ipv6_connectivity_check_callback is not None:
+            if not self.ipv6:
+                raise ValueError(
+                    "ipv6_connectivity_check_callback provided but ipv6 is "
+                    "not enabled"
                 )
-                ephemeral_obtained = True
-                if exceptions or not self.ipv4:
-                    self.state_msg = "using link-local ipv6"
-            except ProcessExecutionError as e:
-                LOG.info("Failed to bring up %s for ipv6.", self)
-                exceptions.append(e)
+            ephemeral_obtained, exceptions = self._do_ipv6(
+                ephemeral_obtained, exceptions
+            )
+            self.ipv6_reached_at_url = self.ipv6_connectivity_check_callback()
+            # if ipv6_connectivity_check_callback is provided, then we want to
+            # skip ipv4 ephemeral network setup if ipv6 ephemeral network setup
+            # and imds connectivity check succeeded
+            if self.ipv4 and not self.ipv6_reached_at_url:
+                LOG.debug(
+                    "Bringing up ipv4 ephemeral network since ipv6 failed"
+                )
+                ephemeral_obtained, exceptions = self._do_ipv4(
+                    ephemeral_obtained, exceptions
+                )
+        else:
+            if self.ipv4:
+                ephemeral_obtained, exceptions = self._do_ipv4(
+                    ephemeral_obtained, exceptions
+                )
+            if self.ipv6:
+                ephemeral_obtained, exceptions = self._do_ipv6(
+                    ephemeral_obtained, exceptions
+                )
+
         if not ephemeral_obtained:
             # Ephemeral network setup failed in linkup for both ipv4 and
             # ipv6. Raise only the first exception found.
@@ -455,6 +483,83 @@ class EphemeralIPNetwork:
             )
             raise exceptions[0]
         return self
+
+    def _do_ipv4(
+        self, ephemeral_obtained, exceptions
+    ) -> Tuple[str, List[Exception]]:
+        """
+        Attempt to bring up an ephemeral network for ipv4 on the interface.
+
+        Args:
+            ephemeral_obtained: Whether an ephemeral network has already been
+                obtained
+            exceptions: List of exceptions encountered so far
+
+        Returns:
+            A tuple containing the updated ephemeral_obtained and
+                exceptions values
+        """
+        try:
+            self.stack.enter_context(
+                EphemeralDHCPv4(
+                    distro=self.distro,
+                    iface=self.interface,
+                    connectivity_urls_data=self.connectivity_urls_data,
+                )
+            )
+            ephemeral_obtained = True
+            LOG.debug(
+                "Successfully brought up %s for ephemeral ipv4 networking.",
+                self.interface,
+            )
+        except (ProcessExecutionError, NoDHCPLeaseError) as e:
+            LOG.debug(
+                "Failed to bring up %s for ephemeral ipv4 networking.",
+                self.interface,
+            )
+            # we don't set ephemeral_obtained to False here because we want to
+            # retain a potential true value from any previous successful
+            # ephemeral network setup
+            exceptions.append(e)
+        return ephemeral_obtained, exceptions
+
+    def _do_ipv6(
+        self, ephemeral_obtained, exceptions
+    ) -> Tuple[str, List[Exception]]:
+        """
+        Attempt to bring up an ephemeral network for ipv6 on the interface.
+
+        Args:
+            ephemeral_obtained: Whether an ephemeral network has already been
+                obtained
+            exceptions: List of exceptions encountered so far
+
+        Returns:
+            tupleA tuple containing the updated ephemeral_obtained and
+                exceptions values
+        """
+        try:
+            self.stack.enter_context(
+                EphemeralIPv6Network(
+                    self.distro,
+                    self.interface,
+                )
+            )
+            ephemeral_obtained = True
+            LOG.debug(
+                "Successfully brought up %s for ephemeral ipv6 networking.",
+                self.interface,
+            )
+        except ProcessExecutionError as e:
+            LOG.debug(
+                "Failed to bring up %s for ephemeral ipv6 networking.",
+                self.interface,
+            )
+            # we don't set ephemeral_obtained to False here because we want to
+            # retain a potential true value from any previous successful
+            # ephemeral network setup
+            exceptions.append(e)
+        return ephemeral_obtained, exceptions
 
     def __exit__(self, *_args):
         self.stack.close()
