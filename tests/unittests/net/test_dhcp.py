@@ -824,7 +824,7 @@ class TestEphemeralDhcpNoNetworkSetup(ResponsesTestCase):
         self.responses.add(responses.GET, url)
         with EphemeralDHCPv4(
             MockDistro(),
-            connectivity_url_data={"url": url},
+            connectivity_urls_data=[{"url": url}],
         ) as lease:
             self.assertIsNone(lease)
         # Ensure that no teardown happens:
@@ -847,7 +847,7 @@ class TestEphemeralDhcpNoNetworkSetup(ResponsesTestCase):
         self.responses.add(responses.GET, url, body=b"", status=404)
         with EphemeralDHCPv4(
             MockDistro(),
-            connectivity_url_data={"url": url},
+            connectivity_urls_data=[{"url": url}],
         ) as lease:
             self.assertEqual(m_dhcp.return_value, lease)
         # Ensure that dhcp discovery occurs
