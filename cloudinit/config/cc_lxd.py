@@ -65,6 +65,58 @@ def supplemental_schema_validation(init_cfg, bridge_cfg, preseed_str):
         raise ValueError(". ".join(errors))
 
 
+def handle_init_cfg(init_cfg):
+    """Set up lxd if init config is given.
+
+    :param init_cfg: dict of lxd init configuration options to provide
+        to `lxd init --auto`
+    """
+    # type is known, number of elements is not
+    # in the case of the ubuntu+lvm backend workaround
+    init_keys: Tuple[str, ...] = (
+        "network_address",
+        "network_port",
+        "storage_backend",
+        "storage_create_device",
+        "storage_create_loop",
+        "storage_pool",
+        "trust_password",
+    )
+
+    cmd = ["lxd", "init", "--auto"]
+    for k in init_keys:
+        if init_cfg.get(k):
+            cmd.extend(["--%s=%s" % (k.replace("_", "-"), str(init_cfg[k]))])
+    try:
+        subp.subp(cmd)
+    except subp.ProcessExecutionError:
+        if init_cfg["storage_backend"] != "lvm":
+            raise
+        LOG.info(
+            "Cloud-init doesn't use thinpool by default on Ubuntu due to "
+            "LP #1982780. This behavior will change in the future.",
+        )
+        subp.subp(
+            [
+                "lxc",
+                "storage",
+                "create",
+                "default",
+                "lvm",
+                "lvm.use_thinpool=false",
+            ]
+        )
+
+        # Since we're manually setting use_thinpool=false
+        # filter it from the lxd init commands, don't configure
+        # storage twice
+        new_cmd = [x for x in cmd if not x.startswith("--storage-backend")]
+
+        # Retry with thinpool in case of minimal image
+        # Bug https://bugs.launchpad.net/ubuntu/+source/linux-kvm/+bug/1982780
+        subp.subp(new_cmd)
+
+
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # Get config
     lxd_cfg = cfg.get("lxd")
@@ -105,54 +157,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if preseed_str:
         subp.subp(["lxd", "init", "--preseed"], data=preseed_str)
         return
-    # Set up lxd if init config is given
+
     if init_cfg:
-        # type is known, number of elements is not
-        # in the case of the ubuntu+lvm backend workaround
-        init_keys: Tuple[str, ...] = (
-            "network_address",
-            "network_port",
-            "storage_backend",
-            "storage_create_device",
-            "storage_create_loop",
-            "storage_pool",
-            "trust_password",
-        )
-
-        cmd = ["lxd", "init", "--auto"]
-        for k in init_keys:
-            if init_cfg.get(k):
-                cmd.extend(
-                    ["--%s=%s" % (k.replace("_", "-"), str(init_cfg[k]))]
-                )
-        try:
-            subp.subp(cmd)
-        except subp.ProcessExecutionError:
-            if init_cfg["storage_backend"] != "lvm":
-                raise
-            LOG.info(
-                "Cloud-init doesn't use thinpool by default on Ubuntu due to "
-                "LP #1982780. This behavior will change in the future.",
-            )
-            subp.subp(
-                [
-                    "lxc",
-                    "storage",
-                    "create",
-                    "default",
-                    "lvm",
-                    "lvm.use_thinpool=false",
-                ]
-            )
-
-            # Since we're manually setting use_thinpool=false
-            # filter it from the lxd init commands, don't configure
-            # storage twice
-            new_cmd = [x for x in cmd if not x.startswith("--storage-backend")]
-
-            # Retry with thinpool in case of minimal image
-            # Bug https://bugs.launchpad.net/ubuntu/+source/linux-kvm/+bug/1982780
-            subp.subp(new_cmd)
+        handle_init_cfg(init_cfg)
 
     # Set up lxd-bridge if bridge config is given
     dconf_comm = "debconf-communicate"
