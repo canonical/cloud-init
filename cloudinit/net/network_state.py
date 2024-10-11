@@ -804,12 +804,12 @@ class NetworkStateInterpreter:
         LOG.debug("v2_common: handling config:\n%s", cfg)
         for iface, dev_cfg in cfg.items():
             if "nameservers" in dev_cfg:
-                search = dev_cfg.get("nameservers").get("search", [])
-                dns = dev_cfg.get("nameservers").get("addresses", [])
+                search = dev_cfg.get("nameservers").get("search")
+                dns = dev_cfg.get("nameservers").get("addresses")
                 name_cmd = {"type": "nameserver"}
-                if len(search) > 0:
+                if search:
                     name_cmd["search"] = search
-                if len(dns) > 0:
+                if dns:
                     name_cmd["address"] = dns
 
                 self._handle_individual_nameserver(name_cmd, iface)
