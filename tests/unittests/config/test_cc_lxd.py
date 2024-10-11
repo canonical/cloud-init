@@ -5,6 +5,7 @@ from unittest import mock
 
 import pytest
 
+from cloudinit import subp
 from cloudinit.config import cc_lxd
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -258,6 +259,36 @@ class TestLxd:
     def test_lxd_cmd_none(self):
         data = {"mode": "none"}
         assert cc_lxd.bridge_to_cmd(data) == (None, None)
+
+    def test_no_thinpool(self, mocker, caplog):
+        def my_subp(*args, **kwargs):
+            if args[0] == ["lxd", "init", "--auto", "--storage-backend=lvm"]:
+                raise subp.ProcessExecutionError(
+                    stderr='Error: Failed to create storage pool "default"',
+                    exit_code=1,
+                )
+            return ("", "")
+
+        m_subp = mocker.patch(
+            "cloudinit.config.cc_lxd.subp.subp",
+            side_effect=my_subp,
+        )
+        cc_lxd.handle_init_cfg({"storage_backend": "lvm"})
+        assert "Cloud-init doesn't use thinpool" in caplog.text
+        assert (
+            mock.call(
+                [
+                    "lxc",
+                    "storage",
+                    "create",
+                    "default",
+                    "lvm",
+                    "lvm.use_thinpool=false",
+                ]
+            )
+            in m_subp.call_args_list
+        )
+        assert mock.call(["lxd", "init", "--auto"]) in m_subp.call_args_list
 
 
 class TestLxdMaybeCleanupDefault:
