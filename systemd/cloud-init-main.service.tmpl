@@ -23,7 +23,6 @@ Before=sysinit.target
 {% endif %}
 
 After=systemd-remount-fs.service
-Before=sysinit.target
 Before=cloud-init-local.service
 Before=shutdown.target
 Conflicts=shutdown.target
