@@ -8,18 +8,12 @@
 # https://www.freedesktop.org/software/systemd/man/latest/systemd-remount-fs.service.html
 [Unit]
 Description=Cloud-init: Single Process
-Wants=network-pre.target
 {% if variant in ["almalinux", "cloudlinux", "ubuntu", "unknown", "debian", "rhel"] %}
 DefaultDependencies=no
 {% endif %}
 {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
 Requires=dbus.socket
 After=dbus.socket
-Before=network.service
-Before=firewalld.target
-{% endif %}
-{% if variant in ["ubuntu", "unknown", "debian"] %}
-Before=sysinit.target
 {% endif %}
 
 After=systemd-remount-fs.service
