@@ -27,7 +27,7 @@ Last-Update: 2024-02-14
      def get_template_filename(self, name):
 --- a/cloudinit/config/cc_lxd.py
 +++ b/cloudinit/config/cc_lxd.py
-@@ -79,7 +79,6 @@ def handle(name: str, cfg: Config, cloud
+@@ -131,7 +131,6 @@ def handle(name: str, cfg: Config, cloud
              f" '{type(lxd_cfg).__name__}'"
          )
  
@@ -127,7 +127,7 @@ Last-Update: 2024-02-14
      config = client.read_from_file("/etc/cloud/cloud.cfg")
 --- a/tests/unittests/config/test_cc_lxd.py
 +++ b/tests/unittests/config/test_cc_lxd.py
-@@ -11,8 +11,6 @@ from cloudinit.config.schema import (
+@@ -12,8 +12,6 @@ from cloudinit.config.schema import (
      get_schema,
      validate_cloudconfig_schema,
  )
@@ -136,77 +136,70 @@ Last-Update: 2024-02-14
  from tests.unittests import helpers as t_help
  from tests.unittests.util import get_cloud
  
-@@ -46,9 +44,7 @@ class TestLxd(t_help.CiTestCase):
-     )
-     def test_lxd_init(self, maybe_clean, which, subp, exists, system_info):
+@@ -46,8 +44,7 @@ class TestLxd:
+         self, maybe_clean, which, subp, exists, system_info, tmpdir
+     ):
          system_info.return_value = {"uname": [0, 1, "mykernel"]}
--        tmpdir = self.tmp_dir()
 -        sem_file = f"{tmpdir}/sem/snap_seeded.once"
 -        cc = get_cloud(mocked_distro=True, paths=Paths({"cloud_dir": tmpdir}))
 +        cc = get_cloud(mocked_distro=True)
          install = cc.distro.install_packages
  
          for backend, cmd, package in BACKEND_DEF:
-@@ -85,22 +81,14 @@ class TestLxd(t_help.CiTestCase):
-                 subp.call_args_list,
-             )
+@@ -78,8 +75,8 @@ class TestLxd:
+                 ),
+             ] == subp.call_args_list
  
--            if backend == "lvm":
--                self.assertEqual(
--                    [
--                        mock.call(sem_file),
--                    ],
--                    exists.call_args_list,
--                )
--            else:
--                self.assertEqual([mock.call(sem_file)], exists.call_args_list)
+-            assert [mock.call(sem_file)] == exists.call_args_list
 -            del_file(sem_file)
 +            if backend != "lvm":
-+                self.assertEqual([], exists.call_args_list)
++                assert [] == exists.call_args_list
  
      @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
      @mock.patch("cloudinit.config.cc_lxd.subp")
-     @mock.patch("cloudinit.config.cc_lxd.subp.which", return_value=False)
-     def test_lxd_install(self, m_which, mock_subp, m_maybe_clean):
--        cc = get_cloud(paths=Paths({"cloud_dir": self.tmp_dir()}))
+@@ -87,7 +84,7 @@ class TestLxd:
+     def test_lxd_install(
+         self, m_which, mock_subp, m_maybe_clean, tmpdir, caplog
+     ):
+-        cc = get_cloud(paths=Paths({"cloud_dir": tmpdir}))
 +        cc = get_cloud()
          cc.distro = mock.MagicMock()
          mock_subp.which.return_value = None
          cc_lxd.handle("cc_lxd", LXD_INIT_CFG, cc, [])
-@@ -114,7 +102,7 @@ class TestLxd(t_help.CiTestCase):
+@@ -101,7 +98,7 @@ class TestLxd:
      @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
      @mock.patch("cloudinit.config.cc_lxd.subp")
-     def test_no_init_does_nothing(self, mock_subp, m_maybe_clean):
--        cc = get_cloud(paths=Paths({"cloud_dir": self.tmp_dir()}))
+     def test_no_init_does_nothing(self, mock_subp, m_maybe_clean, tmpdir):
+-        cc = get_cloud(paths=Paths({"cloud_dir": tmpdir}))
 +        cc = get_cloud()
          cc.distro = mock.MagicMock()
          cc_lxd.handle("cc_lxd", {"lxd": {}}, cc, [])
-         self.assertFalse(cc.distro.install_packages.called)
-@@ -124,17 +112,16 @@ class TestLxd(t_help.CiTestCase):
+         assert not cc.distro.install_packages.called
+@@ -111,17 +108,16 @@ class TestLxd:
      @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
      @mock.patch("cloudinit.config.cc_lxd.subp")
-     def test_no_lxd_does_nothing(self, mock_subp, m_maybe_clean):
--        cc = get_cloud(paths=Paths({"cloud_dir": self.tmp_dir()}))
+     def test_no_lxd_does_nothing(self, mock_subp, m_maybe_clean, tmpdir):
+-        cc = get_cloud(paths=Paths({"cloud_dir": tmpdir}))
 +        cc = get_cloud()
          cc.distro = mock.MagicMock()
          cc_lxd.handle("cc_lxd", {"package_update": True}, cc, [])
-         self.assertFalse(cc.distro.install_packages.called)
-         self.assertFalse(mock_subp.subp.called)
-         self.assertFalse(m_maybe_clean.called)
+         assert not cc.distro.install_packages.called
+         assert not mock_subp.subp.called
+         assert not m_maybe_clean.called
  
 -    @mock.patch("cloudinit.config.cc_lxd.util.wait_for_snap_seeded")
      @mock.patch("cloudinit.config.cc_lxd.subp")
--    def test_lxd_preseed(self, mock_subp, wait_for_snap_seeded):
--        cc = get_cloud(paths=Paths({"cloud_dir": self.tmp_dir()}))
+-    def test_lxd_preseed(self, mock_subp, wait_for_snap_seeded, tmpdir):
+-        cc = get_cloud(paths=Paths({"cloud_dir": tmpdir}))
 +    def test_lxd_preseed(self, mock_subp):
 +        cc = get_cloud()
          cc.distro = mock.MagicMock()
          cc_lxd.handle(
              "cc_lxd",
-@@ -149,7 +136,6 @@ class TestLxd(t_help.CiTestCase):
-             ],
-             mock_subp.subp.call_args_list,
-         )
+@@ -133,7 +129,6 @@ class TestLxd:
+             mock.call(["lxd", "waitready", "--timeout=300"]),
+             mock.call(["lxd", "init", "--preseed"], data='{"chad": True}'),
+         ] == mock_subp.subp.call_args_list
 -        wait_for_snap_seeded.assert_called_once_with(cc)
  
      def test_lxd_debconf_new_full(self):
