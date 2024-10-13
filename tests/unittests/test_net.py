@@ -2098,6 +2098,7 @@ USERCTL=no
             ("dhcpv6_stateful", "yaml"),
             ("wakeonlan_disabled", "yaml_v2"),
             ("wakeonlan_enabled", "yaml_v2"),
+            ("v2-bridges-set-name", "yaml"),
             pytest.param(
                 "v1-dns",
                 "yaml",
@@ -3061,6 +3062,7 @@ class TestNetworkManagerRendering:
             ("v2-dns-no-if-ips", "yaml"),
             ("v2-dns-no-dhcp", "yaml"),
             ("v2-route-no-gateway", "yaml"),
+            ("v2-bridges-set-name", "yaml"),
             pytest.param(
                 "large_v2",
                 "yaml",

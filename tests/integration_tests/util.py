@@ -14,7 +14,11 @@ from typing import TYPE_CHECKING, List, Optional, Set, Union
 import pytest
 
 from cloudinit.subp import subp
-from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.decorators import retry
+from tests.integration_tests.integration_settings import (
+    OS_IMAGE_TYPE,
+    PLATFORM,
+)
 from tests.integration_tests.releases import CURRENT_RELEASE, NOBLE
 
 LOG = logging.getLogger("integration_testing.util")
@@ -28,6 +32,14 @@ key_pair = namedtuple("key_pair", "public_key private_key")
 
 ASSETS_DIR = Path("tests/integration_tests/assets")
 KEY_PATH = ASSETS_DIR / "keys"
+
+HAS_CONSOLE_LOG = PLATFORM in (
+    "ec2",
+    "lxd_container",
+    "oci",
+    "openstack",
+    "qemu",
+)
 
 
 def verify_ordered_items_in_text(to_verify: list, text: str):
@@ -114,7 +126,8 @@ def verify_clean_boot(
             maybe_list = [value]
         return maybe_list
 
-    traceback_texts = []
+    if ignore_tracebacks is None:
+        ignore_tracebacks = []
     # Define exceptions by matrix of platform and Ubuntu release
     if "azure" == PLATFORM:
         # Consistently on all Azure launches:
@@ -135,17 +148,19 @@ def verify_clean_boot(
         ignore_errors = append_or_create_list(
             ignore_warnings, "Stderr: RTNETLINK answers: File exists"
         )
-        traceback_texts.append("Stderr: RTNETLINK answers: File exists")
+        if isinstance(ignore_tracebacks, list):
+            ignore_tracebacks.append("Stderr: RTNETLINK answers: File exists")
         # LP: #1833446
         ignore_warnings = append_or_create_list(
             ignore_warnings,
             "UrlError: 404 Client Error: Not Found for url: "
             "http://169.254.169.254/latest/meta-data/",
         )
-        traceback_texts.append(
-            "UrlError: 404 Client Error: Not Found for url: "
-            "http://169.254.169.254/latest/meta-data/"
-        )
+        if isinstance(ignore_tracebacks, list):
+            ignore_tracebacks.append(
+                "UrlError: 404 Client Error: Not Found for url: "
+                "http://169.254.169.254/latest/meta-data/"
+            )
         # Oracle has a file in /etc/cloud/cloud.cfg.d that contains
         # users:
         # - default
@@ -156,7 +171,7 @@ def verify_clean_boot(
             ignore_warnings,
             "Unable to disable SSH logins for opc given ssh_redirect_user",
         )
-
+    # Preserve platform-specific tracebacks expected
     _verify_clean_boot(
         instance,
         ignore_deprecations=ignore_deprecations,
@@ -287,6 +302,9 @@ def _verify_clean_boot(
             "Required warnings not found", list(required_warnings_not_found)
         )
         message += _format_found(
+            "Found unexpected deprecations", list(unexpected_deprecations)
+        )
+        message += _format_found(
             "Required deprecations not found",
             list(required_deprecations_not_found),
         )
@@ -352,29 +370,13 @@ def _verify_clean_boot(
             f"{out.stdout}\nstderr:\n{out.stderr}"
         )
     else:
-        # we know that we should have a return code of 2
+        # Look at the commit history before making changes here.
+        # Behavior on Jenkins, GH CI, and local runs must be considered
+        # for all series.
         out = instance.execute("cloud-init status --long")
         rc = 2
-        # CI on main doesn't patch out this behavior so despite running on
-        # old releases it behaves as tip of main does
-        #
-        # GITHUB_BASE_REF is not defined if
-        #  1. The event that triggers a workflow run on GH CI is not
-        #     pull_request or pull_request_target.
-        #  2. The integration tests aren't run on GH but on Jenkins or locally
-        #     on a developer's machine.
-        #
-        # On Jenkins, rc should be 0. But, on GH CI on runs that are not
-        # not triggered from a pr event, we still want rc 2.
         if CURRENT_RELEASE < NOBLE:
-            if os.environ.get("ON_JENKINS"):
-                # We are on Jenkins testing against full packages
-                # Old releases return 0 for backwards compatibility
-                rc = 0
-            elif os.environ.get("GITHUB_ACTION"):
-                # On GH actions, integrations tests run on LXD without quilt
-                # patches
-                rc = 2
+            rc = 0
         assert rc == out.return_code, (
             f"Unexpected return code from `cloud-init status`. "
             f"Expected rc={rc}, received rc={out.return_code}\nstdout: "
@@ -539,11 +541,30 @@ def get_console_log(client: "IntegrationInstance"):
         console_log = client.instance.console_log()
     except NotImplementedError:
         pytest.skip("NotImplementedError when requesting console log")
+    except RuntimeError as e:
+        if "open : no such file or directory" in str(e):
+            if hasattr(client, "lxc_log"):
+                return client.lxc_log
+        raise e
     if console_log is None:
         pytest.skip("Console log has not been setup")
     if console_log.lower().startswith("no console output"):
         pytest.fail("no console output")
+    if PLATFORM in ("lxd_vm", "lxd_container"):
+        # Preserve non empty console log on lxc platforms because
+        # lxc console --show-log can be called once and the log is flushed.
+        # Multiple calls to --show-log error on "no such file or directory".
+        client.lxc_log = console_log  # type: ignore[attr-defined]
     return console_log
+
+
+@retry(tries=5, delay=1)  # Retry on get_console_log failures
+def get_syslog_or_console(client: "IntegrationInstance") -> str:
+    """minimal OS_IMAGE_TYPE does not contain rsyslog"""
+    if OS_IMAGE_TYPE == "minimal" and HAS_CONSOLE_LOG:
+        return get_console_log(client)
+    else:
+        return client.read_from_file("/var/log/syslog")
 
 
 @lru_cache()
