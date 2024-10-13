@@ -21,14 +21,16 @@ from cloudinit import lifecycle
 from cloudinit.util import is_true
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.integration_settings import PLATFORM
-from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, MANTIC
+from tests.integration_tests.integration_settings import (
+    OS_IMAGE_TYPE,
+    PLATFORM,
+)
+from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, JAMMY
 from tests.integration_tests.util import (
     get_feature_flag_value,
     get_inactive_modules,
     lxd_has_nocloud,
     verify_clean_boot,
-    verify_clean_log,
     verify_ordered_items_in_text,
 )
 
@@ -95,7 +97,7 @@ class TestCombined:
         Test that netplan config file is generated with proper permissions
         """
         log = class_client.read_from_file("/var/log/cloud-init.log")
-        if CURRENT_RELEASE < MANTIC:
+        if CURRENT_RELEASE < JAMMY:
             assert (
                 "No netplan python module. Fallback to write"
                 " /etc/netplan/50-cloud-init.yaml" in log
@@ -147,17 +149,16 @@ class TestCombined:
         # user-data. Pass 22.2 in against the client's version_boundary.
         if lifecycle.should_log_deprecation("22.2", version_boundary):
             deprecated_messages.append(boundary_message)
-            verify_clean_boot(
-                class_client, require_deprecations=deprecated_messages
-            )
         else:
             # Expect the distros deprecated call to be redacted.
             # jsonschema still emits deprecation log due to changed_version
             # instead of deprecated_version
-            verify_clean_boot(
-                class_client, require_deprecations=deprecated_messages
-            )
             assert f"[INFO]: {boundary_message}" in log
+        verify_clean_boot(
+            class_client,
+            require_deprecations=deprecated_messages,
+            ignore_warnings=True,
+        )
 
     def test_ntp_with_apt(self, class_client: IntegrationInstance):
         """LP #1628337.
@@ -183,14 +184,16 @@ class TestCombined:
         assert "LANG=en_GB.UTF-8" in default_locale
 
         locale_a = client.execute("locale -a")
-        verify_ordered_items_in_text(["en_GB.utf8", "en_US.utf8"], locale_a)
-
-        locale_gen = client.execute(
-            "cat /etc/locale.gen | grep -v '^#' | uniq"
-        )
-        verify_ordered_items_in_text(
-            ["en_GB.UTF-8", "en_US.UTF-8"], locale_gen
-        )
+        locale_gen = client.execute("grep -v '^#' /etc/locale.gen | uniq")
+        if OS_IMAGE_TYPE == "minimal":
+            # Minimal images don't have a en_US.utf8 locale
+            expected_locales = ["C.utf8", "en_GB.utf8"]
+            expected_locale_gen = ["en_GB.UTF-8", "UTF-8"]
+        else:
+            expected_locales = ["en_GB.utf8", "en_US.utf8"]
+            expected_locale_gen = ["en_GB.UTF-8", "en_US.UTF-8"]
+        verify_ordered_items_in_text(expected_locales, locale_a)
+        verify_ordered_items_in_text(expected_locale_gen, locale_gen)
 
     def test_random_seed_data(self, class_client: IntegrationInstance):
         """Integration test for the random seed module.
@@ -207,11 +210,11 @@ class TestCombined:
         assert result.startswith("MYUb34023nD:LFDK10913jk;dfnk:Df")
 
     def test_rsyslog(self, class_client: IntegrationInstance):
-        """Test rsyslog is configured correctly."""
-        client = class_client
-        assert "My test log" in client.read_from_file(
-            "/var/spool/rsyslog/cloudinit.log"
-        )
+        """Test rsyslog is configured correctly when applicable."""
+        if class_client.execute("command -v rsyslogd").ok:
+            assert "My test log" in class_client.read_from_file(
+                "/var/spool/rsyslog/cloudinit.log"
+            )
 
     def test_runcmd(self, class_client: IntegrationInstance):
         """Test runcmd works as expected"""
@@ -242,9 +245,7 @@ class TestCombined:
         assert timezone_output.strip() == "CET"
 
     def test_no_problems(self, class_client: IntegrationInstance):
-        """Test no errors, warnings, deprecations, tracebacks or
-        inactive modules.
-        """
+        """Test no errors, warnings, tracebacks or inactive modules."""
         client = class_client
         status_file = client.read_from_file("/run/cloud-init/status.json")
         status_json = json.loads(status_file)["v1"]
@@ -255,7 +256,19 @@ class TestCombined:
         assert result_json["errors"] == []
 
         log = client.read_from_file("/var/log/cloud-init.log")
-        verify_clean_log(log, ignore_deprecations=False)
+        require_warnings = []
+        if class_client.execute("command -v rsyslogd").failed:
+            # Some minimal images may not have an installed rsyslog package
+            # Test user-data doesn't provide install_rsyslog: true so expect
+            # warnings when not installed.
+            require_warnings.append(
+                "Failed to reload-or-try-restart rsyslog.service:"
+                " Unit rsyslog.service not found."
+            )
+        # Set ignore_deprecations=True as test_deprecated_message covers this
+        verify_clean_boot(
+            client, ignore_deprecations=True, require_warnings=require_warnings
+        )
         requested_modules = {
             "apt_configure",
             "byobu",

@@ -50,6 +50,13 @@ try:
 except ImportError:
     ValidationError = Exception  # type: ignore
 
+try:
+    from netplan import NetplanParserException, Parser  # type: ignore
+
+    LIBNETPLAN_AVAILABLE = True
+except ImportError:
+    LIBNETPLAN_AVAILABLE = False
+
 
 LOG = logging.getLogger(__name__)
 
@@ -615,14 +622,13 @@ def netplan_validate_network_schema(
     @raises: SchemaValidationError when netplan's parser raises
         NetplanParserExceptions.
     """
-    try:
-        from netplan import NetplanParserException, Parser  # type: ignore
-    except ImportError:
+    if LIBNETPLAN_AVAILABLE:
+        LOG.debug("Validating network-config with netplan API")
+    else:
         LOG.debug(
             "Skipping netplan schema validation. No netplan API available"
         )
         return False
-
     # netplan Parser looks at all *.yaml files in the target directory underA
     # /etc/netplan. cloud-init should only validate schema of the
     # network-config it generates, so create a <tmp_dir>/etc/netplan

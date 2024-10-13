@@ -211,7 +211,7 @@ include file.
     write_files:
     - path: /etc/wsl.conf
       append: true
-      contents: |
+      content: |
         [user]
         default=j
 

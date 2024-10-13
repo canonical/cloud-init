@@ -10,7 +10,7 @@ from cloudinit.util import is_true
 from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
-from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
+from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, MANTIC
 from tests.integration_tests.util import (
     get_feature_flag_value,
     verify_clean_boot,
@@ -190,7 +190,7 @@ class TestApt:
                 CURRENT_RELEASE.series
             )
         )
-        if CURRENT_RELEASE.series < "mantic":
+        if CURRENT_RELEASE < MANTIC:
             ppa_path += ".list"
         else:
             ppa_path += ".sources"

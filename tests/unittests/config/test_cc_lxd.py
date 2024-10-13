@@ -5,6 +5,7 @@ from unittest import mock
 
 import pytest
 
+from cloudinit import subp
 from cloudinit.config import cc_lxd
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -33,10 +34,7 @@ LXD_INIT_CFG = {
 }
 
 
-class TestLxd(t_help.CiTestCase):
-
-    with_logs = True
-
+class TestLxd:
     @mock.patch("cloudinit.config.cc_lxd.util.system_info")
     @mock.patch("cloudinit.config.cc_lxd.os.path.exists", return_value=True)
     @mock.patch("cloudinit.config.cc_lxd.subp.subp", return_value=True)
@@ -44,9 +42,10 @@ class TestLxd(t_help.CiTestCase):
     @mock.patch(
         "cloudinit.config.cc_lxd.maybe_cleanup_default", return_value=None
     )
-    def test_lxd_init(self, maybe_clean, which, subp, exists, system_info):
+    def test_lxd_init(
+        self, maybe_clean, which, subp, exists, system_info, tmpdir
+    ):
         system_info.return_value = {"uname": [0, 1, "mykernel"]}
-        tmpdir = self.tmp_dir()
         sem_file = f"{tmpdir}/sem/snap_seeded.once"
         cc = get_cloud(mocked_distro=True, paths=Paths({"cloud_dir": tmpdir}))
         install = cc.distro.install_packages
@@ -61,80 +60,68 @@ class TestLxd(t_help.CiTestCase):
             if cmd:
                 which.assert_called_with(cmd)
             # no bridge config, so maybe_cleanup should not be called.
-            self.assertFalse(maybe_clean.called)
+            assert not maybe_clean.called
             if package:
-                self.assertEqual(
-                    [mock.call([package])],
-                    install.call_args_list,
-                )
-            self.assertEqual(
-                [
-                    mock.call(["snap", "install", "lxd"]),
-                    mock.call(["lxd", "waitready", "--timeout=300"]),
-                    mock.call(
-                        [
-                            "lxd",
-                            "init",
-                            "--auto",
-                            "--network-address=0.0.0.0",
-                            f"--storage-backend={backend}",
-                            "--storage-pool=poolname",
-                        ]
-                    ),
-                ],
-                subp.call_args_list,
-            )
-
-            if backend == "lvm":
-                self.assertEqual(
+                assert [mock.call([package])] == install.call_args_list
+            assert [
+                mock.call(["snap", "install", "lxd"]),
+                mock.call(["lxd", "waitready", "--timeout=300"]),
+                mock.call(
                     [
-                        mock.call(sem_file),
-                    ],
-                    exists.call_args_list,
-                )
-            else:
-                self.assertEqual([mock.call(sem_file)], exists.call_args_list)
+                        "lxd",
+                        "init",
+                        "--auto",
+                        "--network-address=0.0.0.0",
+                        f"--storage-backend={backend}",
+                        "--storage-pool=poolname",
+                    ]
+                ),
+            ] == subp.call_args_list
+
+            assert [mock.call(sem_file)] == exists.call_args_list
             del_file(sem_file)
 
     @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
     @mock.patch("cloudinit.config.cc_lxd.subp")
     @mock.patch("cloudinit.config.cc_lxd.subp.which", return_value=False)
-    def test_lxd_install(self, m_which, mock_subp, m_maybe_clean):
-        cc = get_cloud(paths=Paths({"cloud_dir": self.tmp_dir()}))
+    def test_lxd_install(
+        self, m_which, mock_subp, m_maybe_clean, tmpdir, caplog
+    ):
+        cc = get_cloud(paths=Paths({"cloud_dir": tmpdir}))
         cc.distro = mock.MagicMock()
         mock_subp.which.return_value = None
         cc_lxd.handle("cc_lxd", LXD_INIT_CFG, cc, [])
-        self.assertNotIn("WARN", self.logs.getvalue())
-        self.assertTrue(cc.distro.install_packages.called)
+        assert "WARN" not in caplog.text
+        assert cc.distro.install_packages.called
         cc_lxd.handle("cc_lxd", LXD_INIT_CFG, cc, [])
-        self.assertFalse(m_maybe_clean.called)
+        assert not m_maybe_clean.called
         install_pkg = cc.distro.install_packages.call_args_list[0][0][0]
-        self.assertEqual(sorted(install_pkg), ["zfsutils-linux"])
+        assert sorted(install_pkg) == ["zfsutils-linux"]
 
     @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
     @mock.patch("cloudinit.config.cc_lxd.subp")
-    def test_no_init_does_nothing(self, mock_subp, m_maybe_clean):
-        cc = get_cloud(paths=Paths({"cloud_dir": self.tmp_dir()}))
+    def test_no_init_does_nothing(self, mock_subp, m_maybe_clean, tmpdir):
+        cc = get_cloud(paths=Paths({"cloud_dir": tmpdir}))
         cc.distro = mock.MagicMock()
         cc_lxd.handle("cc_lxd", {"lxd": {}}, cc, [])
-        self.assertFalse(cc.distro.install_packages.called)
-        self.assertFalse(mock_subp.subp.called)
-        self.assertFalse(m_maybe_clean.called)
+        assert not cc.distro.install_packages.called
+        assert not mock_subp.subp.called
+        assert not m_maybe_clean.called
 
     @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
     @mock.patch("cloudinit.config.cc_lxd.subp")
-    def test_no_lxd_does_nothing(self, mock_subp, m_maybe_clean):
-        cc = get_cloud(paths=Paths({"cloud_dir": self.tmp_dir()}))
+    def test_no_lxd_does_nothing(self, mock_subp, m_maybe_clean, tmpdir):
+        cc = get_cloud(paths=Paths({"cloud_dir": tmpdir}))
         cc.distro = mock.MagicMock()
         cc_lxd.handle("cc_lxd", {"package_update": True}, cc, [])
-        self.assertFalse(cc.distro.install_packages.called)
-        self.assertFalse(mock_subp.subp.called)
-        self.assertFalse(m_maybe_clean.called)
+        assert not cc.distro.install_packages.called
+        assert not mock_subp.subp.called
+        assert not m_maybe_clean.called
 
     @mock.patch("cloudinit.config.cc_lxd.util.wait_for_snap_seeded")
     @mock.patch("cloudinit.config.cc_lxd.subp")
-    def test_lxd_preseed(self, mock_subp, wait_for_snap_seeded):
-        cc = get_cloud(paths=Paths({"cloud_dir": self.tmp_dir()}))
+    def test_lxd_preseed(self, mock_subp, wait_for_snap_seeded, tmpdir):
+        cc = get_cloud(paths=Paths({"cloud_dir": tmpdir}))
         cc.distro = mock.MagicMock()
         cc_lxd.handle(
             "cc_lxd",
@@ -142,13 +129,10 @@ class TestLxd(t_help.CiTestCase):
             cc,
             [],
         )
-        self.assertEqual(
-            [
-                mock.call(["lxd", "waitready", "--timeout=300"]),
-                mock.call(["lxd", "init", "--preseed"], data='{"chad": True}'),
-            ],
-            mock_subp.subp.call_args_list,
-        )
+        assert [
+            mock.call(["lxd", "waitready", "--timeout=300"]),
+            mock.call(["lxd", "init", "--preseed"], data='{"chad": True}'),
+        ] == mock_subp.subp.call_args_list
         wait_for_snap_seeded.assert_called_once_with(cc)
 
     def test_lxd_debconf_new_full(self):
@@ -166,25 +150,22 @@ class TestLxd(t_help.CiTestCase):
             "ipv6_nat": "true",
             "domain": "lxd",
         }
-        self.assertEqual(
-            cc_lxd.bridge_to_debconf(data),
-            {
-                "lxd/setup-bridge": "true",
-                "lxd/bridge-name": "testbr0",
-                "lxd/bridge-ipv4": "true",
-                "lxd/bridge-ipv4-address": "10.0.8.1",
-                "lxd/bridge-ipv4-netmask": "24",
-                "lxd/bridge-ipv4-dhcp-first": "10.0.8.2",
-                "lxd/bridge-ipv4-dhcp-last": "10.0.8.254",
-                "lxd/bridge-ipv4-dhcp-leases": "250",
-                "lxd/bridge-ipv4-nat": "true",
-                "lxd/bridge-ipv6": "true",
-                "lxd/bridge-ipv6-address": "fd98:9e0:3744::1",
-                "lxd/bridge-ipv6-netmask": "64",
-                "lxd/bridge-ipv6-nat": "true",
-                "lxd/bridge-domain": "lxd",
-            },
-        )
+        assert cc_lxd.bridge_to_debconf(data) == {
+            "lxd/setup-bridge": "true",
+            "lxd/bridge-name": "testbr0",
+            "lxd/bridge-ipv4": "true",
+            "lxd/bridge-ipv4-address": "10.0.8.1",
+            "lxd/bridge-ipv4-netmask": "24",
+            "lxd/bridge-ipv4-dhcp-first": "10.0.8.2",
+            "lxd/bridge-ipv4-dhcp-last": "10.0.8.254",
+            "lxd/bridge-ipv4-dhcp-leases": "250",
+            "lxd/bridge-ipv4-nat": "true",
+            "lxd/bridge-ipv6": "true",
+            "lxd/bridge-ipv6-address": "fd98:9e0:3744::1",
+            "lxd/bridge-ipv6-netmask": "64",
+            "lxd/bridge-ipv6-nat": "true",
+            "lxd/bridge-domain": "lxd",
+        }
 
     def test_lxd_debconf_new_partial(self):
         data = {
@@ -193,34 +174,28 @@ class TestLxd(t_help.CiTestCase):
             "ipv6_netmask": "64",
             "ipv6_nat": "true",
         }
-        self.assertEqual(
-            cc_lxd.bridge_to_debconf(data),
-            {
-                "lxd/setup-bridge": "true",
-                "lxd/bridge-ipv6": "true",
-                "lxd/bridge-ipv6-address": "fd98:9e0:3744::1",
-                "lxd/bridge-ipv6-netmask": "64",
-                "lxd/bridge-ipv6-nat": "true",
-            },
-        )
+        assert cc_lxd.bridge_to_debconf(data) == {
+            "lxd/setup-bridge": "true",
+            "lxd/bridge-ipv6": "true",
+            "lxd/bridge-ipv6-address": "fd98:9e0:3744::1",
+            "lxd/bridge-ipv6-netmask": "64",
+            "lxd/bridge-ipv6-nat": "true",
+        }
 
     def test_lxd_debconf_existing(self):
         data = {"mode": "existing", "name": "testbr0"}
-        self.assertEqual(
-            cc_lxd.bridge_to_debconf(data),
-            {
-                "lxd/setup-bridge": "false",
-                "lxd/use-existing-bridge": "true",
-                "lxd/bridge-name": "testbr0",
-            },
-        )
+        assert cc_lxd.bridge_to_debconf(data) == {
+            "lxd/setup-bridge": "false",
+            "lxd/use-existing-bridge": "true",
+            "lxd/bridge-name": "testbr0",
+        }
 
     def test_lxd_debconf_none(self):
         data = {"mode": "none"}
-        self.assertEqual(
-            cc_lxd.bridge_to_debconf(data),
-            {"lxd/setup-bridge": "false", "lxd/bridge-name": ""},
-        )
+        assert cc_lxd.bridge_to_debconf(data) == {
+            "lxd/setup-bridge": "false",
+            "lxd/bridge-name": "",
+        }
 
     def test_lxd_cmd_new_full(self):
         data = {
@@ -238,23 +213,20 @@ class TestLxd(t_help.CiTestCase):
             "domain": "lxd",
             "mtu": 9000,
         }
-        self.assertEqual(
-            cc_lxd.bridge_to_cmd(data),
-            (
-                [
-                    "network",
-                    "create",
-                    "testbr0",
-                    "ipv4.address=10.0.8.1/24",
-                    "ipv4.nat=true",
-                    "ipv4.dhcp.ranges=10.0.8.2-10.0.8.254",
-                    "ipv6.address=fd98:9e0:3744::1/64",
-                    "ipv6.nat=true",
-                    "dns.domain=lxd",
-                    "bridge.mtu=9000",
-                ],
-                ["network", "attach-profile", "testbr0", "default", "eth0"],
-            ),
+        assert cc_lxd.bridge_to_cmd(data) == (
+            [
+                "network",
+                "create",
+                "testbr0",
+                "ipv4.address=10.0.8.1/24",
+                "ipv4.nat=true",
+                "ipv4.dhcp.ranges=10.0.8.2-10.0.8.254",
+                "ipv6.address=fd98:9e0:3744::1/64",
+                "ipv6.nat=true",
+                "dns.domain=lxd",
+                "bridge.mtu=9000",
+            ],
+            ["network", "attach-profile", "testbr0", "default", "eth0"],
         )
 
     def test_lxd_cmd_new_partial(self):
@@ -265,37 +237,61 @@ class TestLxd(t_help.CiTestCase):
             "ipv6_nat": "true",
             "mtu": -1,
         }
-        self.assertEqual(
-            cc_lxd.bridge_to_cmd(data),
-            (
-                [
-                    "network",
-                    "create",
-                    "lxdbr0",
-                    "ipv4.address=none",
-                    "ipv6.address=fd98:9e0:3744::1/64",
-                    "ipv6.nat=true",
-                ],
-                ["network", "attach-profile", "lxdbr0", "default", "eth0"],
-            ),
+        assert cc_lxd.bridge_to_cmd(data) == (
+            [
+                "network",
+                "create",
+                "lxdbr0",
+                "ipv4.address=none",
+                "ipv6.address=fd98:9e0:3744::1/64",
+                "ipv6.nat=true",
+            ],
+            ["network", "attach-profile", "lxdbr0", "default", "eth0"],
         )
 
     def test_lxd_cmd_existing(self):
         data = {"mode": "existing", "name": "testbr0"}
-        self.assertEqual(
-            cc_lxd.bridge_to_cmd(data),
-            (
-                None,
-                ["network", "attach-profile", "testbr0", "default", "eth0"],
-            ),
+        assert cc_lxd.bridge_to_cmd(data) == (
+            None,
+            ["network", "attach-profile", "testbr0", "default", "eth0"],
         )
 
     def test_lxd_cmd_none(self):
         data = {"mode": "none"}
-        self.assertEqual(cc_lxd.bridge_to_cmd(data), (None, None))
+        assert cc_lxd.bridge_to_cmd(data) == (None, None)
+
+    def test_no_thinpool(self, mocker, caplog):
+        def my_subp(*args, **kwargs):
+            if args[0] == ["lxd", "init", "--auto", "--storage-backend=lvm"]:
+                raise subp.ProcessExecutionError(
+                    stderr='Error: Failed to create storage pool "default"',
+                    exit_code=1,
+                )
+            return ("", "")
+
+        m_subp = mocker.patch(
+            "cloudinit.config.cc_lxd.subp.subp",
+            side_effect=my_subp,
+        )
+        cc_lxd.handle_init_cfg({"storage_backend": "lvm"})
+        assert "Cloud-init doesn't use thinpool" in caplog.text
+        assert (
+            mock.call(
+                [
+                    "lxc",
+                    "storage",
+                    "create",
+                    "default",
+                    "lvm",
+                    "lvm.use_thinpool=false",
+                ]
+            )
+            in m_subp.call_args_list
+        )
+        assert mock.call(["lxd", "init", "--auto"]) in m_subp.call_args_list
 
 
-class TestLxdMaybeCleanupDefault(t_help.CiTestCase):
+class TestLxdMaybeCleanupDefault:
     """Test the implementation of maybe_cleanup_default."""
 
     defnet = cc_lxd._DEFAULT_NETWORK_NAME

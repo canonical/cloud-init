@@ -111,15 +111,20 @@ class TestLocale:
             with mock.patch(
                 "cloudinit.distros.debian.LOCALE_CONF_FN", locale_conf.strpath
             ):
-                cc_locale.handle("cc_locale", cfg, cc, [])
-                m_subp.assert_called_with(
-                    [
-                        "update-locale",
-                        "--locale-file=%s" % locale_conf.strpath,
-                        "LANG=C.UTF-8",
-                    ],
-                    capture=False,
-                )
+                with mock.patch(
+                    "cloudinit.distros.debian.subp.which",
+                    return_value="/usr/sbin/update-locale",
+                ) as m_which:
+                    cc_locale.handle("cc_locale", cfg, cc, [])
+        m_subp.assert_called_with(
+            [
+                "update-locale",
+                "--locale-file=%s" % locale_conf.strpath,
+                "LANG=C.UTF-8",
+            ],
+            capture=False,
+        )
+        m_which.assert_called_once_with("update-locale")
 
 
 class TestLocaleSchema:

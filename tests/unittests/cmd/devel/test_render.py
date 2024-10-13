@@ -160,7 +160,7 @@ class TestRender:
         assert (
             JinjaSyntaxParsingException.format_error_message(
                 syntax_error="unexpected '}'",
-                line_number=2,
+                line_number="2",
                 line_content="rendering: {{ my_var } }",
             )
             in caplog.text

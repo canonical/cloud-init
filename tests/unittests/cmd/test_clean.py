@@ -343,7 +343,7 @@ class TestClean:
             return "", ""
 
         myargs = namedtuple(
-            "MyArgs", "remove_logs remove_seed remove_config reboot machine_id"
+            "myargs", "remove_logs remove_seed remove_config reboot machine_id"
         )
         cmdargs = myargs(
             remove_logs=False,
@@ -382,7 +382,7 @@ class TestClean:
         """handle_clean_args removes /etc/machine-id when arg is True."""
         uses_systemd.return_value = systemd_val
         myargs = namedtuple(
-            "MyArgs", "remove_logs remove_seed remove_config reboot machine_id"
+            "myargs", "remove_logs remove_seed remove_config reboot machine_id"
         )
         cmdargs = myargs(
             remove_logs=False,
