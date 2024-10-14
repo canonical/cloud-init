@@ -12,6 +12,9 @@ import time
 from cloudinit import subp, util
 from cloudinit.distros import uses_systemd
 
+from typing import TextIO, Optional, List, Tuple, Dict, Union
+
+
 # Example events:
 #     {
 #             "description": "executing late commands",
@@ -31,7 +34,7 @@ from cloudinit.distros import uses_systemd
 #         "timestamp": 1461164249.1590767
 #     }
 
-format_key = {
+format_key: Dict[str, str] = {
     "%d": "delta",
     "%D": "description",
     "%E": "elapsed",
@@ -51,7 +54,7 @@ CONTAINER_CODE = "container"
 TIMESTAMP_UNKNOWN = (FAIL_CODE, -1, -1, -1)
 
 
-def format_record(msg, event):
+def format_record(msg:str, event: Dict[str, Union[str, float]]) -> str:
     for i, j in format_key.items():
         if i in msg:
             # ensure consistent formatting of time values
@@ -62,41 +65,41 @@ def format_record(msg, event):
     return msg.format(**event)
 
 
-def event_name(event):
+def event_name(event: Dict[str, Union[str, float]]) -> Optional[str]:
     if event:
         return event.get("name")
     return None
 
 
-def event_type(event):
+def event_type(event: Dict[str, Union[str, float]]) -> Optional[str]:
     if event:
         return event.get("event_type")
     return None
 
 
-def event_parent(event):
+def event_parent(event: Dict[str, Union[str, float]]) -> Optional[str]:
     if event:
         return event_name(event).split("/")[0]
     return None
 
 
-def event_timestamp(event):
+def event_timestamp(event: Dict[str, Union[str, float]]) -> float:
     return float(event.get("timestamp"))
 
 
-def event_datetime(event):
+def event_datetime(event: Dict[str, Union[str, float]]) -> datetime.datetime:
     return datetime.datetime.utcfromtimestamp(event_timestamp(event))
 
 
-def delta_seconds(t1, t2):
+def delta_seconds(t1: datetime.datetime, t2: datetime.datetime) -> float:
     return (t2 - t1).total_seconds()
 
 
-def event_duration(start, finish):
+def event_duration(start: Dict[str, Union[str, float]], finish: Dict[str, Union[str, float]]) -> float:
     return delta_seconds(event_datetime(start), event_datetime(finish))
 
 
-def event_record(start_time, start, finish):
+def event_record(start_timedatetime.datetime, start: Dict[str, Union[str, float]], finish: Dict[str, Union[str, float]]) -> Dict[str, Union[str, float]]:
     record = finish.copy()
     record.update(
         {
@@ -109,7 +112,7 @@ def event_record(start_time, start, finish):
     return record
 
 
-def total_time_record(total_time):
+def total_time_record(total_time: float) -> str:
     return "Total Time: %3.5f seconds\n" % total_time
 
 
@@ -118,7 +121,7 @@ class SystemctlReader:
     Class for dealing with all systemctl subp calls in a consistent manner.
     """
 
-    def __init__(self, property, parameter=None):
+    def __init__(self, property: str, parameter: Optional[str] = None) -> None:
         self.epoch = None
         self.args = [subp.which("systemctl"), "show"]
         if parameter:
@@ -129,7 +132,7 @@ class SystemctlReader:
         # requested from the object
         self.failure = self.subp()
 
-    def subp(self):
+    def subp(self) -> Optional[Union[str, Exception]]:
         """
         Make a subp call based on set args and handle errors by setting
         failure code
@@ -145,7 +148,7 @@ class SystemctlReader:
         except Exception as systemctl_fail:
             return systemctl_fail
 
-    def parse_epoch_as_float(self):
+    def parse_epoch_as_float(self) -> float:
         """
         If subp call succeeded, return the timestamp from subp as a float.
 
@@ -166,7 +169,7 @@ class SystemctlReader:
         return float(timestamp) / 1000000
 
 
-def dist_check_timestamp():
+def dist_check_timestamp() -> Tuple[str, float, float, float]:
     """
     Determine which init system a particular linux distro is using.
     Each init system (systemd, etc) has a different way of
@@ -188,7 +191,7 @@ def dist_check_timestamp():
     return TIMESTAMP_UNKNOWN
 
 
-def gather_timestamps_using_dmesg():
+def gather_timestamps_using_dmesg() -> Tuple[str, float, float, float]:
     """
     Gather timestamps that corresponds to kernel begin initialization,
     kernel finish initialization using dmesg as opposed to systemctl
@@ -219,7 +222,7 @@ def gather_timestamps_using_dmesg():
     return TIMESTAMP_UNKNOWN
 
 
-def gather_timestamps_using_systemd():
+def gather_timestamps_using_systemd() -> Tuple[str, float, float, float]:
     """
     Gather timestamps that corresponds to kernel begin initialization,
     kernel finish initialization. and cloud-init systemd unit activation
@@ -253,9 +256,9 @@ def gather_timestamps_using_systemd():
 
 
 def generate_records(
-    events,
-    print_format="(%n) %d seconds in %I%D",
-):
+    events: List[Dict[str, Union[str, float]]],
+    print_format: str ="(%n) %d seconds in %I%D",
+) -> List[List[str]]:
     """
     Take in raw events and create parent-child dependencies between events
     in order to order events in chronological order.
@@ -268,13 +271,13 @@ def generate_records(
     """
 
     sorted_events = sorted(events, key=lambda x: x["timestamp"])
-    records = []
+    records: = []
     start_time = None
     total_time = 0.0
     stage_start_time = {}
     boot_records = []
 
-    unprocessed = []
+    unprocessed: List[Dict[str, Union[str, float]]] = []
     for e in range(len(sorted_events)):
         event = events[e]
         try:
@@ -326,7 +329,7 @@ def generate_records(
     return boot_records
 
 
-def show_events(events, print_format):
+def show_events(events: List[Dict[str, Union[str, float]]], print_format: str) -> List[List[str]]:
     """
     A passthrough method that makes it easier to call generate_records()
 
@@ -339,7 +342,7 @@ def show_events(events, print_format):
     return generate_records(events, print_format=print_format)
 
 
-def load_events_infile(infile):
+def load_events_infile(infile: TextIO) -> Tuple[Optional[List[Dict[str, Union[str, float]]]], str]:
     """
     Takes in a log file, read it, and convert to json.
 
