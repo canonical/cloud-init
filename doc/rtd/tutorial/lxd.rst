@@ -134,8 +134,8 @@ Which should then print:
 We can see that cloud-init has received and consumed our user data
 successfully!
 
-Tear down
-=========
+Completion and next steps
+=========================
 
 Exit the container shell (by typing :command:`exit` or pressing :kbd:`Ctrl-D`).
 Once we have exited the container, we can stop the container using:
@@ -149,9 +149,6 @@ We can then remove the container completely using:
 .. code-block:: shell-session
 
     $ lxc rm my-test
-
-What's next?
-============
 
 In this tutorial, we used the :ref:`runcmd module <mod_cc_runcmd>` to execute a
 shell command. The full list of modules available can be found in our
