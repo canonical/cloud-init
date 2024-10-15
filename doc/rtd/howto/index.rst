@@ -18,6 +18,7 @@ How do I...?
 .. toctree::
    :maxdepth: 1
 
+   Launch cloud-init with... <launching.rst>
    Run cloud-init locally before deploying <run_cloud_init_locally.rst>
    Re-run cloud-init <rerun_cloud_init.rst>
    Change how often a module runs <module_run_frequency.rst>
