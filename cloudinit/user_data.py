@@ -17,7 +17,7 @@ from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.nonmultipart import MIMENonMultipart
 from email.mime.text import MIMEText
-from typing import Union
+from typing import Union, cast
 
 from cloudinit import features, gpg, handlers, subp, util
 from cloudinit.settings import KEY_DIR
@@ -42,7 +42,6 @@ ARCHIVE_UNDEF_TYPE = "text/cloud-config"
 ARCHIVE_UNDEF_BINARY_TYPE = "application/octet-stream"
 
 # This seems to hit most of the gzip possible content types.
-ENCRYPT_TYPE = "text/x-pgp-armored"
 DECOMP_TYPES = [
     "application/gzip",
     "application/gzip-compressed",
@@ -53,7 +52,6 @@ DECOMP_TYPES = [
     "application/x-gzip",
     "application/x-gzip-compressed",
 ]
-TRANSFORM_TYPES = [ENCRYPT_TYPE] + DECOMP_TYPES
 
 # Msg header used to track attachments
 ATTACHMENT_FIELD = "Number-Attachments"
@@ -90,17 +88,17 @@ class UserDataProcessor:
         if isinstance(blob, list):
             for b in blob:
                 self._process_msg(
-                    convert_string(b), accumulating_msg, require_signature
+                    convert_string(b, require_signature=require_signature),
+                    accumulating_msg,
                 )
         else:
             self._process_msg(
-                convert_string(blob), accumulating_msg, require_signature
+                convert_string(blob, require_signature=require_signature),
+                accumulating_msg,
             )
         return accumulating_msg
 
-    def _process_msg(
-        self, base_msg: Message, append_msg, require_signature=False
-    ):
+    def _process_msg(self, base_msg, append_msg):
         def find_ctype(payload):
             return handlers.type_from_starts_with(payload)
 
@@ -108,77 +106,49 @@ class UserDataProcessor:
             if is_skippable(part):
                 continue
 
+            ctype = None
+            ctype_orig = part.get_content_type()
             payload = util.fully_decoded_payload(part)
+            was_compressed = False
 
-            ctype = part.get_content_type()
+            # When the message states it is of a gzipped content type ensure
+            # that we attempt to decode said payload so that the decompressed
+            # data can be examined (instead of the compressed data).
+            if ctype_orig in DECOMP_TYPES:
+                try:
+                    payload = util.decomp_gzip(payload, quiet=False)
+                    # At this point we don't know what the content-type is
+                    # since we just decompressed it.
+                    ctype_orig = None
+                    was_compressed = True
+                except util.DecompressionError as e:
+                    error_message = (
+                        "Failed decompressing payload from {} of"
+                        " length {} due to: {}".format(
+                            ctype_orig, len(payload), e
+                        )
+                    )
+                    _handle_error(error_message, e)
+                    continue
 
+            # Attempt to figure out the payloads content-type
+            if not ctype_orig:
+                ctype_orig = UNDEF_TYPE
             # There are known cases where mime-type text/x-shellscript included
             # non shell-script content that was user-data instead.  It is safe
             # to check the true MIME type for x-shellscript type since all
             # shellscript payloads must have a #! header.  The other MIME types
             # that cloud-init supports do not have the same guarantee.
-            if ctype in TYPE_NEEDED + ["text/x-shellscript"]:
-                ctype = find_ctype(payload) or ctype
-
-            if require_signature and ctype != ENCRYPT_TYPE:
-                error_message = (
-                    "'require_signature' was set true in cloud-init's base "
-                    f"configuration, but content type is {ctype}."
-                )
-                raise RuntimeError(error_message)
-
-            was_transformed = False
-
-            # When the message states it is transformed ensure
-            # that we attempt to decode said payload so that the transformed
-            # data can be examined.
-            parent_ctype = None
-            if ctype in TRANSFORM_TYPES:
-                if ctype in DECOMP_TYPES:
-                    try:
-                        payload = util.decomp_gzip(payload, quiet=False)
-                    except util.DecompressionError as e:
-                        error_message = (
-                            "Failed decompressing payload from {} of"
-                            " length {} due to: {}".format(
-                                ctype, len(payload), e
-                            )
-                        )
-                        _handle_error(error_message, e)
-                        continue
-                elif ctype == ENCRYPT_TYPE and isinstance(payload, str):
-                    with gpg.GPG() as gpg_context:
-                        # Import all keys from the /etc/cloud/keys directory
-                        keys_dir = pathlib.Path(KEY_DIR)
-                        if keys_dir.is_dir():
-                            for key_path in keys_dir.iterdir():
-                                gpg_context.import_key(key_path)
-                        try:
-                            payload = gpg_context.decrypt(
-                                payload, require_signature=require_signature
-                            )
-                        except subp.ProcessExecutionError as e:
-                            raise RuntimeError(
-                                "Failed decrypting user data payload of type "
-                                f"{ctype}. Ensure any necessary keys are "
-                                f"present in {KEY_DIR}."
-                            ) from e
-                else:
-                    error_message = (
-                        f"Unknown content type {ctype} that"
-                        " is marked as transformed"
-                    )
-                    _handle_error(error_message)
-                    continue
-                was_transformed = True
-                parent_ctype = ctype
-                ctype = find_ctype(payload) or parent_ctype
+            if ctype_orig in TYPE_NEEDED + ["text/x-shellscript"]:
+                ctype = find_ctype(payload)
+            if ctype is None:
+                ctype = ctype_orig
 
             # In the case where the data was compressed, we want to make sure
             # that we create a new message that contains the found content
             # type with the uncompressed content since later traversals of the
             # messages will expect a part not compressed.
-            if was_transformed:
+            if was_compressed:
                 maintype, subtype = ctype.split("/", 1)
                 n_part = MIMENonMultipart(maintype, subtype)
                 n_part.set_payload(payload)
@@ -187,13 +157,12 @@ class UserDataProcessor:
                 # after decoding and decompression.
                 if part.get_filename():
                     _set_filename(n_part, part.get_filename())
-                if "Launch-Index" in part:
-                    _replace_header(
-                        n_part, "Launch-Index", str(part["Launch-Index"])
-                    )
+                for h in ("Launch-Index",):
+                    if h in part:
+                        _replace_header(n_part, h, str(part[h]))
                 part = n_part
 
-            if ctype != parent_ctype:
+            if ctype != ctype_orig:
                 _replace_header(part, CONTENT_TYPE, ctype)
 
             if ctype in INCLUDE_TYPES:
@@ -403,8 +372,35 @@ def is_skippable(part):
     return False
 
 
+def decrypt_payload(payload: str, require_signature: bool) -> str:
+    """Decrypt/Verify a PGP message.
+
+    :param payload: ASCII-armored GPG message to process
+    :param require_signature: Whether to require a signature
+    :return: decrypted data
+    """
+    with gpg.GPG() as gpg_context:
+        # Import all keys from the /etc/cloud/keys directory
+        keys_dir = pathlib.Path(KEY_DIR)
+        if keys_dir.is_dir():
+            for key_path in keys_dir.iterdir():
+                gpg_context.import_key(key_path)
+        try:
+            return gpg_context.decrypt(
+                payload, require_signature=require_signature
+            )
+        except subp.ProcessExecutionError as e:
+            raise RuntimeError(
+                "Failed decrypting user data payload. "
+                f"Ensure any necessary keys are present in {KEY_DIR}."
+            ) from e
+
+
 def convert_string(
-    raw_data: Union[str, bytes], content_type=NOT_MULTIPART_TYPE
+    raw_data: Union[str, bytes],
+    *,
+    require_signature: bool = False,
+    content_type=NOT_MULTIPART_TYPE,
 ) -> Message:
     """Convert the raw data into a mime message.
 
@@ -424,10 +420,28 @@ def convert_string(
         bdata = raw_data.encode("utf-8")
     else:
         bdata = raw_data
-    bdata = util.decomp_gzip(bdata, decode=False)
-    if b"mime-version:" in bdata[0:4096].lower():
+    # cast here because decode=False means return type is bytes
+    bdata = cast(bytes, util.decomp_gzip(bdata, decode=False))
+
+    # Decrypt/verify a PGP message. We do this here because a signed
+    # MIME part could be thwarted by other user data parts
+    if bdata[:27] == b"-----BEGIN PGP MESSAGE-----":
+        bdata = decrypt_payload(
+            bdata.decode("utf-8"), require_signature
+        ).encode("utf-8")
+    elif require_signature:
+        error_message = (
+            "'require_signature' was set true in cloud-init's base "
+            "configuration, but content is not signed."
+        )
+        raise RuntimeError(error_message)
+
+    # Now ensure we have a MIME message
+    if b"mime-version:" in bdata[:4096].lower():
+        # If we have a pre-existing MIME, use it
         msg = email.message_from_string(bdata.decode("utf-8"))
     else:
+        # Otherwise, convert to MIME
         msg = create_binmsg(bdata, content_type)
 
     return msg

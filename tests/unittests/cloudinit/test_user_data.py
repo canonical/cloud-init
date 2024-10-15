@@ -108,7 +108,7 @@ class TestPgpData:
         mocker.patch("cloudinit.subp.subp", side_effect=my_subp)
         ud_proc = user_data.UserDataProcessor({})
         with pytest.raises(
-            RuntimeError, match="payload of type text/x-pgp-armored"
+            RuntimeError, match="Failed decrypting user data payload"
         ):
             ud_proc.process(BAD_MESSAGE)
 
@@ -124,7 +124,5 @@ class TestPgpData:
     def test_pgp_required_with_no_pgp_message(self, mocker):
         mocker.patch("cloudinit.subp.subp", side_effect=my_subp)
         ud_proc = user_data.UserDataProcessor({})
-        with pytest.raises(
-            RuntimeError, match="content type is text/cloud-config"
-        ):
+        with pytest.raises(RuntimeError, match="content is not signed"):
             ud_proc.process(CLOUD_CONFIG, require_signature=True)

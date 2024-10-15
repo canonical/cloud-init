@@ -329,7 +329,7 @@ def test_signature_required(client: IntegrationInstance):
     assert result.failed
     assert (
         "'require_signature' was set true in cloud-init's base configuration, "
-        "but content type is text/cloud-config"
+        "but content is not signed"
     ) in result.stdout
 
 

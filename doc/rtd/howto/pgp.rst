@@ -136,7 +136,7 @@ using the existing key ring in the snapshot, we do this for a few reasons:
 * Users may not want these keys in any key ring by default on a new instance
 * Exporting keys is easier than copying key rings
 
-Note that on launch, cloud-init will import there keys into a temporary
+Note that on launch, cloud-init will import these keys into a temporary
 key ring that is removed after the user data is processed. The default
 key ring will not be read or modified.
 
