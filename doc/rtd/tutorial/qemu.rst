@@ -10,11 +10,11 @@ Core tutorial with QEMU
    qemu-debugging.rst
 
 In this tutorial, we will launch an Ubuntu cloud image in a virtual machine
-that uses ``cloud-init`` to pre-configure the system during boot.
+that uses cloud-init to pre-configure the system during boot.
 
 The goal of this tutorial is to provide a minimal demonstration of
-``cloud-init``, which you can then use as a development environment to test
-your ``cloud-init`` configurations locally before launching to the cloud.
+cloud-init, which you can then use as a development environment to test
+your cloud-init configurations locally before launching to the cloud.
 
 Why QEMU?
 =========
@@ -27,19 +27,8 @@ systems. While QEMU is flexibile and feature-rich, we are using it because of
 the broad support it has due to its broad adoption and ability to run on
 \*nix-derived operating systems.
 
-How to use this tutorial
-========================
-
-In this tutorial, the commands in each code block can be copied and pasted
-directly into the terminal. Omit the prompt (``$``) before each command, or
-use the "copy code" button on the right-hand side of the block, which will copy
-the command for you without the prompt.
-
-Each code block is preceded by a description of what the command does, and
-followed by an example of the type of output you should expect to see.
-
-Install QEMU
-============
+If you do not already have QEMU installed, you can install it by running the
+following command in Ubuntu:
 
 .. code-block:: sh
 
@@ -69,8 +58,8 @@ with :command:`cd`:
 Download a cloud image
 ======================
 
-Cloud images typically come with ``cloud-init`` pre-installed and configured to
-run on first boot. You will not need to worry about installing ``cloud-init``
+Cloud images typically come with cloud-init pre-installed and configured to
+run on first boot. You will not need to worry about installing cloud-init
 for now, since we are not manually creating our own image in this tutorial.
 
 In our case, we want to select the latest Ubuntu LTS_. Let's download the
@@ -125,18 +114,18 @@ You should see the following contents:
     chpasswd:
       expire: False
 
-The first line starts with ``#cloud-config``, which tells ``cloud-init``
+The first line starts with ``#cloud-config``, which tells cloud-init
 what type of user data is in the config. Cloud-config is a YAML-based
-configuration type that tells ``cloud-init`` how to configure the virtual
+configuration type that tells cloud-init how to configure the virtual
 machine instance. Multiple different format types are supported by
-``cloud-init``. For more information, see the
+cloud-init. For more information, see the
 :ref:`documentation describing different formats<user_data_formats>`.
 
 The second line, ``password: password``, as per
 :ref:`the Users and Groups module docs<mod_cc_users_groups>`, sets the default
 user's password to ``password``.
 
-The third and fourth lines direct ``cloud-init`` to not require a password
+The third and fourth lines direct cloud-init to not require a password
 reset on first login.
 
 Define our metadata
@@ -181,19 +170,19 @@ Instance Metadata Service (IMDS) is a service provided by most cloud providers
 as a means of providing information to virtual machine instances. This service
 is used by cloud providers to expose information to a virtual machine. This
 service is used for many different things, and is the primary mechanism for
-some clouds to expose ``cloud-init`` configuration data to the instance.
+some clouds to expose cloud-init configuration data to the instance.
 
-How does ``cloud-init`` use the IMDS?
+How does cloud-init use the IMDS?
 -------------------------------------
 
 The IMDS uses a private http webserver to provide metadata to each operating
-system instance. During early boot, ``cloud-init`` sets up network access and
-queries this webserver to gather configuration data. This allows ``cloud-init``
+system instance. During early boot, cloud-init sets up network access and
+queries this webserver to gather configuration data. This allows cloud-init
 to configure your operating system while it boots.
 
 In this tutorial we are emulating this workflow using QEMU and a simple Python
 webserver. This workflow is suitable for developing and testing
-``cloud-init`` configurations prior to cloud deployments.
+cloud-init configurations prior to cloud deployments.
 
 Launch a virtual machine with our user data
 ===========================================
@@ -218,7 +207,7 @@ take a few moments to complete.
    If the output stopped scrolling but you don't see a prompt yet, press
    :kbd:`Enter` to get to the login prompt.
 
-How is QEMU configured for ``cloud-init``?
+How is QEMU configured for cloud-init?
 ------------------------------------------
 
 When launching QEMU, our machine configuration is specified on the command
@@ -228,19 +217,19 @@ information, hard drives and more.
 Let us examine the final two lines of our previous command. The first of them,
 :command:`-hda jammy-server-cloudimg-amd64.img`, tells QEMU to use the cloud
 image as a virtual hard drive. This will cause the virtual machine to
-boot Ubuntu, which already has ``cloud-init`` installed.
+boot Ubuntu, which already has cloud-init installed.
 
-The second line tells ``cloud-init`` where it can find user data, using the
-:ref:`NoCloud datasource<datasource_nocloud>`. During boot, ``cloud-init``
+The second line tells cloud-init where it can find user data, using the
+:ref:`NoCloud datasource<datasource_nocloud>`. During boot, cloud-init
 checks the ``SMBIOS`` serial number for ``ds=nocloud``. If found,
-``cloud-init`` will use the specified URL to source its user data config files.
+cloud-init will use the specified URL to source its user data config files.
 
 In this case, we use the default gateway of the virtual machine (``10.0.2.2``)
 and default port number of the Python webserver (``8000``), so that
-``cloud-init`` will, inside the virtual machine, query the server running on
+cloud-init will, inside the virtual machine, query the server running on
 host.
 
-Verify that ``cloud-init`` ran successfully
+Verify that cloud-init ran successfully
 ===========================================
 
 After launching the virtual machine, we should be able to connect to our
@@ -254,10 +243,10 @@ If you can log in using the configured password, it worked!
 If you couldn't log in, see
 :ref:`this page for debug information<qemu_debug_info>`.
 
-Check ``cloud-init`` status
+Check cloud-init status
 ===========================
 
-Run the following command, which will allow us to check if ``cloud-init`` has
+Run the following command, which will allow us to check if cloud-init has
 finished running:
 
 .. code-block:: sh
@@ -282,7 +271,7 @@ What's next?
 ============
 
 In this tutorial, we configured the default user's password and ran
-``cloud-init`` inside our QEMU virtual machine.
+cloud-init inside our QEMU virtual machine.
 
 The full list of modules available can be found in
 :ref:`our modules documentation<modules>`.

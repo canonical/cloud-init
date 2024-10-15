@@ -39,7 +39,8 @@ Define our user data
 ====================
 
 Now that LXD is set up, we can define our user data. Create a file on your
-local filesystem at :file:`/tmp/my-user-data` and populate it with this content:
+local filesystem at :file:`/tmp/my-user-data` and populate it with this
+content:
 
 .. code-block:: yaml
 
@@ -47,7 +48,7 @@ local filesystem at :file:`/tmp/my-user-data` and populate it with this content:
     runcmd:
       - echo 'Hello, World!' > /var/tmp/hello-world.txt
 
-Here, we are defining our ``cloud-init`` user data in the
+Here, we are defining our cloud-init user data in the
 :ref:`#cloud-config <user_data_formats>` format, using the
 :ref:`runcmd module <mod_cc_runcmd>` to define a command to run. When applied,
 it will write ``Hello, World!`` to :file:`/var/tmp/hello-world.txt` (as we
@@ -63,7 +64,7 @@ instance with our user data:
 
     $ lxc launch ubuntu:focal my-test --config=user.user-data="$(cat /tmp/my-user-data)"
 
-Verify that ``cloud-init`` ran successfully
+Verify that cloud-init ran successfully
 -------------------------------------------
 
 After launching the container, we should be able to connect to our instance
@@ -75,7 +76,7 @@ using:
 
 You should now be in a shell inside the LXD instance.
 
-Before validating the user data, let's wait for ``cloud-init`` to complete
+Before validating the user data, let's wait for cloud-init to complete
 successfully:
 
 .. code-block:: shell-session
@@ -91,7 +92,7 @@ Which provides the following output:
 Verify our user data
 --------------------
 
-Now we know that ``cloud-init`` ran successfully, we can verify that it
+Now we know that cloud-init ran successfully, we can verify that it
 received the expected user data we provided earlier:
 
 .. code-block:: shell-session
@@ -130,7 +131,7 @@ Which should then print:
 
     Hello, World!
 
-We can see that ``cloud-init`` has received and consumed our user data
+We can see that cloud-init has received and consumed our user data
 successfully!
 
 Tear down
