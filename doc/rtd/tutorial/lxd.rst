@@ -3,29 +3,18 @@
 Quick-start tutorial with LXD
 *****************************
 
-In this tutorial, we will create our first ``cloud-init`` user data script
-and deploy it into an `LXD`_ container.
+In this tutorial, we will create our first cloud-init user data script and
+deploy it into a `LXD`_ container.
 
 Why LXD?
 ========
 
 We'll be using LXD for this tutorial because it provides first class support
-for ``cloud-init`` user data, as well as ``systemd`` support. Because it is
+for cloud-init user data, as well as ``systemd`` support. Because it is
 container based, it allows us to quickly test and iterate upon our user data
 definition.
 
-How to use this tutorial
-========================
-
-In this tutorial, the commands in each code block can be copied and pasted
-directly into the terminal. Omit the prompt (``$``) before each command, or
-use the "copy code" button on the right-hand side of the block, which will copy
-the command for you without the prompt.
-
-Each code block is preceded by a description of what the command does, and
-followed by an example of the type of output you should expect to see.
-
-Install and initialise LXD
+Install and initialize LXD
 ==========================
 
 If you already have LXD set up, you can skip this section. Otherwise, let's
@@ -38,7 +27,7 @@ install LXD:
 If you don't have snap, you can install LXD using one of the
 `other installation options`_.
 
-Now we need to initialise LXD. The minimal configuration will be enough for
+Now we need to initialize LXD. The minimal configuration will be enough for
 the purposes of this tutorial. If you need to, you can always change the
 configuration at a later time.
 
@@ -49,8 +38,8 @@ configuration at a later time.
 Define our user data
 ====================
 
-Now that LXD is set up, we can define our user data. Create the
-following file on your local filesystem at :file:`/tmp/my-user-data`:
+Now that LXD is set up, we can define our user data. Create a file on your
+local filesystem at :file:`/tmp/my-user-data` and populate it with this content:
 
 .. code-block:: yaml
 
@@ -59,7 +48,7 @@ following file on your local filesystem at :file:`/tmp/my-user-data`:
       - echo 'Hello, World!' > /var/tmp/hello-world.txt
 
 Here, we are defining our ``cloud-init`` user data in the
-:ref:`#cloud-config<user_data_formats>` format, using the
+:ref:`#cloud-config <user_data_formats>` format, using the
 :ref:`runcmd module <mod_cc_runcmd>` to define a command to run. When applied,
 it will write ``Hello, World!`` to :file:`/var/tmp/hello-world.txt` (as we
 shall see later!).
@@ -102,8 +91,8 @@ Which provides the following output:
 Verify our user data
 --------------------
 
-Now we know that ``cloud-init`` has been successfully run, we can verify that
-it received the expected user data we provided earlier:
+Now we know that ``cloud-init`` ran successfully, we can verify that it
+received the expected user data we provided earlier:
 
 .. code-block:: shell-session
 
@@ -147,7 +136,7 @@ successfully!
 Tear down
 =========
 
-Exit the container shell (by typing :command:`exit` or pressing :kbd:`ctrl-d`).
+Exit the container shell (by typing :command:`exit` or pressing :kbd:`Ctrl-D`).
 Once we have exited the container, we can stop the container using:
 
 .. code-block:: shell-session
