@@ -277,7 +277,7 @@ def generate_records(
     stage_start_time = {}
     boot_records = []
 
-    unprocessed: List[Dict[str, Union[str, float]]] = []
+    unprocessed = []
     for e in range(len(sorted_events)):
         event = events[e]
         try:
