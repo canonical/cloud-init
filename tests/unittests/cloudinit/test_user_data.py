@@ -126,3 +126,12 @@ class TestPgpData:
         ud_proc = user_data.UserDataProcessor({})
         with pytest.raises(RuntimeError, match="content is not signed"):
             ud_proc.process(CLOUD_CONFIG, require_signature=True)
+
+    def test_pgp_in_list_disallowed(self, mocker):
+        mocker.patch("cloudinit.subp.subp", side_effect=my_subp)
+        ud_proc = user_data.UserDataProcessor({})
+        with pytest.raises(
+            RuntimeError,
+            match="PGP message must encompass entire user data or vendor data",
+        ):
+            ud_proc.process([GOOD_MESSAGE, GOOD_MESSAGE])
