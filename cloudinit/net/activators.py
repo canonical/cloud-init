@@ -310,27 +310,9 @@ class NetworkdActivator(NetworkActivator):
     @staticmethod
     def wait_for_network() -> None:
         """Wait for systemd-networkd-wait-online."""
-        wait_online_def: str = subp.subp(
-            ["systemctl", "cat", "systemd-networkd-wait-online.service"]
-        ).stdout
-
-        # We need to extract the ExecStart= lines from the service definition.
-        # If we come across an ExecStart= line that is empty, that clears any
-        # previously found commands, which we should expect from the drop-in.
-        # Since the service is a oneshot, we can have multiple ExecStart= lines
-        # and systemd runs them in parallel. We'll run them serially since
-        # there's really no gain for us in running them in parallel.
-        wait_commands: List[List[str]] = []
-        for line in wait_online_def.splitlines():
-            if line.startswith("ExecStart="):
-                command_str = line.split("=", 1)[1].strip()
-                if not command_str:
-                    wait_commands.clear()
-                else:
-                    wait_commands.append(command_str.split())
-
-        for command in wait_commands:
-            subp.subp(command)
+        subp.subp(
+            ["systemctl", "start", "systemd-networkd-wait-online.service"]
+        )
 
 
 # This section is mostly copied and pasted from renderers.py. An abstract
