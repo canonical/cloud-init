@@ -15,6 +15,7 @@ import time
 import uuid
 from contextlib import suppress
 from typing import Dict, List
+from urllib.parse import urlparse
 
 from cloudinit import dmi, net, sources
 from cloudinit import url_helper as uhelp
@@ -158,7 +159,14 @@ class DataSourceEc2(sources.DataSource):
                     self.distro,
                     self.distro.fallback_interface,
                     ipv4=True,
-                    ipv6=True,
+                    ipv6=any(
+                        [
+                            net.is_ipv6_address(
+                                urlparse(url).netloc.strip("[]")
+                            )
+                            for url in self.metadata_urls
+                        ]
+                    ),
                 ) as netw:
                     self._crawled_metadata = self.crawl_metadata()
                     LOG.debug(
