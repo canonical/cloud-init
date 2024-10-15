@@ -322,9 +322,21 @@ def _should_bring_up_interfaces(init, args):
     return not args.local
 
 
-def _should_wait_via_cloud_config(
+def _should_wait_via_user_data(
     raw_config: Optional[Union[str, bytes]]
 ) -> Tuple[bool, Reason]:
+    """Determine if our cloud-config requires us to wait
+
+    User data requires us to wait during cloud-init network phase if:
+    - We have user data that is anything other than cloud-config
+      - This can likely be further optimized in the future to include
+        other user data types
+    - cloud-config contains:
+      - bootcmd
+      - random_seed command
+      - mounts
+      - write_files with source
+    """
     if not raw_config:
         return False, "no configuration found"
 
@@ -371,26 +383,23 @@ def _should_wait_on_network(
 ) -> Tuple[bool, Reason]:
     """Determine if we should wait on network connectivity for cloud-init.
 
-    We need to wait if:
+    We need to wait during the cloud-init network phase if:
     - We have no datasource
-    - We have user data that is anything other than cloud-config
-      - This can likely be further optimized in the future to include
-        other user data types
-    - We have user data that requires network access
+    - We have user data that may require network access
     """
     if not datasource:
         return True, "no datasource found"
-    user_should_wait, user_reason = _should_wait_via_cloud_config(
+    user_should_wait, user_reason = _should_wait_via_user_data(
         datasource.get_userdata_raw()
     )
     if user_should_wait:
         return True, f"{user_reason} in user data"
-    vendor_should_wait, vendor_reason = _should_wait_via_cloud_config(
+    vendor_should_wait, vendor_reason = _should_wait_via_user_data(
         datasource.get_vendordata_raw()
     )
     if vendor_should_wait:
         return True, f"{vendor_reason} in vendor data"
-    vendor2_should_wait, vendor2_reason = _should_wait_via_cloud_config(
+    vendor2_should_wait, vendor2_reason = _should_wait_via_user_data(
         datasource.get_vendordata2_raw()
     )
     if vendor2_should_wait:
@@ -483,7 +492,7 @@ def main_init(name, args):
     mode = sources.DSMODE_LOCAL if args.local else sources.DSMODE_NETWORK
 
     if mode == sources.DSMODE_NETWORK:
-        if os.path.exists(init.paths.get_runpath(".wait-on-network")):
+        if not os.path.exists(init.paths.get_runpath(".skip-network")):
             LOG.debug("Will wait for network connectivity before continuing")
             init.distro.wait_for_network()
         existing = "trust"
@@ -564,13 +573,13 @@ def main_init(name, args):
                 "cloud-init's network stage. Reason: %s",
                 reason,
             )
-            util.write_file(init.paths.get_runpath(".wait-on-network"), "")
         else:
             LOG.debug(
                 "Network connectivity determined unnecessary for "
-                "cloud-init's network stage. %s",
+                "cloud-init's network stage. Reason: %s",
                 reason,
             )
+            util.write_file(init.paths.get_runpath(".skip-network"), "")
 
         if init.datasource.dsmode != mode:
             LOG.debug(

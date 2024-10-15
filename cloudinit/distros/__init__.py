@@ -353,7 +353,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """Return the configured network activator for this environment.
 
         :returns: The network activator class to use
-        "raises": NoActivatorException if no activator is found
+        :raises: NoActivatorException if no activator is found
         """
         priority = util.get_cfg_by_path(
             self._cfg, ("network", "activators"), None
@@ -1576,7 +1576,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # name in /dev/
         return diskdevpath, ptnum
 
-    def wait_for_network(self):
+    def wait_for_network(self) -> None:
         """Ensure that cloud-init has network connectivity.
 
         For most distros, this is a no-op as cloud-init's network service is

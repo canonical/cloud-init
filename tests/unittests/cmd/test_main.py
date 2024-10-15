@@ -11,30 +11,11 @@ import pytest
 
 from cloudinit import safeyaml, util
 from cloudinit.cmd import main
-from cloudinit.subp import SubpResult
 from cloudinit.util import ensure_dir, load_text_file, write_file
 
 MyArgs = namedtuple(
     "MyArgs", "debug files force local reporter subcommand skip_log_setup"
 )
-
-FAKE_SERVICE_FILE = """\
-[Unit]
-Description=Wait for Network to be Configured
-
-[Service]
-Type=oneshot
-ExecStart=/usr/lib/systemd/systemd-networkd-wait-online
-
-# /run/systemd/system/systemd-networkd-wait-online.service.d/10-netplan.conf
-[Unit]
-ConditionPathIsSymbolicLink=/run/systemd/generator/network-online.target.wants/systemd-networkd-wait-online.service
-
-[Service]
-ExecStart=
-ExecStart=/lib/systemd/systemd-networkd-wait-online -i eth0:degraded
-ExecStart=/lib/systemd/systemd-networkd-wait-online --any -o routable -i eth0
-"""  # noqa: E501
 
 
 EXTRA_CLOUD_CONFIG = """\
@@ -322,20 +303,13 @@ class TestMain:
         mocker,
         fake_filesystem,
     ):
-        def fake_subp(*args, **kwargs):
-            if args == (
-                ["systemctl", "cat", "systemd-networkd-wait-online.service"],
-            ):
-                return SubpResult(FAKE_SERVICE_FILE, "")
-            return SubpResult("", "")
-
         mocker.patch("cloudinit.net.netplan.available", return_value=True)
         m_nm = mocker.patch(
             "cloudinit.net.network_manager.available", return_value=False
         )
-        m_subp = mocker.patch("cloudinit.subp.subp", side_effect=fake_subp)
-        if should_wait:
-            util.write_file(".wait-on-network", "")
+        m_subp = mocker.patch("cloudinit.subp.subp", return_value=("", ""))
+        if not should_wait:
+            util.write_file(".skip-network", "")
 
         cfg, cloud_cfg_file = cloud_cfg
         cfg["system_info"]["distro"] = distro
@@ -350,16 +324,11 @@ class TestMain:
             skip_log_setup=False,
         )
         main.main_init("init", cmdargs)
-        expected_subps = [
-            "/lib/systemd/systemd-networkd-wait-online -i eth0:degraded",
-            "/lib/systemd/systemd-networkd-wait-online --any -o routable -i eth0",  # noqa: E501
-        ]
         if expected_add_wait:
             m_nm.assert_called_once()
-            for expected_subp in expected_subps:
-                assert (
-                    mock.call(expected_subp.split()) in m_subp.call_args_list
-                )
+            m_subp.assert_called_with(
+                ["systemctl", "start", "systemd-networkd-wait-online.service"]
+            )
         else:
             m_nm.assert_not_called()
             m_subp.assert_not_called()
