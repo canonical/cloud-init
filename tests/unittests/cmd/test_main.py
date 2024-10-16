@@ -188,7 +188,7 @@ class TestMain:
             (mock.Mock(), "#cloud-config\nbootcmd:\n  - echo hello", True),
             # Bytes are valid too
             (mock.Mock(), b"#cloud-config\nbootcmd:\n  - echo hello", True),
-            # write_files with 'source' wait
+            # write_files with source uri wait
             (
                 mock.Mock(),
                 textwrap.dedent(
@@ -196,10 +196,10 @@ class TestMain:
                     #cloud-config
                     write_files:
                     - source:
-                      uri: http://example.com
-                      headers:
-                        Authorization: Basic stuff
-                        User-Agent: me
+                        uri: http://example.com
+                        headers:
+                          Authorization: Basic stuff
+                          User-Agent: me
                     """
                 ),
                 True,

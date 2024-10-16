@@ -34,6 +34,7 @@ from cloudinit import warnings
 from cloudinit import reporting
 from cloudinit import atomic_helper
 from cloudinit import lifecycle
+from cloudinit import handlers
 from cloudinit.log import log_util, loggers
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.config import cc_set_hostname
@@ -340,16 +341,10 @@ def _should_wait_via_user_data(
     if not raw_config:
         return False, "no configuration found"
 
-    # If our header is anything other than #cloud-config, wait
-    possible_header: Union[bytes, str] = raw_config.strip()[:13]
-    if isinstance(possible_header, str):
-        decoded_header = possible_header
-    elif isinstance(possible_header, bytes):
-        try:
-            decoded_header = possible_header.decode("utf-8")
-        except UnicodeDecodeError:
-            return True, "Binary user data found"
-    if not decoded_header.startswith("#cloud-config"):
+    if (
+        handlers.type_from_starts_with(raw_config.strip()[:13])
+        != "text/cloud-config"
+    ):
         return True, "non-cloud-config user data found"
 
     try:
@@ -365,10 +360,12 @@ def _should_wait_via_user_data(
         return True, "failed to parse user data as yaml"
 
     # These all have the potential to require network access, so we should wait
-    if "write_files" in parsed_yaml and any(
-        "source" in item for item in parsed_yaml["write_files"]
-    ):
-        return True, "write_files with source found"
+    if "write_files" in parsed_yaml:
+        for item in parsed_yaml["write_files"]:
+            source_uri = item.get("source", {}).get("uri", "")
+            if source_uri and not (source_uri.startswith(("/", "file:"))):
+                return True, "write_files with source uri found"
+        return False, "write_files without source uri found"
     if parsed_yaml.get("bootcmd"):
         return True, "bootcmd found"
     if parsed_yaml.get("random_seed", {}).get("command"):
