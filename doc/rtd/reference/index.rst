@@ -12,6 +12,7 @@ matrices and so on.
 
    modules.rst
    examples.rst
+   examples_library.rst
    cli.rst
    availability.rst
    faq.rst
