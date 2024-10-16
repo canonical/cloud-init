@@ -137,7 +137,7 @@ def apply_apt(cfg, cloud, gpg):
 
     release = util.lsb_release()["codename"]
     arch = util.get_dpkg_architecture()
-    mirrors = find_apt_mirror_info(cfg, cloud, arch=arch)
+    mirrors = find_apt_mirror_info(cfg, cloud, arch=arch, gpg=gpg)
     LOG.debug("Apt Mirror info: %s", mirrors)
 
     matcher = None
@@ -928,6 +928,35 @@ def search_for_mirror_dns(configured, mirrortype, cfg, cloud):
     return mirror
 
 
+def update_mirror_keys(pmirror_key, smirror_key, cloud):
+    """Sets keys for primary and security mirrors and
+    returns default if no keys are defined
+    """
+
+    # Fallback key if none provided
+    distro = getattr(cloud, "distro", None)
+    distro_name = getattr(distro, "name", None)
+    keypath = "/usr/share/keyrings/"
+    keysuffix = "-archive-keyring.gpg"
+    default = f"{keypath}{distro_name}{keysuffix}" if distro_name else None
+
+    if pmirror_key and smirror_key:
+        # Config defined primary and security sources
+        return {"PRIMARY_KEY": pmirror_key, "SECURITY_KEY": smirror_key}
+    elif pmirror_key and not smirror_key:
+        # Primary source was defined, but security was not
+        # Use primary source (and therefore key) for security repo
+        LOG.info("Using primary key for security mirror")
+        return {"PRIMARY_KEY": pmirror_key, "SECURITY_KEY": pmirror_key}
+
+    LOG.info("Setting default key for primary and security mirrors")
+    return {
+        # Primary key not defined, use default archives
+        "PRIMARY_KEY": default,
+        "SECURITY_KEY": default,
+    }
+
+
 def update_mirror_info(pmirror, smirror, arch, cloud):
     """sets security mirror to primary if not defined.
     returns defaults if no mirrors are defined"""
@@ -971,6 +1000,66 @@ def get_arch_mirrorconfig(cfg, mirrortype, arch):
     return default
 
 
+def format_security_key(key):
+    """Ubuntu Deb822 template Signed-By expects the raw key to be
+    indented by two spaces on all lines except the first line, which
+    is agnostic to prefaced whitespace
+    This function formats raw keys accordingly. It also works for
+    formatting path based keys and keyservers since they pass through
+    unaffected
+    """
+
+    lines = key.splitlines()
+    first_line = lines[0]
+    indented_lines = ["  " + line for line in lines[1:]]
+    formatted_key = "\n".join([first_line] + indented_lines)
+
+    return formatted_key
+
+
+def get_mirror_key(cfg, mirrortype, arch, cloud, gpg):
+    """Obtain custom specified gpg key for apt repository
+    in config. Particularly useful for local/on-premise/landscape
+    servers which may be signed by custom keys
+    """
+
+    LOG.debug("Checking %s mirror for provided key", mirrortype)
+
+    mcfg = get_arch_mirrorconfig(cfg, mirrortype, arch)
+    if mcfg is None:
+        LOG.debug("No %s configuration provided", mirrortype)
+        return None
+
+    LOG.debug("Configuration for %s mirror provided", mirrortype)
+
+    if "keyid" in mcfg and "key" not in mcfg:
+        LOG.debug("Key provided in the form of keyid")
+        keyserver = DEFAULT_KEYSERVER
+        if "keyserver" in mcfg:
+            keyserver = mcfg["keyserver"]
+        # Retrieve key from remote and store in mirror config
+        mcfg["key"] = gpg.getkeybyid(mcfg["keyid"], keyserver)
+
+    # Fallback key if none provided
+    distro = getattr(cloud, "distro", None)
+    distro_name = getattr(distro, "name", None)
+    keypath = "/usr/share/keyrings/"
+    keysuffix = "-archive-keyring.gpg"
+    default = f"{keypath}{distro_name}{keysuffix}" if distro_name else None
+
+    mirror_key = mcfg.get("key", None)
+    if mirror_key:
+        # Source and key are explicitly defined
+        LOG.info("Setting key for %s mirror", mirrortype)
+        mirror_key = format_security_key(mirror_key)
+    else:
+        # Source specified, but key not specified
+        LOG.info("Setting default key for %s mirror", mirrortype)
+        mirror_key = default
+
+    return mirror_key
+
+
 def get_mirror(cfg, mirrortype, arch, cloud):
     """pass the three potential stages of mirror specification
     returns None is neither of them found anything otherwise the first
@@ -997,7 +1086,7 @@ def get_mirror(cfg, mirrortype, arch, cloud):
     return mirror
 
 
-def find_apt_mirror_info(cfg, cloud, arch=None):
+def find_apt_mirror_info(cfg, cloud, arch=None, gpg=None):
     """find_apt_mirror_info
     find an apt_mirror given the cfg provided.
     It can check for separate config of primary and security mirrors
@@ -1008,15 +1097,22 @@ def find_apt_mirror_info(cfg, cloud, arch=None):
     if arch is None:
         arch = util.get_dpkg_architecture()
         LOG.debug("got arch for mirror selection: %s", arch)
+
     pmirror = get_mirror(cfg, "primary", arch, cloud)
     LOG.debug("got primary mirror: %s", pmirror)
+    pmirror_key = get_mirror_key(cfg, "primary", arch, cloud, gpg)
+
     smirror = get_mirror(cfg, "security", arch, cloud)
     LOG.debug("got security mirror: %s", smirror)
+    smirror_key = get_mirror_key(cfg, "security", arch, cloud, gpg)
 
     mirror_info = update_mirror_info(pmirror, smirror, arch, cloud)
+    mirror_keys = update_mirror_keys(pmirror_key, smirror_key, cloud)
 
     # less complex replacements use only MIRROR, derive from primary
     mirror_info["MIRROR"] = mirror_info["PRIMARY"]
+    mirror_info["PRIMARY_KEY"] = mirror_keys["PRIMARY_KEY"]
+    mirror_info["SECURITY_KEY"] = mirror_keys["SECURITY_KEY"]
 
     return mirror_info
 
