@@ -25,6 +25,8 @@ REQUIREMENTS:
 - mount-image-callback utility from cloud-image-utils deb package
 """
 
+# ruff: noqa: E501
+
 import json
 import logging
 import os
@@ -32,10 +34,8 @@ import re
 import shutil
 import statistics
 import subprocess
-import sys
 import time
 from argparse import ArgumentParser, FileType
-from copy import deepcopy
 from pathlib import Path
 
 import pycloudlib
@@ -52,17 +52,20 @@ MIN_AVG_DELTA = 0.1
 MIN_AVG_PERCENT_DELTA = 20
 
 
-MANDATORY_REPORT_KEYS = ("time_cloudinit_total", "time_systemd_userspace", "client_time_to_ssh")
+MANDATORY_REPORT_KEYS = (
+    "time_cloudinit_total",
+    "client_time_to_ssh",
+)
 
 DEFAULT_PPA = "ppa:cloud-init-dev/daily"
 
 
 def retry_cmd(instance, cmd):
-    for retry_sleep in [0.25] * 400:
+    while True:
         try:
             return instance.execute(cmd)
         except Exception:
-            time.sleep(retry_sleep)
+            time.sleep(0.01)
 
 
 def update_cloud_init_in_img(img_path: str, deb_path: str, suffix=".modified"):
@@ -76,21 +79,12 @@ def update_cloud_init_in_img(img_path: str, deb_path: str, suffix=".modified"):
             [
                 "sudo",
                 "mount-image-callback",
-                "--system-mounts", "--system-resolvconf",
                 new_img_path,
                 "--",
                 "sh",
                 "-c",
-                f"chroot ${{MOUNTPOINT}} apt-get update; DEBIAN_FRONTEND=noninteractive chroot ${{MOUNTPOINT}} apt-get install -o  Dpkg::Options::='--force-confold' dhcpcd5 -y --force-yes",
-            ],
-            [
-                "sudo",
-                "mount-image-callback",
-                new_img_path,
-                "--",
-                "sh",
-                "-c",
-                f"cp {deb_path} ${{MOUNTPOINT}}/.; chroot ${{MOUNTPOINT}} dpkg -i /{os.path.basename(deb_path)}",
+                f"cp {deb_path} ${{MOUNTPOINT}}/.; chroot ${{MOUNTPOINT}} dpkg -i /{
+                    os.path.basename(deb_path)}",
             ],
         ]
     elif deb_path.startswith("ppa:"):
@@ -98,20 +92,24 @@ def update_cloud_init_in_img(img_path: str, deb_path: str, suffix=".modified"):
             [
                 "sudo",
                 "mount-image-callback",
-                "--system-mounts", "--system-resolvconf",
+                "--system-mounts",
+                "--system-resolvconf",
                 new_img_path,
                 "--",
                 "sh",
                 "-c",
-                f"chroot ${{MOUNTPOINT}} add-apt-repository {deb_path} -y; DEBIAN_FRONTEND=noninteractive chroot ${{MOUNTPOINT}} apt-get install -o  Dpkg::Options::='--force-confold' cloud-init -y",
+                f"chroot ${{MOUNTPOINT}} add-apt-repository {
+                    deb_path} -y; DEBIAN_FRONTEND=noninteractive chroot ${{MOUNTPOINT}} apt-get install -o  Dpkg::Options::='--force-confold' cloud-init -y",
             ],
         ]
     else:
         raise RuntimeError(
-            f"Invalid deb_path provided: {deb_path}. Expected local .deb or" " ppa:"
+            f"Invalid deb_path provided: {
+                deb_path}. Expected local .deb or"
+            " ppa:"
         )
     for command in commands:
-        logging.debug(f"--- Running: {' '.join(command)}")
+        logging.debug("--- Running: %s", " ".join(command))
         subprocess.check_call(command)
     return new_img_path
 
@@ -119,24 +117,34 @@ def update_cloud_init_in_img(img_path: str, deb_path: str, suffix=".modified"):
 def collect_bootspeed_data(instance):
     """Collect and process bootspeed data from the instance."""
     start_time = time.time()
-    data = {"time_at_ssh": retry_cmd(instance, "date --utc +'%b %d %H:%M:%S.%N'")}
+    data = {
+        "time_at_ssh": retry_cmd(instance, "date --utc +'%b %d %H:%M:%S.%N'")
+    }
     ssh_time = time.time()
-    data["cloudinit_status"] = json.loads(
-        instance.execute("cloud-init status --format=json --wait")
-    )
+    instance.execute("cloud-init status --wait")
+    try:
+        data["cloudinit_status"] = json.loads(
+            instance.execute("cloud-init status --format=json")
+        )
+    except json.decoder.JSONDecodeError:
+        # doesn't work on xenial
+        data["cloudinit_status"] = ""
     cloudinit_done_time = time.time()
     data["client_time_to_ssh"] = ssh_time - start_time
     data["client_time_to_cloudinit_done"] = cloudinit_done_time - start_time
     data["image_builddate"] = retry_cmd(
         instance, "grep serial /etc/cloud/build.info"
     ).split()[-1]
-    data["systemd_analyze"] = retry_cmd(instance, "systemd-analyze")
-    data["systemd_analyze_blame"] = retry_cmd(instance, "systemd-analyze blame")
-    data["cloudinit_version"]: retry_cmd(instance, "dpkg-query -W cloud-init").split()[
-        1
-    ]
+    data["systemd_analyze_blame"] = retry_cmd(
+        instance, "systemd-analyze blame"
+    )
+    data["cloudinit_version"] = retry_cmd(
+        instance, "dpkg-query -W cloud-init"
+    ).split()[1]
     data["cloudinit_analyze"] = instance.execute("cloud-init analyze show")
-    data["cloudinit_analyze_blame"] = instance.execute("cloud-init analyze blame")
+    data["cloudinit_analyze_blame"] = instance.execute(
+        "cloud-init analyze blame"
+    )
 
     for service in (
         "cloud-init.service",
@@ -177,13 +185,6 @@ def process_bootspeed_data(boot_sample: dict):
        time_systemd_blames (dict of services and costs) and
        time_cloudnit_blames (dict of config modules, boot stages).
     """
-    analyze_times = re.match(
-        r".*in.* ((?P<firmware>[^s]+)s \(firmware\) \+ (?P<loader>[^s]+)s \(loader\) \+ )?(?P<kernel>[^s]+)s \(kernel\) \+ (?P<user>[^s]+)s \(userspace\)",
-        boot_sample["systemd_analyze"],
-    )
-    if analyze_times:
-        boot_sample["time_systemd_kernel"] = float(analyze_times["kernel"])
-        boot_sample["time_systemd_userspace"] = float(analyze_times["user"])
     systemd_blames = {}
     for line in boot_sample["systemd_analyze_blame"].splitlines():
         blame = re.match(r"\s*(?P<cost>[\d.]+)s (?P<service_name>\S+)", line)
@@ -194,7 +195,9 @@ def process_bootspeed_data(boot_sample: dict):
     # Process cloud-init analyze blame output for each config module cost
     cloudinit_blames = {}
     for line in boot_sample["cloudinit_analyze_blame"].splitlines():
-        blame = re.match(r"(?P<cost>[^s]+)s \((?P<module_name>[^\)]+)\)", line.strip())
+        blame = re.match(
+            r"(?P<cost>[^s]+)s \((?P<module_name>[^\)]+)\)", line.strip()
+        )
         if blame:
             cloudinit_blames[blame["module_name"]] = float(blame["cost"])
 
@@ -205,20 +208,19 @@ def process_bootspeed_data(boot_sample: dict):
     ):
         cloudinit_blames[f"stage/{match[0]}"] = float(match[1])
     stage_total_time = re.match(
-         r".*\nTotal Time: (?P<cost>[\d\.]+) seconds\n",
-         boot_sample["cloudinit_analyze"],
-    re.DOTALL)
+        r".*\nTotal Time: (?P<cost>[\d\.]+) seconds\n",
+        boot_sample["cloudinit_analyze"],
+        re.DOTALL,
+    )
     if stage_total_time:
         boot_sample["time_cloudinit_total"] = float(stage_total_time["cost"])
     boot_sample["time_cloudinit_blames"] = cloudinit_blames
 
 
 def update_averages(boot_samples: list[dict], data_dir: Path, data_type: str):
-    avg_data = {
+    avg_data: dict[str, dict] = {
         "client_time_to_ssh": {"samples": []},
         "client_time_to_cloudinit_done": {"samples": []},
-        "time_systemd_kernel": {"samples": []},
-        "time_systemd_userspace": {"samples": []},
         "time_cloudinit_total": {"samples": []},
         "time_systemd_blames": {},
         "time_cloudinit_blames": {},
@@ -248,11 +250,17 @@ def update_averages(boot_samples: list[dict], data_dir: Path, data_type: str):
         else:
             avg_data[k].update(get_max_min_avg(avg_data[k]["samples"]))
     for idx, boot_sample in enumerate(boot_samples):
-        for file_key in  [k for k in boot_sample.keys() if k.startswith('file_')]:
+        for file_key in [
+            k for k in boot_sample.keys() if k.startswith("file_")
+        ]:
             data_file = data_dir / f"{data_type}-instance-{idx}-{file_key[5:]}"
             data_file.write_text(boot_sample.pop(file_key))
-        artifacts_file = data_dir / f"{data_type}-instance-{idx}-artifacts.json"
-        artifacts_file.write_text(json.dumps(boot_sample, indent=1, sort_keys=True))
+        artifacts_file = (
+            data_dir / f"{data_type}-instance-{idx}-artifacts.json"
+        )
+        artifacts_file.write_text(
+            json.dumps(boot_sample, indent=1, sort_keys=True)
+        )
     avg_file = data_dir / f"{data_type}-avg.json"
     avg_file.write_text(json.dumps(avg_data, indent=1, sort_keys=True))
     return avg_data
@@ -274,7 +282,9 @@ METRIC_TABLE_HEADER = """\
 | Avg/Stdev     |   Max   |  Min    | Metric Name
 -----------------------------------------------------------------------"""
 
-METRIC_LINE = """| {avg:06.2f}s/{stdev:04.2f}s | {max:06.2f}s | {min:06.2f}s | {name}"""
+METRIC_LINE = (
+    """| {avg:06.2f}s/{stdev:04.2f}s | {max:06.2f}s | {min:06.2f}s | {name}"""
+)
 
 
 def log_avg_table(image_name, avg):
@@ -354,12 +364,13 @@ def report_significant_avg_delta(key, orig_sample, new_sample):
 
 
 def inspect_averages(orig_avg, new_avg):
-
     perf_deltas = []
 
     for key in orig_avg:
         if "avg" in orig_avg[key] and orig_avg[key]["avg"] > MIN_AVG_DELTA:
-            perf_delta = report_significant_avg_delta(key, orig_avg[key], new_avg[key])
+            perf_delta = report_significant_avg_delta(
+                key, orig_avg[key], new_avg[key]
+            )
             if perf_delta:
                 perf_deltas.append(PERF_LINE.format(**perf_delta))
         else:
@@ -410,7 +421,6 @@ def inspect_boot_time_deltas_for_deb(
     Boot derivative image and report boottime stats.
     """
     orig_data = []
-    new_data = []
     existing_data_files = [f for f in data_dir.rglob("*.json")]
     if existing_data_files:
         print(f"--- Using pre-existing data files in {data_dir}")
@@ -420,29 +430,19 @@ def inspect_boot_time_deltas_for_deb(
                 continue
             if "orig" in f.name:
                 orig_data.append(json.loads(f.read_text()))
-            else:
-                new_data.append(json.loads(f.read_text()))
     else:
         data_dir.mkdir(exist_ok=True)
-        with pycloudlib.Qemu(tag="examples") as cloud:
+        with pycloudlib.LXDContainer(tag="examples") as cloud:
             daily = cloud.daily_image(release=release)
-            print(
-                f"--- Creating modified daily image {daily} with cloud-init"
-                f" from {deb_path}"
-            )
-            new_image = update_cloud_init_in_img(daily, deb_path, suffix=1)
             print(
                 f"--- Launching {sample_count} control daily images {daily} ---"
             )
             for sample in range(sample_count):
+                print(f"--- Launching instance #{1 + sample} ---")
                 instance = cloud.launch(image_id=daily, user_data=user_data)
                 orig_data.append(collect_bootspeed_data(instance))
                 instance.delete()
-                new_instance = cloud.launch(image_id=new_image, user_data=user_data)
-                new_data.append(collect_bootspeed_data(new_instance))
-                new_instance.delete()
     orig_avg = update_averages(orig_data, data_dir, "orig")
-    new_avg = update_averages(new_data, data_dir, "new")
     print(
         HEADER.format(
             boot_serial=orig_data[0]["image_builddate"],
@@ -452,8 +452,8 @@ def inspect_boot_time_deltas_for_deb(
             min_avg_delta=MIN_AVG_PERCENT_DELTA,
         )
     )
-    report_errors(new_data)
-    inspect_averages(orig_avg, new_avg)
+    report_errors(orig_data)
+    log_avg_table("Image cloud-init", orig_avg)
 
 
 CLOUDINIT_ERRORS = """\
@@ -471,7 +471,7 @@ def report_errors(samples: list):
     """Print any unexpected errors found data samples"""
     for idx, sample in enumerate(samples):
         status = sample["cloudinit_status"]
-        if status["errors"] or status["recoverable_errors"]:
+        if status["errors"] or status.get("recoverable_errors"):
             print(CLOUDINIT_ERRORS.format(idx=idx, **status))
 
 
@@ -497,7 +497,15 @@ def get_parser():
         "-r",
         "--release",
         default="noble",
-        choices=["focal", "jammy", "lunar", "mantic", "noble", "oracular"],
+        choices=[
+            "bionic",
+            "focal",
+            "jammy",
+            "lunar",
+            "mantic",
+            "noble",
+            "oracular",
+        ],
         help="Ubuntu series to test",
     )
     parser.add_argument(
@@ -506,7 +514,8 @@ def get_parser():
         dest="data_dir",
         default="perf_data",
         help=(
-            "Data directory in which to store perf value dicts." f" Default: perf_data"
+            "Data directory in which to store perf value dicts."
+            "Default: perf_data"
         ),
     )
     parser.add_argument(
@@ -520,6 +529,7 @@ def get_parser():
         ),
     )
     return parser
+
 
 def assert_dependencies():
     """Fail on any missing dependencies."""
