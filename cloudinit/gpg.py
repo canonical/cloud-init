@@ -9,6 +9,7 @@
 
 import logging
 import os
+import pathlib
 import re
 import signal
 import time
@@ -20,6 +21,10 @@ from cloudinit import subp
 LOG = logging.getLogger(__name__)
 
 HOME = "GNUPGHOME"
+
+
+class GpgVerificationError(Exception):
+    """GpgVerificationError is raised when a signature verification fails."""
 
 
 class GPG:
@@ -67,6 +72,57 @@ class GPG:
             # debug, since it happens for any key not on the system initially
             LOG.debug('Failed to export armoured key "%s": %s', key, error)
         return None
+
+    def import_key(self, key: pathlib.Path) -> None:
+        """Import gpg key from a file to the temporary keyring.
+
+        :param key: path to the key file
+        """
+        try:
+            subp.subp(
+                [
+                    "gpg",
+                    "--batch",
+                    "--import",
+                    str(key),
+                ],
+                update_env=self.env,
+            )
+        except subp.ProcessExecutionError as error:
+            LOG.warning("Failed to import key %s: %s", key, error)
+
+    def decrypt(self, data: str, *, require_signature=False) -> str:
+        """Process data using gpg.
+
+        This can be used to decrypt encrypted data, verify signed data,
+        or both depending on the data provided.
+
+        :param data: ASCII-armored GPG message to process
+        :return: decrypted data
+        :raises: ProcessExecutionError if gpg fails to decrypt data
+        """
+        if require_signature:
+            try:
+                subp.subp(
+                    ["gpg", "--verify"],
+                    data=data,
+                    update_env=self.env,
+                )
+            except subp.ProcessExecutionError as e:
+                if e.exit_code == 2:
+                    raise GpgVerificationError(
+                        "Signature verification failed"
+                    ) from e
+                raise
+        result = subp.subp(
+            [
+                "gpg",
+                "--decrypt",
+            ],
+            data=data,
+            update_env=self.env,
+        )
+        return result.stdout
 
     def dearmor(self, key: str) -> str:
         """Dearmor gpg key, dearmored key gets returned
