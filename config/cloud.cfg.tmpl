@@ -324,7 +324,7 @@ system_info:
     renderers: ['network-manager', 'networkd']
 {% elif variant == "raspberry-pi-os" %}
   network:
-    dhcp_client_priority: [dhclient, dhcpcd, udhcpc]
+    dhcp_client_priority: [dhclient]
     renderers: ['netplan', 'network-manager', 'networkd', 'eni']
     activators: ['netplan', 'network-manager', 'networkd', 'eni']
 {% elif variant in ["ubuntu", "unknown"] %}
