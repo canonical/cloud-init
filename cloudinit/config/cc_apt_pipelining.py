@@ -28,7 +28,7 @@ APT_PIPE_TPL = (
 
 meta: MetaSchema = {
     "id": "cc_apt_pipelining",
-    "distros": ["ubuntu", "debian"],
+    "distros": ["ubuntu", "debian", "raspberry-pi-os"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["apt_pipelining"],
 }
