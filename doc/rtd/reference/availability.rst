@@ -27,6 +27,7 @@ NetBSD, OpenBSD and DragonFlyBSD:
 - NetBSD
 - OpenBSD
 - Photon OS
+- Raspberry Pi OS
 - RHEL/CentOS/AlmaLinux/Rocky Linux/EuroLinux
 - SLES/openSUSE
 - Ubuntu
