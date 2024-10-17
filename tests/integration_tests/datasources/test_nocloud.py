@@ -12,10 +12,10 @@ from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL
 from tests.integration_tests.util import (
     get_feature_flag_value,
+    network_wait_logged,
     override_kernel_command_line,
     verify_clean_boot,
     verify_clean_log,
-    wait_online_called,
 )
 
 VENDOR_DATA = """\
@@ -100,7 +100,7 @@ def test_nocloud_seedfrom_vendordata(client: IntegrationInstance):
     client.restart()
     assert client.execute("cloud-init status").ok
     assert "seeded_vendordata_test_file" in client.execute("ls /var/tmp")
-    assert wait_online_called(client.execute("cat /var/log/cloud-init.log"))
+    assert network_wait_logged(client.execute("cat /var/log/cloud-init.log"))
 
 
 SMBIOS_USERDATA = """\

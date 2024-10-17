@@ -634,5 +634,8 @@ def push_and_enable_systemd_unit(
     client.execute(f"systemctl enable {unit_name}", use_sudo=True)
 
 
-def wait_online_called(log: str) -> bool:
-    return "Running command ['/lib/systemd/systemd-networkd-wait-online" in log
+def network_wait_logged(log: str) -> bool:
+    return (
+        "Running command "
+        "['systemctl', 'start', 'systemd-networkd-wait-online.service']"
+    ) in log

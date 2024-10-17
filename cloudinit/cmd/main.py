@@ -362,7 +362,8 @@ def _should_wait_via_user_data(
     # These all have the potential to require network access, so we should wait
     if "write_files" in parsed_yaml:
         for item in parsed_yaml["write_files"]:
-            source_uri = item.get("source", {}).get("uri", "")
+            source_dict = item.get("source") or {}
+            source_uri = source_dict.get("uri", "")
             if source_uri and not (source_uri.startswith(("/", "file:"))):
                 return True, "write_files with source uri found"
         return False, "write_files without source uri found"

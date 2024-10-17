@@ -30,9 +30,9 @@ from tests.integration_tests.util import (
     get_feature_flag_value,
     get_inactive_modules,
     lxd_has_nocloud,
+    network_wait_logged,
     verify_clean_boot,
     verify_ordered_items_in_text,
-    wait_online_called,
 )
 
 USER_DATA = """\
@@ -558,7 +558,7 @@ class TestCombined:
     @pytest.mark.skipif(not IS_UBUNTU, reason="Ubuntu-only behavior")
     def test_networkd_wait_online(self, class_client: IntegrationInstance):
         client = class_client
-        assert not wait_online_called(
+        assert not network_wait_logged(
             client.read_from_file("/var/log/cloud-init.log")
         )
 

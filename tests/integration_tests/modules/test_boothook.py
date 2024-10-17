@@ -5,9 +5,9 @@ import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import (
+    network_wait_logged,
     verify_clean_boot,
     verify_clean_log,
-    wait_online_called,
 )
 
 USER_DATA = """\
@@ -55,6 +55,6 @@ class TestBoothook:
     ):
         """Test boothook handling waits for network before running."""
         client = class_client
-        assert wait_online_called(
+        assert network_wait_logged(
             client.read_from_file("/var/log/cloud-init.log")
         )
