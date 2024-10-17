@@ -7,10 +7,6 @@ DefaultDependencies=no
 {% endif %}
 Wants=network-pre.target
 After=hv_kvp_daemon.service
-{% if variant in ["almalinux", "cloudlinux", "rhel"] %}
-Requires=dbus.socket
-After=dbus.socket
-{% endif %}
 Before=NetworkManager.service
 {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
 Before=network.service
@@ -25,7 +21,6 @@ Conflicts=shutdown.target
 Before=sysinit.target
 Conflicts=shutdown.target
 {% endif %}
-RequiresMountsFor=/var/lib/cloud
 ConditionPathExists=!/etc/cloud/cloud-init.disabled
 ConditionKernelCommandLine=!cloud-init=disabled
 ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
