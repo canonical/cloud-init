@@ -204,6 +204,22 @@ class TestMain:
                 ),
                 True,
             ),
+            # write_files with source file don't wait
+            (
+                mock.Mock(),
+                textwrap.dedent(
+                    """\
+                    #cloud-config
+                    write_files:
+                    - source:
+                        uri: /tmp/hi
+                        headers:
+                          Authorization: Basic stuff
+                          User-Agent: me
+                    """
+                ),
+                False,
+            ),
             # write_files without 'source' don't wait
             (
                 mock.Mock(),
