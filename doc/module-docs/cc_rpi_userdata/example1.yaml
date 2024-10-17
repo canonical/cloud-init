@@ -1,0 +1,2 @@
+#cloud-config
+disable_piwiz: true
