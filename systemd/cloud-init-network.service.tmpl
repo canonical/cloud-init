@@ -12,8 +12,12 @@ After=cloud-init-local.service
 {% if variant not in ["ubuntu"] %}
 After=systemd-networkd-wait-online.service
 {% endif %}
-{% if variant in ["ubuntu", "unknown", "debian"] %}
+{% if variant in ["ubuntu", "unknown", "debian", "raspberry-pi-os"] %}
 After=networking.service
+{% if variant == "raspberry-pi-os" %}
+Wants=NetworkManager-wait-online.service
+After=NetworkManager-wait-online.service
+{% endif %}
 {% endif %}
 {% if variant in ["almalinux", "centos", "cloudlinux", "eurolinux", "fedora",
                   "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva", "rhel", "rocky",
@@ -28,11 +32,17 @@ After=wicked.service
 After=dbus.service
 {% endif %}
 Before=network-online.target
+{% if variant == "raspberry-pi-os" %}
+Before=avahi-daemon.service
+{% endif %}
 Before=sshd-keygen.service
 Before=sshd.service
 Before=systemd-user-sessions.service
-{% if variant in ["ubuntu", "unknown", "debian"] %}
+{% if variant in ["ubuntu", "unknown", "debian", "raspberry-pi-os"] %}
+{% if variant not in ["raspberry-pi-os"] %}
+{# stops cloud-init-network from starting on rpios #}
 Before=sysinit.target
+{% endif %}
 Before=shutdown.target
 Conflicts=shutdown.target
 {% endif %}

@@ -1,0 +1,2 @@
+#cloud-config
+enable_rpi_connect: true
