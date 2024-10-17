@@ -9,7 +9,7 @@
 [Unit]
 Description=Cloud-init: Single Process
 Wants=network-pre.target
-{% if variant in ["almalinux", "cloudlinux", "ubuntu", "unknown", "debian", "rhel"] %}
+{% if variant in ["almalinux", "cloudlinux", "ubuntu", "unknown", "debian", "raspberry-pi-os", "rhel"] %}
 DefaultDependencies=no
 {% endif %}
 {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
@@ -18,7 +18,7 @@ After=dbus.socket
 Before=network.service
 Before=firewalld.target
 {% endif %}
-{% if variant in ["ubuntu", "unknown", "debian"] %}
+{% if variant in ["ubuntu", "unknown", "debian", "raspberry-pi-os"] %}
 Before=sysinit.target
 {% endif %}
 

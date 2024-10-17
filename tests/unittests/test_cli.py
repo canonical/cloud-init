@@ -318,7 +318,8 @@ class TestCLI:
                     "centos, cloudlinux, cos, debian, eurolinux, fedora, "
                     "freebsd, mariner, miraclelinux, openbsd, openeuler, "
                     "OpenCloudOS, openmandriva, opensuse, opensuse-microos, "
-                    "opensuse-tumbleweed, opensuse-leap, photon, rhel, rocky, "
+                    "opensuse-tumbleweed, opensuse-leap, photon, "
+                    "raspberry-pi-os, rhel, rocky, "
                     "sle_hpc, sle-micro, sles, TencentOS, ubuntu, virtuozzo",
                     " **resize_rootfs:** ",
                     "(``true``/``false``/``noblock``)",
