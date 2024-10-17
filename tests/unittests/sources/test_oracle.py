@@ -5,15 +5,17 @@ import copy
 import json
 import logging
 from itertools import count
+from typing import Optional
 from unittest import mock
 
 import pytest
 import responses
+from requests import Response
 
 from cloudinit.sources import DataSourceOracle as oracle
 from cloudinit.sources import NetworkConfigSource
 from cloudinit.sources.DataSourceOracle import OpcMetadata
-from cloudinit.url_helper import UrlError
+from cloudinit.url_helper import UrlError, UrlResponse
 from tests.unittests import helpers as test_helpers
 
 DS_PATH = "cloudinit.sources.DataSourceOracle"
@@ -57,7 +59,117 @@ OPC_VM_SECONDARY_VNIC_RESPONSE = """\
   "virtualRouterIp" : "10.0.0.1",
   "subnetCidrBlock" : "10.0.0.0/24"
 } ]"""
+###############################################################################
+OPC_VM_DUAL_STACK_SECONDARY_VNIC_RESPONSE = """\
+[
+  {
+    "ipv6Addresses": [
+      "2603:c020:400d:5dbb:e94a:a85d:26e3:e0d4"
+    ],
+    "ipv6SubnetCidrBlock": "2603:c020:400d:5dbb::/64",
+    "ipv6VirtualRouterIp": "fe80::200:17ff:fe40:8972",
+    "macAddr": "02:00:17:0D:6B:BE",
+    "privateIp": "10.0.0.183",
+    "subnetCidrBlock": "10.0.0.0/24",
+    "virtualRouterIp": "10.0.0.1",
+    "vlanTag": 929,
+    "vnicId": "ocid1.vnic.oc1.iad.abuwcljtr2b6363afca55nzerlvwmfhxp_truncated"
+  },
+  {
+    "ipv6Addresses": [
+      "2603:c020:400d:5d7e:aacc:8e5f:3b1b:3a4a"
+    ],
+    "ipv6SubnetCidrBlock": "2603:c020:400d:5d7e::/64",
+    "ipv6VirtualRouterIp": "fe80::200:17ff:fe40:8972",
+    "macAddr": "02:00:17:18:F6:FF",
+    "subnetCidrBlock": "\u003cnull\u003e",
+    "vlanTag": 2659,
+    "vnicId": "ocid1.vnic.oc1.iad.abuwcljtpfktyl2e3xm2ez4spj7wiliyc_truncated"
+  }
+]"""
+OPC_VM_IPV6_ONLY_SECONDARY_VNIC_RESPONSE = """\
+[
+  {
+    "ipv6Addresses": [
+      "2603:c020:400d:5dbb:e94a:a85d:26e3:e0d4"
+    ],
+    "ipv6SubnetCidrBlock": "2603:c020:400d:5dbb::/64",
+    "ipv6VirtualRouterIp": "fe80::200:17ff:fe40:8972",
+    "macAddr": "02:00:17:0D:6B:BE",
+    "vlanTag": 929,
+    "vnicId": "ocid1.vnic.oc1.iad.abuwcljtr2b6363afca55nzerlvwmfhxp_truncated"
+  },
+  {
+    "ipv6Addresses": [
+      "2603:c020:400d:5d7e:aacc:8e5f:3b1b:3a4a"
+    ],
+    "ipv6SubnetCidrBlock": "2603:c020:400d:5d7e::/64",
+    "ipv6VirtualRouterIp": "fe80::200:17ff:fe40:8972",
+    "macAddr": "02:00:17:18:F6:FF",
+    "vlanTag": 2659,
+    "vnicId": "ocid1.vnic.oc1.iad.abuwcljtpfktyl2e3xm2ez4spj7wiliyc_truncated"
+  }
+]"""
+###############################################################################
 
+OPC_DUAL_STACK_VM_VNIC_RESPONSE = """\
+[
+  {
+    "ipv6Addresses": [
+      "2603:c020:400d:5dbb:e94a:a85d:26e3:e0d4"
+    ],
+    "ipv6SubnetCidrBlock": "2603:c020:400d:5dbb::/64",
+    "ipv6VirtualRouterIp": "fe80::200:17ff:fe40:8972",
+    "macAddr": "02:00:17:0D:6B:BE",
+    "privateIp": "10.0.0.183",
+    "subnetCidrBlock": "10.0.0.0/24",
+    "virtualRouterIp": "10.0.0.1",
+    "vlanTag": 929,
+    "vnicId": "ocid1.vnic.oc1.iad.abuwcljtr2b6363afca55nzerlvwmfhxp_truncated"
+  }
+]"""
+
+OPC_DUAL_STACK_WITHI_IPV6_ONLY_SECONDARY_VNIC_RESPONSE = """\
+[
+  {
+    "ipv6Addresses": [
+      "2603:c020:400d:5dbb:e94a:a85d:26e3:e0d4"
+    ],
+    "ipv6SubnetCidrBlock": "2603:c020:400d:5dbb::/64",
+    "ipv6VirtualRouterIp": "fe80::200:17ff:fe40:8972",
+    "macAddr": "02:00:17:0D:6B:BE",
+    "privateIp": "10.0.0.183",
+    "subnetCidrBlock": "10.0.0.0/24",
+    "virtualRouterIp": "10.0.0.1",
+    "vlanTag": 929,
+    "vnicId": "ocid1.vnic.oc1.iad.abuwcljtr2b6363afca55nzerlvwmfhx4_truncated"
+  },
+  {
+    "ipv6Addresses": [
+      "2603:c020:400d:5d7e:aacc:8e5f:3b1b:3a4a"
+    ],
+    "ipv6SubnetCidrBlock": "2603:c020:400d:5d7e::/64",
+    "ipv6VirtualRouterIp": "fe80::200:17ff:fe40:8972",
+    "macAddr": "02:00:17:18:F6:FF",
+    "subnetCidrBlock": "\u003cnull\u003e",
+    "vlanTag": 2659,
+    "vnicId": "ocid1.vnic.oc1.iad.abuwcljtpfktyl2e3xm2ez4spj7wiliy_truncated"
+  }
+]"""
+
+OPC_IPV6_VM_VNIC_RESPONSE = """\
+[
+  {
+    "ipv6Addresses": [
+      "2603:c020:400d:5d7e:c2af:e153:ebe2:2478"
+    ],
+    "ipv6SubnetCidrBlock": "2603:c020:400d:5d7e::/64",
+    "ipv6VirtualRouterIp": "fe80::200:17ff:fe40:8972",
+    "macAddr": "02:00:17:15:92:4E",
+    "vlanTag": 1970,
+    "vnicId": "ocid1.vnic.oc1.iad.abuwcljtpfktyl2e3xm2ez4spj7wiliy_truncated"
+  }
+]"""
 
 # Fetched with `curl http://169.254.169.254/opc/v1/instance/` (and then
 # truncated for line length)
@@ -86,10 +198,45 @@ OPC_V2_METADATA = """\
   }
 }"""
 
+OPC_V2_IPV6_METADATA = """\
+{
+  "availabilityDomain": "qIZq:US-ASHBURN-AD-1",
+  "canonicalRegionName": "us-ashburn-1",
+  "compartmentId": "ocid1.compartment.oc1..aaaaaaaayyvhlkxdjkhz_truncated",
+  "displayName": "jammy-ipv6-only-variant-base-instance",
+  "faultDomain": "FAULT-DOMAIN-3",
+  "hostname": "jammy-ipv6-only-variant-base-instance",
+  "id": "ocid1.instance.oc1.iad.anuwcljtniwq6sycqxrp36a46y7o2ox_truncated",
+  "image": "ocid1.image.oc1.iad.aaaaaaaa4jvzkneq635p7xr2nekgbff_truncated",
+  "metadata": {
+    "ssh_authorized_keys": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAA truncated"
+  },
+  "ociAdName": "iad-ad-3",
+  "region": "iad",
+  "regionInfo": {
+    "realmDomainComponent": "oraclecloud.com",
+    "realmKey": "oc1",
+    "regionIdentifier": "us-ashburn-1",
+    "regionKey": "IAD"
+  },
+  "shape": "VM.Standard.E5.Flex",
+  "shapeConfig": {
+    "maxVnicAttachments": 2,
+    "memoryInGBs": 12.0,
+    "networkingBandwidthInGbps": 1.0,
+    "ocpus": 1.0
+  },
+  "state": "Running",
+  "tenantId": "ocid1.tenancy.oc1..aaaaaaaao7f7cccogqrg5emjxkxmct_truncated",
+  "timeCreated": 1726753916086
+}"""
+
 # Just a small meaningless change to differentiate the two metadatas
 OPC_V1_METADATA = OPC_V2_METADATA.replace("ocid1.instance", "ocid2.instance")
 
 MAC_ADDR = "00:00:17:02:2b:b1"
+IPV6_MAC_ADDR1 = "02:00:17:0d:6b:be"
+IPV6_MAC_ADDR2 = "02:00:17:18:f6:ff"
 
 DHCP = {
     "name": "eth0",
@@ -107,6 +254,19 @@ DHCP = {
     ],
 }
 KLIBC_NET_CFG = {"version": 1, "config": [DHCP]}
+
+ipv6_v1_instance_url = oracle.IPV6_METADATA_PATTERN.format(
+    path="instance",
+    version=1,
+)
+ipv4_v1_instance_url = oracle.IPV4_METADATA_PATTERN.format(
+    path="instance",
+    version=1,
+)
+ipv4_v2_instance_url = oracle.IPV4_METADATA_PATTERN.format(
+    path="instance",
+    version=2,
+)
 
 
 @pytest.fixture
@@ -139,13 +299,29 @@ def oracle_ds(request, fixture_utils, paths, metadata_version, mocker):
     is_iscsi = fixture_utils.closest_marker_first_arg_or(
         request, "is_iscsi", True
     )
-    metadata = OpcMetadata(metadata_version, json.loads(OPC_V2_METADATA), None)
+    use_ipv6 = fixture_utils.closest_marker_first_arg_or(
+        request, "use_ipv6", False
+    )
 
-    mocker.patch(DS_PATH + ".net.find_fallback_nic")
+    metadata = OpcMetadata(metadata_version, json.loads(OPC_V2_METADATA), None)
+    ipv6_v1_instance_url = oracle.IPV6_METADATA_PATTERN.format(
+        path="instance/",
+        version=metadata_version,
+    )
+    ipv4_v1_instance_url = oracle.IPV4_METADATA_PATTERN.format(
+        path="instance/",
+        version=metadata_version,
+    )
+    md_url_pattern = ipv6_v1_instance_url if use_ipv6 else ipv4_v1_instance_url
+
+    mocker.patch(DS_PATH + ".net.find_fallback_nic", return_value="fake_eth0")
     mocker.patch(DS_PATH + ".ephemeral.EphemeralDHCPv4")
+    mocker.patch(DS_PATH + ".ephemeral.EphemeralIPNetwork")
     mocker.patch(DS_PATH + "._read_system_uuid", return_value="someuuid")
     mocker.patch(DS_PATH + ".DataSourceOracle.ds_detect", return_value=True)
-    mocker.patch(DS_PATH + ".read_opc_metadata", return_value=metadata)
+    mocker.patch(
+        DS_PATH + ".read_opc_metadata", return_value=(metadata, md_url_pattern)
+    )
     mocker.patch(DS_PATH + ".KlibcOracleNetworkConfigSource")
     ds = oracle.DataSourceOracle(
         sys_cfg=sys_cfg,
@@ -162,6 +338,19 @@ def oracle_ds(request, fixture_utils, paths, metadata_version, mocker):
 
 
 class TestDataSourceOracle:
+
+    def test_check_instance_id(self, oracle_ds):
+        oracle_ds.system_uuid = "someuuid"
+        with mock.patch(
+            DS_PATH + ".sources.instance_id_matches_system_uuid"
+        ) as m:
+            oracle_ds.check_instance_id("sys_cfg")
+        m.assert_called_once_with("someuuid")
+
+    def test_get_public_ssh_keys(self, oracle_ds):
+        oracle_ds.metadata = {"public_keys": "key"}
+        assert ["key"] == oracle_ds.get_public_ssh_keys()
+
     def test_platform_info(self, oracle_ds):
         assert "oracle" == oracle_ds.cloud_name
         assert "oracle" == oracle_ds.platform_type
@@ -359,6 +548,104 @@ class TestNetworkConfigFromOpcImds:
 
         assert 1 == len(secondary_cfg["addresses"])
         assert "10.0.0.231/24" == secondary_cfg["addresses"][0]
+
+    @pytest.mark.parametrize(
+        "set_primary",
+        [
+            pytest.param(True, id="set_primary"),
+            pytest.param(False, id="dont_set_primary"),
+        ],
+    )
+    def test_imds_nic_setup_v1_ipv6_only(self, set_primary, oracle_ds):
+        oracle_ds._vnics_data = json.loads(
+            OPC_VM_IPV6_ONLY_SECONDARY_VNIC_RESPONSE
+        )
+        oracle_ds._network_config = {
+            "version": 1,
+            "config": [{"primary": "nic"}],
+        }
+        with mock.patch(
+            f"{DS_PATH}.get_interfaces_by_mac",
+            return_value={
+                "02:00:17:0d:6b:be": "ens3",
+                "02:00:17:18:f6:ff": "ens4",
+            },
+        ):
+            oracle_ds._add_network_config_from_opc_imds(
+                set_primary=set_primary
+            )
+
+        secondary_nic_index = 1
+        nic_cfg = oracle_ds.network_config["config"]
+        if set_primary:
+            primary_cfg = nic_cfg[1]
+            secondary_nic_index += 1
+
+            assert "ens3" == primary_cfg["name"]
+            assert "physical" == primary_cfg["type"]
+            assert "02:00:17:0d:6b:be" == primary_cfg["mac_address"]
+            assert 9000 == primary_cfg["mtu"]
+            assert 1 == len(primary_cfg["subnets"])
+            assert "address" not in primary_cfg["subnets"][0]
+            assert "dhcp6" == primary_cfg["subnets"][0]["type"]
+        secondary_cfg = nic_cfg[secondary_nic_index]
+        assert "ens4" == secondary_cfg["name"]
+        assert "physical" == secondary_cfg["type"]
+        assert "02:00:17:18:f6:ff" == secondary_cfg["mac_address"]
+        assert 9000 == secondary_cfg["mtu"]
+        assert 1 == len(secondary_cfg["subnets"])
+        assert (
+            "2603:c020:400d:5d7e:aacc:8e5f:3b1b:3a4a/128"
+            == secondary_cfg["subnets"][0]["address"]
+        )
+        assert "static" == secondary_cfg["subnets"][0]["type"]
+
+    @pytest.mark.parametrize(
+        "set_primary",
+        [True, False],
+    )
+    def test_secondary_nic_v2_ipv6_only(self, set_primary, oracle_ds):
+        oracle_ds._vnics_data = json.loads(
+            OPC_VM_IPV6_ONLY_SECONDARY_VNIC_RESPONSE
+        )
+        oracle_ds._network_config = {
+            "version": 2,
+            "ethernets": {"primary": {"nic": {}}},
+        }
+        with mock.patch(
+            f"{DS_PATH}.get_interfaces_by_mac",
+            return_value={
+                "02:00:17:0d:6b:be": "ens3",
+                "02:00:17:18:f6:ff": "ens4",
+            },
+        ):
+            oracle_ds._add_network_config_from_opc_imds(
+                set_primary=set_primary
+            )
+
+        nic_cfg = oracle_ds.network_config["ethernets"]
+        if set_primary:
+            assert "ens3" in nic_cfg
+            primary_cfg = nic_cfg["ens3"]
+
+            assert primary_cfg["dhcp4"] is False
+            assert primary_cfg["dhcp6"] is True
+            assert "02:00:17:0d:6b:be" == primary_cfg["match"]["macaddress"]
+            assert 9000 == primary_cfg["mtu"]
+            assert "addresses" not in primary_cfg
+
+        assert "ens4" in nic_cfg
+        secondary_cfg = nic_cfg["ens4"]
+        assert secondary_cfg["dhcp4"] is False
+        assert secondary_cfg["dhcp6"] is False
+        assert "02:00:17:18:f6:ff" == secondary_cfg["match"]["macaddress"]
+        assert 9000 == secondary_cfg["mtu"]
+
+        assert 1 == len(secondary_cfg["addresses"])
+        assert (
+            "2603:c020:400d:5d7e:aacc:8e5f:3b1b:3a4a/128"
+            == secondary_cfg["addresses"][0]
+        )
 
     @pytest.mark.parametrize("error_add_network", [None, Exception])
     @pytest.mark.parametrize(
@@ -724,7 +1011,7 @@ class TestReadOpcMetadata:
         mocked_responses,
     ):
         setup_urls(mocked_responses)
-        metadata = oracle.read_opc_metadata(fetch_vnics_data=fetch_vnics)
+        metadata, url = oracle.read_opc_metadata(fetch_vnics_data=fetch_vnics)
 
         assert version == metadata.version
         assert instance_data == metadata.instance_data
@@ -780,20 +1067,89 @@ class TestReadOpcMetadata:
 
     # No need to actually wait between retries in the tests
     @mock.patch("cloudinit.url_helper.time.sleep", lambda _: None)
-    def test_fetch_vnics_error(self, caplog):
+    @pytest.mark.parametrize(
+        [
+            "instance_md_succeeds",
+            "vnics_md_succeeds",
+        ],
+        [
+            pytest.param(
+                True,
+                True,
+                id="fetching both instance and vnics metadata succeeds",
+            ),
+            pytest.param(
+                False,
+                None,
+                id="fetching instance metadata fails, vnics not fetched",
+            ),
+            pytest.param(
+                True,
+                False,
+                id="fetching instance metadata succeeds, vnics metadata fails",
+            ),
+        ],
+    )
+    def test_fetchin_instance_and_vnic_successes_and_failures(
+        self,
+        caplog,
+        instance_md_succeeds: bool,
+        vnics_md_succeeds: Optional[bool],
+    ):
+        instance_md_requsted = False
+        vnics_md_requsted = False
+
         def m_wait(*args, **kwargs):
-            for url in args[0]:
+            nonlocal instance_md_requsted, vnics_md_requsted
+            if "urls" in kwargs:
+                url_arg = kwargs["urls"]
+            else:
+                url_arg = args[0]
+            print(url_arg)
+            for url in url_arg:
                 if "vnics" in url:
+                    vnics_md_requsted = True
+                    if vnics_md_succeeds:
+                        return url, b"{}"
+                    return False, None
+                if "instance" in url:
+                    instance_md_requsted = True
+                    if instance_md_succeeds:
+                        return url, b"{}"
                     return False, None
             return ("http://localhost", b"{}")
 
         with mock.patch(DS_PATH + ".wait_for_url", side_effect=m_wait):
-            opc_metadata = oracle.read_opc_metadata(fetch_vnics_data=True)
-            assert None is opc_metadata.vnics_data
-        assert (
-            logging.WARNING,
-            "Failed to fetch IMDS network configuration!",
-        ) == caplog.record_tuples[-1][1:], caplog.record_tuples
+            opc_metadata, url = oracle.read_opc_metadata(fetch_vnics_data=True)
+            if instance_md_succeeds:
+                assert url
+                assert opc_metadata
+            else:
+                assert not url
+                assert not opc_metadata
+            assert instance_md_requsted
+            assert vnics_md_requsted == instance_md_succeeds
+
+        if instance_md_succeeds:
+            assert (
+                "Successfully fetched instance metadata from IMDS at:"
+                in caplog.text
+            )
+            if vnics_md_succeeds:
+                assert (
+                    "Successfully fetched vnics metadata from IMDS at:"
+                    in caplog.text
+                )
+            else:
+                assert (
+                    "Failed to fetch IMDS network configuration!"
+                    in caplog.text
+                )
+        else:
+            log_level = caplog.record_tuples[-1][1]
+            assert logging.WARNING == log_level
+            log_message = caplog.record_tuples[-1][2]
+            assert "Failed to fetch IMDS metadata from any of:" in log_message
 
 
 @pytest.mark.parametrize(
@@ -901,30 +1257,58 @@ class TestCommon_GetDataBehaviour:
         metadata = OpcMetadata(None, instance_data, None)
         with mock.patch(
             DS_PATH + ".read_opc_metadata",
-            mock.Mock(return_value=metadata),
+            mock.Mock(return_value=(metadata, ipv4_v1_instance_url)),
         ):
             assert oracle_ds._check_and_get_data()
             assert expected_value == oracle_ds.get_public_ssh_keys()
 
-    def test_missing_user_data_handled_gracefully(self, oracle_ds):
+    # @pytest.mark.parametrize(
+    #     "use_ipv6",
+    #     [
+    #         pytest.param(marks=pytest.mark.use_ipv6(True), id="ipv6"),
+    #         pytest.param(marks=pytest.mark.use_ipv6(False), id="ipv4"),
+    #     ],
+    # )
+    @pytest.mark.parametrize(
+        "use_ipv6",
+        [
+            pytest.param(True, id="ipv6"),
+            pytest.param(False, id="ipv4"),
+        ],
+    )
+    def test_missing_user_data_handled_gracefully(self, oracle_ds, use_ipv6):
         instance_data = json.loads(OPC_V1_METADATA)
         del instance_data["metadata"]["user_data"]
         metadata = OpcMetadata(None, instance_data, None)
+        md_url_pattern = (
+            ipv6_v1_instance_url if use_ipv6 else ipv4_v1_instance_url
+        )
+
         with mock.patch(
             DS_PATH + ".read_opc_metadata",
-            mock.Mock(return_value=metadata),
+            mock.Mock(return_value=(metadata, md_url_pattern)),
         ):
             assert oracle_ds._check_and_get_data()
 
         assert oracle_ds.userdata_raw is None
 
-    def test_missing_metadata_handled_gracefully(self, oracle_ds):
+    @pytest.mark.parametrize(
+        "use_ipv6",
+        [
+            pytest.param(True, id="ipv6"),
+            pytest.param(False, id="ipv4"),
+        ],
+    )
+    def test_missing_metadata_handled_gracefully(self, oracle_ds, use_ipv6):
         instance_data = json.loads(OPC_V1_METADATA)
         del instance_data["metadata"]
         metadata = OpcMetadata(None, instance_data, None)
+        md_url_pattern = (
+            ipv6_v1_instance_url if use_ipv6 else ipv4_v1_instance_url
+        )
         with mock.patch(
             DS_PATH + ".read_opc_metadata",
-            mock.Mock(return_value=metadata),
+            mock.Mock(return_value=(metadata, md_url_pattern)),
         ):
             assert oracle_ds._check_and_get_data()
 
@@ -934,54 +1318,14 @@ class TestCommon_GetDataBehaviour:
 
 @pytest.mark.is_iscsi(False)
 class TestNonIscsiRoot_GetDataBehaviour:
-    @mock.patch(DS_PATH + ".ephemeral.EphemeralDHCPv4")
-    @mock.patch(DS_PATH + ".net.find_fallback_nic")
-    def test_run_net_files(
-        self, m_find_fallback_nic, m_EphemeralDHCPv4, oracle_ds
-    ):
-        in_context_manager = False
-
-        def enter_context_manager():
-            nonlocal in_context_manager
-            in_context_manager = True
-
-        def exit_context_manager(*args):
-            nonlocal in_context_manager
-            in_context_manager = False
-
-        m_EphemeralDHCPv4.return_value.__enter__.side_effect = (
-            enter_context_manager
-        )
-        m_EphemeralDHCPv4.return_value.__exit__.side_effect = (
-            exit_context_manager
-        )
-
-        def assert_in_context_manager(**kwargs):
-            assert in_context_manager
-            return mock.MagicMock()
-
-        with mock.patch(
-            DS_PATH + ".read_opc_metadata",
-            mock.Mock(side_effect=assert_in_context_manager),
-        ):
-            assert oracle_ds._check_and_get_data()
-
-        assert [
-            mock.call(
-                oracle_ds.distro,
-                iface=m_find_fallback_nic.return_value,
-                connectivity_url_data={
-                    "headers": {"Authorization": "Bearer Oracle"},
-                    "url": "http://169.254.169.254/opc/v2/instance/",
-                },
-            )
-        ] == m_EphemeralDHCPv4.call_args_list
-
-    @mock.patch(DS_PATH + ".ephemeral.EphemeralDHCPv4")
-    @mock.patch(DS_PATH + ".net.find_fallback_nic")
+    @mock.patch(DS_PATH + ".ephemeral.EphemeralIPNetwork")
+    @mock.patch(DS_PATH + ".net.find_fallback_nic", return_value="fake_eth0")
+    @mock.patch(DS_PATH + ".check_ipv6_connectivity")
     def test_read_opc_metadata_called_with_ephemeral_dhcp(
-        self, m_find_fallback_nic, m_EphemeralDHCPv4, oracle_ds
+        self, m_ipv6_check, m_find_fallback_nic, m_ephemeral_network, oracle_ds
     ):
+        url_that_worked = ipv4_v1_instance_url
+
         in_context_manager = False
 
         def enter_context_manager():
@@ -992,33 +1336,43 @@ class TestNonIscsiRoot_GetDataBehaviour:
             nonlocal in_context_manager
             in_context_manager = False
 
-        m_EphemeralDHCPv4.return_value.__enter__.side_effect = (
+        m_ephemeral_network.return_value.__enter__.side_effect = (
             enter_context_manager
         )
-        m_EphemeralDHCPv4.return_value.__exit__.side_effect = (
+        m_ephemeral_network.return_value.__exit__.side_effect = (
             exit_context_manager
         )
 
         def assert_in_context_manager(**kwargs):
             assert in_context_manager
-            return mock.MagicMock()
+            return (mock.MagicMock(), url_that_worked)
 
         with mock.patch(
             DS_PATH + ".read_opc_metadata",
-            mock.Mock(side_effect=assert_in_context_manager),
+            mock.Mock(
+                side_effect=assert_in_context_manager,
+            ),
         ):
             assert oracle_ds._check_and_get_data()
 
         assert [
             mock.call(
-                oracle_ds.distro,
-                iface=m_find_fallback_nic.return_value,
-                connectivity_url_data={
-                    "headers": {"Authorization": "Bearer Oracle"},
-                    "url": "http://169.254.169.254/opc/v2/instance/",
-                },
+                distro=oracle_ds.distro,
+                interface=m_find_fallback_nic.return_value,
+                ipv6=True,
+                ipv4=True,
+                connectivity_urls_data=[
+                    {
+                        "url": ipv4_v1_instance_url,
+                    },
+                    {
+                        "url": ipv4_v2_instance_url,
+                        "headers": oracle.V2_HEADERS,
+                    },
+                ],
+                ipv6_connectivity_check_callback=m_ipv6_check,
             )
-        ] == m_EphemeralDHCPv4.call_args_list
+        ] == m_ephemeral_network.call_args_list
 
 
 @mock.patch(DS_PATH + ".get_interfaces_by_mac", return_value={})
@@ -1169,31 +1523,223 @@ class TestNetworkConfig:
             f"Interface with MAC {MAC_ADDR} not found; skipping",
         ) == caplog.record_tuples[-1][1:]
 
-    @pytest.mark.parametrize("set_primary", [True, False])
+    # @pytest.mark.parametrize("set_primary", [True, False])
+    # @pytest.mark.parametrize("use_ipv6", [True, False])
+    @pytest.mark.parametrize(
+        [
+            "set_primary",
+            "use_ipv6",
+            "secondary_mac_present",
+        ],
+        [
+            # pytest.param(True, True, id="ipv6 vnics setting primary"),
+            # pytest.param(False, True, id="ipv6 vnics not setting primary"),
+            # pytest.param(True, False, id="ipv4 vnics setting primary"),
+            # pytest.param(False, False, id="ipv4 vnics not setting primary"),
+            pytest.param(
+                True,
+                True,
+                True,
+                id="ipv6 vnics setting primary with secondary mac present",
+            ),
+            pytest.param(
+                False,
+                True,
+                True,
+                id="ipv6 vnics not setting primary with secondary mac present",
+            ),
+            pytest.param(
+                False,
+                True,
+                False,
+                id="ipv6 vnics not setting primary w/o secondary mac present",
+            ),
+        ],
+    )
     def test_nics(
         self,
         m_get_interfaces_by_mac,
         set_primary,
+        use_ipv6,
+        secondary_mac_present,
         oracle_ds,
         caplog,
         mocker,
     ):
         """Correct number of configs added"""
-        vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
+        if use_ipv6:
+            vnics_data = json.loads(OPC_VM_DUAL_STACK_SECONDARY_VNIC_RESPONSE)
+        else:
+            vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
         if set_primary:
             assert not oracle_ds._has_network_config()
         else:
             # Simulate primary config was taken from iscsi
             oracle_ds._network_config = copy.deepcopy(KLIBC_NET_CFG)
-
-        mocker.patch(
-            DS_PATH + ".get_interfaces_by_mac",
-            return_value={"02:00:17:05:d1:db": "eth_0", MAC_ADDR: "name_1"},
-        )
+        if use_ipv6:
+            interfaces = {IPV6_MAC_ADDR1: "eth_0"}
+            if secondary_mac_present:
+                interfaces[IPV6_MAC_ADDR2] = "eth_1"
+            mocker.patch(
+                DS_PATH + ".get_interfaces_by_mac",
+                return_value=interfaces,
+            )
+        else:
+            mocker.patch(
+                DS_PATH + ".get_interfaces_by_mac",
+                return_value={
+                    "02:00:17:05:d1:db": "eth_0",
+                    MAC_ADDR: "name_1",
+                },
+            )
         mocker.patch.object(oracle_ds, "_vnics_data", vnics_data)
+        mocker.patch.object(
+            oracle_ds,
+            "metadata_address",
+            ipv6_v1_instance_url if use_ipv6 else ipv4_v1_instance_url,
+        )
+
+        # assert that oracle_ds.metadata_address is set correctly
+        assert oracle_ds.metadata_address == (
+            ipv6_v1_instance_url if use_ipv6 else ipv4_v1_instance_url
+        )
 
         oracle_ds._add_network_config_from_opc_imds(set_primary)
-        assert 2 == len(
+        num_configs_expected = 1 + int(secondary_mac_present)
+        assert num_configs_expected == len(
             oracle_ds._network_config["config"]
         ), "Config not added"
-        assert "" == caplog.text
+
+        # assert that secondary vnic config is skipped if its mac is not found
+        assert int(not secondary_mac_present) == caplog.text.count(
+            " not found; skipping"
+        )
+
+
+class TestHelpers:
+    @pytest.mark.parametrize(
+        [
+            "v2_response_code",
+            "v1_response_code",
+        ],
+        [
+            pytest.param(200, 0, id="v2_success"),
+            pytest.param(404, 200, id="v2_fail_v1_success"),
+            pytest.param(404, 404, id="both_fail"),
+        ],
+    )
+    def test_check_ipv6_connectivity(
+        self,
+        v2_response_code,
+        v1_response_code,
+        mocker,
+        caplog,
+    ):
+        """
+        Test all possible combinations of responses from the two IMDS endpoints
+        and ensure that
+        """
+        v2_response = Response()
+        v2_response.status_code = v2_response_code
+        v1_response = Response()
+        v1_response.status_code = v1_response_code
+
+        v2_url_response = UrlResponse(response=v2_response)
+        v1_url_response = UrlResponse(response=v1_response)
+
+        mocker.patch(
+            DS_PATH + ".readurl",
+            side_effect=[
+                v2_url_response,
+                v1_url_response,
+            ],
+        )
+        # assert that the mock is working as expected
+        # assert v2_response_code == oracle.readurl("url1").status
+        # assert v1_response_code == oracle.readurl("url2").status
+
+        # with mock.patch(DS_PATH + ".wait_for_url", side_effect=m_wait):
+
+        if v2_response_code == 200:
+            expected_url = oracle.IPV6_METADATA_PATTERN.format(
+                version=2, path="instance"
+            )
+        elif v1_response_code == 200:
+            expected_url = oracle.IPV6_METADATA_PATTERN.format(
+                version=1, path="instance"
+            )
+        else:
+            expected_url = None
+
+        assert expected_url == oracle.check_ipv6_connectivity()
+
+        # if both error codes are >= 400, then assert log message
+        if v2_response_code >= 400 and v1_response_code >= 400:
+            assert (
+                logging.DEBUG,
+                "IMDS could not be reached over IPv6.",
+            ) == caplog.record_tuples[-1][1:]
+
+    @pytest.mark.parametrize(
+        [
+            "url",
+            "expected_base_url",
+            "raises_exception",
+        ],
+        [
+            pytest.param(
+                None,
+                None,
+                None,
+                id="None",
+            ),
+            pytest.param(
+                "",
+                "",
+                None,
+                id="empty",
+            ),
+            pytest.param(
+                "http://url.tld/v2/instance/",
+                "http://url.tld/v2/",
+                None,
+                id="v2",
+            ),
+            pytest.param(
+                "http://url.tld/v1/instance/",
+                "http://url.tld/v1/",
+                None,
+                id="v1",
+            ),
+            pytest.param(
+                "http://url.tld/v3/instance/",
+                None,
+                ValueError,
+                id="v3_error",
+            ),
+            pytest.param(
+                "http://localhost:12345/v1/instance/vnics/a/b/c",
+                "http://localhost:12345/v1/",
+                None,
+                id="v1_many_parts_with_host_and_ports",
+            ),
+        ],
+    )
+    def test_get_versioned_metadata_base_url(
+        self,
+        url,
+        expected_base_url,
+        raises_exception,
+    ):
+        """
+        Test that the correct base URL is returned from the given URL, or that
+        the expected exception is raised if the URL is not valid.
+        """
+        if raises_exception:
+            with pytest.raises(raises_exception):
+                oracle._get_versioned_metadata_base_url(url)
+        else:
+            assert (
+                expected_base_url
+                == oracle._get_versioned_metadata_base_url(url)
+            )
