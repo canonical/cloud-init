@@ -757,14 +757,16 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def get_public_ssh_keys(self):
         return normalize_pubkey_data(self.metadata.get("public-keys"))
 
-    def publish_host_keys(self, hostkeys):
+    def publish_host_keys(self, hostkeys) -> bool:
         """Publish the public SSH host keys (found in /etc/ssh/*.pub).
 
         @param hostkeys: List of host key tuples (key_type, key_value),
             where key_type is the first field in the public key file
             (e.g. 'ssh-rsa') and key_value is the key itself
             (e.g. 'AAAAB3NzaC1y...').
+        @return: True if publishing host keys succeeded, otherwise False
         """
+        return True
 
     def _remap_device(self, short_name):
         # LP: #611137
@@ -1165,7 +1167,7 @@ def convert_vendordata(data, recurse=True):
     raise ValueError("Unknown data type for vendordata: %s" % type(data))
 
 
-class BrokenMetadata(IOError):
+class BrokenMetadata(OSError):
     pass
 
 
@@ -1208,9 +1210,17 @@ def pkl_load(fname: str) -> Optional[DataSource]:
     pickle_contents = None
     try:
         pickle_contents = util.load_binary_file(fname)
-    except Exception as e:
+    except OSError as e:
         if os.path.isfile(fname):
             LOG.warning("failed loading pickle in %s: %s", fname, e)
+    except Exception as e:
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception while reading pickle file: %s",
+            args=e,
+        )
 
     # This is allowed so just return nothing successfully loaded...
     if not pickle_contents:

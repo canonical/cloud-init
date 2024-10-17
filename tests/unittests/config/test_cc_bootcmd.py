@@ -84,22 +84,20 @@ class TestBootcmd(CiTestCase):
             str(context_manager.exception),
         )
 
-    def test_handler_runs_bootcmd_script_with_error(self):
-        """When a valid script generates an error, that error is raised."""
+    def test_handler_creates_and_runs_bootcmd_script_with_instance_id(self):
+        """Valid schema runs a bootcmd script with INSTANCE_ID in the env."""
         cc = get_cloud()
-        valid_config = {"bootcmd": ["exit 1"]}  # Script with error
+        out_file = self.tmp_path("bootcmd.out", self.new_root)
+        my_id = "b6ea0f59-e27d-49c6-9f87-79f19765a425"
+        valid_config = {
+            "bootcmd": ["echo {0} $INSTANCE_ID > {1}".format(my_id, out_file)]
+        }
 
         with mock.patch(self._etmpfile_path, FakeExtendedTempFile):
             with self.allow_subp(["/bin/sh"]):
-                with self.assertRaises(subp.ProcessExecutionError) as ctxt:
-                    handle("does-not-matter", valid_config, cc, [])
-        self.assertIn(
-            "Unexpected error while running command.\nCommand: ['/bin/sh',",
-            str(ctxt.exception),
-        )
-        self.assertIn(
-            "Failed to run bootcmd module does-not-matter",
-            self.logs.getvalue(),
+                handle("cc_bootcmd", valid_config, cc, [])
+        self.assertEqual(
+            my_id + " iid-datasource-none\n", util.load_text_file(out_file)
         )
 
 

@@ -6,7 +6,7 @@ import logging
 from datetime import datetime
 from typing import Optional
 
-from cloudinit import version
+from cloudinit import lifecycle, version
 from cloudinit.reporting import handlers, instantiated_handler_registry
 from cloudinit.sources.azure import errors, identity
 
@@ -42,8 +42,17 @@ def report_failure_to_host(error: errors.ReportableError) -> bool:
 def report_success_to_host() -> bool:
     try:
         vm_id = identity.query_vm_id()
-    except Exception as id_error:
-        vm_id = f"failed to read vm id: {id_error!r}"
+    except (RuntimeError, OSError, ValueError) as e:
+        vm_id = f"failed to read vm id: {e!r}"
+    except Exception as e:
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception while querying VM ID: %s",
+            args=e,
+        )
+        vm_id = f"failed to read vm id: {e!r}"
 
     report = errors.encode_report(
         [

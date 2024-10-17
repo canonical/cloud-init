@@ -7,7 +7,7 @@ import json
 import logging
 from base64 import b64decode
 
-from cloudinit import dmi, net, sources, url_helper, util
+from cloudinit import dmi, lifecycle, net, sources, url_helper, util
 from cloudinit.distros import ug_util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import NoDHCPLeaseError
@@ -109,12 +109,18 @@ class DataSourceGCE(sources.DataSource):
                                 url_params=url_params,
                             )
                         except Exception as e:
-                            LOG.debug(
-                                "Error fetching IMD with candidate NIC %s: %s",
-                                candidate_nic,
-                                e,
+                            lifecycle.log_with_downgradable_level(
+                                logger=LOG,
+                                version="24.4",
+                                requested_level=logging.WARN,
+                                msg=(
+                                    "Error fetching IMD with candidate NIC "
+                                    f"{candidate_nic}: %s"
+                                ),
+                                args=e,
                             )
                             continue
+
                 except NoDHCPLeaseError:
                     continue
                 if ret["success"]:
@@ -151,8 +157,12 @@ class DataSourceGCE(sources.DataSource):
         return _parse_public_keys(public_keys_data, self.default_user)
 
     def publish_host_keys(self, hostkeys):
+        any_failed = False
         for key in hostkeys:
-            _write_host_key_to_guest_attributes(*key)
+            success = _write_host_key_to_guest_attributes(*key)
+            if not success:
+                any_failed = True
+        return any_failed
 
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         # GCE has long FDQN's and has asked for short hostnames.
@@ -173,7 +183,7 @@ class DataSourceGCELocal(DataSourceGCE):
     perform_dhcp_setup = True
 
 
-def _write_host_key_to_guest_attributes(key_type, key_value):
+def _write_host_key_to_guest_attributes(key_type, key_value) -> bool:
     url = "%s/%s/%s" % (GUEST_ATTRIBUTES_URL, HOSTKEY_NAMESPACE, key_type)
     key_value = key_value.encode("utf-8")
     resp = url_helper.readurl(
@@ -185,8 +195,10 @@ def _write_host_key_to_guest_attributes(key_type, key_value):
     )
     if resp.ok():
         LOG.debug("Wrote %s host key to guest attributes.", key_type)
+        return True
     else:
-        LOG.debug("Unable to write %s host key to guest attributes.", key_type)
+        LOG.info("Unable to write %s host key to guest attributes.", key_type)
+        return False
 
 
 def _has_expired(public_key):

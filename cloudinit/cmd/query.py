@@ -19,7 +19,6 @@ import argparse
 import logging
 import os
 import sys
-from errno import EACCES
 
 from cloudinit import atomic_helper, util
 from cloudinit.cmd.devel import read_cfg_paths
@@ -147,7 +146,7 @@ def _read_instance_data(instance_data, user_data, vendor_data) -> dict:
     Non-root users will have redacted INSTANCE_JSON_FILE content and redacted
     vendordata and userdata values.
 
-    :raise: IOError/OSError on absence of instance-data.json file or invalid
+    :raise: OSError on absence of instance-data.json file or invalid
         access perms.
     """
     uid = os.getuid()
@@ -181,11 +180,11 @@ def _read_instance_data(instance_data, user_data, vendor_data) -> dict:
 
     try:
         instance_json = util.load_text_file(instance_data_fn)
-    except (IOError, OSError) as e:
-        if e.errno == EACCES:
-            LOG.error("No read permission on '%s'. Try sudo", instance_data_fn)
-        else:
-            LOG.error("Missing instance-data file: %s", instance_data_fn)
+    except PermissionError:
+        LOG.error("No read permission on '%s'. Try sudo", instance_data_fn)
+        raise
+    except OSError:
+        LOG.error("Missing instance-data file: %s", instance_data_fn)
         raise
 
     instance_data = util.load_json(instance_json)
@@ -193,7 +192,7 @@ def _read_instance_data(instance_data, user_data, vendor_data) -> dict:
         combined_cloud_config = util.load_json(
             util.load_text_file(combined_cloud_config_fn)
         )
-    except (IOError, OSError):
+    except OSError:
         # File will not yet be present in init-local stage.
         # It's created in `init` when vendor-data and user-data are processed.
         combined_cloud_config = None
@@ -274,7 +273,7 @@ def handle_args(name, args):
         instance_data = _read_instance_data(
             args.instance_data, args.user_data, args.vendor_data
         )
-    except (IOError, OSError):
+    except OSError:
         return 1
     if args.format:
         payload = "## template: jinja\n{fmt}".format(fmt=args.format)

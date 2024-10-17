@@ -225,7 +225,7 @@ class DataSourceScaleway(sources.DataSource):
         resp = url_helper.readurl(
             self.metadata_url, timeout=self.timeout, retries=self.retries
         )
-        self.metadata = json.loads(util.decode_binary(resp.contents))
+        self.metadata = json.loads(resp.contents)
 
         self.userdata_raw = query_data_api(
             "user-data", self.userdata_url, self.retries, self.timeout

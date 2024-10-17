@@ -27,7 +27,15 @@ import os
 import socket
 import time
 
-from cloudinit import atomic_helper, dmi, net, netinfo, sources, util
+from cloudinit import (
+    atomic_helper,
+    dmi,
+    lifecycle,
+    net,
+    netinfo,
+    sources,
+    util,
+)
 from cloudinit.log import loggers
 from cloudinit.sources.helpers.vmware.imc import guestcust_util
 from cloudinit.subp import ProcessExecutionError, subp, which
@@ -1064,8 +1072,15 @@ def main():
     """
     try:
         loggers.setup_basic_logging()
-    except Exception:
-        pass
+    except Exception as e:
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception while setting up logging: %s",
+            args=e,
+        )
+
     metadata = {
         WAIT_ON_NETWORK: {
             WAIT_ON_NETWORK_IPV4: True,

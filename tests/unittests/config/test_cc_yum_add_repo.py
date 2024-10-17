@@ -45,7 +45,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         cc_yum_add_repo.handle("yum_add_repo", cfg, None, [])
         self.assertRaises(
-            IOError, util.load_text_file, "/etc/yum.repos.d/epel_testing.repo"
+            OSError, util.load_text_file, "/etc/yum.repos.d/epel_testing.repo"
         )
 
     def test_metalink_config(self):

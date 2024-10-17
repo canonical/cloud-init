@@ -62,12 +62,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         cfg, "ssh_key_console_blacklist", []
     )
 
-    try:
-        cmd = [helper_path, ",".join(fp_blacklist), ",".join(key_blacklist)]
-        (stdout, _stderr) = subp.subp(cmd)
-        log_util.multi_log(
-            "%s\n" % (stdout.strip()), stderr=False, console=True
-        )
-    except Exception:
-        LOG.warning("Writing keys to the system console failed!")
-        raise
+    cmd = [helper_path, ",".join(fp_blacklist), ",".join(key_blacklist)]
+    stdout, _stderr = subp.subp(cmd)
+    log_util.multi_log("%s\n" % (stdout.strip()), stderr=False, console=True)

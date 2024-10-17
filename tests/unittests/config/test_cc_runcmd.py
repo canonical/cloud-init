@@ -50,21 +50,23 @@ class TestRuncmd(FilesystemMockingTestCase):
         cls.side_effect = TypeError("patched shellify")
         valid_config = {"runcmd": ["echo 42"]}
         cc = get_cloud(paths=self.paths)
-        with self.assertRaises(TypeError) as cm:
+        with self.assertRaises(TypeError):
             with self.allow_subp(["/bin/sh"]):
                 handle("cc_runcmd", valid_config, cc, None)
-        self.assertIn("Failed to shellify", str(cm.exception))
+        self.assertIn(
+            "Failed to shellify",
+            self.logs.getvalue(),
+        )
 
     def test_handler_invalid_command_set(self):
         """Commands which can't be converted to shell will raise errors."""
         invalid_config = {"runcmd": 1}
         cc = get_cloud(paths=self.paths)
-        with self.assertRaises(TypeError) as cm:
+        with self.assertRaises(TypeError):
             handle("cc_runcmd", invalid_config, cc, [])
         self.assertIn(
-            "Failed to shellify 1 into file"
-            " /var/lib/cloud/instances/iid-datasource-none/scripts/runcmd",
-            str(cm.exception),
+            "Failed to shellify",
+            self.logs.getvalue(),
         )
 
     def test_handler_write_valid_runcmd_schema_to_file(self):

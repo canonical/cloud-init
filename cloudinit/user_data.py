@@ -15,7 +15,9 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.nonmultipart import MIMENonMultipart
 from email.mime.text import MIMEText
 
-from cloudinit import features, handlers, util
+import yaml
+
+from cloudinit import features, handlers, lifecycle, util
 from cloudinit.url_helper import UrlError, read_file_or_url
 
 LOG = logging.getLogger(__name__)
@@ -177,8 +179,17 @@ class UserDataProcessor:
                 payload = util.load_yaml(msg.get_payload(decode=True))
                 if payload:
                     payload_idx = payload.get("launch-index")
-            except Exception:
+            except yaml.YAMLError:
                 pass
+            except Exception as e:
+                lifecycle.log_with_downgradable_level(
+                    logger=LOG,
+                    version="24.4",
+                    requested_level=logging.WARN,
+                    msg="Unhandled exception getting launch-index: %s",
+                    args=e,
+                )
+
         # Header overrides contents, for now (?) or the other way around?
         if header_idx is not None:
             payload_idx = header_idx
@@ -261,7 +272,7 @@ class UserDataProcessor:
                     if include_url not in message:
                         message += " for url: {0}".format(include_url)
                     _handle_error(message, urle)
-                except IOError as ioe:
+                except OSError as ioe:
                     error_message = "Fetching from {} resulted in {}".format(
                         include_url, ioe
                     )

@@ -12,7 +12,6 @@ This file contains code used to gather the user data passed to an
 instance on RHEVm and vSphere.
 """
 
-import errno
 import logging
 import os
 import os.path
@@ -59,10 +58,10 @@ def read_user_data_callback(mount_dir):
     # First try deltacloud_user_data_file. On failure try user_data_file.
     try:
         user_data = util.load_text_file(deltacloud_user_data_file).strip()
-    except IOError:
+    except OSError:
         try:
             user_data = util.load_text_file(user_data_file).strip()
-        except IOError:
+        except OSError:
             util.logexc(LOG, "Failed accessing user data file.")
             return None
 
@@ -109,7 +108,7 @@ class DataSourceAltCloud(sources.DataSource):
                 cloud_type = (
                     util.load_text_file(CLOUD_INFO_FILE).strip().upper()
                 )
-            except IOError:
+            except OSError:
                 util.logexc(
                     LOG,
                     "Unable to access cloud info file at %s.",
@@ -213,9 +212,8 @@ class DataSourceAltCloud(sources.DataSource):
 
         try:
             return_str = util.mount_cb(floppy_dev, read_user_data_callback)
-        except OSError as err:
-            if err.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
+            pass
         except util.MountFailedError:
             util.logexc(
                 LOG,
@@ -253,9 +251,8 @@ class DataSourceAltCloud(sources.DataSource):
                 if return_str:
                     self.source = cdrom_dev
                     break
-            except OSError as err:
-                if err.errno != errno.ENOENT:
-                    raise
+            except FileNotFoundError:
+                pass
             except util.MountFailedError:
                 util.logexc(
                     LOG,
