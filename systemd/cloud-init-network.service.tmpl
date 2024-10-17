@@ -9,7 +9,9 @@ Wants=cloud-init-local.service
 Wants=sshd-keygen.service
 Wants=sshd.service
 After=cloud-init-local.service
+{% if variant not in ["ubuntu"] %}
 After=systemd-networkd-wait-online.service
+{% endif %}
 {% if variant in ["ubuntu", "unknown", "debian"] %}
 After=networking.service
 {% endif %}
