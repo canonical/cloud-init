@@ -346,6 +346,8 @@ system_info:
 {% if variant in ["debian", "ubuntu", "unknown"] %}
   # Automatically discover the best ntp_client
   ntp_client: auto
+{% elif variant == "raspberry-pi-os" %}
+  ntp_client: 'systemd-timesyncd'
 {% endif %}
 {% if variant in ["alpine", "amazon", "aosc", "arch", "azurelinux", "debian", "fedora",
                   "gentoo", "mariner", "OpenCloudOS", "openeuler",
