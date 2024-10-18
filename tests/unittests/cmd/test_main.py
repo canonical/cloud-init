@@ -266,9 +266,9 @@ class TestMain:
             (mock.Mock(), "#cloud-config\nbootcmd:\necho hello", True),
             # Non-cloud-config
             (mock.Mock(), "#!/bin/bash\n  - echo hello", True),
-            # Something that won't decode to utf-8
+            # Something that after processing won't decode to utf-8
             (mock.Mock(), "RANDOM100", True),
-            # Something small that shouldn't decode to utf-8
+            # Something small that  after processing won't decode to utf-8
             (mock.Mock(), "RANDOM5", True),
         ],
     )
