@@ -30,6 +30,7 @@ from tests.integration_tests.util import (
     get_feature_flag_value,
     get_inactive_modules,
     lxd_has_nocloud,
+    network_wait_logged,
     verify_clean_boot,
     verify_ordered_items_in_text,
 )
@@ -553,6 +554,13 @@ class TestCombined:
     def test_unicode(self, class_client: IntegrationInstance):
         client = class_client
         assert "💩" == client.read_from_file("/var/tmp/unicode_data")
+
+    @pytest.mark.skipif(not IS_UBUNTU, reason="Ubuntu-only behavior")
+    def test_networkd_wait_online(self, class_client: IntegrationInstance):
+        client = class_client
+        assert not network_wait_logged(
+            client.read_from_file("/var/log/cloud-init.log")
+        )
 
 
 @pytest.mark.user_data(USER_DATA)

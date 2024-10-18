@@ -1,7 +1,12 @@
 .. _yaml_examples:
 
-Cloud config examples
-*********************
+All cloud config examples
+*************************
+
+.. note::
+   This page is a summary containing all the cloud config YAML examples
+   together. If you would like to explore examples by operation or process
+   instead, refer to the :ref:`examples library <examples_library>`.
 
 Including users and groups
 ==========================
@@ -150,3 +155,4 @@ Create partitions and filesystems
 .. _chef: http://www.chef.io/chef/
 .. _puppet: http://puppetlabs.com/
 .. _ansible: https://docs.ansible.com/ansible/latest/
+
