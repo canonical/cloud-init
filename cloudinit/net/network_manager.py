@@ -335,17 +335,57 @@ class NMConnection:
         # to NetworkManager properties
         # NOTE: Please ensure these items are formatted so as
         # to match the schema in schema-network-config-v1.json
+        #
+        # Supported parameters
+        # https://networkmanager.dev/docs/libnm/latest/NMSettingBond.html#NMSettingBond.other
+        # https://www.kernel.org/doc/Documentation/networking/bonding.txt
         _prop_map = {
             "bond": {
                 "mode": "bond-mode",
                 "miimon": "bond-miimon",
+                # only in balance-xor(2), 802.3ad(4), balance-tlb(5)
                 "xmit_hash_policy": "bond-xmit_hash_policy",
+                # only in active-backup(1)
                 "num_grat_arp": "bond-num_grat_arp",
                 "downdelay": "bond-downdelay",
                 "updelay": "bond-updelay",
                 "fail_over_mac": "bond-fail_over_mac",
+                # only in active-backup(1), balance-tlb(5), balance-alb(6)
                 "primary_reselect": "bond-primary_reselect",
+                # only in active-backup(1), balance-tlb(5), balance-alb(6)
                 "primary": "bond-primary",
+                # only in active-backup(1), balance-tlb(5), balance-alb(6)
+                "active_slave": "bond-active_slave",
+                # only in 802.3ad(4)
+                "ad_actor_sys_prio": "bond-ad_actor_sys_prio",
+                # only in 802.3ad(4)
+                "ad_actor_system": "bond-ad_actor_system",
+                # only in 802.3ad(4)
+                "ad_select": "bond-ad_select",
+                # only in 802.3ad(4)
+                "ad_user_port_key": "bond-ad_user_port_key",
+                "all_slaves_active": "bond-all_slaves_active",
+                "arp_all_targets": "bond-arp_all_targets",
+                "arp_interval": "bond-arp_interval",
+                "arp_ip_target": "bond-arp_ip_target",
+                "arp_validate": "bond-arp_validate",
+                # only in 802.3ad(4)
+                "lacp_rate": "bond-lacp_rate",
+                # only in balance-tlb(5), balance-alb(6)
+                "lp_interval": "bond-lp_interval",
+                # only in 802.3ad(4)
+                "min_links": "bond-min_links",
+                # only in active-backup(1)
+                "num_unsol_na": "bond-num_unsol_na",
+                # only in balance-rr(0)
+                "packets_per_slave": "bond-packets_per_slave",
+                # only in active-backup(1)
+                "peer_notif_delay": "bond-peer_notif_delay",
+                # only in active-backup(1), balance rr(0), tlb(5), alb(6)
+                "resend_igmp": "bond-resend_igmp",
+                # only in balance-tlb(5)
+                "tlb_dynamic_lb": "bond-tlb_dynamic_lb",
+                "use_carrier": "bond-use_carrier",
             },
             "bridge": {
                 "stp": "bridge_stp",
@@ -535,11 +575,13 @@ class Renderer(renderer.Renderer):
         # interfaces that have UUIDs that can be linked to from related
         # interfaces
         for iface in network_state.iter_interfaces():
-            self.connections[iface["name"]] = NMConnection(iface["name"])
+            conn_key = iface.get("config_id") or iface["name"]
+            self.connections[conn_key] = NMConnection(iface["name"])
 
         # Now render the actual interface configuration
         for iface in network_state.iter_interfaces():
-            conn = self.connections[iface["name"]]
+            conn_key = iface.get("config_id") or iface["name"]
+            conn = self.connections[conn_key]
             conn.render_interface(iface, network_state, self)
 
         # And finally write the files

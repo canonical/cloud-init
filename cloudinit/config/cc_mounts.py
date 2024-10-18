@@ -27,7 +27,7 @@ meta: MetaSchema = {
     "distros": ["all"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": [],
-}  # type: ignore
+}
 
 # Shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1, sr0
 DEVICE_NAME_FILTER = r"^([x]{0,1}[shv]d[a-z][0-9]*|sr[0-9]+)$"

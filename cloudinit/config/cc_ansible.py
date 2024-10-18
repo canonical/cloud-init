@@ -22,7 +22,7 @@ meta: MetaSchema = {
     "frequency": PER_INSTANCE,
     "distros": [ALL_DISTROS],
     "activate_by_schema_keys": ["ansible"],
-}  # type: ignore
+}
 
 LOG = logging.getLogger(__name__)
 CFG_OVERRIDE = "ansible_config"

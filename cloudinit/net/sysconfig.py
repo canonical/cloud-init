@@ -6,7 +6,7 @@ import io
 import logging
 import os
 import re
-from typing import Mapping, Optional
+from typing import Dict, Optional
 
 from cloudinit import subp, util
 from cloudinit.distros.parsers import networkmanager_conf, resolv_conf
@@ -205,7 +205,7 @@ class Route(ConfigMap):
                 )
                 metric_key = "METRIC" + index
                 if metric_key in self._conf:
-                    metric_value = str(self._conf["METRIC" + index])
+                    metric_value = str(self._conf[metric_key])
                     buf.write(
                         "%s=%s\n"
                         % ("METRIC" + str(reindex), _quote_value(metric_value))
@@ -548,7 +548,12 @@ class Renderer(renderer.Renderer):
             subnet_type = subnet.get("type")
             # metric may apply to both dhcp and static config
             if "metric" in subnet:
-                if flavor != "suse":
+                if flavor == "rhel":
+                    if subnet_is_ipv6(subnet):
+                        iface_cfg["IPV6_ROUTE_METRIC"] = subnet["metric"]
+                    else:
+                        iface_cfg["IPV4_ROUTE_METRIC"] = subnet["metric"]
+                elif flavor != "suse":
                     iface_cfg["METRIC"] = subnet["metric"]
             if subnet_type in ["dhcp", "dhcp4"]:
                 # On SUSE distros 'DHCLIENT_SET_DEFAULT_ROUTE' is a global
@@ -655,7 +660,17 @@ class Renderer(renderer.Renderer):
                             iface_cfg["GATEWAY"] = route["gateway"]
                             route_cfg.has_set_default_ipv4 = True
                     if "metric" in route:
-                        iface_cfg["METRIC"] = route["metric"]
+                        if flavor == "rhel":
+                            if subnet_is_ipv6(subnet):
+                                iface_cfg["IPV6_ROUTE_METRIC"] = route[
+                                    "metric"
+                                ]
+                            else:
+                                iface_cfg["IPV4_ROUTE_METRIC"] = route[
+                                    "metric"
+                                ]
+                        else:
+                            iface_cfg["METRIC"] = route["metric"]
 
                 else:
                     # add default routes only to ifcfg files, not
@@ -705,7 +720,7 @@ class Renderer(renderer.Renderer):
     ):
         physical_filter = renderer.filter_by_physical
         for iface in network_state.iter_interfaces(physical_filter):
-            iface_name = iface["name"]
+            iface_name = iface.get("config_id") or iface["name"]
             iface_subnets = iface.get("subnets", [])
             iface_cfg = iface_contents[iface_name]
             route_cfg = iface_cfg.routes
@@ -910,7 +925,9 @@ class Renderer(renderer.Renderer):
         return out
 
     @classmethod
-    def _render_bridge_interfaces(cls, network_state, iface_contents, flavor):
+    def _render_bridge_interfaces(
+        cls, network_state: NetworkState, iface_contents, flavor
+    ):
         bridge_key_map = {
             old_k: new_k
             for old_k, new_k in cls.cfg_key_maps[flavor].items()
@@ -991,23 +1008,29 @@ class Renderer(renderer.Renderer):
 
     @classmethod
     def _render_sysconfig(
-        cls, base_sysconf_dir, network_state, flavor, templates=None
+        cls,
+        base_sysconf_dir,
+        network_state: NetworkState,
+        flavor,
+        templates=None,
     ):
         """Given state, return /etc/sysconfig files + contents"""
         if not templates:
             templates = cls.templates
-        iface_contents: Mapping[str, NetInterface] = {}
+        iface_contents: Dict[str, NetInterface] = {}
         for iface in network_state.iter_interfaces():
             if iface["type"] == "loopback":
                 continue
-            iface_name = iface["name"]
-            iface_cfg = NetInterface(iface_name, base_sysconf_dir, templates)
+            config_id: str = iface.get("config_id") or iface["name"]
+            iface_cfg = NetInterface(
+                iface["name"], base_sysconf_dir, templates
+            )
             if flavor == "suse":
                 iface_cfg.drop("DEVICE")
                 # If type detection fails it is considered a bug in SUSE
                 iface_cfg.drop("TYPE")
             cls._render_iface_shared(iface, iface_cfg, flavor)
-            iface_contents[iface_name] = iface_cfg
+            iface_contents[config_id] = iface_cfg
         cls._render_physical_interfaces(network_state, iface_contents, flavor)
         cls._render_bond_interfaces(network_state, iface_contents, flavor)
         cls._render_vlan_interfaces(network_state, iface_contents, flavor)

@@ -100,7 +100,7 @@ meta: MetaSchema = {
     "distros": distros,
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["ca_certs", "ca-certs"],
-}  # type: ignore
+}
 
 
 def _distro_ca_certs_configs(distro_name):

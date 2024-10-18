@@ -22,7 +22,7 @@ meta: MetaSchema = {
     "distros": ["ubuntu"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["ubuntu_pro"] + list(DEPRECATED_KEYS),
-}  # type: ignore
+}
 
 LOG = logging.getLogger(__name__)
 REDACTED = "REDACTED"

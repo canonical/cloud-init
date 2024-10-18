@@ -76,7 +76,7 @@ class StatusDetails(NamedTuple):
     recoverable_errors: Dict[str, List[str]]
     last_update: str
     datasource: Optional[str]
-    v1: Dict[str, Dict]
+    v1: Dict[str, Any]
 
 
 TABULAR_LONG_TMPL = """\

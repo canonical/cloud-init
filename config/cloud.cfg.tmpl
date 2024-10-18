@@ -70,7 +70,6 @@ mount_default_fields: [~, ~, 'auto', 'defaults,nofail', '0', '2']
 resize_rootfs: noblock
 {% endif %}
 {% if variant not in ["photon"] %}
-resize_rootfs_tmp: /dev
 ssh_pwauth: false
 {% endif %}
 {% endif %}

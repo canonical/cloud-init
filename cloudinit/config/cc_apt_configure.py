@@ -44,7 +44,7 @@ meta: MetaSchema = {
     "distros": ["ubuntu", "debian"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": [],
-}  # type: ignore
+}
 
 
 # place where apt stores cached repository data

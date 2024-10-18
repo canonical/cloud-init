@@ -29,7 +29,7 @@ meta: MetaSchema = {
     "distros": supported_distros,
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["keyboard"],
-}  # type: ignore
+}
 
 
 LOG = logging.getLogger(__name__)

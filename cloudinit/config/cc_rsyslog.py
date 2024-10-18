@@ -15,7 +15,6 @@ import copy
 import logging
 import os
 import re
-from textwrap import dedent
 
 from cloudinit import lifecycle, subp, util
 from cloudinit.cloud import Cloud
@@ -29,46 +28,8 @@ meta: MetaSchema = {
     "id": "cc_rsyslog",
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
-    "examples": [
-        dedent(
-            """\
-            rsyslog:
-                remotes:
-                    maas: 192.168.1.1
-                    juju: 10.0.4.1
-                service_reload_command: auto
-            """
-        ),
-        dedent(
-            """\
-            rsyslog:
-                config_dir: /opt/etc/rsyslog.d
-                config_filename: 99-late-cloud-config.conf
-                configs:
-                    - "*.* @@192.158.1.1"
-                    - content: "*.*   @@192.0.2.1:10514"
-                      filename: 01-example.conf
-                    - content: |
-                        *.*   @@syslogd.example.com
-                remotes:
-                    maas: 192.168.1.1
-                    juju: 10.0.4.1
-                service_reload_command: [your, syslog, restart, command]
-            """
-        ),
-        dedent(
-            """\
-            # default (no) configuration with package installation on FreeBSD
-            rsyslog:
-                config_dir: /usr/local/etc/rsyslog.d
-                check_exe: "rsyslogd"
-                packages: ["rsyslogd"]
-                install_rsyslog: True
-            """
-        ),
-    ],
     "activate_by_schema_keys": ["rsyslog"],
-}  # type: ignore
+}
 
 RSYSLOG_CONFIG = {
     "config_dir": "/etc/rsyslog.d",
