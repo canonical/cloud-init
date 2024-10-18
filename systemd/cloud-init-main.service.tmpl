@@ -32,9 +32,7 @@ KillMode=process
 TasksMax=infinity
 TimeoutStartSec=infinity
 {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
-ExecStartPre=/bin/mkdir -p /run/cloud-init
 ExecStartPre=/sbin/restorecon /run/cloud-init
-ExecStartPre=/usr/bin/touch /run/cloud-init/enabled
 {% endif %}
 
 # Output needs to appear in instance console output

@@ -18,8 +18,6 @@ After=networking.service
 {% if variant in ["almalinux", "centos", "cloudlinux", "eurolinux", "fedora",
                   "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva", "rhel", "rocky",
                   "suse", "TencentOS", "virtuozzo"] %}
-
-After=network.service
 After=NetworkManager.service
 After=NetworkManager-wait-online.service
 {% endif %}
