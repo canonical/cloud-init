@@ -64,6 +64,8 @@ Modules
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_mounts/data.yaml
    :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_netplan_nm_patch/data.yaml
+   :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_ntp/data.yaml
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_package_update_upgrade_install/data.yaml
