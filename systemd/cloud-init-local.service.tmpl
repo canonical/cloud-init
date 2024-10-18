@@ -11,12 +11,11 @@ Before=network-pre.target
 Before=shutdown.target
 {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
 Before=firewalld.target
-Conflicts=shutdown.target
 {% endif %}
 {% if variant in ["ubuntu", "unknown", "debian"] %}
 Before=sysinit.target
-Conflicts=shutdown.target
 {% endif %}
+Conflicts=shutdown.target
 ConditionPathExists=!/etc/cloud/cloud-init.disabled
 ConditionKernelCommandLine=!cloud-init=disabled
 ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
