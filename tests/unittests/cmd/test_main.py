@@ -267,12 +267,20 @@ class TestMain:
             # Non-cloud-config
             (mock.Mock(), "#!/bin/bash\n  - echo hello", True),
             # Something that won't decode to utf-8
-            (mock.Mock(), os.urandom(100), True),
+            (mock.Mock(), "RANDOM100", True),
             # Something small that shouldn't decode to utf-8
-            (mock.Mock(), os.urandom(5), True),
+            (mock.Mock(), "RANDOM5", True),
         ],
     )
     def test_should_wait_on_network(self, ds, userdata, expected):
+        # pytest-xdist doesn't like randomness
+        # https://github.com/pytest-dev/pytest-xdist/issues/432
+        # So work around it with a super stupid hack
+        if userdata == "RANDOM100":
+            userdata = os.urandom(100)
+        elif userdata == "RANDOM5":
+            userdata = os.urandom(5)
+
         if ds:
             ds.get_userdata_raw = mock.Mock(return_value=userdata)
             ds.get_vendordata_raw = mock.Mock(return_value=None)
