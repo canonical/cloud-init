@@ -1,6 +1,6 @@
 ## template:jinja
 [Unit]
-# https://cloudinit.readthedocs.io/en/latest/explanation/boot.html
+# https://docs.cloud-init.io/en/latest/explanation/boot.html
 Description=Cloud-init: Network Stage
 {% if variant not in ["almalinux", "cloudlinux", "photon", "rhel"] %}
 DefaultDependencies=no
@@ -9,7 +9,9 @@ Wants=cloud-init-local.service
 Wants=sshd-keygen.service
 Wants=sshd.service
 After=cloud-init-local.service
+{% if variant not in ["ubuntu"] %}
 After=systemd-networkd-wait-online.service
+{% endif %}
 {% if variant in ["ubuntu", "unknown", "debian"] %}
 After=networking.service
 {% endif %}
@@ -53,7 +55,7 @@ Type=oneshot
 # process has completed this stage. The output from the return socket is piped
 # into a shell so that the process can send a completion message (defaults to
 # "done", otherwise includes an error message) and an exit code to systemd.
-ExecStart=sh -c 'echo "start" | nc.openbsd -Uu -W1 /run/cloud-init/share/network.sock -s /run/cloud-init/share/network-return.sock | sh'
+ExecStart=sh -c 'echo "start" | netcat -Uu -W1 /run/cloud-init/share/network.sock -s /run/cloud-init/share/network-return.sock | sh'
 RemainAfterExit=yes
 TimeoutSec=0
 

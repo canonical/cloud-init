@@ -7,7 +7,7 @@
 .. _GitHub: https://github.com
 .. _IRC: https://kiwiirc.com/nextclient/irc.libera.chat/cloud-init
 .. _Launchpad: https://launchpad.net
-.. _the docs: https://cloudinit.readthedocs.io/en/latest/
+.. _the docs: https://docs.cloud-init.io/en/latest/
 .. _tox: https://tox.readthedocs.io/en/latest/
 .. _Discourse: https://discourse.ubuntu.com/c/server/cloud-init/54
 .. _Github quickstart: https://docs.github.com/en/get-started/quickstart

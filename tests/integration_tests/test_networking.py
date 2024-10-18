@@ -15,10 +15,9 @@ from tests.integration_tests.releases import (
     CURRENT_RELEASE,
     IS_UBUNTU,
     JAMMY,
-    MANTIC,
     NOBLE,
 )
-from tests.integration_tests.util import verify_clean_log
+from tests.integration_tests.util import verify_clean_boot, verify_clean_log
 
 # Older Ubuntu series didn't read cloud-init.* config keys
 LXD_NETWORK_CONFIG_KEY = (
@@ -67,7 +66,7 @@ class TestNetplanGenerateBehaviorOnReboot:
         client.execute(
             "mv /var/log/cloud-init.log /var/log/cloud-init.log.bak"
         )
-        if CURRENT_RELEASE < MANTIC:
+        if CURRENT_RELEASE < JAMMY:
             assert (
                 "No netplan python module. Fallback to write"
                 " /etc/netplan/50-cloud-init.yaml" in log
@@ -199,7 +198,7 @@ def test_netplan_rendering(
     }
     with session_cloud.launch(launch_kwargs=launch_kwargs) as client:
         result = client.execute("cat /etc/netplan/50-cloud-init.yaml")
-        if CURRENT_RELEASE < MANTIC:
+        if CURRENT_RELEASE < JAMMY:
             assert result.stdout.startswith(EXPECTED_NETPLAN_HEADER)
         else:
             assert EXPECTED_NETPLAN_HEADER not in result.stdout
@@ -292,8 +291,8 @@ def test_invalid_network_v2_netplan(
             "config_dict": config_dict,
         }
     ) as client:
-        # Netplan python API only available on MANTIC and later
-        if CURRENT_RELEASE < MANTIC:
+        # Netplan python API only available on JAMMY and later
+        if CURRENT_RELEASE < JAMMY:
             assert (
                 "Skipping netplan schema validation. No netplan API available"
             ) in client.read_from_file("/var/log/cloud-init.log")
@@ -339,6 +338,7 @@ def test_ec2_multi_nic_reboot(setup_image, session_cloud: IntegrationCloud):
 
         log_content = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log_content)
+        verify_clean_boot(client)
 
         # SSH over primary and secondary NIC works
         for ip in public_ips:
@@ -459,6 +459,7 @@ def test_ec2_multi_network_cards(setup_image, session_cloud: IntegrationCloud):
 
             log_content = client.read_from_file("/var/log/cloud-init.log")
             verify_clean_log(log_content)
+            verify_clean_boot(client)
 
             # SSH over secondary NICs works
             subp("nc -w 5 -zv " + allocation_1["PublicIp"] + " 22", shell=True)

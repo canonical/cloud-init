@@ -181,15 +181,16 @@ class IntegrationInstance:
         self,
         source: CloudInitSource,
         clean=True,
+        pkg: str = integration_settings.CLOUD_INIT_PKG,
     ):
         if source == CloudInitSource.DEB_PACKAGE:
             self.install_deb()
         elif source == CloudInitSource.PPA:
-            self.install_ppa()
+            self.install_ppa(pkg)
         elif source == CloudInitSource.PROPOSED:
-            self.install_proposed_image()
+            self.install_proposed_image(pkg)
         elif source == CloudInitSource.UPGRADE:
-            self.upgrade_cloud_init()
+            self.upgrade_cloud_init(pkg)
         else:
             raise RuntimeError(
                 "Specified to install {} which isn't supported here".format(
@@ -201,8 +202,8 @@ class IntegrationInstance:
         if clean:
             self.instance.clean()
 
-    def install_proposed_image(self):
-        log.info("Installing proposed image")
+    def install_proposed_image(self, pkg: str):
+        log.info("Installing %s from -proposed", pkg)
         assert self.execute(
             'echo deb "http://archive.ubuntu.com/ubuntu '
             '$(lsb_release -sc)-proposed main" >> '
@@ -210,11 +211,11 @@ class IntegrationInstance:
         ).ok
         self._apt_update()
         assert self.execute(
-            "apt-get install -qy cloud-init -t=$(lsb_release -sc)-proposed"
+            f"apt-get install -qy {pkg} -t=$(lsb_release -sc)-proposed"
         ).ok
 
-    def install_ppa(self):
-        log.info("Installing PPA")
+    def install_ppa(self, pkg: str):
+        log.info("Installing %s from PPA", pkg)
         if self.execute("which add-apt-repository").failed:
             log.info("Installing missing software-properties-common package")
             self._apt_update()
@@ -223,18 +224,35 @@ class IntegrationInstance:
             ).ok
         pin_origin = self.settings.CLOUD_INIT_SOURCE[4:]  # Drop leading ppa:
         pin_origin = re.sub("[^a-z0-9-]", "-", pin_origin)
+        preferences = f"""\
+package: cloud-init
+Pin: release o=LP-PPA-{pin_origin}
+Pin-Priority: 1001
+
+package: cloud-init-base
+Pin: release o=LP-PPA-{pin_origin}
+Pin-Priority: 1001
+
+package: cloud-init-cloud-sigma
+Pin: release o=LP-PPA-{pin_origin}
+Pin-Priority: 1001
+
+package: cloud-init-smart-os
+Pin: release o=LP-PPA-{pin_origin}
+Pin-Priority: 1001"""
         self.write_to_file(
             "/etc/apt/preferences.d/cloud-init-integration-testing",
-            f"package: cloud-init\nPin: release o=LP-PPA-{pin_origin}\n"
-            "Pin-Priority: 1001\n",
+            preferences,
         )
         assert self.execute(
             "add-apt-repository {} -y".format(self.settings.CLOUD_INIT_SOURCE)
         ).ok
         # PIN this PPA as priority for cloud-init installs regardless of ver
-        assert self.execute(
-            "apt-get install -qy cloud-init --allow-downgrades"
-        ).ok
+        r = self.execute(
+            f"DEBIAN_FRONTEND=noninteractive"
+            f" apt-get install -qy {pkg} --allow-downgrades"
+        )
+        assert r.ok, r.stderr
 
     @retry(tries=30, delay=1)
     def install_deb(self):
@@ -255,10 +273,10 @@ class IntegrationInstance:
         ).ok
 
     @retry(tries=30, delay=1)
-    def upgrade_cloud_init(self):
-        log.info("Upgrading cloud-init to latest version in archive")
+    def upgrade_cloud_init(self, pkg: str):
+        log.info("Upgrading %s to latest version in archive", pkg)
         self._apt_update()
-        assert self.execute("apt-get install -qy cloud-init").ok
+        assert self.execute(f"apt-get install -qy {pkg}").ok
 
     def _apt_update(self):
         """Run an apt update.

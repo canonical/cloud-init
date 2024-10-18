@@ -33,7 +33,7 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["puppet"],
-}  # type: ignore
+}
 
 LOG = logging.getLogger(__name__)
 

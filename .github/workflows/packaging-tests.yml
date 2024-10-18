@@ -1,4 +1,4 @@
-name: Packaging Tests
+name: Packaging
 
 on:
   pull_request:
@@ -18,13 +18,15 @@ env:
 
 jobs:
   check-patches:
-    runs-on: ubuntu-22.04
+    name: Check patches
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           # Fetch all branches for merging
           fetch-depth: 0
+          ref: main
       - name: Prepare dependencies
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get update
@@ -34,14 +36,18 @@ jobs:
           echo 'QUILT_PATCHES=debian/patches' >> ~/.quiltrc
           echo 'QUILT_SERIES=debian/patches/series' >> ~/.quiltrc
 
-      - name: 'Daily recipe: quilt patches apply successfully and tests run'
+      - name: Configure git and merge
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git remote add upstream https://git.launchpad.net/cloud-init
-          git fetch upstream main
-          git checkout upstream/main
-          git merge ${{ github.sha }}
+          git merge "${{ github.event.pull_request.head.sha }}"
+
+      - name: Quilt patches apply successfully and tests run
+        run: |
+          if test -f debian/patches/series; then
+            echo "no patches, skipping"
+            exit 0
+          fi
           quilt push -a
           tox -e py3
           quilt pop -a

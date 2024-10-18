@@ -12,6 +12,7 @@ from tarfile import TarFile
 from typing import Dict, Generator, Iterator, List, Type
 
 import pytest
+from pycloudlib.cloud import ImageType
 from pycloudlib.lxd.instance import LXDInstance
 
 from tests.integration_tests import integration_settings
@@ -80,8 +81,15 @@ def session_cloud() -> Generator[IntegrationCloud, None, None]:
             f"{integration_settings.PLATFORM} is an invalid PLATFORM "
             f"specified in settings. Must be one of {list(platforms.keys())}"
         )
-
-    cloud = platforms[integration_settings.PLATFORM]()
+    image_types = [member.value for member in ImageType.__members__.values()]
+    try:
+        image_type = ImageType(integration_settings.OS_IMAGE_TYPE)
+    except ValueError:
+        raise ValueError(
+            f"{integration_settings.OS_IMAGE_TYPE} is an invalid OS_IMAGE_TYPE"
+            f" specified in settings. Must be one of {image_types}"
+        )
+    cloud = platforms[integration_settings.PLATFORM](image_type=image_type)
     cloud.emit_settings_to_log()
     yield cloud
     cloud.destroy()
@@ -315,6 +323,15 @@ def _client(
         yield instance
         test_failed = request.session.testsfailed - previous_failures > 0
         _collect_artifacts(instance, request.node.nodeid, test_failed)
+    # conflicting requirements:
+    # - pytest thinks that it can cleanup loggers after tests run
+    # - pycloudlib thinks that at garbage collection is a good place to tear
+    #   down sftp connections
+    # After the final test runs, pytest might clean up loggers which will cause
+    # paramiko to barf when it logs that the connection is being closed.
+    #
+    # Manually run __del__() to prevent this teardown mess.
+    instance.instance.__del__()
 
 
 @pytest.fixture

@@ -14,6 +14,7 @@ from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
+from cloudinit.log import log_util
 from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS
@@ -22,7 +23,7 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": frequency,
     "activate_by_schema_keys": [],
-}  # type: ignore
+}
 
 LOG = logging.getLogger(__name__)
 
@@ -57,7 +58,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             "datasource": str(cloud.datasource),
         }
         subs.update(dict([(k.upper(), v) for k, v in subs.items()]))
-        util.multi_log(
+        log_util.multi_log(
             "%s\n" % (templater.render_string(msg_in, subs)),
             console=False,
             stderr=True,

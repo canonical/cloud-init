@@ -11,8 +11,8 @@ import signal
 import sys
 from io import StringIO
 
-from cloudinit import util
 from cloudinit import version as vr
+from cloudinit.log import log_util
 
 LOG = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ def _handle_exit(signum, frame):
     contents = StringIO()
     contents.write("%s\n" % (msg))
     _pprint_frame(frame, 1, BACK_FRAME_TRACE_DEPTH, contents)
-    util.multi_log(contents.getvalue(), log=LOG, log_level=logging.ERROR)
+    log_util.multi_log(contents.getvalue(), log=LOG, log_level=logging.ERROR)
     sys.exit(rc)
 
 

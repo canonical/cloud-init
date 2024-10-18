@@ -827,7 +827,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
         assert retcode == 0
         assert sleep_calls == 4
         out, _err = capsys.readouterr()
-        assert out == "....\nstatus: done\n"
+        assert out == "....status: done\n"
 
     @mock.patch(M_PATH + "read_cfg_paths")
     @mock.patch(
@@ -884,7 +884,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
         assert retcode == 1
         assert sleep_calls == 4
         out, _err = capsys.readouterr()
-        assert out == "....\nstatus: error\n"
+        assert out == "....status: error\n"
 
     @mock.patch(M_PATH + "read_cfg_paths")
     @mock.patch(

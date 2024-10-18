@@ -2,6 +2,7 @@
 
 import copy
 import logging
+import string
 from unittest import mock
 
 import pytest
@@ -36,7 +37,7 @@ SERVICE_RESTART_CALL = mock.call(
 @pytest.fixture(autouse=True)
 def common_fixtures(mocker):
     mocker.patch("cloudinit.distros.uses_systemd", return_value=True)
-    mocker.patch("cloudinit.util.write_to_console")
+    mocker.patch("cloudinit.log.log_util.write_to_console")
 
 
 class TestHandleSSHPwauth:
@@ -268,7 +269,7 @@ class TestSetPasswordsHandle:
     )
     def test_random_passwords(self, user_cfg, mocker, caplog):
         """handle parses command set random passwords."""
-        m_multi_log = mocker.patch(f"{MODPATH}util.multi_log")
+        m_multi_log = mocker.patch(f"{MODPATH}log_util.multi_log")
         mocker.patch(f"{MODPATH}subp.subp")
 
         cloud = get_cloud()
@@ -557,6 +558,43 @@ class TestExpire:
         else:
             assert m_expire.call_args_list == []
             assert "Expired passwords" not in caplog.text
+
+
+class TestRandUserPassword:
+    def _get_str_class_num(self, str):
+        return sum(
+            [
+                any(c.islower() for c in str),
+                any(c.isupper() for c in str),
+                any(c.isupper() for c in str),
+                any(c in string.punctuation for c in str),
+            ]
+        )
+
+    @pytest.mark.parametrize(
+        "strlen, expected_result",
+        [
+            (1, ValueError),
+            (2, ValueError),
+            (3, ValueError),
+            (4, 4),
+            (5, 4),
+            (5, 4),
+            (6, 4),
+            (20, 4),
+        ],
+    )
+    def test_rand_user_password(self, strlen, expected_result):
+        if expected_result is ValueError:
+            with pytest.raises(
+                expected_result,
+                match="Password length must be at least 4 characters.",
+            ):
+                setpass.rand_user_password(strlen)
+        else:
+            rand_password = setpass.rand_user_password(strlen)
+            assert len(rand_password) == strlen
+            assert self._get_str_class_num(rand_password) == expected_result
 
 
 class TestSetPasswordsSchema:

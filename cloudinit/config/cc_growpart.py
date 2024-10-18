@@ -20,7 +20,7 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Optional, Tuple
 
-from cloudinit import lifecycle, subp, temp_utils, util
+from cloudinit import lifecycle, performance, subp, temp_utils, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -35,7 +35,7 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": frequency,
     "activate_by_schema_keys": [],
-}  # type: ignore
+}
 
 DEFAULT_CONFIG = {
     "mode": "auto",
@@ -318,7 +318,9 @@ def resize_encrypted(blockdev, partition) -> Tuple[str, str]:
     if not KEYDATA_PATH.exists():
         return (RESIZE.SKIPPED, "No encryption keyfile found")
     try:
-        with KEYDATA_PATH.open() as f:
+        with performance.Timed(
+            f"Reading {KEYDATA_PATH}"
+        ), KEYDATA_PATH.open() as f:
             keydata = json.load(f)
         key = keydata["key"]
         decoded_key = base64.b64decode(key)
@@ -567,12 +569,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             raise e
         return
 
-    resized = util.log_time(
-        logfunc=LOG.debug,
-        msg="resize_devices",
-        func=resize_devices,
-        args=(resizer, devices, cloud.distro),
-    )
+    with performance.Timed("Resizing devices"):
+        resized = resize_devices(resizer, devices, cloud.distro)
     for entry, action, msg in resized:
         if action == RESIZE.CHANGED:
             LOG.info("'%s' resized: %s", entry, msg)

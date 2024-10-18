@@ -31,14 +31,14 @@ from typing import (
 
 import yaml
 
-from cloudinit import features, importer, lifecycle, safeyaml
+from cloudinit import features, importer, lifecycle, performance, safeyaml
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers import INCLUSION_TYPES_MAP, type_from_starts_with
 from cloudinit.helpers import Paths
+from cloudinit.log.log_util import error
 from cloudinit.sources import DataSourceNotFoundException
 from cloudinit.temp_utils import mkdtemp
 from cloudinit.util import (
-    error,
     get_modules_from_dir,
     load_text_file,
     load_yaml,
@@ -49,6 +49,13 @@ try:
     from jsonschema import ValidationError
 except ImportError:
     ValidationError = Exception  # type: ignore
+
+try:
+    from netplan import NetplanParserException, Parser  # type: ignore
+
+    LIBNETPLAN_AVAILABLE = True
+except ImportError:
+    LIBNETPLAN_AVAILABLE = False
 
 
 LOG = logging.getLogger(__name__)
@@ -120,11 +127,7 @@ if TYPE_CHECKING:
 
     class MetaSchema(TypedDict):
         id: str
-        name: str
-        title: str
-        description: str
         distros: typing.List[str]
-        examples: typing.List[Union[dict, str]]
         frequency: str
         activate_by_schema_keys: NotRequired[List[str]]
 
@@ -508,22 +511,13 @@ def get_jsonschema_validator():
     meta_schema["properties"]["label"] = {"type": "string"}
 
     validator_kwargs = {}
-    if hasattr(Draft4Validator, "TYPE_CHECKER"):  # jsonschema 3.0+
-        meta_schema["additionalProperties"] = False  # Unsupported in 2.6.0
-        type_checker = Draft4Validator.TYPE_CHECKER.redefine(
-            "string", is_schema_byte_string
-        )
-        validator_kwargs = {
-            "type_checker": type_checker,
-        }
-    else:  # jsonschema 2.6 workaround
-        # pylint:disable-next=no-member
-        types = Draft4Validator.DEFAULT_TYPES  # pylint: disable=E1101
-        # Allow bytes as well as string (and disable a spurious unsupported
-        # assignment-operation pylint warning which appears because this
-        # code path isn't written against the latest jsonschema).
-        types["string"] = (str, bytes)  # pylint: disable=E1137
-        validator_kwargs = {"default_types": types}
+    meta_schema["additionalProperties"] = False
+    type_checker = Draft4Validator.TYPE_CHECKER.redefine(
+        "string", is_schema_byte_string
+    )
+    validator_kwargs = {
+        "type_checker": type_checker,
+    }
 
     # Add deprecation handling
     validators = dict(Draft4Validator.VALIDATORS)
@@ -553,7 +547,9 @@ def get_jsonschema_validator():
         )
         return next(errors, None) is None
 
-    cloudinitValidator.is_valid = is_valid
+    # this _could_ be an error, but it's not in this case
+    # https://github.com/python/mypy/issues/2427#issuecomment-1419206807
+    cloudinitValidator.is_valid = is_valid  # type: ignore [method-assign]
 
     return (cloudinitValidator, FormatChecker)
 
@@ -626,14 +622,13 @@ def netplan_validate_network_schema(
     @raises: SchemaValidationError when netplan's parser raises
         NetplanParserExceptions.
     """
-    try:
-        from netplan import NetplanParserException, Parser  # type: ignore
-    except ImportError:
+    if LIBNETPLAN_AVAILABLE:
+        LOG.debug("Validating network-config with netplan API")
+    else:
         LOG.debug(
             "Skipping netplan schema validation. No netplan API available"
         )
         return False
-
     # netplan Parser looks at all *.yaml files in the target directory underA
     # /etc/netplan. cloud-init should only validate schema of the
     # network-config it generates, so create a <tmp_dir>/etc/netplan
@@ -697,6 +692,7 @@ def netplan_validate_network_schema(
     return True
 
 
+@performance.timed("Validating schema")
 def validate_cloudconfig_schema(
     config: dict,
     schema: Optional[dict] = None,
@@ -1469,13 +1465,17 @@ def _get_property_doc(schema: dict, defs: dict, prefix="   ") -> str:
 
 def _get_examples(meta: MetaSchema) -> str:
     """Return restructured text describing the meta examples if present."""
+    # TODO: This function will always return an empty string.
+    # `examples` is no longer a key in the MetaSchema. It is a key in the
+    # module-docs/data.yaml file.
+    # GH: #5756
     paths = read_cfg_paths()
     module_docs_dir = os.path.join(paths.docs_dir, "module-docs")
     examples = meta.get("examples")
     if not examples:
         return ""
     rst_content: str = ""
-    for example in examples:
+    for example in examples:  # type: ignore
         # FIXME(drop conditional when all mods have rtd/module-doc/*/data.yaml)
         if isinstance(example, dict):
             if example["comment"]:
@@ -1506,7 +1506,11 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
     @param schema: Optional module schema, if absent, read global schema.
     @raise KeyError: If metadata lacks an expected key.
     """
-
+    # TODO: This function currently never gets called as the newer
+    # module-docs do not get deployed with the cloud-init package.
+    # If it were to get called, it would raise a KeyError because
+    # the `MetaSchema` dict does not have the expected keys.
+    # GH: #5756
     if schema is None:
         schema = get_schema()
     if not meta or not schema:
@@ -1565,7 +1569,10 @@ def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
         meta_copy["examples"] = "         No examples for this module"
     meta_copy["distros"] = ", ".join(meta["distros"])
     # Need an underbar of the same length as the name
-    meta_copy["title_underbar"] = re.sub(r".", "-", meta["name"])
+    # TODO: The type ignore is a short-term fix for mypy. This entire function
+    # is questionable at this point.
+    # GH: #5756
+    meta_copy["title_underbar"] = re.sub(r".", "-", meta["name"])  # type: ignore
     meta_copy["activate_by_schema_keys"] = _get_activate_by_schema_keys_doc(
         meta
     )
@@ -1917,7 +1924,7 @@ def handle_schema_args(name, args):
                 if args.config_file:
                     cfg = cfg_part.config_path
                 else:
-                    cfg = cfg_part.config_type
+                    cfg = str(cfg_part.config_type)
                 print(f"{nested_output_prefix}Valid schema {cfg!s}")
     if error_types:
         error(

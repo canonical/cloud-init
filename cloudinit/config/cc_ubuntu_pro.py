@@ -8,7 +8,7 @@ import re
 from typing import Any, List
 from urllib.parse import urlparse
 
-from cloudinit import subp, util
+from cloudinit import performance, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -22,7 +22,7 @@ meta: MetaSchema = {
     "distros": ["ubuntu"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["ubuntu_pro"] + list(DEPRECATED_KEYS),
-}  # type: ignore
+}
 
 LOG = logging.getLogger(__name__)
 REDACTED = "REDACTED"
@@ -282,11 +282,11 @@ def _should_auto_attach(pro_section: dict) -> bool:
     # pylint: enable=import-error
 
     try:
-        result = util.log_time(
-            logfunc=LOG.debug,
-            msg="Checking if the instance can be attached to Ubuntu Pro",
-            func=should_auto_attach,
-        )
+        with performance.Timed(
+            "Checking if the instance can be attached to Ubuntu Pro",
+            log_mode="always",
+        ):
+            result = should_auto_attach()
     except UserFacingError as ex:
         LOG.debug("Error during `should_auto_attach`: %s", ex)
         LOG.warning(ERROR_MSG_SHOULD_AUTO_ATTACH)
@@ -327,12 +327,8 @@ def _auto_attach(pro_section: dict):
         enable_beta=enable_beta,
     )
     try:
-        util.log_time(
-            logfunc=LOG.debug,
-            msg="Attaching to Ubuntu Pro",
-            func=full_auto_attach,
-            kwargs={"options": options},
-        )
+        with performance.Timed("Attaching to Ubuntu Pro", log_mode="always"):
+            full_auto_attach(options=options)
     except AlreadyAttachedError:
         if enable_beta is not None or enable is not None:
             # Only warn if the user defined some service to enable/disable.

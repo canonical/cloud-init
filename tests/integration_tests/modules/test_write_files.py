@@ -69,7 +69,7 @@ class TestWriteFiles:
     @pytest.mark.parametrize(
         "cmd,expected_out",
         (
-            ("file /root/file_b64", ASCII_TEXT),
+            ("md5sum </root/file_b64", "84baab0d01c1374924dcedfb5972697c"),
             ("md5sum </root/file_binary", "3801184b97bb8c6e63fa0e1eae2920d7"),
             (
                 "sha256sum </root/file_binary",
@@ -77,10 +77,10 @@ class TestWriteFiles:
                 "7a803cd83d5e4f269e28f5090f0f2c9a",
             ),
             (
-                "file /root/file_gzip",
-                "POSIX shell script, ASCII text executable",
+                "md5sum </root/file_gzip",
+                "ec96d4a61ed762f0ff3725e1140661de",
             ),
-            ("file /root/file_text", ASCII_TEXT),
+            ("md5sum </root/file_text", "a2b6d22fa3d7aa551e22bb0c8acd9121"),
         ),
     )
     def test_write_files(self, cmd, expected_out, class_client):

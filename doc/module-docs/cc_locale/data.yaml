@@ -9,5 +9,8 @@ cc_locale:
   - comment: |
       Example 2: Set the locale to ``"fr_CA"`` in ``/etc/alternate_path/locale``
     file: cc_locale/example2.yaml
+  - comment: |
+      Example 3: Skip performing any locale setup or generation
+    file: cc_locale/example3.yaml
   name: Locale
   title: Set system locale

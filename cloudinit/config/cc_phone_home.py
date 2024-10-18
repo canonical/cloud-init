@@ -31,16 +31,16 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["phone_home"],
-}  # type: ignore
+}
 
 LOG = logging.getLogger(__name__)
 # phone_home:
-#  url: http://my.foo.bar/$INSTANCE/
+#  url: http://my.foo.bar/{{ v1.instance_id }}/
 #  post: all
 #  tries: 10
 #
 # phone_home:
-#  url: http://my.foo.bar/$INSTANCE_ID/
+#  url: http://my.foo.bar/{{ v1.instance_id }}/
 #  post: [ pub_key_rsa, pub_key_ecdsa, instance_id, hostname,
 #          fqdn ]
 #

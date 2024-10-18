@@ -20,7 +20,7 @@ meta: MetaSchema = {
     "distros": ["fedora", "rhel", "openeuler"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["rh_subscription"],
-}  # type: ignore
+}
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:

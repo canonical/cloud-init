@@ -15,59 +15,21 @@ import copy
 import logging
 import os
 import re
-from textwrap import dedent
 
-from cloudinit import lifecycle, log, subp, util
+from cloudinit import lifecycle, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS, Distro
+from cloudinit.log import loggers
 from cloudinit.settings import PER_INSTANCE
 
 meta: MetaSchema = {
     "id": "cc_rsyslog",
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
-    "examples": [
-        dedent(
-            """\
-            rsyslog:
-                remotes:
-                    maas: 192.168.1.1
-                    juju: 10.0.4.1
-                service_reload_command: auto
-            """
-        ),
-        dedent(
-            """\
-            rsyslog:
-                config_dir: /opt/etc/rsyslog.d
-                config_filename: 99-late-cloud-config.conf
-                configs:
-                    - "*.* @@192.158.1.1"
-                    - content: "*.*   @@192.0.2.1:10514"
-                      filename: 01-example.conf
-                    - content: |
-                        *.*   @@syslogd.example.com
-                remotes:
-                    maas: 192.168.1.1
-                    juju: 10.0.4.1
-                service_reload_command: [your, syslog, restart, command]
-            """
-        ),
-        dedent(
-            """\
-            # default (no) configuration with package installation on FreeBSD
-            rsyslog:
-                config_dir: /usr/local/etc/rsyslog.d
-                check_exe: "rsyslogd"
-                packages: ["rsyslogd"]
-                install_rsyslog: True
-            """
-        ),
-    ],
     "activate_by_schema_keys": ["rsyslog"],
-}  # type: ignore
+}
 
 RSYSLOG_CONFIG = {
     "config_dir": "/etc/rsyslog.d",
@@ -431,8 +393,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if restarted:
         # This only needs to run if we *actually* restarted
         # syslog above.
-        log.reset_logging()
-        log.setup_logging(cloud.cfg)
+        loggers.reset_logging()
+        loggers.setup_logging(cloud.cfg)
         # This should now use rsyslog if
         # the logging was setup to use it...
         LOG.debug("%s configured %s files", name, changes)

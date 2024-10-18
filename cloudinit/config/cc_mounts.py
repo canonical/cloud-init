@@ -16,7 +16,7 @@ import os
 import re
 from typing import Dict, List, Optional, Tuple, cast
 
-from cloudinit import subp, util
+from cloudinit import performance, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -27,7 +27,7 @@ meta: MetaSchema = {
     "distros": ["all"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": [],
-}  # type: ignore
+}
 
 # Shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1, sr0
 DEVICE_NAME_FILTER = r"^([x]{0,1}[shv]d[a-z][0-9]*|sr[0-9]+)$"
@@ -296,12 +296,8 @@ def setup_swapfile(fname, size=None, maxsize=None):
         LOG.debug("Not creating swap: suggested size was 0")
         return
 
-    util.log_time(
-        LOG.debug,
-        msg="Setting up swap file",
-        func=create_swapfile,
-        args=[fname, mibsize],
-    )
+    with performance.Timed("Setting up swap file"):
+        create_swapfile(fname, mibsize)
 
     return fname
 

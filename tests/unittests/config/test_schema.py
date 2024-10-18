@@ -20,7 +20,7 @@ from typing import List, Optional, Sequence, Set
 import pytest
 import yaml
 
-from cloudinit import features
+from cloudinit import features, performance
 from cloudinit.config.schema import (
     VERSIONED_USERDATA_SCHEMA_FILE,
     MetaSchema,
@@ -430,12 +430,11 @@ class TestNetplanValidateNetworkSchema:
         ),
     )
     def test_network_config_schema_validation_false_when_skipped(
-        self, config, expected_log, caplog
+        self, config, expected_log, caplog, mocker
     ):
         """netplan_validate_network_schema returns false when skipped."""
-        with mock.patch.dict("sys.modules"):
-            sys.modules.pop("netplan", None)
-            assert False is netplan_validate_network_schema(config)
+        mocker.patch(f"{M_PATH}LIBNETPLAN_AVAILABLE", False)
+        assert False is netplan_validate_network_schema(config)
         assert expected_log in caplog.text
 
     @pytest.mark.parametrize(
@@ -456,9 +455,8 @@ class TestNetplanValidateNetworkSchema:
         ),
     )
     def test_network_config_schema_validation(
-        self, error, error_log, caplog, tmpdir
+        self, error, error_log, caplog, tmpdir, mocker
     ):
-
         fake_tmpdir = tmpdir.join("mkdtmp")
 
         class FakeParser:
@@ -469,21 +467,21 @@ class TestNetplanValidateNetworkSchema:
                     raise error
 
         # Mock expected imports
-        with mock.patch.dict(
-            "sys.modules",
-            netplan=mock.MagicMock(
-                NetplanParserException=FakeNetplanParserException,
-                Parser=FakeParser,
-            ),
-        ):
-            with mock.patch(
-                "cloudinit.config.schema.mkdtemp",
-                return_value=fake_tmpdir.strpath,
-            ):
-                with caplog.at_level(logging.WARNING):
-                    assert netplan_validate_network_schema({"version": 2})
-            if error_log:
-                assert re.match(error_log, caplog.records[0].msg, re.DOTALL)
+        mocker.patch(f"{M_PATH}LIBNETPLAN_AVAILABLE", True)
+        mocker.patch(
+            f"{M_PATH}NetplanParserException",
+            FakeNetplanParserException,
+            create=True,
+        )
+        mocker.patch(f"{M_PATH}Parser", FakeParser, create=True)
+        mocker.patch(
+            "cloudinit.config.schema.mkdtemp",
+            return_value=fake_tmpdir.strpath,
+        )
+        with caplog.at_level(logging.WARNING):
+            assert netplan_validate_network_schema({"version": 2})
+        if error_log:
+            assert re.match(error_log, caplog.records[0].msg, re.DOTALL)
 
 
 class TestValidateCloudConfigSchema:
@@ -815,7 +813,9 @@ class TestValidateCloudConfigSchema:
     def test_validateconfig_logs_deprecations(
         self, schema, config, expected_msg, log_deprecations, caplog
     ):
-        with mock.patch.object(features, "DEPRECATION_INFO_BOUNDARY", "devel"):
+        with mock.patch.object(
+            features, "DEPRECATION_INFO_BOUNDARY", "devel"
+        ), mock.patch.object(performance, "Timed"):
             validate_cloudconfig_schema(
                 config,
                 schema=schema,
@@ -1034,6 +1034,7 @@ class TestSchemaDocMarkdown:
         "frequency": "frequency",
         "distros": ["debian", "rhel"],
     }
+    # TODO: See GH #5756
     meta: MetaSchema = {
         "title": "title",
         "description": "description",
@@ -1045,7 +1046,7 @@ class TestSchemaDocMarkdown:
             '\nExample 1:\nprop1:\n    [don\'t, expand, "this"]',
             "\nExample 2:\nprop2: true",
         ],
-    }
+    }  # type: ignore
 
     @pytest.mark.parametrize(
         "meta_update",
@@ -1992,9 +1993,10 @@ class TestMain:
         expected,
         tmpdir,
         capsys,
-        caplog,
+        mocker,
     ):
         """When --config-file parameter is provided, main validates schema."""
+        mocker.patch(f"{M_PATH}LIBNETPLAN_AVAILABLE", False)
         myyaml = tmpdir.join("my.yaml")
         myargs = ["mycmd", "--config-file", myyaml.strpath]
         if schema_type:
@@ -2169,6 +2171,7 @@ class TestMain:
         paths,
     ):
         """When --system is provided, main validates all config userdata."""
+        mocker.patch(f"{M_PATH}LIBNETPLAN_AVAILABLE", False)
         paths.get_ipath = paths.get_ipath_cur
         read_cfg_paths.return_value = paths
         cloud_config_file = paths.get_ipath_cur("cloud_config")
@@ -2559,7 +2562,9 @@ class TestNetworkSchema:
         expectation,
         log,
         caplog,
+        mocker,
     ):
+        mocker.patch(f"{M_PATH}LIBNETPLAN_AVAILABLE", False)
         net_schema = get_schema(schema_type=schema_type_version)
         with expectation:
             validate_cloudconfig_schema(

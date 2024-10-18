@@ -8,8 +8,9 @@
 """Set Passwords: Set user passwords and enable/disable SSH password auth"""
 
 import logging
+import random
 import re
-from string import ascii_letters, digits
+import string
 from typing import List
 
 from cloudinit import features, lifecycle, subp, util
@@ -17,6 +18,7 @@ from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS, Distro, ug_util
+from cloudinit.log import log_util
 from cloudinit.settings import PER_INSTANCE
 from cloudinit.ssh_util import update_ssh_config
 
@@ -25,12 +27,9 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": [],
-}  # type: ignore
+}
 
 LOG = logging.getLogger(__name__)
-
-# We are removing certain 'painful' letters/numbers
-PW_SET = "".join([x for x in ascii_letters + digits if x not in "loLOI01"])
 
 
 def get_users_by_type(users_list: list, pw_type: str) -> list:
@@ -220,7 +219,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 "Set the following 'random' passwords\n",
                 "\n".join(randlist),
             )
-            util.multi_log(
+            log_util.multi_log(
                 "%s\n%s\n" % blurb, stderr=False, fallback_to_stdout=False
             )
 
@@ -247,4 +246,29 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
 
 def rand_user_password(pwlen=20):
-    return util.rand_str(pwlen, select_from=PW_SET)
+    if pwlen < 4:
+        raise ValueError("Password length must be at least 4 characters.")
+
+    # There are often restrictions on the minimum number of character
+    # classes required in a password, so ensure we at least one character
+    # from each class.
+    res_rand_list = [
+        random.choice(string.digits),
+        random.choice(string.ascii_lowercase),
+        random.choice(string.ascii_uppercase),
+        random.choice(string.punctuation),
+    ]
+
+    res_rand_list.extend(
+        list(
+            util.rand_str(
+                pwlen - len(res_rand_list),
+                select_from=string.digits
+                + string.ascii_lowercase
+                + string.ascii_uppercase
+                + string.punctuation,
+            )
+        )
+    )
+    random.shuffle(res_rand_list)
+    return "".join(res_rand_list)

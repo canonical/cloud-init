@@ -13,13 +13,13 @@ import sys
 
 from cloudinit import settings
 from cloudinit.distros import uses_systemd
+from cloudinit.log import log_util
 from cloudinit.net.netplan import CLOUDINIT_NETPLAN_FILE
 from cloudinit.stages import Init
 from cloudinit.subp import ProcessExecutionError, runparts, subp
 from cloudinit.util import (
     del_dir,
     del_file,
-    error,
     get_config_logfiles,
     is_link,
     write_file,
@@ -144,12 +144,12 @@ def remove_artifacts(init, remove_logs, remove_seed=False, remove_config=None):
             else:
                 del_file(path)
         except OSError as e:
-            error("Could not remove {0}: {1}".format(path, str(e)))
+            log_util.error("Could not remove {0}: {1}".format(path, str(e)))
             return 1
     try:
         runparts(settings.CLEAN_RUNPARTS_DIR)
     except Exception as e:
-        error(
+        log_util.error(
             f"Failure during run-parts of {settings.CLEAN_RUNPARTS_DIR}: {e}"
         )
         return 1
@@ -176,7 +176,7 @@ def handle_clean_args(name, args):
         try:
             subp(cmd, capture=False)
         except ProcessExecutionError as e:
-            error(
+            log_util.error(
                 'Could not reboot this system using "{0}": {1}'.format(
                     cmd, str(e)
                 )

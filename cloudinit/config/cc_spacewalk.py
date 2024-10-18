@@ -14,7 +14,7 @@ meta: MetaSchema = {
     "distros": ["rhel", "fedora", "openeuler"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["spacewalk"],
-}  # type: ignore
+}
 
 LOG = logging.getLogger(__name__)
 

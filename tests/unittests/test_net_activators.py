@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 import yaml
 
+from cloudinit import subp
 from cloudinit.net.activators import (
     DEFAULT_PRIORITY,
     NAME_TO_ACTIVATOR,
@@ -83,7 +84,7 @@ def unavailable_mocks():
 class TestSearchAndSelect:
     def test_empty_list(self, available_mocks):
         resp = search_activator(priority=DEFAULT_PRIORITY, target=None)
-        assert resp == [NAME_TO_ACTIVATOR[name] for name in DEFAULT_PRIORITY]
+        assert resp == NAME_TO_ACTIVATOR[DEFAULT_PRIORITY[0]]
 
         activator = select_activator()
         assert activator == NAME_TO_ACTIVATOR[DEFAULT_PRIORITY[0]]
@@ -91,10 +92,10 @@ class TestSearchAndSelect:
     def test_priority(self, available_mocks):
         new_order = ["netplan", "network-manager"]
         resp = search_activator(priority=new_order, target=None)
-        assert resp == [NAME_TO_ACTIVATOR[name] for name in new_order]
+        assert resp == NetplanActivator
 
         activator = select_activator(priority=new_order)
-        assert activator == NAME_TO_ACTIVATOR[new_order[0]]
+        assert activator == NetplanActivator
 
     def test_target(self, available_mocks):
         search_activator(priority=DEFAULT_PRIORITY, target="/tmp")
@@ -108,10 +109,10 @@ class TestSearchAndSelect:
         return_value=False,
     )
     def test_first_not_available(self, m_available, available_mocks):
+        # We've mocked out IfUpDownActivator as unavailable, so expect the
+        # next in the list of default priorities
         resp = search_activator(priority=DEFAULT_PRIORITY, target=None)
-        assert resp == [
-            NAME_TO_ACTIVATOR[activator] for activator in DEFAULT_PRIORITY[1:]
-        ]
+        assert resp == NAME_TO_ACTIVATOR[DEFAULT_PRIORITY[1]]
 
         resp = select_activator()
         assert resp == NAME_TO_ACTIVATOR[DEFAULT_PRIORITY[1]]
@@ -124,7 +125,7 @@ class TestSearchAndSelect:
 
     def test_none_available(self, unavailable_mocks):
         resp = search_activator(priority=DEFAULT_PRIORITY, target=None)
-        assert resp == []
+        assert resp is None
 
         with pytest.raises(NoActivatorException):
             select_activator()
@@ -234,6 +235,21 @@ NETWORK_MANAGER_BRING_UP_CALL_LIST: list = [
     ),
 ]
 
+NETWORK_MANAGER_BRING_UP_ALL_CALL_LIST: list = [
+    (
+        (
+            [
+                "systemctl",
+                "show",
+                "--property=SubState",
+                "NetworkManager.service",
+            ],
+        ),
+        {},
+    ),
+    ((["systemctl", "reload-or-try-restart", "NetworkManager.service"],), {}),
+]
+
 NETWORKD_BRING_UP_CALL_LIST: list = [
     ((["ip", "link", "set", "dev", "eth0", "up"],), {}),
     ((["ip", "link", "set", "dev", "eth1", "up"],), {}),
@@ -278,7 +294,18 @@ class TestActivatorsBringUp:
             assert call == expected_call_list[index]
             index += 1
 
-    @patch("cloudinit.subp.subp", return_value=("", ""))
+
+@pytest.mark.parametrize(
+    "activator, expected_call_list",
+    [
+        (IfUpDownActivator, IF_UP_DOWN_BRING_UP_CALL_LIST),
+        (NetplanActivator, NETPLAN_CALL_LIST),
+        (NetworkManagerActivator, NETWORK_MANAGER_BRING_UP_ALL_CALL_LIST),
+        (NetworkdActivator, NETWORKD_BRING_UP_CALL_LIST),
+    ],
+)
+class TestActivatorsBringUpAll:
+    @patch("cloudinit.subp.subp", return_value=subp.SubpResult("", ""))
     def test_bring_up_interfaces(
         self, m_subp, activator, expected_call_list, available_mocks
     ):
@@ -288,7 +315,7 @@ class TestActivatorsBringUp:
             assert call == expected_call_list[index]
             index += 1
 
-    @patch("cloudinit.subp.subp", return_value=("", ""))
+    @patch("cloudinit.subp.subp", return_value=subp.SubpResult("", ""))
     def test_bring_up_all_interfaces_v1(
         self, m_subp, activator, expected_call_list, available_mocks
     ):
@@ -297,7 +324,7 @@ class TestActivatorsBringUp:
         for call in m_subp.call_args_list:
             assert call in expected_call_list
 
-    @patch("cloudinit.subp.subp", return_value=("", ""))
+    @patch("cloudinit.subp.subp", return_value=subp.SubpResult("", ""))
     def test_bring_up_all_interfaces_v2(
         self, m_subp, activator, expected_call_list, available_mocks
     ):

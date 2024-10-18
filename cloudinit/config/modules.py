@@ -12,7 +12,14 @@ from inspect import signature
 from types import ModuleType
 from typing import Dict, List, NamedTuple, Optional
 
-from cloudinit import config, importer, lifecycle, type_utils, util
+from cloudinit import (
+    config,
+    importer,
+    lifecycle,
+    performance,
+    type_utils,
+    util,
+)
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.helpers import ConfigMerger
 from cloudinit.reporting.events import ReportEventStack
@@ -283,11 +290,16 @@ class Modules:
                             deprecated_version="23.2",
                         )
                         func_args.update({"log": LOG})
-                    ran, _r = cc.run(
-                        run_name, mod.handle, func_args, freq=freq
-                    )
+
+                    with performance.Timed("", log_mode="skip") as timer:
+                        ran, _r = cc.run(
+                            run_name, mod.handle, func_args, freq=freq
+                        )
                     if ran:
-                        myrep.message = "%s ran successfully" % run_name
+                        myrep.message = (
+                            f"{run_name} ran successfully and "
+                            f"took {timer.delta:.3f} seconds"
+                        )
                     else:
                         myrep.message = "%s previously ran" % run_name
 

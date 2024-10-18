@@ -546,10 +546,9 @@ def parse_ssh_config_map(fname):
 def _includes_dconf(fname: str) -> bool:
     if not os.path.isfile(fname):
         return False
-    with open(fname, "r") as f:
-        for line in f:
-            if line.startswith(f"Include {fname}.d/*.conf"):
-                return True
+    for line in util.load_text_file(fname).splitlines():
+        if line.startswith(f"Include {fname}.d/*.conf"):
+            return True
     return False
 
 

@@ -15,7 +15,7 @@ from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
-from cloudinit.log import flush_loggers
+from cloudinit.log.loggers import flush_loggers
 from cloudinit.settings import PER_INSTANCE
 
 REBOOT_FILES = ("/var/run/reboot-required", "/run/reboot-needed")
@@ -32,7 +32,7 @@ meta: MetaSchema = {
         "package_upgrade",
         "packages",
     ],
-}  # type: ignore
+}
 
 LOG = logging.getLogger(__name__)
 

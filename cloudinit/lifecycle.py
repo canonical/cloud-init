@@ -4,7 +4,8 @@ import functools
 import logging
 from typing import NamedTuple, Optional
 
-from cloudinit import features, log
+from cloudinit import features
+from cloudinit.log import loggers
 
 LOG = logging.getLogger(__name__)
 
@@ -139,7 +140,7 @@ def log_with_downgradable_level(
     :param version: Version string of the version that this log was introduced
     :param level: Preferred level at which this message should be logged
     :param msg: Message, as passed to the logger.
-    :param args: Message formatting args, ass passed to the logger
+    :param args: Message formatting args, as passed to the logger
 
     :return: True if the message should be logged, else False.
     """
@@ -195,7 +196,7 @@ def deprecate(
     ):
         level = logging.INFO
     elif hasattr(LOG, "deprecated"):
-        level = log.DEPRECATED
+        level = loggers.DEPRECATED
     else:
         level = logging.WARN
     log_cache = getattr(deprecate, "log")

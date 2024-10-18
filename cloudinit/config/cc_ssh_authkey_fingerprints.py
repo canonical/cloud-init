@@ -14,6 +14,7 @@ from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS, ug_util
+from cloudinit.log import log_util
 from cloudinit.settings import PER_INSTANCE
 from cloudinit.simpletable import SimpleTable
 
@@ -22,7 +23,7 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": [],
-}  # type:ignore
+}
 
 LOG = logging.getLogger(__name__)
 
@@ -67,7 +68,7 @@ def _pprint_key_entries(
             "%sno authorized SSH keys fingerprints found for user %s.\n"
             % (prefix, user)
         )
-        util.multi_log(message, console=True, stderr=False)
+        log_util.multi_log(message, console=True, stderr=False)
         return
     tbl_fields = [
         "Keytype",
@@ -97,7 +98,7 @@ def _pprint_key_entries(
     ]
     lines.extend(authtbl_lines)
     for line in lines:
-        util.multi_log(
+        log_util.multi_log(
             text="%s%s\n" % (prefix, line), stderr=False, console=True
         )
 

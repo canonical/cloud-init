@@ -17,16 +17,15 @@ Requires=dbus.socket
 After=dbus.socket
 Before=network.service
 Before=firewalld.target
-Conflicts=shutdown.target
 {% endif %}
 {% if variant in ["ubuntu", "unknown", "debian"] %}
 Before=sysinit.target
-Conflicts=shutdown.target
 {% endif %}
 
 After=systemd-remount-fs.service
 Before=sysinit.target
 Before=cloud-init-local.service
+Before=shutdown.target
 Conflicts=shutdown.target
 RequiresMountsFor=/var/lib/cloud
 ConditionPathExists=!/etc/cloud/cloud-init.disabled

@@ -37,7 +37,7 @@ meta: MetaSchema = {
     "distros": ["ubuntu"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["landscape"],
-}  # type: ignore
+}
 
 LOG = logging.getLogger(__name__)
 

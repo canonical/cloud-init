@@ -15,6 +15,7 @@ from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
+from cloudinit.log import log_util
 from cloudinit.settings import PER_INSTANCE
 
 # This is a tool that cloud init provides
@@ -25,7 +26,7 @@ meta: MetaSchema = {
     "distros": ["all"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": [],
-}  # type: ignore
+}
 
 LOG = logging.getLogger(__name__)
 
@@ -64,7 +65,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     try:
         cmd = [helper_path, ",".join(fp_blacklist), ",".join(key_blacklist)]
         (stdout, _stderr) = subp.subp(cmd)
-        util.multi_log("%s\n" % (stdout.strip()), stderr=False, console=True)
+        log_util.multi_log(
+            "%s\n" % (stdout.strip()), stderr=False, console=True
+        )
     except Exception:
         LOG.warning("Writing keys to the system console failed!")
         raise

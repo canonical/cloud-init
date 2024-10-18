@@ -14,7 +14,12 @@ from typing import TYPE_CHECKING, List, Optional, Set, Union
 import pytest
 
 from cloudinit.subp import subp
-from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.decorators import retry
+from tests.integration_tests.integration_settings import (
+    OS_IMAGE_TYPE,
+    PLATFORM,
+)
+from tests.integration_tests.releases import CURRENT_RELEASE, NOBLE
 
 LOG = logging.getLogger("integration_testing.util")
 
@@ -27,6 +32,14 @@ key_pair = namedtuple("key_pair", "public_key private_key")
 
 ASSETS_DIR = Path("tests/integration_tests/assets")
 KEY_PATH = ASSETS_DIR / "keys"
+
+HAS_CONSOLE_LOG = PLATFORM in (
+    "ec2",
+    "lxd_container",
+    "oci",
+    "openstack",
+    "qemu",
+)
 
 
 def verify_ordered_items_in_text(to_verify: list, text: str):
@@ -64,16 +77,20 @@ def _format_found(header: str, items: list) -> str:
 
 def verify_clean_boot(
     instance: "IntegrationInstance",
+    *,
+    ignore_deprecations: Optional[Union[List[str], bool]] = None,
     ignore_warnings: Optional[Union[List[str], bool]] = None,
     ignore_errors: Optional[Union[List[str], bool]] = None,
     ignore_tracebacks: Optional[Union[List[str], bool]] = None,
+    require_deprecations: Optional[list] = None,
     require_warnings: Optional[list] = None,
     require_errors: Optional[list] = None,
 ):
-    """raise assertions if the client experienced unexpected warnings or errors
+    """Raise exception if the client experienced unexpected conditions.
 
-    Fail when a required error isn't found.
-    Expected warnings and errors are defined in this function.
+    Fail when a required error, warning, or deprecation isn't found.
+
+    Platform-specific conditions are defined in this function.
 
     This function is similar to verify_clean_log, hence the similar name.
 
@@ -84,13 +101,17 @@ def verify_clean_boot(
     - less resource intensive (no log copying required)
     - nice error formatting
 
-    instance: test instance
-    ignored_warnings: list of expected warnings to ignore,
-        or true to ignore all
-    ignored_errors: list of expected errors to ignore, or true to ignore all
-    require_warnings: Optional[list] = None,
-    require_errors: Optional[list] = None,
-    fail_when_expected_not_found: optional list of expected errors
+    :param instance: test instance
+    :param ignored_deprecations: list of deprecation messages to ignore, or
+        true to ignore all
+    :param ignored_warnings: list of expected warnings to ignore, or true to
+        ignore all
+    :param ignored_errors: list of expected errors to ignore, or true to ignore
+        all
+    :param require_deprecations: list of expected deprecation messages to
+        require
+    :param require_warnings: list of expected warning messages to require
+    :param require_errors: list of expected error messages to require
     """
 
     def append_or_create_list(
@@ -105,7 +126,8 @@ def verify_clean_boot(
             maybe_list = [value]
         return maybe_list
 
-    traceback_texts = []
+    if ignore_tracebacks is None:
+        ignore_tracebacks = []
     # Define exceptions by matrix of platform and Ubuntu release
     if "azure" == PLATFORM:
         # Consistently on all Azure launches:
@@ -126,17 +148,19 @@ def verify_clean_boot(
         ignore_errors = append_or_create_list(
             ignore_warnings, "Stderr: RTNETLINK answers: File exists"
         )
-        traceback_texts.append("Stderr: RTNETLINK answers: File exists")
+        if isinstance(ignore_tracebacks, list):
+            ignore_tracebacks.append("Stderr: RTNETLINK answers: File exists")
         # LP: #1833446
         ignore_warnings = append_or_create_list(
             ignore_warnings,
             "UrlError: 404 Client Error: Not Found for url: "
             "http://169.254.169.254/latest/meta-data/",
         )
-        traceback_texts.append(
-            "UrlError: 404 Client Error: Not Found for url: "
-            "http://169.254.169.254/latest/meta-data/"
-        )
+        if isinstance(ignore_tracebacks, list):
+            ignore_tracebacks.append(
+                "UrlError: 404 Client Error: Not Found for url: "
+                "http://169.254.169.254/latest/meta-data/"
+            )
         # Oracle has a file in /etc/cloud/cloud.cfg.d that contains
         # users:
         # - default
@@ -147,12 +171,14 @@ def verify_clean_boot(
             ignore_warnings,
             "Unable to disable SSH logins for opc given ssh_redirect_user",
         )
-
+    # Preserve platform-specific tracebacks expected
     _verify_clean_boot(
         instance,
+        ignore_deprecations=ignore_deprecations,
         ignore_warnings=ignore_warnings,
         ignore_errors=ignore_errors,
         ignore_tracebacks=ignore_tracebacks,
+        require_deprecations=require_deprecations,
         require_warnings=require_warnings,
         require_errors=require_errors,
     )
@@ -160,21 +186,27 @@ def verify_clean_boot(
 
 def _verify_clean_boot(
     instance: "IntegrationInstance",
+    ignore_deprecations: Optional[Union[List[str], bool]] = None,
     ignore_warnings: Optional[Union[List[str], bool]] = None,
     ignore_errors: Optional[Union[List[str], bool]] = None,
     ignore_tracebacks: Optional[Union[List[str], bool]] = None,
+    require_deprecations: Optional[list] = None,
     require_warnings: Optional[list] = None,
     require_errors: Optional[list] = None,
 ):
+    ignore_deprecations = ignore_deprecations or []
     ignore_errors = ignore_errors or []
     ignore_warnings = ignore_warnings or []
+    require_deprecations = require_deprecations or []
     require_errors = require_errors or []
     require_warnings = require_warnings or []
     status = json.loads(instance.execute("cloud-init status --format=json"))
 
+    unexpected_deprecations = set()
     unexpected_errors = set()
     unexpected_warnings = set()
 
+    required_deprecations_found = set()
     required_warnings_found = set()
     required_errors_found = set()
 
@@ -211,16 +243,42 @@ def _verify_clean_boot(
         else:
             unexpected_warnings.add(current_warning)
 
+    # check for unexpected deprecations
+    for current_deprecation in status["recoverable_errors"].get(
+        "DEPRECATED", []
+    ):
+
+        # check for required deprecations
+        for expected in require_deprecations:
+            if expected in current_deprecation:
+                required_deprecations_found.add(expected)
+
+        if ignore_deprecations is True:
+            continue
+        # check for unexpected deprecations
+        for expected in [*ignore_deprecations, *require_deprecations]:
+            if expected in current_deprecation:
+                break
+        else:
+            unexpected_deprecations.add(current_deprecation)
+
     required_errors_not_found = set(require_errors) - required_errors_found
     required_warnings_not_found = (
         set(require_warnings) - required_warnings_found
     )
+    required_deprecations_not_found = (
+        set(require_deprecations) - required_deprecations_found
+    )
 
+    # ordered from most severe to least severe
+    # this allows the first message printed to be the most significant
     errors = [
         *unexpected_errors,
         *required_errors_not_found,
         *unexpected_warnings,
         *required_warnings_not_found,
+        *unexpected_deprecations,
+        *required_deprecations_not_found,
     ]
     if errors:
         message = ""
@@ -243,28 +301,91 @@ def _verify_clean_boot(
         message += _format_found(
             "Required warnings not found", list(required_warnings_not_found)
         )
+        message += _format_found(
+            "Found unexpected deprecations", list(unexpected_deprecations)
+        )
+        message += _format_found(
+            "Required deprecations not found",
+            list(required_deprecations_not_found),
+        )
         assert not errors, message
 
-    if ignore_tracebacks is True:
-        return
     # assert no unexpected Tracebacks
-    expected_traceback_count = 0
-    traceback_count = int(
-        instance.execute(
-            "grep --count Traceback /var/log/cloud-init.log"
-        ).stdout.strip()
-    )
-    if ignore_tracebacks:
-        for expected_traceback in ignore_tracebacks:
-            expected_traceback_count += int(
-                instance.execute(
-                    f"grep --count '{expected_traceback}'"
-                    " /var/log/cloud-init.log"
-                ).stdout.strip()
-            )
-    assert expected_traceback_count == traceback_count, (
-        f"{traceback_count - expected_traceback_count} unexpected traceback(s)"
-        " found in /var/log/cloud-init.log"
+    if ignore_tracebacks is not True:
+        expected_traceback_count = 0
+        traceback_count = int(
+            instance.execute(
+                "grep --count Traceback /var/log/cloud-init.log"
+            ).stdout.strip()
+        )
+        if ignore_tracebacks:
+            for expected_traceback in ignore_tracebacks:
+                expected_traceback_count += int(
+                    instance.execute(
+                        f"grep --count '{expected_traceback}'"
+                        " /var/log/cloud-init.log"
+                    ).stdout.strip()
+                )
+        assert expected_traceback_count == traceback_count, (
+            f"{traceback_count - expected_traceback_count} unexpected "
+            "traceback(s) found in /var/log/cloud-init.log"
+        )
+
+    # check that the return code of cloud-init status is expected
+    if not any(
+        [
+            ignore_deprecations,
+            ignore_warnings,
+            ignore_errors,
+            ignore_tracebacks,
+            require_deprecations,
+            require_warnings,
+            require_errors,
+        ]
+    ):
+        # make sure that return code is 0 when all was good
+        out = instance.execute("cloud-init status --long")
+        assert out.ok, (
+            "Unexpected non-zero return code from "
+            f"`cloud-init status`: {out.return_code}\nstdout: "
+            f"{out.stdout}\nstderr: {out.stderr}"
+        )
+    elif any(
+        [
+            ignore_deprecations,
+            ignore_warnings,
+            ignore_errors,
+            ignore_tracebacks,
+        ]
+    ):
+        # Ignore is optional, so we can't be sure whether we will got a return
+        # code of 0 or 2. This makes this function more useful when writing
+        # tests that run on series with different behavior. In this case we
+        # cannot be sure whether it will return 0 or 2, but we never want to
+        # see a return code of 1, so assert that it isn't 1.
+        out = instance.execute("cloud-init status --long")
+        assert 1 != out.return_code, (
+            f"Unexpected return code from `cloud-init status`. Expected rc=0 "
+            f"or rc=2, received rc={out.return_code}\nstdout:\n"
+            f"{out.stdout}\nstderr:\n{out.stderr}"
+        )
+    else:
+        # Look at the commit history before making changes here.
+        # Behavior on Jenkins, GH CI, and local runs must be considered
+        # for all series.
+        out = instance.execute("cloud-init status --long")
+        rc = 2
+        if CURRENT_RELEASE < NOBLE:
+            rc = 0
+        assert rc == out.return_code, (
+            f"Unexpected return code from `cloud-init status`. "
+            f"Expected rc={rc}, received rc={out.return_code}\nstdout: "
+            f"{out.stdout}\nstderr: {out.stderr}"
+        )
+    schema = instance.execute("cloud-init schema --system --annotate")
+    assert schema.ok, (
+        f"Schema validation failed\nstdout:{schema.stdout}"
+        f"\nstderr:\n{schema.stderr}"
     )
 
 
@@ -420,11 +541,30 @@ def get_console_log(client: "IntegrationInstance"):
         console_log = client.instance.console_log()
     except NotImplementedError:
         pytest.skip("NotImplementedError when requesting console log")
+    except RuntimeError as e:
+        if "open : no such file or directory" in str(e):
+            if hasattr(client, "lxc_log"):
+                return client.lxc_log
+        raise e
     if console_log is None:
         pytest.skip("Console log has not been setup")
     if console_log.lower().startswith("no console output"):
         pytest.fail("no console output")
+    if PLATFORM in ("lxd_vm", "lxd_container"):
+        # Preserve non empty console log on lxc platforms because
+        # lxc console --show-log can be called once and the log is flushed.
+        # Multiple calls to --show-log error on "no such file or directory".
+        client.lxc_log = console_log  # type: ignore[attr-defined]
     return console_log
+
+
+@retry(tries=5, delay=1)  # Retry on get_console_log failures
+def get_syslog_or_console(client: "IntegrationInstance") -> str:
+    """minimal OS_IMAGE_TYPE does not contain rsyslog"""
+    if OS_IMAGE_TYPE == "minimal" and HAS_CONSOLE_LOG:
+        return get_console_log(client)
+    else:
+        return client.read_from_file("/var/log/syslog")
 
 
 @lru_cache()
@@ -492,3 +632,10 @@ def push_and_enable_systemd_unit(
     client.write_to_file(service_filename, content)
     client.execute(f"chmod 0644 {service_filename}", use_sudo=True)
     client.execute(f"systemctl enable {unit_name}", use_sudo=True)
+
+
+def network_wait_logged(log: str) -> bool:
+    return (
+        "Running command "
+        "['systemctl', 'start', 'systemd-networkd-wait-online.service']"
+    ) in log

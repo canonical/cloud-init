@@ -12,6 +12,7 @@ from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL
 from tests.integration_tests.util import (
     get_feature_flag_value,
+    network_wait_logged,
     override_kernel_command_line,
     verify_clean_boot,
     verify_clean_log,
@@ -19,7 +20,7 @@ from tests.integration_tests.util import (
 
 VENDOR_DATA = """\
 #cloud-config
-runcmd:
+bootcmd:
   - touch /var/tmp/seeded_vendordata_test_file
 """
 
@@ -99,6 +100,7 @@ def test_nocloud_seedfrom_vendordata(client: IntegrationInstance):
     client.restart()
     assert client.execute("cloud-init status").ok
     assert "seeded_vendordata_test_file" in client.execute("ls /var/tmp")
+    assert network_wait_logged(client.execute("cat /var/log/cloud-init.log"))
 
 
 SMBIOS_USERDATA = """\
@@ -198,15 +200,14 @@ class TestSmbios:
         version_boundary = get_feature_flag_value(
             client, "DEPRECATION_INFO_BOUNDARY"
         )
+        message = "The 'nocloud-net' datasource name is deprecated"
         # nocloud-net deprecated in version 24.1
         if lifecycle.should_log_deprecation("24.1", version_boundary):
-            log_level = "DEPRECATED"
+            verify_clean_boot(client, require_deprecations=[message])
         else:
-            log_level = "INFO"
-        client.execute(
-            rf"grep \"{log_level}]: The 'nocloud-net' datasource name is"
-            ' deprecated" /var/log/cloud-init.log'
-        ).ok
+            client.execute(
+                rf"grep \"INFO]: {message}\" /var/log/cloud-init.log"
+            ).ok
 
 
 @pytest.mark.skipif(PLATFORM != "lxd_vm", reason="Modifies grub config")

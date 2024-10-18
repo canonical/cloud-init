@@ -1824,7 +1824,14 @@
     "cc_locale": {
       "properties": {
         "locale": {
-          "type": "string",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "string"
+            }
+          ],
           "description": "The locale to set as the system's locale (e.g. ar_PS)."
         },
         "locale_configfile": {

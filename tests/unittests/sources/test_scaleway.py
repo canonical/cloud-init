@@ -860,7 +860,11 @@ class TestDataSourceScaleway(ResponsesTestCase):
             "ethernets": {
                 fallback_nic.return_value: {
                     "routes": [
-                        {"to": "169.254.42.42/32", "via": "62.210.0.1"}
+                        {
+                            "on-link": True,
+                            "to": "169.254.42.42/32",
+                            "via": "62.210.0.1",
+                        }
                     ],
                     "dhcp4": True,
                 },
@@ -903,7 +907,11 @@ class TestDataSourceScaleway(ResponsesTestCase):
                 fallback_nic.return_value: {
                     "dhcp4": True,
                     "routes": [
-                        {"to": "169.254.42.42/32", "via": "62.210.0.1"}
+                        {
+                            "on-link": True,
+                            "to": "169.254.42.42/32",
+                            "via": "62.210.0.1",
+                        }
                     ],
                     "addresses": ("20.20.20.20/32",),
                 },
@@ -955,7 +963,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self, m_get_cmdline, fallback_nic
     ):
         """
-        Generate network_config with only IPv6
+        Generate network_config with IPv4+IPv6
         """
         m_get_cmdline.return_value = "scaleway"
         fallback_nic.return_value = "ens2"
@@ -983,10 +991,65 @@ class TestDataSourceScaleway(ResponsesTestCase):
                 fallback_nic.return_value: {
                     "dhcp4": True,
                     "routes": [
-                        {"to": "169.254.42.42/32", "via": "62.210.0.1"},
+                        {
+                            "on-link": True,
+                            "to": "169.254.42.42/32",
+                            "via": "62.210.0.1",
+                        },
                         {
                             "via": "fe80::ffff:ffff:ffff:fff1",
                             "to": "::/0",
+                        },
+                    ],
+                    "addresses": ("2001:aaa:aaaa:a:aaaa:aaaa:aaaa:1/64",),
+                },
+            },
+        }
+
+        self.assertEqual(netcfg, resp)
+
+    @mock.patch("cloudinit.distros.net.find_fallback_nic")
+    @mock.patch("cloudinit.util.get_cmdline")
+    def test_ipmob_primary_ipv6_v4_config_ok(
+        self, m_get_cmdline, fallback_nic
+    ):
+        """
+        Generate network_config with IPv6+IPv4
+        """
+        m_get_cmdline.return_value = "scaleway"
+        fallback_nic.return_value = "ens2"
+        self.datasource.metadata["private_ip"] = None
+        self.datasource.metadata["ipv6"] = None
+        self.datasource.ephemeral_fixed_address = "10.10.10.10"
+        self.datasource.metadata["public_ips"] = [
+            {
+                "address": "2001:aaa:aaaa:a:aaaa:aaaa:aaaa:1",
+                "netmask": "64",
+                "gateway": "fe80::ffff:ffff:ffff:fff1",
+                "family": "inet6",
+            },
+            {
+                "address": "10.10.10.10",
+                "netmask": "32",
+                "family": "inet",
+            },
+        ]
+
+        netcfg = self.datasource.network_config
+        resp = {
+            "version": 2,
+            "ethernets": {
+                fallback_nic.return_value: {
+                    "dhcp4": True,
+                    "routes": [
+                        {
+                            "via": "fe80::ffff:ffff:ffff:fff1",
+                            "to": "::/0",
+                        },
+                        {
+                            "on-link": True,
+                            "to": "169.254.42.42/32",
+                            "via": "62.210.0.1",
                         },
                     ],
                     "addresses": ("2001:aaa:aaaa:a:aaaa:aaaa:aaaa:1/64",),

@@ -6,9 +6,10 @@ import pytest
 
 from cloudinit import lifecycle
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.releases import CURRENT_RELEASE, MANTIC
+from tests.integration_tests.releases import CURRENT_RELEASE, JAMMY
 from tests.integration_tests.util import (
     get_feature_flag_value,
+    verify_clean_boot,
     verify_clean_log,
 )
 
@@ -70,16 +71,23 @@ class TestSchemaDeprecations:
         version_boundary = get_feature_flag_value(
             class_client, "DEPRECATION_INFO_BOUNDARY"
         )
+        boundary_message = "Deprecated cloud-config provided:"
+        messages = [
+            "apt_reboot_if_required:  Deprecated ",
+            "apt_update:  Deprecated in version",
+            "apt_upgrade:  Deprecated in version",
+        ]
         # the deprecation_version is 22.2 in schema for apt_* keys in
         # user-data. Pass 22.2 in against the client's version_boundary.
         if lifecycle.should_log_deprecation("22.2", version_boundary):
-            log_level = "DEPRECATED"
+            messages += boundary_message
+            verify_clean_boot(class_client, require_deprecations=messages)
         else:
-            log_level = "INFO"
-        assert f"{log_level}]: Deprecated cloud-config provided:" in log
-        assert "apt_reboot_if_required:  Deprecated " in log
-        assert "apt_update:  Deprecated in version" in log
-        assert "apt_upgrade:  Deprecated in version" in log
+            verify_clean_boot(class_client)
+            assert f"INFO]: {boundary_message}" in log
+            assert "apt_reboot_if_required:  Deprecated " in log
+            assert "apt_update:  Deprecated in version" in log
+            assert "apt_upgrade:  Deprecated in version" in log
 
     def test_network_config_schema_validation(
         self, class_client: IntegrationInstance
@@ -95,7 +103,7 @@ class TestSchemaDeprecations:
                 "annotate": NET_V1_ANNOTATED,
             },
         }
-        if CURRENT_RELEASE >= MANTIC:
+        if CURRENT_RELEASE >= JAMMY:
             # Support for netplan API available
             content_responses[NET_CFG_V2] = {
                 "out": "Valid schema /root/net.yaml"

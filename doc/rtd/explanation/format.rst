@@ -88,9 +88,12 @@ Explanation
 A user data script is a single script to be executed once per instance.
 User data scripts are run relatively late in the boot process, during
 cloud-init's :ref:`final stage<boot-Final>` as part of the
-:ref:`cc_scripts_user<mod_cc_scripts_user>` module. When run,
-the environment variable ``INSTANCE_ID`` is set to the current instance ID
-for use within the script.
+:ref:`cc_scripts_user<mod_cc_scripts_user>` module.
+
+.. warning::
+    Use of ``INSTANCE_ID`` variable within user data scripts is deprecated.
+    Use :ref:`jinja templates<user_data_formats-jinja>` with
+    :ref:`v1.instance_id<v1_instance_id>` instead.
 
 .. _user_data_formats-cloud_boothook:
 
@@ -114,16 +117,10 @@ Example of once-per-instance script
    #cloud-boothook
    #!/bin/sh
 
-   PERSIST_ID=/var/lib/cloud/first-instance-id
-   _id=""
-   if [ -r $PERSIST_ID ]; then
-     _id=$(cat /var/lib/cloud/first-instance-id)
-   fi
-
-   if [ -z $_id ]  || [ $INSTANCE_ID != $_id ]; then
-     echo 192.168.1.130 us.archive.ubuntu.com >> /etc/hosts
-   fi
-   sudo echo $INSTANCE_ID > $PERSIST_ID
+   # Early exit 0 when script has already run for this instance-id,
+   # continue if new instance boot.
+   cloud-init-per instance do-hosts /bin/false && exit 0
+   echo 192.168.1.130 us.archive.ubuntu.com >> /etc/hosts
 
 Explanation
 -----------
@@ -138,6 +135,11 @@ The boothook is different in that:
 * It is run very early in boot, during the :ref:`network<boot-Network>` stage,
   before any cloud-init modules are run.
 * It is run on every boot
+
+.. warning::
+    Use of ``INSTANCE_ID`` variable within boothooks is deprecated.
+    Use :ref:`jinja templates<user_data_formats-jinja>` with
+    :ref:`v1.instance_id<v1_instance_id>` instead.
 
 Include file
 ============
@@ -159,8 +161,12 @@ be read and their content can be any kind of user data format, both base
 config and meta config. If an error occurs reading a file the remaining files
 will not be read.
 
+.. _user_data_formats-jinja:
+
 Jinja template
 ==============
+
+.. _jinja-config:
 
 Example cloud-config
 --------------------
@@ -171,6 +177,8 @@ Example cloud-config
    #cloud-config
    runcmd:
      - echo 'Running on {{ v1.cloud_name }}' > /var/tmp/cloud_name
+
+.. _jinja-script:
 
 Example user data script
 ------------------------
@@ -191,8 +199,8 @@ as jinja template variables. Any jinja templated configuration must contain
 the original header along with the new jinja header above it.
 
 .. note::
-    Use of Jinja templates is ONLY supported for cloud-config and user data
-    scripts. Jinja templates are not supported for cloud-boothooks or
+    Use of Jinja templates is supported for cloud-config, user data
+    scripts, and cloud-boothooks. Jinja templates are not supported for
     meta configs.
 
 .. _user_data_formats-mime_archive:

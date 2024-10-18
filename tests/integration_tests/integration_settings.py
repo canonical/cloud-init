@@ -39,6 +39,17 @@ INSTANCE_TYPE: Optional[str] = None
 # to this format internally; in this case, to "None::ubuntu::focal::20.04".)
 OS_IMAGE = "focal"
 
+
+# Determines unique image type or flavor to exercise if the cloud supports
+# image-type lookup for daily_image and released_images.
+#
+# One of the following pycloudlib.cloud.ImageType values:
+# - generic
+# - minimal
+# - Pro
+# - Pro FIPS
+OS_IMAGE_TYPE = "generic"
+
 # Populate if you want to use a pre-launched instance instead of
 # creating a new one. The exact contents will be platform dependent
 EXISTING_INSTANCE_ID: Optional[str] = None
@@ -46,6 +57,7 @@ EXISTING_INSTANCE_ID: Optional[str] = None
 ##################################################################
 # IMAGE GENERATION SETTINGS
 ##################################################################
+
 
 # Depending on where we are in the development / test / SRU cycle, we'll want
 # different methods of getting the source code to our SUT. Because of
@@ -70,6 +82,10 @@ EXISTING_INSTANCE_ID: Optional[str] = None
 # <file path>
 #   A path to a valid package to be uploaded and installed
 CLOUD_INIT_SOURCE = "NONE"
+
+# cloud-init metapackage to install
+# Examples: cloud-init, cloud-init-base, cloud-init-smart-os
+CLOUD_INIT_PKG = "cloud-init"
 
 # Before an instance is torn down, we run `cloud-init collect-logs`
 # and transfer them locally. These settings specify when to collect these

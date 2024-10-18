@@ -27,7 +27,7 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": PER_ALWAYS,
     "activate_by_schema_keys": ["disable_ec2_metadata"],
-}  # type: ignore
+}
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:

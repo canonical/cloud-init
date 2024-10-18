@@ -153,6 +153,7 @@ nonexistent
 ntp
 ntpd
 ntpdate
+nvme
 openbsd
 opendoas
 openeuler

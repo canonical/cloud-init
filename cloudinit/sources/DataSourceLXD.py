@@ -200,11 +200,7 @@ class DataSourceLXD(sources.DataSource):
 
     def _get_data(self) -> bool:
         """Crawl LXD socket API instance data and return True on success"""
-        self._crawled_metadata = util.log_time(
-            logfunc=LOG.debug,
-            msg="Crawl of metadata service",
-            func=read_metadata,
-        )
+        self._crawled_metadata = read_metadata()
         self.metadata = _raw_instance_data_to_dict(
             "meta-data", self._crawled_metadata.get("meta-data")
         )

@@ -753,7 +753,7 @@ class TestDsIdentify(DsIdentifyBase):
             m for m in data["mocks"] if m["name"] == "is_ibm_provisioning"
         ][0]
         isprov_m["ret"] = shell_true
-        return self._check_via_dict(data, RC_NOT_FOUND)
+        self._check_via_dict(data, RC_NOT_FOUND)
 
     def test_ibmcloud_template_userdata(self):
         """Template provisioned with user-data first boot.
@@ -770,7 +770,7 @@ class TestDsIdentify(DsIdentifyBase):
         data["mocks"].append(
             {"name": "is_ibm_provisioning", "ret": shell_true}
         )
-        return self._check_via_dict(data, RC_NOT_FOUND)
+        self._check_via_dict(data, RC_NOT_FOUND)
 
     def test_ibmcloud_template_no_userdata(self):
         """Template provisioned with no user-data first boot.
@@ -1079,6 +1079,10 @@ class TestDsIdentify(DsIdentifyBase):
         """Hetzner cloud is identified in sys_vendor."""
         self._test_ds_found("Hetzner")
 
+    def test_cloudcix_found(self):
+        """CloudCIX cloud is identified in dmi product-name"""
+        self._test_ds_found("CloudCIX")
+
     def test_nwcs_found(self):
         """NWCS is identified in sys_vendor."""
         self._test_ds_found("NWCS")
@@ -1175,7 +1179,7 @@ class TestDsIdentify(DsIdentifyBase):
         open64 = "usr/lib64/open-vm-tools/plugins/vmsvc/libdeployPkgPlugin.so"
         cust64["files"][open64] = cust64["files"][p32]
         del cust64["files"][p32]
-        return self._check_via_dict(
+        self._check_via_dict(
             cust64, RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
         )
 
@@ -1190,7 +1194,7 @@ class TestDsIdentify(DsIdentifyBase):
         )
         cust64["files"][x86] = cust64["files"][p32]
         del cust64["files"][p32]
-        return self._check_via_dict(
+        self._check_via_dict(
             cust64, RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
         )
 
@@ -1205,7 +1209,7 @@ class TestDsIdentify(DsIdentifyBase):
         )
         cust64["files"][aarch64] = cust64["files"][p32]
         del cust64["files"][p32]
-        return self._check_via_dict(
+        self._check_via_dict(
             cust64, RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
         )
 
@@ -1220,7 +1224,7 @@ class TestDsIdentify(DsIdentifyBase):
         )
         cust64["files"][i386] = cust64["files"][p32]
         del cust64["files"][p32]
-        return self._check_via_dict(
+        self._check_via_dict(
             cust64, RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
         )
 
@@ -1396,7 +1400,7 @@ class TestWSL(DsIdentifyBase):
                 "RET": "\r\n",
             },
         )
-        return self._check_via_dict(data, RC_NOT_FOUND)
+        self._check_via_dict(data, RC_NOT_FOUND)
 
     def test_no_cloudinitdir_in_userprofile(self):
         """Negative test by not finding %USERPROFILE%/.cloud-init."""
@@ -1409,7 +1413,7 @@ class TestWSL(DsIdentifyBase):
                 "RET": userprofile,
             },
         )
-        return self._check_via_dict(data, RC_NOT_FOUND)
+        self._check_via_dict(data, RC_NOT_FOUND)
 
     def test_empty_cloudinitdir(self):
         """Negative test by lack of host filesystem mount points."""
@@ -1424,7 +1428,7 @@ class TestWSL(DsIdentifyBase):
         )
         cloudinitdir = os.path.join(userprofile, ".cloud-init")
         os.mkdir(cloudinitdir)
-        return self._check_via_dict(data, RC_NOT_FOUND)
+        self._check_via_dict(data, RC_NOT_FOUND)
 
     def test_found_fail_due_instance_name_parsing(self):
         """WSL datasource detection fail due parsing error even though the file
@@ -1520,7 +1524,7 @@ class TestWSL(DsIdentifyBase):
             Path(filename).unlink()
 
         # Until there is none, making the datasource no longer viable.
-        return self._check_via_dict(data, RC_NOT_FOUND)
+        self._check_via_dict(data, RC_NOT_FOUND)
 
 
 def blkid_out(disks=None):
@@ -1607,6 +1611,10 @@ VALID_CFG = {
             P_CHASSIS_ASSET_TAG: "No-match\n",
             os.path.join(P_SEED_DIR, "azure", "ovf-env.xml"): "present\n",
         },
+    },
+    "CloudCIX": {
+        "ds": "CloudCIX",
+        "files": {P_PRODUCT_NAME: "CloudCIX\n"},
     },
     "Azure-parse-invalid": {
         "ds": "Azure",

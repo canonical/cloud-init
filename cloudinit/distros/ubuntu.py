@@ -10,10 +10,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import logging
 
 from cloudinit.distros import PREFERRED_NTP_CLIENTS, debian
 from cloudinit.distros.package_management.snap import Snap
+from cloudinit.net import activators
 from cloudinit.net.netplan import CLOUDINIT_NETPLAN_FILE
+
+LOG = logging.getLogger(__name__)
 
 
 class Distro(debian.Distro):
@@ -49,3 +53,12 @@ class Distro(debian.Distro):
         if not self._preferred_ntp_clients:
             self._preferred_ntp_clients = copy.deepcopy(PREFERRED_NTP_CLIENTS)
         return self._preferred_ntp_clients
+
+    def wait_for_network(self) -> None:
+        """Ensure that cloud-init's network service has network connectivity"""
+        try:
+            self.network_activator.wait_for_network()
+        except activators.NoActivatorException:
+            LOG.error("Failed to wait for network. No network activator found")
+        except Exception as e:
+            LOG.error("Failed to wait for network: %s", e)

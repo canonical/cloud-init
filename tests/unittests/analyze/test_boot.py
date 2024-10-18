@@ -125,7 +125,7 @@ class TestAnalyzeBoot:
                 "Your Linux distro or container does not support this "
                 "functionality.\nYou must be running a Kernel "
                 "Telemetry supported distro.\nPlease check "
-                "https://cloudinit.readthedocs.io/en/latest/topics"
+                "https://docs.cloud-init.io/en/latest/topics"
                 "/analyze.html for more information on supported "
                 "distros.\n"
             )

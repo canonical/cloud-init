@@ -73,7 +73,7 @@ CLOUD_CONFIG_ARCHIVE = """
 - type: 'text/cloud-config'
   content: |
     bootcmd:
-     - [sh, -c, 'echo "BOOTCMD: $(date -R): $INSTANCE_ID" | tee /run/bootcmd.txt']
+     - [sh, -c, 'echo "BOOTCMD: $(date -R): from cloud-config" | tee /run/bootcmd.txt']
 """  # noqa: E501
 
 
