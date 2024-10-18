@@ -1,0 +1,13 @@
+cc_netplan_nm_patch:
+  description: |
+    This module resolves the issue where if you edit a netplan generated network configuration
+    in NetworkManager, the changes are saved to netplan as new configuration files.
+    This will cause netplan overwrite the NetworkManager generated netplan configuration on the next boot.
+
+    This module will give NetworkManager a hint to generated netplan configuration files
+    and then removes the cloud-init generated netplan configuration file.
+
+    This module expects that NetworkManager has the netplan integration patch applied.
+  examples:
+  name: Netplan NetworkManager Patch
+  title: Patch NetworkManager netplan interop issue
