@@ -125,7 +125,7 @@ Last-Update: 2024-08-02
 -WantedBy=cloud-init.target
 --- a/systemd/cloud-init-network.service.tmpl
 +++ /dev/null
-@@ -1,64 +0,0 @@
+@@ -1,66 +0,0 @@
 -## template:jinja
 -[Unit]
 -# https://docs.cloud-init.io/en/latest/explanation/boot.html
@@ -137,7 +137,9 @@ Last-Update: 2024-08-02
 -Wants=sshd-keygen.service
 -Wants=sshd.service
 -After=cloud-init-local.service
+-{% if variant not in ["ubuntu"] %}
 -After=systemd-networkd-wait-online.service
+-{% endif %}
 -{% if variant in ["ubuntu", "unknown", "debian"] %}
 -After=networking.service
 -{% endif %}
