@@ -9,7 +9,7 @@ Bug: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/2064300
 Last-Update: 2024-04-30 <YYYY-MM-DD, last update of the meta-information, optional>
 --- a/cloudinit/cmd/main.py
 +++ b/cloudinit/cmd/main.py
-@@ -134,6 +134,11 @@ def extract_fns(args):
+@@ -138,6 +138,11 @@ def extract_fns(args):
      # since it would of broke if it couldn't have
      # read that file already...
      fn_cfgs = []
@@ -21,7 +21,7 @@ Last-Update: 2024-04-30 <YYYY-MM-DD, last update of the meta-information, option
      if args.files:
          for fh in args.files:
              # The realpath is more useful in logging
-@@ -942,6 +947,17 @@ def main(sysv_args=None):
+@@ -1055,6 +1060,17 @@ def main(sysv_args=None):
          default=False,
      )
      parser.add_argument(
@@ -41,7 +41,7 @@ Last-Update: 2024-04-30 <YYYY-MM-DD, last update of the meta-information, option
          help=(
 --- a/tests/unittests/cmd/test_main.py
 +++ b/tests/unittests/cmd/test_main.py
-@@ -13,7 +13,8 @@ from cloudinit.cmd import main
+@@ -14,7 +14,8 @@ from cloudinit.cmd import main
  from cloudinit.util import ensure_dir, load_text_file, write_file
  
  MyArgs = namedtuple(
@@ -51,7 +51,7 @@ Last-Update: 2024-04-30 <YYYY-MM-DD, last update of the meta-information, option
  )
  
  
-@@ -107,6 +108,7 @@ class TestMain:
+@@ -108,6 +109,7 @@ class TestMain:
              files = None
          cmdargs = MyArgs(
              debug=False,
@@ -59,7 +59,15 @@ Last-Update: 2024-04-30 <YYYY-MM-DD, last update of the meta-information, option
              files=files,
              force=False,
              local=False,
-@@ -143,6 +145,7 @@ class TestMain:
+@@ -144,6 +146,7 @@ class TestMain:
+         write_file(cloud_cfg_file, safeyaml.dumps(cfg))
+         cmdargs = MyArgs(
+             debug=False,
++            main_files=None,
+             files=None,
+             force=False,
+             local=False,
+@@ -332,6 +335,7 @@ class TestMain:
          write_file(cloud_cfg_file, safeyaml.dumps(cfg))
          cmdargs = MyArgs(
              debug=False,
