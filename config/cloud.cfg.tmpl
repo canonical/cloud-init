@@ -324,9 +324,8 @@ system_info:
     renderers: ['network-manager', 'networkd']
 {% elif variant == "raspberry-pi-os" %}
   network:
-    dhcp_client_priority: [dhclient]
-    renderers: ['netplan', 'network-manager', 'networkd', 'eni']
-    activators: ['netplan', 'network-manager', 'networkd', 'eni']
+    renderers: ['netplan', 'network-manager']
+    activators: ['netplan', 'network-manager']
 {% elif variant in ["ubuntu", "unknown"] %}
 {# SRU_BLOCKER: do not ship network renderers on Xenial, Bionic or Eoan #}
   network:
