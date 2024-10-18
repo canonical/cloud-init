@@ -1,4 +1,3 @@
-## template:jinja
 [Unit]
 # https://docs.cloud-init.io/en/latest/explanation/boot.html
 Description=Cloud-init: Final Stage
