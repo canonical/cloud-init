@@ -109,7 +109,7 @@ class TestRenderCloudCfg:
             ("ubuntu", ["netplan", "eni", "sysconfig"]),
             (
                 "raspberry-pi-os",
-                ["netplan", "network-manager", "networkd", "eni"]
+                ["netplan", "network-manager"]
             )
         ),
     )

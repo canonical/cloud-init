@@ -35,6 +35,8 @@
         "lxd",
         "mcollective",
         "mounts",
+        "netplan-nm-patch",
+        "netplan_nm_patch",
         "ntp",
         "package-update-upgrade-install",
         "package_update_upgrade_install",
@@ -2141,6 +2143,10 @@
         }
       }
     },
+    "cc_netplan_nm_patch": {
+      "type": "object",
+      "properties": {}
+    },
     "cc_ntp": {
       "type": "object",
       "properties": {
@@ -3981,6 +3987,9 @@
     },
     {
       "$ref": "#/$defs/cc_mounts"
+    },
+    {
+      "$ref": "#/$defs/cc_netplan_nm_patch"
     },
     {
       "$ref": "#/$defs/cc_ntp"
