@@ -11,7 +11,6 @@
 import binascii
 import contextlib
 import copy as obj_copy
-import email
 import glob
 import grp
 import gzip
@@ -36,6 +35,7 @@ import time
 from base64 import b64decode
 from collections import deque, namedtuple
 from contextlib import contextmanager, suppress
+from email.message import Message
 from errno import ENOENT
 from functools import lru_cache
 from pathlib import Path
@@ -164,7 +164,7 @@ def maybe_b64decode(data: bytes) -> bytes:
         return data
 
 
-def fully_decoded_payload(part):
+def fully_decoded_payload(part: Message):
     # In Python 3, decoding the payload will ironically hand us a bytes object.
     # 'decode' means to decode according to Content-Transfer-Encoding, not
     # according to any charset in the Content-Type.  So, if we end up with
@@ -175,8 +175,16 @@ def fully_decoded_payload(part):
         cte_payload, bytes
     ):
         charset = part.get_charset()
-        if charset and charset.input_codec:
-            encoding = charset.input_codec
+
+        # TODO: Mypy doesn't like the following code because `input_codec`
+        # is part of a legacy API. See first line of:
+        # https://docs.python.org/3/library/email.charset.html
+        # However, as of this writing, it is still available:
+        # https://github.com/python/cpython/blob/aab18f4d925528c2cbe4625211bf904db2a28317/Lib/email/charset.py#L234  # noqa: E501
+        # That said, we shouldn't continue using legacy APIs, so we should
+        # update this code at some point.
+        if charset and charset.input_codec:  # type: ignore
+            encoding = charset.input_codec  # type: ignore
         else:
             encoding = "utf-8"
         return cte_payload.decode(encoding, "surrogateescape")
@@ -2897,10 +2905,6 @@ def is_x86(uname_arch=None):
         uname_arch[0] == "i" and uname_arch[2:] == "86"
     )
     return x86_arch_match
-
-
-def message_from_string(string):
-    return email.message_from_string(string)
 
 
 def get_installed_packages():
