@@ -1,6 +1,7 @@
 cloud-init (24.4~3+really24.3.1-0ubuntu5) UNRELEASED; urgency=medium
 
   * drop all d/p/cpick-* files as they are included in upstream snapshot
+  * d/p/deprecation-version-boundary.patch: Pin deprecation version to 24.3
   * Upstream snapshotbased on e30549e8.
 
  -- James Falcon <james.falcon@canonical.com>  Thu, 17 Oct 2024 22:10:18 -0500
