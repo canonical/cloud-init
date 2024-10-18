@@ -163,8 +163,6 @@ def detect_template(text):
             raise JinjaSyntaxParsingException(
                 error=template_syntax_error,
             ) from template_syntax_error
-        except Exception as unknown_error:
-            raise unknown_error from unknown_error
 
     if text.find("\n") != -1:
         ident, rest = text.split("\n", 1)  # remove the first line

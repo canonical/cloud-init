@@ -86,7 +86,7 @@ def render_template(user_data_path, instance_data_path=None, debug=False):
     try:
         with open(user_data_path) as stream:
             user_data = stream.read()
-    except IOError:
+    except OSError:
         LOG.error("Missing user-data file: %s", user_data_path)
         return 1
     try:

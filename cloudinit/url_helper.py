@@ -28,7 +28,7 @@ from urllib.parse import quote, urlparse, urlsplit, urlunparse
 import requests
 from requests import exceptions
 
-from cloudinit import performance, util, version
+from cloudinit import lifecycle, performance, util, version
 
 LOG = logging.getLogger(__name__)
 
@@ -226,7 +226,7 @@ def _read_file(path: str, **kwargs) -> "FileResponse":
         return FileResponse(contents, path)
     except FileNotFoundError as e:
         raise UrlError(cause=e, code=NOT_FOUND, headers=None, url=path) from e
-    except IOError as e:
+    except OSError as e:
         raise UrlError(cause=e, code=e.errno, headers=None, url=path) from e
 
 
@@ -333,9 +333,9 @@ class UrlResponse:
         yield from self._response.iter_content(chunk_size, decode_unicode)
 
 
-class UrlError(IOError):
+class UrlError(OSError):
     def __init__(self, cause, code=None, headers=None, url=None):
-        IOError.__init__(self, str(cause))
+        OSError.__init__(self, str(cause))
         self.cause = cause
         self.code = code
         self.headers = headers
@@ -747,6 +747,14 @@ def wait_for_url(
         except Exception as e:
             reason = "unexpected error [%s]" % e
             url_exc = e
+            lifecycle.log_with_downgradable_level(
+                logger=LOG,
+                version="24.4",
+                requested_level=logging.WARN,
+                msg="Unhandled exception in url handler: %s",
+                args=e,
+            )
+
         time_taken = int(time.monotonic() - start_time)
         max_wait_str = "%ss" % max_wait if max_wait else "unlimited"
         status_msg = "Calling '%s' failed [%s/%s]: %s" % (

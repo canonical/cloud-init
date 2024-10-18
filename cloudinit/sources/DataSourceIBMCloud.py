@@ -370,11 +370,17 @@ def metadata_from_dir(source_dir: str) -> Dict[str, Any]:
         try:
             raw = util.load_binary_file(path)
             return translator(raw)
-        except IOError as e:
-            LOG.debug("Failed reading path '%s': %s", path, e)
+        except OSError as e:
+            LOG.warning("Failed reading path '%s': %s", path, e)
             return None
+        except UnicodeError as e:
+            LOG.warning("Failed decoding %s", path)
+            raise sources.BrokenMetadata(f"Failed to decode {path}: {e}")
         except Exception as e:
-            raise sources.BrokenMetadata(f"Failed decoding {path}: {e}")
+            LOG.warning("Unhandled exception %s", e)
+            raise sources.BrokenMetadata(
+                f"Unhandled exception reading {path}: {e}"
+            )
 
     files = [
         # tuples of (results_name, path, translator)

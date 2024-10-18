@@ -282,7 +282,7 @@ def setup_swapfile(fname, size=None, maxsize=None):
     if str(size).lower() == "auto":
         try:
             memsize = util.read_meminfo()["total"]
-        except IOError:
+        except OSError:
             LOG.debug("Not creating swap: failed to read meminfo")
             return
 
@@ -331,11 +331,11 @@ def handle_swapcfg(swapcfg):
                     LOG.debug("swap file %s already in use", fname)
                     return fname
             LOG.debug("swap file %s exists, but not in /proc/swaps", fname)
-        except Exception:
-            LOG.warning(
-                "swap file %s exists. Error reading /proc/swaps", fname
-            )
-            return fname
+        except OSError as e:
+            LOG.warning("Error reading /proc/swaps: %s", e)
+        except Exception as e:
+            LOG.warning("Unhandled exception while reading /proc/swaps: %s", e)
+        return fname
 
     try:
         if isinstance(size, str) and size != "auto":
@@ -344,7 +344,10 @@ def handle_swapcfg(swapcfg):
             maxsize = util.human2bytes(maxsize)
         return setup_swapfile(fname=fname, size=size, maxsize=maxsize)
 
+    except OSError as e:
+        LOG.warning("failed to setup swap: %s", e)
     except Exception as e:
+        LOG.warning("Unhandled exception: %s", e)
         LOG.warning("failed to setup swap: %s", e)
 
     return None

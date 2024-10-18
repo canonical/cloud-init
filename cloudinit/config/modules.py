@@ -10,7 +10,7 @@ import copy
 import logging
 from inspect import signature
 from types import ModuleType
-from typing import Dict, List, NamedTuple, Optional
+from typing import Dict, List, NamedTuple, Optional, Tuple
 
 from cloudinit import (
     config,
@@ -45,6 +45,8 @@ REMOVED_MODULES = [
 RENAMED_MODULES = {
     "cc_ubuntu_advantage": "cc_ubuntu_pro",  # Renamed 24.1
 }
+
+RunOutput = Tuple[List[str], List[Tuple[str, Exception]]]
 
 
 class ModuleDetails(NamedTuple):
@@ -253,7 +255,7 @@ class Modules:
             )
         return mostly_mods
 
-    def _run_modules(self, mostly_mods: List[ModuleDetails]):
+    def _run_modules(self, mostly_mods: List[ModuleDetails]) -> RunOutput:
         cc = self.init.cloudify()
         # Return which ones ran
         # and which ones failed + the exception of why it failed
@@ -308,7 +310,14 @@ class Modules:
                 failures.append((name, e))
         return (which_ran, failures)
 
-    def run_single(self, mod_name, args=None, freq=None):
+    def run_single(self, mod_name: str, args=None, freq=None) -> RunOutput:
+        """Run a single module
+
+        return: a tuple containing two lists:
+                - string names of modules which ran
+                - a list of tuples of modules which failed while running and
+                  the exception that was raised
+        """
         # Form the users module 'specs'
         mod_to_be = {
             "mod": mod_name,
@@ -320,7 +329,7 @@ class Modules:
         mostly_mods = self._fixup_modules(raw_mods)
         return self._run_modules(mostly_mods)
 
-    def run_section(self, section_name):
+    def run_section(self, section_name: str) -> RunOutput:
         """Runs all modules in the given section.
 
         section_name - One of the modules lists as defined in
@@ -328,6 +337,11 @@ class Modules:
          - cloud_init_modules
          - cloud_config_modules
          - cloud_final_modules
+
+        return: a tuple containing two lists:
+                - string names of modules which ran
+                - a list of tuples of modules which failed while running and
+                  the exception that was raised
         """
         raw_mods = self._read_modules(section_name)
         mostly_mods = self._fixup_modules(raw_mods)
@@ -357,7 +371,7 @@ class Modules:
                         skipped.append(name)
                         continue
                     forced.append(name)
-            active_mods.append([mod, name, _freq, _args])
+            active_mods.append(module_details)
 
         if inapplicable_mods:
             LOG.info(

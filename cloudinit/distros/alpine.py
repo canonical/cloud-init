@@ -88,7 +88,7 @@ class Distro(distros.Distro):
             # Try to update the previous one
             # so lets see if we can read it first.
             conf = self._read_hostname_conf(filename)
-        except IOError:
+        except OSError:
             create_hostname_file = util.get_cfg_option_bool(
                 self._cfg, "create_hostname_file", True
             )
@@ -118,7 +118,7 @@ class Distro(distros.Distro):
         try:
             conf = self._read_hostname_conf(filename)
             hostname = conf.hostname
-        except IOError:
+        except OSError:
             pass
         if not hostname:
             return default
@@ -412,7 +412,7 @@ class Distro(distros.Distro):
                 util.write_file(
                     shadow_file, shadow_contents, omode="w", preserve_mode=True
                 )
-            except IOError as e:
+            except OSError as e:
                 util.logexc(LOG, "Failed to update %s file", shadow_file)
                 raise e
         else:
@@ -530,7 +530,7 @@ class Distro(distros.Distro):
                         omode="w",
                         preserve_mode=True,
                     )
-                except IOError as e:
+                except OSError as e:
                     util.logexc(LOG, "Failed to update %s file", shadow_file)
                     raise e
             else:

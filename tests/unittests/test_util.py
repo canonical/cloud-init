@@ -3,7 +3,6 @@
 """Tests for cloudinit.util"""
 
 import base64
-import errno
 import io
 import json
 import logging
@@ -551,7 +550,7 @@ class TestUtil:
 
     @mock.patch(
         M_PATH + "read_conf",
-        side_effect=(OSError(errno.EACCES, "Not allowed"), {"0": "0"}),
+        side_effect=(PermissionError("Not allowed"), {"0": "0"}),
     )
     def test_read_conf_d_no_permissions(
         self, m_read_conf, caplog, capsys, tmpdir
@@ -586,7 +585,7 @@ class TestUtil:
     @mock.patch(M_PATH + "mergemanydict")
     @mock.patch(M_PATH + "read_conf_d", return_value={"my_config": "foo"})
     @mock.patch(
-        M_PATH + "read_conf", side_effect=OSError(errno.EACCES, "Not allowed")
+        M_PATH + "read_conf", side_effect=PermissionError("Not allowed")
     )
     def test_read_conf_with_confd_no_permissions(
         self,
@@ -1317,7 +1316,7 @@ class TestGetLinuxDistro(CiTestCase):
     ):
         """Verify we get an empty tuple when no information exists and
         Exceptions are not propagated"""
-        m_platform_dist.side_effect = Exception()
+        m_platform_dist.side_effect = AttributeError()
         m_platform_system.return_value = "Linux"
         m_path_exists.return_value = 0
         dist = util.get_linux_distro()
@@ -2063,7 +2062,7 @@ class TestFipsEnabled:
         def fake_load_file(path):
             assert path == "/proc/sys/crypto/fips_enabled"
             if fips_enabled_content is None:
-                raise IOError("No file exists Bob")
+                raise OSError("No file exists Bob")
             return fips_enabled_content
 
         load_file.side_effect = fake_load_file
@@ -2697,7 +2696,7 @@ class TestProcessExecutionError(helpers.TestCase):
         )
 
     def test_pexec_error_type(self):
-        self.assertIsInstance(subp.ProcessExecutionError(), IOError)
+        self.assertIsInstance(subp.ProcessExecutionError(), OSError)
 
     def test_pexec_error_empty_msgs(self):
         error = subp.ProcessExecutionError()

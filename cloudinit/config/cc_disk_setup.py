@@ -12,7 +12,7 @@ import os
 import shlex
 from pathlib import Path
 
-from cloudinit import performance, subp, util
+from cloudinit import lifecycle, performance, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -180,7 +180,18 @@ def enumerate_disk(device, nodeps=False):
     info = None
     try:
         info, _err = subp.subp(lsblk_cmd)
+    except subp.ProcessExecutionError as e:
+        raise RuntimeError(
+            "Failed during disk check for %s\n%s" % (device, e)
+        ) from e
     except Exception as e:
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception: %s",
+            args=e,
+        )
         raise RuntimeError(
             "Failed during disk check for %s\n%s" % (device, e)
         ) from e
@@ -219,8 +230,11 @@ def is_device_valid(name, partition=False):
     d_type = ""
     try:
         d_type = device_type(name)
-    except Exception:
+    except RuntimeError:
         LOG.warning("Query against device %s failed", name)
+        return False
+    except Exception as e:
+        LOG.warning("Unhandled exception while querying device %s %s", name, e)
         return False
 
     if partition and d_type == "part":
@@ -244,7 +258,7 @@ def check_fs(device):
     blkid_cmd = ["blkid", "-c", "/dev/null", device]
     try:
         out, _err = subp.subp(blkid_cmd, rcs=[0, 2])
-    except Exception as e:
+    except subp.ProcessExecutionError as e:
         raise RuntimeError(
             "Failed during disk check for %s\n%s" % (device, e)
         ) from e
@@ -350,7 +364,16 @@ def get_hdd_size(device):
     try:
         size_in_bytes, _ = subp.subp(["blockdev", "--getsize64", device])
         sector_size, _ = subp.subp(["blockdev", "--getss", device])
+    except subp.ProcessExecutionError as e:
+        raise RuntimeError("Failed to get %s size\n%s" % (device, e)) from e
     except Exception as e:
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception: %s",
+            args=e,
+        )
         raise RuntimeError("Failed to get %s size\n%s" % (device, e)) from e
 
     return int(size_in_bytes) / int(sector_size)
@@ -369,7 +392,18 @@ def check_partition_mbr_layout(device, layout):
     prt_cmd = ["sfdisk", "-l", device]
     try:
         out, _err = subp.subp(prt_cmd, data="%s\n" % layout)
+    except subp.ProcessExecutionError as e:
+        raise RuntimeError(
+            "Error running partition command on %s\n%s" % (device, e)
+        ) from e
     except Exception as e:
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception: %s",
+            args=e,
+        )
         raise RuntimeError(
             "Error running partition command on %s\n%s" % (device, e)
         ) from e
@@ -400,7 +434,18 @@ def check_partition_gpt_layout(device, layout):
     prt_cmd = ["sgdisk", "-p", device]
     try:
         out, _err = subp.subp(prt_cmd, update_env=LANG_C_ENV)
+    except subp.ProcessExecutionError as e:
+        raise RuntimeError(
+            "Error running partition command on %s\n%s" % (device, e)
+        ) from e
     except Exception as e:
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception: %s",
+            args=e,
+        )
         raise RuntimeError(
             "Error running partition command on %s\n%s" % (device, e)
         ) from e
@@ -591,7 +636,7 @@ def purge_disk(device):
             try:
                 LOG.info("Purging filesystem on /dev/%s", d["name"])
                 subp.subp(wipefs_cmd)
-            except Exception as e:
+            except subp.ProcessExecutionError as e:
                 raise RuntimeError(
                     "Failed FS purge of /dev/%s" % d["name"]
                 ) from e
@@ -643,7 +688,18 @@ def exec_mkpart_mbr(device, layout):
     prt_cmd = ["sfdisk", "--force", device]
     try:
         subp.subp(prt_cmd, data="%s\n" % layout)
+    except subp.ProcessExecutionError as e:
+        raise RuntimeError(
+            "Failed to partition device %s\n%s" % (device, e)
+        ) from e
     except Exception as e:
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception: %s",
+            args=e,
+        )
         raise RuntimeError(
             "Failed to partition device %s\n%s" % (device, e)
         ) from e
@@ -671,8 +727,13 @@ def exec_mkpart_gpt(device, layout):
                 subp.subp(
                     ["sgdisk", "-t", "{}:{}".format(index, pinput), device]
                 )
-    except Exception:
+    except subp.ProcessExecutionError:
         LOG.warning("Failed to partition device %s", device)
+        raise
+    except Exception as e:
+        LOG.warning(
+            "Unhandled exception while partitioning device %s: %s", device, e
+        )
         raise
 
     read_parttbl(device)
@@ -976,5 +1037,14 @@ def mkfs(fs_cfg):
     LOG.debug("Creating file system %s on %s", label, device)
     try:
         subp.subp(fs_cmd, shell=shell)
+    except subp.ProcessExecutionError as e:
+        raise RuntimeError("Failed to exec of '%s':\n%s" % (fs_cmd, e)) from e
     except Exception as e:
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception: %s",
+            args=e,
+        )
         raise RuntimeError("Failed to exec of '%s':\n%s" % (fs_cmd, e)) from e

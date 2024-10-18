@@ -225,7 +225,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if publish_hostkeys:
         hostkeys = get_public_host_keys(blacklist=host_key_blacklist)
         try:
-            cloud.datasource.publish_host_keys(hostkeys)
+            if not cloud.datasource.publish_host_keys(hostkeys):
+                LOG.warning("Publishing host keys failed!")
         except Exception:
             util.logexc(LOG, "Publishing host keys failed!")
 

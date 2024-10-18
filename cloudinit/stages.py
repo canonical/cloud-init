@@ -484,9 +484,18 @@ class Init:
         previous_ds = None
         ds_fn = os.path.join(idir, "datasource")
         try:
-            previous_ds = util.load_text_file(ds_fn).strip()
-        except Exception:
+            previous_ds = util.load_text_file(ds_fn, quiet=True).strip()
+        except OSError:
             pass
+        except Exception as e:
+            lifecycle.log_with_downgradable_level(
+                logger=LOG,
+                version="24.4",
+                requested_level=logging.WARN,
+                msg=f"Unhandled error loading datasource file {ds_fn}: %s",
+                args=e,
+            )
+
         if not previous_ds:
             previous_ds = ds
         util.write_file(ds_fn, "%s\n" % ds)
@@ -524,10 +533,22 @@ class Init:
 
         dp = self.paths.get_cpath("data")
         iid_fn = os.path.join(dp, "instance-id")
+        self._previous_iid = NO_PREVIOUS_INSTANCE_ID
         try:
             self._previous_iid = util.load_text_file(iid_fn).strip()
-        except Exception:
-            self._previous_iid = NO_PREVIOUS_INSTANCE_ID
+        except OSError:
+            pass
+        except Exception as e:
+            lifecycle.log_with_downgradable_level(
+                logger=LOG,
+                version="24.4",
+                requested_level=logging.WARN,
+                msg=(
+                    "Unhandled error loading previous instance id "
+                    f"{iid_fn}: %s"
+                ),
+                args=e,
+            )
 
         LOG.debug("previous iid found to be %s", self._previous_iid)
         return self._previous_iid
@@ -849,7 +870,7 @@ class Init:
             instance_json = util.load_json(
                 util.load_text_file(json_sensitive_file)
             )
-        except (OSError, IOError) as e:
+        except OSError as e:
             LOG.warning(
                 "Skipping write of system_info/features to %s."
                 " Unable to read file: %s",
@@ -1033,7 +1054,7 @@ class Init:
             LOG.debug("applying net config names for %s", netcfg)
             self.distro.networking.apply_network_config_names(netcfg)
         except Exception as e:
-            LOG.warning("Failed to rename devices: %s", e)
+            LOG.warning(LOG, "Failed to rename devices: %s", e)
 
     def _get_per_boot_network_semaphore(self):
         return namedtuple("Semaphore", "semaphore args")(

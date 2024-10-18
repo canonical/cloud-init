@@ -8,7 +8,9 @@ import logging
 import re
 from base64 import b64decode
 
-from cloudinit import dmi, sources
+from serial import SerialException, SerialTimeoutException
+
+from cloudinit import dmi, lifecycle, sources
 from cloudinit.sources import DataSourceHostname
 from cloudinit.sources.helpers.cloudsigma import SERIAL_PORT, Cepko
 
@@ -55,10 +57,20 @@ class DataSourceCloudSigma(sources.DataSource):
         try:
             server_context = self.cepko.all().result
             server_meta = server_context["meta"]
-        except Exception:
-            # TODO: check for explicit "config on", and then warn
-            # but since no explicit config is available now, just debug.
+        except (ValueError, SerialException, SerialTimeoutException, OSError):
             LOG.debug("CloudSigma: Unable to read from serial port")
+            return False
+        except Exception as e:
+            # TODO: check for explicit "config on", and then warn
+            # but since no explicit config is available now, just log.
+            lifecycle.log_with_downgradable_level(
+                logger=LOG,
+                version="24.4",
+                requested_level=logging.WARN,
+                msg="Unhandled exception, could not read from serial port: %s",
+                args=e,
+            )
+
             return False
 
         self.dsmode = self._determine_dsmode(

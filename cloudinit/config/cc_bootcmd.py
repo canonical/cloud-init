@@ -47,10 +47,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             util.logexc(LOG, "Failed to shellify bootcmd: %s", str(e))
             raise
 
-        try:
-            iid = cloud.get_instance_id()
-            env = {"INSTANCE_ID": str(iid)} if iid else {}
-            subp.subp(["/bin/sh", tmpf.name], update_env=env, capture=False)
-        except Exception:
-            util.logexc(LOG, "Failed to run bootcmd module %s", name)
-            raise
+        iid = cloud.get_instance_id()
+        env = {"INSTANCE_ID": str(iid)} if iid else {}
+        subp.subp(["/bin/sh", tmpf.name], update_env=env, capture=False)

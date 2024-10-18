@@ -6,7 +6,7 @@
 import logging
 import re
 
-from cloudinit import subp, util
+from cloudinit import lifecycle, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -70,9 +70,21 @@ def write_config(wg_int: dict):
         util.write_file(
             wg_int["config_path"], wg_int["content"], mode=WG_CONFIG_FILE_MODE
         )
-    except Exception as e:
+    except (OSError, KeyError) as e:
         raise RuntimeError(
             "Failure writing Wireguard configuration file"
+            f' {wg_int["config_path"]}:{NL}{str(e)}'
+        ) from e
+    except Exception as e:
+        lifecycle.log_with_downgradable_level(
+            logger=LOG,
+            version="24.4",
+            requested_level=logging.WARN,
+            msg="Unhandled exception: %s",
+            args=e,
+        )
+        raise RuntimeError(
+            "Unhandled failure writing Wireguard configuration file"
             f' {wg_int["config_path"]}:{NL}{str(e)}'
         ) from e
 

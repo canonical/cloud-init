@@ -4,7 +4,6 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import errno
 import json
 import os
 
@@ -26,7 +25,7 @@ class DataSourceBigstep(sources.DataSource):
         if url is None:
             return False
         response = url_helper.readurl(url)
-        decoded = json.loads(response.contents.decode())
+        decoded = json.loads(response.contents)
         self.metadata = decoded["metadata"]
         self.vendordata_raw = decoded["vendordata_raw"]
         self.userdata_raw = decoded["userdata_raw"]
@@ -41,16 +40,12 @@ class DataSourceBigstep(sources.DataSource):
             self.paths.cloud_dir, "data", "seed", "bigstep", "url"
         )
         try:
-            content = util.load_text_file(url_file)
-        except IOError as e:
+            return util.load_text_file(url_file)
+        except FileNotFoundError:
             # If the file doesn't exist, then the server probably isn't a
             # Bigstep instance; otherwise, another problem exists which needs
             # investigation
-            if e.errno == errno.ENOENT:
-                return None
-            else:
-                raise
-        return content
+            return None
 
 
 # Used to match classes to dependencies

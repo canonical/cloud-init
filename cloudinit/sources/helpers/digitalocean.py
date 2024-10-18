@@ -201,7 +201,7 @@ def read_metadata(url, timeout=2, sec_between=2, retries=30):
     )
     if not response.ok():
         raise RuntimeError("unable to read metadata at %s" % url)
-    return json.loads(response.contents.decode())
+    return json.loads(response.contents)
 
 
 def read_sysinfo():
