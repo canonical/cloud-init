@@ -1384,7 +1384,7 @@ class TestNetworkConversion(CiTestCase):
                     ],
                     "type": "physical",
                 }
-		],
+            ],
             "version": 1,
         }
         found = convert_net(SDC_NICS_ADDRCONF)
