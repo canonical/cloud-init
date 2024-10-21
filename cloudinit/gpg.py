@@ -108,12 +108,30 @@ class GPG:
                     data=data,
                     update_env=self.env,
                 )
-            except subp.ProcessExecutionError as e:
-                if e.exit_code == 2:
+            except subp.ProcessExecutionError:
+                # If the message is signed then encrypted (the default),
+                # the message can't be verified until it's decrypted
+                try:
+                    stdout, _ = subp.subp(
+                        ["gpg", "--unwrap"],
+                        data=data,
+                        update_env=self.env,
+                        decode=False,
+                    )
+                except subp.ProcessExecutionError as e:
                     raise GpgVerificationError(
-                        "Signature verification failed"
+                        "Signature verification failed. Could not unwrap."
                     ) from e
-                raise
+                try:
+                    subp.subp(
+                        ["gpg", "--verify"],
+                        data=stdout,
+                        update_env=self.env,
+                    )
+                except subp.ProcessExecutionError as e:
+                    raise GpgVerificationError(
+                        "Signature verification failed. Could not verify."
+                    ) from e
         result = subp.subp(
             [
                 "gpg",

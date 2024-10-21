@@ -1,5 +1,7 @@
 """Test PGP signed and encrypted userdata."""
 
+from pathlib import Path
+
 import pytest
 
 from cloudinit import subp
@@ -16,12 +18,12 @@ bootcmd:
 
 
 @pytest.fixture(scope="module")
-def gpg_dir(tmp_path_factory):
+def gpg_dir(tmp_path_factory: pytest.TempPathFactory):
     yield tmp_path_factory.mktemp("gpg_dir")
 
 
 @pytest.fixture(scope="module")
-def public_key(gpg_dir):
+def public_key(gpg_dir: Path):
     subp.subp(
         [
             "gpg",
@@ -29,7 +31,6 @@ def public_key(gpg_dir):
             str(gpg_dir),
             "--quick-generate-key",
             "--batch",
-            # "loopback",
             "--passphrase",
             "",
             "signing_user",
@@ -197,6 +198,14 @@ def _invalidate_key(client, key_path):
 )
 def test_signed_and_encrypted(pgp_client: IntegrationInstance):
     client = pgp_client
+
+    client.write_to_file(
+        "/etc/cloud/cloud.cfg.d/99_pgp.cfg",
+        "user_data:\n  require_signature: true",
+    )
+    client.execute("cloud-init clean --logs")
+    client.restart()
+
     assert client.execute("test -f /var/tmp/signed_and_encrypted")
     verify_clean_boot(client)
 
@@ -209,7 +218,7 @@ def test_signed_and_encrypted(pgp_client: IntegrationInstance):
     assert not client.execute("test -f /var/tmp/signed_and_encrypted")
     result = client.execute("cloud-init status --format=json")
     assert result.failed
-    assert "Failed decrypting user data" in result.stdout
+    assert "Signature verification failed. Could not verify." in result.stdout
 
     # Restore the public key, invalidate the private key, and ensure we fail
     client.execute("cp /var/tmp/pub_key /etc/cloud/keys/pub_key")
@@ -221,7 +230,7 @@ def test_signed_and_encrypted(pgp_client: IntegrationInstance):
     assert not client.execute("test -f /var/tmp/signed_and_encrypted")
     result = client.execute("cloud-init status --format=json")
     assert result.failed
-    assert "Failed decrypting user data" in result.stdout
+    assert "Signature verification failed. Could not unwrap." in result.stdout
 
 
 @pytest.mark.parametrize(
