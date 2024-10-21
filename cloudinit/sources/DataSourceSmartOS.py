@@ -927,6 +927,8 @@ def convert_smartos_network_data(
         for ip in nic.get("ips", []):
             if ip == "dhcp":
                 subnet = {"type": "dhcp4"}
+            elif ip == "addrconf":
+                subnet = {"type": "dhcp6"}
             else:
                 routeents = []
                 subnet = dict(
