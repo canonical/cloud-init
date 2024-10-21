@@ -127,6 +127,18 @@ Export the private key of the encrypting user:
 
     $ gpg --export-secret-keys encrypting_user > /etc/cloud/keys/encrypting_user.gpg
 
+Remove key ring
+---------------
+
+.. note::
+    This step is optional but recommended for a clean image.
+
+Remove the keyring that was generated upon creating our first key:
+
+.. code-block:: bash
+
+    $ rm -r ~/.gnupg/
+
 Why export keys?
 ----------------
 
@@ -151,6 +163,15 @@ require that cloud-init only process PGP messages. To do so, create a file
 
     user_data:
       require_signature: true
+
+Clean cloud-init
+================
+
+This is to ensure that cloud-init runs as if it were first boot:
+
+.. code-block:: bash
+
+    $ cloud-init clean --logs
 
 Retrieve our encrypted and signed user data
 ===========================================
