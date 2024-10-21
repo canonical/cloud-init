@@ -9,6 +9,7 @@
 
 import logging
 import os
+import pathlib
 import re
 import signal
 import time
@@ -20,6 +21,10 @@ from cloudinit import subp
 LOG = logging.getLogger(__name__)
 
 HOME = "GNUPGHOME"
+
+
+class GpgVerificationError(Exception):
+    """GpgVerificationError is raised when a signature verification fails."""
 
 
 class GPG:
@@ -67,6 +72,75 @@ class GPG:
             # debug, since it happens for any key not on the system initially
             LOG.debug('Failed to export armoured key "%s": %s', key, error)
         return None
+
+    def import_key(self, key: pathlib.Path) -> None:
+        """Import gpg key from a file to the temporary keyring.
+
+        :param key: path to the key file
+        """
+        try:
+            subp.subp(
+                [
+                    "gpg",
+                    "--batch",
+                    "--import",
+                    str(key),
+                ],
+                update_env=self.env,
+            )
+        except subp.ProcessExecutionError as error:
+            LOG.warning("Failed to import key %s: %s", key, error)
+
+    def decrypt(self, data: str, *, require_signature=False) -> str:
+        """Process data using gpg.
+
+        This can be used to decrypt encrypted data, verify signed data,
+        or both depending on the data provided.
+
+        :param data: ASCII-armored GPG message to process
+        :return: decrypted data
+        :raises: ProcessExecutionError if gpg fails to decrypt data
+        """
+        if require_signature:
+            try:
+                subp.subp(
+                    ["gpg", "--verify"],
+                    data=data,
+                    update_env=self.env,
+                )
+            except subp.ProcessExecutionError:
+                # If the message is signed then encrypted (the default),
+                # the message can't be verified until it's decrypted
+                try:
+                    stdout, _ = subp.subp(
+                        ["gpg", "--unwrap"],
+                        data=data,
+                        update_env=self.env,
+                        decode=False,
+                    )
+                except subp.ProcessExecutionError as e:
+                    raise GpgVerificationError(
+                        "Signature verification failed. Could not unwrap."
+                    ) from e
+                try:
+                    subp.subp(
+                        ["gpg", "--verify"],
+                        data=stdout,
+                        update_env=self.env,
+                    )
+                except subp.ProcessExecutionError as e:
+                    raise GpgVerificationError(
+                        "Signature verification failed. Could not verify."
+                    ) from e
+        result = subp.subp(
+            [
+                "gpg",
+                "--decrypt",
+            ],
+            data=data,
+            update_env=self.env,
+        )
+        return result.stdout
 
     def dearmor(self, key: str) -> str:
         """Dearmor gpg key, dearmored key gets returned
