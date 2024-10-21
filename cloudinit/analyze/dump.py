@@ -3,10 +3,12 @@
 import calendar
 import sys
 from datetime import datetime, timezone
+from typing import Optional, List, Tuple, Dict, Union
+
 
 from cloudinit import atomic_helper, subp, util
 
-stage_to_description = {
+stage_to_description: Dict[str, str] = {
     "finished": "finished running cloud-init",
     "init-local": "starting search for local datasources",
     "init-network": "searching for network datasources",
@@ -27,7 +29,7 @@ CLOUD_INIT_JOURNALCTL_FMT = "%b %d %H:%M:%S.%f %Y"
 DEFAULT_FMT = "%b %d %H:%M:%S %Y"
 
 
-def parse_timestamp(timestampstr):
+def parse_timestamp(timestampstr: str) -> float:
     # default syslog time does not include the current year
     months = [calendar.month_abbr[m] for m in range(1, 13)]
     if timestampstr.split()[0] in months:
@@ -54,7 +56,7 @@ def parse_timestamp(timestampstr):
     return float(timestamp)
 
 
-def has_gnu_date():
+def has_gnu_date() -> bool:
     """GNU date includes a string containing the word GNU in it in
     help output. Posix date does not. Use this to indicate on Linux
     systems without GNU date that the extended parsing is not
@@ -63,7 +65,7 @@ def has_gnu_date():
     return "GNU" in subp.subp(["date", "--help"]).stdout
 
 
-def parse_timestamp_from_date(timestampstr):
+def parse_timestamp_from_date(timestampstr: str) -> float:
     if not util.is_Linux() and subp.which("gdate"):
         date = "gdate"
     elif has_gnu_date():
@@ -77,7 +79,7 @@ def parse_timestamp_from_date(timestampstr):
     )
 
 
-def parse_ci_logline(line):
+def parse_ci_logline(line: str) -> Optional[Dict[str, Union[str, float]]]:
     # Stage Starts:
     # Cloud-init v. 0.7.7 running 'init-local' at \
     #               Fri, 02 Sep 2016 19:28:07 +0000. Up 1.0 seconds.
@@ -163,7 +165,7 @@ def parse_ci_logline(line):
     return event
 
 
-def dump_events(cisource=None, rawdata=None):
+def dump_events(cisource: Optional[object] = None, rawdata: Optional[str] = None) -> Tuple[List[Dict[str, Union[str, float]]], List[str]]:
     events = []
     event = None
     CI_EVENT_MATCHES = ["start:", "finish:", "Cloud-init v."]
@@ -189,7 +191,7 @@ def dump_events(cisource=None, rawdata=None):
     return events, data
 
 
-def main():
+def main() -> str:
     if len(sys.argv) > 1:
         cisource = open(sys.argv[1])
     else:
