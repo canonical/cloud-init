@@ -4,9 +4,9 @@ This optimization is a big change in behavior, patch it out.
 Author: Brett Holman <brett.holman@canonical.com>
 Last-Update: 2024-08-02
 
---- a/systemd/cloud-config.service.tmpl
-+++ b/systemd/cloud-config.service.tmpl
-@@ -10,14 +10,7 @@ ConditionEnvironment=!KERNEL_CMDLINE=clo
+--- a/systemd/cloud-config.service
++++ b/systemd/cloud-config.service
+@@ -9,14 +9,7 @@
  
  [Service]
  Type=oneshot
@@ -22,9 +22,9 @@ Last-Update: 2024-08-02
  RemainAfterExit=yes
  TimeoutSec=0
  
---- a/systemd/cloud-final.service.tmpl
-+++ b/systemd/cloud-final.service.tmpl
-@@ -15,16 +15,10 @@ ConditionEnvironment=!KERNEL_CMDLINE=clo
+--- a/systemd/cloud-final.service
++++ b/systemd/cloud-final.service
+@@ -12,16 +12,10 @@
  
  [Service]
  Type=oneshot
@@ -45,17 +45,9 @@ Last-Update: 2024-08-02
  # Output needs to appear in instance console output
 --- a/systemd/cloud-init-local.service.tmpl
 +++ b/systemd/cloud-init-local.service.tmpl
-@@ -7,6 +7,7 @@ DefaultDependencies=no
- {% endif %}
- Wants=network-pre.target
- After=hv_kvp_daemon.service
-+After=systemd-remount-fs.service
+@@ -25,14 +25,7 @@
  {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
- Requires=dbus.socket
- After=dbus.socket
-@@ -37,14 +38,7 @@ ExecStartPre=/bin/mkdir -p /run/cloud-in
  ExecStartPre=/sbin/restorecon /run/cloud-init
- ExecStartPre=/usr/bin/touch /run/cloud-init/enabled
  {% endif %}
 -# This service is a shim which preserves systemd ordering while allowing a
 -# single Python process to run cloud-init's logic. This works by communicating
@@ -69,129 +61,6 @@ Last-Update: 2024-08-02
  RemainAfterExit=yes
  TimeoutSec=0
  
---- a/systemd/cloud-init-main.service.tmpl
-+++ /dev/null
-@@ -1,51 +0,0 @@
--## template:jinja
--# systemd ordering resources
--# ==========================
--# https://systemd.io/NETWORK_ONLINE/
--# https://docs.cloud-init.io/en/latest/explanation/boot.html
--# https://www.freedesktop.org/wiki/Software/systemd/NetworkTarget/
--# https://www.freedesktop.org/software/systemd/man/latest/systemd.special.html
--# https://www.freedesktop.org/software/systemd/man/latest/systemd-remount-fs.service.html
--[Unit]
--Description=Cloud-init: Single Process
--Wants=network-pre.target
--{% if variant in ["almalinux", "cloudlinux", "ubuntu", "unknown", "debian", "rhel"] %}
--DefaultDependencies=no
--{% endif %}
--{% if variant in ["almalinux", "cloudlinux", "rhel"] %}
--Requires=dbus.socket
--After=dbus.socket
--Before=network.service
--Before=firewalld.target
--{% endif %}
--{% if variant in ["ubuntu", "unknown", "debian"] %}
--Before=sysinit.target
--{% endif %}
--
--After=systemd-remount-fs.service
--Before=sysinit.target
--Before=cloud-init-local.service
--Before=shutdown.target
--Conflicts=shutdown.target
--RequiresMountsFor=/var/lib/cloud
--ConditionPathExists=!/etc/cloud/cloud-init.disabled
--ConditionKernelCommandLine=!cloud-init=disabled
--ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
--
--[Service]
--Type=notify
--ExecStart=/usr/bin/cloud-init --all-stages
--KillMode=process
--TasksMax=infinity
--TimeoutStartSec=infinity
--{% if variant in ["almalinux", "cloudlinux", "rhel"] %}
--ExecStartPre=/bin/mkdir -p /run/cloud-init
--ExecStartPre=/sbin/restorecon /run/cloud-init
--ExecStartPre=/usr/bin/touch /run/cloud-init/enabled
--{% endif %}
--
--# Output needs to appear in instance console output
--StandardOutput=journal+console
--
--[Install]
--WantedBy=cloud-init.target
---- a/systemd/cloud-init-network.service.tmpl
-+++ /dev/null
-@@ -1,66 +0,0 @@
--## template:jinja
--[Unit]
--# https://docs.cloud-init.io/en/latest/explanation/boot.html
--Description=Cloud-init: Network Stage
--{% if variant not in ["almalinux", "cloudlinux", "photon", "rhel"] %}
--DefaultDependencies=no
--{% endif %}
--Wants=cloud-init-local.service
--Wants=sshd-keygen.service
--Wants=sshd.service
--After=cloud-init-local.service
--{% if variant not in ["ubuntu"] %}
--After=systemd-networkd-wait-online.service
--{% endif %}
--{% if variant in ["ubuntu", "unknown", "debian"] %}
--After=networking.service
--{% endif %}
--{% if variant in ["almalinux", "centos", "cloudlinux", "eurolinux", "fedora",
--                  "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva", "rhel", "rocky",
--                  "suse", "TencentOS", "virtuozzo"] %}
--
--After=network.service
--After=NetworkManager.service
--After=NetworkManager-wait-online.service
--{% endif %}
--{% if variant in ["suse"] %}
--After=wicked.service
--# setting hostname via hostnamectl depends on dbus, which otherwise
--# would not be guaranteed at this point.
--After=dbus.service
--{% endif %}
--Before=network-online.target
--Before=sshd-keygen.service
--Before=sshd.service
--Before=systemd-user-sessions.service
--{% if variant in ["ubuntu", "unknown", "debian"] %}
--Before=sysinit.target
--Before=shutdown.target
--Conflicts=shutdown.target
--{% endif %}
--{% if variant in ["suse"] %}
--Before=shutdown.target
--Conflicts=shutdown.target
--{% endif %}
--ConditionPathExists=!/etc/cloud/cloud-init.disabled
--ConditionKernelCommandLine=!cloud-init=disabled
--ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
--
--[Service]
--Type=oneshot
--# This service is a shim which preserves systemd ordering while allowing a
--# single Python process to run cloud-init's logic. This works by communicating
--# with the cloud-init process over a unix socket to tell the process that this
--# stage can start, and then wait on a return socket until the cloud-init
--# process has completed this stage. The output from the return socket is piped
--# into a shell so that the process can send a completion message (defaults to
--# "done", otherwise includes an error message) and an exit code to systemd.
--ExecStart=sh -c 'echo "start" | netcat -Uu -W1 /run/cloud-init/share/network.sock -s /run/cloud-init/share/network-return.sock | sh'
--RemainAfterExit=yes
--TimeoutSec=0
--
--# Output needs to appear in instance console output
--StandardOutput=journal+console
--
--[Install]
--WantedBy=cloud-init.target
 --- /dev/null
 +++ b/systemd/cloud-init.service.tmpl
 @@ -0,0 +1,57 @@
@@ -254,7 +123,7 @@ Last-Update: 2024-08-02
 +WantedBy=cloud-init.target
 --- a/cloudinit/cmd/status.py
 +++ b/cloudinit/cmd/status.py
-@@ -318,9 +318,8 @@ def systemd_failed(wait: bool) -> bool:
+@@ -318,9 +318,8 @@
      for service in [
          "cloud-final.service",
          "cloud-config.service",
@@ -267,7 +136,7 @@ Last-Update: 2024-08-02
              stdout = query_systemctl(
 --- a/cloudinit/config/cc_mounts.py
 +++ b/cloudinit/config/cc_mounts.py
-@@ -521,7 +521,7 @@ def handle(name: str, cfg: Config, cloud
+@@ -521,7 +521,7 @@
      # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
      uses_systemd = cloud.distro.uses_systemd()
      default_mount_options = (
@@ -305,7 +174,7 @@ Last-Update: 2024-08-02
 +After=cloud-init-local.service cloud-init.service
 --- a/tests/unittests/config/test_cc_mounts.py
 +++ b/tests/unittests/config/test_cc_mounts.py
-@@ -566,9 +566,9 @@ class TestFstabHandling:
+@@ -566,9 +566,9 @@
              LABEL=keepme	none	ext4	defaults	0	0
              LABEL=UEFI
              /dev/sda4	/mnt2	auto	nofail,comment=cloudconfig	1	2
