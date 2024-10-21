@@ -19,7 +19,15 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from cloudinit import net, performance, sources, ssh_util, subp, util
+from cloudinit import (
+    lifecycle,
+    net,
+    performance,
+    sources,
+    ssh_util,
+    subp,
+    util,
+)
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import device_driver
 from cloudinit.net.dhcp import (
@@ -776,6 +784,7 @@ class DataSourceAzure(sources.DataSource):
                 )
                 crawled_data["files"] = {"ovf-env.xml": contents}
             except Exception as e:
+                LOG.warning("Unhandled exception: %s", e)
                 report_diagnostic_event(
                     "Failed to construct OVF from IMDS data %s" % e,
                     logger_func=LOG.debug,
@@ -813,9 +822,15 @@ class DataSourceAzure(sources.DataSource):
             )
             try:
                 ssh_keys = self._report_ready(pubkey_info=pubkey_info)
-            except Exception:
+            except Exception as e:
                 # Failed to report ready, but continue with best effort.
-                pass
+                lifecycle.log_with_downgradable_level(
+                    logger=LOG,
+                    version="24.4",
+                    requested_level=logging.WARN,
+                    msg="Failed to report ready: %s",
+                    args=e,
+                )
             else:
                 LOG.debug("negotiating returned %s", ssh_keys)
                 if ssh_keys:
@@ -1129,13 +1144,13 @@ class DataSourceAzure(sources.DataSource):
         """
         try:
             self._report_ready()
-        except Exception as error:
+        except UrlError as error:
             # Ignore HTTP failures for Savable PPS as the call may appear to
             # fail if the network interface is unplugged or the VM is
             # suspended before we process the response. Worst case scenario
             # is that we failed to report ready for source PPS and this VM
             # will be discarded shortly, no harm done.
-            if expect_url_error and isinstance(error, UrlError):
+            if expect_url_error:
                 report_diagnostic_event(
                     "Ignoring http call failure, it was expected.",
                     logger_func=LOG.debug,
@@ -1148,6 +1163,10 @@ class DataSourceAzure(sources.DataSource):
                 )
                 report_diagnostic_event(msg, logger_func=LOG.error)
                 raise sources.InvalidMetaDataException(msg) from error
+        except Exception as e:
+            msg = "Failed reporting ready while in the preprovisioning pool."
+            report_diagnostic_event(msg, logger_func=LOG.error)
+            raise sources.InvalidMetaDataException(msg) from e
 
         # Reset flag as we will need to report ready again for re-use.
         self._negotiated = False
@@ -1395,6 +1414,13 @@ class DataSourceAzure(sources.DataSource):
             self._negotiated = True
             return True
         except Exception as e:
+            lifecycle.log_with_downgradable_level(
+                logger=LOG,
+                version="24.4",
+                requested_level=logging.WARN,
+                msg="Unhandled exception: %s",
+                args=e,
+            )
             report_diagnostic_event(
                 "Failed to report failure using new ephemeral dhcp: %s" % e,
                 logger_func=LOG.debug,
@@ -1438,14 +1464,15 @@ class DataSourceAzure(sources.DataSource):
         return data
 
     def _ppstype_from_imds(self, imds_md: dict) -> Optional[str]:
-        try:
-            return imds_md["extended"]["compute"]["ppsType"]
-        except Exception as e:
+        pps_type = (
+            imds_md.get("extended", {}).get("compute", {}).get("ppsType")
+        )
+        if not pps_type:
             report_diagnostic_event(
-                "Could not retrieve pps configuration from IMDS: %s" % e,
+                "Could not retrieve pps configuration from IMDS",
                 logger_func=LOG.debug,
             )
-            return None
+        return pps_type
 
     def _determine_pps_type(self, ovf_cfg: dict, imds_md: dict) -> PPSType:
         """Determine PPS type using OVF, IMDS data, and reprovision marker."""
@@ -1864,7 +1891,7 @@ def write_files(datadir, files, dirmode=None):
                 ):
                     elem.text = DEF_PASSWD_REDACTION
             return ET.tostring(root)
-        except Exception:
+        except ET.ParseError:
             LOG.critical("failed to redact userpassword in %s", fname)
             return cnt
 
@@ -1947,7 +1974,7 @@ def _check_freebsd_cdrom(cdrom_dev):
         with open(cdrom_dev) as fp:
             fp.read(1024)
             return True
-    except IOError:
+    except OSError:
         LOG.debug("cdrom (%s) is not configured", cdrom_dev)
     return False
 

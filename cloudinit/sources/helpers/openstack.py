@@ -10,10 +10,11 @@ import abc
 import base64
 import copy
 import functools
+import json
 import logging
 import os
 
-from cloudinit import net, sources, subp, url_helper, util
+from cloudinit import lifecycle, net, sources, subp, url_helper, util
 from cloudinit.sources import BrokenMetadata
 from cloudinit.sources.helpers import ec2
 
@@ -78,7 +79,7 @@ KNOWN_PHYSICAL_TYPES = (
 )
 
 
-class NonReadable(IOError):
+class NonReadable(OSError):
     pass
 
 
@@ -179,15 +180,26 @@ class BaseReader(metaclass=abc.ABCMeta):
         pass
 
     def _find_working_version(self):
+        versions_available = []
         try:
             versions_available = self._fetch_available_versions()
-        except Exception as e:
+        except (OSError, url_helper.UrlError) as e:
             LOG.debug(
                 "Unable to read openstack versions from %s due to: %s",
                 self.base_path,
                 e,
             )
-            versions_available = []
+        except Exception as e:
+            lifecycle.log_with_downgradable_level(
+                logger=LOG,
+                version="24.4",
+                requested_level=logging.WARN,
+                msg=(
+                    "Unhandled exception while reading openstack version "
+                    f"from {self.base_path} due to: {e}"
+                ),
+                args=e,
+            )
 
         # openstack.OS_VERSIONS is stored in chronological order, so
         # reverse it to check newest first.
@@ -272,7 +284,7 @@ class BaseReader(metaclass=abc.ABCMeta):
             found = False
             try:
                 data = self._path_read(path)
-            except IOError as e:
+            except (OSError, url_helper.UrlError) as e:
                 if not required:
                     LOG.debug(
                         "Failed reading optional path %s due to: %s", path, e
@@ -288,7 +300,18 @@ class BaseReader(metaclass=abc.ABCMeta):
             if found and translator:
                 try:
                     data = translator(data)
+                except json.JSONDecodeError as e:
+                    raise BrokenMetadata(
+                        "Failed to process path %s: %s" % (path, e)
+                    ) from e
                 except Exception as e:
+                    lifecycle.log_with_downgradable_level(
+                        logger=LOG,
+                        version="24.4",
+                        requested_level=logging.WARN,
+                        msg=("Unhandled exception while decoding data: %s"),
+                        args=e,
+                    )
                     raise BrokenMetadata(
                         "Failed to process path %s: %s" % (path, e)
                     ) from e
@@ -304,6 +327,17 @@ class BaseReader(metaclass=abc.ABCMeta):
                 raise BrokenMetadata(
                     "Badly formatted metadata random_seed entry: %s" % e
                 ) from e
+            except Exception as e:
+                lifecycle.log_with_downgradable_level(
+                    logger=LOG,
+                    version="24.4",
+                    requested_level=logging.WARN,
+                    msg=("Unhandled exception while getting random seed: %s"),
+                    args=e,
+                )
+                raise BrokenMetadata(
+                    "Badly formatted metadata random_seed entry: %s" % e
+                ) from e
 
         # load any files that were provided
         files = {}
@@ -314,7 +348,7 @@ class BaseReader(metaclass=abc.ABCMeta):
             path = item["path"]
             try:
                 files[path] = self._read_content_path(item)
-            except Exception as e:
+            except (OSError, url_helper.UrlError) as e:
                 raise BrokenMetadata(
                     "Failed to read provided file %s: %s" % (path, e)
                 ) from e
@@ -328,7 +362,7 @@ class BaseReader(metaclass=abc.ABCMeta):
             try:
                 content = self._read_content_path(net_item, decode=True)
                 results["network_config"] = content
-            except IOError as e:
+            except OSError as e:
                 raise BrokenMetadata(
                     "Failed to read network configuration: %s" % (e)
                 ) from e
@@ -390,7 +424,20 @@ class ConfigDriveReader(BaseReader):
         else:
             try:
                 return util.load_json(self._path_read(path))
+            except (OSError, ValueError) as e:
+                raise BrokenMetadata(
+                    "Failed to process path %s: %s" % (path, e)
+                ) from e
             except Exception as e:
+                lifecycle.log_with_downgradable_level(
+                    logger=LOG,
+                    version="24.4",
+                    requested_level=logging.WARN,
+                    msg=(
+                        "Unhandled exception while reading meta-data.json: %s"
+                    ),
+                    args=e,
+                )
                 raise BrokenMetadata(
                     "Failed to process path %s: %s" % (path, e)
                 ) from e
@@ -417,14 +464,14 @@ class ConfigDriveReader(BaseReader):
                 path = found[name]
                 try:
                     contents = self._path_read(path)
-                except IOError as e:
+                except OSError as e:
                     raise BrokenMetadata("Failed to read: %s" % path) from e
                 try:
                     # Disable not-callable pylint check; pylint isn't able to
                     # determine that every member of FILES_V1 has a callable in
                     # the appropriate position
                     md[key] = translator(contents)  # pylint: disable=E1102
-                except Exception as e:
+                except json.JSONDecodeError as e:
                     raise BrokenMetadata(
                         "Failed to process path %s: %s" % (path, e)
                     ) from e

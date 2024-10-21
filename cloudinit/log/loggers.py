@@ -57,7 +57,7 @@ def flush_loggers(root):
         return
     for h in root.handlers:
         if isinstance(h, (logging.StreamHandler)):
-            with suppress(IOError):
+            with suppress(OSError):
                 h.flush()
     flush_loggers(root.parent)
 
@@ -185,7 +185,7 @@ def setup_backup_logging():
 
     def handleError(self, record):
         """A closure that emits logs on stderr when other methods fail"""
-        with suppress(IOError):
+        with suppress(OSError):
             fallback_handler.handle(record)
             fallback_handler.flush()
 

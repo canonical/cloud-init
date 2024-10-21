@@ -207,9 +207,9 @@ def report_dmesg_to_kvp():
     try:
         out, _ = subp.subp(["dmesg"], decode=False, capture=True)
         report_compressed_event("dmesg", out)
-    except Exception as ex:
+    except Exception as e:
         report_diagnostic_event(
-            "Exception when dumping dmesg log: %s" % repr(ex),
+            "Exception when dumping dmesg log: %s" % repr(e),
             logger_func=LOG.warning,
         )
 

@@ -9,7 +9,6 @@
 This file contains code used to gather the user data passed to an
 instance on rootbox / hyperone cloud platforms
 """
-import errno
 import logging
 import os
 import os.path
@@ -96,9 +95,8 @@ def get_md():
             )
             if rbx_data:
                 return rbx_data
-        except OSError as err:
-            if err.errno != errno.ENOENT:
-                raise
+        except FileNotFoundError:
+            pass
         except util.MountFailedError:
             util.logexc(
                 LOG, "Failed to mount %s when looking for user data", device
@@ -153,7 +151,7 @@ def read_user_data_callback(mount_dir):
     @returns: A dict containing userdata, metadata and cfg based on metadata.
     """
     meta_data = util.load_json(
-        text=util.load_binary_file(fname=os.path.join(mount_dir, "cloud.json"))
+        util.load_binary_file(fname=os.path.join(mount_dir, "cloud.json"))
     )
     user_data = util.load_text_file(
         fname=os.path.join(mount_dir, "user.data"), quiet=True

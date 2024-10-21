@@ -14,7 +14,7 @@ import re
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
-from cloudinit import subp, util
+from cloudinit import lifecycle, subp, util
 from cloudinit.net.netops.iproute2 import Iproute2
 from cloudinit.url_helper import UrlError, readurl
 
@@ -67,52 +67,23 @@ def sys_dev_path(devname, path=""):
 def read_sys_net(
     devname,
     path,
-    translate=None,
-    on_enoent=None,
-    on_keyerror=None,
-    on_einval=None,
 ):
     dev_path = sys_dev_path(devname, path)
-    try:
-        contents = util.load_text_file(dev_path)
-    except (OSError, IOError) as e:
-        e_errno = getattr(e, "errno", None)
-        if e_errno in (errno.ENOENT, errno.ENOTDIR):
-            if on_enoent is not None:
-                return on_enoent(e)
-        if e_errno in (errno.EINVAL,):
-            if on_einval is not None:
-                return on_einval(e)
-        raise
-    contents = contents.strip()
-    if translate is None:
-        return contents
-    try:
-        return translate[contents]
-    except KeyError as e:
-        if on_keyerror is not None:
-            return on_keyerror(e)
-        else:
-            LOG.debug(
-                "Found unexpected (not translatable) value '%s' in '%s",
-                contents,
-                dev_path,
-            )
-            raise
+    return util.load_text_file(dev_path).strip()
 
 
-def read_sys_net_safe(iface, field, translate=None):
-    def on_excp_false(e):
+def read_sys_net_safe(iface, field):
+    try:
+        return read_sys_net(
+            iface,
+            field,
+        )
+    except (FileNotFoundError, NotADirectoryError):
         return False
-
-    return read_sys_net(
-        iface,
-        field,
-        on_keyerror=on_excp_false,
-        on_enoent=on_excp_false,
-        on_einval=on_excp_false,
-        translate=translate,
-    )
+    except OSError as e:
+        if e.errno == errno.EINVAL:
+            return False
+        raise
 
 
 def read_sys_net_int(iface, field):
@@ -125,12 +96,13 @@ def read_sys_net_int(iface, field):
         return None
 
 
-def is_up(devname):
+def is_up(devname) -> bool:
     # The linux kernel says to consider devices in 'unknown'
     # operstate as up for the purposes of network configuration. See
     # Documentation/networking/operstates.txt in the kernel source.
     translate = {"up": True, "unknown": True, "down": False}
-    return read_sys_net_safe(devname, "operstate", translate=translate)
+    contents = read_sys_net_safe(devname, "operstate")
+    return translate.get(contents, False)
 
 
 def is_bridge(devname):
@@ -237,7 +209,7 @@ def get_dev_features(devname):
     features = ""
     try:
         features = read_sys_net(devname, "device/features")
-    except Exception:
+    except (OSError, UnicodeError):
         pass
     return features
 
@@ -845,9 +817,25 @@ def _rename_interfaces(
         for op, mac, new_name, params in ops + ups:
             try:
                 opmap[op](*params)
-            except Exception as e:
+            except subp.ProcessExecutionError as e:
                 errors.append(
                     "[unknown] Error performing %s%s for %s, %s: %s"
+                    % (op, params, mac, new_name, e)
+                )
+            except Exception as e:
+                # This exception is later raised, but as a looser exception.
+                # Make sure to log a warning due to unexpected exception type
+                # on newer releases.
+                lifecycle.log_with_downgradable_level(
+                    logger=LOG,
+                    version="24.4",
+                    requested_level=logging.WARN,
+                    msg="Unhandled exception: %s",
+                    args=e,
+                )
+                errors.append(
+                    "[unknown] Unexpected exception "
+                    "performing %s%s for %s, %s: %s"
                     % (op, params, mac, new_name, e)
                 )
 

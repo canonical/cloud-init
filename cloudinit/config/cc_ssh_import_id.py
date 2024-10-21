@@ -9,8 +9,9 @@
 
 import logging
 import pwd
+from typing import List
 
-from cloudinit import subp, util
+from cloudinit import lifecycle, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -58,15 +59,14 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     # import for cloudinit created users
     (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
-    elist = []
+    elist: List[Exception] = []
     for user, user_cfg in users.items():
         import_ids = []
         if user_cfg["default"]:
             import_ids = util.get_cfg_option_list(cfg, "ssh_import_id", [])
         else:
-            try:
-                import_ids = user_cfg["ssh_import_id"]
-            except Exception:
+            import_ids = user_cfg.get("ssh_import_id", [])
+            if not import_ids:
                 LOG.debug("User %s is not configured for ssh_import_id", user)
                 continue
 
@@ -74,19 +74,21 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             import_ids = util.uniq_merge(import_ids)
             import_ids = [str(i) for i in import_ids]
         except Exception:
-            LOG.debug(
-                "User %s is not correctly configured for ssh_import_id", user
-            )
+            util.logexc(LOG, "Unhandled configuration for user %s", user)
             continue
 
-        if not len(import_ids):
+        if not import_ids:
             continue
 
         try:
             import_ssh_ids(import_ids, user)
         except Exception as exc:
-            util.logexc(
-                LOG, "ssh-import-id failed for: %s %s", user, import_ids
+            lifecycle.log_with_downgradable_level(
+                logger=LOG,
+                version="24.4",
+                requested_level=logging.WARN,
+                msg=f"ssh-import-id failed for {user} {import_ids} with: %s",
+                args=exc,
             )
             elist.append(exc)
 
@@ -150,11 +152,7 @@ def import_ssh_ids(ids, user):
         return
     LOG.debug("Importing SSH ids for user %s.", user)
 
-    try:
-        subp.subp(cmd, capture=False)
-    except subp.ProcessExecutionError as exc:
-        util.logexc(LOG, "Failed to run command to import %s SSH ids", user)
-        raise exc
+    subp.subp(cmd, capture=False)
 
 
 def is_key_in_nested_dict(config: dict, search_key: str) -> bool:

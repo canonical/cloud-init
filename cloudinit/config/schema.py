@@ -14,7 +14,6 @@ from collections.abc import Iterable
 from contextlib import suppress
 from copy import deepcopy
 from enum import Enum
-from errno import EACCES
 from functools import partial
 from itertools import chain
 from typing import (
@@ -1644,7 +1643,7 @@ def get_schema(schema_type: SchemaType = SchemaType.CLOUD_CONFIG) -> dict:
     full_schema = None
     try:
         full_schema = json.loads(load_text_file(schema_file))
-    except (IOError, OSError):
+    except OSError:
         LOG.warning(
             "Skipping %s schema validation. No JSON schema file found %s.",
             schema_type.value,
@@ -1784,14 +1783,12 @@ def get_config_paths_from_args(
 
     try:
         paths = read_cfg_paths(fetch_existing_datasource="trust")
-    except (IOError, OSError) as e:
-        if e.errno == EACCES:
-            LOG.debug(
-                "Using default instance-data/user-data paths for non-root user"
-            )
-            paths = read_cfg_paths()
-        else:
-            raise
+    except PermissionError:
+        LOG.debug(
+            "Using default instance-data/user-data "
+            "paths with insufficient permissions"
+        )
+        paths = read_cfg_paths()
     except DataSourceNotFoundException:
         paths = read_cfg_paths()
         LOG.warning(
