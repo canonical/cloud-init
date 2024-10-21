@@ -43,24 +43,9 @@ else
     python3 setup.py install -O1 --distro openbsd --skip-build --init-system sysvinit_openbsd
 
     echo "Installation completed."
-    RC_LOCAL="/etc/rc.local"
-    RC_LOCAL_CONTENT="
 
-rm -rf /var/run/cloud-init
-/usr/local/lib/cloud-init/ds-identify
-
-cloud-init init --local
-
-cloud-init init
-
-cloud-init modules --mode config
-
-cloud-init modules --mode final
-"
-    if ! test -e $RC_LOCAL; then
-        echo "export PATH=$PATH:/usr/local/sbin:/usr/local/bin" >> $RC_LOCAL
-        echo "$RC_LOCAL_CONTENT" >> $RC_LOCAL
-    elif ! grep -Fq "cloud-init" $RC_LOCAL; then
-        echo "$RC_LOCAL_CONTENT" >> $RC_LOCAL
-    fi
+    rcctl enable cloudinitlocal
+    rcctl enable cloudinit
+    rcctl enable cloudconfig
+    rcctl enable cloudfinal
 fi
