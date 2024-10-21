@@ -1884,7 +1884,7 @@ def ensure_dir(path, mode=None, user=None, group=None):
         # Get non existed parent dir first before they are created.
         non_existed_parent_dir = get_non_exist_parent_dir(path)
         # Make the dir and adjust the mode
-        with SeLinuxGuard(os.path.dirname(path), recursive=True):
+        with SeLinuxGuard(os.path.dirname(path)):
             os.makedirs(path)
         chmod(path, mode)
         # Change the ownership
