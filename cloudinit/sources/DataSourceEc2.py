@@ -545,6 +545,9 @@ class DataSourceEc2(sources.DataSource):
         """
         if not self.wait_for_metadata_service():
             return {}
+        ignore_items_meta_data = util.get_cfg_by_path(
+            self.sys_cfg, ("ignore_items_meta_data",), []
+        )
         api_version = self.get_metadata_api_version()
         redact = self.imdsv2_token_redact
         crawled_metadata = {}
@@ -573,6 +576,7 @@ class DataSourceEc2(sources.DataSource):
                 headers_redact=redact,
                 exception_cb=exc_cb,
                 retrieval_exception_ignore_cb=skip_cb,
+                ignore_items=ignore_items_meta_data,
             )
             if self.cloud_name == CloudNames.AWS:
                 identity = ec2.get_instance_identity(

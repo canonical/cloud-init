@@ -52,7 +52,9 @@ class MetadataLeafDecoder:
 # See: http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/
 #         ec2-instance-metadata.html
 class MetadataMaterializer:
-    def __init__(self, blob, base_url, caller, leaf_decoder=None):
+    def __init__(
+        self, blob, base_url, caller, leaf_decoder=None, ignore_items=[]
+    ):
         self._blob = blob
         self._md = None
         self._base_url = base_url
@@ -61,6 +63,7 @@ class MetadataMaterializer:
             self._leaf_decoder = MetadataLeafDecoder()
         else:
             self._leaf_decoder = leaf_decoder
+        self._ignore_items = ignore_items
 
     def _parse(self, blob):
         leaves = {}
@@ -88,6 +91,9 @@ class MetadataMaterializer:
                 continue
             # Don't materialize credentials
             if field_name == "security-credentials":
+                continue
+            # Don't materialize items in the ignore list
+            if field_name in self._ignore_items:
                 continue
             if has_children(field):
                 if field_name not in children:
@@ -191,6 +197,7 @@ def _get_instance_metadata(
     headers_redact=None,
     exception_cb=None,
     retrieval_exception_ignore_cb=None,
+    ignore_items=[],
 ):
     md_url = url_helper.combine_url(metadata_address, api_version, tree)
     caller = functools.partial(
@@ -219,7 +226,11 @@ def _get_instance_metadata(
     try:
         response = caller(md_url)
         materializer = MetadataMaterializer(
-            response.contents, md_url, mcaller, leaf_decoder=leaf_decoder
+            response.contents,
+            md_url,
+            mcaller,
+            leaf_decoder=leaf_decoder,
+            ignore_items=ignore_items,
         )
         md = materializer.materialize()
         if not isinstance(md, (dict)):
@@ -241,6 +252,7 @@ def get_instance_metadata(
     headers_redact=None,
     exception_cb=None,
     retrieval_exception_ignore_cb=None,
+    ignore_items=[],
 ):
     # Note, 'meta-data' explicitly has trailing /.
     # this is required for CloudStack (LP: #1356855)
@@ -256,6 +268,7 @@ def get_instance_metadata(
         headers_cb=headers_cb,
         exception_cb=exception_cb,
         retrieval_exception_ignore_cb=retrieval_exception_ignore_cb,
+        ignore_items=ignore_items,
     )
 
 
