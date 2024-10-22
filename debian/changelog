@@ -3,9 +3,9 @@ cloud-init (24.3.1-0ubuntu0~24.04.2) UNRELEASED; urgency=medium
   * refresh patches:
     - d/p/no-nocloud-network.patch
     - d/p/no-single-process.patch
-  * Upstream snapshot based on upstream/main at e30549e8.
+  * Upstream snapshot based on upstream/main at a911b5e5.
 
- -- James Falcon <james.falcon@canonical.com>  Thu, 17 Oct 2024 21:31:42 -0500
+ -- Brett Holman <brett.holman@canonical.com>  Tue, 22 Oct 2024 13:02:00 -0600
 
 cloud-init (24.3.1-0ubuntu0~24.04.1) noble; urgency=medium
 
