@@ -3,6 +3,7 @@
 """Module for ephemeral network context managers
 """
 import contextlib
+import json
 import logging
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -11,6 +12,7 @@ import cloudinit.net as net
 import cloudinit.netinfo as netinfo
 from cloudinit.net.dhcp import NoDHCPLeaseError, maybe_perform_dhcp_discovery
 from cloudinit.subp import ProcessExecutionError
+from cloudinit.url_helper import UrlError, wait_for_url
 
 LOG = logging.getLogger(__name__)
 
@@ -405,7 +407,6 @@ class EphemeralIPNetwork:
         ipv6: bool = False,
         ipv4: bool = True,
         connectivity_urls_data: Optional[List[Dict[str, Any]]] = None,
-        ipv6_connectivity_check_callback: Optional[Callable] = None,
     ):
         """
         Args:
@@ -429,12 +430,9 @@ class EphemeralIPNetwork:
         self.state_msg: str = ""
         self.distro = distro
         self.connectivity_urls_data = connectivity_urls_data
-        self.ipv6_connectivity_check_callback = (
-            ipv6_connectivity_check_callback
-        )
 
         # will be updated by the context manager
-        self.ipv6_reached_at_url = None
+        self.imds_reached_at_url: Optional[str] = None
 
     def __enter__(self):
         if not (self.ipv4 or self.ipv6):
@@ -444,27 +442,14 @@ class EphemeralIPNetwork:
         exceptions = []
         ephemeral_obtained = False
 
-        if self.ipv6_connectivity_check_callback is not None:
-            if not self.ipv6:
-                raise ValueError(
-                    "ipv6_connectivity_check_callback provided but ipv6 is "
-                    "not enabled"
-                )
-            ephemeral_obtained, exceptions = self._do_ipv6(
-                ephemeral_obtained, exceptions
-            )
-            self.ipv6_reached_at_url = self.ipv6_connectivity_check_callback()
-            # if ipv6_connectivity_check_callback is provided, then we want to
-            # skip ipv4 ephemeral network setup if ipv6 ephemeral network setup
-            # and imds connectivity check succeeded
-            if self.ipv4 and not self.ipv6_reached_at_url:
-                LOG.debug(
-                    "Bringing up ipv4 ephemeral network since ipv6 failed"
-                )
-                ephemeral_obtained, exceptions = self._do_ipv4(
-                    ephemeral_obtained, exceptions
-                )
+        self.imds_reached_at_url = self._perform_connectivity_check()
+
+        if self.imds_reached_at_url:
+            LOG.debug("We already have connectivity to IMDS, skipping DHCP.")
         else:
+            LOG.debug("No connectivity to IMDS, attempting DHCP setup.")
+            # first try to bring up ephemeral network for ipv4 (if enabled)
+            # then try to bring up ephemeral network for ipv6 (if enabled)
             if self.ipv4:
                 ephemeral_obtained, exceptions = self._do_ipv4(
                     ephemeral_obtained, exceptions
@@ -474,7 +459,7 @@ class EphemeralIPNetwork:
                     ephemeral_obtained, exceptions
                 )
 
-        if not ephemeral_obtained:
+        if not self.imds_reached_at_url and not ephemeral_obtained:
             # Ephemeral network setup failed in linkup for both ipv4 and
             # ipv6. Raise only the first exception found.
             LOG.error(
@@ -504,7 +489,6 @@ class EphemeralIPNetwork:
                 EphemeralDHCPv4(
                     distro=self.distro,
                     iface=self.interface,
-                    connectivity_urls_data=self.connectivity_urls_data,
                 )
             )
             ephemeral_obtained = True
@@ -545,7 +529,9 @@ class EphemeralIPNetwork:
                     self.interface,
                 )
             )
-            ephemeral_obtained = True
+            ephemeral_obtained = True                
+            if exceptions or not self.ipv4:
+                self.state_msg = "using link-local ipv6"
             LOG.debug(
                 "Successfully brought up %s for ephemeral ipv6 networking.",
                 self.interface,
@@ -560,6 +546,46 @@ class EphemeralIPNetwork:
             # ephemeral network setup
             exceptions.append(e)
         return ephemeral_obtained, exceptions
+
+    def _perform_connectivity_check(
+        self,
+    ) -> Optional[str]:
+        
+        def headers_cb(url):
+            headers = [
+                url_data.get("headers") for url_data in self.connectivity_urls_data
+                if url_data["url"] == url
+            ][0]
+            return headers
+        
+        try:
+            url_that_worked, url_response = wait_for_url(
+                urls=[url_data["url"] for url_data in self.connectivity_urls_data],
+                headers_cb=headers_cb,
+                timeout=0.5,  # keep really short for quick failure path
+                connect_synchronously=False,
+            )
+            imds_data = json.loads(url_response.decode("utf-8"))
+        except UrlError as e:
+            LOG.debug(
+                "Failed to reach IMDS with error: %s",
+                e,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            LOG.debug(
+                "Unexpected error occurred. Failed to reach IMDS: %s",
+                e,
+            )
+        else:
+            if imds_data:
+                LOG.debug(
+                    "IMDS was successfully reached at %s without ephemeral "
+                    "network setup.",
+                    url_that_worked,
+                )
+                return url_that_worked
+        LOG.debug("Failed to reach IMDS without ephemeral network setup.")
+        return None
 
     def __exit__(self, *_args):
         self.stack.close()

@@ -42,14 +42,6 @@ IPV4_METADATA_ROOT = "http://169.254.169.254/opc/v{version}/"
 IPV6_METADATA_ROOT = "http://[fd00:c1::a9fe:a9fe]/opc/v{version}/"
 IPV4_METADATA_PATTERN = IPV4_METADATA_ROOT + "{path}/"
 IPV6_METADATA_PATTERN = IPV6_METADATA_ROOT + "{path}/"
-METADATA_URLS = [
-    IPV4_METADATA_ROOT,
-    IPV6_METADATA_ROOT,
-]
-METADATA_ROOTS = [
-    IPV4_METADATA_ROOT,
-    IPV6_METADATA_ROOT,
-]
 
 # https://docs.cloud.oracle.com/iaas/Content/Network/Troubleshoot/connectionhang.htm#Overview,
 # indicates that an MTU of 9000 is used within OCI
@@ -196,26 +188,29 @@ class DataSourceOracle(sources.DataSource):
                     version=1, path="instance"
                 ),
             },
+            {
+                "url": IPV6_METADATA_PATTERN.format(
+                    version=2, path="instance"
+                ),
+                "headers": V2_HEADERS,
+            },
+            {
+                "url": IPV6_METADATA_PATTERN.format(
+                    version=1, path="instance"
+                ),
+            },
         ]
 
-        ipv6_url_that_worked = check_ipv6_connectivity()
-        if ipv6_url_that_worked:
-            md_patterns = [IPV6_METADATA_PATTERN]
-        else:
-            md_patterns = [IPV4_METADATA_PATTERN]
-
-        # if we have connectivity to imds, then skip ephemeral network setup
-        if self.perform_dhcp_setup and not ipv6_url_that_worked:
+        if self.perform_dhcp_setup:
 
             nic_name = net.find_fallback_nic()
             try:
                 network_context = ephemeral.EphemeralIPNetwork(
                     distro=self.distro,
                     interface=nic_name,
-                    ipv6=False,
+                    ipv6=True,
                     ipv4=True,
                     connectivity_urls_data=connectivity_urls_data,
-                    ipv6_connectivity_check_callback=None,
                 )
             except Exception:
                 network_context = util.nullcontext()
@@ -232,7 +227,10 @@ class DataSourceOracle(sources.DataSource):
                 fetch_vnics_data=fetch_primary_nic or fetch_secondary_nics,
                 max_wait=self.url_max_wait,
                 timeout=self.url_timeout,
-                metadata_patterns=md_patterns,
+                metadata_patterns=[
+                    IPV6_METADATA_PATTERN,
+                    IPV4_METADATA_PATTERN,
+                ],
             )
             # set the metadata root address that worked to allow for detecting
             # whether ipv4 or ipv6 was used for getting metadata
@@ -557,6 +555,7 @@ def read_opc_metadata(
             timeout=timeout,
             headers_cb=_headers_cb,
             sleep_time=0.1,
+            connect_synchronously=False,
         )
         if vnics_url:
             vnics_data = json.loads(vnics_response.decode("utf-8"))
