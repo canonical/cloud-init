@@ -99,7 +99,7 @@ def event_duration(start: Dict[str, Union[str, float]], finish: Dict[str, Union[
     return delta_seconds(event_datetime(start), event_datetime(finish))
 
 
-def event_record(start_timedatetime.datetime, start: Dict[str, Union[str, float]], finish: Dict[str, Union[str, float]]) -> Dict[str, Union[str, float]]:
+def event_record(start_time:datetime.datetime, start: Dict[str, Union[str, float]], finish: Dict[str, Union[str, float]]) -> Dict[str, Union[str, float]]:
     record = finish.copy()
     record.update(
         {
