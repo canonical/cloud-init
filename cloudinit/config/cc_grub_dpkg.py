@@ -24,7 +24,7 @@ meta: MetaSchema = {
     "id": "cc_grub_dpkg",
     "distros": ["ubuntu", "debian"],
     "frequency": PER_INSTANCE,
-    "activate_by_schema_keys": [],
+    "activate_by_schema_keys": ["grub_dpkg", "grub-dpkg"],
 }
 
 LOG = logging.getLogger(__name__)
@@ -115,7 +115,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if not mycfg:
         mycfg = {}
 
-    enabled = mycfg.get("enabled", True)
+    enabled = mycfg.get("enabled", False)
     if util.is_false(enabled):
         LOG.debug("%s disabled by config grub_dpkg/enabled=%s", name, enabled)
         return
