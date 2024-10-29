@@ -95,11 +95,18 @@ def delta_seconds(t1: datetime.datetime, t2: datetime.datetime) -> float:
     return (t2 - t1).total_seconds()
 
 
-def event_duration(start: Dict[str, Union[str, float]], finish: Dict[str, Union[str, float]]) -> float:
+def event_duration(
+    start: Dict[str, Union[str, float]],
+    finish: Dict[str, Union[str, float]]
+) -> float:
     return delta_seconds(event_datetime(start), event_datetime(finish))
 
 
-def event_record(start_time:datetime.datetime, start: Dict[str, Union[str, float]], finish: Dict[str, Union[str, float]]) -> Dict[str, Union[str, float]]:
+def event_record(
+    start_time:datetime.datetime, 
+    start: Dict[str, Union[str, float]], 
+    finish: Dict[str, Union[str, float]]
+) -> Dict[str, Union[str, float]]:
     record = finish.copy()
     record.update(
         {
@@ -329,7 +336,10 @@ def generate_records(
     return boot_records
 
 
-def show_events(events: List[Dict[str, Union[str, float]]], print_format: str) -> List[List[str]]:
+def show_events(
+    events: List[Dict[str, Union[str, float]]],
+    print_format: str
+) -> List[List[str]]:
     """
     A passthrough method that makes it easier to call generate_records()
 
@@ -342,7 +352,9 @@ def show_events(events: List[Dict[str, Union[str, float]]], print_format: str) -
     return generate_records(events, print_format=print_format)
 
 
-def load_events_infile(infile: TextIO) -> Tuple[Optional[List[Dict[str, Union[str, float]]]], str]:
+def load_events_infile(
+    infile: TextIO
+) -> Tuple[Optional[List[Dict[str, Union[str, float]]]], str]:
     """
     Takes in a log file, read it, and convert to json.
 

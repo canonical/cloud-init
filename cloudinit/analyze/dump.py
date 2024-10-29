@@ -165,7 +165,10 @@ def parse_ci_logline(line: str) -> Optional[Dict[str, Union[str, float]]]:
     return event
 
 
-def dump_events(cisource: Optional[object] = None, rawdata: Optional[str] = None) -> Tuple[List[Dict[str, Union[str, float]]], List[str]]:
+def dump_events(
+    cisource: Optional[object] = None, 
+    rawdata: Optional[str] = None
+) -> Tuple[List[Dict[str, Union[str, float]]], List[str]]:
     events = []
     event = None
     CI_EVENT_MATCHES = ["start:", "finish:", "Cloud-init v."]

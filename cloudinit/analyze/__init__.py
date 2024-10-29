@@ -12,7 +12,9 @@ from cloudinit.analyze import dump, show
 from cloudinit.atomic_helper import json_dumps
 
 
-def get_parser(parser: argparse.ArgumentParser = None) -> argparse.ArgumentParser:
+def get_parser(
+    parser: argparse.ArgumentParser = None
+) -> argparse.ArgumentParser:
     if not parser:
         parser = argparse.ArgumentParser(
             prog="cloudinit-analyze",
