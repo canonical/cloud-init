@@ -271,7 +271,7 @@ def generate_records(
     """
 
     sorted_events = sorted(events, key=lambda x: x["timestamp"])
-    records: = []
+    records = []
     start_time = None
     total_time = 0.0
     stage_start_time = {}
