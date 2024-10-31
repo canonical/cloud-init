@@ -3,8 +3,7 @@
 import calendar
 import sys
 from datetime import datetime, timezone
-from typing import Optional, List, Tuple, Dict, Union
-
+from typing import Dict, List, Optional, Tuple, Union
 
 from cloudinit import atomic_helper, subp, util
 
@@ -166,8 +165,7 @@ def parse_ci_logline(line: str) -> Optional[Dict[str, Union[str, float]]]:
 
 
 def dump_events(
-    cisource: Optional[object] = None, 
-    rawdata: Optional[str] = None
+    cisource: Optional[object] = None, rawdata: Optional[str] = None
 ) -> Tuple[List[Dict[str, Union[str, float]]], List[str]]:
     events = []
     event = None

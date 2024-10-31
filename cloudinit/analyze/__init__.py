@@ -6,14 +6,14 @@ import argparse
 import re
 import sys
 from datetime import datetime
-from typing import IO, List, Tuple, Dict, Union
+from typing import IO, Dict, List, Tuple, Union
 
 from cloudinit.analyze import dump, show
 from cloudinit.atomic_helper import json_dumps
 
 
 def get_parser(
-    parser: argparse.ArgumentParser = None
+    parser: argparse.ArgumentParser = None,
 ) -> argparse.ArgumentParser:
     if not parser:
         parser = argparse.ArgumentParser(
@@ -269,7 +269,7 @@ def analyze_dump(name: str, args: argparse.Namespace) -> None:
     clean_io(infh, outfh)
 
 
-def _get_events(infile: IO)-> List[Dict[str, Union[str, float]]]:
+def _get_events(infile: IO) -> List[Dict[str, Union[str, float]]]:
     rawdata = None
     events, rawdata = show.load_events_infile(infile)
     if not events:

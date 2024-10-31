@@ -8,12 +8,10 @@ import datetime
 import json
 import sys
 import time
+from typing import Dict, List, Optional, TextIO, Tuple, Union
 
 from cloudinit import subp, util
 from cloudinit.distros import uses_systemd
-
-from typing import TextIO, Optional, List, Tuple, Dict, Union
-
 
 # Example events:
 #     {
@@ -54,7 +52,7 @@ CONTAINER_CODE = "container"
 TIMESTAMP_UNKNOWN = (FAIL_CODE, -1, -1, -1)
 
 
-def format_record(msg:str, event: Dict[str, Union[str, float]]) -> str:
+def format_record(msg: str, event: Dict[str, Union[str, float]]) -> str:
     for i, j in format_key.items():
         if i in msg:
             # ensure consistent formatting of time values
@@ -96,16 +94,15 @@ def delta_seconds(t1: datetime.datetime, t2: datetime.datetime) -> float:
 
 
 def event_duration(
-    start: Dict[str, Union[str, float]],
-    finish: Dict[str, Union[str, float]]
+    start: Dict[str, Union[str, float]], finish: Dict[str, Union[str, float]]
 ) -> float:
     return delta_seconds(event_datetime(start), event_datetime(finish))
 
 
 def event_record(
-    start_time:datetime.datetime, 
-    start: Dict[str, Union[str, float]], 
-    finish: Dict[str, Union[str, float]]
+    start_time: datetime.datetime,
+    start: Dict[str, Union[str, float]],
+    finish: Dict[str, Union[str, float]],
 ) -> Dict[str, Union[str, float]]:
     record = finish.copy()
     record.update(
@@ -264,7 +261,7 @@ def gather_timestamps_using_systemd() -> Tuple[str, float, float, float]:
 
 def generate_records(
     events: List[Dict[str, Union[str, float]]],
-    print_format: str ="(%n) %d seconds in %I%D",
+    print_format: str = "(%n) %d seconds in %I%D",
 ) -> List[List[str]]:
     """
     Take in raw events and create parent-child dependencies between events
@@ -337,8 +334,7 @@ def generate_records(
 
 
 def show_events(
-    events: List[Dict[str, Union[str, float]]],
-    print_format: str
+    events: List[Dict[str, Union[str, float]]], print_format: str
 ) -> List[List[str]]:
     """
     A passthrough method that makes it easier to call generate_records()
@@ -353,7 +349,7 @@ def show_events(
 
 
 def load_events_infile(
-    infile: TextIO
+    infile: TextIO,
 ) -> Tuple[Optional[List[Dict[str, Union[str, float]]]], str]:
     """
     Takes in a log file, read it, and convert to json.
