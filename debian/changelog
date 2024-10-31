@@ -2,6 +2,7 @@ cloud-init (24.3.1-0ubuntu0~20.04.2) UNRELEASED; urgency=medium
 
   * refresh patches:
     - d/p/cli-retain-file-argument-as-main-cmd-arg.patch
+    - d/p/drop-unsupported-systemd-condition-environment.patch
     - d/p/expire-on-hashed-users.patch
     - d/p/keep-dhclient-as-priority-client.patch
     - d/p/netplan99-cannot-use-default.patch
@@ -9,9 +10,9 @@ cloud-init (24.3.1-0ubuntu0~20.04.2) UNRELEASED; urgency=medium
     - d/p/no-single-process.patch
     - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
     - d/p/status-do-not-remove-duplicated-data.patch
-  * Upstream snapshot based on upstream/main at e30549e8.
+  * Upstream snapshot based on upstream/main at 96a07fb7.
 
- -- James Falcon <james.falcon@canonical.com>  Thu, 17 Oct 2024 21:08:10 -0500
+ -- James Falcon <james.falcon@canonical.com>  Thu, 31 Oct 2024 12:45:10 +0100
 
 cloud-init (24.3.1-0ubuntu0~20.04.1) focal; urgency=medium
 
