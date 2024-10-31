@@ -8,30 +8,10 @@ Author: Chad Smith <chad.smith@canonical.com>
 Last-Update: 2024-05-21
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
---- a/systemd/cloud-config.service.tmpl
-+++ b/systemd/cloud-config.service.tmpl
-@@ -6,7 +6,6 @@ After=network-online.target cloud-config
- Wants=network-online.target cloud-config.target
- ConditionPathExists=!/etc/cloud/cloud-init.disabled
- ConditionKernelCommandLine=!cloud-init=disabled
--ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
- 
- [Service]
- Type=oneshot
---- a/systemd/cloud-final.service.tmpl
-+++ b/systemd/cloud-final.service.tmpl
-@@ -10,7 +10,6 @@ Before=apt-daily.service
- Wants=network-online.target cloud-config.service
- ConditionPathExists=!/etc/cloud/cloud-init.disabled
- ConditionKernelCommandLine=!cloud-init=disabled
--ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
- 
- 
- [Service]
 --- a/systemd/cloud-init-local.service.tmpl
 +++ b/systemd/cloud-init-local.service.tmpl
-@@ -28,7 +28,6 @@ Conflicts=shutdown.target
- RequiresMountsFor=/var/lib/cloud
+@@ -18,7 +18,6 @@ Before=sysinit.target
+ Conflicts=shutdown.target
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
 -ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
