@@ -1,12 +1,14 @@
-## template:jinja
 [Unit]
 # https://docs.cloud-init.io/en/latest/explanation/boot.html
-Description=Cloud-init: Config Stage
-After=network-online.target cloud-config.target
-Wants=network-online.target cloud-config.target
+Description=Cloud-init: Final Stage
+After=network-online.target time-sync.target cloud-config.service rc-local.service
+After=multi-user.target
+Before=apt-daily.service
+Wants=network-online.target cloud-config.service
 ConditionPathExists=!/etc/cloud/cloud-init.disabled
 ConditionKernelCommandLine=!cloud-init=disabled
 ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
+
 
 [Service]
 Type=oneshot
@@ -17,9 +19,10 @@ Type=oneshot
 # process has completed this stage. The output from the return socket is piped
 # into a shell so that the process can send a completion message (defaults to
 # "done", otherwise includes an error message) and an exit code to systemd.
-ExecStart=sh -c 'echo "start" | netcat -Uu -W1 /run/cloud-init/share/config.sock -s /run/cloud-init/share/config-return.sock | sh'
+ExecStart=sh -c 'echo "start" | netcat -Uu -W1 /run/cloud-init/share/final.sock -s /run/cloud-init/share/final-return.sock | sh'
 RemainAfterExit=yes
 TimeoutSec=0
+TasksMax=infinity
 
 # Output needs to appear in instance console output
 StandardOutput=journal+console
