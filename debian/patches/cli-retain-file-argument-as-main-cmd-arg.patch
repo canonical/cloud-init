@@ -67,7 +67,7 @@ Last-Update: 2024-04-30 <YYYY-MM-DD, last update of the meta-information, option
              files=None,
              force=False,
              local=False,
-@@ -332,6 +335,7 @@ class TestMain:
+@@ -340,6 +343,7 @@ class TestMain:
          write_file(cloud_cfg_file, safeyaml.dumps(cfg))
          cmdargs = MyArgs(
              debug=False,
