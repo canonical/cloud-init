@@ -327,6 +327,30 @@ SDC_NICS_SINGLE_GATEWAY = json.loads(
 """
 )
 
+SDC_NICS_ADDRCONF = json.loads(
+    """
+[
+        {
+          "gateway": "10.64.1.129",
+          "gateways": [
+            "10.64.1.129"
+          ],
+          "interface": "net0",
+          "ip": "10.64.1.130",
+          "ips": [
+            "10.64.1.130/26",
+            "addrconf"
+          ],
+          "mac": "e2:7f:c1:50:eb:99",
+          "model": "virtio",
+          "netmask": "255.255.255.192",
+          "nic_tag": "external",
+          "primary": true,
+          "vlan_id": 20
+        }
+]
+"""
+)
 
 MOCK_RETURNS = {
     "hostname": "test-host",
@@ -1341,6 +1365,29 @@ class TestNetworkConversion(CiTestCase):
             ],
         }
         found = convert_net(SDC_NICS_SINGLE_GATEWAY, routes=routes)
+        self.maxDiff = None
+        self.assertEqual(expected, found)
+
+    def test_ipv6_addrconf(self):
+        expected = {
+            "config": [
+                {
+                    "mac_address": "e2:7f:c1:50:eb:99",
+                    "name": "net0",
+                    "subnets": [
+                        {
+                            "address": "10.64.1.130/26",
+                            "gateway": "10.64.1.129",
+                            "type": "static",
+                        },
+                        {"type": "dhcp6"},
+                    ],
+                    "type": "physical",
+                }
+            ],
+            "version": 1,
+        }
+        found = convert_net(SDC_NICS_ADDRCONF)
         self.maxDiff = None
         self.assertEqual(expected, found)
 
