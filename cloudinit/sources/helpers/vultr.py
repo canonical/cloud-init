@@ -77,7 +77,6 @@ def get_interface_list():
                     ifaces.append(iface)
     except Exception as e:
         LOG.error("find_candidate_nics script exception: %s", e)
-        pass
 
     if len(ifaces) == 0:
         for iface in net.find_candidate_nics():
