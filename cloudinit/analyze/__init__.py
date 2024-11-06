@@ -5,7 +5,7 @@
 import argparse
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import IO
 
 from cloudinit.analyze import dump, show
@@ -128,9 +128,11 @@ def analyze_boot(name, args):
     infh, outfh = configure_io(args)
     kernel_info = show.dist_check_timestamp()
     status_code, kernel_start, kernel_end, ci_sysd_start = kernel_info
-    kernel_start_timestamp = datetime.utcfromtimestamp(kernel_start)
-    kernel_end_timestamp = datetime.utcfromtimestamp(kernel_end)
-    ci_sysd_start_timestamp = datetime.utcfromtimestamp(ci_sysd_start)
+    kernel_start_timestamp = datetime.fromtimestamp(kernel_start, timezone.utc)
+    kernel_end_timestamp = datetime.fromtimestamp(kernel_end, timezone.utc)
+    ci_sysd_start_timestamp = datetime.fromtimestamp(
+        ci_sysd_start, timezone.utc
+    )
     try:
         last_init_local = [
             e
@@ -138,7 +140,9 @@ def analyze_boot(name, args):
             if e["name"] == "init-local"
             and "starting search" in e["description"]
         ][-1]
-        ci_start = datetime.utcfromtimestamp(last_init_local["timestamp"])
+        ci_start = datetime.fromtimestamp(
+            last_init_local["timestamp"], timezone.utc
+        )
     except IndexError:
         ci_start = "Could not find init-local log-line in cloud-init.log"
         status_code = show.FAIL_CODE
