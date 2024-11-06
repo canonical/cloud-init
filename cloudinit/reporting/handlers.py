@@ -10,7 +10,7 @@ import struct
 import threading
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from threading import Event
 from typing import Union
 
@@ -375,7 +375,9 @@ class HyperVKvpReportingHandler(ReportingHandler):
             "name": event.name,
             "type": event.event_type,
             "ts": (
-                datetime.utcfromtimestamp(event.timestamp).isoformat() + "Z"
+                datetime.fromtimestamp(
+                    event.timestamp, timezone.utc
+                ).isoformat()
             ),
         }
         if hasattr(event, self.RESULT_KEY):
