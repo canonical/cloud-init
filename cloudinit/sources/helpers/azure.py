@@ -1013,7 +1013,7 @@ class OvfEnvXml:
             raise errors.ReportableErrorOvfParsingException(exception=e) from e
 
         # If there's no provisioning section, it's not Azure ovf-env.xml.
-        if not root.find("./wa:ProvisioningSection", cls.NAMESPACES):
+        if root.find("./wa:ProvisioningSection", cls.NAMESPACES) is None:
             raise NonAzureDataSource(
                 "Ignoring non-Azure ovf-env.xml: ProvisioningSection not found"
             )
