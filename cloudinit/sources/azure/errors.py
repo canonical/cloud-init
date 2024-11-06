@@ -6,7 +6,7 @@ import base64
 import csv
 import logging
 import traceback
-from datetime import datetime
+from datetime import datetime, timezone
 from io import StringIO
 from typing import Any, Dict, List, Optional, Tuple
 from xml.etree import ElementTree as ET  # nosec B405
@@ -52,7 +52,7 @@ class ReportableError(Exception):
         else:
             self.supporting_data = {}
 
-        self.timestamp = datetime.utcnow()
+        self.timestamp = datetime.now(timezone.utc)
 
         try:
             self.vm_id = identity.query_vm_id()

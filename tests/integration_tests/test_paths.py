@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Iterator
 
 import pytest
@@ -66,7 +66,11 @@ class TestHonorCloudDir:
         found_logs = custom_client.execute(
             "tar -tf cloud-init.tar.gz"
         ).stdout.splitlines()
-        dirname = datetime.utcnow().date().strftime("cloud-init-logs-%Y-%m-%d")
+        dirname = (
+            datetime.now(timezone.utc)
+            .date()
+            .strftime("cloud-init-logs-%Y-%m-%d")
+        )
         expected_logs = [
             f"{dirname}/",
             f"{dirname}/dmesg.txt",
@@ -98,7 +102,11 @@ class TestHonorCloudDir:
         found_logs = custom_client.execute(
             "tar -tf cloud-init.tar.gz"
         ).stdout.splitlines()
-        dirname = datetime.utcnow().date().strftime("cloud-init-logs-%Y-%m-%d")
+        dirname = (
+            datetime.now(timezone.utc)
+            .date()
+            .strftime("cloud-init-logs-%Y-%m-%d")
+        )
         assert f"{dirname}/new-cloud-dir/data/result.json" in found_logs
 
     # LXD inserts some agent setup code into VMs on Bionic under
