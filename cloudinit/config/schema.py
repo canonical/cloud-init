@@ -533,8 +533,7 @@ def get_jsonschema_validator():
         **validator_kwargs,
     )
 
-    # Add deprecation handling
-    def is_valid(self, instance, _schema=None, **__):
+    def is_valid_pre_4_0_0(self, instance, _schema=None, **__):
         """Override version of `is_valid`.
 
         It does ignore instances of `SchemaDeprecationError`.
@@ -547,9 +546,27 @@ def get_jsonschema_validator():
         )
         return next(errors, None) is None
 
+    def is_valid(self, instance, _schema=None, **__):
+        """Override version of `is_valid`.
+
+        It does ignore instances of `SchemaDeprecationError`.
+        """
+        errors = filter(
+            lambda e: not isinstance(  # pylint: disable=W1116
+                e, SchemaDeprecationError
+            ),
+            self.evolve(schema=_schema).iter_errors(instance),
+        )
+        return next(errors, None) is None
+
+    # Add deprecation handling
+    is_valid_fn = is_valid_pre_4_0_0
+    if hasattr(cloudinitValidator, "evolve"):
+        is_valid_fn = is_valid
+
     # this _could_ be an error, but it's not in this case
     # https://github.com/python/mypy/issues/2427#issuecomment-1419206807
-    cloudinitValidator.is_valid = is_valid  # type: ignore [method-assign]
+    cloudinitValidator.is_valid = is_valid_fn  # type: ignore [method-assign]
 
     return (cloudinitValidator, FormatChecker)
 
