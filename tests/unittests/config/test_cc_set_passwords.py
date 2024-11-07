@@ -566,7 +566,7 @@ class TestRandUserPassword:
             [
                 any(c.islower() for c in str),
                 any(c.isupper() for c in str),
-                any(c.isupper() for c in str),
+                any(c.isdigit() for c in str),
                 any(c in string.punctuation for c in str),
             ]
         )

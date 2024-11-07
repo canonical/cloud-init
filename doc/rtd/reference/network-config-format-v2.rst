@@ -264,6 +264,14 @@ The MTU key represents a device's Maximum Transmission Unit, the largest size
 packet or frame, specified in octets (eight-bit bytes), that can be sent in a
 packet- or frame-based network. Specifying ``mtu`` is optional.
 
+``optional: <(bool)>``
+------------------------
+
+Mark a device as not required for booting. By default networkd will wait for
+all configured interfaces to be configured before continuing to boot. This
+option causes networkd to not wait for the interface. This is only supported
+by networkd. The default is false.
+
 ``nameservers: <(mapping)>``
 ----------------------------
 
