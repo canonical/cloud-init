@@ -47,6 +47,7 @@ NETWORK_V2_KEY_FILTER = [
     "set-name",
     "wakeonlan",
     "accept-ra",
+    "optional",
 ]
 
 NET_CONFIG_TO_V2: Dict[str, Dict[str, Any]] = {
@@ -409,6 +410,9 @@ class NetworkStateInterpreter:
         wakeonlan = command.get("wakeonlan", None)
         if wakeonlan is not None:
             wakeonlan = util.is_true(wakeonlan)
+        optional = command.get("optional", None)
+        if optional is not None:
+            optional = util.is_true(optional)
         iface.update(
             {
                 "config_id": command.get("config_id"),
@@ -423,6 +427,7 @@ class NetworkStateInterpreter:
                 "subnets": subnets,
                 "accept-ra": accept_ra,
                 "wakeonlan": wakeonlan,
+                "optional": optional,
             }
         )
         iface_key = command.get("config_id", command.get("name"))
@@ -747,7 +752,7 @@ class NetworkStateInterpreter:
             driver = match.get("driver", None)
             if driver:
                 phy_cmd["params"] = {"driver": driver}
-            for key in ["mtu", "match", "wakeonlan", "accept-ra"]:
+            for key in ["mtu", "match", "wakeonlan", "accept-ra", "optional"]:
                 if key in cfg:
                     phy_cmd[key] = cfg[key]
 
