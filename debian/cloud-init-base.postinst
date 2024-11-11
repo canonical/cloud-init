@@ -251,7 +251,6 @@ rename_hook_hotplug_udev_rule() {
 }
 
 # Migrate a debconf value from cloud-init/* to cloud-init-base/*
-# cleaning up the old value.
 #
 # Arguments:
 #   Name of the debconf question
@@ -259,10 +258,6 @@ migrate_debconf_to_cloud_init_base() {
     local old="cloud-init/$1" new="cloud-init-base/$1"
     if db_get "$new"; then
        # cloud-init-base/* win against cloud-init/* values
-       if db_get "$old"; then
-          echo "Removing ${old} in favor of ${new}" 1>&2 || :
-          db_unregister "$old" || :
-       fi
        return 0
     fi
     if db_get "$old"; then
