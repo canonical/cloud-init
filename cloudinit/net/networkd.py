@@ -122,6 +122,9 @@ class Renderer(renderer.Renderer):
         if "mtu" in iface and iface["mtu"]:
             cfg.update_section(sec, "MTUBytes", iface["mtu"])
 
+        if "optional" in iface and iface["optional"]:
+            cfg.update_section(sec, "RequiredForOnline", "no")
+
     def parse_routes(self, rid, conf, cfg: CfgParser):
         """
         Parse a route and use rid as a key in order to isolate the route from

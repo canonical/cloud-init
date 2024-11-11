@@ -906,17 +906,35 @@ class Renderer(renderer.Renderer):
 
     @staticmethod
     def _render_networkmanager_conf(network_state, templates=None):
+        iface_dns = False
         content = networkmanager_conf.NetworkManagerConf("")
+        # check if there is interface specific DNS information configured
+        for iface in network_state.iter_interfaces():
+            for subnet in iface["subnets"]:
+                if "dns_nameservers" in subnet or "dns_search" in subnet:
+                    iface_dns = True
+                    break
+            if (
+                not iface_dns
+                and "dns" in iface
+                and (iface["dns"]["nameservers"] or iface["dns"]["search"])
+            ):
+                iface_dns = True
+                break
 
-        # If DNS server information is provided, configure
-        # NetworkManager to not manage dns, so that /etc/resolv.conf
-        # does not get clobbered.
+        # If DNS server and/or dns search information is provided either
+        # globally or per interface basis, configure NetworkManager to
+        # not manage dns, so that /etc/resolv.conf does not get clobbered.
         # This is not required for NetworkManager renderer as it
         # does not write /etc/resolv.conf directly. DNS information is
         # written to the interface keyfile and NetworkManager is then
         # responsible for using the DNS information from the keyfile,
         # including managing /etc/resolv.conf.
-        if network_state.dns_nameservers:
+        if (
+            network_state.dns_nameservers
+            or network_state.dns_searchdomains
+            or iface_dns
+        ):
             content.set_section_keypair("main", "dns", "none")
 
         if len(content) == 0:
