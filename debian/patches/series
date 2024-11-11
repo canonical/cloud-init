@@ -14,3 +14,4 @@ drop-unsupported-systemd-condition-environment.patch
 deprecation-version-boundary.patch
 no-single-process.patch
 no-nocloud-network.patch
+grub-dpkg-support.patch
