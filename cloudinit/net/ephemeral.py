@@ -296,14 +296,16 @@ class EphemeralDHCPv4:
     def __enter__(self):
         """Setup sandboxed dhcp context, unless connectivity_url can already be
         reached."""
-        for url_data in self.connectivity_urls_data:
-            if net.has_url_connectivity(url_data):
-                LOG.debug(
-                    "Skip ephemeral DHCP setup, instance has connectivity"
-                    " to %s",
-                    url_data,
-                )
-                return
+        if imds_reached_at_url := _check_connectivity_to_imds(
+            self.connectivity_urls_data
+        ):
+            LOG.debug(
+                "Skip ephemeral DHCP setup, instance has connectivity"
+                " to %s",
+                imds_reached_at_url,
+            )
+            return None
+        # If we don't have connectivity, perform dhcp discovery
         return self.obtain_lease()
 
     def __exit__(self, excp_type, excp_value, excp_traceback):
