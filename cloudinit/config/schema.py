@@ -8,13 +8,11 @@ import re
 import shutil
 import sys
 from collections import defaultdict
-from collections.abc import Iterable
 from contextlib import suppress
 from copy import deepcopy
 from enum import Enum
 from errno import EACCES
 from functools import partial
-from itertools import chain
 from typing import (
     TYPE_CHECKING,
     DefaultDict,
@@ -35,7 +33,7 @@ from cloudinit.helpers import Paths
 from cloudinit.log.log_util import error
 from cloudinit.sources import DataSourceNotFoundException
 from cloudinit.temp_utils import mkdtemp
-from cloudinit.util import get_modules_from_dir, load_text_file, write_file
+from cloudinit.util import load_text_file, write_file
 
 try:
     from jsonschema import ValidationError
@@ -67,42 +65,7 @@ USERDATA_SCHEMA_FILE = "schema-cloud-config-v1.json"
 NETWORK_CONFIG_V1_SCHEMA_FILE = "schema-network-config-v1.json"
 NETWORK_CONFIG_V2_SCHEMA_FILE = "schema-network-config-v2.json"
 
-_YAML_MAP = {True: "true", False: "false", None: "null"}
-SCHEMA_DOC_TMPL = """
-{name}
-{title_underbar}
 
-{title}
-
-.. tab-set::
-
-{prefix3}.. tab-item:: Summary
-
-{description}
-
-{prefix6}**Internal name:** ``{id}``
-
-{prefix6}**Module frequency:** {frequency}
-
-{prefix6}**Supported distros:** {distros}
-
-{prefix6}{activate_by_schema_keys}
-
-{prefix3}.. tab-item:: Config schema
-
-{property_doc}
-
-{prefix3}.. tab-item:: Examples
-
-{prefix6}::
-
-{examples}
-"""
-SCHEMA_PROPERTY_TMPL = "{prefix}* **{prop_name}:** ({prop_type}){description}"
-SCHEMA_LIST_ITEM_TMPL = (
-    "{prefix}* Each object in **{prop_name}** list supports "
-    "the following keys:"
-)
 DEPRECATED_KEY = "deprecated"
 
 # user-data files typically must begin with a leading '#'
@@ -1215,58 +1178,6 @@ def validate_cloudconfig_file(
         if errors:
             raise SchemaValidationError(schema_errors=errors) from e
     return True
-
-
-def _flatten(xs):
-    for x in xs:
-        if isinstance(x, Iterable) and not isinstance(x, (str, bytes)):
-            yield from _flatten(x)
-        else:
-            yield x
-
-
-def flatten_schema_refs(src_cfg: dict, defs: dict):
-    """Flatten schema: replace $refs in src_cfg with definitions from $defs."""
-    if "$ref" in src_cfg:
-        reference = src_cfg.pop("$ref").replace("#/$defs/", "")
-        # Update the defined references in subschema for doc rendering
-        src_cfg.update(defs[reference])
-    if "items" in src_cfg:
-        if "$ref" in src_cfg["items"]:
-            reference = src_cfg["items"].pop("$ref").replace("#/$defs/", "")
-            # Update the references in subschema for doc rendering
-            src_cfg["items"].update(defs[reference])
-        if "oneOf" in src_cfg["items"]:
-            for sub_schema in src_cfg["items"]["oneOf"]:
-                if "$ref" in sub_schema:
-                    reference = sub_schema.pop("$ref").replace("#/$defs/", "")
-                    sub_schema.update(defs[reference])
-    for sub_schema in chain(
-        src_cfg.get("oneOf", []),
-        src_cfg.get("anyOf", []),
-        src_cfg.get("allOf", []),
-    ):
-        if "$ref" in sub_schema:
-            reference = sub_schema.pop("$ref").replace("#/$defs/", "")
-            sub_schema.update(defs[reference])
-
-
-def flatten_schema_all_of(src_cfg: dict):
-    """Flatten schema: Merge allOf.
-
-    If a schema as allOf, then all of the sub-schemas must hold. Therefore
-    it is safe to merge them.
-    """
-    sub_schemas = src_cfg.pop("allOf", None)
-    if not sub_schemas:
-        return
-    for sub_schema in sub_schemas:
-        src_cfg.update(sub_schema)
-
-
-def get_modules() -> dict:
-    configs_dir = os.path.dirname(os.path.abspath(__file__))
-    return get_modules_from_dir(configs_dir)
 
 
 def get_schema_dir() -> str:
