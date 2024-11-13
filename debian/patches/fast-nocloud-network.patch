@@ -1,0 +1,64 @@
+Description: Minimize network-config wait
+Minimize possible wait time for a NoCloud file that likely
+doesn't exist on existing series.
+Bug: https://github.com/canonical/cloud-init/issues/5753
+
+Author: Brett Holman <brett.holman@canonical.com>
+Last-Update: 2024-11-13
+
+--- a/cloudinit/util.py
++++ b/cloudinit/util.py
+@@ -1021,16 +1021,6 @@ def read_seeded(base="", ext="", timeout
+         vd_url = "%s%s%s" % (base, "vendor-data", ext)
+         md_url = "%s%s%s" % (base, "meta-data", ext)
+         network_url = "%s%s%s" % (base, "network-config", ext)
+-    network = None
+-    try:
+-        network_resp = url_helper.read_file_or_url(
+-            network_url, timeout=timeout, retries=retries
+-        )
+-    except url_helper.UrlError as e:
+-        LOG.debug("No network config provided: %s", e)
+-    else:
+-        if network_resp.ok():
+-            network = load_yaml(network_resp.contents)
+     md_resp = url_helper.read_file_or_url(
+         md_url, timeout=timeout, retries=retries
+     )
+@@ -1058,6 +1048,18 @@ def read_seeded(base="", ext="", timeout
+         else:
+             LOG.debug("Error in vendor-data response")
+
++    network = None
++    if md or ud or vd:
++        try:
++            network_resp = url_helper.read_file_or_url(
++                network_url, timeout=timeout, retries=0
++            )
++        except url_helper.UrlError as e:
++            LOG.debug("No network config provided: %s", e)
++        else:
++            if network_resp.ok():
++                network = load_yaml(network_resp.contents)
++
+     return md, ud, vd, network
+
+
+--- a/tests/unittests/test_util.py
++++ b/tests/unittests/test_util.py
+@@ -2630,9 +2630,12 @@ class TestReadSeeded:
+         assert found_ud == "/user-data: 1"
+         assert found_vd == "/vendor-data: 1"
+         assert found_network == {"/network-config": 1}
+-        assert [
+-            mock.call(req_url, timeout=5, retries=10) for req_url in req_urls
+-        ] == m_read.call_args_list
++        for req_url in req_urls:
++            retries = 0 if "network-config" in req_url else 10
++            assert (
++                mock.call(req_url, timeout=5, retries=retries)
++                in m_read.call_args_list
++            )
+
+
+ class TestReadSeededWithoutVendorData(helpers.TestCase):
