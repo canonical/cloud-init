@@ -119,21 +119,23 @@ class TestPackageCommand:
         )
 
 
-@mock.patch.object(
-    apt,
-    "APT_LOCK_FILES",
-    [f"{TMP_DIR}/{FILE}" for FILE in apt.APT_LOCK_FILES],
-)
-class TestUpdatePackageSources:
-    def __init__(self):
-        MockPaths = get_mock_paths(TMP_DIR)
-        self.MockPaths = MockPaths({}, FakeDataSource())
+@pytest.fixture(scope="function")
+def apt_paths(tmpdir):
+    MockPaths = get_mock_paths(str(tmpdir))
+    with mock.patch.object(
+        apt,
+        "APT_LOCK_FILES",
+        [f"{tmpdir}/{FILE}" for FILE in apt.APT_LOCK_FILES],
+    ):
+        yield MockPaths({}, FakeDataSource())
 
+
+class TestUpdatePackageSources:
     @mock.patch.object(apt.subp, "which", return_value=True)
     @mock.patch.object(apt.subp, "subp")
-    def test_force_update_calls_twice(self, m_subp, m_which):
+    def test_force_update_calls_twice(self, m_subp, m_which, apt_paths):
         """Ensure that force=true calls apt update again"""
-        instance = apt.Apt(helpers.Runners(self.MockPaths))
+        instance = apt.Apt(helpers.Runners(apt_paths))
         instance.update_package_sources()
         instance.update_package_sources(force=True)
         assert 2 == len(m_subp.call_args_list)
@@ -141,9 +143,9 @@ class TestUpdatePackageSources:
 
     @mock.patch.object(apt.subp, "which", return_value=True)
     @mock.patch.object(apt.subp, "subp")
-    def test_force_update_twice_calls_twice(self, m_subp, m_which):
+    def test_force_update_twice_calls_twice(self, m_subp, m_which, apt_paths):
         """Ensure that force=true calls apt update again when called twice"""
-        instance = apt.Apt(helpers.Runners(self.MockPaths))
+        instance = apt.Apt(helpers.Runners(apt_paths))
         instance.update_package_sources(force=True)
         instance.update_package_sources(force=True)
         assert 2 == len(m_subp.call_args_list)
@@ -151,9 +153,9 @@ class TestUpdatePackageSources:
 
     @mock.patch.object(apt.subp, "which", return_value=True)
     @mock.patch.object(apt.subp, "subp")
-    def test_no_force_update_calls_once(self, m_subp, m_which):
+    def test_no_force_update_calls_once(self, m_subp, m_which, apt_paths):
         """Ensure that apt-get update calls are deduped unless expected"""
-        instance = apt.Apt(helpers.Runners(self.MockPaths))
+        instance = apt.Apt(helpers.Runners(apt_paths))
         instance.update_package_sources()
         instance.update_package_sources()
         assert 1 == len(m_subp.call_args_list)

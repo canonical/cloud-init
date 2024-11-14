@@ -315,7 +315,7 @@ def mock_subp_subp():
 
 @pytest.fixture
 def mock_timestamp():
-    timestamp = datetime.datetime.utcnow()
+    timestamp = datetime.datetime.now(datetime.timezone.utc)
     with mock.patch.object(errors, "datetime", autospec=True) as m:
         m.utcnow.return_value = timestamp
         yield timestamp
