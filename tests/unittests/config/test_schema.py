@@ -1984,66 +1984,68 @@ class TestMain:
             (
                 "network-config",
                 (
-                        b"network:\n version: 1\n config:\n  - type: physical\n"
-                        b"    name: eth0\n    subnets:\n      - type: manual\n"
+                    b"network:\n version: 1\n config:\n  - type: physical\n"
+                    b"    name: eth0\n    subnets:\n      - type: manual\n"
                 ),
                 "Valid schema",
             ),
             (
-                    "network-config",
-                    (
-                            b"network:\n version: 1\n config:\n  - type: physical\n"
-                            b"    name: eth0\n    subnets:\n      - type: static\n"
-                    ),
-                    "Valid schema",
+                "network-config",
+                (
+                    b"network:\n version: 1\n config:\n  - type: physical\n"
+                    b"    name: eth0\n    subnets:\n      - type: static\n"
+                ),
+                "Valid schema",
             ),
             (
-                    "network-config",
-                    (
-                            b"network:\n version: 1\n config:\n  - type: physical\n"
-                            b"    name: eth0\n    subnets:\n      - type: static6\n"
-                    ),
-                    "Valid schema",
+                "network-config",
+                (
+                    b"network:\n version: 1\n config:\n  - type: physical\n"
+                    b"    name: eth0\n    subnets:\n      - type: static6\n"
+                ),
+                "Valid schema",
             ),
             (
-                    "network-config",
-                    (
-                            b"network:\n version: 1\n config:\n  - type: physical\n"
-                            b"    name: eth0\n    subnets:\n      - type: dhcp6\n"
-                    ),
-                    "Valid schema",
+                "network-config",
+                (
+                    b"network:\n version: 1\n config:\n  - type: physical\n"
+                    b"    name: eth0\n    subnets:\n      - type: dhcp6\n"
+                ),
+                "Valid schema",
             ),
             (
-                    "network-config",
-                    (
-                            b"network:\n version: 1\n config:\n  - type: physical\n"
-                            b"    name: eth0\n    subnets:\n      - type: dhcp4\n"
-                    ),
-                    "Valid schema",
+                "network-config",
+                (
+                    b"network:\n version: 1\n config:\n  - type: physical\n"
+                    b"    name: eth0\n    subnets:\n      - type: dhcp4\n"
+                ),
+                "Valid schema",
             ),
             (
-                    "network-config",
-                    (
-                            b"network:\n version: 1\n config:\n  - type: physical\n"
-                            b"    name: eth0\n    subnets:\n      - type: ipv6_slaac\n"
-                    ),
-                    "Valid schema",
+                "network-config",
+                (
+                    b"network:\n version: 1\n config:\n  - type: physical\n"
+                    b"    name: eth0\n    subnets:\n      - type: ipv6_slaac\n"
+                ),
+                "Valid schema",
             ),
             (
-                    "network-config",
-                    (
-                            b"network:\n version: 1\n config:\n  - type: physical\n"
-                            b"    name: eth0\n    subnets:\n      - type: ipv6_dhcpv6-stateful\n"
-                    ),
-                    "Valid schema",
+                "network-config",
+                (
+                    b"network:\n version: 1\n config:\n  - type: physical\n"
+                    b"    name: eth0\n    subnets:\n"
+                    b"      - type: ipv6_dhcpv6-stateful\n"
+                ),
+                "Valid schema",
             ),
             (
-                    "network-config",
-                    (
-                            b"network:\n version: 1\n config:\n  - type: physical\n"
-                            b"    name: eth0\n    subnets:\n      - type: ipv6_dhcpv6-stateless\n"
-                    ),
-                    "Valid schema",
+                "network-config",
+                (
+                    b"network:\n version: 1\n config:\n  - type: physical\n"
+                    b"    name: eth0\n    subnets:\n"
+                    b"      - type: ipv6_dhcpv6-stateless\n"
+                ),
+                "Valid schema",
             ),
         ),
     )
