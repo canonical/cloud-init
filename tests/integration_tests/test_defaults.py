@@ -55,6 +55,8 @@ class TestDefaults:
             "write_files",
             "write_files_deferred",
         }
+        if releases.CURRENT_RELEASE >= releases.PLUCKY:
+            expected_inactive.add("grub_dpkg")
 
         # Remove modules that run independent from user-data
         if class_client.settings.PLATFORM == "azure":
