@@ -17,7 +17,7 @@ defaults:
     shell: sh -ex {0}
 
 env:
-  RELEASE: oracular
+  RELEASE: plucky
 
 jobs:
   build-package-and-run-tests:
@@ -68,4 +68,4 @@ jobs:
           echo "[lxd]" > /home/$USER/.config/pycloudlib.toml
       - name: Run integration Tests
         run: |
-          CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls ${{ runner.temp }}/cloud-init*.deb)" CLOUD_INIT_OS_IMAGE=oracular tox -e integration-tests-ci -- --color=yes tests/integration_tests/
+          CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls ${{ runner.temp }}/cloud-init*.deb)" CLOUD_INIT_OS_IMAGE=${{ env.RELEASE }} tox -e integration-tests-ci -- --color=yes tests/integration_tests/
