@@ -45,7 +45,15 @@ Last-Update: 2024-08-02
  # Output needs to appear in instance console output
 --- a/systemd/cloud-init-local.service.tmpl
 +++ b/systemd/cloud-init-local.service.tmpl
-@@ -25,14 +25,7 @@ Type=oneshot
+@@ -7,6 +7,7 @@ DefaultDependencies=no
+ {% endif %}
+ Wants=network-pre.target
+ After=hv_kvp_daemon.service
++After=systemd-remount-fs.service
+ Before=network-pre.target
+ Before=shutdown.target
+ {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
+@@ -25,14 +26,7 @@ Type=oneshot
  {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
  ExecStartPre=/sbin/restorecon /run/cloud-init
  {% endif %}
@@ -186,3 +194,48 @@ Last-Update: 2024-08-02
              /dev/sdb1	none	swap	sw,comment=cloudconfig	0	0
              """  # noqa: E501
              ).strip()
+--- a/systemd/cloud-init-main.service.tmpl
++++ /dev/null
+@@ -1,42 +0,0 @@
+-## template:jinja
+-# systemd ordering resources
+-# ==========================
+-# https://systemd.io/NETWORK_ONLINE/
+-# https://docs.cloud-init.io/en/latest/explanation/boot.html
+-# https://www.freedesktop.org/wiki/Software/systemd/NetworkTarget/
+-# https://www.freedesktop.org/software/systemd/man/latest/systemd.special.html
+-# https://www.freedesktop.org/software/systemd/man/latest/systemd-remount-fs.service.html
+-[Unit]
+-Description=Cloud-init: Single Process
+-{% if variant in ["almalinux", "cloudlinux", "ubuntu", "unknown", "debian", "rhel"] %}
+-DefaultDependencies=no
+-{% endif %}
+-{% if variant in ["almalinux", "cloudlinux", "rhel"] %}
+-Requires=dbus.socket
+-After=dbus.socket
+-{% endif %}
+-
+-After=systemd-remount-fs.service
+-Before=cloud-init-local.service
+-Before=shutdown.target
+-Conflicts=shutdown.target
+-RequiresMountsFor=/var/lib/cloud
+-ConditionPathExists=!/etc/cloud/cloud-init.disabled
+-ConditionKernelCommandLine=!cloud-init=disabled
+-ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
+-
+-[Service]
+-Type=notify
+-ExecStart=/usr/bin/cloud-init --all-stages
+-KillMode=process
+-TasksMax=infinity
+-TimeoutStartSec=infinity
+-{% if variant in ["almalinux", "cloudlinux", "rhel"] %}
+-ExecStartPre=/sbin/restorecon /run/cloud-init
+-{% endif %}
+-
+-# Output needs to appear in instance console output
+-StandardOutput=journal+console
+-
+-[Install]
+-WantedBy=cloud-init.target
