@@ -11,7 +11,6 @@ from configobj import ConfigObj
 
 from cloudinit import util
 from cloudinit.config import cc_timezone
-from tests.unittests.conftest import fake_filesystem
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
