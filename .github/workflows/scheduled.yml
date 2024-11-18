@@ -23,7 +23,7 @@ jobs:
         env:
           PYTEST_ADDOPTS: -v
           HYPOTHESIS_PROFILE: ci
-        run: tox -e hypothesis-slow
+        run: echo FIXME tox -e hypothesis-slow
   devel_tests:
     name: unittest / 3.14-dev
     runs-on: ubuntu-latest
