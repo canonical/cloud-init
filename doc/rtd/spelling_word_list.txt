@@ -46,6 +46,7 @@ datasources
 deadbeef
 debconf
 debian
+dev
 devops
 dhcp
 dicts
@@ -251,6 +252,7 @@ userdata
 userspace
 usr
 util
+validator
 var
 vcloud
 ve

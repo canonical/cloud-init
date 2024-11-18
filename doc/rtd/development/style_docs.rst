@@ -12,7 +12,6 @@ be changed to UK English.
 Try to be concise and to the point in your writing. It is acceptable to link
 to official documentation elsewhere rather than repeating content. It's also
 good practice not to assume that your reader has the same level of knowledge
-as you, so if you're covering a new or complicated topic, then providing
 contextual links to help the reader is encouraged.
 
 Feel free to include a "Further reading" section at the end of a page if you
@@ -90,9 +89,9 @@ to text output, you can use code blocks. For diagrams, we recommend the use of
 Code blocks
 -----------
 
-Our documentation uses the Sphinx extension "sphinx-copybutton", which creates
-a small button on the right-hand side of code blocks for users to copy the
-code snippets we provide.
+Our documentation uses the Sphinx extension ``sphinx-copybutton``, which
+creates a small button on the right-hand side of code blocks for users to copy
+the code snippets we provide.
 
 The copied code will strip out the prompt symbol (``$``) so that users can
 paste commands directly into their terminal. For user convenience, please

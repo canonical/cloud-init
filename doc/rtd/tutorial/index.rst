@@ -3,8 +3,8 @@
 Tutorials
 *********
 
-This section contains step-by-step tutorials to help you learn about
-cloud-init.
+Our step-by-step tutorials will help you learn about cloud-init and what it can
+do.
 
 New user tutorial
 =================
@@ -20,13 +20,13 @@ successfully.
 Further tutorials
 =================
 
-This section is recommended if you have some familiarity with cloud-init's key
+This tutorial is recommended if you have some familiarity with cloud-init's key
 concepts already. It uses LXD containers to show more of cloud-init's
 capabilities.
 
 * :ref:`Part 1: quick deployment <tutorial_lxd>`
 
-  This section deploys a cloud-init user data script into a LXD container. It
+  Here we deploy a cloud-init user data script into a LXD container. It
   can also be used as a quick-start guide.
 
 .. toctree::
