@@ -3,14 +3,6 @@ import glob
 import os
 import sys
 
-from cloudinit import version
-from cloudinit.config.schema import (
-    flatten_schema_all_of,
-    flatten_schema_refs,
-    get_schema,
-)
-from cloudinit.handlers.jinja_template import render_jinja_payload
-
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -19,6 +11,13 @@ sys.path.insert(0, os.path.abspath("../"))
 sys.path.insert(0, os.path.abspath("./"))
 sys.path.insert(0, os.path.abspath("."))
 
+from cloudinit import version
+from cloudinit.config.schema import (
+    flatten_schema_all_of,
+    flatten_schema_refs,
+    get_schema,
+)
+from cloudinit.handlers.jinja_template import render_jinja_payload
 
 # Suppress warnings for docs that aren't used yet
 # unused_docs = [
@@ -131,7 +130,11 @@ html_theme_options = {
 # of the sidebar.
 html_static_path = ["static"]
 html_css_files = ["css/custom.css", "css/github_issue_links.css"]
-html_js_files = ["js/github_issue_links.js"]
+html_js_files = [
+    "js/github_issue_links.js",
+    "js/mermaid_config.js",
+    "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js",
+]
 
 html_extra_path = ["googleaf254801a5285c31.html"]
 
