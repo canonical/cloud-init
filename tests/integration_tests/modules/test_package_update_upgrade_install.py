@@ -122,6 +122,7 @@ class TestPackageUpdateUpgradeInstall:
 
 
 HELLO_VERSIONS_BY_RELEASE = {
+    "plucky": "2.10-3build2",
     "oracular": "2.10-3build2",
     "noble": "2.10-3build1",
     "mantic": "2.10-3",
