@@ -26,14 +26,14 @@ class TestTimezone:
         # Create a dummy timezone file
         dummy_contents = "0123456789abcdefgh"
         util.write_file(
-            "usr/share/zoneinfo/%s" % cfg["timezone"], dummy_contents
+            "/usr/share/zoneinfo/%s" % cfg["timezone"], dummy_contents
         )
         cc_timezone.handle("cc_timezone", cfg, cc, [])
 
-        contents = util.load_binary_file("etc/sysconfig/clock")
+        contents = util.load_binary_file("/etc/sysconfig/clock")
         n_cfg = ConfigObj(BytesIO(contents))
 
         assert {"TIMEZONE": cfg["timezone"]} == dict(n_cfg)
 
-        contents = util.load_text_file("etc/localtime")
+        contents = util.load_text_file("/etc/localtime")
         assert dummy_contents == contents.strip()
