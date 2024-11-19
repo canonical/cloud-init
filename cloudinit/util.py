@@ -1811,18 +1811,6 @@ def hash_blob(blob, routine: str, mlen=None) -> str:
         return digest
 
 
-def hash_buffer(f: io.BufferedIOBase) -> bytes:
-    """Hash the content of a binary buffer using SHA1.
-
-    @param f: buffered binary stream to hash.
-    @return: digested data as bytes.
-    """
-    hasher = hashlib.sha1()
-    for chunk in iter(lambda: f.read(io.DEFAULT_BUFFER_SIZE), b""):
-        hasher.update(chunk)
-    return hasher.digest()
-
-
 def is_user(name):
     try:
         if pwd.getpwnam(name):
