@@ -1,7 +1,12 @@
 import datetime
 import glob
+import itertools
 import os
 import sys
+
+from cloudinit import version
+from cloudinit.config.schema import get_schema
+from cloudinit.handlers.jinja_template import render_jinja_payload
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -10,14 +15,6 @@ sys.path.insert(0, os.path.abspath("../../"))
 sys.path.insert(0, os.path.abspath("../"))
 sys.path.insert(0, os.path.abspath("./"))
 sys.path.insert(0, os.path.abspath("."))
-
-from cloudinit import version
-from cloudinit.config.schema import (
-    flatten_schema_all_of,
-    flatten_schema_refs,
-    get_schema,
-)
-from cloudinit.handlers.jinja_template import render_jinja_payload
 
 # Suppress warnings for docs that aren't used yet
 # unused_docs = [
@@ -255,6 +252,45 @@ def render_property_template(prop_name, prop_cfg, prefix=""):
     with open("templates/module_property.tmpl", "r") as stream:
         content = "## template: jinja\n" + stream.read()
     return render_jinja_payload(content, f"doc_module_{prop_name}", jinja_vars)
+
+
+def flatten_schema_refs(src_cfg: dict, defs: dict):
+    """Flatten schema: replace $refs in src_cfg with definitions from $defs."""
+    if "$ref" in src_cfg:
+        reference = src_cfg.pop("$ref").replace("#/$defs/", "")
+        # Update the defined references in subschema for doc rendering
+        src_cfg.update(defs[reference])
+    if "items" in src_cfg:
+        if "$ref" in src_cfg["items"]:
+            reference = src_cfg["items"].pop("$ref").replace("#/$defs/", "")
+            # Update the references in subschema for doc rendering
+            src_cfg["items"].update(defs[reference])
+        if "oneOf" in src_cfg["items"]:
+            for sub_schema in src_cfg["items"]["oneOf"]:
+                if "$ref" in sub_schema:
+                    reference = sub_schema.pop("$ref").replace("#/$defs/", "")
+                    sub_schema.update(defs[reference])
+    for sub_schema in itertools.chain(
+        src_cfg.get("oneOf", []),
+        src_cfg.get("anyOf", []),
+        src_cfg.get("allOf", []),
+    ):
+        if "$ref" in sub_schema:
+            reference = sub_schema.pop("$ref").replace("#/$defs/", "")
+            sub_schema.update(defs[reference])
+
+
+def flatten_schema_all_of(src_cfg: dict):
+    """Flatten schema: Merge allOf.
+
+    If a schema as allOf, then all of the sub-schemas must hold. Therefore
+    it is safe to merge them.
+    """
+    sub_schemas = src_cfg.pop("allOf", None)
+    if not sub_schemas:
+        return
+    for sub_schema in sub_schemas:
+        src_cfg.update(sub_schema)
 
 
 def render_nested_properties(prop_cfg, defs, prefix):
