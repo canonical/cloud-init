@@ -576,26 +576,6 @@ class Renderer(renderer.Renderer):
             )
 
 
-def network_state_to_eni(network_state, header=None, render_hwaddress=False):
-    # render the provided network state, return a string of equivalent eni
-    eni_path = "etc/network/interfaces"
-    renderer = Renderer(
-        config={
-            "eni_path": eni_path,
-            "eni_header": header,
-            "netrules_path": None,
-        }
-    )
-    if not header:
-        header = ""
-    if not header.endswith("\n"):
-        header += "\n"
-    contents = renderer._render_interfaces(
-        network_state, render_hwaddress=render_hwaddress
-    )
-    return header + contents
-
-
 def available(target=None):
     expected = ["ifquery", "ifup", "ifdown"]
     search = ["/sbin", "/usr/sbin"]

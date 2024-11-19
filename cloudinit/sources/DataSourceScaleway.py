@@ -255,30 +255,6 @@ class DataSourceScaleway(sources.DataSource):
         if "scaleway" in cmdline:
             return True
 
-    def _set_urls_on_ip_version(self, proto, urls):
-
-        if proto not in ["ipv4", "ipv6"]:
-            LOG.debug("Invalid IP version : %s", proto)
-            return []
-
-        filtered_urls = []
-        for url in urls:
-            # Numeric IPs
-            address = urlparse(url).netloc
-            if address[0] == "[":
-                address = address[1:-1]
-            addr_proto = socket.getaddrinfo(
-                address, None, proto=socket.IPPROTO_TCP
-            )[0][0]
-            if addr_proto == socket.AF_INET and proto == "ipv4":
-                filtered_urls += [url]
-                continue
-            elif addr_proto == socket.AF_INET6 and proto == "ipv6":
-                filtered_urls += [url]
-                continue
-
-        return filtered_urls
-
     def _get_data(self):
 
         # The DataSource uses EventType.BOOT so we are called more than once.

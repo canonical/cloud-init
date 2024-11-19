@@ -40,7 +40,7 @@ class TestPackageCommand:
     @mock.patch("cloudinit.distros.package_management.apt.time.sleep")
     def test_wait_for_lock(self, m_sleep, m_apt_avail, m_subp, m_which):
         apt = Apt(runner=mock.Mock(), apt_get_wrapper_command=("dontcare",))
-        apt._wait_for_apt_command("stub", {"args": "stub2"})
+        apt._wait_for_apt_command({"args": "stub2"})
         assert m_sleep.call_args_list == [mock.call(1), mock.call(1)]
         assert m_subp.call_args_list == [mock.call(args="stub2")]
 
@@ -58,7 +58,7 @@ class TestPackageCommand:
     ):
         apt = Apt(runner=mock.Mock(), apt_get_wrapper_command=("dontcare",))
         with pytest.raises(TimeoutError):
-            apt._wait_for_apt_command("stub", "stub2", timeout=5)
+            apt._wait_for_apt_command("stub2", timeout=5)
         assert m_subp.call_args_list == []
 
     @mock.patch(
@@ -72,7 +72,7 @@ class TestPackageCommand:
             exit_code=100, stderr="Could not get apt lock"
         )
         m_subp.side_effect = [exception, exception, "return_thing"]
-        ret = apt._wait_for_apt_command("stub", {"args": "stub2"})
+        ret = apt._wait_for_apt_command({"args": "stub2"})
         assert ret == "return_thing"
 
     @mock.patch(
@@ -92,7 +92,7 @@ class TestPackageCommand:
             exit_code=100, stderr="Could not get apt lock"
         )
         with pytest.raises(TimeoutError):
-            apt._wait_for_apt_command("stub", {"args": "stub2"}, timeout=5)
+            apt._wait_for_apt_command({"args": "stub2"}, timeout=5)
 
     def test_search_stem(self, m_subp, m_which, mocker):
         """Test that containing `-`, `^`, `/`, or `=` is handled correctly."""
