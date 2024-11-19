@@ -14,7 +14,7 @@ that uses cloud-init to pre-configure the system during boot.
 
 The goal of this tutorial is to provide a minimal demonstration of
 cloud-init, which you can then use as a development environment to test
-your cloud-init configurations locally before launching them to the cloud.
+your cloud-init configuration locally before launching it to the cloud.
 
 Why QEMU?
 =========

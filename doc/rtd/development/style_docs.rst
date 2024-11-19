@@ -12,6 +12,7 @@ be changed to UK English.
 Try to be concise and to the point in your writing. It is acceptable to link
 to official documentation elsewhere rather than repeating content. It's also
 good practice not to assume that your reader has the same level of knowledge
+as you, so if you're covering a new or complicated topic, then providing
 contextual links to help the reader is encouraged.
 
 Feel free to include a "Further reading" section at the end of a page if you
