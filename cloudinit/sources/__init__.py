@@ -15,9 +15,8 @@ import logging
 import os
 import pickle
 import re
-from collections import namedtuple
 from enum import Enum, unique
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
 
 from cloudinit import (
     atomic_helper,
@@ -177,20 +176,16 @@ def redact_sensitive_keys(metadata, redact_value=REDACT_SENSITIVE_VALUE):
     return md_copy
 
 
-URLParams = namedtuple(
-    "URLParams",
-    [
-        "max_wait_seconds",
-        "timeout_seconds",
-        "num_retries",
-        "sec_between_retries",
-    ],
-)
+class URLParams(NamedTuple):
+    max_wait_seconds: int
+    timeout_seconds: int
+    num_retries: int
+    sec_between_retries: int
 
-DataSourceHostname = namedtuple(
-    "DataSourceHostname",
-    ["hostname", "is_default"],
-)
+
+class DataSourceHostname(NamedTuple):
+    hostname: Optional[str]
+    is_default: bool
 
 
 class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
@@ -827,7 +822,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         @param metadata_only: Boolean, set True to avoid looking up hostname
             if meta-data doesn't have local-hostname present.
 
-        @return: a DataSourceHostname namedtuple
+        @return: a DataSourceHostname NamedTuple
             <hostname or qualified hostname>, <is_default> (str, bool).
             is_default is a bool and
             it's true only if hostname is localhost and was
