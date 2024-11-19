@@ -22,7 +22,6 @@ import yaml
 
 from cloudinit import features, performance
 from cloudinit.config.schema import (
-    VERSIONED_USERDATA_SCHEMA_FILE,
     SchemaProblem,
     SchemaType,
     SchemaValidationError,
@@ -57,6 +56,7 @@ from tests.unittests.helpers import (
 
 M_PATH = "cloudinit.config.schema."
 DEPRECATED_LOG_LEVEL = 35
+VERSIONED_USERDATA_SCHEMA_FILE = "versions.schema.cloud-config.json"
 
 
 def get_schemas() -> dict:
@@ -973,9 +973,8 @@ class TestAnnotatedCloudconfigFile:
     def test_annotated_cloudconfig_file_no_schema_errors(self):
         """With no schema_errors, print the original content."""
         content = b"ntp:\n  pools: [ntp1.pools.com]\n"
-        parse_cfg, schemamarks = load_with_marks(content)
+        _, schemamarks = load_with_marks(content)
         assert content == annotated_cloudconfig_file(
-            parse_cfg,
             content,
             schemamarks=schemamarks,
             schema_errors=[],
@@ -1005,14 +1004,13 @@ class TestAnnotatedCloudconfigFile:
 
             """
         )
-        parsed_config, schemamarks = load_with_marks(content[13:])
+        _, schemamarks = load_with_marks(content[13:])
         schema_errors = [
             SchemaProblem("ntp", "Some type error"),
             SchemaProblem("ntp.pools.0", "-99 is not a string"),
             SchemaProblem("ntp.pools.1", "75 is not a string"),
         ]
         assert expected == annotated_cloudconfig_file(
-            parsed_config,
             content,
             schemamarks=schemamarks,
             schema_errors=schema_errors,
@@ -1038,13 +1036,12 @@ class TestAnnotatedCloudconfigFile:
                 - 75		# E2
             """
         )
-        parsed_config, schemamarks = load_with_marks(content[13:])
+        _, schemamarks = load_with_marks(content[13:])
         schema_errors = [
             SchemaProblem("ntp.pools.0", "-99 is not a string"),
             SchemaProblem("ntp.pools.1", "75 is not a string"),
         ]
         assert expected in annotated_cloudconfig_file(
-            parsed_config,
             content,
             schemamarks=schemamarks,
             schema_errors=schema_errors,

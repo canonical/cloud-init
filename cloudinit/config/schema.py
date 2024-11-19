@@ -55,8 +55,6 @@ LOG = logging.getLogger(__name__)
 # If we change the location of versions.schema.json in github, we need
 # to provide an updated PR to
 # https://github.com/SchemaStore/schemastore.
-VERSIONED_USERDATA_SCHEMA_FILE = "versions.schema.cloud-config.json"
-
 # When bumping schema version due to incompatible changes:
 # 1. Add a new schema-cloud-config-v#.json
 # 2. change the USERDATA_SCHEMA_FILE to cloud-init-schema-v#.json
@@ -638,7 +636,6 @@ def netplan_validate_network_schema(
                 _, marks = safeyaml.load_with_marks(src_content)
                 print(
                     annotated_cloudconfig_file(
-                        net_cfg,
                         src_content,
                         marks,
                         schema_errors=errors,
@@ -811,11 +808,9 @@ def validate_cloudconfig_schema(
 class _Annotator:
     def __init__(
         self,
-        cloudconfig: dict,
         original_content: str,
         schemamarks: dict,
     ):
-        self._cloudconfig = cloudconfig
         self._original_content = original_content
         self._schemamarks = schemamarks
 
@@ -916,7 +911,6 @@ class _Annotator:
 
 
 def annotated_cloudconfig_file(
-    cloudconfig: dict,
     original_content: str,
     schemamarks: dict,
     *,
@@ -934,7 +928,7 @@ def annotated_cloudconfig_file(
 
     @return Annotated schema
     """
-    return _Annotator(cloudconfig, original_content, schemamarks).annotate(
+    return _Annotator(original_content, schemamarks).annotate(
         schema_errors or [], schema_deprecations or []
     )
 
@@ -1111,7 +1105,7 @@ def validate_cloudconfig_file(
         if annotate:
             print(
                 annotated_cloudconfig_file(
-                    {}, content, {}, schema_errors=schema_error.schema_errors
+                    content, {}, schema_errors=schema_error.schema_errors
                 )
             )
         raise schema_error from e
@@ -1161,7 +1155,6 @@ def validate_cloudconfig_file(
         if annotate:
             print(
                 annotated_cloudconfig_file(
-                    cloudconfig,
                     content,
                     marks,
                     schema_errors=errors,
