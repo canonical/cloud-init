@@ -26,7 +26,7 @@ meta: MetaSchema = {
     "id": "cc_set_passwords",
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
-    "activate_by_schema_keys": [],
+    "activate_by_schema_keys": ["ssh_pwauth", "chpasswd", "password"],
 }
 
 LOG = logging.getLogger(__name__)

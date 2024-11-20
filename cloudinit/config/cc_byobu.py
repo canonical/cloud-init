@@ -23,7 +23,7 @@ meta: MetaSchema = {
     "id": "cc_byobu",
     "distros": ["ubuntu", "debian"],
     "frequency": PER_INSTANCE,
-    "activate_by_schema_keys": [],
+    "activate_by_schema_keys": ["byobu_by_default"],
 }
 
 
