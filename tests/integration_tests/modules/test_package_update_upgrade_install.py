@@ -65,7 +65,7 @@ class TestPackageUpdateUpgradeInstall:
             "grep ^Commandline: /var/log/apt/history.log"
         )
         assert re.search(
-            "Commandline: /usr/bin/apt-get --option=Dpkg::Options"
+            "Commandline: (/usr/bin/)?apt-get --option=Dpkg::Options"
             "::=--force-confold --option=Dpkg::options::=--force-unsafe-io "
             r"--assume-yes --quiet install (sl|tree) (tree|sl)",
             out,
