@@ -1,4 +1,4 @@
-.. _tutorial_wsl:
+.. _launch_wsl:
 
 Using WSL with cloud-init
 *************************
