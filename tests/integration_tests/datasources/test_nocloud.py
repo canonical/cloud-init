@@ -361,6 +361,7 @@ class TestFTP:
                 After=systemd-networkd-wait-online.service
                 After=networking.service
                 Before=cloud-init-network.service
+                Before=cloud-init.service
 
                 [Service]
                 Type=notify
