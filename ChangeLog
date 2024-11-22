@@ -1,3 +1,167 @@
+24.4
+ - test: Ensure unit ordering in ftp tests includes downstream units (#5892)
+ - test: re-decrement expected webhook events (#5894)
+ - test: allow relative path in apt-get test (#5891)
+ - Fix metric setting of nmconnection for rhel (#5878) [Amy Chen]
+ - chore: remove unused code(#5887)
+ - feat(ephemeral): replace old has_url_connectivity() with new
+   _check_connectivity_to_imds() [a-dubs]
+ - feat(oracle): add true single stack ipv6 support [a-dubs]
+ - feat(ephemeral): refactor ephemeralIP and add ipv6 connectivity check
+   [a-dubs]
+ - test: Decrement expected webhook events (#5888)
+ - chore: remove `--docs` option from `cloud-init schema` (#5857) (GH: 5756)
+ - test: pytestify "tests/unittests/config/test_cc_timezone.py" (#5885)
+   [Mahesh Ghumare]
+ - ci: bump integration tests to use plucky
+ - test: add grub_dpkg to inactive modules
+ - test: move default behavior tests into their own module
+ - test(apt): add plucky version for hello pkg (#5883)
+ - Docs: improved mermaid diagram for better visibility. Add "MaheshG11"
+   as contributor (#5874) [Mahesh Ghumare] (GH: 5837)
+ - fix(ntp): Fix RockyLinux OS support  (#5864) [Sid Shukla]
+ - chore(jsonschema): migrate from deprecated Validator.iter_errors (#5856)
+ - chore: remove deprecation warning getting jsonschema's version (#5856)
+ - chore: use filter arg for tar.extractall (#5856)
+ - chore: remove __init__ from pytest test class (#5856)
+ - chore: do not test element's truth value directly (#5856)
+ - chore: migrate from deprecated datetime.datetime.utcfromtimestamp (#5856)
+ - chore: migrate from deprecated datetime.datetime.utcnow() (#5856)
+ - chore: set recursive=False for ensure_dir if parent path is "/" (#5816)
+   [sxt1001]
+ - ci: fix broken daily dependencies (#5867)
+ - ci: fix packaging tests (#5865)
+ - feat(vultr): add override for network interface detection (#5847)
+   [Andrew Davis]
+ - feat(networkd): Support RequiredForOnline option (#5852) [Dan McGregor]
+ - Prevent NM from handling DNS when network interfaces have DNS config
+   (#5846) [Ani Sinha]
+ - fix(smartos): Add `addrconf` IPv6 support (#5831)
+   [blackhelicoptersdotnet]
+ - freebsd: adjust to match the new pyyaml package name (#5844)
+   [Gonéri Le Bouder]
+ - fix: disable grub-dpkg by default (#5840)
+ - fix(openbsd): Enable sysv init scripts in OpenBSD build script (#5790)
+   [Hyacinthe Cartiaux] (LP: 4036, #1992853)
+ - test: Fix duplicate judgment conditions in password generation (#5835)
+   [sxt1001]
+ - chore: don't render non-templated unit files (#5830)
+ - chore: simplify and standardize cloud-final.service (#5830)
+ - chore: simplify Conflicts=shutdown.target (#5830)
+ - chore: remove redundant Before=NetworkManager.service (#5830)
+ - chore: remove unnecessary systemd settings (#5830)
+ - chore: eliminate redundant ordering dependencies (#5819)
+ - fix: fix ordering cycle for distros with default deps (#5819) (GH: 5755)
+ - test: unbreak pytest-xdist (#5829)
+ - feat: Conditionally remove networkd online dependency on Ubuntu (#5772)
+ - feat: Ensure random passwords contain multiple character types (#5815)
+   [sxt1001] (GH: 5814)
+ - docs: split example page into example library (#5645) [Sally]
+ - doc: clarify workarounds required for single process changes (#5817)
+ - chore: add 3.13 to PR CI runs, 3.14 to scheduled (#5825)
+ - fix: Render v2 bridges correctly on network-manager with set-name
+   (#5740) (GH: 5717)
+ - test: add no_thinpool unit test (#5802)
+ - chore: split lxd init config into separate function (#5802)
+ - test: pytestify test_cc_lxd.py (#5802)
+ - fix: Correctly handle missing thinpool in cc_lxd (#5802)
+ - fix: Render bridges correctly for v2 on sysconfig with set-name (#5674)
+   (GH: 5574)
+ - tests(minimal): rsyslog not in minimal images expect warning (#5811)
+ - tests(lxd): avoid failure on multiple calls to --show-log (#5811)
+ - chore: update netplan import semantics and related tests (#5805)
+   (GH: 5804)
+ - lint: fix untyped-defs on /tests/unittest/cmd (#5800) [iru]
+ - test: actually use devel release and verify_clean_boot enhancements
+   (#5801)
+ - feat(locale): locales install on minimal images when cfg requests (#5799)
+ - feat(byobu): support byobu install on minimal images when cfg requests
+   (#5799)
+ - chore: Use devel release and no sbuild in integration CI (#5798)
+ - test: Update integration tests from netplan backport (#5796)
+ - test: add get_syslog_or_console for minimal images without syslog (#5793)
+ - chore: Remove resize_root_tmp from cloud.cfg.tmpl (#5795) (GH: 5786)
+ - docs: Fix field name from `contents` to `content` (#5787) [Igor Akkerman]
+ - chore: bump pycloudlib to required version (#5792)
+ - fix: avoid deprecation logs for calling cli stages (#5770) (GH: 5726)
+ - tests: bump pycloudlib deps to include gce bug fix for id str (#5783)
+ - fix(test): convert use p.gce.instance.id instead of instance_id (#5783)
+ - fix(network-manager): bond properties and network schema (#5768)
+   [Denis Kadyshev]
+ - Fix metric setting for ifcfg network connections for rhel (#5777)
+   [Ani Sinha] (GH: 5776)
+ - fix(akamai): handle non-string user data in base64 decoding (#5751)
+   [Jesse Alter]
+ - fix(ci): do not auto stale issues (#5775)
+ - Make pytest more verbose for easier debugging (#5778) [Ani Sinha]
+ - ci: fix tox.ini pytest cmd to use cloudinit dir for coverage reporting
+   (#5774) [Alec Warren]
+ - tests: add OS_IMAGE_TYPE setting to allow for minimal tests (#5682)
+ - test(hotplug): Simplify test_multi_nic_hotplug (#5763)
+ - test(hotplug): increase nc timeout (#5763)
+ - test: pytestify test_main.py (#5758)
+ - test(ec2-dual-stack): fix int-test (#5762)
+ - test: make verify_clean_boot really respect return code (#5761)
+ - test: bump timeout in test_order (#5759)
+ - docs: Properly document the cc_ubuntu_autoinstall module (#5757)
+ - docs: fix WSL tutorial (#5752) (GH: 5746)
+ - test: make verify_clean_boot respect return code by environment (#5754)
+ - feat(integration_test): add CLOUD_INIT_PKG setting (#5739)
+ - fix(ci): fix packaging check merge operation (#5750)
+ - doc: do not document user.meta-data key (#5745)
+ - test: avoid undocumented lxd key (#5748)
+ - test: Refactor test_cc_set_hostname.py and test_cc_ntp.py (#5727)
+ - chore: update docs URLs to cloud-init.io (#5741)
+ - test: fix timer logging change expected logs (#5734)
+ - fix: type annotations for several modules (#5733)
+ - chore: add timer to io and string manipulation code
+ - feat: add log package and performance module
+ - remove newline injected for cloud-init status --wait (#5700)
+   [Andrew Nelson] (GH: 5863)
+ - test: webhook require_deprecation msg on 24.3 (#5731)
+ - test: fix test_nocloud message typo introduced by 313390f8 (#5731)
+ - test: Fix test_log_message_on_missing_version_file (#5730)
+ - tests: assert info level warnings instead of require_deprecation
+ - tests: fix test to ignore_warnings not require Used fallback ds
+ - chore: clean up pytest warnings (#5721)
+ - tests(pro): bump pycloudlib add noble release to pro tests (#5719)
+ - fix(hotplugd.socket): remove basic.target as dependency (#5722)
+   (LP: #2081124)
+ - ci: fix integration test positional argument (#5718)
+ - Create datasource for CloudCIX (#1351) [BrianKelleher]
+ - ci: colorize output (#5716)
+ - fix(schema): Allow for locale: false in schema add tests (#5647)
+ - ci: fix packaging patch check (#5713)
+ - chore: clean up old pickle workaround (#5714)
+ - fix: force sftp cleanup when done with instance (#5698)
+ - test(hotplug): reenable vpc test in focal (#5492)
+ - chore: fix typing of userdata_raw (#5710)
+ - fix(NetworkManager): Fix network activator (#5620)
+ - fix: lxd do not check for thinpool kernel module (#5709)
+ - docs: fix typo in docstring (#5708)
+ - Scaleway: Force on-link: true for static networks (#5654)
+   [Louis Bouchard] (LP: 5523, #2073869)
+ - fix: Invalid "seedfrom" in NoCloud system configuration (#5701)
+ - tests: pytestify test_nocloud.py (#5701)
+ - test: make verify_clean_boot respect return code by series (#5695)
+ - fix: use cross-distro netcat name (#5696)
+ - ci: fix labeler (#5697)
+ - chore(actions): add packaging label for any branches modifying debian/*
+   (#5693)
+ - test: add verify_clean_boot() calls alongside verify_clean_log() (#5671)
+ - test: add deprecation support to verify_clean_boot (#5671)
+ - doc: remove misleading warning (#5681)
+ - chore: Prefer other methods over $INSTANCE_ID (#5661)
+ - ci: fix packaging test when no patches (#5680)
+ - chore: fix tip-ruff and update to latest version (#5676)
+ - chore: make ansible test serial (#5677)
+ - feat(ec2): Bump url_max_timeout to 240s from 120s. (#5565)
+   [Robert Nickel]
+ - chore: fix typo in requirements.txt (#5637)
+ - feat: make pyserial an optional dependency (#5637)
+ - chore: bump ci dependency versions (#5660)
+ - chore: drop broken optimization (#5666)
+
 24.3.1
  - test: add test coverage for iproute2 commands (#5651)
  - fix(netops): fix ip addr flush command (#5651) (GH: 5648)
