@@ -1,6 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest import mock
 
 import pytest
@@ -11,9 +11,9 @@ from cloudinit.sources.azure import errors, kvp
 
 @pytest.fixture()
 def fake_utcnow():
-    timestamp = datetime.utcnow()
+    timestamp = datetime.now(timezone.utc)
     with mock.patch.object(kvp, "datetime", autospec=True) as m:
-        m.utcnow.return_value = timestamp
+        m.now.return_value = timestamp
         yield timestamp
 
 

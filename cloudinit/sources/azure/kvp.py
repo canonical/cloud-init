@@ -3,7 +3,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from cloudinit import version
@@ -49,7 +49,7 @@ def report_success_to_host() -> bool:
         [
             "result=success",
             f"agent=Cloud-Init/{version.version_string()}",
-            f"timestamp={datetime.utcnow().isoformat()}",
+            f"timestamp={datetime.now(timezone.utc).isoformat()}",
             f"vm_id={vm_id}",
         ]
     )

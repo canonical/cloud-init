@@ -249,6 +249,7 @@ NETWORK_CONFIGS = {
                 method=auto
                 may-fail=false
                 address1=192.168.21.3/24
+                route-metric=10000
                 route1=0.0.0.0/0,65.61.151.37
                 dns=8.8.8.8;8.8.4.4;
                 dns-search=barley.maas;sach.maas;
@@ -420,6 +421,7 @@ NETWORK_CONFIGS = {
                 [ipv4]
                 method=auto
                 may-fail=false
+                route-metric=10000
                 route1=0.0.0.0/0,65.61.151.37
                 address1=192.168.21.3/24
                 dns=8.8.8.8;8.8.4.4;
@@ -3372,7 +3374,7 @@ iface bond0 inet6 static
                 may-fail=false
                 address1=2001:1::1/92
                 route1=2001:67c::/32,2001:67c:1562::1
-                route2=3001:67c::/32,3001:67c:15::1
+                route2=3001:67c::/32,3001:67c:15::1,10000
 
                 [ethernet]
                 mtu=9000
@@ -3725,7 +3727,7 @@ iface bond0 inet6 static
 
                 [ipv6]
                 route1=2001:67c::/32,2001:67c:1562::1
-                route2=3001:67c::/32,3001:67c:15::1
+                route2=3001:67c::/32,3001:67c:15::1,10000
                 method=manual
                 may-fail=false
                 address1=2001:1::1/92
