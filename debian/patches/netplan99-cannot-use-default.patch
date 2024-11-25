@@ -150,7 +150,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                              dhcp4: true
 --- a/tests/unittests/net/network_configs.py
 +++ b/tests/unittests/net/network_configs.py
-@@ -1684,7 +1684,7 @@ pre-down route del -net 10.0.0.0/8 gw 11
+@@ -1686,7 +1686,7 @@ pre-down route del -net 10.0.0.0/8 gw 11
                              - sacchromyces.maas
                              - brettanomyces.maas
                          routes:
@@ -159,7 +159,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                              via: 192.168.0.1
          """
          ).rstrip(" "),
-@@ -3117,7 +3117,7 @@ pre-down route del -net 10.0.0.0/8 gw 11
+@@ -3119,7 +3119,7 @@ pre-down route del -net 10.0.0.0/8 gw 11
                           transmit-hash-policy: layer3+4
                           up-delay: 20
                       routes:
