@@ -53,7 +53,7 @@ Last-Update: 2024-08-02
  Before=network-pre.target
  Before=shutdown.target
  {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
-@@ -25,14 +25,7 @@ Type=oneshot
+@@ -25,14 +26,7 @@ Type=oneshot
  {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
  ExecStartPre=/sbin/restorecon /run/cloud-init
  {% endif %}
