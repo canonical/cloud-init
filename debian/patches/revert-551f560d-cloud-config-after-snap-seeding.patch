@@ -86,6 +86,17 @@ Last-Update: 2024-02-14
  def mount_is_read_write(mount_point):
      """Check whether the given mount point is mounted rw"""
      result = get_mount_info(mount_point, get_mnt_opts=True)
+--- a/systemd/cloud-config.service
++++ b/systemd/cloud-config.service
+@@ -2,7 +2,7 @@
+ [Unit]
+ # https://docs.cloud-init.io/en/latest/explanation/boot.html
+ Description=Cloud-init: Config Stage
+-After=network-online.target cloud-config.target
++After=network-online.target cloud-config.target snapd.seeded.service
+ Wants=network-online.target cloud-config.target
+ ConditionPathExists=!/etc/cloud/cloud-init.disabled
+ ConditionKernelCommandLine=!cloud-init=disabled
 --- a/tests/integration_tests/modules/test_frequency_override.py
 +++ b/tests/integration_tests/modules/test_frequency_override.py
 @@ -1,7 +1,6 @@
