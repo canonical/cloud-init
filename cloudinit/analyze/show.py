@@ -85,7 +85,9 @@ def event_timestamp(event):
 
 
 def event_datetime(event):
-    return datetime.datetime.utcfromtimestamp(event_timestamp(event))
+    return datetime.datetime.fromtimestamp(
+        event_timestamp(event), datetime.timezone.utc
+    )
 
 
 def delta_seconds(t1, t2):

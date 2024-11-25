@@ -45,9 +45,22 @@ class TestCloudInitLogger(CiTestCase):
         # parsed dt : 2017-08-23 14:19:43.069000
         # utc_after : 2017-08-23 14:19:43.570064
 
-        utc_before = datetime.datetime.utcnow() - datetime.timedelta(0, 0.5)
+        def remove_tz(_dt: datetime.datetime) -> datetime.datetime:
+            """
+            Removes the timezone object from an aware datetime dt without
+            conversion of date and time data
+            """
+            return _dt.replace(tzinfo=None)
+
+        utc_before = remove_tz(
+            datetime.datetime.now(datetime.timezone.utc)
+            - datetime.timedelta(0, 0.5)
+        )
         self.LOG.error("Test message")
-        utc_after = datetime.datetime.utcnow() + datetime.timedelta(0, 0.5)
+        utc_after = remove_tz(
+            datetime.datetime.now(datetime.timezone.utc)
+            + datetime.timedelta(0, 0.5)
+        )
 
         # extract timestamp from log:
         # 2017-08-23 14:19:43,069 - test_log.py[ERROR]: Test message

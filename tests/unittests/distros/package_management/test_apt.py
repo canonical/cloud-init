@@ -40,7 +40,7 @@ class TestPackageCommand:
     @mock.patch("cloudinit.distros.package_management.apt.time.sleep")
     def test_wait_for_lock(self, m_sleep, m_apt_avail, m_subp, m_which):
         apt = Apt(runner=mock.Mock(), apt_get_wrapper_command=("dontcare",))
-        apt._wait_for_apt_command("stub", {"args": "stub2"})
+        apt._wait_for_apt_command({"args": "stub2"})
         assert m_sleep.call_args_list == [mock.call(1), mock.call(1)]
         assert m_subp.call_args_list == [mock.call(args="stub2")]
 
@@ -58,7 +58,7 @@ class TestPackageCommand:
     ):
         apt = Apt(runner=mock.Mock(), apt_get_wrapper_command=("dontcare",))
         with pytest.raises(TimeoutError):
-            apt._wait_for_apt_command("stub", "stub2", timeout=5)
+            apt._wait_for_apt_command("stub2", timeout=5)
         assert m_subp.call_args_list == []
 
     @mock.patch(
@@ -72,7 +72,7 @@ class TestPackageCommand:
             exit_code=100, stderr="Could not get apt lock"
         )
         m_subp.side_effect = [exception, exception, "return_thing"]
-        ret = apt._wait_for_apt_command("stub", {"args": "stub2"})
+        ret = apt._wait_for_apt_command({"args": "stub2"})
         assert ret == "return_thing"
 
     @mock.patch(
@@ -92,7 +92,7 @@ class TestPackageCommand:
             exit_code=100, stderr="Could not get apt lock"
         )
         with pytest.raises(TimeoutError):
-            apt._wait_for_apt_command("stub", {"args": "stub2"}, timeout=5)
+            apt._wait_for_apt_command({"args": "stub2"}, timeout=5)
 
     def test_search_stem(self, m_subp, m_which, mocker):
         """Test that containing `-`, `^`, `/`, or `=` is handled correctly."""
@@ -119,21 +119,23 @@ class TestPackageCommand:
         )
 
 
-@mock.patch.object(
-    apt,
-    "APT_LOCK_FILES",
-    [f"{TMP_DIR}/{FILE}" for FILE in apt.APT_LOCK_FILES],
-)
-class TestUpdatePackageSources:
-    def __init__(self):
-        MockPaths = get_mock_paths(TMP_DIR)
-        self.MockPaths = MockPaths({}, FakeDataSource())
+@pytest.fixture(scope="function")
+def apt_paths(tmpdir):
+    MockPaths = get_mock_paths(str(tmpdir))
+    with mock.patch.object(
+        apt,
+        "APT_LOCK_FILES",
+        [f"{tmpdir}/{FILE}" for FILE in apt.APT_LOCK_FILES],
+    ):
+        yield MockPaths({}, FakeDataSource())
 
+
+class TestUpdatePackageSources:
     @mock.patch.object(apt.subp, "which", return_value=True)
     @mock.patch.object(apt.subp, "subp")
-    def test_force_update_calls_twice(self, m_subp, m_which):
+    def test_force_update_calls_twice(self, m_subp, m_which, apt_paths):
         """Ensure that force=true calls apt update again"""
-        instance = apt.Apt(helpers.Runners(self.MockPaths))
+        instance = apt.Apt(helpers.Runners(apt_paths))
         instance.update_package_sources()
         instance.update_package_sources(force=True)
         assert 2 == len(m_subp.call_args_list)
@@ -141,9 +143,9 @@ class TestUpdatePackageSources:
 
     @mock.patch.object(apt.subp, "which", return_value=True)
     @mock.patch.object(apt.subp, "subp")
-    def test_force_update_twice_calls_twice(self, m_subp, m_which):
+    def test_force_update_twice_calls_twice(self, m_subp, m_which, apt_paths):
         """Ensure that force=true calls apt update again when called twice"""
-        instance = apt.Apt(helpers.Runners(self.MockPaths))
+        instance = apt.Apt(helpers.Runners(apt_paths))
         instance.update_package_sources(force=True)
         instance.update_package_sources(force=True)
         assert 2 == len(m_subp.call_args_list)
@@ -151,9 +153,9 @@ class TestUpdatePackageSources:
 
     @mock.patch.object(apt.subp, "which", return_value=True)
     @mock.patch.object(apt.subp, "subp")
-    def test_no_force_update_calls_once(self, m_subp, m_which):
+    def test_no_force_update_calls_once(self, m_subp, m_which, apt_paths):
         """Ensure that apt-get update calls are deduped unless expected"""
-        instance = apt.Apt(helpers.Runners(self.MockPaths))
+        instance = apt.Apt(helpers.Runners(apt_paths))
         instance.update_package_sources()
         instance.update_package_sources()
         assert 1 == len(m_subp.call_args_list)

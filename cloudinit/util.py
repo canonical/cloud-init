@@ -1811,18 +1811,6 @@ def hash_blob(blob, routine: str, mlen=None) -> str:
         return digest
 
 
-def hash_buffer(f: io.BufferedIOBase) -> bytes:
-    """Hash the content of a binary buffer using SHA1.
-
-    @param f: buffered binary stream to hash.
-    @return: digested data as bytes.
-    """
-    hasher = hashlib.sha1()
-    for chunk in iter(lambda: f.read(io.DEFAULT_BUFFER_SIZE), b""):
-        hasher.update(chunk)
-    return hasher.digest()
-
-
 def is_user(name):
     try:
         if pwd.getpwnam(name):
@@ -1884,7 +1872,11 @@ def ensure_dir(path, mode=None, user=None, group=None):
         # Get non existed parent dir first before they are created.
         non_existed_parent_dir = get_non_exist_parent_dir(path)
         # Make the dir and adjust the mode
-        with SeLinuxGuard(os.path.dirname(path), recursive=True):
+        dir_name = os.path.dirname(path)
+        selinux_recursive = True
+        if dir_name == "/":
+            selinux_recursive = False
+        with SeLinuxGuard(dir_name, recursive=selinux_recursive):
             os.makedirs(path)
         chmod(path, mode)
         # Change the ownership

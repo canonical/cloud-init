@@ -22,19 +22,14 @@ import yaml
 
 from cloudinit import features, performance
 from cloudinit.config.schema import (
-    VERSIONED_USERDATA_SCHEMA_FILE,
-    MetaSchema,
     SchemaProblem,
     SchemaType,
     SchemaValidationError,
     annotated_cloudconfig_file,
     get_jsonschema_validator,
-    get_meta_doc,
-    get_module_docs,
     get_schema,
     get_schema_dir,
     handle_schema_args,
-    load_doc,
     main,
     netplan_validate_network_schema,
     validate_cloudconfig_file,
@@ -61,6 +56,7 @@ from tests.unittests.helpers import (
 
 M_PATH = "cloudinit.config.schema."
 DEPRECATED_LOG_LEVEL = 35
+VERSIONED_USERDATA_SCHEMA_FILE = "versions.schema.cloud-config.json"
 
 
 def get_schemas() -> dict:
@@ -311,42 +307,7 @@ MODULE_DATA_YAML_TMPL = """\
 """
 
 
-class TestGetModuleDocs:
-    def test_get_module_docs_loads_all_data_yaml_files_from_modules_dirs(
-        self, mocker, paths
-    ):
-        """get_module_docs aggregates all data.yaml module docs."""
-        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
-        modules_dir = Path(paths.docs_dir, "module-docs")
-
-        assert {} == get_module_docs()
-
-        mod1_dir = Path(modules_dir, "cc_mod1")
-        mod1_dir.mkdir(parents=True)
-        mod1_data = Path(mod1_dir, "data.yaml")
-        # Skip any subdir that does not contain a data.yaml
-        assert {} == get_module_docs()
-        # Create data file to any subdir that does not contain a data.yaml
-        mod1_content = MODULE_DATA_YAML_TMPL.format(
-            mod_id="cc_mod1",
-            name="mod1",
-            examplefile=mod1_data,
-        )
-        mod1_data.write_text(mod1_content)
-        expected = yaml.safe_load(mod1_content)
-        assert expected == get_module_docs()
-        mod2_dir = Path(modules_dir, "cc_mod2")
-        mod2_dir.mkdir(parents=True)
-        mod2_data = Path(mod2_dir, "data.yaml")
-        mod2_content = MODULE_DATA_YAML_TMPL.format(
-            mod_id="cc_mod2",
-            name="mod2",
-            examplefile=mod2_data,
-        )
-        mod2_data.write_text(mod2_content)
-        expected.update(yaml.safe_load(mod2_content))
-        assert expected == get_module_docs()
-
+class TestModuleDocs:
     def test_validate_data_file_schema(self, mocker, paths):
         mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
         root_dir = Path(__file__).parent.parent.parent.parent
@@ -359,21 +320,6 @@ class TestGetModuleDocs:
             assert ["description", "examples", "name", "title"] == sorted(
                 docs_metadata[mod_data_f.parent.stem].keys()
             )
-
-
-class TestLoadDoc:
-    docs = get_module_variable("__doc__")
-
-    # TODO(remove when last __doc__ = load_meta_doc is removed)
-    @pytest.mark.parametrize(
-        "module_name",
-        ("cc_zypper_add_repo",),
-    )
-    def test_report_docs_consolidated_schema(self, module_name, mocker, paths):
-        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
-        doc = load_doc([module_name])
-        assert doc, "Unexpected empty docs for {}".format(module_name)
-        assert self.docs[module_name] == doc
 
 
 class SchemaValidationErrorTest(CiTestCase):
@@ -1023,746 +969,12 @@ class TestValidateCloudConfigFile:
         assert expected == err
 
 
-class TestSchemaDocMarkdown:
-    """Tests for get_meta_doc."""
-
-    required_schema = {
-        "title": "title",
-        "description": "description",
-        "id": "id",
-        "name": "name",
-        "frequency": "frequency",
-        "distros": ["debian", "rhel"],
-    }
-    # TODO: See GH #5756
-    meta: MetaSchema = {
-        "title": "title",
-        "description": "description",
-        "id": "id",
-        "name": "name",
-        "frequency": "frequency",
-        "distros": ["debian", "rhel"],
-        "examples": [
-            '\nExample 1:\nprop1:\n    [don\'t, expand, "this"]',
-            "\nExample 2:\nprop2: true",
-        ],
-    }  # type: ignore
-
-    @pytest.mark.parametrize(
-        "meta_update",
-        [
-            None,
-            {"activate_by_schema_keys": None},
-            {"activate_by_schema_keys": []},
-        ],
-    )
-    def test_get_meta_doc_returns_restructured_text(
-        self, meta_update, paths, mocker
-    ):
-        """get_meta_doc returns restructured text for a cloudinit schema."""
-        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
-        full_schema = deepcopy(self.required_schema)
-        full_schema.update(
-            {
-                "properties": {
-                    "prop1": {
-                        "type": "array",
-                        "description": "prop-description",
-                        "items": {"type": "integer"},
-                    }
-                }
-            }
-        )
-        meta = deepcopy(self.meta)
-        if meta_update:
-            meta.update(meta_update)
-
-        doc = get_meta_doc(meta, full_schema)
-
-        expected_lines = [
-            "name",
-            "----",
-            "title",
-            ".. tab-set::",
-            "   .. tab-item:: Summary",
-            "      description",
-            "      **Internal name:** ``id``",
-            "      **Module frequency:** frequency",
-            "      **Supported distros:** debian, rhel",
-            "   .. tab-item:: Config schema",
-            "      * **prop1:** (array of integer) prop-description",
-            "   .. tab-item:: Examples",
-            "      ::",
-            "         Example 1:",
-            "         prop1:",
-            '             [don\'t, expand, "this"]',
-            "         Example 2:",
-            "         prop2: true",
-        ]
-
-        for line in [ln for ln in doc.splitlines() if ln.strip()]:
-            assert line in expected_lines
-
-    def test_get_meta_doc_full_with_activate_by_schema_keys(
-        self, paths, mocker
-    ):
-        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
-        full_schema = deepcopy(self.required_schema)
-        full_schema.update(
-            {
-                "properties": {
-                    "prop1": {
-                        "type": "array",
-                        "description": "prop-description.",
-                        "items": {"type": "string"},
-                    },
-                    "prop2": {
-                        "type": "boolean",
-                        "description": "prop2-description.",
-                    },
-                },
-            }
-        )
-
-        meta = deepcopy(self.meta)
-        meta["activate_by_schema_keys"] = ["prop1", "prop2"]
-
-        doc = get_meta_doc(meta, full_schema)
-        expected_lines = [
-            "name",
-            "----",
-            "title",
-            ".. tab-set::",
-            "   .. tab-item:: Summary",
-            "      description",
-            "      **Internal name:** ``id``",
-            "      **Module frequency:** frequency",
-            "      **Supported distros:** debian, rhel",
-            "      **Activate only on keys:** ``prop1``, ``prop2``",
-            "   .. tab-item:: Config schema",
-            "      * **prop1:** (array of string) prop-description.",
-            "      * **prop2:** (boolean) prop2-description.",
-            "   .. tab-item:: Examples",
-            "      ::",
-            "         Example 1:",
-            "         prop1:",
-            "         Example 2:",
-            '             [don\'t, expand, "this"]',
-            "         prop2: true",
-        ]
-
-        for line in [ln for ln in doc.splitlines() if ln.strip()]:
-            assert line in expected_lines
-
-    def test_get_meta_doc_handles_multiple_types(self, paths, mocker):
-        """get_meta_doc delimits multiple property types with a '/'."""
-        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
-        schema = {"properties": {"prop1": {"type": ["string", "integer"]}}}
-        assert "**prop1:** (string/integer)" in get_meta_doc(self.meta, schema)
-
-    @pytest.mark.parametrize("multi_key", ["oneOf", "anyOf"])
-    def test_get_meta_doc_handles_multiple_types_recursive(
-        self, multi_key, mocker, paths
-    ):
-        """get_meta_doc delimits multiple property types with a '/'."""
-        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
-        schema = {
-            "properties": {
-                "prop1": {
-                    multi_key: [
-                        {"type": ["string", "null"]},
-                        {"type": "integer"},
-                    ]
-                }
-            }
-        }
-        assert "**prop1:** (string/null/integer)" in get_meta_doc(
-            self.meta, schema
-        )
-
-    def test_references_are_flattened_in_schema_docs(self, paths, mocker):
-        """get_meta_doc flattens and renders full schema definitions."""
-        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
-        schema = {
-            "$defs": {
-                "flattenit": {
-                    "type": ["object", "string"],
-                    "description": "Objects support the following keys:",
-                    "patternProperties": {
-                        "^.+$": {
-                            "label": "<opaque_label>",
-                            "description": "List of cool strings.",
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "minItems": 1,
-                        }
-                    },
-                }
-            },
-            "properties": {"prop1": {"$ref": "#/$defs/flattenit"}},
-        }
-        expected_lines = [
-            "**prop1:** (string/object) Objects support the following keys",
-            "**<opaque_label>:** (array of string) List of cool strings.",
-        ]
-        doc = get_meta_doc(self.meta, schema)
-        for line in expected_lines:
-            assert line in doc
-
-    @pytest.mark.parametrize(
-        "sub_schema,expected",
-        (
-            (
-                {"enum": [True, False, "stuff"]},
-                "**prop1:** (``true``/``false``/``stuff``)",
-            ),
-            # When type: string and enum, document enum values
-            (
-                {"type": "string", "enum": ["a", "b"]},
-                "**prop1:** (``a``/``b``)",
-            ),
-        ),
-    )
-    def test_get_meta_doc_handles_enum_types(
-        self, sub_schema, expected, mocker, paths
-    ):
-        """get_meta_doc converts enum types to yaml and delimits with '/'."""
-        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
-        schema = {"properties": {"prop1": sub_schema}}
-        assert expected in get_meta_doc(self.meta, schema)
-
-    @pytest.mark.parametrize(
-        "schema,expected",
-        (
-            pytest.param(  # Hide top-level keys like 'properties'
-                {
-                    "hidden": ["properties"],
-                    "properties": {
-                        "p1": {"type": "string"},
-                        "p2": {"type": "boolean"},
-                    },
-                    "patternProperties": {
-                        "^.*$": {
-                            "type": "string",
-                            "label": "label2",
-                        }
-                    },
-                },
-                [
-                    "Config schema\n\n",
-                    "      * **label2:** (string)",
-                ],
-                id="top_level_keys",
-            ),
-            pytest.param(  # Hide nested individual keys with a bool
-                {
-                    "properties": {
-                        "p1": {"type": "string", "hidden": True},
-                        "p2": {"type": "boolean"},
-                    }
-                },
-                [
-                    "Config schema\n\n",
-                    "      * **p2:** (boolean)",
-                ],
-                id="nested_keys",
-            ),
-        ),
-    )
-    def test_get_meta_doc_hidden_hides_specific_properties_from_docs(
-        self, schema, expected, paths, mocker
-    ):
-        """Docs are hidden for any property in the hidden list.
-
-        Useful for hiding deprecated key schema.
-        """
-        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
-        assert "".join(expected) in get_meta_doc(self.meta, schema)
-
-    @pytest.mark.parametrize("multi_key", ["oneOf", "anyOf"])
-    def test_get_meta_doc_handles_nested_multi_schema_property_types(
-        self, multi_key, paths, mocker
-    ):
-        """get_meta_doc describes array items oneOf declarations in type."""
-        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
-        schema = {
-            "properties": {
-                "prop1": {
-                    "type": "array",
-                    "items": {
-                        multi_key: [{"type": "string"}, {"type": "integer"}]
-                    },
-                }
-            }
-        }
-        assert "**prop1:** (array of (string/integer))" in get_meta_doc(
-            self.meta, schema
-        )
-
-    @pytest.mark.parametrize("multi_key", ["oneOf", "anyOf"])
-    def test_get_meta_doc_handles_types_as_list(
-        self, multi_key, paths, mocker
-    ):
-        """get_meta_doc renders types which have a list value."""
-        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
-        schema = {
-            "properties": {
-                "prop1": {
-                    "type": ["boolean", "array"],
-                    "items": {
-                        multi_key: [{"type": "string"}, {"type": "integer"}]
-                    },
-                }
-            }
-        }
-        assert (
-            "**prop1:** (boolean/array of (string/integer))"
-            in get_meta_doc(self.meta, schema)
-        )
-
-    def test_get_meta_doc_handles_flattening_defs(self, paths, mocker):
-        """get_meta_doc renders $defs."""
-        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
-        schema = {
-            "$defs": {
-                "prop1object": {
-                    "type": "object",
-                    "properties": {"subprop": {"type": "string"}},
-                }
-            },
-            "properties": {"prop1": {"$ref": "#/$defs/prop1object"}},
-        }
-        assert (
-            "* **prop1:** (object)\n\n        * **subprop:** (string)\n"
-            in get_meta_doc(self.meta, schema)
-        )
-
-    def test_get_meta_doc_handles_string_examples(self, paths, mocker):
-        """get_meta_doc properly indented examples as a list of strings."""
-        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
-        full_schema = deepcopy(self.required_schema)
-        full_schema.update(
-            {
-                "examples": [
-                    'Example 1:\nex1:\n    [don\'t, expand, "this"]',
-                    "Example 2:\nex2: true",
-                ],
-                "properties": {
-                    "prop1": {
-                        "type": "array",
-                        "description": "prop-description.",
-                        "items": {"type": "integer"},
-                    }
-                },
-            }
-        )
-        expected = [
-            "   .. tab-item:: Config schema\n\n",
-            "      * **prop1:** (array of integer) prop-description.\n\n",
-            "   .. tab-item:: Examples\n\n",
-            "      ::\n\n\n",
-            "         Example 1:\n",
-            "         prop1:\n",
-            '             [don\'t, expand, "this"]\n',
-            "         Example 2:\n",
-            "         prop2: true",
-        ]
-        assert "".join(expected) in get_meta_doc(self.meta, full_schema)
-
-    def test_get_meta_doc_properly_parse_description(self, paths, mocker):
-        """get_meta_doc description properly formatted"""
-        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
-        schema = {
-            "properties": {
-                "p1": {
-                    "type": "string",
-                    "description": dedent(
-                        """\
-                        This item
-                        has the
-                        following options:
-
-                          - option1
-                          - option2
-                          - option3
-
-                        The default value is
-                        option1"""
-                    ),
-                }
-            }
-        }
-
-        expected = [
-            "   .. tab-item:: Config schema\n\n",
-            "      * **p1:** (string) This item has the following options:\n\n",  # noqa: E501
-            "        - option1\n",
-            "        - option2\n",
-            "        - option3\n\n",
-            "        The default value is option1",
-        ]
-        assert "".join(expected) in get_meta_doc(self.meta, schema)
-
-    @pytest.mark.parametrize("key", meta.keys())
-    def test_get_meta_doc_raises_key_errors(self, key):
-        """get_meta_doc raises KeyErrors on missing keys."""
-        schema = {
-            "properties": {
-                "prop1": {
-                    "type": "array",
-                    "items": {
-                        "oneOf": [{"type": "string"}, {"type": "integer"}]
-                    },
-                }
-            }
-        }
-        invalid_meta = deepcopy(self.meta)
-        invalid_meta.pop(key)
-        with pytest.raises(
-            KeyError,
-            match=f"Missing required keys in module meta: {{'{key}'}}",
-        ):
-            get_meta_doc(invalid_meta, schema)
-
-    @pytest.mark.parametrize(
-        "key,expectation",
-        [
-            ("activate_by_schema_keys", does_not_raise()),
-            (
-                "additional_key",
-                pytest.raises(
-                    KeyError,
-                    match=(
-                        "Additional unexpected keys found in module meta:"
-                        " {'additional_key'}"
-                    ),
-                ),
-            ),
-        ],
-    )
-    def test_get_meta_doc_additional_keys(
-        self, key, expectation, paths, mocker
-    ):
-        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
-        schema = {
-            "properties": {
-                "prop1": {
-                    "type": "array",
-                    "items": {
-                        "oneOf": [{"type": "string"}, {"type": "integer"}]
-                    },
-                }
-            }
-        }
-        invalid_meta = deepcopy(self.meta)
-        invalid_meta[key] = []
-        with expectation:
-            get_meta_doc(invalid_meta, schema)
-
-    def test_label_overrides_property_name(self, paths, mocker):
-        """get_meta_doc overrides property name with label."""
-        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
-        schema = {
-            "properties": {
-                "old_prop1": {
-                    "type": "string",
-                    "label": "label1",
-                },
-                "prop_no_label": {
-                    "type": "string",
-                },
-                "prop_array": {
-                    "label": "array_label",
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "some_prop": {"type": "number"},
-                        },
-                    },
-                },
-            },
-            "patternProperties": {
-                "^.*$": {
-                    "type": "string",
-                    "label": "label2",
-                }
-            },
-        }
-        meta_doc = get_meta_doc(self.meta, schema)
-        assert "**label1:** (string)" in meta_doc
-        assert "**label2:** (string" in meta_doc
-        assert "**prop_no_label:** (string)" in meta_doc
-        assert "Each object in **array_label** list" in meta_doc
-
-        assert "old_prop1" not in meta_doc
-        assert ".*" not in meta_doc
-
-    @pytest.mark.parametrize(
-        "schema,expected_lines",
-        [
-            pytest.param(
-                {
-                    "properties": {
-                        "prop1": {
-                            "type": ["string", "integer"],
-                            "deprecated": True,
-                            "description": "<description>",
-                        }
-                    }
-                },
-                [
-                    "* **prop1:** (string/integer) <description>",
-                    "*Deprecated in version <missing deprecated_version "
-                    "key, please file a bug report>.*",
-                ],
-                id="missing_deprecated_version",
-            ),
-            pytest.param(
-                {
-                    "$schema": "http://json-schema.org/draft-04/schema#",
-                    "properties": {
-                        "prop1": {
-                            "type": ["string", "integer"],
-                            "description": "<description>",
-                            "deprecated": True,
-                            "deprecated_version": "2",
-                            "changed": True,
-                            "changed_version": "1",
-                            "new": True,
-                            "new_version": "1",
-                        },
-                    },
-                },
-                [
-                    "* **prop1:** (string/integer) <description>",
-                    "*Deprecated in version 2.*",
-                    "*Changed in version 1.*",
-                    "*New in version 1.*",
-                ],
-                id="deprecated_no_description",
-            ),
-            pytest.param(
-                {
-                    "$schema": "http://json-schema.org/draft-04/schema#",
-                    "properties": {
-                        "prop1": {
-                            "type": ["string", "integer"],
-                            "description": "<description>",
-                            "deprecated": True,
-                            "deprecated_version": "2",
-                            "deprecated_description": "dep",
-                            "changed": True,
-                            "changed_version": "1",
-                            "changed_description": "chg",
-                            "new": True,
-                            "new_version": "1",
-                            "new_description": "new",
-                        },
-                    },
-                },
-                [
-                    "**prop1:** (string/integer) <description>",
-                    "*Deprecated in version 2. dep*",
-                    "*Changed in version 1. chg*",
-                    "*New in version 1. new*",
-                ],
-                id="deprecated_with_description",
-            ),
-            pytest.param(
-                {
-                    "$schema": "http://json-schema.org/draft-04/schema#",
-                    "$defs": {"my_ref": {"deprecated": True}},
-                    "properties": {
-                        "prop1": {
-                            "allOf": [
-                                {
-                                    "type": ["string", "integer"],
-                                    "description": "<description>",
-                                },
-                                {"$ref": "#/$defs/my_ref"},
-                            ]
-                        }
-                    },
-                },
-                [
-                    "**prop1:** (string/integer) <description>",
-                    "*Deprecated in version <missing deprecated_version "
-                    "key, please file a bug report>.*",
-                ],
-                id="deprecated_ref_missing_version",
-            ),
-            pytest.param(
-                {
-                    "$schema": "http://json-schema.org/draft-04/schema#",
-                    "$defs": {
-                        "my_ref": {
-                            "deprecated": True,
-                            "description": "<description>",
-                        }
-                    },
-                    "properties": {
-                        "prop1": {
-                            "allOf": [
-                                {"type": ["string", "integer"]},
-                                {"$ref": "#/$defs/my_ref"},
-                            ]
-                        }
-                    },
-                },
-                [
-                    "**prop1:** (string/integer) <description>",
-                    "*Deprecated in version <missing deprecated_version "
-                    "key, please file a bug report>.*",
-                ],
-                id="deprecated_ref_missing_version_with_description",
-            ),
-            pytest.param(
-                {
-                    "$schema": "http://json-schema.org/draft-04/schema#",
-                    "properties": {
-                        "prop1": {
-                            "description": "<description>",
-                            "anyOf": [
-                                {
-                                    "type": ["string", "integer"],
-                                    "description": "<deprecated_description>.",
-                                    "deprecated": True,
-                                },
-                            ],
-                        },
-                    },
-                },
-                [
-                    "**prop1:** (UNDEFINED) <description>. "
-                    "<deprecated_description>.",
-                    "*Deprecated in version <missing deprecated_version key, "
-                    "please file a bug report>.*",
-                ],
-                id="deprecated_missing_version_with_description",
-            ),
-            pytest.param(
-                {
-                    "$schema": "http://json-schema.org/draft-04/schema#",
-                    "properties": {
-                        "prop1": {
-                            "anyOf": [
-                                {
-                                    "type": ["string", "integer"],
-                                    "description": "<deprecated_description>.",
-                                    "deprecated": True,
-                                },
-                                {
-                                    "type": "number",
-                                    "description": "<description>",
-                                },
-                            ]
-                        },
-                    },
-                },
-                [
-                    "**prop1:** (number) <deprecated_description>.",
-                    "*Deprecated in version <missing "
-                    "deprecated_version key, please file a bug report>.*",
-                ],
-                id="deprecated_anyof_missing_version_with_description",
-            ),
-            pytest.param(
-                {
-                    "$schema": "http://json-schema.org/draft-04/schema#",
-                    "properties": {
-                        "prop1": {
-                            "anyOf": [
-                                {
-                                    "type": ["string", "integer"],
-                                    "description": "<deprecated_description>",
-                                    "deprecated": True,
-                                    "deprecated_version": "22.1",
-                                },
-                                {
-                                    "type": "string",
-                                    "enum": ["none", "unchanged", "os"],
-                                    "description": "<description>",
-                                },
-                            ]
-                        },
-                    },
-                },
-                [
-                    "**prop1:** (``none``/``unchanged``/``os``) "
-                    "<description>. <deprecated_description>",
-                    "*Deprecated in version 22.1.*",
-                ],
-                id="deprecated_anyof_with_description",
-            ),
-            pytest.param(
-                {
-                    "$schema": "http://json-schema.org/draft-04/schema#",
-                    "properties": {
-                        "prop1": {
-                            "anyOf": [
-                                {
-                                    "type": ["string", "integer"],
-                                    "description": "<description_1>",
-                                },
-                                {
-                                    "type": "string",
-                                    "enum": ["none", "unchanged", "os"],
-                                    "description": "<description>_2",
-                                },
-                            ]
-                        },
-                    },
-                },
-                [
-                    "**prop1:** (string/integer/``none``/"
-                    "``unchanged``/``os``) <description_1>. "
-                    "<description>_2",
-                ],
-                id="anyof_not_deprecated",
-            ),
-            pytest.param(
-                {
-                    "properties": {
-                        "prop1": {
-                            "description": "<desc_1>",
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "anyOf": [
-                                    {
-                                        "properties": {
-                                            "sub_prop1": {"type": "string"},
-                                        },
-                                    },
-                                ],
-                            },
-                        },
-                    },
-                },
-                [
-                    "**prop1:** (array of object) <desc_1>\n",
-                ],
-                id="not_deprecated",
-            ),
-        ],
-    )
-    def test_get_meta_doc_render_deprecated_info(
-        self, schema, expected_lines, paths, mocker
-    ):
-        mocker.patch(M_PATH + "read_cfg_paths", return_value=paths)
-        doc = get_meta_doc(self.meta, schema)
-        for line in expected_lines:
-            assert line in doc
-
-
 class TestAnnotatedCloudconfigFile:
     def test_annotated_cloudconfig_file_no_schema_errors(self):
         """With no schema_errors, print the original content."""
         content = b"ntp:\n  pools: [ntp1.pools.com]\n"
-        parse_cfg, schemamarks = load_with_marks(content)
+        _, schemamarks = load_with_marks(content)
         assert content == annotated_cloudconfig_file(
-            parse_cfg,
             content,
             schemamarks=schemamarks,
             schema_errors=[],
@@ -1792,14 +1004,13 @@ class TestAnnotatedCloudconfigFile:
 
             """
         )
-        parsed_config, schemamarks = load_with_marks(content[13:])
+        _, schemamarks = load_with_marks(content[13:])
         schema_errors = [
             SchemaProblem("ntp", "Some type error"),
             SchemaProblem("ntp.pools.0", "-99 is not a string"),
             SchemaProblem("ntp.pools.1", "75 is not a string"),
         ]
         assert expected == annotated_cloudconfig_file(
-            parsed_config,
             content,
             schemamarks=schemamarks,
             schema_errors=schema_errors,
@@ -1825,13 +1036,12 @@ class TestAnnotatedCloudconfigFile:
                 - 75		# E2
             """
         )
-        parsed_config, schemamarks = load_with_marks(content[13:])
+        _, schemamarks = load_with_marks(content[13:])
         schema_errors = [
             SchemaProblem("ntp.pools.0", "-99 is not a string"),
             SchemaProblem("ntp.pools.1", "75 is not a string"),
         ]
         assert expected in annotated_cloudconfig_file(
-            parsed_config,
             content,
             schemamarks=schemamarks,
             schema_errors=schema_errors,
@@ -1864,7 +1074,7 @@ class TestAnnotatedCloudconfigFile:
 @mock.patch(M_PATH + "read_cfg_paths")  # called by parse_args help docs
 class TestMain:
     exclusive_combinations = itertools.combinations(
-        ["--system", "--docs all", "--config-file something"], 2
+        ["--system", "--config-file something"], 2
     )
 
     @pytest.mark.parametrize("params", exclusive_combinations)
@@ -1878,15 +1088,13 @@ class TestMain:
 
         _out, err = capsys.readouterr()
         expected = (
-            "Error:\n"
-            "Expected one of --config-file, --system or --docs arguments\n"
+            "Error:\nExpected one of --config-file or --system arguments\n"
         )
         assert expected == err
 
     @pytest.mark.parametrize(
         "params,expectation",
         [
-            pytest.param(["--docs all"], does_not_raise()),
             pytest.param(["--system"], pytest.raises(SystemExit)),
         ],
     )
@@ -1894,7 +1102,7 @@ class TestMain:
     def test_main_ignores_schema_type(
         self, _os_getuid, read_cfg_paths, params, expectation, paths, capsys
     ):
-        """Main ignores --schema-type param when --system or --docs present."""
+        """Main ignores --schema-type param when --system present."""
         read_cfg_paths.return_value = paths
         params = list(itertools.chain(*[a.split() for a in params]))
         with mock.patch(
@@ -1904,8 +1112,8 @@ class TestMain:
                 main()
         out, _err = capsys.readouterr()
         expected = (
-            "WARNING: The --schema-type parameter is inapplicable when"
-            " either --system or --docs present"
+            "WARNING: The --schema-type parameter is inapplicable when "
+            "--system is present"
         )
         assert expected in out
 
@@ -1918,8 +1126,7 @@ class TestMain:
 
         _out, err = capsys.readouterr()
         expected = (
-            "Error:\n"
-            "Expected one of --config-file, --system or --docs arguments\n"
+            "Error:\nExpected one of --config-file or --system arguments\n"
         )
         assert expected == err
 
@@ -1932,33 +1139,6 @@ class TestMain:
         assert 1 == context_manager.value.code
         _out, err = capsys.readouterr()
         assert "Error: Config file NOT_A_FILE does not exist\n" == err
-
-    def test_main_invalid_flag_combo(self, _read_cfg_paths, capsys):
-        """Main exits non-zero when invalid flag combo used."""
-        myargs = ["mycmd", "--annotate", "--docs", "DOES_NOT_MATTER"]
-        with mock.patch("sys.argv", myargs):
-            with pytest.raises(SystemExit) as context_manager:
-                main()
-        assert 1 == context_manager.value.code
-        _, err = capsys.readouterr()
-        assert (
-            "Error:\nInvalid flag combination. "
-            "Cannot use --annotate with --docs\n" == err
-        )
-
-    def test_main_prints_docs(self, read_cfg_paths, paths, capsys):
-        """When --docs parameter is provided, main generates documentation."""
-        paths.docs_dir = Path(
-            Path(__file__).parent.parent.parent.parent, "doc/"
-        )
-        read_cfg_paths.return_value = paths
-
-        myargs = ["mycmd", "--docs", "all"]
-        with mock.patch("sys.argv", myargs):
-            assert 0 == main(), "Expected 0 exit code"
-        out, _err = capsys.readouterr()
-        assert "\nNTP\n---\n" in out
-        assert "\nRuncmd\n------\n" in out
 
     @pytest.mark.parametrize(
         "schema_type,content,expected",

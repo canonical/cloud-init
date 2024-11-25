@@ -330,7 +330,9 @@ class _LxdIntegrationCloud(IntegrationCloud):
         except KeyError:
             profile_list = self._get_or_set_profile_list(release)
 
-        prefix = datetime.datetime.utcnow().strftime("cloudinit-%m%d-%H%M%S")
+        prefix = datetime.datetime.now(datetime.timezone.utc).strftime(
+            "cloudinit-%m%d-%H%M%S"
+        )
         default_name = prefix + "".join(
             random.choices(string.ascii_lowercase + string.digits, k=8)
         )

@@ -18,8 +18,6 @@ from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_INSTANCE
 from cloudinit.subp import ProcessExecutionError
 
-MODULE_DESCRIPTION = """\
-"""
 meta: MetaSchema = {
     "id": "cc_grub_dpkg",
     "distros": ["ubuntu", "debian"],
