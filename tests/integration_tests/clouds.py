@@ -66,6 +66,7 @@ class IntegrationCloud(ABC):
         self.cloud_instance = self._get_cloud_instance()
         self.initial_image_id = self._get_initial_image()
         self.snapshot_id = None
+        self.test_failed = False
 
     @property
     def image_id(self):

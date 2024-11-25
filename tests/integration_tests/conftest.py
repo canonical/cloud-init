@@ -92,7 +92,12 @@ def session_cloud() -> Generator[IntegrationCloud, None, None]:
     cloud = platforms[integration_settings.PLATFORM](image_type=image_type)
     cloud.emit_settings_to_log()
     yield cloud
-    cloud.destroy()
+
+    if not integration_settings.KEEP_INSTANCE or (
+        integration_settings.KEEP_INSTANCE == "ON_ERROR"
+        and not cloud.test_failed
+    ):
+        cloud.destroy()
 
 
 def get_validated_source(
@@ -323,6 +328,7 @@ def _client(
         yield instance
         test_failed = request.session.testsfailed - previous_failures > 0
         _collect_artifacts(instance, request.node.nodeid, test_failed)
+        session_cloud.test_failed = test_failed
     # conflicting requirements:
     # - pytest thinks that it can cleanup loggers after tests run
     # - pycloudlib thinks that at garbage collection is a good place to tear
