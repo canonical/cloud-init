@@ -1,6 +1,5 @@
-cloud-init (24.4~4gc9dce94d-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (24.4~5gc9b9eef3-0ubuntu1) UNRELEASED; urgency=medium
 
-  * Upstream snapshot based on upstream/main at c9dce94d.
   * debian: Rename cloud-init to cloud-init-base
     + Add infrastructure to be able to express cloud-specific cloud-init
       binary packages.
@@ -22,8 +21,12 @@ cloud-init (24.4~4gc9dce94d-0ubuntu1) UNRELEASED; urgency=medium
   * d/po/templates.pot and cloud-init.templates: enable CloudCIX by default.
   * d/cloud-init-base.{config,postinst}:
     + Drop noop clean-up of cloud-init/* debconf values
+  * Upstream snapshot based on 24.4.
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/24.4/ChangeLog
+    - Bugs fixed in this snapshot: (LP: #1992853)
 
- -- Alberto Contreras <alberto.contreras@canonical.com>  Fri, 27 Sep 2024 10:10:16 +0200
+ -- James Falcon <james.falcon@canonical.com>  Mon, 25 Nov 2024 10:42:20 -0600
 
 cloud-init (24.4~3+really24.3.1-0ubuntu4) oracular; urgency=medium
 
