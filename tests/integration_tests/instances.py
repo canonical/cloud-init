@@ -2,6 +2,7 @@
 import logging
 import os
 import re
+import time
 import uuid
 from enum import Enum
 from pathlib import Path
@@ -70,10 +71,20 @@ class IntegrationInstance:
         self._ip = ""
 
     def destroy(self):
+        wait = True
         if isinstance(self.instance, GceInstance):
-            self.instance.delete(wait=False)
+            wait = False
+        for i in range(1, 32):
+            try:
+                self.instance.delete(wait=wait)
+                break
+            except RuntimeError:
+                log.warning("Failed to clean instance, retrying.")
+                time.sleep(i)
         else:
-            self.instance.delete()
+            # This is just a cleanup mechanism. If we fail to clean the
+            # instance that doesn't mean that the test has actually failed.
+            log.error("Failed to clean instance")
 
     def restart(self):
         """Restart this instance (via cloud mechanism) and wait for boot.
@@ -81,7 +92,20 @@ class IntegrationInstance:
         This wraps pycloudlib's `BaseInstance.restart`
         """
         log.info("Restarting instance and waiting for boot")
-        self.instance.restart()
+        last_exception = None
+        for i in range(1, 32):
+            try:
+                self.instance.restart()
+                break
+            except RuntimeError as e:
+                last_exception = e
+                log.warning("Failed to restart instance.")
+                time.sleep(i)
+        else:
+            # this is a requirement for tests, so we must fail to prevent
+            # running tests in an unexpected state
+            log.error("Failed to restart instance.")
+            raise last_exception
 
     def execute(self, command, *, use_sudo=True) -> Result:
         if self.instance.username == "root" and use_sudo is False:
