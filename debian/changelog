@@ -1,4 +1,4 @@
-cloud-init (24.4-0ubuntu1~24.10.1) UNRELEASED; urgency=medium
+cloud-init (24.4-0ubuntu1~24.10.1) oracular; urgency=medium
 
   * drop all d/p/cpick-* files as they are included in upstream snapshot
   * add d/p/deprecation-version-boundary.patch:
@@ -9,7 +9,7 @@ cloud-init (24.4-0ubuntu1~24.10.1) UNRELEASED; urgency=medium
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/24.4/ChangeLog
 
- -- James Falcon <james.falcon@canonical.com>  Mon, 25 Nov 2024 11:15:07 -0600
+ -- James Falcon <james.falcon@canonical.com>  Mon, 25 Nov 2024 11:49:48 -0600
 
 cloud-init (24.4~3+really24.3.1-0ubuntu4) oracular; urgency=medium
 
