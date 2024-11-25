@@ -14,7 +14,6 @@ from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_INSTANCE
 
-PRO_URL = "https://ubuntu.com/pro"
 DEPRECATED_KEYS = set(["ubuntu-advantage", "ubuntu_advantage"])
 
 meta: MetaSchema = {
@@ -22,7 +21,7 @@ meta: MetaSchema = {
     "distros": ["ubuntu"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["ubuntu_pro"] + list(DEPRECATED_KEYS),
-}  # type: ignore
+}
 
 LOG = logging.getLogger(__name__)
 REDACTED = "REDACTED"

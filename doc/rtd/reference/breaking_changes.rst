@@ -24,22 +24,33 @@ to tell it when it should start each stage and to tell the init system when
 each stage has completed. Init system ordering is preserved.
 
 This should have no noticable affect for end users, besides a faster boot time.
-This is a breaking change for two reasons:
+This is labeled a breaking change for three reasons:
 
-1. a precaution to avoid unintentionally breaking users on stable distributions
-2. this change included renaming a systemd service:
+1. this change included renaming a systemd service:
    ``cloud-init.service`` -> ``cloud-init-network.service``
+2. new dependency on openbsd's netcat implementation
+3. a precaution to avoid unintentionally breaking users on stable distributions
 
-The now-deprecated command line arguments used to invoke each stage will still
-be supported for a period of time to allow for adoption and stabilization. Any
-systemd distribution that wants to revert this behavior may want to
-`patch this change`_.
+Any external services which are ordered after or depend on the old
+``cloud-init.service`` name can safely switch to ``cloud-config.target``, which
+should provide the same point in boot order before and after this change.
 
-Support has not yet been added for non-systemd distributions, however it is
-possible to add support.
+OpenBSD netcat is already included in many major distributions, however any
+distribution that wishes to avoid this dependency might prefer to use a
+`Python3 equivalent`_ one-liner. Upstream prefers OpenBSD netcat for
+performance reasons.
 
-Note that this change adds dependency on the openbsd netcat implementation,
-which is already on Ubuntu as part of ``ubuntu-minimal``.
+Any systemd distribution that wants to revert this behavior wholesale for
+backwards compatibility may want to use `this patch`_.
+
+.. note::
+
+    Support has not yet been added for non-systemd distributions, however it is
+    possible to add support.
+
+    The command line arguments used to invoke each stage retain support
+    for now to allow for adoption and stabilization.
+
 
 Addition of NoCloud network-config
 ----------------------------------
@@ -137,4 +148,5 @@ Workarounds include updating the kernel command line and optionally configuring
 a ``datasource_list`` in ``/etc/cloud/cloud.cfg.d/*.cfg``.
 
 
-.. _patch this change: https://github.com/canonical/cloud-init/blob/ubuntu/noble/debian/patches/no-single-process.patch
+.. _this patch: https://github.com/canonical/cloud-init/blob/ubuntu/noble/debian/patches/no-single-process.patch
+.. _Python3 equivalent:  https://github.com/canonical/cloud-init/pull/5489#issuecomment-2408210561

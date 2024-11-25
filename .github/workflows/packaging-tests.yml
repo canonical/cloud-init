@@ -26,7 +26,7 @@ jobs:
         with:
           # Fetch all branches for merging
           fetch-depth: 0
-          ref: main
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Prepare dependencies
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get update
@@ -40,11 +40,10 @@ jobs:
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git merge ${{ github.sha }}
-
+          git merge origin/main
       - name: Quilt patches apply successfully and tests run
         run: |
-          if test -f debian/patches/series; then
+          if [ ! -f debian/patches/series ]; then
             echo "no patches, skipping"
             exit 0
           fi

@@ -12,6 +12,7 @@ from tarfile import TarFile
 from typing import Dict, Generator, Iterator, List, Type
 
 import pytest
+from pycloudlib.cloud import ImageType
 from pycloudlib.lxd.instance import LXDInstance
 
 from tests.integration_tests import integration_settings
@@ -80,8 +81,15 @@ def session_cloud() -> Generator[IntegrationCloud, None, None]:
             f"{integration_settings.PLATFORM} is an invalid PLATFORM "
             f"specified in settings. Must be one of {list(platforms.keys())}"
         )
-
-    cloud = platforms[integration_settings.PLATFORM]()
+    image_types = [member.value for member in ImageType.__members__.values()]
+    try:
+        image_type = ImageType(integration_settings.OS_IMAGE_TYPE)
+    except ValueError:
+        raise ValueError(
+            f"{integration_settings.OS_IMAGE_TYPE} is an invalid OS_IMAGE_TYPE"
+            f" specified in settings. Must be one of {image_types}"
+        )
+    cloud = platforms[integration_settings.PLATFORM](image_type=image_type)
     cloud.emit_settings_to_log()
     yield cloud
     cloud.destroy()

@@ -8,22 +8,15 @@
 # https://www.freedesktop.org/software/systemd/man/latest/systemd-remount-fs.service.html
 [Unit]
 Description=Cloud-init: Single Process
-Wants=network-pre.target
 {% if variant in ["almalinux", "cloudlinux", "ubuntu", "unknown", "debian", "rhel"] %}
 DefaultDependencies=no
 {% endif %}
 {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
 Requires=dbus.socket
 After=dbus.socket
-Before=network.service
-Before=firewalld.target
-{% endif %}
-{% if variant in ["ubuntu", "unknown", "debian"] %}
-Before=sysinit.target
 {% endif %}
 
 After=systemd-remount-fs.service
-Before=sysinit.target
 Before=cloud-init-local.service
 Before=shutdown.target
 Conflicts=shutdown.target
@@ -39,9 +32,7 @@ KillMode=process
 TasksMax=infinity
 TimeoutStartSec=infinity
 {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
-ExecStartPre=/bin/mkdir -p /run/cloud-init
 ExecStartPre=/sbin/restorecon /run/cloud-init
-ExecStartPre=/usr/bin/touch /run/cloud-init/enabled
 {% endif %}
 
 # Output needs to appear in instance console output

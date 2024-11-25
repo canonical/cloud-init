@@ -24,7 +24,7 @@ meta: MetaSchema = {
     "distros": ["ubuntu", "debian"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": [],
-}  # type: ignore
+}
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
@@ -36,6 +36,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if not value:
         LOG.debug("Skipping module named %s, no 'byobu' values found", name)
         return
+
+    if not subp.which("byobu"):
+        cloud.distro.install_packages(["byobu"])
 
     if value == "user" or value == "system":
         value = "enable-%s" % value

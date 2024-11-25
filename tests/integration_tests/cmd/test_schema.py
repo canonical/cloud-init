@@ -6,7 +6,7 @@ import pytest
 
 from cloudinit import lifecycle
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.releases import CURRENT_RELEASE, MANTIC
+from tests.integration_tests.releases import CURRENT_RELEASE, JAMMY
 from tests.integration_tests.util import (
     get_feature_flag_value,
     verify_clean_boot,
@@ -103,7 +103,7 @@ class TestSchemaDeprecations:
                 "annotate": NET_V1_ANNOTATED,
             },
         }
-        if CURRENT_RELEASE >= MANTIC:
+        if CURRENT_RELEASE >= JAMMY:
             # Support for netplan API available
             content_responses[NET_CFG_V2] = {
                 "out": "Valid schema /root/net.yaml"

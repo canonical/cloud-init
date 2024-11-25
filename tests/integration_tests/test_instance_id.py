@@ -1,3 +1,4 @@
+import uuid
 from typing import cast
 
 import pytest
@@ -8,21 +9,21 @@ from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL
 
-_INSTANCE_ID = 0
+_INSTANCE_ID = uuid.uuid4()
 
 
 def setup_meta_data(instance: LXDInstance):
     """Increment the instance id and apply it to the instance."""
     global _INSTANCE_ID
-    _INSTANCE_ID += 1
+    _INSTANCE_ID = uuid.UUID(int=(1 + _INSTANCE_ID.int))
     command = [
         "lxc",
         "config",
         "set",
         instance.name,
-        f"user.meta-data=instance-id: test_{_INSTANCE_ID}",
+        f"volatile.cloud-init.instance-id={_INSTANCE_ID}",
     ]
-    subp.subp(command)
+    assert subp.subp(command)
 
 
 # class TestInstanceID:
@@ -41,11 +42,11 @@ def test_instance_id_changes(client: IntegrationInstance):
     client.execute("cloud-init status --wait")
     # check that instance id is the one we set
     assert (
-        "test_1"
+        str(_INSTANCE_ID)
         == client.execute("cloud-init query instance-id").stdout.rstrip()
     )
     assert (
-        "/var/lib/cloud/instances/test_1"
+        f"/var/lib/cloud/instances/{_INSTANCE_ID}"
         == client.execute(
             "readlink -f /var/lib/cloud/instance"
         ).stdout.rstrip()
@@ -57,11 +58,11 @@ def test_instance_id_changes(client: IntegrationInstance):
     client.execute("cloud-init status --wait")
     # check that instance id is the one we reset
     assert (
-        "test_2"
+        str(_INSTANCE_ID)
         == client.execute("cloud-init query instance-id").stdout.rstrip()
     )
     assert (
-        "/var/lib/cloud/instances/test_2"
+        f"/var/lib/cloud/instances/{_INSTANCE_ID}"
         == client.execute(
             "readlink -f /var/lib/cloud/instance"
         ).stdout.rstrip()

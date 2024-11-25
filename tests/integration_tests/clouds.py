@@ -275,6 +275,11 @@ class _LxdIntegrationCloud(IntegrationCloud):
     instance_tag: str
     cloud_instance: _BaseLXD
 
+    def _get_initial_image(self, **kwargs) -> str:
+        return super()._get_initial_image(
+            image_type=self._image_type, **kwargs
+        )
+
     def _get_or_set_profile_list(self, release):
         return None
 
@@ -325,7 +330,9 @@ class _LxdIntegrationCloud(IntegrationCloud):
         except KeyError:
             profile_list = self._get_or_set_profile_list(release)
 
-        prefix = datetime.datetime.utcnow().strftime("cloudinit-%m%d-%H%M%S")
+        prefix = datetime.datetime.now(datetime.timezone.utc).strftime(
+            "cloudinit-%m%d-%H%M%S"
+        )
         default_name = prefix + "".join(
             random.choices(string.ascii_lowercase + string.digits, k=8)
         )

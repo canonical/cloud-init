@@ -11,7 +11,7 @@ def _test_crawl(client, ip):
     assert client.execute("cloud-init init --local").ok
     log = client.read_from_file("/var/log/cloud-init.log")
     assert f"Using metadata source: '{ip}'" in log
-    result = re.findall(r"Crawl of metadata service.* (\d+.\d+) seconds", log)
+    result = re.findall(r"Getting metadata took (\d+.\d+) seconds", log)
     if len(result) != 1:
         pytest.fail(f"Expected 1 metadata crawl time, got {result}")
     # 20 would still be a crazy long time for metadata service to crawl,
@@ -51,4 +51,4 @@ def test_dual_stack(client: IntegrationInstance):
 
     client.restart()
     log = client.read_from_file("/var/log/cloud-init.log")
-    assert "Crawl of metadata service using link-local ipv6 took" in log
+    assert "Crawled metadata service using link-local ipv6" in log

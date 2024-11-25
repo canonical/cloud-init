@@ -11,12 +11,10 @@ import ipaddress
 import logging
 import os
 import re
-from typing import Any, Callable, Dict, List, Optional, Tuple
-from urllib.parse import urlparse
+from typing import Callable, Dict, List, Optional, Tuple
 
 from cloudinit import subp, util
 from cloudinit.net.netops.iproute2 import Iproute2
-from cloudinit.url_helper import UrlError, readurl
 
 LOG = logging.getLogger(__name__)
 SYS_CLASS_NET = "/sys/class/net/"
@@ -1144,45 +1142,6 @@ def get_ib_hwaddrs_by_interface():
                 )
             ret[name] = ib_mac
     return ret
-
-
-def has_url_connectivity(url_data: Dict[str, Any]) -> bool:
-    """Return true when the instance has access to the provided URL.
-
-    Logs a warning if url is not the expected format.
-
-    url_data is a dictionary of kwargs to send to readurl. E.g.:
-
-    has_url_connectivity({
-        "url": "http://example.invalid",
-        "headers": {"some": "header"},
-        "timeout": 10
-    })
-    """
-    if "url" not in url_data:
-        LOG.warning(
-            "Ignoring connectivity check. No 'url' to check in %s", url_data
-        )
-        return False
-    url = url_data["url"]
-    try:
-        result = urlparse(url)
-        if not any([result.scheme == "http", result.scheme == "https"]):
-            LOG.warning(
-                "Ignoring connectivity check. Invalid URL scheme %s",
-                url.scheme,
-            )
-            return False
-    except ValueError as err:
-        LOG.warning("Ignoring connectivity check. Invalid URL %s", err)
-        return False
-    if "timeout" not in url_data:
-        url_data["timeout"] = 5
-    try:
-        readurl(**url_data)
-    except UrlError:
-        return False
-    return True
 
 
 def maybe_get_address(convert_to_address: Callable, address: str, **kwargs):

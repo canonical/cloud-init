@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import importlib.metadata
 import json
 import logging
 import re
@@ -447,13 +448,10 @@ class TestUbuntuProSchema:
                         " Use **ubuntu_pro** instead"
                     ),
                 ),
-                # If __version__ no longer exists on jsonschema, that means
-                # we're using a high enough version of jsonschema to not need
-                # to skip this test.
                 (
                     JSONSCHEMA_SKIP_REASON
                     if lifecycle.Version.from_str(
-                        getattr(jsonschema, "__version__", "999")
+                        importlib.metadata.version("jsonschema")
                     )
                     < lifecycle.Version(4)
                     else ""

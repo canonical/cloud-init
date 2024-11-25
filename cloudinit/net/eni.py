@@ -5,6 +5,7 @@ import glob
 import logging
 import os
 import re
+from contextlib import suppress
 from typing import Optional
 
 from cloudinit import performance, subp, util
@@ -421,6 +422,11 @@ class Renderer(renderer.Renderer):
         return content
 
     def _render_iface(self, iface, render_hwaddress=False):
+        iface = copy.deepcopy(iface)
+
+        # Remove irrelevant keys
+        with suppress(KeyError):
+            iface.pop("config_id")
         sections = []
         subnets = iface.get("subnets", {})
         accept_ra = iface.pop("accept-ra", None)
@@ -568,26 +574,6 @@ class Renderer(renderer.Renderer):
                 content=self._render_persistent_net(network_state),
                 preserve_mode=True,
             )
-
-
-def network_state_to_eni(network_state, header=None, render_hwaddress=False):
-    # render the provided network state, return a string of equivalent eni
-    eni_path = "etc/network/interfaces"
-    renderer = Renderer(
-        config={
-            "eni_path": eni_path,
-            "eni_header": header,
-            "netrules_path": None,
-        }
-    )
-    if not header:
-        header = ""
-    if not header.endswith("\n"):
-        header += "\n"
-    contents = renderer._render_interfaces(
-        network_state, render_hwaddress=render_hwaddress
-    )
-    return header + contents
 
 
 def available(target=None):

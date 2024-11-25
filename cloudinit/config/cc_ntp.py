@@ -241,7 +241,7 @@ DISTRO_CLIENT_CONFIG: Dict[str, Dict] = {
 for distro in ("opensuse-microos", "opensuse-tumbleweed", "opensuse-leap"):
     DISTRO_CLIENT_CONFIG[distro] = DISTRO_CLIENT_CONFIG["opensuse"]
 
-for distro in ("almalinux", "cloudlinux"):
+for distro in ("almalinux", "cloudlinux", "rocky"):
     DISTRO_CLIENT_CONFIG[distro] = DISTRO_CLIENT_CONFIG["rhel"]
 
 for distro in ("sle_hpc", "sle-micro"):
@@ -258,7 +258,7 @@ meta: MetaSchema = {
     "distros": distros,
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["ntp"],
-}  # type: ignore
+}
 
 
 REQUIRED_NTP_CONFIG_KEYS = frozenset(

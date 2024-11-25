@@ -6,11 +6,9 @@ import json
 
 import pytest
 
-from cloudinit import lifecycle
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import (
     ASSETS_DIR,
-    get_feature_flag_value,
     verify_clean_boot,
     verify_clean_log,
 )
@@ -53,18 +51,7 @@ def test_webhook_reporting(client: IntegrationInstance):
         "cloud-init status --wait"
     )
     verify_clean_log(client.read_from_file("/var/log/cloud-init.log"))
-    version_boundary = get_feature_flag_value(
-        client, "DEPRECATION_INFO_BOUNDARY"
-    )
-    message = "Unsupported configuration: boot stage called by PID"
-    deprecation_messages = []
-    if lifecycle.should_log_deprecation("24.3", version_boundary):
-        deprecation_messages.append(message)
-    else:
-        assert client.execute(
-            f"grep 'INFO]: {message}' /var/log/cloud-init.log"
-        ).stdout.strip(), f"Did not find expected log: {message}"
-    verify_clean_boot(client, require_deprecations=deprecation_messages)
+    verify_clean_boot(client)
 
     server_output = client.read_from_file(
         "/var/tmp/echo_server_output"
@@ -72,7 +59,7 @@ def test_webhook_reporting(client: IntegrationInstance):
     events = [json.loads(line) for line in server_output]
 
     # Only time this should be less is if we remove modules
-    assert len(events) > 52, events
+    assert len(events) > 50, events
 
     # Assert our first and last expected messages exist
     ds_events = [

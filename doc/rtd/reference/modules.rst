@@ -116,6 +116,8 @@ Modules
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_ubuntu_drivers/data.yaml
    :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_ubuntu_autoinstall/data.yaml
+   :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_ubuntu_pro/data.yaml
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_update_etc_hosts/data.yaml

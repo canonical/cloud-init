@@ -98,6 +98,7 @@ LUNAR = Release("ubuntu", "lunar", "23.04")
 MANTIC = Release("ubuntu", "mantic", "23.10")
 NOBLE = Release("ubuntu", "noble", "24.04")
 ORACULAR = Release("ubuntu", "oracular", "24.10")
+PLUCKY = Release("ubuntu", "plucky", "25.04")
 
 UBUNTU_STABLE = (FOCAL, JAMMY, MANTIC, NOBLE)
 

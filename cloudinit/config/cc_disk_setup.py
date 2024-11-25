@@ -27,7 +27,7 @@ meta: MetaSchema = {
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["disk_setup", "fs_setup"],
-}  # type: ignore
+}
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:

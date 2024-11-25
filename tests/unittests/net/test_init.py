@@ -10,20 +10,13 @@ from typing import Optional
 from unittest import mock
 
 import pytest
-import requests
-import responses
 
 import cloudinit.net as net
 from cloudinit import subp
 from cloudinit.net.ephemeral import EphemeralIPv4Network, EphemeralIPv6Network
 from cloudinit.subp import ProcessExecutionError
 from cloudinit.util import ensure_file, write_file
-from tests.unittests.helpers import (
-    CiTestCase,
-    ResponsesTestCase,
-    example_netdev,
-    random_string,
-)
+from tests.unittests.helpers import CiTestCase, example_netdev, random_string
 from tests.unittests.util import MockDistro
 
 
@@ -1199,44 +1192,6 @@ class TestEphemeralIPV6Network:
         ]
         with EphemeralIPv6Network(MockDistro(), interface="eth0"):
             assert expected_setup_calls == m_subp.call_args_list
-
-
-class TestHasURLConnectivity(ResponsesTestCase):
-    def setUp(self):
-        super(TestHasURLConnectivity, self).setUp()
-        self.url = "http://fake/"
-        self.kwargs = {"allow_redirects": True, "timeout": 5.0}
-
-    @mock.patch("cloudinit.net.readurl")
-    def test_url_timeout_on_connectivity_check(self, m_readurl):
-        """A timeout of 5 seconds is provided when reading a url."""
-        self.assertTrue(
-            net.has_url_connectivity({"url": self.url}),
-            "Expected True on url connect",
-        )
-
-    def test_true_on_url_connectivity_success(self):
-        self.responses.add(responses.GET, self.url)
-        self.assertTrue(
-            net.has_url_connectivity({"url": self.url}),
-            "Expected True on url connect",
-        )
-
-    @mock.patch("requests.Session.request")
-    def test_true_on_url_connectivity_timeout(self, m_request):
-        """A timeout raised accessing the url will return False."""
-        m_request.side_effect = requests.Timeout("Fake Connection Timeout")
-        self.assertFalse(
-            net.has_url_connectivity({"url": self.url}),
-            "Expected False on url timeout",
-        )
-
-    def test_true_on_url_connectivity_failure(self):
-        self.responses.add(responses.GET, self.url, body=b"", status=404)
-        self.assertFalse(
-            net.has_url_connectivity({"url": self.url}),
-            "Expected False on url fail",
-        )
 
 
 def _mk_v1_phys(mac, name, driver, device_id):

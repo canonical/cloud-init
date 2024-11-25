@@ -47,6 +47,7 @@ NETWORK_V2_KEY_FILTER = [
     "set-name",
     "wakeonlan",
     "accept-ra",
+    "optional",
 ]
 
 NET_CONFIG_TO_V2: Dict[str, Dict[str, Any]] = {
@@ -409,8 +410,12 @@ class NetworkStateInterpreter:
         wakeonlan = command.get("wakeonlan", None)
         if wakeonlan is not None:
             wakeonlan = util.is_true(wakeonlan)
+        optional = command.get("optional", None)
+        if optional is not None:
+            optional = util.is_true(optional)
         iface.update(
             {
+                "config_id": command.get("config_id"),
                 "name": command.get("name"),
                 "type": command.get("type"),
                 "mac_address": command.get("mac_address"),
@@ -422,9 +427,11 @@ class NetworkStateInterpreter:
                 "subnets": subnets,
                 "accept-ra": accept_ra,
                 "wakeonlan": wakeonlan,
+                "optional": optional,
             }
         )
-        self._network_state["interfaces"].update({command.get("name"): iface})
+        iface_key = command.get("config_id", command.get("name"))
+        self._network_state["interfaces"].update({iface_key: iface})
         self.dump_network_state()
 
     @ensure_command_keys(["name", "vlan_id", "vlan_link"])
@@ -712,6 +719,7 @@ class NetworkStateInterpreter:
 
         for eth, cfg in command.items():
             phy_cmd = {
+                "config_id": eth,
                 "type": "physical",
             }
             match = cfg.get("match", {})
@@ -744,7 +752,7 @@ class NetworkStateInterpreter:
             driver = match.get("driver", None)
             if driver:
                 phy_cmd["params"] = {"driver": driver}
-            for key in ["mtu", "match", "wakeonlan", "accept-ra"]:
+            for key in ["mtu", "match", "wakeonlan", "accept-ra", "optional"]:
                 if key in cfg:
                     phy_cmd[key] = cfg[key]
 
@@ -800,26 +808,14 @@ class NetworkStateInterpreter:
     def _v2_common(self, cfg) -> None:
         LOG.debug("v2_common: handling config:\n%s", cfg)
         for iface, dev_cfg in cfg.items():
-            if "set-name" in dev_cfg:
-                set_name_iface = dev_cfg.get("set-name")
-                if set_name_iface:
-                    iface = set_name_iface
             if "nameservers" in dev_cfg:
-                search = dev_cfg.get("nameservers").get("search", [])
-                dns = dev_cfg.get("nameservers").get("addresses", [])
+                search = dev_cfg.get("nameservers").get("search")
+                dns = dev_cfg.get("nameservers").get("addresses")
                 name_cmd = {"type": "nameserver"}
-                if len(search) > 0:
-                    name_cmd.update({"search": search})
-                if len(dns) > 0:
-                    name_cmd.update({"address": dns})
-
-                mac_address: Optional[str] = dev_cfg.get("match", {}).get(
-                    "macaddress"
-                )
-                if mac_address:
-                    real_if_name = find_interface_name_from_mac(mac_address)
-                    if real_if_name:
-                        iface = real_if_name
+                if search:
+                    name_cmd["search"] = search
+                if dns:
+                    name_cmd["address"] = dns
 
                 self._handle_individual_nameserver(name_cmd, iface)
 

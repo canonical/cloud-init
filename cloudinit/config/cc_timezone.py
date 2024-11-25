@@ -20,11 +20,8 @@ meta: MetaSchema = {
     "id": "cc_timezone",
     "distros": [ALL_DISTROS],
     "frequency": PER_INSTANCE,
-    "examples": [
-        "timezone: US/Eastern",
-    ],
     "activate_by_schema_keys": ["timezone"],
-}  # type: ignore
+}
 
 LOG = logging.getLogger(__name__)
 
