@@ -1,13 +1,15 @@
-cloud-init (24.4-0ubuntu0~24.10.1) UNRELEASED; urgency=medium
+cloud-init (24.4-0ubuntu1~24.10.1) UNRELEASED; urgency=medium
 
   * drop all d/p/cpick-* files as they are included in upstream snapshot
   * add d/p/deprecation-version-boundary.patch:
     - Pin deprecation version to 24.3
   * add d/p/grub-dpkg-support.patch
     - Revert the removal of grub-dpkg from default modules
-  * Upstream snapshot based on upstream/main at acbb26c1.
+  * Upstream snapshot based on 24.4. (LP: #2089577).
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/24.4/ChangeLog
 
- -- James Falcon <james.falcon@canonical.com>  Thu, 07 Nov 2024 16:28:14 -0600
+ -- James Falcon <james.falcon@canonical.com>  Mon, 25 Nov 2024 11:15:07 -0600
 
 cloud-init (24.4~3+really24.3.1-0ubuntu4) oracular; urgency=medium
 
