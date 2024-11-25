@@ -1,4 +1,4 @@
-cloud-init (24.4-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
+cloud-init (24.4-0ubuntu1~22.04.1) jammy; urgency=medium
 
   * add d/p/grub-dpkg-support.patch
     - Revert the removal of grub-dpkg from default modules
@@ -14,7 +14,7 @@ cloud-init (24.4-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/24.4/ChangeLog
 
- -- James Falcon <james.falcon@canonical.com>  Mon, 25 Nov 2024 11:32:42 -0600
+ -- James Falcon <james.falcon@canonical.com>  Mon, 25 Nov 2024 11:51:07 -0600
 
 cloud-init (24.3.1-0ubuntu0~22.04.1) jammy; urgency=medium
 
