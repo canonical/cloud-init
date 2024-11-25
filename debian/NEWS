@@ -1,4 +1,4 @@
-cloud-init (24.4~4gc9dce94d-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (24.4-0ubuntu1) plucky; urgency=medium
 
   Cloud-init added cloud-specific metapackages to better express
   cloud-specific dependencies and reduce image size.
