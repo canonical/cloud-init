@@ -30,7 +30,7 @@ def get_metadata(
             with EphemeralDHCPv4(
                 distro,
                 iface=iface,
-                connectivity_url_data={"url": url},
+                connectivity_urls_data=[{"url": url}],
             ):
                 # Fetch the metadata
                 v1 = read_metadata(url, timeout, retries, sec_between, agent)

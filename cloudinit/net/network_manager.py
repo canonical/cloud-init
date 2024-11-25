@@ -237,6 +237,10 @@ class NMConnection:
         value = subnet["address"] + "/" + str(subnet["prefix"])
         self._add_numbered(family, "address", value)
 
+    def _is_default_route(self, route):
+        default_nets = ("::", "0.0.0.0")
+        return route["prefix"] == 0 and route["network"] in default_nets
+
     def _add_route(self, route):
         """Adds a ipv[46].route<n> property."""
         # Because network v2 route definitions can have mixed v4 and v6
@@ -245,6 +249,11 @@ class NMConnection:
         value = f'{route["network"]}/{route["prefix"]}'
         if "gateway" in route:
             value += f',{route["gateway"]}'
+        if "metric" in route:
+            if self._is_default_route(route):
+                self.config[family]["route-metric"] = f'{route["metric"]}'
+            else:
+                value += f',{route["metric"]}'
         route_key = self._get_next_numbered_section(family, "route")
         self.config[family][route_key] = value
         if "mtu" in route:

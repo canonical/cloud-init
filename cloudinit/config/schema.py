@@ -1,22 +1,18 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """schema.py: Set of module functions for processing cloud-config schema."""
 import argparse
-import glob
 import json
 import logging
 import os
 import re
 import shutil
 import sys
-import textwrap
 from collections import defaultdict
-from collections.abc import Iterable
 from contextlib import suppress
 from copy import deepcopy
 from enum import Enum
 from errno import EACCES
 from functools import partial
-from itertools import chain
 from typing import (
     TYPE_CHECKING,
     DefaultDict,
@@ -26,24 +22,18 @@ from typing import (
     Tuple,
     Type,
     Union,
-    cast,
 )
 
 import yaml
 
-from cloudinit import features, importer, lifecycle, performance, safeyaml
+from cloudinit import features, lifecycle, performance, safeyaml
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers import INCLUSION_TYPES_MAP, type_from_starts_with
 from cloudinit.helpers import Paths
 from cloudinit.log.log_util import error
 from cloudinit.sources import DataSourceNotFoundException
 from cloudinit.temp_utils import mkdtemp
-from cloudinit.util import (
-    get_modules_from_dir,
-    load_text_file,
-    load_yaml,
-    write_file,
-)
+from cloudinit.util import load_text_file, write_file
 
 try:
     from jsonschema import ValidationError
@@ -65,8 +55,6 @@ LOG = logging.getLogger(__name__)
 # If we change the location of versions.schema.json in github, we need
 # to provide an updated PR to
 # https://github.com/SchemaStore/schemastore.
-VERSIONED_USERDATA_SCHEMA_FILE = "versions.schema.cloud-config.json"
-
 # When bumping schema version due to incompatible changes:
 # 1. Add a new schema-cloud-config-v#.json
 # 2. change the USERDATA_SCHEMA_FILE to cloud-init-schema-v#.json
@@ -75,42 +63,7 @@ USERDATA_SCHEMA_FILE = "schema-cloud-config-v1.json"
 NETWORK_CONFIG_V1_SCHEMA_FILE = "schema-network-config-v1.json"
 NETWORK_CONFIG_V2_SCHEMA_FILE = "schema-network-config-v2.json"
 
-_YAML_MAP = {True: "true", False: "false", None: "null"}
-SCHEMA_DOC_TMPL = """
-{name}
-{title_underbar}
 
-{title}
-
-.. tab-set::
-
-{prefix3}.. tab-item:: Summary
-
-{description}
-
-{prefix6}**Internal name:** ``{id}``
-
-{prefix6}**Module frequency:** {frequency}
-
-{prefix6}**Supported distros:** {distros}
-
-{prefix6}{activate_by_schema_keys}
-
-{prefix3}.. tab-item:: Config schema
-
-{property_doc}
-
-{prefix3}.. tab-item:: Examples
-
-{prefix6}::
-
-{examples}
-"""
-SCHEMA_PROPERTY_TMPL = "{prefix}* **{prop_name}:** ({prop_type}){description}"
-SCHEMA_LIST_ITEM_TMPL = (
-    "{prefix}* Each object in **{prop_name}** list supports "
-    "the following keys:"
-)
 DEPRECATED_KEY = "deprecated"
 
 # user-data files typically must begin with a leading '#'
@@ -683,7 +636,6 @@ def netplan_validate_network_schema(
                 _, marks = safeyaml.load_with_marks(src_content)
                 print(
                     annotated_cloudconfig_file(
-                        net_cfg,
                         src_content,
                         marks,
                         schema_errors=errors,
@@ -856,11 +808,9 @@ def validate_cloudconfig_schema(
 class _Annotator:
     def __init__(
         self,
-        cloudconfig: dict,
         original_content: str,
         schemamarks: dict,
     ):
-        self._cloudconfig = cloudconfig
         self._original_content = original_content
         self._schemamarks = schemamarks
 
@@ -961,7 +911,6 @@ class _Annotator:
 
 
 def annotated_cloudconfig_file(
-    cloudconfig: dict,
     original_content: str,
     schemamarks: dict,
     *,
@@ -979,7 +928,7 @@ def annotated_cloudconfig_file(
 
     @return Annotated schema
     """
-    return _Annotator(cloudconfig, original_content, schemamarks).annotate(
+    return _Annotator(original_content, schemamarks).annotate(
         schema_errors or [], schema_deprecations or []
     )
 
@@ -1156,7 +1105,7 @@ def validate_cloudconfig_file(
         if annotate:
             print(
                 annotated_cloudconfig_file(
-                    {}, content, {}, schema_errors=schema_error.schema_errors
+                    content, {}, schema_errors=schema_error.schema_errors
                 )
             )
         raise schema_error from e
@@ -1206,7 +1155,6 @@ def validate_cloudconfig_file(
         if annotate:
             print(
                 annotated_cloudconfig_file(
-                    cloudconfig,
                     content,
                     marks,
                     schema_errors=errors,
@@ -1225,429 +1173,8 @@ def validate_cloudconfig_file(
     return True
 
 
-def _sort_property_order(value):
-    """Provide a sorting weight for documentation of property types.
-
-    Weight values ensure 'array' sorted after 'object' which is sorted
-    after anything else which remains unsorted.
-    """
-    if value == "array":
-        return 2
-    elif value == "object":
-        return 1
-    return 0
-
-
-def _flatten(xs):
-    for x in xs:
-        if isinstance(x, Iterable) and not isinstance(x, (str, bytes)):
-            yield from _flatten(x)
-        else:
-            yield x
-
-
-def _collect_subschema_types(property_dict: dict, multi_key: str) -> List[str]:
-    property_types = []
-    for subschema in property_dict.get(multi_key, {}):
-        if subschema.get(DEPRECATED_KEY):  # don't document deprecated types
-            continue
-        if subschema.get("enum"):
-            property_types.extend(
-                [
-                    f"``{_YAML_MAP.get(enum_value, enum_value)}``"
-                    for enum_value in subschema.get("enum", [])
-                ]
-            )
-        elif subschema.get("type"):
-            property_types.append(subschema["type"])
-    return list(_flatten(property_types))
-
-
-def _get_property_type(property_dict: dict, defs: dict) -> str:
-    """Return a string representing a property type from a given
-    jsonschema.
-    """
-    flatten_schema_refs(property_dict, defs)
-    property_types = property_dict.get("type", [])
-    if not isinstance(property_types, list):
-        property_types = [property_types]
-    # A property_dict cannot have simultaneously more than one of these props
-    if property_dict.get("enum"):
-        property_types = [
-            f"``{_YAML_MAP.get(k, k)}``" for k in property_dict["enum"]
-        ]
-    elif property_dict.get("oneOf"):
-        property_types.extend(_collect_subschema_types(property_dict, "oneOf"))
-    elif property_dict.get("anyOf"):
-        property_types.extend(_collect_subschema_types(property_dict, "anyOf"))
-    if len(property_types) == 1:
-        property_type = property_types[0]
-    else:
-        property_types.sort(key=_sort_property_order)
-        property_type = "/".join(property_types)
-    items = property_dict.get("items", {})
-    sub_property_types = items.get("type", [])
-    if not isinstance(sub_property_types, list):
-        sub_property_types = [sub_property_types]
-    # Collect each item type
-    prune_undefined = bool(sub_property_types)
-    for sub_item in chain(items.get("oneOf", {}), items.get("anyOf", {})):
-        sub_type = _get_property_type(sub_item, defs)
-        if prune_undefined and sub_type == "UNDEFINED":
-            # If the main object has a type, then sub-schemas are allowed to
-            # omit the type. Prune subschema undefined types.
-            continue
-        sub_property_types.append(sub_type)
-    if sub_property_types:
-        if len(sub_property_types) == 1:
-            return f"{property_type} of {sub_property_types[0]}"
-        sub_property_types.sort(key=_sort_property_order)
-        sub_property_doc = f"({'/'.join(sub_property_types)})"
-        return f"{property_type} of {sub_property_doc}"
-    return property_type or "UNDEFINED"
-
-
-def _parse_description(description, prefix) -> str:
-    """Parse description from the meta in a format that we can better
-    display in our docs. This parser does three things:
-
-    - Guarantee that a paragraph will be in a single line
-    - Guarantee that each new paragraph will be aligned with
-      the first paragraph
-    - Proper align lists of items
-
-    @param description: The original description in the meta.
-    @param prefix: The number of spaces used to align the current description
-    """
-    list_paragraph = prefix
-    description = re.sub(r"(\S)\n(\S)", r"\1 \2", description)
-    description = re.sub(r"\n\n", r"\n\n{}".format(prefix), description)
-    description = re.sub(
-        r"\n( +)-", r"\n{}-".format(list_paragraph), description
-    )
-
-    return description
-
-
-def flatten_schema_refs(src_cfg: dict, defs: dict):
-    """Flatten schema: replace $refs in src_cfg with definitions from $defs."""
-    if "$ref" in src_cfg:
-        reference = src_cfg.pop("$ref").replace("#/$defs/", "")
-        # Update the defined references in subschema for doc rendering
-        src_cfg.update(defs[reference])
-    if "items" in src_cfg:
-        if "$ref" in src_cfg["items"]:
-            reference = src_cfg["items"].pop("$ref").replace("#/$defs/", "")
-            # Update the references in subschema for doc rendering
-            src_cfg["items"].update(defs[reference])
-        if "oneOf" in src_cfg["items"]:
-            for sub_schema in src_cfg["items"]["oneOf"]:
-                if "$ref" in sub_schema:
-                    reference = sub_schema.pop("$ref").replace("#/$defs/", "")
-                    sub_schema.update(defs[reference])
-    for sub_schema in chain(
-        src_cfg.get("oneOf", []),
-        src_cfg.get("anyOf", []),
-        src_cfg.get("allOf", []),
-    ):
-        if "$ref" in sub_schema:
-            reference = sub_schema.pop("$ref").replace("#/$defs/", "")
-            sub_schema.update(defs[reference])
-
-
-def flatten_schema_all_of(src_cfg: dict):
-    """Flatten schema: Merge allOf.
-
-    If a schema as allOf, then all of the sub-schemas must hold. Therefore
-    it is safe to merge them.
-    """
-    sub_schemas = src_cfg.pop("allOf", None)
-    if not sub_schemas:
-        return
-    for sub_schema in sub_schemas:
-        src_cfg.update(sub_schema)
-
-
-def _get_property_description(prop_config: dict) -> str:
-    """Return accumulated property description.
-
-    Account for the following keys:
-    - top-level description key
-    - any description key present in each subitem under anyOf or allOf
-
-    Order and deprecated property description after active descriptions.
-    Add a trailing stop "." to any description not ending with ":".
-    """
-
-    def assign_descriptions(
-        config: dict, descriptions: list, deprecated_descriptions: list
-    ):
-        if any(
-            map(
-                config.get,
-                ("deprecated_version", "changed_version", "new_version"),
-            )
-        ):
-            deprecated_descriptions.append(
-                _add_deprecated_changed_or_new_msg(config)
-            )
-        elif config.get("description"):
-            descriptions.append(_add_deprecated_changed_or_new_msg(config))
-
-    oneOf = prop_config.get("oneOf", {})
-    anyOf = prop_config.get("anyOf", {})
-    descriptions: list = []
-    deprecated_descriptions: list = []
-
-    assign_descriptions(prop_config, descriptions, deprecated_descriptions)
-    for sub_item in chain(oneOf, anyOf):
-        assign_descriptions(sub_item, descriptions, deprecated_descriptions)
-
-    # order deprecated descrs last
-    description = ". ".join(chain(descriptions, deprecated_descriptions))
-    if description:
-        description = f" {description}"
-    return description
-
-
-def _get_property_doc(schema: dict, defs: dict, prefix="   ") -> str:
-    """Return restructured text describing the supported schema properties."""
-    new_prefix = prefix + "  "
-    properties = []
-    if schema.get("hidden") is True:
-        return ""  # no docs for this schema
-    property_keys = [
-        key
-        for key in ("properties", "patternProperties")
-        if "hidden" not in schema or key not in schema["hidden"]
-    ]
-    property_schemas = [schema.get(key, {}) for key in property_keys]
-
-    for prop_schema in property_schemas:
-        for prop_key, prop_config in prop_schema.items():
-            flatten_schema_refs(prop_config, defs)
-            flatten_schema_all_of(prop_config)
-            if prop_config.get("hidden") is True:
-                continue  # document nothing for this property
-
-            description = _get_property_description(prop_config)
-
-            # Define prop_name and description for SCHEMA_PROPERTY_TMPL
-            label = prop_config.get("label", prop_key)
-            properties.append(
-                SCHEMA_PROPERTY_TMPL.format(
-                    prefix=prefix,
-                    prop_name=label,
-                    description=_parse_description(description, prefix + "  "),
-                    prop_type=_get_property_type(prop_config, defs),
-                )
-            )
-            items = prop_config.get("items")
-            if items:
-                flatten_schema_refs(items, defs)
-                if items.get("properties") or items.get("patternProperties"):
-                    properties.append(
-                        SCHEMA_LIST_ITEM_TMPL.format(
-                            prefix=new_prefix, prop_name=label
-                        )
-                    )
-                    properties.append(
-                        _get_property_doc(items, defs=defs, prefix=new_prefix)
-                    )
-                for alt_schema in items.get("oneOf", []):
-                    if alt_schema.get("properties") or alt_schema.get(
-                        "patternProperties"
-                    ):
-                        properties.append(
-                            SCHEMA_LIST_ITEM_TMPL.format(
-                                prefix=new_prefix, prop_name=label
-                            )
-                        )
-                        properties.append(
-                            _get_property_doc(
-                                alt_schema, defs=defs, prefix=new_prefix
-                            )
-                        )
-            if (
-                "properties" in prop_config
-                or "patternProperties" in prop_config
-            ):
-                properties.append(
-                    _get_property_doc(
-                        prop_config, defs=defs, prefix=new_prefix
-                    )
-                )
-    return "\n\n".join(properties)
-
-
-def _get_examples(meta: MetaSchema) -> str:
-    """Return restructured text describing the meta examples if present."""
-    # TODO: This function will always return an empty string.
-    # `examples` is no longer a key in the MetaSchema. It is a key in the
-    # module-docs/data.yaml file.
-    # GH: #5756
-    paths = read_cfg_paths()
-    module_docs_dir = os.path.join(paths.docs_dir, "module-docs")
-    examples = meta.get("examples")
-    if not examples:
-        return ""
-    rst_content: str = ""
-    for example in examples:  # type: ignore
-        # FIXME(drop conditional when all mods have rtd/module-doc/*/data.yaml)
-        if isinstance(example, dict):
-            if example["comment"]:
-                comment = f"# {example['comment']}\n"
-            else:
-                comment = ""
-            example = comment + load_text_file(
-                os.path.join(module_docs_dir, example["file"])
-            )
-        indented_lines = textwrap.indent(example, "   ").split("\n")
-        rst_content += "\n".join(indented_lines)
-    return rst_content
-
-
-def _get_activate_by_schema_keys_doc(meta: MetaSchema) -> str:
-    if not meta.get("activate_by_schema_keys"):
-        return ""
-    schema_keys = ", ".join(
-        f"``{k}``" for k in meta["activate_by_schema_keys"]
-    )
-    return f"**Activate only on keys:** {schema_keys}\n\n"
-
-
-def get_meta_doc(meta: MetaSchema, schema: Optional[dict] = None) -> str:
-    """Return reStructured text rendering the provided metadata.
-
-    @param meta: Dict of metadata to render.
-    @param schema: Optional module schema, if absent, read global schema.
-    @raise KeyError: If metadata lacks an expected key.
-    """
-    # TODO: This function currently never gets called as the newer
-    # module-docs do not get deployed with the cloud-init package.
-    # If it were to get called, it would raise a KeyError because
-    # the `MetaSchema` dict does not have the expected keys.
-    # GH: #5756
-    if schema is None:
-        schema = get_schema()
-    if not meta or not schema:
-        raise ValueError("Expected non-empty meta and schema")
-    keys = set(meta.keys())
-    required_keys = {
-        "id",
-        "title",
-        "examples",
-        "frequency",
-        "distros",
-        "description",
-        "name",
-    }
-    optional_keys = {"activate_by_schema_keys"}
-    error_message = ""
-    if required_keys - keys:
-        error_message = "Missing required keys in module meta: {}".format(
-            required_keys - keys
-        )
-    elif keys - required_keys - optional_keys:
-        error_message = (
-            "Additional unexpected keys found in module meta: {}".format(
-                keys - required_keys
-            )
-        )
-    if error_message:
-        raise KeyError(error_message)
-
-    # cast away type annotation
-    meta_copy = dict(deepcopy(meta))
-    meta_copy["property_header"] = ""
-    meta_copy["prefix6"] = "      "
-    meta_copy["prefix3"] = "   "
-    meta_copy["description"] = textwrap.indent(
-        cast(str, meta_copy["description"]), "      "
-    )
-    defs = schema.get("$defs", {})
-    if defs.get(meta["id"]):
-        schema = defs.get(meta["id"], {})
-        schema = cast(dict, schema)
-    if any(schema["properties"].values()):
-        try:
-            meta_copy["property_doc"] = _get_property_doc(
-                schema, defs=defs, prefix="      "
-            )
-        except AttributeError:
-            LOG.warning("Unable to render property_doc due to invalid schema")
-            meta_copy["property_doc"] = ""
-    if not meta_copy.get("property_doc", ""):
-        meta_copy["property_doc"] = (
-            "      No schema definitions for this module"
-        )
-    meta_copy["examples"] = textwrap.indent(_get_examples(meta), "      ")
-    if not meta_copy["examples"]:
-        meta_copy["examples"] = "         No examples for this module"
-    meta_copy["distros"] = ", ".join(meta["distros"])
-    # Need an underbar of the same length as the name
-    # TODO: The type ignore is a short-term fix for mypy. This entire function
-    # is questionable at this point.
-    # GH: #5756
-    meta_copy["title_underbar"] = re.sub(r".", "-", meta["name"])  # type: ignore
-    meta_copy["activate_by_schema_keys"] = _get_activate_by_schema_keys_doc(
-        meta
-    )
-    template = SCHEMA_DOC_TMPL.format(**meta_copy)
-    return template
-
-
-def get_modules() -> dict:
-    configs_dir = os.path.dirname(os.path.abspath(__file__))
-    return get_modules_from_dir(configs_dir)
-
-
-def load_doc(requested_modules: list) -> str:
-    """Load module docstrings
-
-    Docstrings are generated on module load. Reduce, reuse, recycle.
-    """
-    docs = ""
-    all_modules = list(get_modules().values()) + ["all"]
-    invalid_docs = set(requested_modules).difference(set(all_modules))
-    if invalid_docs:
-        error(
-            "Invalid --docs value {}. Must be one of: {}".format(
-                list(invalid_docs),
-                ", ".join(all_modules),
-            ),
-            sys_exit=True,
-        )
-    module_docs = get_module_docs()
-    schema = get_schema()
-    for mod_name in sorted(all_modules):
-        if "all" in requested_modules or mod_name in requested_modules:
-            (mod_locs, _) = importer.find_module(
-                mod_name, ["cloudinit.config"], ["meta"]
-            )
-            if mod_locs:
-                mod = importer.import_module(mod_locs[0])
-                if module_docs.get(mod.meta["id"]):
-                    # Include docs only when module id is in module_docs
-                    mod.meta.update(module_docs.get(mod.meta["id"], {}))
-                    docs += get_meta_doc(mod.meta, schema) or ""
-                else:
-                    docs += mod.__doc__ or ""
-    return docs
-
-
 def get_schema_dir() -> str:
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "schemas")
-
-
-def get_module_docs() -> dict:
-    """Return a dict keyed on cc_<mod_name> with documentation info"""
-    paths = read_cfg_paths()
-    mod_docs = {}
-    module_docs_dir = os.path.join(paths.docs_dir, "module-docs")
-    for mod_doc in glob.glob(f"{module_docs_dir}/*/data.yaml"):
-        mod_docs.update(load_yaml(load_text_file(mod_doc)))
-    return mod_docs
 
 
 def get_schema(schema_type: SchemaType = SchemaType.CLOUD_CONFIG) -> dict:
@@ -1722,15 +1249,6 @@ def get_parser(parser=None):
         ),
     )
     parser.add_argument(
-        "-d",
-        "--docs",
-        nargs="+",
-        help=(
-            "Print schema module docs. Choices: all or"
-            " space-delimited cc_names."
-        ),
-    )
-    parser.add_argument(
         "--annotate",
         action="store_true",
         default=False,
@@ -1741,21 +1259,16 @@ def get_parser(parser=None):
 
 def _assert_exclusive_args(args):
     """Error or warn on invalid exclusive parameter combinations."""
-    exclusive_args = [args.config_file, args.docs, args.system]
+    exclusive_args = [args.config_file, args.system]
     if len([arg for arg in exclusive_args if arg]) != 1:
         error(
-            "Expected one of --config-file, --system or --docs arguments",
+            "Expected one of --config-file or --system arguments",
             sys_exit=True,
         )
-    if any([args.system, args.docs]) and args.schema_type:
+    if args.system and args.schema_type:
         print(
-            "WARNING: The --schema-type parameter is inapplicable when either"
-            " --system or --docs present"
-        )
-    if args.annotate and args.docs:
-        error(
-            "Invalid flag combination. Cannot use --annotate with --docs",
-            sys_exit=True,
+            "WARNING: The --schema-type parameter is inapplicable when "
+            "--system is present"
         )
 
 
@@ -1888,9 +1401,6 @@ def handle_schema_args(name, args):
     """Handle provided schema args and perform the appropriate actions."""
     _assert_exclusive_args(args)
     full_schema = get_schema()
-    if args.docs:
-        print(load_doc(args.docs))
-        return
     instance_data_path, config_files = get_config_paths_from_args(args)
 
     nested_output_prefix = ""

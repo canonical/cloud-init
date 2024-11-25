@@ -91,17 +91,6 @@ def print_exc(msg=""):
     sys.stderr.write("\n")
 
 
-DEPRECATE_BOOT_STAGE_MESSAGE = (
-    "Triggering cloud-init boot stages outside of intial system boot is not a"
-    " fully supported operation which can lead to incomplete or incorrect"
-    " configuration. As such, cloud-init is deprecating this feature in the"
-    " future. If you currently use cloud-init in this way,"
-    " please file an issue describing in detail your use case so that"
-    " cloud-init can better support your needs:"
-    " https://github.com/canonical/cloud-init/issues/new"
-)
-
-
 def welcome(action, msg=None):
     if not msg:
         msg = welcome_format(action)
