@@ -14,7 +14,6 @@ from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_INSTANCE
 
-PRO_URL = "https://ubuntu.com/pro"
 DEPRECATED_KEYS = set(["ubuntu-advantage", "ubuntu_advantage"])
 
 meta: MetaSchema = {

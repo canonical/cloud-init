@@ -7,7 +7,6 @@ import subprocess
 from textwrap import dedent
 
 import pytest
-import responses
 
 from cloudinit.distros import alpine, amazon, centos, debian, freebsd, rhel
 from cloudinit.distros.ubuntu import Distro
@@ -815,16 +814,21 @@ class TestSystemdParseLeases(CiTestCase):
 
 
 @pytest.mark.usefixtures("disable_netdev_info")
+@mock.patch("cloudinit.net.ephemeral._check_connectivity_to_imds")
 class TestEphemeralDhcpNoNetworkSetup(ResponsesTestCase):
     @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
-    def test_ephemeral_dhcp_no_network_if_url_connectivity(self, m_dhcp):
+    def test_ephemeral_dhcp_no_network_if_url_connectivity(
+        self, m_dhcp, m_imds
+    ):
         """No EphemeralDhcp4 network setup when connectivity_url succeeds."""
         url = "http://example.org/index.html"
 
-        self.responses.add(responses.GET, url)
+        # need to return a valid url to indicate that we have connectivity
+        m_imds.return_value = url
+
         with EphemeralDHCPv4(
             MockDistro(),
-            connectivity_url_data={"url": url},
+            connectivity_urls_data=[{"url": url}],
         ) as lease:
             self.assertIsNone(lease)
         # Ensure that no teardown happens:
@@ -833,7 +837,7 @@ class TestEphemeralDhcpNoNetworkSetup(ResponsesTestCase):
     @mock.patch("cloudinit.net.dhcp.subp.subp")
     @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     def test_ephemeral_dhcp_setup_network_if_url_connectivity(
-        self, m_dhcp, m_subp
+        self, m_dhcp, m_subp, m_imds
     ):
         """No EphemeralDhcp4 network setup when connectivity_url succeeds."""
         url = "http://example.org/index.html"
@@ -844,10 +848,12 @@ class TestEphemeralDhcpNoNetworkSetup(ResponsesTestCase):
         }
         m_subp.return_value = ("", "")
 
-        self.responses.add(responses.GET, url, body=b"", status=404)
+        # None indicates that we do NOT have connectivity to the IMDS
+        # therefore, DHCP discovery will be performed
+        m_imds.return_value = None
         with EphemeralDHCPv4(
             MockDistro(),
-            connectivity_url_data={"url": url},
+            connectivity_urls_data=[{"url": url}],
         ) as lease:
             self.assertEqual(m_dhcp.return_value, lease)
         # Ensure that dhcp discovery occurs

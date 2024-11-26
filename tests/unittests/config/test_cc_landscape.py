@@ -43,14 +43,12 @@ class TestLandscape:
         mycloud = get_cloud("ubuntu")
         mycloud.distro = mock.MagicMock()
         cfg = {"landscape": {"client": {}}}
-        default_fn = tmpdir.join("default")
         wrap_and_call(
             "cloudinit.config.cc_landscape",
             {
                 "LSC_CLIENT_CFG_FILE": {
                     "new": tmpdir.join("client.conf").strpath
                 },
-                "LS_DEFAULT_FILE": {"new": default_fn.strpath},
             },
             cc_landscape.handle,
             "notimportant",
@@ -87,7 +85,6 @@ class TestLandscape:
         """Call landscape-config with any filesystem overrides."""
         mycloud = get_cloud("ubuntu")
         mycloud.distro = mock.MagicMock()
-        default_fn = tmpdir.join("default")
         client_fn = tmpdir.join("client.conf")
         client_fn.write("[client]\ndata_path = /var/lib/data\n")
         cfg = {
@@ -119,7 +116,6 @@ class TestLandscape:
             "cloudinit.config.cc_landscape",
             {
                 "LSC_CLIENT_CFG_FILE": {"new": client_fn.strpath},
-                "LS_DEFAULT_FILE": {"new": default_fn.strpath},
             },
             cc_landscape.handle,
             "notimportant",
@@ -139,7 +135,6 @@ class TestLandscape:
         # Write existing sparse client.conf file
         client_fn = tmpdir.join("client.conf")
         client_fn.write("[client]\ncomputer_title = My PC\n")
-        default_fn = tmpdir.join("default")
         mycloud = get_cloud("ubuntu")
         mycloud.distro = mock.MagicMock()
         cfg = {"landscape": {"client": {}}}
@@ -168,7 +163,6 @@ class TestLandscape:
             "cloudinit.config.cc_landscape",
             {
                 "LSC_CLIENT_CFG_FILE": {"new": client_fn.strpath},
-                "LS_DEFAULT_FILE": {"new": default_fn.strpath},
             },
             cc_landscape.handle,
             "notimportant",
@@ -185,7 +179,6 @@ class TestLandscape:
         # Write empty sparse client.conf file
         client_fn = tmpdir.join("client.conf")
         client_fn.write("")
-        default_fn = tmpdir.join("default")
         mycloud = get_cloud("ubuntu")
         mycloud.distro = mock.MagicMock()
         cfg = {"landscape": {"client": {"computer_title": 'My" PC'}}}
@@ -214,7 +207,6 @@ class TestLandscape:
             "cloudinit.config.cc_landscape",
             {
                 "LSC_CLIENT_CFG_FILE": {"new": client_fn.strpath},
-                "LS_DEFAULT_FILE": {"new": default_fn.strpath},
             },
             cc_landscape.handle,
             "notimportant",

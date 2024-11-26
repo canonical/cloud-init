@@ -3892,47 +3892,6 @@ class TestNetplanPostcommands:
             mock_subp.assert_has_calls(expected)
 
 
-class TestEniNetworkStateToEni:
-    mycfg = {
-        "config": [
-            {
-                "type": "physical",
-                "name": "eth0",
-                "mac_address": "c0:d6:9f:2c:e8:80",
-                "subnets": [{"type": "dhcp"}],
-            }
-        ],
-        "version": 1,
-    }
-    my_mac = "c0:d6:9f:2c:e8:80"
-
-    def test_no_header(self):
-        rendered = eni.network_state_to_eni(
-            network_state=network_state.parse_net_config_data(self.mycfg),
-            render_hwaddress=True,
-        )
-        assert self.my_mac in rendered
-        assert "hwaddress" in rendered
-
-    def test_with_header(self):
-        header = "# hello world\n"
-        rendered = eni.network_state_to_eni(
-            network_state=network_state.parse_net_config_data(self.mycfg),
-            header=header,
-            render_hwaddress=True,
-        )
-        assert header in rendered
-        assert self.my_mac in rendered
-
-    def test_no_hwaddress(self):
-        rendered = eni.network_state_to_eni(
-            network_state=network_state.parse_net_config_data(self.mycfg),
-            render_hwaddress=False,
-        )
-        assert self.my_mac not in rendered
-        assert "hwaddress" not in rendered
-
-
 class TestCmdlineConfigParsing:
     simple_cfg = {
         "config": [

@@ -213,14 +213,14 @@ def _has_expired(public_key):
         return False
 
     expire_str = json_obj["expireOn"]
-    format_str = "%Y-%m-%dT%H:%M:%S+0000"
+    format_str = "%Y-%m-%dT%H:%M:%S%z"
     try:
         expire_time = datetime.datetime.strptime(expire_str, format_str)
     except ValueError:
         return False
 
     # Expire the key if and only if we have exceeded the expiration timestamp.
-    return datetime.datetime.utcnow() > expire_time
+    return datetime.datetime.now(datetime.timezone.utc) > expire_time
 
 
 def _parse_public_keys(public_keys_data, default_user=None):
