@@ -94,8 +94,8 @@ def session_cloud() -> Generator[IntegrationCloud, None, None]:
     yield cloud
 
     if not integration_settings.KEEP_INSTANCE or (
-        not cloud.test_failed and
-        integration_settings.KEEP_INSTANCE == "ON_ERROR"  # type: ignore
+        not cloud.test_failed
+        and integration_settings.KEEP_INSTANCE == "ON_ERROR"
     ):
         cloud.destroy()
 
