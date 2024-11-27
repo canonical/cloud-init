@@ -1705,8 +1705,9 @@ def _get_package_mirror_info(
         # the region is us-east-1. so region = az[0:-1]
         # This is a best guess regex, based on current EC2 AZs on 2017-12-11.
         # It could break when Amazon adds new regions and new AZs.
-        if re.compile("^[a-z][a-z]-(?:[a-z]+-)+[0-9][a-z]$").match(
-            data_source.availability_zone
+        if re.match(
+            "^[a-z][a-z]-(?:[a-z]+-)+[0-9][a-z]$",
+            data_source.availability_zone,
         ):
             ec2_region = data_source.availability_zone[0:-1]
 

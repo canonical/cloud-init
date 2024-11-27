@@ -55,7 +55,7 @@ def is_meta_device_name(name):
 
 def is_network_device(name):
     # return true if this is a network device
-    if re.compile(NETWORK_NAME_FILTER).match(name):
+    if re.match(NETWORK_NAME_FILTER, name):
         return True
     return False
 
@@ -112,7 +112,7 @@ def sanitize_devname(startname, transformer, aliases=None):
             device_path = "/dev/%s" % (device_path,)
         LOG.debug("Mapped metadata name %s to %s", orig, device_path)
     else:
-        if re.compile(DEVICE_NAME_FILTER).match(startname):
+        if re.match(DEVICE_NAME_FILTER, startname):
             device_path = "/dev/%s" % (device_path,)
 
     partition_path = None

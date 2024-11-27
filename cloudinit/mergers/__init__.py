@@ -106,9 +106,7 @@ def string_extract_mergers(merge_how):
         m_name = m_name.replace("-", "_")
         if not m_name:
             continue
-        match = re.compile(r"(^[a-zA-Z_][A-Za-z0-9_]*)\((.*?)\)$").match(
-            m_name
-        )
+        match = re.match(r"(^[a-zA-Z_][A-Za-z0-9_]*)\((.*?)\)$", m_name)
         if not match:
             msg = "Matcher identifier '%s' is not in the right format" % (
                 m_name

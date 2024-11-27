@@ -188,7 +188,7 @@ def apply_rsyslog_changes(configs, def_fname, cfg_dir):
 
 def parse_remotes_line(line, name=None):
     try:
-        data, comment = re.compile(r"[ ]*[#]+[ ]*").split(line)
+        data, comment = re.split(r"[ ]*[#]+[ ]*", line)
         comment = comment.strip()
     except ValueError:
         data, comment = (line, None)
@@ -202,11 +202,12 @@ def parse_remotes_line(line, name=None):
     else:
         raise ValueError("line had multiple spaces: %s" % data)
 
-    toks = re.compile(
+    toks = re.match(
         r"^(?P<proto>[@]{0,2})"
         r"(([\[](?P<bracket_addr>[^\]]*)[\]])|(?P<addr>[^:]*))"
-        r"([:](?P<port>[0-9]+))?$"
-    ).match(host_port)
+        r"([:](?P<port>[0-9]+))?$",
+        host_port,
+    )
 
     if not toks:
         raise ValueError("Invalid host specification '%s'" % host_port)

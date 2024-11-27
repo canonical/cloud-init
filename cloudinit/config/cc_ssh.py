@@ -110,9 +110,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         cert_config = []
         for key, val in cfg["ssh_keys"].items():
             if key not in CONFIG_KEY_TO_FILE:
-                if re.compile(
-                    "^(ecdsa-sk|ed25519-sk)_(private|public|certificate)$"
-                ).match(key):
+                if re.match(
+                    "^(ecdsa-sk|ed25519-sk)_(private|public|certificate)$", key
+                ):
                     reason = "unsupported"
                 else:
                     reason = "unrecognized"
