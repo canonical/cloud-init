@@ -175,6 +175,13 @@ class IntegrationCloud(ABC):
                 "NOT cleaning cloud instance because KEEP_IMAGE or "
                 "KEEP_INSTANCE is True"
             )
+        elif (
+            integration_settings.KEEP_IMAGE == "ON_ERROR" and self.test_failed
+        ):
+            log.info(
+                'NOT cleaning cloud instance because KEEP_IMAGE="ON_ERROR" and'
+                "test failed"
+            )
         else:
             self.cloud_instance.clean()
 

@@ -68,6 +68,7 @@ class IntegrationInstance:
         self.cloud = cloud
         self.instance = instance
         self.settings = settings
+        self.test_failed = False
         self._ip = ""
 
     def destroy(self):
@@ -348,7 +349,13 @@ Pin-Priority: 1001"""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if not self.settings.KEEP_INSTANCE:
-            self.destroy()
-        else:
+
+        if self.settings.KEEP_INSTANCE:
             log.info("Keeping Instance, public ip: %s", self.ip())
+        elif (
+            integration_settings.KEEP_INSTANCE == "ON_ERROR"
+            and self.test_failed
+        ):
+            log.info("Keeping Instance (test failed) public ip: %s", self.ip())
+        else:
+            self.destroy()
