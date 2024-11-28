@@ -20,9 +20,6 @@ using cloud-init.
 * :ref:`Launch with libvirt <launch_libvirt>`
 * :ref:`Launch with WSL <launch_wsl>`
 
-  In this guide you will use a cloud-init user data script to customize a WSL
-  instance.
-
 .. toctree::
    :maxdepth: 2
    :hidden:
