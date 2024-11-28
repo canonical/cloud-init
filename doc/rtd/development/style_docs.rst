@@ -90,9 +90,9 @@ to text output, you can use code blocks. For diagrams, we recommend the use of
 Code blocks
 -----------
 
-Our documentation uses the Sphinx extension "sphinx-copybutton", which creates
-a small button on the right-hand side of code blocks for users to copy the
-code snippets we provide.
+Our documentation uses the Sphinx extension ``sphinx-copybutton``, which
+creates a small button on the right-hand side of code blocks for users to copy
+the code snippets we provide.
 
 The copied code will strip out the prompt symbol (``$``) so that users can
 paste commands directly into their terminal. For user convenience, please

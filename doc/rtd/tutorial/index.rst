@@ -3,47 +3,35 @@
 Tutorials
 *********
 
-This section contains step-by-step tutorials to help you get started with
-``cloud-init``. We hope our tutorials make as few assumptions as possible and
-are accessible to anyone with an interest in ``cloud-init``. They should be a
-great place to start learning about ``cloud-init``, how it works, and what it's
-capable of.
+Our step-by-step tutorials will help you learn about cloud-init and what it can
+do.
 
------
+New user tutorial
+=================
 
-Core tutorial
-=============
+If you are completely new to cloud-init and would like a more thorough
+introduction, we suggest starting with the
+:ref:`new user tutorial <tutorial_qemu>`.
 
-This tutorial, which we recommend if you are completely new to ``cloud-init``,
-uses the QEMU emulator to introduce you to all of the key concepts, tools,
-processes and operations that you will need to get started.
+This tutorial uses the QEMU emulator to introduce you to all of the key
+concepts, tools, processes and operations that you will need to use cloud-init
+successfully.
+
+Further tutorials
+=================
+
+This tutorial is recommended if you have some familiarity with cloud-init's key
+concepts already. It uses LXD containers to show more of cloud-init's
+capabilities.
+
+* :ref:`Part 1: quick deployment <tutorial_lxd>`
+
+  Here we deploy a cloud-init user data script into a LXD container. It
+  can also be used as a quick-start guide.
 
 .. toctree::
    :maxdepth: 1
+   :hidden:
 
    qemu.rst
-
-Quick-start tutorial
-====================
-
-This tutorial is recommended if you have some familiarity with ``cloud-init``
-or the concepts around it, and are looking to get started as quickly as
-possible. Here, you will use an LXD container to deploy a ``cloud-init``
-user data script.
-
-.. toctree::
-   :maxdepth: 1
-
    lxd.rst
-
-WSL tutorial
-============
-
-This tutorial is for learning to use ``cloud-init`` within a ``WSL``
-environment. You will use a ``cloud-init`` user data script to customize a
-``WSL`` instance.
-
-.. toctree::
-   :maxdepth: 1
-
-   wsl.rst
