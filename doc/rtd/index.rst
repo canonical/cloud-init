@@ -87,8 +87,9 @@ projects, contributions, suggestions, fixes and constructive feedback.
 
    tutorial/index
    howto/index
-   explanation/index
    reference/index
+   explanation/index
+
 
 .. toctree::
    :caption: Development
