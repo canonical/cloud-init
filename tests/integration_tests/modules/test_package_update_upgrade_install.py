@@ -65,7 +65,7 @@ class TestPackageUpdateUpgradeInstall:
             "grep ^Commandline: /var/log/apt/history.log"
         )
         assert re.search(
-            "Commandline: /usr/bin/apt-get --option=Dpkg::Options"
+            "Commandline: (/usr/bin/)?apt-get --option=Dpkg::Options"
             "::=--force-confold --option=Dpkg::options::=--force-unsafe-io "
             r"--assume-yes --quiet install (sl|tree) (tree|sl)",
             out,
@@ -122,6 +122,7 @@ class TestPackageUpdateUpgradeInstall:
 
 
 HELLO_VERSIONS_BY_RELEASE = {
+    "plucky": "2.10-3build2",
     "oracular": "2.10-3build2",
     "noble": "2.10-3build1",
     "mantic": "2.10-3",

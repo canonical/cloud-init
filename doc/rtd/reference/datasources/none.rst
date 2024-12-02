@@ -29,7 +29,7 @@ A **string** containing the user-data (including header) to be used by
 cloud-init.
 
 ``meta-data``
-------------
+-------------
 The meta-data to be used by cloud-init.
 
 .. _datasource_none_example:

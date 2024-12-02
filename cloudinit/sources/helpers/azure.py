@@ -10,7 +10,7 @@ import re
 import textwrap
 import zlib
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from time import sleep, time
 from typing import Callable, List, Optional, TypeVar, Union
 from xml.etree import ElementTree as ET  # nosec B405
@@ -122,9 +122,11 @@ def get_boot_telemetry():
         "boot-telemetry",
         "kernel_start=%s user_start=%s cloudinit_activation=%s"
         % (
-            datetime.utcfromtimestamp(kernel_start).isoformat() + "Z",
-            datetime.utcfromtimestamp(user_start).isoformat() + "Z",
-            datetime.utcfromtimestamp(cloudinit_activation).isoformat() + "Z",
+            datetime.fromtimestamp(kernel_start, timezone.utc).isoformat(),
+            datetime.fromtimestamp(user_start, timezone.utc).isoformat(),
+            datetime.fromtimestamp(
+                cloudinit_activation, timezone.utc
+            ).isoformat(),
         ),
         events.DEFAULT_EVENT_ORIGIN,
     )
@@ -449,7 +451,7 @@ class OpenSSLManager:
                     "-days",
                     "32768",
                     "-newkey",
-                    "rsa:2048",
+                    "rsa:3072",
                     "-keyout",
                     self.certificate_names["private_key"],
                     "-out",
@@ -1011,7 +1013,7 @@ class OvfEnvXml:
             raise errors.ReportableErrorOvfParsingException(exception=e) from e
 
         # If there's no provisioning section, it's not Azure ovf-env.xml.
-        if not root.find("./wa:ProvisioningSection", cls.NAMESPACES):
+        if root.find("./wa:ProvisioningSection", cls.NAMESPACES) is None:
             raise NonAzureDataSource(
                 "Ignoring non-Azure ovf-env.xml: ProvisioningSection not found"
             )

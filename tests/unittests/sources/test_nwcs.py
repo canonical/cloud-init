@@ -76,9 +76,9 @@ class TestDataSourceNWCS(CiTestCase):
         m_net.assert_called_once_with(
             ds.distro,
             iface="eth0",
-            connectivity_url_data={
-                "url": "http://169.254.169.254/api/v1/metadata/instance-id"
-            },
+            connectivity_urls_data=[
+                {"url": "http://169.254.169.254/api/v1/metadata/instance-id"}
+            ],
         )
 
         self.assertTrue(m_readmd.called)

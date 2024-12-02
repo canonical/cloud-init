@@ -4,6 +4,7 @@
 
 import json
 import logging
+import os
 from functools import lru_cache
 
 from requests import exceptions
@@ -29,7 +30,7 @@ def get_metadata(
             with EphemeralDHCPv4(
                 distro,
                 iface=iface,
-                connectivity_url_data={"url": url},
+                connectivity_urls_data=[{"url": url}],
             ):
                 # Fetch the metadata
                 v1 = read_metadata(url, timeout, retries, sec_between, agent)
@@ -60,12 +61,29 @@ def refactor_metadata(metadata):
 
 # Get interface list, sort, and clean
 def get_interface_list():
+    # Check for the presence of a "find_candidate_nics.sh" shell script on the
+    # running guest image. Use that as an optional source of truth before
+    # falling back to "net.find_candidate_nics()". This allows the Vultr team
+    # to provision machines with niche hardware configurations at the same
+    # cadence as image rollouts.
     ifaces = []
-    for iface in net.find_candidate_nics():
-        # Skip dummy
-        if "dummy" in iface:
-            continue
-        ifaces.append(iface)
+    try:
+        nic_script = "/opt/vultr/find_candidate_nics.sh"
+        if os.path.exists(nic_script):
+            out = subp.subp(nic_script, capture=True, shell=True)
+            for line in out.stdout.splitlines():
+                iface = line.strip()
+                if len(iface) > 0:
+                    ifaces.append(iface)
+    except Exception as e:
+        LOG.error("find_candidate_nics script exception: %s", e)
+
+    if len(ifaces) == 0:
+        for iface in net.find_candidate_nics():
+            # Skip dummy
+            if "dummy" in iface:
+                continue
+            ifaces.append(iface)
 
     return ifaces
 

@@ -2,7 +2,6 @@
 
 import copy
 import os
-from unittest import mock
 
 from cloudinit import atomic_helper, safeyaml, stages, util
 from cloudinit.config.modules import Modules
@@ -45,15 +44,6 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
         )
         self.patchOS(self.new_root)
         self.patchUtils(self.new_root)
-
-        self.m_doc = mock.patch(
-            "cloudinit.config.schema.get_meta_doc", return_value={}
-        )
-        self.m_doc.start()
-
-    def tearDown(self):
-        self.m_doc.stop()
-        super().tearDown()
 
     def test_none_ds_populates_var_lib_cloud(self):
         """Init and run_section default behavior creates appropriate dirs."""
