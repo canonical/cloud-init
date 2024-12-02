@@ -1,3 +1,11 @@
+cloud-init (24.4-0ubuntu1~24.04.2) UNRELEASED; urgency=medium
+
+  * Fix d/p/no-single-process.patch
+    - It didn't contain removal of cloud-init-network.service nor
+      the removal of the network.service reference
+
+ -- James Falcon <james.falcon@canonical.com>  Mon, 02 Dec 2024 13:07:16 -0600
+
 cloud-init (24.4-0ubuntu1~24.04.1) noble; urgency=medium
 
   * add d/p/grub-dpkg-support.patch
