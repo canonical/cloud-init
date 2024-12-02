@@ -21,20 +21,19 @@ import configobj
 # or look at the 'param_expand()' function in the subst.c file in the bash
 # source tarball...
 SHELL_VAR_RULE = r"[a-zA-Z_]+[a-zA-Z0-9_]*"
-SHELL_VAR_REGEXES = [
-    # Basic variables
-    re.compile(r"\$" + SHELL_VAR_RULE),
-    # Things like $?, $0, $-, $@
-    re.compile(r"\$[0-9#\?\-@\*]"),
-    # Things like ${blah:1} - but this one
-    # gets very complex so just try the
-    # simple path
-    re.compile(r"\$\{.+\}"),
-]
 
 
 def _contains_shell_variable(text):
-    for r in SHELL_VAR_REGEXES:
+    for r in [
+        # Basic variables
+        re.compile(r"\$" + SHELL_VAR_RULE),
+        # Things like $?, $0, $-, $@
+        re.compile(r"\$[0-9#\?\-@\*]"),
+        # Things like ${blah:1} - but this one
+        # gets very complex so just try the
+        # simple path
+        re.compile(r"\$\{.+\}"),
+    ]:
         if r.search(text):
             return True
     return False
