@@ -23,21 +23,15 @@ from cloudinit.settings import PER_ALWAYS
 
 RUBY_VERSION_DEFAULT = "1.8"
 
-CHEF_DIRS = tuple(
-    [
-        "/etc/chef",
-        "/var/log/chef",
-        "/var/lib/chef",
-        "/var/cache/chef",
-        "/var/backups/chef",
-        "/var/run/chef",
-    ]
+CHEF_DIRS = (
+    "/etc/chef",
+    "/var/log/chef",
+    "/var/lib/chef",
+    "/var/cache/chef",
+    "/var/backups/chef",
+    "/var/run/chef",
 )
-REQUIRED_CHEF_DIRS = tuple(
-    [
-        "/etc/chef",
-    ]
-)
+REQUIRED_CHEF_DIRS = ("/etc/chef",)
 
 # Used if fetching chef from a omnibus style package
 OMNIBUS_URL = "https://www.chef.io/chef/install.sh"
@@ -74,22 +68,20 @@ CHEF_RB_TPL_PATH_KEYS = frozenset(
     ]
 )
 CHEF_RB_TPL_KEYS = frozenset(
-    itertools.chain(
-        CHEF_RB_TPL_DEFAULTS.keys(),
-        CHEF_RB_TPL_BOOL_KEYS,
-        CHEF_RB_TPL_PATH_KEYS,
-        [
-            "server_url",
-            "node_name",
-            "environment",
-            "validation_name",
-            "chef_license",
-        ],
-    )
+    [
+        *CHEF_RB_TPL_DEFAULTS.keys(),
+        *CHEF_RB_TPL_BOOL_KEYS,
+        *CHEF_RB_TPL_PATH_KEYS,
+        "server_url",
+        "node_name",
+        "environment",
+        "validation_name",
+        "chef_license",
+    ]
 )
 CHEF_RB_PATH = "/etc/chef/client.rb"
 CHEF_EXEC_PATH = "/usr/bin/chef-client"
-CHEF_EXEC_DEF_ARGS = tuple(["-d", "-i", "1800", "-s", "20"])
+CHEF_EXEC_DEF_ARGS = ("-d", "-i", "1800", "-s", "20")
 
 
 LOG = logging.getLogger(__name__)

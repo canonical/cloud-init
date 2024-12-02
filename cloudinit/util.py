@@ -34,7 +34,7 @@ import subprocess
 import sys
 import time
 from base64 import b64decode
-from collections import deque, namedtuple
+from collections import deque
 from contextlib import contextmanager, suppress
 from errno import ENOENT
 from functools import lru_cache
@@ -50,6 +50,7 @@ from typing import (
     Generator,
     List,
     Mapping,
+    NamedTuple,
     Optional,
     Sequence,
     Union,
@@ -1188,10 +1189,10 @@ def dos2unix(contents):
     return contents.replace("\r\n", "\n")
 
 
-HostnameFqdnInfo = namedtuple(
-    "HostnameFqdnInfo",
-    ["hostname", "fqdn", "is_default"],
-)
+class HostnameFqdnInfo(NamedTuple):
+    hostname: str
+    fqdn: str
+    is_default: bool
 
 
 def get_hostname_fqdn(cfg, cloud, metadata_only=False):
