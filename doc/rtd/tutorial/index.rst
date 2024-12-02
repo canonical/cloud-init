@@ -29,7 +29,7 @@ Quick-start tutorial
 This tutorial is recommended if you have some familiarity with ``cloud-init``
 or the concepts around it, and are looking to get started as quickly as
 possible. Here, you will use an LXD container to deploy a ``cloud-init``
-user data script.
+user-data script.
 
 .. toctree::
    :maxdepth: 1
@@ -40,7 +40,7 @@ WSL tutorial
 ============
 
 This tutorial is for learning to use ``cloud-init`` within a ``WSL``
-environment. You will use a ``cloud-init`` user data script to customize a
+environment. You will use a ``cloud-init`` user-data script to customize a
 ``WSL`` instance.
 
 .. toctree::

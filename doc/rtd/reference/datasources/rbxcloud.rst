@@ -3,16 +3,16 @@
 Rbx Cloud
 *********
 
-The Rbx datasource consumes the metadata drive available on the `HyperOne`_
+The Rbx datasource consumes the meta-data drive available on the `HyperOne`_
 and `Rootbox`_ platforms.
 
 This datasource supports network configurations, hostname, user accounts and
-user metadata.
+user meta-data.
 
 Metadata drive
 ==============
 
-Drive metadata is a `FAT`_-formatted partition with the ``CLOUDMD`` or
+Drive meta-data is a `FAT`_-formatted partition with the ``CLOUDMD`` or
 ``cloudmd`` label on the system disk. Its contents are refreshed each time
 the virtual machine is restarted, if the partition exists. For more information
 see `HyperOne Virtual Machine docs`_.

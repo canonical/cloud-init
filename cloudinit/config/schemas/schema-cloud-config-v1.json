@@ -662,7 +662,7 @@
           "type": "object",
           "deprecated": true,
           "deprecated_version": "24.2",
-          "deprecated_description": "System and/or distro specific settings. This is not intended to be overridden by user data or vendor data."
+          "deprecated_description": "System and/or distro specific settings. This is not intended to be overridden by user-data or vendor-data."
         }
       }
     },
@@ -2759,7 +2759,7 @@
           "additionalProperties": false,
           "properties": {
             "enabled": {
-              "description": "Whether vendor data is enabled or not. Default: ``true``.",
+              "description": "Whether vendor-data is enabled or not. Default: ``true``.",
               "oneOf": [
                 {
                   "type": "boolean",

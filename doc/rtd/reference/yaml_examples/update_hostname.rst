@@ -42,11 +42,11 @@ This example sets the hostname to ``external.fqdn.me`` instead of ``myhost``.
    :language: yaml
    :linenos:
 
-Override cloud metadata
-=======================
+Override cloud meta-data
+========================
 
 Set the hostname to ``external`` instead of ``external.fqdn.me`` when cloud
-metadata provides the ``local-hostname``: ``external.fqdn.me``.
+meta-data provides the ``local-hostname``: ``external.fqdn.me``.
 
 .. literalinclude:: ../../../module-docs/cc_update_hostname/example5.yaml
    :language: yaml

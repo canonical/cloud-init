@@ -65,8 +65,8 @@ it will:
 
   * **Metadata** about the instance, such as the machine ID, hostname and
     network config, or
-  * **Vendor data** and/or **user data**. These take the same form, although
-    Vendor data is provided by the cloud vendor, and user data is provided by
+  * **Vendor data** and/or **user-data**. These take the same form, although
+    Vendor data is provided by the cloud vendor, and user-data is provided by
     the user. These data are usually applied in the post-networking phase, and
     might include:
 
@@ -85,7 +85,7 @@ During late boot
 In the boot stages that come after the network has been configured, cloud-init
 runs through the tasks that were not critical for provisioning. This is where
 it configures the running instance according to your needs, as specified in the
-vendor data and/or user data. It will take care of:
+vendor-data and/or user-data. It will take care of:
 
 * **Configuration management**:
   Cloud-init can interact with tools like Puppet, Ansible, or Chef to apply
@@ -97,7 +97,7 @@ vendor data and/or user data. It will take care of:
   Cloud-init is able to create and modify user accounts, set default passwords,
   and configure permissions.
 * **Execute user scripts**:
-  If any custom scripts were provided in the user data, cloud-init can run
+  If any custom scripts were provided in the user-data, cloud-init can run
   them. This allows additional specified software to be installed, security
   settings to be applied, etc. It can also inject SSH keys into the instance’s
   ``authorized_keys`` file, which allows secure remote access to the machine.

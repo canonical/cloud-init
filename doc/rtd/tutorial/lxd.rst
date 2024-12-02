@@ -3,15 +3,15 @@
 Quick-start tutorial with LXD
 *****************************
 
-In this tutorial, we will create our first ``cloud-init`` user data script
+In this tutorial, we will create our first ``cloud-init`` user-data script
 and deploy it into an `LXD`_ container.
 
 Why LXD?
 ========
 
 We'll be using LXD for this tutorial because it provides first class support
-for ``cloud-init`` user data, as well as ``systemd`` support. Because it is
-container based, it allows us to quickly test and iterate upon our user data
+for ``cloud-init`` user-data, as well as ``systemd`` support. Because it is
+container based, it allows us to quickly test and iterate upon our user-data
 definition.
 
 How to use this tutorial
@@ -46,10 +46,10 @@ configuration at a later time.
 
    $ lxd init --minimal
 
-Define our user data
+Define our user-data
 ====================
 
-Now that LXD is set up, we can define our user data. Create the
+Now that LXD is set up, we can define our user-data. Create the
 following file on your local filesystem at :file:`/tmp/my-user-data`:
 
 .. code-block:: yaml
@@ -58,17 +58,17 @@ following file on your local filesystem at :file:`/tmp/my-user-data`:
     runcmd:
       - echo 'Hello, World!' > /var/tmp/hello-world.txt
 
-Here, we are defining our ``cloud-init`` user data in the
+Here, we are defining our ``cloud-init`` user-data in the
 :ref:`#cloud-config<user_data_formats>` format, using the
 :ref:`runcmd module <mod_cc_runcmd>` to define a command to run. When applied,
 it will write ``Hello, World!`` to :file:`/var/tmp/hello-world.txt` (as we
 shall see later!).
 
-Launch a LXD container with our user data
+Launch a LXD container with our user-data
 =========================================
 
-Now that we have LXD set up and our user data defined, we can launch an
-instance with our user data:
+Now that we have LXD set up and our user-data defined, we can launch an
+instance with our user-data:
 
 .. code-block:: shell-session
 
@@ -86,7 +86,7 @@ using:
 
 You should now be in a shell inside the LXD instance.
 
-Before validating the user data, let's wait for ``cloud-init`` to complete
+Before validating the user-data, let's wait for ``cloud-init`` to complete
 successfully:
 
 .. code-block:: shell-session
@@ -99,11 +99,11 @@ Which provides the following output:
 
     status: done
 
-Verify our user data
+Verify our user-data
 --------------------
 
 Now we know that ``cloud-init`` has been successfully run, we can verify that
-it received the expected user data we provided earlier:
+it received the expected user-data we provided earlier:
 
 .. code-block:: shell-session
 
@@ -117,7 +117,7 @@ Which should print the following to the terminal window:
     runcmd:
       - echo 'Hello, World!' > /var/tmp/hello-world.txt
 
-We can also assert the user data we provided is a valid cloud-config:
+We can also assert the user-data we provided is a valid cloud-config:
 
 .. code-block:: shell-session
 
@@ -129,7 +129,7 @@ Which should print the following:
 
     Valid schema user-data
 
-Finally, let us verify that our user data was applied successfully:
+Finally, let us verify that our user-data was applied successfully:
 
 .. code-block:: shell-session
 
@@ -141,7 +141,7 @@ Which should then print:
 
     Hello, World!
 
-We can see that ``cloud-init`` has received and consumed our user data
+We can see that ``cloud-init`` has received and consumed our user-data
 successfully!
 
 Tear down

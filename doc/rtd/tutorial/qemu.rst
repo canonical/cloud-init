@@ -52,8 +52,8 @@ Create a temporary directory
 ============================
 
 This directory will store our cloud image and configuration files for
-:ref:`user data<user_data_formats>`, :ref:`metadata<instance_metadata>`, and
-:ref:`vendor data<vendordata>`.
+:ref:`user-data<user_data_formats>`, :ref:`meta-data<instance_meta-data>`, and
+:ref:`vendor-data<vendordata>`.
 
 You should run all commands from this temporary directory. If you run the
 commands from anywhere else, your virtual machine will not be configured.
@@ -86,10 +86,10 @@ server image using :command:`wget`:
    type and :spelling:ignore:`qemu-system-<arch>` command name to match the
    architecture of your host machine.
 
-Define our user data
+Define our user-data
 ====================
 
-Now we need to create our :file:`user-data` file. This user data cloud-config
+Now we need to create our :file:`user-data` file. This user-data cloud-config
 sets the password of the default user, and sets that password to never expire.
 For more details you can refer to the
 :ref:`Set Passwords module page<mod_cc_set_passwords>`.
@@ -107,7 +107,7 @@ containing our configuration data.
 
     EOF
 
-What is user data?
+What is user-data?
 ==================
 
 Before moving forward, let's inspect our :file:`user-data` file.
@@ -126,7 +126,7 @@ You should see the following contents:
       expire: False
 
 The first line starts with ``#cloud-config``, which tells ``cloud-init``
-what type of user data is in the config. Cloud-config is a YAML-based
+what type of user-data is in the config. Cloud-config is a YAML-based
 configuration type that tells ``cloud-init`` how to configure the virtual
 machine instance. Multiple different format types are supported by
 ``cloud-init``. For more information, see the
@@ -139,8 +139,8 @@ user's password to ``password``.
 The third and fourth lines direct ``cloud-init`` to not require a password
 reset on first login.
 
-Define our metadata
-===================
+Define our meta-data
+====================
 
 Now let's run the following command, which creates a file named
 :file:`meta-data` containing configuration data.
@@ -152,7 +152,7 @@ Now let's run the following command, which creates a file named
 
     EOF
 
-Define our vendor data
+Define our vendor-data
 ======================
 
 Now we will create the empty file :file:`vendor-data` in our temporary
@@ -186,7 +186,7 @@ some clouds to expose ``cloud-init`` configuration data to the instance.
 How does ``cloud-init`` use the IMDS?
 -------------------------------------
 
-The IMDS uses a private http webserver to provide metadata to each operating
+The IMDS uses a private http webserver to provide meta-data to each operating
 system instance. During early boot, ``cloud-init`` sets up network access and
 queries this webserver to gather configuration data. This allows ``cloud-init``
 to configure your operating system while it boots.
@@ -195,7 +195,7 @@ In this tutorial we are emulating this workflow using QEMU and a simple Python
 webserver. This workflow is suitable for developing and testing
 ``cloud-init`` configurations prior to cloud deployments.
 
-Launch a virtual machine with our user data
+Launch a virtual machine with our user-data
 ===========================================
 
 Switch back to your original terminal, and run the following command so we can
@@ -230,10 +230,10 @@ Let us examine the final two lines of our previous command. The first of them,
 image as a virtual hard drive. This will cause the virtual machine to
 boot Ubuntu, which already has ``cloud-init`` installed.
 
-The second line tells ``cloud-init`` where it can find user data, using the
+The second line tells ``cloud-init`` where it can find user-data, using the
 :ref:`NoCloud datasource<datasource_nocloud>`. During boot, ``cloud-init``
 checks the ``SMBIOS`` serial number for ``ds=nocloud``. If found,
-``cloud-init`` will use the specified URL to source its user data config files.
+``cloud-init`` will use the specified URL to source its user-data config files.
 
 In this case, we use the default gateway of the virtual machine (``10.0.2.2``)
 and default port number of the Python webserver (``8000``), so that

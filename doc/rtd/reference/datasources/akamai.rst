@@ -3,7 +3,7 @@
 Akamai
 ******
 
-The Akamai datasource provides an interface to consume metadata on the `Akamai
+The Akamai datasource provides an interface to consume meta-data on the `Akamai
 Connected Cloud`_.  This service is available at ``169.254.169.254`` and
 ``fd00:a9fe:a9fe::1`` from within the instance.
 
@@ -23,7 +23,7 @@ use no changes to the defaults should be necessary: ::
        ipv6: http://[fd00:a9fe:a9fe::1]
      paths:
          token: /v1/token
-         metadata: /v1/instance
+         meta-data: /v1/instance
          userdata: /v1/user-data
      allow_local_stage: True
      allow_init_stage: True
@@ -35,7 +35,7 @@ use no changes to the defaults should be necessary: ::
 
 * ``base_urls``
 
-  The URLs used to access the metadata service over IPv4 and IPv6 respectively.
+  The URLs used to access the meta-data service over IPv4 and IPv6 respectively.
 
 * ``paths``
 
@@ -53,16 +53,16 @@ use no changes to the defaults should be necessary: ::
 
 * ``allow_dhcp``
 
-  Allows this datasource to use dhcp to find an IPv4 address to fetch metadata
+  Allows this datasource to use dhcp to find an IPv4 address to fetch meta-data
   with during the local stage.
 
 * ``allow_ipv4``
 
-  Allow the use of IPv4 when fetching metadata during any stage.
+  Allow the use of IPv4 when fetching meta-data during any stage.
 
 * ``allow_ipv6``
 
-  Allows the use of IPv6 when fetching metadata during any stage.
+  Allows the use of IPv6 when fetching meta-data during any stage.
 
 * ``preferred_mac_prefixes``
 
@@ -76,7 +76,7 @@ Configuration Overrides
 In some circumstances, the Akamai platform may send configurations overrides to
 instances via dmi data to prevent certain behavior that may not be supported
 based on the instance's region or configuration.  For example, if deploying an
-instance in a region that does not yet support metadata, both the local and
+instance in a region that does not yet support meta-data, both the local and
 init stages will be disabled, preventing cloud-init from attempting to fetch
-metadata.  Configuration overrides sent this way will appears in the
+meta-data.  Configuration overrides sent this way will appears in the
 ``baseboard-serial-number`` field.

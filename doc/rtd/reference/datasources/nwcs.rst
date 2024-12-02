@@ -4,7 +4,7 @@ NWCS
 ****
 
 The NWCS datasource retrieves basic configuration values from the locally
-accessible metadata service. All data is served over HTTP from the address
+accessible meta-data service. All data is served over HTTP from the address
 ``169.254.169.254``.
 
 Configuration
@@ -19,10 +19,10 @@ The NWCS datasource can be configured as follows: ::
       timeout: 2
       wait: 2
 
-* ``url``: The URL used to acquire the metadata configuration.
+* ``url``: The URL used to acquire the meta-data configuration.
 * ``retries``: Determines the number of times to attempt to connect to the
-  metadata service.
+  meta-data service.
 * ``timeout``: Determines the timeout (in seconds) to wait for a response from
-  the metadata service
+  the meta-data service
 * ``wait``: Determines the timeout in seconds to wait before retrying after
   accessible failure.

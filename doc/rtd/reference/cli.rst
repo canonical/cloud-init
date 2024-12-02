@@ -39,7 +39,7 @@ Example output:
         init                DEPRECATED: Initialize cloud-init and perform initial modules.
         modules             DEPRECATED: Activate modules using a given configuration key.
         single              Manually run a single module. Useful for testing during development.
-        query               Query standardized instance metadata from the command line.
+        query               Query standardized instance meta-data from the command line.
         features            List defined features.
         analyze             Devel tool: Analyze cloud-init logs and data.
         devel               Run development tools.
@@ -141,7 +141,7 @@ configuration or testing changes to the network conversion logic itself.
 
 Use ``cloud-init``'s jinja template render to process **#cloud-config** or
 **custom-scripts**, injecting any variables from
-:file:`/run/cloud-init/instance-data.json`. It accepts a user data file
+:file:`/run/cloud-init/instance-data.json`. It accepts a user-data file
 containing the jinja template header ``## template: jinja`` and renders that
 content with any :file:`instance-data.json` variables present.
 
@@ -161,7 +161,7 @@ Query if hotplug is enabled for a given subsystem.
 :command:`handle`
 -----------------
 
-Respond to newly added system devices by retrieving updated system metadata
+Respond to newly added system devices by retrieving updated system meta-data
 and bringing up/down the corresponding device.
 
 :command:`enable`
@@ -243,17 +243,17 @@ run only once due to semaphores in :file:`/var/lib/cloud/`.
 :command:`query`
 ----------------
 
-Query standardised cloud instance metadata crawled by ``cloud-init`` and stored
+Query standardised cloud instance meta-data crawled by ``cloud-init`` and stored
 in :file:`/run/cloud-init/instance-data.json`. This is a convenience
-command-line interface to reference any cached configuration metadata that
-``cloud-init`` crawls when booting the instance. See :ref:`instance_metadata`
+command-line interface to reference any cached configuration meta-data that
+``cloud-init`` crawls when booting the instance. See :ref:`instance_meta-data`
 for more info.
 
-* :command:`--all`: Dump all available instance data as JSON which can be
+* :command:`--all`: Dump all available instance-data as JSON which can be
   queried.
 * :command:`--instance-data`: Optional path to a different
   :file:`instance-data.json` file to source for queries.
-* :command:`--list-keys`: List available query keys from cached instance data.
+* :command:`--list-keys`: List available query keys from cached instance-data.
 * :command:`--format`: A string that will use jinja-template syntax to render a
   string replacing.
 * :command:`<varname>`: A dot-delimited variable path into the
@@ -286,7 +286,7 @@ Example output:
     v1
     vendordata
 
-Here are a few examples of how to query standardised metadata from clouds:
+Here are a few examples of how to query standardised meta-data from clouds:
 
 .. code-block:: shell-session
 
@@ -311,7 +311,7 @@ Example output:
 
    aws  # or openstack, azure, gce etc.
 
-One can also query datasource-specific metadata on EC2, e.g.:
+One can also query datasource-specific meta-data on EC2, e.g.:
 
 .. code-block:: shell-session
 
@@ -352,7 +352,7 @@ Validate cloud-config files using jsonschema.
 * :command:`-t SCHEMA_TYPE, --schema-type SCHEMA_TYPE`: The schema type to
   validate --config-file against. One of: cloud-config, network-config.
   Default: cloud-config.
-* :command:`--system`: Validate the system cloud-config user data.
+* :command:`--system`: Validate the system cloud-config user-data.
 * :command:`-d DOCS [cc_module ...], --docs DOCS [cc_module ...]`:
   Print schema module
   docs. Choices are: "all" or "space-delimited" ``cc_names``.

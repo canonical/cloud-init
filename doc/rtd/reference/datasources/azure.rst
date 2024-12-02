@@ -3,7 +3,7 @@
 Azure
 *****
 
-This datasource finds metadata and user data from the Azure cloud platform.
+This datasource finds meta-data and user-data from the Azure cloud platform.
 
 The Azure cloud platform provides initial data to an instance via an attached
 CD formatted in UDF. This CD contains a :file:`ovf-env.xml` file that
@@ -13,7 +13,7 @@ with the "endpoint".
 IMDS
 ====
 
-Azure provides the `instance metadata service (IMDS)`_, which is a REST service
+Azure provides the `instance meta-data service (IMDS)`_, which is a REST service
 on ``169.254.169.254`` providing additional configuration information to the
 instance. ``Cloud-init`` uses the IMDS for:
 
@@ -47,7 +47,7 @@ The settings that may be configured are:
   configuration. Default is True.
 * :command:`data_dir`
 
-  Path used to read metadata files and write crawled data.
+  Path used to read meta-data files and write crawled data.
 
 * :command:`disk_aliases`
 
@@ -76,13 +76,13 @@ User data
 =========
 
 User data is provided to ``cloud-init`` inside the :file:`ovf-env.xml` file.
-``Cloud-init`` expects that user data will be provided as a base64 encoded
+``Cloud-init`` expects that user-data will be provided as a base64 encoded
 value inside the text child of an element named ``UserData`` or
 ``CustomData``, which is a direct child of the
 ``LinuxProvisioningConfigurationSet`` (a sibling to ``UserName``).
 
 If both ``UserData`` and ``CustomData`` are provided, the behaviour is
-undefined on which will be selected. In the example below, user data provided
+undefined on which will be selected. In the example below, user-data provided
 is ``'this is my userdata'``.
 
 Example:
@@ -135,4 +135,4 @@ via :command:`hostname $HostName`, and then bouncing the interface. This
 behaviour can be configured or disabled in the datasource config. See
 'Configuration' above.
 
-.. _instance metadata service (IMDS): https://docs.microsoft.com/en-us/azure/virtual-machines/windows/instance-metadata-service
+.. _instance meta-data service (IMDS): https://docs.microsoft.com/en-us/azure/virtual-machines/windows/instance-meta-data-service

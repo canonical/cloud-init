@@ -23,8 +23,8 @@ running virtual machines with hardware acceleration as well as emulating the
 instruction sets of different architectures than the host that you are
 running on.
 
-The ``NoCloud`` datasource allows users to provide their own user data,
-metadata, or network configuration directly to an instance without running a
+The ``NoCloud`` datasource allows users to provide their own user-data,
+meta-data, or network configuration directly to an instance without running a
 network service. This is helpful for launching local cloud images with QEMU.
 
 Create your configuration
@@ -97,7 +97,7 @@ configuration in the empty :file:`network-config` and :file:`meta-data` files.
 
     See the :ref:`network_config_v2` page for details on the format and config
     of network configuration. To learn more about the possible values for
-    metadata, check out the :ref:`datasource_nocloud` page.
+    meta-data, check out the :ref:`datasource_nocloud` page.
 
 .. _run_with_lxd:
 
@@ -105,7 +105,7 @@ LXD
 ===
 
 `LXD`_ offers a streamlined user experience for using Linux system containers.
-With LXD, the following command initialises a container with user data:
+With LXD, the following command initialises a container with user-data:
 
 .. code-block:: shell-session
 
@@ -131,15 +131,15 @@ launch this multiple times:
 LXD configuration types
 -----------------------
 
-The above examples all show how to pass user data. To pass other types of
+The above examples all show how to pass user-data. To pass other types of
 configuration data use the configuration options specified below:
 
 +----------------+---------------------------+
 | Data           | Configuration option      |
 +================+===========================+
-| user data      | cloud-init.user-data      |
+| user-data      | cloud-init.user-data      |
 +----------------+---------------------------+
-| vendor data    | cloud-init.vendor-data    |
+| vendor-data    | cloud-init.vendor-data    |
 +----------------+---------------------------+
 | network config | cloud-init.network-config |
 +----------------+---------------------------+
@@ -204,15 +204,15 @@ Multipass
 `Multipass`_ is a cross-platform tool for launching Ubuntu VMs across Linux,
 Windows, and macOS.
 
-When a user launches a Multipass VM, user data can be passed by adding the
-``--cloud-init`` flag and the appropriate YAML file containing the user data:
+When a user launches a Multipass VM, user-data can be passed by adding the
+``--cloud-init`` flag and the appropriate YAML file containing the user-data:
 
 .. code-block:: shell-session
 
     $ multipass launch bionic --name test-vm --cloud-init userdata.yaml
 
 Multipass will validate the user-data cloud-config file before attempting to
-start the VM. This breaks all cloud-init configuration formats except user data
+start the VM. This breaks all cloud-init configuration formats except user-data
 cloud-config.
 
 .. _Multipass: https://multipass.run/

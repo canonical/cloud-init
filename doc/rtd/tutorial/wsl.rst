@@ -66,7 +66,7 @@ Example output:
 
 Reboot the system when prompted.
 
-Create our user data
+Create our user-data
 ====================
 
 User data is the primary way for a user to customize a cloud-init instance.
@@ -89,13 +89,13 @@ Ensure that the file is saved with the ``.user-data`` extension and
 not as a ``.txt`` file.
 
 .. note::
-    We are creating user data that is tied to the instance we just created,
-    but by changing the filename, we can create user data that applies to
+    We are creating user-data that is tied to the instance we just created,
+    but by changing the filename, we can create user-data that applies to
     multiple or all WSL instances. See
     :ref:`WSL Datasource reference page<wsl_user_data_configuration>` for
     more information.
 
-What is user data?
+What is user-data?
 ==================
 
 Before moving forward, let's inspect our :file:`user-data` file.
@@ -112,7 +112,7 @@ We created the following contents:
       permissions: '0770'
 
 The first line starts with ``#cloud-config``, which tells cloud-init
-what type of user data is in the config. Cloud-config is a YAML-based
+what type of user-data is in the config. Cloud-config is a YAML-based
 configuration type that tells cloud-init how to configure the instance
 being created. Multiple different format types are supported by
 cloud-init. For more information, see the
@@ -229,7 +229,7 @@ You should now be in a shell inside the WSL instance.
 Verify that ``cloud-init`` ran successfully
 -------------------------------------------
 
-Before validating the user data, let's wait for ``cloud-init`` to complete
+Before validating the user-data, let's wait for ``cloud-init`` to complete
 successfully:
 
 .. code-block:: shell-session
@@ -254,11 +254,11 @@ Which provides the following output:
 
     wsl
 
-Verify our user data
+Verify our user-data
 --------------------
 
 Now we know that ``cloud-init`` has been successfully run, we can verify that
-it received the expected user data we provided earlier:
+it received the expected user-data we provided earlier:
 
 .. code-block:: shell-session
 
@@ -275,7 +275,7 @@ Which should print the following to the terminal window:
     path: /var/tmp/hello-world.txt
     permissions: '0770'
 
-We can also assert the user data we provided is a valid cloud-config:
+We can also assert the user-data we provided is a valid cloud-config:
 
 .. code-block:: shell-session
 
@@ -287,7 +287,7 @@ Which should print the following:
 
     Valid schema user-data
 
-Finally, let us verify that our user data was applied successfully:
+Finally, let us verify that our user-data was applied successfully:
 
 .. code-block:: shell-session
 
@@ -299,7 +299,7 @@ Which should then print:
 
     Hello from cloud-init
 
-We can see that ``cloud-init`` has received and consumed our user data
+We can see that ``cloud-init`` has received and consumed our user-data
 successfully!
 
 What's next?

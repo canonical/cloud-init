@@ -3,9 +3,9 @@
 CloudCIX
 ========
 
-`CloudCIX`_ serves metadata through an internal server, accessible at
-``http://169.254.169.254/v1``. The metadata and userdata can be fetched at
-the ``/metadata`` and ``/userdata`` paths respectively.
+`CloudCIX`_ serves meta-data through an internal server, accessible at
+``http://169.254.169.254/v1``. The meta-data and userdata can be fetched at
+the ``/meta-data`` and ``/userdata`` paths respectively.
 
 CloudCIX instances are identified by the dmi product name `CloudCIX`.
 
@@ -24,10 +24,10 @@ CloudCIX datasource has the following config options:
 
 
 - *retries*: The number of times the datasource should try to connect to the
-  metadata service
-- *timeout*: How long in seconds to wait for a response from the metadata
+  meta-data service
+- *timeout*: How long in seconds to wait for a response from the meta-data
   service
 - *sec_between_retries*: How long in seconds to wait between consecutive
-  requests to the metadata service
+  requests to the meta-data service
 
 _CloudCIX: https://www.cloudcix.com/

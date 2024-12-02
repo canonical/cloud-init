@@ -54,7 +54,7 @@ more information on ``frequency`` and ``args``.
 
 .. note::
     Most modules won't run at all if they're not triggered via a
-    respective user data key, so removing modules or changing the run
+    respective user-data key, so removing modules or changing the run
     frequency is **not** a recommended way to reduce instance boot time.
 
 Examples
@@ -75,7 +75,7 @@ To change the frequency from the default of ``ALWAYS`` to ``ONCE``:
     - [final_message, once]
 
 To include default arguments to the module (that may be overridden by
-user data):
+user-data):
 
 .. code-block:: yaml
 
@@ -88,7 +88,7 @@ Datasource keys
 ---------------
 
 Many datasources allow configuration of the datasource for use in
-querying the datasource for metadata using the ``datasource`` key.
+querying the datasource for meta-data using the ``datasource`` key.
 This configuration is datasource dependent and can be found under
 each datasource's respective :ref:`documentation<datasources>`. It will
 generally take the form of:
@@ -103,10 +103,10 @@ System info keys
 ----------------
 
 These keys are used for setup of ``cloud-init`` itself, or the datasource
-or distro. Anything under ``system_info`` cannot be overridden by vendor data,
-user data, or any other handlers or transforms. In some cases there may be a
+or distro. Anything under ``system_info`` cannot be overridden by vendor-data,
+user-data, or any other handlers or transforms. In some cases there may be a
 ``system_info`` key used for the distro, while the same key is used outside of
-``system_info`` for a user data module.
+``system_info`` for a user-data module.
 Both keys will be processed independently.
 
 * ``system_info``: Top-level key.
@@ -270,10 +270,10 @@ Format is a dict with ``enabled`` and ``prefix`` keys:
 ``allow_userdata``
 ^^^^^^^^^^^^^^^^^^
 
-A boolean value to disable the use of user data.
+A boolean value to disable the use of user-data.
 This allows custom images to prevent users from accidentally breaking closed
 appliances. Setting ``allow_userdata: false`` in the configuration will disable
-``cloud-init`` from processing user data.
+``cloud-init`` from processing user-data.
 
 ``manual_cache_clean``
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -309,7 +309,7 @@ On an Ubuntu system, :file:`/etc/cloud/cloud.cfg` should look similar to:
     # Example datasource config
     # datasource:
     #    Ec2:
-    #      metadata_urls: [ 'blah.com' ]
+    #      meta-data_urls: [ 'blah.com' ]
     #      timeout: 5 # (defaults to 50 seconds)
     #      max_wait: 10 # (defaults to 120 seconds)
 
@@ -345,7 +345,7 @@ On an Ubuntu system, :file:`/etc/cloud/cloud.cfg` should look similar to:
     - ubuntu_pro
     - ntp
     - timezone
-    - disable_ec2_metadata
+    - disable_ec2_meta-data
     - runcmd
     - byobu
 

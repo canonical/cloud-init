@@ -21,7 +21,7 @@ How do I...?
    Run cloud-init locally before deploying <run_cloud_init_locally.rst>
    Re-run cloud-init <rerun_cloud_init.rst>
    Change how often a module runs <module_run_frequency.rst>
-   Validate my user data <debug_user_data.rst>
+   Validate my user-data <debug_user_data.rst>
    Debug cloud-init <debugging.rst>
    Check the status of cloud-init <status.rst>
    Report a bug <bugs.rst>

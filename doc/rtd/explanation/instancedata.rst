@@ -1,8 +1,8 @@
-.. _instance_metadata:
+.. _instance_meta-data:
 
 
-Instance metadata
-*****************
+Instance-data
+*************
 
 .. toctree::
    :maxdepth: 1
@@ -165,7 +165,7 @@ Storage locations
   are applied to the :file:`/run/cloud-init/combined-cloud-config.json` config
   values.
 
-.. _instance_metadata-keys:
+.. _instance_meta-data-keys:
 
 :file:`instance-data.json` top level keys
 -----------------------------------------
@@ -214,8 +214,8 @@ included in the ``sensitive-keys`` list which is only readable by root.
 ``ds``
 ^^^^^^
 
-Datasource-specific metadata crawled for the specific cloud platform. It should
-closely represent the structure of the cloud metadata crawled. The structure of
+Datasource-specific data crawled for the specific cloud platform. It should
+closely represent the structure of the cloud data crawled. The structure of
 content and details provided are entirely cloud-dependent. Mileage will vary
 depending on what the cloud exposes. The content exposed under the ``ds`` key
 is currently **experimental** and expected to change slightly in the upcoming
@@ -238,7 +238,7 @@ underlying host ``sys_info`` key above.
 ``v1``
 ^^^^^^
 
-Standardised ``cloud-init`` metadata keys, these keys are guaranteed to exist
+Standardised ``cloud-init`` data keys, these keys are guaranteed to exist
 on all cloud platforms. They will also retain their current behaviour and
 format, and will be carried forward even if ``cloud-init`` introduces a new
 version of standardised keys with ``v2``.
@@ -367,8 +367,7 @@ Example output:
 ``v1.subplatform``
 ^^^^^^^^^^^^^^^^^^
 
-Additional platform details describing the specific source or type of metadata
-used. The format of subplatform will be:
+Detailed platform information. Subplatform format is:
 
 ``<subplatform_type> (<url_file_or_dev_path>)``
 
@@ -382,7 +381,7 @@ Example output:
 ``v1.public_ssh_keys``
 ^^^^^^^^^^^^^^^^^^^^^^
 
-A list of SSH keys provided to the instance by the datasource metadata.
+A list of SSH keys provided to the instance by the datasource.
 
 Example output:
 

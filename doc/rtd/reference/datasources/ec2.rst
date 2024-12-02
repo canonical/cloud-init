@@ -7,8 +7,8 @@ The EC2 datasource is the oldest and most widely used datasource that
 ``cloud-init`` supports. This datasource interacts with a *magic* IP provided
 to the instance by the cloud provider (typically this IP is
 ``169.254.169.254``). At this IP a http server is provided to the
-instance so that the instance can make calls to get instance user data and
-instance metadata.
+instance so that the instance can make calls to get instance user-data and
+instance meta-data.
 
 Metadata is accessible via the following URL: ::
 
@@ -49,8 +49,8 @@ unavailable to the instance.
 +----------------+----------------------------------------------------------+
 | **2016-09-02** | Required for secondary IP address support.               |
 +----------------+----------------------------------------------------------+
-| **2009-04-04** | Minimum supports EC2 API version for metadata and        |
-|                | user data.                                               |
+| **2009-04-04** | Minimum supports EC2 API version for meta-data and       |
+|                | user-data.                                               |
 +----------------+----------------------------------------------------------+
 
 To see which versions are supported by your cloud provider use the following
@@ -82,7 +82,7 @@ The settings that may be configured are:
 ``metadata_urls``
 -----------------
 
-This list of URLs will be searched for an EC2 metadata service. The first
+This list of URLs will be searched for an EC2 meta-data service. The first
 entry that successfully returns a 200 response for
 ``<url>/<version>/meta-data/instance-id`` will be selected.
 
@@ -93,7 +93,7 @@ Default: [``'http://169.254.169.254'``, ``'http://[fd00:ec2::254]'``,
 ------------
 
 The maximum amount of clock time in seconds that should be spent searching
-``metadata_urls``. A value less than zero will result in only one request
+``meta-data_urls``. A value less than zero will result in only one request
 being made, to the first in the list.
 
 Default: 120
@@ -102,8 +102,8 @@ Default: 120
 -----------
 
 The timeout value provided to ``urlopen`` for each individual http request.
-This is used both when selecting a ``metadata_url`` and when crawling the
-metadata service.
+This is used both when selecting a ``meta-data_url`` and when crawling the
+meta-data service.
 
 Default: 50
 
@@ -111,7 +111,7 @@ Default: 50
 ----------------------------------
 
 Boolean (default: True) to allow ``cloud-init`` to configure any secondary
-NICs and secondary IPs described by the metadata service. All network
+NICs and secondary IPs described by the meta-data service. All network
 interfaces are configured with DHCP (v4) to obtain a primary IPv4 address and
 route. Interfaces which have a non-empty ``ipv6s`` list will also enable
 DHCPv6 to obtain a primary IPv6 address and route. The DHCP response (v4 and
@@ -125,7 +125,7 @@ An example configuration with the default values is provided below:
 
    datasource:
      Ec2:
-       metadata_urls: ["http://169.254.169.254:80", "http://instance-data:8773"]
+       meta-data_urls: ["http://169.254.169.254:80", "http://instance-data:8773"]
        max_wait: 120
        timeout: 50
        apply_full_imds_network_config: true
