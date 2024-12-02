@@ -100,10 +100,6 @@ OSFAMILIES = {
 
 LOG = logging.getLogger(__name__)
 
-# This is a best guess regex, based on current EC2 AZs on 2017-12-11.
-# It could break when Amazon adds new regions and new AZs.
-_EC2_AZ_RE = re.compile("^[a-z][a-z]-(?:[a-z]+-)+[0-9][a-z]$")
-
 # Default NTP Client Configurations
 PREFERRED_NTP_CLIENTS = ["chrony", "systemd-timesyncd", "ntp", "ntpdate"]
 
@@ -1707,7 +1703,12 @@ def _get_package_mirror_info(
 
         # ec2 availability zones are named cc-direction-[0-9][a-d] (us-east-1b)
         # the region is us-east-1. so region = az[0:-1]
-        if _EC2_AZ_RE.match(data_source.availability_zone):
+        # This is a best guess regex, based on current EC2 AZs on 2017-12-11.
+        # It could break when Amazon adds new regions and new AZs.
+        if re.match(
+            "^[a-z][a-z]-(?:[a-z]+-)+[0-9][a-z]$",
+            data_source.availability_zone,
+        ):
             ec2_region = data_source.availability_zone[0:-1]
 
             if ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES:
