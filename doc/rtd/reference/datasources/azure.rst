@@ -13,9 +13,9 @@ with the "endpoint".
 IMDS
 ====
 
-Azure provides the `instance meta-data service (IMDS)`_, which is a REST service
-on ``169.254.169.254`` providing additional configuration information to the
-instance. ``Cloud-init`` uses the IMDS for:
+Azure provides the `instance meta-data service (IMDS)`_, which is a REST
+service on ``169.254.169.254`` providing additional configuration information
+to the instance. ``Cloud-init`` uses the IMDS for:
 
 - Network configuration for the instance which is applied per boot.
 - A pre-provisioning gate which blocks instance configuration until Azure
@@ -72,10 +72,10 @@ An example configuration with the default values is provided below:
          ephemeral0: /dev/disk/cloud/azure_resource
 
 
-User data
+User-data
 =========
 
-User data is provided to ``cloud-init`` inside the :file:`ovf-env.xml` file.
+User-data is provided to ``cloud-init`` inside the :file:`ovf-env.xml` file.
 ``Cloud-init`` expects that user-data will be provided as a base64 encoded
 value inside the text child of an element named ``UserData`` or
 ``CustomData``, which is a direct child of the

@@ -18,7 +18,7 @@ completes, a warning is logged that DataSourceNone is being used.
 Configuration
 =============
 
-User data and meta-data may be passed to cloud-init via system
+User-data and meta-data may be passed to cloud-init via system
 configuration in :file:`/etc/cloud/cloud.cfg` or
 :file:`/etc/cloud/cloud.cfg.d/*.cfg`.
 

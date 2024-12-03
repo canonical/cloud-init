@@ -63,10 +63,10 @@ it will:
   from it. This data tells cloud-init what actions to take. This can be in the
   form of:
 
-  * **Metadata** about the instance, such as the machine ID, hostname and
-    network config, or
-  * **Vendor data** and/or **user-data**. These take the same form, although
-    Vendor data is provided by the cloud vendor, and user-data is provided by
+  * **Meta-data** instance platform data, such as the machine ID, hostname and
+    network config
+  * **Vendor-data** and/or **user-data**. These take the same form, although
+    Vendor-data is provided by the cloud vendor, and user-data is provided by
     the user. These data are usually applied in the post-networking phase, and
     might include:
 

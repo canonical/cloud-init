@@ -62,7 +62,7 @@ Using ``instance-data``
 
 ``instance-data`` can be used in the following configuration types:
 
-* :ref:`User data scripts<user_data_script>`.
+* :ref:`User-data scripts<user_data_script>`.
 * :ref:`Cloud-config<user_data_formats-cloud_config>`.
 * :ref:`Base configuration<configuration>`.
 * Command line interface via :command:`cloud-init query` or
@@ -101,7 +101,7 @@ Example: Cloud config with ``instance-data``
          "availability-zone": "{{ v1.availability_zone }}"}'
          https://example.com
 
-Example: User data script with ``instance-data``
+Example: User-data script with ``instance-data``
 ------------------------------------------------
 
 .. code-block:: jinja

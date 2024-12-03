@@ -35,7 +35,8 @@ use no changes to the defaults should be necessary: ::
 
 * ``base_urls``
 
-  The URLs used to access the meta-data service over IPv4 and IPv6 respectively.
+  The URLs used to access the meta-data service over IPv4 and IPv6
+  respectively.
 
 * ``paths``
 

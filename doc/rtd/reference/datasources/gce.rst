@@ -4,9 +4,9 @@ Google Compute Engine
 *********************
 
 The GCE datasource gets its data from the internal compute meta-data server.
-Metadata can be queried at the URL
+The instance metadata service can be queried at the URL
 :file:`http://meta-data.google.internal/computeMetadata/v1/`
-from within an instance. For more information see the `GCE meta-data docs`_.
+from within an instance. For more information see the `GCE metadata docs`_.
 
 Currently, the default project and instance level meta-data keys
 ``project/attributes/sshKeys`` and ``instance/attributes/ssh-keys`` are merged
@@ -49,4 +49,4 @@ An example configuration with the default values is provided below:
        retries: 5
        sec_between_retries: 1
 
-.. _GCE meta-data docs: https://cloud.google.com/compute/docs/storing-retrieving-meta-data
+.. _GCE metadata docs: https://cloud.google.com/compute/docs/storing-retrieving-meta-data

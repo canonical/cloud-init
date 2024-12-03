@@ -22,13 +22,13 @@ provided via a simple protocol:
 New versions of the SmartOS tooling will include support for Base64-encoded
 data.
 
-Metadata channels
-=================
+Instance metadata channels
+==========================
 
-``Cloud-init`` supports three modes of delivering user-data and meta-data via
+``Cloud-init`` supports three modes of delivering configuration data via
 the flexible channels of SmartOS.
 
-1. User data is written to :file:`/var/db/user-data`:
+1. User-data is written to :file:`/var/db/user-data`:
 
    - As per the spec, user-data is for consumption by the end user, not
      provisioning tools.

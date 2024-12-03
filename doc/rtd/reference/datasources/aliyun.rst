@@ -6,10 +6,10 @@ Alibaba Cloud (AliYun)
 The ``AliYun`` datasource reads data from Alibaba Cloud ECS. Support is
 present in ``cloud-init`` since 0.7.9.
 
-Metadata service
-================
+Instance metadata service
+=========================
 
-The Alibaba Cloud meta-data service is available at the well known URL
+The Alibaba Cloud instance metadata service is available at the well known URL
 :file:`http://100.100.100.200/`. For more information see Alibaba Cloud ECS
 on `meta-data`_.
 
@@ -55,10 +55,10 @@ Example output:
    2016-01-01
    latest
 
-Metadata
---------
+Instance Metadata Service
+-------------------------
 
-Instance meta-data can be queried at
+The instance metadata service can be queried at
 :file:`http://100.100.100.200/2016-01-01/meta-data`:
 
 .. code-block:: shell-session
@@ -89,8 +89,8 @@ Example output:
    vpc-cidr-block
    vpc-id
 
-Userdata
---------
+User-data
+---------
 
 If provided, user-data will appear at
 :file:`http://100.100.100.200/2016-01-01/user-data`.

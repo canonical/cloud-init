@@ -60,7 +60,7 @@ Reboot the system when prompted.
 Create some user-data
 =====================
 
-User data is the primary way for a user to customize a cloud-init instance.
+User-data is the primary way for a user to customize a cloud-init instance.
 Open Notepad and paste the following:
 
 .. code-block:: yaml

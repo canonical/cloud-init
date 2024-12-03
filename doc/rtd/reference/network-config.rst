@@ -22,7 +22,7 @@ processed:
 - :file:`/run/cloud-init/network-config.json`: world-readable JSON containing
   the selected source network-config JSON used by cloud-init network renderers.
 
-User data cannot change an instance's network configuration. In the absence
+User-data cannot change an instance's network configuration. In the absence
 of network configuration in any of the above sources, ``cloud-init`` will
 write out a network configuration that will issue a DHCP request on a "first"
 network interface.
@@ -125,7 +125,7 @@ The following datasources optionally provide network configuration:
 
 - :ref:`datasource_config_drive`
 
-  - `OpenStack Metadata Service Network`_
+  - `OpenStack Instance Metadata Service Network`_
 
 - :ref:`datasource_digital_ocean`
 
@@ -142,11 +142,11 @@ The following datasources optionally provide network configuration:
 
 - :ref:`datasource_openstack`
 
-  - `OpenStack Metadata Service Network`_
+  - `OpenStack Instance Metadata Service Network`_
 
 - :ref:`datasource_smartos`
 
-  - `SmartOS JSON Metadata`_
+  - `SmartOS JSON Instance Metadata`_
 
 - :ref:`datasource_upcloud`
 
@@ -321,8 +321,8 @@ Example output:
 .. _NetworkManager: https://networkmanager.dev
 .. _Netplan: https://netplan.io/
 .. _DigitalOcean JSON meta-data: https://developers.digitalocean.com/documentation/meta-data/
-.. _OpenStack Metadata Service Network: https://specs.openstack.org/openstack/nova-specs/specs/liberty/implemented/meta-data-service-network-info.html
-.. _SmartOS JSON Metadata: https://eng.joyent.com/mdata/datadict.html
+.. _OpenStack Instance Metadata Service Network: https://specs.openstack.org/openstack/nova-specs/specs/liberty/implemented/meta-data-service-network-info.html
+.. _SmartOS JSON Instance Metadata: https://eng.joyent.com/mdata/datadict.html
 .. _UpCloud JSON meta-data: https://developers.upcloud.com/1.3/8-servers/#meta-data-service
 .. _Vultr JSON meta-data: https://www.vultr.com/meta-data/
 .. _cloudinit.net.activators.select_activator: https://github.com/canonical/cloud-init/blob/main/cloudinit/net/activators.py#L249

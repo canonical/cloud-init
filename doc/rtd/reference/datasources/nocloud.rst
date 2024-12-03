@@ -25,7 +25,7 @@ instance at runtime.
 user-data
 ---------
 
-User data is a :ref:`configuration format<user_data_formats>` that allows a
+User-data is a :ref:`configuration format<user_data_formats>` that allows a
 user to configure an instance.
 
 meta-data
@@ -36,7 +36,7 @@ The ``meta-data`` file is a YAML-formatted file.
 vendor-data
 -----------
 
-Vendor data may be used to provide default cloud-specific configurations which
+Vendor-data may be used to provide default cloud-specific configurations which
 may be overriden by user-data. This may be useful, for example, to configure an
 instance with a cloud provider's repository mirror for faster package
 installation.

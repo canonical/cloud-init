@@ -1,25 +1,25 @@
 .. _user_data_formats:
 
-User data formats
+User-data formats
 *****************
 
-User data is configuration data provided by a user of a cloud platform to an
-instance at launch. User data can be passed to cloud-init in any of many
-formats documented here. User data is combined with the other
+User-data is configuration data provided by a user of a cloud platform to an
+instance at launch. User-data can be passed to cloud-init in any of many
+formats documented here. User-data is combined with the other
 :ref:`configuration sources<configuration>` to create a combined configuration
 which modifies an instance.
 
 Configuration types
 ===================
 
-User data formats can be categorized into those that directly configure the
+User-data formats can be categorized into those that directly configure the
 instance, and those that serve as a container, template, or means to obtain
 or modify another configuration.
 
 Formats that directly configure the instance:
 
 - `Cloud config data`_
-- `User data script`_
+- `User-data script`_
 - `Cloud boothook`_
 
 Formats that deal with other user-data formats:
@@ -71,7 +71,7 @@ For more information, see the cloud config
 
 .. _user_data_script:
 
-User data script
+User-data script
 ================
 
 Example
@@ -86,7 +86,7 @@ Explanation
 -----------
 
 A user-data script is a single script to be executed once per instance.
-User data scripts are run relatively late in the boot process, during
+User-data scripts are run relatively late in the boot process, during
 cloud-init's :ref:`final stage<boot-Final>` as part of the
 :ref:`cc_scripts_user<mod_cc_scripts_user>` module.
 
@@ -376,11 +376,11 @@ Note that gzip compressed content is not represented here as it gets passed
 as binary data and so may be processed automatically.
 
 +--------------------+-----------------------------+-------------------------+
-|User data format    |Header                       |Content-Type             |
+|User-data format    |Header                       |Content-Type             |
 +====================+=============================+=========================+
 |Cloud config data   |#cloud-config                |text/cloud-config        |
 +--------------------+-----------------------------+-------------------------+
-|User data script    |#!                           |text/x-shellscript       |
+|User-data script    |#!                           |text/x-shellscript       |
 +--------------------+-----------------------------+-------------------------+
 |Cloud boothook      |#cloud-boothook              |text/cloud-boothook      |
 +--------------------+-----------------------------+-------------------------+

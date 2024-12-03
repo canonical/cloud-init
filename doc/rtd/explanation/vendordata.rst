@@ -1,22 +1,22 @@
 .. _vendordata:
 
-Vendor data
+Vendor-data
 ***********
 
 Overview
 ========
 
-Vendor data is data provided by the entity that launches an instance (e.g.,
+Vendor-data is data provided by the entity that launches an instance (e.g.,
 the cloud provider). This data can be used to customise the image to fit into
 the particular environment it is being run in.
 
-Vendor data follows the same rules as user-data, with the following
+Vendor-data follows the same rules as user-data, with the following
 caveats:
 
 1. Users have ultimate control over vendor-data. They can disable its
    execution or disable handling of specific parts of multi-part input.
 2. By default it only runs on first boot.
-3. Vendor data can be disabled by the user. If the use of vendor-data is
+3. Vendor-data can be disabled by the user. If the use of vendor-data is
    required for the instance to run, then vendor-data should not be used.
 4. User-supplied cloud-config is merged over cloud-config from vendor-data.
 
@@ -29,7 +29,7 @@ Input formats
 =============
 
 ``Cloud-init`` will download and cache to filesystem any vendor-data that it
-finds. Vendor data is handled exactly like
+finds. Vendor-data is handled exactly like
 :ref:`user-data<user_data_formats>`. This means that the vendor can supply
 multi-part input and have those parts acted on in the same way as with user
 data.

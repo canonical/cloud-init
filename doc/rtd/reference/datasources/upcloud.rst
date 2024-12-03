@@ -14,7 +14,7 @@ Providing user-data
 
 When creating a server, user-data is provided by specifying it as
 ``user_data`` in the API or via the server creation tool in the control panel.
-User data is immutable during the server's lifetime, and can be removed by
+User-data is immutable during the server's lifetime, and can be removed by
 deleting the server.
 
 .. _UpCloud: https://upcloud.com/

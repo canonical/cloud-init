@@ -449,16 +449,16 @@ The hostname is set by way of the meta-data key ``local-hostname``.
 Setting the instance ID
 -----------------------
 
-The instance ID may be set by way of the meta-data key ``instance-id``. However,
-if this value is absent then the instance ID is read from the file
+The instance ID may be set by way of the meta-data key ``instance-id``.
+However, if this value is absent then the instance ID is read from the file
 :file:`/sys/class/dmi/id/product_uuid`.
 
 Providing public SSH keys
 -------------------------
 
-The public SSH keys may be set by way of the meta-data key ``public-keys-data``.
-Each newline-terminated string will be interpreted as a separate SSH public
-key, which will be placed in distro's default user's
+The public SSH keys may be set by way of the meta-data key
+``public-keys-data``. Each newline-terminated string will be interpreted as a
+separate SSH public key, which will be placed in distro's default user's
 :file:`~/.ssh/authorized_keys`. If the value is empty or absent, then nothing
 will be written to :file:`~/.ssh/authorized_keys`.
 

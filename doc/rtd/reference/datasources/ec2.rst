@@ -10,7 +10,7 @@ to the instance by the cloud provider (typically this IP is
 instance so that the instance can make calls to get instance user-data and
 instance meta-data.
 
-Metadata is accessible via the following URL: ::
+The instance metadata service is accessible via the following URL: ::
 
     GET http://169.254.169.254/2009-04-04/meta-data/
     ami-id
@@ -29,16 +29,16 @@ Metadata is accessible via the following URL: ::
     reservation-id
     security-groups
 
-User data is accessible via the following URL: ::
+User-data is accessible via the following URL: ::
 
     GET http://169.254.169.254/2009-04-04/user-data
     1234,fred,reboot,true | 4512,jimbo, | 173,,,
 
-Note that there are multiple EC2 Metadata versions of this data provided
-to instances. ``Cloud-init`` attempts to use the most recent API version it
-supports in order to get the latest API features and instance-data. If a given
-API version is not exposed to the instance, those API features will be
-unavailable to the instance.
+Note that there are multiple EC2 instance metadata service versions of this
+data provided to instances. ``Cloud-init`` attempts to use the most recent API
+version it supports in order to get the latest API features and instance-data.
+If a given API version is not exposed to the instance, those API features will
+be unavailable to the instance.
 
 +----------------+----------------------------------------------------------+
 + EC2 version    | supported instance-data/feature                          |

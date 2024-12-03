@@ -14,8 +14,8 @@ To determine whether a VM is running on the ZStack platform, ``cloud-init``
 checks DMI information via ``dmidecode -s chassis-asset-tag``. If the output
 ends with ``.zstack.io``, it's running on the ZStack platform.
 
-Metadata
---------
+Instance Metadata Service
+-------------------------
 
 The same way as with EC2, instance meta-data can be queried at: ::
 
@@ -23,7 +23,7 @@ The same way as with EC2, instance meta-data can be queried at: ::
     instance-id
     local-hostname
 
-User data
+User-data
 ---------
 
 The same way as with EC2, instance user-data can be queried at: ::

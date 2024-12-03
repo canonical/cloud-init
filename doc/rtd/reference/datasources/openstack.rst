@@ -3,7 +3,8 @@
 OpenStack
 *********
 
-This datasource supports reading data from the `OpenStack Metadata Service`_.
+This datasource supports reading data from the
+`OpenStack Instance Metadata Service`_.
 
 Discovery
 =========
@@ -159,4 +160,4 @@ Example using Ubuntu + GRUB2:
     $ grub-mkconfig -o /boot/efi/EFI/ubuntu/grub.cfg
 
 
-.. _OpenStack Metadata Service: https://docs.openstack.org/nova/latest/admin/metadata-service.html
+.. _OpenStack Instance Metadata Service: https://docs.openstack.org/nova/latest/admin/metadata-service.html

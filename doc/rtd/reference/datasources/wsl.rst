@@ -39,7 +39,7 @@ For more information about how to configure WSL,
 
 .. _wsl_user_data_configuration:
 
-User data configuration
+User-data configuration
 ========================
 
 The WSL datasource relies exclusively on the Windows filesystem as the provider
@@ -47,7 +47,7 @@ of user-data. Access to those files is provided by WSL itself unless disabled
 by the user, thus the datasource doesn't require any special component running
 on the Windows host to provide such data.
 
-User data can be supplied in any
+User-data can be supplied in any
 :ref:`format supported by cloud-init<user_data_formats>`, such as YAML
 cloud-config files or shell scripts. At runtime, the WSL datasource looks for
 user-data in the following locations inside the Windows host filesystem, in the
@@ -133,8 +133,8 @@ the subsystem was aware of cloud-init and intended to leverage it, which is not
 the case to the best of our knowledge at the time of this writing.
 
 Most of what ``meta-data`` is intended for is not applicable under WSL, such as
-setting a hostname. Yet, the knowledge of ``meta-data.instance-id`` is vital for
-cloud-init. So, this datasource provides a default value but also supports
+setting a hostname. Yet, the knowledge of ``meta-data.instance-id`` is vital
+for cloud-init. So, this datasource provides a default value but also supports
 optionally sourcing meta-data from a per-instance specific configuration file:
 ``%USERPROFILE%\.cloud-init\<InstanceName>.meta-data``. If that file exists, it
 is a YAML-formatted file minimally providing a value for instance ID

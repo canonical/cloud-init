@@ -243,8 +243,8 @@ run only once due to semaphores in :file:`/var/lib/cloud/`.
 :command:`query`
 ----------------
 
-Query standardised cloud instance meta-data crawled by ``cloud-init`` and stored
-in :file:`/run/cloud-init/instance-data.json`. This is a convenience
+Query standardised cloud instance meta-data crawled by ``cloud-init`` and
+stored in :file:`/run/cloud-init/instance-data.json`. This is a convenience
 command-line interface to reference any cached configuration meta-data that
 ``cloud-init`` crawls when booting the instance. See :ref:`instance_meta-data`
 for more info.
