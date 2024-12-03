@@ -2,10 +2,10 @@
 
 Scaleway
 ********
-`Scaleway`_ datasource uses data provided by the Scaleway metadata service
+`Scaleway`_ datasource uses data provided by the Scaleway meta-data service
 to do initial configuration of the network services.
 
-The metadata service is reachable at the following addresses :
+The meta-data service is reachable at the following addresses :
 
 * IPv4: ``169.254.42.42``
 * IPv6: ``fd00:42::42``
@@ -21,32 +21,32 @@ the following information in the `/etc/cloud.cfg.d` directory::
      retries: 3
      timeout: 10
      max_wait: 2
-     metadata_urls:
+     meta-data_urls:
        - alternate_url
 
 * ``retries``
 
-  Controls the maximum number of attempts to reach the metadata service.
+  Controls the maximum number of attempts to reach the meta-data service.
 
 * ``timeout``
 
-  Controls the number of seconds to wait for a response from the metadata
+  Controls the number of seconds to wait for a response from the meta-data
   service for one protocol.
 
 * ``max_wait``
 
-  Controls the number of seconds to wait for a response from the metadata
+  Controls the number of seconds to wait for a response from the meta-data
   service for all protocols.
 
-* ``metadata_urls``
+* ``meta-data_urls``
 
-  List of additional URLs to be used in an attempt to reach the metadata
+  List of additional URLs to be used in an attempt to reach the meta-data
   service in addition to the existing ones.
 
 User Data
 =========
 
-cloud-init fetches user data using the metadata service using the `/user_data`
+cloud-init fetches user-data using the meta-data service using the `/user_data`
 endpoint. Scaleway's documentation provides a detailed description on how to
 use  `userdata`_. One can also interact with it using the `userdata api`_.
 
