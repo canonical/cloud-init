@@ -319,6 +319,7 @@ Subnet types are one of the following:
 - ``ipv6_dhcpv6-stateful``: Configure this interface with ``dhcp6``.
 - ``ipv6_dhcpv6-stateless``: Configure this interface with SLAAC and DHCP.
 - ``ipv6_slaac``: Configure address with SLAAC.
+- ``manual`` : Manual configure this interface.
 
 When making use of ``dhcp`` or either of the ``ipv6_dhcpv6`` types,
 no additional configuration is needed in the subnet dictionary.
