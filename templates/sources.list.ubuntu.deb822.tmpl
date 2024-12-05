@@ -53,4 +53,4 @@ Types: deb
 URIs: {{security}}
 Suites: {{codename}}-security
 Components: main universe restricted multiverse
-Signed-By: {{security_key | default('/usr/share/keyrings/ubuntu-archive-keyring.gpg', true)}}
+Signed-By: {{security_key | default(primary_key, true) | default('/usr/share/keyrings/ubuntu-archive-keyring.gpg', true)}}
