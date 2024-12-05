@@ -143,7 +143,7 @@ def verify_clean_boot(
             ignore_warnings,
             "Could not match supplied host pattern, ignoring:",
         )
-    elif "oracle" == PLATFORM:
+    elif "oci" == PLATFORM:
         # LP: #1842752
         ignore_errors = append_or_create_list(
             ignore_warnings, "Stderr: RTNETLINK answers: File exists"
