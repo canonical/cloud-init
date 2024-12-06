@@ -11,9 +11,14 @@ class TestGentoo(CiTestCase):
         hostname = "myhostname"
         hostfile = self.tmp_path("hostfile")
         distro._write_hostname(hostname, hostfile)
-        self.assertEqual(
-            'hostname="myhostname"\n', util.load_text_file(hostfile)
-        )
+        if distro.uses_systemd():
+            self.assertEqual(
+                'myhostname\n', util.load_text_file(hostfile)
+            )
+        else:
+            self.assertEqual(
+                'hostname="myhostname"\n', util.load_text_file(hostfile)
+            )
 
     def test_write_existing_hostname_with_comments(self):
         distro = _get_distro("gentoo")
@@ -22,7 +27,13 @@ class TestGentoo(CiTestCase):
         hostfile = self.tmp_path("hostfile")
         atomic_helper.write_file(hostfile, contents, omode="w")
         distro._write_hostname(hostname, hostfile)
-        self.assertEqual(
-            '#This is the hostname\nhostname="myhostname"\n',
-            util.load_text_file(hostfile),
-        )
+        if distro.uses_systemd():
+            self.assertEqual(
+                '#This is the hostname\nmyhostname\n',
+                util.load_text_file(hostfile),
+            )
+        else:
+            self.assertEqual(
+                '#This is the hostname\nhostname="myhostname"\n',
+                util.load_text_file(hostfile),
+            )
