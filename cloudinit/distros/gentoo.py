@@ -43,7 +43,6 @@ class Distro(distros.Distro):
             # Fix sshd restarts (openrc-specific?)
             cfg["ssh_svcname"] = "/etc/init.d/sshd"
 
-
     def apply_locale(self, _, out_fn=None):
         """Locales need to be added to /etc/locale.gen and generated prior
         to selection. Default to en_US.UTF-8 for simplicity.

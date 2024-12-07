@@ -12,9 +12,7 @@ class TestGentoo(CiTestCase):
         hostfile = self.tmp_path("hostfile")
         distro._write_hostname(hostname, hostfile)
         if distro.uses_systemd():
-            self.assertEqual(
-                "myhostname\n", util.load_text_file(hostfile)
-            )
+            self.assertEqual("myhostname\n", util.load_text_file(hostfile))
         else:
             self.assertEqual(
                 'hostname="myhostname"\n', util.load_text_file(hostfile)
