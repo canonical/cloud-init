@@ -2,11 +2,11 @@
 
 from cloudinit import atomic_helper, util
 from tests.unittests.distros import _get_distro
-from tests.unittests.helpers import CiTestCase
+from tests.unittests.helpers import CiTestCase, mock
 
 
 class TestGentoo(CiTestCase):
-    def test_write_hostname(self):
+    def test_write_hostname(self, whatever=False):
         distro = _get_distro("gentoo")
         hostname = "myhostname"
         hostfile = self.tmp_path("hostfile")
@@ -18,7 +18,7 @@ class TestGentoo(CiTestCase):
                 'hostname="myhostname"\n', util.load_text_file(hostfile)
             )
 
-    def test_write_existing_hostname_with_comments(self):
+    def test_write_existing_hostname_with_comments(self, whatever=False):
         distro = _get_distro("gentoo")
         hostname = "myhostname"
         contents = '#This is the hostname\nhostname="localhost"'
@@ -35,3 +35,8 @@ class TestGentoo(CiTestCase):
                 '#This is the hostname\nhostname="myhostname"\n',
                 util.load_text_file(hostfile),
             )
+
+
+@mock.patch("cloudinit.distros.uses_systemd", return_value=False)
+class TestGentooOpenRC(TestGentoo):
+    pass
