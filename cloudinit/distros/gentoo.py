@@ -84,8 +84,8 @@ class Distro(distros.Distro):
 
         if distros.uses_systemd():
             # Gentoo uses the same format for /etc/hostname as everyone else-
-            # only the hostname by itself. Works for openrc and systemd,
-            # but openrc has its own config file and /etc/hostname is generated.
+            # only the hostname by itself. Works for openrc and systemd, but
+            # openrc has its own config file and /etc/hostname is generated.
             conf.set_hostname(hostname)
         else:
             # Openrc generates /etc/hostname from /etc/conf.d/hostname with the
