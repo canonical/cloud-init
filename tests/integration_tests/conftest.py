@@ -130,6 +130,7 @@ def setup_image(session_cloud: IntegrationCloud, request):
         or integration_settings.INCLUDE_COVERAGE
         or integration_settings.INCLUDE_PROFILE
     ):
+        yield
         return
     log.info("Setting up source image")
     client = session_cloud.launch()
@@ -161,7 +162,8 @@ def setup_image(session_cloud: IntegrationCloud, request):
     # For some reason a yield here raises a
     # ValueError: setup_image did not yield a value
     # during setup so use a finalizer instead.
-    request.addfinalizer(session_cloud.delete_snapshot)
+    yield session_cloud
+    session_cloud.delete_snapshot()
 
 
 def _collect_logs(instance: IntegrationInstance, log_dir: Path):
