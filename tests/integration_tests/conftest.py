@@ -76,6 +76,15 @@ def disable_subp_usage(request):
 
 @pytest.fixture(scope="session")
 def session_cloud() -> Generator[IntegrationCloud, None, None]:
+    try:
+        cloud = _session_cloud()
+        yield cloud
+        cloud.destroy()
+    except Exception as e:
+        pytest.exit(f"{type(e)} in session fixture setup: {str(e)}", returncode=2)
+
+
+def _session_cloud() -> IntegrationCloud:
     if integration_settings.PLATFORM not in platforms.keys():
         raise ValueError(
             f"{integration_settings.PLATFORM} is an invalid PLATFORM "
@@ -91,8 +100,7 @@ def session_cloud() -> Generator[IntegrationCloud, None, None]:
         )
     cloud = platforms[integration_settings.PLATFORM](image_type=image_type)
     cloud.emit_settings_to_log()
-    yield cloud
-    cloud.destroy()
+    return cloud
 
 
 def get_validated_source(
@@ -119,51 +127,54 @@ def get_validated_source(
 
 
 @pytest.fixture(scope="session")
-def setup_image(session_cloud: IntegrationCloud, request):
-    """Setup the target environment with the correct version of cloud-init.
+def setup_image(session_cloud: IntegrationCloud):
+    """Set up the target environment with the correct version of cloud-init.
 
     So we can launch instances / run tests with the correct image
     """
-    source = get_validated_source(session_cloud)
-    if not (
-        source.installs_new_version()
-        or integration_settings.INCLUDE_COVERAGE
-        or integration_settings.INCLUDE_PROFILE
-    ):
-        yield
-        return
-    log.info("Setting up source image")
-    client = session_cloud.launch()
-    if source.installs_new_version():
-        log.info("Installing cloud-init from %s", source.name)
-        client.install_new_cloud_init(source)
-    if (
-        integration_settings.INCLUDE_PROFILE
-        and integration_settings.INCLUDE_COVERAGE
-    ):
-        log.error(
-            "Invalid configuration, cannot enable both profile and coverage."
-        )
-        raise ValueError()
-    if integration_settings.INCLUDE_COVERAGE:
-        log.info("Installing coverage")
-        client.install_coverage()
-    elif integration_settings.INCLUDE_PROFILE:
-        log.info("Installing profiler")
-        client.install_profile()
-    # All done customizing the image, so snapshot it and make it global
-    snapshot_id = client.snapshot()
-    client.cloud.snapshot_id = snapshot_id
-    # Even if we're keeping instances, we don't want to keep this
-    # one around as it was just for image creation
-    client.destroy()
-    log.info("Done with environment setup")
+    try:
+        source = get_validated_source(session_cloud)
+        if not (
+            source.installs_new_version()
+            or integration_settings.INCLUDE_COVERAGE
+            or integration_settings.INCLUDE_PROFILE
+        ):
+            yield
+            return
+        log.info("Setting up source image")
+        client = session_cloud.launch()
+        if source.installs_new_version():
+            log.info("Installing cloud-init from %s", source.name)
+            client.install_new_cloud_init(source)
+        if (
+            integration_settings.INCLUDE_PROFILE
+            and integration_settings.INCLUDE_COVERAGE
+        ):
+            log.error(
+                "Invalid configuration, cannot enable both profile and "
+                "coverage."
+            )
+            raise ValueError()
+        if integration_settings.INCLUDE_COVERAGE:
+            log.info("Installing coverage")
+            client.install_coverage()
+        elif integration_settings.INCLUDE_PROFILE:
+            log.info("Installing profiler")
+            client.install_profile()
+        # All done customizing the image, so snapshot it and make it global
+        snapshot_id = client.snapshot()
+        client.cloud.snapshot_id = snapshot_id
+        # Even if we're keeping instances, we don't want to keep this
+        # one around as it was just for image creation
+        client.destroy()
+        log.info("Done with environment setup")
 
-    # For some reason a yield here raises a
-    # ValueError: setup_image did not yield a value
-    # during setup so use a finalizer instead.
-    yield session_cloud
-    session_cloud.delete_snapshot()
+        # For some reason a yield here raises a
+        # ValueError: setup_image did not yield a value
+        # during setup so use a finalizer instead.
+        return session_cloud
+    except Exception as e:
+        pytest.exit(f"{type(e)} in session fixture setup: {str(e)}", returncode=2)
 
 
 def _collect_logs(instance: IntegrationInstance, log_dir: Path):
@@ -314,13 +325,16 @@ def _client(
 
     try:
         with session_cloud.launch(
-            user_data=user_data, launch_kwargs=launch_kwargs, **local_launch_kwargs
+            user_data=user_data,
+            launch_kwargs=launch_kwargs,
+            **local_launch_kwargs,
         ) as instance:
             if lxd_use_exec is not None and isinstance(
                 instance.instance, LXDInstance
             ):
                 # Existing instances are not affected by the launch kwargs, so
-                # ensure it here; we still need the launch kwarg so waiting works
+                # ensure it here; we still need the launch kwarg so waiting
+                # works
                 instance.instance.execute_via_ssh = False
             previous_failures = request.session.testsfailed
             yield instance
@@ -328,15 +342,17 @@ def _client(
             _collect_artifacts(instance, request.node.nodeid, test_failed)
         # conflicting requirements:
         # - pytest thinks that it can cleanup loggers after tests run
-        # - pycloudlib thinks that at garbage collection is a good place to tear
-        #   down sftp connections
-        # After the final test runs, pytest might clean up loggers which will cause
-        # paramiko to barf when it logs that the connection is being closed.
+        # - pycloudlib thinks that at garbage collection is a good place to
+        # tear down sftp connections
+        #
+        # After the final test runs, pytest might clean up loggers which will
+        # cause paramiko to barf when it logs that the connection is being
+        # closed.
         #
         # Manually run __del__() to prevent this teardown mess.
         instance.instance.__del__()
     except Exception as e:
-        pytest.exit(f"Failed to set up pytest session: {e}", returncode=1)
+        pytest.exit(f"{type(e)} in session fixture setup: {str(e)}", returncode=2)
 
 
 @pytest.fixture
