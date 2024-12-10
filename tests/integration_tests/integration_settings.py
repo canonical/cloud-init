@@ -9,6 +9,7 @@ from cloudinit.util import is_false, is_true
 ##################################################################
 
 # Keep instance (mostly for debugging) when test is finished
+# set to "ON_ERROR" to only keep an instance when tests fail
 KEEP_INSTANCE = False
 # Keep snapshot image (mostly for debugging) when test is finished
 KEEP_IMAGE = False
