@@ -86,7 +86,7 @@ Presentation takeaways
 
   This aligns well with Brett’s ongoing roadmap work to raise warnings from the
   CLI and some of the strict JSON schema validation on network-config and user
-  data/vendor data.
+  data/vendor-data.
 
 * Good lessons from both AlpineLinux (Dermot Bradley), who investigated SSH
   alternatives like dropbearSSH and tinySSH, and FreeBSD (Mina Galić), who
