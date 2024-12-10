@@ -8,14 +8,19 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import email
 import logging
 import os
+import pathlib
+from email.message import Message
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.nonmultipart import MIMENonMultipart
 from email.mime.text import MIMEText
+from typing import Union, cast
 
-from cloudinit import features, handlers, util
+from cloudinit import features, gpg, handlers, subp, util
+from cloudinit.settings import KEY_DIR
 from cloudinit.url_helper import UrlError, read_file_or_url
 
 LOG = logging.getLogger(__name__)
@@ -78,13 +83,23 @@ class UserDataProcessor:
         self.paths = paths
         self.ssl_details = util.fetch_ssl_details(paths)
 
-    def process(self, blob):
+    def process(self, blob, require_signature=False):
         accumulating_msg = MIMEMultipart()
         if isinstance(blob, list):
             for b in blob:
-                self._process_msg(convert_string(b), accumulating_msg)
+                self._process_msg(
+                    convert_string(
+                        b, is_part=True, require_signature=require_signature
+                    ),
+                    accumulating_msg,
+                )
         else:
-            self._process_msg(convert_string(blob), accumulating_msg)
+            self._process_msg(
+                convert_string(
+                    blob, is_part=False, require_signature=require_signature
+                ),
+                accumulating_msg,
+            )
         return accumulating_msg
 
     def _process_msg(self, base_msg, append_msg):
@@ -361,27 +376,87 @@ def is_skippable(part):
     return False
 
 
-# Coverts a raw string into a mime message
-def convert_string(raw_data, content_type=NOT_MULTIPART_TYPE):
-    """convert a string (more likely bytes) or a message into
-    a mime message."""
+def decrypt_payload(payload: str, require_signature: bool) -> str:
+    """Decrypt/Verify a PGP message.
+
+    :param payload: ASCII-armored GPG message to process
+    :param require_signature: Whether to require a signature
+    :return: decrypted data
+    """
+    with gpg.GPG() as gpg_context:
+        # Import all keys from the /etc/cloud/keys directory
+        keys_dir = pathlib.Path(KEY_DIR)
+        if keys_dir.is_dir():
+            for key_path in keys_dir.iterdir():
+                gpg_context.import_key(key_path)
+        try:
+            return gpg_context.decrypt(
+                payload, require_signature=require_signature
+            )
+        except subp.ProcessExecutionError as e:
+            raise RuntimeError(
+                "Failed decrypting user data payload. "
+                f"Ensure any necessary keys are present in {KEY_DIR}."
+            ) from e
+
+
+def handle_encrypted(
+    data: bytes, is_part: bool, require_signature: bool
+) -> bytes:
+    # Decrypt/verify a PGP message. We do this here because a signed
+    # MIME part could be thwarted by other user data parts
+    if data[:27] == b"-----BEGIN PGP MESSAGE-----":
+        if is_part:
+            raise RuntimeError(
+                "PGP message must encompass entire user data or vendor data."
+            )
+        return decrypt_payload(data.decode("utf-8"), require_signature).encode(
+            "utf-8"
+        )
+    elif require_signature:
+        raise RuntimeError(
+            "'require_signature' was set true in cloud-init's base "
+            "configuration, but content is not signed."
+        )
+    return data
+
+
+def _create_binmsg(data):
+    maintype, subtype = NOT_MULTIPART_TYPE.split("/", 1)
+    msg = MIMEBase(maintype, subtype)
+    msg.set_payload(data)
+    return msg
+
+
+def convert_string(
+    raw_data: Union[str, bytes],
+    *,
+    is_part: bool = False,
+    require_signature: bool = False,
+) -> Message:
+    """Convert the raw data into a mime message.
+
+    'raw_data' is the data as it was received from the user-data source.
+    It could be a string, bytes, or a gzip compressed version of either.
+    """
     if not raw_data:
         raw_data = b""
-
-    def create_binmsg(data, content_type):
-        maintype, subtype = content_type.split("/", 1)
-        msg = MIMEBase(maintype, subtype)
-        msg.set_payload(data)
-        return msg
 
     if isinstance(raw_data, str):
         bdata = raw_data.encode("utf-8")
     else:
         bdata = raw_data
-    bdata = util.decomp_gzip(bdata, decode=False)
-    if b"mime-version:" in bdata[0:4096].lower():
-        msg = util.message_from_string(bdata.decode("utf-8"))
+    # cast here because decode=False means return type is bytes
+    bdata = cast(bytes, util.decomp_gzip(bdata, decode=False))
+
+    bdata = handle_encrypted(bdata, is_part, require_signature)
+
+    # Now ensure we have a MIME message
+    if b"mime-version:" in bdata[:4096].lower():
+        # If we have a pre-existing MIME, use it
+        msg = email.message_from_string(bdata.decode("utf-8"))
     else:
-        msg = create_binmsg(bdata, content_type)
+        # Otherwise, convert to MIME
+        msg = _create_binmsg(bdata)
 
     return msg
