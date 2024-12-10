@@ -81,7 +81,9 @@ def session_cloud() -> Generator[IntegrationCloud, None, None]:
         yield cloud
         cloud.destroy()
     except Exception as e:
-        pytest.exit(f"{type(e)} in session fixture setup: {str(e)}", returncode=2)
+        pytest.exit(
+            f"{type(e)} in session fixture setup: {str(e)}", returncode=2
+        )
 
 
 def _session_cloud() -> IntegrationCloud:
@@ -174,7 +176,9 @@ def setup_image(session_cloud: IntegrationCloud):
         # during setup so use a finalizer instead.
         return session_cloud
     except Exception as e:
-        pytest.exit(f"{type(e)} in session fixture setup: {str(e)}", returncode=2)
+        pytest.exit(
+            f"{type(e)} in session fixture setup: {str(e)}", returncode=2
+        )
 
 
 def _collect_logs(instance: IntegrationInstance, log_dir: Path):
@@ -352,7 +356,9 @@ def _client(
         # Manually run __del__() to prevent this teardown mess.
         instance.instance.__del__()
     except Exception as e:
-        pytest.exit(f"{type(e)} in session fixture setup: {str(e)}", returncode=2)
+        pytest.exit(
+            f"{type(e)} in session fixture setup: {str(e)}", returncode=2
+        )
 
 
 @pytest.fixture
