@@ -7,11 +7,11 @@ These examples show datasource configuration options for various datasources.
 
 The options shown are as follows:
 
-* ``timeout``: The timeout value for a request at metadata service
+* ``timeout``: The timeout value for a request at meta-data service
 * ``max_wait``: The length of time to wait (in seconds) before giving up on
-  the metadata service. The actual total wait could be up to:
-  ``len(resolvable_metadata_urls)*timeout``
-* ``metadata_url``: List of URLs to check for metadata services. There are no
+  the meta-data service. The actual total wait could be up to:
+  ``len(resolvable_meta-data_urls)*timeout``
+* ``meta-data_url``: List of URLs to check for meta-data services. There are no
   default values for this field.
 
 EC2
@@ -24,7 +24,7 @@ EC2
       EC2:
         timeout : 50
         max_wait : 120
-        metadata_url:
+        meta-data_url:
          - http://169.254.169.254:80
          - http://instance-data:8773
 
@@ -38,7 +38,7 @@ MAAS
       MAAS:
         timeout : 50
         max_wait : 120
-        metadata_url: http://mass-host.localdomain/source
+        meta-data_url: http://mass-host.localdomain/source
         consumer_key: Xh234sdkljf
         token_key: kjfhgb3n
         token_secret: 24uysdfx1w4
@@ -84,7 +84,7 @@ SmartOS
         # Smart OS datasource works over a socket interacting with
         # the host on the other end. By default, the socket file is in
         # the native .zoncontrol directory.
-        metadata_sockfile: /native/.zonecontrol/metadata.sock
+        meta-data_sockfile: /native/.zonecontrol/meta-data.sock
         # a list of keys that will not be base64 decoded even if base64_all
         no_base64_decode: ['root_authorized_keys', 'motd_sys_info',
                            'iptables_disable']

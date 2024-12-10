@@ -17,7 +17,7 @@ Test definition
 ===============
 
 Tests are defined like any other ``pytest`` test. The ``user_data``
-mark can be used to supply the cloud-config user data. Platform-specific
+mark can be used to supply the cloud-config user-data. Platform-specific
 marks can be used to limit tests to particular platforms. The ``client``
 fixture can be used to interact with the launched test instance.
 

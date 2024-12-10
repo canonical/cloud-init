@@ -3,13 +3,13 @@
 CloudStack
 **********
 
-`Apache CloudStack`_ exposes user data, metadata, user password, and account
+`Apache CloudStack`_ exposes user-data, meta-data, user password, and account
 SSH key through the ``virtual router``. The datasource obtains the ``virtual
 router`` address via DHCP lease information given to the instance.
-For more details on metadata and user data, refer to the
+For more details on meta-data and user-data, refer to the
 `CloudStack Administrator Guide`_.
 
-The following URLs provide to access user data and metadata from the Virtual
+The following URLs provide to access user-data and meta-data from the Virtual
 Machine. ``data-server.`` is a well-known hostname provided by the CloudStack
 ``virtual router`` that points to the next ``UserData`` server (which is
 usually also the ``virtual router``).
@@ -18,7 +18,7 @@ usually also the ``virtual router``).
 
     http://data-server./latest/user-data
     http://data-server./latest/meta-data
-    http://data-server./latest/meta-data/{metadata type}
+    http://data-server./latest/meta-data/{meta-data type}
 
 If ``data-server.`` cannot be resolved, ``cloud-init`` will try to obtain the
 ``virtual router``'s address from the system's DHCP leases. If that fails,
@@ -36,7 +36,7 @@ The settings that may be configured are:
 * :command:`max_wait`
 
   The maximum amount of clock time in seconds that should be spent searching
-  ``metadata_urls``. A value less than zero will result in only one request
+  ``meta-data_urls``. A value less than zero will result in only one request
   being made, to the first in the list.
 
   Default: 120
@@ -44,8 +44,8 @@ The settings that may be configured are:
 * :command:`timeout`
 
   The timeout value provided to ``urlopen`` for each individual http request.
-  This is used both when selecting a ``metadata_url`` and when crawling
-  the metadata service.
+  This is used both when selecting a ``meta-data_url`` and when crawling
+  the meta-data service.
 
   Default: 50
 
