@@ -39,9 +39,6 @@ class Distro(distros.Distro):
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
         self.osfamily = "gentoo"
-        if not distros.uses_systemd():
-            # Fix sshd restarts (openrc-specific?)
-            cfg["ssh_svcname"] = "/etc/init.d/sshd"
 
     def apply_locale(self, _, out_fn=None):
         """Locales need to be added to /etc/locale.gen and generated prior
