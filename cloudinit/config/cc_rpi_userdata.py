@@ -85,13 +85,13 @@ def run_userconf_service(
 
         if result.stderr:
             # Handle failure and restart if needed (Restart=on-failure logic)
-            LOG.debug(f"Userconf stderr service output: {result.stderr}")
+            LOG.debug("Userconf stderr service output: %s", result.stderr)
             return False
         else:
             lib_dir = os.path.dirname(MODULE_DEACTIVATION_FILE)
             # create deactivation file
             os.system(
-                f"mkdir -p {lib_dir} " "&& touch {MODULE_DEACTIVATION_FILE}"
+                f"mkdir -p {lib_dir} && touch {MODULE_DEACTIVATION_FILE}"
             )
             LOG.debug("Userconf service completed successfully.")
             return True

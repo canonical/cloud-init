@@ -24,7 +24,7 @@ meta: MetaSchema = {
 
 
 def configure_rpi_connect(enable: bool) -> None:
-    LOG.debug(f"Configuring rpi-connect: {enable}")
+    LOG.debug("Configuring rpi-connect: %s", enable)
 
     num = 0 if enable else 1
 
