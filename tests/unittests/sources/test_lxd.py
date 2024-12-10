@@ -101,12 +101,12 @@ def lxd_ds(request, paths):
     Return an instantiated DataSourceLXD.
 
     This also performs the mocking required for the default test case:
-        * ``is_platform_viable`` returns True,
+        * ``ds_detect`` returns True,
         * ``read_metadata`` returns ``LXD_V1_METADATA``
 
     (This uses the paths fixture for the required helpers.Paths object)
     """
-    with mock.patch(DS_PATH + "is_platform_viable", return_value=True):
+    with mock.patch(DS_PATH + "DataSourceLXD.ds_detect", return_value=True):
         with mock.patch(
             DS_PATH + "read_metadata", return_value=lxd_metadata()
         ):
@@ -121,12 +121,12 @@ def lxd_ds_no_network_config(request, paths):
     Return an instantiated DataSourceLXD.
 
     This also performs the mocking required for the default test case:
-        * ``is_platform_viable`` returns True,
+        * ``ds_detect`` returns True,
         * ``read_metadata`` returns ``LXD_V1_METADATA_NO_NETWORK_CONFIG``
 
     (This uses the paths fixture for the required helpers.Paths object)
     """
-    with mock.patch(DS_PATH + "is_platform_viable", return_value=True):
+    with mock.patch(DS_PATH + "DataSourceLXD.ds_detect", return_value=True):
         with mock.patch(
             DS_PATH + "read_metadata",
             return_value=lxd_metadata_no_network_config(),
@@ -369,7 +369,7 @@ class TestIsPlatformViable:
         """Return True only when LXD_SOCKET_PATH exists and is a socket."""
         m_exists.return_value = exists
         m_lstat.return_value = LStatResponse(lstat_mode)
-        assert expected is lxd.is_platform_viable()
+        assert expected is lxd.DataSourceLXD.ds_detect()
         m_exists.assert_has_calls([mock.call(lxd.LXD_SOCKET_PATH)])
         if exists:
             m_lstat.assert_has_calls([mock.call(lxd.LXD_SOCKET_PATH)])
