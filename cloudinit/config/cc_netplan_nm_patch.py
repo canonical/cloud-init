@@ -25,7 +25,7 @@ meta: MetaSchema = {
 }
 
 
-def exec_cmd(command: str) -> str | None:
+def exec_cmd(command: list[str]) -> str | None:
     try:
         result = subp.subp(command)
         if result.stdout is not None:
