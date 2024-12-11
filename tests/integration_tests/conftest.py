@@ -9,7 +9,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 from tarfile import TarFile
-from typing import Dict, Generator, Iterator, List, Type
+from typing import Dict, Generator, Iterator, List, Optional, Type
 
 import pytest
 from pycloudlib.cloud import ImageType
@@ -74,19 +74,23 @@ def disable_subp_usage(request):
     pass
 
 
+SESSION: Optional[IntegrationCloud] = None
+
+
 @pytest.fixture(scope="session")
 def session_cloud() -> Generator[IntegrationCloud, None, None]:
-    try:
-        cloud = _session_cloud()
-        yield cloud
-        cloud.destroy()
-    except Exception as e:
-        pytest.exit(
-            f"{type(e)} in session fixture setup: {str(e)}", returncode=2
-        )
+    """a shared session is created in pytest_sessionstart()
+
+    yield this shared session
+    """
+    global SESSION
+    if not SESSION:
+        pytest.exit("Session not set up", returncode=2)
+    yield SESSION
 
 
-def _session_cloud() -> IntegrationCloud:
+def get_session_cloud() -> IntegrationCloud:
+    """get_session_cloud() creates a session from configuration"""
     if integration_settings.PLATFORM not in platforms.keys():
         raise ValueError(
             f"{integration_settings.PLATFORM} is an invalid PLATFORM "
@@ -128,57 +132,42 @@ def get_validated_source(
     raise ValueError(f"Invalid value for CLOUD_INIT_SOURCE setting: {source}")
 
 
-@pytest.fixture(scope="session")
-def setup_image(session_cloud: IntegrationCloud):
-    """Set up the target environment with the correct version of cloud-init.
-
-    So we can launch instances / run tests with the correct image
-    """
-    try:
-        source = get_validated_source(session_cloud)
-        if not (
-            source.installs_new_version()
-            or integration_settings.INCLUDE_COVERAGE
-            or integration_settings.INCLUDE_PROFILE
-        ):
-            yield
-            return
-        log.info("Setting up source image")
-        client = session_cloud.launch()
-        if source.installs_new_version():
-            log.info("Installing cloud-init from %s", source.name)
-            client.install_new_cloud_init(source)
-        if (
-            integration_settings.INCLUDE_PROFILE
-            and integration_settings.INCLUDE_COVERAGE
-        ):
-            log.error(
-                "Invalid configuration, cannot enable both profile and "
-                "coverage."
-            )
-            raise ValueError()
-        if integration_settings.INCLUDE_COVERAGE:
-            log.info("Installing coverage")
-            client.install_coverage()
-        elif integration_settings.INCLUDE_PROFILE:
-            log.info("Installing profiler")
-            client.install_profile()
-        # All done customizing the image, so snapshot it and make it global
-        snapshot_id = client.snapshot()
-        client.cloud.snapshot_id = snapshot_id
-        # Even if we're keeping instances, we don't want to keep this
-        # one around as it was just for image creation
-        client.destroy()
-        log.info("Done with environment setup")
-
-        # For some reason a yield here raises a
-        # ValueError: setup_image did not yield a value
-        # during setup so use a finalizer instead.
-        return session_cloud
-    except Exception as e:
-        pytest.exit(
-            f"{type(e)} in session fixture setup: {str(e)}", returncode=2
+def setup_image(session_cloud: IntegrationCloud) -> None:
+    """create image with correct version of cloud-init, then make a snapshot"""
+    source = get_validated_source(session_cloud)
+    if not (
+        source.installs_new_version()
+        or integration_settings.INCLUDE_COVERAGE
+        or integration_settings.INCLUDE_PROFILE
+    ):
+        return
+    log.info("Setting up source image")
+    client = session_cloud.launch()
+    if source.installs_new_version():
+        log.info("Installing cloud-init from %s", source.name)
+        client.install_new_cloud_init(source)
+    if (
+        integration_settings.INCLUDE_PROFILE
+        and integration_settings.INCLUDE_COVERAGE
+    ):
+        log.error(
+            "Invalid configuration, cannot enable both profile and "
+            "coverage."
         )
+        raise ValueError()
+    if integration_settings.INCLUDE_COVERAGE:
+        log.info("Installing coverage")
+        client.install_coverage()
+    elif integration_settings.INCLUDE_PROFILE:
+        log.info("Installing profiler")
+        client.install_profile()
+    # All done customizing the image, so snapshot it and make it global
+    snapshot_id = client.snapshot()
+    client.cloud.snapshot_id = snapshot_id
+    # Even if we're keeping instances, we don't want to keep this
+    # one around as it was just for image creation
+    client.destroy()
+    log.info("Done with environment setup")
 
 
 def _collect_logs(instance: IntegrationInstance, log_dir: Path):
@@ -358,7 +347,7 @@ def _client(
 
 @pytest.fixture
 def client(  # pylint: disable=W0135
-    request, fixture_utils, session_cloud, setup_image
+    request, fixture_utils, session_cloud
 ) -> Iterator[IntegrationInstance]:
     """Provide a client that runs for every test."""
     with _client(request, fixture_utils, session_cloud) as client:
@@ -367,7 +356,7 @@ def client(  # pylint: disable=W0135
 
 @pytest.fixture(scope="module")
 def module_client(  # pylint: disable=W0135
-    request, fixture_utils, session_cloud, setup_image
+    request, fixture_utils, session_cloud
 ) -> Iterator[IntegrationInstance]:
     """Provide a client that runs once per module."""
     with _client(request, fixture_utils, session_cloud) as client:
@@ -376,7 +365,7 @@ def module_client(  # pylint: disable=W0135
 
 @pytest.fixture(scope="class")
 def class_client(  # pylint: disable=W0135
-    request, fixture_utils, session_cloud, setup_image
+    request, fixture_utils, session_cloud
 ) -> Iterator[IntegrationInstance]:
     """Provide a client that runs once per class."""
     with _client(request, fixture_utils, session_cloud) as client:
@@ -481,8 +470,30 @@ def _generate_profile_report() -> None:
     log.info(command, "final.stats")
 
 
+# https://docs.pytest.org/en/stable/reference/reference.html#pytest.hookspec.pytest_sessionstart
+def pytest_sessionstart(session) -> None:
+    """do session setup"""
+    global SESSION
+    try:
+        SESSION = get_session_cloud()
+        setup_image(SESSION)
+    except Exception as e:
+        pytest.exit(
+            f"{type(e)} in session fixture setup: {str(e)}", returncode=2
+        )
+
+
 def pytest_sessionfinish(session, exitstatus) -> None:
+    """do session teardown"""
+    assert SESSION
     if integration_settings.INCLUDE_COVERAGE:
         _generate_coverage_report()
     elif integration_settings.INCLUDE_PROFILE:
         _generate_profile_report()
+    try:
+        SESSION.delete_snapshot()
+        SESSION.destroy()
+    except Exception as e:
+        log.warning(
+            "%s in session fixture teardown: %s", type(e), e
+        )
