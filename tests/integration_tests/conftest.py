@@ -477,10 +477,10 @@ def pytest_sessionstart(session) -> None:
     try:
         SESSION = get_session_cloud()
         setup_image(SESSION)
-        raise ValueError("huh")
     except Exception as e:
         pytest.exit(
-            f"{type(e)} in session fixture setup: {str(e)}", returncode=2
+            f"{type(e).__name__} in session setup: {str(e)}",
+            returncode=2
         )
 
 
