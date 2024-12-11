@@ -9,7 +9,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 from tarfile import TarFile
-from typing import Dict, Generator, Iterator, List, Optional, Type
+from typing import Dict, Generator, Iterator, List, Type
 
 import pytest
 from pycloudlib.cloud import ImageType
@@ -74,7 +74,7 @@ def disable_subp_usage(request):
     pass
 
 
-SESSION: Optional[IntegrationCloud] = None
+_SESSION: IntegrationCloud
 
 
 @pytest.fixture(scope="session")
@@ -83,10 +83,8 @@ def session_cloud() -> Generator[IntegrationCloud, None, None]:
 
     yield this shared session
     """
-    global SESSION
-    if not SESSION:
-        pytest.exit("Session not set up", returncode=2)
-    yield SESSION
+    global _SESSION
+    yield _SESSION
 
 
 def get_session_cloud() -> IntegrationCloud:
@@ -473,26 +471,24 @@ def _generate_profile_report() -> None:
 # https://docs.pytest.org/en/stable/reference/reference.html#pytest.hookspec.pytest_sessionstart
 def pytest_sessionstart(session) -> None:
     """do session setup"""
-    global SESSION
+    global _SESSION
     try:
-        SESSION = get_session_cloud()
-        setup_image(SESSION)
+        _SESSION = get_session_cloud()
+        setup_image(_SESSION)
     except Exception as e:
         pytest.exit(
-            f"{type(e).__name__} in session setup: {str(e)}",
-            returncode=2
+            f"{type(e).__name__} in session setup: {str(e)}", returncode=2
         )
 
 
 def pytest_sessionfinish(session, exitstatus) -> None:
     """do session teardown"""
-    assert SESSION
     if integration_settings.INCLUDE_COVERAGE:
         _generate_coverage_report()
     elif integration_settings.INCLUDE_PROFILE:
         _generate_profile_report()
     try:
-        SESSION.delete_snapshot()
-        SESSION.destroy()
+        _SESSION.delete_snapshot()
+        _SESSION.destroy()
     except Exception as e:
         log.warning("%s in session fixture teardown: %s", type(e), e)
