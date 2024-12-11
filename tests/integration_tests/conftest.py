@@ -477,6 +477,7 @@ def pytest_sessionstart(session) -> None:
     try:
         SESSION = get_session_cloud()
         setup_image(SESSION)
+        raise ValueError("huh")
     except Exception as e:
         pytest.exit(
             f"{type(e)} in session fixture setup: {str(e)}", returncode=2
@@ -494,6 +495,4 @@ def pytest_sessionfinish(session, exitstatus) -> None:
         SESSION.delete_snapshot()
         SESSION.destroy()
     except Exception as e:
-        log.warning(
-            "%s in session fixture teardown: %s", type(e), e
-        )
+        log.warning("%s in session fixture teardown: %s", type(e), e)
