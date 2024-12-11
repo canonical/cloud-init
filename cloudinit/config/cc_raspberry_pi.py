@@ -1,4 +1,4 @@
-# Copyright (C) 2024, Raspberry Pi Ltd.
+# Copyright (C) 2024-2025, Raspberry Pi Ltd.
 #
 # Author: Paul Oberosler <paul.oberosler@raspberrypi.com>
 #
@@ -13,24 +13,36 @@ import logging
 
 
 LOG = logging.getLogger(__name__)
-RPI_INTERFACES_KEY = "rpi_interfaces"
+RPI_BASE_KEY = "rpi"
+RPI_INTERFACES_KEY = "interfaces"
+ENABLE_RPI_CONNECT_KEY = "enable_rpi_connect"
 SUPPORTED_INTERFACES = {
     "spi": "do_spi",
     "i2c": "do_i2c",
     "serial": "do_serial",
     "onewire": "do_onewire",
-    "remote_gpio": "do_rgpio",
-    "ssh": "enable_ssh",
+    "remote_gpio": "do_rgpio"
 }
 RASPI_CONFIG_SERIAL_CONS_FN = "do_serial_cons"
 RASPI_CONFIG_SERIAL_HW_FN = "do_serial_hw"
 
 meta: MetaSchema = {
-    "id": "cc_rpi_interfaces",
+    "id": "cc_raspberry_pi",
     "distros": ["raspberry-pi-os"],
     "frequency": PER_INSTANCE,
-    "activate_by_schema_keys": [RPI_INTERFACES_KEY],
+    "activate_by_schema_keys": [RPI_BASE_KEY],
 }
+
+
+def configure_rpi_connect(enable: bool) -> None:
+    LOG.debug("Configuring rpi-connect: %s", enable)
+
+    num = 0 if enable else 1
+
+    try:
+        subp.subp(["/usr/bin/raspi-config", "do_rpi_connect", str(num)])
+    except subp.ProcessExecutionError as e:
+        LOG.error("Failed to configure rpi-connect: %s", e)
 
 
 # TODO: test
@@ -93,22 +105,6 @@ def configure_serial_interface(cfg: dict | bool, instCfg: Config) -> None:
         LOG.error("Failed to configure serial console: %s", e)
 
 
-def enable_ssh(cfg: Config, enable: bool) -> None:
-    if not enable:
-        return
-
-    try:
-        subp.subp(
-            [
-                "/usr/lib/raspberry-pi-sys-mods/imager_custom",
-                SUPPORTED_INTERFACES["ssh"],
-            ]
-        )
-        require_reboot(cfg)
-    except subp.ProcessExecutionError as e:
-        LOG.error("Failed to enable ssh: %s", e)
-
-
 def configure_interface(iface: str, enable: bool) -> None:
     assert (
         iface in SUPPORTED_INTERFACES.keys() and iface != "serial"
@@ -128,53 +124,69 @@ def configure_interface(iface: str, enable: bool) -> None:
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
-    if RPI_INTERFACES_KEY not in cfg:
+    if RPI_BASE_KEY not in cfg:
         return
-    elif not isinstance(cfg[RPI_INTERFACES_KEY], dict):
+    elif not isinstance(cfg[RPI_BASE_KEY], dict):
         LOG.warning(
             "Invalid value for %s: %s",
-            RPI_INTERFACES_KEY,
-            cfg[RPI_INTERFACES_KEY],
+            RPI_BASE_KEY,
+            cfg[RPI_BASE_KEY],
         )
         return
-    elif not cfg[RPI_INTERFACES_KEY]:
-        LOG.debug("Empty value for %s. Skipping...", RPI_INTERFACES_KEY)
+    elif not cfg[RPI_BASE_KEY]:
+        LOG.debug("Empty value for %s. Skipping...", RPI_BASE_KEY)
         return
 
-    # check for supported ARM interfaces
-    for key in cfg[RPI_INTERFACES_KEY]:
-        if key not in SUPPORTED_INTERFACES.keys():
-            LOG.warning("Invalid key for %s: %s", RPI_INTERFACES_KEY, key)
-            continue
+    for key in cfg[RPI_BASE_KEY]:
+        if key == ENABLE_RPI_CONNECT_KEY:
+            # expect it to be a dictionary
+            enable = cfg[ENABLE_RPI_CONNECT_KEY]
 
-        enable = cfg[RPI_INTERFACES_KEY][key]
-
-        if key == "serial":
-            if not isinstance(enable, dict) and not isinstance(enable, bool):
-                LOG.warning(
-                    "Invalid value for %s.%s: %s",
-                    RPI_INTERFACES_KEY,
-                    key,
-                    enable,
-                )
+            if isinstance(enable, bool):
+                configure_rpi_connect(enable)
             else:
-                configure_serial_interface(enable, cfg)
-            continue
-        elif key == "ssh":
-            if not isinstance(enable, bool):
                 LOG.warning(
-                    "Invalid value for %s.%s: %s",
-                    RPI_INTERFACES_KEY,
-                    key,
-                    enable,
+                    "Invalid value for %s: %s", ENABLE_RPI_CONNECT_KEY, enable
                 )
-            else:
-                enable_ssh(cfg, enable)
             continue
+        elif key == RPI_INTERFACES_KEY:
+            if not isinstance(cfg[RPI_BASE_KEY][key], dict):
+                LOG.warning(
+                    "Invalid value for %s: %s",
+                    RPI_BASE_KEY,
+                    cfg[RPI_BASE_KEY][key],
+                )
+                return
+            elif not cfg[RPI_BASE_KEY][key]:
+                LOG.debug("Empty value for %s. Skipping...", key)
+                return
 
-        if isinstance(enable, bool):
-            configure_interface(key, enable)
+            # check for supported ARM interfaces
+            for subkey in cfg[RPI_BASE_KEY][key]:
+                if subkey not in SUPPORTED_INTERFACES.keys():
+                    LOG.warning("Invalid key for %s: %s", RPI_INTERFACES_KEY, subkey)
+                    continue
+
+                enable = cfg[RPI_INTERFACES_KEY][subkey]
+
+                if subkey == "serial":
+                    if not isinstance(enable, dict) and not isinstance(enable, bool):
+                        LOG.warning(
+                            "Invalid value for %s.%s: %s",
+                            RPI_INTERFACES_KEY,
+                            subkey,
+                            enable,
+                        )
+                    else:
+                        configure_serial_interface(enable, cfg)
+                    continue
+
+                if isinstance(enable, bool):
+                    configure_interface(subkey, enable)
+                else:
+                    LOG.warning(
+                        "Invalid value for %s.%s: %s", RPI_INTERFACES_KEY, subkey, enable
+                    )
         else:
-            LOG.warning(
-                "Invalid value for %s.%s: %s", RPI_INTERFACES_KEY, key, enable
-            )
+            LOG.warning("Unsupported key: %s", key)
+            continue

@@ -1,6 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.config.cc_rpi_interfaces import RPI_INTERFACES_KEY
+from cloudinit.config.cc_raspberry_pi import RPI_BASE_KEY, RPI_INTERFACES_KEY, ENABLE_RPI_CONNECT_KEY
 from cloudinit.config.schema import (
     SchemaValidationError,
     get_schema,
@@ -93,26 +93,32 @@ class TestCCRPiInterfaces(CiTestCase):
 
 
 @skipUnlessJsonSchema()
-class TestCCRPiInterfacesSchema:
+class TestCCRPiSchema:
     @pytest.mark.parametrize(
         "config, error_msg",
         [
-            ({RPI_INTERFACES_KEY: {"spi": True, "i2c": False}}, None),
+            ({RPI_BASE_KEY: { RPI_INTERFACES_KEY: {"spi": True, "i2c": False}} }, None),
             (
-                {RPI_INTERFACES_KEY: {"spi": "true"}},
+                {RPI_BASE_KEY: {RPI_INTERFACES_KEY: {"spi": "true"}}},
                 "'true' is not of type 'boolean'",
             ),
             (
+                {RPI_BASE_KEY: 
                 {
                     RPI_INTERFACES_KEY: {
                         "serial": {"console": True, "hardware": False}
                     }
-                },
+                }},
                 None,
             ),
             (
-                {RPI_INTERFACES_KEY: {"serial": {"console": 123}}},
+                {RPI_BASE_KEY: {RPI_INTERFACES_KEY: {"serial": {"console": 123}}} },
                 "123 is not of type 'boolean'",
+            ),
+            ({RPI_BASE_KEY: {ENABLE_RPI_CONNECT_KEY: True}}, None),
+            (
+                {RPI_BASE_KEY: {ENABLE_RPI_CONNECT_KEY: "true"}},
+                "'true' is not of type 'boolean'",
             ),
         ],
     )

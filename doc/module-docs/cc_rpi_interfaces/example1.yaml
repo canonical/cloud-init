@@ -1,4 +1,0 @@
-#cloud-config
-rpi_interfaces:
-  spi: true
-  i2c: true

@@ -1,3 +1,0 @@
-#cloud-config
-rpi_userconf:
-  password: "my_super_secret_password_hash"

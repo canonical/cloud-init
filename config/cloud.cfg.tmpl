@@ -18,7 +18,7 @@
                   "gentoo": "users, wheel", "mariner": "wheel",
                   "photon": "wheel",
                   "openmandriva": "wheel, users, systemd-journal",
-                  "raspberry-pi-os": "adm, dialout, cdrom, audio, users, sudo, video, games, plugdev, input, gpio, spi, i2c, netdev, render",
+                  "raspberry-pi-os": "adm, dialout, cdrom, audio, users, sudo, video, games, plugdev, input, gpio, spi, i2c, netdev, render, lpadmin",
                   "suse": "cdrom, users",
                   "ubuntu": "adm, cdrom, dip, lxd, sudo",
                   "unknown": "adm, cdrom, dip, lxd, sudo"}) %}
@@ -137,14 +137,11 @@ cloud_init_modules:
   - ca_certs
 {% endif %}
   - rsyslog
-{% if variant == "raspberry-pi-os" %}
-  - rpi_userdata
-{% endif %}
   - users_groups
   - ssh
   - set_passwords
 {% if variant == "raspberry-pi-os" %}
-  - rpi_interfaces
+  - raspberry_pi
 {% endif %}
 
 # The modules that run in the 'config' stage
@@ -164,9 +161,6 @@ cloud_config_modules:
   - keyboard
 {% endif %}
   - locale
-{% endif %}
-{% if variant == "raspberry-pi-os" %}
-  - rpi_interfaces
 {% endif %}
 {% if variant == "alpine" %}
   - apk_configure
@@ -216,9 +210,6 @@ cloud_final_modules:
   - chef
 {% endif %}
   - ansible
-{% if variant == "raspberry-pi-os" %}
-  - rpi_connect
-{% endif %}
 {% if variant not in ["azurelinux"] %}
   - mcollective
   - salt_minion

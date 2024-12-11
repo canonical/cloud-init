@@ -1,0 +1,26 @@
+cc_raspberry_pi:
+  description: |
+    This module handles ARM interface configuration for Raspberry Pi.
+
+    It also handles Raspberry Pi Connect installation and enablement.
+    Raspberry Pi Connect service will be installed and enabled to auto start on boot.
+
+    This only works on Raspberry Pi OS (bookworm and later).
+  examples:
+  - comment: >
+      This example will enable the SPI and I2C interfaces on Raspberry Pi.
+    file: cc_raspberry_pi/example1.yaml
+  - comment: >
+      This example will enable the serial interface on Raspberry Pi.
+    file: cc_raspberry_pi/example2.yaml
+  - comment: >
+      This example will enable the serial interface on Raspberry Pi 5 and disable the UART hardware while enabling the console.
+    file: cc_raspberry_pi/example3.yaml
+  - comment: >
+      This example will enable ssh and the UART hardware without binding it to the console.
+    file: cc_raspberry_pi/example4.yaml
+  - comment: >
+      This example will enable the Raspberry Pi Connect service.
+    file: cc_raspberry_pi/example5.yaml
+  name: Raspberry Pi Configuration
+  title: Configure Raspberry Pi ARM interfaces and enable Raspberry Pi Connect
