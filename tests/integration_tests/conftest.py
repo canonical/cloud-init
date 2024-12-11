@@ -74,7 +74,7 @@ def disable_subp_usage(request):
     pass
 
 
-_SESSION: IntegrationCloud
+_SESSION_CLOUD: IntegrationCloud
 
 
 @pytest.fixture(scope="session")
@@ -83,8 +83,8 @@ def session_cloud() -> Generator[IntegrationCloud, None, None]:
 
     yield this shared session
     """
-    global _SESSION
-    yield _SESSION
+    global _SESSION_CLOUD
+    yield _SESSION_CLOUD
 
 
 def get_session_cloud() -> IntegrationCloud:
@@ -471,10 +471,10 @@ def _generate_profile_report() -> None:
 # https://docs.pytest.org/en/stable/reference/reference.html#pytest.hookspec.pytest_sessionstart
 def pytest_sessionstart(session) -> None:
     """do session setup"""
-    global _SESSION
+    global _SESSION_CLOUD
     try:
-        _SESSION = get_session_cloud()
-        setup_image(_SESSION)
+        _SESSION_CLOUD = get_session_cloud()
+        setup_image(_SESSION_CLOUD)
     except Exception as e:
         pytest.exit(
             f"{type(e).__name__} in session setup: {str(e)}", returncode=2
@@ -488,7 +488,7 @@ def pytest_sessionfinish(session, exitstatus) -> None:
     elif integration_settings.INCLUDE_PROFILE:
         _generate_profile_report()
     try:
-        _SESSION.delete_snapshot()
-        _SESSION.destroy()
+        _SESSION_CLOUD.delete_snapshot()
+        _SESSION_CLOUD.destroy()
     except Exception as e:
         log.warning("%s in session fixture teardown: %s", type(e), e)
