@@ -476,6 +476,12 @@ def pytest_sessionstart(session) -> None:
         _SESSION_CLOUD = get_session_cloud()
         setup_image(_SESSION_CLOUD)
     except Exception as e:
+        if _SESSION_CLOUD:
+            # if a _SESSION_CLOUD was allocated, clean it up
+            if _SESSION_CLOUD.snapshot_id:
+                # if a snapshot id was set, then snapshot succeeded, teardown
+                _SESSION_CLOUD.delete_snapshot()
+            _SESSION_CLOUD.destroy()
         pytest.exit(
             f"{type(e).__name__} in session setup: {str(e)}", returncode=2
         )
@@ -483,12 +489,24 @@ def pytest_sessionstart(session) -> None:
 
 def pytest_sessionfinish(session, exitstatus) -> None:
     """do session teardown"""
-    if integration_settings.INCLUDE_COVERAGE:
-        _generate_coverage_report()
-    elif integration_settings.INCLUDE_PROFILE:
-        _generate_profile_report()
+    try:
+        if integration_settings.INCLUDE_COVERAGE:
+            _generate_coverage_report()
+        elif integration_settings.INCLUDE_PROFILE:
+            _generate_profile_report()
+    except Exception as e:
+        log.warning("Could not generate report during teardown: %s", e)
     try:
         _SESSION_CLOUD.delete_snapshot()
+    except Exception as e:
+        log.warning(
+            "Could not delete snapshot. Leaked snapshot id %s: %s",
+            _SESSION_CLOUD.snapshot_id,
+            e,
+        )
+    try:
         _SESSION_CLOUD.destroy()
     except Exception as e:
-        log.warning("%s in session fixture teardown: %s", type(e), e)
+        log.warning(
+            "Could not destroy session cloud: %s(%s)", type(e).__name__, e
+        )

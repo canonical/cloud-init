@@ -7,7 +7,7 @@ import re
 import string
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Type
+from typing import Type, Optional
 from uuid import UUID
 
 from pycloudlib import (
@@ -65,7 +65,7 @@ class IntegrationCloud(ABC):
         self.settings = settings
         self.cloud_instance = self._get_cloud_instance()
         self.initial_image_id = self._get_initial_image()
-        self.snapshot_id = None
+        self.snapshot_id: Optional[str] = None
 
     @property
     def image_id(self):
