@@ -35,7 +35,6 @@
         "lxd",
         "mcollective",
         "mounts",
-        "netplan-nm-patch",
         "netplan_nm_patch",
         "ntp",
         "package-update-upgrade-install",
@@ -45,6 +44,7 @@
         "power-state-change",
         "power_state_change",
         "puppet",
+        "raspberry_pi",
         "reset-rmc",
         "reset_rmc",
         "resizefs",
@@ -52,12 +52,6 @@
         "resolv_conf",
         "rh-subscription",
         "rh_subscription",
-        "rpi-connect",
-        "rpi_connect",
-        "rpi-interfaces",
-        "rpi_interfaces",
-        "rpi-userdata",
-        "rpi_userdata",
         "rsyslog",
         "runcmd",
         "salt-minion",
@@ -2656,93 +2650,70 @@
         }
       }
     },
-    "cc_rpi_connect": {
+    "cc_raspberry_pi": {
       "type": "object",
       "properties": {
-        "enable_rpi_connect": {
-          "type": "boolean",
-          "default": false,
-          "description": "Install and enable Raspberry Pi Connect. Default: ``false``."
-        }
-      }
-    },
-    "cc_rpi_interfaces": {
-      "type": "object",
-      "properties": {
-        "rpi_interfaces": {
+        "rpi": {
           "type": "object",
           "properties": {
-            "spi": {
-              "type": "boolean",
-              "description": "Enable SPI interface. Default: ``false``.",
-              "default": false
-            },
-            "i2c": {
-              "type": "boolean",
-              "description": "Enable I2C interface. Default: ``false``.",
-              "default": false
-            },
-            "serial": {
-              "default": false,
-              "description": "Enable serial console. Default: ``false``.",
-              "oneOf": [
-                {
-                  "type": "boolean"
+            "rpi_interfaces": {
+              "type": "object",
+              "properties": {
+                "spi": {
+                  "type": "boolean",
+                  "description": "Enable SPI interface. Default: ``false``.",
+                  "default": false
                 },
-                {
-                  "type": "object",
-                  "properties": {
-                    "console": {
-                      "type": "boolean",
-                      "description": "Enable serial console. Default: ``false``.",
-                      "default": false
+                "i2c": {
+                  "type": "boolean",
+                  "description": "Enable I2C interface. Default: ``false``.",
+                  "default": false
+                },
+                "serial": {
+                  "default": false,
+                  "description": "Enable serial console. Default: ``false``.",
+                  "oneOf": [
+                    {
+                      "type": "boolean"
                     },
-                    "hardware": {
-                      "type": "boolean",
-                      "description": "Enable UART hardware. Default: ``false``.",
-                      "default": false
+                    {
+                      "type": "object",
+                      "properties": {
+                        "console": {
+                          "type": "boolean",
+                          "description": "Enable serial console. Default: ``false``.",
+                          "default": false
+                        },
+                        "hardware": {
+                          "type": "boolean",
+                          "description": "Enable UART hardware. Default: ``false``.",
+                          "default": false
+                        }
+                      }
                     }
-                  }
+                  ]
+                },
+                "onewire": {
+                  "type": "boolean",
+                  "description": "Enable 1-Wire interface. Default: ``false``.",
+                  "default": false
+                },
+                "remote_gpio": {
+                  "type": "boolean",
+                  "description": "Enable remote GPIO interface. Default: ``false``.",
+                  "default": false
+                },
+                "ssh": {
+                  "type": "boolean",
+                  "description": "Enable SSH. Default: ``false``.",
+                  "default": false
                 }
-              ]
+              }
             },
-            "onewire": {
+            "enable_rpi_connect": {
               "type": "boolean",
-              "description": "Enable 1-Wire interface. Default: ``false``.",
-              "default": false
-            },
-            "remote_gpio": {
-              "type": "boolean",
-              "description": "Enable remote GPIO interface. Default: ``false``.",
-              "default": false
-            },
-            "ssh": {
-              "type": "boolean",
-              "description": "Enable SSH. Default: ``false``.",
-              "default": false
-            }
-          }
-        }
-      }
-    },
-    "cc_rpi_userdata": {
-      "type": "object",
-      "properties": {
-        "disable_piwiz": {
-          "type": "boolean",
-          "default": false,
-          "description": "Manually disable the Raspberry Pi first boot wizard. Default: ``false``."
-        },
-        "rpi_userconf": {
-          "type": "object",
-          "properties": {
-            "password": {
-              "type": "string",
-              "description": "The password for the default user."
-            },
-            "user": {
-              "type": "string",
-              "description": "The username for the default user. Default: ``pi``."
+              "default": false,
+              "description": "Install and enable Raspberry Pi Connect. Default: ``false``."
             }
           }
         }
@@ -4016,13 +3987,7 @@
       "$ref": "#/$defs/cc_rh_subscription"
     },
     {
-      "$ref": "#/$defs/cc_rpi_connect"
-    },
-    {
-      "$ref": "#/$defs/cc_rpi_interfaces"
-    },
-    {
-      "$ref": "#/$defs/cc_rpi_userdata"
+      "$ref": "#/$defs/cc_raspberry_pi"
     },
     {
       "$ref": "#/$defs/cc_rsyslog"
@@ -4125,7 +4090,6 @@
     "disable_root_opts": {},
     "disk_setup": {},
     "drivers": {},
-    "enable_rpi_connect": {},
     "fan": {},
     "final_message": {},
     "fqdn": {},
@@ -4167,8 +4131,7 @@
     "resize_rootfs": {},
     "resolv_conf": {},
     "rh_subscription": {},
-    "rpi_interfaces": {},
-    "rpi_userconf": {},
+    "rpi": {},
     "rsyslog": {},
     "runcmd": {},
     "salt_minion": {},

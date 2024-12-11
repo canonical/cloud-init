@@ -76,17 +76,13 @@ Modules
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_puppet/data.yaml
    :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_raspberry_pi/data.yaml
+   :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_resizefs/data.yaml
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_resolv_conf/data.yaml
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_rh_subscription/data.yaml
-   :template: modules.tmpl
-.. datatemplate:yaml:: ../../module-docs/cc_rpi_connect/data.yaml
-   :template: modules.tmpl
-.. datatemplate:yaml:: ../../module-docs/cc_rpi_interfaces/data.yaml
-   :template: modules.tmpl
-.. datatemplate:yaml:: ../../module-docs/cc_rpi_userdata/data.yaml
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_rsyslog/data.yaml
    :template: modules.tmpl
