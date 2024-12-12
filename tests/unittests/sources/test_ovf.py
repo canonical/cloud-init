@@ -537,6 +537,11 @@ class TestTransportVmwareGuestinfo(CiTestCase):
         ]
         self.assertEqual(NOT_FOUND, dsovf.transport_vmware_guestinfo())
         self.assertEqual(2, m_subp.call_count)
+        self.assertNotIn(
+            "WARNING",
+            self.logs.getvalue(),
+            "exit code of 1 by rpctool and vmtoolsd should not cause warning.",
+        )
 
     def test_vmware_rpctool_fails_and_vmtoolsd_success(self, m_subp, m_which):
         """When vmware-rpctool fails but vmtoolsd succeeds"""
