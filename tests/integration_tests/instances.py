@@ -326,6 +326,5 @@ Pin-Priority: 1001"""
     def __exit__(self, exc_type, exc_val, exc_tb):
         if not self.settings.KEEP_INSTANCE:
             reaper.reap(self)
-            log.info("Submitting instance to reaper.", self.ip())
         else:
             log.info("Keeping Instance, public ip: %s", self.ip())
