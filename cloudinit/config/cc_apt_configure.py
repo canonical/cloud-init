@@ -519,7 +519,7 @@ def get_apt_cfg() -> Dict[str, str]:
     }
 
 
-def generate_sources_list(cfg, release, mirrors, cloud, keys={}):
+def generate_sources_list(cfg, release, mirrors, cloud, keys):
     """generate_sources_list
     create a source.list file based on a custom or default template
     by replacing mirrors and release in the template"""
