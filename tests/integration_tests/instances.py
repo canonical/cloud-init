@@ -5,7 +5,6 @@ import re
 import uuid
 from enum import Enum
 from pathlib import Path
-from queue import Queue
 from tempfile import NamedTemporaryFile
 from typing import Union
 
@@ -15,7 +14,7 @@ from pycloudlib.lxd.instance import LXDInstance
 from pycloudlib.result import Result
 
 from tests.helpers import cloud_init_project_dir
-from tests.integration_tests import integration_settings
+from tests.integration_tests import integration_settings, reaper
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.util import ASSETS_DIR
 
@@ -31,8 +30,6 @@ except ImportError:
 
 
 log = logging.getLogger("integration_testing")
-
-REAPABLE_INSTANCES: Queue["IntegrationInstance"] = Queue()
 
 
 def _get_tmp_path():
@@ -328,7 +325,7 @@ Pin-Priority: 1001"""
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if not self.settings.KEEP_INSTANCE:
-            REAPABLE_INSTANCES.put(self)
+            reaper.reap(self)
             log.info("Submitting instance to reaper.", self.ip())
         else:
             log.info("Keeping Instance, public ip: %s", self.ip())

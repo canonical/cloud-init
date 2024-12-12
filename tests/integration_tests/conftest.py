@@ -6,17 +6,16 @@ import os
 import shutil
 import subprocess
 import sys
-import threading
 from contextlib import contextmanager
-from functools import partial
 from pathlib import Path
 from tarfile import TarFile
-from typing import Dict, Generator, Iterator, List, Optional, Type
+from typing import Dict, Generator, Iterator, List, Type
 
 import pytest
 from pycloudlib.cloud import ImageType
 from pycloudlib.lxd.instance import LXDInstance
 
+import tests.integration_tests.reaper as reaper
 from tests.integration_tests import integration_settings
 from tests.integration_tests.clouds import (
     AzureCloud,
@@ -32,7 +31,6 @@ from tests.integration_tests.clouds import (
     _LxdIntegrationCloud,
 )
 from tests.integration_tests.instances import (
-    REAPABLE_INSTANCES,
     CloudInitSource,
     IntegrationInstance,
 )
@@ -41,7 +39,6 @@ log = logging.getLogger("integration_testing")
 log.addHandler(logging.StreamHandler(sys.stdout))
 log.setLevel(logging.INFO)
 
-UNDEAD_INSTANCES: List = []
 platforms: Dict[str, Type[IntegrationCloud]] = {
     "ec2": Ec2Cloud,
     "gce": GceCloud,
@@ -56,60 +53,6 @@ platforms: Dict[str, Type[IntegrationCloud]] = {
 os_list = ["ubuntu"]
 
 session_start_time = datetime.datetime.now().strftime("%y%m%d%H%M%S")
-
-LOG = logging.getLogger(__name__)
-
-# EXIT_REAPER is set to tell the reaper loop to tear down
-EXIT_REAPER = threading.Event()
-# START_THREAD is used to trigger re-running the loop
-START_THREAD = threading.Condition()
-THREAD: Optional[threading.Thread] = None
-
-
-def reap(instance: IntegrationInstance) -> bool:
-    """reap() destroys an instance and returns True on success"""
-    try:
-        instance.destroy()
-        return True
-    except Exception as e:
-        LOG.warning("Error while tearing down instance %s: %s ", instance, e)
-        return False
-
-
-def reaper_loop():
-    """Reaper background thread
-
-    Destroy newly queued threads. If shutdown
-    """
-    while True:
-        new_undead_instances = []
-
-        # first destroy all instances that we have not yet tried to destroy
-        if not REAPABLE_INSTANCES.empty():
-            for instance in iter(
-                partial(REAPABLE_INSTANCES.get, block=False), None
-            ):
-                success = reap(instance)
-                if not success:
-                    # failure to delete, put in on the background thread
-                    new_undead_instances.append(instance)
-        # every instance has tried at least once and the reaper has been
-        # instructed too tear down - so do it
-        if EXIT_REAPER.isSet() and UNDEAD_INSTANCES:
-            # undead instances exist - unclean teardown
-            pytest.exit("Error: instances were not cleaned %s")
-        # attempt to destroy all instances which previously refused to destroy
-        for instance in UNDEAD_INSTANCES:
-            success = reap(instance)
-            if not success:
-                new_undead_instances.append(instance)
-        # update the list with remaining instances
-        UNDEAD_INSTANCES = new_undead_instances
-
-
-def pytest_sessionstart(session):
-    # start thread
-    THREAD = threading.Thread(target=reaper_loop, name="instance reaper")
 
 
 def pytest_runtest_setup(item):
@@ -533,6 +476,7 @@ def pytest_sessionstart(session) -> None:
     try:
         _SESSION_CLOUD = get_session_cloud()
         setup_image(_SESSION_CLOUD)
+        reaper.reaper_start()
     except Exception as e:
         if _SESSION_CLOUD:
             # if a _SESSION_CLOUD was allocated, clean it up
@@ -563,14 +507,12 @@ def pytest_sessionfinish(session, exitstatus) -> None:
             e,
         )
     try:
-        EXIT_REAPER.set()
-        if THREAD:
-            THREAD.join()
+        reaper.reaper_stop()
     except Exception as e:
         log.warning(
             "Could not tear down instance reaper thread: %s(%s)",
             type(e).__name__,
-            e
+            e,
         )
     try:
         _SESSION_CLOUD.destroy()
