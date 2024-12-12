@@ -23,7 +23,7 @@ use no changes to the defaults should be necessary: ::
        ipv6: http://[fd00:a9fe:a9fe::1]
      paths:
          token: /v1/token
-         meta-data: /v1/instance
+         metadata: /v1/instance
          userdata: /v1/user-data
      allow_local_stage: True
      allow_init_stage: True
@@ -35,7 +35,7 @@ use no changes to the defaults should be necessary: ::
 
 * ``base_urls``
 
-  The URLs used to access the meta-data service over IPv4 and IPv6
+  The URLs used to access the instance metadata service over IPv4 and IPv6
   respectively.
 
 * ``paths``
@@ -54,16 +54,16 @@ use no changes to the defaults should be necessary: ::
 
 * ``allow_dhcp``
 
-  Allows this datasource to use dhcp to find an IPv4 address to fetch meta-data
-  with during the local stage.
+  Allows this datasource to use dhcp to find an IPv4 address to fetch 
+  instance-data with during the local stage.
 
 * ``allow_ipv4``
 
-  Allow the use of IPv4 when fetching meta-data during any stage.
+  Allow the use of IPv4 when fetching instance-data during any stage.
 
 * ``allow_ipv6``
 
-  Allows the use of IPv6 when fetching meta-data during any stage.
+  Allows the use of IPv6 when fetching instance-data during any stage.
 
 * ``preferred_mac_prefixes``
 
@@ -77,7 +77,7 @@ Configuration Overrides
 In some circumstances, the Akamai platform may send configurations overrides to
 instances via dmi data to prevent certain behavior that may not be supported
 based on the instance's region or configuration.  For example, if deploying an
-instance in a region that does not yet support meta-data, both the local and
+instance in a region that does not yet support instance-data, both the local and
 init stages will be disabled, preventing cloud-init from attempting to fetch
-meta-data.  Configuration overrides sent this way will appears in the
+instance-data.  Configuration overrides sent this way will appears in the
 ``baseboard-serial-number`` field.

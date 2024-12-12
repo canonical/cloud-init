@@ -27,13 +27,13 @@ The settings that may be configured are:
 * ``retries``
 
   The number of retries that should be attempted for a http request.
-  This value is used only after ``meta-data_url`` is selected.
+  This value is used only after ``metadata_url`` is selected.
 
   Default: 5
 
 * ``sec_between_retries``
 
-  The amount of wait time between retries when crawling the meta-data service.
+  The amount of wait time between retries when crawling the instance metadata service.
 
   Default: 1
 

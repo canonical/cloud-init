@@ -8,7 +8,7 @@ For a full list of keys, refer to the
 :ref:`MCollective module <mod_cc_mcollective>` schema.
 
 .. warning::
-   The EC2 meta-data service is a network service, and thus is readable by
+   The EC2 instance metadata service is a network service, and thus is readable by
    non-root users on the system (i.e. ``ec2meta-data --user-data``).
 
    If you want security against this, use ``include-once`` + SSL URLs.

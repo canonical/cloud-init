@@ -76,9 +76,9 @@ configuration data files to it. Cloud-init uses these as a blueprint for how to
 configure the virtual machine instance. There are three major types:
 
 * :ref:`user-data <user_data_formats>` is provided by the user, and cloud-init
-  recognises many different formats.
+  recognizes many different formats.
 * :ref:`vendor-data <vendordata>` is provided by the cloud provider.
-* :ref:`meta-data <instance_meta-data>` contains the platform data, including
+* :ref:`meta-data <instance-data>` contains the platform data, including
   things like machine ID, hostname, etc.
 
 There is a specific user-data format called "*cloud-config*" that is probably

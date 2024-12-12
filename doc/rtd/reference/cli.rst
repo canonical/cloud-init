@@ -39,7 +39,7 @@ Example output:
         init                DEPRECATED: Initialize cloud-init and perform initial modules.
         modules             DEPRECATED: Activate modules using a given configuration key.
         single              Manually run a single module. Useful for testing during development.
-        query               Query standardized instance meta-data from the command line.
+        query               Query standardized instance-data from the command line.
         features            List defined features.
         analyze             Devel tool: Analyze cloud-init logs and data.
         devel               Run development tools.
@@ -243,10 +243,10 @@ run only once due to semaphores in :file:`/var/lib/cloud/`.
 :command:`query`
 ----------------
 
-Query standardised cloud instance meta-data crawled by ``cloud-init`` and
+Query standardized instance-data crawled by ``cloud-init`` and
 stored in :file:`/run/cloud-init/instance-data.json`. This is a convenience
 command-line interface to reference any cached configuration meta-data that
-``cloud-init`` crawls when booting the instance. See :ref:`instance_meta-data`
+``cloud-init`` crawls when booting the instance. See :ref:`instance-data`
 for more info.
 
 * :command:`--all`: Dump all available instance-data as JSON which can be
@@ -259,7 +259,7 @@ for more info.
 * :command:`<varname>`: A dot-delimited variable path into the
   :file:`instance-data.json` object.
 
-Below demonstrates how to list all top-level query keys that are standardised
+Below demonstrates how to list all top-level query keys that are standardized
 aliases:
 
 .. code-block:: shell-session
@@ -286,7 +286,7 @@ Example output:
     v1
     vendordata
 
-Here are a few examples of how to query standardised meta-data from clouds:
+Here are a few examples of how to query standardized meta-data from clouds:
 
 .. code-block:: shell-session
 
@@ -298,7 +298,7 @@ Example output:
 
    aws  # or openstack, azure, gce etc.
 
-Any standardised ``instance-data`` under a <v#> key is aliased as a top-level
+Any standardized ``instance-data`` under a <v#> key is aliased as a top-level
 key for convenience:
 
 .. code-block:: shell-session
@@ -320,9 +320,9 @@ One can also query datasource-specific meta-data on EC2, e.g.:
 
 .. note::
 
-   The standardised instance data keys under **v#** are guaranteed not to
+   The standardized instance data keys under **v#** are guaranteed not to
    change behaviour or format. If using top-level convenience aliases for any
-   standardised instance data keys, the most value (highest **v#**) of that key
+   standardized instance data keys, the most value (highest **v#**) of that key
    name is what is reported as the top-level value. So these aliases act as a
    'latest'.
 

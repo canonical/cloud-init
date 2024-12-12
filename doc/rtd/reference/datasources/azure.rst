@@ -13,14 +13,14 @@ with the "endpoint".
 IMDS
 ====
 
-Azure provides the `instance meta-data service (IMDS)`_, which is a REST
+Azure provides the `instance metadata service (IMDS)`_, which is a REST
 service on ``169.254.169.254`` providing additional configuration information
 to the instance. ``Cloud-init`` uses the IMDS for:
 
 - Network configuration for the instance which is applied per boot.
 - A pre-provisioning gate which blocks instance configuration until Azure
   fabric is ready to provision.
-- Retrieving SSH public keys. ``Cloud-init`` will first try to utilise SSH
+- Retrieving SSH public keys. ``Cloud-init`` will first try to utilize SSH
   keys returned from IMDS, and if they are not provided from IMDS then it will
   fall back to using the OVF file provided from the CD-ROM. There is a large
   performance benefit to using IMDS for SSH key retrieval, but in order to
@@ -135,4 +135,4 @@ via :command:`hostname $HostName`, and then bouncing the interface. This
 behaviour can be configured or disabled in the datasource config. See
 'Configuration' above.
 
-.. _instance meta-data service (IMDS): https://docs.microsoft.com/en-us/azure/virtual-machines/windows/instance-meta-data-service
+.. _instance metadata service (IMDS): https://docs.microsoft.com/en-us/azure/virtual-machines/windows/instance-meta-data-service

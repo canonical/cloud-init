@@ -22,7 +22,7 @@ Generation
 ==========
 
 :file:`cloud.cfg` isn't present in any of ``cloud-init``'s source files. The
-`configuration is templated`_ and customised for each
+`configuration is templated`_ and customized for each
 distribution supported by ``cloud-init``.
 
 Base configuration keys
@@ -128,7 +128,7 @@ Both keys will be processed independently.
     either ``ssh`` or ``sshd``.
   - ``network``: Top-level key for distro-specific networking configuration.
 
-    + ``renderers``: Prioritised list of networking configurations to try
+    + ``renderers``: Prioritized list of networking configurations to try
       on this system. The first valid entry found will be used.
       Options are:
 
@@ -140,7 +140,7 @@ Both keys will be processed independently.
       * ``netbsd``
       * ``openbsd``
 
-    + ``activators``: Prioritised list of networking tools to try to activate
+    + ``activators``: Prioritized list of networking tools to try to activate
       network on this system. The first valid entry found will be used.
       Options are:
 
@@ -228,7 +228,7 @@ instance.
 ``datasource_pkg_list``
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Prioritised list of python packages to search when finding a datasource.
+Prioritized list of python packages to search when finding a datasource.
 Automatically includes ``cloudinit.sources``.
 
 .. _base_config_datasource_list:
@@ -236,7 +236,7 @@ Automatically includes ``cloudinit.sources``.
 ``datasource_list``
 ^^^^^^^^^^^^^^^^^^^
 
-This key contains a prioritised list of datasources that ``cloud-init``
+This key contains a prioritized list of datasources that ``cloud-init``
 attempts to discover on boot. By default, this is defined in
 :file:`/etc/cloud/cloud.cfg.d`.
 
@@ -309,7 +309,7 @@ On an Ubuntu system, :file:`/etc/cloud/cloud.cfg` should look similar to:
     # Example datasource config
     # datasource:
     #    Ec2:
-    #      meta-data_urls: [ 'blah.com' ]
+    #      metadata_urls: [ 'blah.com' ]
     #      timeout: 5 # (defaults to 50 seconds)
     #      max_wait: 10 # (defaults to 120 seconds)
 

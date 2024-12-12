@@ -36,7 +36,7 @@ The settings that may be configured are:
 * :command:`max_wait`
 
   The maximum amount of clock time in seconds that should be spent searching
-  ``meta-data_urls``. A value less than zero will result in only one request
+  ``metadata_urls``. A value less than zero will result in only one request
   being made, to the first in the list.
 
   Default: 120
@@ -44,8 +44,8 @@ The settings that may be configured are:
 * :command:`timeout`
 
   The timeout value provided to ``urlopen`` for each individual http request.
-  This is used both when selecting a ``meta-data_url`` and when crawling
-  the meta-data service.
+  This is used both when selecting a ``metadata_url`` and when crawling
+  the instance metadata service.
 
   Default: 50
 

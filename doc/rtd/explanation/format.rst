@@ -194,7 +194,7 @@ Explanation
 
 `Jinja templating <https://jinja.palletsprojects.com/>`_ may be used for
 cloud-config and user-data scripts. Any
-:ref:`instance-data variables<instance_meta-data-keys>` may be used
+:ref:`instance-data variables<instance-data-keys>` may be used
 as jinja template variables. Any jinja templated configuration must contain
 the original header along with the new jinja header above it.
 

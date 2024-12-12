@@ -9,7 +9,7 @@ public cloud providers, provisioning systems for private cloud infrastructure,
 and bare-metal installations.
 
 During boot, ``cloud-init`` identifies the cloud it is running on and
-initialises the system accordingly. Cloud instances will automatically be
+initializes the system accordingly. Cloud instances will automatically be
 provisioned during first boot with networking, storage, SSH keys, packages
 and various other system aspects already configured.
 

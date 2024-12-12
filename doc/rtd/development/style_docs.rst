@@ -110,7 +110,7 @@ Common words
 There are some common words that should follow specific usage in text:
 
 - **cloud-init**: Always hyphenated, and follows sentence case, so only
-  capitalised at the start of a sentence.
+  capitalized at the start of a sentence.
 - **datasource**: One word.
 - **user-data**, **vendor-data**, **cloud-config**, **instance-data**: Two
   words, not to be combined or hyphenated.
@@ -125,7 +125,7 @@ regular text.
 Acronyms
 --------
 
-Acronyms are always capitalised (e.g., JSON, YAML, QEMU, LXD) in text.
+Acronyms are always capitalized (e.g., JSON, YAML, QEMU, LXD) in text.
 
 The first time an acronym is used on a page, it is best practice to introduce
 it by showing the expanded name followed by the acronym in parentheses. E.g.,

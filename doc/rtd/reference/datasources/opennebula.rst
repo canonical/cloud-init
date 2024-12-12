@@ -10,7 +10,7 @@ The `OpenNebula`_ (ON) datasource supports the contextualisation disk.
 ..  `network configuration`_ in the public documentation for
 .. more information.
 
-OpenNebula's virtual machines are contextualised (parametrised) by
+OpenNebula's virtual machines are contextualized (parametrized) by
 CD-ROM image, which contains a shell script :file:`context.sh`, with
 custom variables defined on virtual machine start. There are no
 fixed contextualisation variables, but the datasource accepts

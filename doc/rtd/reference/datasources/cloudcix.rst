@@ -24,10 +24,10 @@ CloudCIX datasource has the following config options:
 
 
 - *retries*: The number of times the datasource should try to connect to the
-  meta-data service
+  instance metadata service
 - *timeout*: How long in seconds to wait for a response from the meta-data
   service
 - *sec_between_retries*: How long in seconds to wait between consecutive
-  requests to the meta-data service
+  requests to the instance metadata service
 
 _CloudCIX: https://www.cloudcix.com/

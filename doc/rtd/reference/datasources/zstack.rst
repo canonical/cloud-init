@@ -3,7 +3,7 @@
 ZStack
 ******
 
-ZStack platform provides an AWS EC2 meta-data service, but with different
+ZStack platform provides an AWS EC2 instance metadata service, but with different
 datasource identity. More information about ZStack can be found at
 `ZStack`_.
 
@@ -17,7 +17,7 @@ ends with ``.zstack.io``, it's running on the ZStack platform.
 Instance Metadata Service
 -------------------------
 
-The same way as with EC2, instance meta-data can be queried at: ::
+The same way as with EC2, instance-data can be queried at: ::
 
     GET http://169.254.169.254/2009-04-04/meta-data/
     instance-id

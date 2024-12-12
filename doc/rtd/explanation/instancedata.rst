@@ -1,4 +1,4 @@
-.. _instance_meta-data:
+.. _instance-data:
 
 
 Instance-data
@@ -157,7 +157,7 @@ Storage locations
 -----------------
 
 * :file:`/run/cloud-init/instance-data.json`: world-readable JSON containing
-  standardised keys, sensitive keys redacted.
+  standardized keys, sensitive keys redacted.
 * :file:`/run/cloud-init/instance-data-sensitive.json`: root-readable
   unredacted JSON blob.
 * :file:`/run/cloud-init/combined-cloud-config.json`: root-readable
@@ -165,7 +165,7 @@ Storage locations
   are applied to the :file:`/run/cloud-init/combined-cloud-config.json` config
   values.
 
-.. _instance_meta-data-keys:
+.. _instance-data-keys:
 
 :file:`instance-data.json` top level keys
 -----------------------------------------
@@ -238,13 +238,13 @@ underlying host ``sys_info`` key above.
 ``v1``
 ^^^^^^
 
-Standardised ``cloud-init`` data keys, these keys are guaranteed to exist
+Standardized ``cloud-init`` data keys, these keys are guaranteed to exist
 on all cloud platforms. They will also retain their current behaviour and
 format, and will be carried forward even if ``cloud-init`` introduces a new
-version of standardised keys with ``v2``.
+version of standardized keys with ``v2``.
 
 To cut down on keystrokes on the command line, ``cloud-init`` also provides
-top-level key aliases for any standardised ``v#`` keys present. The preceding
+top-level key aliases for any standardized ``v#`` keys present. The preceding
 ``v1`` is not required of ``v1.var_name`` These aliases will represent the
 value of the highest versioned standard key. For example, ``cloud_name``
 value will be ``v2.cloud_name`` if both ``v1`` and ``v2`` keys are present in
@@ -257,13 +257,13 @@ jinja-safe key alias. This allows for ``cloud-init`` templates to use aliased
 variable references which allow for jinja's dot-notation reference such as
 ``{{ ds.v1_0.my_safe_key }}`` instead of ``{{ ds["v1.0"]["my/safe-key"] }}``.
 
-Standardised :file:`instance-data.json` v1 keys
+Standardized :file:`instance-data.json` v1 keys
 -----------------------------------------------
 
 ``v1._beta_keys``
 ^^^^^^^^^^^^^^^^^
 
-List of standardised keys still in 'beta'. The format, intent or presence of
+List of standardized keys still in 'beta'. The format, intent or presence of
 these keys can change. Do not consider them production-ready.
 
 Example output:

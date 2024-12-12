@@ -1,4 +1,4 @@
-.. _cce-disable-ec2-meta-data:
+.. _cce-disable-ec2-metadata:
 
 Disable AWS EC2 IMDS
 ********************

@@ -67,7 +67,7 @@ networking configuration.
 Disabling network activation
 ============================
 
-Some datasources may not be initialised until after the network has been
+Some datasources may not be initialized until after the network has been
 brought up. In this case, ``cloud-init`` will attempt to bring up the
 interfaces specified by the datasource meta-data using a network activator
 discovered by `cloudinit.net.activators.select_activator`_.

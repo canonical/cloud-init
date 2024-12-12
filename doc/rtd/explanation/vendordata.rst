@@ -7,7 +7,7 @@ Overview
 ========
 
 Vendor-data is data provided by the entity that launches an instance (e.g.,
-the cloud provider). This data can be used to customise the image to fit into
+the cloud provider). This data can be used to customize the image to fit into
 the particular environment it is being run in.
 
 Vendor-data follows the same rules as user-data, with the following

@@ -7,11 +7,11 @@ These examples show datasource configuration options for various datasources.
 
 The options shown are as follows:
 
-* ``timeout``: The timeout value for a request at meta-data service
+* ``timeout``: The timeout value for a request at instance metadata service
 * ``max_wait``: The length of time to wait (in seconds) before giving up on
-  the meta-data service. The actual total wait could be up to:
-  ``len(resolvable_meta-data_urls)*timeout``
-* ``meta-data_url``: List of URLs to check for meta-data services. There are no
+  the instance metadata service. The actual total wait could be up to:
+  ``len(resolvable_metadata_urls)*timeout``
+* ``metadata_url``: List of URLs to check for instance metadata services. There are no
   default values for this field.
 
 EC2
@@ -24,7 +24,7 @@ EC2
       EC2:
         timeout : 50
         max_wait : 120
-        meta-data_url:
+        metadata_url:
          - http://169.254.169.254:80
          - http://instance-data:8773
 
@@ -38,7 +38,7 @@ MAAS
       MAAS:
         timeout : 50
         max_wait : 120
-        meta-data_url: http://mass-host.localdomain/source
+        metadata_url: http://mass-host.localdomain/source
         consumer_key: Xh234sdkljf
         token_key: kjfhgb3n
         token_secret: 24uysdfx1w4

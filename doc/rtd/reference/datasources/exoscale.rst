@@ -42,7 +42,7 @@ The following settings are available and can be set for the
 
 The settings available are:
 
-* ``metadata_url``: The URL for the meta-data service.
+* ``metadata_url``: The URL for the instance metadata service.
 
   Defaults to ``http://169.254.169.254``.
 

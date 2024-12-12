@@ -100,7 +100,7 @@ Custom 3rd party mergers can be defined, for more info visit
 How to activate
 ===============
 
-There are a few ways to activate the merging algorithms, and to customise them
+There are a few ways to activate the merging algorithms, and to customize them
 for your own usage.
 
 1. The first way involves the usage of MIME messages in ``cloud-init`` to

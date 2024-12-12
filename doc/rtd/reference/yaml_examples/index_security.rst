@@ -12,7 +12,7 @@ SSH and security
   * :ref:`SSH AuthKey Fingerprints <cce-ssh-authkey-fingerprints>`.
 
 * :ref:`cce-ca-certs`
-* :ref:`cce-disable-ec2-meta-data`
+* :ref:`cce-disable-ec2-metadata`
 
 .. TOC
 

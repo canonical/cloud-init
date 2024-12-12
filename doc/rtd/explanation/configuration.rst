@@ -34,8 +34,8 @@ configuration are defined in the
    :ref:`cloud-config<explanation/format:Cloud config data>` which may be
    overridden by vendor-data and user-data.
 
-Vendor and user-data
-====================
+Vendor-data and user-data
+=========================
 
 Added to the base configuration are :ref:`vendor-data<vendordata>` and
 :ref:`user-data<user_data_formats>` which are both provided by the datasource.
@@ -62,7 +62,7 @@ provided by the cloud platform you're on. Additionally, there may be
 related ``cloud-init`` documentation in the :ref:`datasource<datasources>`
 section.
 
-Once an instance has been initialised, the user-data may not be edited.
+Once an instance has been initialized, the user-data may not be edited.
 It is sourced directly from the cloud, so even if you find a local file
 that contains user-data, it will likely be overwritten in the next boot.
 
@@ -70,7 +70,7 @@ Distro providers
 ----------------
 
 Modify the base config. This often involves submitting a PR to modify
-the base `cloud.cfg template`_, which is used to customise
+the base `cloud.cfg template`_, which is used to customize
 :file:`/etc/cloud/cloud.cfg` per distro. Additionally, a file can be added to
 :file:`/etc/cloud/cloud.cfg.d` to override a piece of the base configuration.
 

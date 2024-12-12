@@ -53,7 +53,7 @@ Example output:
 
 This subcommand is not called by the init system. It can be called manually to
 load the configured datasource and run a single cloud-config module once, using
-the cached user-data and meta-data after the instance has booted.
+the cached instance-data after the instance has booted.
 
 .. note::
 

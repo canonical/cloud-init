@@ -42,7 +42,7 @@ one of the following keys:
 - ``cloud-init.user-data``: YAML which takes precedence and overrides both
   meta-data and vendor-data values.
 - ``user.<any-key>``: Keys prefixed with ``user.`` are included in
-  :ref:`instance-data<instance_meta-data>` under the ``ds.config`` key. These
+  :ref:`instance-data<instance-data>` under the ``ds.config`` key. These
   key value pairs are used in jinja :ref:`cloud-config<jinja-config>`
   and :ref:`user-data scripts<jinja-script>`. These key-value pairs may be
   inspected on a launched instance using ``cloud-init query ds.config``.

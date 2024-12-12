@@ -21,12 +21,6 @@ event types:
   default behaviour, this option exists to prevent regressing such behaviour.
 - ``HOTPLUG``: Dynamic add of a system device.
 
-Future work will likely include infrastructure and support for the following
-events:
-
-- ``METADATA_CHANGE``: An instance's meta-data has changed.
-- ``USER_REQUEST``: Directed request to update.
-
 Datasource event support
 ========================
 
@@ -68,7 +62,7 @@ Hotplug
 When the ``hotplug`` event is supported by the datasource and configured in
 :ref:`user-data<mod_cc_install_hotplug>`, ``cloud-init`` will respond to the
 addition or removal of network interfaces to the system. In addition to
-fetching and updating the system meta-data, ``cloud-init`` will also bring
+fetching and updating the instance-data, ``cloud-init`` will also bring
 up/down the newly added interface.
 
 Example

@@ -57,7 +57,7 @@ Default: -1
 
 The timeout value provided to ``urlopen`` for each individual http request.
 This is used both when selecting a ``metadata_url`` and when crawling the
-meta-data service.
+instance metadata service.
 
 Default: 10
 

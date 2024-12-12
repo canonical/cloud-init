@@ -26,14 +26,14 @@ An example configuration with the default values is provided below:
 
    datasource:
      AliYun:
-       meta-data_urls: ["http://100.100.100.200"]
+       metadata_urls: ["http://100.100.100.200"]
        timeout: 50
        max_wait: 120
 
 Versions
 --------
 
-Like the EC2 meta-data service, Alibaba Cloud's meta-data service provides
+Like the EC2 instance metadata service, Alibaba Cloud's instance metadata service provides
 versioned data under specific paths. As of April 2018, there are only
 ``2016-01-01`` and ``latest`` versions.
 

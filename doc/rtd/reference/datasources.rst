@@ -11,7 +11,7 @@ instance id, display name, and other cloud specific details.
 
 Any meta-data processed by ``cloud-init``'s datasources is persisted as
 :file:`/run/cloud-init/instance-data.json`. ``Cloud-init`` provides tooling to
-quickly introspect some of that data. See :ref:`instance_meta-data` for more
+quickly introspect some of that data. See :ref:`instance-data` for more
 information.
 
 How to configure which datasource to use

@@ -10,9 +10,9 @@ By default, ``cloud-init`` *always* considers this source to be a
 fully-fledged datasource. Instead, the typical behavior is to assume it is
 really only present to provide networking information. ``Cloud-init`` will
 copy the network information, apply it to the system, and then continue on.
-The "full" datasource could then be found in the EC2 meta-data service. If
+The "full" datasource could then be found in the EC2 instance metadata service. If
 this is not the case then the files contained on the located drive must
-provide equivalents to what the EC2 meta-data service would provide (which is
+provide equivalents to what the EC2 instance metadata service would provide (which is
 typical of the version 2 support listed below).
 
 .. note::
@@ -105,7 +105,7 @@ networking to be up before user-data actions are run.
    instance-id:
      default: iid-dsconfigdrive
 
-This is utilised as the meta-data's instance-id. It should generally
+This is utilized as the meta-data's instance-id. It should generally
 be unique, as it is what is used to determine "is this a new instance?".
 
 ``public-keys``
