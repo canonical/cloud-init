@@ -7,7 +7,7 @@ import re
 import string
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Type, Optional
+from typing import Optional, Type
 from uuid import UUID
 
 from pycloudlib import (
@@ -182,7 +182,7 @@ class IntegrationCloud(ABC):
 
     def delete_snapshot(self):
         if self.snapshot_id:
-            if self.settings.KEEP_IMAGE:  # type: ignore
+            if self.settings.KEEP_IMAGE:
                 log.info(
                     "NOT deleting snapshot image created for this testrun "
                     "because KEEP_IMAGE is True: %s",
