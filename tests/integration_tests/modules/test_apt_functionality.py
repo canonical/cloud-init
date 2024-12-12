@@ -478,7 +478,7 @@ runcmd:
 
 
 @pytest.mark.skipif(not IS_UBUNTU, reason="Apt usage")
-def test_install_missing_deps(setup_image, session_cloud: IntegrationCloud):
+def test_install_missing_deps(session_cloud: IntegrationCloud):
     # Two stage install: First stage:  remove gpg noninteractively from image
     instance1 = session_cloud.launch(user_data=REMOVE_GPG_USERDATA)
     snapshot_id = instance1.snapshot()
