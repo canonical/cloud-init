@@ -268,9 +268,14 @@ Pin-Priority: 1001"""
         # to install missing dependency errors due to stale cache.
         self.execute("apt update")
         # Use apt install instead of dpkg -i to pull in any changed pkg deps
-        assert self.execute(
-            f"apt install {remote_path} --yes --allow-downgrades"
-        ).ok
+        apt_result = self.execute(
+            f"apt install -qy {remote_path} --allow-downgrades"
+        )
+        if not apt_result.ok:
+            raise RuntimeError(
+                f"Failed to install {deb_name}: stdout: {apt_result.stdout}. "
+                f"stderr: {apt_result.stderr}"
+            )
 
     @retry(tries=30, delay=1)
     def upgrade_cloud_init(self, pkg: str):
