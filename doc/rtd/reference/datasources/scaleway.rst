@@ -2,8 +2,8 @@
 
 Scaleway
 ********
-`Scaleway`_ datasource uses data provided by the Scaleway instance metadata service
-to do initial configuration of the network services.
+`Scaleway`_ datasource uses data provided by the Scaleway instance metadata
+service to do initial configuration of the network services.
 
 The instance metadata service is reachable at the following addresses :
 
@@ -26,7 +26,8 @@ the following information in the `/etc/cloud.cfg.d` directory::
 
 * ``retries``
 
-  Controls the maximum number of attempts to reach the instance metadata service.
+  Controls the maximum number of attempts to reach the instance metadata
+  service.
 
 * ``timeout``
 
@@ -46,9 +47,10 @@ the following information in the `/etc/cloud.cfg.d` directory::
 User Data
 =========
 
-cloud-init fetches user-data using the instance metadata service using the `/user_data`
-endpoint. Scaleway's documentation provides a detailed description on how to
-use  `userdata`_. One can also interact with it using the `userdata api`_.
+cloud-init fetches user-data using the instance metadata service using the
+`/user_data` endpoint. Scaleway's documentation provides a detailed description
+on how to use `userdata`_. One can also interact with it using the
+`userdata api`_.
 
 
 .. _Scaleway: https://www.scaleway.com

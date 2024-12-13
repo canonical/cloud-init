@@ -82,8 +82,8 @@ The settings that may be configured are:
 ``metadata_urls``
 -----------------
 
-This list of URLs will be searched for an EC2 instance metadata service. The first
-entry that successfully returns a 200 response for
+This list of URLs will be searched for an EC2 instance metadata service. The
+first entry that successfully returns a 200 response for
 ``<url>/<version>/meta-data/instance-id`` will be selected.
 
 Default: [``'http://169.254.169.254'``, ``'http://[fd00:ec2::254]'``,

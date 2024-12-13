@@ -4,8 +4,8 @@ Vultr
 *****
 
 The `Vultr`_ datasource retrieves basic configuration values from the locally
-accessible instance metadata service. All data is served over HTTP from the address
-``169.254.169.254``. The endpoints are documented in the
+accessible instance metadata service. All data is served over HTTP from the
+address ``169.254.169.254``. The endpoints are documented in the
 `instance metadata service documentation`_.
 
 Configuration

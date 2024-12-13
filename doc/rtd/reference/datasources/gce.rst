@@ -33,7 +33,8 @@ The settings that may be configured are:
 
 * ``sec_between_retries``
 
-  The amount of wait time between retries when crawling the instance metadata service.
+  The amount of wait time between retries when crawling the instance metadata
+  service.
 
   Default: 1
 

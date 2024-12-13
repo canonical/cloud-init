@@ -3,8 +3,8 @@
 ZStack
 ******
 
-ZStack platform provides an AWS EC2 instance metadata service, but with different
-datasource identity. More information about ZStack can be found at
+ZStack platform provides an AWS EC2 instance metadata service, but with
+different datasource identity. More information about ZStack can be found at
 `ZStack`_.
 
 Discovery

@@ -10,10 +10,10 @@ By default, ``cloud-init`` *always* considers this source to be a
 fully-fledged datasource. Instead, the typical behavior is to assume it is
 really only present to provide networking information. ``Cloud-init`` will
 copy the network information, apply it to the system, and then continue on.
-The "full" datasource could then be found in the EC2 instance metadata service. If
-this is not the case then the files contained on the located drive must
-provide equivalents to what the EC2 instance metadata service would provide (which is
-typical of the version 2 support listed below).
+The "full" datasource could then be found in the EC2 instance metadata service.
+If this is not the case then the files contained on the located drive must
+provide equivalents to what the EC2 instance metadata service would provide
+(which is typical of the version 2 support listed below).
 
 .. note::
    See `the config drive extension`_ and `meta-data introduction`_ in the

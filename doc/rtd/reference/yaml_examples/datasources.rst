@@ -11,8 +11,8 @@ The options shown are as follows:
 * ``max_wait``: The length of time to wait (in seconds) before giving up on
   the instance metadata service. The actual total wait could be up to:
   ``len(resolvable_metadata_urls)*timeout``
-* ``metadata_url``: List of URLs to check for instance metadata services. There are no
-  default values for this field.
+* ``metadata_url``: List of URLs to check for instance metadata services. There
+  are no default values for this field.
 
 EC2
 ===

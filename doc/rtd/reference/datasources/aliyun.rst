@@ -33,9 +33,9 @@ An example configuration with the default values is provided below:
 Versions
 --------
 
-Like the EC2 instance metadata service, Alibaba Cloud's instance metadata service provides
-versioned data under specific paths. As of April 2018, there are only
-``2016-01-01`` and ``latest`` versions.
+Like the EC2 instance metadata service, Alibaba Cloud's instance metadata
+service provides versioned data under specific paths. As of April 2018, there
+are only ``2016-01-01`` and ``latest`` versions.
 
 It is expected that the dated version will maintain a stable interface but
 ``latest`` may change content at a future date.

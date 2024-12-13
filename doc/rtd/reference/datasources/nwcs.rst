@@ -4,8 +4,8 @@ NWCS
 ****
 
 The NWCS datasource retrieves basic configuration values from the locally
-accessible instance metadata service. All data is served over HTTP from the address
-``169.254.169.254``.
+accessible instance metadata service. All data is served over HTTP from the
+address ``169.254.169.254``.
 
 Configuration
 =============

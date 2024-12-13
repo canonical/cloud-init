@@ -13,9 +13,9 @@ OCI provides bare metal and virtual machines. In both cases, the platform
 identifies itself via DMI data in the chassis asset tag with the string
 ``'OracleCloud.com'``.
 
-Oracle's platform provides a instance metadata service that mimics the ``2013-10-17``
-version of OpenStack instance metadata service. Initially, support for Oracle was done
-via the OpenStack datasource.
+Oracle's platform provides a instance metadata service that mimics the
+``2013-10-17`` version of OpenStack instance metadata service. Initially,
+support for Oracle was done via the OpenStack datasource.
 
 ``Cloud-init`` has a specific datasource for Oracle in order to:
 
@@ -43,8 +43,8 @@ may change in the future).
 ------------
 
 An integer, defaulting to 30. The maximum time in seconds to wait for the
-instance metadata service to become available. If the instance metadata service is not
-available within this time, the datasource will fail.
+instance metadata service to become available. If the instance metadata service
+is not available within this time, the datasource will fail.
 
 ``timeout``
 -----------

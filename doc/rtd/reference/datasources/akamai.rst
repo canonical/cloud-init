@@ -54,7 +54,7 @@ use no changes to the defaults should be necessary: ::
 
 * ``allow_dhcp``
 
-  Allows this datasource to use dhcp to find an IPv4 address to fetch 
+  Allows this datasource to use dhcp to find an IPv4 address to fetch
   instance-data with during the local stage.
 
 * ``allow_ipv4``
@@ -77,7 +77,7 @@ Configuration Overrides
 In some circumstances, the Akamai platform may send configurations overrides to
 instances via dmi data to prevent certain behavior that may not be supported
 based on the instance's region or configuration.  For example, if deploying an
-instance in a region that does not yet support instance-data, both the local and
-init stages will be disabled, preventing cloud-init from attempting to fetch
-instance-data.  Configuration overrides sent this way will appears in the
+instance in a region that does not yet support instance-data, both the local
+and init stages will be disabled, preventing cloud-init from attempting to
+fetch instance-data.  Configuration overrides sent this way will appears in the
 ``baseboard-serial-number`` field.
