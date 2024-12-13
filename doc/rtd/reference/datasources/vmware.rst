@@ -346,7 +346,7 @@ this datasource using the GuestInfo keys transport:
                name: ens*
              dhcp4: yes
 
-#. Create the userdata file :file:`userdata.yaml`\:
+#. Create the user-data file :file:`user-data.yaml`\:
 
    .. code-block:: yaml
 
@@ -405,7 +405,7 @@ this datasource using the GuestInfo keys transport:
    .. code-block:: shell
 
       export METADATA=$(gzip -c9 <meta-data.yaml | { base64 -w0 2>/dev/null || base64; }) \
-           USERDATA=$(gzip -c9 <userdata.yaml | { base64 -w0 2>/dev/null || base64; })
+           USERDATA=$(gzip -c9 <user-data.yaml | { base64 -w0 2>/dev/null || base64; })
 
 #. Assign the meta-data and user-data to the VM:
 

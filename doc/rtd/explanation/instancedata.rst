@@ -215,8 +215,8 @@ included in the ``sensitive-keys`` list which is only readable by root.
 ^^^^^^
 
 Datasource-specific data crawled for the specific cloud platform. It should
-closely represent the structure of the cloud data crawled. The structure of
-content and details provided are entirely cloud-dependent. Mileage will vary
+closely represent the structure of the data crawled. The structure of content
+and details provided are entirely cloud-dependent. Mileage will vary
 depending on what the cloud exposes. The content exposed under the ``ds`` key
 is currently **experimental** and expected to change slightly in the upcoming
 ``cloud-init`` release.

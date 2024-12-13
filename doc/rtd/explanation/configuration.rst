@@ -37,7 +37,7 @@ configuration are defined in the
 Vendor-data and user-data
 =========================
 
-Added to the base configuration are :ref:`vendor-data<vendordata>` and
+Added to the base configuration are :ref:`vendor-data<vendor-data>` and
 :ref:`user-data<user_data_formats>` which are both provided by the datasource.
 
 These get fetched from the datasource and are defined at instance launch.

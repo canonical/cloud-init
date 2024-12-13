@@ -115,9 +115,9 @@ upgrade packages and install ``htop`` on all instances:
 
 For more general information about how ``cloud-init`` handles vendor-data,
 including how it can be disabled by users on instances, see our
-:ref:`explanation topic<vendordata>`.
+:ref:`explanation topic<vendor-data>`.
 
-OpenStack can also be configured to provide "dynamic vendordata"
+OpenStack can also be configured to provide "dynamic vendor-data"
 which is provided by the DynamicJSON provider and appears under a
 different IMDS path, :file:`/vendor_data2.json`.
 

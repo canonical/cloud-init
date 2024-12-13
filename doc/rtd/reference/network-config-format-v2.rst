@@ -65,8 +65,8 @@ currently being defined.
 There are two physically/structurally different classes of device definitions,
 and the ID field has a different interpretation for each:
 
-Physical devices (e.g., ethernet, wifi)
----------------------------------------
+Physical devices (e.g., ethernet, Wi-Fi)
+----------------------------------------
 
 These can dynamically come and go between reboots and even during runtime
 (hotplugging). In the generic case, they can be selected by ``match:``

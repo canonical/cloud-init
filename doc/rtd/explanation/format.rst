@@ -270,7 +270,7 @@ and a shell script (:file:`script.sh`)
 
 .. code-block:: shell-session
 
-    $ cloud-init devel make-mime -a config.yaml:cloud-config -a script.sh:x-shellscript > userdata
+    $ cloud-init devel make-mime -a config.yaml:cloud-config -a script.sh:x-shellscript > user-data.mime
 
 Create user-data containing 3 shell scripts:
 

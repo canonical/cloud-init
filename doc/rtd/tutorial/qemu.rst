@@ -77,7 +77,7 @@ configure the virtual machine instance. There are three major types:
 
 * :ref:`user-data <user_data_formats>` is provided by the user, and cloud-init
   recognizes many different formats.
-* :ref:`vendor-data <vendordata>` is provided by the cloud provider.
+* :ref:`vendor-data <vendor-data>` is provided by the cloud provider.
 * :ref:`meta-data <instance-data>` contains the platform data, including
   things like machine ID, hostname, etc.
 

@@ -3,7 +3,7 @@
 Control vendor-data use
 ***********************
 
-The use of :ref:`vendor-data <vendordata>` can be controlled by the user.
+The use of :ref:`vendor-data <vendor-data>` can be controlled by the user.
 Vendor-data can be used (or disabled) with an optional prefix.
 
 For a full list of keys, refer to the
