@@ -169,7 +169,7 @@ Other uses
 In addition to being used for merging user-data sections, the default merging
 algorithm for merging :file:`'conf.d'` YAML files (which form an initial YAML
 config for ``cloud-init``) was also changed to use this mechanism, to take
-advantage of the full benefits (and customisation) here as well. Other places
+advantage of the full benefits (and customization) here as well. Other places
 that used the previous merging are also, similarly, now extensible (meta-data
 merging, for example).
 

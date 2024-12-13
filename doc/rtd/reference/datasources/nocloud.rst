@@ -31,7 +31,9 @@ user to configure an instance.
 meta-data
 ---------
 
-The ``meta-data`` file is a YAML-formatted file.
+The ``meta-data`` file is a YAML-formatted file which contains cloud-provided
+information to the instance. This is required to contain an ``instance-id``,
+with other cloud-specific keys available.
 
 vendor-data
 -----------

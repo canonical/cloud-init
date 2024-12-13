@@ -118,8 +118,8 @@ VMware Tools configuration options.
 GuestInfo keys
 ==============
 
-One method of providing meta, user, and vendor-data is by setting the following
-key/value pairs on a VM's ``extraConfig`` `property`_:
+One method of providing meta-data, user-data, and vendor-data is by setting the
+following key/value pairs on a VM's ``extraConfig`` `property`_:
 
 .. list-table::
    :header-rows: 1

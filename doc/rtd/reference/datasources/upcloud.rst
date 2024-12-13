@@ -18,5 +18,5 @@ User-data is immutable during the server's lifetime, and can be removed by
 deleting the server.
 
 .. _UpCloud: https://upcloud.com/
-.. _instance metadata service: https://upcloud.com/community/tutorials/upcloud-meta-data-service/
-.. _UpCloud API documentation: https://developers.upcloud.com/1.3/8-servers/#meta-data-service
+.. _instance metadata service: https://upcloud.com/community/tutorials/upcloud-metadata-service/
+.. _UpCloud API documentation: https://developers.upcloud.com/1.3/8-servers/#metadata-service
