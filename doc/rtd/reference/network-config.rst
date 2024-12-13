@@ -320,10 +320,10 @@ Example output:
 .. _LXD: https://documentation.ubuntu.com/lxd/en/latest/cloud-init/#how-to-specify-network-configuration-data
 .. _NetworkManager: https://networkmanager.dev
 .. _Netplan: https://netplan.io/
-.. _DigitalOcean JSON meta-data: https://developers.digitalocean.com/documentation/meta-data/
-.. _OpenStack Instance Metadata Service Network: https://specs.openstack.org/openstack/nova-specs/specs/liberty/implemented/meta-data-service-network-info.html
+.. _DigitalOcean JSON meta-data: https://developers.digitalocean.com/documentation/metadata/
+.. _OpenStack Instance Metadata Service Network: https://specs.openstack.org/openstack/nova-specs/specs/liberty/implemented/metadata-service-network-info.html
 .. _SmartOS JSON Instance Metadata: https://eng.joyent.com/mdata/datadict.html
-.. _UpCloud JSON meta-data: https://developers.upcloud.com/1.3/8-servers/#meta-data-service
-.. _Vultr JSON meta-data: https://www.vultr.com/meta-data/
+.. _UpCloud JSON meta-data: https://developers.upcloud.com/1.3/8-servers/#metadata-service
+.. _Vultr JSON meta-data: https://www.vultr.com/metadata/
 .. _cloudinit.net.activators.select_activator: https://github.com/canonical/cloud-init/blob/main/cloudinit/net/activators.py#L249
 .. _FreeBSD.start_services: https://github.com/canonical/cloud-init/blob/main/cloudinit/net/freebsd.py#L46
