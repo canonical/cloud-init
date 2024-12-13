@@ -4,7 +4,7 @@ CloudCIX
 ========
 
 `CloudCIX`_ serves meta-data through an internal server, accessible at
-``http://169.254.169.254/v1``. The meta-data and userdata can be fetched at
+``http://169.254.169.254/v1``. The meta-data and user-data can be fetched at
 the ``/meta-data`` and ``/userdata`` paths respectively.
 
 CloudCIX instances are identified by the dmi product name `CloudCIX`.

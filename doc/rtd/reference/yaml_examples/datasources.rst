@@ -84,7 +84,7 @@ SmartOS
         # Smart OS datasource works over a socket interacting with
         # the host on the other end. By default, the socket file is in
         # the native .zoncontrol directory.
-        meta-data_sockfile: /native/.zonecontrol/meta-data.sock
+        metadata_sockfile: /native/.zonecontrol/meta-data.sock
         # a list of keys that will not be base64 decoded even if base64_all
         no_base64_decode: ['root_authorized_keys', 'motd_sys_info',
                            'iptables_disable']

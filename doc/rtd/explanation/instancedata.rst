@@ -45,7 +45,7 @@ Discovery
 on invalid ``instance-data`` keys, paths, or invalid syntax.
 
 The :command:`query` command also publishes ``userdata`` and ``vendordata``
-keys to the root user which will contain the decoded user and vendor data
+keys to the root user which will contain the decoded user-data and vendor-data
 provided to this instance. Non-root users referencing ``userdata`` or
 ``vendordata`` keys will see only redacted values.
 

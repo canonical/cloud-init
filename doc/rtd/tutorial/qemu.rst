@@ -83,7 +83,7 @@ configure the virtual machine instance. There are three major types:
 
 There is a specific user-data format called "*cloud-config*" that is probably
 the most commonly used, so we will create an example of this (and examples of
-both vendor-data and metadata files), then pass them all to cloud-init.
+both vendor-data and meta-data files), then pass them all to cloud-init.
 
 Let's create our :file:`user-data` file first. The user-data *cloud-config*
 is a YAML-formatted file, and in this example it sets the password of the
@@ -155,7 +155,7 @@ as a way to expose information to virtual machine instances. This service is
 the primary mechanism for some clouds to expose cloud-init configuration data
 to the instance.
 
-The IMDS uses a private http webserver to provide metadata to each running
+The IMDS uses a private http webserver to provide instance-data to each running
 instance. During early boot, cloud-init sets up network access and queries this
 webserver to gather configuration data. This allows cloud-init to configure
 the operating system while it boots.

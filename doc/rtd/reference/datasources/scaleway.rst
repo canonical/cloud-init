@@ -31,28 +31,28 @@ the following information in the `/etc/cloud.cfg.d` directory::
 
 * ``timeout``
 
-  Controls the number of seconds to wait for a response from the meta-data
-  service for one protocol.
+  Controls the number of seconds to wait for a response from the instance
+  metadata service for one protocol.
 
 * ``max_wait``
 
-  Controls the number of seconds to wait for a response from the meta-data
-  service for all protocols.
+  Controls the number of seconds to wait for a response from the instance
+  metadata service for all protocols.
 
 * ``metadata_urls``
 
-  List of additional URLs to be used in an attempt to reach the meta-data
-  service in addition to the existing ones.
+  List of additional URLs to be used in an attempt to reach the instance
+  metadata service in addition to the existing ones.
 
-User Data
+User-data
 =========
 
 cloud-init fetches user-data using the instance metadata service using the
 `/user_data` endpoint. Scaleway's documentation provides a detailed description
-on how to use `userdata`_. One can also interact with it using the
-`userdata api`_.
+on how to use `user-data`_. One can also interact with it using the
+`user-data api`_.
 
 
 .. _Scaleway: https://www.scaleway.com
-.. _userdata: https://www.scaleway.com/en/docs/compute/instances/api-cli/using-cloud-init/
-.. _userdata api: https://www.scaleway.com/en/developers/api/instance/#path-user-data-list-user-data
+.. _user-data: https://www.scaleway.com/en/docs/compute/instances/api-cli/using-cloud-init/
+.. _user-data api: https://www.scaleway.com/en/developers/api/instance/#path-user-data-list-user-data

@@ -94,7 +94,7 @@ An example configuration with the default values is provided below:
        apply_network_config: True
 
 
-Vendor Data
+Vendor-data
 ===========
 
 The OpenStack IMDS can be configured to serve up vendor-data,
@@ -103,8 +103,8 @@ generally a JSON object.
 
 ``Cloud-init`` will look for configuration in the ``cloud-init`` attribute
 of the vendor-data JSON object. ``Cloud-init`` processes this configuration
-using the same handlers as user-data, so any formats that work for user
-data should work for vendor-data.
+using the same handlers as user-data, so any formats that work for user-data
+should work for vendor-data.
 
 For example, configuring the following as vendor-data in OpenStack would
 upgrade packages and install ``htop`` on all instances:

@@ -3,11 +3,11 @@
 Rbx Cloud
 *********
 
-The Rbx datasource consumes the meta-data drive available on the `HyperOne`_
-and `Rootbox`_ platforms.
+The Rbx datasource consumes the instance metadata drive available on the
+`HyperOne`_ and `Rootbox`_ platforms.
 
 This datasource supports network configurations, hostname, user accounts and
-user meta-data.
+user-data.
 
 Instance metadata drive
 =======================

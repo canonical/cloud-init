@@ -4,7 +4,7 @@ Introduction to cloud-init
 **************************
 
 Managing and configuring cloud instances and servers can be a complex
-and time-consuming task. Cloud-init is an open source initialisation tool that
+and time-consuming task. Cloud-init is an open source initialization tool that
 was designed to make it easier to get your systems up and running with a
 minimum of effort, already configured according to your needs.
 

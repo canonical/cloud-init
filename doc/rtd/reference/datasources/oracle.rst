@@ -48,6 +48,7 @@ is not available within this time, the datasource will fail.
 
 ``timeout``
 -----------
+
 An integer, defaulting to 5. The time in seconds to wait for a response from
 the instance metadata service before retrying.
 

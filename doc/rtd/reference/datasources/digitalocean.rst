@@ -33,4 +33,4 @@ DigitalOcean's datasource can be configured as follows: ::
   instance metadata service.
 
 .. _DigitalOcean: http://digitalocean.com/
-.. _meta-data documentation: https://developers.digitalocean.com/meta-data/
+.. _meta-data documentation: https://developers.digitalocean.com/metadata/

@@ -66,8 +66,8 @@ Possible subcommands include:
   events.
 * :command:`show`: show time-ordered report of the cost of operations during
   each boot stage.
-* :command:`boot`: show timestamps from kernel initialisation, kernel finish
-  initialisation, and ``cloud-init`` start.
+* :command:`boot`: show timestamps from kernel initialization, kernel finish
+  initialization, and ``cloud-init`` start.
 
 .. _cli_clean:
 

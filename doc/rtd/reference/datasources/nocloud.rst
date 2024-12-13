@@ -345,7 +345,7 @@ For example, you can pass this line configuration to QEMU: ::
 This will cause NoCloud to fetch all data from a URL based on
 YOUR_SERIAL_NUMBER as seen in :file:`/sys/class/dmi/id/chassis_serial_number`
 (kenv on FreeBSD) from http://10.10.0.1:8000/YOUR_SERIAL_NUMBER/ after
-the network initialisation is complete.
+the network initialization is complete.
 
 
 Example: Creating a disk

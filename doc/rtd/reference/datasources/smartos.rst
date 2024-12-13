@@ -3,7 +3,7 @@
 SmartOS Datasource
 ******************
 
-This datasource finds meta-data and user-data from the SmartOS virtualisation
+This datasource finds meta-data and user-data from the SmartOS virtualization
 platform (i.e., Joyent).
 
 Please see http://smartos.org/ for information about SmartOS.
@@ -11,7 +11,7 @@ Please see http://smartos.org/ for information about SmartOS.
 SmartOS platform
 ================
 
-The SmartOS virtualisation platform uses meta-data from the instance via the
+The SmartOS virtualization platform uses meta-data from the instance via the
 second serial console. On Linux, this is :file:`/dev/ttyS1`. The data is
 provided via a simple protocol:
 

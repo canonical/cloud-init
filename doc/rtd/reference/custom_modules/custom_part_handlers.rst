@@ -21,7 +21,7 @@ any parts with mime-types that it is expected to handle in the same user-data.
 
 ``Cloud-init`` will then call the ``handle_part`` function once before it
 handles any parts, once per part received, and once after all parts have been
-handled. These additional calls allow for initialisation or teardown before
+handled. These additional calls allow for initialization or teardown before
 or after receiving any parts.
 
 Example

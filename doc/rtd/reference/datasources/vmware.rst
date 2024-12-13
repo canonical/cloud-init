@@ -177,7 +177,7 @@ Instance data and lazy networks
 
 One of the hallmarks of ``cloud-init`` is
 :ref:`its use of instance-data and JINJA queries <instancedata-Using>` -- the
-ability to write queries in user and vendor-data that reference runtime
+ability to write queries in user-data and vendor-data that reference runtime
 information present in :file:`/run/cloud-init/instance-data.json`. This works
 well when the meta-data provides all of the information up front, such as the
 network configuration. For systems that rely on DHCP, however, this
