@@ -4,14 +4,14 @@ Datasources
 ***********
 
 Datasources are sources of configuration data for ``cloud-init`` that typically
-come from the user (i.e., user data) or come from the cloud that created the
-configuration drive (i.e., metadata). Typical user data includes files,
-YAML, and shell scripts whereas typical metadata includes server name,
+come from the user (i.e., user-data) or come from the cloud that created the
+configuration drive (i.e., meta-data). Typical user-data includes files,
+YAML, and shell scripts whereas typical meta-data includes server name,
 instance id, display name, and other cloud specific details.
 
-Any metadata processed by ``cloud-init``'s datasources is persisted as
+Any meta-data processed by ``cloud-init``'s datasources is persisted as
 :file:`/run/cloud-init/instance-data.json`. ``Cloud-init`` provides tooling to
-quickly introspect some of that data. See :ref:`instance_metadata` for more
+quickly introspect some of that data. See :ref:`instance-data` for more
 information.
 
 How to configure which datasource to use

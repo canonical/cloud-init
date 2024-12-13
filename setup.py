@@ -329,7 +329,7 @@ requirements = read_requires()
 setuptools.setup(
     name="cloud-init",
     version=get_version(),
-    description="Cloud instance initialisation magic",
+    description="Cloud instance initialization magic",
     author="Scott Moser",
     author_email="scott.moser@canonical.com",
     url="http://launchpad.net/cloud-init/",

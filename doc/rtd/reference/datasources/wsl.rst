@@ -14,7 +14,7 @@ Requirements
 ==============
 
 1. **WSL interoperability must be enabled**. The datasource needs to execute
-   some Windows binaries to compute the possible locations of the user data
+   some Windows binaries to compute the possible locations of the user-data
    files.
 
 2. **WSL automount must be enabled**. The datasource needs to access files in
@@ -39,18 +39,18 @@ For more information about how to configure WSL,
 
 .. _wsl_user_data_configuration:
 
-User data configuration
+User-data configuration
 ========================
 
 The WSL datasource relies exclusively on the Windows filesystem as the provider
-of user data. Access to those files is provided by WSL itself unless disabled
+of user-data. Access to those files is provided by WSL itself unless disabled
 by the user, thus the datasource doesn't require any special component running
 on the Windows host to provide such data.
 
-User data can be supplied in any
+User-data can be supplied in any
 :ref:`format supported by cloud-init<user_data_formats>`, such as YAML
 cloud-config files or shell scripts. At runtime, the WSL datasource looks for
-user data in the following locations inside the Windows host filesystem, in the
+user-data in the following locations inside the Windows host filesystem, in the
 order specified below.
 The WSL datasource will be enabled if cloud-init discovers at least one of the
 applicable config files described below.
@@ -76,7 +76,7 @@ following paths:
 Then, if a file from (1) is not found, optional user-provided configuration
 will be looked for in the following order:
 
-1. ``%USERPROFILE%\.cloud-init\<InstanceName>.user-data`` holds user data for a
+1. ``%USERPROFILE%\.cloud-init\<InstanceName>.user-data`` holds user-data for a
    specific instance configuration. The datasource resolves the name attributed
    by WSL to the instance being initialized and looks for this file before any
    of the subsequent alternatives. Example: ``sid-mlkit.user-data`` matches an
@@ -112,30 +112,30 @@ configurations from previous steps were found.
 
 .. note::
    Some users may have configured case sensitivity for file names on Windows.
-   Note that user data files will still be matched case-insensitively. If there
+   Note that user-data files will still be matched case-insensitively. If there
    are both `InstanceName.user-data` and `instancename.user-data`, which one
    will be chosen is arbitrary and should not be relied on. Thus it's
    recommended to avoid that scenario to prevent confusion.
 
-Since WSL instances are scoped by the Windows user, having the user data files
+Since WSL instances are scoped by the Windows user, having the user-data files
 inside the ``%USERPROFILE%`` directory (typically ``C:\Users\<USERNAME>``)
 ensures that WSL instance initialization won't be subject to naming conflicts
 if the Windows host is shared by multiple users.
 
 
-Vendor and metadata
-===================
+Vendor-data and meta-data
+=========================
 
-The current implementation doesn't allow supplying vendor data.
-The reasoning is that vendor data adds layering, thus complexity, for no real
-benefit to the user. Supplying vendor data could be relevant to WSL itself, if
+The current implementation doesn't allow supplying vendor-data.
+The reasoning is that vendor-data adds layering, thus complexity, for no real
+benefit to the user. Supplying vendor-data could be relevant to WSL itself, if
 the subsystem was aware of cloud-init and intended to leverage it, which is not
 the case to the best of our knowledge at the time of this writing.
 
-Most of what ``metadata`` is intended for is not applicable under WSL, such as
-setting a hostname. Yet, the knowledge of ``metadata.instance-id`` is vital for
-cloud-init. So, this datasource provides a default value but also supports
-optionally sourcing metadata from a per-instance specific configuration file:
+Most of what ``meta-data`` is intended for is not applicable under WSL, such as
+setting a hostname. Yet, the knowledge of ``meta-data.instance-id`` is vital
+for cloud-init. So, this datasource provides a default value but also supports
+optionally sourcing meta-data from a per-instance specific configuration file:
 ``%USERPROFILE%\.cloud-init\<InstanceName>.meta-data``. If that file exists, it
 is a YAML-formatted file minimally providing a value for instance ID
 such as: ``instance-id: x-y-z``. Advanced users looking to share
@@ -154,9 +154,9 @@ files, please check the following restrictions:
 
 * File paths in an include file must be Linux absolute paths.
 
-  Users may be surprised with that requirement since the user data files are
+  Users may be surprised with that requirement since the user-data files are
   inside the Windows file system. But remember that cloud-init is still running
-  inside a Linux instance, and the files referenced in the include user data
+  inside a Linux instance, and the files referenced in the include user-data
   file will be read by cloud-init, thus they must be represented with paths
   understandable inside the Linux instance. Most users will find their Windows
   system drive mounted as `/mnt/c`, so let's consider that assumption in the

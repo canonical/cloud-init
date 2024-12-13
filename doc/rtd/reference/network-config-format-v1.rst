@@ -3,7 +3,7 @@
 Networking config Version 1
 ***************************
 
-This network configuration format lets users customise their instance's
+This network configuration format lets users customize their instance's
 networking interfaces by assigning subnet configuration, virtual device
 creation (bonds, bridges, VLANs) routes and DNS configuration.
 

@@ -27,7 +27,7 @@ The strings ``$hostname`` and ``$fqdn`` are replaced in the template with the
 appropriate values -- either from the ``config-config`` ``fqdn``, or
 ``hostname`` if provided.
 
-When absent, the cloud metadata will be checked for ``local-hostname`` which
+When absent, the meta-data will be checked for ``local-hostname`` which
 can be split into ``<hostname>.<fqdn>``.
 
 To make your modifications persist across a reboot, you must modify

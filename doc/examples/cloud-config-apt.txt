@@ -69,7 +69,7 @@ apt:
 
   # 1.3 primary/security archives
   #
-  # Default: none - instead it is auto select based on cloud metadata
+  # Default: none - instead it is auto select based on instance-data
   # so if neither "uri" nor "search", nor "search_dns" is set (the default)
   # then use the mirror provided by the DataSource found.
   # In EC2, that means using <region>.ec2.archive.ubuntu.com
@@ -96,7 +96,7 @@ apt:
         - http://us.archive.ubuntu.com/ubuntu
       # if no mirror is provided by uri or search but 'search_dns' is
       # true, then search for dns names '<distro>-mirror' in each of
-      # - fqdn of this host per cloud metadata
+      # - fqdn of this host per meta-data
       # - localdomain
       # - no domain (which would search domains listed in /etc/resolv.conf)
       # If there is a dns entry for <distro>-mirror, then it is assumed that

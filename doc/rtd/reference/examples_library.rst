@@ -4,7 +4,7 @@ Cloud config examples library
 *****************************
 
 .. note::
-   This page is an index to all the cloud config YAML examples, organised by
+   This page is an index to all the cloud config YAML examples, organized by
    operation or process. If you prefer to use a single-page summary containing
    every cloud config yaml example, refer to the
    :ref:`all examples page <yaml_examples>`.

@@ -57,9 +57,9 @@ configuration data use the configuration options specified below:
 +----------------+---------------------------+
 | Data           | Configuration option      |
 +================+===========================+
-| user data      | cloud-init.user-data      |
+| user-data      | cloud-init.user-data      |
 +----------------+---------------------------+
-| vendor data    | cloud-init.vendor-data    |
+| vendor-data    | cloud-init.vendor-data    |
 +----------------+---------------------------+
 | network config | cloud-init.network-config |
 +----------------+---------------------------+

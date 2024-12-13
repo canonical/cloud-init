@@ -75,7 +75,7 @@ other than manually cleaning the cache.
 .. [#problems] A couple of ways in which this strict reliance on the presence
    of a datasource has been observed to cause problems:
 
-    - If a cloud's metadata service is flaky and ``cloud-init`` cannot
+    - If a cloud's instance metadata service is flaky and ``cloud-init`` cannot
       obtain the instance ID locally on that platform, ``cloud-init``'s
       instance ID determination will sometimes fail to determine the current
       instance ID, which makes it impossible to determine if this is an

@@ -30,7 +30,7 @@ Update :file:`/etc/cloud/cloud.cfg`:
          - final_message
          - power_state_change
 
-Then your user data could then be:
+Then your user-data could then be:
 
 .. code-block:: yaml
 
