@@ -81,7 +81,7 @@ not as a ``.txt`` file.
 
 .. note::
     We are creating user-data that is tied to the instance we just created,
-    but by changing the filename, we can create user data that applies to
+    but by changing the filename, we can create user-data that applies to
     multiple (or all) WSL instances. See
     :ref:`WSL Datasource reference page<wsl_user_data_configuration>` for
     more information.
