@@ -32,6 +32,7 @@ class MockInstance(IntegrationInstance):
         self.call_count += 1
         raise RuntimeError("I object!")
 
+
 @pytest.mark.ci
 class TestReaper:
     def test_start_stop(self):
