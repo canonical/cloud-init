@@ -24,7 +24,6 @@ class MockInstance(IntegrationInstance):
         # assert that destruction succeeded
         self.stopped = False
 
-
     def destroy(self):
         """destroy() only succeeds after failing N=times_refused times"""
         if self.call_count == self.times_refused:
