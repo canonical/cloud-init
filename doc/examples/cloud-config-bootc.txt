@@ -1,0 +1,9 @@
+#cloud-config
+
+# bootc
+# default: none
+# This allows you to target a specific bootc image and switch to it
+# If a reboot is required, the system will reboot into the new image
+# and cloud-init will run again
+bootc:
+  image: quay.io/myorg/myimage:latest

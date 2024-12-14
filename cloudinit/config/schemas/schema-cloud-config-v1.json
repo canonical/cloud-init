@@ -10,6 +10,7 @@
         "apt_configure",
         "apt-pipelining",
         "apt_pipelining",
+        "bootc",
         "bootcmd",
         "byobu",
         "ca-certs",
@@ -1140,6 +1141,15 @@
               ]
             }
           ]
+        }
+      }
+    },
+    "cc_bootc": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "string",
+          "description": "Target image to use for the next boot"
         }
       }
     },
@@ -3788,6 +3798,9 @@
       "$ref": "#/$defs/cc_ubuntu_autoinstall"
     },
     {
+      "$ref": "#/$defs/cc_bootc"
+    },
+    {
       "$ref": "#/$defs/cc_bootcmd"
     },
     {
@@ -3949,6 +3962,7 @@
     "apt_upgrade": {},
     "authkey_hash": {},
     "autoinstall": {},
+    "bootc": {},
     "bootcmd": {},
     "byobu_by_default": {},
     "ca-certs": {},
