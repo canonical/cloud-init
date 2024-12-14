@@ -76,6 +76,7 @@ def disable_subp_usage(request):
 
 
 _SESSION_CLOUD: IntegrationCloud
+_REAPER: reaper.Reaper
 
 
 @pytest.fixture(scope="session")
@@ -473,10 +474,12 @@ def _generate_profile_report() -> None:
 def pytest_sessionstart(session) -> None:
     """do session setup"""
     global _SESSION_CLOUD
+    global _REAPER
     try:
         _SESSION_CLOUD = get_session_cloud()
         setup_image(_SESSION_CLOUD)
-        reaper.reaper_start()
+        _REAPER = reaper.Reaper()
+        _REAPER.reaper_start()
     except Exception as e:
         if _SESSION_CLOUD:
             # if a _SESSION_CLOUD was allocated, clean it up
@@ -491,6 +494,7 @@ def pytest_sessionstart(session) -> None:
 
 def pytest_sessionfinish(session, exitstatus) -> None:
     """do session teardown"""
+    global _REAPER
     try:
         if integration_settings.INCLUDE_COVERAGE:
             _generate_coverage_report()
@@ -507,7 +511,7 @@ def pytest_sessionfinish(session, exitstatus) -> None:
             e,
         )
     try:
-        reaper.reaper_stop()
+        _REAPER.reaper_stop()
     except Exception as e:
         log.warning(
             "Could not tear down instance reaper thread: %s(%s)",
