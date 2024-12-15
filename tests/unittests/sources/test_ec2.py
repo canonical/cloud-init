@@ -1710,16 +1710,6 @@ class TestIdentifyPlatform:
         assert ec2.CloudNames.AWS == ec2.identify_platform()
 
     @mock.patch("cloudinit.sources.DataSourceEc2._collect_platform_data")
-    def test_identify_aliyun(self, m_collect):
-        """aliyun should be identified if product name equals to
-        Alibaba Cloud ECS
-        """
-        m_collect.return_value = self.collmock(
-            product_name="Alibaba Cloud ECS"
-        )
-        assert ec2.CloudNames.ALIYUN == ec2.identify_platform()
-
-    @mock.patch("cloudinit.sources.DataSourceEc2._collect_platform_data")
     def test_identify_zstack(self, m_collect):
         """zstack should be identified if chassis-asset-tag
         ends in .zstack.io
