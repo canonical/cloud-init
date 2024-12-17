@@ -45,11 +45,9 @@ def get_users_by_type(users_list: list, pw_type: str) -> list:
     )
 
 
-def _restart_ssh_daemon(distro: Distro, service: str):
+def _restart_ssh_daemon(distro: Distro, service: str, *extra_args: str):
     try:
-        distro.manage_service(
-            "restart", service, "--job-mode=ignore-dependencies"
-        )
+        distro.manage_service("restart", service, *extra_args)
         LOG.debug("Restarted the SSH daemon.")
     except subp.ProcessExecutionError as e:
         LOG.warning(
@@ -118,7 +116,9 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
             # for backwards compatibility so that users who think that they
             # need to manually start cloud-init (why?) with systemd (again,
             # why?) can do so.
-            _restart_ssh_daemon(distro, service)
+            _restart_ssh_daemon(
+                distro, service, "--job-mode=ignore-dependencies"
+            )
     else:
         _restart_ssh_daemon(distro, service)
 
