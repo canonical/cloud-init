@@ -48,7 +48,7 @@ def get_users_by_type(users_list: list, pw_type: str) -> list:
 def _restart_ssh_daemon(distro: Distro, service: str):
     try:
         distro.manage_service(
-            "restart", service, "--job-mode='ignore-dependencies'"
+            "restart", service, "--job-mode=ignore-dependencies"
         )
         LOG.debug("Restarted the SSH daemon.")
     except subp.ProcessExecutionError as e:
