@@ -40,8 +40,6 @@ except (ImportError, AttributeError):
     JUndefined = object
 
 LOG = logging.getLogger(__name__)
-TYPE_MATCHER = re.compile(r"##\s*template:(.*)", re.I)
-BASIC_MATCHER = re.compile(r"\$\{([A-Za-z0-9_.]+)\}|\$([A-Za-z0-9_.]+)")
 MISSING_JINJA_PREFIX = "CI_MISSING_JINJA_VAR/"
 
 
@@ -140,7 +138,9 @@ def basic_render(content, params):
             )
         return str(selected_params[key])
 
-    return BASIC_MATCHER.sub(replacer, content)
+    return re.sub(
+        r"\$\{([A-Za-z0-9_.]+)\}|\$([A-Za-z0-9_.]+)", replacer, content
+    )
 
 
 def detect_template(text):
@@ -171,7 +171,7 @@ def detect_template(text):
     else:
         ident = text
         rest = ""
-    type_match = TYPE_MATCHER.match(ident)
+    type_match = re.match(r"##\s*template:(.*)", ident, re.I)
     if not type_match:
         return ("basic", basic_render, text)
     else:

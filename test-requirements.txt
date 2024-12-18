@@ -14,3 +14,7 @@ setuptools
 jsonschema
 responses
 passlib
+
+# This one is currently used only by the CloudSigma and SmartOS datasources.
+# If these datasources are removed, this is no longer needed.
+pyserial

@@ -451,7 +451,7 @@ class OpenSSLManager:
                     "-days",
                     "32768",
                     "-newkey",
-                    "rsa:2048",
+                    "rsa:3072",
                     "-keyout",
                     self.certificate_names["private_key"],
                     "-out",

@@ -2,7 +2,6 @@ akamai
 alibaba
 almalinux
 ami
-analyze
 ansible
 apk
 apport
@@ -13,13 +12,12 @@ artifacts
 authkeys
 autoinstaller
 autospecced
-avaliable
+available
 aways
 aws
 backend
 backends
 baseurl
-behavior
 bigstep
 boolean
 bootcmd
@@ -33,14 +31,14 @@ centos
 chown
 chrony
 cleanup
-cloudinit
+cloud-init
 cloudlinux
 cloudplatform
 conf
 config
 configdrive
 configs
-copybutton
+copy-button
 cpu
 csr
 datasource
@@ -48,6 +46,7 @@ datasources
 deadbeef
 debconf
 debian
+dev
 devops
 dhcp
 dicts
@@ -83,11 +82,8 @@ execve
 exoscale
 fabio
 faillog
-favor
-favorite
 fips
 firstboot
-flavors
 flexibile
 fqdn
 freebsd
@@ -102,7 +98,6 @@ growpart
 gz
 hacktoberfest
 hetzner
-honored
 hostname
 hpc
 ids
@@ -120,7 +115,6 @@ kenv
 keygen
 keytypes
 kyler
-labeled
 lastlog
 libvirt
 linux
@@ -149,7 +143,6 @@ netplan
 networkd
 nistp
 nocloud
-nonexistent
 ntp
 ntpd
 ntpdate
@@ -195,11 +188,8 @@ rc
 rd
 readinessprobes
 redhat
-referesh
 regex
-renderes
 repodata
-repositoy
 resizefs
 resolv
 restructuredtext
@@ -256,10 +246,6 @@ ubuntu
 udev
 udp
 un
-unconfigured
-unentitled
-unredacted
-unrendered
 url
 urls
 userdata
