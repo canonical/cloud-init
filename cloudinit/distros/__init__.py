@@ -138,7 +138,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     shadow_empty_locked_passwd_patterns = ["^{username}::", "^{username}:!:"]
     tz_zone_dir = "/usr/share/zoneinfo"
     default_owner = "root:root"
-    init_cmd = ["service"]  # systemctl, service etc
+    init_cmd: List[str] = ["service"]  # systemctl, service etc
     renderer_configs: Mapping[str, MutableMapping[str, Any]] = {}
     _preferred_ntp_clients = None
     networking_cls: Type[Networking] = LinuxNetworking
@@ -1369,7 +1369,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "try-reload": [service, "restart"],
                 "status": [service, "status"],
             }
-        cmd = list(init_cmd) + list(cmds[action])
+        cmd = init_cmd + cmds[action] + list(extra_args)
         return subp.subp(cmd, capture=True, rcs=rcs)
 
     def set_keymap(self, layout: str, model: str, variant: str, options: str):
