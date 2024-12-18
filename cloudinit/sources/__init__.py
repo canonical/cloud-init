@@ -16,7 +16,7 @@ import os
 import pickle
 import re
 from enum import Enum, unique
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Dict, List, Literal, NamedTuple, Optional, Tuple, Union
 
 from cloudinit import (
     atomic_helper,
