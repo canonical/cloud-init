@@ -246,11 +246,11 @@ def subp(
     # Popen converts entries in the arguments array from non-bytes to bytes.
     # When locale is unset it may use ascii for that encoding which can
     # cause UnicodeDecodeErrors. (LP: #1751051)
-    bytes_args: Union[bytes, List[bytes]]
+    bytes_args: List[bytes]
     if isinstance(args, bytes):
-        bytes_args = args
+        bytes_args = [args]
     elif isinstance(args, str):
-        bytes_args = args.encode("utf-8")
+        bytes_args = [args.encode("utf-8")]
     else:
         raise_on_invalid_command(args)
         bytes_args = [
@@ -258,7 +258,11 @@ def subp(
         ]
     try:
         with performance.Timed(
-            "Running {}".format(logstring if logstring else args)
+            "Running {}".format(
+                logstring
+                if logstring
+                else [args.decode() for args in bytes_args]
+            )
         ):
             sp = subprocess.Popen(
                 bytes_args,

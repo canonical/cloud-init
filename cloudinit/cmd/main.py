@@ -19,7 +19,16 @@ import sys
 import traceback
 import logging
 import yaml
-from typing import Optional, Tuple, Callable, Union
+from typing import (
+    Optional,
+    Tuple,
+    Callable,
+    Union,
+    TypedDict,
+    cast,
+    Literal,
+    Final,
+)
 
 from cloudinit import netinfo
 from cloudinit import signal_handler
@@ -50,31 +59,49 @@ from cloudinit.settings import (
 )
 
 Reason = str
+modes = Literal["init", "modules"]
 
 # Welcome message template
-WELCOME_MSG_TPL = (
+WELCOME_MSG_TPL: Final = (
     "Cloud-init v. {version} running '{action}' at "
     "{timestamp}. Up {uptime} seconds."
 )
 
 # Module section template
-MOD_SECTION_TPL = "cloud_%s_modules"
+MOD_SECTION_TPL: Final = "cloud_%s_modules"
 
 # Frequency shortname to full name
 # (so users don't have to remember the full name...)
-FREQ_SHORT_NAMES = {
+FREQ_SHORT_NAMES: Final = {
     "instance": PER_INSTANCE,
     "always": PER_ALWAYS,
     "once": PER_ONCE,
 }
 
-# https://docs.cloud-init.io/en/latest/explanation/boot.html
-STAGE_NAME = {
-    "init-local": "Local Stage",
-    "init": "Network Stage",
-    "modules-config": "Config Stage",
-    "modules-final": "Final Stage",
-}
+
+class StageStatus(TypedDict):
+    errors: list
+    recoverable_errors: dict
+    start: Optional[float]
+    finished: Optional[float]
+
+
+V1Status = TypedDict(
+    "V1Status",
+    {
+        "datasource": Optional[str],
+        "init": StageStatus,
+        "init-local": StageStatus,
+        "modules-config": StageStatus,
+        "modules-final": StageStatus,
+        "stage": Optional[str],
+    },
+)
+
+
+class Status(TypedDict):
+    v1: V1Status
+
 
 LOG = logging.getLogger(__name__)
 
@@ -276,36 +303,6 @@ def attempt_cmdline_url(path, network=True, cmdline=None) -> Tuple[int, str]:
     )
 
 
-def purge_cache_on_python_version_change(init):
-    """Purge the cache if python version changed on us.
-
-    There could be changes not represented in our cache (obj.pkl) after we
-    upgrade to a new version of python, so at that point clear the cache
-    """
-    current_python_version = "%d.%d" % (
-        sys.version_info.major,
-        sys.version_info.minor,
-    )
-    python_version_path = os.path.join(
-        init.paths.get_cpath("data"), "python-version"
-    )
-    if os.path.exists(python_version_path):
-        cached_python_version = util.load_text_file(python_version_path)
-        # The Python version has changed out from under us, anything that was
-        # pickled previously is likely useless due to API changes.
-        if cached_python_version != current_python_version:
-            LOG.debug("Python version change detected. Purging cache")
-            init.purge_cache(True)
-            util.write_file(python_version_path, current_python_version)
-    else:
-        if os.path.exists(init.paths.get_ipath_cur("obj_pkl")):
-            LOG.info(
-                "Writing python-version file. "
-                "Cache compatibility status is currently unknown."
-            )
-        util.write_file(python_version_path, current_python_version)
-
-
 def _should_bring_up_interfaces(init, args):
     if util.get_cfg_option_bool(init.cfg, "disable_network_activation"):
         return False
@@ -403,9 +400,6 @@ def _should_wait_on_network(
 
 
 def main_init(name, args):
-    deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
-    if args.local:
-        deps = [sources.DEP_FILESYSTEM]
 
     early_logs = [
         attempt_cmdline_url(
@@ -429,9 +423,14 @@ def main_init(name, args):
     #    objects config as it may be different from init object
     # 10. Run the modules for the 'init' stage
     # 11. Done!
-    bootstage_name = "init-local" if args.local else "init"
-    w_msg = welcome_format(bootstage_name)
-    init = stages.Init(ds_deps=deps, reporter=args.reporter)
+    if args.local:
+        stage = stages.local
+        mode = sources.DSMODE_LOCAL
+    else:
+        stage = stages.network
+        mode = sources.DSMODE_NETWORK
+    w_msg = welcome_format(stage.short)
+    init = stages.Init(stage, reporter=args.reporter)
     # Stage 1
     init.read_cfg(extract_fns(args))
     # Stage 2
@@ -462,7 +461,7 @@ def main_init(name, args):
     # config applied.  We send the welcome message now, as stderr/out have
     # been redirected and log now configured.
     welcome(name, msg=w_msg)
-    LOG.info("PID [%s] started cloud-init '%s'.", os.getppid(), bootstage_name)
+    LOG.info("PID [%s] started cloud-init '%s'.", os.getppid(), stage.short)
 
     # re-play early log messages before logging was setup
     for lvl, msg in early_logs:
@@ -470,38 +469,25 @@ def main_init(name, args):
 
     # Stage 3
     try:
-        init.initialize()
+        init.initialize_filesystem()
     except Exception:
         util.logexc(LOG, "Failed to initialize, likely bad things to come!")
     # Stage 4
-    path_helper = init.paths
-    purge_cache_on_python_version_change(init)
-    mode = sources.DSMODE_LOCAL if args.local else sources.DSMODE_NETWORK
+    init.start_boot()
+    init.track_python_version_change()
 
     if mode == sources.DSMODE_NETWORK:
         if not os.path.exists(init.paths.get_runpath(".skip-network")):
             LOG.debug("Will wait for network connectivity before continuing")
             init.distro.wait_for_network()
-        existing = "trust"
         sys.stderr.write("%s\n" % (netinfo.debug_info()))
     else:
-        existing = "check"
-        mcfg = util.get_cfg_option_bool(init.cfg, "manual_cache_clean", False)
-        if mcfg:
-            LOG.debug("manual cache clean set from config")
-            existing = "trust"
-        else:
-            mfile = path_helper.get_ipath_cur("manual_clean_marker")
-            if os.path.exists(mfile):
-                LOG.debug("manual cache clean found from marker: %s", mfile)
-                existing = "trust"
-
-        init.purge_cache()
+        init.reset_instance()
 
     # Stage 5
     bring_up_interfaces = _should_bring_up_interfaces(init, args)
     try:
-        init.fetch(existing=existing)
+        init.datasource
         # if in network mode, and the datasource is local
         # then work was done at that stage.
         if mode == sources.DSMODE_NETWORK and init.datasource.dsmode != mode:
@@ -711,12 +697,14 @@ def main_modules(action_name, args):
     # 6. Done!
     bootstage_name = "%s:%s" % (action_name, name)
     w_msg = welcome_format(bootstage_name)
-    init = stages.Init(ds_deps=[], reporter=args.reporter)
+    init = stages.Init(
+        name, reporter=args.reporter, cache_mode=stages.CacheMode.trust
+    )
     # Stage 1
     init.read_cfg(extract_fns(args))
     # Stage 2
     try:
-        init.fetch(existing="trust")
+        init.fetch()
     except sources.DataSourceNotFoundException:
         # There was no datasource found, theres nothing to do
         msg = (
@@ -773,12 +761,16 @@ def main_single(name, args):
     # 6. Done!
     mod_name = args.name
     w_msg = welcome_format(name)
-    init = stages.Init(ds_deps=[], reporter=args.reporter)
+    init = stages.Init(
+        stages.single,
+        reporter=args.reporter,
+        cache_mode=stages.CacheMode.trust,
+    )
     # Stage 1
     init.read_cfg(extract_fns(args))
     # Stage 2
     try:
-        init.fetch(existing="trust")
+        init.fetch()
     except sources.DataSourceNotFoundException:
         # There was no datasource found,
         # that might be bad (or ok) depending on
@@ -832,7 +824,7 @@ def main_single(name, args):
         return 0
 
 
-def status_wrapper(name, args):
+def status_wrapper(name: modes, args):
     paths = read_cfg_paths()
     data_d = paths.get_cpath("data")
     link_d = os.path.normpath(paths.run_dir)
@@ -852,37 +844,36 @@ def status_wrapper(name, args):
 
     (_name, functor) = args.action
 
-    if name == "init":
-        if args.local:
-            mode = "init-local"
-        else:
-            mode = "init"
-    elif name == "modules":
-        mode = "modules-%s" % args.mode
+    mode: stages.BootStage
+
+    if name == "init" and args.local:
+        mode = stages.local
+    elif name == "init":
+        mode = stages.network
+    elif name == "modules" and args.mode == "config":
+        mode = stages.config
+    elif name == "modules" and args.mode == "final":
+        mode = stages.final
     else:
-        raise ValueError("unknown name: %s" % name)
+        raise ValueError(f"Invalid cloud-init stage {name} {args.mode}")
 
-    if mode not in STAGE_NAME:
-        raise ValueError(
-            "Invalid cloud init mode specified '{0}'".format(mode)
-        )
-
-    nullstatus = {
+    nullstatus: StageStatus = {
         "errors": [],
         "recoverable_errors": {},
         "start": None,
         "finished": None,
     }
-    status = {
+    status: Status = {
         "v1": {
             "datasource": None,
             "init": nullstatus.copy(),
             "init-local": nullstatus.copy(),
             "modules-config": nullstatus.copy(),
             "modules-final": nullstatus.copy(),
+            "stage": None,
         }
     }
-    if mode == "init-local":
+    if mode == stages.local:
         for f in (status_link, result_link, status_path, result_path):
             util.del_file(f)
     else:
@@ -891,25 +882,28 @@ def status_wrapper(name, args):
         except Exception:
             pass
 
-    if mode not in status["v1"]:
-        # this should never happen, but leave it just to be safe
-        status["v1"][mode] = nullstatus.copy()
-
     v1 = status["v1"]
-    v1["stage"] = mode
-    if v1[mode]["start"] and not v1[mode]["finished"]:
+    v1["stage"] = mode.short
+    if v1[mode.short]["start"] and not v1[mode.short]["finished"]:
         # This stage was restarted, which isn't expected.
         LOG.warning(
             "Unexpected start time found for %s. Was this stage restarted?",
-            STAGE_NAME[mode],
+            mode.long,
         )
 
-    v1[mode]["start"] = float(util.uptime())
-    handler = next(
-        filter(
-            lambda h: isinstance(h, loggers.LogExporter), root_logger.handlers
-        )
+    v1[mode.short]["start"] = float(util.uptime())
+    # this cast shouldn't be necessary?
+    # https://github.com/python/mypy/issues/6847
+    handler = cast(
+        loggers.LogExporter,
+        next(
+            filter(
+                lambda h: isinstance(h, loggers.LogExporter),
+                root_logger.handlers,
+            )
+        ),
     )
+
     preexisting_recoverable_errors = handler.export_logs()
 
     # Write status.json prior to running init / module code
@@ -920,18 +914,18 @@ def status_wrapper(name, args):
 
     try:
         ret = functor(name, args)
-        if mode in ("init", "init-local"):
+        if mode in (stages.local, stages.network):
             (datasource, errors) = ret
             if datasource is not None:
                 v1["datasource"] = str(datasource)
         else:
             errors = ret
 
-        v1[mode]["errors"].extend([str(e) for e in errors])
+        v1[mode.short]["errors"].extend([str(e) for e in errors])
     except Exception as e:
-        LOG.exception("failed stage %s", mode)
-        print_exc("failed run of stage %s" % mode)
-        v1[mode]["errors"].append(str(e))
+        LOG.exception("failed stage %s", mode.short)
+        print_exc("failed run of stage %s" % mode.short)
+        v1[mode.short]["errors"].append(str(e))
     except SystemExit as e:
         # All calls to sys.exit() resume running here.
         # silence a pylint false positive
@@ -939,15 +933,15 @@ def status_wrapper(name, args):
         if e.code:  # pylint: disable=using-constant-test
             # Only log errors when sys.exit() is called with a non-zero
             # exit code
-            LOG.exception("failed stage %s", mode)
-            print_exc("failed run of stage %s" % mode)
-            v1[mode]["errors"].append(f"sys.exit({str(e.code)}) called")
+            LOG.exception("failed stage %s", mode.short)
+            print_exc("failed run of stage %s" % mode.short)
+            v1[mode.short]["errors"].append(f"sys.exit({str(e.code)}) called")
     finally:
         # Before it exits, cloud-init will:
         # 1) Write status.json (and result.json if in Final stage).
         # 2) Write the final log message containing module run time.
         # 3) Flush any queued reporting event handlers.
-        v1[mode]["finished"] = float(util.uptime())
+        v1[mode.short]["finished"] = float(util.uptime())
         v1["stage"] = None
 
         # merge new recoverable errors into existing recoverable error list
@@ -955,26 +949,28 @@ def status_wrapper(name, args):
         handler.clean_logs()
         for key in new_recoverable_errors.keys():
             if key in preexisting_recoverable_errors:
-                v1[mode]["recoverable_errors"][key] = list(
+                v1[mode.short]["recoverable_errors"][key] = list(
                     set(
                         preexisting_recoverable_errors[key]
                         + new_recoverable_errors[key]
                     )
                 )
             else:
-                v1[mode]["recoverable_errors"][key] = new_recoverable_errors[
-                    key
-                ]
+                v1[mode.short]["recoverable_errors"][key] = (
+                    new_recoverable_errors[key]
+                )
 
         # Write status.json after running init / module code
         atomic_helper.write_json(status_path, status)
 
-    if mode == "modules-final":
+    if mode == stages.final:
         # write the 'finished' file
-        errors = []
-        for m in v1.keys():
-            if isinstance(v1[m], dict) and v1[m].get("errors"):
-                errors.extend(v1[m].get("errors", []))
+        errors = [
+            *v1[stages.local.short].get("errors", []),
+            *v1[stages.network.short].get("errors", []),
+            *v1[stages.config.short].get("errors", []),
+            *v1[stages.final.short].get("errors", []),
+        ]
 
         atomic_helper.write_json(
             result_path,
@@ -984,7 +980,7 @@ def status_wrapper(name, args):
             os.path.relpath(result_path, link_d), result_link, force=True
         )
 
-    return len(v1[mode]["errors"])
+    return len(v1[mode.short]["errors"])
 
 
 def _maybe_persist_instance_data(init: stages.Init):
@@ -1007,7 +1003,7 @@ def _maybe_set_hostname(init, stage, retry_stage):
     )
     if hostname:  # meta-data or user-data hostname content
         try:
-            cc_set_hostname.handle("set_hostname", init.cfg, cloud, None)
+            cc_set_hostname.handle("set_hostname", init.cfg, cloud, [])
         except cc_set_hostname.SetHostnameError as e:
             LOG.debug(
                 "Failed setting hostname in %s stage. Will"

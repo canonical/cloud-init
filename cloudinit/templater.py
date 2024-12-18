@@ -69,7 +69,7 @@ class JinjaSyntaxParsingException(TemplateSyntaxError):
     @staticmethod
     def format_error_message(
         syntax_error: str,
-        line_number: str,
+        line_number: int,
         line_content: str = "",
     ) -> str:
         """Avoid jinja2.TemplateSyntaxError multi-line __str__ format."""

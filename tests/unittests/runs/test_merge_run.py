@@ -47,10 +47,9 @@ class TestMergeRun(helpers.FilesystemMockingTestCase):
         self._patchIn(new_root)
 
         # Now start verifying whats created
-        initer = stages.Init()
+        initer = stages.Init(stages.single)
         initer.read_cfg()
-        initer.initialize()
-        initer.fetch()
+        initer.initialize_filesystem()
         initer.datasource.userdata_raw = ud
         initer.instancify()
         initer.update()

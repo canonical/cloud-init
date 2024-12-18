@@ -17,7 +17,7 @@ import pickle
 import re
 from collections import namedtuple
 from enum import Enum, unique
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 from cloudinit import (
     atomic_helper,
@@ -45,8 +45,9 @@ DSMODE_PASS = "pass"
 
 VALID_DSMODES = [DSMODE_DISABLED, DSMODE_LOCAL, DSMODE_NETWORK]
 
-DEP_FILESYSTEM = "FILESYSTEM"
-DEP_NETWORK = "NETWORK"
+Deps = Literal["FILESYSTEM", "NETWORK"]
+DEP_FILESYSTEM: Deps = "FILESYSTEM"
+DEP_NETWORK: Deps = "NETWORK"
 DS_PREFIX = "DataSource"
 
 EXPERIMENTAL_TEXT = (
@@ -60,7 +61,7 @@ REDACT_SENSITIVE_VALUE = "redacted for non-root user"
 # Key which can be provide a cloud's official product name to cloud-init
 METADATA_CLOUD_NAME_KEY = "cloud-name"
 
-UNSET = "_unset"
+UNSET: dict = {}
 METADATA_UNKNOWN = "unknown"
 
 LOG = logging.getLogger(__name__)
@@ -213,7 +214,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     #  - seed-dir (<dirname>)
     _subplatform = None
 
-    _crawled_metadata: Optional[Union[Dict, str]] = None
+    _crawled_metadata: Optional[Dict] = None
 
     # The network configuration sources that should be considered for this data
     # source.  (The first source in this list that provides network
@@ -333,7 +334,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self.vendordata_raw = None
         self.vendordata2_raw = None
         self.metadata_address: Optional[str] = None
-        self.network_json: Optional[str] = UNSET
+        self.network_json = UNSET
         self.ec2_metadata = UNSET
 
         self.ds_cfg = util.get_cfg_by_path(
@@ -1011,7 +1012,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
 
 def normalize_pubkey_data(pubkey_data):
-    keys = []
+    keys: List[str] = []
 
     if not pubkey_data:
         return keys

@@ -1313,7 +1313,7 @@ def get_config_paths_from_args(
         return primary_datapath
 
     try:
-        paths = read_cfg_paths(fetch_existing_datasource="trust")
+        paths = read_cfg_paths(cache_mode="trust")
     except (IOError, OSError) as e:
         if e.errno == EACCES:
             LOG.debug(

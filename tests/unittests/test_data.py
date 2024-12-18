@@ -50,7 +50,7 @@ def gzip_text(text):
 
 @pytest.fixture(scope="function")
 def init_tmp(request, tmpdir):
-    ci = stages.Init()
+    ci = stages.Init(stages.single)
     cloud_dir = tmpdir.join("cloud")
     cloud_dir.mkdir()
     run_dir = tmpdir.join("run")
@@ -78,7 +78,7 @@ class TestConsumeUserData:
      { "op": "add", "path": "/bar", "value": "qux2" }
 ]
 """
-        init_tmp.datasource = FakeDataSource(user_blob)
+        init_tmp._datasource = FakeDataSource(user_blob)
         init_tmp.fetch()
         with mock.patch.object(init_tmp, "_reset"):
             init_tmp.consume_data()
@@ -118,12 +118,12 @@ class TestConsumeUserData:
      { "op": "add", "path": "/foobar", "value": "quxGG" }
 ]
 """
-        initer = stages.Init()
-        initer.datasource = FakeDataSource(
+        initer = stages.Init("single")
+        initer._datasource = FakeDataSource(
             user_blob, vendordata=vendor_blob, vendordata2=vendor2_blob
         )
         initer.read_cfg()
-        initer.initialize()
+        initer.initialize_filesystem()
         initer.fetch()
         initer.instancify()
         with mock.patch(
@@ -169,10 +169,10 @@ class TestConsumeUserData:
      { "op": "add", "path": "/foo", "value": "quxC" }
 ]
 """
-        initer = stages.Init()
-        initer.datasource = FakeDataSource(user_blob, vendordata=vendor_blob)
+        initer = stages.Init("single")
+        initer._datasource = FakeDataSource(user_blob, vendordata=vendor_blob)
         initer.read_cfg()
-        initer.initialize()
+        initer.initialize_filesystem()
         initer.fetch()
         initer.instancify()
         initer.update()
@@ -213,7 +213,7 @@ c: d
         message.attach(message_cc)
         message.attach(message_jp)
 
-        init_tmp.datasource = FakeDataSource(str(message))
+        init_tmp._datasource = FakeDataSource(str(message))
         init_tmp.fetch()
         with mock.patch.object(init_tmp, "_reset"):
             init_tmp.consume_data()
@@ -248,7 +248,7 @@ c: d
         message.attach(message_cc)
         message.attach(message_jp)
 
-        init_tmp.datasource = FakeDataSource(str(message))
+        init_tmp._datasource = FakeDataSource(str(message))
         init_tmp.fetch()
         with mock.patch.object(init_tmp, "_reset"):
             init_tmp.consume_data()
@@ -280,10 +280,10 @@ name: user
 run:
  - z
 """
-        initer = stages.Init()
-        initer.datasource = FakeDataSource(user_blob, vendordata=vendor_blob)
+        initer = stages.Init("single")
+        initer._datasource = FakeDataSource(user_blob, vendordata=vendor_blob)
         initer.read_cfg()
-        initer.initialize()
+        initer.initialize_filesystem()
         initer.fetch()
         initer.instancify()
         initer.update()
@@ -320,12 +320,12 @@ vendor_data:
   enabled: true
   prefix: /bin/true
 """
-        initer = stages.Init()
-        initer.datasource = FakeDataSource(
+        initer = stages.Init("single")
+        initer._datasource = FakeDataSource(
             user_blob, vendordata=vendor_blob, vendordata2=vendor2_blob
         )
         initer.read_cfg()
-        initer.initialize()
+        initer.initialize_filesystem()
         initer.fetch()
         initer.instancify()
         initer.update()
@@ -408,7 +408,7 @@ p: 1
     def test_unhandled_type_warning(self, init_tmp, caplog):
         """Raw text without magic is ignored but shows warning."""
         data = "arbitrary text\n"
-        init_tmp.datasource = FakeDataSource(data)
+        init_tmp._datasource = FakeDataSource(data)
 
         with mock.patch("cloudinit.util.write_file") as mockobj:
             with caplog.at_level(logging.WARNING):
@@ -443,7 +443,7 @@ c: 4
         message = MIMEMultipart("test")
         message.attach(gzip_part(base_content1))
         message.attach(gzip_part(base_content2))
-        init_tmp.datasource = FakeDataSource(str(message))
+        init_tmp._datasource = FakeDataSource(str(message))
         init_tmp.fetch()
         with mock.patch.object(init_tmp, "_reset"):
             init_tmp.consume_data()
@@ -461,7 +461,7 @@ c: 4
         """Mime message of type text/plain is ignored but shows warning."""
         message = MIMEBase("text", "plain")
         message.set_payload("Just text")
-        init_tmp.datasource = FakeDataSource(message.as_string().encode())
+        init_tmp._datasource = FakeDataSource(message.as_string().encode())
 
         with mock.patch("cloudinit.util.write_file") as mockobj:
             with caplog.at_level(logging.WARNING):
@@ -489,7 +489,7 @@ c: 4
     def test_shellscript(self, init_tmp, tmpdir, caplog):
         """Raw text starting #!/bin/sh is treated as script."""
         script = "#!/bin/sh\necho hello\n"
-        init_tmp.datasource = FakeDataSource(script)
+        init_tmp._datasource = FakeDataSource(script)
 
         outpath = os.path.join(
             init_tmp.paths.get_ipath_cur("scripts"), "part-001"
@@ -547,7 +547,7 @@ c: 4
         script = "#!/bin/sh\necho hello\n"
         message = MIMEBase("text", "x-shellscript")
         message.set_payload(script)
-        init_tmp.datasource = FakeDataSource(message.as_string())
+        init_tmp._datasource = FakeDataSource(message.as_string())
 
         outpath = os.path.join(
             init_tmp.paths.get_ipath_cur("scripts"), "part-001"
@@ -572,7 +572,7 @@ c: 4
         script = "#!/bin/sh\necho hello\n"
         message = MIMEBase("text", "plain")
         message.set_payload(script)
-        init_tmp.datasource = FakeDataSource(message.as_string())
+        init_tmp._datasource = FakeDataSource(message.as_string())
 
         outpath = os.path.join(
             init_tmp.paths.get_ipath_cur("scripts"), "part-001"
@@ -597,7 +597,7 @@ c: 4
         message = MIMEBase("application", "octet-stream")
         message.set_payload(b"\xbf\xe6\xb2\xc3\xd3\xba\x13\xa4\xd8\xa1\xcc")
         encoders.encode_base64(message)
-        init_tmp.datasource = FakeDataSource(message.as_string().encode())
+        init_tmp._datasource = FakeDataSource(message.as_string().encode())
 
         with mock.patch("cloudinit.util.write_file") as mockobj:
             with caplog.at_level(logging.WARNING):
@@ -621,7 +621,7 @@ c: 4
         ]
         message = b"#cloud-config-archive\n" + safeyaml.dumps(data).encode()
 
-        init_tmp.datasource = FakeDataSource(message)
+        init_tmp._datasource = FakeDataSource(message)
 
         fs = {}
 
@@ -661,10 +661,10 @@ c: 4
      { "op": "add", "path": "/foo", "value": "quxC" }
 ]
 """
-        init = stages.Init()
-        init.datasource = FakeDataSource(user_blob, vendordata=vendor_blob)
+        init = stages.Init("single")
+        init._datasource = FakeDataSource(user_blob, vendordata=vendor_blob)
         init.read_cfg()
-        init.initialize()
+        init.initialize_filesystem()
         init.fetch()
         init.instancify()
         init.update()
@@ -692,7 +692,7 @@ class TestConsumeUserDataHttp:
         included_data = "#cloud-config\nincluded: true\n"
         responses.add(responses.GET, included_url, included_data)
 
-        init_tmp.datasource = FakeDataSource("#include\nhttp://hostname/path")
+        init_tmp._datasource = FakeDataSource("#include\nhttp://hostname/path")
         init_tmp.fetch()
         with mock.patch.object(init_tmp, "_reset") as _reset:
             init_tmp.consume_data()
@@ -715,7 +715,7 @@ class TestConsumeUserDataHttp:
         included_data = "#cloud-config\nincluded: true\n"
         responses.add(responses.GET, included_url, included_data)
 
-        init_tmp.datasource = FakeDataSource(
+        init_tmp._datasource = FakeDataSource(
             "#include\nhttp://bad/forbidden\nhttp://hostname/path"
         )
         init_tmp.fetch()
@@ -752,7 +752,7 @@ class TestConsumeUserDataHttp:
         included_data = "#cloud-config\nincluded: true\n"
         responses.add(responses.GET, included_url, included_data)
 
-        init_tmp.datasource = FakeDataSource(
+        init_tmp._datasource = FakeDataSource(
             "#include\nhttp://bad/forbidden\nhttp://hostname/path"
         )
         init_tmp.fetch()

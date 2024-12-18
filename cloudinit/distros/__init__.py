@@ -587,7 +587,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # Remove duplicates (incase the previous config filename)
         # is the same as the system config filename, don't bother
         # doing it twice
-        update_files = set([f for f in update_files if f])
+        update_files = list(set([f for f in update_files if f]))
         LOG.debug(
             "Attempting to update hostname to %s in %s files",
             hostname,
@@ -792,6 +792,13 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         create_user_cmd = ["snap", "create-user", "--sudoer", "--json"]
         if known:
             create_user_cmd.append("--known")
+        if not isinstance(snapuser, str):
+            LOG.warning(
+                "Key snapuser has unexpected type: %s(%s), casting to string",
+                type(snapuser),
+                snapuser,
+            )
+            snapuser = str(snapuser)
         create_user_cmd.append(snapuser)
 
         # Run the command
@@ -1336,7 +1343,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
         init_cmd = cls.init_cmd
         if cls.uses_systemd() or "systemctl" in init_cmd:
-            cmd = [init_cmd, "daemon-reload"]
+            cmd = [*init_cmd, "daemon-reload"]
             return subp.subp(cmd, capture=True, rcs=rcs)
 
     @classmethod

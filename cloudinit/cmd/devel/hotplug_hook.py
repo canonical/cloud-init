@@ -192,7 +192,7 @@ def is_enabled(hotplug_init, subsystem):
 
 def initialize_datasource(hotplug_init: Init, subsystem: str):
     LOG.debug("Fetching datasource")
-    datasource = hotplug_init.fetch(existing="trust")
+    datasource = hotplug_init.datasource
 
     if not datasource.get_supported_events([EventType.HOTPLUG]):
         LOG.debug("hotplug not supported for event of type %s", subsystem)
@@ -245,7 +245,7 @@ def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction):
 
 
 def enable_hotplug(hotplug_init: Init, subsystem) -> bool:
-    datasource = hotplug_init.fetch(existing="trust")
+    datasource = hotplug_init.datasource
     if not datasource:
         return False
     scope = SUBSYSTEM_PROPERTIES_MAP[subsystem][1]
@@ -286,7 +286,9 @@ def handle_args(name, args):
         name, __doc__, reporting_enabled=True
     )
 
-    hotplug_init = Init(ds_deps=[], reporter=hotplug_reporter)
+    hotplug_init = Init(
+        "single", reporter=hotplug_reporter, cache_mode=stages.CacheMode.trust
+    )
     hotplug_init.read_cfg()
 
     loggers.setup_logging(hotplug_init.cfg)

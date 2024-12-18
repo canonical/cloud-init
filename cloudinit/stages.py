@@ -9,10 +9,22 @@ import json
 import logging
 import os
 import sys
-from collections import namedtuple
 from contextlib import suppress
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
+from typing import (
+    Any,
+    Dict,
+    Final,
+    Iterable,
+    List,
+    Literal,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+)
 
 from cloudinit import (
     atomic_helper,
@@ -60,6 +72,88 @@ COMBINED_CLOUD_CONFIG_DOC = (
     " (/etc/cloud/cloud.cfg and /etc/cloud/cloud.cfg.d), metadata,"
     " vendordata and userdata. The combined_cloud_config represents"
     " the aggregated desired configuration acted upon by cloud-init."
+)
+
+
+@dataclass
+class Semaphore:
+    semaphore: helpers.FileSemaphores
+    args: Tuple[str, str]
+
+
+class CacheMode(str, Enum):
+    trust = "trust"
+    check = "check"
+
+
+InternalName = Literal["local", "network", "config", "final"]
+
+# used in status.json and some log strings
+UserLongName = Literal[
+    "Local Stage",
+    "Network Stage",
+    "Config Stage",
+    "Final Stage",
+]
+
+# used in status.json and some log strings
+UserShortName = Literal[
+    "init-local",
+    "init",
+    "modules-config",
+    "modules-final",
+]
+SingleInternalName = Literal[Union[InternalName, Literal["single"]]]
+
+
+@dataclass
+class BaseStage:
+    deps: List[sources.Deps]
+
+
+@dataclass
+class BootStage(BaseStage):
+    internal: InternalName
+    short: UserShortName
+    long: UserLongName
+
+
+@dataclass
+class SingleStage(BaseStage):
+    internal: SingleInternalName
+
+
+Stage = Union[SingleStage, BootStage]
+
+
+# https://docs.cloud-init.io/en/latest/explanation/boot.html
+local: Final = BootStage(
+    short="init-local",
+    long="Local Stage",
+    internal="local",
+    deps=[sources.DEP_FILESYSTEM],
+)
+network: Final = BootStage(
+    short="init",
+    long="Network Stage",
+    internal="network",
+    deps=[sources.DEP_FILESYSTEM, sources.DEP_NETWORK],
+)
+config: Final = BootStage(
+    short="modules-config",
+    long="Config Stage",
+    internal="config",
+    deps=[],
+)
+final: Final = BootStage(
+    short="modules-final",
+    long="Final Stage",
+    internal="final",
+    deps=[],
+)
+single: Final = SingleStage(
+    internal="single",
+    deps=[],
 )
 
 
@@ -133,17 +227,23 @@ def update_event_enabled(
 
 
 class Init:
-    def __init__(self, ds_deps: Optional[List[str]] = None, reporter=None):
-        if ds_deps is not None:
-            self.ds_deps = ds_deps
-        else:
-            self.ds_deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
+    def __init__(self, stage: Stage, reporter=None, cache_mode=None):
+        """the final boss
+
+        This is a multi-purpose God object which should be exterminated.
+
+        stage: a string which names the stage
+        reporter: a reporter object
+        cache_mode: force a specific CacheMode
+        """
+        self.stage = stage
         # Created on first use
         self._cfg: Dict[str, Any] = {}
         self._paths: Optional[helpers.Paths] = None
         self._distro: Optional[distros.Distro] = None
+        self._datasource: Optional[sources.DataSource] = None
+        self._cache_mode = cache_mode
         # Changed only when a fetch occurs
-        self.datasource: Optional[sources.DataSource] = None
         self.ds_restored = False
         self._previous_iid: Optional[str] = None
 
@@ -162,6 +262,28 @@ class Init:
         self._distro = None
 
     @property
+    def cache_mode(self) -> CacheMode:
+        """cache_mode() defines whether to trust the cache"""
+
+        # manually set
+        if self._cache_mode:
+            return self._cache_mode
+
+        # inferred from system state
+        if self.stage == local:
+            if util.get_cfg_option_bool(self.cfg, "manual_cache_clean", False):
+                LOG.debug("manual cache clean set from config")
+                return CacheMode.trust
+            else:
+                mfile = self.paths.get_ipath_cur("manual_clean_marker")
+                if os.path.exists(mfile):
+                    LOG.debug(
+                        "manual cache clean found from marker: %s", mfile
+                    )
+                    return CacheMode.trust
+        return CacheMode.trust
+
+    @property
     def distro(self):
         if not self._distro:
             # Try to find the right class to use
@@ -173,7 +295,7 @@ class Init:
             # If we have an active datasource we need to adjust
             # said datasource and move its distro/system config
             # from whatever it was to a new set...
-            if self.datasource is not None:
+            if self._datasource is not None:
                 self.datasource.distro = self._distro
                 self.datasource.sys_cfg = self.cfg
         return self._distro
@@ -197,9 +319,11 @@ class Init:
 
     @property
     def paths(self):
-        if not self._paths:
-            path_info = self._extract_cfg("paths")
-            self._paths = helpers.Paths(path_info, self.datasource)
+        if self._paths and self._paths.datasource:
+            return self._paths
+        self._paths = helpers.Paths(
+            self._extract_cfg("paths"), self._datasource
+        )
         return self._paths
 
     def _initial_subdirs(self):
@@ -221,22 +345,49 @@ class Init:
         ]
         return initial_dirs
 
-    def purge_cache(self, rm_instance_lnk=False):
-        rm_list = [self.paths.boot_finished]
-        if rm_instance_lnk:
-            rm_list.append(self.paths.instance_link)
-        for f in rm_list:
-            util.del_file(f)
-        return len(rm_list)
+    def start_boot(self):
+        """start_boot() removes old boot_finished file"""
+        util.del_file(self.paths.boot_finished)
 
-    def initialize(self):
-        self._initialize_filesystem()
+    def reset_instance(self):
+        """reset_instance() removes the link to the instance cache"""
+        util.del_file(self.paths.instance_link)
+
+    def track_python_version_change(self):
+        """Purge the cache if python version changed on us.
+
+        There could be changes not represented in our cache (obj.pkl) after we
+        upgrade to a new version of python, so at that point clear the cache
+        """
+        current_python_version = "%d.%d" % (
+            sys.version_info.major,
+            sys.version_info.minor,
+        )
+        python_version_path = os.path.join(
+            self.paths.get_cpath("data"), "python-version"
+        )
+        if os.path.exists(python_version_path):
+            # The Python version has changed out from under us, anything that
+            # was pickled previously is likely useless due to API changes.
+            if current_python_version != util.load_text_file(
+                python_version_path
+            ):
+                LOG.debug("Python version change detected. Purging cache")
+                util.del_file(self.paths.instance_link)
+                util.write_file(python_version_path, current_python_version)
+        else:
+            if os.path.exists(self.paths.get_ipath_cur("obj_pkl")):
+                LOG.info(
+                    "Writing python-version file. "
+                    "Cache compatibility status is currently unknown."
+                )
+            util.write_file(python_version_path, current_python_version)
 
     @staticmethod
     def _get_strictest_mode(mode_1: int, mode_2: int) -> int:
         return mode_1 & mode_2
 
-    def _initialize_filesystem(self):
+    def initialize_filesystem(self):
         mode = 0o640
 
         util.ensure_dirs(self._initial_subdirs())
@@ -296,14 +447,18 @@ class Init:
         # using the new location of run_dir
         return self._read_bootstrap_cfg(extra_fns, paths)
 
-    def _read_bootstrap_cfg(self, extra_fns, bootstrapped_config: dict):
-        no_cfg_paths = helpers.Paths(bootstrapped_config, self.datasource)
+    def _read_bootstrap_cfg(
+        self,
+        extra_fns,
+        bootstrapped_config: dict,
+    ):
+        no_cfg_paths = helpers.Paths(bootstrapped_config, self._datasource)
         instance_data_file = no_cfg_paths.get_runpath(
             "instance_data_sensitive"
         )
         merger = helpers.ConfigMerger(
             paths=no_cfg_paths,
-            datasource=self.datasource,
+            datasource=self._datasource,
             additional_fns=extra_fns,
             base_cfg=fetch_base_config(
                 no_cfg_paths.run_dir, instance_data_file=instance_data_file
@@ -318,8 +473,6 @@ class Init:
         return sources.pkl_load(self.paths.get_ipath_cur("obj_pkl"))
 
     def _write_to_cache(self):
-        if self.datasource is None:
-            return False
         if util.get_cfg_option_bool(self.cfg, "manual_cache_clean", False):
             # The empty file in instance/ dir indicates manual cleaning,
             # and can be read by ds-identify.
@@ -342,9 +495,7 @@ class Init:
         cfg_list = self.cfg.get("datasource_list") or []
         return (cfg_list, pkg_list)
 
-    def _restore_from_checked_cache(self, existing):
-        if existing not in ("check", "trust"):
-            raise ValueError("Unexpected value for existing: %s" % existing)
+    def _restore_from_checked_cache(self):
 
         ds = self._restore_from_cache()
         if not ds:
@@ -358,7 +509,7 @@ class Init:
 
         if run_iid == ds.get_instance_id():
             return (ds, "restored from cache with run check: %s" % ds)
-        elif existing == "trust":
+        elif self.cache_mode == CacheMode.trust:
             return (ds, "restored from cache: %s" % ds)
         else:
             if hasattr(ds, "check_instance_id") and ds.check_instance_id(
@@ -368,16 +519,21 @@ class Init:
             else:
                 return (None, "cache invalid in datasource: %s" % ds)
 
-    def _get_data_source(self, existing) -> sources.DataSource:
-        if self.datasource is not None:
-            return self.datasource
+    def fetch(self):
+        """fetch() is an alias for Init.datasource"""
+        return self.datasource
+
+    @property
+    def datasource(self) -> sources.DataSource:
+        if self._datasource:
+            return self._datasource
 
         with events.ReportEventStack(
             name="check-cache",
-            description="attempting to read from cache [%s]" % existing,
+            description="attempting to read from cache [%s]" % self.cache_mode,
             parent=self.reporter,
         ) as myrep:
-            ds, desc = self._restore_from_checked_cache(existing)
+            ds, desc = self._restore_from_checked_cache()
             myrep.description = desc
             self.ds_restored = bool(ds)
             LOG.debug(myrep.description)
@@ -391,15 +547,15 @@ class Init:
                     self.cfg,
                     self.distro,
                     self.paths,
-                    copy.deepcopy(self.ds_deps),
+                    copy.deepcopy(self.stage.deps),
                     cfg_list,
                     pkg_list,
                     self.reporter,
                 )
-                util.del_file(self.paths.instance_link)
+                self.reset_instance()
                 LOG.info("Loaded datasource %s - %s", dsname, ds)
             except sources.DataSourceNotFoundException as e:
-                if existing != "check":
+                if self.cache_mode != CacheMode.check:
                     raise e
                 ds = self._restore_from_cache()
                 if ds and ds.check_if_fallback_is_allowed():
@@ -408,9 +564,9 @@ class Init:
                         ds,
                     )
                 else:
-                    util.del_file(self.paths.instance_link)
+                    self.reset_instance()
                     raise e
-        self.datasource = ds
+        self._datasource = ds
         # Ensure we adjust our path members datasource
         # now that we have one (thus allowing ipath to be used)
         self._reset()
@@ -431,7 +587,7 @@ class Init:
             )
         return instance_dir
 
-    def _write_network_config_json(self, netcfg: dict):
+    def _write_network_config_json(self, netcfg: Optional[dict]):
         """Create /var/lib/cloud/instance/network-config.json
 
         Only attempt once /var/lib/cloud/instance exists which is created
@@ -466,7 +622,7 @@ class Init:
         if already_instancified:
             LOG.info("Instance link already exists, not recreating it.")
         else:
-            util.del_file(self.paths.instance_link)
+            self.reset_instance()
             util.sym_link(idir, self.paths.instance_link)
 
         # Ensures these dirs exist
@@ -544,12 +700,6 @@ class Init:
             or previous != self.datasource.get_instance_id()
         )
         return ret
-
-    def fetch(self, existing="check"):
-        """optionally load datasource from cache, otherwise discover
-        datasource
-        """
-        return self._get_data_source(existing=existing)
 
     def instancify(self):
         return self._reflect_cur_instance()
@@ -1036,9 +1186,9 @@ class Init:
             LOG.warning("Failed to rename devices: %s", e)
 
     def _get_per_boot_network_semaphore(self):
-        return namedtuple("Semaphore", "semaphore args")(
-            helpers.FileSemaphores(self.paths.get_runpath("sem")),
-            ("apply_network_config", PER_ONCE),
+        return Semaphore(
+            semaphore=helpers.FileSemaphores(self.paths.get_runpath("sem")),
+            args=("apply_network_config", PER_ONCE),
         )
 
     def _network_already_configured(self) -> bool:

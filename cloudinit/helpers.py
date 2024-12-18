@@ -202,7 +202,7 @@ class ConfigMerger:
         return e_cfgs
 
     def _get_instance_configs(self):
-        i_cfgs = []
+        i_cfgs: list = []
         # If cloud-config was written, pick it up as
         # a configuration file to use when running...
         if not self._paths:
@@ -437,13 +437,16 @@ class Paths(persistence.CloudInitPickleMixin):
 # care about...
 
 
+_UNSET = object()
+
+
 class DefaultingConfigParser(RawConfigParser):
     DEF_INT = 0
     DEF_FLOAT = 0.0
     DEF_BOOLEAN = False
     DEF_BASE = None
 
-    def get(self, section, option):
+    def get(self, section, option):  # type: ignore [override]
         value = self.DEF_BASE
         try:
             value = RawConfigParser.get(self, section, option)
@@ -460,22 +463,56 @@ class DefaultingConfigParser(RawConfigParser):
 
     def remove_option(self, section, option):
         if self.has_option(section, option):
-            RawConfigParser.remove_option(self, section, option)
+            return RawConfigParser.remove_option(self, section, option)
+        return self.DEF_BOOLEAN
 
-    def getboolean(self, section, option):
+    def getboolean(
+        self,
+        section,
+        option,
+        *,
+        raw=False,
+        vars=None,
+        fallback=_UNSET,
+        **kwargs
+    ):
         if not self.has_option(section, option):
             return self.DEF_BOOLEAN
-        return RawConfigParser.getboolean(self, section, option)
+        return RawConfigParser.getboolean(
+            self, section, option, raw=raw, vars=vars
+        )
 
-    def getfloat(self, section, option):
+    def getfloat(
+        self,
+        section,
+        option,
+        *,
+        raw=False,
+        vars=None,
+        fallback=_UNSET,
+        **kwargs
+    ):
         if not self.has_option(section, option):
             return self.DEF_FLOAT
-        return RawConfigParser.getfloat(self, section, option)
+        return RawConfigParser.getfloat(
+            self, section, option, raw=raw, vars=vars
+        )
 
-    def getint(self, section, option):
+    def getint(
+        self,
+        section,
+        option,
+        *,
+        raw=False,
+        vars=None,
+        fallback=_UNSET,
+        **kwargs
+    ):
         if not self.has_option(section, option):
             return self.DEF_INT
-        return RawConfigParser.getint(self, section, option)
+        return RawConfigParser.getint(
+            self, section, option, raw=raw, vars=vars
+        )
 
     def stringify(self, header=None):
         contents = ""

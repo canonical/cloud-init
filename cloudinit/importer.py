@@ -32,7 +32,7 @@ def _count_attrs(
     return found_attrs
 
 
-def match_case_insensitive_module_name(mod_name: str) -> Optional[str]:
+def match_case_insensitive_module_name(mod_name: str) -> str:
     """Check the importable datasource modules for a case-insensitive match."""
 
     # nocloud-net is the only datasource that requires matching on a name that
