@@ -86,8 +86,6 @@ class CacheMode(str, Enum):
     check = "check"
 
 
-InternalName = Literal["local", "network", "config", "final"]
-
 # used in status.json and some log strings
 UserLongName = Literal[
     "Local Stage",
@@ -103,7 +101,6 @@ UserShortName = Literal[
     "modules-config",
     "modules-final",
 ]
-SingleInternalName = Literal[Union[InternalName, Literal["single"]]]
 
 
 @dataclass
@@ -113,46 +110,50 @@ class BaseStage:
 
 @dataclass
 class BootStage(BaseStage):
-    internal: InternalName
+    """BootStage is used by static analyzers to ensure that values are valid
+
+    This type excludes "single" which enables stricter type checking. Where
+    "single" is also required, use "Stage" which is a union of SingleStage and
+    BootStage.
+
+    long: user-facing stage name
+    short: status.json stage name, used in some logs
+    """
+
     short: UserShortName
     long: UserLongName
 
 
 @dataclass
 class SingleStage(BaseStage):
-    internal: SingleInternalName
+    pass
 
 
 Stage = Union[SingleStage, BootStage]
 
-
+# These module variables store static data that is associated with each stage.
 # https://docs.cloud-init.io/en/latest/explanation/boot.html
 local: Final = BootStage(
     short="init-local",
     long="Local Stage",
-    internal="local",
     deps=[sources.DEP_FILESYSTEM],
 )
 network: Final = BootStage(
     short="init",
     long="Network Stage",
-    internal="network",
     deps=[sources.DEP_FILESYSTEM, sources.DEP_NETWORK],
 )
 config: Final = BootStage(
     short="modules-config",
     long="Config Stage",
-    internal="config",
     deps=[],
 )
 final: Final = BootStage(
     short="modules-final",
     long="Final Stage",
-    internal="final",
     deps=[],
 )
 single: Final = SingleStage(
-    internal="single",
     deps=[],
 )
 

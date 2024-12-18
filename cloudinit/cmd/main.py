@@ -100,6 +100,8 @@ V1Status = TypedDict(
 
 
 class Status(TypedDict):
+    """Status describes the status.json internal datatype"""
+
     v1: V1Status
 
 
@@ -487,7 +489,7 @@ def main_init(name, args):
     # Stage 5
     bring_up_interfaces = _should_bring_up_interfaces(init, args)
     try:
-        init.datasource
+        init.fetch()
         # if in network mode, and the datasource is local
         # then work was done at that stage.
         if mode == sources.DSMODE_NETWORK and init.datasource.dsmode != mode:

@@ -668,19 +668,18 @@ def get_opensshd_upstream_version() -> lifecycle.Version:
     """
     # The default version of openssh is not less than 9.0
     default_version = "9.0"
-    upstream_version_str = default_version
+    upstream_version = default_version
     full_version = get_opensshd_version()
     if full_version is None:
-        return lifecycle.Version.from_str(upstream_version_str)
+        return lifecycle.Version.from_str(upstream_version)
     if "p" in full_version:
-        upstream_version_str = full_version[: full_version.find("p")]
+        upstream_version = full_version[: full_version.find("p")]
     elif " " in full_version:
-        upstream_version_str = full_version[: full_version.find(" ")]
+        upstream_version = full_version[: full_version.find(" ")]
     else:
-        upstream_version_str = full_version
+        upstream_version = full_version
     try:
-        upstream_version = lifecycle.Version.from_str(upstream_version_str)
-        return upstream_version
+        return lifecycle.Version.from_str(upstream_version)
     except (ValueError, TypeError):
-        LOG.warning("Could not parse sshd version: %s", upstream_version_str)
+        LOG.warning("Could not parse sshd version: %s", upstream_version)
         return lifecycle.Version.from_str(default_version)
