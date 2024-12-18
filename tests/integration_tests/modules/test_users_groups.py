@@ -50,10 +50,6 @@ AHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
     uid: 1743
 """
 
-NEW_USER_EMPTY_PASSWD_WARNING = "Not unlocking password for user {username}. 'lock_passwd: false' present in user-data but no 'passwd'/'plain_text_passwd'/'hashed_passwd' provided in user-data"  # noqa: E501
-
-EXISTING_USER_EMPTY_PASSWD_WARNING = "Not unlocking blank password for existing user {username}. 'lock_passwd: false' present in user-data but no existing password set and no 'plain_text_passwd'/'hashed_passwd' provided in user-data"  # noqa E501
-
 
 @pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
@@ -114,40 +110,11 @@ class TestUsersGroups:
         """Test root user is in 'secret' group."""
         verify_clean_boot(
             class_client,
-            require_warnings=[
-                NEW_USER_EMPTY_PASSWD_WARNING.format(username="nopassworduser")
-            ],
         )
         output = class_client.execute("groups root").stdout
         _, groups_str = output.split(":", maxsplit=1)
         groups = groups_str.split()
         assert "secret" in groups
-
-    def test_nopassword_unlock_warnings(self, class_client):
-        """Verify warnings for empty passwords for new and existing users."""
-        verify_clean_boot(
-            class_client,
-            require_warnings=[
-                NEW_USER_EMPTY_PASSWD_WARNING.format(username="nopassworduser")
-            ],
-        )
-
-        # Fake admin clearing and unlocking and empty unlocked password foobar
-        # This will generate additional warnings about not unlocking passwords
-        # for pre-existing users which have an existing empty password
-        class_client.execute("passwd -d foobar")
-        class_client.instance.clean()
-        class_client.restart()
-        verify_clean_boot(
-            class_client,
-            ignore_warnings=True,  # ignore warnings about existing groups
-            require_warnings=[
-                EXISTING_USER_EMPTY_PASSWD_WARNING.format(
-                    username="nopassworduser"
-                ),
-                EXISTING_USER_EMPTY_PASSWD_WARNING.format(username="foobar"),
-            ],
-        )
 
 
 @pytest.mark.user_data(USER_DATA)

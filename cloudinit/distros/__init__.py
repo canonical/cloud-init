@@ -896,7 +896,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                     password_key = "passwd"
                     # Only "plain_text_passwd" and "hashed_passwd"
                     # are valid for an existing user.
-                    LOG.warning(
+                    LOG.info(
                         "'passwd' in user-data is ignored for existing "
                         "user %s",
                         name,
@@ -937,7 +937,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         elif pre_existing_user:
             # Pre-existing user with no existing password and none
             # explicitly set in user-data.
-            LOG.warning(
+            LOG.info(
                 "Not unlocking blank password for existing user %s."
                 " 'lock_passwd: false' present in user-data but no existing"
                 " password set and no 'plain_text_passwd'/'hashed_passwd'"
@@ -946,7 +946,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             )
         else:
             # No password (whether blank or otherwise) explicitly set
-            LOG.warning(
+            LOG.info(
                 "Not unlocking password for user %s. 'lock_passwd: false'"
                 " present in user-data but no 'passwd'/'plain_text_passwd'/"
                 "'hashed_passwd' provided in user-data",
