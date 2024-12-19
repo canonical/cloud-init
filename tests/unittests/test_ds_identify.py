@@ -934,6 +934,10 @@ class TestDsIdentify(DsIdentifyBase):
         """Open Huawei Cloud identification."""
         self._test_ds_found("OpenStack-HuaweiCloud")
 
+    def test_openstack_samsung_cloud_platform(self):
+        """Open Samsung Cloud Platform identification."""
+        self._test_ds_found("OpenStack-SamsungCloudPlatform")
+
     def test_openstack_asset_tag_nova(self):
         """OpenStack identification via asset tag OpenStack Nova."""
         self._test_ds_found("OpenStack-AssetTag-Nova")
@@ -2118,6 +2122,12 @@ VALID_CFG = {
         # Huawei Cloud hosts use OpenStack
         "ds": "OpenStack",
         "files": {P_CHASSIS_ASSET_TAG: "HUAWEICLOUD\n"},
+        "mocks": [MOCK_VIRT_IS_KVM],
+    },
+    "OpenStack-SamsungCloudPlatform": {
+        # Samsung Cloud Platform hosts use OpenStack
+        "ds": "OpenStack",
+        "files": {P_CHASSIS_ASSET_TAG: "Samsung Cloud Platform\n"},
         "mocks": [MOCK_VIRT_IS_KVM],
     },
     "OpenStack-AssetTag-Nova": {
